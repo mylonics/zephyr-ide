@@ -1,0 +1,87 @@
+/*
+Copyright 2024 mylonics 
+Author Rijesh Augustine
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+import * as vscode from "vscode";
+import path from "path";
+
+import { getShellEnvironment, executeTask } from "../utilities/utils";
+
+import { ProjectConfig } from "../project_utilities/project";
+
+import { WorkspaceConfig } from '../setup_utilities/setup';
+import { BuildConfig } from "../project_utilities/build_selector";
+import { RunnerConfig } from "../project_utilities/runner_selector";
+
+export async function flashByName(wsConfig: WorkspaceConfig, projectName: string, buildName: string, runnerName: string) {
+  let project = wsConfig.projects[projectName];
+  let buildConfig = project.buildConfigs[buildName];
+  let runnerConfig = buildConfig.runners[runnerName];
+  if (project && buildConfig && runnerConfig) {
+    await flash(wsConfig, project, buildConfig, runnerConfig);
+  } else {
+    vscode.window.showErrorMessage("Invalid project or build");
+  }
+}
+
+export async function flashActive(wsConfig: WorkspaceConfig) {
+
+  if (wsConfig.activeProject === undefined) {
+    vscode.window.showErrorMessage("Select a project before trying to flash");
+    return;
+  }
+  let projectName = wsConfig.activeProject;
+  let project = wsConfig.projects[projectName];
+  if (project.activeBuildConfig === undefined) {
+    vscode.window.showErrorMessage("Select a build before trying to flash");
+    return;
+  }
+  let build = project.buildConfigs[project.activeBuildConfig];
+  if (build.activeRunner === undefined) {
+    vscode.window.showErrorMessage("Select a runner before trying to flash");
+    return;
+  }
+  let runner = build.runners[build.activeRunner];
+  flash(wsConfig, project, build, runner);
+}
+
+export async function flash(wsConfig: WorkspaceConfig, project: ProjectConfig, build: BuildConfig, runner: RunnerConfig) {
+  let cmds = await vscode.commands.getCommands();
+  const subArr = cmds.filter(str => str.includes("debug"));
+  // Options for ShellExecution
+  let options: vscode.ShellExecutionOptions = {
+    env: <{ [key: string]: string }>getShellEnvironment(wsConfig),
+    cwd: path.join(wsConfig.rootPath, project.rel_path),
+  };
+
+  // Tasks
+  let taskName = "Zephyr IDE Flash: " + project.name + " " + build.name;
+  let cmd = `west flash --build-dir ${path.join(wsConfig.rootPath, project.rel_path, build.name)}`;
+
+  cmd += ` -r ${runner.runner} ${runner.args}`;
+
+  // Task
+  let task = new vscode.Task(
+    { type: "zephyr-ide", command: taskName, isBackground: true },
+    vscode.TaskScope.Workspace,
+    taskName,
+    "Zephyr IDE",
+    new vscode.ShellExecution(cmd, options)
+  );
+
+  vscode.window.showInformationMessage(`Flashing for ${project.activeBuildConfig}`);
+  await executeTask(task);
+}

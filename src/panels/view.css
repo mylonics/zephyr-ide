@@ -1,0 +1,65 @@
+#collapsible_btn {
+  width: 100%;
+}
+
+vscode-collapsible vscode-icon {
+  visibility: hidden;
+}
+
+vscode-collapsible:hover>vscode-icon {
+  visibility: visible;
+}
+
+/*
+vscode-tree {
+  --vscode-list-inactiveSelectionBackground: var(--vscode-button-background);
+  --vscode-list-inactiveSelectionForeground: var(--vscode-button-foreground);
+  --vscode-list-activeSelectionForeground: var(--vscode-button-foreground);
+  --vscode-list-activeSelectionBackground: var(--vscode-button-background);
+}
+*/
+
+.inlineblock {
+  display: flex;
+}
+
+.nowrap {
+  padding-left: 6px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.widebtn {
+  max-width: 250px;
+  width: 95%;
+  padding-left: 10px;
+  padding-right: 10px;
+  display: block;
+  margin-top: 5px;
+  margin-bottom: 5px;
+}
+
+
+/*
+vscode-collapsible:hover:not(:has(vscode-collapsible:hover))>vscode-collapsible {
+  --vscode-sideBarSectionHeader-background: green;
+}*/
+
+
+/*
+#add-btn {
+  visibility: hidden;
+}
+
+
+#button-1:hover #add-btn {
+  visibility: visible;
+}
+*/
+.indent {
+  width: 95%;
+  float: right;
+  padding-left: 1px;
+  border-left: 1px solid var(--vscode-foreground);
+}
