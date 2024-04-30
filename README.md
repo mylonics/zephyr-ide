@@ -1,6 +1,6 @@
-# zephyr-ide README
+#  Zephyr IDE for VS Code
 
-The Zephyr IDE for VS code extension provides tools to aide in your zephyr work flow. This extension helps you to build Zephyr projects and share them with your team.
+The Zephyr IDE for VS code extension provides tools to aide in your Zephyr Project work flow. This extension helps you to build Zephyr projects and share them with your team.
 
 ## Features
 - Installs toolchains/sdks
@@ -26,7 +26,7 @@ This extension contributes the following settings:
 
 ## Known Issues
 
-* macOS compatibility is untested. Please make an issue on our gihub page with an problems
+* macOS compatibility is untested. Please make an issue on our gihub page with any incompatibilities found.
 
 ## Release Notes
 
