@@ -35,7 +35,7 @@ export interface ProjectConfig {
 
 export async function createNewProjectFromSample(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
   if (!wsConfig.zephyrDir) {
-    vscode.window.showErrorMessage("Run `Zephyr IDE: West Init` first.");
+    vscode.window.showErrorMessage("Run `Zephyr IDE: West Update` first.");
     return;
   }
   let sampleDir = path.join(wsConfig.zephyrDir, "samples/basic");
