@@ -2,7 +2,7 @@
   "name": "zephyr-ide",
   "displayName": "Zephyr IDE",
   "description": "A VS Code extension that streamlines setup, build, flashing, and debugging of Zephyr Projects",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "license": "Apache-2.0",
   "publisher": "mylonics",
   "icon": "media/logo.png",
@@ -407,7 +407,11 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "npm run esbuild-base -- --minify",
+    "esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node",
+    "esbuild": "npm run esbuild-base -- --sourcemap",
+    "esbuild-watch": "npm run esbuild-base -- --sourcemap --watch",
+    "test-compile": "tsc -p ./",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
@@ -424,6 +428,7 @@
     "@typescript-eslint/parser": "^7.4.0",
     "@vscode/test-cli": "^0.0.8",
     "@vscode/test-electron": "^2.3.9",
+    "esbuild": "^0.20.2",
     "eslint": "^8.57.0",
     "typescript": "^5.3.3"
   },
