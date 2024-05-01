@@ -13,9 +13,6 @@ manifest:
         name-allowlist:
           - cmsis
           - cmsis-dsp
-          - cmsis-nn
           - hal_nordic
-          - hal_stm32
-          - libmetal
           - picolibc
           - segger
