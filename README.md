@@ -9,6 +9,14 @@ The Zephyr IDE for VS code extension provides tools to aide in your Zephyr Proje
 - Add conf file and overlay files
 - Build, Flash, and Debug projects
 
+
+## Getting Started
+There are two tutorial available on youtube.
+
+[Getting Started with Zephyr IDE for VSCode](https://youtu.be/Asfolnh9kqM)
+
+[Creating a New Board, Building, Flashing, and Debugging](https://youtu.be/TXcTzyswBMQ)
+
 ## Requirements
 
 In order for this application to work correctly the zephyr require build tools need to be installed and available on the path. These include cmake, python3, and Devicetree Compiler. 

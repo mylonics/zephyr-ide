@@ -2,7 +2,7 @@
   "name": "zephyr-ide",
   "displayName": "Zephyr IDE",
   "description": "A VS Code extension that streamlines setup, build, flashing, and debugging of Zephyr Projects",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "license": "Apache-2.0",
   "publisher": "mylonics",
   "icon": "media/logo.png",
@@ -333,7 +333,7 @@
             "name": "Zephyr IDE: Attach",
             "cwd": "${workspaceFolder}",
             "gdbPath": "${command:zephyr-ide.get-gdb-path}",
-            "executable": "${workspaceFolder}/${command:zephyr-ide.get-active-project}/zephyr/zephyr.elf",
+            "executable": "${command:zephyr-ide.get-active-build-path}/zephyr/zephyr.elf",
             "request": "launch",
             "type": "cortex-debug",
             "servertype": "bmp",
@@ -350,16 +350,16 @@
             "label": "Zephyr IDE: Debug",
             "description": "Basic Cortex Debug example with blackmagic probe",
             "body": {
-              "name": "Zephyr IDE Debug",
-              "cwd": "${workspaceFolder}",
-              "gdbPath": "${command:zephyr-ide.get-gdb-path}",
-              "executable": "${command:zephyr-ide.get-active-build-path}/zephyr/zephyr.elf",
+              "name": "Zephyr IDE: Debug",
+              "cwd": "^\"\\${workspaceFolder}\"",
+              "gdbPath": "^\"\\${command:zephyr-ide.get-gdb-path}\"",
+              "executable": "^\"\\${command:zephyr-ide.get-active-build-path}/zephyr/zephyr.elf\"",
               "request": "launch",
-              "type": "zephyr-ide",
+              "type": "cortex-debug",
               "servertype": "bmp",
               "interface": "swd",
               "device": "STM32F103",
-              "BMPGDBSerialPort": "${config:bmp_serial_port}",
+              "BMPGDBSerialPort": "^\"\\${config:bmp_serial_port}\"",
               "preLaunchCommands": [
                 "monitor rtt enable"
               ]
@@ -369,16 +369,16 @@
             "label": "Zephyr IDE: Attach",
             "description": "Basic Cortex Debug attach example with blackmagic probe",
             "body": {
-              "name": "Zephyr IDE Attach",
-              "cwd": "${workspaceFolder}",
-              "gdbPath": "${command:zephyr-ide.get-gdb-path}",
-              "executable": "${workspaceFolder}/${command:zephyr-ide.get-active-project}/zephyr/zephyr.elf",
+              "name": "Zephyr IDE: Attach",
+              "cwd": "^\"\\${workspaceFolder}\"",
+              "gdbPath": "^\"\\${command:zephyr-ide.get-gdb-path}\"",
+              "executable": "^\"\\${command:zephyr-ide.get-active-build-path}/zephyr/zephyr.elf\"",
               "request": "launch",
               "type": "cortex-debug",
               "servertype": "bmp",
               "interface": "swd",
               "device": "STM32F103",
-              "BMPGDBSerialPort": "${config:bmp_serial_port}",
+              "BMPGDBSerialPort": "^\"\\${config:bmp_serial_port}\"",
               "preLaunchCommands": [
                 "monitor rtt enable"
               ]
@@ -388,15 +388,16 @@
             "label": "Zephyr IDE: Debug Select",
             "description": "An example where a user will select a build each time the configuration is run",
             "body": {
-              "cwd": "${workspaceFolder}",
-              "gdbPath": "${command:zephyr-ide.get-gdb-path}",
-              "executable": "${command:zephyr-ide.select-active-build-path}/zephyr/zephyr.elf",
+              "name": "Zephyr IDE: Debug Select",
+              "cwd": "^\"\\${workspaceFolder}\"",
+              "gdbPath": "^\"\\${command:zephyr-ide.get-gdb-path}\"",
+              "executable": "^\"\\${command:zephyr-ide.select-active-build-path}/zephyr/zephyr.elf\"",
               "request": "launch",
               "type": "cortex-debug",
               "servertype": "bmp",
               "interface": "swd",
               "device": "STM32F103",
-              "BMPGDBSerialPort": "${config:bmp_serial_port}",
+              "BMPGDBSerialPort": "^\"\\${config:bmp_serial_port}\"",
               "preLaunchCommands": [
                 "monitor rtt enable"
               ]
