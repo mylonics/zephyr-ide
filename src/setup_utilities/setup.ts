@@ -93,6 +93,7 @@ export async function loadProjectsFromFile(config: WorkspaceConfig) {
     }
   } else {
     let temp: ProjectConfigDictionary | undefined = await configuration.get("zephyr-ide.projects");
+    temp = JSON.parse(JSON.stringify(temp));
     if (temp) {
       config.projects = {};
       for (let key in temp) {
