@@ -49,6 +49,10 @@ This extension contributes the following settings:
 * macOS compatibility is untested. Please make an issue on our gihub page with any incompatibilities found.
 
 ## Release Notes
+### 1.0.9
+
+Fixed incorrect build notification
+
 ### 1.0.8
 
 Reverted default project file to use

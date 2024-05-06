@@ -126,7 +126,7 @@ export async function build(
     exec
   );
 
-  vscode.window.showInformationMessage(`Building for ${project.activeBuildConfig}`);
+  vscode.window.showInformationMessage(`Building ${build.name} from project: ${project.name}`);
   await executeTask(task);
 }
 
