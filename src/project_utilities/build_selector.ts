@@ -151,18 +151,18 @@ export async function buildSelector(wsConfig: WorkspaceConfig) {
 
       if (file[0].includes(".yaml")) {
         let parsed = path.parse(file[0]);
-        boards.push({ name: parsed.name, subdir: parsed.dir });
+        boards.unshift({ name: parsed.name, subdir: parsed.dir });
       } else if (file[0].includes("build") || file[0].includes(".git")) {
         // Don't do anything
       } else if (file[1] === vscode.FileType.Directory) {
-        let path = vscode.Uri.joinPath(folder, file[0]);
-        let subfolders = await vscode.workspace.fs.readDirectory(path);
+        let filePath = vscode.Uri.joinPath(folder, file[0]);
+        let subfolders = await vscode.workspace.fs.readDirectory(filePath);
 
         for (let { index, value } of subfolders.map((value, index) => ({
           index,
           value,
         }))) {
-          subfolders[index][0] = vscode.Uri.parse(`${file[0]}/${subfolders[index][0]}`).fsPath;
+          subfolders[index][0] = path.join(file[0], subfolders[index][0]);
         }
         files = files.concat(subfolders);
       }

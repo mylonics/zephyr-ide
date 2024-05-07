@@ -71,7 +71,9 @@ export async function flash(wsConfig: WorkspaceConfig, project: ProjectConfig, b
   let taskName = "Zephyr IDE Flash: " + project.name + " " + build.name;
   let cmd = `west flash --build-dir ${path.join(wsConfig.rootPath, project.rel_path, build.name)}`;
 
-  cmd += ` -r ${runner.runner} ${runner.args}`;
+  if (runner.runner !== "default") {
+    cmd += ` -r ${runner.runner} ${runner.args}`;
+  }
 
   // Task
   let task = new vscode.Task(
