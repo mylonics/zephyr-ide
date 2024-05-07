@@ -83,6 +83,12 @@ export async function loadProjectsFromFile(config: WorkspaceConfig) {
         config.projects = {};
         if (projects) {
           for (let key in projects) {
+
+            for (let buildKey in projects[key].buildConfigs) {
+              if (projects[key].buildConfigs[buildKey].relBoardSubDir === undefined) {
+                projects[key].buildConfigs[buildKey].relBoardSubDir = path.join("arm", projects[key].buildConfigs[buildKey].board);
+              }
+            }
             config.projects[key] = projects[key];
           }
         }
@@ -97,6 +103,11 @@ export async function loadProjectsFromFile(config: WorkspaceConfig) {
     if (temp) {
       config.projects = {};
       for (let key in temp) {
+        for (let buildKey in temp[key].buildConfigs) {
+          if (temp[key].buildConfigs[buildKey].relBoardSubDir === undefined) {
+            temp[key].buildConfigs[buildKey].relBoardSubDir = path.join("arm", temp[key].buildConfigs[buildKey].board);
+          }
+        }
         config.projects[key] = temp[key];
       }
     }

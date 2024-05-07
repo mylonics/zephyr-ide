@@ -29,6 +29,7 @@ export interface BuildConfig {
   name: string;
   board: string;
   relBoardDir: string;
+  relBoardSubDir: string;
   debugOptimization: string;
   runners: RunnerConfigDictionary;
   activeRunner?: string;
@@ -41,8 +42,6 @@ export interface BuildConfig {
 export type BuildConfigDictionary = { [name: string]: BuildConfig };
 
 export async function buildSelector(wsConfig: WorkspaceConfig) {
-
-
   const title = 'Add Build Configuration';
 
   async function pickBoardDir(input: MultiStepInput, state: Partial<BuildConfig>) {
@@ -104,12 +103,12 @@ export async function buildSelector(wsConfig: WorkspaceConfig) {
   }
 
   async function inputBoardName(input: MultiStepInput, state: Partial<BuildConfig>) {
-    let boards: string[] = [];
+    let boards: { name: string, subdir: string }[] = [];
 
     if (state.relBoardDir) {
       console.log("Changing board dir to " + state.relBoardDir);
       boards = boards.concat(await getBoardlist(vscode.Uri.file(path.join(wsConfig.rootPath, state.relBoardDir)), wsConfig.onlyArm));
-      const boardQpItems: QuickPickItem[] = boards.map(label => ({ label }));
+      const boardQpItems: QuickPickItem[] = boards.map(x => ({ label: x.name, description: x.subdir }));
       const pickPromise = input.showQuickPick({
         title,
         step: 2,
@@ -127,19 +126,20 @@ export async function buildSelector(wsConfig: WorkspaceConfig) {
         return;
       };
       state.board = pick.label;
+      state.relBoardSubDir = pick.description;
 
       return (input: MultiStepInput) => inputBuildName(input, state);
     }
   }
 
-  async function getBoardlist(folder: vscode.Uri, onlyArm: boolean): Promise<string[]> {
+  async function getBoardlist(folder: vscode.Uri, onlyArm: boolean): Promise<{ name: string, subdir: string }[]> {
     if (onlyArm) {
       let files = await vscode.workspace.fs.readDirectory(vscode.Uri.joinPath(folder, "arm"));
-      return files.map((x => (x[0])));
+      return files.map((x => ({ name: x[0], subdir: path.join("arm", x[0]) })));
     }
 
     let files = await vscode.workspace.fs.readDirectory(folder);
-    let boards: string[] = [];
+    let boards: { name: string, subdir: string }[] = [];
 
     while (true) {
       let file = files.pop();
@@ -151,7 +151,7 @@ export async function buildSelector(wsConfig: WorkspaceConfig) {
 
       if (file[0].includes(".yaml")) {
         let parsed = path.parse(file[0]);
-        boards.push(parsed.name);
+        boards.push({ name: parsed.name, subdir: parsed.dir });
       } else if (file[0].includes("build") || file[0].includes(".git")) {
         // Don't do anything
       } else if (file[1] === vscode.FileType.Directory) {

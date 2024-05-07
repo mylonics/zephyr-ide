@@ -516,7 +516,7 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
         }
         case "openBoardDtc": {
           let build = this.wsConfig.projects[message.value.project].buildConfigs[message.value.build];
-          let filePath = vscode.Uri.file(path.join(this.wsConfig.rootPath, build.relBoardDir, "arm", build.board, build.board + ".dts"));
+          let filePath = vscode.Uri.file(path.join(this.wsConfig.rootPath, build.relBoardDir, build.relBoardSubDir, build.board + ".dts"));
 
           vscode.workspace.openTextDocument(filePath).then(document => vscode.window.showTextDocument(document));
           setActive(this.wsConfig, message.value.project, message.value.build, message.value.runner);
