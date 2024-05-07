@@ -18,6 +18,9 @@ limitations under the License.
 import { QuickPickItem } from 'vscode';
 import { MultiStepInput } from "../utilities/multistepQuickPick";
 
+import path from "path";
+import * as fs from 'fs';
+
 // Config for the extension
 export interface RunnerConfig {
   name: string;
@@ -27,13 +30,23 @@ export interface RunnerConfig {
 
 export type RunnerConfigDictionary = { [name: string]: RunnerConfig };
 
-export async function runnerSelector() {
+export async function runnerSelector(boardfolder: string) {
   const title = 'Add Runner';
+
+  const boardCMakeFile = fs.readFileSync(path.join(boardfolder, 'board.cmake'), 'utf8');
+  let runners = ["default"];
+
+  boardCMakeFile.split(/\r?\n/).forEach(line => {
+
+    if (line.includes("include(${ZEPHYR_BASE}/boards/common/") && line.includes(".board.cmake)")) {
+      runners.push(line.replace('include(${ZEPHYR_BASE}/boards/common/', '').replace(".board.cmake)", '').replace(/\s/g, ''));
+    }
+    console.log(`Line from file: ${line}`);
+  });
 
   async function pickRunner(input: MultiStepInput, state: Partial<RunnerConfig>) {
 
     // Get runners
-    let runners: string[] = ["default", "jlink", "nrfjprog", "openocd", "pyocd", "qemu", "stlink", "dfu-util", "blackmagicprobe"];
     const runnersQpItems: QuickPickItem[] = runners.map(label => ({ label }));
 
     const pickPromise = input.showQuickPick({

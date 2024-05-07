@@ -493,7 +493,7 @@ export async function setActiveRunner(context: vscode.ExtensionContext, wsConfig
 
 export async function addRunnerToBuild(wsConfig: WorkspaceConfig, context: vscode.ExtensionContext, projectName: string, buildName: string) {
   let build = wsConfig.projects[projectName].buildConfigs[buildName];
-  let result = await runnerSelector();
+  let result = await runnerSelector(path.join(wsConfig.rootPath, build.relBoardDir, build.relBoardSubDir));
   if (result && result.name !== undefined) {
     if (build.runners[result.name]) {
       const selection = await vscode.window.showWarningMessage('Runner Configuration with name: ' + result.name + ' already exists!', 'Overwrite', 'Cancel');
