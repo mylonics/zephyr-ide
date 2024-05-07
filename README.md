@@ -49,6 +49,10 @@ This extension contributes the following settings:
 * macOS compatibility is untested. Please make an issue on our gihub page with any incompatibilities found.
 
 ## Release Notes
+### 1.0.12
+
+Added default args for runner
+
 ### 1.0.11
 
 Fixed default runner

@@ -72,8 +72,9 @@ export async function flash(wsConfig: WorkspaceConfig, project: ProjectConfig, b
   let cmd = `west flash --build-dir ${path.join(wsConfig.rootPath, project.rel_path, build.name)}`;
 
   if (runner.runner !== "default") {
-    cmd += ` -r ${runner.runner} ${runner.args}`;
+    cmd += ` -r ${runner.runner}`;
   }
+  cmd += ` ${runner.args}`;
 
   // Task
   let task = new vscode.Task(
