@@ -29,6 +29,9 @@ export interface WestLocation {
   markAsInitialized: boolean | undefined
 }
 
+const zephyrVersions = ["Default", "v3.6.0", "v2.7.6", "v3.5.0", "Other Version"];
+const ncsVersions = ["Default", "v2.6.1", "v2.6.0", "v2.5.3", "Other Version"];
+
 export async function westSelector(context: ExtensionContext, wsConfig: WorkspaceConfig) {
 
   const title = 'Initialize West';
@@ -58,7 +61,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
     const pickPromise = await input.showQuickPick({
       title,
       step: 1,
-      totalSteps: 1,
+      totalSteps: 2,
       placeholder: 'Select west.yml',
       items: westOptionQpItems,
       activeItem: typeof state.path !== 'string' ? state.path : undefined,
@@ -119,6 +122,82 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
       }
 
       let res = await fs.copyFile(srcPath, desPath, fs.constants.COPYFILE_FICLONE);
+
+
+      const yaml = require('js-yaml');
+      let doc = yaml.load(fs.readFileSync(desPath, 'utf-8'));
+
+      let isNcsProject = false;
+      for (let i = 0; i < doc.manifest.projects.length; i++) {
+        if (doc.manifest.projects[i].name === "sdk-nrf") {
+          isNcsProject = true;
+        }
+      }
+
+      let versionList = zephyrVersions;
+      let versionSelectionString = "Select Zephyr Version";
+      if (isNcsProject) {
+        versionList = ncsVersions;
+        versionSelectionString = "Select NCS Version";
+      }
+
+      const versionQP: QuickPickItem[] = [];
+      for (let key in versionList) {
+        versionQP.push({ label: versionList[key] });
+      }
+
+      const pickPromise = await input.showQuickPick({
+        title,
+        step: 2,
+        totalSteps: 2,
+        placeholder: versionSelectionString,
+        items: versionQP,
+        activeItem: typeof state.path !== 'string' ? state.path : undefined,
+        shouldResume: shouldResume,
+      }).catch((error) => {
+        return;
+      });
+
+      let pick = await pickPromise;
+      if (!pick) {
+        state.failed = true;
+        return;
+      }
+      if (pick.label === "Other Version") {
+        async function validate(name: string) {
+          return undefined;
+        }
+
+        const inputPromise = input.showInputBox({
+          title,
+          step: 3,
+          totalSteps: 3,
+          value: "Default",
+          prompt: 'Input a Version Number (vX.X.X)',
+          validate: validate,
+          shouldResume: shouldResume
+        }).catch((error) => {
+          console.error(error);
+          return undefined;
+        });
+        let version = await inputPromise;
+        if (!version) {
+          return;
+        };
+        pick.label = version;
+      }
+
+      if (pick.label !== "Default") {
+        for (let i = 0; i < doc.manifest.projects.length; i++) {
+          if ((isNcsProject && doc.manifest.projects[i].name === "sdk-nrf") || !isNcsProject && doc.manifest.projects[i].name === "zephyr") {
+            doc.manifest.projects[i].revision = pick.label;
+          }
+        }
+        fs.writeFileSync(desPath, yaml.dump(doc));
+      }
+
+
+
       state.failed = false;
       state.path = westDirPath;
     } else {

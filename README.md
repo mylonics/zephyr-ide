@@ -51,6 +51,10 @@ This extension contributes the following settings:
 ## Release Notes
 ### 1.0.13
 
+Added the ability to select different zephyr versions.
+
+### 1.0.13
+
 Added checks for dtc and cmake. Removed showing only arm boards when only arm toolchain is installed.
 
 ### 1.0.12
