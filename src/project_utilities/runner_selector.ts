@@ -32,17 +32,18 @@ export type RunnerConfigDictionary = { [name: string]: RunnerConfig };
 
 export async function runnerSelector(boardfolder: string) {
   const title = 'Add Runner';
-
-  const boardCMakeFile = fs.readFileSync(path.join(boardfolder, 'board.cmake'), 'utf8');
   let runners = ["default"];
 
-  boardCMakeFile.split(/\r?\n/).forEach(line => {
+  let boardcmakePath = path.join(boardfolder, 'board.cmake');
+  if (fs.existsSync(boardcmakePath)) {
+    const boardCMakeFile = fs.readFileSync(boardcmakePath, 'utf8');
+    boardCMakeFile.split(/\r?\n/).forEach(line => {
 
-    if (line.includes("include(${ZEPHYR_BASE}/boards/common/") && line.includes(".board.cmake)")) {
-      runners.push(line.replace('include(${ZEPHYR_BASE}/boards/common/', '').replace(".board.cmake)", '').replace(/\s/g, ''));
-    }
-    console.log(`Line from file: ${line}`);
-  });
+      if (line.includes("include(${ZEPHYR_BASE}/boards/common/") && line.includes(".board.cmake)")) {
+        runners.push(line.replace('include(${ZEPHYR_BASE}/boards/common/', '').replace(".board.cmake)", '').replace(/\s/g, ''));
+      }
+    });
+  }
 
   async function pickRunner(input: MultiStepInput, state: Partial<RunnerConfig>) {
 
