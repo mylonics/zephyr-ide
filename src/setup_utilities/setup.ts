@@ -471,6 +471,80 @@ export async function checkIfToolsAvailable(context: vscode.ExtensionContext, ws
     return;
   }
 
+
+  // Check if Git exists in path
+  res = await exec("cmake --version").then(
+    value => {
+      output.append(value.stdout);
+      output.append(value.stderr);
+      output.appendLine("[SETUP] cmake installed");
+      return true;
+    },
+    reason => {
+      output.appendLine("[SETUP] cmake is not found");
+      output.append(reason);
+
+      switch (platform) {
+        case "darwin":
+          output.appendLine("[SETUP] use `brew` to install `cmake`");
+          output.appendLine("[SETUP] Install `brew` first: https://brew.sh");
+          output.appendLine("[SETUP] Then run `brew install cmake`");
+          break;
+        case "linux":
+          output.appendLine("[SETUP] refer to your distros preferred `cmake` install method.");
+          break;
+        default:
+          break;
+      }
+
+      // Error message
+      vscode.window.showErrorMessage("Unable to continue. cmake not installed. Check output for more info.");
+      return false;
+    }
+  );
+
+  // Return if error
+  if (!res) {
+    return;
+  }
+
+
+  // Check if Git exists in path
+  res = await exec("dtc --version").then(
+    value => {
+      output.append(value.stdout);
+      output.append(value.stderr);
+      output.appendLine("[SETUP] dtc installed");
+      return true;
+    },
+    reason => {
+      output.appendLine("[SETUP] dtc is not found");
+      output.append(reason);
+
+      switch (platform) {
+        case "darwin":
+          output.appendLine("[SETUP] use `brew` to install `dtc`");
+          output.appendLine("[SETUP] Install `brew` first: https://brew.sh");
+          output.appendLine("[SETUP] Then run `brew install dtc`");
+          break;
+        case "linux":
+          output.appendLine("[SETUP] refer to your distros preferred `dtc` install method.");
+          break;
+        default:
+          break;
+      }
+
+      // Error message
+      vscode.window.showErrorMessage("Unable to continue. dtc not installed. Check output for more info.");
+      return false;
+    }
+  );
+
+  // Return if error
+  if (!res) {
+    return;
+  }
+
   wsConfig.toolsAvailable = true;
   setWorkspaceState(context, wsConfig);
   if (solo) {

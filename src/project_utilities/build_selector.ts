@@ -133,11 +133,6 @@ export async function buildSelector(wsConfig: WorkspaceConfig) {
   }
 
   async function getBoardlist(folder: vscode.Uri, onlyArm: boolean): Promise<{ name: string, subdir: string }[]> {
-    if (onlyArm) {
-      let files = await vscode.workspace.fs.readDirectory(vscode.Uri.joinPath(folder, "arm"));
-      return files.map((x => ({ name: x[0], subdir: path.join("arm", x[0]) })));
-    }
-
     let files = await vscode.workspace.fs.readDirectory(folder);
     let boards: { name: string, subdir: string }[] = [];
 
