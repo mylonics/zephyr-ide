@@ -2,7 +2,7 @@
   "name": "zephyr-ide",
   "displayName": "Zephyr IDE",
   "description": "A VS Code extension that streamlines setup, build, flashing, and debugging of Zephyr Projects",
-  "version": "1.0.15",
+  "version": "1.0.17",
   "license": "Apache-2.0",
   "publisher": "mylonics",
   "icon": "media/logo.png",
@@ -430,6 +430,7 @@
   },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
+    "@types/js-yaml": "^4.0.9",
     "@types/mocha": "^10.0.6",
     "@types/node": "18.x",
     "@types/node-7z": "^2.1.8",

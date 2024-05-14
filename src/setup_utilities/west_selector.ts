@@ -21,6 +21,7 @@ import * as path from "path";
 import * as fs from "fs-extra";
 import { MultiStepInput } from "../utilities/multistepQuickPick";
 import { WorkspaceConfig } from './setup';
+import * as yaml from 'js-yaml';
 
 // Config for the extension
 export interface WestLocation {
@@ -29,8 +30,8 @@ export interface WestLocation {
   markAsInitialized: boolean | undefined
 }
 
-const zephyrVersions = ["Default", "v3.6.0", "v2.7.6", "v3.5.0", "Other Version"];
-const ncsVersions = ["Default", "v2.6.1", "v2.6.0", "v2.5.3", "Other Version"];
+const zephyrVersions = ["Default", "main", "v3.6.0", "v2.7.6", "v3.5.0", "Other Version"];
+const ncsVersions = ["Default", "main", "v2.6.1", "v2.6.0", "v2.5.3", "Other Version"];
 
 export async function westSelector(context: ExtensionContext, wsConfig: WorkspaceConfig) {
 
@@ -123,9 +124,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
 
       let res = await fs.copyFile(srcPath, desPath, fs.constants.COPYFILE_FICLONE);
 
-
-      const yaml = require('js-yaml');
-      let doc = yaml.load(fs.readFileSync(desPath, 'utf-8'));
+      let doc: any = yaml.load(fs.readFileSync(desPath, 'utf-8'));
 
       let isNcsProject = false;
       for (let i = 0; i < doc.manifest.projects.length; i++) {
@@ -173,7 +172,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
           step: 3,
           totalSteps: 3,
           value: "Default",
-          prompt: 'Input a Version Number (vX.X.X)',
+          prompt: 'Input a Version Number (i.e vX.X.X) or branch name (i.e main)',
           validate: validate,
           shouldResume: shouldResume
         }).catch((error) => {

@@ -49,6 +49,10 @@ This extension contributes the following settings:
 * macOS compatibility is untested. Please make an issue on our gihub page with any incompatibilities found.
 
 ## Release Notes
+### 1.0.17
+
+Fixed introduced bug with west init
+
 ### 1.0.15
 
 Allow default runner when board.cmake file does not exist.
