@@ -954,7 +954,7 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
   let taskName = "Zephyr IDE: Update West";
 
   // Enable python env
-  let cmd = `west update --narrow`;
+  let cmd = `west update`;
   let exec = new vscode.ShellExecution(cmd, options);
 
   // Task
