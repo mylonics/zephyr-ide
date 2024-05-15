@@ -23,7 +23,7 @@ import { MultiStepInput } from "../utilities/multistepQuickPick";
 import { RunnerConfigDictionary } from './runner_selector';
 import { ConfigFiles } from './config_selector';
 import { WorkspaceConfig } from '../setup_utilities/setup';
-import { executeShellCommand, getShellEnvironment } from "../utilities/utils";
+import { executeShellCommand, getShellEnvironment, output } from "../utilities/utils";
 
 // Config for the extension
 export interface BuildConfig {
@@ -142,19 +142,36 @@ export async function buildSelector(context: ExtensionContext, wsConfig: Workspa
     const extensionPath = context.extensionPath;
     let srcPath = path.join(extensionPath, "scripts", "board_list.py");
 
+    let noQualifiers = false;
+    let resultOrig: { res: boolean, val: string };
     let result: { res: boolean, val: string };
     if (useCustomFolder) {
-      result = await executeShellCommand("python " + srcPath + " --board-root " + path.dirname(folder.fsPath) + " -f '{name}:{qualifiers}:{dir}'", getShellEnvironment(wsConfig));
+      resultOrig = await executeShellCommand("python " + srcPath + " --board-root " + path.dirname(folder.fsPath) + " -f '{name}:{qualifiers}:{dir}'", getShellEnvironment(wsConfig), false);
+      if (!resultOrig.res) {
+        noQualifiers = true;
+        result = await executeShellCommand("python " + srcPath + " --board-root " + path.dirname(folder.fsPath) + " -f '{name}:{name}:{dir}'", getShellEnvironment(wsConfig), false);
+      } else {
+        result = resultOrig;
+      }
     } else {
-      result = await executeShellCommand("west boards -f '{name}:{qualifiers}:{dir}'", getShellEnvironment(wsConfig));
+      resultOrig = await executeShellCommand("west boards -f '{name}:{qualifiers}:{dir}'", getShellEnvironment(wsConfig), false);
+      if (!resultOrig.res) {
+        noQualifiers = true;
+        result = await executeShellCommand("west boards -f '{name}:{name}:{dir}'", getShellEnvironment(wsConfig), false);
+      } else {
+        result = resultOrig;
+      }
     }
+
+
     if (!result.res) {
+      output.append(result.val);
       vscode.window.showErrorMessage("Failed to run west boards command. See Zephyr IDE Output for error message");
       return;
     }
 
     let allBoardData = result.val.split(/\r?\n/);
-    let output: { name: string, subdir: string }[] = [];
+    let outputData: { name: string, subdir: string }[] = [];
     for (let i = 0; i < allBoardData.length; i++) {
 
       let arr = allBoardData[i].replaceAll("'", "").split(":");
@@ -164,16 +181,16 @@ export async function buildSelector(context: ExtensionContext, wsConfig: Workspa
       let qualifiers = boardData[1].split(",");
       if (qualifiers.length > 1) {
         for (let j = 0; j < qualifiers.length; j++) {
-          output.push({ name: boardData[0] + "/" + qualifiers[j], subdir: boardData[2] });
+          outputData.push({ name: boardData[0] + "/" + qualifiers[j], subdir: boardData[2] });
         }
       } else {
         if (boardData.length > 2) {
-          output.push({ name: boardData[0], subdir: boardData[2] });
+          outputData.push({ name: boardData[0], subdir: boardData[2] });
         }
       }
 
     }
-    return output;
+    return outputData;
   }
 
   async function getBoardlist(folder: vscode.Uri, onlyArm: boolean): Promise<{ name: string, subdir: string }[]> {

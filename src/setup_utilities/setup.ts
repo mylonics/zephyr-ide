@@ -882,7 +882,7 @@ export async function installSdk(context: vscode.ExtensionContext, wsConfig: Wor
               "usepath": true
             }];
           }
-        } else if (parsedFileName.name === "toolchain_" + getPlatformName() + "-" + getPlatformArch() + "_" + toolchainTargetArch + "-zephyr-" + (toolchainTargetArch === "arm" ? "eabi" : "elf")) {
+        } else if (parsedFileName.name === "toolchain_" + getPlatformName() + "-" + getPlatformArch() + "_" + toolchainTargetArch + (toolchainTargetArch.includes("xtensa") ? "_" : "-") + "zephyr-" + (toolchainTargetArch === "arm" ? "eabi" : "elf")) {
           toolchainArmDownloadEntry = {
             "name": toolchainBasePath,
             "filename": fileName,

@@ -102,7 +102,7 @@ export async function executeTask(task: vscode.Task) {
 }
 
 
-export async function executeShellCommand(cmd: string, envPath: NodeJS.ProcessEnv) {
+export async function executeShellCommand(cmd: string, envPath: NodeJS.ProcessEnv, display_error = true) {
   let exec = util.promisify(cp.exec);
 
   return await exec(cmd, {
@@ -112,7 +112,9 @@ export async function executeShellCommand(cmd: string, envPath: NodeJS.ProcessEn
       return { res: true, val: value.stdout };
     },
     reason => {
-      output.append(reason);
+      if (display_error) {
+        output.append(reason);
+      }
       return { res: false, val: reason.stderr.toString() };
     }
   );
