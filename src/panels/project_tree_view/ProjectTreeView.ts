@@ -516,7 +516,16 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
         }
         case "openBoardDtc": {
           let build = this.wsConfig.projects[message.value.project].buildConfigs[message.value.build];
-          let filePath = vscode.Uri.file(path.join(this.wsConfig.rootPath, build.relBoardDir, build.relBoardSubDir, build.board + ".dts"));
+          let filePath;
+          if (path.isAbsolute(build.relBoardSubDir)) {
+            if (build.board.includes("/")) {
+              filePath = vscode.Uri.file(path.join(build.relBoardSubDir, "board.cmake"));
+            } else {
+              filePath = vscode.Uri.file(path.join(build.relBoardSubDir, build.board + ".dts"));
+            }
+          } else {
+            filePath = vscode.Uri.file(path.join(this.wsConfig.rootPath, build.relBoardDir, build.relBoardSubDir, build.board + ".dts")); //kept for backwards compatibility
+          }
 
           vscode.workspace.openTextDocument(filePath).then(document => vscode.window.showTextDocument(document));
           setActive(this.wsConfig, message.value.project, message.value.build, message.value.runner);

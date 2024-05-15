@@ -17,6 +17,8 @@ limitations under the License.
 
 import { workspace } from "vscode";
 import * as path from "path";
+import * as util from "util";
+import * as cp from "child_process";
 
 import { pathdivider, toolchainDir, WorkspaceConfig } from "../setup_utilities/setup";
 
@@ -99,3 +101,19 @@ export async function executeTask(task: vscode.Task) {
   });
 }
 
+
+export async function executeShellCommand(cmd: string, envPath: NodeJS.ProcessEnv) {
+  let exec = util.promisify(cp.exec);
+
+  return await exec(cmd, {
+    env: envPath,
+  }).then(
+    value => {
+      return { res: true, val: value.stdout };
+    },
+    reason => {
+      output.append(reason);
+      return { res: false, val: reason.stderr.toString() };
+    }
+  );
+};

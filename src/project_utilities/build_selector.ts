@@ -23,6 +23,7 @@ import { MultiStepInput } from "../utilities/multistepQuickPick";
 import { RunnerConfigDictionary } from './runner_selector';
 import { ConfigFiles } from './config_selector';
 import { WorkspaceConfig } from '../setup_utilities/setup';
+import { executeShellCommand, getShellEnvironment } from "../utilities/utils";
 
 // Config for the extension
 export interface BuildConfig {
@@ -41,7 +42,7 @@ export interface BuildConfig {
 
 export type BuildConfigDictionary = { [name: string]: BuildConfig };
 
-export async function buildSelector(wsConfig: WorkspaceConfig) {
+export async function buildSelector(context: ExtensionContext, wsConfig: WorkspaceConfig) {
   const title = 'Add Build Configuration';
 
   async function pickBoardDir(input: MultiStepInput, state: Partial<BuildConfig>) {
@@ -56,8 +57,9 @@ export async function buildSelector(wsConfig: WorkspaceConfig) {
       boardDirectories = boardDirectories.concat(boardDir);
     }
 
+    let zephyrBoardDir: string;
     if (wsConfig.zephyrDir) {
-      let zephyrBoardDir = path.join(wsConfig.zephyrDir, `boards`);
+      zephyrBoardDir = path.join(wsConfig.zephyrDir, `boards`);
       if (fs.pathExistsSync(zephyrBoardDir)) {
         boardDirectories = boardDirectories.concat(zephyrBoardDir);
       }
@@ -99,15 +101,19 @@ export async function buildSelector(wsConfig: WorkspaceConfig) {
       }
     }
 
-    return (input: MultiStepInput) => inputBoardName(input, state);
+    return (input: MultiStepInput) => inputBoardName(input, state, zephyrBoardDir !== pick.label);
   }
 
-  async function inputBoardName(input: MultiStepInput, state: Partial<BuildConfig>) {
+  async function inputBoardName(input: MultiStepInput, state: Partial<BuildConfig>, useCustomFolder: boolean) {
     let boards: { name: string, subdir: string }[] = [];
 
     if (state.relBoardDir) {
       console.log("Changing board dir to " + state.relBoardDir);
-      boards = boards.concat(await getBoardlist(vscode.Uri.file(path.join(wsConfig.rootPath, state.relBoardDir)), wsConfig.onlyArm));
+      let boardList = await getBoardlistWest(useCustomFolder, vscode.Uri.file(path.join(wsConfig.rootPath, state.relBoardDir)), wsConfig.onlyArm);
+      if (!boardList) {
+        return;
+      }
+      boards = boards.concat(boardList);
       const boardQpItems: QuickPickItem[] = boards.map(x => ({ label: x.name, description: x.subdir }));
       const pickPromise = input.showQuickPick({
         title,
@@ -130,6 +136,44 @@ export async function buildSelector(wsConfig: WorkspaceConfig) {
 
       return (input: MultiStepInput) => inputBuildName(input, state);
     }
+  }
+
+  async function getBoardlistWest(useCustomFolder: boolean, folder: vscode.Uri, onlyArm: boolean): Promise<{ name: string, subdir: string }[] | undefined> {
+    const extensionPath = context.extensionPath;
+    let srcPath = path.join(extensionPath, "scripts", "board_list.py");
+
+    let result: { res: boolean, val: string };
+    if (useCustomFolder) {
+      result = await executeShellCommand("python " + srcPath + " --board-root " + path.dirname(folder.fsPath) + " -f '{name}:{qualifiers}:{dir}'", getShellEnvironment(wsConfig));
+    } else {
+      result = await executeShellCommand("west boards -f '{name}:{qualifiers}:{dir}'", getShellEnvironment(wsConfig));
+    }
+    if (!result.res) {
+      vscode.window.showErrorMessage("Failed to run west boards command. See Zephyr IDE Output for error message");
+      return;
+    }
+
+    let allBoardData = result.val.split(/\r?\n/);
+    let output: { name: string, subdir: string }[] = [];
+    for (let i = 0; i < allBoardData.length; i++) {
+
+      let arr = allBoardData[i].replaceAll("'", "").split(":");
+      let boardData = arr.splice(0, 2);
+      boardData.push(arr.join(':'));
+
+      let qualifiers = boardData[1].split(",");
+      if (qualifiers.length > 1) {
+        for (let j = 0; j < qualifiers.length; j++) {
+          output.push({ name: boardData[0] + "/" + qualifiers[j], subdir: boardData[2] });
+        }
+      } else {
+        if (boardData.length > 2) {
+          output.push({ name: boardData[0], subdir: boardData[2] });
+        }
+      }
+
+    }
+    return output;
   }
 
   async function getBoardlist(folder: vscode.Uri, onlyArm: boolean): Promise<{ name: string, subdir: string }[]> {

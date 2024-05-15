@@ -49,6 +49,10 @@ This extension contributes the following settings:
 * macOS compatibility is untested. Please make an issue on our gihub page with any incompatibilities found.
 
 ## Release Notes
+### 1.0.20
+
+Parsed board qualifications to be able to handle newer board
+
 ### 1.0.19
 
 Removed path from ncs west.yml

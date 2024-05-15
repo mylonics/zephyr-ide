@@ -567,7 +567,6 @@ export function workspaceInit(context: vscode.ExtensionContext, wsConfig: Worksp
         return;
       }
 
-
       progress.report({ message: "Checking for Build Tools In Path (1/5)" });
       await checkIfToolsAvailable(context, wsConfig, false);
       let ans = progressUpdate(wsConfig);
