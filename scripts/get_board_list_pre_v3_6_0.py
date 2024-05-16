@@ -29,12 +29,7 @@ def get_boards(args):
         if name_re is not None and not name_re.search(board.name):
             continue
         log.inf(args.format.format(name=board.name, arch=board.arch,
-                                   dir=board.dir, hwm=board.hwm, qualifiers=''))
-    for board in list_boards.find_v2_boards(args):
-        if name_re is not None and not name_re.search(board.name):
-            continue
-        log.inf(args.format.format(name=board.name, arch='', dir=board.dir, hwm=board.hwm,
-                                   qualifiers=list_boards.board_v2_qualifiers_csv(board)))
+                                   dir=board.dir))
 
 parser = argparse.ArgumentParser()      
 

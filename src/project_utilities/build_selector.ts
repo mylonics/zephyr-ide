@@ -140,32 +140,37 @@ export async function buildSelector(context: ExtensionContext, wsConfig: Workspa
 
   async function getBoardlistWest(useCustomFolder: boolean, folder: vscode.Uri, onlyArm: boolean): Promise<{ name: string, subdir: string }[] | undefined> {
     const extensionPath = context.extensionPath;
-    let srcPath = path.join(extensionPath, "scripts", "board_list.py");
+    let srcPathNew = path.join(extensionPath, "scripts", "get_board_list.py");
+    let srcPathOld = path.join(extensionPath, "scripts", "get_board_list_pre_v3_6_0.py");
 
-    let noQualifiers = false;
     let resultOrig: { res: boolean, val: string };
     let result: { res: boolean, val: string };
+
     if (useCustomFolder) {
-      resultOrig = await executeShellCommand("python " + srcPath + " --board-root " + path.dirname(folder.fsPath) + " -f '{name}:{qualifiers}:{dir}'", getShellEnvironment(wsConfig), false);
+      resultOrig = await executeShellCommand("python " + srcPathNew + " --board-root " + path.dirname(folder.fsPath) + " -f '{name}:{qualifiers}:{dir}'", getShellEnvironment(wsConfig), false);
       if (!resultOrig.res) {
-        noQualifiers = true;
-        result = await executeShellCommand("python " + srcPath + " --board-root " + path.dirname(folder.fsPath) + " -f '{name}:{name}:{dir}'", getShellEnvironment(wsConfig), false);
+        result = await executeShellCommand("python " + srcPathOld + " --board-root " + path.dirname(folder.fsPath) + " -f '{name}:{name}:{dir}'", getShellEnvironment(wsConfig), false);
+        if (!result.res) {
+          output.append(resultOrig.val);
+          output.append(result.val);
+        }
       } else {
         result = resultOrig;
       }
     } else {
       resultOrig = await executeShellCommand("west boards -f '{name}:{qualifiers}:{dir}'", getShellEnvironment(wsConfig), false);
       if (!resultOrig.res) {
-        noQualifiers = true;
         result = await executeShellCommand("west boards -f '{name}:{name}:{dir}'", getShellEnvironment(wsConfig), false);
+        if (!result.res) {
+          output.append(resultOrig.val);
+          output.append(result.val);
+        }
       } else {
         result = resultOrig;
       }
     }
 
-
     if (!result.res) {
-      output.append(result.val);
       vscode.window.showErrorMessage("Failed to run west boards command. See Zephyr IDE Output for error message");
       return;
     }

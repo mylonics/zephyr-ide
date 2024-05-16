@@ -17,7 +17,7 @@ limitations under the License.
 
 import * as vscode from "vscode";
 
-import { getShellEnvironment, getLaunchConfigurationByName } from "./utilities/utils";
+import { getShellEnvironment, getLaunchConfigurationByName, output, executeShellCommand } from "./utilities/utils";
 
 import { ActiveProjectView } from "./panels/active_project_view/ActiveProjectView";
 import { ProjectTreeView } from "./panels/project_tree_view/ProjectTreeView";
@@ -147,6 +147,7 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.west-update", async () => {
       if (wsConfig.pythonEnvironmentSetup) {
         await westUpdate(context, wsConfig);
+        extensionSetupView.updateWebView(wsConfig);
       } else {
         vscode.window.showErrorMessage("Run `Zephyr IDE: Setup West Environment` first.");
       }
@@ -538,6 +539,13 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.update-web-view", async () => {
       activeProjectView.updateWebView(wsConfig);
       projectTreeView.updateWebView(wsConfig);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.debug-internal-shell", async () => {
+      let temp = await executeShellCommand("SET", getShellEnvironment(wsConfig), false);
+      output.append(temp.val);
     })
   );
 }

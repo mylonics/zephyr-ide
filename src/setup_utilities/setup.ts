@@ -41,6 +41,7 @@ import { compareVersions } from 'compare-versions';
 import { FileDownload } from "../setup_utilities/download";
 import { getRootPath, getShellEnvironment, output, executeTask } from "../utilities/utils";
 import { ProjectConfig } from "../project_utilities/project";
+import { toolchainTargets } from "../defines";
 
 import { westSelector, WestLocation } from "./west_selector";
 type ToolChainPath = { [Name: string]: string };
@@ -237,31 +238,7 @@ export function getPlatformArch() {
 }
 
 export async function pickToolchainTarget() {
-  const toolchainTargets: vscode.QuickPickItem[] = [
-    { label: "arm" },
-    { label: "sep", kind: vscode.QuickPickItemKind.Separator },
-    { label: "aarch64" },
-    { label: "arc" },
-    { label: "arc64" },
-    { label: "microblazeel" },
-    { label: "mips" },
-    { label: "nios2" },
-    { label: "riscv64" },
-    { label: "sparc" },
-    { label: "x86_64" },
-    { label: "xtensa-dc233c" },
-    { label: "xtensa-espressif_esp32" },
-    { label: "xtensa-espressif_esp32s2" },
-    { label: "xtensa-espressif_esp32s3" },
-    { label: "xtensa-intel_ace15_mtpm" },
-    { label: "xtensa-intel_tgl_adsp" },
-    { label: "xtensa-mtk_mt8195_adsp" },
-    { label: "xtensa-nxp_imx8m_adsp" },
-    { label: "xtensa-nxp_imx8ulp_adsp" },
-    { label: "xtensa-nxp_imx_adsp" },
-    { label: "xtensa-nxp_rt500_adsp" },
-    { label: "xtensa-nxp_rt600_adsp" },
-    { label: "xtensa-sample_controller" }];
+
 
   const pickOptions: vscode.QuickPickOptions = {
     ignoreFocusOut: true,
@@ -998,7 +975,7 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
     wsConfig.zephyrDir = path.join(wsConfig.rootPath, base);
     wsConfig.env["ZEPHYR_BASE"] = wsConfig.zephyrDir;
   } else {
-    vscode.window.showErrorMessage("West Init Failed. Could not find Zephyr Directory.");
+    vscode.window.showErrorMessage("West Update Failed. Could not find Zephyr Directory.");
     return;
   }
 

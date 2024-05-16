@@ -2,7 +2,7 @@
   "name": "zephyr-ide",
   "displayName": "Zephyr IDE",
   "description": "A VS Code extension that streamlines setup, build, flashing, and debugging of Zephyr Projects",
-  "version": "1.0.20",
+  "version": "1.0.21",
   "license": "Apache-2.0",
   "publisher": "mylonics",
   "icon": "media/logo.png",
@@ -307,6 +307,10 @@
       {
         "command": "zephyr-ide.clean",
         "title": "Zephyr IDE: Clean"
+      },
+      {
+        "command": "zephyr-ide.debug-internal-shell",
+        "title": "Zephyr IDE: Debug Internal Shell"
       }
     ],
     "terminal": {
