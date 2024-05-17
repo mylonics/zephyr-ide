@@ -33,44 +33,61 @@ export interface ProjectConfig {
   confFiles: ConfigFiles;
 }
 
+
+async function readAllDirectories(directory: vscode.Uri, projectList: string[], rootPath: string, relativePath = ''): Promise<void> {
+  try {
+    const files = await vscode.workspace.fs.readDirectory(directory);
+
+    for (const [name, type] of files) {
+      const filePath = vscode.Uri.joinPath(directory, name);
+      const fullPath = path.join(relativePath, name); // Keep track of the full path
+
+      if (type === vscode.FileType.Directory) {
+        const sampleYamlPath = vscode.Uri.joinPath(filePath, "sample.yaml");
+        try {
+          await vscode.workspace.fs.stat(sampleYamlPath);
+          projectList.push(fullPath);
+        } catch (error) {
+          await readAllDirectories(filePath, projectList, rootPath, fullPath);
+        }
+      }
+    }
+  } catch (error) {
+  }
+}
+
 export async function createNewProjectFromSample(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
   if (!wsConfig.zephyrDir) {
     vscode.window.showErrorMessage("Run `Zephyr IDE: West Update` first.");
     return;
   }
-  let sampleDir = path.join(wsConfig.zephyrDir, "samples/basic");
-  let files = await vscode.workspace.fs.readDirectory(vscode.Uri.file(sampleDir));
-  let projectList: string[] = [];
 
-  while (true) {
-    let file = files.pop();
-    // Stop looping once done.
-    if (file === undefined) {
-      break;
-    }
+  const samplesDir = path.join(wsConfig.zephyrDir, 'samples');
+  const samplesUri = vscode.Uri.file(samplesDir);
 
-    if (file[1] === vscode.FileType.Directory) {
-      projectList.unshift(file[0]);
-    }
-  }
+  const projectList: string[] = [];
+
+  await readAllDirectories(samplesUri, projectList, wsConfig.rootPath);
 
   const pickOptions: vscode.QuickPickOptions = {
     ignoreFocusOut: true,
     placeHolder: "Select Sample Project",
   };
 
-  let selectedProject = await vscode.window.showQuickPick(projectList, pickOptions);
+  let selectedRelativePath = await vscode.window.showQuickPick(projectList, pickOptions);
 
-  if (selectedProject) {
-    let projectName = await vscode.window.showInputBox({ title: "Choose Project Name", value: selectedProject });
+  if (selectedRelativePath) {
+    const projectName = path.basename(selectedRelativePath);
 
-    if (projectName) {
-      if (projectName in wsConfig.projects) {
-        vscode.window.showErrorMessage("A project of that name already exists.");
-      }
-      let projectDest = path.join(wsConfig.rootPath, projectName);
-      fs.cpSync(path.join(sampleDir, selectedProject), projectDest, { recursive: true });
-      return projectDest;
+    const projectDest = await vscode.window.showInputBox({ title: "Choose Project Destination", value: projectName });
+
+    if (projectDest) {
+      const destinationPath = path.join(wsConfig.rootPath, projectDest);
+
+      const selectedProject = path.join(samplesDir, selectedRelativePath);
+
+      fs.cpSync(selectedProject, destinationPath, { recursive: true });
+      return destinationPath;
     }
   }
 }
