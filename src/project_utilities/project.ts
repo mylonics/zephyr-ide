@@ -34,7 +34,7 @@ export interface ProjectConfig {
 }
 
 
-async function readAllDirectories(directory: vscode.Uri, projectList: string[], rootPath: string, relativePath = ''): Promise<void> {
+async function readAllDirectories(directory: vscode.Uri, projectList: vscode.QuickPickItem[], rootPath: string, relativePath = ''): Promise<void> {
   try {
     const files = await vscode.workspace.fs.readDirectory(directory);
 
@@ -46,7 +46,7 @@ async function readAllDirectories(directory: vscode.Uri, projectList: string[], 
         const sampleYamlPath = vscode.Uri.joinPath(filePath, "sample.yaml");
         try {
           await vscode.workspace.fs.stat(sampleYamlPath);
-          projectList.push(fullPath);
+          projectList.push({ label: name, description: fullPath });
         } catch (error) {
           await readAllDirectories(filePath, projectList, rootPath, fullPath);
         }
@@ -65,26 +65,24 @@ export async function createNewProjectFromSample(context: vscode.ExtensionContex
   const samplesDir = path.join(wsConfig.zephyrDir, 'samples');
   const samplesUri = vscode.Uri.file(samplesDir);
 
-  const projectList: string[] = [];
+  const projectList: vscode.QuickPickItem[] = [];
 
   await readAllDirectories(samplesUri, projectList, wsConfig.rootPath);
 
   const pickOptions: vscode.QuickPickOptions = {
     ignoreFocusOut: true,
+    matchOnDescription: true,
     placeHolder: "Select Sample Project",
   };
 
   let selectedRelativePath = await vscode.window.showQuickPick(projectList, pickOptions);
 
-  if (selectedRelativePath) {
-    const projectName = path.basename(selectedRelativePath);
-
-    const projectDest = await vscode.window.showInputBox({ title: "Choose Project Destination", value: projectName });
+  if (selectedRelativePath && selectedRelativePath.description && selectedRelativePath.label) {
+    const projectDest = await vscode.window.showInputBox({ title: "Choose Project Destination", value: selectedRelativePath.label });
 
     if (projectDest) {
       const destinationPath = path.join(wsConfig.rootPath, projectDest);
-
-      const selectedProject = path.join(samplesDir, selectedRelativePath);
+      const selectedProject = path.join(samplesDir, selectedRelativePath.description);
 
       fs.cpSync(selectedProject, destinationPath, { recursive: true });
       return destinationPath;
