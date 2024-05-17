@@ -34,23 +34,21 @@ export interface ProjectConfig {
 }
 
 
-async function readAllDirectories(directory: vscode.Uri, projectList: string[], rootPath: string): Promise<void> {
+async function readAllDirectories(directory: vscode.Uri, projectList: string[], rootPath: string, relativePath = ''): Promise<void> {
   try {
     const files = await vscode.workspace.fs.readDirectory(directory);
 
     for (const [name, type] of files) {
       const filePath = vscode.Uri.joinPath(directory, name);
+      const fullPath = path.join(relativePath, name); // Keep track of the full path
 
       if (type === vscode.FileType.Directory) {
         const sampleYamlPath = vscode.Uri.joinPath(filePath, "sample.yaml");
         try {
           await vscode.workspace.fs.stat(sampleYamlPath);
-          const relPath = path.relative(rootPath, filePath.fsPath);
-          const relativeParts = relPath.split(path.sep).slice(3); // Exclude the first 3 parts of the path
-          const relativeShortPath = relativeParts.join(path.sep);
-          projectList.push(relativeShortPath);
+          projectList.push(fullPath);
         } catch (error) {
-          await readAllDirectories(filePath, projectList, rootPath);
+          await readAllDirectories(filePath, projectList, rootPath, fullPath);
         }
       }
     }
