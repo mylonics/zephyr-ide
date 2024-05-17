@@ -197,16 +197,10 @@ let arch: string = os.arch();
 let toolsfoldername = ".zephyr_ide";
 let python = "python3";
 export let pathdivider = ":";
-let which = "which";
 
-switch (platform) {
-  case "win32":
-    python = "python";
-    pathdivider = ";";
-    which = "where";
-    break;
-  default:
-    break;
+if (platform === "win32") {
+  python = "python";
+  pathdivider = ";";
 }
 
 // Important directories
@@ -224,7 +218,6 @@ export function getPlatformName() {
       return "windows";
   }
   return;
-
 }
 
 export function getPlatformArch() {
