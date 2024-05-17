@@ -34,7 +34,7 @@ export interface ProjectConfig {
 }
 
 
-async function readAllDirectories(directory: vscode.Uri, projectList: string[]): Promise<void> {
+async function readAllDirectories(directory: vscode.Uri, projectList: string[], rootPath: string): Promise<void> {
   try {
     const files = await vscode.workspace.fs.readDirectory(directory);
 
@@ -45,9 +45,12 @@ async function readAllDirectories(directory: vscode.Uri, projectList: string[]):
         const sampleYamlPath = vscode.Uri.joinPath(filePath, "sample.yaml");
         try {
           await vscode.workspace.fs.stat(sampleYamlPath);
-          projectList.push(filePath.fsPath);
+          const relPath = path.relative(rootPath, filePath.fsPath);
+          const relativeParts = relPath.split(path.sep).slice(3); // Exclude the first 3 parts of the path
+          const relativeShortPath = relativeParts.join(path.sep);
+          projectList.push(relativeShortPath);
         } catch (error) {
-          await readAllDirectories(filePath, projectList);
+          await readAllDirectories(filePath, projectList, rootPath);
         }
       }
     }
@@ -66,25 +69,24 @@ export async function createNewProjectFromSample(context: vscode.ExtensionContex
 
   const projectList: string[] = [];
 
-  await readAllDirectories(samplesUri, projectList);
+  await readAllDirectories(samplesUri, projectList, wsConfig.rootPath);
 
   const pickOptions: vscode.QuickPickOptions = {
     ignoreFocusOut: true,
     placeHolder: "Select Sample Project",
   };
 
-  let selectedProject = await vscode.window.showQuickPick(projectList, pickOptions);
+  let selectedRelativePath = await vscode.window.showQuickPick(projectList, pickOptions);
 
-  if (selectedProject) {
-    const projectName = path.basename(selectedProject);
+  if (selectedRelativePath) {
+    const projectName = path.basename(selectedRelativePath);
 
     const projectDest = await vscode.window.showInputBox({ title: "Choose Project Destination", value: projectName });
 
     if (projectDest) {
-      if (projectDest in wsConfig.projects) {
-        vscode.window.showErrorMessage("A project of that name already exists.");
-      }
       const destinationPath = path.join(wsConfig.rootPath, projectDest);
+
+      const selectedProject = path.join(samplesDir, selectedRelativePath);
 
       fs.cpSync(selectedProject, destinationPath, { recursive: true });
       return destinationPath;
