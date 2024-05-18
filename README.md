@@ -46,7 +46,7 @@ This extension contributes the following settings:
 
 ## Known Issues
 
-* macOS compatibility is untested. Please make an issue on our gihub page with any incompatibilities found.
+* macOS compatibility is untested. Please make an issue on our github page with any incompatibilities found.
 
 ## Release Notes
 ### 1.0.22
@@ -108,5 +108,9 @@ Fixed not able to remove projects or build.
 ### 1.0.0
 
 Initial release.
+
+## Development and Debugging
+
+See the [Zephyr IDE for VS Code Developer's Guide](developer-guide.md) for development and debugging instructions.
 
 ---
