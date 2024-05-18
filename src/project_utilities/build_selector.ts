@@ -32,6 +32,8 @@ export interface BuildConfig {
   relBoardDir: string;
   relBoardSubDir: string;
   debugOptimization: string;
+  westBuildArgs: string;
+  westBuildCMakeArgs: string;
   runners: RunnerConfigDictionary;
   activeRunner?: string;
   confFiles: ConfigFiles;
