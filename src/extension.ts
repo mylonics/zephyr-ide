@@ -218,7 +218,6 @@ export async function activate(context: vscode.ExtensionContext) {
         await project.addProject(wsConfig, context, projectPath);
         extensionSetupView.updateWebView(wsConfig);
         vscode.commands.executeCommand("zephyr-ide.update-web-view");
-
       }
     })
   );
@@ -228,7 +227,6 @@ export async function activate(context: vscode.ExtensionContext) {
       await project.addProject(wsConfig, context, undefined);
       extensionSetupView.updateWebView(wsConfig);
       vscode.commands.executeCommand("zephyr-ide.update-web-view");
-
     })
   );
 
@@ -236,7 +234,6 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.remove-project", async () => {
       await project.removeProject(context, wsConfig);
       vscode.commands.executeCommand("zephyr-ide.update-web-view");
-
     })
   );
 

@@ -456,6 +456,7 @@
     "js-yaml": "^4.1.0",
     "node-7z": "^3.0.0",
     "node-stream-zip": "^1.15.0",
+    "replace-in-file": "^7.1.0",
     "typed-rest-client": "^1.8.11"
   }
 }

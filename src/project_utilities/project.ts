@@ -85,6 +85,11 @@ export async function createNewProjectFromSample(context: vscode.ExtensionContex
       const selectedProject = path.join(samplesDir, selectedRelativePath.description);
 
       fs.cpSync(selectedProject, destinationPath, { recursive: true });
+      let newProjectName = path.parse(projectDest).name;
+      if (selectedRelativePath.label !== newProjectName) {
+        changeProjectNameInCMakeFile(destinationPath, newProjectName);
+      }
+
       return destinationPath;
     }
   }
@@ -290,6 +295,17 @@ export async function removeProject(context: vscode.ExtensionContext, wsConfig: 
   }
 }
 
+export async function changeProjectNameInCMakeFile(projectPath: string, newProjectName: string) {
+  let projectCmakePath = projectPath + "/CMakeLists.txt";
+
+  if (fs.existsSync(projectCmakePath)) {
+    const projectCMakeFile = fs.readFileSync(projectCmakePath, 'utf8');
+    let newProjectCMakeFile = projectCMakeFile.replace(/project\([^)]*\)/i, "project(" + newProjectName + ")");
+    fs.writeFileSync(projectCmakePath, newProjectCMakeFile);
+    return true;
+  }
+  return false;
+}
 
 export async function addProject(wsConfig: WorkspaceConfig, context: vscode.ExtensionContext, projectPath: string | undefined) {
   if (projectPath === undefined) {
