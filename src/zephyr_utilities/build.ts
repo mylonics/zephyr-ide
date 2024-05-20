@@ -83,7 +83,17 @@ export async function build(
   let extraOverlayFiles = project.confFiles.extraOverlay.concat(build.confFiles.extraOverlay);
   extraOverlayFiles = extraOverlayFiles.map(x => (path.join(wsConfig.rootPath, x)));
 
-  let cmd = `west build -b ${build.board} ${path.join(wsConfig.rootPath, project.rel_path)} ${pristine ? "-p" : ""} --build-dir ${path.join(wsConfig.rootPath, project.rel_path, build.name)} -- -DBOARD_ROOT='${path.dirname(path.join(wsConfig.rootPath, build.relBoardDir))}'  `;
+  let extraWestBuildArgs = "";
+  if (build.westBuildArgs !== undefined) {
+    extraWestBuildArgs = build.westBuildArgs;
+  }
+
+  let extraWestBuildCMakeArgs = "";
+  if (build.westBuildCMakeArgs !== undefined) {
+    extraWestBuildCMakeArgs = build.westBuildCMakeArgs;
+  }
+
+  let cmd = `west build -b ${build.board} ${path.join(wsConfig.rootPath, project.rel_path)} ${pristine ? "-p" : ""} --build-dir ${path.join(wsConfig.rootPath, project.rel_path, build.name)} ${extraWestBuildArgs} -- -DBOARD_ROOT='${path.dirname(path.join(wsConfig.rootPath, build.relBoardDir))}' ${extraWestBuildCMakeArgs} `;
   if (primaryConfFiles.length) {
     cmd = cmd + ` -DCONF_FILE='${primaryConfFiles}' `;
   }
