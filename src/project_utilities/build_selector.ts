@@ -145,39 +145,31 @@ export async function buildSelector(context: ExtensionContext, wsConfig: Workspa
     let srcPathNew = path.join(extensionPath, "scripts", "get_board_list.py");
     let srcPathOld = path.join(extensionPath, "scripts", "get_board_list_pre_v3_6_0.py");
 
-    let resultOrig: { res: boolean, val: string };
-    let result: { res: boolean, val: string };
+    let res: any;
+    let prevError: any;
 
     if (useCustomFolder) {
-      resultOrig = await executeShellCommand("python " + srcPathNew + " --board-root " + path.dirname(folder.fsPath) + " -f '{name}:{qualifiers}:{dir}'", getShellEnvironment(wsConfig), false);
-      if (!resultOrig.res) {
-        result = await executeShellCommand("python " + srcPathOld + " --board-root " + path.dirname(folder.fsPath) + " -f '{name}:{name}:{dir}'", getShellEnvironment(wsConfig), false);
-        if (!result.res) {
-          output.append(resultOrig.val);
-          output.append(result.val);
-        }
-      } else {
-        result = resultOrig;
+      res = await executeShellCommand("python " + srcPathNew + " --board-root " + path.dirname(folder.fsPath) + " -f '{name}:{qualifiers}:{dir}'", wsConfig.rootPath, getShellEnvironment(wsConfig), false);
+      if (!res.stdout) {
+        prevError = res.stderr;
+        res = await executeShellCommand("python " + srcPathOld + " --board-root " + path.dirname(folder.fsPath) + " -f '{name}:{name}:{dir}'", wsConfig.rootPath, getShellEnvironment(wsConfig), false);
       }
     } else {
-      resultOrig = await executeShellCommand("west boards -f '{name}:{qualifiers}:{dir}'", getShellEnvironment(wsConfig), false);
-      if (!resultOrig.res) {
-        result = await executeShellCommand("west boards -f '{name}:{name}:{dir}'", getShellEnvironment(wsConfig), false);
-        if (!result.res) {
-          output.append(resultOrig.val);
-          output.append(result.val);
-        }
-      } else {
-        result = resultOrig;
+      res = await executeShellCommand("west boards -f '{name}:{qualifiers}:{dir}'", wsConfig.rootPath, getShellEnvironment(wsConfig), false);
+      if (!res.stdout) {
+        prevError = res.stderr;
+        res = await executeShellCommand("west boards -f '{name}:{name}:{dir}'", wsConfig.rootPath, getShellEnvironment(wsConfig), false);
       }
     }
 
-    if (!result.res) {
+    if (!res.stdout) {
+      output.append(prevError);
+      output.append(res.stderr);
       vscode.window.showErrorMessage("Failed to run west boards command. See Zephyr IDE Output for error message");
       return;
     }
 
-    let allBoardData = result.val.split(/\r?\n/);
+    let allBoardData = res.stdout.split(/\r?\n/);
     let outputData: { name: string, subdir: string }[] = [];
     for (let i = 0; i < allBoardData.length; i++) {
 

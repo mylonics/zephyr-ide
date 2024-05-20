@@ -102,20 +102,19 @@ export async function executeTask(task: vscode.Task) {
 }
 
 
-export async function executeShellCommand(cmd: string, envPath: NodeJS.ProcessEnv, display_error = true) {
+export async function executeShellCommand(cmd: string, cwd: string, envPath: NodeJS.ProcessEnv, display_error = true) {
   let exec = util.promisify(cp.exec);
+  let res = await exec(cmd, { env: envPath, cwd: cwd }).then(
 
-  return await exec(cmd, {
-    env: envPath,
-  }).then(
     value => {
-      return { res: true, val: value.stdout };
+      return { stdout: value.stdout, stderr: value.stderr };
     },
     reason => {
       if (display_error) {
         output.append(reason);
       }
-      return { res: false, val: reason.stderr.toString() };
+      return { stdout: undefined, stderr: reason.stderr };
     }
   );
+  return res;
 };

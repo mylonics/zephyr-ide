@@ -1,16 +1,6 @@
-/**
- * @author Jared Wolff <jared@circuitdojo.org>
- * @copyright Circuit Dojo LLC
- * @license Apache 2.0
- */
-
 /*
-Modifications Copyright 2024 mylonics 
+Copyright 2024 mylonics 
 Author Rijesh Augustine
-
-Code based on https://github.com/circuitdojo/zephyr-tools/extension.ts.
-Majority of the file has been changed, but the download and install of sdks 
-and checking if build tools are available have been retained.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,29 +15,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
+
 import * as vscode from "vscode";
-import * as cp from "child_process";
-import * as util from "util";
 import * as os from "os";
 import * as fs from "fs-extra";
 import * as path from "path";
-import * as unzip from "node-stream-zip";
-import * as sevenzip from "7zip-bin";
-import * as node7zip from "node-7z";
-import { compareVersions } from 'compare-versions';
 
-import { FileDownload } from "../setup_utilities/download";
-import { getRootPath, getShellEnvironment, output, executeTask } from "../utilities/utils";
+import { installSdk } from "../setup_utilities/download";
+import { getRootPath, getShellEnvironment, output, executeTask, executeShellCommand } from "../utilities/utils";
 import { ProjectConfig } from "../project_utilities/project";
-import { toolchainTargets } from "../defines";
 
 import { westSelector, WestLocation } from "./west_selector";
 type ToolChainPath = { [Name: string]: string };
 export type ProjectConfigDictionary = { [name: string]: ProjectConfig };
 
-// Config for the extension
 export interface WorkspaceConfig {
   rootPath: string;
   env: { [name: string]: string | undefined };
@@ -173,83 +154,39 @@ export async function clearWorkspaceState(context: vscode.ExtensionContext, wsCo
   setWorkspaceState(context, wsConfig);
 }
 
-type CmdEntry = {
-  cmd: string;
-  usepath: boolean;
-};
-
-type DownloadEntry = {
-  name: string;
-  url: string;
-  md5: string;
-  cmd?: CmdEntry[];
-  filename: string;
-  clearTarget?: boolean;
-};
-
-// Platform
-let platform: NodeJS.Platform = os.platform();
-
-// Arch
-let arch: string = os.arch();
-
-// Platform dependant variables
 let toolsfoldername = ".zephyr_ide";
-let python = "python3";
-export let pathdivider = ":";
+let python = os.platform() === "win32" ? "python" : "python3";
+export let pathdivider = os.platform() === "win32" ? ";" : ":";
 
-if (platform === "win32") {
-  python = "python";
-  pathdivider = ";";
-}
 
 // Important directories
-let toolsdir = path.join(os.homedir(), toolsfoldername);
+export let toolsdir = path.join(os.homedir(), toolsfoldername);
 export let toolchainDir = path.join(toolsdir, "toolchains");
 
-export function getPlatformName() {
-  // Determine what sdk/toolchain to download
-  switch (platform) {
-    case "darwin":
-      return "macos";
-    case "linux":
-      return "linux";
-    case "win32":
-      return "windows";
-  }
-  return;
-}
-
-export function getPlatformArch() {
-  switch (arch) {
-    case "x64":
-      return "x86_64";
-    case "arm64":
-      return "aarch64";
-  }
-  return;
-}
-
-export async function pickToolchainTarget() {
-
-
-  const pickOptions: vscode.QuickPickOptions = {
-    ignoreFocusOut: true,
-    placeHolder: "Select Toolchain Target Architecture",
-  };
-
-  let selectedToolchainTarget = await vscode.window.showQuickPick(toolchainTargets, pickOptions);
-  if (selectedToolchainTarget) {
-    return selectedToolchainTarget.label;
+export async function checkIfToolAvailable(tool: string, cmd: string, wsConfig: WorkspaceConfig, printStdOut: boolean, includes?: string) {
+  let res = await executeShellCommand(cmd, wsConfig.rootPath, getShellEnvironment(wsConfig), true);
+  if (res.stdout) {
+    if (printStdOut) {
+      output.append(res.stdout);
+    }
+    if ((includes && res.stdout.includes(includes)) || includes === undefined) {
+      output.appendLine(`[SETUP] ${tool} installed`);
+      return true;
+    }
+    output.appendLine(`[SETUP] ${tool} of the correct version is not found`);
+    vscode.window.showErrorMessage(`Unable to continue. ${tool} not installed. Check output for more info.`);
+    return false;
+  } else {
+    output.appendLine(`[SETUP] ${tool} is not found`);
+    output.appendLine(`[SETUP] Follow zephyr getting started guide for how to install ${tool}`);
+    vscode.window.showErrorMessage(`Unable to continue. ${tool} not installed. Check output for more info.`);
+    return false;
   }
 }
 
 export async function checkIfToolsAvailable(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, solo = true) {
   wsConfig.toolsAvailable = false;
   setWorkspaceState(context, wsConfig);
-
-  // Clear output before beginning
-  output.clear();
   output.show();
 
   output.appendLine(
@@ -268,251 +205,33 @@ export async function checkIfToolsAvailable(context: vscode.ExtensionContext, ws
     "For Windows you may use Chocolately, for debian you may use apt, and for macOS you may use Homebrew"
   );
 
-  // check if directory in $HOME exists
-  let exists = await fs.pathExists(toolsdir);
-  if (!exists) {
-    console.log("toolsdir not found");
-    // Otherwise create home directory
-    await fs.mkdirp(toolsdir);
+  let res = await checkIfToolAvailable("git", "git --version", wsConfig, true);
+  if (!res) {
+    return false;
+  }
+  res = await checkIfToolAvailable("python", `${python} --version`, wsConfig, true, "Python 3");
+  if (!res) {
+    return false;
   }
 
-  // Promisified exec
-  let exec = util.promisify(cp.exec);
-
-  // Check if Git exists in path
-  let res = await exec("git --version").then(
-    value => {
-      output.append(value.stdout);
-      output.append(value.stderr);
-      output.appendLine("[SETUP] git installed");
-      return true;
-    },
-    reason => {
-      output.appendLine("[SETUP] git is not found");
-      output.append(reason);
-
-      switch (platform) {
-        case "darwin":
-          output.appendLine("[SETUP] use `brew` to install `git`");
-          output.appendLine("[SETUP] Install `brew` first: https://brew.sh");
-          output.appendLine("[SETUP] Then run `brew install git`");
-          break;
-        case "linux":
-          output.appendLine("[SETUP] refer to your distros preferred `git` install method.");
-          break;
-        default:
-          break;
-      }
-
-      // Error message
-      vscode.window.showErrorMessage("Unable to continue. Git not installed. Check output for more info.");
-      return false;
-    }
-  );
-
-  // Return if error
+  res = await checkIfToolAvailable("pip", `${python} -m pip --version`, wsConfig, true);
   if (!res) {
-    return;
+    return false;
   }
 
-
-  // Otherwise, check Python install
-  let cmd = `${python} --version`;
-  output.appendLine(cmd);
-  res = await exec(cmd).then(
-    value => {
-      if (value.stdout.includes("Python 3")) {
-        output.appendLine("[SETUP] python3 found");
-      } else {
-        output.appendLine("[SETUP] python3 not found");
-
-        switch (platform) {
-          case "darwin":
-            output.appendLine("[SETUP] use `brew` to install `python3`");
-            output.appendLine("[SETUP] Install `brew` first: https://brew.sh");
-            output.appendLine("[SETUP] Then run `brew install python3`");
-            break;
-          case "linux":
-            output.appendLine(
-              "[SETUP] install `python` using `apt get install python3.10 python3.10-pip python3.10-venv`"
-            );
-            break;
-          default:
-            break;
-        }
-
-        vscode.window.showErrorMessage("Error finding python. Check output for more info.");
-        return false;
-      }
-
-      return true;
-    },
-    reason => {
-      output.append(reason.stderr);
-      console.error(reason);
-
-      // Error message
-      switch (platform) {
-        case "darwin":
-          output.appendLine("[SETUP] use `brew` to install `python3`");
-          output.appendLine("[SETUP] Install `brew` first: https://brew.sh");
-          output.appendLine("[SETUP] Then run `brew install python3`");
-          break;
-        case "linux":
-          output.appendLine(
-            "[SETUP] install `python` using `apt get install python3.10 python3.10-pip python3.10-venv`"
-          );
-          break;
-        default:
-          break;
-      }
-      return false;
-    }
-  );
-
-  // Return if error
+  res = await checkIfToolAvailable("python3 venv", `${python} -m venv --help`, wsConfig, false);
   if (!res) {
-    return;
+    return false;
   }
 
-
-  // Check for `pip`
-  cmd = `${python} -m pip --version`;
-  output.appendLine(cmd);
-  res = await exec(cmd).then(
-    value => {
-      output.append(value.stdout);
-      output.append(value.stderr);
-      output.appendLine("[SETUP] pip installed");
-      return true;
-    },
-    reason => {
-      output.append(reason.stderr);
-      console.error(reason);
-
-      // Error message
-
-      // Error message
-      switch (platform) {
-        case "linux":
-          output.appendLine("[SETUP] please install `python3.10-pip` package (or newer)");
-          break;
-        default:
-          output.appendLine("[SETUP] please install `python3` with `pip` support");
-          break;
-      }
-      return false;
-    }
-  );
-
-  // Return if error
+  res = await checkIfToolAvailable("cmake", `cmake --version`, wsConfig, true);
   if (!res) {
-    return;
+    return false;
   }
 
-  // Check if venv is available
-  cmd = `${python} -m venv --help`;
-  output.appendLine(cmd);
-  res = await exec(cmd).then(
-    value => {
-      output.appendLine("[SETUP] python3 venv OK");
-      return true;
-    },
-    reason => {
-      output.append(reason.stderr);
-      console.error(reason);
-
-      // Error message
-      switch (platform) {
-        case "linux":
-          output.appendLine("[SETUP] please install `python3.10-venv` package (or newer)");
-          break;
-        default:
-          output.appendLine("[SETUP] please install `python3` with `venv` support");
-          break;
-      }
-
-      return false;
-    }
-  );
-
-  // Return if error
+  res = await checkIfToolAvailable("dtc", "dtc --version", wsConfig, true);
   if (!res) {
-    return;
-  }
-
-
-  // Check if Git exists in path
-  res = await exec("cmake --version").then(
-    value => {
-      output.append(value.stdout);
-      output.append(value.stderr);
-      output.appendLine("[SETUP] cmake installed");
-      return true;
-    },
-    reason => {
-      output.appendLine("[SETUP] cmake is not found");
-      output.append(reason);
-
-      switch (platform) {
-        case "darwin":
-          output.appendLine("[SETUP] use `brew` to install `cmake`");
-          output.appendLine("[SETUP] Install `brew` first: https://brew.sh");
-          output.appendLine("[SETUP] Then run `brew install cmake`");
-          break;
-        case "linux":
-          output.appendLine("[SETUP] refer to your distros preferred `cmake` install method.");
-          break;
-        default:
-          break;
-      }
-
-      // Error message
-      vscode.window.showErrorMessage("Unable to continue. cmake not installed. Check output for more info.");
-      return false;
-    }
-  );
-
-  // Return if error
-  if (!res) {
-    return;
-  }
-
-
-  // Check if Git exists in path
-  res = await exec("dtc --version").then(
-    value => {
-      output.append(value.stdout);
-      output.append(value.stderr);
-      output.appendLine("[SETUP] dtc installed");
-      return true;
-    },
-    reason => {
-      output.appendLine("[SETUP] dtc is not found");
-      output.append(reason);
-
-      switch (platform) {
-        case "darwin":
-          output.appendLine("[SETUP] use `brew` to install `dtc`");
-          output.appendLine("[SETUP] Install `brew` first: https://brew.sh");
-          output.appendLine("[SETUP] Then run `brew install dtc`");
-          break;
-        case "linux":
-          output.appendLine("[SETUP] refer to your distros preferred `dtc` install method.");
-          break;
-        default:
-          break;
-      }
-
-      // Error message
-      vscode.window.showErrorMessage("Unable to continue. dtc not installed. Check output for more info.");
-      return false;
-    }
-  );
-
-  // Return if error
-  if (!res) {
-    return;
+    return false;
   }
 
   wsConfig.toolsAvailable = true;
@@ -521,7 +240,7 @@ export async function checkIfToolsAvailable(context: vscode.ExtensionContext, ws
     vscode.window.showInformationMessage("Zephyr IDE: Build Tools are available");
   }
 
-  return;
+  return true;
 }
 
 export function workspaceInit(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, progressUpdate: (wsConfig: WorkspaceConfig) => any) {
@@ -539,7 +258,7 @@ export function workspaceInit(context: vscode.ExtensionContext, wsConfig: Worksp
 
       progress.report({ message: "Checking for Build Tools In Path (1/5)" });
       await checkIfToolsAvailable(context, wsConfig, false);
-      let ans = progressUpdate(wsConfig);
+      progressUpdate(wsConfig);
       if (!wsConfig.toolsAvailable) {
         vscode.window.showErrorMessage("Zephyr IDE Initialization: Missing Build Tools. See Output. Workspace Init Failed");
         return;
@@ -552,7 +271,7 @@ export function workspaceInit(context: vscode.ExtensionContext, wsConfig: Worksp
         return;
       }
       progress.report({ message: "Installing SDK (3/5)", increment: 20 });
-      await installSdk(context, wsConfig, true, false);
+      await installSdk(context, wsConfig, output, true, false);
       progressUpdate(wsConfig);
       if (!wsConfig.sdkInstalled) {
         vscode.window.showErrorMessage("Zephyr IDE Initialization Step 3/5: Sdk failed to install");
@@ -594,13 +313,11 @@ export async function westInit(context: vscode.ExtensionContext, wsConfig: Works
     }
   }
 
-
   if (westSelection.markAsInitialized === true) {
     wsConfig.westInited = true;
     setWorkspaceState(context, wsConfig);
     return true;
   }
-
 
   let westPath = path.join(wsConfig.rootPath, ".west");
 
@@ -663,7 +380,7 @@ export async function westInit(context: vscode.ExtensionContext, wsConfig: Works
 
 export async function setupWestEnvironment(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, solo = true) {
   if (wsConfig.pythonEnvironmentSetup) {
-    const selection = await vscode.window.showWarningMessage('Zephyr IDE: Python Env already initialized', 'Reinitialize', 'Cancel');
+    const selection = await vscode.window.showWarningMessage('Zephyr IDE: West Python Env already initialized', 'Reinitialize', 'Cancel');
     if (selection !== 'Reinitialize') {
       return;
     }
@@ -673,7 +390,7 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
   await vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
-      title: "Setting up Zephyr Environment",
+      title: "Setting up West Python Environment",
       cancellable: false,
     },
     async (progress, token) => {
@@ -690,27 +407,13 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
 
       // Then create the virtualenv
       let cmd = `${python} -m venv "${pythonenv}"`;
-      let exec = util.promisify(cp.exec);
-
-      output.appendLine(cmd);
-      let res = await exec(cmd).then(
-        value => {
-          output.append(value.stdout);
-          output.appendLine("[SETUP] virtual python environment created");
-          return true;
-        },
-        reason => {
-          output.appendLine("[SETUP] unable to setup virtualenv");
-          console.error(reason);
-
-          // Error message
-          vscode.window.showErrorMessage("Error installing virtualenv. Check output for more info.");
-          return false;
-        }
-      );
-
-      // Return if error
-      if (!res) {
+      let res = await executeShellCommand(cmd, wsConfig.rootPath, getShellEnvironment(wsConfig), true);
+      if (res.stdout) {
+        output.append(res.stdout);
+        output.appendLine("[SETUP] Python Virtual Environment created");
+      } else {
+        output.appendLine("[SETUP] Unable to create Python Virtual Environment");
+        vscode.window.showErrorMessage("Error installing virtualenv. Check output for more info.");
         return;
       }
 
@@ -724,31 +427,17 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
       wsConfig.env["PATH"] = path.join(path.join(pythonenv, `Scripts${pathdivider}`), pathdivider + wsConfig.env["PATH"]);
 
       // Install `west`
-      res = await exec(`${python} -m pip install west`, {
-        env: getShellEnvironment(wsConfig),
-      }).then(
-        value => {
-          output.append(value.stdout);
-          output.append(value.stderr);
-          output.appendLine("[SETUP] west installed");
-          return true;
-        },
-        reason => {
-          output.appendLine("[SETUP] unable to install west");
-          output.append(JSON.stringify(reason));
-
-          // Error message
-          vscode.window.showErrorMessage("Error installing west. Check output for more info.");
-          return false;
-        }
-      );
-
-      // Return if error
-      if (!res) {
+      res = await executeShellCommand(`${python} -m pip install west`, wsConfig.rootPath, getShellEnvironment(wsConfig), true);
+      if (res.stdout) {
+        output.append(res.stdout);
+        output.appendLine("[SETUP] west installed");
+      } else {
+        output.appendLine("[SETUP] Unable to install west");
+        vscode.window.showErrorMessage("Error installing west. Check output for more info.");
         return;
       }
 
-      output.appendLine("[SETUP] Zephyr setup complete!");
+      output.appendLine("[SETUP] West Python Environment Setup complete!");
 
       // Setup flag complete
       wsConfig.pythonEnvironmentSetup = true;
@@ -756,156 +445,12 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
 
       progress.report({ increment: 100 });
       if (solo) {
-        vscode.window.showInformationMessage(`Zephyr IDE: Python Environment Setup!`);
+        vscode.window.showInformationMessage(`Zephyr IDE: West Python Environment Setup!`);
       }
     }
   );
 };
 
-export async function installSdk(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, installLatestArm = false, solo = true) {
-  // Show setup progress..
-  await vscode.window.withProgress(
-    {
-      location: vscode.ProgressLocation.Notification,
-      title: "Setting up Zephyr sdk",
-      cancellable: false,
-    },
-    async (progress, token) => {
-      // Clear output before beginning
-      output.clear();
-      output.show();
-
-      progress.report({ increment: 5 });
-
-      // Skip out if not found
-      if (getPlatformName() === undefined) {
-        vscode.window.showErrorMessage("Unsupported platform for Zephyr IDE!");
-        return;
-      }
-
-      let toolchainVersionList: string[] = [];
-      let toolchainMd5Path = context.asAbsolutePath("manifest/sdk_md5");
-      let toolchainMd5Files = await vscode.workspace.fs.readDirectory(vscode.Uri.file(toolchainMd5Path));
-      for (const [index, [filename, type]] of toolchainMd5Files.entries()) {
-        if (path.parse(filename).ext === ".sum") {
-          toolchainVersionList.push(path.parse(filename).name);
-        }
-      }
-
-      toolchainVersionList = toolchainVersionList.sort(compareVersions).reverse();
-      let toolchainSelection: string | undefined = toolchainVersionList[0];
-      let toolchainTargetArch = "arm";
-      if (!installLatestArm) {
-        // Pick options
-        const pickOptions: vscode.QuickPickOptions = {
-          ignoreFocusOut: true,
-          placeHolder: "Which toolchain version would you like to install?",
-        };
-        toolchainSelection = await vscode.window.showQuickPick(toolchainVersionList, pickOptions);
-        let targ = await pickToolchainTarget();
-        if (targ) {
-          toolchainTargetArch = targ;
-        } else {
-          return;
-        }
-      }
-
-      // Check if user canceled
-      if (toolchainSelection === undefined) {
-        vscode.window.showErrorMessage("Zephyr IDE Setup canceled.");
-        return;
-      }
-
-      wsConfig.sdkInstalled = false;
-      setWorkspaceState(context, wsConfig);
-
-      let selectedToolchainFile = context.asAbsolutePath("manifest/sdk_md5/" + toolchainSelection + ".sum");
-
-      // Set up downloader path
-      FileDownload.init(path.join(toolsdir, "downloads"));
-
-      let toolchainFileRawText = fs.readFileSync(selectedToolchainFile, 'utf8');
-      let toolchainMinimalDownloadEntry: DownloadEntry | undefined;
-      let toolchainArmDownloadEntry: DownloadEntry | undefined;
-
-      let toolchainBasePath = "toolchains/zephyr-sdk-" + toolchainSelection;
-      for (const line of toolchainFileRawText.trim().split('\n')) {
-        let s = line.trim().split(/[\s\s]+/g);
-        let md5 = s[0];
-        let fileName = s[1];
-        let parsedFileName = path.parse(fileName);
-        if (parsedFileName.ext === ".xz") {
-          parsedFileName = path.parse(parsedFileName.name);
-        }
-
-        if (parsedFileName.name === "zephyr-sdk-" + toolchainSelection + "_" + getPlatformName() + "-" + getPlatformArch() + "_minimal") {
-          toolchainMinimalDownloadEntry = {
-            "name": "toolchains",
-            "filename": fileName,
-            "url": "https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v" + toolchainSelection + "/" + fileName,
-            "md5": md5,
-            "clearTarget": true,
-          };
-          if (getPlatformName() === "macos") {
-            toolchainMinimalDownloadEntry.cmd = [{
-              "cmd": "zephyr-sdk-" + toolchainSelection + "/setup.sh -t " + toolchainTargetArch + "-zephyr-" + (toolchainTargetArch === "arm" ? "eabi" : "elf"),
-              "usepath": true
-            }];
-          }
-        } else if (parsedFileName.name === "toolchain_" + getPlatformName() + "-" + getPlatformArch() + "_" + toolchainTargetArch + (toolchainTargetArch.includes("xtensa") ? "_" : "-") + "zephyr-" + (toolchainTargetArch === "arm" ? "eabi" : "elf")) {
-          toolchainArmDownloadEntry = {
-            "name": toolchainBasePath,
-            "filename": fileName,
-            "url": "https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v" + toolchainSelection + "/" + fileName,
-            "md5": md5,
-            "clearTarget": false,
-          };
-        }
-      }
-
-
-      if (toolchainArmDownloadEntry === undefined || toolchainMinimalDownloadEntry === undefined) {
-        vscode.window.showErrorMessage("Error finding appropriate toolchain file");
-        return;
-      }
-
-      // Output indicating toolchain install
-      output.appendLine(`[SETUP] Installing zephyr-sdk-${toolchainSelection} toolchain...`);
-
-      // Download minimal sdk file
-      let res: boolean = await processDownload(toolchainMinimalDownloadEntry, output, wsConfig);
-      if (!res) {
-        vscode.window.showErrorMessage("Error downloading minimal toolchain file. Check output for more info.");
-        return;
-      }
-      progress.report({ increment: 5 });
-
-      // Download arm sdk file
-      res = await processDownload(toolchainArmDownloadEntry, output, wsConfig);
-      if (!res) {
-        vscode.window.showErrorMessage("Error downloading arm toolchain file. Check output for more info.");
-        return;
-      }
-      progress.report({ increment: 10 });
-
-      // Setup flag complete
-      wsConfig.toolchains[toolchainSelection] = path.join(toolsdir, toolchainBasePath);
-
-      progress.report({ increment: 100 });
-      output.appendLine(`[SETUP] Installing zephyr-sdk-${toolchainSelection} complete`);
-
-      if (toolchainTargetArch !== "arm") {
-        wsConfig.onlyArm = false;
-      }
-      wsConfig.armGdbPath = path.join(toolsdir, toolchainBasePath, "arm-zephyr-eabi\\bin\\arm-zephyr-eabi-gdb");
-      wsConfig.sdkInstalled = true;
-      await setWorkspaceState(context, wsConfig);
-      if (solo) {
-        vscode.window.showInformationMessage(`Zephyr IDE: Toolchain Setup Complete!`);
-      }
-    }
-  );
-};
 
 export async function westUpdate(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, solo = true) {
   // Get the active workspace root path
@@ -949,19 +494,12 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
 
   // Get zephyr BASE
   let base = undefined;
-  let getZephyrDirExec = util.promisify(cp.exec);
 
   // Get listofports
   cmd = `west list -f {path:28} zephyr`;
-  let cwd = wsConfig.rootPath;
-  let res = await getZephyrDirExec(cmd, { env: getShellEnvironment(wsConfig), cwd: cwd });
-  if (res.stderr) {
-    output.append(res.stderr);
-    output.show();
-  } else {
-    if (res.stdout.includes("zephyr")) {
-      base = res.stdout.trim();
-    }
+  let res = await executeShellCommand(cmd, wsConfig.rootPath, getShellEnvironment(wsConfig), true);
+  if (res.stdout && res.stdout.includes("zephyr")) {
+    base = res.stdout.trim();
   }
 
   if (base) {
@@ -1014,110 +552,4 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
   }
 
   return false;
-}
-
-async function processDownload(download: DownloadEntry, output: vscode.OutputChannel, wsConfig: WorkspaceConfig) {
-  // Promisified exec
-  let exec = util.promisify(cp.exec);
-
-  // Check if it already exists
-  let filepath = await FileDownload.exists(download.filename);
-
-  // Download if doesn't exist _or_ hash doesn't match
-  if (filepath === null || (await FileDownload.check(download.filename, download.md5)) === false) {
-    output.appendLine("[SETUP] downloading " + download.url);
-    filepath = await FileDownload.fetch(download.url);
-
-    // Check again
-    if ((await FileDownload.check(download.filename, download.md5)) === false) {
-      vscode.window.showErrorMessage("Error downloading " + download.filename + ". Checksum mismatch.");
-      return false;
-    }
-  }
-
-  // Get the path to copy the contents to..
-  let copytopath = path.join(toolsdir, download.name);
-
-  // Check if copytopath exists and create if not
-  if (!(await fs.pathExists(copytopath))) {
-    await fs.mkdirp(copytopath);
-  }
-
-  // Unpack and place into `$HOME/.zephyr_ide`
-  if (download.url.includes(".zip")) {
-    // Unzip and copy
-    output.appendLine(`[SETUP] unzip ${filepath} to ${copytopath}`);
-    const zip = new unzip.async({ file: filepath });
-    zip.on("extract", (entry, file) => {
-      // Make executable
-      fs.chmodSync(file, 0o755);
-    });
-    await zip.extract(null, copytopath);
-    await zip.close();
-  } else if (download.url.includes("tar")) {
-    // Then untar
-    const cmd = `tar -xvf "${filepath}" -C "${copytopath}"`;
-    output.appendLine(cmd);
-    let res = await exec(cmd, { env: getShellEnvironment(wsConfig) }).then(
-      value => {
-        output.append(value.stdout);
-        return true;
-      },
-      reason => {
-        output.append(reason.stdout);
-        output.append(reason.stderr);
-
-        // Error message
-        vscode.window.showErrorMessage("Error un-tar of download. Check output for more info.");
-
-        return false;
-      }
-    );
-
-    // Return if untar was unsuccessful
-    if (!res) {
-      return false;
-    }
-  } else if (download.url.includes("7z")) {
-    // Unzip and copy
-    output.appendLine(`[SETUP] 7z extract ${filepath} to ${copytopath}`);
-    const pathTo7zip = sevenzip.path7za;
-    const seven = await node7zip.extractFull(filepath, copytopath, {
-      $bin: pathTo7zip,
-    });
-  }
-
-  // Run any commands that are needed..
-  for (let entry of download.cmd ?? []) {
-    output.appendLine(entry.cmd);
-
-    // Prepend
-    let cmd = entry.cmd;
-    if (entry.usepath) {
-      cmd = path.join(copytopath, entry.cmd ?? "");
-    }
-
-    // Run the command
-    let res = await exec(cmd, { env: getShellEnvironment(wsConfig) }).then(
-      value => {
-        output.append(value.stdout);
-        return true;
-      },
-      reason => {
-        output.append(reason.stdout);
-        output.append(reason.stderr);
-
-        // Error message
-        vscode.window.showErrorMessage("Error for sdk command.");
-
-        return false;
-      }
-    );
-
-    if (!res) {
-      return false;
-    }
-  }
-
-  return true;
 }

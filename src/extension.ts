@@ -27,7 +27,8 @@ import path from "path";
 import * as project from "./project_utilities/project";
 import { buildHelper, clean } from "./zephyr_utilities/build";
 import { flashActive } from "./zephyr_utilities/flash";
-import { WorkspaceConfig, installSdk, westUpdate, workspaceInit, setWorkspaceState, loadWorkspaceState, clearWorkspaceState, westInit, checkIfToolsAvailable, setupWestEnvironment, ProjectConfigDictionary, loadProjectsFromFile, toolchainDir } from "./setup_utilities/setup";
+import { WorkspaceConfig, westUpdate, workspaceInit, setWorkspaceState, loadWorkspaceState, clearWorkspaceState, westInit, checkIfToolsAvailable, setupWestEnvironment, loadProjectsFromFile, toolchainDir } from "./setup_utilities/setup";
+import { installSdk } from "./setup_utilities/download";
 
 let wsConfig: WorkspaceConfig;
 
@@ -127,7 +128,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.install-sdk", async () => {
-      await installSdk(context, wsConfig);
+      await installSdk(context, wsConfig, output);
       extensionSetupView.updateWebView(wsConfig);
     })
   );
@@ -541,8 +542,10 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.debug-internal-shell", async () => {
-      let temp = await executeShellCommand("SET", getShellEnvironment(wsConfig), false);
-      output.append(temp.val);
+      let temp = await executeShellCommand("SET", wsConfig.rootPath, getShellEnvironment(wsConfig), false);
+      if (temp.stdout) {
+        output.append(temp.stdout);
+      }
     })
   );
 }
