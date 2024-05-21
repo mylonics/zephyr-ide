@@ -49,6 +49,10 @@ This extension contributes the following settings:
 * macOS compatibility is untested. Please make an issue on our github page with any incompatibilities found.
 
 ## Release Notes
+### 1.0.24
+
+Fixed bug with setting up west environment
+
 ### 1.0.23
 
 Added extra west build arguments. (Must be added to .json files)

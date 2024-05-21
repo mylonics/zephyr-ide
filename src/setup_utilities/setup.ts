@@ -408,13 +408,12 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
       // Then create the virtualenv
       let cmd = `${python} -m venv "${pythonenv}"`;
       let res = await executeShellCommand(cmd, wsConfig.rootPath, getShellEnvironment(wsConfig), true);
-      if (res.stdout) {
-        output.append(res.stdout);
-        output.appendLine("[SETUP] Python Virtual Environment created");
-      } else {
+      if (res.stderr) {
         output.appendLine("[SETUP] Unable to create Python Virtual Environment");
         vscode.window.showErrorMessage("Error installing virtualenv. Check output for more info.");
         return;
+      } else {
+        output.appendLine("[SETUP] Python Virtual Environment created");
       }
 
       // Report progress

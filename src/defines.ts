@@ -40,10 +40,13 @@ export const zephyrHals: vscode.QuickPickItem[] = [
   { label: "Nordic", description: "hal_nordic" },
   { label: "Nuvoton", description: "hal_nuvoton" },
   { label: "NXP", description: "hal_nxp" },
+  { label: "OpenISA", description: "hal_openisa" },
+  { label: "QuickLogic", description: "hal_quicklogic" },
   { label: "Renesas", description: "hal_renesas" },
   { label: "Raspberry Pi Pico", description: "hal_rpi_pico" },
   { label: "Silicon Labs", description: "hal_silabs" },
   { label: "STM32", description: "hal_stm32" },
+  { label: "Telink", description: "hal_telink" },
   { label: "Ti", description: "hal_ti" },
   { label: "Würth Elektronik", description: "hal_wurthelektronik" },
   { label: "xtensa", description: "hal_xtensa" }

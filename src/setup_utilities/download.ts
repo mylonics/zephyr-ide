@@ -311,8 +311,6 @@ export async function installSdk(context: vscode.ExtensionContext, wsConfig: Wor
             cancellable: false,
         },
         async (progress, token) => {
-            // Clear output before beginning
-            output.clear();
             output.show();
 
             progress.report({ increment: 5 });
