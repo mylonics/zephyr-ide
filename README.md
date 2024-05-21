@@ -49,6 +49,13 @@ This extension contributes the following settings:
 * macOS compatibility is untested. Please make an issue on our github page with any incompatibilities found.
 
 ## Release Notes
+### 1.0.23
+
+Added extra west build arguments. (Must be added to .json files)
+Added West Configurator for different HALs.
+Added menuConfig and guiConfig commands.
+Renamed sample projects.
+
 ### 1.0.22
 
 Added the ability to copy from all samples
