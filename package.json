@@ -309,6 +309,14 @@
         "title": "Zephyr IDE: Clean"
       },
       {
+        "command": "zephyr-ide.start-menu-config",
+        "title": "Zephyr IDE: Start Menu Config"
+      },
+      {
+        "command": "zephyr-ide.start-gui-config",
+        "title": "Zephyr IDE: Start GUI Config"
+      },
+      {
         "command": "zephyr-ide.debug-internal-shell",
         "title": "Zephyr IDE: Debug Internal Shell"
       }

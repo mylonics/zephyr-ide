@@ -140,6 +140,54 @@ export async function build(
   await executeTask(task);
 }
 
+
+export async function buildMenuConfig(
+  wsConfig: WorkspaceConfig,
+  isMenuConfig: boolean,
+  project?: ProjectConfig,
+  build?: BuildConfig
+) {
+
+  if (project === undefined) {
+    if (wsConfig.activeProject === undefined) {
+      vscode.window.showErrorMessage("Select a project before trying to build");
+      return;
+    }
+    project = wsConfig.projects[wsConfig.activeProject];
+  }
+
+  if (build === undefined) {
+    if (project.activeBuildConfig === undefined) {
+      await vscode.window.showErrorMessage(`You must choose a Build Configuration to continue.`);
+      return;
+    }
+    build = project.buildConfigs[project.activeBuildConfig];
+  }
+
+
+  let options: vscode.ShellExecutionOptions = {
+    env: <{ [key: string]: string }>getShellEnvironment(wsConfig),
+    cwd: path.join(wsConfig.rootPath, project.rel_path),
+  };
+
+  let cmd = `west build -t ${isMenuConfig ? "menuconfig" : "guiconfig"} -b ${build.board} ${path.join(wsConfig.rootPath, project.rel_path)} --build-dir ${path.join(wsConfig.rootPath, project.rel_path, build.name)} -- -DBOARD_ROOT='${path.dirname(path.join(wsConfig.rootPath, build.relBoardDir))}' `;
+
+  let exec = new vscode.ShellExecution(cmd, options);
+
+  let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
+  let task = new vscode.Task(
+    { type: "zephyr-ide", command: taskName },
+    vscode.TaskScope.Workspace,
+    taskName,
+    "Zephyr IDE",
+    exec
+  );
+
+  vscode.window.showInformationMessage(`Running MenuConfig ${build.name} from project: ${project.name}`);
+  await executeTask(task);
+}
+
+
 export async function clean(wsConfig: WorkspaceConfig, projectName: string | undefined) {
   if (projectName === undefined) {
     if (wsConfig.activeProject === undefined) {

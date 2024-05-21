@@ -25,7 +25,7 @@ import { ExtensionSetupView } from "./panels/extension_setup_view/ExtensionSetup
 
 import path from "path";
 import * as project from "./project_utilities/project";
-import { buildHelper, clean } from "./zephyr_utilities/build";
+import { buildHelper, buildMenuConfig, clean } from "./zephyr_utilities/build";
 import { flashActive } from "./zephyr_utilities/flash";
 import { WorkspaceConfig, westUpdate, workspaceInit, setWorkspaceState, loadWorkspaceState, clearWorkspaceState, westInit, checkIfToolsAvailable, setupWestEnvironment, loadProjectsFromFile, toolchainDir } from "./setup_utilities/setup";
 import { installSdk } from "./setup_utilities/download";
@@ -537,6 +537,18 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.update-web-view", async () => {
       activeProjectView.updateWebView(wsConfig);
       projectTreeView.updateWebView(wsConfig);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.start-menu-config", async () => {
+      buildMenuConfig(wsConfig, true);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.start-gui-config", async () => {
+      buildMenuConfig(wsConfig, false);
     })
   );
 

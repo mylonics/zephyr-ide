@@ -35,6 +35,15 @@ export class ActiveProjectView implements vscode.WebviewViewProvider {
     },
   ];
 
+  buildActions = [
+    {
+      icon: "settings-gear",
+      actionId: "startMenuConfig",
+      tooltip: "MenuConfig",
+    },
+  ];
+
+
   constructor(public extensionPath: string, private context: vscode.ExtensionContext, private wsConfig: WorkspaceConfig) {
 
   }
@@ -66,6 +75,7 @@ export class ActiveProjectView implements vscode.WebviewViewProvider {
         icons: {
           leaf: 'project',
         },
+        actions: this.buildActions,
         label: "Build Pristine",
         description: activeBuild ? activeBuild.name : "Not Available",
         value: { command: "vsCommand", vsCommand: "zephyr-ide.build-pristine" },
@@ -73,6 +83,7 @@ export class ActiveProjectView implements vscode.WebviewViewProvider {
         icons: {
           leaf: 'project',
         },
+        actions: this.buildActions,
         label: "Build",
         description: activeBuild ? activeBuild.name : "Not Available",
         value: { command: "vsCommand", vsCommand: "zephyr-ide.build" },
@@ -166,6 +177,10 @@ export class ActiveProjectView implements vscode.WebviewViewProvider {
         }
         case "changeLaunchTarget": {
           vscode.commands.executeCommand(message.value.launchChangeCmd);
+          break;
+        }
+        case "startMenuConfig": {
+          vscode.commands.executeCommand("zephyr-ide.start-menu-config");
           break;
         }
         default:
