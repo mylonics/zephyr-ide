@@ -179,3 +179,35 @@ export class MultiStepInput {
     }
   }
 }
+
+export async function showQuickPick<T extends QuickPickItem, P extends QuickPickParameters<T>>({ title, step, totalSteps, items, activeItem, ignoreFocusOut, placeholder, canSelectMany = false }: P) {
+
+  const disposables: Disposable[] = [];
+  try {
+    return await new Promise<readonly T[]>((resolve, reject) => {
+      const input = window.createQuickPick<T>();
+      input.title = title;
+      input.step = step;
+      input.totalSteps = totalSteps;
+      input.ignoreFocusOut = ignoreFocusOut ?? false;
+      input.placeholder = placeholder;
+      input.items = items;
+      input.canSelectMany = canSelectMany;
+      if (activeItem) {
+        input.activeItems = [activeItem];
+      }
+      disposables.push(
+        input.onDidAccept(async () => {
+          const selected = input.selectedItems;
+          input.enabled = false;
+          input.busy = true;
+          resolve(selected);
+          disposables.forEach(d => d.dispose());
+        }));
+      input.show();
+    });
+  } finally {
+    disposables.forEach(d => d.dispose());
+  }
+
+}

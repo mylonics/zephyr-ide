@@ -13,6 +13,5 @@ manifest:
         name-allowlist:
           - cmsis
           - cmsis-dsp
-          - hal_nordic
           - picolibc
           - segger

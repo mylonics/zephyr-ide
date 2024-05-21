@@ -19,9 +19,11 @@ import { QuickPickItem, ExtensionContext } from 'vscode';
 import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs-extra";
-import { MultiStepInput } from "../utilities/multistepQuickPick";
+import { MultiStepInput, showQuickPick } from "../utilities/multistepQuickPick";
 import { WorkspaceConfig } from './setup';
 import * as yaml from 'js-yaml';
+
+import { zephyrVersions, ncsVersions, zephyrHals } from "../defines";
 
 // Config for the extension
 export interface WestLocation {
@@ -30,27 +32,18 @@ export interface WestLocation {
   markAsInitialized: boolean | undefined
 }
 
-const zephyrVersions = ["Default", "main", "v3.6.0", "v2.7.6", "v3.5.0", "Other Version"];
-const ncsVersions = ["Default", "main", "v2.6.1", "v2.6.0", "v2.5.3", "Other Version"];
-
 export async function westSelector(context: ExtensionContext, wsConfig: WorkspaceConfig) {
 
   const title = 'Initialize West';
 
   async function pickWestYml(input: MultiStepInput, state: Partial<WestLocation>) {
-
-    console.log("Roto path: " + wsConfig.rootPath);
-
     type westOptionDict = { [name: string]: string };
     // Looks for board directories
     let westOptions: westOptionDict = {};
 
-    westOptions["Default Zephyr IDE west.yml (Full Zephyr in external)"] = "default_west.yml";
-    westOptions["Minimal STM west.yml"] = "minimal_stm_west.yml";
-    westOptions["Minimal NRF west.yml"] = "minimal_nrf_west.yml";
-    westOptions["Minimal STM and NRF west.yml"] = "minimal_stm_nrf_west.yml";
+    westOptions["Full Zephyr"] = "default_west.yml";
+    westOptions["Minimal Zephyr (Select Desired HALs)"] = "minimal_west.yml";
     westOptions["NRF Connect Config"] = "ncs_west.yml";
-    westOptions["West Default (no west.yml)"] = "";
     westOptions["Select west.yml in Workspace"] = "";
     westOptions["Mark West Init as run without running west init"] = "";
 
@@ -80,11 +73,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
     let copyTemplate = false;
     let westFile;
 
-    if (pick.label === "West Default (no west.yml)") {
-      state.failed = false;
-      state.path = undefined;
-      return;
-    } else if (pick.label === "Mark West Init as run without running west init") {
+    if (pick.label === "Mark West Init as run without running west init") {
       state.failed = false;
       state.markAsInitialized = true;
       return;
@@ -106,13 +95,30 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
       copyTemplate = true;
     }
 
-    if (westFile === undefined) {
+    if (westFile === undefined || pick.label === undefined) {
       await vscode.window.showInformationMessage(`Failed to select west.yml file`);
       state.failed = true;
       return;
     }
 
     if (copyTemplate) {
+      let desiredHals;
+      if (westFile === "minimal_west.yml") {
+        const pickPromise = await showQuickPick({
+          title,
+          step: 2,
+          totalSteps: 3,
+          ignoreFocusOut: true,
+          placeholder: "",
+          items: zephyrHals,
+          shouldResume: shouldResume,
+          canSelectMany: true,
+        }).catch((error) => {
+          return;
+        });
+        desiredHals = pickPromise;
+      }
+
       const extensionPath = context.extensionPath;
       let srcPath = path.join(extensionPath, "west_templates", westFile);
       let westDirPath = path.join(wsConfig.rootPath, "application");
@@ -123,7 +129,6 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
       }
 
       let res = await fs.copyFile(srcPath, desPath, fs.constants.COPYFILE_FICLONE);
-
       let doc: any = yaml.load(fs.readFileSync(desPath, 'utf-8'));
 
       let isNcsProject = false;
@@ -141,14 +146,18 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
       }
 
       const versionQP: QuickPickItem[] = [];
+      versionQP.push({ label: "Default" });
+      versionQP.push({ label: "", kind: vscode.QuickPickItemKind.Separator });
+
+
       for (let key in versionList) {
         versionQP.push({ label: versionList[key] });
       }
 
       const pickPromise = await input.showQuickPick({
         title,
-        step: 2,
-        totalSteps: 2,
+        step: 3,
+        totalSteps: 3,
         placeholder: versionSelectionString,
         items: versionQP,
         activeItem: typeof state.path !== 'string' ? state.path : undefined,
@@ -170,7 +179,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
         const inputPromise = input.showInputBox({
           title,
           step: 3,
-          totalSteps: 3,
+          totalSteps: 4,
           value: "Default",
           prompt: 'Input a Version Number (i.e vX.X.X) or branch name (i.e main)',
           validate: validate,
@@ -186,15 +195,22 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
         pick.label = version;
       }
 
-      if (pick.label !== "Default") {
-        for (let i = 0; i < doc.manifest.projects.length; i++) {
-          if ((isNcsProject && doc.manifest.projects[i].name === "sdk-nrf") || !isNcsProject && doc.manifest.projects[i].name === "zephyr") {
-            doc.manifest.projects[i].revision = pick.label;
-          }
-        }
-        fs.writeFileSync(desPath, yaml.dump(doc));
+      if (pick.label === "Default") {
+        pick.label = versionList[0];
       }
 
+      for (let i = 0; i < doc.manifest.projects.length; i++) {
+        if ((isNcsProject && doc.manifest.projects[i].name === "sdk-nrf") || !isNcsProject && doc.manifest.projects[i].name === "zephyr") {
+          doc.manifest.projects[i].revision = pick.label;
+        }
+      }
+      if (desiredHals) {
+        desiredHals.forEach(e => {
+          doc.manifest.projects[0].import["name-allowlist"].push(e.description);
+        });
+      }
+
+      fs.writeFileSync(desPath, yaml.dump(doc));
 
 
       state.failed = false;

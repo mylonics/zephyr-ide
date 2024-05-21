@@ -48,3 +48,6 @@ export const zephyrHals: vscode.QuickPickItem[] = [
   { label: "Würth Elektronik", description: "hal_wurthelektronik" },
   { label: "xtensa", description: "hal_xtensa" }
 ];
+
+export const zephyrVersions = ["v3.6.0", "v2.7.6", "v3.5.0", "main", "Other Version"];
+export const ncsVersions = ["v2.6.1", "v2.6.0", "v2.5.3", "main", "Other Version"];
