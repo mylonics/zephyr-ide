@@ -56,6 +56,7 @@ export async function runnerSelector(boardfolder: string) {
       totalSteps: 3,
       placeholder: 'Pick Runner',
       items: runnersQpItems,
+      ignoreFocusOut: true,
       activeItem: typeof state.runner !== 'string' ? state.runner : undefined,
       shouldResume: shouldResume
     }).catch((error) => {
@@ -84,6 +85,7 @@ export async function runnerSelector(boardfolder: string) {
       step: 2,
       totalSteps: 3,
       value: state.runner,
+      ignoreFocusOut: true,
       prompt: 'Choose a name for this Runner Configuration',
       validate: validate,
       shouldResume: shouldResume
@@ -110,6 +112,7 @@ export async function runnerSelector(boardfolder: string) {
       totalSteps: 3,
       value: "",
       prompt: 'Add Runner Arguments',
+      ignoreFocusOut: true,
       validate: validate,
       shouldResume: shouldResume
     }).catch((error) => {

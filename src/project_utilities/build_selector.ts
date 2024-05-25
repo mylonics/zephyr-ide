@@ -76,6 +76,7 @@ export async function buildSelector(context: ExtensionContext, wsConfig: Workspa
       step: 1,
       totalSteps: 4,
       placeholder: 'Pick Board Directory',
+      ignoreFocusOut: true,
       items: boardDirectoriesQpItems,
       activeItem: typeof state.relBoardDir !== 'string' ? state.relBoardDir : undefined,
       shouldResume: shouldResume
@@ -122,6 +123,7 @@ export async function buildSelector(context: ExtensionContext, wsConfig: Workspa
         step: 2,
         totalSteps: 4,
         placeholder: 'Pick Board',
+        ignoreFocusOut: true,
         items: boardQpItems,
         activeItem: typeof state.relBoardDir !== 'string' ? state.relBoardDir : undefined,
         shouldResume: shouldResume
@@ -235,6 +237,7 @@ export async function buildSelector(context: ExtensionContext, wsConfig: Workspa
       title,
       step: 3,
       totalSteps: 4,
+      ignoreFocusOut: true,
       value: path.join("build", state.board),
       prompt: 'Choose a name for the Build',
       validate: validate,
@@ -261,6 +264,7 @@ export async function buildSelector(context: ExtensionContext, wsConfig: Workspa
       step: 4,
       totalSteps: 4,
       placeholder: 'Select Build Optimization',
+      ignoreFocusOut: true,
       items: buildOptimizationsQpItems,
       activeItem: typeof state.debugOptimization !== 'string' ? state.debugOptimization : undefined,
       shouldResume: shouldResume

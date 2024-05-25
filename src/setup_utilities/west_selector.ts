@@ -29,12 +29,36 @@ import { zephyrVersions, ncsVersions, zephyrHals } from "../defines";
 export interface WestLocation {
   path: string | undefined;
   failed: boolean;
-  markAsInitialized: boolean | undefined
+  gitRepo: string;
+  markAsInitialized: boolean | undefined;
+  additionalArgs: string;
 }
+
+
 
 export async function westSelector(context: ExtensionContext, wsConfig: WorkspaceConfig) {
 
   const title = 'Initialize West';
+
+  async function getAdditionalArguments(input: MultiStepInput, state: Partial<WestLocation>) {
+    async function validateArgs(name: string) {
+      return undefined;
+    }
+    state.additionalArgs = await input.showInputBox({
+      title,
+      step: 3,
+      totalSteps: 3,
+      ignoreFocusOut: true,
+      placeholder: "--mr main",
+      value: "",
+      prompt: 'Additional arguments? (--mr main, --mf west.yml)',
+      validate: validateArgs,
+      shouldResume: shouldResume
+    }).catch((error) => {
+      console.error(error);
+      return "";
+    });
+  }
 
   async function pickWestYml(input: MultiStepInput, state: Partial<WestLocation>) {
     type westOptionDict = { [name: string]: string };
@@ -44,6 +68,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
     westOptions["Full Zephyr"] = "default_west.yml";
     westOptions["Minimal Zephyr (Select Desired HALs)"] = "minimal_west.yml";
     westOptions["NRF Connect Config"] = "ncs_west.yml";
+    westOptions["From Git Repo"] = "";
     westOptions["Select west.yml in Workspace"] = "";
     westOptions["Mark West Init as run without running west init"] = "";
 
@@ -55,8 +80,9 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
     const pickPromise = await input.showQuickPick({
       title,
       step: 1,
-      totalSteps: 2,
+      totalSteps: 3,
       placeholder: 'Select west.yml',
+      ignoreFocusOut: true,
       items: westOptionQpItems,
       activeItem: typeof state.path !== 'string' ? state.path : undefined,
       shouldResume: shouldResume,
@@ -77,6 +103,31 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
       state.failed = false;
       state.markAsInitialized = true;
       return;
+    } else if (pick.label === "From Git Repo") {
+      async function validateGitRepoString(name: string) {
+        return undefined;
+      }
+      state.gitRepo = await input.showInputBox({
+        title,
+        step: 2,
+        totalSteps: 3,
+        ignoreFocusOut: true,
+        placeholder: "https://github.com/zephyrproject-rtos/example-application",
+        value: "",
+        prompt: 'Specify a git repository to clone from',
+        validate: validateGitRepoString,
+        shouldResume: shouldResume
+      }).catch((error) => {
+        console.error(error);
+        return undefined;
+      });
+      if (state.gitRepo && state.gitRepo !== "") {
+        await getAdditionalArguments(input, state);
+        state.failed = false;
+      } else {
+        state.failed = true;
+      }
+      return;
     }
     else if (pick.label === "Select west.yml in Workspace") {
       let browsedWestFile = await vscode.window.showOpenDialog({
@@ -89,6 +140,9 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
       });
       if (browsedWestFile !== undefined) {
         westFile = path.dirname(browsedWestFile[0].fsPath);
+      } else {
+        state.failed = true;
+        return;
       }
     } else {
       westFile = westOptions[pick.label];
@@ -158,6 +212,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
         title,
         step: 3,
         totalSteps: 3,
+        ignoreFocusOut: true,
         placeholder: versionSelectionString,
         items: versionQP,
         activeItem: typeof state.path !== 'string' ? state.path : undefined,
@@ -180,6 +235,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
           title,
           step: 3,
           totalSteps: 4,
+          ignoreFocusOut: true,
           value: "Default",
           prompt: 'Input a Version Number (i.e vX.X.X) or branch name (i.e main)',
           validate: validate,
@@ -219,6 +275,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
       state.failed = false;
       state.path = westFile.toString();
     }
+    await getAdditionalArguments(input, state);
     return;
   }
 
@@ -232,6 +289,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
   async function collectInputs() {
     const state = {} as Partial<WestLocation>;
     await MultiStepInput.run(input => pickWestYml(input, state));
+
     return state as WestLocation;
   }
 

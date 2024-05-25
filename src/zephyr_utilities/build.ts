@@ -19,7 +19,7 @@ import * as vscode from "vscode";
 import * as path from 'path';
 import * as fs from 'fs-extra';
 
-import { getShellEnvironment, executeTask } from "../utilities/utils";
+import { getShellEnvironment, executeTaskHelper } from "../utilities/utils";
 
 import { WorkspaceConfig } from '../setup_utilities/setup';
 import { addBuild, ProjectConfig } from "../project_utilities/project";
@@ -67,11 +67,6 @@ export async function build(
   build: BuildConfig,
   pristine: boolean
 ) {
-
-  let options: vscode.ShellExecutionOptions = {
-    env: <{ [key: string]: string }>getShellEnvironment(wsConfig),
-    cwd: path.join(wsConfig.rootPath, project.rel_path),
-  };
 
   let primaryConfFiles = project.confFiles.config.concat(build.confFiles.config);
   primaryConfFiles = primaryConfFiles.map(x => (path.join(wsConfig.rootPath, x)));
@@ -124,20 +119,10 @@ export async function build(
     default:
       break;
   }
-
-  let exec = new vscode.ShellExecution(cmd, options);
-
   let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
-  let task = new vscode.Task(
-    { type: "zephyr-ide", command: taskName },
-    vscode.TaskScope.Workspace,
-    taskName,
-    "Zephyr IDE",
-    exec
-  );
 
   vscode.window.showInformationMessage(`Building ${build.name} from project: ${project.name}`);
-  await executeTask(task);
+  await executeTaskHelper(taskName, cmd, getShellEnvironment(wsConfig), path.join(wsConfig.rootPath, project.rel_path));
 }
 
 
@@ -164,27 +149,12 @@ export async function buildMenuConfig(
     build = project.buildConfigs[project.activeBuildConfig];
   }
 
-
-  let options: vscode.ShellExecutionOptions = {
-    env: <{ [key: string]: string }>getShellEnvironment(wsConfig),
-    cwd: path.join(wsConfig.rootPath, project.rel_path),
-  };
-
   let cmd = `west build -t ${isMenuConfig ? "menuconfig" : "guiconfig"} -b ${build.board} ${path.join(wsConfig.rootPath, project.rel_path)} --build-dir ${path.join(wsConfig.rootPath, project.rel_path, build.name)} -- -DBOARD_ROOT='${path.dirname(path.join(wsConfig.rootPath, build.relBoardDir))}' `;
 
-  let exec = new vscode.ShellExecution(cmd, options);
-
   let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
-  let task = new vscode.Task(
-    { type: "zephyr-ide", command: taskName },
-    vscode.TaskScope.Workspace,
-    taskName,
-    "Zephyr IDE",
-    exec
-  );
 
   vscode.window.showInformationMessage(`Running MenuConfig ${build.name} from project: ${project.name}`);
-  await executeTask(task);
+  await executeTaskHelper(taskName, cmd, getShellEnvironment(wsConfig), path.join(wsConfig.rootPath, project.rel_path));
 }
 
 

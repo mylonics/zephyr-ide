@@ -18,7 +18,7 @@ limitations under the License.
 import * as vscode from "vscode";
 import path from "path";
 
-import { getShellEnvironment, executeTask } from "../utilities/utils";
+import { getShellEnvironment, executeTaskHelper } from "../utilities/utils";
 
 import { ProjectConfig } from "../project_utilities/project";
 
@@ -59,16 +59,10 @@ export async function flashActive(wsConfig: WorkspaceConfig) {
 }
 
 export async function flash(wsConfig: WorkspaceConfig, project: ProjectConfig, build: BuildConfig, runner: RunnerConfig) {
-  let cmds = await vscode.commands.getCommands();
-  const subArr = cmds.filter(str => str.includes("debug"));
-  // Options for ShellExecution
-  let options: vscode.ShellExecutionOptions = {
-    env: <{ [key: string]: string }>getShellEnvironment(wsConfig),
-    cwd: path.join(wsConfig.rootPath, project.rel_path),
-  };
+  //let cmds = await vscode.commands.getCommands();
+  //const subArr = cmds.filter(str => str.includes("debug"));
 
   // Tasks
-  let taskName = "Zephyr IDE Flash: " + project.name + " " + build.name;
   let cmd = `west flash --build-dir ${path.join(wsConfig.rootPath, project.rel_path, build.name)}`;
 
   if (runner.runner !== "default") {
@@ -76,15 +70,8 @@ export async function flash(wsConfig: WorkspaceConfig, project: ProjectConfig, b
   }
   cmd += ` ${runner.args}`;
 
-  // Task
-  let task = new vscode.Task(
-    { type: "zephyr-ide", command: taskName, isBackground: true },
-    vscode.TaskScope.Workspace,
-    taskName,
-    "Zephyr IDE",
-    new vscode.ShellExecution(cmd, options)
-  );
+  let taskName = "Zephyr IDE Flash: " + project.name + " " + build.name;
 
   vscode.window.showInformationMessage(`Flashing for ${project.activeBuildConfig}`);
-  await executeTask(task);
+  await executeTaskHelper(taskName, cmd, getShellEnvironment(wsConfig), path.join(wsConfig.rootPath, project.rel_path));
 }

@@ -64,6 +64,7 @@ export async function configSelector(wsConfig: WorkspaceConfig, isKConfigSelecto
       placeholder: 'Select type of file to add',
       items: confFileOption,
       activeItem: undefined,
+      ignoreFocusOut: true,
       shouldResume: shouldResume
     }).catch((error) => {
       console.error(error);
@@ -117,6 +118,7 @@ export async function configSelector(wsConfig: WorkspaceConfig, isKConfigSelecto
       placeholder: 'Add more files?',
       items: addMoreOption,
       activeItem: undefined,
+      ignoreFocusOut: true,
       shouldResume: shouldResume
     }).catch((error) => {
       console.error(error);
@@ -183,6 +185,7 @@ export async function configRemover(confFiles: ConfigFiles, isKConfigSelector: b
       totalSteps: 2,
       placeholder: 'Select type of file to remove',
       items: confFileOption,
+      ignoreFocusOut: true,
       activeItem: undefined,
       shouldResume: shouldResume,
     }).catch((error) => {

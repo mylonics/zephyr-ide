@@ -87,18 +87,40 @@ import * as vscode from "vscode";
 
 export let output = vscode.window.createOutputChannel("Zephyr IDE");
 
-export async function executeTask(task: vscode.Task) {
+async function executeTask(task: vscode.Task) {
   const execution = await vscode.tasks.executeTask(task);
   output.appendLine("Starting Task: " + task.name);
 
-  return new Promise<void>(resolve => {
-    let disposable = vscode.tasks.onDidEndTask(e => {
+  return new Promise<number | undefined>(resolve => {
+    let disposable = vscode.tasks.onDidEndTaskProcess(e => {
       if (e.execution.task.name === task.name) {
         disposable.dispose();
-        resolve();
+        resolve(e.exitCode);
       }
     });
   });
+}
+
+export async function executeTaskHelper(taskName: string, cmd: string, envPath: NodeJS.ProcessEnv, cwd: string | undefined) {
+  output.appendLine(`Running cmd: ${cmd}`);
+  let options: vscode.ShellExecutionOptions = {
+    env: <{ [key: string]: string }>envPath,
+    cwd: cwd,
+  };
+
+  let exec = new vscode.ShellExecution(cmd, options);
+
+  // Task
+  let task = new vscode.Task(
+    { type: "zephyr-ide", command: taskName },
+    vscode.TaskScope.Workspace,
+    taskName,
+    "zephyr-ide",
+    exec
+  );
+
+  let res = await executeTask(task);
+  return (res !== undefined && res === 0);
 }
 
 
