@@ -227,7 +227,6 @@ export async function buildSelector(context: ExtensionContext, wsConfig: Workspa
     return boards;
   }
 
-
   async function inputBuildName(input: MultiStepInput, state: Partial<BuildConfig>) {
     if (state.board === undefined) {
       return;
@@ -277,6 +276,65 @@ export async function buildSelector(context: ExtensionContext, wsConfig: Workspa
       return;
     };
     state.debugOptimization = pick.label;
+
+    const westArgsInputPromise = input.showInputBox({
+      title,
+      step: 5,
+      totalSteps: 6,
+      ignoreFocusOut: true,
+      value: "",
+      prompt: 'Additional Build Arguments',
+      placeholder: '--sysbuild',
+      validate: validate,
+      shouldResume: shouldResume
+    }).catch((error) => {
+      console.error(error);
+      return undefined;
+    });
+    let westBuildArgs = await westArgsInputPromise;
+    if (westBuildArgs === undefined) {
+      return;
+    };
+
+    state.westBuildArgs = westBuildArgs;
+
+    let cmakeArg = "";
+    switch (state.debugOptimization) {
+      case "Debug":
+        cmakeArg = ` -DCONFIG_DEBUG_OPTIMIZATIONS=y -DCONFIG_DEBUG_THREAD_INFO=y `;
+        break;
+      case "Speed":
+        cmakeArg = ` -DCONFIG_SPEED_OPTIMIZATIONS=y `;
+        break;
+      case "Size":
+        cmakeArg = ` -DCONFIG_SIZE_OPTIMIZATIONS=y `;
+        break;
+      case "No Optimizations":
+        cmakeArg = ` -DCONFIG_NO_OPTIMIZATIONS=y`;
+        break;
+      default:
+        break;
+    }
+
+    const cmakeArgsInputPromise = input.showInputBox({
+      title,
+      step: 6,
+      totalSteps: 6,
+      ignoreFocusOut: true,
+      value: cmakeArg,
+      prompt: 'Modify CMake Arguments',
+      validate: validate,
+      shouldResume: shouldResume
+    }).catch((error) => {
+      console.error(error);
+      return undefined;
+    });
+    let cmakeBuildArgs = await cmakeArgsInputPromise;
+    if (cmakeBuildArgs === undefined) {
+      return;
+    };
+
+    state.westBuildCMakeArgs = cmakeBuildArgs;
 
 
     state.confFiles = {

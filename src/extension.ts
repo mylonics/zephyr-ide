@@ -17,7 +17,7 @@ limitations under the License.
 
 import * as vscode from "vscode";
 
-import { getShellEnvironment, getLaunchConfigurationByName, output, executeShellCommand } from "./utilities/utils";
+import { getShellEnvironment, getLaunchConfigurationByName, output, executeShellCommand, getRootPath } from "./utilities/utils";
 
 import { ActiveProjectView } from "./panels/active_project_view/ActiveProjectView";
 import { ProjectTreeView } from "./panels/project_tree_view/ProjectTreeView";
@@ -32,7 +32,7 @@ import { installSdk } from "./setup_utilities/download";
 
 let wsConfig: WorkspaceConfig;
 
-let statusBar: vscode.StatusBarItem;
+let activeProjectDisplay: vscode.StatusBarItem;
 
 export async function activate(context: vscode.ExtensionContext) {
   wsConfig = await loadWorkspaceState(context);
@@ -45,9 +45,9 @@ export async function activate(context: vscode.ExtensionContext) {
     if (wsConfig.activeProject) {
       let selectedProject = wsConfig.projects[wsConfig.activeProject];
       if (selectedProject.activeBuildConfig) {
-        statusBar.text = `$(megaphone) ${selectedProject.name}`;
+        activeProjectDisplay.text = `$(megaphone) ${selectedProject.name}`;
         vscode.window.showInformationMessage(`Zephyr IDE:\r\n 
-        Active Project: ${selectedProject}\r\n
+        Active Project: ${selectedProject.name}\r\n
         Active Build: ${selectedProject.activeBuildConfig} `);
       }
     }
@@ -77,13 +77,33 @@ export async function activate(context: vscode.ExtensionContext) {
     )
   );
 
-  statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
-  statusBar.command = "zephyr-ide.update-status";
-  //statusBar.text = `$(megaphone) ${wsConfig.selectedProject}`;
-  statusBar.tooltip = "Zephyr IDE Status";
-  statusBar.show();
-  context.subscriptions.push(statusBar);
+  activeProjectDisplay = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+  activeProjectDisplay.command = "zephyr-ide.update-status";
+  activeProjectDisplay.text = `$(megaphone) ${wsConfig.activeProject}`;
+  activeProjectDisplay.tooltip = "Zephyr IDE Status";
+  activeProjectDisplay.show();
+  context.subscriptions.push(activeProjectDisplay);
 
+  let activeBuildButton = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+  activeBuildButton.command = "zephyr-ide.build";
+  activeBuildButton.text = `$(play)`;
+  activeBuildButton.tooltip = "Zephyr IDE Build";
+  activeBuildButton.show();
+  context.subscriptions.push(activeBuildButton);
+
+  let activeFlashButton = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+  activeFlashButton.command = "zephyr-ide.flash";
+  activeFlashButton.text = `$(arrow-circle-up)`;
+  activeFlashButton.tooltip = "Zephyr IDE Flash";
+  activeFlashButton.show();
+  context.subscriptions.push(activeFlashButton);
+
+  let activeDebugButton = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+  activeDebugButton.command = "zephyr-ide.debug";
+  activeDebugButton.text = `$(debug-alt)`;
+  activeDebugButton.tooltip = "Zephyr IDE Debug";
+  activeDebugButton.show();
+  context.subscriptions.push(activeDebugButton);
 
   context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(handleChange => {
     if (wsConfig.automaticProjectSelction && handleChange) {
@@ -94,7 +114,7 @@ export async function activate(context: vscode.ExtensionContext) {
           if (wsConfig.activeProject !== key) {
             vscode.window.showInformationMessage(`Active project changed to ${key}`);
             wsConfig.activeProject = key;
-            statusBar.text = `$(megaphone) ${key}`;
+            activeProjectDisplay.text = `$(megaphone) ${key}`;
           }
           vscode.commands.executeCommand("zephyr-ide.update-web-view");
         }
@@ -105,10 +125,14 @@ export async function activate(context: vscode.ExtensionContext) {
   // Extension/Workspace Setup Commands
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.init-workspace", async () => {
-      var setupViewUpdate = (wsConfig: WorkspaceConfig): void => {
-        extensionSetupView.updateWebView(wsConfig);
-      };
-      await workspaceInit(context, wsConfig, setupViewUpdate);
+      if (getRootPath()) {
+        var setupViewUpdate = (wsConfig: WorkspaceConfig): void => {
+          extensionSetupView.updateWebView(wsConfig);
+        };
+        await workspaceInit(context, wsConfig, setupViewUpdate);
+      } {
+        vscode.window.showErrorMessage("Open Folder Before Continuing");
+      }
     })
   );
 
@@ -121,8 +145,12 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.setup-west-environment", async () => {
-      await setupWestEnvironment(context, wsConfig);
-      extensionSetupView.updateWebView(wsConfig);
+      if (getRootPath()) {
+        await setupWestEnvironment(context, wsConfig);
+        extensionSetupView.updateWebView(wsConfig);
+      } {
+        vscode.window.showErrorMessage("Open Folder Before Continuing");
+      }
     })
   );
 
@@ -549,6 +577,13 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.start-gui-config", async () => {
       buildMenuConfig(wsConfig, false);
+    })
+  );
+
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.modify-build-arguments", async () => {
+      project.modifyBuildArguments(context, wsConfig);
     })
   );
 

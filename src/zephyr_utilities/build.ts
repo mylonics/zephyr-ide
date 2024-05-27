@@ -47,12 +47,16 @@ export async function buildHelper(
   }
 }
 
-export async function buildByName(wsConfig: WorkspaceConfig, pristine: boolean, projectName: string, buildName: string) {
+export async function buildByName(wsConfig: WorkspaceConfig, pristine: boolean, projectName: string, buildName: string, isMenuConfig = false) {
   if (wsConfig.westUpdated) {
     let project = wsConfig.projects[projectName];
     let buildconfig = project.buildConfigs[buildName];
     if (project && build) {
-      build(wsConfig, project, buildconfig, pristine);
+      if (isMenuConfig) {
+        buildMenuConfig(wsConfig, true, project, buildconfig);
+      } else {
+        build(wsConfig, project, buildconfig, pristine);
+      }
     } else {
       vscode.window.showErrorMessage("Invalid project or build");
     }
@@ -102,23 +106,6 @@ export async function build(
     cmd = cmd + ` -DEXTRA_DTC_OVERLAY_FILE='${extraOverlayFiles}' `;
   }
 
-
-  switch (build.debugOptimization) {
-    case "Debug":
-      cmd = cmd + ` -DCONFIG_DEBUG_OPTIMIZATIONS=y -DCONFIG_DEBUG_THREAD_INFO=y `;
-      break;
-    case "Speed":
-      cmd = cmd + ` -DCONFIG_SPEED_OPTIMIZATIONS=y `;
-      break;
-    case "Size":
-      cmd = cmd + ` -DCONFIG_SIZE_OPTIMIZATIONS=y `;
-      break;
-    case "No Optimizations":
-      cmd = cmd + ` -DCONFIG_NO_OPTIMIZATIONS=y`;
-      break;
-    default:
-      break;
-  }
   let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
 
   vscode.window.showInformationMessage(`Building ${build.name} from project: ${project.name}`);

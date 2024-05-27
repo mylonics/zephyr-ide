@@ -322,8 +322,16 @@
         "title": "Zephyr IDE: Start GUI Config"
       },
       {
+        "command": "zephyr-ide.modify-build-arguments",
+        "title": "Zephyr IDE: Modify Build Arguments"
+      },
+      {
         "command": "zephyr-ide.debug-internal-shell",
         "title": "Zephyr IDE: Debug Internal Shell"
+      },
+      {
+        "command": "zephyr-ide.update-web-view",
+        "title": "Zephyr IDE: Reload Web Views"
       }
     ],
     "terminal": {

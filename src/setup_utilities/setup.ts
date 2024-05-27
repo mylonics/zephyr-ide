@@ -47,6 +47,42 @@ export interface WorkspaceConfig {
   armGdbPath: string | undefined
 }
 
+function projectLoader(config: WorkspaceConfig, projects: any) {
+  config.projects = {};
+  for (let key in projects) {
+    for (let buildKey in projects[key].buildConfigs) {
+      if (projects[key].buildConfigs[buildKey].debugOptimization !== undefined) {
+
+        let cmakeArg = "";
+        switch (projects[key].buildConfigs[buildKey].debugOptimization) {
+          case "Debug":
+            cmakeArg = ` -DCONFIG_DEBUG_OPTIMIZATIONS=y -DCONFIG_DEBUG_THREAD_INFO=y `;
+            break;
+          case "Speed":
+            cmakeArg = ` -DCONFIG_SPEED_OPTIMIZATIONS=y `;
+            break;
+          case "Size":
+            cmakeArg = ` -DCONFIG_SIZE_OPTIMIZATIONS=y `;
+            break;
+          case "No Optimizations":
+            cmakeArg = ` -DCONFIG_NO_OPTIMIZATIONS=y`;
+            break;
+          default:
+            break;
+        }
+
+        if (projects[key].buildConfigs[buildKey].westBuildCMakeArgs) {
+          projects[key].buildConfigs[buildKey].westBuildCMakeArgs = projects[key].buildConfigs[buildKey].westBuildCMakeArgs + cmakeArg;
+        } else {
+          projects[key].buildConfigs[buildKey].westBuildCMakeArgs = cmakeArg;
+        }
+        projects[key].buildConfigs[buildKey].debugOptimization = undefined;
+      }
+    }
+    config.projects[key] = projects[key];
+  }
+}
+
 export async function loadProjectsFromFile(config: WorkspaceConfig) {
   const configuration = await vscode.workspace.getConfiguration();
   let useExternalJson: boolean | undefined = await configuration.get("zephyr-ide.use-zephyr-ide-json");
@@ -62,18 +98,7 @@ export async function loadProjectsFromFile(config: WorkspaceConfig) {
       } else {
         var object = await JSON.parse(fs.readFileSync(zephyrIdeSettingFilePath, 'utf8'));
         let projects = object.projects;
-        config.projects = {};
-        if (projects) {
-          for (let key in projects) {
-
-            for (let buildKey in projects[key].buildConfigs) {
-              if (projects[key].buildConfigs[buildKey].relBoardSubDir === undefined) {
-                projects[key].buildConfigs[buildKey].relBoardSubDir = path.join("arm", projects[key].buildConfigs[buildKey].board);
-              }
-            }
-            config.projects[key] = projects[key];
-          }
-        }
+        projectLoader(config, projects);
       }
     } catch (error) {
       console.error("Failed to load .vscode/zephyr-ide.json");
@@ -83,15 +108,7 @@ export async function loadProjectsFromFile(config: WorkspaceConfig) {
     let temp: ProjectConfigDictionary | undefined = await configuration.get("zephyr-ide.projects");
     temp = JSON.parse(JSON.stringify(temp));
     if (temp) {
-      config.projects = {};
-      for (let key in temp) {
-        for (let buildKey in temp[key].buildConfigs) {
-          if (temp[key].buildConfigs[buildKey].relBoardSubDir === undefined) {
-            temp[key].buildConfigs[buildKey].relBoardSubDir = path.join("arm", temp[key].buildConfigs[buildKey].board);
-          }
-        }
-        config.projects[key] = temp[key];
-      }
+      projectLoader(config, temp);
     }
   }
 }

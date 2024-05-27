@@ -33,6 +33,51 @@ export interface ProjectConfig {
   confFiles: ConfigFiles;
 }
 
+export function getProjectName(wsConfig: WorkspaceConfig, projectName?: string) {
+  if (!projectName) {
+    if (wsConfig.activeProject === undefined) {
+      vscode.window.showErrorMessage("Set Active Project before running this command");
+      return;
+    }
+    projectName = wsConfig.activeProject;
+  }
+  return projectName;
+}
+
+export function getBuildName(wsConfig: WorkspaceConfig, projectName: string, buildName?: string) {
+  if (!buildName) {
+    if (wsConfig.projects[projectName].activeBuildConfig === undefined) {
+      vscode.window.showErrorMessage("Set Active Build before running this command");
+      return;
+    }
+    buildName = wsConfig.projects[projectName].activeBuildConfig;
+  }
+  return buildName;
+}
+
+export async function modifyBuildArguments(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName?: string, buildName?: string) {
+  projectName = getProjectName(wsConfig, projectName);
+  if (!projectName) {
+    return;
+  }
+  buildName = getBuildName(wsConfig, projectName, buildName);
+  if (!buildName) {
+    return;
+  }
+  const newWestBuildArgs = await vscode.window.showInputBox({ title: "Modify West Build Arguments", value: wsConfig.projects[projectName].buildConfigs[buildName].westBuildArgs, prompt: "West Build arguments i.e --sysbuild", placeHolder: "--sysbuild" });
+
+  if (newWestBuildArgs !== undefined) {
+    wsConfig.projects[projectName].buildConfigs[buildName].westBuildArgs = newWestBuildArgs;
+  }
+
+  const newCMakeBuildArgs = await vscode.window.showInputBox({ title: "Modify CMake Build Arguments", value: wsConfig.projects[projectName].buildConfigs[buildName].westBuildCMakeArgs, prompt: "CMake Build arguments i.e -DCMAKE_VERBOSE_MAKEFILE=ON", placeHolder: "-DCMAKE_VERBOSE_MAKEFILE=ON" });
+
+  if (newCMakeBuildArgs !== undefined) {
+    wsConfig.projects[projectName].buildConfigs[buildName].westBuildCMakeArgs = newCMakeBuildArgs;
+  }
+
+  await setWorkspaceState(context, wsConfig);
+}
 
 async function readAllDirectories(directory: vscode.Uri, projectList: vscode.QuickPickItem[], rootPath: string, relativePath = ''): Promise<void> {
   try {
@@ -96,21 +141,15 @@ export async function createNewProjectFromSample(context: vscode.ExtensionContex
 }
 
 export async function addConfigFiles(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, isKConfig: boolean, isToProject: boolean, projectName?: string, buildName?: string, isPrimary?: boolean) {
+  projectName = getProjectName(wsConfig, projectName);
   if (!projectName) {
-    if (wsConfig.activeProject === undefined) {
-      vscode.window.showErrorMessage("Set Active Project before trying to Add Config Files");
-      return;
-    }
-    projectName = wsConfig.activeProject;
+    return;
   }
 
   if (!isToProject) {
+    buildName = getBuildName(wsConfig, projectName, buildName);
     if (!buildName) {
-      if (wsConfig.projects[projectName].activeBuildConfig === undefined) {
-        vscode.window.showErrorMessage("Set Active Build before trying to Add Config Files");
-        return;
-      }
-      buildName = wsConfig.projects[projectName].activeBuildConfig;
+      return;
     }
   }
 
@@ -127,6 +166,8 @@ export async function addConfigFiles(context: vscode.ExtensionContext, wsConfig:
         wsConfig.projects[projectName].buildConfigs[buildName].confFiles.extraConfig = wsConfig.projects[projectName].buildConfigs[buildName].confFiles.extraConfig.concat(result.extraConfig);
         wsConfig.projects[projectName].buildConfigs[buildName].confFiles.overlay = wsConfig.projects[projectName].buildConfigs[buildName].confFiles.overlay.concat(result.overlay);
         wsConfig.projects[projectName].buildConfigs[buildName].confFiles.extraOverlay = wsConfig.projects[projectName].buildConfigs[buildName].confFiles.extraOverlay.concat(result.extraOverlay);
+      } else {
+        return;
       }
     }
     await setWorkspaceState(context, wsConfig);
@@ -136,24 +177,16 @@ export async function addConfigFiles(context: vscode.ExtensionContext, wsConfig:
 }
 
 export async function removeConfigFiles(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, isKConfig: boolean, isToProject: boolean, projectName?: string, buildName?: string, isPrimary?: boolean) {
+  projectName = getProjectName(wsConfig, projectName);
   if (!projectName) {
-    if (wsConfig.activeProject === undefined) {
-      vscode.window.showErrorMessage("Set Active Project before trying to remove Config Files");
-      return;
-    }
-    projectName = wsConfig.activeProject;
+    return;
   }
+
 
   let confFiles = wsConfig.projects[projectName].confFiles;
 
   if (!isToProject) {
-    if (!buildName) {
-      if (wsConfig.projects[projectName].activeBuildConfig === undefined) {
-        vscode.window.showErrorMessage("Set Active Build before trying to remove Config Files");
-        return;
-      }
-      buildName = wsConfig.projects[projectName].activeBuildConfig;
-    }
+    buildName = getBuildName(wsConfig, projectName, buildName);
     if (buildName) {
       confFiles = wsConfig.projects[projectName].buildConfigs[buildName].confFiles;
     }

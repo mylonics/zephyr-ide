@@ -17,17 +17,15 @@ limitations under the License.
 
 import * as vscode from 'vscode';
 import path from 'path';
-import { ProjectConfig, addBuildToProject, addConfigFiles, addRunnerToBuild, removeBuild, removeProject, removeRunner, setActive, removeConfigFiles, removeConfigFile } from '../../project_utilities/project';
+import { ProjectConfig, addBuildToProject, addConfigFiles, addRunnerToBuild, removeBuild, removeProject, removeRunner, setActive, modifyBuildArguments, removeConfigFile } from '../../project_utilities/project';
 import { BuildConfig } from '../../project_utilities/build_selector';
 import { getNonce } from "../../utilities/getNonce";
 import { RunnerConfig } from '../../project_utilities/runner_selector';
-import { buildByName } from '../../zephyr_utilities/build';
+import { buildByName, buildMenuConfig } from '../../zephyr_utilities/build';
 import { flashByName } from '../../zephyr_utilities/flash';
 import { ConfigFiles } from '../../project_utilities/config_selector';
 
 import { WorkspaceConfig } from '../../setup_utilities/setup';
-
-
 
 export class ProjectTreeView implements vscode.WebviewViewProvider {
   private view: vscode.WebviewView | undefined;
@@ -58,6 +56,10 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
       icon: "debug-rerun",
       actionId: "buildPristine",
       tooltip: "Build Pristine",
+    }, {
+      icon: "settings-gear",
+      actionId: "menuConfig",
+      tooltip: "Menu Config",
     }, {
       icon: "add",
       actionId: "addRunner",
@@ -91,7 +93,6 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
   ];
 
   constructor(public extensionPath: string, private context: vscode.ExtensionContext, private wsConfig: WorkspaceConfig) {
-
   }
 
   generateOverlayFileEntry(entry: any, projectName: string, buildName: string | undefined, confFiles: ConfigFiles) {
@@ -241,20 +242,48 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
           value: { project: projectName, build: build.name, cmd: "addOverlayFile" },
           open: true,
           subItems: []
+        }, {
+          icons: {
+            branch: 'circuit-board',
+            leaf: 'circuit-board',
+            open: 'circuit-board',
+          },
+          label: "West Args",
+          value: { project: projectName, build: build.name, cmd: "modifyBuildArgs" },
+          description: build.westBuildArgs,
+        }, {
+          icons: {
+            branch: 'circuit-board',
+            leaf: 'circuit-board',
+            open: 'circuit-board',
+          },
+          label: "CMake Args",
+          value: { project: projectName, build: build.name, cmd: "modifyBuildArgs" },
+          description: build.westBuildCMakeArgs,
         },
       ];
     }
     this.generateConfigFileEntry(buildData.subItems[2], projectName, build.name, build.confFiles);
     this.generateOverlayFileEntry(buildData.subItems[3], projectName, build.name, build.confFiles);
 
+    //if statements may be removed in the future once everyone has upgraded.
+    if (build.westBuildArgs) {
+      buildData.subItems[4].description = build.westBuildArgs;
+    }
+    if (build.westBuildCMakeArgs) {
+      buildData.subItems[5].description = build.westBuildCMakeArgs;
+    }
+
+    const numberOfStaticEntries = 6;
     const lengthOfSubItems = buildData.subItems.length;
 
     let runnerNames = [];
 
+    //Add runners
     for (let key in build.runners) {
       runnerNames.push(key);
       let foundEntry = false;
-      let index = 4;
+      let index = numberOfStaticEntries;
       for (; index < lengthOfSubItems; index++) {
         if (buildData.subItems[index].label === key) {
           foundEntry = true;
@@ -268,15 +297,17 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
       }
     }
 
+    //Remove runners
     var i = buildData.subItems.length - 1;
-    while (i >= 4) {
+    while (i >= numberOfStaticEntries) {
       if (!runnerNames.includes(buildData.subItems[i].label)) {
         buildData.subItems.splice(i, 1);
       }
       i--;
     }
 
-    if (!Object.keys(build.runners).length) {
+    // If no runners then add Add Runner command
+    if (!Object.keys(build.runners).length && buildData.subItems.length === numberOfStaticEntries) {
       buildData.subItems.push({
         icons: {
           branch: 'add',
@@ -505,6 +536,11 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
           setActive(this.wsConfig, message.value.project, message.value.build);
           break;
         }
+        case "menuConfig": {
+          buildByName(this.wsConfig, true, message.value.project, message.value.build, true);
+          setActive(this.wsConfig, message.value.project, message.value.build);
+          break;
+        }
         case "flash": {
           flashByName(this.wsConfig, message.value.project, message.value.build, message.value.runner);
           setActive(this.wsConfig, message.value.project, message.value.build, message.value.runner);
@@ -543,6 +579,10 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
 
           setActive(this.wsConfig, message.value.project, message.value.build, message.value.runner);
           break;
+        }
+        case "modifyBuildArgs": {
+          modifyBuildArguments(this.context, this.wsConfig, message.value.project, message.value.build).finally(() => { vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
+          setActive(this.wsConfig, message.value.project, message.value.build, message.value.runner);
         }
         case "addFile": {
           switch (message.value.cmd) {
