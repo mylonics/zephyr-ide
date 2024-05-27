@@ -130,7 +130,7 @@ export async function activate(context: vscode.ExtensionContext) {
           extensionSetupView.updateWebView(wsConfig);
         };
         await workspaceInit(context, wsConfig, setupViewUpdate);
-      } {
+      } else {
         vscode.window.showErrorMessage("Open Folder Before Continuing");
       }
     })
@@ -148,7 +148,7 @@ export async function activate(context: vscode.ExtensionContext) {
       if (getRootPath()) {
         await setupWestEnvironment(context, wsConfig);
         extensionSetupView.updateWebView(wsConfig);
-      } {
+      } else {
         vscode.window.showErrorMessage("Open Folder Before Continuing");
       }
     })
