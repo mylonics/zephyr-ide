@@ -49,6 +49,16 @@ This extension contributes the following settings:
 * macOS compatibility is untested. Please make an issue on our github page with any incompatibilities found.
 
 ## Release Notes
+### 1.0.31
+
+Added GUI for west build.
+Added additional build buttons to status bar
+Prevent initialization of workspace without folder open
+
+### 1.0.27
+
+Repackage
+
 ### 1.0.25
 
 Added the ability to clone git repo during west init.
