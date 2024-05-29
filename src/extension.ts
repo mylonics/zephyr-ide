@@ -84,6 +84,13 @@ export async function activate(context: vscode.ExtensionContext) {
   activeProjectDisplay.show();
   context.subscriptions.push(activeProjectDisplay);
 
+  let activeBuildPristinButton = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+  activeBuildPristinButton.command = "zephyr-ide.build-pristine";
+  activeBuildPristinButton.text = `$(debug-rerun)`;
+  activeBuildPristinButton.tooltip = "Zephyr IDE Build Pristine";
+  activeBuildPristinButton.show();
+  context.subscriptions.push(activeBuildPristinButton);
+
   let activeBuildButton = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
   activeBuildButton.command = "zephyr-ide.build";
   activeBuildButton.text = `$(play)`;

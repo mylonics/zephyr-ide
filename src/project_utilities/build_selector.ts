@@ -31,7 +31,7 @@ export interface BuildConfig {
   board: string;
   relBoardDir: string;
   relBoardSubDir: string;
-  debugOptimization: string;
+  debugOptimization?: string;
   westBuildArgs: string;
   westBuildCMakeArgs: string;
   runners: RunnerConfigDictionary;
@@ -275,7 +275,7 @@ export async function buildSelector(context: ExtensionContext, wsConfig: Workspa
     if (!pick) {
       return;
     };
-    state.debugOptimization = pick.label;
+    let debugOptimization = pick.label;
 
     const westArgsInputPromise = input.showInputBox({
       title,
@@ -299,7 +299,7 @@ export async function buildSelector(context: ExtensionContext, wsConfig: Workspa
     state.westBuildArgs = westBuildArgs;
 
     let cmakeArg = "";
-    switch (state.debugOptimization) {
+    switch (debugOptimization) {
       case "Debug":
         cmakeArg = ` -DCONFIG_DEBUG_OPTIMIZATIONS=y -DCONFIG_DEBUG_THREAD_INFO=y `;
         break;
