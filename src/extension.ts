@@ -28,7 +28,7 @@ import * as project from "./project_utilities/project";
 import { buildHelper, buildMenuConfig, clean } from "./zephyr_utilities/build";
 import { flashActive } from "./zephyr_utilities/flash";
 import { WorkspaceConfig, GlobalConfig, loadGlobalState, westUpdate, workspaceInit, setWorkspaceState, loadWorkspaceState, clearWorkspaceState, westInit, checkIfToolsAvailable, setupWestEnvironment, loadProjectsFromFile, toolchainDir, setGlobalState } from "./setup_utilities/setup";
-import { installSdk } from "./setup_utilities/download";
+import { installSdk } from "./setup_utilities/setup_toolchain";
 
 let wsConfig: WorkspaceConfig;
 let globalConfig: GlobalConfig;

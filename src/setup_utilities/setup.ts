@@ -21,7 +21,7 @@ import * as os from "os";
 import * as fs from "fs-extra";
 import * as path from "path";
 
-import { installSdk, pickToolchainTarget, ToolChainDictionary } from "../setup_utilities/download";
+import { installSdk, pickToolchainTarget, ToolChainDictionary } from "../setup_utilities/setup_toolchain";
 import { getRootPath, getShellEnvironment, output, executeShellCommand, executeTaskHelper } from "../utilities/utils";
 import { ProjectConfig } from "../project_utilities/project";
 
