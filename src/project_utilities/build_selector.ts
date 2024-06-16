@@ -112,7 +112,7 @@ export async function buildSelector(context: ExtensionContext, wsConfig: Workspa
 
     if (state.relBoardDir) {
       console.log("Changing board dir to " + state.relBoardDir);
-      let boardList = await getBoardlistWest(useCustomFolder, vscode.Uri.file(path.join(wsConfig.rootPath, state.relBoardDir)), wsConfig.onlyArm);
+      let boardList = await getBoardlistWest(useCustomFolder, vscode.Uri.file(path.join(wsConfig.rootPath, state.relBoardDir)));
       if (!boardList) {
         return;
       }
@@ -142,7 +142,7 @@ export async function buildSelector(context: ExtensionContext, wsConfig: Workspa
     }
   }
 
-  async function getBoardlistWest(useCustomFolder: boolean, folder: vscode.Uri, onlyArm: boolean): Promise<{ name: string, subdir: string }[] | undefined> {
+  async function getBoardlistWest(useCustomFolder: boolean, folder: vscode.Uri): Promise<{ name: string, subdir: string }[] | undefined> {
     const extensionPath = context.extensionPath;
     let srcPathNew = path.join(extensionPath, "scripts", "get_board_list.py");
     let srcPathOld = path.join(extensionPath, "scripts", "get_board_list_pre_v3_6_0.py");
@@ -194,7 +194,7 @@ export async function buildSelector(context: ExtensionContext, wsConfig: Workspa
     return outputData;
   }
 
-  async function getBoardlist(folder: vscode.Uri, onlyArm: boolean): Promise<{ name: string, subdir: string }[]> {
+  async function getBoardlist(folder: vscode.Uri): Promise<{ name: string, subdir: string }[]> {
     let files = await vscode.workspace.fs.readDirectory(folder);
     let boards: { name: string, subdir: string }[] = [];
 

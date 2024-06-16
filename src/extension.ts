@@ -27,15 +27,25 @@ import path from "path";
 import * as project from "./project_utilities/project";
 import { buildHelper, buildMenuConfig, clean } from "./zephyr_utilities/build";
 import { flashActive } from "./zephyr_utilities/flash";
-import { WorkspaceConfig, westUpdate, workspaceInit, setWorkspaceState, loadWorkspaceState, clearWorkspaceState, westInit, checkIfToolsAvailable, setupWestEnvironment, loadProjectsFromFile, toolchainDir } from "./setup_utilities/setup";
+import { WorkspaceConfig, GlobalConfig, loadGlobalState, westUpdate, workspaceInit, setWorkspaceState, loadWorkspaceState, clearWorkspaceState, westInit, checkIfToolsAvailable, setupWestEnvironment, loadProjectsFromFile, toolchainDir, setGlobalState } from "./setup_utilities/setup";
 import { installSdk } from "./setup_utilities/download";
 
 let wsConfig: WorkspaceConfig;
+let globalConfig: GlobalConfig;
 
 let activeProjectDisplay: vscode.StatusBarItem;
 
 export async function activate(context: vscode.ExtensionContext) {
   wsConfig = await loadWorkspaceState(context);
+  globalConfig = await loadGlobalState(context);
+
+  //Remove the following checks after a few versions to garuntee upgrade
+  if (globalConfig.armGdbPath === undefined) {
+    if (wsConfig.armGdbPath) {
+      globalConfig.armGdbPath = wsConfig.armGdbPath;
+      setGlobalState(context, globalConfig);
+    }
+  }
 
   let activeProjectView = new ActiveProjectView(context.extensionPath, context, wsConfig);
   let projectTreeView = new ProjectTreeView(context.extensionPath, context, wsConfig);
@@ -136,7 +146,7 @@ export async function activate(context: vscode.ExtensionContext) {
         var setupViewUpdate = (wsConfig: WorkspaceConfig): void => {
           extensionSetupView.updateWebView(wsConfig);
         };
-        await workspaceInit(context, wsConfig, setupViewUpdate);
+        await workspaceInit(context, wsConfig, globalConfig, setupViewUpdate);
       } else {
         vscode.window.showErrorMessage("Open Folder Before Continuing");
       }
@@ -163,7 +173,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.install-sdk", async () => {
-      await installSdk(context, wsConfig, output);
+      await installSdk(context, wsConfig, globalConfig, output, undefined, undefined, true);
       extensionSetupView.updateWebView(wsConfig);
     })
   );
@@ -460,7 +470,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.get-gdb-path", async () => {
-      return wsConfig.armGdbPath;
+      return globalConfig.armGdbPath;
     })
   );
 

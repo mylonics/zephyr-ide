@@ -21,7 +21,7 @@ import * as os from "os";
 import * as fs from "fs-extra";
 import * as path from "path";
 
-import { installSdk } from "../setup_utilities/download";
+import { installSdk, pickToolchainTarget, ToolChainDictionary } from "../setup_utilities/download";
 import { getRootPath, getShellEnvironment, output, executeShellCommand, executeTaskHelper } from "../utilities/utils";
 import { ProjectConfig } from "../project_utilities/project";
 
@@ -29,22 +29,27 @@ import { westSelector, WestLocation } from "./west_selector";
 type ToolChainPath = { [Name: string]: string };
 export type ProjectConfigDictionary = { [name: string]: ProjectConfig };
 
+export interface GlobalConfig {
+  toolchains: ToolChainDictionary,
+  armGdbPath: string,
+}
+
 export interface WorkspaceConfig {
   rootPath: string;
-  env: { [name: string]: string | undefined };
-  projects: ProjectConfigDictionary;
-  activeProject?: string;
-  zephyrDir: string | undefined;
+  env: { [name: string]: string | undefined },
+  projects: ProjectConfigDictionary,
+  activeProject?: string,
+  zephyrDir: string | undefined,
   initialSetupComplete: boolean,
   toolsAvailable: boolean,
   pythonEnvironmentSetup: boolean,
-  westInited: boolean;
-  westUpdated: boolean;
-  sdkInstalled: boolean;
-  automaticProjectSelction: boolean;
-  toolchains: ToolChainPath;
-  onlyArm: boolean,
-  armGdbPath: string | undefined
+  westInited: boolean,
+  westUpdated: boolean,
+  sdkInstalled: boolean,
+  automaticProjectSelction: boolean,
+  toolchains?: ToolChainPath, //deprecated can be removed
+  onlyArm?: boolean, //deprecated can be removed
+  armGdbPath?: string //moved to globalConfig
 }
 
 function projectLoader(config: WorkspaceConfig, projects: any) {
@@ -113,11 +118,28 @@ export async function loadProjectsFromFile(config: WorkspaceConfig) {
   }
 }
 
+export async function loadGlobalState(context: vscode.ExtensionContext): Promise<GlobalConfig> {
+  let globalConfig: GlobalConfig = await context.globalState.get("zephyr-ide.state") ?? {
+    toolchains: {},
+    armGdbPath: '',
+  };
+
+  console.log(globalConfig);
+
+  return globalConfig;
+}
+
+export async function setGlobalState(context: vscode.ExtensionContext, globalConfig: GlobalConfig) {
+  await context.globalState.update("zephyr-ide.state", globalConfig);
+}
+
+
 export async function loadWorkspaceState(context: vscode.ExtensionContext): Promise<WorkspaceConfig> {
   let rootPath = getRootPath()?.fsPath;
   if (!rootPath) {
     rootPath = "";
   }
+
 
   let config: WorkspaceConfig = await context.workspaceState.get("zephyr.env") ?? {
     rootPath: rootPath,
@@ -131,9 +153,6 @@ export async function loadWorkspaceState(context: vscode.ExtensionContext): Prom
     zephyrDir: undefined,
     sdkInstalled: false,
     initialSetupComplete: false,
-    toolchains: {},
-    armGdbPath: undefined,
-    onlyArm: true,
   };
 
   loadProjectsFromFile(config);
@@ -165,9 +184,6 @@ export async function clearWorkspaceState(context: vscode.ExtensionContext, wsCo
   wsConfig.zephyrDir = undefined;
   wsConfig.sdkInstalled = false;
   wsConfig.initialSetupComplete = false;
-  wsConfig.toolchains = {};
-  wsConfig.armGdbPath = undefined;
-  wsConfig.onlyArm = true;
   setWorkspaceState(context, wsConfig);
 }
 
@@ -260,7 +276,7 @@ export async function checkIfToolsAvailable(context: vscode.ExtensionContext, ws
   return true;
 }
 
-export function workspaceInit(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, progressUpdate: (wsConfig: WorkspaceConfig) => any) {
+export function workspaceInit(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, progressUpdate: (wsConfig: WorkspaceConfig) => any) {
   vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
@@ -269,6 +285,7 @@ export function workspaceInit(context: vscode.ExtensionContext, wsConfig: Worksp
     },
     async (progress, token) => {
       let westSelection = await westSelector(context, wsConfig);
+      let toolchainSelection = await pickToolchainTarget(context, globalConfig);
       if (westSelection === undefined || westSelection.failed) {
         vscode.window.showErrorMessage("Zephyr IDE Initialization: Invalid West Init Selection");
         return;
@@ -289,7 +306,7 @@ export function workspaceInit(context: vscode.ExtensionContext, wsConfig: Worksp
         return;
       }
       progress.report({ message: "Installing SDK (3/5)", increment: 20 });
-      await installSdk(context, wsConfig, output, true, false);
+      await installSdk(context, wsConfig, globalConfig, output, true, toolchainSelection, false);
       progressUpdate(wsConfig);
       if (!wsConfig.sdkInstalled) {
         vscode.window.showErrorMessage("Zephyr IDE Initialization Step 3/5: Sdk failed to install");

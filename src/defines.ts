@@ -2,7 +2,7 @@
 import * as vscode from "vscode";
 
 export const toolchainTargets: vscode.QuickPickItem[] = [
-  { label: "arm" },
+  { picked: true, label: "arm" },
   { label: "sep", kind: vscode.QuickPickItemKind.Separator },
   { label: "aarch64" },
   { label: "arc" },

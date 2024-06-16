@@ -39,7 +39,7 @@ import * as os from "os";
 import { compareVersions } from 'compare-versions';
 
 import { HttpClient } from "typed-rest-client/HttpClient";
-import { toolsdir, WorkspaceConfig, setWorkspaceState } from "./setup";
+import { toolsdir, GlobalConfig, WorkspaceConfig, setWorkspaceState, setGlobalState } from "./setup";
 import { getShellEnvironment } from "../utilities/utils";
 import { toolchainTargets } from "../defines";
 
@@ -153,6 +153,7 @@ export type DownloadEntry = {
     cmd?: CmdEntry[];
     filename: string;
     clearTarget?: boolean;
+    targetName: string;
 };
 
 export async function processDownload(download: DownloadEntry, output: vscode.OutputChannel, wsConfig: WorkspaceConfig) {
@@ -290,19 +291,50 @@ export function getPlatformArch() {
     return;
 }
 
-export async function pickToolchainTarget() {
-    const pickOptions: vscode.QuickPickOptions = {
-        ignoreFocusOut: true,
-        placeHolder: "Select Toolchain Target Architecture",
-    };
-
-    let selectedToolchainTarget = await vscode.window.showQuickPick(toolchainTargets, pickOptions);
-    if (selectedToolchainTarget) {
-        return selectedToolchainTarget.label;
-    }
+export interface ToolChainEntry {
+    version: string,
+    basePath: string,
+    targetsInstalled: string[];
 }
 
-export async function installSdk(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, output: vscode.OutputChannel, installLatestArm = false, solo = true) {
+export type ToolChainDictionary = { [name: string]: ToolChainEntry };
+
+export async function pickToolchainTarget(context: vscode.ExtensionContext, globalConfig: GlobalConfig, toolchainVersion?: string) {
+    if (toolchainVersion === undefined) {
+        let toolchainVersionList = await getToolchainVersionList(context);
+        toolchainVersion = toolchainVersionList[0];
+    }
+    console.log(globalConfig.toolchains);
+    let currentToolchain = globalConfig.toolchains[toolchainVersion];
+    if (currentToolchain) {
+        for (const obj of toolchainTargets) {
+            if (currentToolchain.targetsInstalled.includes(obj.label)) {
+                obj.description = "installed";
+            }
+        }
+    }
+
+    const toolchainTargetPicks = await vscode.window.showQuickPick(toolchainTargets, { canPickMany: true, ignoreFocusOut: true, title: "Select Toolchain Target Architecture" });
+    if (toolchainTargetPicks) {
+        return toolchainTargetPicks.map(x => (x.label));
+    }
+    return;
+}
+
+export async function getToolchainVersionList(context: vscode.ExtensionContext) {
+    let toolchainVersionList: string[] = [];
+    let toolchainMd5Path = context.asAbsolutePath("manifest/sdk_md5");
+    let toolchainMd5Files = await vscode.workspace.fs.readDirectory(vscode.Uri.file(toolchainMd5Path));
+    for (const [index, [filename, type]] of toolchainMd5Files.entries()) {
+        if (path.parse(filename).ext === ".sum") {
+            toolchainVersionList.push(path.parse(filename).name);
+        }
+    }
+
+    return toolchainVersionList.sort(compareVersions).reverse();
+}
+
+export async function installSdk(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, output: vscode.OutputChannel, installLatest = false, toolchainsToInstall: string[] | undefined, solo = true) {
     // Show setup progress..
     await vscode.window.withProgress(
         {
@@ -325,52 +357,48 @@ export async function installSdk(context: vscode.ExtensionContext, wsConfig: Wor
                 await fs.mkdirp(toolsdir);
             }
 
-            let toolchainVersionList: string[] = [];
-            let toolchainMd5Path = context.asAbsolutePath("manifest/sdk_md5");
-            let toolchainMd5Files = await vscode.workspace.fs.readDirectory(vscode.Uri.file(toolchainMd5Path));
-            for (const [index, [filename, type]] of toolchainMd5Files.entries()) {
-                if (path.parse(filename).ext === ".sum") {
-                    toolchainVersionList.push(path.parse(filename).name);
-                }
-            }
-
-            toolchainVersionList = toolchainVersionList.sort(compareVersions).reverse();
-            let toolchainSelection: string | undefined = toolchainVersionList[0];
-            let toolchainTargetArch = "arm";
-            if (!installLatestArm) {
+            let toolchainVersionList = await getToolchainVersionList(context);
+            let toolchainVersion: string | undefined = toolchainVersionList[0];
+            if (!installLatest) {
                 // Pick options
                 const pickOptions: vscode.QuickPickOptions = {
                     ignoreFocusOut: true,
                     placeHolder: "Which toolchain version would you like to install?",
                 };
-                toolchainSelection = await vscode.window.showQuickPick(toolchainVersionList, pickOptions);
-                let targ = await pickToolchainTarget();
-                if (targ) {
-                    toolchainTargetArch = targ;
-                } else {
-                    return;
-                }
+                toolchainVersion = await vscode.window.showQuickPick(toolchainVersionList, pickOptions);
             }
 
             // Check if user canceled
-            if (toolchainSelection === undefined) {
-                vscode.window.showErrorMessage("Zephyr IDE Setup canceled.");
+            if (toolchainVersion === undefined) {
+                vscode.window.showErrorMessage("Zephyr IDE Setup canceled. Toolchain version not specified.");
                 return;
             }
+
+            if (toolchainsToInstall === undefined) {
+                toolchainsToInstall = await pickToolchainTarget(context, globalConfig, toolchainVersion);
+            }
+
+            if (toolchainsToInstall === undefined) {
+                vscode.window.showErrorMessage("Zephyr IDE Setup canceled. Toolchain targets not specified");
+                return;
+            }
+
 
             wsConfig.sdkInstalled = false;
             setWorkspaceState(context, wsConfig);
 
-            let selectedToolchainFile = context.asAbsolutePath("manifest/sdk_md5/" + toolchainSelection + ".sum");
+            let selectedToolchainFile = context.asAbsolutePath("manifest/sdk_md5/" + toolchainVersion + ".sum");
 
             // Set up downloader path
             FileDownload.init(path.join(toolsdir, "downloads"));
 
             let toolchainFileRawText = fs.readFileSync(selectedToolchainFile, 'utf8');
             let toolchainMinimalDownloadEntry: DownloadEntry | undefined;
-            let toolchainArmDownloadEntry: DownloadEntry | undefined;
 
-            let toolchainBasePath = "toolchains/zephyr-sdk-" + toolchainSelection;
+            let toolchainTargetDownloadEntries: DownloadEntry[] = [];
+            let toolchainTargetFileNames = toolchainsToInstall.map(targetName => ({ name: targetName, fileName: "toolchain_" + getPlatformName() + "-" + getPlatformArch() + "_" + targetName + (targetName.includes("xtensa") ? "_" : "-") + "zephyr-" + (targetName === "arm" ? "eabi" : "elf") }));
+
+            let toolchainBasePath = "toolchains/zephyr-sdk-" + toolchainVersion;
             for (const line of toolchainFileRawText.trim().split('\n')) {
                 let s = line.trim().split(/[\s\s]+/g);
                 let md5 = s[0];
@@ -380,39 +408,46 @@ export async function installSdk(context: vscode.ExtensionContext, wsConfig: Wor
                     parsedFileName = path.parse(parsedFileName.name);
                 }
 
-                if (parsedFileName.name === "zephyr-sdk-" + toolchainSelection + "_" + getPlatformName() + "-" + getPlatformArch() + "_minimal") {
+                if (parsedFileName.name === "zephyr-sdk-" + toolchainVersion + "_" + getPlatformName() + "-" + getPlatformArch() + "_minimal") {
                     toolchainMinimalDownloadEntry = {
                         "name": "toolchains",
                         "filename": fileName,
-                        "url": "https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v" + toolchainSelection + "/" + fileName,
+                        "url": "https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v" + toolchainVersion + "/" + fileName,
                         "md5": md5,
                         "clearTarget": true,
+                        "targetName": "minimal"
                     };
                     if (getPlatformName() === "macos") {
-                        toolchainMinimalDownloadEntry.cmd = [{
-                            "cmd": "zephyr-sdk-" + toolchainSelection + "/setup.sh -t " + toolchainTargetArch + "-zephyr-" + (toolchainTargetArch === "arm" ? "eabi" : "elf"),
+                        toolchainMinimalDownloadEntry.cmd = toolchainsToInstall.map(targetName => ({
+                            "cmd": "zephyr-sdk-" + toolchainVersion + "/setup.sh -t " + targetName + "-zephyr-" + (targetName === "arm" ? "eabi" : "elf"),
                             "usepath": true
-                        }];
+                        }));
                     }
-                } else if (parsedFileName.name === "toolchain_" + getPlatformName() + "-" + getPlatformArch() + "_" + toolchainTargetArch + (toolchainTargetArch.includes("xtensa") ? "_" : "-") + "zephyr-" + (toolchainTargetArch === "arm" ? "eabi" : "elf")) {
-                    toolchainArmDownloadEntry = {
-                        "name": toolchainBasePath,
-                        "filename": fileName,
-                        "url": "https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v" + toolchainSelection + "/" + fileName,
-                        "md5": md5,
-                        "clearTarget": false,
-                    };
+                }
+
+                for (const e in toolchainTargetFileNames) {
+                    if (toolchainTargetFileNames[e].fileName === parsedFileName.name) {
+                        toolchainTargetDownloadEntries.push({
+                            "name": toolchainBasePath,
+                            "filename": fileName,
+                            "url": "https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v" + toolchainVersion + "/" + fileName,
+                            "md5": md5,
+                            "clearTarget": false,
+                            "targetName": toolchainTargetFileNames[e].name
+                        });
+                        break;
+                    }
                 }
             }
 
 
-            if (toolchainArmDownloadEntry === undefined || toolchainMinimalDownloadEntry === undefined) {
+            if (toolchainTargetDownloadEntries.length === 0 || toolchainMinimalDownloadEntry === undefined) {
                 vscode.window.showErrorMessage("Error finding appropriate toolchain file");
                 return;
             }
 
             // Output indicating toolchain install
-            output.appendLine(`[SETUP] Installing zephyr-sdk-${toolchainSelection} toolchain...`);
+            output.appendLine(`[SETUP] Installing zephyr-sdk-${toolchainVersion} toolchain...`);
 
             // Download minimal sdk file
             let res: boolean = await processDownload(toolchainMinimalDownloadEntry, output, wsConfig);
@@ -422,24 +457,39 @@ export async function installSdk(context: vscode.ExtensionContext, wsConfig: Wor
             }
             progress.report({ increment: 5 });
 
-            // Download arm sdk file
-            res = await processDownload(toolchainArmDownloadEntry, output, wsConfig);
-            if (!res) {
-                vscode.window.showErrorMessage("Error downloading arm toolchain file. Check output for more info.");
-                return;
+
+            if (globalConfig.toolchains[toolchainVersion] === undefined) {
+                globalConfig.toolchains[toolchainVersion] = {
+                    version: toolchainVersion,
+                    basePath: path.join(toolsdir, toolchainBasePath),
+                    targetsInstalled: [],
+                };
+                setGlobalState(context, globalConfig);
             }
+
+            for (const entry in toolchainTargetDownloadEntries) {
+                // Download arm sdk file
+                res = await processDownload(toolchainTargetDownloadEntries[entry], output, wsConfig);
+                if (!res) {
+                    vscode.window.showErrorMessage("Error downloading arm toolchain file. Check output for more info.");
+                    return;
+                } else {
+                    let targetName = toolchainTargetDownloadEntries[entry].targetName;
+                    if (!globalConfig.toolchains[toolchainVersion].targetsInstalled.includes(targetName)) {
+                        globalConfig.toolchains[toolchainVersion].targetsInstalled.push(targetName);
+                        setGlobalState(context, globalConfig);
+                    }
+                }
+            }
+
+
             progress.report({ increment: 10 });
 
             // Setup flag complete
-            wsConfig.toolchains[toolchainSelection] = path.join(toolsdir, toolchainBasePath);
-
             progress.report({ increment: 100 });
-            output.appendLine(`[SETUP] Installing zephyr-sdk-${toolchainSelection} complete`);
+            output.appendLine(`[SETUP] Installing zephyr-sdk-${toolchainVersion} complete`);
 
-            if (toolchainTargetArch !== "arm") {
-                wsConfig.onlyArm = false;
-            }
-            wsConfig.armGdbPath = path.join(toolsdir, toolchainBasePath, "arm-zephyr-eabi\\bin\\arm-zephyr-eabi-gdb");
+            globalConfig.armGdbPath = path.join(toolsdir, toolchainBasePath, "arm-zephyr-eabi\\bin\\arm-zephyr-eabi-gdb");
             wsConfig.sdkInstalled = true;
             await setWorkspaceState(context, wsConfig);
             if (solo) {
