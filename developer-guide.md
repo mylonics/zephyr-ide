@@ -51,3 +51,11 @@ It is recommended that you run `npm install [-g]` again after switching git chec
 * A separate VS Code instance will launch to allow you to start debugging the Zephyr IDE extension.
 
 ---
+## Publishing
+
+### Prepublishing
+`vsce publish --pre-release patch`
+
+
+### Publish
+`vsce publish patch`

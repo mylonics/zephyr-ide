@@ -49,6 +49,11 @@ This extension contributes the following settings:
 * macOS compatibility is untested. Please make an issue on our github page with any incompatibilities found.
 
 ## Release Notes
+### 1.0.32
+
+Improved SDK install
+Added Global Zephyr Install Option
+
 ### 1.0.31
 
 Added GUI for west build.
