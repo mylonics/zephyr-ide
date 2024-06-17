@@ -27,7 +27,10 @@ import { BuildConfig } from "../project_utilities/build_selector";
 
 export async function buildHelper(
   context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, pristine: boolean) {
-  if (wsConfig.westUpdated) {
+  if (wsConfig.activeSetupState === undefined) {
+    return;
+  }
+  if (wsConfig.activeSetupState.westUpdated) {
     if (wsConfig.activeProject === undefined) {
       vscode.window.showErrorMessage("Select a project before trying to build");
       return;
@@ -48,7 +51,7 @@ export async function buildHelper(
 }
 
 export async function buildByName(wsConfig: WorkspaceConfig, pristine: boolean, projectName: string, buildName: string, isMenuConfig = false) {
-  if (wsConfig.westUpdated) {
+  if (wsConfig.activeSetupState && wsConfig.activeSetupState.westUpdated) {
     let project = wsConfig.projects[projectName];
     let buildconfig = project.buildConfigs[buildName];
     if (project && build) {
@@ -109,7 +112,7 @@ export async function build(
   let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
 
   vscode.window.showInformationMessage(`Building ${build.name} from project: ${project.name}`);
-  await executeTaskHelper(taskName, cmd, getShellEnvironment(wsConfig), path.join(wsConfig.rootPath, project.rel_path));
+  await executeTaskHelper(taskName, cmd, getShellEnvironment(wsConfig.activeSetupState), wsConfig.activeSetupState?.setupPath);
 }
 
 
@@ -141,7 +144,7 @@ export async function buildMenuConfig(
   let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
 
   vscode.window.showInformationMessage(`Running MenuConfig ${build.name} from project: ${project.name}`);
-  await executeTaskHelper(taskName, cmd, getShellEnvironment(wsConfig), path.join(wsConfig.rootPath, project.rel_path));
+  await executeTaskHelper(taskName, cmd, getShellEnvironment(wsConfig.activeSetupState), wsConfig.activeSetupState?.setupPath);
 }
 
 

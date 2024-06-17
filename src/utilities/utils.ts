@@ -20,7 +20,7 @@ import * as path from "path";
 import * as util from "util";
 import * as cp from "child_process";
 
-import { pathdivider, toolchainDir, WorkspaceConfig } from "../setup_utilities/setup";
+import { pathdivider, SetupState, toolchainDir } from "../setup_utilities/setup";
 
 export function getRootPath() {
   let rootPaths = workspace.workspaceFolders;
@@ -30,6 +30,7 @@ export function getRootPath() {
     return rootPaths[0].uri;
   }
 }
+
 export function getLaunchConfigurationByName(configName: string) {
   let configurations = getLaunchConfigurations();
   if (!configurations) {
@@ -68,16 +69,19 @@ export function getLaunchConfigurations() {
   }
 }
 
-export function getShellEnvironment(wsConfig: WorkspaceConfig) {
+export function getShellEnvironment(setupState: SetupState | undefined) {
+  if (setupState === undefined) {
+    return process.env;
+  }
   let envPath = process.env;
-  if (wsConfig.env["VIRTUAL_ENV"]) {
-    envPath["VIRTUAL_ENV"] = wsConfig.env["VIRTUAL_ENV"];
+  if (setupState.env["VIRTUAL_ENV"]) {
+    envPath["VIRTUAL_ENV"] = setupState.env["VIRTUAL_ENV"];
   }
-  if (wsConfig.env["PATH"]) {
-    envPath["PATH"] = path.join(wsConfig.env["PATH"], pathdivider + envPath["PATH"]);
+  if (setupState.env["PATH"]) {
+    envPath["PATH"] = path.join(setupState.env["PATH"], pathdivider + envPath["PATH"]);
   }
-  if (wsConfig.env["ZEPHYR_BASE"]) {
-    envPath["ZEPHYR_BASE"] = wsConfig.env["ZEPHYR_BASE"];
+  if (setupState.zephyrDir) {
+    envPath["ZEPHYR_BASE"] = setupState.zephyrDir;
   }
   envPath["ZEPHYR_SDK_INSTALL_DIR"] = toolchainDir;
   return envPath;

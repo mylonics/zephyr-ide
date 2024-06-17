@@ -35,7 +35,7 @@ import * as cp from "child_process";
 import * as util from "util";
 
 import { HttpClient } from "typed-rest-client/HttpClient";
-import { toolsdir, WorkspaceConfig } from "./setup";
+import { SetupState, toolsdir } from "./setup";
 import { getShellEnvironment } from "../utilities/utils";
 
 export class FileDownload {
@@ -151,7 +151,10 @@ export type DownloadEntry = {
     targetName: string;
 };
 
-export async function processDownload(download: DownloadEntry, output: vscode.OutputChannel, wsConfig: WorkspaceConfig) {
+export async function processDownload(download: DownloadEntry, output: vscode.OutputChannel, setupState: SetupState | undefined) {
+    if (setupState === undefined) {
+        return false;
+    }
     // Promisified exec
     let exec = util.promisify(cp.exec);
 
@@ -193,7 +196,7 @@ export async function processDownload(download: DownloadEntry, output: vscode.Ou
         // Then untar
         const cmd = `tar -xvf "${filepath}" -C "${copytopath}"`;
         output.appendLine(cmd);
-        let res = await exec(cmd, { env: getShellEnvironment(wsConfig) }).then(
+        let res = await exec(cmd, { env: getShellEnvironment(setupState) }).then(
             value => {
                 output.append(value.stdout);
                 return true;
@@ -233,7 +236,7 @@ export async function processDownload(download: DownloadEntry, output: vscode.Ou
         }
 
         // Run the command
-        let res = await exec(cmd, { env: getShellEnvironment(wsConfig) }).then(
+        let res = await exec(cmd, { env: getShellEnvironment(setupState) }).then(
             value => {
                 output.append(value.stdout);
                 return true;

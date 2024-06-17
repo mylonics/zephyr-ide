@@ -79,7 +79,7 @@ export async function modifyBuildArguments(context: vscode.ExtensionContext, wsC
   await setWorkspaceState(context, wsConfig);
 }
 
-async function readAllDirectories(directory: vscode.Uri, projectList: vscode.QuickPickItem[], rootPath: string, relativePath = ''): Promise<void> {
+async function readAllDirectories(directory: vscode.Uri, projectList: vscode.QuickPickItem[], relativePath = ''): Promise<void> {
   try {
     const files = await vscode.workspace.fs.readDirectory(directory);
 
@@ -93,7 +93,7 @@ async function readAllDirectories(directory: vscode.Uri, projectList: vscode.Qui
           await vscode.workspace.fs.stat(sampleYamlPath);
           projectList.push({ label: name, description: fullPath });
         } catch (error) {
-          await readAllDirectories(filePath, projectList, rootPath, fullPath);
+          await readAllDirectories(filePath, projectList, fullPath);
         }
       }
     }
@@ -102,17 +102,17 @@ async function readAllDirectories(directory: vscode.Uri, projectList: vscode.Qui
 }
 
 export async function createNewProjectFromSample(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
-  if (!wsConfig.zephyrDir) {
+  if (!wsConfig.activeSetupState || !wsConfig.activeSetupState.zephyrDir) {
     vscode.window.showErrorMessage("Run `Zephyr IDE: West Update` first.");
     return;
   }
 
-  const samplesDir = path.join(wsConfig.zephyrDir, 'samples');
+  const samplesDir = path.join(wsConfig.activeSetupState.zephyrDir, 'samples');
   const samplesUri = vscode.Uri.file(samplesDir);
 
   const projectList: vscode.QuickPickItem[] = [];
 
-  await readAllDirectories(samplesUri, projectList, wsConfig.rootPath);
+  await readAllDirectories(samplesUri, projectList);
 
   const pickOptions: vscode.QuickPickOptions = {
     ignoreFocusOut: true,

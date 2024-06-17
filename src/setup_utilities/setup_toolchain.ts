@@ -23,7 +23,7 @@ import * as os from "os";
 
 import { compareVersions } from 'compare-versions';
 
-import { toolsdir, GlobalConfig, WorkspaceConfig, setWorkspaceState, setGlobalState } from "./setup";
+import { toolsdir, GlobalConfig, WorkspaceConfig, setWorkspaceState, setGlobalState, saveSetupState } from "./setup";
 import { toolchainTargets } from "../defines";
 import { FileDownload, DownloadEntry, processDownload } from "./download";
 
@@ -108,6 +108,9 @@ export async function installSdk(context: vscode.ExtensionContext, wsConfig: Wor
             cancellable: false,
         },
         async (progress, token) => {
+            if (wsConfig.activeSetupState === undefined) {
+                return;
+            }
             output.show();
 
             progress.report({ increment: 5 });
@@ -116,7 +119,6 @@ export async function installSdk(context: vscode.ExtensionContext, wsConfig: Wor
                 vscode.window.showErrorMessage("Unsupported platform for Zephyr IDE");
                 return;
             }
-
             let exists = await fs.pathExists(toolsdir);
             if (!exists) {
                 await fs.mkdirp(toolsdir);
@@ -149,8 +151,8 @@ export async function installSdk(context: vscode.ExtensionContext, wsConfig: Wor
             }
 
 
-            wsConfig.sdkInstalled = false;
-            setWorkspaceState(context, wsConfig);
+            wsConfig.activeSetupState.sdkInstalled = false;
+            saveSetupState(context, wsConfig, globalConfig);
 
             let selectedToolchainFile = context.asAbsolutePath("manifest/sdk_md5/" + toolchainVersion + ".sum");
 
@@ -215,7 +217,7 @@ export async function installSdk(context: vscode.ExtensionContext, wsConfig: Wor
             output.appendLine(`[SETUP] Installing zephyr-sdk-${toolchainVersion} toolchain...`);
 
             // Download minimal sdk file
-            let res: boolean = await processDownload(toolchainMinimalDownloadEntry, output, wsConfig);
+            let res: boolean = await processDownload(toolchainMinimalDownloadEntry, output, wsConfig.activeSetupState);
             if (!res) {
                 vscode.window.showErrorMessage("Error downloading minimal toolchain file. Check output for more info.");
                 return;
@@ -234,7 +236,7 @@ export async function installSdk(context: vscode.ExtensionContext, wsConfig: Wor
 
             for (const entry in toolchainTargetDownloadEntries) {
                 // Download arm sdk file
-                res = await processDownload(toolchainTargetDownloadEntries[entry], output, wsConfig);
+                res = await processDownload(toolchainTargetDownloadEntries[entry], output, wsConfig.activeSetupState);
                 if (!res) {
                     vscode.window.showErrorMessage("Error downloading arm toolchain file. Check output for more info.");
                     return;
@@ -247,6 +249,7 @@ export async function installSdk(context: vscode.ExtensionContext, wsConfig: Wor
                 }
             }
 
+
             progress.report({ increment: 10 });
 
             // Setup flag complete
@@ -254,8 +257,10 @@ export async function installSdk(context: vscode.ExtensionContext, wsConfig: Wor
             output.appendLine(`[SETUP] Installing zephyr-sdk-${toolchainVersion} complete`);
 
             globalConfig.armGdbPath = path.join(toolsdir, toolchainBasePath, "arm-zephyr-eabi\\bin\\arm-zephyr-eabi-gdb");
-            wsConfig.sdkInstalled = true;
-            await setWorkspaceState(context, wsConfig);
+
+            wsConfig.activeSetupState.sdkInstalled = true;
+            await saveSetupState(context, wsConfig, globalConfig);
+            await setGlobalState(context, globalConfig);
             if (solo) {
                 vscode.window.showInformationMessage(`Zephyr IDE: Toolchain Setup Complete!`);
             }
