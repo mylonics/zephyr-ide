@@ -40,7 +40,7 @@ export interface SetupState {
   setupPath: string,
 }
 
-export function generateSetupState(): SetupState {
+export function generateSetupState(setupPath: string): SetupState {
   return {
     toolsAvailable: false,
     pythonEnvironmentSetup: false,
@@ -49,7 +49,7 @@ export function generateSetupState(): SetupState {
     sdkInstalled: false,
     zephyrDir: undefined,
     env: {},
-    setupPath: ''
+    setupPath: setupPath
   };
 }
 
@@ -157,9 +157,8 @@ export async function loadGlobalState(context: vscode.ExtensionContext): Promise
   let globalConfig: GlobalConfig = await context.globalState.get("zephyr-ide.state") ?? {
     toolchains: {},
     armGdbPath: '',
-    setupState: generateSetupState()
+    setupState: generateSetupState(toolsdir)
   };
-  globalConfig.setupState.setupPath = toolsdir;
 
   console.log(globalConfig);
 
@@ -189,7 +188,7 @@ export async function loadWorkspaceState(context: vscode.ExtensionContext): Prom
     zephyrDir: undefined,
     sdkInstalled: false,
     initialSetupComplete: false,
-    localSetupState: generateSetupState(),
+    localSetupState: generateSetupState(rootPath),
     selectSetupType: SetupStateType.NONE
   };
 

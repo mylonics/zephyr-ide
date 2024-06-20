@@ -41,7 +41,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   //Remove the following checks after a few versions to garuntee upgrade
   if (wsConfig.localSetupState === undefined) {
-    wsConfig.localSetupState = generateSetupState();
+    wsConfig.localSetupState = generateSetupState(wsConfig.rootPath);
     wsConfig.localSetupState.env = wsConfig.env;
 
     if (wsConfig.pythonEnvironmentSetup) {
@@ -57,9 +57,7 @@ export async function activate(context: vscode.ExtensionContext) {
     } if (wsConfig.zephyrDir) {
       wsConfig.localSetupState.zephyrDir = wsConfig.zephyrDir;
     }
-    if (wsConfig.rootPath) {
-      wsConfig.localSetupState.setupPath = wsConfig.rootPath;
-    } else {
+    if (!wsConfig.rootPath) {
       let rootPath = getRootPath()?.fsPath;
       if (rootPath) {
         wsConfig.rootPath = rootPath;
