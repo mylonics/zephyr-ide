@@ -31,6 +31,16 @@ export function getRootPath() {
   }
 }
 
+
+export function fileExists(path: string) {
+  let rootPaths = workspace.workspaceFolders;
+  if (rootPaths === undefined) {
+    return;
+  } else {
+    return rootPaths[0].uri;
+  }
+}
+
 export function getLaunchConfigurationByName(configName: string) {
   let configurations = getLaunchConfigurations();
   if (!configurations) {

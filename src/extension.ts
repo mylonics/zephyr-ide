@@ -644,10 +644,13 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.debug-internal-shell", async () => {
+      output.clear();
       let temp = await executeShellCommand("SET", wsConfig.rootPath, getShellEnvironment(wsConfig.activeSetupState), false);
       if (temp.stdout) {
         output.append(temp.stdout);
       }
+      output.append(JSON.stringify({ wsConfig }));
+      output.append(JSON.stringify({ globalConfig }));
     })
   );
 

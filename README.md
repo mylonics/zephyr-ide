@@ -49,6 +49,11 @@ This extension contributes the following settings:
 * macOS compatibility is untested. Please make an issue on our github page with any incompatibilities found.
 
 ## Release Notes
+### 1.0.36
+
+Added additional debug statements to the debug shell command
+
+
 ### 1.0.32
 
 Improved SDK install
