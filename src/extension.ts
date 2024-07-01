@@ -22,6 +22,7 @@ import { getShellEnvironment, getLaunchConfigurationByName, output, executeShell
 import { ActiveProjectView } from "./panels/active_project_view/ActiveProjectView";
 import { ProjectTreeView } from "./panels/project_tree_view/ProjectTreeView";
 import { ExtensionSetupView } from "./panels/extension_setup_view/ExtensionSetupView";
+import { ProjectConfigView } from "./panels/project_config_view/ProjectConfigView";
 
 import path from "path";
 import * as project from "./project_utilities/project";
@@ -39,43 +40,6 @@ export async function activate(context: vscode.ExtensionContext) {
   wsConfig = await loadWorkspaceState(context);
   globalConfig = await loadGlobalState(context);
 
-  //Remove the following checks after a few versions to garuntee upgrade
-  if (wsConfig.localSetupState === undefined) {
-    wsConfig.localSetupState = generateSetupState(wsConfig.rootPath);
-    wsConfig.localSetupState.env = wsConfig.env;
-
-    if (wsConfig.pythonEnvironmentSetup) {
-      wsConfig.localSetupState.pythonEnvironmentSetup = wsConfig.pythonEnvironmentSetup;
-    } if (wsConfig.sdkInstalled) {
-      wsConfig.localSetupState.sdkInstalled = wsConfig.sdkInstalled;
-    } if (wsConfig.toolsAvailable) {
-      wsConfig.localSetupState.toolsAvailable = wsConfig.toolsAvailable;
-    } if (wsConfig.westInited) {
-      wsConfig.localSetupState.westInited = wsConfig.westInited;
-    } if (wsConfig.westUpdated) {
-      wsConfig.localSetupState.westUpdated = wsConfig.westUpdated;
-    } if (wsConfig.zephyrDir) {
-      wsConfig.localSetupState.zephyrDir = wsConfig.zephyrDir;
-    }
-    if (!wsConfig.rootPath) {
-      let rootPath = getRootPath()?.fsPath;
-      if (rootPath) {
-        wsConfig.rootPath = rootPath;
-        wsConfig.localSetupState.setupPath = rootPath;
-      }
-    }
-    wsConfig.selectSetupType = SetupStateType.LOCAL;
-    wsConfig.activeSetupState = wsConfig.localSetupState;
-  }
-
-  //Remove the following checks after a few versions to garuntee upgrade
-  if (globalConfig.armGdbPath === undefined) {
-    if (wsConfig.armGdbPath) {
-      globalConfig.armGdbPath = wsConfig.armGdbPath;
-      setGlobalState(context, globalConfig);
-    }
-  }
-
   if (wsConfig.selectSetupType === SetupStateType.GLOBAL) {
     wsConfig.activeSetupState = globalConfig.setupState;
   } else {
@@ -84,17 +48,12 @@ export async function activate(context: vscode.ExtensionContext) {
 
   let activeProjectView = new ActiveProjectView(context.extensionPath, context, wsConfig);
   let projectTreeView = new ProjectTreeView(context.extensionPath, context, wsConfig);
+  let projectConfigView = new ProjectConfigView(context.extensionPath, context, wsConfig);
   let extensionSetupView = new ExtensionSetupView(context.extensionPath, context, wsConfig);
 
   context.subscriptions.push(vscode.commands.registerCommand("zephyr-ide.update-status", () => {
     if (wsConfig.activeProject) {
-      let selectedProject = wsConfig.projects[wsConfig.activeProject];
-      if (selectedProject.activeBuildConfig) {
-        activeProjectDisplay.text = `$(megaphone) ${selectedProject.name}`;
-        vscode.window.showInformationMessage(`Zephyr IDE:\r\n 
-        Active Project: ${selectedProject.name}\r\n
-        Active Build: ${selectedProject.activeBuildConfig} `);
-      }
+      activeProjectDisplay.text = `$(folder) ${wsConfig.activeProject}`;
     }
   }));
 
@@ -108,8 +67,16 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(
-      'zephyrIdeProjectStatus',
+      'zephyrIdeProjects',
       projectTreeView,
+      { webviewOptions: { retainContextWhenHidden: true } }
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      'zephyrIdeProjectStatus',
+      projectConfigView,
       { webviewOptions: { retainContextWhenHidden: true } }
     )
   );
@@ -124,8 +91,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
   activeProjectDisplay = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
   activeProjectDisplay.command = "zephyr-ide.update-status";
-  activeProjectDisplay.text = `$(megaphone) ${wsConfig.activeProject}`;
-  activeProjectDisplay.tooltip = "Zephyr IDE Status";
+  activeProjectDisplay.text = `$(folder) ${wsConfig.activeProject}`;
+  activeProjectDisplay.tooltip = "Zephyr IDE Active Project";
   activeProjectDisplay.show();
   context.subscriptions.push(activeProjectDisplay);
 
@@ -164,7 +131,6 @@ export async function activate(context: vscode.ExtensionContext) {
       for (let key in wsConfig.projects) {
         if (filePath.includes(wsConfig.projects[key].rel_path)) {
           if (wsConfig.activeProject !== key) {
-            vscode.window.showInformationMessage(`Active project changed to ${key}`);
             wsConfig.activeProject = key;
             activeProjectDisplay.text = `$(megaphone) ${key}`;
           }
@@ -349,7 +315,6 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.set-active-project", async () => {
       await project.setActiveProject(context, wsConfig);
       vscode.commands.executeCommand("zephyr-ide.update-web-view");
-
     })
   );
 
@@ -620,6 +585,8 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.update-web-view", async () => {
       activeProjectView.updateWebView(wsConfig);
       projectTreeView.updateWebView(wsConfig);
+      projectConfigView.updateWebView(wsConfig);
+      vscode.commands.executeCommand("zephyr-ide.update-status");
     })
   );
 

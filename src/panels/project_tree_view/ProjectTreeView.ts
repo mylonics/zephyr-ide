@@ -95,64 +95,6 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
   constructor(public extensionPath: string, private context: vscode.ExtensionContext, private wsConfig: WorkspaceConfig) {
   }
 
-  generateOverlayFileEntry(entry: any, projectName: string, buildName: string | undefined, confFiles: ConfigFiles) {
-    entry.subItems = [];
-    for (let index = 0; index < confFiles.overlay.length; index++) {
-      entry.subItems.push({
-        icons: {
-          branch: 'file',
-          leaf: 'file',
-          open: 'file',
-        }, label: 'dtc',
-        value: { project: projectName, build: buildName, cmd: "removeOverlayFile", isExtra: false, filename: confFiles.overlay[index] },
-        actions: this.fileItemActions,
-        description: confFiles.overlay[index]
-      });
-    }
-    for (let index = 0; index < confFiles.extraOverlay.length; index++) {
-      entry.subItems.push({
-        icons: {
-          branch: 'file',
-          leaf: 'file',
-          open: 'file',
-        }, label: 'Extra dtc',
-        value: { project: projectName, build: buildName, cmd: "removeOverlayFile", isExtra: true, filename: confFiles.extraOverlay[index] },
-        actions: this.fileItemActions,
-        description: confFiles.extraOverlay[index]
-      });
-    }
-    return { entry };
-  }
-
-  generateConfigFileEntry(entry: any, projectName: string, buildName: string | undefined, confFiles: ConfigFiles) {
-    entry.subItems = [];
-    for (let index = 0; index < confFiles.config.length; index++) {
-      entry.subItems.push({
-        icons: {
-          branch: 'file',
-          leaf: 'file',
-          open: 'file',
-        }, label: 'Conf',
-        value: { project: projectName, build: buildName, cmd: "removeKConfigFile", isExtra: false, filename: confFiles.config[index] },
-        actions: this.fileItemActions,
-        description: confFiles.config[index]
-      });
-    }
-    for (let index = 0; index < confFiles.extraConfig.length; index++) {
-      entry.subItems.push({
-        icons: {
-          branch: 'file',
-          leaf: 'file',
-          open: 'file',
-        }, label: 'Extra Conf',
-        value: { project: projectName, build: buildName, cmd: "removeKConfigFile", isExtra: true, filename: confFiles.extraConfig[index] },
-        actions: this.fileItemActions,
-        description: confFiles.extraConfig[index]
-      });
-    }
-    return entry;
-  }
-
   generateRunnerString(projectName: string, buildName: string, runner: RunnerConfig): any {
     let entry = {
       icons: {
@@ -164,26 +106,9 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
       label: runner.name,
       value: { project: projectName, build: buildName, runner: runner.name },
       open: true,
-      subItems: [
-        {
-          icons: {
-            branch: 'tools',
-            leaf: 'tools',
-            open: 'tools',
-          }, label: 'Runner', description: runner.runner
-        },
-      ]
+      subItems: []
     };
 
-    if (runner.args) {
-      entry.subItems.push({
-        icons: {
-          branch: 'file-code',
-          leaf: 'file-code',
-          open: 'file-code',
-        }, label: 'Args', description: runner.args
-      });
-    }
     return entry;
   }
 
@@ -198,83 +123,11 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
       buildData['actions'] = this.buildActions;
       buildData['label'] = build.name;
       buildData['value'] = { project: projectName, build: build.name };
-      buildData['open'] = true;
-      buildData['subItems'] = [
-        {
-          icons: {
-            branch: 'circuit-board',
-            leaf: 'circuit-board',
-            open: 'circuit-board',
-          },
-          value: { cmd: "openBoardDtc", project: projectName, build: build.name },
-          label: 'Board',
-          description: build.board
-        },
-        {
-          icons: {
-            branch: 'file-submodule',
-            leaf: 'file-submodule',
-            open: 'file-submodule',
-          },
-          value: { cmd: "openBoardDir", project: projectName, build: build.name },
-          label: 'Board Dir',
-          description: build.relBoardDir,
-        },
-        {
-          icons: {
-            branch: 'settings',
-            leaf: 'settings',
-            open: 'settings',
-          },
-          actions: this.fileActions,
-          label: "KConfig",
-          value: { project: projectName, build: build.name, cmd: "addKConfigFile" },
-          open: true,
-          subItems: []
-        }, {
-          icons: {
-            branch: 'circuit-board',
-            leaf: 'circuit-board',
-            open: 'circuit-board',
-          },
-          actions: this.fileActions,
-          label: "DTC Overlay",
-          value: { project: projectName, build: build.name, cmd: "addOverlayFile" },
-          open: true,
-          subItems: []
-        }, {
-          icons: {
-            branch: 'circuit-board',
-            leaf: 'circuit-board',
-            open: 'circuit-board',
-          },
-          label: "West Args",
-          value: { project: projectName, build: build.name, cmd: "modifyBuildArgs" },
-          description: build.westBuildArgs,
-        }, {
-          icons: {
-            branch: 'circuit-board',
-            leaf: 'circuit-board',
-            open: 'circuit-board',
-          },
-          label: "CMake Args",
-          value: { project: projectName, build: build.name, cmd: "modifyBuildArgs" },
-          description: build.westBuildCMakeArgs,
-        },
-      ];
-    }
-    this.generateConfigFileEntry(buildData.subItems[2], projectName, build.name, build.confFiles);
-    this.generateOverlayFileEntry(buildData.subItems[3], projectName, build.name, build.confFiles);
-
-    //if statements may be removed in the future once everyone has upgraded.
-    if (build.westBuildArgs) {
-      buildData.subItems[4].description = build.westBuildArgs;
-    }
-    if (build.westBuildCMakeArgs) {
-      buildData.subItems[5].description = build.westBuildCMakeArgs;
+      buildData['open'] = false;
+      buildData['description'] = build.board;
+      buildData['subItems'] = [];
     }
 
-    const numberOfStaticEntries = 6;
     const lengthOfSubItems = buildData.subItems.length;
 
     let runnerNames = [];
@@ -283,7 +136,7 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
     for (let key in build.runners) {
       runnerNames.push(key);
       let foundEntry = false;
-      let index = numberOfStaticEntries;
+      let index = 0;
       for (; index < lengthOfSubItems; index++) {
         if (buildData.subItems[index].label === key) {
           foundEntry = true;
@@ -299,7 +152,7 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
 
     //Remove runners
     var i = buildData.subItems.length - 1;
-    while (i >= numberOfStaticEntries) {
+    while (i >= 0) {
       if (!runnerNames.includes(buildData.subItems[i].label)) {
         buildData.subItems.splice(i, 1);
       }
@@ -307,7 +160,7 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
     }
 
     // If no runners then add Add Runner command
-    if (!Object.keys(build.runners).length && buildData.subItems.length === numberOfStaticEntries) {
+    if (buildData.subItems.length === 0) {
       buildData.subItems.push({
         icons: {
           branch: 'add',
@@ -335,41 +188,9 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
       projectData['actions'] = this.projectActions;
       projectData['label'] = project.name;
       projectData['value'] = { project: project.name };
-      projectData['subItems'] = [
-        {
-          icons: this.path_icons,
-          label: 'Path',
-          description: project.rel_path,
-          value: { cmd: "openMain", project: project.name },
-        },
-        {
-          icons: {
-            branch: 'settings',
-            leaf: 'settings',
-            open: 'settings',
-          },
-          actions: this.fileActions,
-          label: "KConfig",
-          value: { project: project.name, build: undefined, cmd: "addKConfigFile" },
-          open: true,
-          subItems: []
-        }, {
-          icons: {
-            branch: 'circuit-board',
-            leaf: 'circuit-board',
-            open: 'circuit-board',
-          },
-          actions: this.fileActions,
-          label: "DTC Overlay",
-          value: { project: project.name, build: undefined, cmd: "addOverlayFile" },
-          open: true,
-          subItems: []
-        },
-      ];
-      projectData['open'] = true;
+      projectData['subItems'] = [];
+      projectData['open'] = false;
     }
-    this.generateConfigFileEntry(projectData.subItems[1], project.name, undefined, project.confFiles);
-    this.generateOverlayFileEntry(projectData.subItems[2], project.name, undefined, project.confFiles);
 
     const lengthOfSubItems = projectData.subItems.length;
 
@@ -378,7 +199,7 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
     for (let key in project.buildConfigs) {
       buildNames.push(key);
       let foundEntry = false;
-      let index = 3;
+      let index = 0
       for (; index < lengthOfSubItems; index++) {
         if (projectData.subItems[index].label === key) {
           foundEntry = true;
@@ -388,7 +209,13 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
       if (foundEntry) {
         this.generateBuildString(projectData.subItems[index], project.name, project.buildConfigs[key]);
       } else {
-        projectData.subItems.push(this.generateBuildString(undefined, project.name, project.buildConfigs[key]));
+        if (projectData.subItems.length === 1 && projectData.subItems[0].label === 'Add Build') {
+          projectData.subItems[0] = this.generateBuildString(undefined, project.name, project.buildConfigs[key]);
+
+        } else {
+          projectData.subItems.push(this.generateBuildString(undefined, project.name, project.buildConfigs[key]));
+
+        }
       }
     }
 
@@ -400,7 +227,7 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
       i--;
     }
 
-    if (!Object.keys(project.buildConfigs).length) {
+    if (projectData.subItems.length === 0) {
       projectData.subItems.push({
         icons: {
           branch: 'add',
@@ -486,7 +313,7 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
       <script nonce="${nonce}" src="${assetUri('src/panels/project_tree_view/ProjectTreeViewHandler.js')}"  type="module"></script>
     </head>
     <body>
-    <vscode-tree id="basic-example" indent-guides arrows></vscode-tree>
+    <vscode-tree id="project-tree" indent-guides arrows></vscode-tree>
     ${body}
     </body>
     </html>`;
@@ -564,19 +391,6 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
           }
 
           vscode.workspace.openTextDocument(filePath).then(document => vscode.window.showTextDocument(document));
-          setActive(this.wsConfig, message.value.project, message.value.build, message.value.runner);
-          break;
-        }
-        case "openMain": {
-          let project = this.wsConfig.projects[message.value.project];
-          let filePath = vscode.Uri.file(path.join(this.wsConfig.rootPath, project.rel_path, "src", "main.c"));
-
-          vscode.workspace.openTextDocument(filePath).then(
-            document => vscode.window.showTextDocument(document));
-          filePath = vscode.Uri.file(path.join(this.wsConfig.rootPath, project.rel_path, "src", "main.cpp"));
-          vscode.workspace.openTextDocument(filePath).then(
-            document => vscode.window.showTextDocument(document));
-
           setActive(this.wsConfig, message.value.project, message.value.build, message.value.runner);
           break;
         }

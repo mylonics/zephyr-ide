@@ -1,6 +1,6 @@
 (function () {
   const vscode = acquireVsCodeApi();
-  const tree = document.querySelector('#project-tree');
+  const tree = document.querySelector('#project-config-tree');
 
   window.addEventListener('message', event => {
     const message = event.data; // The JSON data our extension sent

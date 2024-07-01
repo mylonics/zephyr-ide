@@ -148,6 +148,8 @@ export async function buildSelector(context: ExtensionContext, wsConfig: Workspa
     let res: any;
     let prevError: any;
 
+    console.log(wsConfig.rootPath);
+    console.log(getShellEnvironment(wsConfig.activeSetupState));
     if (useCustomFolder) {
       res = await executeShellCommand("python " + srcPathNew + " --board-root " + path.dirname(folder.fsPath) + " -f '{name}:{qualifiers}:{dir}'", wsConfig.rootPath, getShellEnvironment(wsConfig.activeSetupState), false);
       if (!res.stdout) {

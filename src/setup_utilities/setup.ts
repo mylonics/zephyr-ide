@@ -26,7 +26,6 @@ import { getRootPath, getShellEnvironment, output, executeShellCommand, executeT
 import { ProjectConfig } from "../project_utilities/project";
 
 import { westSelector, WestLocation } from "./west_selector";
-type ToolChainPath = { [Name: string]: string };
 export type ProjectConfigDictionary = { [name: string]: ProjectConfig };
 
 export interface SetupState {
@@ -68,20 +67,10 @@ export enum SetupStateType {
 
 export interface WorkspaceConfig {
   rootPath: string;
-  env: { [name: string]: string | undefined }, //deprecated, moved to SetupState
   projects: ProjectConfigDictionary,
   activeProject?: string,
-  zephyrDir: string | undefined, //deprecated, moved to SetupState
   initialSetupComplete: boolean,
-  toolsAvailable?: boolean, //deprecated, moved to SetupState
-  pythonEnvironmentSetup?: boolean, //deprecated, moved to SetupState
-  westInited?: boolean,//deprecated, moved to SetupState
-  westUpdated?: boolean,//deprecated, moved to SetupState
-  sdkInstalled?: boolean,//deprecated, moved to SetupState
   automaticProjectSelction: boolean,
-  toolchains?: ToolChainPath, //deprecated can be removed
-  onlyArm?: boolean, //deprecated can be removed
-  armGdbPath?: string, //moved to globalConfig
   localSetupState?: SetupState,
   activeSetupState?: SetupState,
   selectSetupType: SetupStateType
@@ -90,35 +79,6 @@ export interface WorkspaceConfig {
 function projectLoader(config: WorkspaceConfig, projects: any) {
   config.projects = {};
   for (let key in projects) {
-    for (let buildKey in projects[key].buildConfigs) {
-      if (projects[key].buildConfigs[buildKey].debugOptimization !== undefined) {
-
-        let cmakeArg = "";
-        switch (projects[key].buildConfigs[buildKey].debugOptimization) {
-          case "Debug":
-            cmakeArg = ` -DCONFIG_DEBUG_OPTIMIZATIONS=y -DCONFIG_DEBUG_THREAD_INFO=y `;
-            break;
-          case "Speed":
-            cmakeArg = ` -DCONFIG_SPEED_OPTIMIZATIONS=y `;
-            break;
-          case "Size":
-            cmakeArg = ` -DCONFIG_SIZE_OPTIMIZATIONS=y `;
-            break;
-          case "No Optimizations":
-            cmakeArg = ` -DCONFIG_NO_OPTIMIZATIONS=y`;
-            break;
-          default:
-            break;
-        }
-
-        if (projects[key].buildConfigs[buildKey].westBuildCMakeArgs) {
-          projects[key].buildConfigs[buildKey].westBuildCMakeArgs = projects[key].buildConfigs[buildKey].westBuildCMakeArgs + cmakeArg;
-        } else {
-          projects[key].buildConfigs[buildKey].westBuildCMakeArgs = cmakeArg;
-        }
-        projects[key].buildConfigs[buildKey].debugOptimization = undefined;
-      }
-    }
     config.projects[key] = projects[key];
   }
 }
@@ -178,15 +138,8 @@ export async function loadWorkspaceState(context: vscode.ExtensionContext): Prom
 
   let config: WorkspaceConfig = await context.workspaceState.get("zephyr.env") ?? {
     rootPath: rootPath,
-    env: {},
     projects: {},
     automaticProjectSelction: true,
-    pythonEnvironmentSetup: false,
-    westInited: false,
-    westUpdated: false,
-    toolsAvailable: false,
-    zephyrDir: undefined,
-    sdkInstalled: false,
     initialSetupComplete: false,
     localSetupState: generateSetupState(rootPath),
     selectSetupType: SetupStateType.NONE

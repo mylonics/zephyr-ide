@@ -96,22 +96,22 @@
         {
           "command": "zephyr-ide.add-project",
           "group": "navigation",
-          "when": "view == zephyrIdeProjectStatus"
+          "when": "view == zephyrIdeProjects"
         },
         {
           "command": "zephyr-ide.create-project",
           "group": "navigation",
-          "when": "view == zephyrIdeProjectStatus"
+          "when": "view == zephyrIdeProjects"
         },
         {
           "command": "zephyr-ide.load-projects-from-file",
           "group": "navigation",
-          "when": "view == zephyrIdeProjectStatus"
+          "when": "view == zephyrIdeProjects"
         },
         {
           "command": "zephyr-ide.save-projects-to-file",
           "group": "navigation",
-          "when": "view == zephyrIdeProjectStatus"
+          "when": "view == zephyrIdeProjects"
         },
         {
           "command": "zephyr-ide.disable-automatic-project-target",
@@ -133,8 +133,15 @@
           "type": "webview"
         },
         {
-          "id": "zephyrIdeProjectStatus",
+          "id": "zephyrIdeProjects",
           "name": "Projects",
+          "icon": "media/logo_small.jpg",
+          "contextualTitle": "Zephyr IDE Projects",
+          "type": "webview"
+        },
+        {
+          "id": "zephyrIdeProjectStatus",
+          "name": "Project Config",
           "icon": "media/logo_small.jpg",
           "contextualTitle": "Zephyr IDE Projects",
           "type": "webview"
