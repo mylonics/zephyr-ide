@@ -40,6 +40,7 @@ export interface BuildConfig {
   launchTarget: string;
   buildDebugTarget: string;
   attachTarget: string;
+  viewOpen?: boolean;
 }
 
 export type BuildConfigDictionary = { [name: string]: BuildConfig };

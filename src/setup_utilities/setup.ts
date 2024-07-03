@@ -120,8 +120,6 @@ export async function loadGlobalState(context: vscode.ExtensionContext): Promise
     setupState: generateSetupState(toolsdir)
   };
 
-  console.log(globalConfig);
-
   return globalConfig;
 }
 
@@ -165,7 +163,6 @@ export async function setWorkspaceState(context: vscode.ExtensionContext, wsConf
   if (useExternalJson) {
     fs.writeFile(path.join(wsConfig.rootPath, ".vscode/zephyr-ide.json"), JSON.stringify({ projects: wsConfig.projects }, null, 2), { flag: 'w+' }, function (err: any) {
       if (err) { throw err; }
-      console.log('complete');
     });
   } else {
     await configuration.update('zephyr-ide.projects', wsConfig.projects, false);

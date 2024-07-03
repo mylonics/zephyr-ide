@@ -14,13 +14,4 @@
   tree.addEventListener("vsc-run-action", (event) => {
     vscode.postMessage({ command: event.detail.actionId, value: event.detail.value, treeData: tree.data });
   });
-
-  document.getElementById('button-1').addEventListener('click', (ev) => {
-    console.log(ev);
-    vscode.postMessage({
-      command: 'alert',
-      text: 'Button Pushed'
-    });
-  });
-
 }());

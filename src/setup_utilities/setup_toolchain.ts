@@ -69,7 +69,6 @@ export async function pickToolchainTarget(context: vscode.ExtensionContext, glob
         let toolchainVersionList = await getToolchainVersionList(context);
         toolchainVersion = toolchainVersionList[0];
     }
-    console.log(globalConfig.toolchains);
     let currentToolchain = globalConfig.toolchains[toolchainVersion];
     if (currentToolchain) {
         for (const obj of toolchainTargets) {

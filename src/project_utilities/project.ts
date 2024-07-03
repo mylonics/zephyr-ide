@@ -31,6 +31,7 @@ export interface ProjectConfig {
   activeBuildConfig?: string;
   buildConfigs: BuildConfigDictionary;
   confFiles: ConfigFiles;
+  viewOpen?: boolean;
 }
 
 export function getProjectName(wsConfig: WorkspaceConfig, projectName?: string) {

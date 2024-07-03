@@ -26,6 +26,7 @@ export interface RunnerConfig {
   name: string;
   runner: string;
   args: string;
+  viewOpen?: boolean;
 }
 
 export type RunnerConfigDictionary = { [name: string]: RunnerConfig };
