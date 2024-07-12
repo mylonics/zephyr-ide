@@ -53,11 +53,11 @@ export class ActiveProjectView implements vscode.WebviewViewProvider {
       let activeProject: ProjectConfig | undefined;
       let activeBuild: BuildConfig | undefined;
       let activeRunner: RunnerConfig | undefined;
-      if (wsConfig.activeProject) {
+      if (wsConfig.activeProject !== undefined) {
         activeProject = wsConfig.projects[wsConfig.activeProject];
-        if (activeProject.activeBuildConfig) {
+        if (activeProject.activeBuildConfig !== undefined) {
           activeBuild = activeProject.buildConfigs[activeProject.activeBuildConfig];
-          if (activeBuild.activeRunner) {
+          if (activeBuild.activeRunner !== undefined) {
             activeRunner = activeBuild.runners[activeBuild.activeRunner];
           }
           this.view.title = activeProject.name + ": " + activeBuild.name;

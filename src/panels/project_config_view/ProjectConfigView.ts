@@ -100,29 +100,33 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
   generateConfigFileEntry(entry: any, projectName: string, buildName: string | undefined, confFiles: ConfigFiles, open: boolean | undefined) {
     entry.subItems = [];
     entry.open = open === undefined ? true : open;
-    for (let index = 0; index < confFiles.config.length; index++) {
-      entry.subItems.push({
-        icons: {
-          branch: 'file',
-          leaf: 'file',
-          open: 'file',
-        }, label: 'Conf',
-        value: { project: projectName, build: buildName, cmd: "removeKConfigFile", isExtra: false, filename: confFiles.config[index] },
-        actions: this.fileItemActions,
-        description: confFiles.config[index]
-      });
-    }
-    for (let index = 0; index < confFiles.extraConfig.length; index++) {
-      entry.subItems.push({
-        icons: {
-          branch: 'file',
-          leaf: 'file',
-          open: 'file',
-        }, label: 'Extra Conf',
-        value: { project: projectName, build: buildName, cmd: "removeKConfigFile", isExtra: true, filename: confFiles.extraConfig[index] },
-        actions: this.fileItemActions,
-        description: confFiles.extraConfig[index]
-      });
+    if (confFiles !== undefined) {
+
+      for (let index = 0; index < confFiles.config.length; index++) {
+        entry.subItems.push({
+          icons: {
+            branch: 'file',
+            leaf: 'file',
+            open: 'file',
+          }, label: 'Conf',
+          value: { project: projectName, build: buildName, cmd: "removeKConfigFile", isExtra: false, filename: confFiles.config[index] },
+          actions: this.fileItemActions,
+          description: confFiles.config[index]
+        });
+      }
+      for (let index = 0; index < confFiles.extraConfig.length; index++) {
+        entry.subItems.push({
+          icons: {
+            branch: 'file',
+            leaf: 'file',
+            open: 'file',
+          }, label: 'Extra Conf',
+          value: { project: projectName, build: buildName, cmd: "removeKConfigFile", isExtra: true, filename: confFiles.extraConfig[index] },
+          actions: this.fileItemActions,
+          description: confFiles.extraConfig[index]
+        });
+      }
+
     }
     return entry;
   }
