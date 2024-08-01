@@ -20,7 +20,7 @@ import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs-extra";
 import { MultiStepInput } from "../utilities/multistepQuickPick";
-import { RunnerConfigDictionary } from './runner_selector';
+import { RunnerConfigDictionary, RunnerStateDictionary } from './runner_selector';
 import { ConfigFiles } from './config_selector';
 import { WorkspaceConfig } from '../setup_utilities/setup';
 import { executeShellCommand, getShellEnvironment, output } from "../utilities/utils";
@@ -31,19 +31,25 @@ export interface BuildConfig {
   board: string;
   relBoardDir: string;
   relBoardSubDir: string;
-  debugOptimization?: string;
+  debugOptimization: string;
   westBuildArgs: string;
   westBuildCMakeArgs: string;
-  runners: RunnerConfigDictionary;
-  activeRunner?: string;
+  runnerConfigs: RunnerConfigDictionary;
   confFiles: ConfigFiles;
   launchTarget: string;
   buildDebugTarget: string;
   attachTarget: string;
+}
+
+// Config for the extension
+export interface BuildState {
+  activeRunner?: string;
   viewOpen?: boolean;
+  runnerStates: RunnerStateDictionary;
 }
 
 export type BuildConfigDictionary = { [name: string]: BuildConfig };
+export type BuildStateDictionary = { [name: string]: BuildState };
 
 export async function buildSelector(context: ExtensionContext, wsConfig: WorkspaceConfig) {
   const title = 'Add Build Configuration';

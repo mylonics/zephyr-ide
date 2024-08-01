@@ -29,7 +29,7 @@ import { RunnerConfig } from "../project_utilities/runner_selector";
 export async function flashByName(wsConfig: WorkspaceConfig, projectName: string, buildName: string, runnerName: string) {
   let project = wsConfig.projects[projectName];
   let buildConfig = project.buildConfigs[buildName];
-  let runnerConfig = buildConfig.runners[runnerName];
+  let runnerConfig = buildConfig.runnerConfigs[runnerName];
   if (project && buildConfig && runnerConfig) {
     await flash(wsConfig, project, buildConfig, runnerConfig);
   } else {
@@ -45,16 +45,20 @@ export async function flashActive(wsConfig: WorkspaceConfig) {
   }
   let projectName = wsConfig.activeProject;
   let project = wsConfig.projects[projectName];
-  if (project.activeBuildConfig === undefined) {
+  let activeBuildConfig = wsConfig.projectStates[wsConfig.activeProject].activeBuildConfig;
+
+  if (activeBuildConfig === undefined) {
     vscode.window.showErrorMessage("Select a build before trying to flash");
     return;
   }
-  let build = project.buildConfigs[project.activeBuildConfig];
-  if (build.activeRunner === undefined) {
+  let build = project.buildConfigs[activeBuildConfig];
+  let activeRunnerConfig = wsConfig.projectStates[wsConfig.activeProject].buildStates[activeBuildConfig].activeRunner;
+
+  if (activeRunnerConfig === undefined) {
     vscode.window.showErrorMessage("Select a runner before trying to flash");
     return;
   }
-  let runner = build.runners[build.activeRunner];
+  let runner = build.runnerConfigs[activeRunnerConfig];
   flash(wsConfig, project, build, runner);
 }
 
@@ -72,6 +76,6 @@ export async function flash(wsConfig: WorkspaceConfig, project: ProjectConfig, b
 
   let taskName = "Zephyr IDE Flash: " + project.name + " " + build.name;
 
-  vscode.window.showInformationMessage(`Flashing for ${project.activeBuildConfig}`);
+  vscode.window.showInformationMessage(`Flashing for ${build.name}`);
   await executeTaskHelper(taskName, cmd, getShellEnvironment(wsConfig.activeSetupState), wsConfig.activeSetupState?.setupPath);
 }

@@ -19,8 +19,8 @@ import * as vscode from "vscode";
 import * as fs from "fs-extra";
 import * as path from "path";
 import { selectLaunchConfiguration } from "../utilities/utils";
-import { buildSelector, BuildConfigDictionary } from "./build_selector";
-import { setWorkspaceState, WorkspaceConfig } from "../setup_utilities/setup";
+import { buildSelector, BuildConfigDictionary, BuildStateDictionary } from "./build_selector";
+import { setWorkspaceState, WorkspaceConfig, getActiveBuildOfProject, getActiveRunnerOfBuild } from "../setup_utilities/setup";
 import { runnerSelector } from "./runner_selector";
 import { configSelector, configRemover, ConfigFiles } from "./config_selector";
 
@@ -28,10 +28,15 @@ import { configSelector, configRemover, ConfigFiles } from "./config_selector";
 export interface ProjectConfig {
   name: string;
   rel_path: string;
-  activeBuildConfig?: string;
   buildConfigs: BuildConfigDictionary;
   confFiles: ConfigFiles;
+}
+
+// Project specific state
+export interface ProjectState {
+  activeBuildConfig?: string;
   viewOpen?: boolean;
+  buildStates: BuildStateDictionary;
 }
 
 export function getProjectName(wsConfig: WorkspaceConfig, projectName?: string) {
@@ -47,11 +52,11 @@ export function getProjectName(wsConfig: WorkspaceConfig, projectName?: string) 
 
 export function getBuildName(wsConfig: WorkspaceConfig, projectName: string, buildName?: string) {
   if (!buildName) {
-    if (wsConfig.projects[projectName].activeBuildConfig === undefined) {
+    buildName = getActiveBuildOfProject(wsConfig, projectName);
+    if (buildName === undefined) {
       vscode.window.showErrorMessage("Set Active Build before running this command");
       return;
     }
-    buildName = wsConfig.projects[projectName].activeBuildConfig;
   }
   return buildName;
 }
@@ -303,7 +308,7 @@ export async function setActiveBuild(context: vscode.ExtensionContext, wsConfig:
     return;
   }
   let buildConfigs = wsConfig.projects[wsConfig.activeProject].buildConfigs;
-  wsConfig.projects[wsConfig.activeProject].activeBuildConfig = buildConfigs[selectedBuild].name;
+  wsConfig.projectStates[wsConfig.activeProject].activeBuildConfig = buildConfigs[selectedBuild].name;
   await setWorkspaceState(context, wsConfig);
   vscode.window.showInformationMessage(`Successfully Set ${selectedBuild} as Active Build of ${wsConfig.activeProject}`);
 }
@@ -400,7 +405,7 @@ export async function addBuildToProject(wsConfig: WorkspaceConfig, context: vsco
 
   let result = await buildSelector(context, wsConfig);
   if (result && result.name !== undefined) {
-    result.runners = {};
+    result.runnerConfigs = {};
     if (wsConfig.projects[projectName].buildConfigs[result.name]) {
       const selection = await vscode.window.showWarningMessage('Build Configuration with name: ' + result.name + ' already exists!', 'Overwrite', 'Cancel');
       if (selection !== 'Overwrite') {
@@ -411,7 +416,7 @@ export async function addBuildToProject(wsConfig: WorkspaceConfig, context: vsco
 
     vscode.window.showInformationMessage(`Creating Build Configuration: ${result.name}`);
     wsConfig.projects[projectName].buildConfigs[result.name] = result;
-    wsConfig.projects[projectName].activeBuildConfig = result.name;
+    wsConfig.projectStates[projectName].activeBuildConfig = result.name;
     await setWorkspaceState(context, wsConfig);
   }
 
@@ -437,8 +442,8 @@ export async function removeBuild(context: vscode.ExtensionContext, wsConfig: Wo
       return;
     }
     delete wsConfig.projects[projectName].buildConfigs[buildName];
-    if (wsConfig.projects[projectName].activeBuildConfig === buildName) {
-      wsConfig.projects[projectName].activeBuildConfig = undefined;
+    if (wsConfig.projectStates[projectName].activeBuildConfig === buildName) {
+      wsConfig.projectStates[projectName].activeBuildConfig = undefined;
     }
     await setWorkspaceState(context, wsConfig);
     return true;
@@ -466,14 +471,14 @@ export async function removeRunner(context: vscode.ExtensionContext, wsConfig: W
   }
   let build = wsConfig.projects[projectName].buildConfigs[buildName];
 
-  if (runnerName in build.runners) {
+  if (runnerName in build.runnerConfigs) {
     const selection = await vscode.window.showWarningMessage('Are you sure you want to remove ' + runnerName + '?', 'Yes', 'Cancel');
     if (selection !== 'Yes') {
       return;
     }
-    delete build.runners[runnerName];
-    if (build.activeRunner === runnerName) {
-      build.activeRunner = undefined;
+    delete build.runnerConfigs[runnerName];
+    if (wsConfig.projectStates[projectName].buildStates[buildName].activeRunner === runnerName) {
+      wsConfig.projectStates[projectName].buildStates[buildName].activeRunner = undefined;
     }
     await setWorkspaceState(context, wsConfig);
     return true;
@@ -492,10 +497,9 @@ export async function setActive(wsConfig: WorkspaceConfig, project: string, buil
   if (project) {
     wsConfig.activeProject = project;
     if (build) {
-      wsConfig.projects[wsConfig.activeProject].activeBuildConfig = build;
-      let buildConfig = wsConfig.projects[wsConfig.activeProject].buildConfigs[build];
+      wsConfig.projectStates[wsConfig.activeProject].activeBuildConfig = build;
       if (runner) {
-        buildConfig.activeRunner = runner;
+        wsConfig.projectStates[wsConfig.activeProject].buildStates[build].activeRunner = runner;
       }
     }
     vscode.commands.executeCommand("zephyr-ide.update-web-view");
@@ -511,7 +515,7 @@ export async function askUserForRunner(context: vscode.ExtensionContext, wsConfi
   let buildConfig = wsConfig.projects[projectName].buildConfigs[buildName];
 
   let runnerList: string[] = [];
-  for (let key in buildConfig.runners) {
+  for (let key in buildConfig.runnerConfigs) {
     runnerList.push(key);
   }
 
@@ -528,11 +532,11 @@ export async function setActiveRunner(context: vscode.ExtensionContext, wsConfig
       return;
     }
   }
-  let activeBuildName = wsConfig.projects[wsConfig.activeProject].activeBuildConfig;
+  let activeBuildName = getActiveBuildOfProject(wsConfig, wsConfig.activeProject);
 
   if (activeBuildName === undefined) {
     setActiveBuild(context, wsConfig);
-    activeBuildName = wsConfig.projects[wsConfig.activeProject].activeBuildConfig;
+    activeBuildName = getActiveBuildOfProject(wsConfig, wsConfig.activeProject);
     if (activeBuildName === undefined) {
       vscode.window.showErrorMessage("Set Active Build before trying to Set Active Runner");
       return;
@@ -543,7 +547,7 @@ export async function setActiveRunner(context: vscode.ExtensionContext, wsConfig
   let activeBuild = wsConfig.projects[wsConfig.activeProject].buildConfigs[activeBuildName];
 
   let runnerList: string[] = [];
-  for (let key in activeBuild.runners) {
+  for (let key in activeBuild.runnerConfigs) {
     runnerList.push(key);
   }
   let selectedRunner = await askUserForRunner(context, wsConfig, wsConfig.activeProject, activeBuildName);
@@ -551,7 +555,8 @@ export async function setActiveRunner(context: vscode.ExtensionContext, wsConfig
   if (selectedRunner === undefined) {
     return;
   }
-  activeBuild.activeRunner = selectedRunner;
+
+  wsConfig.projectStates[wsConfig.activeProject].buildStates[activeBuildName].activeRunner = selectedRunner;
   await setWorkspaceState(context, wsConfig);
   vscode.window.showInformationMessage(`Successfully Set ${selectedRunner} as Active Runner for ${activeBuild.name} of ${wsConfig.activeProject}`);
 }
@@ -566,7 +571,7 @@ export async function addRunnerToBuild(wsConfig: WorkspaceConfig, context: vscod
     result = await runnerSelector(path.join(wsConfig.rootPath, build.relBoardDir, build.relBoardSubDir)); // Will remove eventually
   }
   if (result && result.name !== undefined) {
-    if (build.runners[result.name]) {
+    if (build.runnerConfigs[result.name]) {
       const selection = await vscode.window.showWarningMessage('Runner Configuration with name: ' + result.name + ' already exists!', 'Overwrite', 'Cancel');
       if (selection !== 'Overwrite') {
         vscode.window.showErrorMessage(`Failed to add runner configuration`);
@@ -574,8 +579,8 @@ export async function addRunnerToBuild(wsConfig: WorkspaceConfig, context: vscod
       }
     }
     vscode.window.showInformationMessage(`Creating Runner Configuration: ${result.name}`);
-    build.runners[result.name] = result;
-    build.activeRunner = result.name;
+    build.runnerConfigs[result.name] = result;
+    wsConfig.projectStates[projectName].buildStates[buildName].activeRunner = result.name;
     await setWorkspaceState(context, wsConfig);
     return;
   }
@@ -588,12 +593,11 @@ export async function addRunner(wsConfig: WorkspaceConfig, context: vscode.Exten
     vscode.window.showInformationMessage(`Failed to add Runner, please first select a project`);
     return;
   }
-  let activeProject = wsConfig.projects[wsConfig.activeProject];
-  if (activeProject.activeBuildConfig === undefined) {
+  let activeBuild = getActiveBuildOfProject(wsConfig, wsConfig.activeProject);
+  if (activeBuild === undefined) {
     vscode.window.showInformationMessage(`Failed to add Runner, please first select a build`);
     return;
   }
-  let activeBuild = activeProject.activeBuildConfig;
   await addRunnerToBuild(wsConfig, context, wsConfig.activeProject, activeBuild);
 }
 
@@ -602,12 +606,13 @@ export async function getActiveBuild(context: vscode.ExtensionContext, wsConfig:
     return;
   }
   let project = wsConfig.projects[wsConfig.activeProject];
+  let buildName = getActiveBuildOfProject(wsConfig, wsConfig.activeProject);
 
-  if (project.activeBuildConfig === undefined) {
+  if (buildName === undefined) {
     return;
   }
 
-  return project.buildConfigs[project.activeBuildConfig];
+  return project.buildConfigs[buildName];
 }
 
 export async function selectDebugLaunchConfiguration(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {

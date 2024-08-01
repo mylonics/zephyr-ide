@@ -21,7 +21,7 @@ import * as fs from 'fs-extra';
 
 import { getShellEnvironment, executeTaskHelper } from "../utilities/utils";
 
-import { WorkspaceConfig } from '../setup_utilities/setup';
+import { WorkspaceConfig, getActiveBuildOfProject, getActiveRunnerOfBuild } from '../setup_utilities/setup';
 import { addBuild, ProjectConfig } from "../project_utilities/project";
 import { BuildConfig } from "../project_utilities/build_selector";
 
@@ -37,14 +37,16 @@ export async function buildHelper(
     }
     let project = wsConfig.projects[wsConfig.activeProject];
 
-    if (project.activeBuildConfig === undefined) {
+    let buildName = getActiveBuildOfProject(wsConfig, project.name);
+    if (buildName === undefined) {
       await addBuild(wsConfig, context);
-      if (project.activeBuildConfig === undefined) {
+      buildName = getActiveBuildOfProject(wsConfig, project.name);
+      if (buildName === undefined) {
         await vscode.window.showErrorMessage(`You must choose a Build Configuration to continue.`);
         return;
       }
     }
-    await build(wsConfig, project, project.buildConfigs[project.activeBuildConfig], pristine);
+    return await build(wsConfig, project, project.buildConfigs[buildName], pristine);
   } else {
     vscode.window.showErrorMessage("Run `Zephyr IDE: West Update` command first.");
   }
@@ -112,7 +114,7 @@ export async function build(
   let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
 
   vscode.window.showInformationMessage(`Building ${build.name} from project: ${project.name}`);
-  await executeTaskHelper(taskName, cmd, getShellEnvironment(wsConfig.activeSetupState), wsConfig.activeSetupState?.setupPath);
+  return await executeTaskHelper(taskName, cmd, getShellEnvironment(wsConfig.activeSetupState), wsConfig.activeSetupState?.setupPath);
 }
 
 
@@ -132,11 +134,12 @@ export async function buildMenuConfig(
   }
 
   if (build === undefined) {
-    if (project.activeBuildConfig === undefined) {
+    let buildName = getActiveBuildOfProject(wsConfig, project.name)
+    if (buildName === undefined) {
       await vscode.window.showErrorMessage(`You must choose a Build Configuration to continue.`);
       return;
     }
-    build = project.buildConfigs[project.activeBuildConfig];
+    build = project.buildConfigs[buildName];
   }
 
   let cmd = `west build -t ${isMenuConfig ? "menuconfig" : "guiconfig"} -b ${build.board} ${path.join(wsConfig.rootPath, project.rel_path)} --build-dir ${path.join(wsConfig.rootPath, project.rel_path, build.name)} -- -DBOARD_ROOT='${path.dirname(path.join(wsConfig.rootPath, build.relBoardDir))}' `;
@@ -156,7 +159,8 @@ export async function clean(wsConfig: WorkspaceConfig, projectName: string | und
     }
     projectName = wsConfig.activeProject;
   }
-  let activeBuild = wsConfig.projects[projectName].activeBuildConfig;
+
+  let activeBuild = wsConfig.projectStates[projectName].activeBuildConfig;
   if (activeBuild === undefined) {
     vscode.window.showErrorMessage("Select a build before trying to clean");
     return;

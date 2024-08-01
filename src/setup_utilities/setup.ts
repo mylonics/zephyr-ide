@@ -23,15 +23,15 @@ import * as path from "path";
 
 import { installSdk, pickToolchainTarget, ToolChainDictionary } from "../setup_utilities/setup_toolchain";
 import { getRootPath, getShellEnvironment, output, executeShellCommand, executeTaskHelper } from "../utilities/utils";
-import { ProjectConfig } from "../project_utilities/project";
+import { ProjectConfig, ProjectState } from "../project_utilities/project";
 
 import { westSelector, WestLocation } from "./west_selector";
 export type ProjectConfigDictionary = { [name: string]: ProjectConfig };
+export type ProjectStateDictionary = { [name: string]: ProjectState };
 
 export interface SetupState {
   toolsAvailable: boolean,
   pythonEnvironmentSetup: boolean,
-  westInited: boolean,
   westUpdated: boolean,
   sdkInstalled: boolean,
   zephyrDir: string | undefined,
@@ -43,7 +43,6 @@ export function generateSetupState(setupPath: string): SetupState {
   return {
     toolsAvailable: false,
     pythonEnvironmentSetup: false,
-    westInited: false,
     westUpdated: false,
     sdkInstalled: false,
     zephyrDir: undefined,
@@ -73,14 +72,78 @@ export interface WorkspaceConfig {
   automaticProjectSelction: boolean,
   localSetupState?: SetupState,
   activeSetupState?: SetupState,
-  selectSetupType: SetupStateType
+  selectSetupType: SetupStateType,
+  projectStates: ProjectStateDictionary,
 }
 
 function projectLoader(config: WorkspaceConfig, projects: any) {
   config.projects = {};
+
+  if (config.projectStates === undefined) {
+    config.projectStates = {};
+  }
+
   for (let key in projects) {
     config.projects[key] = projects[key];
+
+    //generate project States if they don't exist
+    if (config.projectStates[key] == undefined) {
+      config.projectStates[key] = { buildStates: {} }
+      if (config.activeProject == undefined) {
+        config.activeProject = key;
+      }
+    }
+
+    for (let build_key in projects[key].buildConfigs) {
+      if (config.projectStates[key].buildStates[build_key] == undefined) {
+        config.projectStates[key].buildStates[build_key] = { runnerStates: {} }
+        if (config.projectStates[key].activeBuildConfig == undefined) {
+          config.projectStates[key].activeBuildConfig = build_key;
+        }
+      }
+
+      //Remove after upgrade
+      if (projects[key].buildConfigs[build_key].runnerConfigs == undefined) {
+        config.projects[key].buildConfigs[build_key].runnerConfigs = projects[key].buildConfigs[build_key].runners;
+      }
+
+      for (let runner_key in projects[key].buildConfigs[build_key].runnerConfigs) {
+        if (config.projectStates[key].buildStates[build_key].runnerStates[runner_key] == undefined) {
+          config.projectStates[key].buildStates[build_key].runnerStates[runner_key] = {};
+          if (config.projectStates[key].buildStates[build_key].activeRunner == undefined) {
+            config.projectStates[key].buildStates[build_key].activeRunner = runner_key;
+          }
+        }
+      }
+    }
   }
+}
+
+export function getActiveBuildOfProject(wsConfig: WorkspaceConfig, project: string) {
+  return wsConfig.projectStates[project].activeBuildConfig;
+}
+
+export function getActiveRunnerOfBuild(wsConfig: WorkspaceConfig, project: string, build: string) {
+  return wsConfig.projectStates[project].buildStates[build].activeRunner;
+}
+
+export function getActiveBuildConfigOfProject(wsConfig: WorkspaceConfig, project: string) {
+  let buildName = wsConfig.projectStates[project].activeBuildConfig;
+  if (buildName) {
+    return wsConfig.projects[project].buildConfigs[buildName];
+  }
+  return;
+}
+
+export function getActiveRunnerConfigOfBuild(wsConfig: WorkspaceConfig, project: string, build: string) {
+  let activeBuild = getActiveBuildConfigOfProject(wsConfig, project);
+  if (activeBuild) {
+    let activeRunnerName = wsConfig.projectStates[project].buildStates[build].activeRunner;
+    if (activeRunnerName) {
+      return activeBuild.runnerConfigs[activeRunnerName];
+    }
+  }
+  return;
 }
 
 export async function loadProjectsFromFile(config: WorkspaceConfig) {
@@ -140,7 +203,8 @@ export async function loadWorkspaceState(context: vscode.ExtensionContext): Prom
     automaticProjectSelction: true,
     initialSetupComplete: false,
     localSetupState: generateSetupState(rootPath),
-    selectSetupType: SetupStateType.NONE
+    selectSetupType: SetupStateType.NONE,
+    projectStates: {}
   };
 
   loadProjectsFromFile(config);
@@ -309,13 +373,20 @@ export function workspaceInit(context: vscode.ExtensionContext, wsConfig: Worksp
         vscode.window.showErrorMessage("Zephyr IDE Initialization Step 3/5: Sdk failed to install");
         return;
       }
+
       progress.report({ message: "Initializing West Respository (4/5)", increment: 20 });
-      let result = await westInit(context, wsConfig, globalConfig, false, westSelection);
-      progressUpdate(wsConfig);
-      if (result === false || !wsConfig.activeSetupState.westInited) {
-        vscode.window.showErrorMessage("Zephyr IDE Initialization Step 4/5: West Failed to initialize");
-        return;
+      let westInited = await checkWestInit(wsConfig.activeSetupState);
+
+      if (!westInited) {
+        let result = await westInit(context, wsConfig, globalConfig, false, westSelection);
+        progressUpdate(wsConfig);
+
+        if (result === false) {
+          vscode.window.showErrorMessage("Zephyr IDE Initialization Step 4/5: West Failed to initialize");
+          return;
+        }
       }
+
       progress.report({ message: "Updating West Repository (5/5)", increment: 30 });
       await westUpdate(context, wsConfig, globalConfig, false);
       progressUpdate(wsConfig);
@@ -330,12 +401,20 @@ export function workspaceInit(context: vscode.ExtensionContext, wsConfig: Worksp
   );
 }
 
+export function checkWestInit(setupState: SetupState) {
+  let westPath = path.join(setupState.setupPath, ".west");
+  let res = fs.pathExistsSync(westPath);
+  return res;
+}
+
 export async function westInit(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, solo = true, westSelection?: WestLocation) {
   if (wsConfig.activeSetupState === undefined || wsConfig.activeSetupState.setupPath === undefined) {
     return;
   }
-  if (wsConfig.activeSetupState.westInited) {
-    const selection = await vscode.window.showWarningMessage('Zephyr IDE: West already initialized. Call West Update instead. If you would like to reinitialize delete the .west folder first', 'Reinitialize', 'Cancel');
+  let westInited = await checkWestInit(wsConfig.activeSetupState);
+
+  if (westInited) {
+    const selection = await vscode.window.showWarningMessage('Zephyr IDE: West already initialized. Call West Update instead. If you would like to reinitialize the .west folder will be deleted', 'Reinitialize', 'Cancel');
     if (selection !== 'Reinitialize') {
       return true;
     }
@@ -348,15 +427,8 @@ export async function westInit(context: vscode.ExtensionContext, wsConfig: Works
     }
   }
 
-  if (westSelection.markAsInitialized === true) {
-    wsConfig.activeSetupState.westInited = true;
-    saveSetupState(context, wsConfig, globalConfig);
-    return true;
-  }
-
   let westPath = path.join(wsConfig.activeSetupState.setupPath, ".west");
 
-  wsConfig.activeSetupState.westInited = false;
   wsConfig.activeSetupState.westUpdated = false;
   saveSetupState(context, wsConfig, globalConfig);
 
@@ -384,14 +456,12 @@ export async function westInit(context: vscode.ExtensionContext, wsConfig: Works
 
   let westInitRes = await executeTaskHelper("Zephyr IDE: West Init", cmd, getShellEnvironment(wsConfig.activeSetupState), wsConfig.rootPath);
 
-
   if (!westInitRes) {
     vscode.window.showErrorMessage("West Init Failed. See terminal for error information.");
   } else {
     if (solo) {
       vscode.window.showInformationMessage(`Successfully Completed West Init`);
     }
-    wsConfig.activeSetupState.westInited = true;
     saveSetupState(context, wsConfig, globalConfig);
   }
 

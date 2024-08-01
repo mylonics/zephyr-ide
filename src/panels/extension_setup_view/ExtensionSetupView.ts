@@ -20,6 +20,7 @@ import path from 'path';
 import { SetupStateType, WorkspaceConfig } from '../../setup_utilities/setup';
 import { getNonce } from "../../utilities/getNonce";
 import { getRootPath } from '../../utilities/utils';
+import { checkWestInit } from '../../setup_utilities/setup';
 
 
 export class ExtensionSetupView implements vscode.WebviewViewProvider {
@@ -29,6 +30,11 @@ export class ExtensionSetupView implements vscode.WebviewViewProvider {
 
   updateWebView(wsConfig: WorkspaceConfig) {
     let bodyString = "";
+
+    let westInited = false;
+    if (wsConfig.activeSetupState) {
+      westInited = checkWestInit(wsConfig.activeSetupState);
+    }
 
     if (getRootPath() === undefined) {
       bodyString = bodyString + `Open a folder/workspace before continuing`;
@@ -51,7 +57,7 @@ export class ExtensionSetupView implements vscode.WebviewViewProvider {
       bodyString = bodyString + `<vscode-button id="cmd-btn" class="widebtn" ${wsConfig.activeSetupState.toolsAvailable ? "secondary" : ""} name="zephyr-ide.check-build-dependencies" >Check Build Dependencies</vscode-button>`;
       bodyString = bodyString + `<vscode-button id="cmd-btn"class="widebtn" ${wsConfig.activeSetupState.pythonEnvironmentSetup ? "secondary" : ""} name="zephyr-ide.setup-west-environment" >Setup West Environment</vscode-button>`;
       bodyString = bodyString + `<vscode-button id="cmd-btn"class="widebtn" ${wsConfig.activeSetupState.sdkInstalled ? "secondary" : ""} name="zephyr-ide.install-sdk" >Install SDK</vscode-button>`;
-      bodyString = bodyString + `<vscode-button id="cmd-btn"class="widebtn" ${wsConfig.activeSetupState.westInited ? "secondary" : ""} name="zephyr-ide.west-init" >West Init</vscode-button>`;
+      bodyString = bodyString + `<vscode-button id="cmd-btn"class="widebtn" ${westInited ? "secondary" : ""} name="zephyr-ide.west-init" >West Init</vscode-button>`;
       bodyString = bodyString + `<vscode-button id="cmd-btn"class="widebtn" ${wsConfig.activeSetupState.westUpdated ? "secondary" : ""} name="zephyr-ide.west-update" >West Update</vscode-button>`;
       bodyString = bodyString + `<vscode-label><span class="normal" >Note: West Update should be run whenever the west.yml file is changed</span></vscode-label><hr>`;
 

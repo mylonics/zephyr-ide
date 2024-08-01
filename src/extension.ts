@@ -447,8 +447,10 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.get-active-build-path", async () => {
       if (wsConfig.activeProject) {
         let project = wsConfig.projects[wsConfig.activeProject];
-        if (project.activeBuildConfig) {
-          return path.join(wsConfig.rootPath, project.rel_path, project.activeBuildConfig);
+        let activeBuildConfig = wsConfig.projectStates[wsConfig.activeProject].activeBuildConfig;
+
+        if (activeBuildConfig) {
+          return path.join(wsConfig.rootPath, project.rel_path, activeBuildConfig);
         }
       }
       return;
@@ -463,8 +465,9 @@ export async function activate(context: vscode.ExtensionContext) {
 
       if (wsConfig.activeProject) {
         let project = wsConfig.projects[wsConfig.activeProject];
-        if (project.activeBuildConfig) {
-          return path.join(wsConfig.rootPath, project.rel_path, project.activeBuildConfig);
+        let activeBuildConfig = wsConfig.projectStates[wsConfig.activeProject].activeBuildConfig;
+        if (activeBuildConfig) {
+          return path.join(wsConfig.rootPath, project.rel_path, activeBuildConfig);
         }
       }
       return;
@@ -552,8 +555,10 @@ export async function activate(context: vscode.ExtensionContext) {
       let debugConfig = getLaunchConfigurationByName(debugTarget);
 
       if (debugConfig) {
-        await buildHelper(context, wsConfig, false);
-        await vscode.commands.executeCommand('debug.startFromConfig', debugConfig);
+        let res = await buildHelper(context, wsConfig, false);
+        if (res) {
+          await vscode.commands.executeCommand('debug.startFromConfig', debugConfig);
+        }
       } else {
         vscode.window.showErrorMessage("Launch Configuration: " + debugTarget + " not found");
       }

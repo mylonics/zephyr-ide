@@ -30,14 +30,12 @@ export interface WestLocation {
   path: string | undefined;
   failed: boolean;
   gitRepo: string;
-  markAsInitialized: boolean | undefined;
   additionalArgs: string;
 }
 
 
 
 export async function westSelector(context: ExtensionContext, wsConfig: WorkspaceConfig) {
-
   const title = 'Initialize West';
 
   async function getAdditionalArguments(input: MultiStepInput, state: Partial<WestLocation>) {
@@ -70,7 +68,6 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
     westOptions["NRF Connect Config"] = "ncs_west.yml";
     westOptions["From Git Repo"] = "";
     westOptions["Select west.yml in Workspace"] = "";
-    westOptions["Mark West Init as run without running west init"] = "";
 
     const westOptionQpItems: QuickPickItem[] = [];
     for (let key in westOptions) {
@@ -99,11 +96,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
     let copyTemplate = false;
     let westFile;
 
-    if (pick.label === "Mark West Init as run without running west init") {
-      state.failed = false;
-      state.markAsInitialized = true;
-      return;
-    } else if (pick.label === "From Git Repo") {
+    if (pick.label === "From Git Repo") {
       async function validateGitRepoString(name: string) {
         return undefined;
       }

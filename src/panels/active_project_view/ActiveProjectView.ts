@@ -22,7 +22,7 @@ import { ProjectConfig, } from '../../project_utilities/project';
 import { BuildConfig } from '../../project_utilities/build_selector';
 import { getNonce } from "../../utilities/getNonce";
 import { RunnerConfig } from '../../project_utilities/runner_selector';
-import { WorkspaceConfig } from '../../setup_utilities/setup';
+import { WorkspaceConfig, getActiveBuildConfigOfProject, getActiveRunnerConfigOfBuild } from '../../setup_utilities/setup';
 
 export class ActiveProjectView implements vscode.WebviewViewProvider {
   private view: vscode.WebviewView | undefined;
@@ -55,11 +55,9 @@ export class ActiveProjectView implements vscode.WebviewViewProvider {
       let activeRunner: RunnerConfig | undefined;
       if (wsConfig.activeProject !== undefined) {
         activeProject = wsConfig.projects[wsConfig.activeProject];
-        if (activeProject.activeBuildConfig !== undefined) {
-          activeBuild = activeProject.buildConfigs[activeProject.activeBuildConfig];
-          if (activeBuild.activeRunner !== undefined) {
-            activeRunner = activeBuild.runners[activeBuild.activeRunner];
-          }
+        activeBuild = getActiveBuildConfigOfProject(wsConfig, wsConfig.activeProject)
+        if (activeBuild !== undefined) {
+          activeRunner = getActiveRunnerConfigOfBuild(wsConfig, wsConfig.activeProject, activeBuild.name);
           this.view.title = activeProject.name + ": " + activeBuild.name;
         } else {
           this.view.title = activeProject.name;

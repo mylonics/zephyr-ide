@@ -26,10 +26,14 @@ export interface RunnerConfig {
   name: string;
   runner: string;
   args: string;
+}
+
+export interface RunnerState {
   viewOpen?: boolean;
 }
 
 export type RunnerConfigDictionary = { [name: string]: RunnerConfig };
+export type RunnerStateDictionary = { [name: string]: RunnerState };
 
 export async function runnerSelector(boardfolder: string) {
   const title = 'Add Runner';

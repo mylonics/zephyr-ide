@@ -25,7 +25,7 @@ import { buildByName } from '../../zephyr_utilities/build';
 import { flashByName } from '../../zephyr_utilities/flash';
 import { ConfigFiles } from '../../project_utilities/config_selector';
 
-import { WorkspaceConfig } from '../../setup_utilities/setup';
+import { WorkspaceConfig, getActiveBuildConfigOfProject, getActiveRunnerConfigOfBuild } from '../../setup_utilities/setup';
 
 export class ProjectConfigState {
   projectOpenState: boolean = true;
@@ -320,14 +320,10 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
     }
     let activeProject = wsConfig.projects[wsConfig.activeProject];
 
-    let activeBuild;
-    if (activeProject.activeBuildConfig) {
-      activeBuild = activeProject.buildConfigs[activeProject.activeBuildConfig];
-    }
+    let activeBuild = getActiveBuildConfigOfProject(wsConfig, wsConfig.activeProject);
     let activeRunner;
-
-    if (activeBuild && activeBuild.runners && activeBuild.activeRunner) {
-      activeRunner = activeBuild.runners[activeBuild.activeRunner];
+    if (activeBuild) {
+      activeRunner = getActiveRunnerConfigOfBuild(wsConfig, wsConfig.activeProject, activeBuild.name);
     }
 
     if (this.treeData[0] != undefined) {

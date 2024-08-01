@@ -94,6 +94,7 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
   }
 
   generateRunnerString(projectName: string, buildName: string, runner: RunnerConfig): any {
+    let viewOpen = this.wsConfig.projectStates[projectName].buildStates[buildName].runnerStates[runner.name].viewOpen;
     let entry = {
       icons: {
         branch: 'chip',
@@ -103,7 +104,7 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
       actions: this.runnerActions,
       label: runner.name,
       value: { project: projectName, build: buildName, runner: runner.name },
-      open: runner.viewOpen !== undefined ? runner.viewOpen : true,
+      open: viewOpen !== undefined ? viewOpen : true,
       subItems: []
     };
 
@@ -111,6 +112,7 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
   }
 
   generateBuildString(projectName: string, build: BuildConfig): any {
+    let viewOpen = this.wsConfig.projectStates[projectName].buildStates[build.name].viewOpen;
     let buildData: any = {};
     buildData['icons'] = {
       branch: 'project',
@@ -120,16 +122,16 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
     buildData['actions'] = this.buildActions;
     buildData['label'] = build.name;
     buildData['value'] = { project: projectName, build: build.name };
-    buildData['open'] = build.viewOpen !== undefined ? build.viewOpen : true;
+    buildData['open'] = viewOpen !== undefined ? viewOpen : true;
     buildData['description'] = build.board;
     buildData['subItems'] = [];
 
     let runnerNames = [];
 
     //Add runners
-    for (let key in build.runners) {
+    for (let key in build.runnerConfigs) {
       runnerNames.push(key);
-      buildData.subItems.push(this.generateRunnerString(projectName, build.name, build.runners[key]));
+      buildData.subItems.push(this.generateRunnerString(projectName, build.name, build.runnerConfigs[key]));
     }
 
     // If no runners then add Add Runner command
@@ -151,6 +153,8 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
 
 
   generateProjectString(project: ProjectConfig): any {
+    let viewOpen = this.wsConfig.projectStates[project.name].viewOpen;
+
     let projectData: any = {};
     projectData['icons'] = {
       branch: 'folder',
@@ -161,7 +165,7 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
     projectData['label'] = project.name;
     projectData['value'] = { project: project.name };
     projectData['subItems'] = [];
-    projectData['open'] = project.viewOpen !== undefined ? project.viewOpen : true;
+    projectData['open'] = viewOpen !== undefined ? viewOpen : true;
 
     let buildNames = [];
 
@@ -212,10 +216,10 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
     try {
       this.treeData.forEach((element: any) => {
         if (element.label in this.wsConfig.projects) {
-          this.wsConfig.projects[element.label].viewOpen = element.open;
+          this.wsConfig.projectStates[element.label].viewOpen = element.open;
           element.subItems.forEach((build_element: any) => {
             if (build_element.label in this.wsConfig.projects[element.label].buildConfigs) {
-              this.wsConfig.projects[element.label].buildConfigs[build_element.label].viewOpen = build_element.open;
+              this.wsConfig.projectStates[element.label].buildStates[build_element.label].viewOpen = build_element.open;
             }
           });
         }
