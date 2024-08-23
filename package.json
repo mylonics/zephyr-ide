@@ -85,7 +85,7 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "package-explorer",
+          "id": "zephyr-ide-main",
           "title": "Zephyr IDE",
           "icon": "media/icon.svg"
         }
@@ -124,7 +124,7 @@
       ]
     },
     "views": {
-      "package-explorer": [
+      "zephyr-ide-main": [
         {
           "id": "zephyrIdeExtensionSetup",
           "name": "Extension Setup",

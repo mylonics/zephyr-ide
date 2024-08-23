@@ -49,6 +49,9 @@ This extension contributes the following settings:
 * macOS compatibility is untested. Please make an issue on our github page with any incompatibilities found.
 
 ## Release Notes
+### 1.0.41
+Fix conflict with python environment manager extension 
+
 ### 1.0.37
 New GUI panel. Maintain GUI tree state on relaunch. Removed updating of project file with active project/build/runner 
 
