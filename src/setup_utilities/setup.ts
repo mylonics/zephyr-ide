@@ -247,15 +247,17 @@ export function saveSetupState(context: vscode.ExtensionContext, wsConfig: Works
 }
 
 export async function setWorkspaceState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
+
+  fs.writeFile(path.join(wsConfig.rootPath, ".vscode/zephyr-ide.json"), JSON.stringify({ projects: wsConfig.projects }, null, 2), { flag: 'w+' }, function (err: any) {
+    if (err) { throw err; }
+  });
+
+
   const configuration = await vscode.workspace.getConfiguration();
-  let useExternalJson: boolean | undefined = await configuration.get("zephyr-ide.use-zephyr-ide-json");
-  if (useExternalJson) {
-    fs.writeFile(path.join(wsConfig.rootPath, ".vscode/zephyr-ide.json"), JSON.stringify({ projects: wsConfig.projects }, null, 2), { flag: 'w+' }, function (err: any) {
-      if (err) { throw err; }
-    });
-  } else {
-    await configuration.update('zephyr-ide.projects', wsConfig.projects, false);
-  }
+  const target = vscode.ConfigurationTarget.Workspace;
+
+  await configuration.update("zephyr-ide.use-zephyr-ide-json", true, target);
+  await configuration.update('zephyr-ide.projects', null, false);
 
   await context.workspaceState.update("zephyr.env", wsConfig);
 }
