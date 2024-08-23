@@ -52,14 +52,14 @@
             "object"
           ],
           "default": null,
-          "description": "Zephyr IDE Project Configuration."
+          "description": "[deprecated] Zephyr IDE Project Configuration."
         },
         "zephyr-ide.use-zephyr-ide-json": {
           "type": [
             "boolean"
           ],
           "default": false,
-          "description": "Allows use of separater json file to store Zephyr IDE Project Configuration."
+          "description": "[deprecated] Allows use of separater json file to store Zephyr IDE Project Configuration."
         }
       }
     },

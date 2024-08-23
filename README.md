@@ -41,14 +41,15 @@ For ubuntu please also install python3-venv by ```sudo apt install python3-venv`
 
 This extension contributes the following settings:
 
-* `zephyr-ide.projects`: Project structure to manually edit or share with other.
-* `zephyr-ide.use-zephyr-ide-json`: Allows the use of a separate .json file. Useful if settings.json has unrelated local settings that should not be shared.
 
 ## Known Issues
 
 * macOS compatibility is untested. Please make an issue on our github page with any incompatibilities found.
 
 ## Release Notes
+### 1.0.42
+Fixe gdb arm path bug, added default terminal profile. Moved projects from settings.json to zephyr-ide.json exclusively.
+
 ### 1.0.41
 Fix conflict with python environment manager extension 
 
