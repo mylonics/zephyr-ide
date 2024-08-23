@@ -211,6 +211,31 @@ export async function loadWorkspaceState(context: vscode.ExtensionContext): Prom
   return config;
 }
 
+export async function oneTimeWorkspaceSetup(context: vscode.ExtensionContext) {
+  let oneTimeConfig: WorkspaceConfig | undefined = await context.workspaceState.get("zephyr-ide-v41-one-time-config.env")
+
+  if (oneTimeConfig === undefined) {
+    const configuration = await vscode.workspace.getConfiguration();
+    const target = vscode.ConfigurationTarget.Workspace;
+
+    let default_window_terminal_set: boolean | undefined = await configuration.get("terminal.integrated.defaultProfile.windows");
+    if (default_window_terminal_set === undefined || default_window_terminal_set === null) {
+      configuration.update('terminal.integrated.defaultProfile.windows', "Zephyr IDE Terminal", target, false);
+    }
+
+    let default_linux_terminal_set: boolean | undefined = await configuration.get("terminal.integrated.defaultProfile.linux");
+    if (default_linux_terminal_set === undefined || default_linux_terminal_set === null) {
+      configuration.update('terminal.integrated.defaultProfile.linux', "Zephyr IDE Terminal", target, false);
+    }
+
+    let default_osx_terminal_set: boolean | undefined = await configuration.get("terminal.integrated.defaultProfile.osx");
+    if (default_osx_terminal_set === undefined || default_osx_terminal_set === null) {
+      configuration.update('terminal.integrated.defaultProfile.osx', "Zephyr IDE Terminal", target, false);
+    }
+    await context.workspaceState.update("zephyr-ide-v41-config.env", true)
+  }
+}
+
 export function saveSetupState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
   if (wsConfig.selectSetupType === SetupStateType.GLOBAL && wsConfig.activeSetupState) {
     globalConfig.setupState = wsConfig.activeSetupState;

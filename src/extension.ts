@@ -28,7 +28,7 @@ import path from "path";
 import * as project from "./project_utilities/project";
 import { buildHelper, buildMenuConfig, clean } from "./zephyr_utilities/build";
 import { flashActive } from "./zephyr_utilities/flash";
-import { WorkspaceConfig, generateSetupState, GlobalConfig, SetupStateType, loadGlobalState, westUpdate, workspaceInit, setWorkspaceState, loadWorkspaceState, clearWorkspaceState, westInit, checkIfToolsAvailable, setupWestEnvironment, loadProjectsFromFile, toolchainDir, setGlobalState, SetupState } from "./setup_utilities/setup";
+import { WorkspaceConfig, oneTimeWorkspaceSetup, GlobalConfig, SetupStateType, loadGlobalState, westUpdate, workspaceInit, setWorkspaceState, loadWorkspaceState, clearWorkspaceState, westInit, checkIfToolsAvailable, setupWestEnvironment, loadProjectsFromFile, toolchainDir, setGlobalState, SetupState } from "./setup_utilities/setup";
 import { installSdk } from "./setup_utilities/setup_toolchain";
 
 let wsConfig: WorkspaceConfig;
@@ -628,6 +628,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.use-global-zephyr-install", async () => {
+      oneTimeWorkspaceSetup(context)
       wsConfig.selectSetupType = SetupStateType.GLOBAL;
       wsConfig.activeSetupState = globalConfig.setupState;
       await setWorkspaceState(context, wsConfig);
@@ -637,6 +638,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.use-local-zephyr-install", async () => {
+      oneTimeWorkspaceSetup(context)
       wsConfig.selectSetupType = SetupStateType.LOCAL;
       if (wsConfig.localSetupState) {
         wsConfig.activeSetupState = wsConfig.localSetupState;
@@ -648,6 +650,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.use-external-zephyr-install", async () => {
+      oneTimeWorkspaceSetup(context)
       wsConfig.selectSetupType = SetupStateType.NONE;
       await setWorkspaceState(context, wsConfig);
       extensionSetupView.updateWebView(wsConfig);

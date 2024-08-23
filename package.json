@@ -58,7 +58,7 @@
           "type": [
             "boolean"
           ],
-          "default": false,
+          "default": true,
           "description": "Allows use of separater json file to store Zephyr IDE Project Configuration."
         }
       }

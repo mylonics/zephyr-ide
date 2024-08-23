@@ -23,7 +23,7 @@ import * as os from "os";
 
 import { compareVersions } from 'compare-versions';
 
-import { toolsdir, GlobalConfig, WorkspaceConfig, setWorkspaceState, setGlobalState, saveSetupState } from "./setup";
+import { toolsdir, GlobalConfig, WorkspaceConfig, setGlobalState, saveSetupState } from "./setup";
 import { toolchainTargets } from "../defines";
 import { FileDownload, DownloadEntry, processDownload } from "./download";
 
