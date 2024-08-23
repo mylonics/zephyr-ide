@@ -255,7 +255,7 @@ export async function installSdk(context: vscode.ExtensionContext, wsConfig: Wor
             progress.report({ increment: 100 });
             output.appendLine(`[SETUP] Installing zephyr-sdk-${toolchainVersion} complete`);
 
-            globalConfig.armGdbPath = path.join(toolsdir, toolchainBasePath, "arm-zephyr-eabi\\bin\\arm-zephyr-eabi-gdb");
+            globalConfig.armGdbPath = path.join(toolsdir, toolchainBasePath, "arm-zephyr-eabi", "bin", "arm-zephyr-eabi-gdb");
 
             wsConfig.activeSetupState.sdkInstalled = true;
             await saveSetupState(context, wsConfig, globalConfig);
