@@ -212,9 +212,10 @@ export async function loadWorkspaceState(context: vscode.ExtensionContext): Prom
 }
 
 export async function oneTimeWorkspaceSetup(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
-  let oneTimeConfig: WorkspaceConfig | undefined = await context.workspaceState.get("zephyr-ide-v42-one-time-config.env")
+  let configName = "zephyr-ide-v45-one-time-config.env";
+  let oneTimeConfig: boolean | undefined = await context.workspaceState.get(configName)
 
-  if (oneTimeConfig === undefined) {
+  if (oneTimeConfig === undefined || oneTimeConfig === false) {
     const configuration = await vscode.workspace.getConfiguration();
     const target = vscode.ConfigurationTarget.Workspace;
 
@@ -233,10 +234,10 @@ export async function oneTimeWorkspaceSetup(context: vscode.ExtensionContext, ws
       configuration.update('terminal.integrated.defaultProfile.osx', "Zephyr IDE Terminal", target, false);
     }
 
-    configuration.update("C_Cpp.default.compileCommands", path.join(wsConfig.rootPath, '.vscode', 'compile_commands.json'), target)
+    configuration.update("C_Cpp.default.compileCommands", path.join("${workspaceFolder}", '.vscode', 'compile_commands.json'), target)
 
     configuration.update("cmake.configureOnOpen", false, target);
-    await context.workspaceState.update("zephyr-ide-v42-config.env", true)
+    await context.workspaceState.update(configName, true)
   }
 }
 
