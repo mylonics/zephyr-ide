@@ -417,6 +417,7 @@ export async function addBuildToProject(wsConfig: WorkspaceConfig, context: vsco
     vscode.window.showInformationMessage(`Creating Build Configuration: ${result.name}`);
     wsConfig.projects[projectName].buildConfigs[result.name] = result;
     wsConfig.projectStates[projectName].activeBuildConfig = result.name;
+
     await setWorkspaceState(context, wsConfig);
   }
 

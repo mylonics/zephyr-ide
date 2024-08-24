@@ -25,6 +25,29 @@ import { WorkspaceConfig, getActiveBuildOfProject, getActiveRunnerOfBuild } from
 import { addBuild, ProjectConfig } from "../project_utilities/project";
 import { BuildConfig } from "../project_utilities/build_selector";
 
+export async function regenerateCompileCommands(wsConfig: WorkspaceConfig) {
+  let compileCommandData = [];
+
+  for (let projectName in wsConfig.projects) {
+    let project = wsConfig.projects[projectName];
+    for (let buildName in project.buildConfigs) {
+      let build = project.buildConfigs[buildName];
+      let basepath = path.join(wsConfig.rootPath, project.rel_path, build.name);
+      let basefile = path.join(basepath, "compile_commands.json");
+      let extfile = path.join(basepath, project.name, "compile_commands.json")
+      if (fs.existsSync(basefile)) {
+        let rawdata = await fs.readFile(basefile, 'utf8');
+        compileCommandData.push(...JSON.parse(rawdata))
+      } else if (fs.existsSync(extfile)) {
+        let rawdata = await fs.readFile(extfile, 'utf8');
+        compileCommandData.push(...JSON.parse(rawdata))
+      }
+    }
+  }
+  let data = JSON.stringify(compileCommandData);
+  fs.writeFile(path.join(wsConfig.rootPath, '.vscode', 'compile_commands.json'), data);
+}
+
 export async function buildHelper(
   context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, pristine: boolean) {
   if (wsConfig.activeSetupState === undefined) {
@@ -114,7 +137,9 @@ export async function build(
   let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
 
   vscode.window.showInformationMessage(`Building ${build.name} from project: ${project.name}`);
-  return await executeTaskHelper(taskName, cmd, getShellEnvironment(wsConfig.activeSetupState), wsConfig.activeSetupState?.setupPath);
+  let ret = await executeTaskHelper(taskName, cmd, getShellEnvironment(wsConfig.activeSetupState), wsConfig.activeSetupState?.setupPath);
+  regenerateCompileCommands(wsConfig);
+  return ret;
 }
 
 
@@ -148,8 +173,8 @@ export async function buildMenuConfig(
 
   vscode.window.showInformationMessage(`Running MenuConfig ${build.name} from project: ${project.name}`);
   await executeTaskHelper(taskName, cmd, getShellEnvironment(wsConfig.activeSetupState), wsConfig.activeSetupState?.setupPath);
+  regenerateCompileCommands(wsConfig);
 }
-
 
 export async function clean(wsConfig: WorkspaceConfig, projectName: string | undefined) {
   if (projectName === undefined) {

@@ -40,6 +40,11 @@ export async function activate(context: vscode.ExtensionContext) {
   wsConfig = await loadWorkspaceState(context);
   globalConfig = await loadGlobalState(context);
 
+  //Upgrading check to add new variables
+  if (wsConfig.activeSetupState !== undefined && wsConfig.activeSetupState.sdkInstalled === true) {
+    oneTimeWorkspaceSetup(context, wsConfig);
+  }
+
   if (wsConfig.selectSetupType === SetupStateType.GLOBAL) {
     wsConfig.activeSetupState = globalConfig.setupState;
   } else {
@@ -628,7 +633,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.use-global-zephyr-install", async () => {
-      oneTimeWorkspaceSetup(context)
+      oneTimeWorkspaceSetup(context, wsConfig)
       wsConfig.selectSetupType = SetupStateType.GLOBAL;
       wsConfig.activeSetupState = globalConfig.setupState;
       await setWorkspaceState(context, wsConfig);
@@ -638,7 +643,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.use-local-zephyr-install", async () => {
-      oneTimeWorkspaceSetup(context)
+      oneTimeWorkspaceSetup(context, wsConfig)
       wsConfig.selectSetupType = SetupStateType.LOCAL;
       if (wsConfig.localSetupState) {
         wsConfig.activeSetupState = wsConfig.localSetupState;
@@ -650,7 +655,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.use-external-zephyr-install", async () => {
-      oneTimeWorkspaceSetup(context)
+      oneTimeWorkspaceSetup(context, wsConfig)
       wsConfig.selectSetupType = SetupStateType.NONE;
       await setWorkspaceState(context, wsConfig);
       extensionSetupView.updateWebView(wsConfig);

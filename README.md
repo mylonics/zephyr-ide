@@ -47,8 +47,11 @@ This extension contributes the following settings:
 * macOS compatibility is untested. Please make an issue on our github page with any incompatibilities found.
 
 ## Release Notes
+### 1.0.43
+Added compile commands and linking with intellisense
+
 ### 1.0.42
-Fixe gdb arm path bug, added default terminal profile. Moved projects from settings.json to zephyr-ide.json exclusively.
+Fixed gdb arm path bug, added default terminal profile. Moved projects from settings.json to zephyr-ide.json exclusively.
 
 ### 1.0.41
 Fix conflict with python environment manager extension 
