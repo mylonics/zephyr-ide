@@ -47,6 +47,9 @@ This extension contributes the following settings:
 * macOS compatibility is untested. Please make an issue on our github page with any incompatibilities found.
 
 ## Release Notes
+### 1.1.0
+Bug fixes in gui rendering. Multiple tasks are now allowed to run at the same time. Integration with NRF device tree and KConfig.
+
 ### 1.0.43
 Added compile commands and linking with intellisense
 
