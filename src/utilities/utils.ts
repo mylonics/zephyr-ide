@@ -126,7 +126,7 @@ export async function executeTaskHelper(taskName: string, cmd: string, envPath: 
 
   // Task
   let task = new vscode.Task(
-    { type: "zephyr-ide", command: taskName },
+    { type: "zephyr-ide:" + taskName, command: taskName },
     vscode.TaskScope.Workspace,
     taskName,
     "zephyr-ide",
