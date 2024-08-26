@@ -70,7 +70,7 @@ export interface WorkspaceConfig {
   activeProject?: string,
   initialSetupComplete: boolean,
   automaticProjectSelction: boolean,
-  localSetupState?: SetupState,
+  localSetupState: SetupState,
   activeSetupState?: SetupState,
   selectSetupType: SetupStateType,
   projectStates: ProjectStateDictionary,
@@ -241,13 +241,42 @@ export async function oneTimeWorkspaceSetup(context: vscode.ExtensionContext, ws
   }
 }
 
+export async function setSetupState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, setupStateType: SetupStateType) {
+  oneTimeWorkspaceSetup(context, wsConfig);
+  wsConfig.selectSetupType = setupStateType;
+
+  switch (setupStateType) {
+    case SetupStateType.GLOBAL:
+      wsConfig.activeSetupState = globalConfig.setupState;
+      break;
+
+    case SetupStateType.LOCAL:
+      wsConfig.activeSetupState = wsConfig.localSetupState;
+      break;
+
+    default:
+      wsConfig.activeSetupState = undefined;
+      break;
+  }
+  await setWorkspaceState(context, wsConfig);
+
+  const configuration = await vscode.workspace.getConfiguration();
+  const target = vscode.ConfigurationTarget.Workspace;
+  if (wsConfig.activeSetupState && wsConfig.activeSetupState.zephyrDir) {
+    configuration.update("devicetree.zephyr", wsConfig.activeSetupState.zephyrDir, target);
+    configuration.update("kconfig.zephyr.base", wsConfig.activeSetupState.zephyrDir, target);
+  }
+}
+
 export function saveSetupState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
-  if (wsConfig.selectSetupType === SetupStateType.GLOBAL && wsConfig.activeSetupState) {
-    globalConfig.setupState = wsConfig.activeSetupState;
-    setGlobalState(context, globalConfig);
-  } else {
-    wsConfig.localSetupState = wsConfig.activeSetupState;
-    setWorkspaceState(context, wsConfig);
+  if (wsConfig.activeSetupState) {
+    if (wsConfig.selectSetupType === SetupStateType.GLOBAL) {
+      globalConfig.setupState = wsConfig.activeSetupState;
+      setGlobalState(context, globalConfig);
+    } else {
+      wsConfig.localSetupState = wsConfig.activeSetupState;
+      setWorkspaceState(context, wsConfig);
+    }
   }
 }
 

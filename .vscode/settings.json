@@ -10,5 +10,5 @@
     "typescript.tsc.autoDetect": "off",
     "cmake.configureOnOpen": false,
     "editor.formatOnSave": true,
-    "git.enabled": false
+    "git.enabled": false,
 }
