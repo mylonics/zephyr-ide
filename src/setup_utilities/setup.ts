@@ -242,7 +242,9 @@ export async function oneTimeWorkspaceSetup(context: vscode.ExtensionContext, ws
 }
 
 export async function setSetupState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, setupStateType: SetupStateType) {
-  oneTimeWorkspaceSetup(context, wsConfig);
+  if (setupStateType != SetupStateType.NONE) {
+    oneTimeWorkspaceSetup(context, wsConfig);
+  }
   wsConfig.selectSetupType = setupStateType;
 
   switch (setupStateType) {

@@ -40,7 +40,9 @@ export async function activate(context: vscode.ExtensionContext) {
   wsConfig = await loadWorkspaceState(context);
   globalConfig = await loadGlobalState(context);
 
-  setSetupState(context, wsConfig, globalConfig, wsConfig.selectSetupType);
+  if (wsConfig.selectSetupType != SetupStateType.NONE) {
+    setSetupState(context, wsConfig, globalConfig, wsConfig.selectSetupType);
+  }
 
   let activeProjectView = new ActiveProjectView(context.extensionPath, context, wsConfig);
   let projectTreeView = new ProjectTreeView(context.extensionPath, context, wsConfig);
