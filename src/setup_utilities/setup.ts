@@ -137,7 +137,7 @@ export function getActiveBuildConfigOfProject(wsConfig: WorkspaceConfig, project
 
 export function getActiveRunnerConfigOfBuild(wsConfig: WorkspaceConfig, project: string, build: string) {
   let activeBuild = getActiveBuildConfigOfProject(wsConfig, project);
-  if (activeBuild) {
+  if (activeBuild && wsConfig.projectStates[project].buildStates[build].activeRunner != undefined) {
     let activeRunnerName = wsConfig.projectStates[project].buildStates[build].activeRunner;
     if (activeRunnerName) {
       return activeBuild.runnerConfigs[activeRunnerName];

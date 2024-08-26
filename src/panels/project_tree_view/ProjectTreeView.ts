@@ -94,6 +94,9 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
   }
 
   generateRunnerString(projectName: string, buildName: string, runner: RunnerConfig): any {
+    if (this.wsConfig.projectStates[projectName].buildStates[buildName].runnerStates[runner.name] == undefined) {
+      this.wsConfig.projectStates[projectName].buildStates[buildName].runnerStates[runner.name] = { viewOpen: true }
+    }
     let viewOpen = this.wsConfig.projectStates[projectName].buildStates[buildName].runnerStates[runner.name].viewOpen;
     let entry = {
       icons: {
