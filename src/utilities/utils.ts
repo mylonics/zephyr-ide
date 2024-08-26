@@ -90,9 +90,8 @@ export function getShellEnvironment(setupState: SetupState | undefined) {
   if (setupState.env["PATH"]) {
     envPath["PATH"] = path.join(setupState.env["PATH"], pathdivider + envPath["PATH"]);
   }
-  if (setupState.zephyrDir) {
-    envPath["ZEPHYR_BASE"] = setupState.zephyrDir;
-  }
+  envPath["ZEPHYR_BASE"] = setupState.zephyrDir;
+
   envPath["ZEPHYR_SDK_INSTALL_DIR"] = toolchainDir;
   return envPath;
 }

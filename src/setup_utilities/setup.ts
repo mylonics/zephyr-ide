@@ -34,7 +34,7 @@ export interface SetupState {
   pythonEnvironmentSetup: boolean,
   westUpdated: boolean,
   sdkInstalled: boolean,
-  zephyrDir: string | undefined,
+  zephyrDir: string,
   env: { [name: string]: string | undefined },
   setupPath: string,
 }
@@ -45,7 +45,7 @@ export function generateSetupState(setupPath: string): SetupState {
     pythonEnvironmentSetup: false,
     westUpdated: false,
     sdkInstalled: false,
-    zephyrDir: undefined,
+    zephyrDir: '',
     env: {},
     setupPath: setupPath
   };
@@ -313,7 +313,11 @@ export let toolsdir = path.join(os.homedir(), toolsfoldername);
 export let toolchainDir = path.join(toolsdir, "toolchains");
 
 export async function checkIfToolAvailable(tool: string, cmd: string, wsConfig: WorkspaceConfig, printStdOut: boolean, includes?: string) {
-  let res = await executeShellCommand(cmd, wsConfig.rootPath, getShellEnvironment(wsConfig.activeSetupState), true);
+  if (wsConfig.activeSetupState == undefined) {
+    vscode.window.showErrorMessage(`Unable to check for tools. Select Global or Local Install First.`)
+    return;
+  }
+  let res = await executeShellCommand(cmd, wsConfig.activeSetupState?.setupPath, getShellEnvironment(wsConfig.activeSetupState), true);
   if (res.stdout) {
     if (printStdOut) {
       output.append(res.stdout);
@@ -515,7 +519,8 @@ export async function westInit(context: vscode.ExtensionContext, wsConfig: Works
     cmd = `west init -l ${westSelection.path} ${westSelection.additionalArgs}`;
   }
 
-  let westInitRes = await executeTaskHelper("Zephyr IDE: West Init", cmd, getShellEnvironment(wsConfig.activeSetupState), wsConfig.rootPath);
+  wsConfig.activeSetupState.zephyrDir = ""
+  let westInitRes = await executeTaskHelper("Zephyr IDE: West Init", cmd, getShellEnvironment(wsConfig.activeSetupState), wsConfig.activeSetupState.setupPath);
 
   if (!westInitRes) {
     vscode.window.showErrorMessage("West Init Failed. See terminal for error information.");
@@ -565,7 +570,7 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
 
       // Then create the virtualenv
       let cmd = `${python} -m venv "${pythonenv}"`;
-      let res = await executeShellCommand(cmd, wsConfig.rootPath, getShellEnvironment(wsConfig.activeSetupState), true);
+      let res = await executeShellCommand(cmd, wsConfig.activeSetupState.setupPath, getShellEnvironment(wsConfig.activeSetupState), true);
       if (res.stderr) {
         output.appendLine("[SETUP] Unable to create Python Virtual Environment");
         vscode.window.showErrorMessage("Error installing virtualenv. Check output for more info.");
@@ -584,7 +589,7 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
       wsConfig.activeSetupState.env["PATH"] = path.join(path.join(pythonenv, `Scripts${pathdivider}`), pathdivider + wsConfig.activeSetupState.env["PATH"]);
 
       // Install `west`
-      res = await executeShellCommand(`${python} -m pip install west`, wsConfig.rootPath, getShellEnvironment(wsConfig.activeSetupState), true);
+      res = await executeShellCommand(`${python} -m pip install west`, wsConfig.activeSetupState.setupPath, getShellEnvironment(wsConfig.activeSetupState), true);
       if (res.stdout) {
         output.append(res.stdout);
         output.appendLine("[SETUP] west installed");
