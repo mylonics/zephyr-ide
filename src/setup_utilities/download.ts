@@ -35,8 +35,7 @@ import * as cp from "child_process";
 import * as util from "util";
 
 import { HttpClient } from "typed-rest-client/HttpClient";
-import { SetupState, toolsdir } from "./setup";
-import { getShellEnvironment } from "../utilities/utils";
+import { getToolsDir } from "./setup";
 
 export class FileDownload {
 
@@ -151,10 +150,7 @@ export type DownloadEntry = {
     targetName: string;
 };
 
-export async function processDownload(download: DownloadEntry, output: vscode.OutputChannel, setupState: SetupState | undefined) {
-    if (setupState === undefined) {
-        return false;
-    }
+export async function processDownload(download: DownloadEntry, output: vscode.OutputChannel) {
     // Promisified exec
     let exec = util.promisify(cp.exec);
 
@@ -174,7 +170,7 @@ export async function processDownload(download: DownloadEntry, output: vscode.Ou
     }
 
     // Get the path to copy the contents to..
-    let copytopath = path.join(toolsdir, download.name);
+    let copytopath = path.join(getToolsDir(), download.name);
 
     // Check if copytopath exists and create if not
     if (!(await fs.pathExists(copytopath))) {
@@ -196,7 +192,7 @@ export async function processDownload(download: DownloadEntry, output: vscode.Ou
         // Then untar
         const cmd = `tar -xvf "${filepath}" -C "${copytopath}"`;
         output.appendLine(cmd);
-        let res = await exec(cmd, { env: getShellEnvironment(setupState) }).then(
+        let res = await exec(cmd, {}).then(
             value => {
                 output.append(value.stdout);
                 return true;
@@ -236,7 +232,7 @@ export async function processDownload(download: DownloadEntry, output: vscode.Ou
         }
 
         // Run the command
-        let res = await exec(cmd, { env: getShellEnvironment(setupState) }).then(
+        let res = await exec(cmd, {}).then(
             value => {
                 output.append(value.stdout);
                 return true;

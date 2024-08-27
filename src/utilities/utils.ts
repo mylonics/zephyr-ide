@@ -20,7 +20,7 @@ import * as path from "path";
 import * as util from "util";
 import * as cp from "child_process";
 
-import { pathdivider, SetupState, toolchainDir } from "../setup_utilities/setup";
+import { pathdivider, SetupState, getToolchainDir } from "../setup_utilities/setup";
 
 export function getRootPath() {
   let rootPaths = workspace.workspaceFolders;
@@ -92,7 +92,7 @@ export function getShellEnvironment(setupState: SetupState | undefined) {
   }
   envPath["ZEPHYR_BASE"] = setupState.zephyrDir;
 
-  envPath["ZEPHYR_SDK_INSTALL_DIR"] = toolchainDir;
+  envPath["ZEPHYR_SDK_INSTALL_DIR"] = getToolchainDir();
   return envPath;
 }
 

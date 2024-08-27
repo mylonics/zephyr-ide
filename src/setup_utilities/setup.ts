@@ -33,18 +33,19 @@ export interface SetupState {
   toolsAvailable: boolean,
   pythonEnvironmentSetup: boolean,
   westUpdated: boolean,
-  sdkInstalled: boolean,
+  sdkInstalled?: boolean,
   zephyrDir: string,
   env: { [name: string]: string | undefined },
   setupPath: string,
 }
+
+export type SetupStateDictionary = { [name: string]: SetupState };
 
 export function generateSetupState(setupPath: string): SetupState {
   return {
     toolsAvailable: false,
     pythonEnvironmentSetup: false,
     westUpdated: false,
-    sdkInstalled: false,
     zephyrDir: '',
     env: {},
     setupPath: setupPath
@@ -54,7 +55,9 @@ export function generateSetupState(setupPath: string): SetupState {
 export interface GlobalConfig {
   toolchains: ToolChainDictionary,
   armGdbPath: string,
-  setupState: SetupState,
+  setupState?: SetupState,
+  sdkInstalled?: boolean,
+  setupStateDictionary?: SetupStateDictionary, //Can eventually remove the optional
 }
 
 export enum SetupStateType {
@@ -62,6 +65,7 @@ export enum SetupStateType {
   LOCAL = "Local",
   GLOBAL = "Global",
   EXTERNAL = "External",
+  SELECTED = "Selected"
 }
 
 export interface WorkspaceConfig {
@@ -70,11 +74,13 @@ export interface WorkspaceConfig {
   activeProject?: string,
   initialSetupComplete: boolean,
   automaticProjectSelction: boolean,
-  localSetupState: SetupState,
+  localSetupState?: SetupState,
   activeSetupState?: SetupState,
   selectSetupType: SetupStateType,
   projectStates: ProjectStateDictionary,
 }
+
+
 
 function projectLoader(config: WorkspaceConfig, projects: any) {
   config.projects = {};
@@ -180,15 +186,56 @@ export async function loadGlobalState(context: vscode.ExtensionContext): Promise
   let globalConfig: GlobalConfig = await context.globalState.get("zephyr-ide.state") ?? {
     toolchains: {},
     armGdbPath: '',
-    setupState: generateSetupState(toolsdir)
+    setupStateDictionary: {}
   };
-
   return globalConfig;
 }
 
 export async function setGlobalState(context: vscode.ExtensionContext, globalConfig: GlobalConfig) {
   await context.globalState.update("zephyr-ide.state", globalConfig);
 }
+
+
+export async function loadExternalSetupState(context: vscode.ExtensionContext, globalConfig: GlobalConfig, path: string): Promise<SetupState | undefined> {
+  if (globalConfig.setupStateDictionary) {
+    for (let prexistingPath in globalConfig.setupStateDictionary) {
+      if (!fs.pathExistsSync(prexistingPath)) {
+        delete globalConfig.setupStateDictionary[prexistingPath];
+      }
+    }
+
+    if (path in globalConfig.setupStateDictionary) {
+      return globalConfig.setupStateDictionary[path];
+    }
+  }
+
+  if (fs.pathExistsSync(path)) {
+    let setupState = generateSetupState(path);
+    if (globalConfig.setupStateDictionary === undefined) {
+      globalConfig.setupStateDictionary = {};
+    }
+    globalConfig.setupStateDictionary[path] = setupState;
+    return setupState;
+  }
+
+  return;
+}
+
+export async function setExternalSetupState(context: vscode.ExtensionContext, globalConfig: GlobalConfig, path: string, setupState: SetupState) {
+  if (globalConfig.setupStateDictionary === undefined) {
+    globalConfig.setupStateDictionary = {};
+  }
+  globalConfig.setupStateDictionary[path] = setupState;
+
+  //delete folders that don't exist
+  for (path in globalConfig.setupStateDictionary) {
+    if (!fs.pathExistsSync(path)) {
+      delete globalConfig.setupStateDictionary[path];
+    }
+  }
+  setGlobalState(context, globalConfig);
+}
+
 
 export async function loadWorkspaceState(context: vscode.ExtensionContext): Promise<WorkspaceConfig> {
   let rootPath = getRootPath()?.fsPath;
@@ -202,7 +249,6 @@ export async function loadWorkspaceState(context: vscode.ExtensionContext): Prom
     projects: {},
     automaticProjectSelction: true,
     initialSetupComplete: false,
-    localSetupState: generateSetupState(rootPath),
     selectSetupType: SetupStateType.NONE,
     projectStates: {}
   };
@@ -211,7 +257,7 @@ export async function loadWorkspaceState(context: vscode.ExtensionContext): Prom
   return config;
 }
 
-export async function oneTimeWorkspaceSetup(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
+export async function oneTimeWorkspaceSetup(context: vscode.ExtensionContext) {
   let configName = "zephyr-ide-v45-one-time-config.env";
   let oneTimeConfig: boolean | undefined = await context.workspaceState.get(configName)
 
@@ -241,25 +287,22 @@ export async function oneTimeWorkspaceSetup(context: vscode.ExtensionContext, ws
   }
 }
 
-export async function setSetupState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, setupStateType: SetupStateType) {
+export async function setSetupState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, setupStateType: SetupStateType, ext_path: string = "") {
   if (setupStateType != SetupStateType.NONE) {
-    oneTimeWorkspaceSetup(context, wsConfig);
+    oneTimeWorkspaceSetup(context);
   }
-  wsConfig.selectSetupType = setupStateType;
-
-  switch (setupStateType) {
-    case SetupStateType.GLOBAL:
-      wsConfig.activeSetupState = globalConfig.setupState;
-      break;
-
-    case SetupStateType.LOCAL:
-      wsConfig.activeSetupState = wsConfig.localSetupState;
-      break;
-
-    default:
-      wsConfig.activeSetupState = undefined;
-      break;
+  if (setupStateType == SetupStateType.SELECTED) {
+    wsConfig.activeSetupState = await loadExternalSetupState(context, globalConfig, ext_path);
+    if (wsConfig.activeSetupState) {
+      wsConfig.selectSetupType = setupStateType;
+    } else {
+      wsConfig.selectSetupType = SetupStateType.NONE;
+    }
+  } else {
+    wsConfig.activeSetupState = undefined;
+    wsConfig.selectSetupType = setupStateType;
   }
+
   await setWorkspaceState(context, wsConfig);
 
   const configuration = await vscode.workspace.getConfiguration();
@@ -272,22 +315,15 @@ export async function setSetupState(context: vscode.ExtensionContext, wsConfig: 
 
 export function saveSetupState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
   if (wsConfig.activeSetupState) {
-    if (wsConfig.selectSetupType === SetupStateType.GLOBAL) {
-      globalConfig.setupState = wsConfig.activeSetupState;
-      setGlobalState(context, globalConfig);
-    } else {
-      wsConfig.localSetupState = wsConfig.activeSetupState;
-      setWorkspaceState(context, wsConfig);
-    }
+    setExternalSetupState(context, globalConfig, wsConfig.activeSetupState.setupPath, wsConfig.activeSetupState);
   }
+  setGlobalState(context, globalConfig);
 }
 
 export async function setWorkspaceState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
-
   fs.writeFile(path.join(wsConfig.rootPath, ".vscode/zephyr-ide.json"), JSON.stringify({ projects: wsConfig.projects }, null, 2), { flag: 'w+' }, function (err: any) {
     if (err) { throw err; }
   });
-
 
   const configuration = await vscode.workspace.getConfiguration();
   const target = vscode.ConfigurationTarget.Workspace;
@@ -305,14 +341,25 @@ export async function clearWorkspaceState(context: vscode.ExtensionContext, wsCo
   setWorkspaceState(context, wsConfig);
 }
 
-let toolsfoldername = ".zephyr_ide";
 let python = os.platform() === "win32" ? "python" : "python3";
 export let pathdivider = os.platform() === "win32" ? ";" : ":";
 
+let toolsfoldername = ".zephyr_ide";
 
-// Important directories
-export let toolsdir = path.join(os.homedir(), toolsfoldername);
-export let toolchainDir = path.join(toolsdir, "toolchains");
+export function getToolsDir() {
+  let toolsdir = path.join(os.homedir(), toolsfoldername);
+
+  const configuration = vscode.workspace.getConfiguration();
+  let toolsDirFromFile: string | undefined = configuration.get("zephyr-ide.tools_directory");
+  if (toolsDirFromFile != undefined || toolsDirFromFile != null) {
+    toolsdir = toolsDirFromFile;
+  }
+  return toolsdir
+}
+
+export function getToolchainDir() {
+  return path.join(getToolsDir(), "toolchains");
+}
 
 export async function checkIfToolAvailable(tool: string, cmd: string, wsConfig: WorkspaceConfig, printStdOut: boolean, includes?: string) {
   if (wsConfig.activeSetupState == undefined) {
@@ -434,9 +481,9 @@ export function workspaceInit(context: vscode.ExtensionContext, wsConfig: Worksp
         return;
       }
       progress.report({ message: "Installing SDK (3/5)", increment: 20 });
-      await installSdk(context, wsConfig, globalConfig, output, true, toolchainSelection, false);
+      await installSdk(context, globalConfig, output, true, toolchainSelection, false);
       progressUpdate(wsConfig);
-      if (!wsConfig.activeSetupState.sdkInstalled) {
+      if (!globalConfig.sdkInstalled) {
         vscode.window.showErrorMessage("Zephyr IDE Initialization Step 3/5: Sdk failed to install");
         return;
       }

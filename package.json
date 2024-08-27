@@ -60,6 +60,13 @@
           ],
           "default": false,
           "description": "[deprecated] Allows use of separater json file to store Zephyr IDE Project Configuration."
+        },
+        "zephyr-ide.tools_directory": {
+          "type": [
+            "string"
+          ],
+          "default": null,
+          "description": "Manually specifiy a tools directory for sdk download/install and global zephyr install location"
         }
       }
     },
@@ -339,6 +346,22 @@
       {
         "command": "zephyr-ide.update-web-view",
         "title": "Zephyr IDE: Reload Web Views"
+      },
+      {
+        "command": "zephyr-ide.use-local-zephyr-install",
+        "title": "Zephyr IDE: Use current workspace for Zephyr Install"
+      },
+      {
+        "command": "zephyr-ide.use-external-zephyr-install",
+        "title": "Zephyr IDE: Use an External Folder for Zephyr Install"
+      },
+      {
+        "command": "zephyr-ide.use-global-zephyr-install",
+        "title": "Zephyr IDE: Use Global Folder for Zephyr Install"
+      },
+      {
+        "command": "zephyr-ide.reset-zephyr-install-selection",
+        "title": "Zephyr IDE: Reset Zephyr Install Selection"
       }
     ],
     "terminal": {
