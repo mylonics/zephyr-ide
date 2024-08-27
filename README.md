@@ -47,6 +47,9 @@ This extension contributes the following settings:
 * macOS compatibility is untested. Please make an issue on our github page with any incompatibilities found.
 
 ## Release Notes
+### 1.1.2
+Allow any folder to be the zephyr install folder and allow to manually specificy tools directory.
+
 ### 1.1.1
 Fixed west init issue with by unsetting zephyr base.
 
