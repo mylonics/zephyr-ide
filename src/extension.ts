@@ -28,7 +28,7 @@ import path from "path";
 import * as project from "./project_utilities/project";
 import { buildHelper, buildMenuConfig, clean } from "./zephyr_utilities/build";
 import { flashActive } from "./zephyr_utilities/flash";
-import { setExternalSetupState, WorkspaceConfig, setSetupState, GlobalConfig, SetupStateType, loadGlobalState, westUpdate, workspaceInit, setWorkspaceState, loadWorkspaceState, clearWorkspaceState, westInit, checkIfToolsAvailable, setupWestEnvironment, loadProjectsFromFile, getToolchainDir, setGlobalState, getToolsDir } from "./setup_utilities/setup";
+import { setExternalSetupState, WorkspaceConfig, setSetupState, GlobalConfig, SetupStateType, loadGlobalState, westUpdate, workspaceInit, setWorkspaceState, loadWorkspaceState, clearWorkspaceState, westInit, checkIfToolsAvailable, setupWestEnvironment, loadProjectsFromFile, getToolchainDir, setGlobalState, getToolsDir, saveSetupState } from "./setup_utilities/setup";
 import { installSdk } from "./setup_utilities/setup_toolchain";
 
 let wsConfig: WorkspaceConfig;
@@ -722,6 +722,16 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.reset-zephyr-install-selection", async () => {
       setSetupState(context, wsConfig, globalConfig, SetupStateType.NONE);
+      extensionSetupView.updateWebView(wsConfig, globalConfig);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.mark-west-as-ready", async () => {
+      if (wsConfig.activeSetupState) {
+        wsConfig.activeSetupState.westUpdated = true;
+        saveSetupState(context, wsConfig, globalConfig);
+      }
       extensionSetupView.updateWebView(wsConfig, globalConfig);
     })
   );

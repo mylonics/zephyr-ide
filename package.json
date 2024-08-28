@@ -362,6 +362,10 @@
       {
         "command": "zephyr-ide.reset-zephyr-install-selection",
         "title": "Zephyr IDE: Reset Zephyr Install Selection"
+      },
+      {
+        "command": "zephyr-ide.mark-west-as-ready",
+        "title": "Zephyr IDE: Mark West as Ready"
       }
     ],
     "terminal": {

@@ -47,19 +47,11 @@ This extension contributes the following settings:
 * macOS compatibility is untested. Please make an issue on our github page with any incompatibilities found.
 
 ## Release Notes
-### 1.1.5
+### 1.2.0
+Added marked West as ready command
 Use python for macos instead of python3
-
-### 1.1.4
 Force use of bash when zsh is the default profile.
-
-### 1.1.3
-Some macOS compatibility fixes.
-
-### 1.1.2
 Allow any folder to be the zephyr install folder and allow to manually specificy tools directory.
-
-### 1.1.1
 Fixed west init issue with by unsetting zephyr base.
 
 ### 1.1.0
