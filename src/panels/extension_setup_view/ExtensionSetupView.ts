@@ -38,12 +38,7 @@ export class ExtensionSetupView implements vscode.WebviewViewProvider {
 
     if (getRootPath() === undefined) {
       bodyString = bodyString + `Open a folder/workspace before continuing`;
-    } else if (wsConfig.selectSetupType === SetupStateType.NONE) {
-      bodyString = bodyString + `Select Folder for Zephyr Setup Location.<p/>`;
-      bodyString = bodyString + `<vscode-button id="cmd-btn" class="widebtn" name="zephyr-ide.use-local-zephyr-install" >Workspace</vscode-button>`;
-      bodyString = bodyString + `<vscode-button id="cmd-btn" class="widebtn" name="zephyr-ide.use-global-zephyr-install" >Global</vscode-button>`;
-      bodyString = bodyString + `<vscode-button id="cmd-btn" class="widebtn" name="zephyr-ide.use-external-zephyr-install" >Other Folder</vscode-button>`;
-    } else if (wsConfig.activeSetupState) {
+    } else if (wsConfig.activeSetupState && wsConfig.selectSetupType !== SetupStateType.NONE) {
       if (wsConfig.activeSetupState.setupPath === wsConfig.rootPath) {
         bodyString = bodyString + `Using Workspace Folder for Zephyr Install`;
       } else if (wsConfig.activeSetupState.setupPath === getToolsDir()) {
@@ -68,6 +63,11 @@ export class ExtensionSetupView implements vscode.WebviewViewProvider {
       bodyString = bodyString + `<vscode-button id="cmd-btn" class="widebtn" ${Object.keys(wsConfig.projects).length === 0 ? "secondary" : ""} name="zephyr-ide.clear-projects" >Clear Projects</vscode-button>`;
       bodyString = bodyString + `<vscode-button id="cmd-btn" class="widebtn" name="zephyr-ide.reset-zephyr-install-selection" >Change Folder used for Zephyr Install</vscode-button>`;
       bodyString = bodyString + `<vscode-button id="cmd-btn" class="widebtn" name="zephyr-ide.reset-extension" >Reset Workspace Settings</vscode-button><p></p>`;
+    } else {
+      bodyString = bodyString + `Select Folder for Zephyr Setup Location.<p/>`;
+      bodyString = bodyString + `<vscode-button id="cmd-btn" class="widebtn" name="zephyr-ide.use-local-zephyr-install" >Workspace</vscode-button>`;
+      bodyString = bodyString + `<vscode-button id="cmd-btn" class="widebtn" name="zephyr-ide.use-global-zephyr-install" >Global</vscode-button>`;
+      bodyString = bodyString + `<vscode-button id="cmd-btn" class="widebtn" name="zephyr-ide.use-external-zephyr-install" >Other Folder</vscode-button>`;
     }
     this.setHtml(bodyString);
   }

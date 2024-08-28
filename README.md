@@ -43,10 +43,13 @@ This extension contributes the following settings:
 
 
 ## Known Issues
-
+* If using zsh as the shell, vscode may need to be restarted when changing the installation folder/type in order to point to the correct python virtual environment.
 * macOS compatibility is untested. Please make an issue on our github page with any incompatibilities found.
 
 ## Release Notes
+### 1.1.3
+Some mscOS compatibility fixes.
+
 ### 1.1.2
 Allow any folder to be the zephyr install folder and allow to manually specificy tools directory.
 
