@@ -47,6 +47,9 @@ This extension contributes the following settings:
 * macOS compatibility is untested. Please make an issue on our github page with any incompatibilities found.
 
 ## Release Notes
+### 1.1.5
+Use python for macos instead of python3
+
 ### 1.1.4
 Force use of bash when zsh is the default profile.
 

@@ -335,7 +335,7 @@ export async function clearWorkspaceState(context: vscode.ExtensionContext, wsCo
   setWorkspaceState(context, wsConfig);
 }
 
-let python = os.platform() === "win32" ? "python" : "python3";
+let python = os.platform() === "linux" ? "python3" : "python";
 export let pathdivider = os.platform() === "win32" ? ";" : ":";
 
 let toolsfoldername = ".zephyr_ide";
