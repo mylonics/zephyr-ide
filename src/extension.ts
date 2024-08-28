@@ -604,7 +604,7 @@ export async function activate(context: vscode.ExtensionContext) {
     provideTerminalProfile(token: vscode.CancellationToken): vscode.ProviderResult<vscode.TerminalProfile> {
       let opts: vscode.TerminalOptions = {
         name: "Zephyr IDE Terminal",
-        env: getShellEnvironment(wsConfig.activeSetupState),
+        env: getShellEnvironment(wsConfig.activeSetupState, true),
       };
       return new vscode.TerminalProfile(opts);
     }

@@ -257,28 +257,22 @@ export async function loadWorkspaceState(context: vscode.ExtensionContext): Prom
   return config;
 }
 
+export function setDefaultTerminal(configuration: vscode.WorkspaceConfiguration, target: vscode.ConfigurationTarget, platform_name: string) {
+  let default_terminal = configuration.get('terminal.integrated.defaultProfile.' + platform_name) == "zsh" ? "bash" : "Zephyr IDE Terminal";
+  configuration.update('terminal.integrated.defaultProfile.' + platform_name, default_terminal, target, false);
+}
+
 export async function oneTimeWorkspaceSetup(context: vscode.ExtensionContext) {
-  let configName = "zephyr-ide-v45-one-time-config.env";
+  let configName = "zephyr-ide-v48-one-time-config.env";
   let oneTimeConfig: boolean | undefined = await context.workspaceState.get(configName)
 
   if (oneTimeConfig === undefined || oneTimeConfig === false) {
     const configuration = await vscode.workspace.getConfiguration();
     const target = vscode.ConfigurationTarget.Workspace;
 
-    let default_window_terminal_set: boolean | undefined = await configuration.get("terminal.integrated.defaultProfile.windows");
-    if (default_window_terminal_set === undefined || default_window_terminal_set === null) {
-      configuration.update('terminal.integrated.defaultProfile.windows', "Zephyr IDE Terminal", target, false);
-    }
-
-    let default_linux_terminal_set: boolean | undefined = await configuration.get("terminal.integrated.defaultProfile.linux");
-    if (default_linux_terminal_set === undefined || default_linux_terminal_set === null) {
-      configuration.update('terminal.integrated.defaultProfile.linux', "Zephyr IDE Terminal", target, false);
-    }
-
-    let default_osx_terminal_set: boolean | undefined = await configuration.get("terminal.integrated.defaultProfile.osx");
-    if (default_osx_terminal_set === undefined || default_osx_terminal_set === null) {
-      configuration.update('terminal.integrated.defaultProfile.osx', "Zephyr IDE Terminal", target, false);
-    }
+    setDefaultTerminal(configuration, target, "windows");
+    setDefaultTerminal(configuration, target, "linux");
+    setDefaultTerminal(configuration, target, "osx");
 
     configuration.update("C_Cpp.default.compileCommands", path.join("${workspaceFolder}", '.vscode', 'compile_commands.json'), target)
 

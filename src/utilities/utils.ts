@@ -90,22 +90,22 @@ export function setZshArg(platform_name: string, zsh_argument: string[]) {
   }
 }
 
-export function getShellEnvironment(setupState: SetupState | undefined) {
+export function getShellEnvironment(setupState: SetupState | undefined, as_terminal_profile = false) {
 
   if (setupState === undefined) {
     return process.env;
   }
-  let zsh_argument = []
-  if (setupState.env["VIRTUAL_ENV"]) {
-    let python_venv_location = setupState.env["VIRTUAL_ENV"];
-    zsh_argument = ["-c", "source " + path.join(python_venv_location, "bin", "activate") + "; zsh -i"]
-
-    if (getPlatformName() == "macos") {
-      setZshArg("osx", zsh_argument);
-    } else if (getPlatformName() == "linux") {
-      setZshArg("linux", zsh_argument);
-    }
-  }
+  //let zsh_argument = []
+  //if (setupState.env["VIRTUAL_ENV"]) {
+  //  let python_venv_location = setupState.env["VIRTUAL_ENV"];
+  //  zsh_argument = ["-c", "source " + path.join(python_venv_location, "bin", "activate") + (as_terminal_profile ? "; zsh -i" : "")]
+  //
+  //  if (getPlatformName() == "macos") {
+  //    setZshArg("osx", zsh_argument);
+  //  } else if (getPlatformName() == "linux") {
+  //    setZshArg("linux", zsh_argument);
+  //  }
+  //}
 
   let envPath = process.env;
   if (setupState.env["VIRTUAL_ENV"]) {
