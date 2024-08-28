@@ -40,6 +40,16 @@ export async function activate(context: vscode.ExtensionContext) {
   wsConfig = await loadWorkspaceState(context);
   globalConfig = await loadGlobalState(context);
 
+  const configuration = await vscode.workspace.getConfiguration();
+  const target = vscode.ConfigurationTarget.Workspace;
+  let dat = configuration.get("terminal.integrated.profiles.osx");
+  let dat1 = configuration.get("terminal.integrated.defaultProfile");
+  let dat2 = configuration.get("terminal")
+  let dat3: any = configuration.get("terminal.integrated.profiles.windows");
+
+  let dat4 = dat3[Object.keys(dat3)[0]]
+  console.log(dat)
+
   //Setup State Upgrade Code. To delete Eventually
   if (wsConfig.localSetupState) {
     setExternalSetupState(context, globalConfig, wsConfig.localSetupState.setupPath, wsConfig.localSetupState);
@@ -605,6 +615,7 @@ export async function activate(context: vscode.ExtensionContext) {
       let opts: vscode.TerminalOptions = {
         name: "Zephyr IDE Terminal",
         env: getShellEnvironment(wsConfig.activeSetupState),
+        shellArgs: "source venv/bin/activate"
       };
       return new vscode.TerminalProfile(opts);
     }
