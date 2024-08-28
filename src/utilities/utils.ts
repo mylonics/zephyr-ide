@@ -21,6 +21,7 @@ import * as util from "util";
 import * as cp from "child_process";
 
 import { pathdivider, SetupState, getToolchainDir } from "../setup_utilities/setup";
+import { getPlatformName } from "../setup_utilities/setup_toolchain"
 
 export function getRootPath() {
   let rootPaths = workspace.workspaceFolders;
@@ -79,10 +80,33 @@ export function getLaunchConfigurations() {
   }
 }
 
+export function setZshArg(platform_name: string, zsh_argument: string[]) {
+  const configuration = vscode.workspace.getConfiguration();
+  let terminal_profile_name = "terminal.integrated.profiles." + platform_name;
+  let terminal_profile: any = configuration.get(terminal_profile_name);
+  if (Object.keys(terminal_profile)[0] === "zsh" || configuration.get('terminal.integrated.defaultProfile.' + platform_name) == "zsh") {
+    terminal_profile.zsh.args = zsh_argument;
+    configuration.update(terminal_profile_name, terminal_profile);
+  }
+}
+
 export function getShellEnvironment(setupState: SetupState | undefined) {
+
   if (setupState === undefined) {
     return process.env;
   }
+  let zsh_argument = []
+  if (setupState.env["VIRTUAL_ENV"]) {
+    let python_venv_location = setupState.env["VIRTUAL_ENV"];
+    zsh_argument = ["-c", "source " + path.join(python_venv_location, "bin", "activate") + "; zsh -i"]
+
+    if (getPlatformName() == "macos") {
+      setZshArg("osx", zsh_argument);
+    } else if (getPlatformName() == "linux") {
+      setZshArg("linux", zsh_argument);
+    }
+  }
+
   let envPath = process.env;
   if (setupState.env["VIRTUAL_ENV"]) {
     envPath["VIRTUAL_ENV"] = setupState.env["VIRTUAL_ENV"];

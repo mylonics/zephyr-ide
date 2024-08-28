@@ -638,7 +638,7 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
       wsConfig.activeSetupState.env["PATH"] = path.join(path.join(pythonenv, `Scripts${pathdivider}`), pathdivider + wsConfig.activeSetupState.env["PATH"]);
 
       // Install `west`
-      res = await executeShellCommand(`${python} -m pip install west`, wsConfig.activeSetupState.setupPath, getShellEnvironment(wsConfig.activeSetupState), true);
+      res = await executeShellCommand(`python -m pip install west`, wsConfig.activeSetupState.setupPath, getShellEnvironment(wsConfig.activeSetupState), true);
       if (res.stdout) {
         output.append(res.stdout);
         output.appendLine("[SETUP] west installed");
