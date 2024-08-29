@@ -47,6 +47,9 @@ This extension contributes the following settings:
 * macOS compatibility is untested. Please make an issue on our github page with any incompatibilities found.
 
 ## Release Notes
+### 1.2.1
+Force use of bash on macos always
+
 ### 1.2.0
 Added marked West as ready command
 Use python for macos instead of python3
