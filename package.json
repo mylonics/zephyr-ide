@@ -366,6 +366,10 @@
       {
         "command": "zephyr-ide.mark-west-as-ready",
         "title": "Zephyr IDE: Mark West as Ready"
+      },
+      {
+        "command": "zephyr-ide.shell_test",
+        "title": "Zephyr IDE: Shell Test"
       }
     ],
     "terminal": {

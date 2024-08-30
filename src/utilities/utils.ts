@@ -80,15 +80,15 @@ export function getLaunchConfigurations() {
   }
 }
 
-export function setZshArg(platform_name: string, zsh_argument: string[]) {
-  const configuration = vscode.workspace.getConfiguration();
-  let terminal_profile_name = "terminal.integrated.profiles." + platform_name;
-  let terminal_profile: any = configuration.get(terminal_profile_name);
-  if (Object.keys(terminal_profile)[0] === "zsh" || configuration.get('terminal.integrated.defaultProfile.' + platform_name) == "zsh") {
-    terminal_profile.zsh.args = zsh_argument;
-    configuration.update(terminal_profile_name, terminal_profile);
-  }
-}
+//export function setZshArg(platform_name: string, zsh_argument: string[]) {
+//  const configuration = vscode.workspace.getConfiguration();
+//  let terminal_profile_name = "terminal.integrated.profiles." + platform_name;
+//  let terminal_profile: any = configuration.get(terminal_profile_name);
+//  if (Object.keys(terminal_profile)[0] === "zsh" || configuration.get('terminal.integrated.defaultProfile.' + platform_name) == "zsh") {
+//    terminal_profile.zsh.args = zsh_argument;
+//    configuration.update(terminal_profile_name, terminal_profile);
+//  }
+//}
 
 export function getShellEnvironment(setupState: SetupState | undefined, as_terminal_profile = false) {
 

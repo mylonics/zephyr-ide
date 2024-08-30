@@ -29,7 +29,7 @@ import * as project from "./project_utilities/project";
 import { buildHelper, buildMenuConfig, clean } from "./zephyr_utilities/build";
 import { flashActive } from "./zephyr_utilities/flash";
 import { setExternalSetupState, WorkspaceConfig, setSetupState, GlobalConfig, SetupStateType, loadGlobalState, westUpdate, workspaceInit, setWorkspaceState, loadWorkspaceState, clearWorkspaceState, westInit, checkIfToolsAvailable, setupWestEnvironment, loadProjectsFromFile, getToolchainDir, setGlobalState, getToolsDir, saveSetupState } from "./setup_utilities/setup";
-import { installSdk } from "./setup_utilities/setup_toolchain";
+import { getPlatformName, installSdk } from "./setup_utilities/setup_toolchain";
 
 let wsConfig: WorkspaceConfig;
 let globalConfig: GlobalConfig;
@@ -733,6 +733,29 @@ export async function activate(context: vscode.ExtensionContext) {
         saveSetupState(context, wsConfig, globalConfig);
       }
       extensionSetupView.updateWebView(wsConfig, globalConfig);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.shell_test", async () => {
+      output.show();
+      output.appendLine(getPlatformName() ?? "");
+      output.appendLine(((getPlatformName() ?? "") == "macos") ? "detected macos" : "not macos");
+
+
+      const configuration = await vscode.workspace.getConfiguration();
+      const target = vscode.ConfigurationTarget.Workspace;
+      let platform_name = "osx";
+      let force_bash = true;
+      output.appendLine(configuration.get('terminal.integrated.defaultProfile.' + platform_name) ?? "");
+      output.appendLine(configuration.get('terminal.integrated.defaultProfile.' + platform_name) == "zsh" ? "default set to zsh" : "default set to something else");
+
+      let default_terminal = (configuration.get('terminal.integrated.defaultProfile.' + platform_name) == "zsh" || force_bash) ? "bash" : "Zephyr IDE Terminal";
+      output.appendLine("Setting terminal to: " + default_terminal);
+      configuration.update('terminal.integrated.defaultProfile.' + platform_name, default_terminal, target, false);
+      output.appendLine(configuration.get('terminal.integrated.defaultProfile.' + platform_name) ?? "");
+      output.appendLine("Finished")
+
     })
   );
 }

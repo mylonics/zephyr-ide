@@ -49,6 +49,9 @@ This extension contributes the following settings:
 * macOS compatibility is untested. Please make an issue on our github page with any incompatibilities found.
 
 ## Release Notes
+### 1.2.2
+Adding shell vscode config test command
+
 ### 1.2.1
 Force use of bash on macos always
 
