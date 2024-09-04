@@ -588,9 +588,21 @@ export async function westInit(context: vscode.ExtensionContext, wsConfig: Works
 }
 
 export async function setupWestEnvironment(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, solo = true) {
-  if (wsConfig.activeSetupState && wsConfig.activeSetupState.pythonEnvironmentSetup) {
-    const selection = await vscode.window.showWarningMessage('Zephyr IDE: West Python Env already initialized', 'Reinitialize', 'Cancel');
-    if (selection !== 'Reinitialize') {
+  if (wsConfig.activeSetupState === undefined) {
+    return;
+  }
+  let pythonenv = path.join(wsConfig.activeSetupState.setupPath, ".venv");
+  let env_exists = await fs.pathExists(pythonenv);
+
+  let westEnvironmentSetup: string | undefined = 'Reinitialize';
+  if (wsConfig.activeSetupState.pythonEnvironmentSetup || env_exists) {
+    if (env_exists) {
+      westEnvironmentSetup = await vscode.window.showWarningMessage('Zephyr IDE: Python Env already exists', 'Use Existing', 'Reinitialize', 'Cancel');
+    } else {
+      westEnvironmentSetup = await vscode.window.showWarningMessage('Zephyr IDE: Python Env already setup', 'Reinitialize', 'Cancel');
+    }
+
+    if (westEnvironmentSetup !== 'Reinitialize' && westEnvironmentSetup !== 'Use Existing') {
       return;
     }
   }
@@ -606,26 +618,26 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
       if (wsConfig.activeSetupState === undefined) {
         return;
       }
-      let pythonenv = path.join(wsConfig.activeSetupState.setupPath, ".venv");
-
       wsConfig.activeSetupState.pythonEnvironmentSetup = false;
       wsConfig.activeSetupState.env = {};
       saveSetupState(context, wsConfig, globalConfig);
 
-      // Delete python env if it already exists 
-      if ((await fs.pathExists(pythonenv))) {
-        await fs.rmSync(pythonenv, { recursive: true, force: true });
-      }
+      if (westEnvironmentSetup === "Reinitialize") {
+        // Delete python env if it already exists 
+        if ((await fs.pathExists(pythonenv))) {
+          await fs.rmSync(pythonenv, { recursive: true, force: true });
+        }
 
-      // Then create the virtualenv
-      let cmd = `${python} -m venv "${pythonenv}"`;
-      let res = await executeShellCommand(cmd, wsConfig.activeSetupState.setupPath, getShellEnvironment(wsConfig.activeSetupState), true);
-      if (res.stderr) {
-        output.appendLine("[SETUP] Unable to create Python Virtual Environment");
-        vscode.window.showErrorMessage("Error installing virtualenv. Check output for more info.");
-        return;
-      } else {
-        output.appendLine("[SETUP] Python Virtual Environment created");
+        // Then create the virtualenv
+        let cmd = `${python} -m venv "${pythonenv}"`;
+        let res = await executeShellCommand(cmd, wsConfig.activeSetupState.setupPath, getShellEnvironment(wsConfig.activeSetupState), true);
+        if (res.stderr) {
+          output.appendLine("[SETUP] Unable to create Python Virtual Environment");
+          vscode.window.showErrorMessage("Error installing virtualenv. Check output for more info.");
+          return;
+        } else {
+          output.appendLine("[SETUP] Python Virtual Environment created");
+        }
       }
 
       // Report progress
@@ -638,7 +650,7 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
       wsConfig.activeSetupState.env["PATH"] = path.join(path.join(pythonenv, `Scripts${pathdivider}`), pathdivider + wsConfig.activeSetupState.env["PATH"]);
 
       // Install `west`
-      res = await executeShellCommand(`python -m pip install west`, wsConfig.activeSetupState.setupPath, getShellEnvironment(wsConfig.activeSetupState), true);
+      let res = await executeShellCommand(`python -m pip install west`, wsConfig.activeSetupState.setupPath, getShellEnvironment(wsConfig.activeSetupState), true);
       if (res.stdout) {
         output.append(res.stdout);
         output.appendLine("[SETUP] west installed");
