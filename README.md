@@ -54,6 +54,7 @@ Fixed GUI failing to update on new project/build
 Fixed multiple conf file missing deliminator
 Adding shell vscode config test command
 Force use of bash on macos always
+Detect if python .venv already exists and prompt user to replace
 
 ### 1.2.0
 Added marked West as ready command
