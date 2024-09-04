@@ -122,16 +122,24 @@ export async function build(
 
   let cmd = `west build -b ${build.board} ${path.join(wsConfig.rootPath, project.rel_path)} ${pristine ? "-p" : ""} --build-dir ${path.join(wsConfig.rootPath, project.rel_path, build.name)} ${extraWestBuildArgs} -- -DBOARD_ROOT='${path.dirname(path.join(wsConfig.rootPath, build.relBoardDir))}' ${extraWestBuildCMakeArgs} `;
   if (primaryConfFiles.length) {
-    cmd = cmd + ` -DCONF_FILE='${primaryConfFiles}' `;
+    let confFileString = "";
+    primaryConfFiles.map(x => (confFileString = confFileString + x + ";"));
+    cmd = cmd + ` -DCONF_FILE='${confFileString}' `;
   }
   if (secondaryConfFiles.length) {
-    cmd = cmd + ` -DEXTRA_CONF_FILE='${secondaryConfFiles}' `;
+    let confFileString = "";
+    secondaryConfFiles.map(x => (confFileString = confFileString + x + ";"));
+    cmd = cmd + ` -DEXTRA_CONF_FILE='${confFileString}' `;
   }
   if (overlayFiles.length) {
-    cmd = cmd + ` -DDTC_OVERLAY_FILE='${overlayFiles}' `;
+    let overlayFileString = "";
+    overlayFiles.map(x => (overlayFileString = overlayFileString + x + ";"));
+    cmd = cmd + ` -DDTC_OVERLAY_FILE='${overlayFileString}' `;
   }
   if (extraOverlayFiles.length) {
-    cmd = cmd + ` -DEXTRA_DTC_OVERLAY_FILE='${extraOverlayFiles}' `;
+    let overlayFileString = "";
+    extraOverlayFiles.map(x => (overlayFileString = overlayFileString + x + ";"));
+    cmd = cmd + ` -DEXTRA_DTC_OVERLAY_FILE='${overlayFileString}' `;
   }
 
   let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;

@@ -49,10 +49,10 @@ This extension contributes the following settings:
 * macOS compatibility is untested. Please make an issue on our github page with any incompatibilities found.
 
 ## Release Notes
-### 1.2.2
+### 1.3.0
+Fixed GUI failing to update on new project/build
+Fixed multiple conf file missing deliminator
 Adding shell vscode config test command
-
-### 1.2.1
 Force use of bash on macos always
 
 ### 1.2.0
