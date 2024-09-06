@@ -16,7 +16,7 @@
     "rtos"
   ],
   "engines": {
-    "vscode": "^1.75.0"
+    "vscode": "^1.93.0"
   },
   "repository": {
     "type": "git",
@@ -497,7 +497,7 @@
     "@types/mocha": "^10.0.6",
     "@types/node": "18.x",
     "@types/node-7z": "^2.1.8",
-    "@types/vscode": "^1.75.0",
+    "@types/vscode": "^1.92.0",
     "@typescript-eslint/eslint-plugin": "^7.4.0",
     "@typescript-eslint/parser": "^7.4.0",
     "@vscode/test-cli": "^0.0.8",
@@ -509,6 +509,7 @@
   "dependencies": {
     "@vscode-elements/elements": "^1.2.0",
     "@vscode/codicons": "^0.0.35",
+    "@vscode/vsce": "^3.1.0",
     "7zip-bin": "^5.2.0",
     "compare-versions": "^6.1.0",
     "fs-extra": "^11.2.0",

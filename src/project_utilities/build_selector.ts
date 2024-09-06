@@ -158,16 +158,16 @@ export async function buildSelector(context: ExtensionContext, wsConfig: Workspa
     console.log(wsConfig.rootPath);
     console.log(getShellEnvironment(wsConfig.activeSetupState));
     if (useCustomFolder) {
-      res = await executeShellCommand("python " + srcPathNew + " --board-root " + path.dirname(folder.fsPath) + " -f '{name}:{qualifiers}:{dir}'", wsConfig.rootPath, getShellEnvironment(wsConfig.activeSetupState), false);
+      res = await executeShellCommand("python " + srcPathNew + " --board-root " + path.dirname(folder.fsPath) + " -f '{name}:{qualifiers}:{dir}'", wsConfig.activeSetupState, false);
       if (!res.stdout) {
         prevError = res.stderr;
-        res = await executeShellCommand("python " + srcPathOld + " --board-root " + path.dirname(folder.fsPath) + " -f '{name}:{name}:{dir}'", wsConfig.rootPath, getShellEnvironment(wsConfig.activeSetupState), false);
+        res = await executeShellCommand("python " + srcPathOld + " --board-root " + path.dirname(folder.fsPath) + " -f '{name}:{name}:{dir}'", wsConfig.activeSetupState, false);
       }
     } else {
-      res = await executeShellCommand("west boards -f '{name}:{qualifiers}:{dir}'", wsConfig.rootPath, getShellEnvironment(wsConfig.activeSetupState), false);
+      res = await executeShellCommand("west boards -f '{name}:{qualifiers}:{dir}'", wsConfig.activeSetupState, false);
       if (!res.stdout) {
         prevError = res.stderr;
-        res = await executeShellCommand("west boards -f '{name}:{name}:{dir}'", wsConfig.rootPath, getShellEnvironment(wsConfig.activeSetupState), false);
+        res = await executeShellCommand("west boards -f '{name}:{name}:{dir}'", wsConfig.activeSetupState, false);
       }
     }
 

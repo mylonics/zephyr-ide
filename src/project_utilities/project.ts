@@ -395,7 +395,7 @@ export async function addProject(wsConfig: WorkspaceConfig, context: vscode.Exte
       extraOverlay: [],
     },
   };
-  wsConfig.projectStates[projectName] = { buildStates: {}, viewOpen: true }
+  wsConfig.projectStates[projectName] = { buildStates: {}, viewOpen: true };
   wsConfig.activeProject = projectName;
   await setWorkspaceState(context, wsConfig);
 

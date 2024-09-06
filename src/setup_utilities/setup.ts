@@ -93,7 +93,7 @@ function projectLoader(config: WorkspaceConfig, projects: any) {
     config.projects[key] = projects[key];
 
     //generate project States if they don't exist
-    if (config.projectStates[key] == undefined) {
+    if (config.projectStates[key] === undefined) {
       config.projectStates[key] = { buildStates: {} }
       if (config.activeProject == undefined) {
         config.activeProject = key;
@@ -361,16 +361,14 @@ export function getToolchainDir() {
   return path.join(getToolsDir(), "toolchains");
 }
 
-export async function checkIfToolAvailable(tool: string, cmd: string, wsConfig: WorkspaceConfig, printStdOut: boolean, includes?: string) {
-  if (wsConfig.activeSetupState == undefined) {
-    vscode.window.showErrorMessage(`Unable to check for tools. Select Global or Local Install First.`)
+export async function checkIfToolAvailable(tool: string, cmd: string, wsConfig: WorkspaceConfig, includes?: string) {
+  if (wsConfig.activeSetupState === undefined) {
+    vscode.window.showErrorMessage(`Unable to check for tools. Select Global or Local Install First.`);
     return;
   }
-  let res = await executeShellCommand(cmd, wsConfig.activeSetupState?.setupPath, getShellEnvironment(wsConfig.activeSetupState), true);
+  let res = await executeShellCommand(cmd, undefined, false, true);
+
   if (res.stdout) {
-    if (printStdOut) {
-      output.append(res.stdout);
-    }
     if ((includes && res.stdout.includes(includes)) || includes === undefined) {
       output.appendLine(`[SETUP] ${tool} installed`);
       return true;
@@ -410,31 +408,31 @@ export async function checkIfToolsAvailable(context: vscode.ExtensionContext, ws
     "For Windows you may use Chocolately, for debian you may use apt, and for macOS you may use Homebrew"
   );
 
-  let res = await checkIfToolAvailable("git", "git --version", wsConfig, true);
+  let res = await checkIfToolAvailable("git", "git --version", wsConfig);
   if (!res) {
     return false;
   }
-  res = await checkIfToolAvailable("python", `${python} --version`, wsConfig, true, "Python 3");
-  if (!res) {
-    return false;
-  }
-
-  res = await checkIfToolAvailable("pip", `${python} -m pip --version`, wsConfig, true);
+  res = await checkIfToolAvailable("python", `${python} --version`, wsConfig, "Python 3");
   if (!res) {
     return false;
   }
 
-  res = await checkIfToolAvailable("python3 venv", `${python} -m venv --help`, wsConfig, false);
+  res = await checkIfToolAvailable("pip", `${python} -m pip --version`, wsConfig);
   if (!res) {
     return false;
   }
 
-  res = await checkIfToolAvailable("cmake", `cmake --version`, wsConfig, true);
+  res = await checkIfToolAvailable("python3 venv", `${python} -m venv --help`, wsConfig);
   if (!res) {
     return false;
   }
 
-  res = await checkIfToolAvailable("dtc", "dtc --version", wsConfig, true);
+  res = await checkIfToolAvailable("cmake", `cmake --version`, wsConfig);
+  if (!res) {
+    return false;
+  }
+
+  res = await checkIfToolAvailable("dtc", "dtc --version", wsConfig);
   if (!res) {
     return false;
   }
@@ -568,8 +566,8 @@ export async function westInit(context: vscode.ExtensionContext, wsConfig: Works
     cmd = `west init -l ${westSelection.path} ${westSelection.additionalArgs}`;
   }
 
-  wsConfig.activeSetupState.zephyrDir = ""
-  let westInitRes = await executeTaskHelper("Zephyr IDE: West Init", cmd, getShellEnvironment(wsConfig.activeSetupState), wsConfig.activeSetupState.setupPath);
+  wsConfig.activeSetupState.zephyrDir = "";
+  let westInitRes = await executeShellCommand(cmd, wsConfig.activeSetupState, false, true);
 
   if (!westInitRes) {
     vscode.window.showErrorMessage("West Init Failed. See terminal for error information.");
@@ -629,14 +627,14 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
         }
 
         // Then create the virtualenv
-        let cmd = `${python} -m venv "${pythonenv}"`;
-        let res = await executeShellCommand(cmd, wsConfig.activeSetupState.setupPath, getShellEnvironment(wsConfig.activeSetupState), true);
-        if (res.stderr) {
+        let cmd = `${python} -m  venv --prompt "zephyr-ide" "${pythonenv}" `;
+        let res = await executeShellCommand(cmd, undefined, false, true);
+        if (res.code === 0) {
+          output.appendLine("[SETUP] Python Virtual Environment created");
+        } else {
           output.appendLine("[SETUP] Unable to create Python Virtual Environment");
           vscode.window.showErrorMessage("Error installing virtualenv. Check output for more info.");
           return;
-        } else {
-          output.appendLine("[SETUP] Python Virtual Environment created");
         }
       }
 
@@ -650,9 +648,8 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
       wsConfig.activeSetupState.env["PATH"] = path.join(path.join(pythonenv, `Scripts${pathdivider}`), pathdivider + wsConfig.activeSetupState.env["PATH"]);
 
       // Install `west`
-      let res = await executeShellCommand(`python -m pip install west`, wsConfig.activeSetupState.setupPath, getShellEnvironment(wsConfig.activeSetupState), true);
-      if (res.stdout) {
-        output.append(res.stdout);
+      let res = await executeShellCommand(`python -m pip install west`, wsConfig.activeSetupState, false, true);
+      if (res.code === 0) {
         output.appendLine("[SETUP] west installed");
       } else {
         output.appendLine("[SETUP] Unable to install west");
@@ -684,7 +681,7 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
     vscode.window.showInformationMessage(`Zephyr IDE: West Update`);
   }
 
-  let westUpdateRes = await executeTaskHelper("Zephyr IDE: West Update", `west update`, getShellEnvironment(wsConfig.activeSetupState), wsConfig.activeSetupState.setupPath);
+  let westUpdateRes = await executeShellCommand(`west update`, wsConfig.activeSetupState, true, true);
   if (!westUpdateRes) {
     vscode.window.showErrorMessage("West Update Failed. Check output for more info.");
     return false;
@@ -695,13 +692,14 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
 
   // Get listofports
   let cmd = `west list -f {path:28} zephyr`;
-  let res = await executeShellCommand(cmd, wsConfig.activeSetupState.setupPath, getShellEnvironment(wsConfig.activeSetupState), true);
+  let res = await executeShellCommand(cmd, wsConfig.activeSetupState, true);
   if (res.stdout && res.stdout.includes("zephyr")) {
     base = res.stdout.trim();
   }
 
   if (base) {
     wsConfig.activeSetupState.zephyrDir = path.join(wsConfig.activeSetupState.setupPath, base);
+    vscode.window.showInformationMessage(`Zephyr IDE: Zephyr Dir ${wsConfig.activeSetupState.zephyrDir}`);
   } else {
     vscode.window.showErrorMessage("West Update Failed. Could not find Zephyr Directory.");
     return;

@@ -18,6 +18,7 @@ limitations under the License.
 import * as vscode from "vscode";
 
 import { getShellEnvironment, getLaunchConfigurationByName, output, executeShellCommand, getRootPath } from "./utilities/utils";
+import { t } from "./utilities/taskManager";
 
 import { ActiveProjectView } from "./panels/active_project_view/ActiveProjectView";
 import { ProjectTreeView } from "./panels/project_tree_view/ProjectTreeView";
@@ -44,7 +45,7 @@ export async function activate(context: vscode.ExtensionContext) {
   if (wsConfig.localSetupState) {
     setExternalSetupState(context, globalConfig, wsConfig.localSetupState.setupPath, wsConfig.localSetupState);
     if (wsConfig.localSetupState.sdkInstalled) {
-      if (globalConfig.sdkInstalled == false) {
+      if (globalConfig.sdkInstalled === false) {
         globalConfig.sdkInstalled = wsConfig.localSetupState.sdkInstalled;
       }
     }
@@ -54,7 +55,7 @@ export async function activate(context: vscode.ExtensionContext) {
   if (globalConfig.setupState) {
     setExternalSetupState(context, globalConfig, globalConfig.setupState.setupPath, globalConfig.setupState);
     if (globalConfig.setupState.sdkInstalled) {
-      if (globalConfig.sdkInstalled == false) {
+      if (globalConfig.sdkInstalled === false) {
         globalConfig.sdkInstalled = globalConfig.setupState.sdkInstalled;
       }
     }
@@ -63,7 +64,7 @@ export async function activate(context: vscode.ExtensionContext) {
   }
   // end upgrade
 
-  if (wsConfig.selectSetupType != SetupStateType.NONE && wsConfig.activeSetupState) {
+  if (wsConfig.selectSetupType !== SetupStateType.NONE && wsConfig.activeSetupState) {
     await setSetupState(context, wsConfig, globalConfig, SetupStateType.SELECTED, wsConfig.activeSetupState.setupPath);
   }
 
@@ -599,7 +600,6 @@ export async function activate(context: vscode.ExtensionContext) {
     })
   );
 
-
   context.subscriptions.push(vscode.window.registerTerminalProfileProvider('zephyr-ide.terminal-profile', {
     provideTerminalProfile(token: vscode.CancellationToken): vscode.ProviderResult<vscode.TerminalProfile> {
       let opts: vscode.TerminalOptions = {
@@ -641,7 +641,7 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.debug-internal-shell", async () => {
       output.clear();
-      let temp = await executeShellCommand("SET", wsConfig.rootPath, getShellEnvironment(wsConfig.activeSetupState), false);
+      let temp = await executeShellCommand("SET", wsConfig.activeSetupState, false);
       if (temp.stdout) {
         output.append(temp.stdout);
       }
@@ -679,15 +679,15 @@ export async function activate(context: vscode.ExtensionContext) {
       for (let setupState in globalConfig.setupStateDictionary) {
         if (setupState) {
           let description = "";
-          if (setupState == await getToolsDir()) {
+          if (setupState === await getToolsDir()) {
             description = "Global Install";
-          } else if (setupState == rootPath) {
+          } else if (setupState === rootPath) {
             description = "Workspace Install";
           }
-          setupPathList.push({ label: setupState, description: description })
+          setupPathList.push({ label: setupState, description: description });
         }
       }
-      setupPathList.push({ label: "Browse to folder" })
+      setupPathList.push({ label: "Browse to folder" });
 
       const pickOptions: vscode.QuickPickOptions = {
         ignoreFocusOut: true,
@@ -740,7 +740,7 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.shell_test", async () => {
       output.show();
       output.appendLine(getPlatformName() ?? "");
-      output.appendLine(((getPlatformName() ?? "") == "macos") ? "detected macos" : "not macos");
+      output.appendLine(((getPlatformName() ?? "") === "macos") ? "detected macos" : "not macos");
 
 
       const configuration = await vscode.workspace.getConfiguration();
@@ -748,13 +748,13 @@ export async function activate(context: vscode.ExtensionContext) {
       let platform_name = "osx";
       let force_bash = true;
       output.appendLine(configuration.get('terminal.integrated.defaultProfile.' + platform_name) ?? "");
-      output.appendLine(configuration.get('terminal.integrated.defaultProfile.' + platform_name) == "zsh" ? "default set to zsh" : "default set to something else");
+      output.appendLine(configuration.get('terminal.integrated.defaultProfile.' + platform_name) === "zsh" ? "default set to zsh" : "default set to something else");
 
-      let default_terminal = (configuration.get('terminal.integrated.defaultProfile.' + platform_name) == "zsh" || force_bash) ? "bash" : "Zephyr IDE Terminal";
+      let default_terminal = (configuration.get('terminal.integrated.defaultProfile.' + platform_name) === "zsh" || force_bash) ? "bash" : "Zephyr IDE Terminal";
       output.appendLine("Setting terminal to: " + default_terminal);
       configuration.update('terminal.integrated.defaultProfile.' + platform_name, default_terminal, target, false);
       output.appendLine(configuration.get('terminal.integrated.defaultProfile.' + platform_name) ?? "");
-      output.appendLine("Finished")
+      output.appendLine("Finished");
 
     })
   );
