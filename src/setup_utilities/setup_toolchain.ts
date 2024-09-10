@@ -182,7 +182,7 @@ export async function installSdk(context: vscode.ExtensionContext, globalConfig:
                     };
                     if (getPlatformName() === "macos") {
                         toolchainMinimalDownloadEntry.cmd = toolchainsToInstall.map(targetName => ({
-                            "cmd": "zephyr-sdk-" + toolchainVersion + "/setup.sh -t " + targetName + "-zephyr-" + (targetName === "arm" ? "eabi" : "elf"),
+                            "cmd": "zephyr-sdk-" + toolchainVersion + "/setup.sh -t " + targetName + (targetName.includes("xtensa") ? "_" : "-") + "zephyr-" + (targetName === "arm" ? "eabi" : "elf"),
                             "usepath": true
                         }));
                     }
