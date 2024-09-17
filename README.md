@@ -1,5 +1,7 @@
 #  Zephyr IDE for VS Code
 
+<img src="https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/zephyr-ide_branding.png" alt="Zephyr IDE for Visual Studio Code" width="50%"/>
+
 The Zephyr IDE for VS code extension provides tools to aide in your Zephyr Project work flow. This extension helps you to build Zephyr projects and share them with your team.
 
 Please check out our new [extension pack](https://marketplace.visualstudio.com/items?itemName=mylonics.zephyr-ide-extension-pack) that bundles in additional tools.
@@ -25,7 +27,7 @@ You can read a little bit more about the motivation behind the project [here](ht
 
 
 ## Getting Started
-There are two tutorial available on youtube.
+There is a [manual](docs/MANUAL.md) available to help get started along with a couple Youtube tutorials.
 
 [![Getting Started with Zephyr IDE](https://mylonics.com/assets/images/zephyr-ide/getting_started_thumbnail.png)](https://www.youtube.com/watch?v=Asfolnh9kqM&t "Getting Started with Zephyr IDE")
 
@@ -38,11 +40,6 @@ In order for this application to work correctly the zephyr require build tools n
 See the [Install Dependecies Section of the Zephyr Getting Started Guide](https://docs.zephyrproject.org/latest/develop/getting_started/index.html#install-dependencies)
 
 For ubuntu please also install python3-venv by ```sudo apt install python3-venv```
-
-## Extension Settings
-
-This extension contributes the following settings:
-
 
 ## Known Issues
 * zsh as a shell is not supported, bash should be available on linux and mac os installs
@@ -71,107 +68,13 @@ Bug fixes in gui rendering. Multiple tasks are now allowed to run at the same ti
 
 ### 1.0.43
 Added compile commands and linking with intellisense
-
-### 1.0.42
-Fixed gdb arm path bug, added default terminal profile. Moved projects from settings.json to zephyr-ide.json exclusively.
-
-### 1.0.41
-Fix conflict with python environment manager extension 
-
-### 1.0.37
-New GUI panel. Maintain GUI tree state on relaunch. Removed updating of project file with active project/build/runner 
-
-### 1.0.36
-
-Added additional debug statements to the debug shell command
-
-
-### 1.0.32
-
-Improved SDK install
-Added Global Zephyr Install Option
-
-### 1.0.31
-
-Added GUI for west build.
-Added additional build buttons to status bar
-Prevent initialization of workspace without folder open
-
-### 1.0.27
-
-Repackage
-
-### 1.0.25
-
 Added the ability to clone git repo during west init.
 Cleaned up some handling of VS code tasks.
-
-### 1.0.24
-
-Fixed bug with setting up west environment
-
-### 1.0.23
-
 Added extra west build arguments. (Must be added to .json files)
 Added West Configurator for different HALs.
 Added menuConfig and guiConfig commands.
-Renamed sample projects.
-
-### 1.0.22
-
-Added the ability to copy from all samples
-
-### 1.0.21
-
-Fix for v3.6.0 and previous board list
-
-### 1.0.20
-
-Parsed board qualifications to be able to handle newer board
-
-### 1.0.19
-
-Removed path from ncs west.yml
-
-### 1.0.18
-
-Fixed introduced bug with west init
-
-### 1.0.15
-
-Allow default runner when board.cmake file does not exist.
-
-### 1.0.14
-
 Added the ability to select different zephyr versions.
-
-### 1.0.13
-
-Added checks for dtc and cmake. Removed showing only arm boards when only arm toolchain is installed.
-
-### 1.0.12
-
 Added default args for runner
-
-### 1.0.11
-
-Fixed default runner
-
-### 1.0.10
-
-Only available runners display and non arm board dts files may be opened from the GUI
-
-### 1.0.9
-
-Fixed incorrect build notification
-
-### 1.0.8
-
-Reverted default project file to use
-
-### 1.0.7
-
-Fixed not able to remove projects or build.
 
 ### 1.0.0
 
