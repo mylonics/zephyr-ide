@@ -46,8 +46,9 @@ For ubuntu please also install python3-venv by ```sudo apt install python3-venv`
 * macOS compatibility is untested. Please make an issue on our github page with any incompatibilities found.
 
 ## Release Notes
-### 1.3.1
+### 1.3.2
 Fixed macos xtensa sdk download
+Updated manual
 
 ### 1.3.0
 Fixed GUI failing to update on new project/build
