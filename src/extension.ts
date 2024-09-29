@@ -476,6 +476,20 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.get-active-build-board-path", async () => {
+      if (wsConfig.activeProject) {
+        let project = wsConfig.projects[wsConfig.activeProject];
+        let activeBuildConfig = wsConfig.projectStates[wsConfig.activeProject].activeBuildConfig;
+
+        if (activeBuildConfig && wsConfig.activeSetupState) {
+          return path.join(wsConfig.activeSetupState.setupPath, project.buildConfigs[activeBuildConfig].relBoardSubDir);
+        }
+      }
+      return;
+    })
+  );
+
+  context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.select-active-build-path", async () => {
       await project.setActiveProject(context, wsConfig);
       await project.setActiveBuild(context, wsConfig);

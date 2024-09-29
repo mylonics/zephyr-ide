@@ -475,14 +475,14 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
         case "openBoardDtc": {
           let build = this.wsConfig.projects[message.value.project].buildConfigs[message.value.build];
           let filePath;
-          if (path.isAbsolute(build.relBoardSubDir)) {
+          if (path.isAbsolute(build.relBoardSubDir)) { //kept for backwards compatibility
             if (build.board.includes("/")) {
               filePath = vscode.Uri.file(path.join(build.relBoardSubDir, "board.cmake"));
             } else {
               filePath = vscode.Uri.file(path.join(build.relBoardSubDir, build.board + ".dts"));
             }
           } else {
-            filePath = vscode.Uri.file(path.join(this.wsConfig.rootPath, build.relBoardDir, build.relBoardSubDir, build.board + ".dts")); //kept for backwards compatibility
+            filePath = vscode.Uri.file(path.join(this.wsConfig.rootPath, build.relBoardDir, build.board, build.board + ".dts"));
           }
 
           vscode.workspace.openTextDocument(filePath).then(document => vscode.window.showTextDocument(document));

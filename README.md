@@ -46,6 +46,9 @@ For ubuntu please also install python3-venv by ```sudo apt install python3-venv`
 * macOS compatibility is untested. Please make an issue on our github page with any incompatibilities found.
 
 ## Release Notes
+### 1.3.3
+Added command to get board directory path for debugging purposes
+
 ### 1.3.2
 Fixed macos xtensa sdk download
 Updated manual

@@ -22,7 +22,7 @@ import * as fs from "fs-extra";
 import { MultiStepInput } from "../utilities/multistepQuickPick";
 import { RunnerConfigDictionary, RunnerStateDictionary } from './runner_selector';
 import { ConfigFiles } from './config_selector';
-import { WorkspaceConfig } from '../setup_utilities/setup';
+import { SetupState, WorkspaceConfig } from '../setup_utilities/setup';
 import { executeShellCommand, getShellEnvironment, output } from "../utilities/utils";
 
 // Config for the extension
@@ -51,7 +51,7 @@ export interface BuildState {
 export type BuildConfigDictionary = { [name: string]: BuildConfig };
 export type BuildStateDictionary = { [name: string]: BuildState };
 
-export async function buildSelector(context: ExtensionContext, wsConfig: WorkspaceConfig) {
+export async function buildSelector(context: ExtensionContext, setupState: SetupState) {
   const title = 'Add Build Configuration';
 
   async function pickBoardDir(input: MultiStepInput, state: Partial<BuildConfig>) {
@@ -59,14 +59,14 @@ export async function buildSelector(context: ExtensionContext, wsConfig: Workspa
     let boardDirectories: string[] = [];
 
     // Look in root
-    let boardDir = path.join(wsConfig.rootPath, `boards`);
+    let boardDir = path.join(setupState.setupPath, `boards`);
     if (fs.pathExistsSync(boardDir)) {
       boardDirectories = boardDirectories.concat(boardDir);
     }
 
     let zephyrBoardDir: string;
-    if (wsConfig.activeSetupState && wsConfig.activeSetupState.zephyrDir) {
-      zephyrBoardDir = path.join(wsConfig.activeSetupState.zephyrDir, `boards`);
+    if (setupState.zephyrDir) {
+      zephyrBoardDir = path.join(setupState.zephyrDir, `boards`);
       if (fs.pathExistsSync(zephyrBoardDir)) {
         boardDirectories = boardDirectories.concat(zephyrBoardDir);
       }
@@ -94,7 +94,7 @@ export async function buildSelector(context: ExtensionContext, wsConfig: Workspa
       return;
     };
 
-    state.relBoardDir = path.relative(wsConfig.rootPath, pick.label);
+    state.relBoardDir = path.relative(setupState.setupPath, pick.label);
     if (pick.label === "Select Other Folder") {
       const boarddir = await vscode.window.showOpenDialog({
         canSelectFiles: false,
@@ -102,7 +102,7 @@ export async function buildSelector(context: ExtensionContext, wsConfig: Workspa
         canSelectMany: false,
       });
       if (boarddir) {
-        state.relBoardDir = path.relative(wsConfig.rootPath, boarddir[0].fsPath);
+        state.relBoardDir = path.relative(setupState.setupPath, boarddir[0].fsPath);
       } else {
         vscode.window.showInformationMessage(`Failed to select board directory`);
         return;
@@ -117,7 +117,7 @@ export async function buildSelector(context: ExtensionContext, wsConfig: Workspa
 
     if (state.relBoardDir) {
       console.log("Changing board dir to " + state.relBoardDir);
-      let boardList = await getBoardlistWest(useCustomFolder, vscode.Uri.file(path.join(wsConfig.rootPath, state.relBoardDir)));
+      let boardList = await getBoardlistWest(useCustomFolder, vscode.Uri.file(path.join(setupState.setupPath, state.relBoardDir)));
       if (!boardList) {
         return;
       }
@@ -141,7 +141,10 @@ export async function buildSelector(context: ExtensionContext, wsConfig: Workspa
         return;
       };
       state.board = pick.label;
-      state.relBoardSubDir = pick.description;
+
+      if (pick.description) {
+        state.relBoardSubDir = path.relative(setupState.setupPath, pick.description);
+      }
 
       return (input: MultiStepInput) => inputBuildName(input, state);
     }
@@ -155,19 +158,17 @@ export async function buildSelector(context: ExtensionContext, wsConfig: Workspa
     let res: any;
     let prevError: any;
 
-    console.log(wsConfig.rootPath);
-    console.log(getShellEnvironment(wsConfig.activeSetupState));
     if (useCustomFolder) {
-      res = await executeShellCommand("python " + srcPathNew + " --board-root " + path.dirname(folder.fsPath) + " -f '{name}:{qualifiers}:{dir}'", wsConfig.rootPath, getShellEnvironment(wsConfig.activeSetupState), false);
+      res = await executeShellCommand("python " + srcPathNew + " --board-root " + path.dirname(folder.fsPath) + " -f '{name}:{qualifiers}:{dir}'", setupState.setupPath, getShellEnvironment(setupState), false);
       if (!res.stdout) {
         prevError = res.stderr;
-        res = await executeShellCommand("python " + srcPathOld + " --board-root " + path.dirname(folder.fsPath) + " -f '{name}:{name}:{dir}'", wsConfig.rootPath, getShellEnvironment(wsConfig.activeSetupState), false);
+        res = await executeShellCommand("python " + srcPathOld + " --board-root " + path.dirname(folder.fsPath) + " -f '{name}:{name}:{dir}'", setupState.setupPath, getShellEnvironment(setupState), false);
       }
     } else {
-      res = await executeShellCommand("west boards -f '{name}:{qualifiers}:{dir}'", wsConfig.rootPath, getShellEnvironment(wsConfig.activeSetupState), false);
+      res = await executeShellCommand("west boards -f '{name}:{qualifiers}:{dir}'", setupState.setupPath, getShellEnvironment(setupState), false);
       if (!res.stdout) {
         prevError = res.stderr;
-        res = await executeShellCommand("west boards -f '{name}:{name}:{dir}'", wsConfig.rootPath, getShellEnvironment(wsConfig.activeSetupState), false);
+        res = await executeShellCommand("west boards -f '{name}:{name}:{dir}'", setupState.setupPath, getShellEnvironment(setupState), false);
       }
     }
 

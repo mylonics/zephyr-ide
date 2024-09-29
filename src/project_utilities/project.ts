@@ -404,23 +404,26 @@ export async function addProject(wsConfig: WorkspaceConfig, context: vscode.Exte
 
 export async function addBuildToProject(wsConfig: WorkspaceConfig, context: vscode.ExtensionContext, projectName: string) {
 
-  let result = await buildSelector(context, wsConfig);
-  if (result && result.name !== undefined) {
-    result.runnerConfigs = {};
-    if (wsConfig.projects[projectName].buildConfigs[result.name]) {
-      const selection = await vscode.window.showWarningMessage('Build Configuration with name: ' + result.name + ' already exists!', 'Overwrite', 'Cancel');
-      if (selection !== 'Overwrite') {
-        vscode.window.showErrorMessage(`Failed to add build configuration`);
-        return;
+  if (wsConfig.activeSetupState) {
+
+    let result = await buildSelector(context, wsConfig.activeSetupState);
+    if (result && result.name !== undefined) {
+      result.runnerConfigs = {};
+      if (wsConfig.projects[projectName].buildConfigs[result.name]) {
+        const selection = await vscode.window.showWarningMessage('Build Configuration with name: ' + result.name + ' already exists!', 'Overwrite', 'Cancel');
+        if (selection !== 'Overwrite') {
+          vscode.window.showErrorMessage(`Failed to add build configuration`);
+          return;
+        }
       }
+
+      vscode.window.showInformationMessage(`Creating Build Configuration: ${result.name}`);
+      wsConfig.projects[projectName].buildConfigs[result.name] = result;
+      wsConfig.projectStates[projectName].buildStates[result.name] = { runnerStates: {}, viewOpen: true };
+      wsConfig.projectStates[projectName].activeBuildConfig = result.name;
+
+      await setWorkspaceState(context, wsConfig);
     }
-
-    vscode.window.showInformationMessage(`Creating Build Configuration: ${result.name}`);
-    wsConfig.projects[projectName].buildConfigs[result.name] = result;
-    wsConfig.projectStates[projectName].buildStates[result.name] = { runnerStates: {}, viewOpen: true };
-    wsConfig.projectStates[projectName].activeBuildConfig = result.name;
-
-    await setWorkspaceState(context, wsConfig);
   }
 
 }
@@ -569,9 +572,9 @@ export async function addRunnerToBuild(wsConfig: WorkspaceConfig, context: vscod
 
   let result;
   if (path.isAbsolute(build.relBoardSubDir)) {
-    result = await runnerSelector(build.relBoardSubDir);
+    result = await runnerSelector(build.relBoardSubDir); // Will remove eventually
   } else {
-    result = await runnerSelector(path.join(wsConfig.rootPath, build.relBoardDir, build.relBoardSubDir)); // Will remove eventually
+    result = await runnerSelector(path.join(wsConfig.rootPath, build.relBoardDir, build.board));
   }
   if (result && result.name !== undefined) {
     if (build.runnerConfigs[result.name]) {

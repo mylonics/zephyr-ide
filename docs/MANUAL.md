@@ -75,6 +75,7 @@ The IDE provides commands that help a user develop launch configurations. These 
 - "zephyr-ide.get-active-project-name"
 - "zephyr-ide.get-active-project-path"
 - "zephyr-ide.get-active-build-path"
+- "zephyr-ide.get-active-build-board-path"
 - "zephyr-ide.select-active-build-path"
 - "zephyr-ide.get-gdb-path"
 - "zephyr-ide.get-toolchain-path"
