@@ -26,7 +26,7 @@ import { ProjectConfigView } from "./panels/project_config_view/ProjectConfigVie
 
 import path from "path";
 import * as project from "./project_utilities/project";
-import { buildHelper, buildMenuConfig, buildRamRomReport, clean } from "./zephyr_utilities/build";
+import { buildHelper, buildMenuConfig, buildRamRomReport, runDtshShell, clean } from "./zephyr_utilities/build";
 import { flashActive } from "./zephyr_utilities/flash";
 import { setExternalSetupState, WorkspaceConfig, setSetupState, GlobalConfig, SetupStateType, loadGlobalState, westUpdate, workspaceInit, setWorkspaceState, loadWorkspaceState, clearWorkspaceState, westInit, checkIfToolsAvailable, setupWestEnvironment, loadProjectsFromFile, getToolchainDir, setGlobalState, getToolsDir, saveSetupState } from "./setup_utilities/setup";
 import { getPlatformName, installSdk } from "./setup_utilities/setup_toolchain";
@@ -35,6 +35,7 @@ let wsConfig: WorkspaceConfig;
 let globalConfig: GlobalConfig;
 
 let activeProjectDisplay: vscode.StatusBarItem;
+let activeBuildDisplay: vscode.StatusBarItem;
 
 export async function activate(context: vscode.ExtensionContext) {
   wsConfig = await loadWorkspaceState(context);
@@ -75,6 +76,7 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(vscode.commands.registerCommand("zephyr-ide.update-status", () => {
     if (wsConfig.activeProject) {
       activeProjectDisplay.text = `$(folder) ${wsConfig.activeProject}`;
+      activeBuildDisplay.text = `$(folder) ${project.getBuildName(wsConfig, wsConfig.activeProject)}`;
     }
   }));
 
@@ -111,11 +113,21 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   activeProjectDisplay = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
-  activeProjectDisplay.command = "zephyr-ide.update-status";
+  activeProjectDisplay.command = "zephyr-ide.set-active-project";
   activeProjectDisplay.text = `$(folder) ${wsConfig.activeProject}`;
   activeProjectDisplay.tooltip = "Zephyr IDE Active Project";
   activeProjectDisplay.show();
   context.subscriptions.push(activeProjectDisplay);
+
+
+  activeBuildDisplay = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+  activeBuildDisplay.command = "zephyr-ide.set-active-build";
+  if (wsConfig.activeProject) {
+    activeBuildDisplay.text = `$(folder) ${wsConfig.projects[wsConfig.activeProject].name}`;
+  }
+  activeBuildDisplay.tooltip = "Zephyr IDE Active Build";
+  activeBuildDisplay.show();
+  context.subscriptions.push(activeBuildDisplay);
 
   let activeBuildPristineButton = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
   activeBuildPristineButton.command = "zephyr-ide.build-pristine";
@@ -154,6 +166,7 @@ export async function activate(context: vscode.ExtensionContext) {
           if (wsConfig.activeProject !== key) {
             wsConfig.activeProject = key;
             activeProjectDisplay.text = `$(megaphone) ${key}`;
+            activeBuildDisplay.text = `$(megaphone) ${wsConfig.projects[wsConfig.activeProject].name}`;
           }
           vscode.commands.executeCommand("zephyr-ide.update-web-view");
         }
@@ -645,6 +658,11 @@ export async function activate(context: vscode.ExtensionContext) {
     })
   );
 
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.start-dtsh-shell", async () => {
+      runDtshShell(wsConfig);
+    })
+  );
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.run-ram-report", async () => {

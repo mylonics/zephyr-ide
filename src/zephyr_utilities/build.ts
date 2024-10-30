@@ -193,7 +193,7 @@ export async function buildRamRomReport(
 
   if (project === undefined) {
     if (wsConfig.activeProject === undefined) {
-      vscode.window.showErrorMessage("Select a project before trying to build");
+      vscode.window.showErrorMessage("Select a project before trying to run report");
       return;
     }
     project = wsConfig.projects[wsConfig.activeProject];
@@ -217,6 +217,36 @@ export async function buildRamRomReport(
   regenerateCompileCommands(wsConfig);
 }
 
+export async function runDtshShell(
+  wsConfig: WorkspaceConfig,
+  project?: ProjectConfig,
+  build?: BuildConfig
+) {
+
+  if (project === undefined) {
+    if (wsConfig.activeProject === undefined) {
+      vscode.window.showErrorMessage("Select a project before trying to open dtsh shell");
+      return;
+    }
+    project = wsConfig.projects[wsConfig.activeProject];
+  }
+
+  if (build === undefined) {
+    let buildName = getActiveBuildOfProject(wsConfig, project.name)
+    if (buildName === undefined) {
+      await vscode.window.showErrorMessage(`You must choose a Build Configuration to continue.`);
+      return;
+    }
+    build = project.buildConfigs[buildName];
+  }
+
+  let cmd = `dtsh ${path.join(wsConfig.rootPath, project.rel_path, build.name, 'zephyr', 'zephyr.dts')} `;
+
+  let taskName = "Zephyr IDE DTSH Sehll: " + project.name + " " + build.name;
+
+  vscode.window.showInformationMessage(`Running DTSH Shell ${build.name} from project: ${project.name}`);
+  await executeTaskHelper(taskName, cmd, getShellEnvironment(wsConfig.activeSetupState), wsConfig.activeSetupState?.setupPath);
+}
 
 export async function clean(wsConfig: WorkspaceConfig, projectName: string | undefined) {
   if (projectName === undefined) {

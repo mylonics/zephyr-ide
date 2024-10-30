@@ -345,6 +345,10 @@
         "title": "Zephyr IDE: Run ROM Report"
       },
       {
+        "command": "zephyr-ide.start-dtsh-shell",
+        "title": "Zephyr IDE: Start DTSh Shell"
+      },
+      {
         "command": "zephyr-ide.modify-build-arguments",
         "title": "Zephyr IDE: Modify Build Arguments"
       },

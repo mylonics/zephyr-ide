@@ -735,6 +735,11 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
     vscode.window.showErrorMessage("West Update Failed. Error installing python requirements.");
     return false;
   }
+  cmd = `pip install -U dtsh`;
+  let dtshInstallRes = await executeTaskHelper("Zephyr IDE: West Update", cmd, getShellEnvironment(wsConfig.activeSetupState), wsConfig.activeSetupState.setupPath);
+  if (!dtshInstallRes) {
+    vscode.window.showWarningMessage("Failed to install dtsh");
+  }
 
   wsConfig.initialSetupComplete = true;
   wsConfig.activeSetupState.westUpdated = true;

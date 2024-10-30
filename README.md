@@ -47,45 +47,47 @@ For ubuntu please also install python3-venv by ```sudo apt install python3-venv`
 * macOS compatibility is untested. Please make an issue on our github page with any incompatibilities found.
 
 ## Release Notes
-### 1.3.3
-Added RAM/ROM report
-Updated available versions
-Added workspacepath to devicetree and kconfig variables if extension setup is workspace.
-Added generation of gitignore file
-Added sample project to help users get started. 
+### 1.3.4
+Added RAM/ROM report\
+Updated available versions\
+Added workspacepath to devicetree and kconfig variables if extension setup is workspace\
+Added generation of gitignore file\
+Added sample project to help users get started\
+Added DTSh shell \
+Added ability to select active project and active build from status bar
 
 ### 1.3.3
 Added command to get board directory path for debugging purposes
 
 ### 1.3.2
-Fixed macos xtensa sdk download
+Fixed macos xtensa sdk download\
 Updated manual
 
 ### 1.3.0
-Fixed GUI failing to update on new project/build
-Fixed multiple conf file missing deliminator
-Adding shell vscode config test command
-Force use of bash on macos always
+Fixed GUI failing to update on new project/build\
+Fixed multiple conf file missing deliminator\
+Adding shell vscode config test command\
+Force use of bash on macos always\
 Detect if python .venv already exists and prompt user to replace
 
 ### 1.2.0
-Added marked West as ready command
-Use python for macos instead of python3
-Force use of bash when zsh is the default profile.
-Allow any folder to be the zephyr install folder and allow to manually specificy tools directory.
+Added marked West as ready command\
+Use python for macos instead of python3\
+Force use of bash when zsh is the default profile.\
+Allow any folder to be the zephyr install folder and allow to manually specificy tools directory.\
 Fixed west init issue with by unsetting zephyr base.
 
 ### 1.1.0
-Bug fixes in gui rendering. Multiple tasks are now allowed to run at the same time. Integration with NRF device tree and KConfig.
+Bug fixes in gui rendering. Multiple tasks are now allowed to run at the same time. Integration with NRF device tree and KConfig.\
 
 ### 1.0.43
-Added compile commands and linking with intellisense
-Added the ability to clone git repo during west init.
-Cleaned up some handling of VS code tasks.
-Added extra west build arguments. (Must be added to .json files)
-Added West Configurator for different HALs.
-Added menuConfig and guiConfig commands.
-Added the ability to select different zephyr versions.
+Added compile commands and linking with intellisense\
+Added the ability to clone git repo during west init.\
+Cleaned up some handling of VS code tasks.\
+Added extra west build arguments. (Must be added to .json files)\
+Added West Configurator for different HALs.\
+Added menuConfig and guiConfig commands.\
+Added the ability to select different zephyr versions.\
 Added default args for runner
 
 ### 1.0.0

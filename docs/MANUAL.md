@@ -105,6 +105,11 @@ Custom west commands may be run using the inbuilt Zephyr IDE Terminal.  
 ![West Terminal](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/west_terminal.gif)
 
 
+You can also run the following commands:
+ - ROM Report - Zephyr IDE: Run ROM Report
+ - RAM Report - Zephyr IDE: Run RAM Report
+ - DTSh Shell - Zephyr IDE: Start DTSh Shell
+
 ## Extension Pack
 The Zephyr IDE Extension also integrates with a handful of extensions and is released as an [extension pack](https://marketplace.visualstudio.com/items?itemName=mylonics.zephyr-ide-extension-pack). With the extension pack, C++ and DeviceTree intellisense is available. A Kconfig GUI is also available.
 - Cortex-Debug - ARM Cortex-M GDB Debugger support for VSCode
