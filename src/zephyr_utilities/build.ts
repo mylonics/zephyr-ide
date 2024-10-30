@@ -184,6 +184,40 @@ export async function buildMenuConfig(
   regenerateCompileCommands(wsConfig);
 }
 
+export async function buildRamRomReport(
+  wsConfig: WorkspaceConfig,
+  isRamReport: boolean,
+  project?: ProjectConfig,
+  build?: BuildConfig
+) {
+
+  if (project === undefined) {
+    if (wsConfig.activeProject === undefined) {
+      vscode.window.showErrorMessage("Select a project before trying to build");
+      return;
+    }
+    project = wsConfig.projects[wsConfig.activeProject];
+  }
+
+  if (build === undefined) {
+    let buildName = getActiveBuildOfProject(wsConfig, project.name)
+    if (buildName === undefined) {
+      await vscode.window.showErrorMessage(`You must choose a Build Configuration to continue.`);
+      return;
+    }
+    build = project.buildConfigs[buildName];
+  }
+
+  let cmd = `west build -t ${isRamReport ? "ram_report" : "rom_report"} -b ${build.board} ${path.join(wsConfig.rootPath, project.rel_path)} --build-dir ${path.join(wsConfig.rootPath, project.rel_path, build.name)} -- -DBOARD_ROOT='${path.dirname(path.join(wsConfig.rootPath, build.relBoardDir))}' `;
+
+  let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
+
+  vscode.window.showInformationMessage(`Running ${isRamReport ? "RAM" : "ROM"} Report ${build.name} from project: ${project.name}`);
+  await executeTaskHelper(taskName, cmd, getShellEnvironment(wsConfig.activeSetupState), wsConfig.activeSetupState?.setupPath);
+  regenerateCompileCommands(wsConfig);
+}
+
+
 export async function clean(wsConfig: WorkspaceConfig, projectName: string | undefined) {
   if (projectName === undefined) {
     if (wsConfig.activeProject === undefined) {

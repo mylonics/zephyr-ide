@@ -337,6 +337,14 @@
         "title": "Zephyr IDE: Start GUI Config"
       },
       {
+        "command": "zephyr-ide.run-ram-report",
+        "title": "Zephyr IDE: Run RAM Report"
+      },
+      {
+        "command": "zephyr-ide.run-rom-report",
+        "title": "Zephyr IDE: Run ROM Report"
+      },
+      {
         "command": "zephyr-ide.modify-build-arguments",
         "title": "Zephyr IDE: Modify Build Arguments"
       },

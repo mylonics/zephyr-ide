@@ -26,7 +26,7 @@ import { ProjectConfigView } from "./panels/project_config_view/ProjectConfigVie
 
 import path from "path";
 import * as project from "./project_utilities/project";
-import { buildHelper, buildMenuConfig, clean } from "./zephyr_utilities/build";
+import { buildHelper, buildMenuConfig, buildRamRomReport, clean } from "./zephyr_utilities/build";
 import { flashActive } from "./zephyr_utilities/flash";
 import { setExternalSetupState, WorkspaceConfig, setSetupState, GlobalConfig, SetupStateType, loadGlobalState, westUpdate, workspaceInit, setWorkspaceState, loadWorkspaceState, clearWorkspaceState, westInit, checkIfToolsAvailable, setupWestEnvironment, loadProjectsFromFile, getToolchainDir, setGlobalState, getToolsDir, saveSetupState } from "./setup_utilities/setup";
 import { getPlatformName, installSdk } from "./setup_utilities/setup_toolchain";
@@ -645,6 +645,18 @@ export async function activate(context: vscode.ExtensionContext) {
     })
   );
 
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.run-ram-report", async () => {
+      buildRamRomReport(wsConfig, true);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.run-rom-report", async () => {
+      buildRamRomReport(wsConfig, false);
+    })
+  );
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.modify-build-arguments", async () => {
