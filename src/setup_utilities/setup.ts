@@ -287,7 +287,18 @@ export async function oneTimeWorkspaceSetup(context: vscode.ExtensionContext) {
   }
 }
 
+async function generateGitIgnore(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
+  const extensionPath = context.extensionPath;
+  let srcPath = path.join(extensionPath, "git_ignores", "gitignore_workspace_install");
+  let desPath = path.join(wsConfig.rootPath, ".gitignore");
+  let exists = await fs.pathExists(desPath);
+  if (!exists) {
+    let res = await fs.copyFile(srcPath, desPath, fs.constants.COPYFILE_FICLONE);
+  }
+}
+
 export async function setSetupState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, setupStateType: SetupStateType, ext_path: string = "") {
+  generateGitIgnore(context, wsConfig); // Try to generate a .gitignore each time this is run
   if (setupStateType !== SetupStateType.NONE) {
     oneTimeWorkspaceSetup(context);
   }

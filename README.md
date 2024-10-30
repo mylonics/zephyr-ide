@@ -50,6 +50,7 @@ For ubuntu please also install python3-venv by ```sudo apt install python3-venv`
 Added RAM/ROM report
 Updated available versions
 Added workspacepath to devicetree and kconfig variables if extension setup is workspace.
+Added generation of gitignore file
 
 ### 1.3.3
 Added command to get board directory path for debugging purposes
