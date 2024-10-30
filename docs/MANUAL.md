@@ -89,6 +89,8 @@ Sharing you code to other users is best done when the workspace is set up as loc
 If you are trying to share a non-local workspace then committing settings.json, is not advisable as some variables may change. Unfortunately, VSCode does not provide a way for having user specific settings/configurations per workspace. See this [issue](https://github.com/Microsoft/vscode/issues/15909) on the VSCode repo.
 You can also try to use a code-workspace.json file to help manage projects across different machines.
 
+You can have a look at this [sample directory](https://github.com/mylonics/zephyr-ide-sample-project) to also help with getting started with sharing projects.
+
 ## Other Features
 The Zephyr Menu Config may be run from the active project panel. Each debug target may be bound to a custom launch configuration (by default they use "Zephyr IDE: Debug" and "Zephyr IDE: Attach")
 

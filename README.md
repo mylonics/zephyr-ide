@@ -33,6 +33,7 @@ There is a [manual](docs/MANUAL.md) available to help get started along with a c
 
 [![STM32 Board Setup And Debugging with Zephyr IDE](https://mylonics.com/assets/images/zephyr-ide/board_setup_thumbnail.png)](https://www.youtube.com/watch?v=TXcTzyswBMQ)
 
+You can have a look at this [sample directory](https://github.com/mylonics/zephyr-ide-sample-project) to also help with getting started and sharing project. 
 ## Requirements
 
 In order for this application to work correctly the zephyr require build tools need to be installed and available on the path. These include cmake, python3, and Devicetree Compiler. 
@@ -51,6 +52,7 @@ Added RAM/ROM report
 Updated available versions
 Added workspacepath to devicetree and kconfig variables if extension setup is workspace.
 Added generation of gitignore file
+Added sample project to help users get started. 
 
 ### 1.3.3
 Added command to get board directory path for debugging purposes
