@@ -258,7 +258,7 @@ export async function loadWorkspaceState(context: vscode.ExtensionContext): Prom
 }
 
 export function setDefaultTerminal(configuration: vscode.WorkspaceConfiguration, target: vscode.ConfigurationTarget, platform_name: string, force_bash = false) {
-  let default_terminal = (configuration.get('terminal.integrated.defaultProfile.' + platform_name) == "zsh" || force_bash) ? "bash" : "Zephyr IDE Terminal";
+  let default_terminal = (configuration.get('terminal.integrated.defaultProfile.' + platform_name) === "zsh" || force_bash) ? "bash" : "Zephyr IDE Terminal";
   configuration.update('terminal.integrated.defaultProfile.' + platform_name, default_terminal, target, false);
 }
 
@@ -270,13 +270,13 @@ export async function oneTimeWorkspaceSetup(context: vscode.ExtensionContext) {
     const configuration = await vscode.workspace.getConfiguration();
     const target = vscode.ConfigurationTarget.Workspace;
 
-    if (getPlatformName() == "windows") {
+    if (getPlatformName() === "windows") {
       setDefaultTerminal(configuration, target, "windows");
     }
-    if (getPlatformName() == "linux") {
+    if (getPlatformName() === "linux") {
       setDefaultTerminal(configuration, target, "linux");
     }
-    if (getPlatformName() == "macos") {
+    if (getPlatformName() === "macos") {
       setDefaultTerminal(configuration, target, "osx", true);
     }
 
@@ -288,10 +288,10 @@ export async function oneTimeWorkspaceSetup(context: vscode.ExtensionContext) {
 }
 
 export async function setSetupState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, setupStateType: SetupStateType, ext_path: string = "") {
-  if (setupStateType != SetupStateType.NONE) {
+  if (setupStateType !== SetupStateType.NONE) {
     oneTimeWorkspaceSetup(context);
   }
-  if (setupStateType == SetupStateType.SELECTED) {
+  if (setupStateType === SetupStateType.SELECTED) {
     wsConfig.activeSetupState = await loadExternalSetupState(context, globalConfig, ext_path);
     if (wsConfig.activeSetupState) {
       wsConfig.selectSetupType = setupStateType;
@@ -308,8 +308,13 @@ export async function setSetupState(context: vscode.ExtensionContext, wsConfig: 
   const configuration = await vscode.workspace.getConfiguration();
   const target = vscode.ConfigurationTarget.Workspace;
   if (wsConfig.activeSetupState && wsConfig.activeSetupState.zephyrDir) {
-    configuration.update("devicetree.zephyr", wsConfig.activeSetupState.zephyrDir, target);
-    configuration.update("kconfig.zephyr.base", wsConfig.activeSetupState.zephyrDir, target);
+    if (wsConfig.activeSetupState.setupPath === wsConfig.rootPath) {
+      configuration.update("devicetree.zephyr", path.join("${workspaceFolder}", path.relative(wsConfig.rootPath, wsConfig.activeSetupState.zephyrDir)), target);
+      configuration.update("kconfig.zephyr.base", path.join("${workspaceFolder}", path.relative(wsConfig.rootPath, wsConfig.activeSetupState.zephyrDir)), target);
+    } else {
+      configuration.update("devicetree.zephyr", wsConfig.activeSetupState.zephyrDir, target);
+      configuration.update("kconfig.zephyr.base", wsConfig.activeSetupState.zephyrDir, target);
+    }
   }
 }
 
