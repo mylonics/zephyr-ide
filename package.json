@@ -33,6 +33,10 @@
     "zephyr-ide.select-active-build-path",
     "zephyr-ide.get-gdb-path",
     "zephyr-ide.get-toolchain-path",
+    "zephyr-ide.get-zephyr-ide-json-variable",
+    "zephyr-ide.get-active-project-variable",
+    "zephyr-ide.get-active-build-variable",
+    "zephyr-ide.get-active-board-name",
     "onDebug"
   ],
   "main": "./out/extension.js",

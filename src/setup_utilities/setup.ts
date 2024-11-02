@@ -152,6 +152,26 @@ export function getActiveRunnerConfigOfBuild(wsConfig: WorkspaceConfig, project:
   return;
 }
 
+export async function getVariable(config: WorkspaceConfig, variable_name: string, project_name?: string, build_name?: string) {
+  const zephyrIdeSettingFilePath = path.join(config.rootPath, ".vscode/zephyr-ide.json");
+  try {
+    var object = await JSON.parse(fs.readFileSync(zephyrIdeSettingFilePath, 'utf8'));
+    if (project_name) {
+      let projects = object.projects;
+      if (build_name) {
+        return projects[project_name]["buildConfigs"][build_name]["vars"][variable_name];
+      }
+      return projects[project_name]["vars"][variable_name];
+    }
+    return object[variable_name];
+  } catch (error) {
+    console.error('Failed to get custom var, ${variable_name}');
+    console.error(error);
+    return "";
+  }
+}
+
+
 export async function loadProjectsFromFile(config: WorkspaceConfig) {
   const configuration = await vscode.workspace.getConfiguration();
   let useExternalJson: boolean | undefined = await configuration.get("zephyr-ide.use-zephyr-ide-json");

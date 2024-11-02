@@ -28,7 +28,7 @@ import path from "path";
 import * as project from "./project_utilities/project";
 import { buildHelper, buildMenuConfig, buildRamRomReport, runDtshShell, clean } from "./zephyr_utilities/build";
 import { flashActive } from "./zephyr_utilities/flash";
-import { setExternalSetupState, WorkspaceConfig, setSetupState, GlobalConfig, SetupStateType, loadGlobalState, westUpdate, workspaceInit, setWorkspaceState, loadWorkspaceState, clearWorkspaceState, westInit, checkIfToolsAvailable, setupWestEnvironment, loadProjectsFromFile, getToolchainDir, setGlobalState, getToolsDir, saveSetupState } from "./setup_utilities/setup";
+import { getVariable, setExternalSetupState, WorkspaceConfig, setSetupState, GlobalConfig, SetupStateType, loadGlobalState, westUpdate, workspaceInit, setWorkspaceState, loadWorkspaceState, clearWorkspaceState, westInit, checkIfToolsAvailable, setupWestEnvironment, loadProjectsFromFile, getToolchainDir, setGlobalState, getToolsDir, saveSetupState } from "./setup_utilities/setup";
 import { getPlatformName, installSdk } from "./setup_utilities/setup_toolchain";
 
 let wsConfig: WorkspaceConfig;
@@ -503,6 +503,20 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.get-active-board-name", async () => {
+      if (wsConfig.activeProject) {
+        let project = wsConfig.projects[wsConfig.activeProject];
+        let activeBuildConfig = wsConfig.projectStates[wsConfig.activeProject].activeBuildConfig;
+
+        if (activeBuildConfig && wsConfig.activeSetupState) {
+          return path.join(wsConfig.activeSetupState.setupPath, project.buildConfigs[activeBuildConfig].board);
+        }
+      }
+      return;
+    })
+  );
+
+  context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.select-active-build-path", async () => {
       await project.setActiveProject(context, wsConfig);
       await project.setActiveBuild(context, wsConfig);
@@ -534,6 +548,31 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.get-toolchain-path", async () => {
       return await getToolchainDir();
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.get-zephyr-ide-json-variable", async (var_name) => {
+      return getVariable(wsConfig, var_name);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.get-active-project-variable", async (var_name) => {
+      if (wsConfig.activeProject) {
+        return getVariable(wsConfig, var_name, wsConfig.activeProject);
+      }
+      return "";
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.get-active-build-variable", async (var_name) => {
+      if (wsConfig.activeProject) {
+        let activeBuildConfig = wsConfig.projectStates[wsConfig.activeProject].activeBuildConfig;
+        return getVariable(wsConfig, var_name, wsConfig.activeProject, activeBuildConfig);
+      }
+      return "";
     })
   );
 

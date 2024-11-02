@@ -79,10 +79,55 @@ The IDE provides commands that help a user develop launch configurations. These 
 - "zephyr-ide.select-active-build-path"
 - "zephyr-ide.get-gdb-path"
 - "zephyr-ide.get-toolchain-path"
+- "zephyr-ide.get-zephyr-ide-json-variable"
+- "zephyr-ide.get-active-project-variable"
+- "zephyr-ide.get-active-build-variable"
+- "zephyr-ide.get-active-board-name"
 
 The Debug Select Configuration allows a user to select what project/build to debug for and uses "zephyr-ide.select-active-build-path", the other two default configurations use the "zephyr-ide.get-active-build-path" to debug the current active project as shown in the taskbar or active project panel.
 
 ![Zephyr IDE Debug Commands](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/setting_up_debug2.gif)
+
+If there is a variable you want associated with a project/build that needs to be available for your launch configuration, you can use the `zephyr-ide.get-active-project-variable` or `zephyr-ide.get-active-build-variable`. In you `zephyr-ide.json` file, create a `vars` variable in your project or the buildConfig and define a custom variable. Then in launch.json you can access the variable using the input command. 
+
+zephyr-ide.json
+```
+{
+  "projects": {
+    "blinky": {
+      "name": "blinky",
+      "vars": {
+        "custom_var": "custom_var"
+      },
+      "buildConfigs": {
+        "build\\stm32f4_disco": {
+          "relBoardDir": "external\\zephyr\\boards",
+          "board": "stm32f4_disco",
+          "relBoardSubDir": "external\\zephyr\\boards\\st\\stm32f4_disco",
+          "vars": {
+            "jlink_var": "STM32F401RE",
+            "bmp_port": "COM3"
+          },
+...
+```
+
+launch.json
+```
+"inputs": [
+        {
+            "id": "getCustomBuildVariable",
+            "type": "command",
+            "command": "zephyr-ide.get-active-build-variable",
+            "args": "bmp_port"
+        }
+    ],
+"configurations": [    
+      {
+        "name": "Zephyr IDE: Debug",
+        "BMPGDBSerialPort": "${input:getCustomBuildVariable}",
+      },
+    ],
+```
 
 ## Sharing your Code
 Sharing you code to other users is best done when the workspace is set up as local. The reason for this is that the settings.json file may be committed. In general you should commit everything in your workspace folder, except for build directories, .venv, and external.
