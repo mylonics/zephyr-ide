@@ -495,13 +495,18 @@ export function workspaceInit(context: vscode.ExtensionContext, wsConfig: Worksp
       if (wsConfig.activeSetupState === undefined) {
         return;
       }
-      let westSelection = await westSelector(context, wsConfig);
-      let toolchainSelection = await pickToolchainTarget(context, globalConfig);
-      if (westSelection === undefined || westSelection.failed) {
-        vscode.window.showErrorMessage("Zephyr IDE Initialization: Invalid West Init Selection");
-        return;
+
+      let westInited = await checkWestInit(wsConfig.activeSetupState);
+      let westSelection;
+      if (!westInited) {
+        westSelection = await westSelector(context, wsConfig);
+        if (westSelection === undefined || westSelection.failed) {
+          vscode.window.showErrorMessage("Zephyr IDE Initialization: Invalid West Init Selection");
+          return;
+        }
       }
 
+      let toolchainSelection = await pickToolchainTarget(context, globalConfig);
       progress.report({ message: "Checking for Build Tools In Path (1/5)" });
       await checkIfToolsAvailable(context, wsConfig, globalConfig, false);
       progressUpdate(wsConfig);
@@ -525,7 +530,7 @@ export function workspaceInit(context: vscode.ExtensionContext, wsConfig: Worksp
       }
 
       progress.report({ message: "Initializing West Respository (4/5)", increment: 20 });
-      let westInited = await checkWestInit(wsConfig.activeSetupState);
+      westInited = await checkWestInit(wsConfig.activeSetupState);
 
       if (!westInited) {
         let result = await westInit(context, wsConfig, globalConfig, false, westSelection);
