@@ -182,7 +182,6 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
     let allBoardData = res.stdout.split(/\r?\n/);
     let outputData: { name: string, subdir: string }[] = [];
     for (let i = 0; i < allBoardData.length; i++) {
-
       let arr = allBoardData[i].replaceAll("'", "").split(":");
       let boardData = arr.splice(0, 2);
       boardData.push(arr.join(':'));

@@ -574,7 +574,7 @@ export async function addRunnerToBuild(wsConfig: WorkspaceConfig, context: vscod
   if (path.isAbsolute(build.relBoardSubDir)) {
     result = await runnerSelector(build.relBoardSubDir); // Will remove eventually
   } else {
-    result = await runnerSelector(path.join(wsConfig.rootPath, build.relBoardDir, build.board));
+    result = await runnerSelector(path.join(wsConfig.rootPath, build.relBoardSubDir));
   }
   if (result && result.name !== undefined) {
     if (build.runnerConfigs[result.name]) {
