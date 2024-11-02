@@ -47,22 +47,16 @@ For ubuntu please also install python3-venv by ```sudo apt install python3-venv`
 * macOS compatibility is untested. Please make an issue on our github page with any incompatibilities found.
 
 ## Release Notes
-### 1.3.5
-Added custom variables to zephyr-ide.json
-
-### 1.3.4
+### 1.4.0
+Added custom variables to zephyr-ide.json \
 Added RAM/ROM report\
 Updated available versions\
 Added workspacepath to devicetree and kconfig variables if extension setup is workspace\
 Added generation of gitignore file\
 Added sample project to help users get started\
 Added DTSh shell \
-Added ability to select active project and active build from status bar
-
-### 1.3.3
-Added command to get board directory path for debugging purposes
-
-### 1.3.2
+Added ability to select active project and active build from status bar \
+Added command to get board directory path for debugging purposes \
 Fixed macos xtensa sdk download\
 Updated manual
 
