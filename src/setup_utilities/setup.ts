@@ -277,9 +277,8 @@ export async function loadWorkspaceState(context: vscode.ExtensionContext): Prom
   return config;
 }
 
-export function setDefaultTerminal(configuration: vscode.WorkspaceConfiguration, target: vscode.ConfigurationTarget, platform_name: string, force_bash = false) {
-  let default_terminal = (configuration.get('terminal.integrated.defaultProfile.' + platform_name) === "zsh" || force_bash) ? "bash" : "Zephyr IDE Terminal";
-  configuration.update('terminal.integrated.defaultProfile.' + platform_name, default_terminal, target, false);
+export function setDefaultTerminal(configuration: vscode.WorkspaceConfiguration, target: vscode.ConfigurationTarget, platform_name: string) {
+  configuration.update('terminal.integrated.defaultProfile.' + platform_name, "Zephyr IDE Terminal", target, false);
 }
 
 export async function oneTimeWorkspaceSetup(context: vscode.ExtensionContext) {
@@ -297,7 +296,7 @@ export async function oneTimeWorkspaceSetup(context: vscode.ExtensionContext) {
       setDefaultTerminal(configuration, target, "linux");
     }
     if (getPlatformName() === "macos") {
-      setDefaultTerminal(configuration, target, "osx", true);
+      setDefaultTerminal(configuration, target, "osx");
     }
 
     configuration.update("C_Cpp.default.compileCommands", path.join("${workspaceFolder}", '.vscode', 'compile_commands.json'), target)

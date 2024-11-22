@@ -43,10 +43,16 @@ See the [Install Dependecies Section of the Zephyr Getting Started Guide](https:
 For ubuntu please also install python3-venv by ```sudo apt install python3-venv```
 
 ## Known Issues
-* zsh as a shell is not supported, bash should be available on linux and mac os installs
 * macOS compatibility is untested. Please make an issue on our github page with any incompatibilities found.
 
 ## Release Notes
+### 1.4.1
+Added New Activation Event\
+Fixed ENV Path duplication bug\
+Added runner Selector to status bar\
+Default Zephyr IDE Terminal for all OS\
+Renamed application folder to west-manifest
+
 ### 1.4.0
 Added custom variables to zephyr-ide.json \
 Added RAM/ROM report\

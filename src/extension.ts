@@ -28,7 +28,7 @@ import path from "path";
 import * as project from "./project_utilities/project";
 import { buildHelper, buildMenuConfig, buildRamRomReport, runDtshShell, clean } from "./zephyr_utilities/build";
 import { flashActive } from "./zephyr_utilities/flash";
-import { getVariable, setExternalSetupState, WorkspaceConfig, setSetupState, GlobalConfig, SetupStateType, loadGlobalState, westUpdate, workspaceInit, setWorkspaceState, loadWorkspaceState, clearWorkspaceState, westInit, checkIfToolsAvailable, setupWestEnvironment, loadProjectsFromFile, getToolchainDir, setGlobalState, getToolsDir, saveSetupState } from "./setup_utilities/setup";
+import { getVariable, setExternalSetupState, WorkspaceConfig, setSetupState, GlobalConfig, SetupStateType, loadGlobalState, westUpdate, workspaceInit, setWorkspaceState, loadWorkspaceState, clearWorkspaceState, westInit, checkIfToolsAvailable, setupWestEnvironment, loadProjectsFromFile, getToolchainDir, setGlobalState, getToolsDir, saveSetupState, getActiveRunnerOfBuild, getActiveRunnerConfigOfBuild, getActiveBuildOfProject } from "./setup_utilities/setup";
 import { getPlatformName, installSdk } from "./setup_utilities/setup_toolchain";
 
 let wsConfig: WorkspaceConfig;
@@ -36,6 +36,7 @@ let globalConfig: GlobalConfig;
 
 let activeProjectDisplay: vscode.StatusBarItem;
 let activeBuildDisplay: vscode.StatusBarItem;
+let activeRunnerDisplay: vscode.StatusBarItem;
 
 export async function activate(context: vscode.ExtensionContext) {
   wsConfig = await loadWorkspaceState(context);
@@ -76,7 +77,22 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(vscode.commands.registerCommand("zephyr-ide.update-status", () => {
     if (wsConfig.activeProject) {
       activeProjectDisplay.text = `$(folder) ${wsConfig.activeProject}`;
-      activeBuildDisplay.text = `$(folder) ${project.getBuildName(wsConfig, wsConfig.activeProject)}`;
+      let activeBuild = getActiveBuildOfProject(wsConfig, wsConfig.activeProject);
+      if (activeBuild) {
+        activeBuildDisplay.text = `$(project) ${activeBuild}`;
+        let activeRunner;
+        if (activeBuild) {
+          activeRunner = getActiveRunnerOfBuild(wsConfig, wsConfig.activeProject, activeBuild);
+        }
+        if (activeRunner) {
+          activeRunnerDisplay.text = `$(chip) ${activeRunner}`;
+        } else {
+          activeRunnerDisplay.text = ``;
+        }
+      } else {
+        activeBuildDisplay.text = ``;
+        activeRunnerDisplay.text = ``;
+      }
     }
   }));
 
@@ -123,11 +139,34 @@ export async function activate(context: vscode.ExtensionContext) {
   activeBuildDisplay = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
   activeBuildDisplay.command = "zephyr-ide.set-active-build";
   if (wsConfig.activeProject) {
-    activeBuildDisplay.text = `$(folder) ${wsConfig.projects[wsConfig.activeProject].name}`;
+    let activeBuild = getActiveBuildOfProject(wsConfig, wsConfig.activeProject);
+    if (activeBuild) {
+      activeBuildDisplay.text = `$(project) ${activeBuild}`;
+    }
   }
   activeBuildDisplay.tooltip = "Zephyr IDE Active Build";
   activeBuildDisplay.show();
   context.subscriptions.push(activeBuildDisplay);
+
+
+  activeRunnerDisplay = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+  activeRunnerDisplay.command = "zephyr-ide.set-active-runner";
+
+
+
+  if (wsConfig.activeProject) {
+    let activeBuild = getActiveBuildOfProject(wsConfig, wsConfig.activeProject);
+    if (activeBuild) {
+      let activeRunner = getActiveRunnerOfBuild(wsConfig, wsConfig.activeProject, activeBuild);
+      if (activeRunner) {
+        activeRunnerDisplay.text = `$(chip) ${activeRunner}`;
+      }
+    }
+  }
+  activeRunnerDisplay.tooltip = "Zephyr IDE Active Runner";
+  activeRunnerDisplay.show();
+  context.subscriptions.push(activeRunnerDisplay);
+
 
   let activeBuildPristineButton = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
   activeBuildPristineButton.command = "zephyr-ide.build-pristine";
@@ -165,8 +204,14 @@ export async function activate(context: vscode.ExtensionContext) {
         if (filePath.includes(wsConfig.projects[key].rel_path)) {
           if (wsConfig.activeProject !== key) {
             wsConfig.activeProject = key;
-            activeProjectDisplay.text = `$(megaphone) ${key}`;
-            activeBuildDisplay.text = `$(megaphone) ${wsConfig.projects[wsConfig.activeProject].name}`;
+            activeProjectDisplay.text = `$(folder) ${key}`;
+            let activeBuild = getActiveBuildOfProject(wsConfig, wsConfig.activeProject);
+            activeBuildDisplay.text = `$(project) ${activeBuild}`;
+            let activeRunner;
+            if (activeBuild) {
+              activeRunner = getActiveRunnerOfBuild(wsConfig, wsConfig.activeProject, activeBuild);
+            }
+            activeRunnerDisplay.text = `$(chip) ${activeRunner}`;
           }
           vscode.commands.executeCommand("zephyr-ide.update-web-view");
         }
@@ -827,7 +872,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
 
       const configuration = await vscode.workspace.getConfiguration();
-      const target = vscode.ConfigurationTarget.Workspace;
       let platform_name = "osx";
       let force_bash = true;
       output.appendLine(configuration.get('terminal.integrated.defaultProfile.' + platform_name) ?? "");
@@ -835,7 +879,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
       let default_terminal = (configuration.get('terminal.integrated.defaultProfile.' + platform_name) === "zsh" || force_bash) ? "bash" : "Zephyr IDE Terminal";
       output.appendLine("Setting terminal to: " + default_terminal);
-      configuration.update('terminal.integrated.defaultProfile.' + platform_name, default_terminal, target, false);
+      //configuration.update('terminal.integrated.defaultProfile.' + platform_name, default_terminal, target, false);
       output.appendLine(configuration.get('terminal.integrated.defaultProfile.' + platform_name) ?? "");
       output.appendLine("Finished");
 

@@ -111,8 +111,11 @@ export function getShellEnvironment(setupState: SetupState | undefined, as_termi
   if (setupState.env["VIRTUAL_ENV"]) {
     envPath["VIRTUAL_ENV"] = setupState.env["VIRTUAL_ENV"];
   }
+
   if (setupState.env["PATH"]) {
-    envPath["PATH"] = path.join(setupState.env["PATH"], pathdivider + envPath["PATH"]);
+    if (!envPath["PATH"]?.includes(setupState.env["PATH"])) {
+      envPath["PATH"] = path.join(setupState.env["PATH"], pathdivider + envPath["PATH"]);
+    }
   }
   envPath["ZEPHYR_BASE"] = setupState.zephyrDir;
 

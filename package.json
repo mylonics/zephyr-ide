@@ -37,7 +37,7 @@
     "zephyr-ide.get-active-project-variable",
     "zephyr-ide.get-active-build-variable",
     "zephyr-ide.get-active-board-name",
-    "onDebug"
+    "workspaceContains:.vscode/zephyr-ide.json"
   ],
   "main": "./out/extension.js",
   "contributes": {
