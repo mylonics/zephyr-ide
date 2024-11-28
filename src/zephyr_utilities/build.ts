@@ -121,6 +121,9 @@ export async function build(
   }
 
   let cmd = `west build -b ${build.board} ${path.join(wsConfig.rootPath, project.rel_path)} ${pristine ? "-p" : ""} --build-dir ${path.join(wsConfig.rootPath, project.rel_path, build.name)} ${extraWestBuildArgs} -- -DBOARD_ROOT='${path.dirname(path.join(wsConfig.rootPath, build.relBoardDir))}' ${extraWestBuildCMakeArgs} `;
+  if (!pristine && fs.readdirSync(path.join(wsConfig.rootPath, project.rel_path, build.name)).length !== 0) {
+    cmd = `west build ${path.join(wsConfig.rootPath, project.rel_path)} --build-dir ${path.join(wsConfig.rootPath, project.rel_path, build.name)} ${extraWestBuildArgs} `;
+  }
   if (primaryConfFiles.length) {
     let confFileString = "";
     primaryConfFiles.map(x => (confFileString = confFileString + x + ";"));

@@ -46,12 +46,13 @@ For ubuntu please also install python3-venv by ```sudo apt install python3-venv`
 * macOS compatibility is untested. Please make an issue on our github page with any incompatibilities found.
 
 ## Release Notes
-### 1.4.1
+### 1.5.0
 Added New Activation Event\
 Fixed ENV Path duplication bug\
 Added runner Selector to status bar\
 Default Zephyr IDE Terminal for all OS\
-Renamed application folder to west-manifest
+Renamed application folder to west-manifest\
+Reworked build command to not reconfigure cmake each build
 
 ### 1.4.0
 Added custom variables to zephyr-ide.json \
