@@ -119,31 +119,34 @@ export async function build(
   if (build.westBuildCMakeArgs !== undefined) {
     extraWestBuildCMakeArgs = build.westBuildCMakeArgs;
   }
+  let cmd = `west build ${path.join(wsConfig.rootPath, project.rel_path)} --build-dir ${path.join(wsConfig.rootPath, project.rel_path, build.name)} `;
 
-  let cmd = `west build -b ${build.board} ${path.join(wsConfig.rootPath, project.rel_path)} ${pristine ? "-p" : ""} --build-dir ${path.join(wsConfig.rootPath, project.rel_path, build.name)} ${extraWestBuildArgs} -- -DBOARD_ROOT='${path.dirname(path.join(wsConfig.rootPath, build.relBoardDir))}' ${extraWestBuildCMakeArgs} `;
-  if (!pristine && fs.readdirSync(path.join(wsConfig.rootPath, project.rel_path, build.name)).length !== 0) {
-    cmd = `west build ${path.join(wsConfig.rootPath, project.rel_path)} --build-dir ${path.join(wsConfig.rootPath, project.rel_path, build.name)} `;
+  if (pristine || fs.readdirSync(path.join(wsConfig.rootPath, project.rel_path, build.name)).length == 0) {
+    cmd = `west build -b ${build.board} ${path.join(wsConfig.rootPath, project.rel_path)} ${pristine ? "-p" : ""} --build-dir ${path.join(wsConfig.rootPath, project.rel_path, build.name)} ${extraWestBuildArgs} -- -DBOARD_ROOT='${path.dirname(path.join(wsConfig.rootPath, build.relBoardDir))}' ${extraWestBuildCMakeArgs} `;
+
+    if (primaryConfFiles.length) {
+      let confFileString = "";
+      primaryConfFiles.map(x => (confFileString = confFileString + x + ";"));
+      cmd = cmd + ` -DCONF_FILE='${confFileString}' `;
+    }
+    if (secondaryConfFiles.length) {
+      let confFileString = "";
+      secondaryConfFiles.map(x => (confFileString = confFileString + x + ";"));
+      cmd = cmd + ` -DEXTRA_CONF_FILE='${confFileString}' `;
+    }
+    if (overlayFiles.length) {
+      let overlayFileString = "";
+      overlayFiles.map(x => (overlayFileString = overlayFileString + x + ";"));
+      cmd = cmd + ` -DDTC_OVERLAY_FILE='${overlayFileString}' `;
+    }
+    if (extraOverlayFiles.length) {
+      let overlayFileString = "";
+      extraOverlayFiles.map(x => (overlayFileString = overlayFileString + x + ";"));
+      cmd = cmd + ` -DEXTRA_DTC_OVERLAY_FILE='${overlayFileString}' `;
+    }
+
   }
-  if (primaryConfFiles.length) {
-    let confFileString = "";
-    primaryConfFiles.map(x => (confFileString = confFileString + x + ";"));
-    cmd = cmd + ` -DCONF_FILE='${confFileString}' `;
-  }
-  if (secondaryConfFiles.length) {
-    let confFileString = "";
-    secondaryConfFiles.map(x => (confFileString = confFileString + x + ";"));
-    cmd = cmd + ` -DEXTRA_CONF_FILE='${confFileString}' `;
-  }
-  if (overlayFiles.length) {
-    let overlayFileString = "";
-    overlayFiles.map(x => (overlayFileString = overlayFileString + x + ";"));
-    cmd = cmd + ` -DDTC_OVERLAY_FILE='${overlayFileString}' `;
-  }
-  if (extraOverlayFiles.length) {
-    let overlayFileString = "";
-    extraOverlayFiles.map(x => (overlayFileString = overlayFileString + x + ";"));
-    cmd = cmd + ` -DEXTRA_DTC_OVERLAY_FILE='${overlayFileString}' `;
-  }
+
 
   let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
 
@@ -211,7 +214,7 @@ export async function buildRamRomReport(
     build = project.buildConfigs[buildName];
   }
 
-  let cmd = `west build -t ${isRamReport ? "ram_report" : "rom_report"} -b ${build.board} ${path.join(wsConfig.rootPath, project.rel_path)} --build-dir ${path.join(wsConfig.rootPath, project.rel_path, build.name)} -- -DBOARD_ROOT='${path.dirname(path.join(wsConfig.rootPath, build.relBoardDir))}' `;
+  let cmd = `west build -t ${isRamReport ? "ram_report" : "rom_report"} ${path.join(wsConfig.rootPath, project.rel_path)} --build-dir ${path.join(wsConfig.rootPath, project.rel_path, build.name)} `;
 
   let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
 
