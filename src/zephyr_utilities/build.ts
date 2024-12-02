@@ -99,50 +99,58 @@ export async function build(
   build: BuildConfig,
   pristine: boolean
 ) {
-
-  let primaryConfFiles = project.confFiles.config.concat(build.confFiles.config);
-  primaryConfFiles = primaryConfFiles.map(x => (path.join(wsConfig.rootPath, x)));
-  let secondaryConfFiles = project.confFiles.extraConfig.concat(build.confFiles.extraConfig);
-  secondaryConfFiles = secondaryConfFiles.map(x => (path.join(wsConfig.rootPath, x)));
-
-  let overlayFiles = project.confFiles.overlay.concat(build.confFiles.overlay);
-  overlayFiles = overlayFiles.map(x => (path.join(wsConfig.rootPath, x)));
-  let extraOverlayFiles = project.confFiles.extraOverlay.concat(build.confFiles.extraOverlay);
-  extraOverlayFiles = extraOverlayFiles.map(x => (path.join(wsConfig.rootPath, x)));
-
-  let extraWestBuildArgs = "";
-  if (build.westBuildArgs !== undefined) {
-    extraWestBuildArgs = build.westBuildArgs;
+  if (wsConfig.projectStates[project.name].buildStates[build.name].initWestBuild == undefined) {
+    wsConfig.projectStates[project.name].buildStates[build.name].initWestBuild = false;
   }
+  let state = wsConfig.projectStates[project.name].buildStates[build.name];
 
-  let extraWestBuildCMakeArgs = "";
-  if (build.westBuildCMakeArgs !== undefined) {
-    extraWestBuildCMakeArgs = build.westBuildCMakeArgs;
-  }
-  let cmd = `west build ${path.join(wsConfig.rootPath, project.rel_path)} --build-dir ${path.join(wsConfig.rootPath, project.rel_path, build.name)} `;
+  let cmd = `west build ${path.join(wsConfig.rootPath, project.rel_path)} --build-dir ${path.join(wsConfig.rootPath, project.rel_path, build.name)}`;
 
-  if (pristine || fs.readdirSync(path.join(wsConfig.rootPath, project.rel_path, build.name)).length == 0) {
-    cmd = `west build -b ${build.board} ${path.join(wsConfig.rootPath, project.rel_path)} ${pristine ? "-p" : ""} --build-dir ${path.join(wsConfig.rootPath, project.rel_path, build.name)} ${extraWestBuildArgs} -- -DBOARD_ROOT='${path.dirname(path.join(wsConfig.rootPath, build.relBoardDir))}' ${extraWestBuildCMakeArgs} `;
+  if (pristine || fs.readdirSync(path.join(wsConfig.rootPath, project.rel_path, build.name)).length === 0 || !state.initWestBuild) {
+    state.initWestBuild = true;
 
+    cmd += ` -b ${build.board} -p`;
+
+    if (build.westBuildArgs !== undefined) {
+      cmd += ` ${build.westBuildArgs}`;
+    }
+
+    cmd += ` -- -DBOARD_ROOT='${path.dirname(path.join(wsConfig.rootPath, build.relBoardDir))}'`;
+
+    if (build.westBuildCMakeArgs !== undefined) {
+      cmd += ` ${build.westBuildCMakeArgs}`;
+    }
+
+    let primaryConfFiles = project.confFiles.config.concat(build.confFiles.config);
     if (primaryConfFiles.length) {
+      primaryConfFiles = primaryConfFiles.map(x => (path.join(wsConfig.rootPath, x)));
       let confFileString = "";
       primaryConfFiles.map(x => (confFileString = confFileString + x + ";"));
-      cmd = cmd + ` -DCONF_FILE='${confFileString}' `;
+      cmd += ` -DCONF_FILE='${confFileString}' `;
     }
+
+    let secondaryConfFiles = project.confFiles.extraConfig.concat(build.confFiles.extraConfig);
     if (secondaryConfFiles.length) {
+      secondaryConfFiles = secondaryConfFiles.map(x => (path.join(wsConfig.rootPath, x)));
       let confFileString = "";
       secondaryConfFiles.map(x => (confFileString = confFileString + x + ";"));
-      cmd = cmd + ` -DEXTRA_CONF_FILE='${confFileString}' `;
+      cmd += ` -DEXTRA_CONF_FILE='${confFileString}' `;
     }
+
+    let overlayFiles = project.confFiles.overlay.concat(build.confFiles.overlay);
     if (overlayFiles.length) {
+      overlayFiles = overlayFiles.map(x => (path.join(wsConfig.rootPath, x)));
       let overlayFileString = "";
       overlayFiles.map(x => (overlayFileString = overlayFileString + x + ";"));
-      cmd = cmd + ` -DDTC_OVERLAY_FILE='${overlayFileString}' `;
+      cmd += ` -DDTC_OVERLAY_FILE='${overlayFileString}' `;
     }
+
+    let extraOverlayFiles = project.confFiles.extraOverlay.concat(build.confFiles.extraOverlay);
     if (extraOverlayFiles.length) {
+      extraOverlayFiles = extraOverlayFiles.map(x => (path.join(wsConfig.rootPath, x)));
       let overlayFileString = "";
       extraOverlayFiles.map(x => (overlayFileString = overlayFileString + x + ";"));
-      cmd = cmd + ` -DEXTRA_DTC_OVERLAY_FILE='${overlayFileString}' `;
+      cmd += ` -DEXTRA_DTC_OVERLAY_FILE='${overlayFileString}' `;
     }
 
   }
