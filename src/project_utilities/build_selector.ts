@@ -46,6 +46,7 @@ export interface BuildState {
   activeRunner?: string;
   viewOpen?: boolean;
   runnerStates: RunnerStateDictionary;
+  initWestBuild?: boolean;
 }
 
 export type BuildConfigDictionary = { [name: string]: BuildConfig };
