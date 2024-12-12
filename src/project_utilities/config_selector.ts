@@ -45,7 +45,7 @@ export async function configSelector(wsConfig: WorkspaceConfig, isKConfigSelecto
   if (isKConfigSelector) {
     fileType = "KConfig";
     fileExt = {
-      'KConfig': ['conf']
+      'KConfig': ['conf', '*']
     };
     link = "https://docs.zephyrproject.org/latest/build/kconfig/setting.html#initial-conf";
   }
