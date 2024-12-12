@@ -29,6 +29,9 @@ For this application to work correctly the Zephyr required build tools must be i
 See the [Install Dependencies Section of the Zephyr Getting Started Guide](https://docs.zephyrproject.org/latest/develop/getting_started/index.html#install-dependencies)
 
 For ubuntu please also install python3-venv by ```sudo apt install python3-venv```
+
+For macos there have been some reports of the python virtual environment not being enabled with zsh. It may be necessary to install the "Python Environment Manager" extension. That extension automatically automatically enables the python venv if the ".venv folder exist.
+
 ### Setup West Environment
 This creates the python environment and installs west.
 ### Install SDK
