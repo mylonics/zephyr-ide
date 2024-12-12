@@ -119,10 +119,19 @@ export async function build(
   if (build.westBuildCMakeArgs !== undefined) {
     extraWestBuildCMakeArgs = build.westBuildCMakeArgs;
   }
-  let cmd = `west build ${path.join(wsConfig.rootPath, project.rel_path)} --build-dir ${path.join(wsConfig.rootPath, project.rel_path, build.name)} `;
 
-  if (pristine || fs.readdirSync(path.join(wsConfig.rootPath, project.rel_path, build.name)).length == 0) {
-    cmd = `west build -b ${build.board} ${path.join(wsConfig.rootPath, project.rel_path)} ${pristine ? "-p" : ""} --build-dir ${path.join(wsConfig.rootPath, project.rel_path, build.name)} ${extraWestBuildArgs} -- -DBOARD_ROOT='${path.dirname(path.join(wsConfig.rootPath, build.relBoardDir))}' ${extraWestBuildCMakeArgs} `;
+  let projectFolder = path.join(wsConfig.rootPath, project.rel_path);
+  let buildFolder = path.join(wsConfig.rootPath, project.rel_path, build.name);
+
+  let cmd = `west build ${projectFolder} --build-dir ${buildFolder} `;
+
+  let buildFsDir;
+  if (fs.existsSync(buildFolder)) {
+    buildFsDir = fs.readdirSync(buildFolder);
+  }
+
+  if (pristine || buildFsDir == undefined || buildFsDir.length == 0) {
+    cmd = `west build -b ${build.board} ${projectFolder} -p --build-dir ${buildFolder} ${extraWestBuildArgs} -- -DBOARD_ROOT='${path.dirname(path.join(wsConfig.rootPath, build.relBoardDir))}' ${extraWestBuildCMakeArgs} `;
 
     if (primaryConfFiles.length) {
       let confFileString = "";
@@ -181,8 +190,19 @@ export async function buildMenuConfig(
     build = project.buildConfigs[buildName];
   }
 
-  let cmd = `west build -t ${isMenuConfig ? "menuconfig" : "guiconfig"} -b ${build.board} ${path.join(wsConfig.rootPath, project.rel_path)} --build-dir ${path.join(wsConfig.rootPath, project.rel_path, build.name)} -- -DBOARD_ROOT='${path.dirname(path.join(wsConfig.rootPath, build.relBoardDir))}' `;
 
+  let projectFolder = path.join(wsConfig.rootPath, project.rel_path);
+  let buildFolder = path.join(wsConfig.rootPath, project.rel_path, build.name);
+  let buildFsDir;
+  if (fs.existsSync(buildFolder)) {
+    buildFsDir = fs.readdirSync(buildFolder);
+  }
+  if (buildFsDir == undefined || buildFsDir.length == 0) {
+    await vscode.window.showErrorMessage(`Run a Build or Build Pristine before running Menu/GUI Config.`);
+    return;
+  }
+
+  let cmd = `west build -t ${isMenuConfig ? "menuconfig" : "guiconfig"} ${projectFolder} --build-dir ${buildFolder} `;
   let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
 
   vscode.window.showInformationMessage(`Running MenuConfig ${build.name} from project: ${project.name}`);
@@ -214,7 +234,18 @@ export async function buildRamRomReport(
     build = project.buildConfigs[buildName];
   }
 
-  let cmd = `west build -t ${isRamReport ? "ram_report" : "rom_report"} ${path.join(wsConfig.rootPath, project.rel_path)} --build-dir ${path.join(wsConfig.rootPath, project.rel_path, build.name)} `;
+  let projectFolder = path.join(wsConfig.rootPath, project.rel_path);
+  let buildFolder = path.join(wsConfig.rootPath, project.rel_path, build.name);
+  let buildFsDir;
+  if (fs.existsSync(buildFolder)) {
+    buildFsDir = fs.readdirSync(buildFolder);
+  }
+  if (buildFsDir == undefined || buildFsDir.length == 0) {
+    await vscode.window.showErrorMessage(`Run a Build or Build Pristine before running Menu/GUI Config.`);
+    return;
+  }
+
+  let cmd = `west build -t ${isRamReport ? "ram_report" : "rom_report"} ${projectFolder} --build-dir ${buildFolder} `;
 
   let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
 

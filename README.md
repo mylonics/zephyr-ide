@@ -46,6 +46,10 @@ For ubuntu please also install python3-venv by ```sudo apt install python3-venv`
 * macOS compatibility is untested. Please make an issue on our github page with any incompatibilities found.
 
 ## Release Notes
+### 1.5.3
+Fixing board selection command - Removed use of custom python scripts for board list\
+Additional fixes to build command
+
 ### 1.5.2
 Fixing build command
 

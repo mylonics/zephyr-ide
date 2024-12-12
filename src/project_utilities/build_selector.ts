@@ -152,24 +152,16 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
 
   async function getBoardlistWest(useCustomFolder: boolean, folder: vscode.Uri): Promise<{ name: string, subdir: string }[] | undefined> {
     const extensionPath = context.extensionPath;
-    let srcPathNew = path.join(extensionPath, "scripts", "get_board_list.py");
-    let srcPathOld = path.join(extensionPath, "scripts", "get_board_list_pre_v3_6_0.py");
 
-    let res: any;
     let prevError: any;
 
     if (useCustomFolder) {
-      res = await executeShellCommand("python " + srcPathNew + " --board-root " + path.dirname(folder.fsPath) + " -f '{name}:{qualifiers}:{dir}'", setupState.setupPath, getShellEnvironment(setupState), false);
-      if (!res.stdout) {
-        prevError = res.stderr;
-        res = await executeShellCommand("python " + srcPathOld + " --board-root " + path.dirname(folder.fsPath) + " -f '{name}:{name}:{dir}'", setupState.setupPath, getShellEnvironment(setupState), false);
-      }
-    } else {
-      res = await executeShellCommand("west boards -f '{name}:{qualifiers}:{dir}'", setupState.setupPath, getShellEnvironment(setupState), false);
-      if (!res.stdout) {
-        prevError = res.stderr;
-        res = await executeShellCommand("west boards -f '{name}:{name}:{dir}'", setupState.setupPath, getShellEnvironment(setupState), false);
-      }
+    }
+
+    let res = await executeShellCommand("west boards -f '{name}:{qualifiers}:{dir}'" + " --board-root " + path.dirname(folder.fsPath), setupState.setupPath, getShellEnvironment(setupState), false);
+    if (!res.stdout) {
+      prevError = res.stderr;
+      res = await executeShellCommand("west boards -f '{name}:{name}:{dir}'" + " --board-root " + path.dirname(folder.fsPath), setupState.setupPath, getShellEnvironment(setupState), false);
     }
 
     if (!res.stdout) {
@@ -199,39 +191,6 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
 
     }
     return outputData;
-  }
-
-  async function getBoardlist(folder: vscode.Uri): Promise<{ name: string, subdir: string }[]> {
-    let files = await vscode.workspace.fs.readDirectory(folder);
-    let boards: { name: string, subdir: string }[] = [];
-
-    while (true) {
-      let file = files.pop();
-
-      // Stop looping once done.
-      if (file === undefined) {
-        break;
-      }
-
-      if (file[0].includes(".yaml")) {
-        let parsed = path.parse(file[0]);
-        boards.unshift({ name: parsed.name, subdir: parsed.dir });
-      } else if (file[0].includes("build") || file[0].includes(".git")) {
-        // Don't do anything
-      } else if (file[1] === vscode.FileType.Directory) {
-        let filePath = vscode.Uri.joinPath(folder, file[0]);
-        let subfolders = await vscode.workspace.fs.readDirectory(filePath);
-
-        for (let { index, value } of subfolders.map((value, index) => ({
-          index,
-          value,
-        }))) {
-          subfolders[index][0] = path.join(file[0], subfolders[index][0]);
-        }
-        files = files.concat(subfolders);
-      }
-    }
-    return boards;
   }
 
   async function inputBuildName(input: MultiStepInput, state: Partial<BuildConfig>) {
