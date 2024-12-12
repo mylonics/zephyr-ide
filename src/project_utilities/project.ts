@@ -406,7 +406,7 @@ export async function addBuildToProject(wsConfig: WorkspaceConfig, context: vsco
 
   if (wsConfig.activeSetupState) {
 
-    let result = await buildSelector(context, wsConfig.activeSetupState);
+    let result = await buildSelector(context, wsConfig.activeSetupState, wsConfig.rootPath);
     if (result && result.name !== undefined) {
       result.runnerConfigs = {};
       if (wsConfig.projects[projectName].buildConfigs[result.name]) {
@@ -574,8 +574,15 @@ export async function addRunnerToBuild(wsConfig: WorkspaceConfig, context: vscod
   if (path.isAbsolute(build.relBoardSubDir)) {
     result = await runnerSelector(build.relBoardSubDir); // Will remove eventually
   } else {
-    result = await runnerSelector(path.join(wsConfig.rootPath, build.relBoardSubDir));
+    if (build.relBoardDir) {
+      //Custom Folder
+      result = await runnerSelector(path.join(wsConfig.rootPath, build.relBoardDir, build.relBoardSubDir));
+    } else if (wsConfig.activeSetupState) {
+      //Default zephyr folder
+      result = await runnerSelector(path.join(wsConfig.activeSetupState?.zephyrDir, 'boards', build.relBoardSubDir));
+    }
   }
+
   if (result && result.name !== undefined) {
     if (build.runnerConfigs[result.name]) {
       const selection = await vscode.window.showWarningMessage('Runner Configuration with name: ' + result.name + ' already exists!', 'Overwrite', 'Cancel');

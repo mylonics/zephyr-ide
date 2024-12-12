@@ -2,17 +2,12 @@
 
 All notable changes to the "zephyr-ide" extension will be documented in this file.
 
-## 1.5.5
-Moved Release Notes to CHANGELOG
-
-## 1.5.4
-Removed filter on .KConfig files
-
-## 1.5.3
+## 1.6.0
+Improved support for global workspaces\
+Moved Release Notes to CHANGELOG\
+Removed filter on .KConfig files\
 Fixing board selection command - Removed use of custom python scripts for board list\
-Additional fixes to build command
-
-## 1.5.2
+Additional fixes to build command\
 Fixing build command
 
 ## 1.5.0

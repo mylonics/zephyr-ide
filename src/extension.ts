@@ -540,7 +540,19 @@ export async function activate(context: vscode.ExtensionContext) {
         let activeBuildConfig = wsConfig.projectStates[wsConfig.activeProject].activeBuildConfig;
 
         if (activeBuildConfig && wsConfig.activeSetupState) {
-          return path.join(wsConfig.activeSetupState.setupPath, project.buildConfigs[activeBuildConfig].relBoardSubDir);
+          let build = project.buildConfigs[activeBuildConfig];
+
+          if (path.isAbsolute(build.relBoardSubDir)) {
+            return build.relBoardSubDir;
+          } else {
+            if (build.relBoardDir) {
+              //Custom Folder
+              return path.join(wsConfig.rootPath, build.relBoardDir, build.relBoardSubDir);
+            } else if (wsConfig.activeSetupState) {
+              //Default zephyr folder
+              return path.join(wsConfig.activeSetupState?.zephyrDir, 'boards', build.relBoardSubDir);
+            }
+          }
         }
       }
       return;

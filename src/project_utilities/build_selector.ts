@@ -51,7 +51,7 @@ export interface BuildState {
 export type BuildConfigDictionary = { [name: string]: BuildConfig };
 export type BuildStateDictionary = { [name: string]: BuildState };
 
-export async function buildSelector(context: ExtensionContext, setupState: SetupState) {
+export async function buildSelector(context: ExtensionContext, setupState: SetupState, rootPath: string) {
   const title = 'Add Build Configuration';
 
   async function pickBoardDir(input: MultiStepInput, state: Partial<BuildConfig>) {
@@ -59,7 +59,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
     let boardDirectories: string[] = [];
 
     // Look in root
-    let boardDir = path.join(setupState.setupPath, `boards`);
+    let boardDir = path.join(rootPath, `boards`);
     if (fs.pathExistsSync(boardDir)) {
       boardDirectories = boardDirectories.concat(boardDir);
     }
@@ -67,9 +67,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
     let zephyrBoardDir: string;
     if (setupState.zephyrDir) {
       zephyrBoardDir = path.join(setupState.zephyrDir, `boards`);
-      if (fs.pathExistsSync(zephyrBoardDir)) {
-        boardDirectories = boardDirectories.concat(zephyrBoardDir);
-      }
+      boardDirectories.push('Zephyr Directory Only')
     }
     console.log("Boards dir: " + boardDirectories);
 
@@ -80,7 +78,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       title,
       step: 1,
       totalSteps: 4,
-      placeholder: 'Pick Board Directory',
+      placeholder: 'Pick Additional Board Directory',
       ignoreFocusOut: true,
       items: boardDirectoriesQpItems,
       activeItem: typeof state.relBoardDir !== 'string' ? state.relBoardDir : undefined,
@@ -94,7 +92,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       return;
     };
 
-    state.relBoardDir = path.relative(setupState.setupPath, pick.label);
+    state.relBoardDir = path.relative(rootPath, pick.label);
     if (pick.label === "Select Other Folder") {
       const boarddir = await vscode.window.showOpenDialog({
         canSelectFiles: false,
@@ -102,66 +100,76 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
         canSelectMany: false,
       });
       if (boarddir) {
-        state.relBoardDir = path.relative(setupState.setupPath, boarddir[0].fsPath);
+        state.relBoardDir = path.relative(rootPath, boarddir[0].fsPath);
       } else {
         vscode.window.showInformationMessage(`Failed to select board directory`);
         return;
       }
+    } else if (pick.label === 'Zephyr Directory Only') {
+      state.relBoardDir = undefined;
     }
 
-    return (input: MultiStepInput) => inputBoardName(input, state, zephyrBoardDir !== pick.label);
+    return (input: MultiStepInput) => inputBoardName(input, state);
   }
 
-  async function inputBoardName(input: MultiStepInput, state: Partial<BuildConfig>, useCustomFolder: boolean) {
+  async function inputBoardName(input: MultiStepInput, state: Partial<BuildConfig>) {
     let boards: { name: string, subdir: string }[] = [];
 
+    //console.log("Changing board dir to " + state.relBoardDir);
+    let boardList;
     if (state.relBoardDir) {
-      console.log("Changing board dir to " + state.relBoardDir);
-      let boardList = await getBoardlistWest(useCustomFolder, vscode.Uri.file(path.join(setupState.setupPath, state.relBoardDir)));
-      if (!boardList) {
-        return;
-      }
-      boards = boards.concat(boardList);
-      const boardQpItems: QuickPickItem[] = boards.map(x => ({ label: x.name, description: x.subdir }));
-      const pickPromise = input.showQuickPick({
-        title,
-        step: 2,
-        totalSteps: 4,
-        placeholder: 'Pick Board',
-        ignoreFocusOut: true,
-        items: boardQpItems,
-        activeItem: typeof state.relBoardDir !== 'string' ? state.relBoardDir : undefined,
-        shouldResume: shouldResume
-      }).catch((error) => {
-        console.error(error);
-        return undefined;
-      });
-      let pick = await pickPromise;
-      if (!pick) {
-        return;
-      };
-      state.board = pick.label;
-
-      if (pick.description) {
-        state.relBoardSubDir = path.relative(setupState.setupPath, pick.description);
-      }
-
-      return (input: MultiStepInput) => inputBuildName(input, state);
+      boardList = await getBoardlistWest(vscode.Uri.file(path.join(rootPath, state.relBoardDir)));
+    } else {
+      boardList = await getBoardlistWest(undefined);
     }
+
+    if (!boardList) {
+      return;
+    }
+    boards = boards.concat(boardList);
+    const boardQpItems: QuickPickItem[] = boards.map(x => ({ label: x.name, description: x.subdir }));
+    const pickPromise = input.showQuickPick({
+      title,
+      step: 2,
+      totalSteps: 4,
+      placeholder: 'Pick Board',
+      ignoreFocusOut: true,
+      items: boardQpItems,
+      activeItem: typeof state.relBoardDir !== 'string' ? state.relBoardDir : undefined,
+      shouldResume: shouldResume
+    }).catch((error) => {
+      console.error(error);
+      return undefined;
+    });
+    let pick = await pickPromise;
+    if (!pick) {
+      return;
+    };
+    state.board = pick.label;
+
+    if (pick.description) {
+      if (state.relBoardDir) {
+        state.relBoardSubDir = path.relative(path.join(rootPath, state.relBoardDir), pick.description)
+      } else {
+        state.relBoardSubDir = path.relative(path.join(setupState.zephyrDir, "boards"), pick.description);
+      }
+    }
+
+    return (input: MultiStepInput) => inputBuildName(input, state);
   }
 
-  async function getBoardlistWest(useCustomFolder: boolean, folder: vscode.Uri): Promise<{ name: string, subdir: string }[] | undefined> {
-    const extensionPath = context.extensionPath;
+  async function getBoardlistWest(folder: vscode.Uri | undefined): Promise<{ name: string, subdir: string }[] | undefined> {
+    let boardRootString = "";
+    if (folder) {
+      boardRootString = " --board-root " + path.dirname(folder.fsPath);
+    }
 
     let prevError: any;
 
-    if (useCustomFolder) {
-    }
-
-    let res = await executeShellCommand("west boards -f '{name}:{qualifiers}:{dir}'" + " --board-root " + path.dirname(folder.fsPath), setupState.setupPath, getShellEnvironment(setupState), false);
+    let res = await executeShellCommand("west boards -f '{name}:{qualifiers}:{dir}'" + boardRootString, setupState.setupPath, getShellEnvironment(setupState), false);
     if (!res.stdout) {
       prevError = res.stderr;
-      res = await executeShellCommand("west boards -f '{name}:{name}:{dir}'" + " --board-root " + path.dirname(folder.fsPath), setupState.setupPath, getShellEnvironment(setupState), false);
+      res = await executeShellCommand("west boards -f '{name}:{name}:{dir}'" + boardRootString, setupState.setupPath, getShellEnvironment(setupState), false);
     }
 
     if (!res.stdout) {

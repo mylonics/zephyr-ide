@@ -130,7 +130,7 @@ launch.json
 ```
 
 ## Sharing your Code
-Sharing you code to other users is best done when the workspace is set up as local. The reason for this is that the settings.json file may be committed. In general you should commit everything in your workspace folder, except for build directories, .venv, and external.
+In general you should commit everything in your workspace folder, except for build directories, .venv, .vscode/compile_commands.json and external. A .gitignore is automatically generated that should exclude the relevant files. Settings.json and launch.json may be committed on a case by case basis depending on user descretion.
 If you are trying to share a non-local workspace then committing settings.json, is not advisable as some variables may change. Unfortunately, VSCode does not provide a way for having user specific settings/configurations per workspace. See this [issue](https://github.com/Microsoft/vscode/issues/15909) on the VSCode repo.
 You can also try to use a code-workspace.json file to help manage projects across different machines.
 

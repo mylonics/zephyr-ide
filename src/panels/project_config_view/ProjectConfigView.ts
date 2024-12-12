@@ -316,7 +316,7 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
     }
 
     if (wsConfig.activeProject === undefined) {
-      wsConfig.activeProject = wsConfig.projects[0].name;
+      wsConfig.activeProject = Object.keys(wsConfig.projects)[0];
     }
     let activeProject = wsConfig.projects[wsConfig.activeProject];
 
@@ -474,15 +474,22 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
         }
         case "openBoardDtc": {
           let build = this.wsConfig.projects[message.value.project].buildConfigs[message.value.build];
-          let filePath;
-          if (path.isAbsolute(build.relBoardSubDir)) { //kept for backwards compatibility
+          let filePath = vscode.Uri.file(path.join(build.relBoardSubDir, "board.cmake"));
+
+          if (path.isAbsolute(build.relBoardSubDir)) {
             if (build.board.includes("/")) {
               filePath = vscode.Uri.file(path.join(build.relBoardSubDir, "board.cmake"));
             } else {
               filePath = vscode.Uri.file(path.join(build.relBoardSubDir, build.board + ".dts"));
             }
           } else {
-            filePath = vscode.Uri.file(path.join(this.wsConfig.rootPath, build.relBoardDir, build.board, build.board + ".dts"));
+            if (build.relBoardDir) {
+              //Custom Folder
+              filePath = vscode.Uri.file(path.join(this.wsConfig.rootPath, build.relBoardDir, build.relBoardSubDir, build.board + ".dts"));
+            } else if (this.wsConfig.activeSetupState) {
+              //Default zephyr folder
+              filePath = vscode.Uri.file(path.join(this.wsConfig.activeSetupState?.zephyrDir, 'boards', build.relBoardSubDir, build.board + ".dts"));
+            }
           }
 
           vscode.workspace.openTextDocument(filePath).then(document => vscode.window.showTextDocument(document));

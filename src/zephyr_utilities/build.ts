@@ -131,7 +131,14 @@ export async function build(
   }
 
   if (pristine || buildFsDir == undefined || buildFsDir.length == 0) {
-    cmd = `west build -b ${build.board} ${projectFolder} -p --build-dir ${buildFolder} ${extraWestBuildArgs} -- -DBOARD_ROOT='${path.dirname(path.join(wsConfig.rootPath, build.relBoardDir))}' ${extraWestBuildCMakeArgs} `;
+
+    let boardRoot;
+    if (build.relBoardDir) {
+      boardRoot = path.dirname(path.join(wsConfig.rootPath, build.relBoardDir));
+    } else if (wsConfig.activeSetupState) {
+      boardRoot = wsConfig.activeSetupState?.zephyrDir;
+    }
+    cmd = `west build -b ${build.board} ${projectFolder} -p --build-dir ${buildFolder} ${extraWestBuildArgs} -- -DBOARD_ROOT='${boardRoot}' ${extraWestBuildCMakeArgs} `;
 
     if (primaryConfFiles.length) {
       let confFileString = "";
