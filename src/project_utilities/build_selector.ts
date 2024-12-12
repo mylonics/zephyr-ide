@@ -22,8 +22,8 @@ import * as fs from "fs-extra";
 import { MultiStepInput } from "../utilities/multistepQuickPick";
 import { RunnerConfigDictionary, RunnerStateDictionary } from './runner_selector';
 import { ConfigFiles } from './config_selector';
-import { SetupState, WorkspaceConfig } from '../setup_utilities/setup';
-import { executeShellCommand, getShellEnvironment, output } from "../utilities/utils";
+import { SetupState } from '../setup_utilities/setup';
+import { executeShellCommand, output } from "../utilities/utils";
 
 // Config for the extension
 export interface BuildConfig {
@@ -158,10 +158,10 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
     if (useCustomFolder) {
     }
 
-    let res = await executeShellCommand("west boards -f '{name}:{qualifiers}:{dir}'" + " --board-root " + path.dirname(folder.fsPath), setupState.setupPath, getShellEnvironment(setupState), false);
+    let res = await executeShellCommand("west boards -f '{name}:{qualifiers}:{dir}'" + " --board-root " + path.dirname(folder.fsPath), setupState.setupPath, false);
     if (!res.stdout) {
       prevError = res.stderr;
-      res = await executeShellCommand("west boards -f '{name}:{name}:{dir}'" + " --board-root " + path.dirname(folder.fsPath), setupState.setupPath, getShellEnvironment(setupState), false);
+      res = await executeShellCommand("west boards -f '{name}:{name}:{dir}'" + " --board-root " + path.dirname(folder.fsPath), setupState.setupPath, false);
     }
 
     if (!res.stdout) {

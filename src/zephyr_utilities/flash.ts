@@ -18,7 +18,7 @@ limitations under the License.
 import * as vscode from "vscode";
 import path from "path";
 
-import { getShellEnvironment, executeTaskHelper } from "../utilities/utils";
+import { executeTaskHelper } from "../utilities/utils";
 
 import { ProjectConfig } from "../project_utilities/project";
 
@@ -77,5 +77,5 @@ export async function flash(wsConfig: WorkspaceConfig, project: ProjectConfig, b
   let taskName = "Zephyr IDE Flash: " + project.name + " " + build.name;
 
   vscode.window.showInformationMessage(`Flashing for ${build.name}`);
-  await executeTaskHelper(taskName, cmd, getShellEnvironment(wsConfig.activeSetupState), wsConfig.activeSetupState?.setupPath);
+  await executeTaskHelper(taskName, cmd, wsConfig.activeSetupState?.setupPath);
 }
