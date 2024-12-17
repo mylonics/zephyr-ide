@@ -65,6 +65,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
 
     westOptions["Full Zephyr"] = "default_west.yml";
     westOptions["Minimal Zephyr (Select Desired HALs)"] = "minimal_west.yml";
+    westOptions["Minimal BLE Zephyr (Select Desired HALs)"] = "minimal_ble_west.yml";
     westOptions["NRF Connect Config"] = "ncs_west.yml";
     westOptions["From Git Repo"] = "";
     westOptions["Select west.yml in Workspace"] = "";
@@ -150,7 +151,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
 
     if (copyTemplate) {
       let desiredHals;
-      if (westFile === "minimal_west.yml") {
+      if (westFile === "minimal_west.yml" || westFile === "minimal_ble_west.yml") {
         const pickPromise = await showQuickPick({
           title,
           step: 2,

@@ -2,6 +2,11 @@
 
 All notable changes to the "zephyr-ide" extension will be documented in this file.
 
+## 1.6.1
+Added SDK 0.17.0\
+Added minimal ble template\
+Modified default .gitignore to no longer ignore .west folder
+
 ## 1.6.0
 Improved support for global workspaces\
 Moved Release Notes to CHANGELOG\

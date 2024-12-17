@@ -15,3 +15,12 @@ manifest:
           - cmsis-dsp
           - picolibc
           - segger
+          - mcuboot
+          - mbedtls
+          - crypto
+          - libmetal
+          - littlefs
+          - net-tools
+          - tinycrypt
+          - zcbor
+          - zscilib
