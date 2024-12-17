@@ -180,6 +180,7 @@ export class MultiStepInput {
   }
 }
 
+
 export async function showQuickPick<T extends QuickPickItem, P extends QuickPickParameters<T>>({ title, step, totalSteps, items, activeItem, ignoreFocusOut, placeholder, canSelectMany = false }: P) {
 
   const disposables: Disposable[] = [];
@@ -211,3 +212,33 @@ export async function showQuickPick<T extends QuickPickItem, P extends QuickPick
   }
 
 }
+
+
+export async function showInputBox<P extends InputBoxParameters>({ title, step, totalSteps, ignoreFocusOut, placeholder, prompt }: P) {
+
+  const disposables: Disposable[] = [];
+  try {
+    return await new Promise<string>((resolve, reject) => {
+      const input = window.createInputBox();
+      input.title = title;
+      input.step = step;
+      input.totalSteps = totalSteps;
+      input.ignoreFocusOut = ignoreFocusOut ?? false;
+      input.placeholder = placeholder;
+      input.prompt = prompt;
+      disposables.push(
+        input.onDidAccept(async () => {
+          input.enabled = false;
+          input.busy = true;
+          resolve(input.value);
+          disposables.forEach(d => d.dispose());
+        }));
+      input.show();
+    });
+  } finally {
+    disposables.forEach(d => d.dispose());
+  }
+
+}
+
+

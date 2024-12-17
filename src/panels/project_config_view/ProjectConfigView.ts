@@ -162,6 +162,39 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
     return entry;
   }
 
+
+  generateTwisterString(projectName: string, open: boolean | undefined): any {
+    let entry = {
+      icons: {
+        branch: 'chip',
+        leaf: 'chip',
+        open: 'chip',
+      },
+      label: "Twister",
+      value: { project: projectName },
+      open: open === undefined ? true : open,
+      subItems: [
+        {
+          icons: {
+            branch: 'tools',
+            leaf: 'tools',
+            open: 'tools',
+          }, label: 'Platform', description: "PLATTY"
+        },
+        {
+          icons: {
+            branch: 'file-code',
+            leaf: 'file-code',
+            open: 'file-code',
+          }, label: 'Args', description: "ARGS"
+        }
+      ]
+    };
+
+    return entry;
+  }
+
+
   generateBuildString(buildData: any | undefined, projectName: string, build: BuildConfig, open: boolean | undefined, kConfigOpen: boolean | undefined, overlayOpen: boolean | undefined): any {
     if (buildData === undefined) {
       buildData = {};
@@ -365,6 +398,9 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
       } else {
         this.treeData[1] = {};
         this.treeData[2] = {};
+      }
+      if (wsConfig.projects[wsConfig.activeProject].name) {
+        this.treeData[3] = this.generateTwisterString(activeProject.name, undefined);
       }
     } else {
       this.treeData = [];

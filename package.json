@@ -277,6 +277,10 @@
         "title": "Zephyr IDE: Remove Build Overlay Files"
       },
       {
+        "command": "zephyr-ide.add-twister-config",
+        "title": "Zephyr IDE: Add Twister Configuration"
+      },
+      {
         "command": "zephyr-ide.set-active-build",
         "title": "Zephyr IDE: Set Active Build"
       },

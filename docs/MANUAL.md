@@ -139,6 +139,10 @@ You can also try to use a code-workspace.json file to help manage projects acros
 
 You can have a look at this [sample directory](https://github.com/mylonics/zephyr-ide-sample-project) to also help with getting started with sharing projects.
 
+## Running Tests With Twister
+
+
+
 ## Other Features
 The Zephyr Menu Config may be run from the active project panel. Each debug target may be bound to a custom launch configuration (by default they use "Zephyr IDE: Debug" and "Zephyr IDE: Attach")
 
@@ -151,7 +155,6 @@ The IDE allows modifying the west and cmake arguments per build. It allows the u
 Custom west commands may be run using the inbuilt Zephyr IDE Terminal.  
 
 ![West Terminal](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/west_terminal.gif)
-
 
 You can also run the following commands:
  - ROM Report - Zephyr IDE: Run ROM Report

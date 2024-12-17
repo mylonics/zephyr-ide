@@ -51,6 +51,50 @@ export interface BuildState {
 export type BuildConfigDictionary = { [name: string]: BuildConfig };
 export type BuildStateDictionary = { [name: string]: BuildState };
 
+export async function getBoardlistWest(setupState: SetupState, folder: vscode.Uri | undefined): Promise<{ name: string, subdir: string }[] | undefined> {
+  let boardRootString = "";
+  if (folder) {
+    boardRootString = " --board-root " + path.dirname(folder.fsPath);
+  }
+
+  let prevError: any;
+
+  let res = await executeShellCommand("west boards -f '{name}:{qualifiers}:{dir}'" + boardRootString, setupState.setupPath, getShellEnvironment(setupState), false);
+  if (!res.stdout) {
+    prevError = res.stderr;
+    res = await executeShellCommand("west boards -f '{name}:{name}:{dir}'" + boardRootString, setupState.setupPath, getShellEnvironment(setupState), false);
+  }
+
+  if (!res.stdout) {
+    output.append(prevError);
+    output.append(res.stderr);
+    vscode.window.showErrorMessage("Failed to run west boards command. See Zephyr IDE Output for error message");
+    return;
+  }
+
+  let allBoardData = res.stdout.split(/\r?\n/);
+  let outputData: { name: string, subdir: string }[] = [];
+  for (let i = 0; i < allBoardData.length; i++) {
+    let arr = allBoardData[i].replaceAll("'", "").split(":");
+    let boardData = arr.splice(0, 2);
+    boardData.push(arr.join(':'));
+
+    let qualifiers = boardData[1].split(",");
+    if (qualifiers.length > 1) {
+      for (let j = 0; j < qualifiers.length; j++) {
+        outputData.push({ name: boardData[0] + "/" + qualifiers[j], subdir: boardData[2] });
+      }
+    } else {
+      if (boardData.length > 2) {
+        outputData.push({ name: boardData[0], subdir: boardData[2] });
+      }
+    }
+
+  }
+  return outputData;
+}
+
+
 export async function buildSelector(context: ExtensionContext, setupState: SetupState, rootPath: string) {
   const title = 'Add Build Configuration';
 
@@ -118,9 +162,9 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
     //console.log("Changing board dir to " + state.relBoardDir);
     let boardList;
     if (state.relBoardDir) {
-      boardList = await getBoardlistWest(vscode.Uri.file(path.join(rootPath, state.relBoardDir)));
+      boardList = await getBoardlistWest(setupState, vscode.Uri.file(path.join(rootPath, state.relBoardDir)));
     } else {
-      boardList = await getBoardlistWest(undefined);
+      boardList = await getBoardlistWest(setupState, undefined);
     }
 
     if (!boardList) {
@@ -158,48 +202,6 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
     return (input: MultiStepInput) => inputBuildName(input, state);
   }
 
-  async function getBoardlistWest(folder: vscode.Uri | undefined): Promise<{ name: string, subdir: string }[] | undefined> {
-    let boardRootString = "";
-    if (folder) {
-      boardRootString = " --board-root " + path.dirname(folder.fsPath);
-    }
-
-    let prevError: any;
-
-    let res = await executeShellCommand("west boards -f '{name}:{qualifiers}:{dir}'" + boardRootString, setupState.setupPath, getShellEnvironment(setupState), false);
-    if (!res.stdout) {
-      prevError = res.stderr;
-      res = await executeShellCommand("west boards -f '{name}:{name}:{dir}'" + boardRootString, setupState.setupPath, getShellEnvironment(setupState), false);
-    }
-
-    if (!res.stdout) {
-      output.append(prevError);
-      output.append(res.stderr);
-      vscode.window.showErrorMessage("Failed to run west boards command. See Zephyr IDE Output for error message");
-      return;
-    }
-
-    let allBoardData = res.stdout.split(/\r?\n/);
-    let outputData: { name: string, subdir: string }[] = [];
-    for (let i = 0; i < allBoardData.length; i++) {
-      let arr = allBoardData[i].replaceAll("'", "").split(":");
-      let boardData = arr.splice(0, 2);
-      boardData.push(arr.join(':'));
-
-      let qualifiers = boardData[1].split(",");
-      if (qualifiers.length > 1) {
-        for (let j = 0; j < qualifiers.length; j++) {
-          outputData.push({ name: boardData[0] + "/" + qualifiers[j], subdir: boardData[2] });
-        }
-      } else {
-        if (boardData.length > 2) {
-          outputData.push({ name: boardData[0], subdir: boardData[2] });
-        }
-      }
-
-    }
-    return outputData;
-  }
 
   async function inputBuildName(input: MultiStepInput, state: Partial<BuildConfig>) {
     if (state.board === undefined) {

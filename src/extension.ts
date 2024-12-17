@@ -30,6 +30,7 @@ import { buildHelper, buildMenuConfig, buildRamRomReport, runDtshShell, clean } 
 import { flashActive } from "./zephyr_utilities/flash";
 import { getVariable, setExternalSetupState, WorkspaceConfig, setSetupState, GlobalConfig, SetupStateType, loadGlobalState, westUpdate, workspaceInit, setWorkspaceState, loadWorkspaceState, clearWorkspaceState, westInit, checkIfToolsAvailable, setupWestEnvironment, loadProjectsFromFile, getToolchainDir, setGlobalState, getToolsDir, saveSetupState, getActiveRunnerOfBuild, getActiveRunnerConfigOfBuild, getActiveBuildOfProject } from "./setup_utilities/setup";
 import { getPlatformName, installSdk } from "./setup_utilities/setup_toolchain";
+import { twisterSelector } from "./project_utilities/twister_selector";
 
 let wsConfig: WorkspaceConfig;
 let globalConfig: GlobalConfig;
@@ -423,6 +424,15 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(vscode.commands.registerCommand("zephyr-ide.add-build-config-files", async () => {
     await project.addConfigFiles(context, wsConfig, true, false);
+    vscode.commands.executeCommand("zephyr-ide.update-web-view");
+  })
+  );
+
+
+  context.subscriptions.push(vscode.commands.registerCommand("zephyr-ide.add-twister-config", async () => {
+    if (wsConfig.activeSetupState) {
+      await twisterSelector(wsConfig.rootPath, context, wsConfig.activeSetupState, wsConfig.rootPath);
+    }
     vscode.commands.executeCommand("zephyr-ide.update-web-view");
   })
   );
