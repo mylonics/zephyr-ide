@@ -179,7 +179,7 @@ export async function loadProjectsFromFile(config: WorkspaceConfig) {
     const zephyrIdeSettingFilePath = path.join(config.rootPath, ".vscode/zephyr-ide.json");
     try {
       if (!fs.pathExistsSync(zephyrIdeSettingFilePath)) {
-        await fs.writeFile(zephyrIdeSettingFilePath, JSON.stringify({}, null, 2), { flag: 'w+' }, function (err: any) {
+        await fs.outputFile(zephyrIdeSettingFilePath, JSON.stringify({}, null, 2), { flag: 'w+' }, function (err: any) {
           if (err) { throw err; }
           console.log('Created zephyr-ide file');
         }
@@ -356,7 +356,7 @@ export function saveSetupState(context: vscode.ExtensionContext, wsConfig: Works
 }
 
 export async function setWorkspaceState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
-  fs.writeFile(path.join(wsConfig.rootPath, ".vscode/zephyr-ide.json"), JSON.stringify({ projects: wsConfig.projects }, null, 2), { flag: 'w+' }, function (err: any) {
+  fs.outputFile(path.join(wsConfig.rootPath, ".vscode/zephyr-ide.json"), JSON.stringify({ projects: wsConfig.projects }, null, 2), { flag: 'w+' }, function (err: any) {
     if (err) { throw err; }
   });
 
