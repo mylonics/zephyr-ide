@@ -11,7 +11,7 @@ Under the extension setup panel you will be presented with a few options on whic
 
 - **Workspace** - Use this option to setup west and install Zephyr into the current workspace directory.\
 - **Global** - Use this option if you want to use a global Zephyr setup located in the Zephyr IDE folder \
-- **External** - Use this option if you have Zephyr setup in another directory and what to use that  
+- **External** - Use this option if you have Zephyr setup in another directory and want to use that  
 
 The folder selected will house the west.yml, .west folder, zephyr folder and python environment.
 
