@@ -45,7 +45,7 @@ export async function regenerateCompileCommands(wsConfig: WorkspaceConfig) {
     }
   }
   let data = JSON.stringify(compileCommandData);
-  fs.writeFile(path.join(wsConfig.rootPath, '.vscode', 'compile_commands.json'), data);
+  fs.outputFile(path.join(wsConfig.rootPath, '.vscode', 'compile_commands.json'), data);
 }
 
 export async function buildHelper(
