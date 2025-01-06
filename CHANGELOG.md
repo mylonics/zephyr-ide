@@ -2,6 +2,10 @@
 
 All notable changes to the "zephyr-ide" extension will be documented in this file.
 
+## 1.6.2
+Minor typo fix\
+Make .vscode directory if it doesn't exist - @rpiper
+
 ## 1.6.1
 Added SDK 0.17.0\
 Added minimal ble template\
