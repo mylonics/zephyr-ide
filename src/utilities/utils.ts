@@ -19,9 +19,49 @@ import { workspace } from "vscode";
 import * as path from "path";
 import * as util from "util";
 import * as cp from "child_process";
+import * as os from "os";
 
 import { pathdivider, SetupState, getToolchainDir } from "../setup_utilities/setup";
-import { getPlatformName } from "../setup_utilities/setup_toolchain"
+
+// Platform
+let platform: NodeJS.Platform = os.platform();
+
+// Arch
+let arch: string = os.arch();
+
+export function getPlatformName() {
+  switch (platform) {
+    case "darwin":
+      return "macos";
+    case "linux":
+      return "linux";
+    case "win32":
+      return "windows";
+  }
+  return;
+}
+
+export function getPlatformArch() {
+  switch (arch) {
+    case "x64":
+      return "x86_64";
+    case "arm64":
+      return "aarch64";
+  }
+  return;
+}
+
+export function getPythonVenvBinaryFolder(setupState: SetupState) {
+  if (setupState.env["VIRTUAL_ENV"])
+    switch (platform) {
+      case "win32":
+        return path.join(setupState.env["VIRTUAL_ENV"], `Scripts`);
+      default:
+        return path.join(setupState.env["VIRTUAL_ENV"], `bin`);
+    }
+  return '';
+}
+
 
 export function getRootPath() {
   let rootPaths = workspace.workspaceFolders;
@@ -80,7 +120,7 @@ export function getLaunchConfigurations() {
   }
 }
 
-export function getShellEnvironment(setupState: SetupState | undefined, as_terminal_profile = false) {
+export function getShellEnvironment(setupState: SetupState | undefined) {
 
   if (setupState === undefined) {
     return process.env;
@@ -120,8 +160,9 @@ async function executeTask(task: vscode.Task) {
   });
 }
 
-export async function executeTaskHelper(taskName: string, cmd: string, envPath: NodeJS.ProcessEnv, cwd: string | undefined) {
+export async function executeTaskHelper(taskName: string, cmd: string, cwd: string | undefined) {
   output.appendLine(`Running cmd: ${cmd}`);
+  console.log("hello im here6")
   let options: vscode.ShellExecutionOptions = {
     cwd: cwd,
   };
@@ -141,9 +182,31 @@ export async function executeTaskHelper(taskName: string, cmd: string, envPath: 
   return (res !== undefined && res === 0);
 }
 
+//Need to somehow source Zephyr Base for west list
+export async function executeShellCommandInPythonEnv(cmd: string, cwd: string, setupState: SetupState, display_error = true) {
+  let exec = util.promisify(cp.exec);
+  let newCmd = path.join(getPythonVenvBinaryFolder(setupState), cmd);
+  console.log(newCmd);
+  console.log("hello im here")
+  let res = await exec(newCmd, { cwd: cwd }).then(
+
+    value => {
+      return { stdout: value.stdout, stderr: value.stderr };
+    },
+    reason => {
+      if (display_error) {
+        output.append(reason);
+      }
+      return { stdout: undefined, stderr: reason.stderr };
+    }
+  );
+  return res;
+};
+
 
 export async function executeShellCommand(cmd: string, cwd: string, envPath: NodeJS.ProcessEnv, display_error = true) {
   let exec = util.promisify(cp.exec);
+  console.log("hello im here3")
   let res = await exec(cmd, { env: envPath, cwd: cwd }).then(
 
     value => {

@@ -29,7 +29,7 @@ import * as project from "./project_utilities/project";
 import { buildHelper, buildMenuConfig, buildRamRomReport, runDtshShell, clean } from "./zephyr_utilities/build";
 import { flashActive } from "./zephyr_utilities/flash";
 import { getVariable, setExternalSetupState, WorkspaceConfig, setSetupState, GlobalConfig, SetupStateType, loadGlobalState, westUpdate, workspaceInit, setWorkspaceState, loadWorkspaceState, clearWorkspaceState, westInit, checkIfToolsAvailable, setupWestEnvironment, loadProjectsFromFile, getToolchainDir, setGlobalState, getToolsDir, saveSetupState, getActiveRunnerOfBuild, getActiveRunnerConfigOfBuild, getActiveBuildOfProject } from "./setup_utilities/setup";
-import { getPlatformName, installSdk } from "./setup_utilities/setup_toolchain";
+import { installSdk } from "./setup_utilities/setup_toolchain";
 
 let wsConfig: WorkspaceConfig;
 let globalConfig: GlobalConfig;
@@ -733,7 +733,7 @@ export async function activate(context: vscode.ExtensionContext) {
     provideTerminalProfile(token: vscode.CancellationToken): vscode.ProviderResult<vscode.TerminalProfile> {
       let opts: vscode.TerminalOptions = {
         name: "Zephyr IDE Terminal",
-        env: getShellEnvironment(wsConfig.activeSetupState, true),
+        env: getShellEnvironment(wsConfig.activeSetupState),
       };
       return new vscode.TerminalProfile(opts);
     }
@@ -885,9 +885,6 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.shell_test", async () => {
       output.show();
-      output.appendLine(getPlatformName() ?? "");
-      output.appendLine(((getPlatformName() ?? "") === "macos") ? "detected macos" : "not macos");
-
 
       const configuration = await vscode.workspace.getConfiguration();
       let platform_name = "osx";

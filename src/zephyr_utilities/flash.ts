@@ -77,5 +77,5 @@ export async function flash(wsConfig: WorkspaceConfig, project: ProjectConfig, b
   let taskName = "Zephyr IDE Flash: " + project.name + " " + build.name;
 
   vscode.window.showInformationMessage(`Flashing for ${build.name}`);
-  await executeTaskHelper(taskName, cmd, getShellEnvironment(wsConfig.activeSetupState), wsConfig.activeSetupState?.setupPath);
+  await executeTaskHelper(taskName, cmd, wsConfig.activeSetupState?.setupPath);
 }

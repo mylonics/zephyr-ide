@@ -167,7 +167,7 @@ export async function build(
   let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
 
   vscode.window.showInformationMessage(`Building ${build.name} from project: ${project.name}`);
-  let ret = await executeTaskHelper(taskName, cmd, getShellEnvironment(wsConfig.activeSetupState), wsConfig.activeSetupState?.setupPath);
+  let ret = await executeTaskHelper(taskName, cmd, wsConfig.activeSetupState?.setupPath);
   regenerateCompileCommands(wsConfig);
   return ret;
 }
@@ -213,7 +213,7 @@ export async function buildMenuConfig(
   let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
 
   vscode.window.showInformationMessage(`Running MenuConfig ${build.name} from project: ${project.name}`);
-  await executeTaskHelper(taskName, cmd, getShellEnvironment(wsConfig.activeSetupState), wsConfig.activeSetupState?.setupPath);
+  await executeTaskHelper(taskName, cmd, wsConfig.activeSetupState?.setupPath);
   regenerateCompileCommands(wsConfig);
 }
 
@@ -257,7 +257,7 @@ export async function buildRamRomReport(
   let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
 
   vscode.window.showInformationMessage(`Running ${isRamReport ? "RAM" : "ROM"} Report ${build.name} from project: ${project.name}`);
-  await executeTaskHelper(taskName, cmd, getShellEnvironment(wsConfig.activeSetupState), wsConfig.activeSetupState?.setupPath);
+  await executeTaskHelper(taskName, cmd, wsConfig.activeSetupState?.setupPath);
   regenerateCompileCommands(wsConfig);
 }
 
@@ -289,7 +289,7 @@ export async function runDtshShell(
   let taskName = "Zephyr IDE DTSH Sehll: " + project.name + " " + build.name;
 
   vscode.window.showInformationMessage(`Running DTSH Shell ${build.name} from project: ${project.name}`);
-  await executeTaskHelper(taskName, cmd, getShellEnvironment(wsConfig.activeSetupState), wsConfig.activeSetupState?.setupPath);
+  await executeTaskHelper(taskName, cmd, wsConfig.activeSetupState?.setupPath);
 }
 
 export async function clean(wsConfig: WorkspaceConfig, projectName: string | undefined) {

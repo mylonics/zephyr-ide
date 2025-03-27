@@ -19,42 +19,14 @@ limitations under the License.
 import * as vscode from "vscode";
 import * as path from 'path';
 import * as fs from 'fs-extra';
-import * as os from "os";
 
 import { compareVersions } from 'compare-versions';
 
 import { getToolsDir, GlobalConfig, setGlobalState } from "./setup";
 import { toolchainTargets } from "../defines";
 import { FileDownload, DownloadEntry, processDownload } from "./download";
+import { getPlatformArch, getPlatformName } from "../utilities/utils";
 
-// Platform
-let platform: NodeJS.Platform = os.platform();
-
-// Arch
-let arch: string = os.arch();
-
-export function getPlatformName() {
-    // Determine what sdk/toolchain to download
-    switch (platform) {
-        case "darwin":
-            return "macos";
-        case "linux":
-            return "linux";
-        case "win32":
-            return "windows";
-    }
-    return;
-}
-
-export function getPlatformArch() {
-    switch (arch) {
-        case "x64":
-            return "x86_64";
-        case "arm64":
-            return "aarch64";
-    }
-    return;
-}
 
 export interface ToolChainEntry {
     version: string,

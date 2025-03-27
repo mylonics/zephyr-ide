@@ -22,8 +22,8 @@ import * as fs from "fs-extra";
 import { MultiStepInput } from "../utilities/multistepQuickPick";
 import { RunnerConfigDictionary, RunnerStateDictionary } from './runner_selector';
 import { ConfigFiles } from './config_selector';
-import { SetupState, WorkspaceConfig } from '../setup_utilities/setup';
-import { executeShellCommand, getShellEnvironment, output } from "../utilities/utils";
+import { SetupState } from '../setup_utilities/setup';
+import { executeShellCommandInPythonEnv, getShellEnvironment, output } from "../utilities/utils";
 
 // Config for the extension
 export interface BuildConfig {
@@ -166,10 +166,10 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
 
     let prevError: any;
 
-    let res = await executeShellCommand("west boards -f '{name}:{qualifiers}:{dir}'" + boardRootString, setupState.setupPath, getShellEnvironment(setupState), false);
+    let res = await executeShellCommandInPythonEnv("west boards -f '{name}:{qualifiers}:{dir}'" + boardRootString, setupState.setupPath, setupState, false);
     if (!res.stdout) {
       prevError = res.stderr;
-      res = await executeShellCommand("west boards -f '{name}:{name}:{dir}'" + boardRootString, setupState.setupPath, getShellEnvironment(setupState), false);
+      res = await executeShellCommandInPythonEnv("west boards -f '{name}:{name}:{dir}'" + boardRootString, setupState.setupPath, setupState, false);
     }
 
     if (!res.stdout) {
