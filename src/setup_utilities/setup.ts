@@ -22,7 +22,7 @@ import * as fs from "fs-extra";
 import * as path from "path";
 
 import { getPlatformName, installSdk, pickToolchainTarget, ToolChainDictionary } from "../setup_utilities/setup_toolchain";
-import { getRootPath, getShellEnvironment, output, executeShellCommand, executeTaskHelper } from "../utilities/utils";
+import { getRootPath, getShellEnvironment, output, executeShellCommand, executeTaskHelper, reloadEnvironmentVariables } from "../utilities/utils";
 import { ProjectConfig, ProjectState } from "../project_utilities/project";
 
 import { westSelector, WestLocation } from "./west_selector";
@@ -346,6 +346,7 @@ export async function setSetupState(context: vscode.ExtensionContext, wsConfig: 
       configuration.update("kconfig.zephyr.base", wsConfig.activeSetupState.zephyrDir, target);
     }
   }
+  reloadEnvironmentVariables(context, wsConfig.activeSetupState);
 }
 
 export function saveSetupState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {

@@ -17,7 +17,7 @@ limitations under the License.
 
 import * as vscode from "vscode";
 
-import { getShellEnvironment, getLaunchConfigurationByName, output, executeShellCommand, getRootPath } from "./utilities/utils";
+import { getShellEnvironment, getLaunchConfigurationByName, output, executeShellCommand, getRootPath, reloadEnvironmentVariables } from "./utilities/utils";
 
 import { ActiveProjectView } from "./panels/active_project_view/ActiveProjectView";
 import { ProjectTreeView } from "./panels/project_tree_view/ProjectTreeView";
@@ -39,6 +39,10 @@ let activeBuildDisplay: vscode.StatusBarItem;
 let activeRunnerDisplay: vscode.StatusBarItem;
 
 export async function activate(context: vscode.ExtensionContext) {
+  context.environmentVariableCollection.persistent = false;
+  context.environmentVariableCollection.description = "Zephyr IDE adds python path"
+  context.environmentVariableCollection.replace("ZFUN", "REALLY FUN1");
+
   wsConfig = await loadWorkspaceState(context);
   globalConfig = await loadGlobalState(context);
 
@@ -68,6 +72,8 @@ export async function activate(context: vscode.ExtensionContext) {
   if (wsConfig.selectSetupType !== SetupStateType.NONE && wsConfig.activeSetupState) {
     await setSetupState(context, wsConfig, globalConfig, SetupStateType.SELECTED, wsConfig.activeSetupState.setupPath);
   }
+
+  reloadEnvironmentVariables(context, wsConfig.activeSetupState);
 
   let activeProjectView = new ActiveProjectView(context.extensionPath, context, wsConfig);
   let projectTreeView = new ProjectTreeView(context.extensionPath, context, wsConfig);

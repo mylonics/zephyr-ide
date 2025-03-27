@@ -80,32 +80,11 @@ export function getLaunchConfigurations() {
   }
 }
 
-//export function setZshArg(platform_name: string, zsh_argument: string[]) {
-//  const configuration = vscode.workspace.getConfiguration();
-//  let terminal_profile_name = "terminal.integrated.profiles." + platform_name;
-//  let terminal_profile: any = configuration.get(terminal_profile_name);
-//  if (Object.keys(terminal_profile)[0] === "zsh" || configuration.get('terminal.integrated.defaultProfile.' + platform_name) == "zsh") {
-//    terminal_profile.zsh.args = zsh_argument;
-//    configuration.update(terminal_profile_name, terminal_profile);
-//  }
-//}
-
 export function getShellEnvironment(setupState: SetupState | undefined, as_terminal_profile = false) {
 
   if (setupState === undefined) {
     return process.env;
   }
-  //let zsh_argument = []
-  //if (setupState.env["VIRTUAL_ENV"]) {
-  //  let python_venv_location = setupState.env["VIRTUAL_ENV"];
-  //  zsh_argument = ["-c", "source " + path.join(python_venv_location, "bin", "activate") + (as_terminal_profile ? "; zsh -i" : "")]
-  //
-  //  if (getPlatformName() == "macos") {
-  //    setZshArg("osx", zsh_argument);
-  //  } else if (getPlatformName() == "linux") {
-  //    setZshArg("linux", zsh_argument);
-  //  }
-  //}
 
   let envPath = process.env;
   if (setupState.env["VIRTUAL_ENV"]) {
@@ -144,7 +123,6 @@ async function executeTask(task: vscode.Task) {
 export async function executeTaskHelper(taskName: string, cmd: string, envPath: NodeJS.ProcessEnv, cwd: string | undefined) {
   output.appendLine(`Running cmd: ${cmd}`);
   let options: vscode.ShellExecutionOptions = {
-    env: <{ [key: string]: string }>envPath,
     cwd: cwd,
   };
 
@@ -180,3 +158,26 @@ export async function executeShellCommand(cmd: string, cwd: string, envPath: Nod
   );
   return res;
 };
+
+export function reloadEnvironmentVariables(context: vscode.ExtensionContext, setupState: SetupState | undefined) {
+  context.environmentVariableCollection.persistent = false;
+  context.environmentVariableCollection.description = "";
+  context.environmentVariableCollection.clear();
+
+  context.environmentVariableCollection.description += "Zephyr IDE adds '''ZEPHYR_SDK_INSTALL_DIR'''";
+  context.environmentVariableCollection.replace("ZEPHYR_SDK_INSTALL_DIR", getToolchainDir(), { applyAtProcessCreation: true, applyAtShellIntegration: true });
+
+  if (setupState) {
+    if (setupState.env["VIRTUAL_ENV"]) {
+      context.environmentVariableCollection.description += ", '''VIRTUAL_ENV'''";
+      context.environmentVariableCollection.replace("VIRTUAL_ENV", setupState.env["VIRTUAL_ENV"], { applyAtProcessCreation: true, applyAtShellIntegration: true });
+    }
+
+    if (setupState.env["PATH"]) {
+      context.environmentVariableCollection.description += ", '''PATH Variables'''";
+      context.environmentVariableCollection.prepend("PATH", setupState.env["PATH"], { applyAtProcessCreation: true, applyAtShellIntegration: true });
+      context.environmentVariableCollection.description += ", '''ZEPHYR_BASE'''";
+      context.environmentVariableCollection.replace("ZEPHYR_BASE", setupState.zephyrDir, { applyAtProcessCreation: true, applyAtShellIntegration: true });
+    }
+  }
+}
