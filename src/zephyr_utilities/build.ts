@@ -19,9 +19,9 @@ import * as vscode from "vscode";
 import * as path from 'path';
 import * as fs from 'fs-extra';
 
-import { getShellEnvironment, executeTaskHelper } from "../utilities/utils";
+import { executeTaskHelper } from "../utilities/utils";
 
-import { WorkspaceConfig, getActiveBuildOfProject, getActiveRunnerOfBuild } from '../setup_utilities/setup';
+import { WorkspaceConfig, getActiveBuildOfProject } from '../setup_utilities/setup';
 import { addBuild, ProjectConfig } from "../project_utilities/project";
 import { BuildConfig } from "../project_utilities/build_selector";
 

@@ -23,7 +23,7 @@ import { MultiStepInput } from "../utilities/multistepQuickPick";
 import { RunnerConfigDictionary, RunnerStateDictionary } from './runner_selector';
 import { ConfigFiles } from './config_selector';
 import { SetupState } from '../setup_utilities/setup';
-import { executeShellCommandInPythonEnv, getShellEnvironment, output } from "../utilities/utils";
+import { executeShellCommandInPythonEnv, output } from "../utilities/utils";
 
 // Config for the extension
 export interface BuildConfig {

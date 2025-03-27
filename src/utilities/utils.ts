@@ -120,28 +120,6 @@ export function getLaunchConfigurations() {
   }
 }
 
-export function getShellEnvironment(setupState: SetupState | undefined) {
-
-  if (setupState === undefined) {
-    return process.env;
-  }
-
-  let envPath = process.env;
-  if (setupState.env["VIRTUAL_ENV"]) {
-    envPath["VIRTUAL_ENV"] = setupState.env["VIRTUAL_ENV"];
-  }
-
-  if (setupState.env["PATH"]) {
-    if (!envPath["PATH"]?.includes(setupState.env["PATH"])) {
-      envPath["PATH"] = path.join(setupState.env["PATH"], pathdivider + envPath["PATH"]);
-    }
-  }
-  envPath["ZEPHYR_BASE"] = setupState.zephyrDir;
-
-  envPath["ZEPHYR_SDK_INSTALL_DIR"] = getToolchainDir();
-  return envPath;
-}
-
 import * as vscode from "vscode";
 
 export let output = vscode.window.createOutputChannel("Zephyr IDE");
@@ -162,7 +140,6 @@ async function executeTask(task: vscode.Task) {
 
 export async function executeTaskHelper(taskName: string, cmd: string, cwd: string | undefined) {
   output.appendLine(`Running cmd: ${cmd}`);
-  console.log("hello im here6")
   let options: vscode.ShellExecutionOptions = {
     cwd: cwd,
   };
@@ -182,32 +159,14 @@ export async function executeTaskHelper(taskName: string, cmd: string, cwd: stri
   return (res !== undefined && res === 0);
 }
 
-//Need to somehow source Zephyr Base for west list
 export async function executeShellCommandInPythonEnv(cmd: string, cwd: string, setupState: SetupState, display_error = true) {
-  let exec = util.promisify(cp.exec);
   let newCmd = path.join(getPythonVenvBinaryFolder(setupState), cmd);
-  console.log(newCmd);
-  console.log("hello im here")
-  let res = await exec(newCmd, { cwd: cwd }).then(
-
-    value => {
-      return { stdout: value.stdout, stderr: value.stderr };
-    },
-    reason => {
-      if (display_error) {
-        output.append(reason);
-      }
-      return { stdout: undefined, stderr: reason.stderr };
-    }
-  );
-  return res;
+  return executeShellCommand(newCmd, cwd, display_error);
 };
 
-
-export async function executeShellCommand(cmd: string, cwd: string, envPath: NodeJS.ProcessEnv, display_error = true) {
+export async function executeShellCommand(cmd: string, cwd: string, display_error = true) {
   let exec = util.promisify(cp.exec);
-  console.log("hello im here3")
-  let res = await exec(cmd, { env: envPath, cwd: cwd }).then(
+  let res = await exec(cmd, { cwd: cwd }).then(
 
     value => {
       return { stdout: value.stdout, stderr: value.stderr };
@@ -224,22 +183,21 @@ export async function executeShellCommand(cmd: string, cwd: string, envPath: Nod
 
 export function reloadEnvironmentVariables(context: vscode.ExtensionContext, setupState: SetupState | undefined) {
   context.environmentVariableCollection.persistent = false;
-  context.environmentVariableCollection.description = "";
   context.environmentVariableCollection.clear();
 
-  context.environmentVariableCollection.description += "Zephyr IDE adds '''ZEPHYR_SDK_INSTALL_DIR'''";
+  context.environmentVariableCollection.description = "Zephyr IDE adds `ZEPHYR_SDK_INSTALL_DIR`";
   context.environmentVariableCollection.replace("ZEPHYR_SDK_INSTALL_DIR", getToolchainDir(), { applyAtProcessCreation: true, applyAtShellIntegration: true });
 
   if (setupState) {
     if (setupState.env["VIRTUAL_ENV"]) {
-      context.environmentVariableCollection.description += ", '''VIRTUAL_ENV'''";
+      context.environmentVariableCollection.description += ", `VIRTUAL_ENV`";
       context.environmentVariableCollection.replace("VIRTUAL_ENV", setupState.env["VIRTUAL_ENV"], { applyAtProcessCreation: true, applyAtShellIntegration: true });
     }
 
     if (setupState.env["PATH"]) {
-      context.environmentVariableCollection.description += ", '''PATH Variables'''";
+      context.environmentVariableCollection.description += ", `Python .venv PATH`";
       context.environmentVariableCollection.prepend("PATH", setupState.env["PATH"], { applyAtProcessCreation: true, applyAtShellIntegration: true });
-      context.environmentVariableCollection.description += ", '''ZEPHYR_BASE'''";
+      context.environmentVariableCollection.description += ", `ZEPHYR_BASE`";
       context.environmentVariableCollection.replace("ZEPHYR_BASE", setupState.zephyrDir, { applyAtProcessCreation: true, applyAtShellIntegration: true });
     }
   }

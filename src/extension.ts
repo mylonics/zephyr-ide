@@ -17,7 +17,7 @@ limitations under the License.
 
 import * as vscode from "vscode";
 
-import { getShellEnvironment, getLaunchConfigurationByName, output, executeShellCommand, getRootPath, reloadEnvironmentVariables } from "./utilities/utils";
+import { getLaunchConfigurationByName, output, executeShellCommand, getRootPath, reloadEnvironmentVariables } from "./utilities/utils";
 
 import { ActiveProjectView } from "./panels/active_project_view/ActiveProjectView";
 import { ProjectTreeView } from "./panels/project_tree_view/ProjectTreeView";
@@ -733,7 +733,6 @@ export async function activate(context: vscode.ExtensionContext) {
     provideTerminalProfile(token: vscode.CancellationToken): vscode.ProviderResult<vscode.TerminalProfile> {
       let opts: vscode.TerminalOptions = {
         name: "Zephyr IDE Terminal",
-        env: getShellEnvironment(wsConfig.activeSetupState),
       };
       return new vscode.TerminalProfile(opts);
     }
@@ -787,7 +786,7 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.debug-internal-shell", async () => {
       output.clear();
-      let temp = await executeShellCommand("SET", wsConfig.rootPath, getShellEnvironment(wsConfig.activeSetupState), false);
+      let temp = await executeShellCommand("SET", wsConfig.rootPath, false);
       if (temp.stdout) {
         output.append(temp.stdout);
       }

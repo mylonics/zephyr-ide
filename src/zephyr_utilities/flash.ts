@@ -18,7 +18,7 @@ limitations under the License.
 import * as vscode from "vscode";
 import path from "path";
 
-import { getShellEnvironment, executeTaskHelper } from "../utilities/utils";
+import { executeTaskHelper } from "../utilities/utils";
 
 import { ProjectConfig } from "../project_utilities/project";
 
