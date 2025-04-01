@@ -136,7 +136,7 @@ export async function createNewProjectFromSample(context: vscode.ExtensionContex
       const selectedProject = path.join(samplesDir, selectedRelativePath.description);
 
       fs.cpSync(selectedProject, destinationPath, { recursive: true });
-      let newProjectName = path.parse(projectDest).name;
+      let newProjectName = path.basename(projectDest);
       if (selectedRelativePath.label !== newProjectName) {
         changeProjectNameInCMakeFile(destinationPath, newProjectName);
       }
@@ -383,7 +383,7 @@ export async function addProject(wsConfig: WorkspaceConfig, context: vscode.Exte
   if (projectPath === undefined) {
     return;
   }
-  let projectName = path.parse(projectPath).name;
+  let projectName = path.basename(projectPath);
   wsConfig.projects[projectName] = {
     rel_path: path.relative(wsConfig.rootPath, projectPath),
     name: projectName,
