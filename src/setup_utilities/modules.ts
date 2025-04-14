@@ -46,7 +46,10 @@ export async function getModuleList(setupState: SetupState) {
 }
 
 export async function getModuleYamlFile(setupState: SetupState, moduleRelPath: string): Promise<any> {
-  return yaml.load(fs.readFileSync(path.join(setupState.setupPath, moduleRelPath, "zephyr/module.yml"), 'utf-8'));
+  let filePath = path.join(setupState.setupPath, moduleRelPath, "zephyr/module.yml")
+  if (fs.existsSync(filePath)) {
+    return yaml.load(fs.readFileSync(filePath, 'utf-8'));
+  }
 }
 
 export async function getDtsIncludes(setupState: SetupState) {
