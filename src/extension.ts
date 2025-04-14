@@ -27,9 +27,10 @@ import { getLaunchConfigurationByName, output, executeShellCommand, getRootPath,
 import * as project from "./project_utilities/project";
 import { buildHelper, buildMenuConfig, buildRamRomReport, runDtshShell, clean } from "./zephyr_utilities/build";
 import { flashActive } from "./zephyr_utilities/flash";
-import { getVariable, setExternalSetupState, WorkspaceConfig, setSetupState, GlobalConfig, SetupStateType, loadGlobalState, westUpdate, workspaceInit, setWorkspaceState, loadWorkspaceState, clearWorkspaceState, westInit, checkIfToolsAvailable, setupWestEnvironment, loadProjectsFromFile, getToolchainDir, setGlobalState, getToolsDir, saveSetupState, getActiveRunnerOfBuild, getActiveRunnerConfigOfBuild, getActiveBuildOfProject } from "./setup_utilities/setup";
+import { getVariable, setExternalSetupState, WorkspaceConfig, setSetupState, GlobalConfig, SetupStateType, loadGlobalState, westUpdate, workspaceInit, setWorkspaceState, loadWorkspaceState, clearWorkspaceState, westInit, checkIfToolsAvailable, setupWestEnvironment, loadProjectsFromFile, getToolchainDir, setGlobalState, getToolsDir, saveSetupState } from "./setup_utilities/setup";
 import { installSdk } from "./setup_utilities/setup_toolchain";
-import { initializeDtsExt } from "./setup_utilities/dts_interface";
+import { initializeDtsExt, updateDtsContexts } from "./setup_utilities/dts_interface";
+import { setActiveProject, getActiveRunnerNameOfBuild, getActiveRunnerConfigOfBuild, getActiveBuildNameOfProject } from "./project_utilities/project";
 
 let wsConfig: WorkspaceConfig;
 let globalConfig: GlobalConfig;
@@ -83,12 +84,12 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(vscode.commands.registerCommand("zephyr-ide.update-status", () => {
     if (wsConfig.activeProject) {
       activeProjectDisplay.text = `$(folder) ${wsConfig.activeProject}`;
-      let activeBuild = getActiveBuildOfProject(wsConfig, wsConfig.activeProject);
+      let activeBuild = getActiveBuildNameOfProject(wsConfig, wsConfig.activeProject);
       if (activeBuild) {
         activeBuildDisplay.text = `$(project) ${activeBuild}`;
         let activeRunner;
         if (activeBuild) {
-          activeRunner = getActiveRunnerOfBuild(wsConfig, wsConfig.activeProject, activeBuild);
+          activeRunner = getActiveRunnerNameOfBuild(wsConfig, wsConfig.activeProject, activeBuild);
         }
         if (activeRunner) {
           activeRunnerDisplay.text = `$(chip) ${activeRunner}`;
@@ -145,7 +146,7 @@ export async function activate(context: vscode.ExtensionContext) {
   activeBuildDisplay = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
   activeBuildDisplay.command = "zephyr-ide.set-active-build";
   if (wsConfig.activeProject) {
-    let activeBuild = getActiveBuildOfProject(wsConfig, wsConfig.activeProject);
+    let activeBuild = getActiveBuildNameOfProject(wsConfig, wsConfig.activeProject);
     if (activeBuild) {
       activeBuildDisplay.text = `$(project) ${activeBuild}`;
     }
@@ -161,9 +162,9 @@ export async function activate(context: vscode.ExtensionContext) {
 
 
   if (wsConfig.activeProject) {
-    let activeBuild = getActiveBuildOfProject(wsConfig, wsConfig.activeProject);
+    let activeBuild = getActiveBuildNameOfProject(wsConfig, wsConfig.activeProject);
     if (activeBuild) {
-      let activeRunner = getActiveRunnerOfBuild(wsConfig, wsConfig.activeProject, activeBuild);
+      let activeRunner = getActiveRunnerNameOfBuild(wsConfig, wsConfig.activeProject, activeBuild);
       if (activeRunner) {
         activeRunnerDisplay.text = `$(chip) ${activeRunner}`;
       }
@@ -209,13 +210,13 @@ export async function activate(context: vscode.ExtensionContext) {
       for (let key in wsConfig.projects) {
         if (filePath.includes(wsConfig.projects[key].rel_path)) {
           if (wsConfig.activeProject !== key) {
-            wsConfig.activeProject = key;
+            setActiveProject(context, wsConfig, key);
             activeProjectDisplay.text = `$(folder) ${key}`;
-            let activeBuild = getActiveBuildOfProject(wsConfig, wsConfig.activeProject);
+            let activeBuild = getActiveBuildNameOfProject(wsConfig, wsConfig.activeProject);
             activeBuildDisplay.text = `$(project) ${activeBuild}`;
             let activeRunner;
             if (activeBuild) {
-              activeRunner = getActiveRunnerOfBuild(wsConfig, wsConfig.activeProject, activeBuild);
+              activeRunner = getActiveRunnerNameOfBuild(wsConfig, wsConfig.activeProject, activeBuild);
             }
             activeRunnerDisplay.text = `$(chip) ${activeRunner}`;
           }
@@ -308,7 +309,6 @@ export async function activate(context: vscode.ExtensionContext) {
       setWorkspaceState(context, wsConfig);
       vscode.commands.executeCommand("zephyr-ide.update-web-view");
       extensionSetupView.updateWebView(wsConfig, globalConfig);
-
     })
   );
 
@@ -885,6 +885,7 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.reint-dts", async () => {
       if (wsConfig.activeSetupState) {
         await initializeDtsExt(wsConfig.activeSetupState);
+        updateDtsContexts(wsConfig);
       } else {
         vscode.window.showErrorMessage("First Initialize Zephyr IDE Workspace Folder");
       }

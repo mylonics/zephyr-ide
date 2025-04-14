@@ -17,13 +17,16 @@ limitations under the License.
 
 
 import * as vscode from "vscode";
-import { IntegrationSettings } from "devicetree-language-server-types";
+import { IntegrationSettings, Context } from "devicetree-language-server-types";
 import { IDeviceTreeAPI } from "devicetree-language-server-vscode-types";
 
 import { SetupState } from "./setup";
 import path from "path";
 import { getDtsIncludes } from "./modules";
-import { stat } from "fs";
+import { WorkspaceConfig } from "./setup";
+import {
+  getActiveProject, getActiveBuildConfigOfProject
+} from "../project_utilities/project"
 
 const ext = vscode.extensions.getExtension<IDeviceTreeAPI>(
   "KyleMicallefBonnici.dts-lsp"
@@ -62,7 +65,7 @@ export async function initializeDtsExt(state: SetupState) {
         path.join(state.zephyrDir, "dts/xtensa"),
         path.join(state.zephyrDir, "include"),
       ],
-      autoChangeContext: true, //Maybe this should be disabled?
+      autoChangeContext: false, //Maybe this should be disabled?
       allowAdhocContexts: true,
     }
     settings.defaultIncludePaths?.push(...dtsIncludeArray);;
@@ -71,3 +74,40 @@ export async function initializeDtsExt(state: SetupState) {
     api.setDefaultSettings(settings);
   }
 }
+
+
+export function setDtsContext(wsConfig: WorkspaceConfig) {
+  if (api) {
+    let project = getActiveProject(wsConfig);
+
+    if (project) {
+      let build = getActiveBuildConfigOfProject(wsConfig, project.name)
+      if (build) {
+        api.setActiveContext(project.name + "-" + build.name);
+      }
+    }
+  }
+}
+
+export function updateDtsContexts(wsConfig: WorkspaceConfig) {
+  if (api) {
+    for (let projectName in wsConfig.projects) {
+      let project = wsConfig.projects[projectName];
+      for (let buildName in project.buildConfigs) {
+        let build = project.buildConfigs[buildName]
+        let context: Context = {
+          dtsFile: path.join(wsConfig.rootPath, build.relBoardDir, build.relBoardSubDir, build.board + ".dts"),
+          includePaths: [path.join(wsConfig.rootPath, project.rel_path), path.join(wsConfig.rootPath, build.relBoardDir, build.relBoardSubDir)],
+          ctxName: project.name + "-" + build.name,
+          overlays: project.confFiles.overlay.concat(project.confFiles.extraOverlay).concat(build.confFiles.overlay.concat(build.confFiles.extraOverlay))
+        }
+        api.requestContext(context);
+        if (typeof (context.ctxName) == "string") {
+          api.setActiveContext(context.ctxName)
+        }
+      }
+    }
+  }
+}
+
+

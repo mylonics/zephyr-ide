@@ -38,7 +38,7 @@ export async function getModuleList(setupState: SetupState) {
   let modules = res.stdout.split(/\r?\n/);
   for (let m in modules) {
     let data = modules[m].split(/\s+/)
-    if (data[0] != "manifest" && data[0] != "zephyr" && data[0] != "") {
+    if (data[0] != "manifest" && data[0] != "") {
       outputList.push(data);
     }
   }
@@ -58,23 +58,31 @@ export async function getDtsIncludes(setupState: SetupState) {
   for (let m in modules) {
     let yamlFile = await getModuleYamlFile(setupState, modules[m][1]);
     if (yamlFile && yamlFile.build && yamlFile.build.settings && yamlFile.build.settings.dts_root) {
-      console.log(yamlFile)
       dtsIncludeArray.push(path.join(setupState.setupPath, modules[m][1], yamlFile.build.settings.dts_root, "dts"))
     }
   }
   return dtsIncludeArray;
 }
 
-export async function getSampleFolder(setupState: SetupState) {
+export async function getModulePath(setupState: SetupState, moduleName: string) {
   const modules = await getModuleList(setupState);
-  const dtsIncludeArray: string[] = []
+  for (let m in modules) {
+    if (modules[m][0] == moduleName) {
+      return modules[m][1];
+    }
+  }
+  return;
+}
+
+export async function getSampleFolders(setupState: SetupState) {
+  const modules = await getModuleList(setupState);
+  const samplefolders: string[] = []
   for (let m in modules) {
     let yamlFile = await getModuleYamlFile(setupState, modules[m][1]);
     if (yamlFile && yamlFile.samples) {
-      console.log(yamlFile)
-      dtsIncludeArray.push(path.join(setupState.setupPath, modules[m][1], yamlFile.samples))
+      samplefolders.push(path.join(setupState.setupPath, modules[m][1], yamlFile.samples))
     }
   }
-  return dtsIncludeArray;
+  return samplefolders;
 }
 

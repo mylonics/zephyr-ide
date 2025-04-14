@@ -15,7 +15,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { workspace } from "vscode";
+
+import * as vscode from "vscode";
 import * as path from "path";
 import * as util from "util";
 import * as cp from "child_process";
@@ -64,7 +65,7 @@ export function getPythonVenvBinaryFolder(setupState: SetupState) {
 
 
 export function getRootPath() {
-  let rootPaths = workspace.workspaceFolders;
+  let rootPaths = vscode.workspace.workspaceFolders;
   if (rootPaths === undefined) {
     return;
   } else {
@@ -74,7 +75,7 @@ export function getRootPath() {
 
 
 export function fileExists(path: string) {
-  let rootPaths = workspace.workspaceFolders;
+  let rootPaths = vscode.workspace.workspaceFolders;
   if (rootPaths === undefined) {
     return;
   } else {
@@ -120,9 +121,17 @@ export function getLaunchConfigurations() {
   }
 }
 
-import * as vscode from "vscode";
 
 export let output = vscode.window.createOutputChannel("Zephyr IDE");
+
+export function closeTerminals(names: string[]) {
+  const terminals = vscode.window.terminals;
+  for (let t in terminals) {
+    if (terminals[t].name in names) {
+      terminals[t].dispose();
+    }
+  }
+}
 
 async function executeTask(task: vscode.Task) {
   const execution = await vscode.tasks.executeTask(task);

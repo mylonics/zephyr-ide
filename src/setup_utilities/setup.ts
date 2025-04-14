@@ -22,7 +22,7 @@ import * as fs from "fs-extra";
 import * as path from "path";
 
 import { installSdk, pickToolchainTarget, ToolChainDictionary } from "../setup_utilities/setup_toolchain";
-import { getRootPath, output, executeShellCommand, executeShellCommandInPythonEnv, executeTaskHelper, reloadEnvironmentVariables, getPlatformName } from "../utilities/utils";
+import { getRootPath, output, executeShellCommand, executeShellCommandInPythonEnv, executeTaskHelper, reloadEnvironmentVariables, getPlatformName, closeTerminals } from "../utilities/utils";
 import { ProjectConfig, ProjectState } from "../project_utilities/project";
 import { initializeDtsExt } from "./dts_interface";
 
@@ -124,33 +124,6 @@ function projectLoader(config: WorkspaceConfig, projects: any) {
       }
     }
   }
-}
-
-export function getActiveBuildOfProject(wsConfig: WorkspaceConfig, project: string) {
-  return wsConfig.projectStates[project].activeBuildConfig;
-}
-
-export function getActiveRunnerOfBuild(wsConfig: WorkspaceConfig, project: string, build: string) {
-  return wsConfig.projectStates[project].buildStates[build].activeRunner;
-}
-
-export function getActiveBuildConfigOfProject(wsConfig: WorkspaceConfig, project: string) {
-  let buildName = wsConfig.projectStates[project].activeBuildConfig;
-  if (buildName) {
-    return wsConfig.projects[project].buildConfigs[buildName];
-  }
-  return;
-}
-
-export function getActiveRunnerConfigOfBuild(wsConfig: WorkspaceConfig, project: string, build: string) {
-  let activeBuild = getActiveBuildConfigOfProject(wsConfig, project);
-  if (activeBuild && wsConfig.projectStates[project].buildStates[build].activeRunner != undefined) {
-    let activeRunnerName = wsConfig.projectStates[project].buildStates[build].activeRunner;
-    if (activeRunnerName) {
-      return activeBuild.runnerConfigs[activeRunnerName];
-    }
-  }
-  return;
 }
 
 export async function getVariable(config: WorkspaceConfig, variable_name: string, project_name?: string, build_name?: string) {
@@ -717,10 +690,12 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
   if (wsConfig.activeSetupState === undefined) {
     return;
   }
+
   // Get the active workspace root path
   if (solo) {
     vscode.window.showInformationMessage(`Zephyr IDE: West Update`);
   }
+  closeTerminals(["Zephyr IDE: West Update", "Zephyr IDE: West Init"]);
 
   let westUpdateRes = await executeTaskHelper("Zephyr IDE: West Update", `west update`, wsConfig.activeSetupState.setupPath);
   if (!westUpdateRes) {

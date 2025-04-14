@@ -18,11 +18,11 @@ limitations under the License.
 import * as vscode from 'vscode';
 import path from 'path';
 
-import { ProjectConfig, } from '../../project_utilities/project';
+import { ProjectConfig, getActiveBuildConfigOfProject, getActiveRunnerConfigOfBuild } from '../../project_utilities/project';
 import { BuildConfig } from '../../project_utilities/build_selector';
 import { getNonce } from "../../utilities/getNonce";
 import { RunnerConfig } from '../../project_utilities/runner_selector';
-import { WorkspaceConfig, getActiveBuildConfigOfProject, getActiveRunnerConfigOfBuild } from '../../setup_utilities/setup';
+import { WorkspaceConfig } from '../../setup_utilities/setup';
 
 export class ActiveProjectView implements vscode.WebviewViewProvider {
   private view: vscode.WebviewView | undefined;

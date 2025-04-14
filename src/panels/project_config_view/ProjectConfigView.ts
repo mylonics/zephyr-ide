@@ -17,7 +17,7 @@ limitations under the License.
 
 import * as vscode from 'vscode';
 import path from 'path';
-import { ProjectConfig, addBuildToProject, addConfigFiles, addRunnerToBuild, removeBuild, removeProject, removeRunner, setActive, modifyBuildArguments, removeConfigFile } from '../../project_utilities/project';
+import { ProjectConfig, addBuildToProject, addConfigFiles, addRunnerToBuild, removeBuild, removeProject, removeRunner, setActive, modifyBuildArguments, removeConfigFile, setActiveProject, getActiveBuildConfigOfProject, getActiveRunnerConfigOfBuild } from '../../project_utilities/project';
 import { BuildConfig } from '../../project_utilities/build_selector';
 import { getNonce } from "../../utilities/getNonce";
 import { RunnerConfig } from '../../project_utilities/runner_selector';
@@ -25,7 +25,7 @@ import { buildByName } from '../../zephyr_utilities/build';
 import { flashByName } from '../../zephyr_utilities/flash';
 import { ConfigFiles } from '../../project_utilities/config_selector';
 
-import { WorkspaceConfig, getActiveBuildConfigOfProject, getActiveRunnerConfigOfBuild } from '../../setup_utilities/setup';
+import { WorkspaceConfig } from '../../setup_utilities/setup';
 
 export class ProjectConfigState {
   projectOpenState: boolean = true;
@@ -316,15 +316,22 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
     }
 
     if (wsConfig.activeProject === undefined) {
-      wsConfig.activeProject = Object.keys(wsConfig.projects)[0];
+      setActiveProject(this.context, wsConfig, Object.keys(wsConfig.projects)[0]);
     }
-    let activeProject = wsConfig.projects[wsConfig.activeProject];
-
-    let activeBuild = getActiveBuildConfigOfProject(wsConfig, wsConfig.activeProject);
+    let activeProject;
+    let activeBuild;
     let activeRunner;
-    if (activeBuild) {
-      activeRunner = getActiveRunnerConfigOfBuild(wsConfig, wsConfig.activeProject, activeBuild.name);
+
+    if (wsConfig.activeProject) {
+      activeProject = wsConfig.projects[wsConfig.activeProject];
+
+      activeBuild = getActiveBuildConfigOfProject(wsConfig, wsConfig.activeProject);
+
+      if (activeBuild) {
+        activeRunner = getActiveRunnerConfigOfBuild(wsConfig, wsConfig.activeProject, activeBuild.name);
+      }
     }
+
 
     if (this.treeData[0] != undefined) {
       this.projectConfigState.projectOpenState = (this.treeData[0].open != undefined) ? this.treeData[0].open : this.projectConfigState.projectOpenState;
@@ -354,7 +361,7 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
     this.projectConfigState.buildOverlayOpenState = (this.treeData[2] != undefined && this.treeData[2].open != undefined) ? this.treeData[2].open : this.projectConfigState.runnerOpenState;
 
     if (activeProject) {
-      this.treeData[0] = this.generateProjectString(undefined, wsConfig.projects[wsConfig.activeProject], this.projectConfigState.projectOpenState, this.projectConfigState.projectKConfigOpenState, this.projectConfigState.projectOverlayOpenState);
+      this.treeData[0] = this.generateProjectString(undefined, activeProject, this.projectConfigState.projectOpenState, this.projectConfigState.projectKConfigOpenState, this.projectConfigState.projectOverlayOpenState);
       if (activeBuild) {
         this.treeData[1] = this.generateBuildString(undefined, activeProject.name, activeBuild, this.projectConfigState.buildOpenState, this.projectConfigState.buildKConfigOpenState, this.projectConfigState.buildOverlayOpenState);
         if (activeRunner) {

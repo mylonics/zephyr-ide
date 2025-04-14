@@ -21,8 +21,8 @@ import * as fs from 'fs-extra';
 
 import { executeTaskHelper } from "../utilities/utils";
 
-import { WorkspaceConfig, getActiveBuildOfProject } from '../setup_utilities/setup';
-import { addBuild, ProjectConfig } from "../project_utilities/project";
+import { WorkspaceConfig } from '../setup_utilities/setup';
+import { addBuild, ProjectConfig, getActiveBuildNameOfProject } from "../project_utilities/project";
 import { BuildConfig } from "../project_utilities/build_selector";
 
 export async function regenerateCompileCommands(wsConfig: WorkspaceConfig) {
@@ -60,10 +60,10 @@ export async function buildHelper(
     }
     let project = wsConfig.projects[wsConfig.activeProject];
 
-    let buildName = getActiveBuildOfProject(wsConfig, project.name);
+    let buildName = getActiveBuildNameOfProject(wsConfig, project.name);
     if (buildName === undefined) {
       await addBuild(wsConfig, context);
-      buildName = getActiveBuildOfProject(wsConfig, project.name);
+      buildName = getActiveBuildNameOfProject(wsConfig, project.name);
       if (buildName === undefined) {
         await vscode.window.showErrorMessage(`You must choose a Build Configuration to continue.`);
         return;
@@ -189,7 +189,7 @@ export async function buildMenuConfig(
   }
 
   if (build === undefined) {
-    let buildName = getActiveBuildOfProject(wsConfig, project.name)
+    let buildName = getActiveBuildNameOfProject(wsConfig, project.name)
     if (buildName === undefined) {
       await vscode.window.showErrorMessage(`You must choose a Build Configuration to continue.`);
       return;
@@ -233,7 +233,7 @@ export async function buildRamRomReport(
   }
 
   if (build === undefined) {
-    let buildName = getActiveBuildOfProject(wsConfig, project.name)
+    let buildName = getActiveBuildNameOfProject(wsConfig, project.name)
     if (buildName === undefined) {
       await vscode.window.showErrorMessage(`You must choose a Build Configuration to continue.`);
       return;
@@ -276,7 +276,7 @@ export async function runDtshShell(
   }
 
   if (build === undefined) {
-    let buildName = getActiveBuildOfProject(wsConfig, project.name)
+    let buildName = getActiveBuildNameOfProject(wsConfig, project.name)
     if (buildName === undefined) {
       await vscode.window.showErrorMessage(`You must choose a Build Configuration to continue.`);
       return;
