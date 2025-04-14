@@ -1,6 +1,9 @@
 # Change Log
 
 All notable changes to the "zephyr-ide" extension will be documented in this file.
+## 1.6.9
+Added support for multiroot workspaces
+
 ## 1.6.8
 Added the ability to load samples from modules
 

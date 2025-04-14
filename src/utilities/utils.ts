@@ -22,7 +22,7 @@ import * as util from "util";
 import * as cp from "child_process";
 import * as os from "os";
 
-import { pathdivider, SetupState, getToolchainDir } from "../setup_utilities/setup";
+import { pathdivider, SetupState, getToolchainDir, WorkspaceConfig } from "../setup_utilities/setup";
 
 // Platform
 let platform: NodeJS.Platform = os.platform();
@@ -63,28 +63,41 @@ export function getPythonVenvBinaryFolder(setupState: SetupState) {
   return '';
 }
 
+export async function getRootPathFs(first = false) {
+  let rootPath = await getRootPath(first);
+  if (rootPath && rootPath.fsPath) {
+    return rootPath.fsPath
+  }
+  return "";
+}
 
-export function getRootPath() {
+export async function getRootPath(first = false) {
   let rootPaths = vscode.workspace.workspaceFolders;
   if (rootPaths === undefined) {
     return;
+  } else if (rootPaths.length > 1) {
+    if (first) {
+      return rootPaths[0].uri;
+    }
+
+    const pickOptions: vscode.QuickPickOptions = {
+      ignoreFocusOut: true,
+      placeHolder: "Select Workspace Root",
+    };
+    const roots: vscode.QuickPickItem[] = rootPaths.map(x => ({ label: x.name, description: x.uri.fsPath }));
+
+    console.log(rootPaths);
+    let selectedRoot = await vscode.window.showQuickPick(roots, pickOptions);
+    if (selectedRoot && selectedRoot.description) {
+      return vscode.Uri.file(selectedRoot.description);
+    }
   } else {
     return rootPaths[0].uri;
   }
 }
 
-
-export function fileExists(path: string) {
-  let rootPaths = vscode.workspace.workspaceFolders;
-  if (rootPaths === undefined) {
-    return;
-  } else {
-    return rootPaths[0].uri;
-  }
-}
-
-export function getLaunchConfigurationByName(configName: string) {
-  let configurations = getLaunchConfigurations();
+export async function getLaunchConfigurationByName(wsConfig: WorkspaceConfig, configName: string) {
+  let configurations = await getLaunchConfigurations(wsConfig);
   if (!configurations) {
     return;
   }
@@ -96,8 +109,8 @@ export function getLaunchConfigurationByName(configName: string) {
   }
 }
 
-export async function selectLaunchConfiguration() {
-  let configurations = getLaunchConfigurations();
+export async function selectLaunchConfiguration(wsConfig: WorkspaceConfig) {
+  let configurations = await getLaunchConfigurations(wsConfig);
   if (!configurations) {
     return;
   }
@@ -111,10 +124,9 @@ export async function selectLaunchConfiguration() {
   return await vscode.window.showQuickPick(names, pickOptions);
 }
 
-export function getLaunchConfigurations() {
-  let rootPath = getRootPath();
-  if (rootPath) {
-    const config = vscode.workspace.getConfiguration("launch", rootPath);
+export async function getLaunchConfigurations(wsConfig: WorkspaceConfig) {
+  if (wsConfig.rootPath != "") {
+    const config = vscode.workspace.getConfiguration("launch", vscode.Uri.file(wsConfig.rootPath));
     const configurations = config.get<any[]>("configurations");
 
     return configurations;

@@ -23,7 +23,7 @@ import { ProjectTreeView } from "./panels/project_tree_view/ProjectTreeView";
 import { ExtensionSetupView } from "./panels/extension_setup_view/ExtensionSetupView";
 import { ProjectConfigView } from "./panels/project_config_view/ProjectConfigView";
 
-import { getLaunchConfigurationByName, output, executeShellCommand, getRootPath, reloadEnvironmentVariables } from "./utilities/utils";
+import { getLaunchConfigurationByName, output, executeShellCommand, getRootPath, reloadEnvironmentVariables, getRootPathFs } from "./utilities/utils";
 import * as project from "./project_utilities/project";
 import { buildHelper, buildMenuConfig, buildRamRomReport, runDtshShell, clean } from "./zephyr_utilities/build";
 import { flashActive } from "./zephyr_utilities/flash";
@@ -229,7 +229,7 @@ export async function activate(context: vscode.ExtensionContext) {
   // Extension/Workspace Setup Commands
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.init-workspace", async () => {
-      if (getRootPath()) {
+      if (wsConfig.rootPath != "") {
         var setupViewUpdate = (wsConfig: WorkspaceConfig): void => {
           extensionSetupView.updateWebView(wsConfig, globalConfig);
         };
@@ -249,7 +249,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.setup-west-environment", async () => {
-      if (getRootPath()) {
+      if (wsConfig.rootPath != "") {
         await setupWestEnvironment(context, wsConfig, globalConfig);
         extensionSetupView.updateWebView(wsConfig, globalConfig);
       } else {
@@ -670,7 +670,7 @@ export async function activate(context: vscode.ExtensionContext) {
       if (activeBuild?.launchTarget) {
         debugTarget = activeBuild.launchTarget;
       }
-      let debugConfig = getLaunchConfigurationByName(debugTarget);
+      let debugConfig = getLaunchConfigurationByName(wsConfig, debugTarget);
       if (debugConfig) {
         await vscode.commands.executeCommand('debug.startFromConfig', debugConfig);
       } else {
@@ -687,7 +687,7 @@ export async function activate(context: vscode.ExtensionContext) {
       if (activeBuild?.attachTarget) {
         debugTarget = activeBuild.attachTarget;
       }
-      let debugConfig = getLaunchConfigurationByName(debugTarget);
+      let debugConfig = getLaunchConfigurationByName(wsConfig, debugTarget);
       if (debugConfig) {
         await vscode.commands.executeCommand('debug.startFromConfig', debugConfig);
       } else {
@@ -705,7 +705,7 @@ export async function activate(context: vscode.ExtensionContext) {
       if (activeBuild?.buildDebugTarget) {
         debugTarget = activeBuild.buildDebugTarget;
       }
-      let debugConfig = getLaunchConfigurationByName(debugTarget);
+      let debugConfig = getLaunchConfigurationByName(wsConfig, debugTarget);
 
       if (debugConfig) {
         let res = await buildHelper(context, wsConfig, false);
@@ -804,11 +804,12 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.use-local-zephyr-install", async () => {
-      let rootPath = getRootPath()?.fsPath;
-      if (!rootPath) {
-        rootPath = "";
+
+      wsConfig.rootPath = await getRootPathFs();
+      if (wsConfig.rootPath != "") {
+        await setSetupState(context, wsConfig, globalConfig, SetupStateType.SELECTED, wsConfig.rootPath);
       }
-      await setSetupState(context, wsConfig, globalConfig, SetupStateType.SELECTED, rootPath);
+
       extensionSetupView.updateWebView(wsConfig, globalConfig);
     })
   );
@@ -816,9 +817,12 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.use-external-zephyr-install", async () => {
       const setupPathList: vscode.QuickPickItem[] = [];
-      let rootPath = getRootPath()?.fsPath;
-      if (!rootPath) {
-        rootPath = "";
+
+      let rootPath = ""
+      if (wsConfig.rootPath == "") {
+        rootPath = await getRootPathFs();
+      } else {
+        rootPath = wsConfig.rootPath;
       }
 
       for (let setupState in globalConfig.setupStateDictionary) {

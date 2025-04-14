@@ -19,7 +19,6 @@ import * as vscode from 'vscode';
 import path from 'path';
 import { SetupStateType, WorkspaceConfig, GlobalConfig, getToolsDir } from '../../setup_utilities/setup';
 import { getNonce } from "../../utilities/getNonce";
-import { getRootPath } from '../../utilities/utils';
 import { checkWestInit } from '../../setup_utilities/setup';
 
 
@@ -36,7 +35,7 @@ export class ExtensionSetupView implements vscode.WebviewViewProvider {
       westInited = checkWestInit(wsConfig.activeSetupState);
     }
 
-    if (getRootPath() === undefined) {
+    if (wsConfig.rootPath == "") {
       bodyString = bodyString + `Open a folder/workspace before continuing`;
     } else if (wsConfig.activeSetupState && wsConfig.selectSetupType !== SetupStateType.NONE) {
       if (wsConfig.activeSetupState.setupPath === wsConfig.rootPath) {

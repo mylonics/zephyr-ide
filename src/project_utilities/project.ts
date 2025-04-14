@@ -661,7 +661,7 @@ export async function getActiveBuild(context: vscode.ExtensionContext, wsConfig:
 
 export async function selectDebugLaunchConfiguration(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
   let activeBuild = await getActiveBuild(context, wsConfig);
-  let newConfig = await selectLaunchConfiguration();
+  let newConfig = await selectLaunchConfiguration(wsConfig);
   if (activeBuild && newConfig) {
     activeBuild.launchTarget = newConfig;
     await setWorkspaceState(context, wsConfig);
@@ -670,7 +670,7 @@ export async function selectDebugLaunchConfiguration(context: vscode.ExtensionCo
 
 export async function selectBuildDebugLaunchConfiguration(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
   let activeBuild = await getActiveBuild(context, wsConfig);
-  let newConfig = await selectLaunchConfiguration();
+  let newConfig = await selectLaunchConfiguration(wsConfig);
   if (activeBuild && newConfig) {
     activeBuild.buildDebugTarget = newConfig;
     await setWorkspaceState(context, wsConfig);
@@ -679,7 +679,7 @@ export async function selectBuildDebugLaunchConfiguration(context: vscode.Extens
 
 export async function selectDebugAttachLaunchConfiguration(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
   let activeBuild = await getActiveBuild(context, wsConfig);
-  let newConfig = await selectLaunchConfiguration();
+  let newConfig = await selectLaunchConfiguration(wsConfig);
   if (activeBuild && newConfig) {
     activeBuild.attachTarget = newConfig;
     await setWorkspaceState(context, wsConfig);

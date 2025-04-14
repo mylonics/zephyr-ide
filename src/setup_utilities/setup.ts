@@ -22,7 +22,7 @@ import * as fs from "fs-extra";
 import * as path from "path";
 
 import { installSdk, pickToolchainTarget, ToolChainDictionary } from "../setup_utilities/setup_toolchain";
-import { getRootPath, output, executeShellCommand, executeShellCommandInPythonEnv, executeTaskHelper, reloadEnvironmentVariables, getPlatformName, closeTerminals } from "../utilities/utils";
+import { output, executeShellCommand, executeShellCommandInPythonEnv, executeTaskHelper, reloadEnvironmentVariables, getPlatformName, closeTerminals, getRootPath, getRootPathFs } from "../utilities/utils";
 import { ProjectConfig, ProjectState } from "../project_utilities/project";
 import { initializeDtsExt } from "./dts_interface";
 import { getModulePath } from "./modules";
@@ -233,14 +233,8 @@ export async function setExternalSetupState(context: vscode.ExtensionContext, gl
 
 
 export async function loadWorkspaceState(context: vscode.ExtensionContext): Promise<WorkspaceConfig> {
-  let rootPath = getRootPath()?.fsPath;
-  if (!rootPath) {
-    rootPath = "";
-  }
-
-
   let config: WorkspaceConfig = await context.workspaceState.get("zephyr.env") ?? {
-    rootPath: rootPath,
+    rootPath: await getRootPathFs(true),
     projects: {},
     automaticProjectSelction: true,
     initialSetupComplete: false,
