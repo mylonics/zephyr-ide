@@ -221,12 +221,12 @@
       {
         "command": "zephyr-ide.create-project",
         "title": "Zephyr IDE: Create Project From Template",
-        "icon": "$(add)"
+        "icon": "$(new-folder)"
       },
       {
         "command": "zephyr-ide.add-project",
         "title": "Zephyr IDE: Add Project",
-        "icon": "$(new-folder)"
+        "icon": "$(add)"
       },
       {
         "command": "zephyr-ide.remove-project",

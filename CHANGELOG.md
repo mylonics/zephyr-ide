@@ -1,6 +1,9 @@
 # Change Log
 
 All notable changes to the "zephyr-ide" extension will be documented in this file.
+## 1.6.8
+Added the ability to load samples from modules
+
 ## 1.6.7
 Project folders with periods in the name are not imported properly - @Matt-Armstrong-Faro \
 Additional experimental support for dts-lsp contexts 

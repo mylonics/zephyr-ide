@@ -74,15 +74,52 @@ export async function getModulePath(setupState: SetupState, moduleName: string) 
   return;
 }
 
-export async function getSampleFolders(setupState: SetupState) {
+export async function getModuleSampleFolders(setupState: SetupState) {
   const modules = await getModuleList(setupState);
-  const samplefolders: string[] = []
+  const samplefolders: [string, string][] = [["zephyr", path.join(setupState.zephyrDir, 'samples')]]
+
   for (let m in modules) {
     let yamlFile = await getModuleYamlFile(setupState, modules[m][1]);
     if (yamlFile && yamlFile.samples) {
-      samplefolders.push(path.join(setupState.setupPath, modules[m][1], yamlFile.samples))
+      for (let i in yamlFile.samples) {
+        let sampleFolder: [string, string] = [modules[m][0], path.join(setupState.setupPath, modules[m][1], yamlFile.samples[i])];
+        samplefolders.push(sampleFolder)
+      }
     }
   }
   return samplefolders;
 }
+
+export async function getSampleRecursive(dir: string, moduleName: string, sampleList: [string, string, string, string][]) {
+  let tentativePath = path.join(dir, "sample.yaml");
+  if (fs.existsSync(tentativePath)) {
+    let yamlFile: any = await yaml.load(fs.readFileSync(tentativePath, 'utf-8'));
+    if (yamlFile && yamlFile.sample && yamlFile.sample.name) {
+      let description = yamlFile.sample.description ? yamlFile.sample.description : "";
+      return sampleList.push([moduleName, yamlFile.sample.name, description, dir])
+    }
+  } else {
+    let folderList = fs.readdirSync(dir)
+      .map(fileName => {
+        return path.join(dir, fileName);
+      })
+      .filter(fileName => {
+        return !fs.lstatSync(fileName).isFile();
+      });
+
+    for (let i in folderList) {
+      getSampleRecursive(folderList[i], moduleName, sampleList);
+    }
+  }
+}
+
+export async function getSamples(setupState: SetupState) {
+  let samplefolders = await getModuleSampleFolders(setupState);
+  let sampleList: [string, string, string, string][] = [];
+  for (let i in samplefolders) {
+    await getSampleRecursive(samplefolders[i][1], samplefolders[i][0], sampleList)
+  }
+  return sampleList;
+}
+
 

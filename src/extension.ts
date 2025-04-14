@@ -345,7 +345,7 @@ export async function activate(context: vscode.ExtensionContext) {
   // Project Setup Commands
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.create-project", async () => {
-      let projectPath = await project.createNewProjectFromSample(context, wsConfig);
+      let projectPath = await project.createNewProjectFromSample(wsConfig);
       if (projectPath !== undefined) {
         await project.addProject(wsConfig, context, projectPath);
         extensionSetupView.updateWebView(wsConfig, globalConfig);

@@ -24,6 +24,7 @@ import { setWorkspaceState, WorkspaceConfig } from "../setup_utilities/setup";
 import { runnerSelector } from "./runner_selector";
 import { configSelector, configRemover, ConfigFiles } from "./config_selector";
 import { updateDtsContexts, setDtsContext } from "../setup_utilities/dts_interface";
+import { getSamples } from "../setup_utilities/modules";
 
 // Project specific configuration
 export interface ProjectConfig {
@@ -131,40 +132,15 @@ export async function modifyBuildArguments(context: vscode.ExtensionContext, wsC
   await setWorkspaceState(context, wsConfig);
 }
 
-async function readAllDirectories(directory: vscode.Uri, projectList: vscode.QuickPickItem[], relativePath = ''): Promise<void> {
-  try {
-    const files = await vscode.workspace.fs.readDirectory(directory);
 
-    for (const [name, type] of files) {
-      const filePath = vscode.Uri.joinPath(directory, name);
-      const fullPath = path.join(relativePath, name); // Keep track of the full path
-
-      if (type === vscode.FileType.Directory) {
-        const sampleYamlPath = vscode.Uri.joinPath(filePath, "sample.yaml");
-        try {
-          await vscode.workspace.fs.stat(sampleYamlPath);
-          projectList.push({ label: name, description: fullPath });
-        } catch (error) {
-          await readAllDirectories(filePath, projectList, fullPath);
-        }
-      }
-    }
-  } catch (error) {
-  }
-}
-
-export async function createNewProjectFromSample(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
+export async function createNewProjectFromSample(wsConfig: WorkspaceConfig) {
   if (!wsConfig.activeSetupState || !wsConfig.activeSetupState.zephyrDir) {
     vscode.window.showErrorMessage("Run `Zephyr IDE: West Update` first.");
     return;
   }
 
-  const samplesDir = path.join(wsConfig.activeSetupState.zephyrDir, 'samples');
-  const samplesUri = vscode.Uri.file(samplesDir);
-
-  const projectList: vscode.QuickPickItem[] = [];
-
-  await readAllDirectories(samplesUri, projectList);
+  const samplesDir = await getSamples(wsConfig.activeSetupState);
+  const projectList: vscode.QuickPickItem[] = samplesDir.map(x => ({ label: x[1], detail: "(" + x[0] + ") " + x[3], description: x[2] }));
 
   const pickOptions: vscode.QuickPickOptions = {
     ignoreFocusOut: true,
@@ -172,18 +148,19 @@ export async function createNewProjectFromSample(context: vscode.ExtensionContex
     placeHolder: "Select Sample Project",
   };
 
-  let selectedRelativePath = await vscode.window.showQuickPick(projectList, pickOptions);
+  let selectedSample = await vscode.window.showQuickPick(projectList, pickOptions);
+  if (selectedSample && selectedSample.detail && selectedSample.label) {
+    let selectedSamplePath = selectedSample.detail.split(") ")[1];
 
-  if (selectedRelativePath && selectedRelativePath.description && selectedRelativePath.label) {
-    const projectDest = await vscode.window.showInputBox({ title: "Choose Project Destination", value: selectedRelativePath.label });
+    const projectDest = await vscode.window.showInputBox({ title: "Choose Project Destination", value: path.basename(selectedSamplePath) });
 
     if (projectDest) {
       const destinationPath = path.join(wsConfig.rootPath, projectDest);
-      const selectedProject = path.join(samplesDir, selectedRelativePath.description);
 
-      fs.cpSync(selectedProject, destinationPath, { recursive: true });
+
+      fs.cpSync(selectedSamplePath, destinationPath, { recursive: true });
       let newProjectName = path.basename(projectDest);
-      if (selectedRelativePath.label !== newProjectName) {
+      if (selectedSample.label !== newProjectName) {
         changeProjectNameInCMakeFile(destinationPath, newProjectName);
       }
 
