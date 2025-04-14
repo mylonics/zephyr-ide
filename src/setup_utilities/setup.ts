@@ -24,6 +24,7 @@ import * as path from "path";
 import { installSdk, pickToolchainTarget, ToolChainDictionary } from "../setup_utilities/setup_toolchain";
 import { getRootPath, output, executeShellCommand, executeShellCommandInPythonEnv, executeTaskHelper, reloadEnvironmentVariables, getPlatformName } from "../utilities/utils";
 import { ProjectConfig, ProjectState } from "../project_utilities/project";
+import { initializeDtsExt } from "./dts_interface";
 
 import { westSelector, WestLocation } from "./west_selector";
 export type ProjectConfigDictionary = { [name: string]: ProjectConfig };
@@ -334,18 +335,6 @@ export async function setSetupState(context: vscode.ExtensionContext, wsConfig: 
   }
 
   await setWorkspaceState(context, wsConfig);
-
-  const configuration = await vscode.workspace.getConfiguration();
-  const target = vscode.ConfigurationTarget.Workspace;
-  if (wsConfig.activeSetupState && wsConfig.activeSetupState.zephyrDir) {
-    if (wsConfig.activeSetupState.setupPath === wsConfig.rootPath) {
-      configuration.update("devicetree.zephyr", path.join("${workspaceFolder}", path.relative(wsConfig.rootPath, wsConfig.activeSetupState.zephyrDir)), target);
-      configuration.update("kconfig.zephyr.base", path.join("${workspaceFolder}", path.relative(wsConfig.rootPath, wsConfig.activeSetupState.zephyrDir)), target);
-    } else {
-      configuration.update("devicetree.zephyr", wsConfig.activeSetupState.zephyrDir, target);
-      configuration.update("kconfig.zephyr.base", wsConfig.activeSetupState.zephyrDir, target);
-    }
-  }
   reloadEnvironmentVariables(context, wsConfig.activeSetupState);
 }
 
@@ -368,6 +357,9 @@ export async function setWorkspaceState(context: vscode.ExtensionContext, wsConf
   await configuration.update('zephyr-ide.projects', null, false);
 
   await context.workspaceState.update("zephyr.env", wsConfig);
+  if (wsConfig.activeSetupState) {
+    initializeDtsExt(wsConfig.activeSetupState)
+  }
 }
 
 export async function clearWorkspaceState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {

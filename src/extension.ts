@@ -16,20 +16,20 @@ limitations under the License.
 */
 
 import * as vscode from "vscode";
-
-import { getLaunchConfigurationByName, output, executeShellCommand, getRootPath, reloadEnvironmentVariables } from "./utilities/utils";
+import path from "path";
 
 import { ActiveProjectView } from "./panels/active_project_view/ActiveProjectView";
 import { ProjectTreeView } from "./panels/project_tree_view/ProjectTreeView";
 import { ExtensionSetupView } from "./panels/extension_setup_view/ExtensionSetupView";
 import { ProjectConfigView } from "./panels/project_config_view/ProjectConfigView";
 
-import path from "path";
+import { getLaunchConfigurationByName, output, executeShellCommand, getRootPath, reloadEnvironmentVariables } from "./utilities/utils";
 import * as project from "./project_utilities/project";
 import { buildHelper, buildMenuConfig, buildRamRomReport, runDtshShell, clean } from "./zephyr_utilities/build";
 import { flashActive } from "./zephyr_utilities/flash";
 import { getVariable, setExternalSetupState, WorkspaceConfig, setSetupState, GlobalConfig, SetupStateType, loadGlobalState, westUpdate, workspaceInit, setWorkspaceState, loadWorkspaceState, clearWorkspaceState, westInit, checkIfToolsAvailable, setupWestEnvironment, loadProjectsFromFile, getToolchainDir, setGlobalState, getToolsDir, saveSetupState, getActiveRunnerOfBuild, getActiveRunnerConfigOfBuild, getActiveBuildOfProject } from "./setup_utilities/setup";
 import { installSdk } from "./setup_utilities/setup_toolchain";
+import { initializeDtsExt } from "./setup_utilities/dts_interface";
 
 let wsConfig: WorkspaceConfig;
 let globalConfig: GlobalConfig;
@@ -882,6 +882,15 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.reint-dts", async () => {
+      if (wsConfig.activeSetupState) {
+        await initializeDtsExt(wsConfig.activeSetupState);
+      } else {
+        vscode.window.showErrorMessage("First Initialize Zephyr IDE Workspace Folder");
+      }
+    }));
+
+  context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.shell_test", async () => {
       output.show();
 
@@ -896,9 +905,10 @@ export async function activate(context: vscode.ExtensionContext) {
       //configuration.update('terminal.integrated.defaultProfile.' + platform_name, default_terminal, target, false);
       output.appendLine(configuration.get('terminal.integrated.defaultProfile.' + platform_name) ?? "");
       output.appendLine("Finished");
-
     })
   );
+
+
 }
 
 export function deactivate() { }

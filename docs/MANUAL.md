@@ -163,6 +163,5 @@ The Zephyr IDE Extension also integrates with a handful of extensions and is rel
 - Cortex-Debug - ARM Cortex-M GDB Debugger support for VSCode
 - C/C++ - C/C++ IntelliSense, debugging, and code browsing.
 - Serial Monitor - Send and receive text from serial ports.
-- nRF DeviceTree - Full DeviceTree language support for the Zephyr project
-- nRF Kconfig - Kconfig language support for the Zephyr Project 
+- Devicetree LSP - Devicetree Language Server
 - CMake - Intellisense for CMake Files
