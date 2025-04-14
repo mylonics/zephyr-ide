@@ -2,6 +2,9 @@
 
 All notable changes to the "zephyr-ide" extension will be documented in this file.
 
+## 1.6.5
+Added initial support for dts-lsp\
+
 ## 1.6.3
 Improved zsh and mac os support by using environment variable collection
 
