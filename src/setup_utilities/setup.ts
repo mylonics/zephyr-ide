@@ -25,6 +25,7 @@ import { installSdk, pickToolchainTarget, ToolChainDictionary } from "../setup_u
 import { getRootPath, output, executeShellCommand, executeShellCommandInPythonEnv, executeTaskHelper, reloadEnvironmentVariables, getPlatformName, closeTerminals } from "../utilities/utils";
 import { ProjectConfig, ProjectState } from "../project_utilities/project";
 import { initializeDtsExt } from "./dts_interface";
+import { getModulePath } from "./modules";
 
 import { westSelector, WestLocation } from "./west_selector";
 export type ProjectConfigDictionary = { [name: string]: ProjectConfig };
@@ -707,14 +708,10 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
   let base = undefined;
 
   // Get listofports
-  let cmd = `west list -f {path:28} zephyr`;
-  let res = await executeShellCommandInPythonEnv(cmd, wsConfig.activeSetupState.setupPath, wsConfig.activeSetupState, true);
-  if (res.stdout && res.stdout.includes("zephyr")) {
-    base = res.stdout.trim();
-  }
+  let zephyrPath = await getModulePath(wsConfig.activeSetupState, "zephyr");
 
-  if (base) {
-    wsConfig.activeSetupState.zephyrDir = path.join(wsConfig.activeSetupState.setupPath, base);
+  if (zephyrPath) {
+    wsConfig.activeSetupState.zephyrDir = path.join(wsConfig.activeSetupState.setupPath, zephyrPath);
     reloadEnvironmentVariables(context, wsConfig.activeSetupState);
   } else {
     vscode.window.showErrorMessage("West Update Failed. Could not find Zephyr Directory.");
@@ -727,7 +724,7 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
     return false;
   }
 
-  cmd = `pip install -r ${path.join(wsConfig.activeSetupState.zephyrDir, "scripts", "requirements.txt")}`;
+  let cmd = `pip install -r ${path.join(wsConfig.activeSetupState.zephyrDir, "scripts", "requirements.txt")}`;
   let pipInstallRes = await executeTaskHelper("Zephyr IDE: West Update", cmd, wsConfig.activeSetupState.setupPath);
   if (!pipInstallRes) {
     vscode.window.showErrorMessage("West Update Failed. Error installing python requirements.");
