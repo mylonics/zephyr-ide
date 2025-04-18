@@ -18,12 +18,24 @@ limitations under the License.
 import * as vscode from "vscode";
 import * as path from 'path';
 import * as fs from 'fs-extra';
+import * as yaml from 'js-yaml';
 
 import { executeTaskHelper } from "../utilities/utils";
 
 import { WorkspaceConfig } from '../setup_utilities/setup';
 import { addBuild, ProjectConfig, getActiveBuildNameOfProject } from "../project_utilities/project";
 import { BuildConfig } from "../project_utilities/build_selector";
+import { updateDtsContext } from "../setup_utilities/dts_interface";
+
+
+export interface BuildInfo {
+  bindingsDirs: string[];
+  dtsFile: string;
+  otherDtsFiles: string[];
+  includeDirs: string[];
+  kconfigFiles: string[];
+  otherKconfigFiles: string[];
+}
 
 export async function regenerateCompileCommands(wsConfig: WorkspaceConfig) {
   let compileCommandData = [];
@@ -160,7 +172,7 @@ export async function build(
       extraOverlayFiles.map(x => (overlayFileString = overlayFileString + x + ";"));
       cmd = cmd + ` -DEXTRA_DTC_OVERLAY_FILE='${overlayFileString}' `;
     }
-
+    updateDtsContext(wsConfig, project, build);
   }
 
 
@@ -215,6 +227,7 @@ export async function buildMenuConfig(
   vscode.window.showInformationMessage(`Running MenuConfig ${build.name} from project: ${project.name}`);
   await executeTaskHelper(taskName, cmd, wsConfig.activeSetupState?.setupPath);
   regenerateCompileCommands(wsConfig);
+  updateDtsContext(wsConfig, project, build);
 }
 
 export async function buildRamRomReport(
@@ -308,4 +321,48 @@ export async function clean(wsConfig: WorkspaceConfig, projectName: string | und
   }
   await fs.remove(path.join(wsConfig.rootPath, wsConfig.projects[projectName].rel_path, activeBuild));
   vscode.window.showInformationMessage(`Cleaning ${wsConfig.projects[projectName].rel_path}`);
+}
+
+export async function getBuildInfo(wsConfig: WorkspaceConfig,
+  project: ProjectConfig,
+  build: BuildConfig) {
+  let buildInfoFilePath = path.join(wsConfig.rootPath, project.rel_path, build.name, "build_info.yml");
+  let rawData: any = yaml.load(fs.readFileSync(buildInfoFilePath, 'utf-8'));
+
+  if (rawData && rawData.cmake && rawData.cmake.devicetree && rawData.cmake.kconfig) {
+    let dtsFiles = rawData.cmake.devicetree["files"];
+    let userDtsFiles = rawData.cmake.devicetree["user-files"];
+
+    let dtsFile = "";
+
+    let otherDtsFiles: string[] = [];
+
+    for (let file in dtsFiles) {
+      if (path.extname(dtsFiles[file]) == ".dts") {
+        dtsFile = dtsFiles[file];
+        break
+      } else {
+        if (!(dtsFiles[file] in otherDtsFiles)) {
+          otherDtsFiles.push(dtsFiles[file]);
+        }
+      }
+    }
+    for (let file in userDtsFiles) {
+      if (!(userDtsFiles[file] in otherDtsFiles)) {
+        otherDtsFiles.push(userDtsFiles[file]);
+      }
+    }
+
+
+    let info: BuildInfo = {
+      bindingsDirs: rawData.cmake.devicetree["bindings-dirs"],
+      dtsFile: dtsFile,
+      otherDtsFiles: otherDtsFiles,
+      includeDirs: rawData.cmake.devicetree["include-dirs"],
+      kconfigFiles: rawData.cmake.kconfig["files"],
+      otherKconfigFiles: rawData.cmake.kconfig["user-files"],
+    }
+    return info;
+  }
+
 }

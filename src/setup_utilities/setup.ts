@@ -24,7 +24,7 @@ import * as path from "path";
 import { installSdk, pickToolchainTarget, ToolChainDictionary } from "../setup_utilities/setup_toolchain";
 import { output, executeShellCommand, executeShellCommandInPythonEnv, executeTaskHelper, reloadEnvironmentVariables, getPlatformName, closeTerminals, getRootPath, getRootPathFs } from "../utilities/utils";
 import { ProjectConfig, ProjectState } from "../project_utilities/project";
-import { initializeDtsExt } from "./dts_interface";
+import { initializeDtsExt, updateAllDtsContexts } from "./dts_interface";
 import { getModulePath } from "./modules";
 
 import { westSelector, WestLocation } from "./west_selector";
@@ -302,6 +302,11 @@ export async function setSetupState(context: vscode.ExtensionContext, wsConfig: 
     wsConfig.selectSetupType = setupStateType;
   }
 
+  if (wsConfig.activeSetupState) {
+    initializeDtsExt(wsConfig.activeSetupState)
+    updateAllDtsContexts(wsConfig);
+  }
+
   await setWorkspaceState(context, wsConfig);
   reloadEnvironmentVariables(context, wsConfig.activeSetupState);
 }
@@ -325,9 +330,6 @@ export async function setWorkspaceState(context: vscode.ExtensionContext, wsConf
   await configuration.update('zephyr-ide.projects', null, false);
 
   await context.workspaceState.update("zephyr.env", wsConfig);
-  if (wsConfig.activeSetupState) {
-    initializeDtsExt(wsConfig.activeSetupState)
-  }
 }
 
 export async function clearWorkspaceState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {

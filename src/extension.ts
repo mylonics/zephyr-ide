@@ -29,7 +29,7 @@ import { buildHelper, buildMenuConfig, buildRamRomReport, runDtshShell, clean } 
 import { flashActive } from "./zephyr_utilities/flash";
 import { getVariable, setExternalSetupState, WorkspaceConfig, setSetupState, GlobalConfig, SetupStateType, loadGlobalState, westUpdate, workspaceInit, setWorkspaceState, loadWorkspaceState, clearWorkspaceState, westInit, checkIfToolsAvailable, setupWestEnvironment, loadProjectsFromFile, getToolchainDir, setGlobalState, getToolsDir, saveSetupState } from "./setup_utilities/setup";
 import { installSdk } from "./setup_utilities/setup_toolchain";
-import { initializeDtsExt, updateDtsContexts } from "./setup_utilities/dts_interface";
+import { initializeDtsExt, updateAllDtsContexts } from "./setup_utilities/dts_interface";
 import { setActiveProject, getActiveRunnerNameOfBuild, getActiveRunnerConfigOfBuild, getActiveBuildNameOfProject } from "./project_utilities/project";
 
 let wsConfig: WorkspaceConfig;
@@ -134,6 +134,8 @@ export async function activate(context: vscode.ExtensionContext) {
       { webviewOptions: { retainContextWhenHidden: true } }
     )
   );
+
+
 
   activeProjectDisplay = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
   activeProjectDisplay.command = "zephyr-ide.set-active-project";
@@ -889,7 +891,7 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.reint-dts", async () => {
       if (wsConfig.activeSetupState) {
         await initializeDtsExt(wsConfig.activeSetupState);
-        updateDtsContexts(wsConfig);
+        updateAllDtsContexts(wsConfig);
       } else {
         vscode.window.showErrorMessage("First Initialize Zephyr IDE Workspace Folder");
       }

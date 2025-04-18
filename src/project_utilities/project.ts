@@ -23,7 +23,7 @@ import { buildSelector, BuildConfigDictionary, BuildStateDictionary } from "./bu
 import { setWorkspaceState, WorkspaceConfig } from "../setup_utilities/setup";
 import { runnerSelector } from "./runner_selector";
 import { configSelector, configRemover, ConfigFiles } from "./config_selector";
-import { updateDtsContexts, setDtsContext } from "../setup_utilities/dts_interface";
+import { setDtsContext } from "../setup_utilities/dts_interface";
 import { getSamples } from "../setup_utilities/modules";
 
 // Project specific configuration
@@ -456,8 +456,8 @@ export async function addBuildToProject(wsConfig: WorkspaceConfig, context: vsco
       await setWorkspaceState(context, wsConfig);
     }
   }
-
 }
+
 
 export async function removeBuild(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName?: string, buildName?: string) {
   if (projectName === undefined) {
