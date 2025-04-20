@@ -532,7 +532,7 @@
     "@vscode/codicons": "^0.0.35",
     "7zip-bin": "^5.2.0",
     "compare-versions": "^6.1.0",
-    "devicetree-language-server-vscode-types": "^0.0.1-alpha.4",
+    "devicetree-language-server-vscode-types": "^0.0.1-alpha.6",
     "fs-extra": "^11.2.0",
     "js-yaml": "^4.1.0",
     "node-7z": "^3.0.0",

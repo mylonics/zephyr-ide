@@ -1,6 +1,9 @@
 # Change Log
 
 All notable changes to the "zephyr-ide" extension will be documented in this file.
+## 1.7.0
+Added full support dts-lsp contexts
+
 ## 1.6.9
 Added support for multiroot workspaces
 

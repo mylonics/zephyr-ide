@@ -43,74 +43,55 @@ async function activateDtsExtension() {
   }
 }
 
-export async function initializeDtsExt(state: SetupState, enable = true) {
+export async function initializeDtsExt(state: SetupState, wsConfig: WorkspaceConfig) {
   await activateDtsExtension();
   if (api) {
+    const dtsIncludeArray = await getDtsIncludes(state);
 
-    if (enable) {
-      const dtsIncludeArray = await getDtsIncludes(state);
-
-      let settings: IntegrationSettings = {
-        cwd: state.setupPath,
-        defaultBindingType: "Zephyr",
-        defaultZephyrBindings: [path.join(state.zephyrDir, "dts/bindings")],
-        defaultIncludePaths: [
-          path.join(state.zephyrDir, "dts"),
-          path.join(state.zephyrDir, "dts/arc"),
-          path.join(state.zephyrDir, "dts/arm"),
-          path.join(state.zephyrDir, "dts/arm64/"),
-          path.join(state.zephyrDir, "dts/riscv"),
-          path.join(state.zephyrDir, "dts/common"),
-          path.join(state.zephyrDir, "dts/nios2"),
-          path.join(state.zephyrDir, "dts/posix"),
-          path.join(state.zephyrDir, "dts/riscv"),
-          path.join(state.zephyrDir, "dts/sparc"),
-          path.join(state.zephyrDir, "dts/x86"),
-          path.join(state.zephyrDir, "dts/xtensa"),
-          path.join(state.zephyrDir, "include"),
-        ],
-        autoChangeContext: true,
-        allowAdhocContexts: true,
-      }
-      settings.defaultIncludePaths?.push(...dtsIncludeArray);
-      api.setDefaultSettings(settings);
-
-    } else {
-      let settings: IntegrationSettings = {
-        autoChangeContext: false,
-        allowAdhocContexts: false,
-      }
-      api.setDefaultSettings(settings);
+    let settings: IntegrationSettings = {
+      cwd: state.setupPath,
+      defaultBindingType: "Zephyr",
+      defaultZephyrBindings: [path.join(state.zephyrDir, "dts/bindings")],
+      defaultIncludePaths: [
+        path.join(state.zephyrDir, "dts"),
+        path.join(state.zephyrDir, "dts/arc"),
+        path.join(state.zephyrDir, "dts/arm"),
+        path.join(state.zephyrDir, "dts/arm64/"),
+        path.join(state.zephyrDir, "dts/riscv"),
+        path.join(state.zephyrDir, "dts/common"),
+        path.join(state.zephyrDir, "dts/nios2"),
+        path.join(state.zephyrDir, "dts/posix"),
+        path.join(state.zephyrDir, "dts/riscv"),
+        path.join(state.zephyrDir, "dts/sparc"),
+        path.join(state.zephyrDir, "dts/x86"),
+        path.join(state.zephyrDir, "dts/xtensa"),
+        path.join(state.zephyrDir, "include"),
+      ],
+      autoChangeContext: true,
+      allowAdhocContexts: true,
     }
-    //Attempt at setting a generic context
-    //    let context: Context = {
-    //      ctxName: "zephyr-ide-generic",
-    //      includePaths: settings.defaultIncludePaths,
-    //      dtsFile: "",
-    //      overlays: [],
-    //      bindingType: "Zephyr",
-    //      zephyrBindings: settings.defaultZephyrBindings,
-    //    }
-    //    api.requestContext(context);
-    //    api.setActiveContext("zephyr-ide-generic");
+    settings.defaultIncludePaths?.push(...dtsIncludeArray);
+    await api.setDefaultSettings(settings);
+    await updateAllDtsContexts(wsConfig);
   }
 }
 
 
-export async function setDtsContext(wsConfig: WorkspaceConfig) {
+export async function setDtsContext(wsConfig: WorkspaceConfig, project?: ProjectConfig, build?: BuildConfig) {
   if (api && wsConfig.activeSetupState) {
-    let project = getActiveProject(wsConfig);
+    if (project === undefined) {
+      project = getActiveProject(wsConfig);
+    }
 
     if (project) {
-      let build = getActiveBuildConfigOfProject(wsConfig, project.name)
+      if (build === undefined) {
+        build = getActiveBuildConfigOfProject(wsConfig, project.name)
+      }
       if (build) {
-        await initializeDtsExt(wsConfig.activeSetupState, false);
-        api.setActiveContext(project.name + "-" + build.name);
+        api.setActiveContextByName(project.name + "-" + build.name);
         return;
       }
     }
-    //If can't set new context, then revert back to adhoc contexts
-    initializeDtsExt(wsConfig.activeSetupState);
   }
 }
 
@@ -141,8 +122,17 @@ export async function updateDtsContext(wsConfig: WorkspaceConfig,
         bindingType: "Zephyr",
         zephyrBindings: buildInfo.bindingsDirs,
       }
-      api.requestContext(context);
+      console.log(context)
+      await api.requestContext(context);
     }
+  }
+}
+
+export async function printContexts() {
+
+  if (api) {
+    let contexts = await api.getContexts()
+    console.log(contexts);
   }
 }
 

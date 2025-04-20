@@ -83,7 +83,6 @@ export interface WorkspaceConfig {
 }
 
 
-
 function projectLoader(config: WorkspaceConfig, projects: any) {
   config.projects = {};
 
@@ -303,8 +302,7 @@ export async function setSetupState(context: vscode.ExtensionContext, wsConfig: 
   }
 
   if (wsConfig.activeSetupState) {
-    initializeDtsExt(wsConfig.activeSetupState)
-    updateAllDtsContexts(wsConfig);
+    initializeDtsExt(wsConfig.activeSetupState, wsConfig);
   }
 
   await setWorkspaceState(context, wsConfig);

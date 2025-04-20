@@ -172,7 +172,6 @@ export async function build(
       extraOverlayFiles.map(x => (overlayFileString = overlayFileString + x + ";"));
       cmd = cmd + ` -DEXTRA_DTC_OVERLAY_FILE='${overlayFileString}' `;
     }
-    updateDtsContext(wsConfig, project, build);
   }
 
 
@@ -180,7 +179,9 @@ export async function build(
 
   vscode.window.showInformationMessage(`Building ${build.name} from project: ${project.name}`);
   let ret = await executeTaskHelper(taskName, cmd, wsConfig.activeSetupState?.setupPath);
+
   regenerateCompileCommands(wsConfig);
+  updateDtsContext(wsConfig, project, build);
   return ret;
 }
 
