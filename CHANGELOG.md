@@ -1,33 +1,21 @@
 # Change Log
 
 All notable changes to the "zephyr-ide" extension will be documented in this file.
+## 1.7.1
+Removed Deprecated .vscode settings \
+Updated nrf connect versions
+
 ## 1.7.0
-Added full support dts-lsp contexts
-
-## 1.6.9
-Added support for multiroot workspaces
-
-## 1.6.8
-Added the ability to load samples from modules
-
-## 1.6.7
+Added full support dts-lsp contexts \
+Added support for multiroot workspaces \
+Added the ability to load samples from modules \
 Project folders with periods in the name are not imported properly - @Matt-Armstrong-Faro \
-Additional experimental support for dts-lsp contexts 
-
-## 1.6.6
-Fixed bug when module yaml file not found
-
-## 1.6.5
-Added initial support for dts-lsp
-
-## 1.6.3
-Improved zsh and mac os support by using environment variable collection
-
-## 1.6.2
+Additional experimental support for dts-lsp contexts  \
+Fixed bug when module yaml file not found \
+Added initial support for dts-lsp \
+Improved zsh and mac os support by using environment variable collection \
 Minor typo fix\
-Make .vscode directory if it doesn't exist - @rpiper
-
-## 1.6.1
+Make .vscode directory if it doesn't exist - @rpiper \
 Added SDK 0.17.0\
 Added minimal ble template\
 Modified default .gitignore to no longer ignore .west folder

@@ -31,7 +31,7 @@ export async function getModuleList(setupState: SetupState) {
 
   if (!res.stdout) {
     output.append(res.stderr);
-    vscode.window.showErrorMessage("Failed to run west boards command. See Zephyr IDE Output for error message");
+    vscode.window.showErrorMessage("Failed to run west list command. See Zephyr IDE Output for error message");
     return outputList;
   }
 

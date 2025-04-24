@@ -147,32 +147,22 @@ export async function getVariable(config: WorkspaceConfig, variable_name: string
 
 
 export async function loadProjectsFromFile(config: WorkspaceConfig) {
-  const configuration = await vscode.workspace.getConfiguration();
-  let useExternalJson: boolean | undefined = await configuration.get("zephyr-ide.use-zephyr-ide-json");
-  if (useExternalJson) {
-    const zephyrIdeSettingFilePath = path.join(config.rootPath, ".vscode/zephyr-ide.json");
-    try {
-      if (!fs.pathExistsSync(zephyrIdeSettingFilePath)) {
-        await fs.outputFile(zephyrIdeSettingFilePath, JSON.stringify({}, null, 2), { flag: 'w+' }, function (err: any) {
-          if (err) { throw err; }
-          console.log('Created zephyr-ide file');
-        }
-        );
-      } else {
-        var object = await JSON.parse(fs.readFileSync(zephyrIdeSettingFilePath, 'utf8'));
-        let projects = object.projects;
-        projectLoader(config, projects);
+  const zephyrIdeSettingFilePath = path.join(config.rootPath, ".vscode/zephyr-ide.json");
+  try {
+    if (!fs.pathExistsSync(zephyrIdeSettingFilePath)) {
+      await fs.outputFile(zephyrIdeSettingFilePath, JSON.stringify({}, null, 2), { flag: 'w+' }, function (err: any) {
+        if (err) { throw err; }
+        console.log('Created zephyr-ide file');
       }
-    } catch (error) {
-      console.error("Failed to load .vscode/zephyr-ide.json");
-      console.error(error);
+      );
+    } else {
+      var object = await JSON.parse(fs.readFileSync(zephyrIdeSettingFilePath, 'utf8'));
+      let projects = object.projects;
+      projectLoader(config, projects);
     }
-  } else {
-    let temp: ProjectConfigDictionary | undefined = await configuration.get("zephyr-ide.projects");
-    temp = JSON.parse(JSON.stringify(temp));
-    if (temp) {
-      projectLoader(config, temp);
-    }
+  } catch (error) {
+    console.error("Failed to load .vscode/zephyr-ide.json");
+    console.error(error);
   }
 }
 
@@ -320,12 +310,6 @@ export async function setWorkspaceState(context: vscode.ExtensionContext, wsConf
   fs.outputFile(path.join(wsConfig.rootPath, ".vscode/zephyr-ide.json"), JSON.stringify({ projects: wsConfig.projects }, null, 2), { flag: 'w+' }, function (err: any) {
     if (err) { throw err; }
   });
-
-  const configuration = await vscode.workspace.getConfiguration();
-  const target = vscode.ConfigurationTarget.Workspace;
-
-  await configuration.update("zephyr-ide.use-zephyr-ide-json", true, target);
-  await configuration.update('zephyr-ide.projects', null, false);
 
   await context.workspaceState.update("zephyr.env", wsConfig);
 }

@@ -50,22 +50,6 @@
       "type": "object",
       "title": "Zephyr IDE: Projects",
       "properties": {
-        "zephyr-ide.projects": {
-          "type": [
-            "any",
-            "null",
-            "object"
-          ],
-          "default": null,
-          "description": "[deprecated] Zephyr IDE Project Configuration."
-        },
-        "zephyr-ide.use-zephyr-ide-json": {
-          "type": [
-            "boolean"
-          ],
-          "default": false,
-          "description": "[deprecated] Allows use of separater json file to store Zephyr IDE Project Configuration."
-        },
         "zephyr-ide.tools_directory": {
           "type": [
             "string"

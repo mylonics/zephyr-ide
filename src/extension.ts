@@ -415,15 +415,6 @@ export async function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  vscode.workspace.onDidChangeConfiguration((event: vscode.ConfigurationChangeEvent) => {
-    //const projectsFileChanged = event.affectsConfiguration(`zephyr-ide.use-zephyr-ide-json`);
-    const projectsChanged = event.affectsConfiguration(`zephyr-ide.projects`);
-
-    if (projectsChanged) {
-      vscode.commands.executeCommand("zephyr-ide.load-projects-from-file");
-    }
-  });
-
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.remove-build", async () => {
       await project.removeBuild(context, wsConfig);
