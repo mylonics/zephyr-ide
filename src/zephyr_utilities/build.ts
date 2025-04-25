@@ -328,42 +328,43 @@ export async function getBuildInfo(wsConfig: WorkspaceConfig,
   project: ProjectConfig,
   build: BuildConfig) {
   let buildInfoFilePath = path.join(wsConfig.rootPath, project.rel_path, build.name, "build_info.yml");
-  let rawData: any = yaml.load(fs.readFileSync(buildInfoFilePath, 'utf-8'));
+  if (fs.existsSync(buildInfoFilePath)) {
+    let rawData: any = yaml.load(fs.readFileSync(buildInfoFilePath, 'utf-8'));
 
-  if (rawData && rawData.cmake && rawData.cmake.devicetree && rawData.cmake.kconfig) {
-    let dtsFiles = rawData.cmake.devicetree["files"];
-    let userDtsFiles = rawData.cmake.devicetree["user-files"];
+    if (rawData && rawData.cmake && rawData.cmake.devicetree && rawData.cmake.kconfig) {
+      let dtsFiles = rawData.cmake.devicetree["files"];
+      let userDtsFiles = rawData.cmake.devicetree["user-files"];
 
-    let dtsFile = "";
+      let dtsFile = "";
 
-    let otherDtsFiles: string[] = [];
+      let otherDtsFiles: string[] = [];
 
-    for (let file in dtsFiles) {
-      if (path.extname(dtsFiles[file]) == ".dts") {
-        dtsFile = dtsFiles[file];
-        break
-      } else {
-        if (!(dtsFiles[file] in otherDtsFiles)) {
-          otherDtsFiles.push(dtsFiles[file]);
+      for (let file in dtsFiles) {
+        if (path.extname(dtsFiles[file]) == ".dts") {
+          dtsFile = dtsFiles[file];
+          break
+        } else {
+          if (!(dtsFiles[file] in otherDtsFiles)) {
+            otherDtsFiles.push(dtsFiles[file]);
+          }
         }
       }
-    }
-    for (let file in userDtsFiles) {
-      if (!(userDtsFiles[file] in otherDtsFiles)) {
-        otherDtsFiles.push(userDtsFiles[file]);
+      for (let file in userDtsFiles) {
+        if (!(userDtsFiles[file] in otherDtsFiles)) {
+          otherDtsFiles.push(userDtsFiles[file]);
+        }
       }
-    }
 
 
-    let info: BuildInfo = {
-      bindingsDirs: rawData.cmake.devicetree["bindings-dirs"],
-      dtsFile: dtsFile,
-      otherDtsFiles: otherDtsFiles,
-      includeDirs: rawData.cmake.devicetree["include-dirs"],
-      kconfigFiles: rawData.cmake.kconfig["files"],
-      otherKconfigFiles: rawData.cmake.kconfig["user-files"],
+      let info: BuildInfo = {
+        bindingsDirs: rawData.cmake.devicetree["bindings-dirs"],
+        dtsFile: dtsFile,
+        otherDtsFiles: otherDtsFiles,
+        includeDirs: rawData.cmake.devicetree["include-dirs"],
+        kconfigFiles: rawData.cmake.kconfig["files"],
+        otherKconfigFiles: rawData.cmake.kconfig["user-files"],
+      }
+      return info;
     }
-    return info;
   }
-
 }
