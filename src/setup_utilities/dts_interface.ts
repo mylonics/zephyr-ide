@@ -45,7 +45,7 @@ async function activateDtsExtension() {
 
 export async function initializeDtsExt(state: SetupState, wsConfig: WorkspaceConfig) {
   await activateDtsExtension();
-  if (api) {
+  if (api && state.westUpdated) {
     const dtsIncludeArray = await getDtsIncludes(state);
 
     let settings: IntegrationSettings = {

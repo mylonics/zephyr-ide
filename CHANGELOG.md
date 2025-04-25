@@ -1,6 +1,9 @@
 # Change Log
 
 All notable changes to the "zephyr-ide" extension will be documented in this file.
+## 1.7.2
+Fixed bug calling west list before a west update has occurred.
+
 ## 1.7.1
 Removed Deprecated .vscode settings \
 Updated nrf connect versions

@@ -716,6 +716,8 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
 
   wsConfig.initialSetupComplete = true;
   wsConfig.activeSetupState.westUpdated = true;
+
+  initializeDtsExt(wsConfig.activeSetupState, wsConfig);
   saveSetupState(context, wsConfig, globalConfig);
   setWorkspaceState(context, wsConfig);
   if (solo) {
