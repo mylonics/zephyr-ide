@@ -1,7 +1,7 @@
 # Change Log
 
 All notable changes to the "zephyr-ide" extension will be documented in this file.
-## 1.7.3
+## 1.7.4
 Checking if build_info file exists before trying to read it.
 
 ## 1.7.2
