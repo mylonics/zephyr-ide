@@ -23,6 +23,15 @@ import path from "path";
 import { executeShellCommandInPythonEnv, output } from "../utilities/utils";
 import { SetupState } from "./setup";
 
+
+export interface ZephyrVersionNumber {
+  major: number;
+  minor: number;
+  patch: number;
+  tweak: number;
+  extra: number;
+}
+
 export async function getModuleList(setupState: SetupState) {
 
   const outputList: Array<string[]> = [];
@@ -43,6 +52,55 @@ export async function getModuleList(setupState: SetupState) {
     }
   }
   return outputList;
+}
+
+export async function getModuleVersion(modulePath: string): Promise<any> {
+  let filePath = path.join(modulePath, "VERSION")
+
+  if (fs.existsSync(filePath)) {
+    const file = fs.readFileSync(filePath, 'utf8');
+    let lines = file.split(/\r?\n/)
+    let versionNumber: ZephyrVersionNumber = {
+      major: +lines[0].split("=")[1],
+      minor: +lines[1].split("=")[1],
+      patch: +lines[2].split("=")[1],
+      tweak: +lines[3].split("=")[1],
+      extra: +lines[4].split("=")[1],
+    }
+    console.log(versionNumber)
+    return versionNumber;
+  }
+}
+
+export function isVersionNumberGreaterEqual(version: ZephyrVersionNumber, major: number, minor: number, patch: number) {
+  if (version.major > major) {
+    return true;
+  } else if (version.major == major) {
+    if (version.minor > minor) {
+      return true;
+    } else if (version.minor == minor) {
+
+      if (version.patch >= patch) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+export function isVersionNumberGreater(version: ZephyrVersionNumber, major: number, minor: number, patch: number) {
+  if (version.major > major) {
+    return true;
+  } else if (version.major == major) {
+    if (version.minor > minor) {
+      return true;
+    } else if (version.minor == minor) {
+      if (version.patch > patch) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 export async function getModuleYamlFile(setupState: SetupState, moduleRelPath: string): Promise<any> {

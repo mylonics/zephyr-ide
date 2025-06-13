@@ -32,6 +32,8 @@ import { installSdk } from "./setup_utilities/setup_toolchain";
 import { initializeDtsExt, updateAllDtsContexts, printContexts, setDtsContext } from "./setup_utilities/dts_interface";
 import { setActiveProject, getActiveRunnerNameOfBuild, getActiveBuildNameOfProject, getActiveBuildConfigOfProject } from "./project_utilities/project";
 
+import { getModuleVersion } from "./setup_utilities/modules";
+
 let wsConfig: WorkspaceConfig;
 let globalConfig: GlobalConfig;
 
@@ -72,6 +74,10 @@ export async function activate(context: vscode.ExtensionContext) {
 
   if (wsConfig.selectSetupType !== SetupStateType.NONE && wsConfig.activeSetupState) {
     await setSetupState(context, wsConfig, globalConfig, SetupStateType.SELECTED, wsConfig.activeSetupState.setupPath);
+  }
+
+  if (wsConfig.activeSetupState && (wsConfig.activeSetupState.zephyrVersion == undefined) && wsConfig.activeSetupState.zephyrDir) {
+    wsConfig.activeSetupState.zephyrVersion = await getModuleVersion(wsConfig.activeSetupState.zephyrDir);
   }
 
   reloadEnvironmentVariables(context, wsConfig.activeSetupState);

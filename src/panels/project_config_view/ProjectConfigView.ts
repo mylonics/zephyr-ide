@@ -182,7 +182,7 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
           },
           value: { cmd: "openBoardDtc", project: projectName, build: build.name },
           label: 'Board',
-          description: build.board
+          description: build.board + (build.revision ? '@' + build.revision : "")
         },
         {
           icons: {

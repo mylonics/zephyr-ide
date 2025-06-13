@@ -126,7 +126,7 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
     buildData['label'] = build.name;
     buildData['value'] = { project: projectName, build: build.name };
     buildData['open'] = viewOpen !== undefined ? viewOpen : true;
-    buildData['description'] = build.board;
+    buildData['description'] = build.board + (build.revision ? '@' + build.revision : "");
     buildData['subItems'] = [];
 
     let runnerNames = [];

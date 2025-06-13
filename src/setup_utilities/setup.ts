@@ -25,7 +25,8 @@ import { installSdk, pickToolchainTarget, ToolChainDictionary } from "../setup_u
 import { output, executeShellCommand, executeShellCommandInPythonEnv, executeTaskHelper, reloadEnvironmentVariables, getPlatformName, closeTerminals, getRootPath, getRootPathFs } from "../utilities/utils";
 import { ProjectConfig, ProjectState } from "../project_utilities/project";
 import { initializeDtsExt, updateAllDtsContexts } from "./dts_interface";
-import { getModulePath } from "./modules";
+import { getModulePath, ZephyrVersionNumber, getModuleVersion } from "./modules";
+
 
 import { westSelector, WestLocation } from "./west_selector";
 export type ProjectConfigDictionary = { [name: string]: ProjectConfig };
@@ -37,6 +38,7 @@ export interface SetupState {
   westUpdated: boolean,
   sdkInstalled?: boolean,
   zephyrDir: string,
+  zephyrVersion?: ZephyrVersionNumber,
   env: { [name: string]: string | undefined },
   setupPath: string,
 }
@@ -690,6 +692,7 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
 
   if (zephyrPath) {
     wsConfig.activeSetupState.zephyrDir = path.join(wsConfig.activeSetupState.setupPath, zephyrPath);
+    wsConfig.activeSetupState.zephyrVersion = await getModuleVersion(wsConfig.activeSetupState.zephyrDir);
     reloadEnvironmentVariables(context, wsConfig.activeSetupState);
   } else {
     vscode.window.showErrorMessage("West Update Failed. Could not find Zephyr Directory.");
@@ -702,16 +705,11 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
     return false;
   }
 
-  let cmd = `pip install -r ${path.join(wsConfig.activeSetupState.zephyrDir, "scripts", "requirements.txt")}`;
+  let cmd = `pip install -r ${path.join(wsConfig.activeSetupState.zephyrDir, "scripts", "requirements.txt")} -U dtsh`;
   let pipInstallRes = await executeTaskHelper("Zephyr IDE: West Update", cmd, wsConfig.activeSetupState.setupPath);
   if (!pipInstallRes) {
     vscode.window.showErrorMessage("West Update Failed. Error installing python requirements.");
     return false;
-  }
-  cmd = `pip install -U dtsh`;
-  let dtshInstallRes = await executeTaskHelper("Zephyr IDE: West Update", cmd, wsConfig.activeSetupState.setupPath);
-  if (!dtshInstallRes) {
-    vscode.window.showWarningMessage("Failed to install dtsh");
   }
 
   wsConfig.initialSetupComplete = true;

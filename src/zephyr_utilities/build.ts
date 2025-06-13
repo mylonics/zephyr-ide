@@ -150,7 +150,7 @@ export async function build(
     } else if (wsConfig.activeSetupState) {
       boardRoot = wsConfig.activeSetupState?.zephyrDir;
     }
-    cmd = `west build -b ${build.board} ${projectFolder} -p --build-dir ${buildFolder} ${extraWestBuildArgs} -- -DBOARD_ROOT='${boardRoot}' ${extraWestBuildCMakeArgs} `;
+    cmd = `west build -b ${build.board + (build.revision ? '@' + build.revision : "")} ${projectFolder} -p --build-dir ${buildFolder} ${extraWestBuildArgs} -- -DBOARD_ROOT='${boardRoot}' ${extraWestBuildCMakeArgs} `;
 
     if (primaryConfFiles.length) {
       let confFileString = "";

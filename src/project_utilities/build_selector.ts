@@ -24,6 +24,7 @@ import { RunnerConfigDictionary, RunnerStateDictionary } from './runner_selector
 import { ConfigFiles } from './config_selector';
 import { SetupState } from '../setup_utilities/setup';
 import { executeShellCommandInPythonEnv, output } from "../utilities/utils";
+import { isVersionNumberGreaterEqual, isVersionNumberGreater } from '../setup_utilities/modules';
 
 // Config for the extension
 export interface BuildConfig {
@@ -39,6 +40,7 @@ export interface BuildConfig {
   launchTarget: string;
   buildDebugTarget: string;
   attachTarget: string;
+  revision?: string;
 }
 
 // Config for the extension
@@ -47,6 +49,12 @@ export interface BuildState {
   viewOpen?: boolean;
   runnerStates: RunnerStateDictionary;
 }
+
+interface BoardItem extends QuickPickItem {
+  revisions?: string[],
+  revision_default?: string;
+}
+
 
 export type BuildConfigDictionary = { [name: string]: BuildConfig };
 export type BuildStateDictionary = { [name: string]: BuildState };
@@ -113,9 +121,6 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
   }
 
   async function inputBoardName(input: MultiStepInput, state: Partial<BuildConfig>) {
-    let boards: { name: string, subdir: string }[] = [];
-
-    //console.log("Changing board dir to " + state.relBoardDir);
     let boardList;
     if (state.relBoardDir) {
       boardList = await getBoardlistWest(vscode.Uri.file(path.join(rootPath, state.relBoardDir)));
@@ -126,8 +131,8 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
     if (!boardList) {
       return;
     }
-    boards = boards.concat(boardList);
-    const boardQpItems: QuickPickItem[] = boards.map(x => ({ label: x.name, description: x.subdir }));
+
+    const boardQpItems: BoardItem[] = boardList.map(x => ({ revisions: x.revisions, revision_default: x.revision_default, label: x.name, description: x.subdir }));
     const pickPromise = input.showQuickPick({
       title,
       step: 2,
@@ -145,7 +150,42 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
     if (!pick) {
       return;
     };
-    state.board = pick.label;
+
+    let pick_data = (pick as BoardItem);
+
+    state.board = pick_data.label;
+
+    if (pick_data.revisions) {
+      let revisionQPItems: QuickPickItem[] = [];
+      let revisionIndex = 0;
+      for (let revision of pick_data.revisions) {
+        let description = "";
+        if (revision == pick_data.revision_default) {
+          revisionIndex = revisionQPItems.length;
+          description = "default";
+        }
+        revisionQPItems.push({ label: revision, description: description });
+      }
+
+      const pickPromise = input.showQuickPick({
+        title,
+        step: 2,
+        totalSteps: 4,
+        placeholder: 'Pick Revision',
+        ignoreFocusOut: true,
+        items: revisionQPItems,
+        activeItem: revisionQPItems[revisionIndex],
+        shouldResume: shouldResume
+      }).catch((error) => {
+        console.error(error);
+        return undefined;
+      });
+      let pick = await pickPromise;
+      if (!pick) {
+        return;
+      };
+      state.revision = pick.label;
+    }
 
     if (pick.description) {
       if (state.relBoardDir) {
@@ -158,18 +198,26 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
     return (input: MultiStepInput) => inputBuildName(input, state);
   }
 
-  async function getBoardlistWest(folder: vscode.Uri | undefined): Promise<{ name: string, subdir: string }[] | undefined> {
+  async function getBoardlistWest(folder: vscode.Uri | undefined): Promise<{ name: string, subdir: string, revisions?: string[], revision_default?: string }[] | undefined> {
     let boardRootString = "";
     if (folder) {
       boardRootString = " --board-root " + path.dirname(folder.fsPath);
     }
 
     let prevError: any;
-
-    let res = await executeShellCommandInPythonEnv("west boards -f '{name}:{qualifiers}:{dir}'" + boardRootString, setupState.setupPath, setupState, false);
-    if (!res.stdout) {
-      prevError = res.stderr;
-      res = await executeShellCommandInPythonEnv("west boards -f '{name}:{name}:{dir}'" + boardRootString, setupState.setupPath, setupState, false);
+    if (setupState.zephyrVersion == undefined) { return; }
+    let res;
+    let has_qualifiers = false;
+    let has_revisions = false;
+    if (isVersionNumberGreater(setupState.zephyrVersion, 4, 1, 0)) {
+      res = await executeShellCommandInPythonEnv("west boards -f '{name};{dir};{qualifiers};{revisions};{revision_default}'" + boardRootString, setupState.setupPath, setupState, false);
+      has_qualifiers = true;
+      has_revisions = true;
+    } else if (isVersionNumberGreaterEqual(setupState.zephyrVersion, 3, 7, 0)) {
+      res = await executeShellCommandInPythonEnv("west boards -f '{name};{dir};{qualifiers}'" + boardRootString, setupState.setupPath, setupState, false);
+      has_qualifiers = true;
+    } else {
+      res = await executeShellCommandInPythonEnv("west boards -f '{name};{dir}'" + boardRootString, setupState.setupPath, setupState, false);
     }
 
     if (!res.stdout) {
@@ -180,22 +228,39 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
     }
 
     let allBoardData = res.stdout.split(/\r?\n/);
-    let outputData: { name: string, subdir: string }[] = [];
+    let outputData: { name: string, subdir: string, revisions?: string[], revision_default?: string }[] = [];
     for (let i = 0; i < allBoardData.length; i++) {
-      let arr = allBoardData[i].replaceAll("'", "").split(":");
-      let boardData = arr.splice(0, 2);
-      boardData.push(arr.join(':'));
+      let boardData = allBoardData[i].replaceAll("'", "").split(";");
+      try {
+        if (boardData.length > 1) {
 
-      let qualifiers = boardData[1].split(",");
-      if (qualifiers.length > 1) {
-        for (let j = 0; j < qualifiers.length; j++) {
-          outputData.push({ name: boardData[0] + "/" + qualifiers[j], subdir: boardData[2] });
+          let qualifiers: string[] = [];
+          if (has_qualifiers) {
+            qualifiers = boardData[2].split(",");
+          }
+
+          let revisions: string[] | undefined;
+          let revision_default: string | undefined;
+
+          if (has_revisions) {
+            if (boardData[3] != "None") {
+              revisions = boardData[3].split(" ");
+              revision_default = boardData[4];
+            }
+          }
+
+          if (qualifiers.length > 1) {
+            for (let j = 0; j < qualifiers.length; j++) {
+              outputData.push({ name: boardData[0] + "/" + qualifiers[j], subdir: boardData[2], revisions: revisions, revision_default: revision_default });
+            }
+          } else {
+            outputData.push({ name: boardData[0], subdir: boardData[2], revisions: revisions, revision_default: revision_default });
+          }
         }
-      } else {
-        if (boardData.length > 2) {
-          outputData.push({ name: boardData[0], subdir: boardData[2] });
-        }
+      } catch (error) {
+        console.log(error);
       }
+
 
     }
     return outputData;
@@ -211,7 +276,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       step: 3,
       totalSteps: 4,
       ignoreFocusOut: true,
-      value: path.join("build", state.board),
+      value: path.join("build", state.board + (state.revision ? "_" + state.revision : "")),
       prompt: 'Choose a name for the Build',
       validate: validate,
       shouldResume: shouldResume
