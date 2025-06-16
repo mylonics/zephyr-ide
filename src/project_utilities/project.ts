@@ -26,12 +26,16 @@ import { configSelector, configRemover, ConfigFiles } from "./config_selector";
 import { setDtsContext } from "../setup_utilities/dts_interface";
 import { getSamples } from "../setup_utilities/modules";
 
+import { TwisterConfigDictionary, twisterSelector, TwisterStateDictionary } from "./twister_selector";
+
+
 // Project specific configuration
 export interface ProjectConfig {
   name: string;
   rel_path: string;
   buildConfigs: BuildConfigDictionary;
   confFiles: ConfigFiles;
+  twisterConfigs: TwisterConfigDictionary;
 }
 
 // Project specific state
@@ -39,7 +43,9 @@ export interface ProjectState {
   activeBuildConfig?: string;
   viewOpen?: boolean;
   buildStates: BuildStateDictionary;
+  twisterStates: TwisterStateDictionary;
 }
+
 
 export function getActiveProjectName(wsConfig: WorkspaceConfig) {
   return wsConfig.activeProject;
@@ -168,6 +174,7 @@ export async function createNewProjectFromSample(wsConfig: WorkspaceConfig) {
     }
   }
 }
+
 
 export async function addConfigFiles(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, isKConfig: boolean, isToProject: boolean, projectName?: string, buildName?: string, isPrimary?: boolean) {
   projectName = getProjectName(wsConfig, projectName);
@@ -419,6 +426,7 @@ export async function addProject(wsConfig: WorkspaceConfig, context: vscode.Exte
     rel_path: path.relative(wsConfig.rootPath, projectPath),
     name: projectName,
     buildConfigs: {},
+    twisterConfigs: {},
     confFiles: {
       config: [],
       extraConfig: [],
@@ -426,7 +434,7 @@ export async function addProject(wsConfig: WorkspaceConfig, context: vscode.Exte
       extraOverlay: [],
     },
   };
-  wsConfig.projectStates[projectName] = { buildStates: {}, viewOpen: true }
+  wsConfig.projectStates[projectName] = { buildStates: {}, viewOpen: true, twisterStates: {} }
   setActiveProject(context, wsConfig, projectName);
   await setWorkspaceState(context, wsConfig);
 
@@ -459,7 +467,79 @@ export async function addBuildToProject(wsConfig: WorkspaceConfig, context: vsco
 }
 
 
+export async function addBuild(wsConfig: WorkspaceConfig, context: vscode.ExtensionContext) {
+  if (wsConfig.activeProject === undefined) {
+    vscode.window.showErrorMessage(`Failed to Add Build Configuration, please first select a project`);
+    return;
+  }
+  await addBuildToProject(wsConfig, context, wsConfig.activeProject);
+}
+
 export async function removeBuild(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName?: string, buildName?: string) {
+  if (projectName === undefined) {
+    projectName = await askUserForProject(wsConfig);
+    if (projectName === undefined) {
+      return;
+    }
+  }
+  if (buildName === undefined) {
+    buildName = await askUserForBuild(context, wsConfig, projectName);
+    if (buildName === undefined) {
+      return;
+    }
+  }
+  if (buildName in wsConfig.projects[projectName].buildConfigs) {
+
+    const selection = await vscode.window.showWarningMessage('Are you sure you want to remove ' + buildName + '?', 'Yes', 'Cancel');
+    if (selection !== 'Yes') {
+      return;
+    }
+    delete wsConfig.projects[projectName].buildConfigs[buildName];
+    if (wsConfig.projectStates[projectName].activeBuildConfig === buildName) {
+      wsConfig.projectStates[projectName].activeBuildConfig = undefined;
+    }
+    await setWorkspaceState(context, wsConfig);
+    return true;
+  }
+}
+
+
+export async function addTest(wsConfig: WorkspaceConfig, context: vscode.ExtensionContext) {
+  if (wsConfig.activeProject === undefined) {
+    vscode.window.showErrorMessage(`Failed to Add Build Configuration, please first select a project`);
+    return;
+  }
+  if (wsConfig.activeSetupState === undefined) {
+    return;
+  }
+
+  let result = await twisterSelector(wsConfig.projects[wsConfig.activeProject].rel_path, context, wsConfig.activeSetupState, wsConfig.rootPath);
+  if (result && result.name !== undefined) {
+    if (wsConfig.projects[wsConfig.activeProject].buildConfigs[result.name]) {
+      const selection = await vscode.window.showWarningMessage('Twister Configuration with name: ' + result.name + ' already exists!', 'Overwrite', 'Cancel');
+      if (selection !== 'Overwrite') {
+        vscode.window.showErrorMessage(`Failed to add twister configuration`);
+        return;
+      }
+    }
+
+    vscode.window.showInformationMessage(`Creating Twister Configuration: ${result.name}`);
+
+    //Remove the following upgrade code eventually
+    if (wsConfig.projects[wsConfig.activeProject].twisterConfigs === undefined) {
+      wsConfig.projects[wsConfig.activeProject].twisterConfigs = {};
+      wsConfig.projectStates[wsConfig.activeProject].twisterStates = {};
+    }
+
+    wsConfig.projects[wsConfig.activeProject].twisterConfigs[result.name] = result;
+    wsConfig.projectStates[wsConfig.activeProject].twisterStates[result.name] = { viewOpen: true };
+    setActiveBuild(context, wsConfig, wsConfig.activeProject, result.name)
+
+    await setWorkspaceState(context, wsConfig);
+  }
+}
+
+export async function removeTest(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName?: string, buildName?: string) {
   if (projectName === undefined) {
     projectName = await askUserForProject(wsConfig);
     if (projectName === undefined) {
@@ -520,14 +600,6 @@ export async function removeRunner(context: vscode.ExtensionContext, wsConfig: W
     await setWorkspaceState(context, wsConfig);
     return true;
   }
-}
-
-export async function addBuild(wsConfig: WorkspaceConfig, context: vscode.ExtensionContext) {
-  if (wsConfig.activeProject === undefined) {
-    vscode.window.showErrorMessage(`Failed to Add Build Configuration, please first select a project`);
-    return;
-  }
-  await addBuildToProject(wsConfig, context, wsConfig.activeProject);
 }
 
 export async function setActive(wsConfig: WorkspaceConfig, project: string, build?: string, runner?: string) {
@@ -603,7 +675,7 @@ export async function addRunnerToBuild(wsConfig: WorkspaceConfig, context: vscod
 
   let result;
   if (path.isAbsolute(build.relBoardSubDir)) {
-    result = await runnerSelector(build.relBoardSubDir); // Will remove eventually
+    result = await runnerSelector(build.relBoardSubDir);
   } else {
     if (build.relBoardDir) {
       //Custom Folder
@@ -685,3 +757,28 @@ export async function selectDebugAttachLaunchConfiguration(context: vscode.Exten
     await setWorkspaceState(context, wsConfig);
   }
 }
+
+
+//export function getTestsFromProject(wsConfig: WorkspaceConfig, projectName: string) {
+//  let projectPath = path.join(wsConfig.rootPath, wsConfig.projects[projectName].rel_path);
+//  let testcasePath = path.join(projectPath, "testcase.yaml");
+//  let samplePath = path.join(projectPath, "sample.yaml");
+//
+//  let filePath: string | undefined;
+//  if (fs.existsSync(testcasePath)) {
+//    filePath = testcasePath;
+//  } else if (fs.existsSync(samplePath)) {
+//    filePath = samplePath;
+//  }
+//
+//  let tests: string[] = []
+//  if (filePath) {
+//    let yamlFile: any = yaml.load(fs.readFileSync(filePath, 'utf-8'));
+//    if (yamlFile && yamlFile.tests) {
+//      for (var prop in yamlFile.tests) {
+//        tests.push(prop);
+//      }
+//    }
+//  }
+//  return tests;
+//}

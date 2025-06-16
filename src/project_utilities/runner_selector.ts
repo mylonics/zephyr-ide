@@ -62,8 +62,7 @@ export async function runnerSelector(boardfolder: string) {
       placeholder: 'Pick Runner',
       items: runnersQpItems,
       ignoreFocusOut: true,
-      activeItem: typeof state.runner !== 'string' ? state.runner : undefined,
-      shouldResume: shouldResume
+      activeItem: typeof state.runner !== 'string' ? state.runner : undefined
     }).catch((error) => {
       console.error(error);
       return undefined;
@@ -92,8 +91,7 @@ export async function runnerSelector(boardfolder: string) {
       value: state.runner,
       ignoreFocusOut: true,
       prompt: 'Choose a name for this Runner Configuration',
-      validate: validate,
-      shouldResume: shouldResume
+      validate: validate
     }).catch((error) => {
       console.error(error);
       return undefined;
@@ -118,8 +116,7 @@ export async function runnerSelector(boardfolder: string) {
       value: "",
       prompt: 'Add Runner Arguments',
       ignoreFocusOut: true,
-      validate: validate,
-      shouldResume: shouldResume
+      validate: validate
     }).catch((error) => {
       console.error(error);
       return undefined;
@@ -134,13 +131,6 @@ export async function runnerSelector(boardfolder: string) {
 
   async function validate(name: string) {
     return undefined;
-  }
-
-  function shouldResume() {
-    // Could show a notification with the option to resume.
-    return new Promise<boolean>((resolve, reject) => {
-      reject();
-    });
   }
 
   async function collectInputs() {

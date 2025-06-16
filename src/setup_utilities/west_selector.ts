@@ -19,7 +19,7 @@ import { QuickPickItem, ExtensionContext } from 'vscode';
 import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs-extra";
-import { MultiStepInput, showQuickPick } from "../utilities/multistepQuickPick";
+import { MultiStepInput, showQuickPick, showQuickPickMany } from "../utilities/multistepQuickPick";
 import { WorkspaceConfig } from './setup';
 import * as yaml from 'js-yaml';
 
@@ -50,8 +50,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
       placeholder: "--mr main",
       value: "",
       prompt: 'Additional arguments? (--mr main, --mf west.yml)',
-      validate: validateArgs,
-      shouldResume: shouldResume
+      validate: validateArgs
     }).catch((error) => {
       console.error(error);
       return "";
@@ -83,7 +82,6 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
       ignoreFocusOut: true,
       items: westOptionQpItems,
       activeItem: typeof state.path !== 'string' ? state.path : undefined,
-      shouldResume: shouldResume,
     }).catch((error) => {
       return;
     });
@@ -109,8 +107,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
         placeholder: "https://github.com/zephyrproject-rtos/example-application",
         value: "",
         prompt: 'Specify a git repository to clone from',
-        validate: validateGitRepoString,
-        shouldResume: shouldResume
+        validate: validateGitRepoString
       }).catch((error) => {
         console.error(error);
         return undefined;
@@ -152,19 +149,18 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
     if (copyTemplate) {
       let desiredHals;
       if (westFile === "minimal_west.yml" || westFile === "minimal_ble_west.yml") {
-        const pickPromise = await showQuickPick({
+        const pickPromise = await showQuickPickMany({
           title,
           step: 2,
           totalSteps: 3,
           ignoreFocusOut: true,
           placeholder: "",
           items: zephyrHals,
-          shouldResume: shouldResume,
           canSelectMany: true,
         }).catch((error) => {
           return;
         });
-        desiredHals = pickPromise;
+        desiredHals = await pickPromise;
       }
 
       const extensionPath = context.extensionPath;
@@ -212,8 +208,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
         ignoreFocusOut: true,
         placeholder: versionSelectionString,
         items: versionQP,
-        activeItem: typeof state.path !== 'string' ? state.path : undefined,
-        shouldResume: shouldResume,
+        activeItem: typeof state.path !== 'string' ? state.path : undefined
       }).catch((error) => {
         return;
       });
@@ -235,8 +230,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
           ignoreFocusOut: true,
           value: "Default",
           prompt: 'Input a Version Number (i.e vX.X.X) or branch name (i.e main)',
-          validate: validate,
-          shouldResume: shouldResume
+          validate: validate
         }).catch((error) => {
           console.error(error);
           return undefined;
@@ -274,13 +268,6 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
     }
     await getAdditionalArguments(input, state);
     return;
-  }
-
-  function shouldResume() {
-    // Could show a notification with the option to resume.
-    return new Promise<boolean>((resolve, reject) => {
-      reject();
-    });
   }
 
   async function collectInputs() {

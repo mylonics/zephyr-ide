@@ -64,8 +64,7 @@ export async function configSelector(wsConfig: WorkspaceConfig, isKConfigSelecto
       placeholder: 'Select type of file to add',
       items: confFileOption,
       activeItem: undefined,
-      ignoreFocusOut: true,
-      shouldResume: shouldResume
+      ignoreFocusOut: true
     }).catch((error) => {
       console.error(error);
       return undefined;
@@ -118,8 +117,7 @@ export async function configSelector(wsConfig: WorkspaceConfig, isKConfigSelecto
       placeholder: 'Add more files?',
       items: addMoreOption,
       activeItem: undefined,
-      ignoreFocusOut: true,
-      shouldResume: shouldResume
+      ignoreFocusOut: true
     }).catch((error) => {
       console.error(error);
       return undefined;
@@ -132,12 +130,6 @@ export async function configSelector(wsConfig: WorkspaceConfig, isKConfigSelecto
       return (input: MultiStepInput) => chooseFiles(input, state, isPrimary);
     }
     return;
-  }
-
-  function shouldResume() {
-    return new Promise<boolean>((resolve, reject) => {
-      reject();
-    });
   }
 
   async function collectInputs() {
@@ -187,7 +179,6 @@ export async function configRemover(confFiles: ConfigFiles, isKConfigSelector: b
       items: confFileOption,
       ignoreFocusOut: true,
       activeItem: undefined,
-      shouldResume: shouldResume,
     }).catch((error) => {
       console.error(error);
       return undefined;
@@ -220,7 +211,7 @@ export async function configRemover(confFiles: ConfigFiles, isKConfigSelector: b
     let temp = await vscode.window.showQuickPick(items, {
       ignoreFocusOut: true,
       placeHolder: "Select files to remove",
-      canPickMany: true
+      canPickMany: true,
     });
     if (!temp) {
       return;
@@ -249,12 +240,6 @@ export async function configRemover(confFiles: ConfigFiles, isKConfigSelector: b
       }
     }
     return;
-  }
-
-  function shouldResume() {
-    return new Promise<boolean>((resolve, reject) => {
-      reject();
-    });
   }
 
   async function collectInputs() {

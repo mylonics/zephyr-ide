@@ -162,6 +162,39 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
     return entry;
   }
 
+
+  generateTwisterString(projectName: string, buildName: string, runner: string, open: boolean | undefined): any {
+    let entry = {
+      icons: {
+        branch: 'chip',
+        leaf: 'chip',
+        open: 'chip',
+      },
+      label: runner,
+      value: { project: projectName, build: buildName, runner: runner },
+      open: open === undefined ? true : open,
+      subItems: [
+        {
+          icons: {
+            branch: 'tools',
+            leaf: 'tools',
+            open: 'tools',
+          }, label: 'Runner', description: runner
+        },
+        {
+          icons: {
+            branch: 'file-code',
+            leaf: 'file-code',
+            open: 'file-code',
+          }, label: 'Args', description: runner
+        }
+      ]
+    };
+
+    return entry;
+  }
+
+
   generateBuildString(buildData: any | undefined, projectName: string, build: BuildConfig, open: boolean | undefined, kConfigOpen: boolean | undefined, overlayOpen: boolean | undefined): any {
     if (buildData === undefined) {
       buildData = {};
@@ -330,6 +363,13 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
       if (activeBuild) {
         activeRunner = getActiveRunnerConfigOfBuild(wsConfig, wsConfig.activeProject, activeBuild.name);
       }
+
+      //let testStrings = getTestsFromProject(wsConfig, wsConfig.activeProject);
+      //
+      //if (testStrings.length) {
+      //
+      //}
+
     }
 
 
@@ -372,6 +412,11 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
       } else {
         this.treeData[1] = {};
         this.treeData[2] = {};
+      }
+      if (true) {
+        this.treeData[3] = this.generateTwisterString(activeProject.name, "twister", "twister_runner", this.projectConfigState.runnerOpenState);
+      } else {
+        this.treeData[3] = {};
       }
     } else {
       this.treeData = [];

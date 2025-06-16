@@ -97,7 +97,7 @@ function projectLoader(config: WorkspaceConfig, projects: any) {
 
     //generate project States if they don't exist
     if (config.projectStates[key] == undefined) {
-      config.projectStates[key] = { buildStates: {} }
+      config.projectStates[key] = { buildStates: {}, twisterStates: {} }
       if (config.activeProject == undefined) {
         config.activeProject = key;
       }

@@ -428,6 +428,25 @@ export async function activate(context: vscode.ExtensionContext) {
     })
   );
 
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.add-test", async () => {
+      if (wsConfig.activeSetupState && wsConfig.activeSetupState.westUpdated) {
+        await project.addTest(wsConfig, context);
+        vscode.commands.executeCommand("zephyr-ide.update-web-view");
+      } else {
+        vscode.window.showErrorMessage("Run `Zephyr IDE: West Update` first.");
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.remove-test", async () => {
+      await project.removeTest(context, wsConfig);
+      vscode.commands.executeCommand("zephyr-ide.update-web-view");
+    })
+  );
+
   context.subscriptions.push(vscode.commands.registerCommand("zephyr-ide.add-build-config-files", async () => {
     await project.addConfigFiles(context, wsConfig, true, false);
     vscode.commands.executeCommand("zephyr-ide.update-web-view");

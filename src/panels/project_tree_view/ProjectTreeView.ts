@@ -39,7 +39,13 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
       icon: "add",
       actionId: "addBuild",
       tooltip: "Add Build",
-    }, {
+    },
+    {
+      icon: "add-test",
+      actionId: "addTwister",
+      tooltip: "Add Test",
+    },
+    {
       icon: "trash",
       actionId: "deleteProject",
       tooltip: "Delete Project",

@@ -19,12 +19,21 @@ import { QuickPickItem, ExtensionContext } from 'vscode';
 import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs-extra";
-import { MultiStepInput } from "../utilities/multistepQuickPick";
+import { MultiStepInput, showQuickPick, showInputBox } from "../utilities/multistepQuickPick";
 import { RunnerConfigDictionary, RunnerStateDictionary } from './runner_selector';
 import { ConfigFiles } from './config_selector';
 import { SetupState } from '../setup_utilities/setup';
 import { executeShellCommandInPythonEnv, output } from "../utilities/utils";
 import { isVersionNumberGreaterEqual, isVersionNumberGreater } from '../setup_utilities/modules';
+
+
+// Config for the extension
+export interface BoardConfig {
+  board: string;
+  relBoardDir?: string;
+  relBoardSubDir: string;
+  revision?: string;
+}
 
 // Config for the extension
 export interface BuildConfig {
@@ -59,6 +68,210 @@ interface BoardItem extends QuickPickItem {
 export type BuildConfigDictionary = { [name: string]: BuildConfig };
 export type BuildStateDictionary = { [name: string]: BuildState };
 
+async function getBoardlistWest(setupState: SetupState, folder: vscode.Uri | undefined): Promise<{ name: string, subdir: string, revisions?: string[], revision_default?: string }[] | undefined> {
+  let boardRootString = "";
+  if (folder) {
+    boardRootString = " --board-root " + path.dirname(folder.fsPath);
+  }
+
+  let prevError: any;
+  if (setupState.zephyrVersion == undefined) { return; }
+  let res;
+  let has_qualifiers = false;
+  let has_revisions = false;
+  if (isVersionNumberGreater(setupState.zephyrVersion, 4, 1, 0)) {
+    res = await executeShellCommandInPythonEnv("west boards -f '{name};{dir};{qualifiers};{revisions};{revision_default}'" + boardRootString, setupState.setupPath, setupState, false);
+    has_qualifiers = true;
+    has_revisions = true;
+  } else if (isVersionNumberGreaterEqual(setupState.zephyrVersion, 3, 7, 0)) {
+    res = await executeShellCommandInPythonEnv("west boards -f '{name};{dir};{qualifiers}'" + boardRootString, setupState.setupPath, setupState, false);
+    has_qualifiers = true;
+  } else {
+    res = await executeShellCommandInPythonEnv("west boards -f '{name};{dir}'" + boardRootString, setupState.setupPath, setupState, false);
+  }
+
+  if (!res.stdout) {
+    output.append(prevError);
+    output.append(res.stderr);
+    vscode.window.showErrorMessage("Failed to run west boards command. See Zephyr IDE Output for error message");
+    return;
+  }
+
+  let allBoardData = res.stdout.split(/\r?\n/);
+  let outputData: { name: string, subdir: string, revisions?: string[], revision_default?: string }[] = [];
+  for (let i = 0; i < allBoardData.length; i++) {
+    let boardData = allBoardData[i].replaceAll("'", "").split(";");
+    try {
+      if (boardData.length > 1) {
+
+        let qualifiers: string[] = [];
+        if (has_qualifiers) {
+          qualifiers = boardData[2].split(",");
+        }
+
+        let revisions: string[] | undefined;
+        let revision_default: string | undefined;
+
+        if (has_revisions) {
+          if (boardData[3] != "None") {
+            revisions = boardData[3].split(" ");
+            revision_default = boardData[4];
+          }
+        }
+
+        if (qualifiers.length > 1) {
+          for (let j = 0; j < qualifiers.length; j++) {
+            outputData.push({ name: boardData[0] + "/" + qualifiers[j], subdir: boardData[2], revisions: revisions, revision_default: revision_default });
+          }
+        } else {
+          outputData.push({ name: boardData[0], subdir: boardData[2], revisions: revisions, revision_default: revision_default });
+        }
+      }
+    } catch (error) {
+      console.log(error);
+    }
+
+
+  }
+  return outputData;
+}
+
+export async function pickBoard(setupState: SetupState, rootPath: string) {
+  // Looks for board directories
+  let boardDirectories: string[] = [];
+
+  // Look in root
+  let boardDir = path.join(rootPath, `boards`);
+  if (fs.pathExistsSync(boardDir)) {
+    boardDirectories = boardDirectories.concat(boardDir);
+  }
+
+  if (setupState.zephyrDir) {
+    boardDirectories.push('Zephyr Directory Only')
+  }
+  console.log("Boards dir: " + boardDirectories);
+
+  boardDirectories.push("Select Other Folder");
+  const boardDirectoriesQpItems: QuickPickItem[] = boardDirectories.map(label => ({ label }));
+
+  const title = "Board Picker";
+
+  let pickPromise = showQuickPick({
+    title,
+    step: 1,
+    totalSteps: 4,
+    placeholder: 'Pick Additional Board Directory',
+    ignoreFocusOut: true,
+    items: boardDirectoriesQpItems,
+    activeItem: undefined
+  }).catch((error) => {
+    console.error(error);
+    return undefined;
+  });
+  let pick = (await pickPromise as QuickPickItem);
+  if (!pick) {
+    return;
+  };
+
+  let relBoardDir: string | undefined = path.relative(rootPath, (pick.label));
+  if (pick.label === "Select Other Folder") {
+    const boarddir = await vscode.window.showOpenDialog({
+      canSelectFiles: false,
+      canSelectFolders: true,
+      canSelectMany: false,
+    });
+    if (boarddir) {
+      relBoardDir = path.relative(rootPath, boarddir[0].fsPath);
+    } else {
+      vscode.window.showInformationMessage(`Failed to select board directory`);
+      return;
+    }
+  } else if (pick.label === 'Zephyr Directory Only') {
+    relBoardDir = undefined;
+  }
+
+  let relBoardSubDir: string = "";
+  if (pick.description) {
+    if (relBoardDir) {
+      relBoardSubDir = path.relative(path.join(rootPath, relBoardDir), pick.description)
+    } else {
+      relBoardSubDir = path.relative(path.join(setupState.zephyrDir, "boards"), pick.description);
+    }
+    return;
+  }
+
+  let boardList;
+  if (relBoardDir) {
+    boardList = await getBoardlistWest(setupState, vscode.Uri.file(path.join(rootPath, relBoardDir)));
+  } else {
+    boardList = await getBoardlistWest(setupState, undefined);
+  }
+
+  if (!boardList) {
+    return;
+  }
+
+  const boardQpItems: BoardItem[] = boardList.map(x => ({ revisions: x.revisions, revision_default: x.revision_default, label: x.name, description: x.subdir }));
+  pickPromise = showQuickPick({
+    title,
+    step: 2,
+    totalSteps: 4,
+    placeholder: 'Pick Board',
+    ignoreFocusOut: true,
+    items: boardQpItems,
+    activeItem: undefined
+  }).catch((error) => {
+    console.error(error);
+    return undefined;
+  });
+  pick = (await pickPromise as QuickPickItem);
+  if (!pick) {
+    return;
+  };
+
+  let pick_data = (pick as BoardItem);
+
+  let board = pick_data.label;
+  let revision: string | undefined;
+  if (pick_data.revisions) {
+    let revisionQPItems: QuickPickItem[] = [];
+    let revisionIndex = 0;
+    for (let revision of pick_data.revisions) {
+      let description = "";
+      if (revision == pick_data.revision_default) {
+        revisionIndex = revisionQPItems.length;
+        description = "default";
+      }
+      revisionQPItems.push({ label: revision, description: description });
+    }
+
+    let pickPromise = showQuickPick({
+      title,
+      step: 2,
+      totalSteps: 4,
+      placeholder: 'Pick Revision',
+      ignoreFocusOut: true,
+      items: revisionQPItems,
+      activeItem: revisionQPItems[revisionIndex]
+    }).catch((error) => {
+      console.error(error);
+      return undefined;
+    });
+    let pick = (await pickPromise as QuickPickItem);
+    if (!pick) {
+      return;
+    };
+    revision = pick.label;
+  }
+  let boardConfig = {
+    board: board,
+    relBoardDir: relBoardDir,
+    relBoardSubDir: relBoardSubDir,
+    revision: revision,
+  }
+  return boardConfig;
+}
+
 export async function buildSelector(context: ExtensionContext, setupState: SetupState, rootPath: string) {
   const title = 'Add Build Configuration';
 
@@ -72,9 +285,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       boardDirectories = boardDirectories.concat(boardDir);
     }
 
-    let zephyrBoardDir: string;
     if (setupState.zephyrDir) {
-      zephyrBoardDir = path.join(setupState.zephyrDir, `boards`);
       boardDirectories.push('Zephyr Directory Only')
     }
     console.log("Boards dir: " + boardDirectories);
@@ -90,7 +301,6 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       ignoreFocusOut: true,
       items: boardDirectoriesQpItems,
       activeItem: typeof state.relBoardDir !== 'string' ? state.relBoardDir : undefined,
-      shouldResume: shouldResume
     }).catch((error) => {
       console.error(error);
       return undefined;
@@ -123,9 +333,9 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
   async function inputBoardName(input: MultiStepInput, state: Partial<BuildConfig>) {
     let boardList;
     if (state.relBoardDir) {
-      boardList = await getBoardlistWest(vscode.Uri.file(path.join(rootPath, state.relBoardDir)));
+      boardList = await getBoardlistWest(setupState, vscode.Uri.file(path.join(rootPath, state.relBoardDir)));
     } else {
-      boardList = await getBoardlistWest(undefined);
+      boardList = await getBoardlistWest(setupState, undefined);
     }
 
     if (!boardList) {
@@ -140,8 +350,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       placeholder: 'Pick Board',
       ignoreFocusOut: true,
       items: boardQpItems,
-      activeItem: typeof state.relBoardDir !== 'string' ? state.relBoardDir : undefined,
-      shouldResume: shouldResume
+      activeItem: typeof state.relBoardDir !== 'string' ? state.relBoardDir : undefined
     }).catch((error) => {
       console.error(error);
       return undefined;
@@ -174,8 +383,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
         placeholder: 'Pick Revision',
         ignoreFocusOut: true,
         items: revisionQPItems,
-        activeItem: revisionQPItems[revisionIndex],
-        shouldResume: shouldResume
+        activeItem: revisionQPItems[revisionIndex]
       }).catch((error) => {
         console.error(error);
         return undefined;
@@ -198,73 +406,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
     return (input: MultiStepInput) => inputBuildName(input, state);
   }
 
-  async function getBoardlistWest(folder: vscode.Uri | undefined): Promise<{ name: string, subdir: string, revisions?: string[], revision_default?: string }[] | undefined> {
-    let boardRootString = "";
-    if (folder) {
-      boardRootString = " --board-root " + path.dirname(folder.fsPath);
-    }
 
-    let prevError: any;
-    if (setupState.zephyrVersion == undefined) { return; }
-    let res;
-    let has_qualifiers = false;
-    let has_revisions = false;
-    if (isVersionNumberGreater(setupState.zephyrVersion, 4, 1, 0)) {
-      res = await executeShellCommandInPythonEnv("west boards -f '{name};{dir};{qualifiers};{revisions};{revision_default}'" + boardRootString, setupState.setupPath, setupState, false);
-      has_qualifiers = true;
-      has_revisions = true;
-    } else if (isVersionNumberGreaterEqual(setupState.zephyrVersion, 3, 7, 0)) {
-      res = await executeShellCommandInPythonEnv("west boards -f '{name};{dir};{qualifiers}'" + boardRootString, setupState.setupPath, setupState, false);
-      has_qualifiers = true;
-    } else {
-      res = await executeShellCommandInPythonEnv("west boards -f '{name};{dir}'" + boardRootString, setupState.setupPath, setupState, false);
-    }
-
-    if (!res.stdout) {
-      output.append(prevError);
-      output.append(res.stderr);
-      vscode.window.showErrorMessage("Failed to run west boards command. See Zephyr IDE Output for error message");
-      return;
-    }
-
-    let allBoardData = res.stdout.split(/\r?\n/);
-    let outputData: { name: string, subdir: string, revisions?: string[], revision_default?: string }[] = [];
-    for (let i = 0; i < allBoardData.length; i++) {
-      let boardData = allBoardData[i].replaceAll("'", "").split(";");
-      try {
-        if (boardData.length > 1) {
-
-          let qualifiers: string[] = [];
-          if (has_qualifiers) {
-            qualifiers = boardData[2].split(",");
-          }
-
-          let revisions: string[] | undefined;
-          let revision_default: string | undefined;
-
-          if (has_revisions) {
-            if (boardData[3] != "None") {
-              revisions = boardData[3].split(" ");
-              revision_default = boardData[4];
-            }
-          }
-
-          if (qualifiers.length > 1) {
-            for (let j = 0; j < qualifiers.length; j++) {
-              outputData.push({ name: boardData[0] + "/" + qualifiers[j], subdir: boardData[2], revisions: revisions, revision_default: revision_default });
-            }
-          } else {
-            outputData.push({ name: boardData[0], subdir: boardData[2], revisions: revisions, revision_default: revision_default });
-          }
-        }
-      } catch (error) {
-        console.log(error);
-      }
-
-
-    }
-    return outputData;
-  }
 
   async function inputBuildName(input: MultiStepInput, state: Partial<BuildConfig>) {
     if (state.board === undefined) {
@@ -278,8 +420,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       ignoreFocusOut: true,
       value: path.join("build", state.board + (state.revision ? "_" + state.revision : "")),
       prompt: 'Choose a name for the Build',
-      validate: validate,
-      shouldResume: shouldResume
+      validate: validate
     }).catch((error) => {
       console.error(error);
       return undefined;
@@ -304,8 +445,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       placeholder: 'Select Build Optimization',
       ignoreFocusOut: true,
       items: buildOptimizationsQpItems,
-      activeItem: typeof state.debugOptimization !== 'string' ? state.debugOptimization : undefined,
-      shouldResume: shouldResume
+      activeItem: typeof state.debugOptimization !== 'string' ? state.debugOptimization : undefined
     }).catch((error) => {
       console.error(error);
       return undefined;
@@ -324,8 +464,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       value: "",
       prompt: 'Additional Build Arguments',
       placeholder: '--sysbuild',
-      validate: validate,
-      shouldResume: shouldResume
+      validate: validate
     }).catch((error) => {
       console.error(error);
       return undefined;
@@ -362,8 +501,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       ignoreFocusOut: true,
       value: cmakeArg,
       prompt: 'Modify CMake Arguments',
-      validate: validate,
-      shouldResume: shouldResume
+      validate: validate
     }).catch((error) => {
       console.error(error);
       return undefined;
@@ -388,13 +526,6 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
 
   async function validate(name: string) {
     return undefined;
-  }
-
-  function shouldResume() {
-    // Could show a notification with the option to resume.
-    return new Promise<boolean>((resolve, reject) => {
-      reject();
-    });
   }
 
   async function collectInputs() {

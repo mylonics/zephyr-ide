@@ -17,7 +17,6 @@ interface QuickPickParameters<T extends QuickPickItem> {
   ignoreFocusOut?: boolean;
   placeholder: string;
   buttons?: QuickInputButton[];
-  shouldResume: () => Thenable<boolean>;
   canSelectMany?: boolean;
 }
 
@@ -31,8 +30,15 @@ interface InputBoxParameters {
   buttons?: QuickInputButton[];
   ignoreFocusOut?: boolean;
   placeholder?: string;
-  shouldResume: () => Thenable<boolean>;
 }
+
+function shouldResume() {
+  // Could show a notification with the option to resume.
+  return new Promise<boolean>((resolve, reject) => {
+    reject();
+  });
+}
+
 
 export class MultiStepInput {
 
@@ -72,7 +78,7 @@ export class MultiStepInput {
     }
   }
 
-  async showQuickPick<T extends QuickPickItem, P extends QuickPickParameters<T>>({ title, step, totalSteps, items, activeItem, ignoreFocusOut, placeholder, buttons, shouldResume, canSelectMany = false }: P) {
+  async showQuickPick<T extends QuickPickItem, P extends QuickPickParameters<T>>({ title, step, totalSteps, items, activeItem, ignoreFocusOut, placeholder, buttons, canSelectMany = false }: P) {
     const disposables: Disposable[] = [];
     try {
       return await new Promise<T | (P extends { buttons: (infer I)[] } ? I : never)>((resolve, reject) => {
@@ -118,7 +124,7 @@ export class MultiStepInput {
     }
   }
 
-  async showInputBox<P extends InputBoxParameters>({ title, step, totalSteps, value, prompt, validate, buttons, ignoreFocusOut, placeholder, shouldResume }: P) {
+  async showInputBox<P extends InputBoxParameters>({ title, step, totalSteps, value, prompt, validate, buttons, ignoreFocusOut, placeholder }: P) {
     const disposables: Disposable[] = [];
     try {
       return await new Promise<string | (P extends { buttons: (infer I)[] } ? I : never)>((resolve, reject) => {
@@ -180,7 +186,40 @@ export class MultiStepInput {
   }
 }
 
-export async function showQuickPick<T extends QuickPickItem, P extends QuickPickParameters<T>>({ title, step, totalSteps, items, activeItem, ignoreFocusOut, placeholder, canSelectMany = false }: P) {
+export async function showQuickPick<T extends QuickPickItem, P extends QuickPickParameters<T>, O>({ title, step, totalSteps, items, activeItem, ignoreFocusOut, placeholder }: P) {
+
+  const disposables: Disposable[] = [];
+  try {
+    return await new Promise<T>((resolve, reject) => {
+      const input = window.createQuickPick<T>();
+      input.title = title;
+      input.step = step;
+      input.totalSteps = totalSteps;
+      input.ignoreFocusOut = ignoreFocusOut ?? false;
+      input.placeholder = placeholder;
+      input.items = items;
+      input.canSelectMany = false;
+      if (activeItem) {
+        input.activeItems = [activeItem];
+      }
+      disposables.push(
+        input.onDidAccept(async () => {
+          const selected = input.selectedItems[0];
+          input.enabled = false;
+          input.busy = true;
+          resolve(selected);
+          disposables.forEach(d => d.dispose());
+          input.dispose();
+        }));
+      input.show();
+    });
+  } finally {
+    disposables.forEach(d => d.dispose());
+  }
+
+}
+
+export async function showQuickPickMany<T extends QuickPickItem, P extends QuickPickParameters<T>, O>({ title, step, totalSteps, items, activeItem, ignoreFocusOut, placeholder }: P) {
 
   const disposables: Disposable[] = [];
   try {
@@ -192,7 +231,7 @@ export async function showQuickPick<T extends QuickPickItem, P extends QuickPick
       input.ignoreFocusOut = ignoreFocusOut ?? false;
       input.placeholder = placeholder;
       input.items = items;
-      input.canSelectMany = canSelectMany;
+      input.canSelectMany = true;
       if (activeItem) {
         input.activeItems = [activeItem];
       }
@@ -203,6 +242,38 @@ export async function showQuickPick<T extends QuickPickItem, P extends QuickPick
           input.busy = true;
           resolve(selected);
           disposables.forEach(d => d.dispose());
+          input.dispose();
+        }));
+      input.show();
+    });
+  } finally {
+    disposables.forEach(d => d.dispose());
+  }
+
+}
+
+export async function showInputBox<P extends InputBoxParameters>({ title, step, totalSteps, ignoreFocusOut, placeholder, prompt, value }: P) {
+
+  const disposables: Disposable[] = [];
+  try {
+    return await new Promise<string>((resolve, reject) => {
+      const input = window.createInputBox();
+      input.title = title;
+      input.step = step;
+      input.totalSteps = totalSteps;
+      input.ignoreFocusOut = ignoreFocusOut ?? false;
+      input.placeholder = placeholder;
+      input.prompt = prompt;
+      if (value != "") {
+        input.value = value;
+      }
+      disposables.push(
+        input.onDidAccept(async () => {
+          input.enabled = false;
+          input.busy = true;
+          resolve(input.value);
+          disposables.forEach(d => d.dispose());
+          input.dispose();
         }));
       input.show();
     });

@@ -375,6 +375,14 @@
       {
         "command": "zephyr-ide.reint-dts",
         "title": "Zephyr IDE: Reinitialize DTS Language Server"
+      },
+      {
+        "command": "zephyr-ide.add-test",
+        "title": "Zephyr IDE: Add Twister Test to Project"
+      },
+      {
+        "command": "zephyr-ide.remove-test",
+        "title": "Zephyr IDE: Remove Twister Test from Project"
       }
     ],
     "terminal": {
