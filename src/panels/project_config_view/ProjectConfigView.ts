@@ -17,7 +17,7 @@ limitations under the License.
 
 import * as vscode from 'vscode';
 import path from 'path';
-import { ProjectConfig, addBuildToProject, addConfigFiles, addRunnerToBuild, removeBuild, removeProject, removeRunner, setActive, modifyBuildArguments, removeConfigFile, setActiveProject, getActiveBuildConfigOfProject, getActiveRunnerConfigOfBuild } from '../../project_utilities/project';
+import { ProjectConfig, addBuildToProject, addConfigFiles, addRunnerToBuild, removeBuild, removeProject, removeRunner, setActive, modifyBuildArguments, removeConfigFile, setActiveProject, getActiveBuildConfigOfProject, getActiveRunnerConfigOfBuild, getActiveTestConfigOfProject } from '../../project_utilities/project';
 import { BuildConfig } from '../../project_utilities/build_selector';
 import { getNonce } from "../../utilities/getNonce";
 import { RunnerConfig } from '../../project_utilities/runner_selector';
@@ -26,11 +26,13 @@ import { flashByName } from '../../zephyr_utilities/flash';
 import { ConfigFiles } from '../../project_utilities/config_selector';
 
 import { WorkspaceConfig } from '../../setup_utilities/setup';
+import { TwisterConfig } from '../../project_utilities/twister_selector';
 
 export class ProjectConfigState {
   projectOpenState: boolean = true;
   buildOpenState: boolean = true;
   runnerOpenState: boolean = true;
+  twisterOpenState: boolean = true;
   projectKConfigOpenState: boolean = true;
   projectOverlayOpenState: boolean = true;
   buildKConfigOpenState: boolean = true;
@@ -163,15 +165,15 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
   }
 
 
-  generateTwisterString(projectName: string, buildName: string, runner: string, open: boolean | undefined): any {
+  generateTwisterString(projectName: string, test: TwisterConfig, open: boolean | undefined): any {
     let entry = {
       icons: {
-        branch: 'chip',
-        leaf: 'chip',
-        open: 'chip',
+        branch: 'beaker',
+        leaf: 'beaker',
+        open: 'beaker',
       },
-      label: runner,
-      value: { project: projectName, build: buildName, runner: runner },
+      label: test.name,
+      value: { project: projectName, test: test.name },
       open: open === undefined ? true : open,
       subItems: [
         {
@@ -179,17 +181,46 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
             branch: 'tools',
             leaf: 'tools',
             open: 'tools',
-          }, label: 'Runner', description: runner
+          }, label: 'platform', description: test.platform
         },
         {
           icons: {
             branch: 'file-code',
             leaf: 'file-code',
             open: 'file-code',
-          }, label: 'Args', description: runner
+          }, label: 'Tests', description: test.tests
         }
       ]
     };
+    if (test.boardConfig) {
+      entry.subItems.push({
+        icons: {
+          branch: 'circuit-board',
+          leaf: 'circuit-board',
+          open: 'circuit-board',
+        }, label: 'Board', description: test.boardConfig.board + (test.boardConfig.revision ? '@' + test.boardConfig.revision : "")
+      });
+
+      if (test.serialPort) {
+        entry.subItems.push({
+          icons: {
+            branch: 'symbol-string',
+            leaf: 'symbol-string',
+            open: 'symbol-string',
+          }, label: 'Port', description: test.serialPort
+        });
+      }
+      if (test.serialBaud) {
+        entry.subItems.push({
+          icons: {
+            branch: 'pulse',
+            leaf: 'pulse',
+            open: 'pulse',
+          }, label: 'Baud', description: test.serialBaud
+        });
+      }
+
+    }
 
     return entry;
   }
@@ -354,6 +385,7 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
     let activeProject;
     let activeBuild;
     let activeRunner;
+    let activeTest;
 
     if (wsConfig.activeProject) {
       activeProject = wsConfig.projects[wsConfig.activeProject];
@@ -364,12 +396,7 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
         activeRunner = getActiveRunnerConfigOfBuild(wsConfig, wsConfig.activeProject, activeBuild.name);
       }
 
-      //let testStrings = getTestsFromProject(wsConfig, wsConfig.activeProject);
-      //
-      //if (testStrings.length) {
-      //
-      //}
-
+      activeTest = getActiveTestConfigOfProject(wsConfig, wsConfig.activeProject);
     }
 
 
@@ -397,6 +424,10 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
       this.projectConfigState.runnerOpenState = this.treeData[2].open != undefined ? this.treeData[2].open : this.projectConfigState.runnerOpenState;
     }
 
+    if (this.treeData[3] != undefined) {
+      this.projectConfigState.twisterOpenState = this.treeData[3].open != undefined ? this.treeData[3].open : this.projectConfigState.twisterOpenState;
+    }
+
     this.projectConfigState.buildKConfigOpenState = (this.treeData[2] != undefined && this.treeData[2].open != undefined) ? this.treeData[2].open : this.projectConfigState.runnerOpenState;
     this.projectConfigState.buildOverlayOpenState = (this.treeData[2] != undefined && this.treeData[2].open != undefined) ? this.treeData[2].open : this.projectConfigState.runnerOpenState;
 
@@ -413,8 +444,8 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
         this.treeData[1] = {};
         this.treeData[2] = {};
       }
-      if (true) {
-        this.treeData[3] = this.generateTwisterString(activeProject.name, "twister", "twister_runner", this.projectConfigState.runnerOpenState);
+      if (activeTest) {
+        this.treeData[3] = this.generateTwisterString(activeProject.name, activeTest, this.projectConfigState.twisterOpenState);
       } else {
         this.treeData[3] = {};
       }

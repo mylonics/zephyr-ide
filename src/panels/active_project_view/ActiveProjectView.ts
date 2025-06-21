@@ -46,7 +46,7 @@ export class ActiveProjectView implements vscode.WebviewViewProvider {
 
   testActions = [
     {
-      icon: "trash",
+      icon: "clear-all",
       actionId: "deleteActiveTestDir",
       tooltip: "Clean Test Dirs",
     },
