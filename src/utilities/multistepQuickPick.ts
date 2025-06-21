@@ -18,6 +18,7 @@ interface QuickPickParameters<T extends QuickPickItem> {
   placeholder: string;
   buttons?: QuickInputButton[];
   canSelectMany?: boolean;
+  dispose?: boolean;
 }
 
 interface InputBoxParameters {
@@ -30,6 +31,7 @@ interface InputBoxParameters {
   buttons?: QuickInputButton[];
   ignoreFocusOut?: boolean;
   placeholder?: string;
+  dispose?: boolean;
 }
 
 function shouldResume() {
@@ -186,7 +188,7 @@ export class MultiStepInput {
   }
 }
 
-export async function showQuickPick<T extends QuickPickItem, P extends QuickPickParameters<T>, O>({ title, step, totalSteps, items, activeItem, ignoreFocusOut, placeholder }: P) {
+export async function showQuickPick<T extends QuickPickItem, P extends QuickPickParameters<T>, O>({ title, step, totalSteps, items, activeItem, ignoreFocusOut, placeholder, dispose = true }: P) {
 
   const disposables: Disposable[] = [];
   try {
@@ -209,7 +211,9 @@ export async function showQuickPick<T extends QuickPickItem, P extends QuickPick
           input.busy = true;
           resolve(selected);
           disposables.forEach(d => d.dispose());
-          input.dispose();
+          if (dispose) {
+            input.dispose();
+          }
         }));
       input.show();
     });
@@ -219,7 +223,7 @@ export async function showQuickPick<T extends QuickPickItem, P extends QuickPick
 
 }
 
-export async function showQuickPickMany<T extends QuickPickItem, P extends QuickPickParameters<T>, O>({ title, step, totalSteps, items, activeItem, ignoreFocusOut, placeholder }: P) {
+export async function showQuickPickMany<T extends QuickPickItem, P extends QuickPickParameters<T>, O>({ title, step, totalSteps, items, activeItem, ignoreFocusOut, placeholder, dispose = true }: P) {
 
   const disposables: Disposable[] = [];
   try {
@@ -242,17 +246,18 @@ export async function showQuickPickMany<T extends QuickPickItem, P extends Quick
           input.busy = true;
           resolve(selected);
           disposables.forEach(d => d.dispose());
-          input.dispose();
+          if (dispose) {
+            input.dispose();
+          }
         }));
       input.show();
     });
   } finally {
     disposables.forEach(d => d.dispose());
   }
-
 }
 
-export async function showInputBox<P extends InputBoxParameters>({ title, step, totalSteps, ignoreFocusOut, placeholder, prompt, value }: P) {
+export async function showInputBox<P extends InputBoxParameters>({ title, step, totalSteps, ignoreFocusOut, placeholder, prompt, value, dispose = true }: P) {
 
   const disposables: Disposable[] = [];
   try {
@@ -273,7 +278,9 @@ export async function showInputBox<P extends InputBoxParameters>({ title, step, 
           input.busy = true;
           resolve(input.value);
           disposables.forEach(d => d.dispose());
-          input.dispose();
+          if (dispose) {
+            input.dispose();
+          }
         }));
       input.show();
     });

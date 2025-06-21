@@ -447,6 +447,20 @@ export async function activate(context: vscode.ExtensionContext) {
     })
   );
 
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.set-active-test", async () => {
+      await project.setActiveTest(context, wsConfig);
+      vscode.commands.executeCommand("zephyr-ide.update-web-view");
+
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.run-test", async () => {
+      buildHelper(context, wsConfig, false);
+    })
+  );
+
   context.subscriptions.push(vscode.commands.registerCommand("zephyr-ide.add-build-config-files", async () => {
     await project.addConfigFiles(context, wsConfig, true, false);
     vscode.commands.executeCommand("zephyr-ide.update-web-view");

@@ -41,6 +41,7 @@ export interface ProjectConfig {
 // Project specific state
 export interface ProjectState {
   activeBuildConfig?: string;
+  activeTwisterConfig?: string;
   viewOpen?: boolean;
   buildStates: BuildStateDictionary;
   twisterStates: TwisterStateDictionary;
@@ -62,7 +63,12 @@ export function getActiveBuildNameOfProject(wsConfig: WorkspaceConfig, project?:
   if (project) {
     return wsConfig.projectStates[project].activeBuildConfig;
   }
+}
 
+export function getActiveTestNameOfProject(wsConfig: WorkspaceConfig, project?: string) {
+  if (project) {
+    return wsConfig.projectStates[project].activeTwisterConfig;
+  }
 }
 
 export function getActiveBuildConfigOfProject(wsConfig: WorkspaceConfig, project?: string) {
@@ -328,6 +334,23 @@ export async function askUserForBuild(context: vscode.ExtensionContext, wsConfig
   return selectedBuild;
 }
 
+export async function askUserForTest(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName: string) {
+  const pickOptions: vscode.QuickPickOptions = {
+    ignoreFocusOut: true,
+    placeHolder: "Select Test",
+  };
+
+  let twisterConfigs = wsConfig.projects[projectName].twisterConfigs;
+
+  let testList: string[] = [];
+  for (let key in twisterConfigs) {
+    testList.push(key);
+  }
+
+  let selectedTest = await vscode.window.showQuickPick(testList, pickOptions);
+  return selectedTest;
+}
+
 export async function setActiveBuild(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName?: string, selectedBuild?: string) {
   if (wsConfig.activeProject === undefined) {
     setActiveProject(context, wsConfig);
@@ -349,6 +372,29 @@ export async function setActiveBuild(context: vscode.ExtensionContext, wsConfig:
   await setWorkspaceState(context, wsConfig);
   setDtsContext(wsConfig);
   vscode.window.showInformationMessage(`Successfully Set ${selectedBuild} as Active Build of ${wsConfig.activeProject}`);
+}
+
+export async function setActiveTest(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName?: string, selectedTest?: string) {
+  if (wsConfig.activeProject === undefined) {
+    setActiveProject(context, wsConfig);
+    if (wsConfig.activeProject === undefined) {
+      vscode.window.showErrorMessage("Set Active Project before trying to Set Active Build");
+      return;
+    }
+  }
+
+  if (selectedTest === undefined) {
+    selectedTest = await askUserForTest(context, wsConfig, wsConfig.activeProject);
+    if (selectedTest === undefined) {
+      return;
+    }
+  }
+
+  let twisterConfigs = wsConfig.projects[wsConfig.activeProject].twisterConfigs;
+  wsConfig.projectStates[wsConfig.activeProject].activeBuildConfig = twisterConfigs[selectedTest].name;
+  await setWorkspaceState(context, wsConfig);
+  setDtsContext(wsConfig);
+  vscode.window.showInformationMessage(`Successfully Set ${selectedTest} as Active Test of ${wsConfig.activeProject}`);
 }
 
 export async function removeProject(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName?: string) {
@@ -533,34 +579,34 @@ export async function addTest(wsConfig: WorkspaceConfig, context: vscode.Extensi
 
     wsConfig.projects[wsConfig.activeProject].twisterConfigs[result.name] = result;
     wsConfig.projectStates[wsConfig.activeProject].twisterStates[result.name] = { viewOpen: true };
-    setActiveBuild(context, wsConfig, wsConfig.activeProject, result.name)
 
+    setActiveTest(context, wsConfig, wsConfig.activeProject, result.name)
     await setWorkspaceState(context, wsConfig);
   }
 }
 
-export async function removeTest(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName?: string, buildName?: string) {
+export async function removeTest(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName?: string, testName?: string) {
   if (projectName === undefined) {
     projectName = await askUserForProject(wsConfig);
     if (projectName === undefined) {
       return;
     }
   }
-  if (buildName === undefined) {
-    buildName = await askUserForBuild(context, wsConfig, projectName);
-    if (buildName === undefined) {
+  if (testName === undefined) {
+    testName = await askUserForTest(context, wsConfig, projectName);
+    if (testName === undefined) {
       return;
     }
   }
-  if (buildName in wsConfig.projects[projectName].buildConfigs) {
+  if (testName in wsConfig.projects[projectName].twisterConfigs) {
 
-    const selection = await vscode.window.showWarningMessage('Are you sure you want to remove ' + buildName + '?', 'Yes', 'Cancel');
+    const selection = await vscode.window.showWarningMessage('Are you sure you want to remove ' + testName + '?', 'Yes', 'Cancel');
     if (selection !== 'Yes') {
       return;
     }
-    delete wsConfig.projects[projectName].buildConfigs[buildName];
-    if (wsConfig.projectStates[projectName].activeBuildConfig === buildName) {
-      wsConfig.projectStates[projectName].activeBuildConfig = undefined;
+    delete wsConfig.projects[projectName].twisterConfigs[testName];
+    if (wsConfig.projectStates[projectName].activeTwisterConfig === testName) {
+      wsConfig.projectStates[projectName].activeTwisterConfig = undefined;
     }
     await setWorkspaceState(context, wsConfig);
     return true;

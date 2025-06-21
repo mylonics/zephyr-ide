@@ -86,7 +86,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
   const testPick = await showQuickPickMany({
     title,
     step: 1,
-    totalSteps: 4,
+    totalSteps: 3,
     placeholder: 'Select Tests',
     ignoreFocusOut: false,
     items: testQpItems,
@@ -125,8 +125,8 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
 
   const platformPick = await showQuickPick({
     title,
-    step: 1,
-    totalSteps: 4,
+    step: 2,
+    totalSteps: 3,
     placeholder: 'Select Platform',
     ignoreFocusOut: true,
     items: platformsQpItems,
@@ -140,6 +140,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
   }
 
   twisterConfig.platform = platformPick.label;
+  let totalSteps = 3;
 
 
   if (twisterConfig.platform == "hardware") {
@@ -147,11 +148,12 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
     if (twisterConfig.boardConfig === undefined) {
       return;
     }
+    totalSteps = 5
 
     const comPortPick = await showInputBox({
       title,
-      step: 2,
-      totalSteps: 4,
+      step: 3,
+      totalSteps: 5,
       prompt: "Input a COM Port",
       value: "",
       validate: validate,
@@ -160,8 +162,8 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
     twisterConfig.serialPort = comPortPick;
     const comPortBaudPick = await showInputBox({
       title,
-      step: 3,
-      totalSteps: 4,
+      step: 4,
+      totalSteps: 5,
       prompt: "Input a COM Port Baudrate",
       value: "",
       validate: validate,
@@ -172,6 +174,10 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
 
 
   let default_name = twisterConfig.tests.length > 1 ? "test" : twisterConfig.tests[0];
+
+  if (default_name == "All") {
+    default_name = "test";
+  }
 
   if (twisterConfig.boardConfig) {
     default_name = default_name + "_" + twisterConfig.boardConfig.board;
@@ -185,8 +191,8 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
 
   const nameInputBox = await showInputBox({
     title,
-    step: 4,
-    totalSteps: 4,
+    step: totalSteps,
+    totalSteps: totalSteps,
     prompt: "Enter a name for this Test Configuration",
     value: default_name,
     validate: validate,

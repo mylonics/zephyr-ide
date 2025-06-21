@@ -383,6 +383,14 @@
       {
         "command": "zephyr-ide.remove-test",
         "title": "Zephyr IDE: Remove Twister Test from Project"
+      },
+      {
+        "command": "zephyr-ide.set-active-test",
+        "title": "Zephyr IDE: Set Active Test"
+      },
+      {
+        "command": "zephyr-ide.run-test",
+        "title": "Zephyr IDE: Run Test"
       }
     ],
     "terminal": {
