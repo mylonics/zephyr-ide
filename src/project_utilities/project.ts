@@ -71,6 +71,17 @@ export function getActiveTestNameOfProject(wsConfig: WorkspaceConfig, project?: 
   }
 }
 
+
+export function getActiveTestConfigOfProject(wsConfig: WorkspaceConfig, project?: string) {
+  if (project) {
+    let testName = wsConfig.projectStates[project].activeTwisterConfig;
+    if (testName) {
+      return wsConfig.projects[project].twisterConfigs[testName];
+    }
+  }
+  return;
+}
+
 export function getActiveBuildConfigOfProject(wsConfig: WorkspaceConfig, project?: string) {
   if (project) {
     let buildName = wsConfig.projectStates[project].activeBuildConfig;
@@ -83,7 +94,10 @@ export function getActiveBuildConfigOfProject(wsConfig: WorkspaceConfig, project
 
 export function getActiveRunnerNameOfBuild(wsConfig: WorkspaceConfig, project?: string, build?: string) {
   if (project && build) {
-    return wsConfig.projectStates[project].buildStates[build].activeRunner;
+    let buildState = wsConfig.projectStates[project].buildStates[build];
+    if (buildState) {
+      return wsConfig.projectStates[project].buildStates[build].activeRunner;
+    }
   }
 }
 
@@ -391,7 +405,7 @@ export async function setActiveTest(context: vscode.ExtensionContext, wsConfig: 
   }
 
   let twisterConfigs = wsConfig.projects[wsConfig.activeProject].twisterConfigs;
-  wsConfig.projectStates[wsConfig.activeProject].activeBuildConfig = twisterConfigs[selectedTest].name;
+  wsConfig.projectStates[wsConfig.activeProject].activeTwisterConfig = twisterConfigs[selectedTest].name;
   await setWorkspaceState(context, wsConfig);
   setDtsContext(wsConfig);
   vscode.window.showInformationMessage(`Successfully Set ${selectedTest} as Active Test of ${wsConfig.activeProject}`);
@@ -561,7 +575,7 @@ export async function addTest(wsConfig: WorkspaceConfig, context: vscode.Extensi
 
   let result = await twisterSelector(wsConfig.projects[wsConfig.activeProject].rel_path, context, wsConfig.activeSetupState, wsConfig.rootPath);
   if (result && result.name !== undefined) {
-    if (wsConfig.projects[wsConfig.activeProject].buildConfigs[result.name]) {
+    if (wsConfig.projects[wsConfig.activeProject].twisterConfigs[result.name]) {
       const selection = await vscode.window.showWarningMessage('Twister Configuration with name: ' + result.name + ' already exists!', 'Overwrite', 'Cancel');
       if (selection !== 'Overwrite') {
         vscode.window.showErrorMessage(`Failed to add twister configuration`);

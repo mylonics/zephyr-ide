@@ -18,11 +18,12 @@ limitations under the License.
 import * as vscode from 'vscode';
 import path from 'path';
 
-import { ProjectConfig, getActiveBuildConfigOfProject, getActiveRunnerConfigOfBuild } from '../../project_utilities/project';
+import { ProjectConfig, getActiveBuildConfigOfProject, getActiveRunnerConfigOfBuild, getActiveTestConfigOfProject } from '../../project_utilities/project';
 import { BuildConfig } from '../../project_utilities/build_selector';
 import { getNonce } from "../../utilities/getNonce";
 import { RunnerConfig } from '../../project_utilities/runner_selector';
 import { WorkspaceConfig } from '../../setup_utilities/setup';
+import { TwisterConfig } from "../../project_utilities/twister_selector";
 
 export class ActiveProjectView implements vscode.WebviewViewProvider {
   private view: vscode.WebviewView | undefined;
@@ -43,6 +44,13 @@ export class ActiveProjectView implements vscode.WebviewViewProvider {
     },
   ];
 
+  testActions = [
+    {
+      icon: "trash",
+      actionId: "deleteActiveTestDir",
+      tooltip: "Clean Test Dirs",
+    },
+  ];
 
   constructor(public extensionPath: string, private context: vscode.ExtensionContext, private wsConfig: WorkspaceConfig) {
 
@@ -53,6 +61,7 @@ export class ActiveProjectView implements vscode.WebviewViewProvider {
       let activeProject: ProjectConfig | undefined;
       let activeBuild: BuildConfig | undefined;
       let activeRunner: RunnerConfig | undefined;
+      let activeTwister: TwisterConfig | undefined;
       if (wsConfig.activeProject !== undefined) {
         activeProject = wsConfig.projects[wsConfig.activeProject];
         activeBuild = getActiveBuildConfigOfProject(wsConfig, wsConfig.activeProject)
@@ -62,6 +71,7 @@ export class ActiveProjectView implements vscode.WebviewViewProvider {
         } else {
           this.view.title = activeProject.name;
         }
+        activeTwister = getActiveTestConfigOfProject(wsConfig, wsConfig.activeProject);
       } else {
         this.view.title = "Active Project: None";
         this.view.webview.postMessage([{}]);
@@ -117,6 +127,18 @@ export class ActiveProjectView implements vscode.WebviewViewProvider {
         value: { command: "vsCommand", vsCommand: "zephyr-ide.debug-attach", "launchChangeCmd": "zephyr-ide.change-debug-attach-launch-for-build" },
         description: activeBuild?.attachTarget ? activeBuild.attachTarget : "Zephyr IDE: Attach",
       }];
+
+      if (activeProject.twisterConfigs && Object.keys(activeProject.twisterConfigs).length) {
+        data.push({
+          icons: {
+            leaf: 'beaker',
+          },
+          actions: this.testActions,
+          label: "Twister Run",
+          value: { command: "vsCommand", vsCommand: "zephyr-ide.run-test" },
+          description: activeTwister ? activeTwister.name : "",
+        });
+      }
 
       this.view.webview.postMessage(data);
     }
@@ -179,6 +201,10 @@ export class ActiveProjectView implements vscode.WebviewViewProvider {
         }
         case "startMenuConfig": {
           vscode.commands.executeCommand("zephyr-ide.start-menu-config");
+          break;
+        }
+        case "deleteActiveTestDir": {
+          vscode.commands.executeCommand("zephyr-ide.remove-test-dirs");
           break;
         }
         default:

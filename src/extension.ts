@@ -31,6 +31,7 @@ import { getVariable, setExternalSetupState, WorkspaceConfig, setSetupState, Glo
 import { installSdk } from "./setup_utilities/setup_toolchain";
 import { initializeDtsExt, updateAllDtsContexts, printContexts, setDtsContext } from "./setup_utilities/dts_interface";
 import { setActiveProject, getActiveRunnerNameOfBuild, getActiveBuildNameOfProject, getActiveBuildConfigOfProject } from "./project_utilities/project";
+import { testHelper, deleteTestDirs } from "./zephyr_utilities/twister"
 
 import { getModuleVersion } from "./setup_utilities/modules";
 
@@ -141,6 +142,15 @@ export async function activate(context: vscode.ExtensionContext) {
       extensionSetupView,
       { webviewOptions: { retainContextWhenHidden: true } }
     )
+  );
+
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.set-active-runner", async () => {
+      await project.setActiveRunner(context, wsConfig);
+      vscode.commands.executeCommand("zephyr-ide.update-web-view");
+
+    })
   );
 
 
@@ -457,7 +467,16 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.run-test", async () => {
-      buildHelper(context, wsConfig, false);
+      testHelper(context, wsConfig);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.remove-test-dirs", async () => {
+      let activeProject = project.getActiveProject(wsConfig);
+      if (activeProject) {
+        deleteTestDirs(wsConfig, activeProject);
+      }
     })
   );
 
@@ -511,13 +530,6 @@ export async function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  context.subscriptions.push(
-    vscode.commands.registerCommand("zephyr-ide.set-active-runner", async () => {
-      await project.setActiveRunner(context, wsConfig);
-      vscode.commands.executeCommand("zephyr-ide.update-web-view");
-
-    })
-  );
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.change-debug-launch-for-build", async () => {

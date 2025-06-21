@@ -391,6 +391,10 @@
       {
         "command": "zephyr-ide.run-test",
         "title": "Zephyr IDE: Run Test"
+      },
+      {
+        "command": "zephyr-ide.remove-test-dirs",
+        "title": "Zephyr IDE: Delete Test Output Directories"
       }
     ],
     "terminal": {

@@ -24,6 +24,8 @@ import { WorkspaceConfig } from '../setup_utilities/setup';
 import { addTest, ProjectConfig, getActiveTestNameOfProject } from "../project_utilities/project";
 import { TwisterConfig } from "../project_utilities/twister_selector";
 
+import * as fs from "fs-extra";
+
 export async function testHelper(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
   if (wsConfig.activeSetupState === undefined) {
     return;
@@ -61,13 +63,15 @@ export async function runTest(
   let cmd: string;
 
 
-  let testString = "-T .";
+  let testString = `-T ${projectFolder} `;
   if (testConfig.tests[0] != "All") {
-    testString = "-s ";
+    testString += "-s ";
     for (let test of testConfig.tests) {
       testString += test + " ";
     }
   }
+
+  testString += `--outdir ${path.join(projectFolder, "twister-out")}`
 
   if (testConfig.boardConfig) {
     let boardRoot;
@@ -81,15 +85,34 @@ export async function runTest(
     cmd = `west twister --device-testing  ${testConfig.serialPort ? "--device-serial " + testConfig.serialPort : ""} ${testConfig.serialBaud ? "--device-serial-baud " + testConfig.serialBaud : ""} -p ${testConfig.boardConfig.board} ${testString} -- -DBOARD_ROOT='${boardRoot}' `;
 
   } else {
-    cmd = `west twister -p ${testConfig.platform} ${testString}`;
+    cmd = `west twister -p ${testConfig.platform} ${testString} `;
 
   }
 
 
-  let taskName = "Zephyr IDE Build: " + project.name + " " + testConfig.name;
+  let taskName = "Zephyr IDE Test: " + project.name + " " + testConfig.name;
 
   vscode.window.showInformationMessage(`Running ${testConfig.name} Test from project: ${project.name}`);
   let ret = await executeTaskHelper(taskName, cmd, wsConfig.activeSetupState?.setupPath);
   return ret;
 }
+
+export async function deleteTestDirs(
+  wsConfig: WorkspaceConfig,
+  project: ProjectConfig
+) {
+  let projectDir = path.join(wsConfig.rootPath, project.rel_path);
+
+  fs.readdir(projectDir, (err, files) => {
+    for (var i = 0, len = files.length; i < len; i++) {
+      var match = files[i].match(/twister.*/);
+      if (match !== null) {
+        fs.rmSync(path.join(projectDir, match[0]), { recursive: true, force: true });
+      }
+    }
+  })
+
+  vscode.window.showInformationMessage(`Deleted ${project.name} test directories`);
+}
+
 
