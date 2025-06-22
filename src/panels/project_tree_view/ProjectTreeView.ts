@@ -17,13 +17,15 @@ limitations under the License.
 
 import * as vscode from 'vscode';
 import path from 'path';
-import { ProjectConfig, addBuildToProject, addRunnerToBuild, removeBuild, removeProject, removeRunner, setActive } from '../../project_utilities/project';
+import { ProjectConfig, addBuildToProject, addRunnerToBuild, addTest, removeTest, removeBuild, removeProject, removeRunner, setActive } from '../../project_utilities/project';
 import { BuildConfig } from '../../project_utilities/build_selector';
 import { getNonce } from "../../utilities/getNonce";
 import { RunnerConfig } from '../../project_utilities/runner_selector';
 import { buildByName } from '../../zephyr_utilities/build';
+import { testHelper } from '../../zephyr_utilities/twister';
 import { flashByName } from '../../zephyr_utilities/flash';
 import { WorkspaceConfig } from '../../setup_utilities/setup';
+import { TwisterConfig } from '../../project_utilities/twister_selector';
 
 export class ProjectTreeView implements vscode.WebviewViewProvider {
   private view: vscode.WebviewView | undefined;
@@ -41,8 +43,8 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
       tooltip: "Add Build",
     },
     {
-      icon: "add-test",
-      actionId: "addTwister",
+      icon: "beaker",
+      actionId: "addTest",
       tooltip: "Add Test",
     },
     {
@@ -72,6 +74,17 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
       icon: "trash",
       actionId: "deleteBuild",
       tooltip: "Delete Build",
+    },
+  ];
+  testActions = [
+    {
+      icon: "play",
+      actionId: "test",
+      tooltip: "Test",
+    }, {
+      icon: "trash",
+      actionId: "deleteTest",
+      tooltip: "Delete Test",
     },
   ];
   fileActions = [{
@@ -161,6 +174,25 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
   }
 
 
+  generateTestString(projectName: string, test: TwisterConfig): any {
+    let viewOpen = this.wsConfig.projectStates[projectName].twisterStates[test.name].viewOpen;
+    let buildData: any = {};
+    buildData['icons'] = {
+      branch: 'beaker',
+      leaf: 'beaker',
+      open: 'beaker',
+    };
+    buildData['actions'] = this.testActions;
+    buildData['label'] = test.name;
+    buildData['value'] = { project: projectName, test: test.name };
+    buildData['open'] = viewOpen !== undefined ? viewOpen : true;
+    buildData['description'] = test.platform;
+    buildData['subItems'] = [];
+
+    return buildData;
+  }
+
+
   generateProjectString(project: ProjectConfig): any {
     let viewOpen = this.wsConfig.projectStates[project.name].viewOpen;
 
@@ -176,11 +208,12 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
     projectData['subItems'] = [];
     projectData['open'] = viewOpen !== undefined ? viewOpen : true;
 
-    let buildNames = [];
-
     for (let key in project.buildConfigs) {
-      buildNames.push(key);
       projectData.subItems.push(this.generateBuildString(project.name, project.buildConfigs[key]));
+    }
+
+    for (let key in project.twisterConfigs) {
+      projectData.subItems.push(this.generateTestString(project.name, project.twisterConfigs[key]));
     }
 
 
@@ -303,6 +336,14 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
           removeBuild(this.context, this.wsConfig, message.value.project, message.value.build).finally(() => { setActive(this.wsConfig, message.value.project); });
           break;
         }
+        case "addTest": {
+          addTest(this.wsConfig, this.context, message.value.project).finally(() => { setActive(this.wsConfig, message.value.project); });
+          break;
+        }
+        case "deleteTest": {
+          removeTest(this.context, this.wsConfig, message.value.project, message.value.test).finally(() => { setActive(this.wsConfig, message.value.project); });
+          break;
+        }
         case "addRunner": {
           addRunnerToBuild(this.wsConfig, this.context, message.value.project, message.value.build).finally(() => { setActive(this.wsConfig, message.value.project, message.value.build); });
           break;
@@ -321,9 +362,14 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
           setActive(this.wsConfig, message.value.project, message.value.build);
           break;
         }
+        case "test": {
+          testHelper(this.context, this.wsConfig, message.value.project, message.value.test);
+          setActive(this.wsConfig, message.value.project, undefined, undefined, message.value.test);
+          break;
+        }
         case "menuConfig": {
           buildByName(this.wsConfig, true, message.value.project, message.value.build, true);
-          setActive(this.wsConfig, message.value.project, message.value.build);
+          setActive(this.wsConfig, message.value.project, message.value.build, undefined, undefined);
           break;
         }
         case "flash": {
@@ -332,7 +378,7 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
           break;
         }
         case "setActive": {
-          setActive(this.wsConfig, message.value.project, message.value.build, message.value.runner);
+          setActive(this.wsConfig, message.value.project, message.value.build, message.value.runner, message.value.test);
           break;
         }
         default:

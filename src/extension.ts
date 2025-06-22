@@ -34,6 +34,7 @@ import { setActiveProject, getActiveRunnerNameOfBuild, getActiveBuildNameOfProje
 import { testHelper, deleteTestDirs } from "./zephyr_utilities/twister"
 
 import { getModuleVersion } from "./setup_utilities/modules";
+import { reconfigureTest } from "./project_utilities/twister_selector";
 
 let wsConfig: WorkspaceConfig;
 let globalConfig: GlobalConfig;
@@ -477,6 +478,22 @@ export async function activate(context: vscode.ExtensionContext) {
       if (activeProject) {
         deleteTestDirs(wsConfig, activeProject);
       }
+    })
+  );
+
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.reconfigure-active-test", async () => {
+      let activeProject = project.getActiveProject(wsConfig);
+      if (activeProject) {
+        let activeTest = project.getActiveTestConfigOfProject(wsConfig, activeProject.name);
+        if (activeTest) {
+          await reconfigureTest(activeTest);
+          await setWorkspaceState(context, wsConfig);
+        }
+
+      }
+      vscode.commands.executeCommand("zephyr-ide.update-web-view");
     })
   );
 

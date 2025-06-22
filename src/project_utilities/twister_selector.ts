@@ -25,6 +25,7 @@ export interface TwisterConfig {
   name: string;
   platform: string;
   tests: string[];
+  args: string;
   serialPort?: string | undefined;
   serialBaud?: string | undefined;
   boardConfig?: BoardConfig;
@@ -117,11 +118,9 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
   const platformsQpItems: QuickPickItem[] = platfroms.map(label => ({ label }));
   platformsQpItems.push({ label: "", kind: vscode.QuickPickItemKind.Separator });
 
-
   async function validate(name: string) {
     return undefined;
   }
-
 
   const platformPick = await showQuickPick({
     title,
@@ -140,7 +139,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
   }
 
   twisterConfig.platform = platformPick.label;
-  let totalSteps = 3;
+  let totalSteps = 4;
 
 
   if (twisterConfig.platform == "hardware") {
@@ -148,22 +147,23 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
     if (twisterConfig.boardConfig === undefined) {
       return;
     }
-    totalSteps = 5
+    totalSteps = 6
 
     const comPortPick = await showInputBox({
       title,
       step: 3,
-      totalSteps: 5,
+      totalSteps: totalSteps,
       prompt: "Input a COM Port",
       value: "",
       validate: validate,
       placeholder: "COM1"
     })
+
     twisterConfig.serialPort = comPortPick;
     const comPortBaudPick = await showInputBox({
       title,
       step: 4,
-      totalSteps: 5,
+      totalSteps: totalSteps,
       prompt: "Input a COM Port Baudrate",
       value: "",
       validate: validate,
@@ -172,6 +172,19 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
     twisterConfig.serialBaud = comPortBaudPick;
   }
 
+  const twisterArgsBox = await showInputBox({
+    title,
+    step: totalSteps - 1,
+    totalSteps: totalSteps,
+    prompt: "Additional Twister Arguments",
+    value: "",
+    placeholder: '--sysbuild',
+    validate: validate,
+  })
+  if (twisterArgsBox === undefined) {
+    return;
+  }
+  twisterConfig.args = twisterArgsBox;
 
   let default_name = twisterConfig.tests.length > 1 ? "test" : twisterConfig.tests[0];
 
@@ -188,7 +201,6 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
     default_name = default_name + "_" + twisterConfig.platform;
   }
 
-
   const nameInputBox = await showInputBox({
     title,
     step: totalSteps,
@@ -202,8 +214,47 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
   }
   twisterConfig.name = nameInputBox;
 
-
   return twisterConfig as TwisterConfig;
 }
 
+export async function reconfigureTest(config: TwisterConfig) {
+  async function validate(name: string) {
+    return undefined;
+  }
 
+  let title = "Reconfigure Test"
+  if (config.boardConfig) {
+    const comPortPick = await showInputBox({
+      title,
+      step: 1,
+      totalSteps: 3,
+      prompt: "Input a COM Port",
+      value: config.serialPort ? config.serialPort : "",
+      validate: validate,
+      placeholder: "COM1"
+    })
+
+    config.serialPort = comPortPick;
+    const comPortBaudPick = await showInputBox({
+      title,
+      step: 2,
+      totalSteps: 3,
+      prompt: "Input a COM Port Baudrate",
+      value: config.serialBaud ? config.serialBaud : "",
+      validate: validate,
+      placeholder: "115200"
+    })
+
+    config.serialBaud = comPortBaudPick;
+  }
+
+  const argsPick = await showInputBox({
+    title,
+    step: 3,
+    totalSteps: 3,
+    prompt: "Additional Twister Arguments",
+    value: config.args ? config.args : "",
+    validate: validate
+  })
+  config.args = argsPick;
+}

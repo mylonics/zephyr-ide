@@ -564,18 +564,23 @@ export async function removeBuild(context: vscode.ExtensionContext, wsConfig: Wo
 }
 
 
-export async function addTest(wsConfig: WorkspaceConfig, context: vscode.ExtensionContext) {
-  if (wsConfig.activeProject === undefined) {
-    vscode.window.showErrorMessage(`Failed to Add Build Configuration, please first select a project`);
-    return;
-  }
+export async function addTest(wsConfig: WorkspaceConfig, context: vscode.ExtensionContext, projectName?: string) {
   if (wsConfig.activeSetupState === undefined) {
     return;
   }
 
-  let result = await twisterSelector(wsConfig.projects[wsConfig.activeProject].rel_path, context, wsConfig.activeSetupState, wsConfig.rootPath);
+  if (projectName === undefined) {
+    projectName = wsConfig.activeProject;
+  }
+
+  if (projectName === undefined) {
+    vscode.window.showErrorMessage(`Failed to Add Test Configuration, please first select a project`);
+    return;
+  }
+
+  let result = await twisterSelector(wsConfig.projects[projectName].rel_path, context, wsConfig.activeSetupState, wsConfig.rootPath);
   if (result && result.name !== undefined) {
-    if (wsConfig.projects[wsConfig.activeProject].twisterConfigs[result.name]) {
+    if (wsConfig.projects[projectName].twisterConfigs[result.name]) {
       const selection = await vscode.window.showWarningMessage('Twister Configuration with name: ' + result.name + ' already exists!', 'Overwrite', 'Cancel');
       if (selection !== 'Overwrite') {
         vscode.window.showErrorMessage(`Failed to add twister configuration`);
@@ -586,15 +591,15 @@ export async function addTest(wsConfig: WorkspaceConfig, context: vscode.Extensi
     vscode.window.showInformationMessage(`Creating Twister Configuration: ${result.name}`);
 
     //Remove the following upgrade code eventually
-    if (wsConfig.projects[wsConfig.activeProject].twisterConfigs === undefined) {
-      wsConfig.projects[wsConfig.activeProject].twisterConfigs = {};
-      wsConfig.projectStates[wsConfig.activeProject].twisterStates = {};
+    if (wsConfig.projects[projectName].twisterConfigs === undefined) {
+      wsConfig.projects[projectName].twisterConfigs = {};
+      wsConfig.projectStates[projectName].twisterStates = {};
     }
 
-    wsConfig.projects[wsConfig.activeProject].twisterConfigs[result.name] = result;
-    wsConfig.projectStates[wsConfig.activeProject].twisterStates[result.name] = { viewOpen: true };
+    wsConfig.projects[projectName].twisterConfigs[result.name] = result;
+    wsConfig.projectStates[projectName].twisterStates[result.name] = { viewOpen: true };
 
-    setActiveTest(context, wsConfig, wsConfig.activeProject, result.name)
+    setActiveTest(context, wsConfig, projectName, result.name)
     await setWorkspaceState(context, wsConfig);
   }
 }
@@ -662,7 +667,7 @@ export async function removeRunner(context: vscode.ExtensionContext, wsConfig: W
   }
 }
 
-export async function setActive(wsConfig: WorkspaceConfig, project: string, build?: string, runner?: string) {
+export async function setActive(wsConfig: WorkspaceConfig, project: string, build?: string, runner?: string, test?: string) {
   if (project) {
     wsConfig.activeProject = project;
     if (build) {
@@ -670,6 +675,9 @@ export async function setActive(wsConfig: WorkspaceConfig, project: string, buil
       if (runner) {
         wsConfig.projectStates[wsConfig.activeProject].buildStates[build].activeRunner = runner;
       }
+    }
+    if (test) {
+      wsConfig.projectStates[wsConfig.activeProject].activeTwisterConfig = test;
     }
     vscode.commands.executeCommand("zephyr-ide.update-web-view");
   }

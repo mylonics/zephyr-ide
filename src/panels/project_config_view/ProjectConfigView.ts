@@ -189,6 +189,14 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
             leaf: 'file-code',
             open: 'file-code',
           }, label: 'Tests', description: test.tests
+        },
+        {
+          icons: {
+            branch: 'file-code',
+            leaf: 'file-code',
+            open: 'file-code',
+          }, label: 'Args', description: test.args,
+          value: { project: projectName, test: test.name, cmd: "modifyTestArgs" },
         }
       ]
     };
@@ -201,24 +209,22 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
         }, label: 'Board', description: test.boardConfig.board + (test.boardConfig.revision ? '@' + test.boardConfig.revision : "")
       });
 
-      if (test.serialPort) {
-        entry.subItems.push({
-          icons: {
-            branch: 'symbol-string',
-            leaf: 'symbol-string',
-            open: 'symbol-string',
-          }, label: 'Port', description: test.serialPort
-        });
-      }
-      if (test.serialBaud) {
-        entry.subItems.push({
-          icons: {
-            branch: 'pulse',
-            leaf: 'pulse',
-            open: 'pulse',
-          }, label: 'Baud', description: test.serialBaud
-        });
-      }
+      entry.subItems.push({
+        icons: {
+          branch: 'symbol-string',
+          leaf: 'symbol-string',
+          open: 'symbol-string',
+        }, label: 'Port', description: test.serialPort ? test.serialPort : "",
+        value: { project: projectName, test: test.name, cmd: "modifyTestArgs" },
+      });
+      entry.subItems.push({
+        icons: {
+          branch: 'pulse',
+          leaf: 'pulse',
+          open: 'pulse',
+        }, label: 'Baud', description: test.serialBaud ? test.serialBaud : "",
+        value: { project: projectName, test: test.name, cmd: "modifyTestArgs" },
+      });
 
     }
 
@@ -603,6 +609,10 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
         }
         case "modifyBuildArgs": {
           modifyBuildArguments(this.context, this.wsConfig, message.value.project, message.value.build).finally(() => { vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
+          setActive(this.wsConfig, message.value.project, message.value.build, message.value.runner);
+        }
+        case "modifyTestArgs": {
+          vscode.commands.executeCommand("zephyr-ide.reconfigure-active-test");
           setActive(this.wsConfig, message.value.project, message.value.build, message.value.runner);
         }
         case "addFile": {

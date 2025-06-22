@@ -1,6 +1,9 @@
 # Change Log
 
 All notable changes to the "zephyr-ide" extension will be documented in this file.
+## 1.7.6
+Added Twister Testing. \
+
 ## 1.7.5
 Parsing board revision numbers for build configuration for >4.1.0. \
 

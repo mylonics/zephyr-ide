@@ -26,18 +26,24 @@ import { TwisterConfig } from "../project_utilities/twister_selector";
 
 import * as fs from "fs-extra";
 
-export async function testHelper(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
+export async function testHelper(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName?: string, testName?: string) {
   if (wsConfig.activeSetupState === undefined) {
     return;
   }
   if (wsConfig.activeSetupState.westUpdated) {
-    if (wsConfig.activeProject === undefined) {
+    if (projectName == undefined) {
+      projectName = wsConfig.activeProject;
+    }
+    if (projectName === undefined) {
       vscode.window.showErrorMessage("Select a project before trying to run test");
       return;
     }
-    let project = wsConfig.projects[wsConfig.activeProject];
+    let project = wsConfig.projects[projectName];
 
-    let testName = getActiveTestNameOfProject(wsConfig, project.name);
+    if (testName === undefined) {
+      testName = getActiveTestNameOfProject(wsConfig, project.name);
+    }
+
     if (testName === undefined) {
       await addTest(wsConfig, context);
       testName = getActiveTestNameOfProject(wsConfig, project.name);
@@ -71,7 +77,7 @@ export async function runTest(
     }
   }
 
-  testString += `--outdir ${path.join(projectFolder, "twister-out")}`
+  testString += `--outdir ${path.join(projectFolder, "twister-out")}  ${testConfig.args ? testConfig.args : ""}`
 
   if (testConfig.boardConfig) {
     let boardRoot;
@@ -83,10 +89,8 @@ export async function runTest(
     }
 
     cmd = `west twister --device-testing  ${testConfig.serialPort ? "--device-serial " + testConfig.serialPort : ""} ${testConfig.serialBaud ? "--device-serial-baud " + testConfig.serialBaud : ""} -p ${testConfig.boardConfig.board} ${testString} -- -DBOARD_ROOT='${boardRoot}' `;
-
   } else {
     cmd = `west twister -p ${testConfig.platform} ${testString} `;
-
   }
 
 
