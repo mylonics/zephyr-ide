@@ -22,7 +22,7 @@ import * as fs from "fs-extra";
 import * as path from "path";
 
 import { installSdk, pickToolchainTarget, ToolChainDictionary } from "../setup_utilities/setup_toolchain";
-import { output, executeShellCommand, executeShellCommandInPythonEnv, executeTaskHelper, reloadEnvironmentVariables, getPlatformName, closeTerminals, getRootPath, getRootPathFs } from "../utilities/utils";
+import { output, executeShellCommand, executeShellCommandInPythonEnv, executeTaskHelper, reloadEnvironmentVariables, getPlatformName, closeTerminals, getRootPath, getRootPathFs, executeTaskHelperInPythonEnv } from "../utilities/utils";
 import { ProjectConfig, ProjectState } from "../project_utilities/project";
 import { initializeDtsExt, updateAllDtsContexts } from "./dts_interface";
 import { getModulePath, ZephyrVersionNumber, getModuleVersion } from "./modules";
@@ -548,7 +548,11 @@ export async function westInit(context: vscode.ExtensionContext, wsConfig: Works
 
   let cmd;
   if (westSelection.gitRepo) {
-    cmd = `west init -m ${westSelection.gitRepo} ${westSelection.additionalArgs}`;
+    if (westSelection.isZephyrIdeRepo) {
+      cmd = `git clone ${westSelection.gitRepo} . ${westSelection.additionalArgs}`;
+    } else {
+      cmd = `west init -m ${westSelection.gitRepo} ${westSelection.additionalArgs}`;
+    }
   } else if (westSelection.path === undefined) {
     cmd = `west init ${westSelection.additionalArgs}`;
   } else {
@@ -556,7 +560,7 @@ export async function westInit(context: vscode.ExtensionContext, wsConfig: Works
   }
 
   wsConfig.activeSetupState.zephyrDir = ""
-  let westInitRes = await executeTaskHelper("Zephyr IDE: West Init", cmd, wsConfig.activeSetupState.setupPath);
+  let westInitRes = await executeTaskHelperInPythonEnv(wsConfig.activeSetupState, "Zephyr IDE: West Init", cmd, wsConfig.activeSetupState.setupPath);
 
   if (!westInitRes) {
     vscode.window.showErrorMessage("West Init Failed. See terminal for error information.");
@@ -678,7 +682,7 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
   }
   closeTerminals(["Zephyr IDE: West Update", "Zephyr IDE: West Init"]);
 
-  let westUpdateRes = await executeTaskHelper("Zephyr IDE: West Update", `west update`, wsConfig.activeSetupState.setupPath);
+  let westUpdateRes = await executeTaskHelperInPythonEnv(wsConfig.activeSetupState, "Zephyr IDE: West Update", `west update`, wsConfig.activeSetupState.setupPath);
   if (!westUpdateRes) {
     vscode.window.showErrorMessage("West Update Failed. Check output for more info.");
     return false;
@@ -706,7 +710,7 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
   }
 
   let cmd = `pip install -r ${path.join(wsConfig.activeSetupState.zephyrDir, "scripts", "requirements.txt")} -U dtsh`;
-  let pipInstallRes = await executeTaskHelper("Zephyr IDE: West Update", cmd, wsConfig.activeSetupState.setupPath);
+  let pipInstallRes = await executeTaskHelperInPythonEnv(wsConfig.activeSetupState, "Zephyr IDE: West Update", cmd, wsConfig.activeSetupState.setupPath);
   if (!pipInstallRes) {
     vscode.window.showErrorMessage("West Update Failed. Error installing python requirements.");
     return false;

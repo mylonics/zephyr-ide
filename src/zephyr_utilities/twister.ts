@@ -18,7 +18,7 @@ limitations under the License.
 import * as vscode from "vscode";
 import * as path from 'path';
 
-import { executeTaskHelper } from "../utilities/utils";
+import { executeTaskHelperInPythonEnv } from "../utilities/utils";
 
 import { WorkspaceConfig } from '../setup_utilities/setup';
 import { addTest, ProjectConfig, getActiveTestNameOfProject } from "../project_utilities/project";
@@ -97,7 +97,7 @@ export async function runTest(
   let taskName = "Zephyr IDE Test: " + project.name + " " + testConfig.name;
 
   vscode.window.showInformationMessage(`Running ${testConfig.name} Test from project: ${project.name}`);
-  let ret = await executeTaskHelper(taskName, cmd, wsConfig.activeSetupState?.setupPath);
+  let ret = await executeTaskHelperInPythonEnv(wsConfig.activeSetupState, taskName, cmd, wsConfig.activeSetupState?.setupPath);
   return ret;
 }
 

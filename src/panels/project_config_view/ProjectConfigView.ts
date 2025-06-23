@@ -563,26 +563,27 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
         }
         case "openBoardDtc": {
           let build = this.wsConfig.projects[message.value.project].buildConfigs[message.value.build];
-          let filePath = vscode.Uri.file(path.join(build.relBoardSubDir, "board.cmake"));
 
+
+          let boardPath: string | undefined = undefined;
           if (path.isAbsolute(build.relBoardSubDir)) {
-            if (build.board.includes("/")) {
-              filePath = vscode.Uri.file(path.join(build.relBoardSubDir, "board.cmake"));
-            } else {
-              filePath = vscode.Uri.file(path.join(build.relBoardSubDir, build.board + ".dts"));
-            }
+            boardPath = build.relBoardSubDir;
           } else {
             if (build.relBoardDir) {
               //Custom Folder
-              filePath = vscode.Uri.file(path.join(this.wsConfig.rootPath, build.relBoardDir, build.relBoardSubDir, build.board + ".dts"));
+              boardPath = path.join(this.wsConfig.rootPath, build.relBoardDir, build.relBoardSubDir);
             } else if (this.wsConfig.activeSetupState) {
               //Default zephyr folder
-              filePath = vscode.Uri.file(path.join(this.wsConfig.activeSetupState?.zephyrDir, 'boards', build.relBoardSubDir, build.board + ".dts"));
+              boardPath = path.join(this.wsConfig.activeSetupState?.zephyrDir, 'boards', build.relBoardSubDir);
             }
           }
 
-          vscode.workspace.openTextDocument(filePath).then(document => vscode.window.showTextDocument(document));
-          setActive(this.wsConfig, message.value.project, message.value.build, message.value.runner);
+          if (boardPath) {
+            let filePath = vscode.Uri.file(path.join(boardPath, build.board, build.board + ".dts"));
+
+            vscode.workspace.openTextDocument(filePath).then(document => vscode.window.showTextDocument(document));
+            setActive(this.wsConfig, message.value.project, message.value.build, message.value.runner);
+          }
           break;
         }
         case "openMain": {

@@ -52,6 +52,11 @@ export function getPlatformArch() {
   return;
 }
 
+export function isMacOS() {
+  return true;
+  return platform == "darwin";
+}
+
 export function getPythonVenvBinaryFolder(setupState: SetupState) {
   if (setupState.env["VIRTUAL_ENV"])
     switch (platform) {
@@ -159,6 +164,15 @@ async function executeTask(task: vscode.Task) {
   });
 }
 
+export async function executeTaskHelperInPythonEnv(setupState: SetupState | undefined, taskName: string, cmd: string, cwd: string | undefined) {
+  if (setupState && isMacOS()) {
+    let newCmd = path.join(getPythonVenvBinaryFolder(setupState), cmd);
+    return executeTaskHelper(taskName, newCmd, cwd);
+  } else {
+    return executeTaskHelper(taskName, cmd, cwd);
+  }
+}
+
 export async function executeTaskHelper(taskName: string, cmd: string, cwd: string | undefined) {
   output.appendLine(`Running cmd: ${cmd}`);
   let options: vscode.ShellExecutionOptions = {
@@ -181,8 +195,12 @@ export async function executeTaskHelper(taskName: string, cmd: string, cwd: stri
 }
 
 export async function executeShellCommandInPythonEnv(cmd: string, cwd: string, setupState: SetupState, display_error = true) {
-  let newCmd = path.join(getPythonVenvBinaryFolder(setupState), cmd);
-  return executeShellCommand(newCmd, cwd, display_error);
+  if (setupState && isMacOS()) {
+    let newCmd = path.join(getPythonVenvBinaryFolder(setupState), cmd);
+    return executeShellCommand(newCmd, cwd, display_error);
+  } else {
+    return executeShellCommand(cmd, cwd, display_error);
+  }
 };
 
 export async function executeShellCommand(cmd: string, cwd: string, display_error = true) {

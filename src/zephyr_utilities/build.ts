@@ -20,7 +20,7 @@ import * as path from 'path';
 import * as fs from 'fs-extra';
 import * as yaml from 'js-yaml';
 
-import { executeTaskHelper } from "../utilities/utils";
+import { executeTaskHelperInPythonEnv } from "../utilities/utils";
 
 import { WorkspaceConfig } from '../setup_utilities/setup';
 import { addBuild, ProjectConfig, getActiveBuildNameOfProject } from "../project_utilities/project";
@@ -178,7 +178,7 @@ export async function build(
   let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
 
   vscode.window.showInformationMessage(`Building ${build.name} from project: ${project.name}`);
-  let ret = await executeTaskHelper(taskName, cmd, wsConfig.activeSetupState?.setupPath);
+  let ret = await executeTaskHelperInPythonEnv(wsConfig.activeSetupState, taskName, cmd, wsConfig.activeSetupState?.setupPath);
 
   regenerateCompileCommands(wsConfig);
   updateDtsContext(wsConfig, project, build);
@@ -226,7 +226,7 @@ export async function buildMenuConfig(
   let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
 
   vscode.window.showInformationMessage(`Running MenuConfig ${build.name} from project: ${project.name}`);
-  await executeTaskHelper(taskName, cmd, wsConfig.activeSetupState?.setupPath);
+  await executeTaskHelperInPythonEnv(wsConfig.activeSetupState, taskName, cmd, wsConfig.activeSetupState?.setupPath);
   regenerateCompileCommands(wsConfig);
   updateDtsContext(wsConfig, project, build);
 }
@@ -271,7 +271,7 @@ export async function buildRamRomReport(
   let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
 
   vscode.window.showInformationMessage(`Running ${isRamReport ? "RAM" : "ROM"} Report ${build.name} from project: ${project.name}`);
-  await executeTaskHelper(taskName, cmd, wsConfig.activeSetupState?.setupPath);
+  await executeTaskHelperInPythonEnv(wsConfig.activeSetupState, taskName, cmd, wsConfig.activeSetupState?.setupPath);
   regenerateCompileCommands(wsConfig);
 }
 
@@ -303,7 +303,7 @@ export async function runDtshShell(
   let taskName = "Zephyr IDE DTSH Sehll: " + project.name + " " + build.name;
 
   vscode.window.showInformationMessage(`Running DTSH Shell ${build.name} from project: ${project.name}`);
-  await executeTaskHelper(taskName, cmd, wsConfig.activeSetupState?.setupPath);
+  await executeTaskHelperInPythonEnv(wsConfig.activeSetupState, taskName, cmd, wsConfig.activeSetupState?.setupPath);
 }
 
 export async function clean(wsConfig: WorkspaceConfig, projectName: string | undefined) {

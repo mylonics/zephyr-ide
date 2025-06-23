@@ -19,7 +19,7 @@ import { QuickPickItem, ExtensionContext } from 'vscode';
 import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs-extra";
-import { MultiStepInput, showQuickPick, showQuickPickMany } from "../utilities/multistepQuickPick";
+import { MultiStepInput, showQuickPickMany } from "../utilities/multistepQuickPick";
 import { WorkspaceConfig } from './setup';
 import * as yaml from 'js-yaml';
 
@@ -31,6 +31,7 @@ export interface WestLocation {
   failed: boolean;
   gitRepo: string;
   additionalArgs: string;
+  isZephyrIdeRepo: boolean;
 }
 
 
@@ -66,7 +67,8 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
     westOptions["Minimal Zephyr (Select Desired HALs)"] = "minimal_west.yml";
     westOptions["Minimal BLE Zephyr (Select Desired HALs)"] = "minimal_ble_west.yml";
     westOptions["NRF Connect Config"] = "ncs_west.yml";
-    westOptions["From Git Repo"] = "";
+    westOptions["From Native Zephyr Repo (T1,T2,T3 Topolgies)"] = "";
+    westOptions["From Zephyr IDE Style Topology Repo"] = "";
     westOptions["Select west.yml in Workspace"] = "";
 
     const westOptionQpItems: QuickPickItem[] = [];
@@ -94,8 +96,10 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
 
     let copyTemplate = false;
     let westFile;
+    state.isZephyrIdeRepo = false;
 
-    if (pick.label === "From Git Repo") {
+    if (pick.label === "From Native Zephyr Repo (T1,T2,T3 Topolgies)" || pick.label === "From Zephyr IDE Style Topology Repo") {
+      state.isZephyrIdeRepo = pick.label === "From Zephyr IDE Style Topology Repo";
       async function validateGitRepoString(name: string) {
         return undefined;
       }
