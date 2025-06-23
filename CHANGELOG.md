@@ -1,6 +1,9 @@
 # Change Log
 
 All notable changes to the "zephyr-ide" extension will be documented in this file.
+## 1.7.7
+New macOS fix
+
 ## 1.7.6
 Added Twister Testing. \
 
