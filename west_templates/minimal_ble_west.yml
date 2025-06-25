@@ -11,7 +11,7 @@ manifest:
       import:
         path-prefix: external
         name-allowlist:
-          - cmsis_6
+          - cmsis
           - cmsis-dsp
           - picolibc
           - segger
