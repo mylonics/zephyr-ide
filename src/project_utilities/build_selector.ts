@@ -121,10 +121,10 @@ async function getBoardlistWest(setupState: SetupState, folder: vscode.Uri | und
 
         if (qualifiers.length > 1) {
           for (let j = 0; j < qualifiers.length; j++) {
-            outputData.push({ name: boardData[0] + "/" + qualifiers[j], subdir: boardData[2], revisions: revisions, revision_default: revision_default });
+            outputData.push({ name: boardData[0] + "/" + qualifiers[j], subdir: boardData[1], revisions: revisions, revision_default: revision_default });
           }
         } else {
-          outputData.push({ name: boardData[0], subdir: boardData[2], revisions: revisions, revision_default: revision_default });
+          outputData.push({ name: boardData[0], subdir: boardData[1], revisions: revisions, revision_default: revision_default });
         }
       }
     } catch (error) {
@@ -191,16 +191,6 @@ export async function pickBoard(setupState: SetupState, rootPath: string) {
     relBoardDir = undefined;
   }
 
-  let relBoardSubDir: string = "";
-  if (pick.description) {
-    if (relBoardDir) {
-      relBoardSubDir = path.relative(path.join(rootPath, relBoardDir), pick.description)
-    } else {
-      relBoardSubDir = path.relative(path.join(setupState.zephyrDir, "boards"), pick.description);
-    }
-    return;
-  }
-
   let boardList;
   if (relBoardDir) {
     boardList = await getBoardlistWest(setupState, vscode.Uri.file(path.join(rootPath, relBoardDir)));
@@ -231,6 +221,16 @@ export async function pickBoard(setupState: SetupState, rootPath: string) {
   };
 
   let pick_data = (pick as BoardItem);
+
+  let relBoardSubDir: string = "";
+  if (pick_data.description) {
+    if (relBoardDir) {
+      relBoardSubDir = path.relative(path.join(rootPath, relBoardDir), pick_data.description)
+    } else {
+      relBoardSubDir = path.relative(path.join(setupState.zephyrDir, "boards"), pick_data.description);
+    }
+  }
+
 
   let board = pick_data.label;
   let revision: string | undefined;
@@ -264,6 +264,9 @@ export async function pickBoard(setupState: SetupState, rootPath: string) {
     };
     revision = pick.label;
   }
+
+
+
   let boardConfig = {
     board: board,
     relBoardDir: relBoardDir,

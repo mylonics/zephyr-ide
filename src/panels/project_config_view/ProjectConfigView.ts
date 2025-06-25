@@ -262,7 +262,7 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
           },
           value: { cmd: "openBoardDir", project: projectName, build: build.name },
           label: 'Board Dir',
-          description: build.relBoardDir,
+          description: build.relBoardSubDir,
         },
         {
           icons: {
@@ -579,7 +579,7 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
           }
 
           if (boardPath) {
-            let filePath = vscode.Uri.file(path.join(boardPath, build.board, build.board + ".dts"));
+            let filePath = vscode.Uri.file(path.join(boardPath, build.board + ".dts"));
 
             vscode.workspace.openTextDocument(filePath).then(document => vscode.window.showTextDocument(document));
             setActive(this.wsConfig, message.value.project, message.value.build, message.value.runner);

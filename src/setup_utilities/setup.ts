@@ -22,9 +22,9 @@ import * as fs from "fs-extra";
 import * as path from "path";
 
 import { installSdk, pickToolchainTarget, ToolChainDictionary } from "../setup_utilities/setup_toolchain";
-import { output, executeShellCommand, executeShellCommandInPythonEnv, executeTaskHelper, reloadEnvironmentVariables, getPlatformName, closeTerminals, getRootPath, getRootPathFs, executeTaskHelperInPythonEnv } from "../utilities/utils";
+import { output, executeShellCommand, executeShellCommandInPythonEnv, reloadEnvironmentVariables, getPlatformName, closeTerminals, getRootPathFs, executeTaskHelperInPythonEnv } from "../utilities/utils";
 import { ProjectConfig, ProjectState } from "../project_utilities/project";
-import { initializeDtsExt, updateAllDtsContexts } from "./dts_interface";
+import { initializeDtsExt } from "./dts_interface";
 import { getModulePath, ZephyrVersionNumber, getModuleVersion } from "./modules";
 
 
