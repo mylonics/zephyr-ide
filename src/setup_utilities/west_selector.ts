@@ -68,7 +68,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
     westOptions["Minimal BLE Zephyr (Select Desired HALs)"] = "minimal_ble_west.yml";
     westOptions["NRF Connect Config"] = "ncs_west.yml";
     westOptions["From Native Zephyr Repo (T1,T2,T3 Topolgies)"] = "";
-    westOptions["From Zephyr IDE Style Topology Repo"] = "";
+    //westOptions["From Zephyr IDE Style Topology Repo"] = "";
     westOptions["Select west.yml in Workspace"] = "";
 
     const westOptionQpItems: QuickPickItem[] = [];
