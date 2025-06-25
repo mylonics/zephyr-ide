@@ -53,7 +53,6 @@ export function getPlatformArch() {
 }
 
 export function isMacOS() {
-  return true;
   return platform == "darwin";
 }
 
