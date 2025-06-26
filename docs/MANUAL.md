@@ -70,7 +70,7 @@ The project may now be built. This can be done with the Active Project Panel or 
 
 ![Taskbar Buttons](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/taskbar_buttons.gif)
 
-To debug, launch configurations need to be setup. By default, Zephyr IDE provides two examples using cortex-debug and a blackmagic probe. These are the Debug and Attach configurations. A third example is also available called the Debug Select Configuration.
+To debug, launch configurations need to be setup. By default, Zephyr IDE provides 4 examples using cortex-debug. The examples use cortex debug and have a blackmagic probe and st-link configuration. There is a Debug and Attach configuration for each. The OpenOCD examples are configured for stlink and nrf52. A fifth example is also available called the Debug Select Configuration.
 
 ![Setting Up Launch Configuration](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/setting_up_debug.gif)
 

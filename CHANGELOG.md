@@ -1,6 +1,10 @@
 # Change Log
 
 All notable changes to the "zephyr-ide" extension will be documented in this file.
+## 1.8.2
+Fixed issue with debug buttons\
+Added additional debug examples for OpenOCD
+
 ## 1.8.1
 Reverted west.yml cmsis6 fix until v4.2.0 comes out
 

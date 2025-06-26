@@ -419,7 +419,7 @@
             "name": "Zephyr IDE: Debug",
             "cwd": "${workspaceFolder}",
             "gdbPath": "${command:zephyr-ide.get-gdb-path}",
-            "executable": "${command:zephyr-ide.get-active-build-path}/zephyr/zephyr.elf",
+            "executable": "${command:zephyr-ide.get-active-build-path}/${command:zephyr-ide.get-active-project-name}/zephyr/zephyr.elf",
             "request": "launch",
             "type": "cortex-debug",
             "servertype": "bmp",
@@ -434,7 +434,7 @@
             "name": "Zephyr IDE: Attach",
             "cwd": "${workspaceFolder}",
             "gdbPath": "${command:zephyr-ide.get-gdb-path}",
-            "executable": "${command:zephyr-ide.get-active-build-path}/zephyr/zephyr.elf",
+            "executable": "${command:zephyr-ide.get-active-build-path}/${command:zephyr-ide.get-active-project-name}/zephyr/zephyr.elf",
             "request": "launch",
             "type": "cortex-debug",
             "servertype": "bmp",
@@ -448,13 +448,13 @@
         ],
         "configurationSnippets": [
           {
-            "label": "Zephyr IDE: Debug",
+            "label": "Zephyr IDE: Debug BMP",
             "description": "Basic Cortex Debug example with blackmagic probe",
             "body": {
               "name": "Zephyr IDE: Debug",
               "cwd": "^\"\\${workspaceFolder}\"",
               "gdbPath": "^\"\\${command:zephyr-ide.get-gdb-path}\"",
-              "executable": "^\"\\${command:zephyr-ide.get-active-build-path}/zephyr/zephyr.elf\"",
+              "executable": "^\"\\${command:zephyr-ide.get-active-build-path}/\\${command:zephyr-ide.get-active-project-name}/zephyr/zephyr.elf\"",
               "request": "launch",
               "type": "cortex-debug",
               "servertype": "bmp",
@@ -467,13 +467,13 @@
             }
           },
           {
-            "label": "Zephyr IDE: Attach",
+            "label": "Zephyr IDE: Attach BMP",
             "description": "Basic Cortex Debug attach example with blackmagic probe",
             "body": {
               "name": "Zephyr IDE: Attach",
               "cwd": "^\"\\${workspaceFolder}\"",
               "gdbPath": "^\"\\${command:zephyr-ide.get-gdb-path}\"",
-              "executable": "^\"\\${command:zephyr-ide.get-active-build-path}/zephyr/zephyr.elf\"",
+              "executable": "^\"\\${command:zephyr-ide.get-active-build-path}/\\${command:zephyr-ide.get-active-project-name}/zephyr/zephyr.elf\"",
               "request": "launch",
               "type": "cortex-debug",
               "servertype": "bmp",
@@ -486,13 +486,13 @@
             }
           },
           {
-            "label": "Zephyr IDE: Debug Select",
+            "label": "Zephyr IDE: Debug Select BMP",
             "description": "An example where a user will select a build each time the configuration is run",
             "body": {
               "name": "Zephyr IDE: Debug Select",
               "cwd": "^\"\\${workspaceFolder}\"",
               "gdbPath": "^\"\\${command:zephyr-ide.get-gdb-path}\"",
-              "executable": "^\"\\${command:zephyr-ide.select-active-build-path}/zephyr/zephyr.elf\"",
+              "executable": "^\"\\${command:zephyr-ide.get-active-build-path}/\\${command:zephyr-ide.get-active-project-name}/zephyr/zephyr.elf\"",
               "request": "launch",
               "type": "cortex-debug",
               "servertype": "bmp",
@@ -502,6 +502,72 @@
               "preLaunchCommands": [
                 "monitor rtt enable"
               ]
+            }
+          },
+          {
+            "label": "Zephyr IDE: Debug openOCD",
+            "description": "Basic Cortex Debug example with OpenOCD, st-link, and nrf52",
+            "body": {
+              "name": "Zephyr IDE: Debug",
+              "cwd": "^\"\\${workspaceFolder}\"",
+              "gdbPath": "^\"\\${command:zephyr-ide.get-gdb-path}\"",
+              "executable": "^\"\\${command:zephyr-ide.get-active-build-path}/\\${command:zephyr-ide.get-active-project-name}/zephyr/zephyr.elf\"",
+              "request": "launch",
+              "type": "cortex-debug",
+              "servertype": "openocd",
+              "configFiles": [
+                "interface/stlink.cfg",
+                "target/nrf52.cfg"
+              ],
+              "rtos": "Zephyr",
+              "searchDir": [],
+              "runToEntryPoint": "main",
+              "showDevDebugOutput": "none",
+              "rttConfig": {
+                "enabled": true,
+                "address": "auto",
+                "rtt_start_retry": 1000,
+                "decoders": [
+                  {
+                    "label": "RTT channel 0",
+                    "port": 0,
+                    "type": "console"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "label": "Zephyr IDE: Debug Attach openOCD",
+            "description": "Basic Cortex Debug Attach example with OpenOCD, st-link, and nrf52",
+            "body": {
+              "name": "Zephyr IDE: Debug Attach",
+              "cwd": "^\"\\${workspaceFolder}\"",
+              "gdbPath": "^\"\\${command:zephyr-ide.get-gdb-path}\"",
+              "executable": "^\"\\${command:zephyr-ide.get-active-build-path}/\\${command:zephyr-ide.get-active-project-name}/zephyr/zephyr.elf\"",
+              "request": "attach",
+              "type": "cortex-debug",
+              "servertype": "openocd",
+              "configFiles": [
+                "interface/stlink.cfg",
+                "target/nrf52.cfg"
+              ],
+              "rtos": "Zephyr",
+              "searchDir": [],
+              "runToEntryPoint": "main",
+              "showDevDebugOutput": "none",
+              "rttConfig": {
+                "enabled": true,
+                "address": "auto",
+                "rtt_start_retry": 1000,
+                "decoders": [
+                  {
+                    "label": "RTT channel 0",
+                    "port": 0,
+                    "type": "console"
+                  }
+                ]
+              }
             }
           }
         ]

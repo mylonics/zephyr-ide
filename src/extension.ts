@@ -731,7 +731,7 @@ export async function activate(context: vscode.ExtensionContext) {
       if (activeBuild?.launchTarget) {
         debugTarget = activeBuild.launchTarget;
       }
-      let debugConfig = getLaunchConfigurationByName(wsConfig, debugTarget);
+      let debugConfig = await getLaunchConfigurationByName(wsConfig, debugTarget);
       if (debugConfig) {
         await vscode.commands.executeCommand('debug.startFromConfig', debugConfig);
       } else {
@@ -748,7 +748,7 @@ export async function activate(context: vscode.ExtensionContext) {
       if (activeBuild?.attachTarget) {
         debugTarget = activeBuild.attachTarget;
       }
-      let debugConfig = getLaunchConfigurationByName(wsConfig, debugTarget);
+      let debugConfig = await getLaunchConfigurationByName(wsConfig, debugTarget);
       if (debugConfig) {
         await vscode.commands.executeCommand('debug.startFromConfig', debugConfig);
       } else {
@@ -766,7 +766,7 @@ export async function activate(context: vscode.ExtensionContext) {
       if (activeBuild?.buildDebugTarget) {
         debugTarget = activeBuild.buildDebugTarget;
       }
-      let debugConfig = getLaunchConfigurationByName(wsConfig, debugTarget);
+      let debugConfig = await getLaunchConfigurationByName(wsConfig, debugTarget);
 
       if (debugConfig) {
         let res = await buildHelper(context, wsConfig, false);
