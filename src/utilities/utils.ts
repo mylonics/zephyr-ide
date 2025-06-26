@@ -194,12 +194,8 @@ export async function executeTaskHelper(taskName: string, cmd: string, cwd: stri
 }
 
 export async function executeShellCommandInPythonEnv(cmd: string, cwd: string, setupState: SetupState, display_error = true) {
-  if (setupState && isMacOS()) {
-    let newCmd = path.join(getPythonVenvBinaryFolder(setupState), cmd);
-    return executeShellCommand(newCmd, cwd, display_error);
-  } else {
-    return executeShellCommand(cmd, cwd, display_error);
-  }
+  let newCmd = path.join(getPythonVenvBinaryFolder(setupState), cmd);
+  return executeShellCommand(newCmd, cwd, display_error);
 };
 
 export async function executeShellCommand(cmd: string, cwd: string, display_error = true) {

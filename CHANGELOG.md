@@ -2,6 +2,10 @@
 
 All notable changes to the "zephyr-ide" extension will be documented in this file.
 ## 1.8.2
+Updated build buttons\
+Fixed issue with board build command not working
+
+## 1.8.2
 Fixed issue with debug buttons\
 Added additional debug examples for OpenOCD
 

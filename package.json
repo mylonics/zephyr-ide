@@ -62,13 +62,13 @@
     "keybindings": [
       {
         "command": "zephyr-ide.build",
-        "key": "ctrl+alt+B",
-        "mac": "ctrl+alt+B"
+        "key": "ctrl+shift+B",
+        "mac": "ctrl+shift+B"
       },
       {
         "command": "zephyr-ide.flash",
-        "key": "ctrl+alt+p",
-        "mac": "ctrl+alt+p"
+        "key": "ctrl+shift+p",
+        "mac": "ctrl+shift+p"
       }
     ],
     "viewsWelcome": [
