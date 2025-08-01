@@ -49,7 +49,7 @@ export function getPlatformArch() {
     case "arm64":
       return "aarch64";
   }
-  return;
+  return arch;
 }
 
 export function isMacOS() {

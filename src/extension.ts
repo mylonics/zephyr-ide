@@ -23,7 +23,7 @@ import { ProjectTreeView } from "./panels/project_tree_view/ProjectTreeView";
 import { ExtensionSetupView } from "./panels/extension_setup_view/ExtensionSetupView";
 import { ProjectConfigView } from "./panels/project_config_view/ProjectConfigView";
 
-import { getLaunchConfigurationByName, output, executeShellCommand, reloadEnvironmentVariables, getRootPathFs } from "./utilities/utils";
+import { getLaunchConfigurationByName, output, executeShellCommand, reloadEnvironmentVariables, getRootPathFs, executeTaskHelper, getPlatformName } from "./utilities/utils";
 import * as project from "./project_utilities/project";
 import { buildHelper, buildMenuConfig, buildRamRomReport, runDtshShell, clean, MenuConfig } from "./zephyr_utilities/build";
 import { flashActive } from "./zephyr_utilities/flash";
@@ -32,6 +32,7 @@ import { installSdk } from "./setup_utilities/setup_toolchain";
 import { initializeDtsExt, updateAllDtsContexts, printContexts, setDtsContext } from "./setup_utilities/dts_interface";
 import { setActiveProject, getActiveRunnerNameOfBuild, getActiveBuildNameOfProject, getActiveBuildConfigOfProject } from "./project_utilities/project";
 import { testHelper, deleteTestDirs } from "./zephyr_utilities/twister"
+import { installHostTools } from "./setup_utilities/host_tools";
 
 import { getModuleVersion } from "./setup_utilities/modules";
 import { reconfigureTest } from "./project_utilities/twister_selector";
@@ -263,7 +264,11 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.check-build-dependencies", async () => {
-      await checkIfToolsAvailable(context, wsConfig, globalConfig);
+      let res = await checkIfToolsAvailable(context, wsConfig, globalConfig);
+
+      if (res) {
+        vscode.commands.executeCommand('setContext', 'buildDependenciesAvailable', true);
+      }
       extensionSetupView.updateWebView(wsConfig, globalConfig);
     })
   );
@@ -960,6 +965,28 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.set-workspace-settings", async () => {
       setWorkspaceSettings(true);
     }));
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.open-host-tools-walkthrough", async () => {
+      vscode.commands.executeCommand('workbench.action.openWalkthrough', 'mylonics.zephyr-ide#host-tools-walkthrough', false);
+    })
+  );
+
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.install-host-tools", async () => {
+      let res = await installHostTools();
+      if (res) {
+        vscode.commands.executeCommand('setContext', 'hostToolsInstalled', true);
+        if (getPlatformName() === "windows") {
+          const extensionPath = context.extensionPath;
+          let refreshEnvScript = path.join(extensionPath, "scripts", "RefreshEnv.cmd");
+          executeTaskHelper("Refresh Environment", refreshEnvScript, wsConfig.rootPath);
+        }
+      }
+    })
+  );
+
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.shell_test", async () => {
