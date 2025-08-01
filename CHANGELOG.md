@@ -1,7 +1,7 @@
 # Change Log
 
 All notable changes to the "zephyr-ide" extension will be documented in this file.
-## 1.8.8
+## 1.9.0
 Added recommendations for dts language server and cpp intellisense
 
 ## 1.8.7
@@ -25,24 +25,12 @@ Added additional debug examples for OpenOCD
 Reverted west.yml cmsis6 fix until v4.2.0 comes out
 
 ## 1.8.0
-Minor board sub directory fixes
-
-## 1.7.7
-New macOS fix
-
-## 1.7.6
+Minor board sub directory fixes\
+New macOS fix\
 Added Twister Testing. \
-
-## 1.7.5
 Parsing board revision numbers for build configuration for >4.1.0. \
-
-## 1.7.4
-Checking if build_info file exists before trying to read it.
-
-## 1.7.2
-Fixed bug calling west list before a west update has occurred.
-
-## 1.7.1
+Checking if build_info file exists before trying to read it.\
+Fixed bug calling west list before a west update has occurred.\
 Removed Deprecated .vscode settings \
 Updated nrf connect versions
 
