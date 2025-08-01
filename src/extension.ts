@@ -27,7 +27,7 @@ import { getLaunchConfigurationByName, output, executeShellCommand, reloadEnviro
 import * as project from "./project_utilities/project";
 import { buildHelper, buildMenuConfig, buildRamRomReport, runDtshShell, clean, MenuConfig } from "./zephyr_utilities/build";
 import { flashActive } from "./zephyr_utilities/flash";
-import { getVariable, setExternalSetupState, WorkspaceConfig, setSetupState, GlobalConfig, SetupStateType, loadGlobalState, westUpdate, workspaceInit, setWorkspaceState, loadWorkspaceState, clearWorkspaceState, westInit, checkIfToolsAvailable, setupWestEnvironment, loadProjectsFromFile, getToolchainDir, setGlobalState, getToolsDir, saveSetupState } from "./setup_utilities/setup";
+import { getVariable, setExternalSetupState, WorkspaceConfig, setSetupState, GlobalConfig, SetupStateType, loadGlobalState, westUpdate, workspaceInit, setWorkspaceState, loadWorkspaceState, clearWorkspaceState, westInit, checkIfToolsAvailable, setupWestEnvironment, loadProjectsFromFile, getToolchainDir, setGlobalState, getToolsDir, saveSetupState, setWorkspaceSettings } from "./setup_utilities/setup";
 import { installSdk } from "./setup_utilities/setup_toolchain";
 import { initializeDtsExt, updateAllDtsContexts, printContexts, setDtsContext } from "./setup_utilities/dts_interface";
 import { setActiveProject, getActiveRunnerNameOfBuild, getActiveBuildNameOfProject, getActiveBuildConfigOfProject } from "./project_utilities/project";
@@ -953,6 +953,12 @@ export async function activate(context: vscode.ExtensionContext) {
       } else {
         vscode.window.showErrorMessage("First Initialize Zephyr IDE Workspace Folder");
       }
+    }));
+
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.set-workspace-settings", async () => {
+      setWorkspaceSettings(true);
     }));
 
   context.subscriptions.push(

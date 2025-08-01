@@ -236,41 +236,39 @@ export async function loadWorkspaceState(context: vscode.ExtensionContext): Prom
   return config;
 }
 
-export function setDefaultTerminal(configuration: vscode.WorkspaceConfiguration, target: vscode.ConfigurationTarget, platform_name: string) {
-  configuration.update('terminal.integrated.defaultProfile.' + platform_name, "Zephyr IDE Terminal", target, false);
+export function setDefaultTerminal(configuration: vscode.WorkspaceConfiguration, target: vscode.ConfigurationTarget, platform_name: string, force: boolean) {
+  if (force || !configuration.inspect('terminal.integrated.defaultProfile.' + platform_name)?.workspaceValue) {
+    configuration.update('terminal.integrated.defaultProfile.' + platform_name, "Zephyr IDE Terminal", target, false);
+  }
 }
 
-export async function oneTimeWorkspaceSetup(context: vscode.ExtensionContext) {
-  let configName = "zephyr-ide-v50-one-time-config.env";
-  let oneTimeConfig: boolean | undefined = await context.workspaceState.get(configName)
+export async function setWorkspaceSettings(force = false) {
+  const configuration = await vscode.workspace.getConfiguration();
+  const target = vscode.ConfigurationTarget.Workspace;
 
-  if (oneTimeConfig === undefined || oneTimeConfig === false) {
-    const configuration = await vscode.workspace.getConfiguration();
-    const target = vscode.ConfigurationTarget.Workspace;
-
-    if (getPlatformName() === "windows") {
-      setDefaultTerminal(configuration, target, "windows");
-    }
-    if (getPlatformName() === "linux") {
-      setDefaultTerminal(configuration, target, "linux");
-    }
-    if (getPlatformName() === "macos") {
-      setDefaultTerminal(configuration, target, "osx");
-    }
-
+  if (getPlatformName() === "windows") {
+    setDefaultTerminal(configuration, target, "windows", force);
+  }
+  if (getPlatformName() === "linux") {
+    setDefaultTerminal(configuration, target, "linux", force);
+  }
+  if (getPlatformName() === "macos") {
+    setDefaultTerminal(configuration, target, "osx", force);
+  }
+  if (force || !configuration.inspect("C_Cpp.default.compileCommands")?.workspaceValue) {
     configuration.update("C_Cpp.default.compileCommands", path.join("${workspaceFolder}", '.vscode', 'compile_commands.json'), target)
-
+  }
+  if (force || !configuration.inspect("cmake.configureOnOpen")?.workspaceValue) {
     configuration.update("cmake.configureOnOpen", false, target);
-    await context.workspaceState.update(configName, true)
   }
 }
 
 async function generateGitIgnore(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
-  const extensionPath = context.extensionPath;
-  let srcPath = path.join(extensionPath, "git_ignores", "gitignore_workspace_install");
   let desPath = path.join(wsConfig.rootPath, ".gitignore");
   let exists = await fs.pathExists(desPath);
   if (!exists) {
+    const extensionPath = context.extensionPath;
+    let srcPath = path.join(extensionPath, "git_ignores", "gitignore_workspace_install");
     let res = await fs.copyFile(srcPath, desPath, fs.constants.COPYFILE_FICLONE);
   }
 }
@@ -278,7 +276,7 @@ async function generateGitIgnore(context: vscode.ExtensionContext, wsConfig: Wor
 export async function setSetupState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, setupStateType: SetupStateType, ext_path: string = "") {
   generateGitIgnore(context, wsConfig); // Try to generate a .gitignore each time this is run
   if (setupStateType !== SetupStateType.NONE) {
-    oneTimeWorkspaceSetup(context);
+    setWorkspaceSettings();
   }
   if (setupStateType === SetupStateType.SELECTED) {
     wsConfig.activeSetupState = await loadExternalSetupState(context, globalConfig, ext_path);

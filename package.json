@@ -406,6 +406,10 @@
       {
         "command": "zephyr-ide.reconfigure-active-test",
         "title": "Zephyr IDE: Reconfigure Active Test"
+      },
+      {
+        "command": "zephyr-ide.set-workspace-settings",
+        "title": "Zephyr IDE: Set Workspace Settings"
       }
     ],
     "terminal": {
