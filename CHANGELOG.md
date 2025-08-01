@@ -1,8 +1,11 @@
 # Change Log
 
 All notable changes to the "zephyr-ide" extension will be documented in this file.
+## 1.8.4
+Added ability to use gui config in Project Tree view
+
 ## 1.8.3
-Updated README\
+Updated README
 
 ## 1.8.2
 Updated build buttons\

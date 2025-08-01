@@ -21,7 +21,7 @@ import { ProjectConfig, addBuildToProject, addConfigFiles, addRunnerToBuild, rem
 import { BuildConfig } from '../../project_utilities/build_selector';
 import { getNonce } from "../../utilities/getNonce";
 import { RunnerConfig } from '../../project_utilities/runner_selector';
-import { buildByName } from '../../zephyr_utilities/build';
+import { buildByName, MenuConfig } from '../../zephyr_utilities/build';
 import { flashByName } from '../../zephyr_utilities/flash';
 import { ConfigFiles } from '../../project_utilities/config_selector';
 
@@ -548,7 +548,12 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
           break;
         }
         case "menuConfig": {
-          buildByName(this.wsConfig, true, message.value.project, message.value.build, true);
+          buildByName(this.wsConfig, true, message.value.project, message.value.build, MenuConfig.MenuConfig);
+          setActive(this.wsConfig, message.value.project, message.value.build);
+          break;
+        }
+        case "guiConfig": {
+          buildByName(this.wsConfig, true, message.value.project, message.value.build, MenuConfig.GuiConfig);
           setActive(this.wsConfig, message.value.project, message.value.build);
           break;
         }

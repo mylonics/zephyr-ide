@@ -46,10 +46,10 @@ export async function regenerateCompileCommands(wsConfig: WorkspaceConfig) {
       let build = project.buildConfigs[buildName];
       let basepath = path.join(wsConfig.rootPath, project.rel_path, build.name);
       let basefile = path.join(basepath, "compile_commands.json");
-      let extfile = path.join(basepath, project.name, "compile_commands.json")
+      let extfile = path.join(basepath, project.name, "compile_commands.json");
       if (fs.existsSync(basefile)) {
         let rawdata = await fs.readFile(basefile, 'utf8');
-        compileCommandData.push(...JSON.parse(rawdata))
+        compileCommandData.push(...JSON.parse(rawdata));
       } else if (fs.existsSync(extfile)) {
         let rawdata = await fs.readFile(extfile, 'utf8');
         compileCommandData.push(...JSON.parse(rawdata))
@@ -87,13 +87,19 @@ export async function buildHelper(
   }
 }
 
-export async function buildByName(wsConfig: WorkspaceConfig, pristine: boolean, projectName: string, buildName: string, isMenuConfig = false) {
+export enum MenuConfig {
+  None = 1,
+  MenuConfig,
+  GuiConfig,
+}
+
+export async function buildByName(wsConfig: WorkspaceConfig, pristine: boolean, projectName: string, buildName: string, isMenuConfig = MenuConfig.None) {
   if (wsConfig.activeSetupState && wsConfig.activeSetupState.westUpdated) {
     let project = wsConfig.projects[projectName];
     let buildconfig = project.buildConfigs[buildName];
     if (project && build) {
-      if (isMenuConfig) {
-        buildMenuConfig(wsConfig, true, project, buildconfig);
+      if (isMenuConfig !== MenuConfig.None) {
+        buildMenuConfig(wsConfig, isMenuConfig, project, buildconfig);
       } else {
         build(wsConfig, project, buildconfig, pristine);
       }
@@ -188,7 +194,7 @@ export async function build(
 
 export async function buildMenuConfig(
   wsConfig: WorkspaceConfig,
-  isMenuConfig: boolean,
+  config: MenuConfig,
   project?: ProjectConfig,
   build?: BuildConfig
 ) {
@@ -222,7 +228,7 @@ export async function buildMenuConfig(
     return;
   }
 
-  let cmd = `west build -t ${isMenuConfig ? "menuconfig" : "guiconfig"} ${projectFolder} --build-dir ${buildFolder} `;
+  let cmd = `west build -t ${config === MenuConfig.MenuConfig ? "menuconfig" : "guiconfig"} ${projectFolder} --build-dir ${buildFolder} `;
   let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
 
   vscode.window.showInformationMessage(`Running MenuConfig ${build.name} from project: ${project.name}`);

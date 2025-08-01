@@ -145,7 +145,7 @@ You can also try to use a code-workspace.json file to help manage projects acros
 You can have a look at this [sample directory](https://github.com/mylonics/zephyr-ide-sample-project) to also help with getting started with sharing projects.
 
 ## Other Features
-The Zephyr Menu Config may be run from the active project panel. Each debug target may be bound to a custom launch configuration (by default they use "Zephyr IDE: Debug" and "Zephyr IDE: Attach")
+The Zephyr Menu Config or GUI Config may be run from the active project panel. In the project config panel by default a Menu Config option is avaialable. This can be changed to GUI Config using add ```"zephyr-ide.use_gui_config": true``` to settings.json. Each debug target may be bound to a custom launch configuration (by default they use "Zephyr IDE: Debug" and "Zephyr IDE: Attach")
 
 ![Demonstrating MenuConfig](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/demonstrating_menu_config_debug_binding.gif)
 

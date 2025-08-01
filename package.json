@@ -48,7 +48,7 @@
     ],
     "configuration": {
       "type": "object",
-      "title": "Zephyr IDE: Projects",
+      "title": "Zephyr IDE",
       "properties": {
         "zephyr-ide.tools_directory": {
           "type": [
@@ -56,6 +56,13 @@
           ],
           "default": null,
           "description": "Manually specifiy a tools directory for sdk download/install and global zephyr install location"
+        },
+        "zephyr-ide.use_gui_config": {
+          "type": [
+            "boolean"
+          ],
+          "default": false,
+          "description": "Display gui config instead of menu config in Project Tree View"
         }
       }
     },

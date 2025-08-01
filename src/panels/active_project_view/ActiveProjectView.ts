@@ -38,7 +38,11 @@ export class ActiveProjectView implements vscode.WebviewViewProvider {
 
   buildActions = [
     {
-      icon: "settings-gear",
+      icon: "preview",
+      actionId: "startGuiConfig",
+      tooltip: "GuiConfig",
+    }, {
+      icon: "settings",
       actionId: "startMenuConfig",
       tooltip: "MenuConfig",
     },
@@ -197,6 +201,10 @@ export class ActiveProjectView implements vscode.WebviewViewProvider {
         }
         case "changeLaunchTarget": {
           vscode.commands.executeCommand(message.value.launchChangeCmd);
+          break;
+        }
+        case "startGuiConfig": {
+          vscode.commands.executeCommand("zephyr-ide.start-gui-config");
           break;
         }
         case "startMenuConfig": {

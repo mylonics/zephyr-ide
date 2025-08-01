@@ -21,11 +21,16 @@ import { ProjectConfig, addBuildToProject, addRunnerToBuild, addTest, removeTest
 import { BuildConfig } from '../../project_utilities/build_selector';
 import { getNonce } from "../../utilities/getNonce";
 import { RunnerConfig } from '../../project_utilities/runner_selector';
-import { buildByName } from '../../zephyr_utilities/build';
+import { buildByName, MenuConfig } from '../../zephyr_utilities/build';
 import { testHelper } from '../../zephyr_utilities/twister';
 import { flashByName } from '../../zephyr_utilities/flash';
 import { WorkspaceConfig } from '../../setup_utilities/setup';
 import { TwisterConfig } from '../../project_utilities/twister_selector';
+
+export function getUseGuiConfig(): boolean | undefined {
+  const configuration = vscode.workspace.getConfiguration();
+  return configuration.get("zephyr-ide.use_gui_config");
+}
 
 export class ProjectTreeView implements vscode.WebviewViewProvider {
   private view: vscode.WebviewView | undefined;
@@ -53,29 +58,45 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
       tooltip: "Delete Project",
     },
   ];
-  buildActions = [
-    {
-      icon: "play",
-      actionId: "build",
-      tooltip: "Build",
-    }, {
-      icon: "debug-rerun",
-      actionId: "buildPristine",
-      tooltip: "Build Pristine",
-    }, {
+
+  generateBuildActions() {
+    let buildConfigMenu = {
       icon: "settings-gear",
       actionId: "menuConfig",
       tooltip: "Menu Config",
-    }, {
-      icon: "add",
-      actionId: "addRunner",
-      tooltip: "Add Runner",
-    }, {
-      icon: "trash",
-      actionId: "deleteBuild",
-      tooltip: "Delete Build",
-    },
-  ];
+    };
+
+    if (getUseGuiConfig()) {
+      buildConfigMenu = {
+        icon: "preview",
+        actionId: "guiConfig",
+        tooltip: "Gui Config",
+      };
+    }
+    let buildActions = [
+      {
+        icon: "play",
+        actionId: "build",
+        tooltip: "Build",
+      }, {
+        icon: "debug-rerun",
+        actionId: "buildPristine",
+        tooltip: "Build Pristine",
+      }, buildConfigMenu,
+      {
+        icon: "add",
+        actionId: "addRunner",
+        tooltip: "Add Runner",
+      }, {
+        icon: "trash",
+        actionId: "deleteBuild",
+        tooltip: "Delete Build",
+      },
+    ];
+
+    return buildActions;
+  }
+
   testActions = [
     {
       icon: "play",
@@ -141,7 +162,7 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
       leaf: 'project',
       open: 'project',
     };
-    buildData['actions'] = this.buildActions;
+    buildData['actions'] = this.generateBuildActions();
     buildData['label'] = build.name;
     buildData['value'] = { project: projectName, build: build.name };
     buildData['open'] = viewOpen !== undefined ? viewOpen : true;
@@ -368,7 +389,12 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
           break;
         }
         case "menuConfig": {
-          buildByName(this.wsConfig, true, message.value.project, message.value.build, true);
+          buildByName(this.wsConfig, true, message.value.project, message.value.build, MenuConfig.MenuConfig);
+          setActive(this.wsConfig, message.value.project, message.value.build, undefined, undefined);
+          break;
+        }
+        case "guiConfig": {
+          buildByName(this.wsConfig, true, message.value.project, message.value.build, MenuConfig.GuiConfig);
           setActive(this.wsConfig, message.value.project, message.value.build, undefined, undefined);
           break;
         }
