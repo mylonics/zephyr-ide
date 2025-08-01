@@ -11,6 +11,6 @@
     "cmake.configureOnOpen": false,
     "editor.formatOnSave": true,
     "git.enabled": false,
-    "terminal.integrated.defaultProfile.windows": "Zephyr IDE Terminal",
+    "terminal.integrated.defaultProfile.windows": "PowerShell",
     "C_Cpp.default.compileCommands": "${workspaceFolder}\\.vscode\\compile_commands.json",
 }

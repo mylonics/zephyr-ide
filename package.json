@@ -52,23 +52,37 @@
             "id": "installWinget",
             "title": "Install winget",
             "description": "Install winget if not already isntalled on your system.\n Modern versions of windows have this winget preinstalled.\n This link will download winget, install the downloaded file before proceeding to the next step.\n[Install winget](https://aka.ms/getwinget)",
-            "media": { "image": "media/image.png", "altText": "Empty image" },
-            "completionEvents": ["onLink:https://aka.ms/getwinget"],
+            "media": {
+              "image": "media/image.png",
+              "altText": "Empty image"
+            },
+            "completionEvents": [
+              "onLink:https://aka.ms/getwinget"
+            ],
             "when": "isWindows"
           },
           {
             "id": "installHostTools",
             "title": "Install Host Tools",
             "description": "Now install the the host tools with the following command.\n[Install Host Tools](command:zephyr-ide.install-host-tools)\n You may need to restart VS Code after this step.",
-            "media": { "image": "media/image.png", "altText": "Empty image" },
-            "completionEvents": ["onContext:hostToolsInstalled"]
+            "media": {
+              "image": "media/image.png",
+              "altText": "Empty image"
+            },
+            "completionEvents": [
+              "onContext:hostToolsInstalled"
+            ]
           },
           {
             "id": "checkHostTools",
             "title": "Check Host Tools",
             "description": "Run Check to see if Main Host Tools have been Installed\n[Check](command:zephyr-ide.check-build-dependencies) ",
-            "media": { "markdown": "media/windows.md" },
-            "completionEvents": ["onContext:buildDependenciesAvailable"]
+            "media": {
+              "markdown": "media/windows.md"
+            },
+            "completionEvents": [
+              "onContext:buildDependenciesAvailable"
+            ]
           }
         ]
       }
