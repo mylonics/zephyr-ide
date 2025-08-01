@@ -84,7 +84,6 @@ export interface WorkspaceConfig {
   projectStates: ProjectStateDictionary,
 }
 
-
 function projectLoader(config: WorkspaceConfig, projects: any) {
   config.projects = {};
 

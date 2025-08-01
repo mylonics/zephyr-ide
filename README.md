@@ -24,6 +24,7 @@ You can read a little bit more about the motivation behind the project [here](ht
   - Provides useful functions to set up custom launch/debug configurations
   - Provides the user with a terminal to manually run west commands
   - Saves/loads project structure to workspace in a human readable and editable file
+  - Works with all platforms zephyr supports
 
 
 ## Getting Started
@@ -43,7 +44,6 @@ See the [Install Dependecies Section of the Zephyr Getting Started Guide](https:
 For ubuntu please also install python3-venv by ```sudo apt install python3-venv```
 
 ## Known Issues
-* macOS compatibility is untested. Please make an issue on our github page with any incompatibilities found.
 
 ## Release Notes
 See [CHANGELOG](CHANGELOG.md) for release notes

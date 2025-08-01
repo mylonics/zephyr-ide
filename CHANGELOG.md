@@ -1,6 +1,9 @@
 # Change Log
 
 All notable changes to the "zephyr-ide" extension will be documented in this file.
+## 1.8.3
+Updated README\
+
 ## 1.8.2
 Updated build buttons\
 Fixed issue with board build command not working
