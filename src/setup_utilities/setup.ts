@@ -273,8 +273,19 @@ async function generateGitIgnore(context: vscode.ExtensionContext, wsConfig: Wor
   }
 }
 
+async function generateExtensionsRecommendations(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
+  let desPath = path.join(wsConfig.rootPath, ".vscode/extensions.json");
+  let exists = await fs.pathExists(desPath);
+  if (!exists) {
+    const extensionPath = context.extensionPath;
+    let srcPath = path.join(extensionPath, "recommendations", "extensions.json");
+    let res = await fs.copyFile(srcPath, desPath, fs.constants.COPYFILE_FICLONE);
+  }
+}
+
 export async function setSetupState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, setupStateType: SetupStateType, ext_path: string = "") {
   generateGitIgnore(context, wsConfig); // Try to generate a .gitignore each time this is run
+  generateExtensionsRecommendations(context, wsConfig); // Try to generate a extensions.json each time this is run
   if (setupStateType !== SetupStateType.NONE) {
     setWorkspaceSettings();
   }

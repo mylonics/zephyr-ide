@@ -1,6 +1,9 @@
 # Change Log
 
 All notable changes to the "zephyr-ide" extension will be documented in this file.
+## 1.8.8
+Added recommendations for dts language server and cpp intellisense
+
 ## 1.8.7
 Removed configuration dependency on OneTimeWorkSpaceSetup
 

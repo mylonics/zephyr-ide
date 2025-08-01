@@ -2,3 +2,4 @@
 external
 **/build*/
 .vscode/compile_commands.json
+.vscode/extensions.json

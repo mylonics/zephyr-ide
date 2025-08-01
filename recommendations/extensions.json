@@ -1,0 +1,8 @@
+{
+  "recommendations": [
+    "ms-vscode.cpptools",
+    "kylemicallefbonnici.dts-lsp"
+  ],
+  "unwantedRecommendations": [
+  ]
+}
