@@ -34,19 +34,16 @@ export async function installMacOSHostTools() {
   await executeTaskHelper("Install Host Tools", cmd, "");
 
   if (getPlatformArch() === "aarch64") {
-    cmd = `(echo; echo 'eval "$(/opt/homebrew/bin/brew shellenv)"') >> ~/.zprofile
-source ~/.zprofile`;
+    cmd = `(echo; echo 'eval "$(/opt/homebrew/bin/brew shellenv)"') >> ~/.zprofile && source ~/.zprofile`;
   } else {
-    cmd = `(echo; echo 'eval "$(/usr/local/bin/brew shellenv)"') >> ~/.zprofile
-source ~/.zprofile`;
+    cmd = `(echo; echo 'eval "$(/usr/local/bin/brew shellenv)"') >> ~/.zprofile && source ~/.zprofile`;
   }
   await executeTaskHelper("Install Host Tools", cmd, "");
 
   cmd = "brew install cmake ninja gperf python3 python-tk ccache qemu dtc libmagic wget openocd";
   await executeTaskHelper("Install Host Tools", cmd, "");
 
-  cmd = `(echo; echo 'export PATH="'$(brew --prefix)'/opt/python/libexec/bin:$PATH"') >> ~/.zprofile
-source ~/.zprofile`;
+  cmd = `(echo; echo 'export PATH="'$(brew --prefix)'/opt/python/libexec/bin:$PATH"') >> ~/.zprofile && source ~/.zprofile`;
   return await executeTaskHelper("Install Host Tools", cmd, "");
 }
 
