@@ -17,9 +17,8 @@ limitations under the License.
 
 import * as vscode from 'vscode';
 import path from 'path';
-import { SetupStateType, WorkspaceConfig, GlobalConfig, getToolsDir } from '../../setup_utilities/setup';
+import { WorkspaceConfig, GlobalConfig } from '../../setup_utilities/setup';
 import { getNonce } from "../../utilities/getNonce";
-import { checkWestInit } from '../../setup_utilities/setup';
 
 
 export class ExtensionSetupView implements vscode.WebviewViewProvider {
@@ -28,13 +27,35 @@ export class ExtensionSetupView implements vscode.WebviewViewProvider {
   constructor(public extensionPath: string, private context: vscode.ExtensionContext, private wsConfig: WorkspaceConfig, private globalConfig: GlobalConfig) { }
 
   updateWebView(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
-    let bodyString = "";
+    if (this.view) {
+      let data = [{
+        icons: {
+          leaf: 'folder-opened',
+        },
+        label: "Open Workspace Setup",
+        value: { command: "zephyr-ide.open-workspace-setup" },
+      }, {
+        icons: {
+          leaf: 'tools',
+        },
+        label: "Install Host Tools",
+        value: { command: "zephyr-ide.install-host-tools" },
+      }, {
+        icons: {
+          leaf: 'package',
+        },
+        label: "Install SDK",
+        value: { command: "zephyr-ide.install-sdk" },
+      }, {
+        icons: {
+          leaf: 'sync',
+        },
+        label: "West Update",
+        value: { command: "zephyr-ide.west-update" },
+      }];
 
-    bodyString += `<vscode-button id="cmd-btn" class="widebtn" name="zephyr-ide.open-workspace-setup">Open Workspace Setup</vscode-button>`;
-    bodyString += `<vscode-button id="cmd-btn" class="widebtn" name="zephyr-ide.install-host-tools">Install Host Tools</vscode-button>`;
-    bodyString += `<vscode-button id="cmd-btn" class="widebtn" name="zephyr-ide.install-sdk">Install SDK</vscode-button>`;
-    bodyString += `<vscode-button id="cmd-btn" class="widebtn" name="zephyr-ide.west-update">West Update</vscode-button>`;
-    this.setHtml(bodyString);
+      this.view.webview.postMessage(data);
+    }
   }
 
   setHtml(body: string) {
@@ -69,6 +90,7 @@ export class ExtensionSetupView implements vscode.WebviewViewProvider {
           <script nonce="${nonce}" src="${assetUri('src/panels/extension_setup_view/ExtensionSetupViewHandler.js')}"  type="module"></script>
         </head>
         <body>
+        <vscode-tree id="setup-tree"></vscode-tree>
         ${body}
         </body>
         </html>`;
@@ -87,6 +109,7 @@ export class ExtensionSetupView implements vscode.WebviewViewProvider {
       console.log(message);
       vscode.commands.executeCommand(message.command);
     });
+    this.setHtml("");
     this.updateWebView(this.wsConfig, this.globalConfig);
   }
 }

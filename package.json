@@ -176,7 +176,7 @@
       "zephyr-ide-main": [
         {
           "id": "zephyrIdeExtensionSetup",
-          "name": "Extension Setup",
+          "name": "Zephyr IDE and Workspace Setup",
           "icon": "media/logo_small.jpg",
           "contextualTitle": "Zephyr IDE",
           "type": "webview"

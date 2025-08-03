@@ -40,6 +40,26 @@ vscode-tree {
   margin-bottom: 5px;
 }
 
+.setup-item {
+  cursor: pointer;
+  padding: 8px 12px;
+  margin: 2px 0;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: background-color 0.1s ease;
+}
+
+.setup-item:hover {
+  background-color: var(--vscode-list-hoverBackground);
+}
+
+.setup-item .codicon {
+  margin-right: 8px;
+  color: var(--vscode-symbolIcon-classForeground);
+  font-size: 16px;
+}
+
 
 /*
 vscode-collapsible:hover:not(:has(vscode-collapsible:hover))>vscode-collapsible {
