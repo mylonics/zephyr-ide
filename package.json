@@ -464,6 +464,10 @@
       {
         "command": "zephyr-ide.install-host-tools",
         "title": "Zephyr IDE: Install Host Tools"
+      },
+      {
+        "command": "zephyr-ide.open-workspace-setup",
+        "title": "Zephyr IDE: Open Workspace Setup"
       }
     ],
     "terminal": {

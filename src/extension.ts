@@ -22,6 +22,7 @@ import { ActiveProjectView } from "./panels/active_project_view/ActiveProjectVie
 import { ProjectTreeView } from "./panels/project_tree_view/ProjectTreeView";
 import { ExtensionSetupView } from "./panels/extension_setup_view/ExtensionSetupView";
 import { ProjectConfigView } from "./panels/project_config_view/ProjectConfigView";
+import { WorkspaceSetup } from "./panels/workspace_setup/WorkspaceSetup";
 
 import { getLaunchConfigurationByName, output, executeShellCommand, reloadEnvironmentVariables, getRootPathFs, executeTaskHelper, getPlatformName } from "./utilities/utils";
 import * as project from "./project_utilities/project";
@@ -984,6 +985,12 @@ export async function activate(context: vscode.ExtensionContext) {
           executeTaskHelper("Refresh Environment", refreshEnvScript, wsConfig.rootPath);
         }
       }
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.open-workspace-setup", async () => {
+      WorkspaceSetup.createOrShow(context.extensionPath, context, wsConfig, globalConfig);
     })
   );
 

@@ -56,7 +56,14 @@ export class ExtensionSetupView implements vscode.WebviewViewProvider {
       bodyString = bodyString + `<vscode-button id="cmd-btn"class="widebtn" ${globalConfig.sdkInstalled ? "secondary" : ""} name="zephyr-ide.install-sdk" >Install SDK</vscode-button>`;
       bodyString = bodyString + `<vscode-button id="cmd-btn"class="widebtn" ${westInited ? "secondary" : ""} name="zephyr-ide.west-init" >West Init</vscode-button>`;
       bodyString = bodyString + `<vscode-button id="cmd-btn"class="widebtn" ${wsConfig.activeSetupState.westUpdated ? "secondary" : ""} name="zephyr-ide.west-update" >West Update</vscode-button>`;
-      bodyString = bodyString + `<vscode-label><span class="normal" >Note: West Update should be run whenever the west.yml file is changed</span></vscode-label><hr>`;
+      bodyString = bodyString + `<vscode-label><span class="normal" >Note: West Update should be run whenever the west.yml file is changed</span></vscode-label>`;
+      
+      // Add Project Setup Wizard button
+      if (wsConfig.activeSetupState.westUpdated) {
+        bodyString = bodyString + `<vscode-button id="cmd-btn" class="widebtn" name="zephyr-ide.open-workspace-setup" >🧙 Open Workspace Setup</vscode-button>`;
+      }
+      
+      bodyString = bodyString + `<hr>`;
 
       bodyString = bodyString + `<vscode-label><span class="normal" >The workspace may be reset with the following commands:</span></vscode-label>`;
       bodyString = bodyString + `<vscode-button id="cmd-btn" class="widebtn" ${Object.keys(wsConfig.projects).length === 0 ? "secondary" : ""} name="zephyr-ide.clear-projects" >Clear Projects</vscode-button>`;
