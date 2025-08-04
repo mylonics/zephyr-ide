@@ -28,7 +28,7 @@ import { getLaunchConfigurationByName, output, executeShellCommand, reloadEnviro
 import * as project from "./project_utilities/project";
 import { buildHelper, buildMenuConfig, buildRamRomReport, runDtshShell, clean, MenuConfig } from "./zephyr_utilities/build";
 import { flashActive } from "./zephyr_utilities/flash";
-import { getVariable, setExternalSetupState, WorkspaceConfig, setSetupState, GlobalConfig, SetupStateType, loadGlobalState, westUpdate, workspaceInit, setWorkspaceState, loadWorkspaceState, clearWorkspaceState, westInit, checkIfToolsAvailable, setupWestEnvironment, loadProjectsFromFile, getToolchainDir, setGlobalState, getToolsDir, saveSetupState, setWorkspaceSettings, showWorkspaceSetupPicker, workspaceSetupFromGit, workspaceSetupFromWestGit, workspaceSetupFromCurrentDirectory } from "./setup_utilities/setup";
+import { getVariable, setExternalSetupState, WorkspaceConfig, setSetupState, GlobalConfig, SetupStateType, loadGlobalState, westUpdate, workspaceInit, setWorkspaceState, loadWorkspaceState, clearWorkspaceState, westInit, checkIfToolsAvailable, setupWestEnvironment, loadProjectsFromFile, getToolchainDir, setGlobalState, getToolsDir, saveSetupState, setWorkspaceSettings, showWorkspaceSetupPicker, workspaceSetupFromGit, workspaceSetupFromWestGit, workspaceSetupFromCurrentDirectory, workspaceSetupStandard } from "./setup_utilities/setup";
 import { installSdk } from "./setup_utilities/setup_toolchain";
 import { initializeDtsExt, updateAllDtsContexts, printContexts, setDtsContext } from "./setup_utilities/dts_interface";
 import { setActiveProject, getActiveRunnerNameOfBuild, getActiveBuildNameOfProject, getActiveBuildConfigOfProject } from "./project_utilities/project";
@@ -52,29 +52,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
   wsConfig = await loadWorkspaceState(context);
   globalConfig = await loadGlobalState(context);
-
-  //Setup State Upgrade Code. To delete Eventually
-  if (wsConfig.localSetupState) {
-    setExternalSetupState(context, globalConfig, wsConfig.localSetupState.setupPath, wsConfig.localSetupState);
-    if (wsConfig.localSetupState.sdkInstalled) {
-      if (globalConfig.sdkInstalled === false) {
-        globalConfig.sdkInstalled = wsConfig.localSetupState.sdkInstalled;
-      }
-    }
-    wsConfig.localSetupState = undefined;
-    setWorkspaceState(context, wsConfig);
-  }
-  if (globalConfig.setupState) {
-    setExternalSetupState(context, globalConfig, globalConfig.setupState.setupPath, globalConfig.setupState);
-    if (globalConfig.setupState.sdkInstalled) {
-      if (globalConfig.sdkInstalled === false) {
-        globalConfig.sdkInstalled = globalConfig.setupState.sdkInstalled;
-      }
-    }
-    globalConfig.setupState = undefined;
-    setGlobalState(context, globalConfig);
-  }
-  // end upgrade
 
   if (wsConfig.selectSetupType !== SetupStateType.NONE && wsConfig.activeSetupState) {
     await setSetupState(context, wsConfig, globalConfig, SetupStateType.SELECTED, wsConfig.activeSetupState.setupPath);
@@ -1016,6 +993,12 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.workspace-setup-from-current-directory", async () => {
       await workspaceSetupFromCurrentDirectory(context, wsConfig, globalConfig);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.workspace-setup-standard", async () => {
+      await workspaceSetupStandard(context, wsConfig, globalConfig);
     })
   );
 

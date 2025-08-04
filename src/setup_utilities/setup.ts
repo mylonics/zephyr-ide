@@ -33,10 +33,8 @@ export type ProjectConfigDictionary = { [name: string]: ProjectConfig };
 export type ProjectStateDictionary = { [name: string]: ProjectState };
 
 export interface SetupState {
-  toolsAvailable: boolean,
   pythonEnvironmentSetup: boolean,
   westUpdated: boolean,
-  sdkInstalled?: boolean,
   zephyrDir: string,
   zephyrVersion?: ZephyrVersionNumber,
   env: { [name: string]: string | undefined },
@@ -47,7 +45,6 @@ export type SetupStateDictionary = { [name: string]: SetupState };
 
 export function generateSetupState(setupPath: string): SetupState {
   return {
-    toolsAvailable: false,
     pythonEnvironmentSetup: false,
     westUpdated: false,
     zephyrDir: '',
@@ -60,6 +57,7 @@ export interface GlobalConfig {
   toolchains: ToolChainDictionary,
   armGdbPath: string,
   setupState?: SetupState,
+  toolsAvailable?: boolean,
   sdkInstalled?: boolean,
   setupStateDictionary?: SetupStateDictionary, //Can eventually remove the optional
 }
@@ -380,7 +378,7 @@ export async function checkIfToolsAvailable(context: vscode.ExtensionContext, ws
   if (wsConfig.activeSetupState === undefined) {
     return;
   }
-  wsConfig.activeSetupState.toolsAvailable = false;
+  globalConfig.toolsAvailable = false;
   saveSetupState(context, wsConfig, globalConfig);
   output.show();
 
@@ -429,7 +427,7 @@ export async function checkIfToolsAvailable(context: vscode.ExtensionContext, ws
     return false;
   }
 
-  wsConfig.activeSetupState.toolsAvailable = true;
+  globalConfig.toolsAvailable = true;
   saveSetupState(context, wsConfig, globalConfig);
   if (solo) {
     vscode.window.showInformationMessage("Zephyr IDE: Build Tools are available");
@@ -464,7 +462,7 @@ export function workspaceInit(context: vscode.ExtensionContext, wsConfig: Worksp
       progress.report({ message: "Checking for Build Tools In Path (1/5)" });
       await checkIfToolsAvailable(context, wsConfig, globalConfig, false);
       progressUpdate(wsConfig);
-      if (!wsConfig.activeSetupState.toolsAvailable) {
+      if (!globalConfig.toolsAvailable) {
         vscode.window.showErrorMessage("Zephyr IDE Initialization: Missing Build Tools. See Output. Workspace Init Failed");
         return;
       }
@@ -892,6 +890,48 @@ export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext
   return await postWorkspaceSetup(context, wsConfig, globalConfig, currentDir);
 }
 
+export async function workspaceSetupStandard(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
+  const currentDir = wsConfig.rootPath;
+  if (!currentDir) {
+    vscode.window.showErrorMessage("No workspace folder open. Please open a folder first.");
+    return false;
+  }
+
+  output.show();
+  output.appendLine(`[SETUP] Creating standard workspace in: ${currentDir}`);
+
+  // Set up the workspace using current directory
+  await setSetupState(context, wsConfig, globalConfig, SetupStateType.SELECTED, currentDir);
+  
+  if (!wsConfig.activeSetupState) {
+    vscode.window.showErrorMessage("Failed to setup workspace state.");
+    return false;
+  }
+
+  // Run west selector to create west manifest
+  output.appendLine("[SETUP] Running west selector to configure workspace...");
+  let westSelection = await westSelector(context, wsConfig);
+  
+  if (!westSelection || westSelection.failed) {
+    vscode.window.showErrorMessage("West configuration cancelled or failed.");
+    return false;
+  }
+
+  // If west selector created a manifest, we need to run west init
+  if (westSelection.path || westSelection.gitRepo) {
+    output.appendLine("[SETUP] Initializing west with selected configuration...");
+    let westInitResult = await westInit(context, wsConfig, globalConfig, false, westSelection);
+    
+    if (!westInitResult) {
+      vscode.window.showErrorMessage("Failed to initialize west workspace.");
+      return false;
+    }
+  }
+
+  // Run post-setup process (same as current directory)
+  return await postWorkspaceSetup(context, wsConfig, globalConfig, currentDir);
+}
+
 export async function workspaceSetupFromCurrentDirectory(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
   const currentDir = wsConfig.rootPath;
   if (!currentDir) {
@@ -1043,7 +1083,7 @@ export async function showWorkspaceSetupPicker(context: vscode.ExtensionContext,
         await workspaceSetupFromCurrentDirectory(context, wsConfig, globalConfig);
         break;
       case "standard":
-        vscode.commands.executeCommand("zephyr-ide.use-local-zephyr-install");
+        await workspaceSetupStandard(context, wsConfig, globalConfig);
         break;
       case "global-zephyr":
         vscode.commands.executeCommand("zephyr-ide.use-global-zephyr-install");

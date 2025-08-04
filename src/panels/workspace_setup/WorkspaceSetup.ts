@@ -154,8 +154,8 @@ export class WorkspaceSetup {
     private async createWorkspace(type: string, zephyrInstall?: string) {
         try {
             if (type === "standard") {
-                // Use existing command for standard workspace creation
-                vscode.commands.executeCommand("zephyr-ide.create-project");
+                // Use new standard workspace setup command
+                vscode.commands.executeCommand("zephyr-ide.workspace-setup-standard");
                 vscode.window.showInformationMessage(
                     "Creating new standard workspace..."
                 );
@@ -199,20 +199,23 @@ export class WorkspaceSetup {
     private async importWorkspace(source: string) {
         try {
             if (source === "current-directory") {
-                // Use the existing command that handles workspace initialization
-                vscode.commands.executeCommand("zephyr-ide.init-workspace");
+                vscode.commands.executeCommand("zephyr-ide.workspace-setup-from-current-directory");
                 vscode.window.showInformationMessage(
-                    "Initializing current directory as Zephyr IDE workspace..."
+                    "Setting up current directory as Zephyr IDE workspace..."
                 );
-                this._panel.dispose(); // Close wizard after starting initialization
+                this._panel.dispose(); // Close wizard after starting setup
             } else if (source === "zephyr-ide-git") {
+                vscode.commands.executeCommand("zephyr-ide.workspace-setup-from-git");
                 vscode.window.showInformationMessage(
-                    "Git import for Zephyr IDE workspaces is coming soon!"
+                    "Setting up Zephyr IDE workspace from Git..."
                 );
+                this._panel.dispose(); // Close wizard after starting setup
             } else if (source === "west-git") {
+                vscode.commands.executeCommand("zephyr-ide.workspace-setup-from-west-git");
                 vscode.window.showInformationMessage(
-                    "Git import for West workspaces is coming soon!"
+                    "Setting up West workspace from Git..."
                 );
+                this._panel.dispose(); // Close wizard after starting setup
             } else {
                 vscode.window.showInformationMessage(
                     `Import from ${source} is coming soon!`
@@ -308,7 +311,7 @@ export class WorkspaceSetup {
     ): string {
         // Check host tools status
         const hostToolsInstalled =
-            wsConfig.activeSetupState?.toolsAvailable || false;
+            globalConfig.toolsAvailable || false;
 
         // Check workspace status
         const folderOpen = wsConfig.rootPath !== "";

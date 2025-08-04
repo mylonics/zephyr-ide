@@ -484,6 +484,10 @@
       {
         "command": "zephyr-ide.workspace-setup-from-current-directory",
         "title": "Zephyr IDE: Setup Workspace from Current Directory"
+      },
+      {
+        "command": "zephyr-ide.workspace-setup-standard",
+        "title": "Zephyr IDE: Setup Standard Workspace"
       }
     ],
     "terminal": {
