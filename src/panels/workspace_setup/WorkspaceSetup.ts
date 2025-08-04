@@ -18,6 +18,7 @@ limitations under the License.
 import * as vscode from "vscode";
 import { WorkspaceConfig, GlobalConfig } from "../../setup_utilities/types";
 import { installHostTools } from "../../setup_utilities/host_tools";
+import { getWestSDKContext, listAvailableSDKs, ParsedSDKList } from "../../setup_utilities/west_sdk";
 
 
 export class WorkspaceSetup {
@@ -114,6 +115,9 @@ export class WorkspaceSetup {
                         return;
                     case "westUpdate":
                         this.westUpdate();
+                        return;
+                    case "listSDKs":
+                        this.listSDKs();
                         return;
                 }
             },
@@ -315,6 +319,41 @@ export class WorkspaceSetup {
             vscode.commands.executeCommand("zephyr-ide.west-update");
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to run west update: ${error}`);
+        }
+    }
+
+    private async listSDKs() {
+        try {
+            if (!this.currentWsConfig || !this.currentGlobalConfig) {
+                vscode.window.showErrorMessage("Configuration not available");
+                return;
+            }
+
+            const setupState = await getWestSDKContext(this.currentWsConfig, this.currentGlobalConfig, this._context);
+            if (!setupState) {
+                vscode.window.showErrorMessage("No valid west installation found for SDK management");
+                return;
+            }
+
+            const sdkList = await listAvailableSDKs(setupState);
+
+            // Send the parsed SDK list back to the webview
+            this._panel.webview.postMessage({
+                command: 'sdkListResult',
+                data: sdkList
+            });
+
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to list SDKs: ${error}`);
+            // Send error back to webview
+            this._panel.webview.postMessage({
+                command: 'sdkListResult',
+                data: {
+                    success: false,
+                    versions: [],
+                    error: `Failed to list SDKs: ${error}`
+                }
+            });
         }
     }
 
@@ -680,6 +719,82 @@ export class WorkspaceSetup {
                     margin: 20px 0 15px 0;
                     color: var(--vscode-foreground);
                 }
+                
+                .sdk-version-card {
+                    border: 1px solid var(--vscode-panel-border);
+                    border-radius: 6px;
+                    padding: 15px;
+                    margin-bottom: 10px;
+                    background-color: var(--vscode-editor-background);
+                }
+                
+                .sdk-version-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 10px;
+                }
+                
+                .sdk-version-title {
+                    font-size: 14px;
+                    font-weight: 600;
+                    color: var(--vscode-foreground);
+                }
+                
+                .sdk-path {
+                    font-size: 11px;
+                    color: var(--vscode-descriptionForeground);
+                    font-family: var(--vscode-editor-font-family);
+                    background-color: var(--vscode-textPreformat-background);
+                    padding: 2px 6px;
+                    border-radius: 3px;
+                    word-break: break-all;
+                }
+                
+                .toolchain-section {
+                    margin-top: 12px;
+                }
+                
+                .toolchain-section-title {
+                    font-size: 12px;
+                    font-weight: 600;
+                    margin-bottom: 6px;
+                    color: var(--vscode-foreground);
+                }
+                
+                .toolchain-list {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 4px;
+                }
+                
+                .toolchain-tag {
+                    background-color: var(--vscode-badge-background);
+                    color: var(--vscode-badge-foreground);
+                    padding: 2px 6px;
+                    border-radius: 3px;
+                    font-size: 10px;
+                    font-family: var(--vscode-editor-font-family);
+                }
+                
+                .toolchain-tag.available {
+                    background-color: var(--vscode-inputValidation-warningBackground);
+                    color: var(--vscode-inputValidation-warningForeground);
+                }
+                
+                .loading-spinner {
+                    display: inline-block;
+                    width: 16px;
+                    height: 16px;
+                    border: 2px solid var(--vscode-progressBar-background);
+                    border-radius: 50%;
+                    border-top-color: var(--vscode-progressBar-foreground);
+                    animation: spin 1s ease-in-out infinite;
+                }
+                
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
             </style>
         </head>
         <body>
@@ -767,11 +882,6 @@ export class WorkspaceSetup {
             }
                             </div>
                             <div class="collapsible-title">Zephyr SDK</div>
-                            ${globalConfig.sdkInstalled &&
-                wsConfig.activeSetupState?.zephyrVersion
-                ? `<div style="font-size: 11px; color: var(--vscode-descriptionForeground);">v${wsConfig.activeSetupState.zephyrVersion}</div>`
-                : ""
-            }
                         </div>
                         <div class="collapsible-icon ${sdkCollapsed ? "" : "expanded"
             }" id="sdkIcon">▶</div>
@@ -795,10 +905,19 @@ export class WorkspaceSetup {
                         `
             }
                         
-                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
                             <button class="button" onclick="installSDK()" ${!hostToolsInstalled ? "disabled" : ""}>
                                 Install SDK
                             </button>
+                            <button class="button button-secondary" onclick="listSDKs()" ${!hostToolsInstalled ? "disabled" : ""}>
+                                List Installed SDKs
+                            </button>
+                        </div>
+                        
+                        <!-- SDK List Results Area -->
+                        <div id="sdkListResults" style="display: none; margin-top: 15px;">
+                            <h4 style="margin: 0 0 10px 0; font-size: 13px; font-weight: 600;">Installed SDK Versions:</h4>
+                            <div id="sdkListContent"></div>
                         </div>
                         
                         ${!hostToolsInstalled ? `<p class="info-text">Complete the host tools setup above to enable SDK installation.</p>` : ""}
@@ -1060,6 +1179,91 @@ export class WorkspaceSetup {
                     vscode.postMessage({
                         command: 'westUpdate'
                     });
+                }
+                
+                function listSDKs() {
+                    // Show loading state
+                    const resultsDiv = document.getElementById('sdkListResults');
+                    const contentDiv = document.getElementById('sdkListContent');
+                    
+                    if (resultsDiv && contentDiv) {
+                        resultsDiv.style.display = 'block';
+                        contentDiv.innerHTML = '<div style="display: flex; align-items: center; gap: 8px; padding: 10px;"><div class="loading-spinner"></div><span>Loading SDK information...</span></div>';
+                    }
+                    
+                    vscode.postMessage({
+                        command: 'listSDKs'
+                    });
+                }
+                
+                // Listen for messages from the extension
+                window.addEventListener('message', event => {
+                    const message = event.data;
+                    
+                    if (message.command === 'sdkListResult') {
+                        displaySDKList(message.data);
+                    }
+                });
+                
+                function displaySDKList(sdkData) {
+                    const resultsDiv = document.getElementById('sdkListResults');
+                    const contentDiv = document.getElementById('sdkListContent');
+                    
+                    if (!resultsDiv || !contentDiv) {
+                        return;
+                    }
+                    
+                    resultsDiv.style.display = 'block';
+                    
+                    if (!sdkData.success) {
+                        contentDiv.innerHTML = \`
+                            <div style="padding: 15px; border: 1px solid var(--vscode-inputValidation-errorBorder); border-radius: 6px; background-color: var(--vscode-inputValidation-errorBackground); color: var(--vscode-inputValidation-errorForeground);">
+                                <strong>Error:</strong> \${sdkData.error || 'Failed to list SDKs'}
+                            </div>
+                        \`;
+                        return;
+                    }
+                    
+                    if (!sdkData.versions || sdkData.versions.length === 0) {
+                        contentDiv.innerHTML = \`
+                            <div style="padding: 15px; border: 1px solid var(--vscode-panel-border); border-radius: 6px; background-color: var(--vscode-editor-background); color: var(--vscode-descriptionForeground); text-align: center;">
+                                No SDK versions found. Try installing an SDK first.
+                            </div>
+                        \`;
+                        return;
+                    }
+                    
+                    let html = '';
+                    for (const version of sdkData.versions) {
+                        html += \`
+                            <div class="sdk-version-card">
+                                <div class="sdk-version-header">
+                                    <div class="sdk-version-title">Zephyr SDK \${version.version}</div>
+                                </div>
+                                <div class="sdk-path">\${version.path}</div>
+                                
+                                \${version.installedToolchains && version.installedToolchains.length > 0 ? \`
+                                    <div class="toolchain-section">
+                                        <div class="toolchain-section-title">Installed Toolchains (\${version.installedToolchains.length}):</div>
+                                        <div class="toolchain-list">
+                                            \${version.installedToolchains.map(tc => \`<span class="toolchain-tag">\${tc}</span>\`).join('')}
+                                        </div>
+                                    </div>
+                                \` : ''}
+                                
+                                \${version.availableToolchains && version.availableToolchains.length > 0 ? \`
+                                    <div class="toolchain-section">
+                                        <div class="toolchain-section-title">Available Toolchains (\${version.availableToolchains.length}):</div>
+                                        <div class="toolchain-list">
+                                            \${version.availableToolchains.map(tc => \`<span class="toolchain-tag available">\${tc}</span>\`).join('')}
+                                        </div>
+                                    </div>
+                                \` : ''}
+                            </div>
+                        \`;
+                    }
+                    
+                    contentDiv.innerHTML = html;
                 }
                 
                 function hideWorkspaceOptions() {

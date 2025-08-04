@@ -37,6 +37,19 @@ export interface SDKInfo {
     isDefault?: boolean;
 }
 
+export interface ParsedSDKVersion {
+    version: string;
+    path: string;
+    installedToolchains: string[];
+    availableToolchains: string[];
+}
+
+export interface ParsedSDKList {
+    success: boolean;
+    versions: ParsedSDKVersion[];
+    error?: string;
+}
+
 /**
  * Determines the best west installation to use for SDK management
  * Priority: 1. Global zephyr install, 2. Current workspace install
@@ -168,11 +181,96 @@ async function injectWestSDKCommand(setupState: SetupState, context?: vscode.Ext
 }
 
 /**
- * Lists available SDKs using west sdk list
+ * Parses west sdk list output into structured format
+ */
+export function parseSDKListOutput(output: string): ParsedSDKVersion[] {
+    const versions: ParsedSDKVersion[] = [];
+    const lines = output.split('\n').map(line => line.trimEnd());
+    
+    let currentVersion: Partial<ParsedSDKVersion> | null = null;
+    let currentSection: 'installed' | 'available' | null = null;
+    
+    for (const line of lines) {
+        // Skip empty lines
+        if (!line.trim()) {
+            continue;
+        }
+        
+        // Check for version line (starts with version number and colon)
+        const versionMatch = line.match(/^(\d+\.\d+\.\d+):\s*$/);
+        if (versionMatch) {
+            // Save previous version if exists
+            if (currentVersion && currentVersion.version && currentVersion.path) {
+                versions.push({
+                    version: currentVersion.version,
+                    path: currentVersion.path,
+                    installedToolchains: currentVersion.installedToolchains || [],
+                    availableToolchains: currentVersion.availableToolchains || []
+                });
+            }
+            
+            // Start new version
+            currentVersion = {
+                version: versionMatch[1],
+                installedToolchains: [],
+                availableToolchains: []
+            };
+            currentSection = null;
+            continue;
+        }
+        
+        // Check for path line
+        const pathMatch = line.match(/^\s+path:\s*(.+)$/);
+        if (pathMatch && currentVersion) {
+            currentVersion.path = pathMatch[1].trim();
+            continue;
+        }
+        
+        // Check for installed-toolchains section
+        if (line.match(/^\s+installed-toolchains:\s*$/)) {
+            currentSection = 'installed';
+            continue;
+        }
+        
+        // Check for available-toolchains section
+        if (line.match(/^\s+available-toolchains:\s*$/)) {
+            currentSection = 'available';
+            continue;
+        }
+        
+        // Check for toolchain list item
+        const toolchainMatch = line.match(/^\s+-\s+(.+)$/);
+        if (toolchainMatch && currentVersion && currentSection) {
+            const toolchain = toolchainMatch[1].trim();
+            if (currentSection === 'installed') {
+                currentVersion.installedToolchains = currentVersion.installedToolchains || [];
+                currentVersion.installedToolchains.push(toolchain);
+            } else if (currentSection === 'available') {
+                currentVersion.availableToolchains = currentVersion.availableToolchains || [];
+                currentVersion.availableToolchains.push(toolchain);
+            }
+        }
+    }
+    
+    // Don't forget the last version
+    if (currentVersion && currentVersion.version && currentVersion.path) {
+        versions.push({
+            version: currentVersion.version,
+            path: currentVersion.path,
+            installedToolchains: currentVersion.installedToolchains || [],
+            availableToolchains: currentVersion.availableToolchains || []
+        });
+    }
+    
+    return versions;
+}
+
+/**
+ * Lists available SDKs using west sdk list and parses into structured format
  */
 export async function listAvailableSDKs(
     setupState: SetupState
-): Promise<WestSDKResult> {
+): Promise<ParsedSDKList> {
     try {
         const result = await executeShellCommandInPythonEnv(
             `west sdk list`,
@@ -181,131 +279,26 @@ export async function listAvailableSDKs(
         );
 
         if (result.stdout) {
+            const versions = parseSDKListOutput(result.stdout);
             return {
                 success: true,
-                output: result.stdout,
+                versions: versions,
             };
         } else {
             return {
                 success: false,
+                versions: [],
                 error: result.stderr || "Failed to list SDKs",
             };
         }
     } catch (error) {
         return {
             success: false,
+            versions: [],
             error: `Error listing SDKs: ${error}`,
         };
     }
 }
-
-/**
- * Gets current SDK information using west sdk info
- */
-export async function getCurrentSDKInfo(
-    setupState: SetupState
-): Promise<SDKInfo> {
-    try {
-        const result = await executeShellCommandInPythonEnv(
-            `west sdk info`,
-            setupState.setupPath,
-            setupState
-        );
-
-        if (result.stdout) {
-            // Parse the output to extract SDK information
-            const lines = result.stdout.split("\n");
-            let version: string | undefined;
-            let sdkPath: string | undefined;
-            let isDefault = false;
-
-            for (const line of lines) {
-                if (line.includes("Version:")) {
-                    version = line.split(":")[1]?.trim();
-                } else if (line.includes("Path:")) {
-                    sdkPath = line.split(":")[1]?.trim();
-                } else if (line.includes("Default:") && line.includes("yes")) {
-                    isDefault = true;
-                }
-            }
-
-            return {
-                version,
-                path: sdkPath,
-                status: version ? "installed" : "not-installed",
-                isDefault,
-            };
-        } else {
-            // Check if the error indicates no SDK is installed
-            if (
-                result.stderr?.includes("No SDK") ||
-                result.stderr?.includes("not found")
-            ) {
-                return {
-                    status: "not-installed",
-                };
-            }
-            return {
-                status: "error",
-            };
-        }
-    } catch (error) {
-        return {
-            status: "error",
-        };
-    }
-}
-
-/**
- * Installs the latest SDK using west sdk install
- */
-export async function installLatestSDK(
-    setupState: SetupState,
-    version?: string
-): Promise<WestSDKResult> {
-    try {
-        // Get the toolchains directory in .zephyr-ide
-        const toolchainsDir = path.join(await getToolsDir(), "toolchains");
-
-        const command = version
-            ? `west sdk install --version ${version} -b "${toolchainsDir}" -H`
-            : `west sdk install -b "${toolchainsDir}" -H`;
-
-        output.appendLine(`Installing SDK using: ${command}`);
-
-        const result = await executeTaskHelperInPythonEnv(
-            setupState,
-            "Install Zephyr SDK",
-            command,
-            setupState.setupPath
-        );
-
-        if (result) {
-            output.appendLine("SDK installation completed successfully");
-            return {
-                success: true,
-                output: "SDK installation completed successfully",
-            };
-        } else {
-            output.appendLine("SDK installation failed");
-            return {
-                success: false,
-                error: "Failed to install SDK",
-            };
-        }
-    } catch (error) {
-        const errorMsg = `Error installing SDK: ${error}`;
-        output.appendLine(errorMsg);
-        return {
-            success: false,
-            error: errorMsg,
-        };
-    }
-}
-
-
-
-
 
 /**
  * Automatically detects SDK version from workspace Zephyr directory
@@ -405,7 +398,7 @@ async function selectToolchains(): Promise<string[] | undefined> {
 /**
  * Installs SDK with specific toolchains
  */
-export async function installSDKWithToolchains(
+export async function installSDK(
     setupState: SetupState,
     sdkVersion?: string,
     toolchains?: string[]
@@ -499,7 +492,7 @@ export async function installSDKInteractive(
                     message: "Installing SDK using west sdk command...",
                 });
 
-                const result = await installSDKWithToolchains(setupState, sdkVersion, toolchains);
+                const result = await installSDK(setupState, sdkVersion, toolchains);
 
                 if (result.success) {
                     globalConfig.sdkInstalled = true;
