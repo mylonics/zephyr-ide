@@ -25,36 +25,61 @@ import * as yaml from 'js-yaml';
 
 import { zephyrVersions, ncsVersions, zephyrHals } from "../defines";
 
-// Config for the extension
+/**
+ * Configuration interface for west workspace initialization
+ */
 export interface WestLocation {
+  /** Local path to west.yml directory (if using local file) */
   path: string | undefined;
+  /** Indicates if the selection/configuration failed */
   failed: boolean;
+  /** Git repository URL (if cloning from git) */
   gitRepo: string;
+  /** Additional west init arguments */
   additionalArgs: string;
 }
 
 
 
-export async function westSelector(context: ExtensionContext, wsConfig: WorkspaceConfig) {
+/**
+ * Interactive west workspace selector - allows users to choose how to initialize a west workspace
+ * 
+ * Available template options:
+ * - Full Zephyr installation
+ * - Minimal Zephyr with custom HAL selection
+ * - Minimal BLE Zephyr with custom HAL selection  
+ * - NRF Connect SDK configuration
+ * 
+ * @param context VS Code extension context
+ * @param wsConfig Current workspace configuration
+ * @returns Promise resolving to WestLocation configuration
+ */
+export async function westSelector(context: ExtensionContext, wsConfig: WorkspaceConfig): Promise<WestLocation> {
   const title = 'Initialize West';
 
+  const defaultState: WestLocation = {
+    path: undefined,
+    failed: false,
+    gitRepo: "",
+    additionalArgs: ""
+  };
+
   async function getAdditionalArguments(input: MultiStepInput, state: Partial<WestLocation>) {
-    async function validateArgs(name: string) {
-      return undefined;
+    try {
+      state.additionalArgs = await input.showInputBox({
+        title,
+        step: 3,
+        totalSteps: 3,
+        ignoreFocusOut: true,
+        placeholder: "--mr main",
+        value: "",
+        prompt: 'Additional west init arguments (optional)',
+        validate: async () => undefined
+      });
+    } catch (error) {
+      console.error('Error getting additional arguments:', error);
+      state.additionalArgs = "";
     }
-    state.additionalArgs = await input.showInputBox({
-      title,
-      step: 3,
-      totalSteps: 3,
-      ignoreFocusOut: true,
-      placeholder: "--mr main",
-      value: "",
-      prompt: 'Additional arguments? (--mr main, --mf west.yml)',
-      validate: validateArgs
-    }).catch((error) => {
-      console.error(error);
-      return "";
-    });
   }
 
   async function pickWestYml(input: MultiStepInput, state: Partial<WestLocation>) {
@@ -66,9 +91,6 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
     westOptions["Minimal Zephyr (Select Desired HALs)"] = "minimal_west.yml";
     westOptions["Minimal BLE Zephyr (Select Desired HALs)"] = "minimal_ble_west.yml";
     westOptions["NRF Connect Config"] = "ncs_west.yml";
-    westOptions["From Native Zephyr Repo (T1,T2,T3 Topolgies)"] = "";
-    //westOptions["From Zephyr IDE Style Topology Repo"] = "";
-    westOptions["Select west.yml in Workspace"] = "";
 
     const westOptionQpItems: QuickPickItem[] = [];
     for (let key in westOptions) {
@@ -79,7 +101,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
       title,
       step: 1,
       totalSteps: 3,
-      placeholder: 'Select west.yml',
+      placeholder: 'Select Zephyr workspace template',
       ignoreFocusOut: true,
       items: westOptionQpItems,
       activeItem: typeof state.path !== 'string' ? state.path : undefined,
@@ -93,56 +115,12 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
       return;
     }
 
-    let copyTemplate = false;
-    let westFile;
+    // All remaining options are template-based
+    const westFile = westOptions[pick.label];
+    const copyTemplate = true;
 
-    if (pick.label === "From Native Zephyr Repo (T1,T2,T3 Topolgies)" || pick.label === "From Zephyr IDE Style Topology Repo") {
-      async function validateGitRepoString(name: string) {
-        return undefined;
-      }
-      state.gitRepo = await input.showInputBox({
-        title,
-        step: 2,
-        totalSteps: 3,
-        ignoreFocusOut: true,
-        placeholder: "https://github.com/zephyrproject-rtos/example-application",
-        value: "",
-        prompt: 'Specify a git repository to clone from',
-        validate: validateGitRepoString
-      }).catch((error) => {
-        console.error(error);
-        return undefined;
-      });
-      if (state.gitRepo && state.gitRepo !== "") {
-        await getAdditionalArguments(input, state);
-        state.failed = false;
-      } else {
-        state.failed = true;
-      }
-      return;
-    }
-    else if (pick.label === "Select west.yml in Workspace") {
-      let browsedWestFile = await vscode.window.showOpenDialog({
-        canSelectFiles: true,
-        canSelectFolders: false,
-        canSelectMany: false,
-        filters: {
-          'west.yml': ['yml']
-        },
-      });
-      if (browsedWestFile !== undefined) {
-        westFile = path.dirname(browsedWestFile[0].fsPath);
-      } else {
-        state.failed = true;
-        return;
-      }
-    } else {
-      westFile = westOptions[pick.label];
-      copyTemplate = true;
-    }
-
-    if (westFile === undefined || pick.label === undefined) {
-      await vscode.window.showInformationMessage(`Failed to select west.yml file`);
+    if (!westFile) {
+      vscode.window.showErrorMessage(`Failed to select workspace template`);
       state.failed = true;
       return;
     }
@@ -176,8 +154,8 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
         await fs.mkdirp(westDirPath);
       }
 
-      let res = await fs.copyFile(srcPath, desPath, fs.constants.COPYFILE_FICLONE);
-      let doc: any = yaml.load(fs.readFileSync(desPath, 'utf-8'));
+      await fs.copyFile(srcPath, desPath, fs.constants.COPYFILE_FICLONE);
+      const doc: any = yaml.load(fs.readFileSync(desPath, 'utf-8'));
 
       let isNcsProject = false;
       for (let i = 0; i < doc.manifest.projects.length; i++) {
@@ -186,21 +164,14 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
         }
       }
 
-      let versionList = zephyrVersions;
-      let versionSelectionString = "Select Zephyr Version";
-      if (isNcsProject) {
-        versionList = ncsVersions;
-        versionSelectionString = "Select NCS Version";
-      }
+      const versionList = isNcsProject ? ncsVersions : zephyrVersions;
+      const versionSelectionString = isNcsProject ? "Select NCS Version" : "Select Zephyr Version";
 
-      const versionQP: QuickPickItem[] = [];
-      versionQP.push({ label: "Default" });
-      versionQP.push({ label: "", kind: vscode.QuickPickItemKind.Separator });
-
-
-      for (let key in versionList) {
-        versionQP.push({ label: versionList[key] });
-      }
+      const versionQP: QuickPickItem[] = [
+        { label: "Default" },
+        { label: "", kind: vscode.QuickPickItemKind.Separator },
+        ...versionList.map(version => ({ label: version }))
+      ];
 
       const pickPromise = await input.showQuickPick({
         title,
@@ -220,42 +191,58 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
         return;
       }
       if (pick.label === "Other Version") {
-        async function validate(name: string) {
-          return undefined;
-        }
-
-        const inputPromise = input.showInputBox({
-          title,
-          step: 3,
-          totalSteps: 4,
-          ignoreFocusOut: true,
-          value: "Default",
-          prompt: 'Input a Version Number (i.e vX.X.X) or branch name (i.e main)',
-          validate: validate
-        }).catch((error) => {
-          console.error(error);
-          return undefined;
-        });
-        let version = await inputPromise;
-        if (!version) {
+        try {
+          const version = await input.showInputBox({
+            title,
+            step: 3,
+            totalSteps: 4,
+            ignoreFocusOut: true,
+            value: "Default",
+            prompt: 'Input a Version Number (i.e vX.X.X) or branch name (i.e main)',
+            validate: async (value: string) => {
+              if (!value || value.trim() === "") {
+                return "Please enter a version";
+              }
+              return undefined;
+            }
+          });
+          
+          if (version && version.trim() !== "") {
+            pick.label = version;
+          } else {
+            state.failed = true;
+            return;
+          }
+        } catch (error) {
+          console.error('Error getting version:', error);
+          state.failed = true;
           return;
-        };
-        pick.label = version;
+        }
       }
 
       if (pick.label === "Default") {
         pick.label = versionList[0];
       }
 
-      for (let i = 0; i < doc.manifest.projects.length; i++) {
-        if ((isNcsProject && doc.manifest.projects[i].name === "sdk-nrf") || !isNcsProject && doc.manifest.projects[i].name === "zephyr") {
-          doc.manifest.projects[i].revision = pick.label;
+      // Update project revision
+      doc.manifest.projects.forEach((project: any) => {
+        const shouldUpdate = (isNcsProject && project.name === "sdk-nrf") || 
+                           (!isNcsProject && project.name === "zephyr");
+        if (shouldUpdate) {
+          project.revision = pick.label;
         }
-      }
-      if (desiredHals) {
-        desiredHals.forEach(e => {
-          doc.manifest.projects[0].import["name-allowlist"].push(e.description);
-        });
+      });
+
+      // Add desired HALs if any were selected
+      if (desiredHals && desiredHals.length > 0) {
+        const allowList = doc.manifest.projects[0].import["name-allowlist"];
+        if (allowList) {
+          desiredHals.forEach((hal: any) => {
+            if (hal.description && !allowList.includes(hal.description)) {
+              allowList.push(hal.description);
+            }
+          });
+        }
       }
 
       fs.writeFileSync(desPath, yaml.dump(doc));
@@ -271,14 +258,17 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
     return;
   }
 
-  async function collectInputs() {
-    const state = {} as Partial<WestLocation>;
-    await MultiStepInput.run(input => pickWestYml(input, state));
-
-    return state as WestLocation;
+  async function collectInputs(): Promise<WestLocation> {
+    const state = { ...defaultState } as Partial<WestLocation>;
+    try {
+      await MultiStepInput.run(input => pickWestYml(input, state));
+      return state as WestLocation;
+    } catch (error) {
+      console.error('Error in west selector:', error);
+      return { ...defaultState, failed: true };
+    }
   }
 
-  const state = await collectInputs();
-  return state;
+  return await collectInputs();
 }
 
