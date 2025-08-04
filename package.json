@@ -468,6 +468,22 @@
       {
         "command": "zephyr-ide.open-workspace-setup",
         "title": "Zephyr IDE: Open Workspace Setup"
+      },
+      {
+        "command": "zephyr-ide.workspace-setup-picker",
+        "title": "Zephyr IDE: Workspace Setup"
+      },
+      {
+        "command": "zephyr-ide.workspace-setup-from-git",
+        "title": "Zephyr IDE: Setup Workspace from Git"
+      },
+      {
+        "command": "zephyr-ide.workspace-setup-from-west-git",
+        "title": "Zephyr IDE: Setup West Workspace from Git"
+      },
+      {
+        "command": "zephyr-ide.workspace-setup-from-current-directory",
+        "title": "Zephyr IDE: Setup Workspace from Current Directory"
       }
     ],
     "terminal": {

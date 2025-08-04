@@ -28,7 +28,7 @@ import { getLaunchConfigurationByName, output, executeShellCommand, reloadEnviro
 import * as project from "./project_utilities/project";
 import { buildHelper, buildMenuConfig, buildRamRomReport, runDtshShell, clean, MenuConfig } from "./zephyr_utilities/build";
 import { flashActive } from "./zephyr_utilities/flash";
-import { getVariable, setExternalSetupState, WorkspaceConfig, setSetupState, GlobalConfig, SetupStateType, loadGlobalState, westUpdate, workspaceInit, setWorkspaceState, loadWorkspaceState, clearWorkspaceState, westInit, checkIfToolsAvailable, setupWestEnvironment, loadProjectsFromFile, getToolchainDir, setGlobalState, getToolsDir, saveSetupState, setWorkspaceSettings } from "./setup_utilities/setup";
+import { getVariable, setExternalSetupState, WorkspaceConfig, setSetupState, GlobalConfig, SetupStateType, loadGlobalState, westUpdate, workspaceInit, setWorkspaceState, loadWorkspaceState, clearWorkspaceState, westInit, checkIfToolsAvailable, setupWestEnvironment, loadProjectsFromFile, getToolchainDir, setGlobalState, getToolsDir, saveSetupState, setWorkspaceSettings, showWorkspaceSetupPicker, workspaceSetupFromGit, workspaceSetupFromWestGit, workspaceSetupFromCurrentDirectory } from "./setup_utilities/setup";
 import { installSdk } from "./setup_utilities/setup_toolchain";
 import { initializeDtsExt, updateAllDtsContexts, printContexts, setDtsContext } from "./setup_utilities/dts_interface";
 import { setActiveProject, getActiveRunnerNameOfBuild, getActiveBuildNameOfProject, getActiveBuildConfigOfProject } from "./project_utilities/project";
@@ -991,6 +991,31 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.open-workspace-setup", async () => {
       WorkspaceSetup.createOrShow(context.extensionPath, context, wsConfig, globalConfig);
+    })
+  );
+
+  // New workspace setup commands
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.workspace-setup-picker", async () => {
+      await showWorkspaceSetupPicker(context, wsConfig, globalConfig);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.workspace-setup-from-git", async () => {
+      await workspaceSetupFromGit(context, wsConfig, globalConfig);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.workspace-setup-from-west-git", async () => {
+      await workspaceSetupFromWestGit(context, wsConfig, globalConfig);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.workspace-setup-from-current-directory", async () => {
+      await workspaceSetupFromCurrentDirectory(context, wsConfig, globalConfig);
     })
   );
 

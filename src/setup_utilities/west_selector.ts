@@ -31,7 +31,6 @@ export interface WestLocation {
   failed: boolean;
   gitRepo: string;
   additionalArgs: string;
-  isZephyrIdeRepo: boolean;
 }
 
 
@@ -96,10 +95,8 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
 
     let copyTemplate = false;
     let westFile;
-    state.isZephyrIdeRepo = false;
 
     if (pick.label === "From Native Zephyr Repo (T1,T2,T3 Topolgies)" || pick.label === "From Zephyr IDE Style Topology Repo") {
-      state.isZephyrIdeRepo = pick.label === "From Zephyr IDE Style Topology Repo";
       async function validateGitRepoString(name: string) {
         return undefined;
       }
