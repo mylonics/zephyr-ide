@@ -32,7 +32,7 @@ export class ExtensionSetupView implements vscode.WebviewViewProvider {
         icons: {
           leaf: 'folder-opened',
         },
-        label: "Open Workspace Setup",
+        label: "Open Setup Panel",
         value: { command: "zephyr-ide.open-workspace-setup" },
       }, {
         icons: {
@@ -46,6 +46,18 @@ export class ExtensionSetupView implements vscode.WebviewViewProvider {
         },
         label: "Install SDK",
         value: { command: "zephyr-ide.install-sdk" },
+      }, {
+        icons: {
+          leaf: 'settings-gear',
+        },
+        label: "Setup West Environment",
+        value: { command: "zephyr-ide.setup-west-environment" },
+      }, {
+        icons: {
+          leaf: 'git-branch',
+        },
+        label: "West Init",
+        value: { command: "zephyr-ide.west-init" },
       }, {
         icons: {
           leaf: 'sync',

@@ -49,7 +49,7 @@ export class WorkspaceSetup {
 
         const panel = vscode.window.createWebviewPanel(
             "zephyrWorkspaceSetup",
-            "Zephyr IDE Workspace Setup",
+            "Zephyr IDE and Workspace Setup",
             column || vscode.ViewColumn.One,
             {
                 enableScripts: true,
@@ -105,6 +105,15 @@ export class WorkspaceSetup {
                         return;
                     case "openHostToolsWalkthrough":
                         this.openHostToolsWalkthrough();
+                        return;
+                    case "setupWestEnvironment":
+                        this.setupWestEnvironment();
+                        return;
+                    case "westInit":
+                        this.westInit();
+                        return;
+                    case "westUpdate":
+                        this.westUpdate();
                         return;
                 }
             },
@@ -285,6 +294,30 @@ export class WorkspaceSetup {
         }
     }
 
+    private async setupWestEnvironment() {
+        try {
+            vscode.commands.executeCommand("zephyr-ide.setup-west-environment");
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to setup west environment: ${error}`);
+        }
+    }
+
+    private async westInit() {
+        try {
+            vscode.commands.executeCommand("zephyr-ide.west-init");
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to run west init: ${error}`);
+        }
+    }
+
+    private async westUpdate() {
+        try {
+            vscode.commands.executeCommand("zephyr-ide.west-update");
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to run west update: ${error}`);
+        }
+    }
+
 
 
     // Helper methods to get current configs
@@ -322,7 +355,7 @@ export class WorkspaceSetup {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Zephyr IDE Workspace Setup</title>
+            <title>Zephyr IDE and Workspace Setup</title>
             <style>
                 body {
                     font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", system-ui, "Ubuntu", "Droid Sans", sans-serif;
@@ -651,7 +684,7 @@ export class WorkspaceSetup {
         </head>
         <body>
             <div class="wizard-container">
-                <h1>Zephyr IDE Workspace Setup</h1>
+                <h1>Zephyr IDE and Workspace Setup</h1>
                 
                 <!-- Host Tools -->
                 <div class="collapsible-section">
@@ -769,6 +802,59 @@ export class WorkspaceSetup {
                         </div>
                         
                         ${!hostToolsInstalled ? `<p class="info-text">Complete the host tools setup above to enable SDK installation.</p>` : ""}
+                    </div>
+                </div>
+                
+                <!-- West Operations -->
+                <div class="collapsible-section">
+                    <div class="collapsible-header" onclick="toggleSection('westOps')">
+                        <div class="collapsible-header-left">
+                            <div class="status status-warning">⚙️ West Operations</div>
+                            <div class="collapsible-title">West Environment & Initialization</div>
+                        </div>
+                        <div class="collapsible-icon expanded" id="westOpsIcon">▶</div>
+                    </div>
+                    <div class="collapsible-content expanded" id="westOpsContent">
+                        <div class="step-description">
+                            Initialize west workspace environments and run west init commands for project management.
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; margin-top: 15px;">
+                            <div style="padding: 20px; border: 1px solid var(--vscode-panel-border); border-radius: 6px; background-color: var(--vscode-input-background);">
+                                <h4 style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 16px;">🌐</span>
+                                    Setup West Environment
+                                </h4>
+                                <p style="margin: 0 0 12px 0; font-size: 12px; color: var(--vscode-descriptionForeground);">Initialize a Python virtual environment and install west tools required for Zephyr development.</p>
+                                <button class="button" onclick="setupWestEnvironment()" ${!hostToolsInstalled ? "disabled" : ""}>
+                                    Setup West Environment
+                                </button>
+                            </div>
+                            
+                            <div style="padding: 20px; border: 1px solid var(--vscode-panel-border); border-radius: 6px; background-color: var(--vscode-input-background);">
+                                <h4 style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 16px;">🔧</span>
+                                    West Init
+                                </h4>
+                                <p style="margin: 0 0 12px 0; font-size: 12px; color: var(--vscode-descriptionForeground);">Initialize a new west workspace with manifests and repositories for Zephyr project development.</p>
+                                <button class="button" onclick="westInit()" ${!hostToolsInstalled ? "disabled" : ""}>
+                                    West Init
+                                </button>
+                            </div>
+                            
+                            <div style="padding: 20px; border: 1px solid var(--vscode-panel-border); border-radius: 6px; background-color: var(--vscode-input-background);">
+                                <h4 style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 16px;">🔄</span>
+                                    West Update
+                                </h4>
+                                <p style="margin: 0 0 12px 0; font-size: 12px; color: var(--vscode-descriptionForeground);">Update west workspace repositories and install Python requirements for the current Zephyr version.</p>
+                                <button class="button" onclick="westUpdate()" ${!hostToolsInstalled ? "disabled" : ""}>
+                                    West Update
+                                </button>
+                            </div>
+                        </div>
+                        
+                        ${!hostToolsInstalled ? `<p class="info-text">Complete the host tools setup above to enable west operations.</p>` : ""}
                     </div>
                 </div>
                 
@@ -955,6 +1041,24 @@ export class WorkspaceSetup {
                 function openHostToolsWalkthrough() {
                     vscode.postMessage({
                         command: 'openHostToolsWalkthrough'
+                    });
+                }
+                
+                function setupWestEnvironment() {
+                    vscode.postMessage({
+                        command: 'setupWestEnvironment'
+                    });
+                }
+                
+                function westInit() {
+                    vscode.postMessage({
+                        command: 'westInit'
+                    });
+                }
+                
+                function westUpdate() {
+                    vscode.postMessage({
+                        command: 'westUpdate'
                     });
                 }
                 

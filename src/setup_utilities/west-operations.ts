@@ -163,7 +163,7 @@ export async function installPythonRequirements(context: vscode.ExtensionContext
   wsConfig.activeSetupState.pythonEnvironmentSetup = false;
   saveSetupState(context, wsConfig, globalConfig);
 
-  let cmd = `pip install -r ${path.join(zephyrPath.path, "scripts", "requirements.txt")}`;
+  let cmd = `pip install -r ${path.join(zephyrPath.path, "scripts", "requirements.txt")} -U dtsh patool semvar tqdm`;
   let reqRes = await executeTaskHelperInPythonEnv(wsConfig.activeSetupState, "Zephyr IDE: Install Python Requirements", cmd, wsConfig.activeSetupState.setupPath);
 
   if (!reqRes) {
@@ -269,34 +269,68 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
   );
 }
 
-export async function postWorkspaceSetup(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, setupPath: string) {
-  if (!wsConfig.activeSetupState) {
+export async function westUpdateWithRequirements(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, options: {
+  solo?: boolean;
+  isWorkspaceSetup?: boolean;
+  setupPath?: string;
+  strictWestCheck?: boolean;
+} = {}) {
+  const { solo = true, isWorkspaceSetup = false, setupPath, strictWestCheck = true } = options;
+  
+  if (wsConfig.activeSetupState === undefined || wsConfig.activeSetupState.setupPath === undefined) {
     return false;
   }
 
-  // Check if west init succeeded
-  if (!checkWestInit(wsConfig.activeSetupState)) {
-    output.appendLine("[SETUP] Warning: West init may not have completed successfully");
+  let westInited = await checkWestInit(wsConfig.activeSetupState);
+  if (!westInited) {
+    if (strictWestCheck) {
+      vscode.window.showErrorMessage('Zephyr IDE: West is not initialized. Call West Init First');
+      return false;
+    } else {
+      // For workspace setup, just warn but continue
+      output.appendLine("[SETUP] Warning: West init may not have completed successfully");
+    }
   }
 
-  // Run west update
-  output.appendLine("[SETUP] Running west update...");
-  let westUpdateResult = await westUpdate(context, wsConfig, globalConfig, false);
+  // Add setup-specific output messages
+  if (isWorkspaceSetup) {
+    output.appendLine("[SETUP] Running west update...");
+  }
 
+  // Run west update first
+  let westUpdateResult = await westUpdate(context, wsConfig, globalConfig, false);
   if (!westUpdateResult) {
     vscode.window.showErrorMessage("West update failed. Please check the terminal for details.");
     return false;
   }
 
-  // Install Python requirements
-  output.appendLine("[SETUP] Installing Python requirements...");
-  let pythonReqResult = await installPythonRequirements(context, wsConfig, globalConfig, false);
+  // Add setup-specific output messages
+  if (isWorkspaceSetup) {
+    output.appendLine("[SETUP] Installing Python requirements...");
+  }
 
+  // Then install Python requirements
+  let pythonReqResult = await installPythonRequirements(context, wsConfig, globalConfig, false);
   if (!pythonReqResult) {
     vscode.window.showErrorMessage("Python requirements installation failed. Please check the terminal for details.");
     return false;
   }
 
-  vscode.window.showInformationMessage(`Workspace setup completed successfully at: ${setupPath}`);
+  if (solo) {
+    if (isWorkspaceSetup && setupPath) {
+      vscode.window.showInformationMessage(`Workspace setup completed successfully at: ${setupPath}`);
+    } else {
+      vscode.window.showInformationMessage("Successfully completed West Update with Python requirements installation");
+    }
+  }
   return true;
+}
+
+export async function postWorkspaceSetup(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, setupPath: string) {
+  return westUpdateWithRequirements(context, wsConfig, globalConfig, {
+    solo: true,
+    isWorkspaceSetup: true,
+    setupPath: setupPath,
+    strictWestCheck: false
+  });
 }

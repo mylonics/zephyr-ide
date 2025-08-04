@@ -61,7 +61,7 @@ import {
   setWorkspaceSettings,
 } from "./setup_utilities/workspace-config";
 import { checkIfToolsAvailable } from "./setup_utilities/tools-validation";
-import { westUpdate, westInit, setupWestEnvironment } from "./setup_utilities/west-operations";
+import { postWorkspaceSetup, westInit, setupWestEnvironment, westUpdateWithRequirements } from "./setup_utilities/west-operations";
 import {
   showWorkspaceSetupPicker,
   workspaceSetupFromGit,
@@ -402,11 +402,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.west-update", async () => {
-      if (
-        wsConfig.activeSetupState &&
-        wsConfig.activeSetupState.pythonEnvironmentSetup
-      ) {
-        await westUpdate(context, wsConfig, globalConfig);
+      if (wsConfig.activeSetupState && wsConfig.activeSetupState.pythonEnvironmentSetup) {
+        await westUpdateWithRequirements(context, wsConfig, globalConfig);
         extensionSetupView.updateWebView(wsConfig, globalConfig);
       } else {
         vscode.window.showErrorMessage(
