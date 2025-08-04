@@ -62,23 +62,13 @@ export interface GlobalConfig {
   setupStateDictionary?: SetupStateDictionary, //Can eventually remove the optional
 }
 
-export enum SetupStateType {
-  NONE = "None",
-  LOCAL = "Local",
-  GLOBAL = "Global",
-  EXTERNAL = "External",
-  SELECTED = "Selected"
-}
-
 export interface WorkspaceConfig {
   rootPath: string;
   projects: ProjectConfigDictionary,
   activeProject?: string,
   initialSetupComplete: boolean,
   automaticProjectSelction: boolean,
-  localSetupState?: SetupState,
   activeSetupState?: SetupState,
-  selectSetupType: SetupStateType,
   projectStates: ProjectStateDictionary,
 }
 
@@ -226,7 +216,6 @@ export async function loadWorkspaceState(context: vscode.ExtensionContext): Prom
     projects: {},
     automaticProjectSelction: true,
     initialSetupComplete: false,
-    selectSetupType: SetupStateType.NONE,
     projectStates: {}
   };
 
@@ -281,23 +270,21 @@ async function generateExtensionsRecommendations(context: vscode.ExtensionContex
   }
 }
 
-export async function setSetupState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, setupStateType: SetupStateType, ext_path: string = "") {
+export async function clearSetupState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, ext_path: string = "") {
+  wsConfig.activeSetupState = undefined;
+
+  await setWorkspaceState(context, wsConfig);
+  reloadEnvironmentVariables(context, wsConfig.activeSetupState);
+}
+
+export async function setSetupState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, ext_path: string = "") {
+
   generateGitIgnore(context, wsConfig); // Try to generate a .gitignore each time this is run
   generateExtensionsRecommendations(context, wsConfig); // Try to generate a extensions.json each time this is run
-  if (setupStateType !== SetupStateType.NONE) {
-    setWorkspaceSettings();
-  }
-  if (setupStateType === SetupStateType.SELECTED) {
-    wsConfig.activeSetupState = await loadExternalSetupState(context, globalConfig, ext_path);
-    if (wsConfig.activeSetupState) {
-      wsConfig.selectSetupType = setupStateType;
-    } else {
-      wsConfig.selectSetupType = SetupStateType.NONE;
-    }
-  } else {
-    wsConfig.activeSetupState = undefined;
-    wsConfig.selectSetupType = setupStateType;
-  }
+  setWorkspaceSettings();
+
+  wsConfig.activeSetupState = await loadExternalSetupState(context, globalConfig, ext_path);
+
 
   if (wsConfig.activeSetupState) {
     initializeDtsExt(wsConfig.activeSetupState, wsConfig);
@@ -325,7 +312,6 @@ export async function setWorkspaceState(context: vscode.ExtensionContext, wsConf
 export async function clearWorkspaceState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
   wsConfig.automaticProjectSelction = true;
   wsConfig.initialSetupComplete = false;
-  wsConfig.selectSetupType = SetupStateType.NONE;
   setWorkspaceState(context, wsConfig);
 }
 
@@ -827,7 +813,7 @@ export async function workspaceSetupFromGit(context: vscode.ExtensionContext, ws
   }
 
   // Set up the workspace using current directory
-  await setSetupState(context, wsConfig, globalConfig, SetupStateType.SELECTED, currentDir);
+  await setSetupState(context, wsConfig, globalConfig, currentDir);
 
   // Run post-setup process
   return await postWorkspaceSetup(context, wsConfig, globalConfig, currentDir);
@@ -864,7 +850,7 @@ export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext
   output.appendLine(`[SETUP] Setting up West workspace from: ${gitUrl}`);
 
   // Set up the workspace using current directory
-  await setSetupState(context, wsConfig, globalConfig, SetupStateType.SELECTED, currentDir);
+  await setSetupState(context, wsConfig, globalConfig, currentDir);
 
   if (!wsConfig.activeSetupState) {
     vscode.window.showErrorMessage("Failed to setup workspace state.");
@@ -901,8 +887,8 @@ export async function workspaceSetupStandard(context: vscode.ExtensionContext, w
   output.appendLine(`[SETUP] Creating standard workspace in: ${currentDir}`);
 
   // Set up the workspace using current directory
-  await setSetupState(context, wsConfig, globalConfig, SetupStateType.SELECTED, currentDir);
-  
+  await setSetupState(context, wsConfig, globalConfig, currentDir);
+
   if (!wsConfig.activeSetupState) {
     vscode.window.showErrorMessage("Failed to setup workspace state.");
     return false;
@@ -911,7 +897,7 @@ export async function workspaceSetupStandard(context: vscode.ExtensionContext, w
   // Run west selector to create west manifest
   output.appendLine("[SETUP] Running west selector to configure workspace...");
   let westSelection = await westSelector(context, wsConfig);
-  
+
   if (!westSelection || westSelection.failed) {
     vscode.window.showErrorMessage("West configuration cancelled or failed.");
     return false;
@@ -921,7 +907,7 @@ export async function workspaceSetupStandard(context: vscode.ExtensionContext, w
   if (westSelection.path || westSelection.gitRepo) {
     output.appendLine("[SETUP] Initializing west with selected configuration...");
     let westInitResult = await westInit(context, wsConfig, globalConfig, false, westSelection);
-    
+
     if (!westInitResult) {
       vscode.window.showErrorMessage("Failed to initialize west workspace.");
       return false;
@@ -988,7 +974,7 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
       } else if (useSubdir === "Yes") {
         // Update workspace config to use subdirectory
         const subdirPath = westYmlFiles[0];
-        await setSetupState(context, wsConfig, globalConfig, SetupStateType.SELECTED, subdirPath);
+        await setSetupState(context, wsConfig, globalConfig, subdirPath);
         return await postWorkspaceSetup(context, wsConfig, globalConfig, subdirPath);
       }
     } else {
@@ -1009,13 +995,13 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
       }
 
       const selectedPath = selectedSubdir.description;
-      await setSetupState(context, wsConfig, globalConfig, SetupStateType.SELECTED, selectedPath);
+      await setSetupState(context, wsConfig, globalConfig, selectedPath);
       return await postWorkspaceSetup(context, wsConfig, globalConfig, selectedPath);
     }
   }
 
   // Set up the workspace using current directory
-  await setSetupState(context, wsConfig, globalConfig, SetupStateType.SELECTED, currentDir);
+  await setSetupState(context, wsConfig, globalConfig, currentDir);
 
   // Run post-setup process
   return await postWorkspaceSetup(context, wsConfig, globalConfig, currentDir);
