@@ -28,7 +28,7 @@ import { getLaunchConfigurationByName, output, executeShellCommand, reloadEnviro
 import * as project from "./project_utilities/project";
 import { buildHelper, buildMenuConfig, buildRamRomReport, runDtshShell, clean, MenuConfig } from "./zephyr_utilities/build";
 import { flashActive } from "./zephyr_utilities/flash";
-import { getVariable, WorkspaceConfig, setSetupState, GlobalConfig, loadGlobalState, westUpdate, workspaceInit, setWorkspaceState, loadWorkspaceState, clearWorkspaceState, westInit, checkIfToolsAvailable, setupWestEnvironment, loadProjectsFromFile, getToolchainDir, getToolsDir, saveSetupState, setWorkspaceSettings, showWorkspaceSetupPicker, workspaceSetupFromGit, workspaceSetupFromWestGit, workspaceSetupFromCurrentDirectory, workspaceSetupStandard, clearSetupState } from "./setup_utilities/setup";
+import { getVariable, WorkspaceConfig, setSetupState, GlobalConfig, loadGlobalState, westUpdate, workspaceInit, setWorkspaceState, loadWorkspaceState, clearWorkspaceState, westInit, checkIfToolsAvailable, setupWestEnvironment, loadProjectsFromFile, getToolchainDir, getToolsDir, saveSetupState, setWorkspaceSettings, showWorkspaceSetupPicker, workspaceSetupFromGit, workspaceSetupFromWestGit, workspaceSetupFromCurrentDirectory, workspaceSetupStandard, workspaceSetupGlobalZephyr, workspaceSetupCreateNewShared, workspaceSetupUseExisting, clearSetupState } from "./setup_utilities/setup";
 import { installSdk } from "./setup_utilities/setup_toolchain";
 import { initializeDtsExt, printContexts, setDtsContext } from "./setup_utilities/dts_interface";
 import { setActiveProject, getActiveRunnerNameOfBuild, getActiveBuildNameOfProject, getActiveBuildConfigOfProject } from "./project_utilities/project";
@@ -227,19 +227,6 @@ export async function activate(context: vscode.ExtensionContext) {
   }));
 
   // Extension/Workspace Setup Commands
-  context.subscriptions.push(
-    vscode.commands.registerCommand("zephyr-ide.init-workspace", async () => {
-      if (wsConfig.rootPath !== "") {
-        var setupViewUpdate = (wsConfig: WorkspaceConfig): void => {
-          extensionSetupView.updateWebView(wsConfig, globalConfig);
-        };
-        await workspaceInit(context, wsConfig, globalConfig, setupViewUpdate);
-      } else {
-        vscode.window.showErrorMessage("Open Folder Before Continuing");
-      }
-    })
-  );
-
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.check-build-dependencies", async () => {
       let res = await checkIfToolsAvailable(context, wsConfig, globalConfig);
@@ -999,6 +986,24 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.workspace-setup-standard", async () => {
       await workspaceSetupStandard(context, wsConfig, globalConfig);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.workspace-setup-global-zephyr", async () => {
+      await workspaceSetupGlobalZephyr(context, wsConfig, globalConfig);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.workspace-setup-create-new-shared", async () => {
+      await workspaceSetupCreateNewShared(context, wsConfig, globalConfig);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.workspace-setup-use-existing", async () => {
+      await workspaceSetupUseExisting(context, wsConfig, globalConfig);
     })
   );
 

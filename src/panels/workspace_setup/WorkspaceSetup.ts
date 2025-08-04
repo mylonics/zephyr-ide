@@ -19,10 +19,8 @@ import * as vscode from "vscode";
 import {
     WorkspaceConfig,
     GlobalConfig,
-    checkIfToolsAvailable,
 } from "../../setup_utilities/setup";
 import { installHostTools } from "../../setup_utilities/host_tools";
-import * as project from "../../project_utilities/project";
 
 export class WorkspaceSetup {
     public static currentPanel: WorkspaceSetup | undefined;
@@ -163,18 +161,21 @@ export class WorkspaceSetup {
                 // Handle external Zephyr install workspace
                 if (zephyrInstall === "global") {
                     vscode.commands.executeCommand(
-                        "zephyr-ide.use-global-zephyr-install"
+                        "zephyr-ide.workspace-setup-global-zephyr"
                     );
                     vscode.window.showInformationMessage(
-                        "Creating workspace with global Zephyr install..."
+                        "Setting up workspace with global Zephyr install..."
                     );
                 } else if (zephyrInstall === "create-new") {
+                    vscode.commands.executeCommand(
+                        "zephyr-ide.workspace-setup-create-new-shared"
+                    );
                     vscode.window.showInformationMessage(
-                        "Creating new shared Zephyr install is coming soon!"
+                        "Creating new shared Zephyr installation..."
                     );
                 } else if (zephyrInstall === "existing") {
                     vscode.commands.executeCommand(
-                        "zephyr-ide.use-external-zephyr-install"
+                        "zephyr-ide.workspace-setup-use-existing"
                     );
                     vscode.window.showInformationMessage(
                         "Setting up workspace with existing Zephyr install..."
@@ -255,25 +256,7 @@ export class WorkspaceSetup {
     }
 
     private async reinitializeWorkspace() {
-        try {
-            const selection = await vscode.window.showWarningMessage(
-                "Are you sure you want to reinitialize the workspace? This will reset all workspace settings.",
-                "Yes, Reinitialize",
-                "Cancel"
-            );
-
-            if (selection === "Yes, Reinitialize") {
-                vscode.commands.executeCommand("zephyr-ide.reset-extension");
-                vscode.window.showInformationMessage(
-                    "Workspace has been reinitialized."
-                );
-                this._panel.dispose(); // Close wizard after reinitializing
-            }
-        } catch (error) {
-            vscode.window.showErrorMessage(
-                `Failed to reinitialize workspace: ${error}`
-            );
-        }
+        vscode.commands.executeCommand("zephyr-ide.reset-extension");
     }
 
     private async installSDK() {

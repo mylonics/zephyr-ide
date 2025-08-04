@@ -168,7 +168,6 @@ export async function setGlobalState(context: vscode.ExtensionContext, globalCon
   await context.globalState.update("zephyr-ide.state", globalConfig);
 }
 
-
 export async function loadExternalSetupState(context: vscode.ExtensionContext, globalConfig: GlobalConfig, path: string): Promise<SetupState | undefined> {
   if (globalConfig.setupStateDictionary) {
     for (let prexistingPath in globalConfig.setupStateDictionary) {
@@ -208,7 +207,6 @@ export async function setExternalSetupState(context: vscode.ExtensionContext, gl
   }
   setGlobalState(context, globalConfig);
 }
-
 
 export async function loadWorkspaceState(context: vscode.ExtensionContext): Promise<WorkspaceConfig> {
   let config: WorkspaceConfig = await context.workspaceState.get("zephyr.env") ?? {
@@ -312,6 +310,7 @@ export async function setWorkspaceState(context: vscode.ExtensionContext, wsConf
 export async function clearWorkspaceState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
   wsConfig.automaticProjectSelction = true;
   wsConfig.initialSetupComplete = false;
+  wsConfig.activeSetupState = undefined;
   setWorkspaceState(context, wsConfig);
 }
 
@@ -420,78 +419,6 @@ export async function checkIfToolsAvailable(context: vscode.ExtensionContext, ws
   }
 
   return true;
-}
-
-export function workspaceInit(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, progressUpdate: (wsConfig: WorkspaceConfig) => any) {
-  vscode.window.withProgress(
-    {
-      location: vscode.ProgressLocation.Notification,
-      title: 'Zephyr IDE Workspace Initialization',
-      cancellable: false,
-    },
-    async (progress, token) => {
-      if (wsConfig.activeSetupState === undefined) {
-        return;
-      }
-
-      let westInited = await checkWestInit(wsConfig.activeSetupState);
-      let westSelection;
-      if (!westInited) {
-        westSelection = await westSelector(context, wsConfig);
-        if (westSelection === undefined || westSelection.failed) {
-          vscode.window.showErrorMessage("Zephyr IDE Initialization: Invalid West Init Selection");
-          return;
-        }
-      }
-
-      let toolchainSelection = await pickToolchainTarget(context, globalConfig);
-      progress.report({ message: "Checking for Build Tools In Path (1/5)" });
-      await checkIfToolsAvailable(context, wsConfig, globalConfig, false);
-      progressUpdate(wsConfig);
-      if (!globalConfig.toolsAvailable) {
-        vscode.window.showErrorMessage("Zephyr IDE Initialization: Missing Build Tools. See Output. Workspace Init Failed");
-        return;
-      }
-      progress.report({ message: "Setting Up Python Environment (2/5)", increment: 5 });
-      await setupWestEnvironment(context, wsConfig, globalConfig, false);
-      progressUpdate(wsConfig);
-      if (!wsConfig.activeSetupState.pythonEnvironmentSetup) {
-        vscode.window.showErrorMessage("Zephyr IDE Initialization Step 2/5: Failed to Create Python Environment");
-        return;
-      }
-      progress.report({ message: "Installing SDK (3/5)", increment: 20 });
-      await installSdk(context, globalConfig, output, true, toolchainSelection, false);
-      progressUpdate(wsConfig);
-      if (!globalConfig.sdkInstalled) {
-        vscode.window.showErrorMessage("Zephyr IDE Initialization Step 3/5: Sdk failed to install");
-        return;
-      }
-
-      progress.report({ message: "Initializing West Respository (4/5)", increment: 20 });
-      westInited = await checkWestInit(wsConfig.activeSetupState);
-
-      if (!westInited) {
-        let result = await westInit(context, wsConfig, globalConfig, false, westSelection);
-        progressUpdate(wsConfig);
-
-        if (result === false) {
-          vscode.window.showErrorMessage("Zephyr IDE Initialization Step 4/5: West Failed to initialize");
-          return;
-        }
-      }
-
-      progress.report({ message: "Updating West Repository (5/5)", increment: 30 });
-      await westUpdate(context, wsConfig, globalConfig, false);
-      progressUpdate(wsConfig);
-      if (!wsConfig.activeSetupState.westUpdated) {
-        vscode.window.showErrorMessage("Zephyr IDE Initialization Step 5/5: West Failed to update");
-        return;
-      }
-      progress.report({ message: "Zephyr IDE Initialization Complete", increment: 100 });
-      progressUpdate(wsConfig);
-      vscode.window.showInformationMessage("Zephyr IDE Initialization Complete");
-    }
-  );
 }
 
 export function checkWestInit(setupState: SetupState) {
@@ -657,7 +584,6 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
     }
   );
 };
-
 
 export async function westUpdate(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, solo = true) {
   if (wsConfig.activeSetupState === undefined) {
@@ -1007,6 +933,239 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
   return await postWorkspaceSetup(context, wsConfig, globalConfig, currentDir);
 }
 
+export async function workspaceSetupGlobalZephyr(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
+  const globalToolsDir = getToolsDir();
+
+  output.show();
+  output.appendLine(`[SETUP] Setting up workspace with global Zephyr install: ${globalToolsDir}`);
+
+  // Check if global config has a setupState for the global tools directory
+  let globalSetupState = await loadExternalSetupState(context, globalConfig, globalToolsDir);
+
+  if (!globalSetupState) {
+    // Ask user if they want to create a global installation
+    const createGlobal = await vscode.window.showInformationMessage(
+      "No global Zephyr installation found. Would you like to create one?",
+      "Yes, Create Global Installation",
+      "Cancel"
+    );
+
+    if (createGlobal !== "Yes, Create Global Installation") {
+      return false;
+    }
+
+    output.appendLine(`[SETUP] Creating new global Zephyr installation in: ${globalToolsDir}`);
+
+    // Check if global tools directory contains a .west directory
+    const westPath = path.join(globalToolsDir, ".west");
+    if (fs.pathExistsSync(westPath)) {
+      vscode.window.showErrorMessage(
+        `The global tools directory already contains a .west directory. Please remove it first or choose a different location.`
+      );
+      return false;
+    }
+
+    // Ensure the global tools directory exists
+    try {
+      await fs.ensureDir(globalToolsDir);
+    } catch (error) {
+      vscode.window.showErrorMessage(`Failed to create global tools directory: ${error}`);
+      return false;
+    }
+
+    // Set up the workspace using global tools directory
+    await setSetupState(context, wsConfig, globalConfig, globalToolsDir);
+
+    if (!wsConfig.activeSetupState) {
+      vscode.window.showErrorMessage("Failed to setup workspace state.");
+      return false;
+    }
+
+    // Run west selector to create west manifest
+    output.appendLine("[SETUP] Running west selector to configure global installation...");
+    let westSelection = await westSelector(context, wsConfig);
+
+    if (!westSelection || westSelection.failed) {
+      vscode.window.showErrorMessage("West configuration cancelled or failed.");
+      return false;
+    }
+
+    // If west selector created a manifest, we need to run west init
+    if (westSelection.path || westSelection.gitRepo) {
+      output.appendLine("[SETUP] Initializing west with selected configuration...");
+      let westInitResult = await westInit(context, wsConfig, globalConfig, false, westSelection);
+
+      if (!westInitResult) {
+        vscode.window.showErrorMessage("Failed to initialize west workspace.");
+        return false;
+      }
+    }
+
+    // Run post-setup process
+    const result = await postWorkspaceSetup(context, wsConfig, globalConfig, globalToolsDir);
+
+    if (result) {
+      vscode.window.showInformationMessage(`Global Zephyr installation created and workspace configured at: ${globalToolsDir}`);
+    }
+
+    return result;
+  }
+
+  // Global setup state exists, just configure workspace to use it
+  await setSetupState(context, wsConfig, globalConfig, globalToolsDir);
+
+  vscode.window.showInformationMessage(`Workspace configured to use existing global Zephyr installation at: ${globalToolsDir}`);
+  return true;
+}
+
+export async function workspaceSetupCreateNewShared(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
+  // Prompt user to select a folder for the new shared install
+  const selectedFolders = await vscode.window.showOpenDialog({
+    canSelectFiles: false,
+    canSelectFolders: true,
+    canSelectMany: false,
+    title: "Select folder for new shared Zephyr installation"
+  });
+
+  if (!selectedFolders || selectedFolders.length === 0) {
+    return false;
+  }
+
+  const selectedPath = selectedFolders[0].fsPath;
+
+  output.show();
+  output.appendLine(`[SETUP] Creating new shared Zephyr installation in: ${selectedPath}`);
+
+  // Check if folder contains a .west directory
+  const westPath = path.join(selectedPath, ".west");
+  if (fs.pathExistsSync(westPath)) {
+    vscode.window.showErrorMessage(
+      `The selected folder already contains a .west directory. Please select an empty folder or a different location.`
+    );
+    return false;
+  }
+
+  // Check if folder is not empty (except for common files that are okay)
+  try {
+    const files = fs.readdirSync(selectedPath);
+    const allowedFiles = ['.DS_Store', 'Thumbs.db', 'desktop.ini', '.gitignore', 'README.md'];
+    const significantFiles = files.filter(file => !allowedFiles.includes(file));
+
+    if (significantFiles.length > 0) {
+      const proceed = await vscode.window.showWarningMessage(
+        `The selected folder is not empty. It contains: ${significantFiles.slice(0, 3).join(', ')}${significantFiles.length > 3 ? '...' : ''}. Do you want to continue?`,
+        'Continue',
+        'Cancel'
+      );
+
+      if (proceed !== 'Continue') {
+        return false;
+      }
+    }
+  } catch (error) {
+    // Folder might not exist, which is fine
+    output.appendLine(`[SETUP] Creating directory: ${selectedPath}`);
+    await fs.ensureDir(selectedPath);
+  }
+
+  // Set up the workspace using selected directory
+  await setSetupState(context, wsConfig, globalConfig, selectedPath);
+
+  if (!wsConfig.activeSetupState) {
+    vscode.window.showErrorMessage("Failed to setup workspace state.");
+    return false;
+  }
+
+  // Run west selector to create west manifest
+  output.appendLine("[SETUP] Running west selector to configure shared installation...");
+  let westSelection = await westSelector(context, wsConfig);
+
+  if (!westSelection || westSelection.failed) {
+    vscode.window.showErrorMessage("West configuration cancelled or failed.");
+    return false;
+  }
+
+  // If west selector created a manifest, we need to run west init
+  if (westSelection.path || westSelection.gitRepo) {
+    output.appendLine("[SETUP] Initializing west with selected configuration...");
+    let westInitResult = await westInit(context, wsConfig, globalConfig, false, westSelection);
+
+    if (!westInitResult) {
+      vscode.window.showErrorMessage("Failed to initialize west workspace.");
+      return false;
+    }
+  }
+
+  // Run post-setup process
+  const result = await postWorkspaceSetup(context, wsConfig, globalConfig, selectedPath);
+
+  if (result) {
+    vscode.window.showInformationMessage(`New shared Zephyr installation created at: ${selectedPath}`);
+  }
+
+  return result;
+}
+
+export async function workspaceSetupUseExisting(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
+  if (!globalConfig.setupStateDictionary) {
+    vscode.window.showInformationMessage("No existing Zephyr installations found.");
+    return false;
+  }
+
+  // Create list of existing installations
+  const installOptions: vscode.QuickPickItem[] = [];
+
+  for (const installPath in globalConfig.setupStateDictionary) {
+    if (fs.pathExistsSync(installPath)) {
+      const setupState = globalConfig.setupStateDictionary[installPath];
+      let description = "";
+
+      // Add helpful descriptions
+      if (installPath === getToolsDir()) {
+        description = "Global installation";
+      } else if (installPath === wsConfig.rootPath) {
+        description = "Current workspace";
+      } else if (setupState.zephyrVersion) {
+        description = `Zephyr ${setupState.zephyrVersion}`;
+      } else {
+        description = "Zephyr installation";
+      }
+
+      installOptions.push({
+        label: path.basename(installPath),
+        description: description,
+        detail: installPath
+      });
+    }
+  }
+
+  if (installOptions.length === 0) {
+    vscode.window.showInformationMessage("No valid existing Zephyr installations found.");
+    return false;
+  }
+
+  // Let user select from existing installations
+  const selectedInstall = await vscode.window.showQuickPick(installOptions, {
+    placeHolder: "Select an existing Zephyr installation",
+    ignoreFocusOut: true
+  });
+
+  if (!selectedInstall) {
+    return false;
+  }
+
+  const selectedPath = selectedInstall.detail!;
+
+  output.show();
+  output.appendLine(`[SETUP] Setting up workspace with existing Zephyr installation: ${selectedPath}`);
+
+  // Set up the workspace using selected directory
+  await setSetupState(context, wsConfig, globalConfig, selectedPath);
+
+  vscode.window.showInformationMessage(`Workspace configured to use existing Zephyr installation at: ${selectedPath}`);
+  return true;
+}
+
 export async function showWorkspaceSetupPicker(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
   const setupOptions = [
     {
@@ -1072,13 +1231,13 @@ export async function showWorkspaceSetupPicker(context: vscode.ExtensionContext,
         await workspaceSetupStandard(context, wsConfig, globalConfig);
         break;
       case "global-zephyr":
-        vscode.commands.executeCommand("zephyr-ide.use-global-zephyr-install");
+        await workspaceSetupGlobalZephyr(context, wsConfig, globalConfig);
         break;
       case "external-zephyr":
-        vscode.commands.executeCommand("zephyr-ide.use-external-zephyr-install");
+        await workspaceSetupCreateNewShared(context, wsConfig, globalConfig);
         break;
       case "existing-zephyr":
-        vscode.commands.executeCommand("zephyr-ide.use-external-zephyr-install");
+        await workspaceSetupUseExisting(context, wsConfig, globalConfig);
         break;
       default:
         vscode.window.showErrorMessage("Unknown workspace setup option selected");
