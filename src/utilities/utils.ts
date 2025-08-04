@@ -53,24 +53,25 @@ export function getPlatformArch() {
 }
 
 export function isMacOS() {
-  return platform == "darwin";
+  return platform === "darwin";
 }
 
 export function getPythonVenvBinaryFolder(setupState: SetupState) {
-  if (setupState.env["VIRTUAL_ENV"])
+  if (setupState.env["VIRTUAL_ENV"]) {
     switch (platform) {
       case "win32":
         return path.join(setupState.env["VIRTUAL_ENV"], `Scripts`);
       default:
         return path.join(setupState.env["VIRTUAL_ENV"], `bin`);
     }
+  }
   return '';
 }
 
 export async function getRootPathFs(first = false) {
   let rootPath = await getRootPath(first);
   if (rootPath && rootPath.fsPath) {
-    return rootPath.fsPath
+    return rootPath.fsPath;
   }
   return "";
 }
@@ -129,7 +130,7 @@ export async function selectLaunchConfiguration(wsConfig: WorkspaceConfig) {
 }
 
 export async function getLaunchConfigurations(wsConfig: WorkspaceConfig) {
-  if (wsConfig.rootPath != "") {
+  if (wsConfig.rootPath !== "") {
     const config = vscode.workspace.getConfiguration("launch", vscode.Uri.file(wsConfig.rootPath));
     const configurations = config.get<any[]>("configurations");
 

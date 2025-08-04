@@ -31,7 +31,7 @@ export async function testHelper(context: vscode.ExtensionContext, wsConfig: Wor
     return;
   }
   if (wsConfig.activeSetupState.westUpdated) {
-    if (projectName == undefined) {
+    if (projectName === undefined) {
       projectName = wsConfig.activeProject;
     }
     if (projectName === undefined) {
@@ -70,14 +70,14 @@ export async function runTest(
 
 
   let testString = `-T ${projectFolder} `;
-  if (testConfig.tests[0] != "All") {
+  if (testConfig.tests[0] !== "All") {
     testString += "-s ";
     for (let test of testConfig.tests) {
       testString += test + " ";
     }
   }
 
-  testString += `--outdir ${path.join(projectFolder, "twister-out")}  ${testConfig.args ? testConfig.args : ""}`
+  testString += `--outdir ${path.join(projectFolder, "twister-out")}  ${testConfig.args ? testConfig.args : ""}`;
 
   if (testConfig.boardConfig) {
     let boardRoot;
@@ -114,7 +114,7 @@ export async function deleteTestDirs(
         fs.rmSync(path.join(projectDir, match[0]), { recursive: true, force: true });
       }
     }
-  })
+  });
 
   vscode.window.showInformationMessage(`Deleted ${project.name} test directories`);
 }

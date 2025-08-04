@@ -46,8 +46,8 @@ export async function getModuleList(setupState: SetupState) {
 
   let modules = res.stdout.split(/\r?\n/);
   for (let m in modules) {
-    let data = modules[m].split(/\s+/)
-    if (data[0] != "manifest" && data[0] != "") {
+    let data = modules[m].split(/\s+/);
+    if (data[0] !== "manifest" && data[0] !== "") {
       outputList.push(data);
     }
   }
@@ -55,19 +55,19 @@ export async function getModuleList(setupState: SetupState) {
 }
 
 export async function getModuleVersion(modulePath: string): Promise<any> {
-  let filePath = path.join(modulePath, "VERSION")
+  let filePath = path.join(modulePath, "VERSION");
 
   if (fs.existsSync(filePath)) {
     const file = fs.readFileSync(filePath, 'utf8');
-    let lines = file.split(/\r?\n/)
+    let lines = file.split(/\r?\n/);
     let versionNumber: ZephyrVersionNumber = {
       major: +lines[0].split("=")[1],
       minor: +lines[1].split("=")[1],
       patch: +lines[2].split("=")[1],
       tweak: +lines[3].split("=")[1],
       extra: +lines[4].split("=")[1],
-    }
-    console.log(versionNumber)
+    };
+    console.log(versionNumber);
     return versionNumber;
   }
 }
@@ -75,10 +75,10 @@ export async function getModuleVersion(modulePath: string): Promise<any> {
 export function isVersionNumberGreaterEqual(version: ZephyrVersionNumber, major: number, minor: number, patch: number) {
   if (version.major > major) {
     return true;
-  } else if (version.major == major) {
+  } else if (version.major === major) {
     if (version.minor > minor) {
       return true;
-    } else if (version.minor == minor) {
+    } else if (version.minor === minor) {
 
       if (version.patch >= patch) {
         return true;
@@ -91,10 +91,10 @@ export function isVersionNumberGreaterEqual(version: ZephyrVersionNumber, major:
 export function isVersionNumberGreater(version: ZephyrVersionNumber, major: number, minor: number, patch: number) {
   if (version.major > major) {
     return true;
-  } else if (version.major == major) {
+  } else if (version.major === major) {
     if (version.minor > minor) {
       return true;
-    } else if (version.minor == minor) {
+    } else if (version.minor === minor) {
       if (version.patch > patch) {
         return true;
       }
@@ -104,7 +104,7 @@ export function isVersionNumberGreater(version: ZephyrVersionNumber, major: numb
 }
 
 export async function getModuleYamlFile(setupState: SetupState, moduleRelPath: string): Promise<any> {
-  let filePath = path.join(setupState.setupPath, moduleRelPath, "zephyr/module.yml")
+  let filePath = path.join(setupState.setupPath, moduleRelPath, "zephyr/module.yml");
   if (fs.existsSync(filePath)) {
     return yaml.load(fs.readFileSync(filePath, 'utf-8'));
   }
@@ -112,11 +112,11 @@ export async function getModuleYamlFile(setupState: SetupState, moduleRelPath: s
 
 export async function getDtsIncludes(setupState: SetupState) {
   const modules = await getModuleList(setupState);
-  const dtsIncludeArray: string[] = []
+  const dtsIncludeArray: string[] = [];
   for (let m in modules) {
     let yamlFile = await getModuleYamlFile(setupState, modules[m][1]);
     if (yamlFile && yamlFile.build && yamlFile.build.settings && yamlFile.build.settings.dts_root) {
-      dtsIncludeArray.push(path.join(setupState.setupPath, modules[m][1], yamlFile.build.settings.dts_root, "dts"))
+      dtsIncludeArray.push(path.join(setupState.setupPath, modules[m][1], yamlFile.build.settings.dts_root, "dts"));
     }
   }
   return dtsIncludeArray;
@@ -125,7 +125,7 @@ export async function getDtsIncludes(setupState: SetupState) {
 export async function getModulePath(setupState: SetupState, moduleName: string) {
   const modules = await getModuleList(setupState);
   for (let m in modules) {
-    if (modules[m][0] == moduleName) {
+    if (modules[m][0] === moduleName) {
       return modules[m][1];
     }
   }
@@ -134,14 +134,14 @@ export async function getModulePath(setupState: SetupState, moduleName: string) 
 
 export async function getModuleSampleFolders(setupState: SetupState) {
   const modules = await getModuleList(setupState);
-  const samplefolders: [string, string][] = [["zephyr", path.join(setupState.zephyrDir, 'samples')]]
+  const samplefolders: [string, string][] = [["zephyr", path.join(setupState.zephyrDir, 'samples')]];
 
   for (let m in modules) {
     let yamlFile = await getModuleYamlFile(setupState, modules[m][1]);
     if (yamlFile && yamlFile.samples) {
       for (let i in yamlFile.samples) {
         let sampleFolder: [string, string] = [modules[m][0], path.join(setupState.setupPath, modules[m][1], yamlFile.samples[i])];
-        samplefolders.push(sampleFolder)
+        samplefolders.push(sampleFolder);
       }
     }
   }
@@ -154,7 +154,7 @@ export async function getSampleRecursive(dir: string, moduleName: string, sample
     let yamlFile: any = await yaml.load(fs.readFileSync(tentativePath, 'utf-8'));
     if (yamlFile && yamlFile.sample && yamlFile.sample.name) {
       let description = yamlFile.sample.description ? yamlFile.sample.description : "";
-      return sampleList.push([moduleName, yamlFile.sample.name, description, dir])
+      return sampleList.push([moduleName, yamlFile.sample.name, description, dir]);
     }
   } else {
     let folderList = fs.readdirSync(dir)
@@ -175,7 +175,7 @@ export async function getSamples(setupState: SetupState) {
   let samplefolders = await getModuleSampleFolders(setupState);
   let sampleList: [string, string, string, string][] = [];
   for (let i in samplefolders) {
-    await getSampleRecursive(samplefolders[i][1], samplefolders[i][0], sampleList)
+    await getSampleRecursive(samplefolders[i][1], samplefolders[i][0], sampleList);
   }
   return sampleList;
 }

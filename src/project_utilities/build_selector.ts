@@ -75,7 +75,7 @@ async function getBoardlistWest(setupState: SetupState, folder: vscode.Uri | und
   }
 
   let prevError: any;
-  if (setupState.zephyrVersion == undefined) { return; }
+  if (setupState.zephyrVersion === undefined) { return; }
   let res;
   let has_qualifiers = false;
   let has_revisions = false;
@@ -113,7 +113,7 @@ async function getBoardlistWest(setupState: SetupState, folder: vscode.Uri | und
         let revision_default: string | undefined;
 
         if (has_revisions) {
-          if (boardData[3] != "None") {
+          if (boardData[3] !== "None") {
             revisions = boardData[3].split(" ");
             revision_default = boardData[4];
           }
@@ -147,7 +147,7 @@ export async function pickBoard(setupState: SetupState, rootPath: string) {
   }
 
   if (setupState.zephyrDir) {
-    boardDirectories.push('Zephyr Directory Only')
+    boardDirectories.push('Zephyr Directory Only');
   }
   console.log("Boards dir: " + boardDirectories);
 
@@ -225,7 +225,7 @@ export async function pickBoard(setupState: SetupState, rootPath: string) {
   let relBoardSubDir: string = "";
   if (pick_data.description) {
     if (relBoardDir) {
-      relBoardSubDir = path.relative(path.join(rootPath, relBoardDir), pick_data.description)
+      relBoardSubDir = path.relative(path.join(rootPath, relBoardDir), pick_data.description);
     } else {
       relBoardSubDir = path.relative(path.join(setupState.zephyrDir, "boards"), pick_data.description);
     }
@@ -239,7 +239,7 @@ export async function pickBoard(setupState: SetupState, rootPath: string) {
     let revisionIndex = 0;
     for (let revision of pick_data.revisions) {
       let description = "";
-      if (revision == pick_data.revision_default) {
+      if (revision === pick_data.revision_default) {
         revisionIndex = revisionQPItems.length;
         description = "default";
       }
@@ -272,7 +272,7 @@ export async function pickBoard(setupState: SetupState, rootPath: string) {
     relBoardDir: relBoardDir,
     relBoardSubDir: relBoardSubDir,
     revision: revision,
-  }
+  };
   return boardConfig;
 }
 

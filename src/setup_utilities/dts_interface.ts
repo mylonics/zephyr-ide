@@ -26,7 +26,7 @@ import { getDtsIncludes } from "./modules";
 import { WorkspaceConfig } from "./setup";
 import {
   getActiveProject, getActiveBuildConfigOfProject, ProjectConfig
-} from "../project_utilities/project"
+} from "../project_utilities/project";
 
 import { getBuildInfo } from "../zephyr_utilities/build";
 import { BuildConfig } from "../project_utilities/build_selector";
@@ -38,7 +38,7 @@ const ext = vscode.extensions.getExtension<IDeviceTreeAPI>(
 let api: IDeviceTreeAPI | undefined = undefined;
 
 async function activateDtsExtension() {
-  if (ext && (api == undefined)) {
+  if (ext && (api === undefined)) {
     api = ext.isActive ? ext.exports : await ext.activate();
   }
 }
@@ -69,7 +69,7 @@ export async function initializeDtsExt(state: SetupState, wsConfig: WorkspaceCon
       ],
       autoChangeContext: true,
       allowAdhocContexts: true,
-    }
+    };
     settings.defaultIncludePaths?.push(...dtsIncludeArray);
     await api.setDefaultSettings(settings);
     await updateAllDtsContexts(wsConfig);
@@ -85,7 +85,7 @@ export async function setDtsContext(wsConfig: WorkspaceConfig, project?: Project
 
     if (project) {
       if (build === undefined) {
-        build = getActiveBuildConfigOfProject(wsConfig, project.name)
+        build = getActiveBuildConfigOfProject(wsConfig, project.name);
       }
       if (build) {
         api.setActiveContextByName(project.name + "-" + build.name);
@@ -100,7 +100,7 @@ export async function updateAllDtsContexts(wsConfig: WorkspaceConfig) {
     for (let projectName in wsConfig.projects) {
       let project = wsConfig.projects[projectName];
       for (let buildName in project.buildConfigs) {
-        let build = project.buildConfigs[buildName]
+        let build = project.buildConfigs[buildName];
         updateDtsContext(wsConfig, project, build);
       }
     }
@@ -121,8 +121,8 @@ export async function updateDtsContext(wsConfig: WorkspaceConfig,
         overlays: buildInfo.otherDtsFiles,
         bindingType: "Zephyr",
         zephyrBindings: buildInfo.bindingsDirs,
-      }
-      console.log(context)
+      };
+      console.log(context);
       await api.requestContext(context);
     }
   }
@@ -131,7 +131,7 @@ export async function updateDtsContext(wsConfig: WorkspaceConfig,
 export async function printContexts() {
 
   if (api) {
-    let contexts = await api.getContexts()
+    let contexts = await api.getContexts();
     console.log(contexts);
   }
 }

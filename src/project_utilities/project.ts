@@ -54,9 +54,9 @@ export function getActiveProjectName(wsConfig: WorkspaceConfig) {
 
 export function getActiveProject(wsConfig: WorkspaceConfig) {
   if (wsConfig.activeProject) {
-    return wsConfig.projects[wsConfig.activeProject]
+    return wsConfig.projects[wsConfig.activeProject];
   }
-  return
+  return;
 }
 
 export function getActiveBuildNameOfProject(wsConfig: WorkspaceConfig, project?: string) {
@@ -103,7 +103,7 @@ export function getActiveRunnerNameOfBuild(wsConfig: WorkspaceConfig, project?: 
 
 export function getActiveRunnerConfigOfBuild(wsConfig: WorkspaceConfig, project: string, build: string) {
   let activeBuild = getActiveBuildConfigOfProject(wsConfig, project);
-  if (activeBuild && wsConfig.projectStates[project].buildStates[build].activeRunner != undefined) {
+  if (activeBuild && wsConfig.projectStates[project].buildStates[build].activeRunner !== undefined) {
     let activeRunnerName = wsConfig.projectStates[project].buildStates[build].activeRunner;
     if (activeRunnerName) {
       return activeBuild.runnerConfigs[activeRunnerName];
@@ -494,7 +494,7 @@ export async function addProject(wsConfig: WorkspaceConfig, context: vscode.Exte
       extraOverlay: [],
     },
   };
-  wsConfig.projectStates[projectName] = { buildStates: {}, viewOpen: true, twisterStates: {} }
+  wsConfig.projectStates[projectName] = { buildStates: {}, viewOpen: true, twisterStates: {} };
   setActiveProject(context, wsConfig, projectName);
   await setWorkspaceState(context, wsConfig);
 
@@ -519,7 +519,7 @@ export async function addBuildToProject(wsConfig: WorkspaceConfig, context: vsco
       vscode.window.showInformationMessage(`Creating Build Configuration: ${result.name}`);
       wsConfig.projects[projectName].buildConfigs[result.name] = result;
       wsConfig.projectStates[projectName].buildStates[result.name] = { runnerStates: {}, viewOpen: true };
-      setActiveBuild(context, wsConfig, projectName, result.name)
+      setActiveBuild(context, wsConfig, projectName, result.name);
 
       await setWorkspaceState(context, wsConfig);
     }
@@ -599,7 +599,7 @@ export async function addTest(wsConfig: WorkspaceConfig, context: vscode.Extensi
     wsConfig.projects[projectName].twisterConfigs[result.name] = result;
     wsConfig.projectStates[projectName].twisterStates[result.name] = { viewOpen: true };
 
-    setActiveTest(context, wsConfig, projectName, result.name)
+    setActiveTest(context, wsConfig, projectName, result.name);
     await setWorkspaceState(context, wsConfig);
   }
 }

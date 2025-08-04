@@ -269,7 +269,7 @@ export async function showInputBox<P extends InputBoxParameters>({ title, step, 
       input.ignoreFocusOut = ignoreFocusOut ?? false;
       input.placeholder = placeholder;
       input.prompt = prompt;
-      if (value != "") {
+      if (value !== "") {
         input.value = value;
       }
       disposables.push(

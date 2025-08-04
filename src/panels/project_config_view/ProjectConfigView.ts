@@ -406,36 +406,36 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
     }
 
 
-    if (this.treeData[0] != undefined) {
-      this.projectConfigState.projectOpenState = (this.treeData[0].open != undefined) ? this.treeData[0].open : this.projectConfigState.projectOpenState;
-      if (this.treeData[0].subItems != undefined) {
+    if (this.treeData[0] !== undefined) {
+      this.projectConfigState.projectOpenState = (this.treeData[0].open !== undefined) ? this.treeData[0].open : this.projectConfigState.projectOpenState;
+      if (this.treeData[0].subItems !== undefined) {
         if (this.treeData[0].subItems.length >= 4) {
-          this.projectConfigState.projectKConfigOpenState = this.treeData[0].subItems[2].open != undefined ? this.treeData[0].subItems[2].open : this.projectConfigState.projectKConfigOpenState;
-          this.projectConfigState.projectOverlayOpenState = this.treeData[0].subItems[3].open != undefined ? this.treeData[0].subItems[3].open : this.projectConfigState.projectOverlayOpenState;
+          this.projectConfigState.projectKConfigOpenState = this.treeData[0].subItems[2].open !== undefined ? this.treeData[0].subItems[2].open : this.projectConfigState.projectKConfigOpenState;
+          this.projectConfigState.projectOverlayOpenState = this.treeData[0].subItems[3].open !== undefined ? this.treeData[0].subItems[3].open : this.projectConfigState.projectOverlayOpenState;
         }
       }
     }
 
-    if (this.treeData[1] != undefined) {
-      this.projectConfigState.buildOpenState = this.treeData[1].open != undefined ? this.treeData[1].open : this.projectConfigState.buildOpenState;
-      if (this.treeData[1].subItems != undefined) {
+    if (this.treeData[1] !== undefined) {
+      this.projectConfigState.buildOpenState = this.treeData[1].open !== undefined ? this.treeData[1].open : this.projectConfigState.buildOpenState;
+      if (this.treeData[1].subItems !== undefined) {
         if (this.treeData[1].subItems.length >= 4) {
-          this.projectConfigState.buildKConfigOpenState = this.treeData[1].subItems[2].open != undefined ? this.treeData[1].subItems[2].open : this.projectConfigState.buildKConfigOpenState;
-          this.projectConfigState.buildOverlayOpenState = this.treeData[1].subItems[3].open != undefined ? this.treeData[1].subItems[3].open : this.projectConfigState.buildOverlayOpenState;
+          this.projectConfigState.buildKConfigOpenState = this.treeData[1].subItems[2].open !== undefined ? this.treeData[1].subItems[2].open : this.projectConfigState.buildKConfigOpenState;
+          this.projectConfigState.buildOverlayOpenState = this.treeData[1].subItems[3].open !== undefined ? this.treeData[1].subItems[3].open : this.projectConfigState.buildOverlayOpenState;
         }
       }
     }
 
-    if (this.treeData[2] != undefined) {
-      this.projectConfigState.runnerOpenState = this.treeData[2].open != undefined ? this.treeData[2].open : this.projectConfigState.runnerOpenState;
+    if (this.treeData[2] !== undefined) {
+      this.projectConfigState.runnerOpenState = this.treeData[2].open !== undefined ? this.treeData[2].open : this.projectConfigState.runnerOpenState;
     }
 
-    if (this.treeData[3] != undefined) {
-      this.projectConfigState.twisterOpenState = this.treeData[3].open != undefined ? this.treeData[3].open : this.projectConfigState.twisterOpenState;
+    if (this.treeData[3] !== undefined) {
+      this.projectConfigState.twisterOpenState = this.treeData[3].open !== undefined ? this.treeData[3].open : this.projectConfigState.twisterOpenState;
     }
 
-    this.projectConfigState.buildKConfigOpenState = (this.treeData[2] != undefined && this.treeData[2].open != undefined) ? this.treeData[2].open : this.projectConfigState.runnerOpenState;
-    this.projectConfigState.buildOverlayOpenState = (this.treeData[2] != undefined && this.treeData[2].open != undefined) ? this.treeData[2].open : this.projectConfigState.runnerOpenState;
+    this.projectConfigState.buildKConfigOpenState = (this.treeData[2] !== undefined && this.treeData[2].open !== undefined) ? this.treeData[2].open : this.projectConfigState.runnerOpenState;
+    this.projectConfigState.buildOverlayOpenState = (this.treeData[2] !== undefined && this.treeData[2].open !== undefined) ? this.treeData[2].open : this.projectConfigState.runnerOpenState;
 
     if (activeProject) {
       this.treeData[0] = this.generateProjectString(undefined, activeProject, this.projectConfigState.projectOpenState, this.projectConfigState.projectKConfigOpenState, this.projectConfigState.projectOverlayOpenState);

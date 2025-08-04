@@ -52,7 +52,7 @@ export async function regenerateCompileCommands(wsConfig: WorkspaceConfig) {
         compileCommandData.push(...JSON.parse(rawdata));
       } else if (fs.existsSync(extfile)) {
         let rawdata = await fs.readFile(extfile, 'utf8');
-        compileCommandData.push(...JSON.parse(rawdata))
+        compileCommandData.push(...JSON.parse(rawdata));
       }
     }
   }
@@ -148,7 +148,7 @@ export async function build(
     buildFsDir = fs.readdirSync(buildFolder);
   }
 
-  if (pristine || buildFsDir == undefined || buildFsDir.length == 0) {
+  if (pristine || buildFsDir === undefined || buildFsDir.length === 0) {
 
     let boardRoot;
     if (build.relBoardDir) {
@@ -208,7 +208,7 @@ export async function buildMenuConfig(
   }
 
   if (build === undefined) {
-    let buildName = getActiveBuildNameOfProject(wsConfig, project.name)
+    let buildName = getActiveBuildNameOfProject(wsConfig, project.name);
     if (buildName === undefined) {
       await vscode.window.showErrorMessage(`You must choose a Build Configuration to continue.`);
       return;
@@ -223,7 +223,7 @@ export async function buildMenuConfig(
   if (fs.existsSync(buildFolder)) {
     buildFsDir = fs.readdirSync(buildFolder);
   }
-  if (buildFsDir == undefined || buildFsDir.length == 0) {
+  if (buildFsDir === undefined || buildFsDir.length === 0) {
     await vscode.window.showErrorMessage(`Run a Build or Build Pristine before running Menu/GUI Config.`);
     return;
   }
@@ -253,7 +253,7 @@ export async function buildRamRomReport(
   }
 
   if (build === undefined) {
-    let buildName = getActiveBuildNameOfProject(wsConfig, project.name)
+    let buildName = getActiveBuildNameOfProject(wsConfig, project.name);
     if (buildName === undefined) {
       await vscode.window.showErrorMessage(`You must choose a Build Configuration to continue.`);
       return;
@@ -267,7 +267,7 @@ export async function buildRamRomReport(
   if (fs.existsSync(buildFolder)) {
     buildFsDir = fs.readdirSync(buildFolder);
   }
-  if (buildFsDir == undefined || buildFsDir.length == 0) {
+  if (buildFsDir === undefined || buildFsDir.length === 0) {
     await vscode.window.showErrorMessage(`Run a Build or Build Pristine before running Menu/GUI Config.`);
     return;
   }
@@ -296,7 +296,7 @@ export async function runDtshShell(
   }
 
   if (build === undefined) {
-    let buildName = getActiveBuildNameOfProject(wsConfig, project.name)
+    let buildName = getActiveBuildNameOfProject(wsConfig, project.name);
     if (buildName === undefined) {
       await vscode.window.showErrorMessage(`You must choose a Build Configuration to continue.`);
       return;
@@ -346,9 +346,9 @@ export async function getBuildInfo(wsConfig: WorkspaceConfig,
       let otherDtsFiles: string[] = [];
 
       for (let file in dtsFiles) {
-        if (path.extname(dtsFiles[file]) == ".dts") {
+        if (path.extname(dtsFiles[file]) === ".dts") {
           dtsFile = dtsFiles[file];
-          break
+          break;
         } else {
           if (!(dtsFiles[file] in otherDtsFiles)) {
             otherDtsFiles.push(dtsFiles[file]);
@@ -369,7 +369,7 @@ export async function getBuildInfo(wsConfig: WorkspaceConfig,
         includeDirs: rawData.cmake.devicetree["include-dirs"],
         kconfigFiles: rawData.cmake.kconfig["files"],
         otherKconfigFiles: rawData.cmake.kconfig["user-files"],
-      }
+      };
       return info;
     }
   }

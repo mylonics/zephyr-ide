@@ -95,30 +95,30 @@ function projectLoader(config: WorkspaceConfig, projects: any) {
     config.projects[key] = projects[key];
 
     //generate project States if they don't exist
-    if (config.projectStates[key] == undefined) {
-      config.projectStates[key] = { buildStates: {}, twisterStates: {} }
-      if (config.activeProject == undefined) {
+    if (config.projectStates[key] === undefined) {
+      config.projectStates[key] = { buildStates: {}, twisterStates: {} };
+      if (config.activeProject === undefined) {
         config.activeProject = key;
       }
     }
 
     for (let build_key in projects[key].buildConfigs) {
-      if (config.projectStates[key].buildStates[build_key] == undefined) {
-        config.projectStates[key].buildStates[build_key] = { runnerStates: {} }
-        if (config.projectStates[key].activeBuildConfig == undefined) {
+      if (config.projectStates[key].buildStates[build_key] === undefined) {
+        config.projectStates[key].buildStates[build_key] = { runnerStates: {} };
+        if (config.projectStates[key].activeBuildConfig === undefined) {
           config.projectStates[key].activeBuildConfig = build_key;
         }
       }
 
       //Remove after upgrade
-      if (projects[key].buildConfigs[build_key].runnerConfigs == undefined) {
+      if (projects[key].buildConfigs[build_key].runnerConfigs === undefined) {
         config.projects[key].buildConfigs[build_key].runnerConfigs = projects[key].buildConfigs[build_key].runners;
       }
 
       for (let runner_key in projects[key].buildConfigs[build_key].runnerConfigs) {
-        if (config.projectStates[key].buildStates[build_key].runnerStates[runner_key] == undefined) {
+        if (config.projectStates[key].buildStates[build_key].runnerStates[runner_key] === undefined) {
           config.projectStates[key].buildStates[build_key].runnerStates[runner_key] = {};
-          if (config.projectStates[key].buildStates[build_key].activeRunner == undefined) {
+          if (config.projectStates[key].buildStates[build_key].activeRunner === undefined) {
             config.projectStates[key].buildStates[build_key].activeRunner = runner_key;
           }
         }
@@ -256,7 +256,7 @@ export async function setWorkspaceSettings(force = false) {
     setDefaultTerminal(configuration, target, "osx", force);
   }
   if (force || !configuration.inspect("C_Cpp.default.compileCommands")?.workspaceValue) {
-    configuration.update("C_Cpp.default.compileCommands", path.join("${workspaceFolder}", '.vscode', 'compile_commands.json'), target)
+    configuration.update("C_Cpp.default.compileCommands", path.join("${workspaceFolder}", '.vscode', 'compile_commands.json'), target);
   }
   if (force || !configuration.inspect("cmake.configureOnOpen")?.workspaceValue) {
     configuration.update("cmake.configureOnOpen", false, target);
@@ -341,10 +341,10 @@ export function getToolsDir() {
 
   const configuration = vscode.workspace.getConfiguration();
   let toolsDirFromFile: string | undefined = configuration.get("zephyr-ide.tools_directory");
-  if (toolsDirFromFile != undefined || toolsDirFromFile != null) {
+  if (toolsDirFromFile) {
     toolsdir = toolsDirFromFile;
   }
-  return toolsdir
+  return toolsdir;
 }
 
 export function getToolchainDir() {
@@ -352,8 +352,8 @@ export function getToolchainDir() {
 }
 
 export async function checkIfToolAvailable(tool: string, cmd: string, wsConfig: WorkspaceConfig, printStdOut: boolean, includes?: string) {
-  if (wsConfig.activeSetupState == undefined) {
-    vscode.window.showErrorMessage(`Unable to check for tools. Select Global or Local Install First.`)
+  if (wsConfig.activeSetupState === undefined) {
+    vscode.window.showErrorMessage(`Unable to check for tools. Select Global or Local Install First.`);
     return;
   }
   let res = await executeShellCommand(cmd, wsConfig.activeSetupState?.setupPath, true);
@@ -567,7 +567,7 @@ export async function westInit(context: vscode.ExtensionContext, wsConfig: Works
     cmd = `west init -l ${westSelection.path} ${westSelection.additionalArgs}`;
   }
 
-  wsConfig.activeSetupState.zephyrDir = ""
+  wsConfig.activeSetupState.zephyrDir = "";
   let westInitRes = await executeTaskHelperInPythonEnv(wsConfig.activeSetupState, "Zephyr IDE: West Init", cmd, wsConfig.activeSetupState.setupPath);
 
   if (!westInitRes) {

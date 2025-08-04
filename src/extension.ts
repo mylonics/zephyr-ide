@@ -32,7 +32,7 @@ import { getVariable, setExternalSetupState, WorkspaceConfig, setSetupState, Glo
 import { installSdk } from "./setup_utilities/setup_toolchain";
 import { initializeDtsExt, updateAllDtsContexts, printContexts, setDtsContext } from "./setup_utilities/dts_interface";
 import { setActiveProject, getActiveRunnerNameOfBuild, getActiveBuildNameOfProject, getActiveBuildConfigOfProject } from "./project_utilities/project";
-import { testHelper, deleteTestDirs } from "./zephyr_utilities/twister"
+import { testHelper, deleteTestDirs } from "./zephyr_utilities/twister";
 import { installHostTools } from "./setup_utilities/host_tools";
 
 import { getModuleVersion } from "./setup_utilities/modules";
@@ -47,7 +47,7 @@ let activeRunnerDisplay: vscode.StatusBarItem;
 
 export async function activate(context: vscode.ExtensionContext) {
   context.environmentVariableCollection.persistent = false;
-  context.environmentVariableCollection.description = "Zephyr IDE adds python path"
+  context.environmentVariableCollection.description = "Zephyr IDE adds python path";
   context.environmentVariableCollection.replace("ZFUN", "REALLY FUN1");
 
   wsConfig = await loadWorkspaceState(context);
@@ -80,7 +80,7 @@ export async function activate(context: vscode.ExtensionContext) {
     await setSetupState(context, wsConfig, globalConfig, SetupStateType.SELECTED, wsConfig.activeSetupState.setupPath);
   }
 
-  if (wsConfig.activeSetupState && (wsConfig.activeSetupState.zephyrVersion == undefined) && wsConfig.activeSetupState.zephyrDir) {
+  if (wsConfig.activeSetupState && (wsConfig.activeSetupState.zephyrVersion === undefined) && wsConfig.activeSetupState.zephyrDir) {
     wsConfig.activeSetupState.zephyrVersion = await getModuleVersion(wsConfig.activeSetupState.zephyrDir);
   }
 
@@ -97,7 +97,7 @@ export async function activate(context: vscode.ExtensionContext) {
       let activeBuild = getActiveBuildConfigOfProject(wsConfig, wsConfig.activeProject);
 
       if (activeBuild) {
-        setDtsContext(wsConfig, wsConfig.projects[wsConfig.activeProject], activeBuild)
+        setDtsContext(wsConfig, wsConfig.projects[wsConfig.activeProject], activeBuild);
         activeBuildDisplay.text = `$(project) ${activeBuild.name}`;
         let activeRunner;
         if (activeBuild) {
@@ -252,7 +252,7 @@ export async function activate(context: vscode.ExtensionContext) {
   // Extension/Workspace Setup Commands
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.init-workspace", async () => {
-      if (wsConfig.rootPath != "") {
+      if (wsConfig.rootPath !== "") {
         var setupViewUpdate = (wsConfig: WorkspaceConfig): void => {
           extensionSetupView.updateWebView(wsConfig, globalConfig);
         };
@@ -276,7 +276,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.setup-west-environment", async () => {
-      if (wsConfig.rootPath != "") {
+      if (wsConfig.rootPath !== "") {
         await setupWestEnvironment(context, wsConfig, globalConfig);
         extensionSetupView.updateWebView(wsConfig, globalConfig);
       } else {
@@ -873,7 +873,7 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.use-local-zephyr-install", async () => {
 
       wsConfig.rootPath = await getRootPathFs();
-      if (wsConfig.rootPath != "") {
+      if (wsConfig.rootPath !== "") {
         await setSetupState(context, wsConfig, globalConfig, SetupStateType.SELECTED, wsConfig.rootPath);
       }
 
@@ -885,8 +885,8 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.use-external-zephyr-install", async () => {
       const setupPathList: vscode.QuickPickItem[] = [];
 
-      let rootPath = ""
-      if (wsConfig.rootPath == "") {
+      let rootPath = "";
+      if (wsConfig.rootPath === "") {
         rootPath = await getRootPathFs();
       } else {
         rootPath = wsConfig.rootPath;

@@ -18,7 +18,7 @@ import * as path from "path";
 import * as fs from "fs-extra";
 import { showQuickPick, showInputBox, showQuickPickMany } from "../utilities/multistepQuickPick";
 import { SetupState } from '../setup_utilities/setup';
-import { pickBoard, BoardConfig } from './build_selector'
+import { pickBoard, BoardConfig } from './build_selector';
 
 // Config for the extension
 export interface TwisterConfig {
@@ -44,7 +44,7 @@ export function getTestsFromProject(projectPath: string) {
     filePath = samplePath;
   }
 
-  let tests: string[] = []
+  let tests: string[] = [];
   if (filePath) {
     let yamlFile: any = yaml.load(fs.readFileSync(filePath, 'utf-8'));
     if (yamlFile && yamlFile.tests) {
@@ -67,7 +67,7 @@ export type TwisterStateDictionary = { [name: string]: TwisterState };
 export async function twisterSelector(projectFolder: string, context: ExtensionContext, setupState: SetupState, rootPath: string) {
   const title = 'Add Twister Configuration';
 
-  let twisterConfig: Partial<TwisterConfig> = {}
+  let twisterConfig: Partial<TwisterConfig> = {};
   twisterConfig.tests = [];
 
   //check if project contain sample.yaml or testcase.yaml
@@ -82,7 +82,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
   let testQpItems: QuickPickItem[] = [];
   testQpItems.push({ label: "All", picked: true });
   testQpItems.push({ label: "", kind: vscode.QuickPickItemKind.Separator });
-  testQpItems = testQpItems.concat(tests.map(label => ({ label })))
+  testQpItems = testQpItems.concat(tests.map(label => ({ label })));
 
   const testPick = await showQuickPickMany({
     title,
@@ -100,7 +100,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
   if (testPick === undefined) {
     return;
   }
-  if (testPick.length == 0) {
+  if (testPick.length === 0) {
     vscode.window.showErrorMessage("Need to select at least one test");
     return;
   }
@@ -110,7 +110,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
       twisterConfig.tests = ['All'];
       break;
     }
-    twisterConfig.tests.push(v.label)
+    twisterConfig.tests.push(v.label);
   }
 
   let platfroms = ["native_sim", "qemu", "hardware"];
@@ -142,12 +142,12 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
   let totalSteps = 4;
 
 
-  if (twisterConfig.platform == "hardware") {
+  if (twisterConfig.platform === "hardware") {
     twisterConfig.boardConfig = await pickBoard(setupState, rootPath);
     if (twisterConfig.boardConfig === undefined) {
       return;
     }
-    totalSteps = 6
+    totalSteps = 6;
 
     const comPortPick = await showInputBox({
       title,
@@ -157,7 +157,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
       value: "",
       validate: validate,
       placeholder: "COM1"
-    })
+    });
 
     twisterConfig.serialPort = comPortPick;
     const comPortBaudPick = await showInputBox({
@@ -168,7 +168,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
       value: "",
       validate: validate,
       placeholder: "115200"
-    })
+    });
     twisterConfig.serialBaud = comPortBaudPick;
   }
 
@@ -180,7 +180,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
     value: "",
     placeholder: '--sysbuild',
     validate: validate,
-  })
+  });
   if (twisterArgsBox === undefined) {
     return;
   }
@@ -188,7 +188,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
 
   let default_name = twisterConfig.tests.length > 1 ? "test" : twisterConfig.tests[0];
 
-  if (default_name == "All") {
+  if (default_name === "All") {
     default_name = "test";
   }
 
@@ -208,7 +208,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
     prompt: "Enter a name for this Test Configuration",
     value: default_name,
     validate: validate,
-  })
+  });
   if (nameInputBox === undefined) {
     return;
   }
@@ -222,7 +222,7 @@ export async function reconfigureTest(config: TwisterConfig) {
     return undefined;
   }
 
-  let title = "Reconfigure Test"
+  let title = "Reconfigure Test";
   if (config.boardConfig) {
     const comPortPick = await showInputBox({
       title,
@@ -232,7 +232,7 @@ export async function reconfigureTest(config: TwisterConfig) {
       value: config.serialPort ? config.serialPort : "",
       validate: validate,
       placeholder: "COM1"
-    })
+    });
 
     config.serialPort = comPortPick;
     const comPortBaudPick = await showInputBox({
@@ -243,7 +243,7 @@ export async function reconfigureTest(config: TwisterConfig) {
       value: config.serialBaud ? config.serialBaud : "",
       validate: validate,
       placeholder: "115200"
-    })
+    });
 
     config.serialBaud = comPortBaudPick;
   }
@@ -255,6 +255,6 @@ export async function reconfigureTest(config: TwisterConfig) {
     prompt: "Additional Twister Arguments",
     value: config.args ? config.args : "",
     validate: validate
-  })
+  });
   config.args = argsPick;
 }

@@ -68,7 +68,7 @@ export class ActiveProjectView implements vscode.WebviewViewProvider {
       let activeTwister: TwisterConfig | undefined;
       if (wsConfig.activeProject !== undefined) {
         activeProject = wsConfig.projects[wsConfig.activeProject];
-        activeBuild = getActiveBuildConfigOfProject(wsConfig, wsConfig.activeProject)
+        activeBuild = getActiveBuildConfigOfProject(wsConfig, wsConfig.activeProject);
         if (activeBuild !== undefined) {
           activeRunner = getActiveRunnerConfigOfBuild(wsConfig, wsConfig.activeProject, activeBuild.name);
           this.view.title = activeProject.name + ": " + activeBuild.name;
