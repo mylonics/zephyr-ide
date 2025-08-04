@@ -1,31 +1,36 @@
 
 import * as vscode from "vscode";
 
+
 export const toolchainTargets: vscode.QuickPickItem[] = [
-  { picked: true, label: "arm" },
-  { label: "sep", kind: vscode.QuickPickItemKind.Separator },
-  { label: "aarch64" },
-  { label: "arc" },
-  { label: "arc64" },
-  { label: "microblazeel" },
-  { label: "mips" },
-  { label: "nios2" },
-  { label: "riscv64" },
-  { label: "sparc" },
-  { label: "x86_64" },
-  { label: "xtensa-dc233c" },
-  { label: "xtensa-espressif_esp32" },
-  { label: "xtensa-espressif_esp32s2" },
-  { label: "xtensa-espressif_esp32s3" },
-  { label: "xtensa-intel_ace15_mtpm" },
-  { label: "xtensa-intel_tgl_adsp" },
-  { label: "xtensa-mtk_mt8195_adsp" },
-  { label: "xtensa-nxp_imx8m_adsp" },
-  { label: "xtensa-nxp_imx8ulp_adsp" },
-  { label: "xtensa-nxp_imx_adsp" },
-  { label: "xtensa-nxp_rt500_adsp" },
-  { label: "xtensa-nxp_rt600_adsp" },
-  { label: "xtensa-sample_controller" }];
+  { label: "arm-zephyr-eabi", picked: true },
+  { label: "aarch64-zephyr-elf" },
+  { label: "arc-zephyr-elf" },
+  { label: "arc64-zephyr-elf" },
+  { label: "microblazeel-zephyr-elf" },
+  { label: "mips-zephyr-elf" },
+  { label: "nios2-zephyr-elf" },
+  { label: "riscv64-zephyr-elf" },
+  { label: "sparc-zephyr-elf" },
+  { label: "x86_64-zephyr-elf" },
+  { label: "xtensa-amd_acp_6_0_adsp_zephyr-elf" },
+  { label: "xtensa-dc233c_zephyr-elf" },
+  { label: "xtensa-espressif_esp32s2_zephyr-elf" },
+  { label: "xtensa-espressif_esp32s3_zephyr-elf" },
+  { label: "xtensa-espressif_esp32_zephyr-elf" },
+  { label: "xtensa-intel_ace15_mtpm_zephyr-elf" },
+  { label: "xtensa-intel_ace30_ptl_zephyr-elf" },
+  { label: "xtensa-intel_tgl_adsp_zephyr-elf" },
+  { label: "xtensa-mtk_mt8195_adsp_zephyr-elf" },
+  { label: "xtensa-nxp_imx8m_adsp_zephyr-elf" },
+  { label: "xtensa-nxp_imx8ulp_adsp_zephyr-elf" },
+  { label: "xtensa-nxp_imx_adsp_zephyr-elf" },
+  { label: "xtensa-nxp_rt500_adsp_zephyr-elf" },
+  { label: "xtensa-nxp_rt600_adsp_zephyr-elf" },
+  { label: "xtensa-nxp_rt700_hifi1_zephyr-elf" },
+  { label: "xtensa-nxp_rt700_hifi4_zephyr-elf" },
+  { label: "xtensa-sample_controller32_zephyr-elf" },
+  { label: "xtensa-sample_controller_zephyr-elf" }];
 
 export const zephyrHals: vscode.QuickPickItem[] = [
   { label: "Altera", description: "hal_altera" },
@@ -54,3 +59,12 @@ export const zephyrHals: vscode.QuickPickItem[] = [
 
 export const zephyrVersions = ["v4.1.0", "v4.0.0", "v3.7.0", "main", "Other Version"];
 export const ncsVersions = ["v3.0.0", "v2.9.1", "v2.9.0", "main", "Other Version"];
+
+export const sdkVersions = [
+  { label: "0.17.3", description: "Zephyr 4.2" },
+  { label: "0.17.0", description: "Zephyr 4.1-4.0" },
+  { label: "0.16.9", description: "Zephyr 3.7" },
+  { label: "sep", kind: vscode.QuickPickItemKind.Separator },
+  { label: "latest", description: "Latest available version" },
+  { label: "automatic", description: "Auto-detect from workspace" }
+];

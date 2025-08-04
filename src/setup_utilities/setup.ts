@@ -21,7 +21,6 @@ import * as os from "os";
 import * as fs from "fs-extra";
 import * as path from "path";
 
-import { installSdk, pickToolchainTarget, ToolChainDictionary } from "../setup_utilities/setup_toolchain";
 import { output, executeShellCommand, executeShellCommandInPythonEnv, reloadEnvironmentVariables, getPlatformName, closeTerminals, getRootPathFs, executeTaskHelperInPythonEnv, executeTaskHelper } from "../utilities/utils";
 import { ProjectConfig, ProjectState } from "../project_utilities/project";
 import { initializeDtsExt } from "./dts_interface";
@@ -42,6 +41,14 @@ export interface SetupState {
 }
 
 export type SetupStateDictionary = { [name: string]: SetupState };
+
+export interface ToolChainEntry {
+  version: string,
+  basePath: string,
+  targetsInstalled: string[];
+}
+
+export type ToolChainDictionary = { [name: string]: ToolChainEntry };
 
 export function generateSetupState(setupPath: string): SetupState {
   return {

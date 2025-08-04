@@ -10,7 +10,7 @@ You can read a little bit more about the motivation behind the project [here](ht
 
 ## Features
   - Sets up a west environment
-  - Downloads the Zephyr SDK
+  - Installs the Zephyr SDK using West SDK commands
   - Provides west.yml templates to start with or you can provide your own
   - Allows you to add projects from scratch or from templates
   - Create multiple projects
