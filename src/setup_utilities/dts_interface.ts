@@ -20,10 +20,9 @@ import * as vscode from "vscode";
 import { IntegrationSettings, Context } from "devicetree-language-server-types";
 import { IDeviceTreeAPI } from "devicetree-language-server-vscode-types";
 
-import { SetupState } from "./setup";
+import { SetupState, WorkspaceConfig } from "./types";
 import path from "path";
 import { getDtsIncludes } from "./modules";
-import { WorkspaceConfig } from "./setup";
 import {
   getActiveProject, getActiveBuildConfigOfProject, ProjectConfig
 } from "../project_utilities/project";

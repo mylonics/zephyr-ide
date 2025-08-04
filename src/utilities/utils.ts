@@ -22,7 +22,9 @@ import * as util from "util";
 import * as cp from "child_process";
 import * as os from "os";
 
-import { pathdivider, SetupState, getToolchainDir, WorkspaceConfig } from "../setup_utilities/setup";
+import { SetupState, WorkspaceConfig } from "../setup_utilities/types";
+import { pathdivider } from "../setup_utilities/tools-validation";
+import { getToolchainDir } from "../setup_utilities/workspace-config";
 
 // Platform
 let platform: NodeJS.Platform = os.platform();

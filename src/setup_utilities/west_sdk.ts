@@ -19,12 +19,8 @@ import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs-extra";
 
-import {
-    WorkspaceConfig,
-    GlobalConfig,
-    SetupState,
-    getToolsDir,
-} from "./setup";
+import { WorkspaceConfig, GlobalConfig, SetupState } from "./types";
+import { getToolsDir } from "./workspace-config";
 import { executeTaskHelperInPythonEnv, executeShellCommandInPythonEnv, output } from "../utilities/utils";
 import { sdkVersions, toolchainTargets } from "../defines";
 

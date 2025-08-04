@@ -22,7 +22,7 @@ import * as yaml from 'js-yaml';
 
 import { executeTaskHelperInPythonEnv } from "../utilities/utils";
 
-import { WorkspaceConfig } from '../setup_utilities/setup';
+import { WorkspaceConfig } from '../setup_utilities/types';
 import { addBuild, ProjectConfig, getActiveBuildNameOfProject } from "../project_utilities/project";
 import { BuildConfig } from "../project_utilities/build_selector";
 import { updateDtsContext } from "../setup_utilities/dts_interface";

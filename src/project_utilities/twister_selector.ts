@@ -17,7 +17,7 @@ import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs-extra";
 import { showQuickPick, showInputBox, showQuickPickMany } from "../utilities/multistepQuickPick";
-import { SetupState } from '../setup_utilities/setup';
+import { SetupState } from '../setup_utilities/types';
 import { pickBoard, BoardConfig } from './build_selector';
 
 // Config for the extension

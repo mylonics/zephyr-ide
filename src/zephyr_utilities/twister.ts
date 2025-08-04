@@ -20,7 +20,7 @@ import * as path from 'path';
 
 import { executeTaskHelperInPythonEnv } from "../utilities/utils";
 
-import { WorkspaceConfig } from '../setup_utilities/setup';
+import { WorkspaceConfig } from '../setup_utilities/types';
 import { addTest, ProjectConfig, getActiveTestNameOfProject } from "../project_utilities/project";
 import { TwisterConfig } from "../project_utilities/twister_selector";
 

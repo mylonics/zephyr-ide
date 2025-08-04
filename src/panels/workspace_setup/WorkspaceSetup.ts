@@ -16,7 +16,7 @@ limitations under the License.
 */
 
 import * as vscode from "vscode";
-import { WorkspaceConfig, GlobalConfig } from "../../setup_utilities/setup";
+import { WorkspaceConfig, GlobalConfig } from "../../setup_utilities/types";
 import { installHostTools } from "../../setup_utilities/host_tools";
 
 

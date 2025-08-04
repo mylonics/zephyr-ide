@@ -20,7 +20,7 @@ import * as vscode from "vscode";
 import { MultiStepInput } from "../utilities/multistepQuickPick";
 import path from 'path';
 
-import { WorkspaceConfig } from "../setup_utilities/setup";
+import { WorkspaceConfig } from "../setup_utilities/types";
 
 // Config for the extension
 export interface ConfigFiles {

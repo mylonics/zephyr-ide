@@ -22,7 +22,7 @@ import * as fs from "fs-extra";
 import { MultiStepInput, showQuickPick, showInputBox } from "../utilities/multistepQuickPick";
 import { RunnerConfigDictionary, RunnerStateDictionary } from './runner_selector';
 import { ConfigFiles } from './config_selector';
-import { SetupState } from '../setup_utilities/setup';
+import { SetupState } from '../setup_utilities/types';
 import { executeShellCommandInPythonEnv, output } from "../utilities/utils";
 import { isVersionNumberGreaterEqual, isVersionNumberGreater } from '../setup_utilities/modules';
 

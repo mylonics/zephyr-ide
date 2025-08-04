@@ -22,7 +22,7 @@ import { ProjectConfig, getActiveBuildConfigOfProject, getActiveRunnerConfigOfBu
 import { BuildConfig } from '../../project_utilities/build_selector';
 import { getNonce } from "../../utilities/getNonce";
 import { RunnerConfig } from '../../project_utilities/runner_selector';
-import { WorkspaceConfig } from '../../setup_utilities/setup';
+import { WorkspaceConfig } from '../../setup_utilities/types';
 import { TwisterConfig } from "../../project_utilities/twister_selector";
 
 export class ActiveProjectView implements vscode.WebviewViewProvider {

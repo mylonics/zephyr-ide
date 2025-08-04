@@ -210,7 +210,7 @@
         "title": "Zephyr IDE: Setup Check Build Dependencies Available"
       },
       {
-        "command": "zephyr-ide.west-environment",
+        "command": "zephyr-ide.setup-west-environment",
         "title": "Zephyr IDE: Setup West Environment"
       },
       {

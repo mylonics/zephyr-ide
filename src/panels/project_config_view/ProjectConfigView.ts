@@ -25,7 +25,7 @@ import { buildByName, MenuConfig } from '../../zephyr_utilities/build';
 import { flashByName } from '../../zephyr_utilities/flash';
 import { ConfigFiles } from '../../project_utilities/config_selector';
 
-import { WorkspaceConfig } from '../../setup_utilities/setup';
+import { WorkspaceConfig } from '../../setup_utilities/types';
 import { TwisterConfig } from '../../project_utilities/twister_selector';
 
 export class ProjectConfigState {

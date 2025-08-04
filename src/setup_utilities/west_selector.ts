@@ -20,7 +20,7 @@ import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs-extra";
 import { MultiStepInput, showQuickPickMany } from "../utilities/multistepQuickPick";
-import { WorkspaceConfig } from './setup';
+import { WorkspaceConfig } from './types';
 import * as yaml from 'js-yaml';
 
 import { zephyrVersions, ncsVersions, zephyrHals } from "../defines";

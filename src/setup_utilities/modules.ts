@@ -21,7 +21,7 @@ import * as fs from "fs-extra";
 import path from "path";
 
 import { executeShellCommandInPythonEnv, output } from "../utilities/utils";
-import { SetupState } from "./setup";
+import { SetupState } from "./types";
 
 
 export interface ZephyrVersionNumber {
@@ -35,7 +35,7 @@ export interface ZephyrVersionNumber {
 export async function getModuleList(setupState: SetupState) {
 
   const outputList: Array<string[]> = [];
-  let cmd = `west list`;
+  let cmd = `west list -f "{name:30} {abspath:28} {revision:40} {url}"`;
   let res = await executeShellCommandInPythonEnv(cmd, setupState.setupPath, setupState, false);
 
   if (!res.stdout) {
@@ -103,8 +103,8 @@ export function isVersionNumberGreater(version: ZephyrVersionNumber, major: numb
   return false;
 }
 
-export async function getModuleYamlFile(setupState: SetupState, moduleRelPath: string): Promise<any> {
-  let filePath = path.join(setupState.setupPath, moduleRelPath, "zephyr/module.yml");
+export async function getModuleYamlFile(moduleAbsPath: string): Promise<any> {
+  let filePath = path.join(moduleAbsPath, "zephyr/module.yml");
   if (fs.existsSync(filePath)) {
     return yaml.load(fs.readFileSync(filePath, 'utf-8'));
   }
@@ -114,7 +114,7 @@ export async function getDtsIncludes(setupState: SetupState) {
   const modules = await getModuleList(setupState);
   const dtsIncludeArray: string[] = [];
   for (let m in modules) {
-    let yamlFile = await getModuleYamlFile(setupState, modules[m][1]);
+    let yamlFile = await getModuleYamlFile(modules[m][1]);
     if (yamlFile && yamlFile.build && yamlFile.build.settings && yamlFile.build.settings.dts_root) {
       dtsIncludeArray.push(path.join(setupState.setupPath, modules[m][1], yamlFile.build.settings.dts_root, "dts"));
     }
@@ -122,11 +122,11 @@ export async function getDtsIncludes(setupState: SetupState) {
   return dtsIncludeArray;
 }
 
-export async function getModulePath(setupState: SetupState, moduleName: string) {
+export async function getModulePathAndVersion(setupState: SetupState, moduleName: string) {
   const modules = await getModuleList(setupState);
   for (let m in modules) {
     if (modules[m][0] === moduleName) {
-      return modules[m][1];
+      return { path: modules[m][1], version: modules[m][2] };
     }
   }
   return;
@@ -137,7 +137,7 @@ export async function getModuleSampleFolders(setupState: SetupState) {
   const samplefolders: [string, string][] = [["zephyr", path.join(setupState.zephyrDir, 'samples')]];
 
   for (let m in modules) {
-    let yamlFile = await getModuleYamlFile(setupState, modules[m][1]);
+    let yamlFile = await getModuleYamlFile(modules[m][1]);
     if (yamlFile && yamlFile.samples) {
       for (let i in yamlFile.samples) {
         let sampleFolder: [string, string] = [modules[m][0], path.join(setupState.setupPath, modules[m][1], yamlFile.samples[i])];

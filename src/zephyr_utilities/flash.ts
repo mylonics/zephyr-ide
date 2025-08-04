@@ -22,7 +22,7 @@ import { executeTaskHelperInPythonEnv } from "../utilities/utils";
 
 import { ProjectConfig } from "../project_utilities/project";
 
-import { WorkspaceConfig } from '../setup_utilities/setup';
+import { WorkspaceConfig } from '../setup_utilities/types';
 import { BuildConfig } from "../project_utilities/build_selector";
 import { RunnerConfig } from "../project_utilities/runner_selector";
 

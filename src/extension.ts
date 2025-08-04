@@ -43,24 +43,26 @@ import {
   MenuConfig,
 } from "./zephyr_utilities/build";
 import { flashActive } from "./zephyr_utilities/flash";
+import { WorkspaceConfig, GlobalConfig } from "./setup_utilities/types";
 import {
-  getVariable,
-  WorkspaceConfig,
-  setSetupState,
-  GlobalConfig,
   loadGlobalState,
-  westUpdate,
+  setSetupState,
   setWorkspaceState,
   loadWorkspaceState,
   clearWorkspaceState,
-  westInit,
-  checkIfToolsAvailable,
-  setupWestEnvironment,
+  saveSetupState,
+  clearSetupState,
+} from "./setup_utilities/state-management";
+import {
+  getVariable,
   loadProjectsFromFile,
   getToolchainDir,
   getToolsDir,
-  saveSetupState,
   setWorkspaceSettings,
+} from "./setup_utilities/workspace-config";
+import { checkIfToolsAvailable } from "./setup_utilities/tools-validation";
+import { westUpdate, westInit, setupWestEnvironment } from "./setup_utilities/west-operations";
+import {
   showWorkspaceSetupPicker,
   workspaceSetupFromGit,
   workspaceSetupFromWestGit,
@@ -69,8 +71,7 @@ import {
   workspaceSetupGlobalZephyr,
   workspaceSetupCreateNewShared,
   workspaceSetupUseExisting,
-  clearSetupState,
-} from "./setup_utilities/setup";
+} from "./setup_utilities/workspace-setup";
 import {
   initializeDtsExt,
   printContexts,
@@ -114,14 +115,8 @@ export async function activate(context: vscode.ExtensionContext) {
     );
   }
 
-  if (
-    wsConfig.activeSetupState &&
-    wsConfig.activeSetupState.zephyrVersion === undefined &&
-    wsConfig.activeSetupState.zephyrDir
-  ) {
-    wsConfig.activeSetupState.zephyrVersion = await getModuleVersion(
-      wsConfig.activeSetupState.zephyrDir
-    );
+  if (wsConfig.activeSetupState && wsConfig.activeSetupState.zephyrVersion === undefined && wsConfig.activeSetupState.zephyrDir) {
+    wsConfig.activeSetupState.zephyrVersion = await getModuleVersion(wsConfig.activeSetupState.zephyrDir);
   }
 
   reloadEnvironmentVariables(context, wsConfig.activeSetupState);

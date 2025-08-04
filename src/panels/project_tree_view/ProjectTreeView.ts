@@ -24,7 +24,7 @@ import { RunnerConfig } from '../../project_utilities/runner_selector';
 import { buildByName, MenuConfig } from '../../zephyr_utilities/build';
 import { testHelper } from '../../zephyr_utilities/twister';
 import { flashByName } from '../../zephyr_utilities/flash';
-import { WorkspaceConfig } from '../../setup_utilities/setup';
+import { WorkspaceConfig } from '../../setup_utilities/types';
 import { TwisterConfig } from '../../project_utilities/twister_selector';
 
 export function getUseGuiConfig(): boolean | undefined {
