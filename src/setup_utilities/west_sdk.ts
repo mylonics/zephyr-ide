@@ -43,27 +43,38 @@ export interface SDKInfo {
 
 /**
  * Determines the best west installation to use for SDK management
- * Priority: 1. Global zephyr install, 2. Current workspace install, 3. First available install
+ * Priority: 1. Global zephyr install, 2. Current workspace install
+ * If no installation has the SDK command, manually inject it into the prioritized installation
  */
-export async function getWestSDKContext(
-    wsConfig: WorkspaceConfig,
-    globalConfig: GlobalConfig
-): Promise<SetupState | undefined> {
-    // Try global zephyr install first
-    if (globalConfig.setupState && (await isValidWestInstall(globalConfig.setupState))) {
-        return globalConfig.setupState;
-    }
+export async function getWestSDKContext(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, context?: vscode.ExtensionContext): Promise<SetupState | undefined> {
+    const candidateStates: SetupState[] = [];
 
-    // Try current workspace install
-    if (wsConfig.activeSetupState && (await isValidWestInstall(wsConfig.activeSetupState))) {
-        return wsConfig.activeSetupState;
-    }
-
-    // Try first available install
+    // Collect candidate states in priority order
+    // 1. Global install from setupStateDictionary
     if (globalConfig.setupStateDictionary) {
-        for (const setupPath in globalConfig.setupStateDictionary) {
-            const setupState = globalConfig.setupStateDictionary[setupPath];
-            if (await isValidWestInstall(setupState)) {
+        const globalToolsDir = await getToolsDir();
+        const globalSetupState = globalConfig.setupStateDictionary[globalToolsDir];
+        if (globalSetupState) {
+            candidateStates.push(globalSetupState);
+        }
+    }
+
+    // 2. Current workspace install
+    if (wsConfig.activeSetupState) {
+        candidateStates.push(wsConfig.activeSetupState);
+    }
+
+    // Try to find existing installation with SDK command
+    for (const setupState of candidateStates) {
+        if (await hasWestSDKCommand(setupState)) {
+            return setupState;
+        }
+    }
+
+    // If no valid SDK installs found, try to inject SDK command manually
+    for (const setupState of candidateStates) {
+        if (setupState.setupPath && await fs.pathExists(path.join(setupState.setupPath, ".west"))) {
+            if (await injectWestSDKCommand(setupState, context)) {
                 return setupState;
             }
         }
@@ -73,15 +84,91 @@ export async function getWestSDKContext(
 }
 
 /**
- * Validates if a setup state has a valid west installation
+ * Checks if a setup state has the west SDK command available
  */
-async function isValidWestInstall(setupState: SetupState): Promise<boolean> {
+async function hasWestSDKCommand(setupState: SetupState): Promise<boolean> {
     if (!setupState.setupPath) {
         return false;
     }
 
     const westConfigPath = path.join(setupState.setupPath, ".west");
-    return await fs.pathExists(westConfigPath);
+    if (!(await fs.pathExists(westConfigPath))) {
+        return false;
+    }
+
+    // Check if sdk.py exists in west_commands directory
+    const sdkPyPath = path.join(setupState.zephyrDir, "scripts", "west_commands", "sdk.py");
+    return await fs.pathExists(sdkPyPath);
+}
+
+/**
+ * Manually injects the west SDK command into a Zephyr installation
+ * Copies sdk.py and listsdk.cmake to scripts/west_commands, FindZephyr-sdk.cmake to cmake/modules, and registers it in west-commands.yml
+ */
+async function injectWestSDKCommand(setupState: SetupState, context?: vscode.ExtensionContext): Promise<boolean> {
+    if (!setupState.setupPath || !context) {
+        return false;
+    }
+
+    try {
+        const extensionPath = context.extensionPath;
+        const sourceSdkPyPath = path.join(extensionPath, "scripts", "sdk.py");
+
+        // Check if source sdk.py exists
+        if (!(await fs.pathExists(sourceSdkPyPath))) {
+            output.appendLine(`Source sdk.py not found at: ${sourceSdkPyPath}`);
+            return false;
+        }
+
+        // Create west_commands directory if it doesn't exist
+        const westCommandsDir = path.join(setupState.zephyrDir, "scripts", "west_commands");
+        await fs.ensureDir(westCommandsDir);
+
+        // Copy sdk.py to west_commands directory
+        const targetSdkPyPath = path.join(westCommandsDir, "sdk.py");
+        await fs.copy(sourceSdkPyPath, targetSdkPyPath);
+
+        // Create sdk subfolder and copy listsdk.cmake
+        const sourceCmakePath = path.join(extensionPath, "scripts", "listsdk.cmake");
+        if (await fs.pathExists(sourceCmakePath)) {
+            const sdkSubDir = path.join(westCommandsDir, "sdk");
+            await fs.ensureDir(sdkSubDir);
+            const targetCmakePath = path.join(sdkSubDir, "listsdk.cmake");
+            await fs.copy(sourceCmakePath, targetCmakePath);
+        } else {
+            output.appendLine(`Warning: listsdk.cmake not found at: ${sourceCmakePath}`);
+        }
+
+        // Copy FindZephyr-sdk.cmake to cmake/modules directory
+        const sourceFindZephyrCmakePath = path.join(extensionPath, "scripts", "FindZephyr-sdk.cmake");
+        if (await fs.pathExists(sourceFindZephyrCmakePath)) {
+            const cmakeModulesDir = path.join(setupState.zephyrDir, "cmake", "modules");
+            await fs.ensureDir(cmakeModulesDir);
+            const targetFindZephyrCmakePath = path.join(cmakeModulesDir, "FindZephyr-sdk.cmake");
+            await fs.copy(sourceFindZephyrCmakePath, targetFindZephyrCmakePath);
+        } else {
+            output.appendLine(`Warning: FindZephyr-sdk.cmake not found at: ${sourceFindZephyrCmakePath}`);
+        }
+
+        // Update west-commands.yml
+        const westCommandsYmlPath = path.join(setupState.zephyrDir, "scripts", "west-commands.yml");
+        const sdkCommandConfigPath = path.join(extensionPath, "scripts", "west-sdk-command.yml");
+        const sdkCommandConfig = await fs.readFile(sdkCommandConfigPath, 'utf-8');
+
+        if (await fs.pathExists(westCommandsYmlPath)) {
+            // Append to existing file
+            await fs.appendFile(westCommandsYmlPath, "\n" + sdkCommandConfig);
+        } else {
+            output.appendLine(`Failed to inject SDK command dues to missing west-commands.yml`);
+            return false;
+        }
+
+        output.appendLine(`Successfully injected west SDK command into: ${setupState.zephyrDir}`);
+        return true;
+    } catch (error) {
+        output.appendLine(`Failed to inject west SDK command: ${error}`);
+        return false;
+    }
 }
 
 /**
@@ -379,10 +466,11 @@ export async function installSDKWithToolchains(
  */
 export async function installSDKInteractive(
     wsConfig: WorkspaceConfig,
-    globalConfig: GlobalConfig
+    globalConfig: GlobalConfig,
+    context?: vscode.ExtensionContext
 ): Promise<void> {
     try {
-        const setupState = await getWestSDKContext(wsConfig, globalConfig);
+        const setupState = await getWestSDKContext(wsConfig, globalConfig, context);
 
         if (!setupState) {
             vscode.window.showErrorMessage(

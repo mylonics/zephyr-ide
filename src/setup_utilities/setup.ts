@@ -66,7 +66,7 @@ export interface GlobalConfig {
   setupState?: SetupState,
   toolsAvailable?: boolean,
   sdkInstalled?: boolean,
-  setupStateDictionary?: SetupStateDictionary, //Can eventually remove the optional
+  setupStateDictionary?: SetupStateDictionary
 }
 
 export interface WorkspaceConfig {
@@ -630,7 +630,8 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
     return false;
   }
 
-  let cmd = `pip install -r ${path.join(wsConfig.activeSetupState.zephyrDir, "scripts", "requirements.txt")} -U dtsh`;
+  //Installing extra requirements for west sdk command
+  let cmd = `pip install -r ${path.join(wsConfig.activeSetupState.zephyrDir, "scripts", "requirements.txt")} -U dtsh patool semvar tqdm`;
   let pipInstallRes = await executeTaskHelperInPythonEnv(wsConfig.activeSetupState, "Zephyr IDE: West Update", cmd, wsConfig.activeSetupState.setupPath);
   if (!pipInstallRes) {
     vscode.window.showErrorMessage("West Update Failed. Error installing python requirements.");
