@@ -17,7 +17,7 @@ limitations under the License.
 
 import * as vscode from "vscode";
 import { WorkspaceConfig, GlobalConfig } from "../../setup_utilities/types";
-import { installHostTools } from "../../setup_utilities/host_tools";
+
 import { getWestSDKContext, listAvailableSDKs, ParsedSDKList } from "../../setup_utilities/west_sdk";
 
 
@@ -80,17 +80,11 @@ export class WorkspaceSetup {
         this._panel.webview.onDidReceiveMessage(
             (message) => {
                 switch (message.command) {
-                    case "installHostTools":
-                        this.installHostTools();
-                        return;
                     case "createWorkspace":
                         this.createWorkspace(message.type, message.zephyrInstall);
                         return;
                     case "importWorkspace":
                         this.importWorkspace(message.source);
-                        return;
-                    case "refreshHostToolsStatus":
-                        this.refreshHostToolsStatus();
                         return;
                     case "openWingetLink":
                         this.openWingetLink();
@@ -103,9 +97,6 @@ export class WorkspaceSetup {
                         return;
                     case "installSDK":
                         this.installSDK();
-                        return;
-                    case "openHostToolsWalkthrough":
-                        this.openHostToolsWalkthrough();
                         return;
                     case "setupWestEnvironment":
                         this.setupWestEnvironment();
@@ -146,23 +137,7 @@ export class WorkspaceSetup {
         this._panel.webview.html = this.getHtmlForWebview(wsConfig, globalConfig);
     }
 
-    private async installHostTools() {
-        try {
-            const result = await installHostTools();
-            if (result) {
-                vscode.commands.executeCommand(
-                    "setContext",
-                    "hostToolsInstalled",
-                    true
-                );
-                vscode.window.showInformationMessage(
-                    "Host tools installed successfully!"
-                );
-            }
-        } catch (error) {
-            vscode.window.showErrorMessage(`Failed to install host tools: ${error}`);
-        }
-    }
+
 
     private async createWorkspace(type: string, zephyrInstall?: string) {
         try {
@@ -246,17 +221,7 @@ export class WorkspaceSetup {
         }
     }
 
-    private async refreshHostToolsStatus() {
-        try {
-            // We'll need to get fresh configs - for now use the current ones and trigger a refresh
-            vscode.commands.executeCommand("zephyr-ide.check-build-dependencies");
-            vscode.window.showInformationMessage("Host tools status refreshed");
-        } catch (error) {
-            vscode.window.showErrorMessage(
-                `Failed to check host tools status: ${error}`
-            );
-        }
-    }
+
 
     private async openWingetLink() {
         try {
@@ -280,15 +245,7 @@ export class WorkspaceSetup {
 
 
 
-    private async openHostToolsWalkthrough() {
-        try {
-            vscode.commands.executeCommand("zephyr-ide.open-host-tools-walkthrough");
-        } catch (error) {
-            vscode.window.showErrorMessage(
-                `Failed to open host tools walkthrough: ${error}`
-            );
-        }
-    }
+
 
     private async installSDK() {
         try {
@@ -378,15 +335,11 @@ export class WorkspaceSetup {
         wsConfig: WorkspaceConfig,
         globalConfig: GlobalConfig
     ): string {
-        // Check host tools status
-        const hostToolsInstalled = globalConfig.toolsAvailable || false;
-
         // Check workspace status
         const folderOpen = wsConfig.rootPath !== "";
         const workspaceInitialized = wsConfig.initialSetupComplete || false;
 
         // Determine if sections should be collapsed by default
-        const hostToolsCollapsed = hostToolsInstalled;
         const sdkCollapsed = globalConfig.sdkInstalled;
 
         return `<!DOCTYPE html>
@@ -801,72 +754,7 @@ export class WorkspaceSetup {
             <div class="wizard-container">
                 <h1>Zephyr IDE and Workspace Setup</h1>
                 
-                <!-- Host Tools -->
-                <div class="collapsible-section">
-                    <div class="collapsible-header" onclick="toggleSection('hostTools')">
-                        <div class="collapsible-header-left">
-                            <div class="status ${hostToolsInstalled
-                ? "status-success"
-                : "status-error"
-            }">
-                                ${hostToolsInstalled
-                ? "✓ Host Tools Installed"
-                : "✗ Host Tools Not Installed"
-            }
-                            </div>
-                            <div class="collapsible-title">Host Tools</div>
-                        </div>
-                        <div class="collapsible-icon ${hostToolsCollapsed ? "" : "expanded"
-            }" id="hostToolsIcon">▶</div>
-                    </div>
-                    <div class="collapsible-content ${hostToolsCollapsed ? "" : "expanded"
-            }" id="hostToolsContent">
-                        <div class="step-description">
-                            Before creating or importing projects, ensure that all required host tools are installed. Follow the instructions at <a href="https://docs.zephyrproject.org/latest/develop/getting_started/index.html#host-tools" target="_blank">Zephyr Project Getting Started</a> if you run into any issues.
-                        </div>
-                        
-                        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
-                            <button class="button button-secondary button-small" onclick="refreshHostToolsStatus()">
-                                Refresh Status
-                            </button>
-                        </div>
-                        
-                        ${!hostToolsInstalled
-                ? `
-                        <div style="margin-bottom: 20px;">
-                            ${process.platform === "win32"
-                    ? `
-                            <div style="margin-bottom: 15px; padding: 12px; border: 1px solid var(--vscode-panel-border); border-radius: 4px; background-color: var(--vscode-editor-background);">
-                                <h4 style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600;">1. Install winget (Windows only)</h4>
-                                <p style="margin: 0 0 10px 0; font-size: 12px; color: var(--vscode-descriptionForeground);">Install winget if not already installed. Modern versions of Windows have winget preinstalled.</p>
-                                <button class="button button-secondary button-small" onclick="openWingetInstall()">Download winget</button>
-                            </div>
-                            `
-                    : ""
-                }
-                            
-                            <div style="margin-bottom: 15px; padding: 12px; border: 1px solid var(--vscode-panel-border); border-radius: 4px; background-color: var(--vscode-editor-background);">
-                                <h4 style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600;">${process.platform === "win32" ? "2" : "1"
-                }. Install Host Tools</h4>
-                                <p style="margin: 0 0 10px 0; font-size: 12px; color: var(--vscode-descriptionForeground);">Install required tools: <span class="inline-code">git</span>, <span class="inline-code">python</span>, <span class="inline-code">cmake</span>, and <span class="inline-code">dtc</span>.</p>
-                                <button class="button" onclick="installHostTools()">Install Host Tools</button>
-                                <p style="margin: 8px 0 0 0; font-size: 11px; color: var(--vscode-descriptionForeground); font-style: italic;">You may need to restart VS Code after this step.</p>
-                            </div>
-                        </div>
-                        `
-                : `
-                        <p style="margin-bottom: 15px; color: var(--vscode-descriptionForeground); font-size: 12px;">
-                            All required host tools are installed and ready to use. These include git, python, cmake, and device tree compiler (dtc).
-                        </p>
-                        
-                        <div style="display: flex; gap: 10px;">
-                            <button class="button button-secondary" onclick="installHostTools()">Reinstall Host Tools</button>
-                            <button class="button button-secondary" onclick="openHostToolsWalkthrough()">Open Install Guide</button>
-                        </div>
-                        `
-            }
-                    </div>
-                </div>
+
                 
                 <!-- Zephyr SDK Status -->
                 <div class="collapsible-section">
@@ -906,10 +794,10 @@ export class WorkspaceSetup {
             }
                         
                         <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
-                            <button class="button" onclick="installSDK()" ${!hostToolsInstalled ? "disabled" : ""}>
+                            <button class="button" onclick="installSDK()">
                                 Install SDK
                             </button>
-                            <button class="button button-secondary" onclick="listSDKs()" ${!hostToolsInstalled ? "disabled" : ""}>
+                            <button class="button button-secondary" onclick="listSDKs()">
                                 List Installed SDKs
                             </button>
                         </div>
@@ -920,7 +808,7 @@ export class WorkspaceSetup {
                             <div id="sdkListContent"></div>
                         </div>
                         
-                        ${!hostToolsInstalled ? `<p class="info-text">Complete the host tools setup above to enable SDK installation.</p>` : ""}
+
                     </div>
                 </div>
                 
@@ -945,7 +833,7 @@ export class WorkspaceSetup {
                                     Setup West Environment
                                 </h4>
                                 <p style="margin: 0 0 12px 0; font-size: 12px; color: var(--vscode-descriptionForeground);">Initialize a Python virtual environment and install west tools required for Zephyr development.</p>
-                                <button class="button" onclick="setupWestEnvironment()" ${!hostToolsInstalled ? "disabled" : ""}>
+                                <button class="button" onclick="setupWestEnvironment()">
                                     Setup West Environment
                                 </button>
                             </div>
@@ -956,7 +844,7 @@ export class WorkspaceSetup {
                                     West Init
                                 </h4>
                                 <p style="margin: 0 0 12px 0; font-size: 12px; color: var(--vscode-descriptionForeground);">Initialize a new west workspace with manifests and repositories for Zephyr project development.</p>
-                                <button class="button" onclick="westInit()" ${!hostToolsInstalled ? "disabled" : ""}>
+                                <button class="button" onclick="westInit()">
                                     West Init
                                 </button>
                             </div>
@@ -967,13 +855,13 @@ export class WorkspaceSetup {
                                     West Update
                                 </h4>
                                 <p style="margin: 0 0 12px 0; font-size: 12px; color: var(--vscode-descriptionForeground);">Update west workspace repositories and install Python requirements for the current Zephyr version.</p>
-                                <button class="button" onclick="westUpdate()" ${!hostToolsInstalled ? "disabled" : ""}>
+                                <button class="button" onclick="westUpdate()">
                                     West Update
                                 </button>
                             </div>
                         </div>
                         
-                        ${!hostToolsInstalled ? `<p class="info-text">Complete the host tools setup above to enable west operations.</p>` : ""}
+
                     </div>
                 </div>
                 
@@ -999,18 +887,11 @@ export class WorkspaceSetup {
                         <button class="button button-secondary" onclick="reinitializeWorkspace()">Reinitialize Workspace</button>
                     </div>
                     `
-                    : !hostToolsInstalled
-                        ? `
-                    <p class="info-text">Complete the host tools setup above to enable workspace setup options.</p>
-                    `
-                        : `
+                    : `
                     
                     <h4>Import Existing Workspace</h4>
                     <div class="import-options">
-                        <div class="option-card" onclick="selectImportSource('zephyr-ide-git')" ${!hostToolsInstalled
-                            ? "style='pointer-events: none; opacity: 0.4;'"
-                            : ""
-                        }>
+                        <div class="option-card" onclick="selectImportSource('zephyr-ide-git')">
                             <div class="option-card-header">
                                 <div class="topology-icon">🌐</div>
                                 <h3>Zephyr IDE Workspace from Git</h3>
@@ -1018,10 +899,7 @@ export class WorkspaceSetup {
                             <p class="option-card-description">Clone and import a Zephyr IDE workspace from a Git repository with predefined project structure and configuration.</p>
                             <p class="option-card-usage">Best for: Team projects, shared workspaces, and standardized development environments.</p>
                         </div>
-                        <div class="option-card" onclick="selectImportSource('west-git')" ${!hostToolsInstalled
-                            ? "style='pointer-events: none; opacity: 0.4;'"
-                            : ""
-                        }>
+                        <div class="option-card" onclick="selectImportSource('west-git')">
                             <div class="option-card-header">
                                 <div class="topology-icon">⚙️</div>
                                 <h3>West Workspace from Git</h3>
@@ -1029,10 +907,7 @@ export class WorkspaceSetup {
                             <p class="option-card-description">Clone a standard west manifest workspace from a Git repository following Zephyr's workspace structure.</p>
                             <p class="option-card-usage">Best for: Upstream projects, community samples, and standard Zephyr workflows.</p>
                         </div>
-                        <div class="option-card" onclick="selectImportSource('current-directory')" ${!hostToolsInstalled
-                            ? "style='pointer-events: none; opacity: 0.4;'"
-                            : ""
-                        }>
+                        <div class="option-card" onclick="selectImportSource('current-directory')">
                             <div class="option-card-header">
                                 <div class="topology-icon">📁</div>
                                 <h3>Open Current Directory</h3>
@@ -1044,10 +919,7 @@ export class WorkspaceSetup {
                     
                     <h4>Create New Workspace</h4>
                     <div class="topology-options">
-                        <div class="option-card" onclick="selectWorkspaceType('standard')" ${!hostToolsInstalled
-                            ? "style='pointer-events: none; opacity: 0.4;'"
-                            : ""
-                        }>
+                        <div class="option-card" onclick="selectWorkspaceType('standard')">
                             <div class="option-card-header">
                                 <div class="topology-icon">📦</div>
                                 <h3>Standard Workspace</h3>
@@ -1055,10 +927,7 @@ export class WorkspaceSetup {
                             <p class="option-card-description">Create a workspace with Zephyr downloaded locally within the workspace directory. Each workspace has its own Zephyr installation.</p>
                             <p class="option-card-usage">Best for: Single projects, isolated development, when you need specific Zephyr versions per project.</p>
                         </div>
-                        <div class="option-card external-zephyr-card" ${!hostToolsInstalled
-                            ? "style='pointer-events: none; opacity: 0.4;'"
-                            : ""
-                        }>
+                        <div class="option-card external-zephyr-card">
                             <div class="option-card-header">
                                 <div class="topology-icon">🔗</div>
                                 <h3>Workspace Using External Zephyr Install</h3>
@@ -1127,17 +996,7 @@ export class WorkspaceSetup {
                     });
                 }
                 
-                function refreshHostToolsStatus() {
-                    vscode.postMessage({
-                        command: 'refreshHostToolsStatus'
-                    });
-                }
-                
-                function installHostTools() {
-                    vscode.postMessage({
-                        command: 'installHostTools'
-                    });
-                }
+
                 
                 function openFolder() {
                     vscode.postMessage({
@@ -1157,11 +1016,7 @@ export class WorkspaceSetup {
                     });
                 }
                 
-                function openHostToolsWalkthrough() {
-                    vscode.postMessage({
-                        command: 'openHostToolsWalkthrough'
-                    });
-                }
+
                 
                 function setupWestEnvironment() {
                     vscode.postMessage({

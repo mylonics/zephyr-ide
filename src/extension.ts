@@ -1277,26 +1277,13 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "zephyr-ide.install-host-tools",
       async () => {
-        let res = await installHostTools();
+        let res = await installHostTools(context);
         if (res) {
           vscode.commands.executeCommand(
             "setContext",
             "hostToolsInstalled",
             true
           );
-          if (getPlatformName() === "windows") {
-            const extensionPath = context.extensionPath;
-            let refreshEnvScript = path.join(
-              extensionPath,
-              "scripts",
-              "RefreshEnv.cmd"
-            );
-            executeTaskHelper(
-              "Refresh Environment",
-              refreshEnvScript,
-              wsConfig.rootPath
-            );
-          }
         }
       }
     )

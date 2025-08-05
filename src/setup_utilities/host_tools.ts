@@ -24,43 +24,93 @@ import * as path from "path";
 import { output, executeShellCommand, executeTaskHelper, getPlatformArch, getPlatformName } from "../utilities/utils";
 
 
-export async function installWindowsHostTools() {
-  return await executeTaskHelper("Install Host Tools", "winget install Kitware.CMake Ninja-build.Ninja oss-winget.gperf python Git.Git oss-winget.dtc wget 7zip.7zip; setx path '%path%;C:\\Program Files\\7-Zip'", "");
+export async function installWindowsHostTools(context: vscode.ExtensionContext) {
+  //Step 1
+  // In order to install host tools in windows. Winget needs to be installed.
+
+  //Lets check if winget is available
+
+  //if winget is not available you can download winget from here https://aka.ms/getwinget
+
+  //Step 2
+  // If winget is installed then we can install the required dependencies with this one liner;
+
+  let result = await executeTaskHelper("Install Host Tools", "winget install Kitware.CMake Ninja-build.Ninja oss-winget.gperf python Git.Git oss-winget.dtc wget 7zip.7zip; setx path '%path%;C:\\Program Files\\7-Zip'", "");
+
+  //Step 3
+  //7zip needs to be available in the path. The previous one line should have done it has it has "setx path '%path%;C:\\Program Files\\7-Zip'""" in it. We now need to ensure the new path is loaded in.
+  // In windows this can be done with the following or by restarting Visual Studio Code and/or your PC
+
+  const extensionPath = context.extensionPath;
+  let refreshEnvScript = path.join(extensionPath, "scripts", "RefreshEnv.cmd");
+  executeTaskHelper("Refresh Environment", refreshEnvScript, "");
+
+  return result;
 }
 
 export async function installMacOSHostTools() {
+  //Step 1 For mac OS there is a main install and download step that can be run without human intervention
+  //Install Brew
   let cmd = '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"';
+  let result = await executeTaskHelper("Install Host Tools", cmd, "");
+  if (!result) {
+    //Install failed in brew download
+    return false;
+  }
 
-  await executeTaskHelper("Install Host Tools", cmd, "");
-
+  // Add brew to path
   if (getPlatformArch() === "aarch64") {
     cmd = `(echo; echo 'eval "$(/opt/homebrew/bin/brew shellenv)"') >> ~/.zprofile && source ~/.zprofile`;
   } else {
     cmd = `(echo; echo 'eval "$(/usr/local/bin/brew shellenv)"') >> ~/.zprofile && source ~/.zprofile`;
   }
-  await executeTaskHelper("Install Host Tools", cmd, "");
+  result = await executeTaskHelper("Install Host Tools", cmd, "");
+  if (!result) {
+    //Install failed in brew install
+    return false;
+  }
 
+
+  // Use brew to install dependencies
   cmd = "brew install cmake ninja gperf python3 python-tk ccache qemu dtc libmagic wget openocd";
-  await executeTaskHelper("Install Host Tools", cmd, "");
+  result = await executeTaskHelper("Install Host Tools", cmd, "");
+  if (!result) {
+    //Install failed in dependency download
+    return false;
+  }
 
+  // add pythong to path
   cmd = `(echo; echo 'export PATH="'$(brew --prefix)'/opt/python/libexec/bin:$PATH"') >> ~/.zprofile && source ~/.zprofile`;
-  return await executeTaskHelper("Install Host Tools", cmd, "");
+  result = await executeTaskHelper("Install Host Tools", cmd, "");
+  if (!result) {
+    //Install failed in adding python to path
+  }
+
+  //Step 2 Restart VSCode to ensure all new terminals
+  return result;
 }
 
+
+
 export async function installLinuxHostTools() {
+  //Step 1 Install dependencies with one liner
+
   let cmd = "sudo apt install --no-install-recommends git cmake ninja-build gperf \
   ccache dfu-util device-tree-compiler wget python3-dev python3-venv python3-tk \
   xz-utils file make gcc gcc-multilib g++-multilib libsdl2-dev libmagic1";
-  return await executeTaskHelper("Install Host Tools", cmd, "");
+  let result = await executeTaskHelper("Install Host Tools", cmd, "");
+
+  // That is it zephyr ide should be good to go.
+  return result;
 }
 
-export async function installHostTools() {
+export async function installHostTools(context: vscode.ExtensionContext) {
   switch (getPlatformName()) {
     case "macos":
       return await installMacOSHostTools();
     case "linux":
       return await installLinuxHostTools();
     case "windows":
-      return await installWindowsHostTools();
+      return await installWindowsHostTools(context);
   }
 }
