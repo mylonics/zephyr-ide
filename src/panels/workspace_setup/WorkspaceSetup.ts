@@ -18,6 +18,8 @@ limitations under the License.
 import * as vscode from "vscode";
 import { WorkspaceConfig, GlobalConfig } from "../../setup_utilities/types";
 import { getWestSDKContext, listAvailableSDKs, ParsedSDKList } from "../../setup_utilities/west_sdk";
+import { installHostTools } from "../../setup_utilities/host_tools";
+import * as os from "os";
 
 export class WorkspaceSetup {
     public static currentPanel: WorkspaceSetup | undefined;
@@ -132,6 +134,12 @@ export class WorkspaceSetup {
                 return;
             case "listSDKs":
                 this.listSDKs();
+                return;
+            case "installHostTools":
+                this.installHostTools();
+                return;
+            case "copyHostToolsCommands":
+                this.copyHostToolsCommands(message.platform);
                 return;
         }
     }
@@ -303,6 +311,40 @@ export class WorkspaceSetup {
         }
     }
 
+    // Host Tools Management Methods
+    private async installHostTools() {
+        try {
+            if (!this.currentWsConfig) {
+                vscode.window.showErrorMessage("Configuration not available");
+                return;
+            }
+            await installHostTools(this._context, this.currentWsConfig);
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to install host tools: ${error}`);
+        }
+    }
+
+    private async copyHostToolsCommands(platform: string) {
+        try {
+            let commands = "";
+            switch (platform) {
+                case "windows":
+                    commands = "winget install Kitware.CMake Ninja-build.Ninja oss-winget.gperf python Git.Git oss-winget.dtc wget 7zip.7zip; setx path '%path%;C:\\Program Files\\7-Zip'";
+                    break;
+                case "macos":
+                    commands = "brew install cmake ninja gperf python3 python-tk ccache qemu dtc libmagic wget openocd";
+                    break;
+                case "linux":
+                    commands = "sudo apt install --no-install-recommends git cmake ninja-build gperf ccache dfu-util device-tree-compiler wget python3-dev python3-venv python3-tk xz-utils file make gcc gcc-multilib g++-multilib libsdl2-dev libmagic1";
+                    break;
+            }
+            await vscode.env.clipboard.writeText(commands);
+            vscode.window.showInformationMessage("Host tools installation commands copied to clipboard");
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to copy commands: ${error}`);
+        }
+    }
+
     // Helper methods to get current configs
     private getCurrentWorkspaceConfig(): WorkspaceConfig {
         if (!this.currentWsConfig) {
@@ -337,6 +379,7 @@ export class WorkspaceSetup {
         <body>
             <div class="wizard-container">
                 <h1>Zephyr IDE and Workspace Setup</h1>
+                ${this.generateHostToolsSection()}
                 ${this.generateSDKSection(globalConfig)}
                 ${this.generateWestOperationsSection()}
                 ${this.generateWorkspaceSetupSection(folderOpen, workspaceInitialized)}
@@ -358,6 +401,234 @@ export class WorkspaceSetup {
             vscode.Uri.joinPath(vscode.Uri.file(this._extensionPath), 'src', 'panels', 'workspace_setup', 'workspace-setup.js')
         );
         return `<script src="${jsUri}"></script>`;
+    }
+
+    private generateHostToolsSection(): string {
+        const actualPlatform = os.platform();
+        const platform = actualPlatform; // This will be overridden by selector
+        let platformName = "";
+        let platformIcon = "";
+        let description = "";
+        let installCommand = "";
+        let stepsContent = "";
+        
+        // Platform selector for preview
+        const platformSelector = `
+        <div style="margin-bottom: 15px; padding: 12px; border: 1px solid var(--vscode-panel-border); border-radius: 6px; background-color: var(--vscode-input-background);">
+            <h4 style="margin: 0 0 8px 0; font-size: 12px; font-weight: 600;">Preview Platform (Development Only):</h4>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button class="button-small ${actualPlatform === 'win32' ? 'active' : ''}" onclick="switchHostToolsPlatform('win32')" id="platform-win32">🪟 Windows</button>
+                <button class="button-small ${actualPlatform === 'darwin' ? 'active' : ''}" onclick="switchHostToolsPlatform('darwin')" id="platform-darwin">🍎 macOS</button>
+                <button class="button-small ${actualPlatform === 'linux' ? 'active' : ''}" onclick="switchHostToolsPlatform('linux')" id="platform-linux">🐧 Linux</button>
+            </div>
+            <p style="margin: 8px 0 0 0; font-size: 11px; color: var(--vscode-descriptionForeground);">Current actual platform: ${this.getPlatformDisplayName(actualPlatform)}</p>
+        </div>`;
+
+        switch (platform) {
+            case "win32":
+                platformName = "Windows";
+                platformIcon = "🪟";
+                description = "Install development tools using winget package manager. Winget must be installed first.";
+                installCommand = "winget install Kitware.CMake Ninja-build.Ninja oss-winget.gperf python Git.Git oss-winget.dtc wget 7zip.7zip; setx path '%path%;C:\\Program Files\\7-Zip'";
+                stepsContent = `
+                    <div class="installation-steps">
+                        <h4 style="margin: 15px 0 10px 0; font-size: 13px; font-weight: 600;">Installation Steps:</h4>
+                        <div class="step-item">
+                            <div class="step-number">1</div>
+                            <div class="step-content">
+                                <div class="step-title">Check Winget Availability</div>
+                                <div class="step-desc">Winget package manager needs to be installed. If not available, download from <a href="https://aka.ms/getwinget" style="color: var(--vscode-textLink-foreground);">https://aka.ms/getwinget</a></div>
+                            </div>
+                        </div>
+                        <div class="step-item">
+                            <div class="step-number">2</div>
+                            <div class="step-content">
+                                <div class="step-title">Install Dependencies</div>
+                                <div class="step-desc">Install required tools (CMake, Ninja, Python, Git, DTC, Wget, 7zip) using winget</div>
+                            </div>
+                        </div>
+                        <div class="step-item">
+                            <div class="step-number">3</div>
+                            <div class="step-content">
+                                <div class="step-title">Update Environment</div>
+                                <div class="step-desc">Ensure 7zip is available in PATH and refresh environment variables. You may need to restart VS Code</div>
+                            </div>
+                        </div>
+                    </div>`;
+                break;
+            case "darwin":
+                platformName = "macOS";
+                platformIcon = "🍎";
+                description = "Install development tools using Homebrew package manager.";
+                installCommand = "brew install cmake ninja gperf python3 python-tk ccache qemu dtc libmagic wget openocd";
+                stepsContent = `
+                    <div class="installation-steps">
+                        <h4 style="margin: 15px 0 10px 0; font-size: 13px; font-weight: 600;">Installation Steps:</h4>
+                        <div class="step-item">
+                            <div class="step-number">1</div>
+                            <div class="step-content">
+                                <div class="step-title">Install Homebrew</div>
+                                <div class="step-desc">Download and install Homebrew package manager if not already installed</div>
+                            </div>
+                        </div>
+                        <div class="step-item">
+                            <div class="step-number">2</div>
+                            <div class="step-content">
+                                <div class="step-title">Add Brew to PATH</div>
+                                <div class="step-desc">Configure shell profile to include Homebrew in system PATH</div>
+                            </div>
+                        </div>
+                        <div class="step-item">
+                            <div class="step-number">3</div>
+                            <div class="step-content">
+                                <div class="step-title">Install Dependencies</div>
+                                <div class="step-desc">Install development tools (CMake, Ninja, Python, GCC tools, etc.) using brew</div>
+                            </div>
+                        </div>
+                        <div class="step-item">
+                            <div class="step-number">4</div>
+                            <div class="step-content">
+                                <div class="step-title">Configure Python PATH</div>
+                                <div class="step-desc">Add Python to PATH and restart VS Code to ensure all new terminals work correctly</div>
+                            </div>
+                        </div>
+                    </div>`;
+                break;
+            case "linux":
+                platformName = "Linux";
+                platformIcon = "🐧";
+                description = "Install development tools using apt package manager (Ubuntu/Debian).";
+                installCommand = "sudo apt install --no-install-recommends git cmake ninja-build gperf ccache dfu-util device-tree-compiler wget python3-dev python3-venv python3-tk xz-utils file make gcc gcc-multilib g++-multilib libsdl2-dev libmagic1";
+                stepsContent = `
+                    <div class="installation-steps">
+                        <h4 style="margin: 15px 0 10px 0; font-size: 13px; font-weight: 600;">Installation Steps:</h4>
+                        <div class="step-item">
+                            <div class="step-number">1</div>
+                            <div class="step-content">
+                                <div class="step-title">Install Dependencies</div>
+                                <div class="step-desc">Install all required development tools and libraries using apt package manager</div>
+                            </div>
+                        </div>
+                        <div class="step-item">
+                            <div class="step-number">2</div>
+                            <div class="step-content">
+                                <div class="step-title">Ready to Go</div>
+                                <div class="step-desc">After installation, Zephyr IDE should be ready for development</div>
+                            </div>
+                        </div>
+                    </div>`;
+                break;
+            default:
+                platformName = "Unknown";
+                platformIcon = "💻";
+                description = "Platform-specific host tools installation.";
+                installCommand = "";
+                stepsContent = "";
+        }
+
+        return `
+        <div class="collapsible-section">
+            <div class="collapsible-header" onclick="toggleSection('hostTools')">
+                <div class="collapsible-header-left">
+                    <div class="status status-warning">🔧 Host Tools</div>
+                    <div class="collapsible-title">Install Development Tools (${platformName})</div>
+                </div>
+                <div class="collapsible-icon expanded" id="hostToolsIcon">▶</div>
+            </div>
+            <div class="collapsible-content expanded" id="hostToolsContent">
+                <div class="step-description">
+                    Install the required build tools and dependencies for Zephyr development on ${platformName}.
+                </div>
+                <p style="margin-bottom: 15px; color: var(--vscode-descriptionForeground); font-size: 12px;">
+                    ${description}
+                </p>
+                ${platformSelector}
+                <div id="hostToolsStepsContent">
+                    ${stepsContent}
+                </div>
+                <div style="padding: 15px; border: 1px solid var(--vscode-panel-border); border-radius: 6px; background-color: var(--vscode-input-background); margin: 15px 0;">
+                    <h4 style="margin: 0 0 8px 0; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 16px;">${platformIcon}</span>
+                        ${platformName} Installation Command
+                    </h4>
+                    <code style="display: block; padding: 10px; background-color: var(--vscode-editor-background); border: 1px solid var(--vscode-panel-border); border-radius: 4px; font-family: monospace; font-size: 11px; word-wrap: break-word; white-space: pre-wrap;">${installCommand}</code>
+                </div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="button" onclick="runHostToolsInstall()">Run Automatic Install</button>
+                    <button class="button button-secondary" onclick="copyHostToolsCommands('${platform === 'win32' ? 'windows' : platform === 'darwin' ? 'macos' : 'linux'}')">Copy Commands</button>
+                </div>
+            </div>
+        </div>
+        
+        <style>
+        .installation-steps {
+            margin: 15px 0;
+        }
+        .step-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 12px;
+            padding: 12px;
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 6px;
+            background-color: var(--vscode-editor-background);
+        }
+        .step-number {
+            background-color: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+        .step-content {
+            flex: 1;
+        }
+        .step-title {
+            font-weight: 600;
+            font-size: 12px;
+            margin-bottom: 4px;
+            color: var(--vscode-foreground);
+        }
+        .step-desc {
+            font-size: 11px;
+            color: var(--vscode-descriptionForeground);
+            line-height: 1.4;
+        }
+        .button-small {
+            padding: 6px 12px;
+            border: 1px solid var(--vscode-button-border);
+            background-color: var(--vscode-button-secondaryBackground);
+            color: var(--vscode-button-secondaryForeground);
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .button-small:hover {
+            background-color: var(--vscode-button-secondaryHoverBackground);
+        }
+        .button-small.active {
+            background-color: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            border-color: var(--vscode-button-background);
+        }
+        </style>`;
+    }
+
+    private getPlatformDisplayName(platform: string): string {
+        switch (platform) {
+            case "win32": return "Windows";
+            case "darwin": return "macOS";
+            case "linux": return "Linux";
+            default: return platform;
+        }
     }
 
     private generateSDKSection(globalConfig: GlobalConfig): string {

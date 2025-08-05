@@ -62,6 +62,154 @@ function westUpdate() {
     });
 }
 
+// Host Tools Functions
+function runHostToolsInstall() {
+    vscode.postMessage({
+        command: 'installHostTools'
+    });
+}
+
+function copyHostToolsCommands(platform) {
+    vscode.postMessage({
+        command: 'copyHostToolsCommands',
+        platform: platform
+    });
+}
+
+function switchHostToolsPlatform(platform) {
+    // Update button states
+    document.querySelectorAll('.button-small').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.getElementById(`platform-${platform}`).classList.add('active');
+    
+    // Generate content for the selected platform
+    const stepsContent = generateHostToolsStepsContent(platform);
+    const commandContent = generateHostToolsCommandContent(platform);
+    
+    // Update the content
+    document.getElementById('hostToolsStepsContent').innerHTML = stepsContent;
+    
+    // Update the command section
+    const commandSection = document.querySelector('#hostToolsContent .button').parentElement.previousElementSibling;
+    commandSection.innerHTML = commandContent;
+    
+    // Update the copy button
+    const copyButton = document.querySelector('button[onclick*="copyHostToolsCommands"]');
+    if (copyButton) {
+        const platformMap = { 'win32': 'windows', 'darwin': 'macos', 'linux': 'linux' };
+        copyButton.setAttribute('onclick', `copyHostToolsCommands('${platformMap[platform]}')`);
+    }
+}
+
+function generateHostToolsStepsContent(platform) {
+    const stepsData = {
+        'win32': {
+            steps: [
+                {
+                    number: 1,
+                    title: 'Check Winget Availability',
+                    desc: 'Winget package manager needs to be installed. If not available, download from <a href="https://aka.ms/getwinget" style="color: var(--vscode-textLink-foreground);">https://aka.ms/getwinget</a>'
+                },
+                {
+                    number: 2,
+                    title: 'Install Dependencies',
+                    desc: 'Install required tools (CMake, Ninja, Python, Git, DTC, Wget, 7zip) using winget'
+                },
+                {
+                    number: 3,
+                    title: 'Update Environment',
+                    desc: 'Ensure 7zip is available in PATH and refresh environment variables. You may need to restart VS Code'
+                }
+            ]
+        },
+        'darwin': {
+            steps: [
+                {
+                    number: 1,
+                    title: 'Install Homebrew',
+                    desc: 'Download and install Homebrew package manager if not already installed'
+                },
+                {
+                    number: 2,
+                    title: 'Add Brew to PATH',
+                    desc: 'Configure shell profile to include Homebrew in system PATH'
+                },
+                {
+                    number: 3,
+                    title: 'Install Dependencies',
+                    desc: 'Install development tools (CMake, Ninja, Python, GCC tools, etc.) using brew'
+                },
+                {
+                    number: 4,
+                    title: 'Configure Python PATH',
+                    desc: 'Add Python to PATH and restart VS Code to ensure all new terminals work correctly'
+                }
+            ]
+        },
+        'linux': {
+            steps: [
+                {
+                    number: 1,
+                    title: 'Install Dependencies',
+                    desc: 'Install all required development tools and libraries using apt package manager'
+                },
+                {
+                    number: 2,
+                    title: 'Ready to Go',
+                    desc: 'After installation, Zephyr IDE should be ready for development'
+                }
+            ]
+        }
+    };
+    
+    const data = stepsData[platform] || stepsData['win32'];
+    let html = '<div class="installation-steps"><h4 style="margin: 15px 0 10px 0; font-size: 13px; font-weight: 600;">Installation Steps:</h4>';
+    
+    data.steps.forEach(step => {
+        html += `
+            <div class="step-item">
+                <div class="step-number">${step.number}</div>
+                <div class="step-content">
+                    <div class="step-title">${step.title}</div>
+                    <div class="step-desc">${step.desc}</div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    return html;
+}
+
+function generateHostToolsCommandContent(platform) {
+    const commands = {
+        'win32': "winget install Kitware.CMake Ninja-build.Ninja oss-winget.gperf python Git.Git oss-winget.dtc wget 7zip.7zip; setx path '%path%;C:\\Program Files\\7-Zip'",
+        'darwin': "brew install cmake ninja gperf python3 python-tk ccache qemu dtc libmagic wget openocd",
+        'linux': "sudo apt install --no-install-recommends git cmake ninja-build gperf ccache dfu-util device-tree-compiler wget python3-dev python3-venv python3-tk xz-utils file make gcc gcc-multilib g++-multilib libsdl2-dev libmagic1"
+    };
+    
+    const icons = {
+        'win32': '🪟',
+        'darwin': '🍎',
+        'linux': '🐧'
+    };
+    
+    const names = {
+        'win32': 'Windows',
+        'darwin': 'macOS',
+        'linux': 'Linux'
+    };
+    
+    return `
+        <h4 style="margin: 0 0 8px 0; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 16px;">${icons[platform]}</span>
+            ${names[platform]} Installation Command
+        </h4>
+        <code style="display: block; padding: 10px; background-color: var(--vscode-editor-background); border: 1px solid var(--vscode-panel-border); border-radius: 4px; font-family: monospace; font-size: 11px; word-wrap: break-word; white-space: pre-wrap;">${commands[platform]}</code>
+    `;
+}
+
 // SDK Management Functions
 function listSDKs() {
     // Show loading state

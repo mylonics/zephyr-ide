@@ -17,20 +17,25 @@ limitations under the License.
 
 
 import * as vscode from "vscode";
-import * as os from "os";
-import * as fs from "fs-extra";
 import * as path from "path";
 
-import { output, executeShellCommand, executeTaskHelper, getPlatformArch, getPlatformName } from "../utilities/utils";
+import { output, executeTaskHelper, getPlatformArch, getPlatformName } from "../utilities/utils";
+import { checkIfToolAvailable } from "./tools-validation";
+import { WorkspaceConfig } from "./types";
 
 
-export async function installWindowsHostTools(context: vscode.ExtensionContext) {
+export async function installWindowsHostTools(context: vscode.ExtensionContext, wsConfig?: WorkspaceConfig) {
   //Step 1
   // In order to install host tools in windows. Winget needs to be installed.
 
   //Lets check if winget is available
-
-  //if winget is not available you can download winget from here https://aka.ms/getwinget
+  if (wsConfig) {
+    let wingetAvailable = await checkIfToolAvailable("winget", "winget --version", wsConfig, true);
+    if (!wingetAvailable) {
+      output.appendLine("[SETUP] Winget is not available. You can download winget from here: https://aka.ms/getwinget");
+      return false;
+    }
+  }
 
   //Step 2
   // If winget is installed then we can install the required dependencies with this one liner;
@@ -104,13 +109,13 @@ export async function installLinuxHostTools() {
   return result;
 }
 
-export async function installHostTools(context: vscode.ExtensionContext) {
+export async function installHostTools(context: vscode.ExtensionContext, wsConfig?: WorkspaceConfig) {
   switch (getPlatformName()) {
     case "macos":
       return await installMacOSHostTools();
     case "linux":
       return await installLinuxHostTools();
     case "windows":
-      return await installWindowsHostTools(context);
+      return await installWindowsHostTools(context, wsConfig);
   }
 }
