@@ -1323,7 +1323,11 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "zephyr-ide.workspace-setup-from-git",
       async () => {
-        await workspaceSetupFromGit(context, wsConfig, globalConfig);
+        const success = await workspaceSetupFromGit(context, wsConfig, globalConfig);
+        if (success) {
+          wsConfig.initialSetupComplete = true;
+          await setWorkspaceState(context, wsConfig);
+        }
       }
     )
   );
@@ -1332,7 +1336,11 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "zephyr-ide.workspace-setup-from-west-git",
       async () => {
-        await workspaceSetupFromWestGit(context, wsConfig, globalConfig);
+        const success = await workspaceSetupFromWestGit(context, wsConfig, globalConfig);
+        if (success) {
+          wsConfig.initialSetupComplete = true;
+          await setWorkspaceState(context, wsConfig);
+        }
       }
     )
   );
@@ -1341,11 +1349,15 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "zephyr-ide.workspace-setup-from-current-directory",
       async () => {
-        await workspaceSetupFromCurrentDirectory(
+        const success = await workspaceSetupFromCurrentDirectory(
           context,
           wsConfig,
           globalConfig
         );
+        if (success) {
+          wsConfig.initialSetupComplete = true;
+          await setWorkspaceState(context, wsConfig);
+        }
       }
     )
   );
@@ -1354,7 +1366,11 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "zephyr-ide.workspace-setup-standard",
       async () => {
-        await workspaceSetupStandard(context, wsConfig, globalConfig);
+        const success = await workspaceSetupStandard(context, wsConfig, globalConfig);
+        if (success) {
+          wsConfig.initialSetupComplete = true;
+          await setWorkspaceState(context, wsConfig);
+        }
       }
     )
   );
@@ -1363,7 +1379,11 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "zephyr-ide.workspace-setup-global-zephyr",
       async () => {
-        await workspaceSetupGlobalZephyr(context, wsConfig, globalConfig);
+        const success = await workspaceSetupGlobalZephyr(context, wsConfig, globalConfig);
+        if (success) {
+          wsConfig.initialSetupComplete = true;
+          await setWorkspaceState(context, wsConfig);
+        }
       }
     )
   );
@@ -1372,7 +1392,11 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "zephyr-ide.workspace-setup-create-new-shared",
       async () => {
-        await workspaceSetupCreateNewShared(context, wsConfig, globalConfig);
+        const success = await workspaceSetupCreateNewShared(context, wsConfig, globalConfig);
+        if (success) {
+          wsConfig.initialSetupComplete = true;
+          await setWorkspaceState(context, wsConfig);
+        }
       }
     )
   );
@@ -1381,7 +1405,11 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "zephyr-ide.workspace-setup-use-existing",
       async () => {
-        await workspaceSetupUseExisting(context, wsConfig, globalConfig);
+        const success = await workspaceSetupUseExisting(context, wsConfig, globalConfig);
+        if (success) {
+          wsConfig.initialSetupComplete = true;
+          await setWorkspaceState(context, wsConfig);
+        }
       }
     )
   );
