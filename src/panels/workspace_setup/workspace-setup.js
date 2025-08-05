@@ -108,18 +108,18 @@ function generateHostToolsStepsContent(platform) {
             steps: [
                 {
                     number: 1,
-                    title: 'Check Winget Availability',
-                    desc: 'Winget package manager needs to be installed. If not available, download from <a href="https://aka.ms/getwinget" style="color: var(--vscode-textLink-foreground);">https://aka.ms/getwinget</a>'
+                    title: 'Verify Winget Installation',
+                    desc: 'Ensure the winget package manager is installed. If unavailable, download it from <a href="https://aka.ms/getwinget" style="color: var(--vscode-textLink-foreground);">Microsoft Store</a>'
                 },
                 {
                     number: 2,
-                    title: 'Install Dependencies',
-                    desc: 'Install required tools (CMake, Ninja, Python, Git, DTC, Wget, 7zip) using winget'
+                    title: 'Install Development Tools',
+                    desc: 'Install required development tools including CMake, Ninja, Python, Git, and other essential utilities using winget'
                 },
                 {
                     number: 3,
-                    title: 'Update Environment',
-                    desc: 'Ensure 7zip is available in PATH and refresh environment variables. You may need to restart VS Code'
+                    title: 'Configure Environment',
+                    desc: 'Update system PATH and environment variables. Restart VS Code to ensure all tools are properly configured'
                 }
             ]
         },
@@ -128,22 +128,22 @@ function generateHostToolsStepsContent(platform) {
                 {
                     number: 1,
                     title: 'Install Homebrew',
-                    desc: 'Download and install Homebrew package manager if not already installed'
+                    desc: 'Install the Homebrew package manager if not already available on your system'
                 },
                 {
                     number: 2,
-                    title: 'Add Brew to PATH',
-                    desc: 'Configure shell profile to include Homebrew in system PATH'
+                    title: 'Configure Shell PATH',
+                    desc: 'Update your shell profile to include Homebrew in the system PATH'
                 },
                 {
                     number: 3,
-                    title: 'Install Dependencies',
-                    desc: 'Install development tools (CMake, Ninja, Python, GCC tools, etc.) using brew'
+                    title: 'Install Development Tools',
+                    desc: 'Install essential development tools including CMake, Ninja, Python, and compilation toolchain using brew'
                 },
                 {
                     number: 4,
-                    title: 'Configure Python PATH',
-                    desc: 'Add Python to PATH and restart VS Code to ensure all new terminals work correctly'
+                    title: 'Finalize Configuration',
+                    desc: 'Ensure Python is in your PATH and restart VS Code to apply all environment changes'
                 }
             ]
         },
@@ -151,13 +151,13 @@ function generateHostToolsStepsContent(platform) {
             steps: [
                 {
                     number: 1,
-                    title: 'Install Dependencies',
-                    desc: 'Install all required development tools and libraries using apt package manager'
+                    title: 'Install Development Tools',
+                    desc: 'Install all required development tools and libraries using the apt package manager'
                 },
                 {
                     number: 2,
-                    title: 'Ready to Go',
-                    desc: 'After installation, Zephyr IDE should be ready for development'
+                    title: 'Setup Complete',
+                    desc: 'Once installation completes, Zephyr IDE will be ready for development'
                 }
             ]
         }

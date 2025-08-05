@@ -24,6 +24,7 @@ export type ProjectStateDictionary = { [name: string]: ProjectState };
 export interface SetupState {
   pythonEnvironmentSetup: boolean,
   westUpdated: boolean,
+  packagesInstalled?: boolean,
   zephyrDir: string,
   zephyrVersion?: ZephyrVersionNumber,
   env: { [name: string]: string | undefined },
@@ -63,6 +64,7 @@ export function generateSetupState(setupPath: string): SetupState {
   return {
     pythonEnvironmentSetup: false,
     westUpdated: false,
+    packagesInstalled: false,
     zephyrDir: '',
     env: {},
     setupPath: setupPath

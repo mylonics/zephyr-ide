@@ -129,6 +129,8 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
       wsConfig.activeSetupState.zephyrDir = zephyrModuleInfo.path;
       wsConfig.activeSetupState.zephyrVersion = await getModuleVersion(zephyrModuleInfo.path);
     }
+
+    reloadEnvironmentVariables(context, wsConfig.activeSetupState);
     saveSetupState(context, wsConfig, globalConfig);
     if (solo) {
       vscode.window.showInformationMessage(`Successfully Completed West Update`);
@@ -160,7 +162,7 @@ export async function installPythonRequirements(context: vscode.ExtensionContext
     return false;
   }
 
-  wsConfig.activeSetupState.pythonEnvironmentSetup = false;
+  wsConfig.activeSetupState.packagesInstalled = false;
   saveSetupState(context, wsConfig, globalConfig);
 
   let cmd = `pip install -r ${path.join(zephyrPath.path, "scripts", "requirements.txt")} -U dtsh patool semvar tqdm`;
@@ -169,7 +171,7 @@ export async function installPythonRequirements(context: vscode.ExtensionContext
   if (!reqRes) {
     vscode.window.showErrorMessage("Python Requirement Installation Failed. See terminal for error information.");
   } else {
-    wsConfig.activeSetupState.pythonEnvironmentSetup = true;
+    wsConfig.activeSetupState.packagesInstalled = true;
     saveSetupState(context, wsConfig, globalConfig);
     if (solo) {
       vscode.window.showInformationMessage(`Successfully Installed Python Requirements`);
@@ -276,7 +278,7 @@ export async function westUpdateWithRequirements(context: vscode.ExtensionContex
   strictWestCheck?: boolean;
 } = {}) {
   const { solo = true, isWorkspaceSetup = false, setupPath, strictWestCheck = true } = options;
-  
+
   if (wsConfig.activeSetupState === undefined || wsConfig.activeSetupState.setupPath === undefined) {
     return false;
   }
@@ -304,6 +306,12 @@ export async function westUpdateWithRequirements(context: vscode.ExtensionContex
     return false;
   }
 
+  // Set context flag for west update completion (during workspace setup)
+  if (isWorkspaceSetup) {
+    await vscode.commands.executeCommand("setContext", "zephyr-ide.westUpdateComplete", true);
+    output.appendLine("[SETUP] West update completed");
+  }
+
   // Add setup-specific output messages
   if (isWorkspaceSetup) {
     output.appendLine("[SETUP] Installing Python requirements...");
@@ -316,8 +324,17 @@ export async function westUpdateWithRequirements(context: vscode.ExtensionContex
     return false;
   }
 
+  // Set context flag for python requirements installation completion (during workspace setup)
+  if (isWorkspaceSetup) {
+    await vscode.commands.executeCommand("setContext", "zephyr-ide.pythonRequirementsComplete", true);
+    output.appendLine("[SETUP] Python requirements installation completed");
+  }
+
   if (solo) {
     if (isWorkspaceSetup && setupPath) {
+      // Set context flag for complete workspace setup
+      await vscode.commands.executeCommand("setContext", "zephyr-ide.workspaceSetupComplete", true);
+      output.appendLine("[SETUP] Workspace setup completed successfully");
       vscode.window.showInformationMessage(`Workspace setup completed successfully at: ${setupPath}`);
     } else {
       vscode.window.showInformationMessage("Successfully completed West Update with Python requirements installation");

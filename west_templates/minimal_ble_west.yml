@@ -6,13 +6,12 @@ manifest:
     - name: zephyr
       repo-path: zephyr
       remote: zephyrproject
-      revision: v4.1.0
+      revision: v4.2.0
       clone-depth: 1
       import:
         path-prefix: external
         name-allowlist:
-          - cmsis
-          - cmsis-dsp
+          - cmsis_6
           - picolibc
           - segger
           - mcuboot

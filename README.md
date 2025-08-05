@@ -43,6 +43,57 @@ See the [Install Dependecies Section of the Zephyr Getting Started Guide](https:
 
 For ubuntu please also install python3-venv by ```sudo apt install python3-venv```
 
+## Testing
+
+This extension includes comprehensive integration tests that validate the complete Zephyr IDE workflow with real Zephyr development tools.
+
+### Prerequisites
+
+**Required for integration tests:**
+- [Zephyr SDK](https://docs.zephyrproject.org/latest/develop/getting_started/)
+- west (Zephyr meta-tool): `pip install west`
+- cmake, ninja-build
+- Python 3.8+
+
+### Running Tests
+
+```bash
+# Install dependencies
+npm install
+
+# Compile TypeScript
+npm run test-compile
+
+# Run all tests (includes integration tests)
+npm test
+
+# Run integration tests only (requires Zephyr tools)
+node scripts/run-integration-tests.js
+
+# Run tests with custom script
+node scripts/run-tests.js
+```
+
+### Test Coverage
+
+The integration tests validate:
+- ✅ **Real workspace creation** with west init and update
+- ✅ **Actual project creation** from Zephyr blinky sample
+- ✅ **STM32 build configuration** for nucleo_f103rb board
+- ✅ **Complete build execution** with west build
+- ✅ **Build artifact verification** (binary, ELF files)
+
+### CI/CD Integration
+
+Integration tests run in CI environments on:
+- Ubuntu (with full Zephyr toolchain)
+- Windows (with Python and west)
+- macOS (with Homebrew tools)
+
+Tests automatically skip when Zephyr tools are unavailable.
+
+For more details, see [docs/TESTING.md](docs/TESTING.md).
+
 ## Known Issues
 
 ## Release Notes

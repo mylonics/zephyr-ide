@@ -500,6 +500,7 @@ export async function addProject(wsConfig: WorkspaceConfig, context: vscode.Exte
   await setWorkspaceState(context, wsConfig);
 
   vscode.window.showInformationMessage(`Successfully loaded Project ${projectPath}`);
+  return true;
 }
 
 export async function addBuildToProject(wsConfig: WorkspaceConfig, context: vscode.ExtensionContext, projectName: string) {
@@ -523,8 +524,10 @@ export async function addBuildToProject(wsConfig: WorkspaceConfig, context: vsco
       setActiveBuild(context, wsConfig, projectName, result.name);
 
       await setWorkspaceState(context, wsConfig);
+      return true;
     }
   }
+  return false;
 }
 
 
@@ -533,7 +536,7 @@ export async function addBuild(wsConfig: WorkspaceConfig, context: vscode.Extens
     vscode.window.showErrorMessage(`Failed to Add Build Configuration, please first select a project`);
     return;
   }
-  await addBuildToProject(wsConfig, context, wsConfig.activeProject);
+  return await addBuildToProject(wsConfig, context, wsConfig.activeProject);
 }
 
 export async function removeBuild(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName?: string, buildName?: string) {

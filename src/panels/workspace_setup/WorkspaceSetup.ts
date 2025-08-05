@@ -50,7 +50,7 @@ export class WorkspaceSetup {
 
         const panel = vscode.window.createWebviewPanel(
             "zephyrWorkspaceSetup",
-            "Zephyr IDE and Workspace Setup",
+            "Zephyr IDE Setup & Configuration",
             column || vscode.ViewColumn.One,
             {
                 enableScripts: true,
@@ -373,12 +373,12 @@ export class WorkspaceSetup {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Zephyr IDE and Workspace Setup</title>
+            <title>Zephyr IDE Setup & Configuration</title>
             ${this.getStylesheetLinks()}
         </head>
         <body>
             <div class="wizard-container">
-                <h1>Zephyr IDE and Workspace Setup</h1>
+                <h1>Zephyr IDE Setup & Configuration</h1>
                 ${this.generateHostToolsSection()}
                 ${this.generateSDKSection(globalConfig)}
                 ${this.generateWestOperationsSection()}
@@ -428,7 +428,7 @@ export class WorkspaceSetup {
             case "win32":
                 platformName = "Windows";
                 platformIcon = "🪟";
-                description = "Install development tools using winget package manager. Winget must be installed first.";
+                description = "Install development tools using the winget package manager. Winget must be available on your system first.";
                 installCommand = "winget install Kitware.CMake Ninja-build.Ninja oss-winget.gperf python Git.Git oss-winget.dtc wget 7zip.7zip; setx path '%path%;C:\\Program Files\\7-Zip'";
                 stepsContent = `
                     <div class="installation-steps">
@@ -436,22 +436,22 @@ export class WorkspaceSetup {
                         <div class="step-item">
                             <div class="step-number">1</div>
                             <div class="step-content">
-                                <div class="step-title">Check Winget Availability</div>
-                                <div class="step-desc">Winget package manager needs to be installed. If not available, download from <a href="https://aka.ms/getwinget" style="color: var(--vscode-textLink-foreground);">https://aka.ms/getwinget</a></div>
+                                <div class="step-title">Verify Winget Installation</div>
+                                <div class="step-desc">Ensure the winget package manager is installed. If unavailable, download it from <a href="https://aka.ms/getwinget" style="color: var(--vscode-textLink-foreground);">Microsoft Store</a></div>
                             </div>
                         </div>
                         <div class="step-item">
                             <div class="step-number">2</div>
                             <div class="step-content">
-                                <div class="step-title">Install Dependencies</div>
-                                <div class="step-desc">Install required tools (CMake, Ninja, Python, Git, DTC, Wget, 7zip) using winget</div>
+                                <div class="step-title">Install Development Tools</div>
+                                <div class="step-desc">Install required development tools including CMake, Ninja, Python, Git, and other essential utilities using winget</div>
                             </div>
                         </div>
                         <div class="step-item">
                             <div class="step-number">3</div>
                             <div class="step-content">
-                                <div class="step-title">Update Environment</div>
-                                <div class="step-desc">Ensure 7zip is available in PATH and refresh environment variables. You may need to restart VS Code</div>
+                                <div class="step-title">Configure Environment</div>
+                                <div class="step-desc">Update system PATH and environment variables. Restart VS Code to ensure all tools are properly configured</div>
                             </div>
                         </div>
                     </div>`;
@@ -459,7 +459,7 @@ export class WorkspaceSetup {
             case "darwin":
                 platformName = "macOS";
                 platformIcon = "🍎";
-                description = "Install development tools using Homebrew package manager.";
+                description = "Install development tools using the Homebrew package manager for macOS.";
                 installCommand = "brew install cmake ninja gperf python3 python-tk ccache qemu dtc libmagic wget openocd";
                 stepsContent = `
                     <div class="installation-steps">
@@ -468,28 +468,28 @@ export class WorkspaceSetup {
                             <div class="step-number">1</div>
                             <div class="step-content">
                                 <div class="step-title">Install Homebrew</div>
-                                <div class="step-desc">Download and install Homebrew package manager if not already installed</div>
+                                <div class="step-desc">Install the Homebrew package manager if not already available on your system</div>
                             </div>
                         </div>
                         <div class="step-item">
                             <div class="step-number">2</div>
                             <div class="step-content">
-                                <div class="step-title">Add Brew to PATH</div>
-                                <div class="step-desc">Configure shell profile to include Homebrew in system PATH</div>
+                                <div class="step-title">Configure Shell PATH</div>
+                                <div class="step-desc">Update your shell profile to include Homebrew in the system PATH</div>
                             </div>
                         </div>
                         <div class="step-item">
                             <div class="step-number">3</div>
                             <div class="step-content">
-                                <div class="step-title">Install Dependencies</div>
-                                <div class="step-desc">Install development tools (CMake, Ninja, Python, GCC tools, etc.) using brew</div>
+                                <div class="step-title">Install Development Tools</div>
+                                <div class="step-desc">Install essential development tools including CMake, Ninja, Python, and compilation toolchain using brew</div>
                             </div>
                         </div>
                         <div class="step-item">
                             <div class="step-number">4</div>
                             <div class="step-content">
-                                <div class="step-title">Configure Python PATH</div>
-                                <div class="step-desc">Add Python to PATH and restart VS Code to ensure all new terminals work correctly</div>
+                                <div class="step-title">Finalize Configuration</div>
+                                <div class="step-desc">Ensure Python is in your PATH and restart VS Code to apply all environment changes</div>
                             </div>
                         </div>
                     </div>`;
@@ -497,7 +497,7 @@ export class WorkspaceSetup {
             case "linux":
                 platformName = "Linux";
                 platformIcon = "🐧";
-                description = "Install development tools using apt package manager (Ubuntu/Debian).";
+                description = "Install development tools using the apt package manager (Ubuntu/Debian).";
                 installCommand = "sudo apt install --no-install-recommends git cmake ninja-build gperf ccache dfu-util device-tree-compiler wget python3-dev python3-venv python3-tk xz-utils file make gcc gcc-multilib g++-multilib libsdl2-dev libmagic1";
                 stepsContent = `
                     <div class="installation-steps">
@@ -505,15 +505,15 @@ export class WorkspaceSetup {
                         <div class="step-item">
                             <div class="step-number">1</div>
                             <div class="step-content">
-                                <div class="step-title">Install Dependencies</div>
-                                <div class="step-desc">Install all required development tools and libraries using apt package manager</div>
+                                <div class="step-title">Install Development Tools</div>
+                                <div class="step-desc">Install all required development tools and libraries using the apt package manager</div>
                             </div>
                         </div>
                         <div class="step-item">
                             <div class="step-number">2</div>
                             <div class="step-content">
-                                <div class="step-title">Ready to Go</div>
-                                <div class="step-desc">After installation, Zephyr IDE should be ready for development</div>
+                                <div class="step-title">Setup Complete</div>
+                                <div class="step-desc">Once installation completes, Zephyr IDE will be ready for development</div>
                             </div>
                         </div>
                     </div>`;
@@ -531,13 +531,13 @@ export class WorkspaceSetup {
             <div class="collapsible-header" onclick="toggleSection('hostTools')">
                 <div class="collapsible-header-left">
                     <div class="status status-warning">🔧 Host Tools</div>
-                    <div class="collapsible-title">Install Development Tools (${platformName})</div>
+                    <div class="collapsible-title">Development Tools Installation (${platformName})</div>
                 </div>
                 <div class="collapsible-icon expanded" id="hostToolsIcon">▶</div>
             </div>
             <div class="collapsible-content expanded" id="hostToolsContent">
                 <div class="step-description">
-                    Install the required build tools and dependencies for Zephyr development on ${platformName}.
+                    Install essential development tools and dependencies required for building Zephyr applications on ${platformName}.
                 </div>
                 <p style="margin-bottom: 15px; color: var(--vscode-descriptionForeground); font-size: 12px;">
                     ${description}
@@ -638,8 +638,8 @@ export class WorkspaceSetup {
         const expandedClass = sdkCollapsed ? "" : "expanded";
 
         const description = globalConfig.sdkInstalled
-            ? "The Zephyr SDK is installed and ready to use. You can install additional SDK versions or update to the latest."
-            : "The Zephyr SDK contains the cross-compilation toolchain and debugger needed to build and debug Zephyr applications for different target architectures. The SDK installation provides version management and uses your existing west installation.";
+            ? "The Zephyr SDK is installed and ready to use. You can manage additional SDK versions or update to the latest release."
+            : "The Zephyr SDK provides cross-compilation toolchains and debugging tools needed to build and debug Zephyr applications for various target architectures. The SDK installation includes version management and integrates with your west installation.";
 
         return `
         <div class="collapsible-section">
@@ -652,7 +652,7 @@ export class WorkspaceSetup {
             </div>
             <div class="collapsible-content ${expandedClass}" id="sdkContent">
                 <div class="step-description">
-                    The Zephyr SDK provides the necessary toolchain for building Zephyr applications. Use the Install SDK command to download and install the latest SDK with your preferred toolchains.
+                    The Zephyr SDK provides essential cross-compilation toolchains for building Zephyr applications. Use the Install SDK command to download and configure the latest SDK with your preferred target architectures.
                 </div>
                 <p style="margin-bottom: 15px; color: var(--vscode-descriptionForeground); font-size: 12px;">
                     ${description}
@@ -675,18 +675,18 @@ export class WorkspaceSetup {
             <div class="collapsible-header" onclick="toggleSection('westOps')">
                 <div class="collapsible-header-left">
                     <div class="status status-warning">⚙️ West Operations</div>
-                    <div class="collapsible-title">West Environment & Initialization</div>
+                    <div class="collapsible-title">West Environment Setup & Management</div>
                 </div>
                 <div class="collapsible-icon expanded" id="westOpsIcon">▶</div>
             </div>
             <div class="collapsible-content expanded" id="westOpsContent">
                 <div class="step-description">
-                    Initialize west workspace environments and run west init commands for project management.
+                    Set up and manage west workspace environments for Zephyr project development and dependency management.
                 </div>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; margin-top: 15px;">
-                    ${this.generateWestOperationCard("🌐", "Setup West Environment", "Initialize a Python virtual environment and install west tools required for Zephyr development.", "setupWestEnvironment()")}
-                    ${this.generateWestOperationCard("🔧", "West Init", "Initialize a new west workspace with manifests and repositories for Zephyr project development.", "westInit()")}
-                    ${this.generateWestOperationCard("🔄", "West Update", "Update west workspace repositories and install Python requirements for the current Zephyr version.", "westUpdate()")}
+                    ${this.generateWestOperationCard("🌐", "Setup West Environment", "Create a Python virtual environment and install west tools required for Zephyr development.", "setupWestEnvironment()")}
+                    ${this.generateWestOperationCard("🔧", "West Init", "Initialize a new west workspace with project manifests and source repositories.", "westInit()")}
+                    ${this.generateWestOperationCard("🔄", "West Update", "Update workspace repositories and install Python dependencies for the current Zephyr version.", "westUpdate()")}
                 </div>
             </div>
         </div>`;
@@ -743,11 +743,11 @@ export class WorkspaceSetup {
 
     private getWorkspaceDescription(folderOpen: boolean, workspaceInitialized: boolean): string {
         if (!folderOpen) {
-            return "Open a folder in VS Code to set up your Zephyr workspace.";
+            return "Open a folder in VS Code to begin setting up your Zephyr development workspace.";
         } else if (workspaceInitialized) {
-            return "Your workspace is already initialized. You can reinitialize if needed.";
+            return "Your workspace is ready for development. You can reinitialize if configuration changes are needed.";
         } else {
-            return "Choose how you want to set up your Zephyr workspace. A workspace can contain multiple projects and manages dependencies.";
+            return "Select how to configure your Zephyr workspace. A workspace organizes projects and manages development dependencies.";
         }
     }
 
@@ -765,7 +765,7 @@ export class WorkspaceSetup {
         return `
         <div style="text-align: center; padding: 30px;">
             <div style="font-size: 2em; margin-bottom: 15px;">📁</div>
-            <p style="margin-bottom: 20px; color: var(--vscode-descriptionForeground); font-size: 12px;">Please open a folder in VS Code to continue with workspace setup.</p>
+            <p style="margin-bottom: 20px; color: var(--vscode-descriptionForeground); font-size: 12px;">Open a folder in VS Code to begin configuring your Zephyr development environment.</p>
             <button class="button" onclick="openFolder()">Open Folder</button>
         </div>`;
     }
@@ -774,7 +774,7 @@ export class WorkspaceSetup {
         return `
         <div style="text-align: center; padding: 30px;">
             <div style="font-size: 2em; margin-bottom: 15px;">✅</div>
-            <p style="margin-bottom: 20px; color: var(--vscode-descriptionForeground); font-size: 12px;">Your Zephyr workspace is already set up and ready to use!</p>
+            <p style="margin-bottom: 20px; color: var(--vscode-descriptionForeground); font-size: 12px;">Your Zephyr workspace is configured and ready for development!</p>
             <button class="button button-secondary" onclick="reinitializeWorkspace()">Reinitialize Workspace</button>
         </div>`;
     }
@@ -783,14 +783,14 @@ export class WorkspaceSetup {
         return `
         <h4>Import Existing Workspace</h4>
         <div class="import-options">
-            ${this.generateImportOptionCard("🌐", "Zephyr IDE Workspace from Git", "Clone and import a Zephyr IDE workspace from a Git repository with predefined project structure and configuration.", "Team projects, shared workspaces, and standardized development environments.", "zephyr-ide-git")}
-            ${this.generateImportOptionCard("⚙️", "West Workspace from Git", "Clone a standard west manifest workspace from a Git repository following Zephyr's workspace structure.", "Upstream projects, community samples, and standard Zephyr workflows.", "west-git")}
-            ${this.generateImportOptionCard("📁", "Open Current Directory", "Initialize the current VS Code workspace directory as a Zephyr IDE workspace, detecting existing projects and configurations.", "Existing local projects, downloaded samples, or when you already have Zephyr code locally.", "current-directory")}
+            ${this.generateImportOptionCard("🌐", "Zephyr IDE Workspace from Git", "Clone and import a complete Zephyr IDE workspace from a Git repository with pre-configured project structure and settings.", "Team collaboration, shared development environments, and standardized project templates.", "zephyr-ide-git")}
+            ${this.generateImportOptionCard("⚙️", "West Workspace from Git", "Clone a standard west manifest workspace from a Git repository using Zephyr's recommended workspace structure.", "Upstream Zephyr projects, community examples, and official sample applications.", "west-git")}
+            ${this.generateImportOptionCard("📁", "Initialize Current Directory", "Configure the current VS Code workspace directory as a Zephyr IDE workspace, detecting existing projects and configurations.", "Local projects, downloaded samples, or existing Zephyr code directories.", "current-directory")}
         </div>
         
         <h4>Create New Workspace</h4>
         <div class="topology-options">
-            ${this.generateCreateOptionCard("📦", "Standard Workspace", "Create a workspace with Zephyr downloaded locally within the workspace directory. Each workspace has its own Zephyr installation.", "Single projects, isolated development, when you need specific Zephyr versions per project.", "standard")}
+            ${this.generateCreateOptionCard("📦", "Standard Workspace", "Create a self-contained workspace with Zephyr installed locally within the workspace directory. Each workspace maintains its own Zephyr installation.", "Individual projects, isolated development, or when specific Zephyr versions are required per project.", "standard")}
             ${this.generateExternalZephyrCard()}
         </div>
         
@@ -830,15 +830,15 @@ export class WorkspaceSetup {
         <div class="option-card external-zephyr-card">
             <div class="option-card-header">
                 <div class="topology-icon">🔗</div>
-                <h3>Workspace Using External Zephyr Install</h3>
+                <h3>Workspace Using External Zephyr Installation</h3>
             </div>
-            <p class="option-card-description">Create a workspace that uses a shared Zephyr installation. Prevents re-downloading Zephyr for multiple projects and enables sharing across workspaces.</p>
-            <p class="option-card-usage">Best for: Multiple projects, shared development environments, when you want to reuse Zephyr installations.</p>
+            <p class="option-card-description">Create a workspace that references a shared Zephyr installation. Avoids duplicating Zephyr downloads across multiple projects and enables reuse of existing installations.</p>
+            <p class="option-card-usage">Best for: Multiple projects, shared development environments, or reusing existing Zephyr installations.</p>
             
             <div class="external-options">
-                ${this.generateExternalOption("🌍", "Global Install", "Use system-wide global Zephyr installation", "global")}
-                ${this.generateExternalOption("📁", "Create New Shared", "Create new shared installation in custom directory", "create-new")}
-                ${this.generateExternalOption("🔍", "Use Existing Install", "Point to existing folder with .west directory", "existing")}
+                ${this.generateExternalOption("🌍", "Global Installation", "Use system-wide global Zephyr installation", "global")}
+                ${this.generateExternalOption("📁", "Create New Shared Installation", "Create a new shared installation in a custom directory", "create-new")}
+                ${this.generateExternalOption("🔍", "Use Existing Installation", "Point to an existing folder containing a .west directory", "existing")}
             </div>
         </div>`;
     }

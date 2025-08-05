@@ -107,6 +107,11 @@ let activeProjectDisplay: vscode.StatusBarItem;
 let activeBuildDisplay: vscode.StatusBarItem;
 let activeRunnerDisplay: vscode.StatusBarItem;
 
+// Function to get current workspace configuration for testing
+export function getWorkspaceConfig(): WorkspaceConfig {
+  return wsConfig;
+}
+
 export async function activate(context: vscode.ExtensionContext) {
   context.environmentVariableCollection.persistent = false;
   context.environmentVariableCollection.description =
@@ -369,13 +374,11 @@ export async function activate(context: vscode.ExtensionContext) {
         let res = await checkIfToolsAvailable(context, wsConfig, globalConfig);
 
         if (res) {
-          vscode.commands.executeCommand(
-            "setContext",
-            "buildDependenciesAvailable",
-            true
-          );
+          vscode.commands.executeCommand("setContext", "buildDependenciesAvailable", true);
         }
         extensionSetupView.updateWebView(wsConfig, globalConfig);
+        console.log(res);
+        return res;
       }
     )
   );
@@ -505,18 +508,20 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.create-project", async () => {
       let projectPath = await project.createNewProjectFromSample(wsConfig);
       if (projectPath !== undefined) {
-        await project.addProject(wsConfig, context, projectPath);
+        let result = await project.addProject(wsConfig, context, projectPath);
         extensionSetupView.updateWebView(wsConfig, globalConfig);
         vscode.commands.executeCommand("zephyr-ide.update-web-view");
+        return result;
       }
     })
   );
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.add-project", async () => {
-      await project.addProject(wsConfig, context, undefined);
+      let result = await project.addProject(wsConfig, context, undefined);
       extensionSetupView.updateWebView(wsConfig, globalConfig);
       vscode.commands.executeCommand("zephyr-ide.update-web-view");
+      return result;
     })
   );
 
@@ -580,11 +585,13 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.add-build", async () => {
       if (wsConfig.activeSetupState && wsConfig.activeSetupState.westUpdated) {
-        await project.addBuild(wsConfig, context);
+        let result = await project.addBuild(wsConfig, context);
         vscode.commands.executeCommand("zephyr-ide.update-web-view");
+        return result;
       } else {
         vscode.window.showErrorMessage("Run `Zephyr IDE: West Update` first.");
       }
+      return false;
     })
   );
 
@@ -941,13 +948,13 @@ export async function activate(context: vscode.ExtensionContext) {
   //Board commands
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.build-pristine", async () => {
-      buildHelper(context, wsConfig, true);
+      return await buildHelper(context, wsConfig, true);
     })
   );
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.build", async () => {
-      buildHelper(context, wsConfig, false);
+      return await buildHelper(context, wsConfig, false);
     })
   );
 
@@ -1305,7 +1312,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.install-sdk", async () => {
-      await installSDKInteractive(wsConfig, globalConfig, context);
+      return await installSDKInteractive(wsConfig, globalConfig, context);
     })
   );
 
@@ -1341,6 +1348,7 @@ export async function activate(context: vscode.ExtensionContext) {
         if (success) {
           await markWorkspaceSetupComplete(context, wsConfig, globalConfig);
         }
+        return success;
       }
     )
   );
@@ -1353,6 +1361,7 @@ export async function activate(context: vscode.ExtensionContext) {
         if (success) {
           await markWorkspaceSetupComplete(context, wsConfig, globalConfig);
         }
+        return success;
       }
     )
   );
@@ -1369,6 +1378,7 @@ export async function activate(context: vscode.ExtensionContext) {
         if (success) {
           await markWorkspaceSetupComplete(context, wsConfig, globalConfig);
         }
+        return success;
       }
     )
   );
@@ -1381,6 +1391,7 @@ export async function activate(context: vscode.ExtensionContext) {
         if (success) {
           await markWorkspaceSetupComplete(context, wsConfig, globalConfig);
         }
+        return success;
       }
     )
   );
@@ -1393,6 +1404,7 @@ export async function activate(context: vscode.ExtensionContext) {
         if (success) {
           await markWorkspaceSetupComplete(context, wsConfig, globalConfig);
         }
+        return success;
       }
     )
   );
@@ -1405,6 +1417,7 @@ export async function activate(context: vscode.ExtensionContext) {
         if (success) {
           await markWorkspaceSetupComplete(context, wsConfig, globalConfig);
         }
+        return success;
       }
     )
   );
@@ -1417,6 +1430,7 @@ export async function activate(context: vscode.ExtensionContext) {
         if (success) {
           await markWorkspaceSetupComplete(context, wsConfig, globalConfig);
         }
+        return success;
       }
     )
   );
@@ -1458,6 +1472,11 @@ export async function activate(context: vscode.ExtensionContext) {
       output.appendLine("Finished");
     })
   );
+
+  // Return API for tests and other extensions
+  return {
+    getWorkspaceConfig: () => wsConfig
+  };
 }
 
 export function deactivate() { }

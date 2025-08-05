@@ -25,11 +25,7 @@ let python = os.platform() === "linux" ? "python3" : "python";
 export let pathdivider = os.platform() === "win32" ? ";" : ":";
 
 export async function checkIfToolAvailable(tool: string, cmd: string, wsConfig: WorkspaceConfig, printStdOut: boolean, includes?: string) {
-  if (wsConfig.activeSetupState === undefined) {
-    vscode.window.showErrorMessage(`Unable to check for tools. Select Global or Local Install First.`);
-    return;
-  }
-  let res = await executeShellCommand(cmd, wsConfig.activeSetupState?.setupPath, true);
+  let res = await executeShellCommand(cmd, "", true);
   if (res.stdout) {
     if (printStdOut) {
       output.append(res.stdout);
@@ -50,9 +46,6 @@ export async function checkIfToolAvailable(tool: string, cmd: string, wsConfig: 
 }
 
 export async function checkIfToolsAvailable(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, solo = true) {
-  if (wsConfig.activeSetupState === undefined) {
-    return;
-  }
   globalConfig.toolsAvailable = false;
   saveSetupState(context, wsConfig, globalConfig);
   output.show();
@@ -65,40 +58,38 @@ export async function checkIfToolsAvailable(context: vscode.ExtensionContext, ws
     "Please follow the section Install Dependencies. https://docs.zephyrproject.org/latest/develop/getting_started/index.html#install-dependencies."
   );
 
-  output.appendLine(
-    "The remaining sections on that page will automatically be handled by the zephyr tools extension"
-  );
-
-  output.appendLine(
-    "For Windows you may use Chocolately, for debian you may use apt, and for macOS you may use Homebrew"
-  );
-
   let res = await checkIfToolAvailable("git", "git --version", wsConfig, true);
   if (!res) {
+    console.log("git Tool Unavilable");
     return false;
   }
   res = await checkIfToolAvailable("python", `${python} --version`, wsConfig, true, "Python 3");
   if (!res) {
+    console.log("python Tool Unavilable");
     return false;
   }
 
   res = await checkIfToolAvailable("pip", `${python} -m pip --version`, wsConfig, true);
   if (!res) {
+    console.log("pip Tool Unavilable");
     return false;
   }
 
   res = await checkIfToolAvailable("python3 venv", `${python} -m venv --help`, wsConfig, false);
   if (!res) {
+    console.log("python3 venv Tool Unavilable");
     return false;
   }
 
   res = await checkIfToolAvailable("cmake", `cmake --version`, wsConfig, true);
   if (!res) {
+    console.log("cmake Tool Unavilable");
     return false;
   }
 
   res = await checkIfToolAvailable("dtc", "dtc --version", wsConfig, true);
   if (!res) {
+    console.log("DTC Tool Unavilable");
     return false;
   }
 

@@ -186,16 +186,16 @@ async function injectWestSDKCommand(setupState: SetupState, context?: vscode.Ext
 export function parseSDKListOutput(output: string): ParsedSDKVersion[] {
     const versions: ParsedSDKVersion[] = [];
     const lines = output.split('\n').map(line => line.trimEnd());
-    
+
     let currentVersion: Partial<ParsedSDKVersion> | null = null;
     let currentSection: 'installed' | 'available' | null = null;
-    
+
     for (const line of lines) {
         // Skip empty lines
         if (!line.trim()) {
             continue;
         }
-        
+
         // Check for version line (starts with version number and colon)
         const versionMatch = line.match(/^(\d+\.\d+\.\d+):\s*$/);
         if (versionMatch) {
@@ -208,7 +208,7 @@ export function parseSDKListOutput(output: string): ParsedSDKVersion[] {
                     availableToolchains: currentVersion.availableToolchains || []
                 });
             }
-            
+
             // Start new version
             currentVersion = {
                 version: versionMatch[1],
@@ -218,26 +218,26 @@ export function parseSDKListOutput(output: string): ParsedSDKVersion[] {
             currentSection = null;
             continue;
         }
-        
+
         // Check for path line
         const pathMatch = line.match(/^\s+path:\s*(.+)$/);
         if (pathMatch && currentVersion) {
             currentVersion.path = pathMatch[1].trim();
             continue;
         }
-        
+
         // Check for installed-toolchains section
         if (line.match(/^\s+installed-toolchains:\s*$/)) {
             currentSection = 'installed';
             continue;
         }
-        
+
         // Check for available-toolchains section
         if (line.match(/^\s+available-toolchains:\s*$/)) {
             currentSection = 'available';
             continue;
         }
-        
+
         // Check for toolchain list item
         const toolchainMatch = line.match(/^\s+-\s+(.+)$/);
         if (toolchainMatch && currentVersion && currentSection) {
@@ -251,7 +251,7 @@ export function parseSDKListOutput(output: string): ParsedSDKVersion[] {
             }
         }
     }
-    
+
     // Don't forget the last version
     if (currentVersion && currentVersion.version && currentVersion.path) {
         versions.push({
@@ -261,7 +261,7 @@ export function parseSDKListOutput(output: string): ParsedSDKVersion[] {
             availableToolchains: currentVersion.availableToolchains || []
         });
     }
-    
+
     return versions;
 }
 
@@ -402,7 +402,7 @@ export async function installSDK(
     setupState: SetupState,
     sdkVersion?: string,
     toolchains?: string[]
-): Promise<WestSDKResult> {
+): Promise<boolean> {
     try {
         const toolchainsDir = path.join(await getToolsDir(), "toolchains");
 
@@ -426,38 +426,18 @@ export async function installSDK(
             command,
             setupState.setupPath
         );
-
-        if (result) {
-            output.appendLine("SDK installation completed successfully");
-            return {
-                success: true,
-                output: "SDK installation completed successfully",
-            };
-        } else {
-            output.appendLine("SDK installation failed");
-            return {
-                success: false,
-                error: "Failed to install SDK",
-            };
-        }
+        return result;
     } catch (error) {
         const errorMsg = `Error installing SDK: ${error}`;
         output.appendLine(errorMsg);
-        return {
-            success: false,
-            error: errorMsg,
-        };
+        return false;
     }
 }
 
 /**
  * Main SDK installation function that handles the complete user workflow
  */
-export async function installSDKInteractive(
-    wsConfig: WorkspaceConfig,
-    globalConfig: GlobalConfig,
-    context?: vscode.ExtensionContext
-): Promise<void> {
+export async function installSDKInteractive(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, context?: vscode.ExtensionContext) {
     try {
         const setupState = await getWestSDKContext(wsConfig, globalConfig, context);
 
@@ -481,7 +461,7 @@ export async function installSDKInteractive(
         }
 
         // Step 3: Install with progress
-        await vscode.window.withProgress(
+        return await vscode.window.withProgress(
             {
                 location: vscode.ProgressLocation.Notification,
                 title: "Installing Zephyr SDK",
@@ -493,17 +473,17 @@ export async function installSDKInteractive(
                 });
 
                 const result = await installSDK(setupState, sdkVersion, toolchains);
-
-                if (result.success) {
+                if (result) {
                     globalConfig.sdkInstalled = true;
                     vscode.window.showInformationMessage(
                         "Zephyr SDK installed successfully!"
                     );
                 } else {
                     vscode.window.showErrorMessage(
-                        `Failed to install SDK: ${result.error}`
+                        `Failed to install SDK: ${result}`
                     );
                 }
+                return result;
             }
         );
     } catch (error) {
