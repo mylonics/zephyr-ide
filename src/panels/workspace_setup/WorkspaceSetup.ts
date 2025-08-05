@@ -178,8 +178,6 @@ export class WorkspaceSetup {
                 vscode.window.showErrorMessage("Invalid workspace type selected");
                 return;
             }
-
-            this._panel.dispose(); // Close wizard after starting workspace creation
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to create workspace: ${error}`);
         }
@@ -194,13 +192,11 @@ export class WorkspaceSetup {
                 vscode.window.showInformationMessage(
                     "Setting up current directory as Zephyr IDE workspace..."
                 );
-                this._panel.dispose(); // Close wizard after starting setup
             } else if (source === "zephyr-ide-git") {
                 vscode.commands.executeCommand("zephyr-ide.workspace-setup-from-git");
                 vscode.window.showInformationMessage(
                     "Setting up Zephyr IDE workspace from Git..."
                 );
-                this._panel.dispose(); // Close wizard after starting setup
             } else if (source === "west-git") {
                 vscode.commands.executeCommand(
                     "zephyr-ide.workspace-setup-from-west-git"
@@ -208,7 +204,6 @@ export class WorkspaceSetup {
                 vscode.window.showInformationMessage(
                     "Setting up West workspace from Git..."
                 );
-                this._panel.dispose(); // Close wizard after starting setup
             } else {
                 vscode.window.showInformationMessage(
                     `Import from ${source} is coming soon!`
@@ -370,8 +365,8 @@ export class WorkspaceSetup {
         const statusClass = globalConfig.sdkInstalled ? "status-success" : "status-error";
         const statusText = globalConfig.sdkInstalled ? "✓ SDK Installed" : "✗ SDK Not Installed";
         const expandedClass = sdkCollapsed ? "" : "expanded";
-        
-        const description = globalConfig.sdkInstalled 
+
+        const description = globalConfig.sdkInstalled
             ? "The Zephyr SDK is installed and ready to use. You can install additional SDK versions or update to the latest."
             : "The Zephyr SDK contains the cross-compilation toolchain and debugger needed to build and debug Zephyr applications for different target architectures. The SDK installation provides version management and uses your existing west installation.";
 

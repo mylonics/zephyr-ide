@@ -24,6 +24,16 @@ import { ExtensionSetupView } from "./panels/extension_setup_view/ExtensionSetup
 import { ProjectConfigView } from "./panels/project_config_view/ProjectConfigView";
 import { WorkspaceSetup } from "./panels/workspace_setup/WorkspaceSetup";
 
+// Helper function to mark workspace setup as complete and refresh UI
+async function markWorkspaceSetupComplete(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
+  wsConfig.initialSetupComplete = true;
+  await setWorkspaceState(context, wsConfig);
+  // Update workspace setup panel if it's open
+  if (WorkspaceSetup.currentPanel) {
+    WorkspaceSetup.currentPanel.updateWebView(wsConfig, globalConfig);
+  }
+}
+
 import {
   getLaunchConfigurationByName,
   output,
@@ -425,6 +435,10 @@ export async function activate(context: vscode.ExtensionContext) {
       }
       await clearWorkspaceState(context, wsConfig);
       extensionSetupView.updateWebView(wsConfig, globalConfig);
+      // Also update workspace setup panel if it's open
+      if (WorkspaceSetup.currentPanel) {
+        WorkspaceSetup.currentPanel.updateWebView(wsConfig, globalConfig);
+      }
     })
   );
 
@@ -1325,8 +1339,7 @@ export async function activate(context: vscode.ExtensionContext) {
       async () => {
         const success = await workspaceSetupFromGit(context, wsConfig, globalConfig);
         if (success) {
-          wsConfig.initialSetupComplete = true;
-          await setWorkspaceState(context, wsConfig);
+          await markWorkspaceSetupComplete(context, wsConfig, globalConfig);
         }
       }
     )
@@ -1338,8 +1351,7 @@ export async function activate(context: vscode.ExtensionContext) {
       async () => {
         const success = await workspaceSetupFromWestGit(context, wsConfig, globalConfig);
         if (success) {
-          wsConfig.initialSetupComplete = true;
-          await setWorkspaceState(context, wsConfig);
+          await markWorkspaceSetupComplete(context, wsConfig, globalConfig);
         }
       }
     )
@@ -1355,8 +1367,7 @@ export async function activate(context: vscode.ExtensionContext) {
           globalConfig
         );
         if (success) {
-          wsConfig.initialSetupComplete = true;
-          await setWorkspaceState(context, wsConfig);
+          await markWorkspaceSetupComplete(context, wsConfig, globalConfig);
         }
       }
     )
@@ -1368,8 +1379,7 @@ export async function activate(context: vscode.ExtensionContext) {
       async () => {
         const success = await workspaceSetupStandard(context, wsConfig, globalConfig);
         if (success) {
-          wsConfig.initialSetupComplete = true;
-          await setWorkspaceState(context, wsConfig);
+          await markWorkspaceSetupComplete(context, wsConfig, globalConfig);
         }
       }
     )
@@ -1381,8 +1391,7 @@ export async function activate(context: vscode.ExtensionContext) {
       async () => {
         const success = await workspaceSetupGlobalZephyr(context, wsConfig, globalConfig);
         if (success) {
-          wsConfig.initialSetupComplete = true;
-          await setWorkspaceState(context, wsConfig);
+          await markWorkspaceSetupComplete(context, wsConfig, globalConfig);
         }
       }
     )
@@ -1394,8 +1403,7 @@ export async function activate(context: vscode.ExtensionContext) {
       async () => {
         const success = await workspaceSetupCreateNewShared(context, wsConfig, globalConfig);
         if (success) {
-          wsConfig.initialSetupComplete = true;
-          await setWorkspaceState(context, wsConfig);
+          await markWorkspaceSetupComplete(context, wsConfig, globalConfig);
         }
       }
     )
@@ -1407,8 +1415,7 @@ export async function activate(context: vscode.ExtensionContext) {
       async () => {
         const success = await workspaceSetupUseExisting(context, wsConfig, globalConfig);
         if (success) {
-          wsConfig.initialSetupComplete = true;
-          await setWorkspaceState(context, wsConfig);
+          await markWorkspaceSetupComplete(context, wsConfig, globalConfig);
         }
       }
     )

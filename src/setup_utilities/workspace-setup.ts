@@ -101,9 +101,9 @@ export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext
     vscode.window.showErrorMessage("Failed to initialize west with git repository.");
     return false;
   }
-
   // Run post-setup process
-  return await postWorkspaceSetup(context, wsConfig, globalConfig, currentDir);
+  postWorkspaceSetup(context, wsConfig, globalConfig, currentDir);
+  return true;
 }
 
 export async function workspaceSetupStandard(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
@@ -145,7 +145,8 @@ export async function workspaceSetupStandard(context: vscode.ExtensionContext, w
   }
 
   // Run post-setup process (same as current directory)
-  return await postWorkspaceSetup(context, wsConfig, globalConfig, currentDir);
+  postWorkspaceSetup(context, wsConfig, globalConfig, currentDir);
+  return true;
 }
 
 export async function workspaceSetupFromCurrentDirectory(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
@@ -205,7 +206,8 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
         // Update workspace config to use subdirectory
         const subdirPath = westYmlFiles[0];
         await setSetupState(context, wsConfig, globalConfig, subdirPath);
-        return await postWorkspaceSetup(context, wsConfig, globalConfig, subdirPath);
+        postWorkspaceSetup(context, wsConfig, globalConfig, subdirPath);
+        return true;
       }
     } else {
       // Multiple west.yml files found
@@ -226,7 +228,8 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
 
       const selectedPath = selectedSubdir.description;
       await setSetupState(context, wsConfig, globalConfig, selectedPath);
-      return await postWorkspaceSetup(context, wsConfig, globalConfig, selectedPath);
+      postWorkspaceSetup(context, wsConfig, globalConfig, selectedPath);
+      return true;
     }
   }
 
@@ -234,7 +237,8 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
   await setSetupState(context, wsConfig, globalConfig, currentDir);
 
   // Run post-setup process
-  return await postWorkspaceSetup(context, wsConfig, globalConfig, currentDir);
+  postWorkspaceSetup(context, wsConfig, globalConfig, currentDir);
+  return true;
 }
 
 export async function workspaceSetupGlobalZephyr(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
@@ -306,13 +310,16 @@ export async function workspaceSetupGlobalZephyr(context: vscode.ExtensionContex
     }
 
     // Run post-setup process
-    const result = await postWorkspaceSetup(context, wsConfig, globalConfig, globalToolsDir);
 
-    if (result) {
-      vscode.window.showInformationMessage(`Global Zephyr installation created and workspace configured at: ${globalToolsDir}`);
-    }
+    postWorkspaceSetup(context, wsConfig, globalConfig, globalToolsDir).then(
+      result => {
+        if (result) {
+          vscode.window.showInformationMessage(`Global Zephyr installation created and workspace configured at: ${globalToolsDir}`);
+        }
+      }
+    );
+    return true;
 
-    return result;
   }
 
   // Global setup state exists, just configure workspace to use it
@@ -401,13 +408,14 @@ export async function workspaceSetupCreateNewShared(context: vscode.ExtensionCon
   }
 
   // Run post-setup process
-  const result = await postWorkspaceSetup(context, wsConfig, globalConfig, selectedPath);
-
-  if (result) {
-    vscode.window.showInformationMessage(`New shared Zephyr installation created at: ${selectedPath}`);
-  }
-
-  return result;
+  postWorkspaceSetup(context, wsConfig, globalConfig, selectedPath).then(
+    result => {
+      if (result) {
+        vscode.window.showInformationMessage(`New shared Zephyr installation created at: ${selectedPath}`);
+      }
+    }
+  );
+  return true;
 }
 
 export async function workspaceSetupUseExisting(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
