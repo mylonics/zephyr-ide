@@ -132,19 +132,28 @@ suite("Workflow Integration Test Suite", () => {
                     } else if (currentStep === "sdk-installation") {
                         // Use same logic as fallback showQuickPick for consistency
                         const firstItemLabel = (items[0]?.label || items[0] || '').toLowerCase();
-                        
+
                         if (firstItemLabel.includes('automatic') || items.some((item: any) => (item.label || item).toLowerCase().includes('automatic'))) {
                             console.log('   → SDK QuickPick: Selecting Automatic installation');
                             return items.find((item: any) => (item.label || item).toLowerCase().includes('automatic')) || items[0];
                         } else if (firstItemLabel.includes('toolchain') || items.some((item: any) => (item.label || item).toLowerCase().includes('toolchain'))) {
-                            console.log('   → SDK QuickPick: Selecting Specific Toolchain');
-                            return items.find((item: any) => 
-                                (item.label || item).toLowerCase().includes('specific toolchain') ||
-                                (item.label || item).toLowerCase().includes('toolchain')
-                            ) || items[0];
+                            // Check if this is the first step (Install All vs Select Specific) or second step (actual toolchain selection)
+                            if (items.some((item: any) => (item.label || item).toLowerCase().includes('select specific'))) {
+                                // First step: Choose "Select Specific Toolchains"
+                                console.log('   → SDK QuickPick: Selecting "Select Specific Toolchains" option');
+                                return items.find((item: any) => (item.label || item).toLowerCase().includes('select specific')) || items[1];
+                            } else if (items.some((item: any) => (item.label || item).toLowerCase().includes('arm-zephyr-eabi'))) {
+                                // Second step: Choose specific toolchain - select only arm-zephyr-eabi
+                                console.log('   → SDK QuickPick: Selecting only arm-zephyr-eabi toolchain');
+                                return [items.find((item: any) => (item.label || item).toLowerCase().includes('arm-zephyr-eabi'))];
+                            } else {
+                                // Fallback for toolchain selection
+                                console.log('   → SDK QuickPick: Selecting first toolchain option');
+                                return items[0];
+                            }
                         } else if (items.some((item: any) => (item.label || item).toLowerCase().includes('arm-zephyr-eabi'))) {
                             console.log('   → SDK QuickPick: Selecting only arm-zephyr-eabi toolchain');
-                            return items.find((item: any) => (item.label || item).toLowerCase().includes('arm-zephyr-eabi'));
+                            return [items.find((item: any) => (item.label || item).toLowerCase().includes('arm-zephyr-eabi'))];
                         } else {
                             console.log('   → SDK QuickPick: Selecting first available option');
                             return items[0];
@@ -308,22 +317,30 @@ suite("Workflow Integration Test Suite", () => {
                 if (currentStep === "sdk-installation") {
                     // Check what type of selection this is based on available items
                     const firstItemLabel = (itemsArray[0]?.label || itemsArray[0] || '').toLowerCase();
-                    
+
                     if (firstItemLabel.includes('automatic') || itemsArray.some((item: any) => (item.label || item).toLowerCase().includes('automatic'))) {
                         // SDK installation mode selection - choose Automatic
                         console.log('   → SDK: Selecting Automatic installation');
                         return itemsArray.find((item: any) => (item.label || item).toLowerCase().includes('automatic')) || itemsArray[0];
                     } else if (firstItemLabel.includes('toolchain') || itemsArray.some((item: any) => (item.label || item).toLowerCase().includes('toolchain'))) {
-                        // Toolchain selection mode - choose Specific Toolchain
-                        console.log('   → SDK: Selecting Specific Toolchain');
-                        return itemsArray.find((item: any) => 
-                            (item.label || item).toLowerCase().includes('specific toolchain') ||
-                            (item.label || item).toLowerCase().includes('toolchain')
-                        ) || itemsArray[0];
+                        // Check if this is the first step (Install All vs Select Specific) or second step (actual toolchain selection)
+                        if (itemsArray.some((item: any) => (item.label || item).toLowerCase().includes('select specific'))) {
+                            // First step: Choose "Select Specific Toolchains"
+                            console.log('   → SDK: Selecting "Select Specific Toolchains" option');
+                            return itemsArray.find((item: any) => (item.label || item).toLowerCase().includes('select specific')) || itemsArray[1];
+                        } else if (itemsArray.some((item: any) => (item.label || item).toLowerCase().includes('arm-zephyr-eabi'))) {
+                            // Second step: Choose specific toolchain - select only arm-zephyr-eabi
+                            console.log('   → SDK: Selecting only arm-zephyr-eabi toolchain');
+                            return [itemsArray.find((item: any) => (item.label || item).toLowerCase().includes('arm-zephyr-eabi'))];
+                        } else {
+                            // Fallback for toolchain selection
+                            console.log('   → SDK: Selecting first toolchain option');
+                            return itemsArray[0];
+                        }
                     } else if (itemsArray.some((item: any) => (item.label || item).toLowerCase().includes('arm-zephyr-eabi'))) {
-                        // Specific toolchain selection - choose only arm-zephyr-eabi
+                        // Direct toolchain selection - choose only arm-zephyr-eabi
                         console.log('   → SDK: Selecting only arm-zephyr-eabi toolchain');
-                        return itemsArray.find((item: any) => (item.label || item).toLowerCase().includes('arm-zephyr-eabi'));
+                        return [itemsArray.find((item: any) => (item.label || item).toLowerCase().includes('arm-zephyr-eabi'))];
                     } else {
                         // Default: select first item
                         console.log('   → SDK: Selecting first available option');
