@@ -586,7 +586,10 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.add-build", async () => {
       if (wsConfig.activeSetupState && wsConfig.activeSetupState.westUpdated) {
         let result = await project.addBuild(wsConfig, context);
+        console.log("Updating web view");
+        console.log(result);
         vscode.commands.executeCommand("zephyr-ide.update-web-view");
+        console.log("returning from adding build");
         return result;
       } else {
         vscode.window.showErrorMessage("Run `Zephyr IDE: West Update` first.");

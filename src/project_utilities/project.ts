@@ -505,9 +505,13 @@ export async function addProject(wsConfig: WorkspaceConfig, context: vscode.Exte
 
 export async function addBuildToProject(wsConfig: WorkspaceConfig, context: vscode.ExtensionContext, projectName: string) {
 
+  console.log(`Startign build1`);
   if (wsConfig.activeSetupState) {
 
+    console.log(`Startign build2`);
     let result = await buildSelector(context, wsConfig.activeSetupState, wsConfig.rootPath);
+
+    console.log(`build selector returned`);
     if (result && result.name !== undefined) {
       result.runnerConfigs = {};
       if (wsConfig.projects[projectName].buildConfigs[result.name]) {
@@ -517,7 +521,7 @@ export async function addBuildToProject(wsConfig: WorkspaceConfig, context: vsco
           return;
         }
       }
-
+      console.log(`Creating Build Configuration: ${result.name}`);
       vscode.window.showInformationMessage(`Creating Build Configuration: ${result.name}`);
       wsConfig.projects[projectName].buildConfigs[result.name] = result;
       wsConfig.projectStates[projectName].buildStates[result.name] = { runnerStates: {}, viewOpen: true };

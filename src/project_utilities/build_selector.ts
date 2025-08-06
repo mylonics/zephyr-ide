@@ -75,24 +75,45 @@ async function getBoardlistWest(setupState: SetupState, folder: vscode.Uri | und
   }
 
   let prevError: any;
-  if (setupState.zephyrVersion === undefined) { return; }
+  console.log("zephyrVersion");
+  console.log(setupState.zephyrVersion);
+
+  if (setupState.zephyrVersion === undefined) {
+    console.log("Returning because zephyrVersion is not set");
+    return;
+  }
   let res;
   let has_qualifiers = false;
   let has_revisions = false;
+  console.log("Getting board list");
+
   if (isVersionNumberGreater(setupState.zephyrVersion, 4, 1, 0)) {
-    res = await executeShellCommandInPythonEnv("west boards -f '{name};{dir};{qualifiers};{revisions};{revision_default}'" + boardRootString, setupState.setupPath, setupState, false);
+
+    console.log("Getting board list1");
+    res = await executeShellCommandInPythonEnv('west boards -f "{name};{dir};{qualifiers};{revisions};{revision_default}" ' + boardRootString, setupState.setupPath, setupState, false);
     has_qualifiers = true;
     has_revisions = true;
   } else if (isVersionNumberGreaterEqual(setupState.zephyrVersion, 3, 7, 0)) {
-    res = await executeShellCommandInPythonEnv("west boards -f '{name};{dir};{qualifiers}'" + boardRootString, setupState.setupPath, setupState, false);
+    console.log("Getting board list2");
+    res = await executeShellCommandInPythonEnv('west boards -f "{name};{dir};{qualifiers}" ' + boardRootString, setupState.setupPath, setupState, false);
     has_qualifiers = true;
   } else {
-    res = await executeShellCommandInPythonEnv("west boards -f '{name};{dir}'" + boardRootString, setupState.setupPath, setupState, false);
-  }
 
-  if (!res.stdout) {
-    output.append(prevError);
-    output.append(res.stderr);
+    console.log("Getting board list3");
+    res = await executeShellCommandInPythonEnv('west boards -f "{name};{dir}" ' + boardRootString, setupState.setupPath, setupState, false);
+  }
+  console.log("Got board list");
+
+  console.log(res);
+  console.log(res.stdout);
+  console.log(res.stderr);
+  console.log(JSON.stringify(res));
+
+  if (!res.stdout || res.stdout === "") {
+    console.log("error");
+
+    console.log(prevError);
+    console.log(res.stderr);
     vscode.window.showErrorMessage("Failed to run west boards command. See Zephyr IDE Output for error message");
     return;
   }
@@ -154,8 +175,8 @@ export async function pickBoard(setupState: SetupState, rootPath: string) {
   boardDirectories.push("Select Other Folder");
   const boardDirectoriesQpItems: QuickPickItem[] = boardDirectories.map(label => ({ label }));
 
-  const title = "Board Picker";
-
+  const title = "Board Dir Picker";
+  console.log("picking directories");
   let pickPromise = showQuickPick({
     title,
     step: 1,
@@ -176,6 +197,7 @@ export async function pickBoard(setupState: SetupState, rootPath: string) {
 
   let relBoardDir: string | undefined = path.relative(rootPath, (pick.label));
   if (pick.label === "Select Other Folder") {
+    console.log("selecting other folder");
     const boarddir = await vscode.window.showOpenDialog({
       canSelectFiles: false,
       canSelectFolders: true,
@@ -192,13 +214,19 @@ export async function pickBoard(setupState: SetupState, rootPath: string) {
   }
 
   let boardList;
+  console.log("getting board list");
+  console.log(relBoardDir);
+
   if (relBoardDir) {
     boardList = await getBoardlistWest(setupState, vscode.Uri.file(path.join(rootPath, relBoardDir)));
   } else {
     boardList = await getBoardlistWest(setupState, undefined);
   }
+  console.log("finished getting boar lsit");
 
   if (!boardList) {
+    console.log("empty board list");
+
     return;
   }
 
@@ -213,12 +241,17 @@ export async function pickBoard(setupState: SetupState, rootPath: string) {
     activeItem: undefined
   }).catch((error) => {
     console.error(error);
+
+    console.log("Pick Board error");
     return undefined;
   });
   pick = (await pickPromise as QuickPickItem);
   if (!pick) {
+    console.log("Pick error");
+
     return;
   };
+  console.log(pick);
 
   let pick_data = (pick as BoardItem);
 
@@ -256,17 +289,20 @@ export async function pickBoard(setupState: SetupState, rootPath: string) {
       activeItem: revisionQPItems[revisionIndex]
     }).catch((error) => {
       console.error(error);
+
+      console.log("pick rev error");
       return undefined;
     });
     let pick = (await pickPromise as QuickPickItem);
     if (!pick) {
+
+      console.log("pick error");
       return;
     };
     revision = pick.label;
   }
 
-
-
+  console.log("returning board config");
   let boardConfig = {
     board: board,
     relBoardDir: relBoardDir,
@@ -280,6 +316,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
   const title = 'Add Build Configuration';
 
   async function pickBoardStep(input: MultiStepInput, state: Partial<BuildConfig>) {
+    console.log("picking board");
     let boardData = await pickBoard(setupState, rootPath);
     if (boardData) {
       state.relBoardDir = boardData.relBoardDir;

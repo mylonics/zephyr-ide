@@ -246,7 +246,18 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
       }
 
       // Install `west`
+      let res1 = await executeShellCommandInPythonEnv(`west --version`, wsConfig.activeSetupState.setupPath, wsConfig.activeSetupState, true);
+      console.log(JSON.stringify(res1));
+
+
       let res = await executeShellCommandInPythonEnv(`python -m pip install west`, wsConfig.activeSetupState.setupPath, wsConfig.activeSetupState, true);
+      console.log("Installing west");
+      console.log(JSON.stringify(res));
+
+      console.log("new check")
+      let res2 = await executeShellCommandInPythonEnv(`west --version`, wsConfig.activeSetupState.setupPath, wsConfig.activeSetupState, true);
+      console.log(JSON.stringify(res2));
+
       if (res.stdout) {
         output.append(res.stdout);
         output.appendLine("[SETUP] west installed");
@@ -255,6 +266,7 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
         vscode.window.showErrorMessage("Error installing west. Check output for more info.");
         return;
       }
+
 
       output.appendLine("[SETUP] West Python Environment Setup complete!");
 

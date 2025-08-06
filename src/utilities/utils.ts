@@ -59,6 +59,8 @@ export function isMacOS() {
 }
 
 export function getPythonVenvBinaryFolder(setupState: SetupState) {
+  console.log(JSON.stringify(setupState.env));
+  console.log(JSON.stringify(platform));
   if (setupState.env["VIRTUAL_ENV"]) {
     switch (platform) {
       case "win32":
@@ -169,9 +171,9 @@ async function executeTask(task: vscode.Task) {
 export async function executeTaskHelperInPythonEnv(setupState: SetupState | undefined, taskName: string, cmd: string, cwd: string | undefined) {
   if (setupState && isMacOS()) {
     let newCmd = path.join(getPythonVenvBinaryFolder(setupState), cmd);
-    return executeTaskHelper(taskName, newCmd, cwd);
+    return await executeTaskHelper(taskName, newCmd, cwd);
   } else {
-    return executeTaskHelper(taskName, cmd, cwd);
+    return await executeTaskHelper(taskName, cmd, cwd);
   }
 }
 
@@ -197,21 +199,35 @@ export async function executeTaskHelper(taskName: string, cmd: string, cwd: stri
 }
 
 export async function executeShellCommandInPythonEnv(cmd: string, cwd: string, setupState: SetupState, display_error = true) {
+
+
   let newCmd = path.join(getPythonVenvBinaryFolder(setupState), cmd);
-  return executeShellCommand(newCmd, cwd, display_error);
+
+  let newCmd2 = "ls " + getPythonVenvBinaryFolder(setupState);
+  console.log(JSON.stringify(newCmd));
+
+  await executeShellCommand(path.join(getPythonVenvBinaryFolder(setupState), "west --version"), cwd, display_error);
+  await executeShellCommand(path.join(getPythonVenvBinaryFolder(setupState), "west list"), cwd, display_error);
+  await executeShellCommand(path.join(getPythonVenvBinaryFolder(setupState), "west boards"), cwd, display_error);
+  await executeShellCommand(newCmd2, cwd, display_error);
+  return await executeShellCommand(newCmd, cwd, display_error);
 };
 
 export async function executeShellCommand(cmd: string, cwd: string, display_error = true) {
+  console.log(JSON.stringify(cmd));
+  console.log(JSON.stringify(cwd));
   let exec = util.promisify(cp.exec);
   let res = await exec(cmd, { cwd: cwd }).then(
-
     value => {
+
+      console.log(JSON.stringify(value));
       return { stdout: value.stdout, stderr: value.stderr };
     },
     reason => {
       if (display_error) {
         output.append(reason);
       }
+      console.log(JSON.stringify(reason));
       return { stdout: undefined, stderr: reason.stderr };
     }
   );
