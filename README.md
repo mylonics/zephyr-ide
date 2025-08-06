@@ -41,7 +41,6 @@ In order for this application to work correctly the zephyr require build tools n
 
 See the [Install Dependecies Section of the Zephyr Getting Started Guide](https://docs.zephyrproject.org/latest/develop/getting_started/index.html#install-dependencies)
 
-For ubuntu please also install python3-venv by ```sudo apt install python3-venv```
 
 ## Testing
 

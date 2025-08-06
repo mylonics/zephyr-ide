@@ -166,7 +166,8 @@ suite("Workflow Integration Test Suite", () => {
                         );
                     } else if (currentStep === "build-config") {
                         const firstItemLabel = (items[0]?.label || "").toLowerCase();
-                        if (firstItemLabel.includes("zephyr directory")) {
+                        if (firstItemLabel.includes("zephyr directory") || items.some((item: any) => item.label?.toLowerCase().includes("zephyr directory"))) {
+                            console.log('   → Build Config: Selecting Zephyr Directory Only option');
                             return (
                                 items.find((item: any) =>
                                     item.label?.toLowerCase().includes("zephyr directory")
@@ -222,19 +223,26 @@ suite("Workflow Integration Test Suite", () => {
                     hide: () => { },
                     dispose: () => { },
                     show: () => {
-                        setTimeout(() => {
-                            const selectedItem = getSelection(mockQuickPick.items);
-                            if (selectedItem) {
-                                mockQuickPick.selectedItems = [selectedItem];
-                                mockQuickPick.activeItems = [selectedItem];
-                                if (mockQuickPick._onDidChangeSelectionCallback) {
-                                    mockQuickPick._onDidChangeSelectionCallback([selectedItem]);
+                        const checkAndSelect = () => {
+                            if (mockQuickPick.items && mockQuickPick.items.length > 0) {
+                                const selectedItem = getSelection(mockQuickPick.items);
+                                if (selectedItem) {
+                                    console.log(`   → QuickPick: Selected "${selectedItem.label || selectedItem}" from ${mockQuickPick.items.length} items`);
+                                    mockQuickPick.selectedItems = [selectedItem];
+                                    mockQuickPick.activeItems = [selectedItem];
+                                    if (mockQuickPick._onDidChangeSelectionCallback) {
+                                        mockQuickPick._onDidChangeSelectionCallback([selectedItem]);
+                                    }
                                 }
+                                if (mockQuickPick._onDidAcceptCallback) {
+                                    mockQuickPick._onDidAcceptCallback();
+                                }
+                            } else {
+                                // Retry if items not populated yet
+                                setTimeout(checkAndSelect, 5000);
                             }
-                            if (mockQuickPick._onDidAcceptCallback) {
-                                mockQuickPick._onDidAcceptCallback();
-                            }
-                        }, 8000);
+                        };
+                        setTimeout(checkAndSelect, 2000);
                     },
                     onDidTriggerButton: () => ({ dispose: () => { } }),
                     onDidChangeSelection: (callback: any) => {
@@ -292,7 +300,7 @@ suite("Workflow Integration Test Suite", () => {
                             if (mockInputBox._onDidAcceptCallback) {
                                 mockInputBox._onDidAcceptCallback();
                             }
-                        }, 8000);
+                        }, 30000);
                     },
                     onDidAccept: (callback: any) => {
                         mockInputBox._onDidAcceptCallback = callback;
@@ -445,6 +453,15 @@ suite("Workflow Integration Test Suite", () => {
             globalQuickPickCallCount = 0;
             globalInputBoxCallCount = 0;
             currentStep = "build-config";
+            
+            // Check if west is available before attempting build config
+            const ext = vscode.extensions.getExtension("mylonics.zephyr-ide");
+            const wsConfig = ext?.exports?.getWorkspaceConfig();
+            if (!wsConfig?.initialSetupComplete) {
+                console.log("⚠️ Setup not complete, retrying in 10 seconds...");
+                await new Promise((resolve) => setTimeout(resolve, 10000));
+            }
+            
             result = await vscode.commands.executeCommand("zephyr-ide.add-build");
             assert.ok(result, "Build configuration should succeed");
 
