@@ -74,25 +74,31 @@ async function getBoardlistWest(setupState: SetupState, folder: vscode.Uri | und
     boardRootString = " --board-root " + path.dirname(folder.fsPath);
   }
 
-  let prevError: any;
-  if (setupState.zephyrVersion === undefined) { return; }
+  if (setupState.zephyrVersion === undefined) {
+    console.log("Returning because zephyrVersion is not set");
+    return;
+  }
   let res;
   let has_qualifiers = false;
   let has_revisions = false;
+
   if (isVersionNumberGreater(setupState.zephyrVersion, 4, 1, 0)) {
-    res = await executeShellCommandInPythonEnv("west boards -f '{name};{dir};{qualifiers};{revisions};{revision_default}'" + boardRootString, setupState.setupPath, setupState, false);
+    console.log("Getting board list greater than v4.1.0");
+    res = await executeShellCommandInPythonEnv('west boards -f "{name};{dir};{qualifiers};{revisions};{revision_default}" ' + boardRootString, setupState.setupPath, setupState, false);
     has_qualifiers = true;
     has_revisions = true;
   } else if (isVersionNumberGreaterEqual(setupState.zephyrVersion, 3, 7, 0)) {
-    res = await executeShellCommandInPythonEnv("west boards -f '{name};{dir};{qualifiers}'" + boardRootString, setupState.setupPath, setupState, false);
+    console.log("Getting board v3.7.0 and greater");
+    res = await executeShellCommandInPythonEnv('west boards -f "{name};{dir};{qualifiers}" ' + boardRootString, setupState.setupPath, setupState, false);
     has_qualifiers = true;
   } else {
-    res = await executeShellCommandInPythonEnv("west boards -f '{name};{dir}'" + boardRootString, setupState.setupPath, setupState, false);
+    console.log("Getting board legacy");
+    res = await executeShellCommandInPythonEnv('west boards -f "{name};{dir}" ' + boardRootString, setupState.setupPath, setupState, false);
   }
 
-  if (!res.stdout) {
-    output.append(prevError);
-    output.append(res.stderr);
+  if (!res.stdout || res.stdout === "") {
+    console.log("Board list error");
+    console.log(res.stderr);
     vscode.window.showErrorMessage("Failed to run west boards command. See Zephyr IDE Output for error message");
     return;
   }
