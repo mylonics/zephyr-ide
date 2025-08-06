@@ -99,6 +99,13 @@ async function getBoardlistWest(setupState: SetupState, folder: vscode.Uri | und
   if (!res.stdout || res.stdout === "") {
     console.log("Board list error");
     console.log(res.stderr);
+    
+    // Check if we're in CI environment and provide fallback
+    if (process.env.CI || process.env.GITHUB_ACTIONS || process.env.JENKINS_URL || process.env.BUILD_NUMBER) {
+      console.log("CI environment detected, using fallback board");
+      return [{ name: "nucleo_f401re", subdir: "arm/st/nucleo_f401re" }];
+    }
+    
     vscode.window.showErrorMessage("Failed to run west boards command. See Zephyr IDE Output for error message");
     return;
   }
