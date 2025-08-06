@@ -21,8 +21,10 @@ const { execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
-console.log('=== Running Zephyr IDE Workflow Integration Tests ===');
-console.log('🔬 These tests execute the complete Zephyr IDE workflow using VS Code commands');
+const testType = process.argv[2] || 'all';
+
+console.log(`=== Running Zephyr IDE ${testType.toUpperCase()} Workflow Integration Tests ===`);
+console.log('🔬 These tests execute the Zephyr IDE workflow using VS Code commands');
 console.log('');
 
 try {
@@ -30,18 +32,32 @@ try {
     console.log('Compiling TypeScript...');
     execSync('npm run test-compile', { stdio: 'inherit', cwd: path.dirname(__dirname) });
 
+    let grepPattern;
+    switch (testType) {
+        case 'standard':
+            grepPattern = '"Standard Workflow Integration Test Suite"';
+            break;
+        case 'git':
+            grepPattern = '"Git Workflow Integration Test Suite"';
+            break;
+        case 'all':
+        default:
+            grepPattern = '"Workflow Integration Test Suite"';
+            break;
+    }
+
     // Run workflow integration tests
-    console.log('Running workflow integration tests...');
-    execSync('npx vscode-test --grep "Workflow Integration Test Suite"', { 
+    console.log(`Running ${testType} workflow integration tests...`);
+    execSync(`npx vscode-test --grep ${grepPattern}`, { 
         stdio: 'inherit', 
         cwd: path.dirname(__dirname) 
     });
 
-    console.log('✓ Workflow integration tests completed successfully');
+    console.log(`✓ ${testType} workflow integration tests completed successfully`);
 } catch (error) {
-    console.error('❌ Workflow integration tests failed:', error.message);
+    console.error(`❌ ${testType} workflow integration tests failed:`, error.message);
     console.error('');
-    console.error('This test executes the complete Zephyr IDE workflow.');
+    console.error('This test executes the Zephyr IDE workflow.');
     console.error('Some steps may fail if build dependencies are not available.');
     process.exit(1);
 }

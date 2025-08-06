@@ -49,13 +49,13 @@ import { UIMockInterface, MockInteraction } from "./ui-mock-interface";
  * - Clear intent with descriptive interactions
  */
 
-suite("Workflow Integration Test Suite", () => {
+suite("Standard Workflow Integration Test Suite", () => {
     let testWorkspaceDir: string;
     let originalWorkspaceFolders: readonly vscode.WorkspaceFolder[] | undefined;
 
     suiteSetup(() => {
         logTestEnvironment();
-        console.log("🔬 Testing complete Zephyr IDE workflow");
+        console.log("🔬 Testing standard Zephyr IDE workflow");
     });
 
     setup(async () => {
@@ -201,79 +201,6 @@ suite("Workflow Integration Test Suite", () => {
     }).timeout(900000);
 
 
-    test("Git Workspace Setup: West Git → Add Project → Custom Board Build", async function () {
-        this.timeout(1800000);
 
-        console.log("🚀 Starting git workspace test...");
-
-        try {
-            const extension = vscode.extensions.getExtension("mylonics.zephyr-ide");
-            if (extension && !extension.isActive) {
-                await extension.activate();
-            }
-            await new Promise((resolve) => setTimeout(resolve, 3000));
-
-            // Initialize UI Mock Interface for git workflow
-            const gitUiMock = new UIMockInterface();
-            gitUiMock.activate();
-
-
-            console.log("🏗️ Step 1: Setting up workspace from West Git...");
-            // Prime the mock interface for git workspace setup interactions
-            gitUiMock.primeInteractions([
-                { type: 'input', value: 'https://github.com/mylonics/zephyr-example.git', description: 'Enter git repo URL' }
-            ]);
-
-            let result = await vscode.commands.executeCommand(
-                "zephyr-ide.workspace-setup-from-west-git"
-            );
-            assert.ok(result, "Git workspace setup should succeed");
-
-            await monitorWorkspaceSetup("git workspace");
-
-            console.log("📁 Step 2: Adding project from example repo...");
-            // Prime the mock interface for project addition interactions  
-            gitUiMock.primeInteractions([
-                { type: 'opendialog', value: path.join(testWorkspaceDir, "zephyr-example.git", "app"), description: 'Select app folder' }
-            ]);
-
-            result = await vscode.commands.executeCommand("zephyr-ide.add-project");
-            assert.ok(result, "Project addition should succeed");
-
-            console.log("🔨 Step 3: Adding build configuration with custom board...");
-            // Prime the mock interface for build configuration interactions
-            gitUiMock.primeInteractions([
-                { type: 'quickpick', value: 'select other folder', description: 'Select other folder for boards' },
-                { type: 'opendialog', value: path.join(testWorkspaceDir, "zephyr-example.git", "boards"), description: 'Select boards folder' },
-                { type: 'quickpick', value: 'custom_plank', description: 'Select custom_plank board' },
-                { type: 'input', value: 'test_build_2', description: 'Enter build name' },
-                { type: 'quickpick', value: 'debug', description: 'Select debug optimization' },
-                { type: 'input', value: '', description: 'Additional build args' },
-                { type: 'input', value: '-DCONFIG_DEBUG_OPTIMIZATIONS=y -DCONFIG_DEBUG_THREAD_INFO=y ', description: 'CMake args' }
-            ]);
-
-            const ext = vscode.extensions.getExtension("mylonics.zephyr-ide");
-            const wsConfig = ext?.exports?.getWorkspaceConfig();
-            if (!wsConfig?.initialSetupComplete) {
-                console.log("⚠️ Setup not complete, retrying in 10 seconds...");
-                await new Promise((resolve) => setTimeout(resolve, 10000));
-            }
-
-            result = await vscode.commands.executeCommand("zephyr-ide.add-build");
-            assert.ok(result, "Build configuration should succeed");
-
-            console.log("⚡ Step 4: Executing build with custom board...");
-            result = await vscode.commands.executeCommand("zephyr-ide.build");
-            assert.ok(result, "Build execution should succeed");
-
-            // Deactivate the UI Mock Interface
-            gitUiMock.deactivate();
-
-        } catch (error) {
-            console.error("❌ Git workflow test failed:", error);
-            await new Promise((resolve) => setTimeout(resolve, 30000));
-            throw error;
-        }
-    }).timeout(900000);
 
 });

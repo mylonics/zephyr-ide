@@ -35,9 +35,16 @@ jobs:
       - name: Run linting
         run: npm run lint
 
-      - name: Run real integration tests
+      - name: Run standard workflow integration tests
         run: |
-          xvfb-run -a node scripts/run-integration-tests.js
+          xvfb-run -a node scripts/run-integration-tests.js standard
+        env:
+          NODE_ENV: test
+          ZEPHYR_BASE: /tmp/zephyr
+
+      - name: Run git workflow integration tests
+        run: |
+          xvfb-run -a node scripts/run-integration-tests.js git
         env:
           NODE_ENV: test
           ZEPHYR_BASE: /tmp/zephyr
