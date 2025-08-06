@@ -99,3 +99,59 @@ export function logTestEnvironment(): void {
     console.log('Architecture:', process.arch);
     console.log('========================');
 }
+
+/**
+ * Monitor workspace setup progress for integration tests
+ * @param setupType Type of setup being monitored (e.g., "workspace", "git workspace")
+ */
+export async function monitorWorkspaceSetup(setupType: string = "workspace"): Promise<void> {
+    console.log(`⏳ Monitoring ${setupType} setup progress...`);
+    let waitTime = 0;
+    const checkInterval = 3000;
+    let initialSetupComplete = false;
+    let pythonEnvironmentSetup = false;
+    let westUpdated = false;
+    let packagesInstalled = false;
+
+    while (!packagesInstalled) {
+        const extension = vscode.extensions.getExtension("mylonics.zephyr-ide");
+        let wsConfig = null;
+
+        if (extension?.isActive && extension.exports?.getWorkspaceConfig) {
+            wsConfig = extension.exports.getWorkspaceConfig();
+        }
+
+        if (wsConfig) {
+            if (!initialSetupComplete && wsConfig.initialSetupComplete) {
+                console.log("    ✅ Initial setup completed - west.yml created");
+                initialSetupComplete = true;
+            }
+
+            if (!westUpdated && wsConfig.activeSetupState?.westUpdated) {
+                console.log("    ✅ West updated - All repos downloaded");
+                westUpdated = true;
+            }
+
+            if (!pythonEnvironmentSetup && wsConfig.activeSetupState?.pythonEnvironmentSetup) {
+                console.log("    ✅ Python environment setup completed");
+                pythonEnvironmentSetup = true;
+            }
+
+            if (wsConfig.activeSetupState?.packagesInstalled) {
+                packagesInstalled = true;
+                console.log("    ✅ Packages installed completed");
+                console.log(`🎉 All ${setupType} setup stages completed!`);
+                break;
+            }
+        }
+
+        // Progress update every 30 seconds
+        if (waitTime % 30000 === 0 && waitTime > 0) {
+            const completedStages = [initialSetupComplete, pythonEnvironmentSetup, westUpdated, packagesInstalled].filter(Boolean).length;
+            console.log(`⏳ ${setupType} setup in progress... (${waitTime / 1000}s elapsed, ${completedStages}/4 stages completed)`);
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, checkInterval));
+        waitTime += checkInterval;
+    }
+}
