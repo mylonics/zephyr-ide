@@ -486,4 +486,327 @@ suite("Workflow Integration Test Suite", () => {
             throw error;
         }
     }).timeout(900000);
+
+    test("Git Workspace Setup: West Git → Add Project → Custom Board Build", async function () {
+        this.timeout(1800000);
+
+        console.log("🚀 Starting git workspace test...");
+
+        try {
+            const extension = vscode.extensions.getExtension("mylonics.zephyr-ide");
+            if (extension && !extension.isActive) {
+                await extension.activate();
+            }
+            await new Promise((resolve) => setTimeout(resolve, 3000));
+
+            const originalShowInputBox = vscode.window.showInputBox;
+            const originalCreateQuickPick = vscode.window.createQuickPick;
+            const originalCreateInputBox = vscode.window.createInputBox;
+            const originalShowQuickPick = vscode.window.showQuickPick;
+            const originalShowOpenDialog = vscode.window.showOpenDialog;
+
+            let globalQuickPickCallCount = 0;
+            let globalInputBoxCallCount = 0;
+            let currentStep = "git-workspace-setup";
+
+            const createQuickPickMock = () => {
+                globalQuickPickCallCount++;
+
+                const getSelection = (items: any[]) => {
+                    if (currentStep === "git-workspace-setup") {
+                        if (globalQuickPickCallCount === 1) {
+                            return items.find((item: any) =>
+                                item.label?.toLowerCase().includes("minimal")
+                            ) || items[0];
+                        }
+                        if (globalQuickPickCallCount === 2) {
+                            return items.find((item: any) =>
+                                item.label?.toLowerCase().includes("stm32")
+                            ) || items[0];
+                        }
+                        return items.find((item: any) =>
+                            item.label?.toLowerCase().includes("default")
+                        ) || items[0];
+                    } else if (currentStep === "build-config") {
+                        const firstItemLabel = (items[0]?.label || "").toLowerCase();
+                        
+                        // Select boards directory in example repo or "Select Other Folder"
+                        if (items.some((item: any) => item.label?.toLowerCase().includes("boards"))) {
+                            console.log('   → Build Config: Selecting boards directory');
+                            return items.find((item: any) =>
+                                item.label?.toLowerCase().includes("boards")
+                            ) || items[0];
+                        }
+                        
+                        // If boards directory not available, select "Select Other Folder"
+                        if (items.some((item: any) => item.label?.toLowerCase().includes("select other folder"))) {
+                            console.log('   → Build Config: Selecting "Select Other Folder" to choose boards directory');
+                            return items.find((item: any) =>
+                                item.label?.toLowerCase().includes("select other folder")
+                            ) || items[0];
+                        }
+                        
+                        // Select custom_plank board
+                        if (items.some((item: any) => item.label?.toLowerCase().includes("custom_plank"))) {
+                            console.log('   → Build Config: Selecting custom_plank board');
+                            return items.find((item: any) =>
+                                item.label?.toLowerCase().includes("custom_plank")
+                            ) || items[0];
+                        }
+                        
+                        // Select debug optimization
+                        if (items.some((item: any) => item.label?.toLowerCase().includes("debug"))) {
+                            return items.find((item: any) =>
+                                item.label?.toLowerCase().includes("debug")
+                            ) || items[0];
+                        }
+                        
+                        return items[0];
+                    }
+                    return items[0];
+                };
+
+                const mockQuickPick: any = {
+                    title: "",
+                    step: 0,
+                    totalSteps: 0,
+                    items: [],
+                    activeItems: [],
+                    selectedItems: [],
+                    canSelectMany: false,
+                    ignoreFocusOut: false,
+                    placeholder: "",
+                    buttons: [],
+                    busy: false,
+                    enabled: true,
+                    value: "",
+                    keepScrollPosition: false,
+                    matchOnDescription: false,
+                    matchOnDetail: false,
+                    sortByLabel: true,
+                    validationMessage: "",
+                    hide: () => { },
+                    dispose: () => { },
+                    show: () => {
+                        const checkAndSelect = () => {
+                            if (mockQuickPick.items && mockQuickPick.items.length > 0) {
+                                const selectedItem = getSelection(mockQuickPick.items);
+                                if (selectedItem) {
+                                    console.log(`   → QuickPick: Selected "${selectedItem.label || selectedItem}" from ${mockQuickPick.items.length} items`);
+                                    mockQuickPick.selectedItems = [selectedItem];
+                                    mockQuickPick.activeItems = [selectedItem];
+                                    if (mockQuickPick._onDidChangeSelectionCallback) {
+                                        mockQuickPick._onDidChangeSelectionCallback([selectedItem]);
+                                    }
+                                }
+                                if (mockQuickPick._onDidAcceptCallback) {
+                                    mockQuickPick._onDidAcceptCallback();
+                                }
+                            } else {
+                                setTimeout(checkAndSelect, 5000);
+                            }
+                        };
+                        setTimeout(checkAndSelect, 2000);
+                    },
+                    onDidTriggerButton: () => ({ dispose: () => { } }),
+                    onDidChangeSelection: (callback: any) => {
+                        mockQuickPick._onDidChangeSelectionCallback = callback;
+                        return { dispose: () => { } };
+                    },
+                    onDidAccept: (callback: any) => {
+                        mockQuickPick._onDidAcceptCallback = callback;
+                        return { dispose: () => { } };
+                    },
+                    onDidChangeValue: () => ({ dispose: () => { } }),
+                    onDidChangeActive: () => ({ dispose: () => { } }),
+                    onDidHide: () => ({ dispose: () => { } }),
+                };
+
+                return mockQuickPick;
+            };
+
+            const createInputBoxMock = () => {
+                globalInputBoxCallCount++;
+
+                const getInputValue = () => {
+                    if (currentStep === "build-config" && globalInputBoxCallCount === 1) {
+                        return "test_build_2";
+                    }
+                    return "";
+                };
+
+                const mockInputBox: any = {
+                    title: "",
+                    step: 0,
+                    totalSteps: 0,
+                    value: "",
+                    prompt: "",
+                    placeholder: "",
+                    buttons: [],
+                    ignoreFocusOut: false,
+                    busy: false,
+                    enabled: true,
+                    hide: () => { },
+                    dispose: () => { },
+                    show: () => {
+                        setTimeout(() => {
+                            const inputValue = getInputValue();
+                            mockInputBox.value = inputValue;
+                            if (mockInputBox._onDidChangeValueCallback) {
+                                mockInputBox._onDidChangeValueCallback(inputValue);
+                            }
+                            if (mockInputBox._onDidAcceptCallback) {
+                                mockInputBox._onDidAcceptCallback();
+                            }
+                        }, 30000);
+                    },
+                    onDidAccept: (callback: any) => {
+                        mockInputBox._onDidAcceptCallback = callback;
+                        return { dispose: () => { } };
+                    },
+                    onDidChangeValue: (callback: any) => {
+                        mockInputBox._onDidChangeValueCallback = callback;
+                        return { dispose: () => { } };
+                    },
+                    onDidTriggerButton: () => ({ dispose: () => { } }),
+                    onDidHide: () => ({ dispose: () => { } }),
+                };
+
+                return mockInputBox;
+            };
+
+            vscode.window.createQuickPick = createQuickPickMock;
+            vscode.window.createInputBox = createInputBoxMock;
+
+            vscode.window.showOpenDialog = async (options?: any) => {
+                if (currentStep === "add-project") {
+                    // Return the app folder from the zephyr-example repo
+                    const appFolderPath = path.join(testWorkspaceDir, "zephyr-example", "app");
+                    return [vscode.Uri.file(appFolderPath)];
+                } else if (currentStep === "build-config") {
+                    // Return the boards folder from the zephyr-example repo
+                    const boardsFolderPath = path.join(testWorkspaceDir, "zephyr-example", "boards");
+                    return [vscode.Uri.file(boardsFolderPath)];
+                }
+                return undefined;
+            };
+
+            vscode.window.showQuickPick = async (items: any) => {
+                const itemsArray = Array.isArray(items) ? items : await items;
+                return itemsArray[0];
+            };
+
+            vscode.window.showInputBox = async (options?: any) => {
+                if (currentStep === "git-workspace-setup") {
+                    // Return the git repo URL when prompted
+                    if (options?.prompt?.toLowerCase().includes("git") || options?.placeholder?.toLowerCase().includes("git")) {
+                        return "https://github.com/mylonics/zephyr-example.git";
+                    }
+                }
+                if (currentStep === "build-config") {
+                    return "test_build_2";
+                }
+                return "";
+            };
+
+            console.log("🏗️ Step 1: Setting up workspace from West Git...");
+            let result = await vscode.commands.executeCommand(
+                "zephyr-ide.workspace-setup-from-west-git"
+            );
+            assert.ok(result, "Git workspace setup should succeed");
+
+            // Monitor workspace setup progress
+            console.log("⏳ Monitoring git workspace setup progress...");
+            let waitTime = 0;
+            const checkInterval = 3000;
+            let initialSetupComplete = false;
+            let pythonEnvironmentSetup = false;
+            let westUpdated = false;
+            let packagesInstalled = false;
+
+            while (!packagesInstalled) {
+                const extension = vscode.extensions.getExtension("mylonics.zephyr-ide");
+                let wsConfig = null;
+
+                if (extension?.isActive && extension.exports?.getWorkspaceConfig) {
+                    wsConfig = extension.exports.getWorkspaceConfig();
+                }
+
+                if (wsConfig) {
+                    if (!initialSetupComplete && wsConfig.initialSetupComplete) {
+                        console.log("    ✅ Initial setup completed - west.yml created");
+                        initialSetupComplete = true;
+                    }
+
+                    if (!westUpdated && wsConfig.activeSetupState?.westUpdated) {
+                        console.log("    ✅ West updated - All repos downloaded");
+                        westUpdated = true;
+                    }
+
+                    if (!pythonEnvironmentSetup && wsConfig.activeSetupState?.pythonEnvironmentSetup) {
+                        console.log("    ✅ Python environment setup completed");
+                        pythonEnvironmentSetup = true;
+                    }
+
+                    if (wsConfig.activeSetupState?.packagesInstalled) {
+                        packagesInstalled = true;
+                        console.log("    ✅ Packages installed completed");
+                        console.log("🎉 All git workspace setup stages completed!");
+                        break;
+                    }
+                }
+
+                if (waitTime % 30000 === 0 && waitTime > 0) {
+                    const completedStages = [initialSetupComplete, pythonEnvironmentSetup, westUpdated, packagesInstalled].filter(Boolean).length;
+                    console.log(`⏳ Git setup in progress... (${waitTime / 1000}s elapsed, ${completedStages}/4 stages completed)`);
+                }
+
+                await new Promise((resolve) => setTimeout(resolve, checkInterval));
+                waitTime += checkInterval;
+            }
+
+            console.log("📁 Step 2: Adding project from example repo...");
+            globalQuickPickCallCount = 0;
+            globalInputBoxCallCount = 0;
+            currentStep = "add-project";
+            result = await vscode.commands.executeCommand("zephyr-ide.add-project");
+            assert.ok(result, "Project addition should succeed");
+
+            console.log("🔨 Step 3: Adding build configuration with custom board...");
+            globalQuickPickCallCount = 0;
+            globalInputBoxCallCount = 0;
+            currentStep = "build-config";
+            
+            const ext = vscode.extensions.getExtension("mylonics.zephyr-ide");
+            const wsConfig = ext?.exports?.getWorkspaceConfig();
+            if (!wsConfig?.initialSetupComplete) {
+                console.log("⚠️ Setup not complete, retrying in 10 seconds...");
+                await new Promise((resolve) => setTimeout(resolve, 10000));
+            }
+            
+            result = await vscode.commands.executeCommand("zephyr-ide.add-build");
+            assert.ok(result, "Build configuration should succeed");
+
+            console.log("⚡ Step 4: Executing build with custom board...");
+            currentStep = "build-execution";
+            result = await vscode.commands.executeCommand("zephyr-ide.build");
+            assert.ok(result, "Build execution should succeed");
+
+            // Restore original functions
+            vscode.window.createQuickPick = originalCreateQuickPick;
+            vscode.window.createInputBox = originalCreateInputBox;
+            vscode.window.showQuickPick = originalShowQuickPick;
+            vscode.window.showInputBox = originalShowInputBox;
+            vscode.window.showOpenDialog = originalShowOpenDialog;
+
+            const workspaceExists = await fs.pathExists(testWorkspaceDir);
+            assert.ok(workspaceExists, "Test workspace should exist");
+            await new Promise((resolve) => setTimeout(resolve, 30000));
+
+        } catch (error) {
+            console.error("❌ Git workflow test failed:", error);
+            await new Promise((resolve) => setTimeout(resolve, 30000));
+            throw error;
+        }
+    }).timeout(900000);
 });

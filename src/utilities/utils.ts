@@ -202,7 +202,6 @@ export async function executeTaskHelper(taskName: string, cmd: string, cwd: stri
 
 export async function executeShellCommandInPythonEnv(cmd: string, cwd: string, setupState: SetupState, display_error = true) {
   let newCmd = generatePythonModuleCmdString(setupState, cmd);
-  console.log("Running new python command", JSON.stringify(newCmd));
   return executeShellCommand(newCmd, cwd, display_error);
 };
 
