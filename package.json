@@ -491,11 +491,11 @@
       },
       {
         "command": "zephyr-ide.workspace-setup-create-new-shared",
-        "title": "Zephyr IDE: Create New Shared Zephyr Installation"
+        "title": "Zephyr IDE: Setup Workspace Using New Shared Zephyr Installation"
       },
       {
         "command": "zephyr-ide.workspace-setup-use-existing",
-        "title": "Zephyr IDE: Use Existing Zephyr Installation"
+        "title": "Zephyr IDE: Setup Workspace Using Existing Zephyr Installation"
       }
     ],
     "terminal": {

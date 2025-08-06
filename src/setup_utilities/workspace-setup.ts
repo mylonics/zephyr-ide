@@ -21,13 +21,13 @@ import * as path from "path";
 import { output, executeTaskHelper } from "../utilities/utils";
 import { westSelector, WestLocation } from "./west_selector";
 import { WorkspaceConfig, GlobalConfig } from "./types";
-import { setSetupState, loadExternalSetupState } from "./state-management";
+import { setSetupState, loadExternalSetupState, setWorkspaceState } from "./state-management";
 import { westInit, postWorkspaceSetup, setupWestEnvironment } from "./west-operations";
-import { getToolsDir } from "./workspace-config";
+import { getToolsDir, setWorkspaceSettings } from "./workspace-config";
 
 export async function workspaceSetupFromGit(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
   // Clear all context flags at start
-  await clearWorkspaceSetupContextFlags(wsConfig);
+  await clearWorkspaceSetupContextFlags(context, wsConfig);
 
   const gitUrl = await vscode.window.showInputBox({
     prompt: "Enter the Git repository URL for the Zephyr IDE workspace",
@@ -65,8 +65,8 @@ export async function workspaceSetupFromGit(context: vscode.ExtensionContext, ws
   let gitCloneRes = await executeTaskHelper("Zephyr IDE: Git Clone", cmd, currentDir);
 
   if (!gitCloneRes) {
-  vscode.window.showErrorMessage("Git clone failed. See terminal for error information.");
-  return false;
+    vscode.window.showErrorMessage("Git clone failed. See terminal for error information.");
+    return false;
   }
 
   output.appendLine(`[SETUP] Git clone completed successfully`);
@@ -75,19 +75,19 @@ export async function workspaceSetupFromGit(context: vscode.ExtensionContext, ws
   return await workspaceSetupFromCurrentDirectory(context, wsConfig, globalConfig);
 }
 
-async function clearWorkspaceSetupContextFlags(wsConfig: WorkspaceConfig) {
+async function clearWorkspaceSetupContextFlags(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
   wsConfig.initialSetupComplete = false;
   if (wsConfig.activeSetupState) {
     wsConfig.activeSetupState.packagesInstalled = false;
     wsConfig.activeSetupState.pythonEnvironmentSetup = false;
     wsConfig.activeSetupState.westUpdated = false;
   }
-
+  setWorkspaceState(context, wsConfig);
 }
 
 export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
   // Clear all context flags at start
-  await clearWorkspaceSetupContextFlags(wsConfig);
+  await clearWorkspaceSetupContextFlags(context, wsConfig);
 
   const gitUrl = await vscode.window.showInputBox({
     prompt: "Enter the Git repository URL for the West workspace",
@@ -153,7 +153,7 @@ export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext
 
 export async function workspaceSetupStandard(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
   // Clear all context flags at start
-  await clearWorkspaceSetupContextFlags(wsConfig);
+  await clearWorkspaceSetupContextFlags(context, wsConfig);
 
   const currentDir = wsConfig.rootPath;
   if (!currentDir) {
@@ -203,13 +203,16 @@ export async function workspaceSetupStandard(context: vscode.ExtensionContext, w
 
 export async function workspaceSetupFromCurrentDirectory(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
   // Clear all context flags at start
-  await clearWorkspaceSetupContextFlags(wsConfig);
+  await clearWorkspaceSetupContextFlags(context, wsConfig);
 
   const currentDir = wsConfig.rootPath;
   if (!currentDir) {
     vscode.window.showErrorMessage("No workspace folder open. Please open a folder first.");
     return false;
   }
+
+  // Set up the workspace using current directory
+  await setSetupState(context, wsConfig, globalConfig, currentDir);
 
   output.show();
   output.appendLine(`[SETUP] Setting up current directory as Zephyr IDE workspace: ${currentDir}`);
@@ -222,6 +225,15 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
   // Set context flag for workspace type selected
   await vscode.commands.executeCommand("setContext", "zephyr-ide.workspaceTypeSelected", true);
   output.appendLine("[SETUP] Workspace type selected: Current Directory");
+
+
+  // Check if .venv folder exists - if not, setup west environment
+  const venvPath = path.join(currentDir, ".venv");
+  if (!fs.pathExistsSync(venvPath)) {
+    output.appendLine("[SETUP] No .venv folder found, setting up west environment...");
+    await setupWestEnvironment(context, wsConfig, globalConfig, false);
+    output.appendLine("[SETUP] Continuing...");
+  }
 
   // Check if .west folder exists
   let westPath = path.join(currentDir, ".west");
@@ -297,12 +309,6 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
     }
   }
 
-  // Check if .venv folder exists - if not, setup west environment
-  const venvPath = path.join(currentDir, ".venv");
-  if (!fs.pathExistsSync(venvPath)) {
-    output.appendLine("[SETUP] No .venv folder found, setting up west environment...");
-    await setupWestEnvironment(context, wsConfig, globalConfig, false);
-  }
 
   // Set up the workspace using current directory
   await setSetupState(context, wsConfig, globalConfig, currentDir);
@@ -314,7 +320,7 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
 
 export async function workspaceSetupGlobalZephyr(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
   // Clear all context flags at start
-  await clearWorkspaceSetupContextFlags(wsConfig);
+  await clearWorkspaceSetupContextFlags(context, wsConfig);
 
   const globalToolsDir = getToolsDir();
 
@@ -413,7 +419,7 @@ export async function workspaceSetupGlobalZephyr(context: vscode.ExtensionContex
 
 export async function workspaceSetupCreateNewShared(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
   // Clear all context flags at start
-  await clearWorkspaceSetupContextFlags(wsConfig);
+  await clearWorkspaceSetupContextFlags(context, wsConfig);
 
   // Prompt user to select a folder for the new shared install
   const selectedFolders = await vscode.window.showOpenDialog({
@@ -513,7 +519,7 @@ export async function workspaceSetupCreateNewShared(context: vscode.ExtensionCon
 
 export async function workspaceSetupUseExisting(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
   // Clear all context flags at start
-  await clearWorkspaceSetupContextFlags(wsConfig);
+  await clearWorkspaceSetupContextFlags(context, wsConfig);
 
   if (!globalConfig.setupStateDictionary) {
     vscode.window.showInformationMessage("No existing Zephyr installations found.");
@@ -529,14 +535,15 @@ export async function workspaceSetupUseExisting(context: vscode.ExtensionContext
       let description = "";
 
       // Add helpful descriptions
+      const versionStr = setupState.zephyrVersion ? setupState.zephyrVersion.major + "." + setupState.zephyrVersion.minor + "." + setupState.zephyrVersion.patch : "installation";
       if (installPath === getToolsDir()) {
-        description = "Global installation";
+        description = `Global Zephyr ${versionStr}`;
       } else if (installPath === wsConfig.rootPath) {
-        description = "Current workspace";
+        description = `Current Zephyr ${versionStr}`;
       } else if (setupState.zephyrVersion) {
-        description = `Zephyr ${setupState.zephyrVersion}`;
+        description = `Zephyr ` + versionStr;
       } else {
-        description = "Zephyr installation";
+        description = "West installation";
       }
 
       installOptions.push({
