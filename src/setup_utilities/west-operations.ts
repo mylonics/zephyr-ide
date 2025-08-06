@@ -19,7 +19,7 @@ import * as vscode from "vscode";
 import * as os from "os";
 import * as fs from "fs-extra";
 import * as path from "path";
-import { output, executeTaskHelperInPythonEnv, executeShellCommand, executeShellCommandInPythonEnv, reloadEnvironmentVariables, getPlatformName } from "../utilities/utils";
+import { output, executeTaskHelperInPythonEnv, executeTaskHelper, reloadEnvironmentVariables, getPlatformName } from "../utilities/utils";
 import { getModulePathAndVersion, getModuleVersion } from "./modules";
 import { westSelector, WestLocation } from "./west_selector";
 import { WorkspaceConfig, GlobalConfig, SetupState } from "./types";
@@ -223,8 +223,8 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
 
         // Then create the virtualenv
         let cmd = `${python} -m venv "${pythonenv}"`;
-        let res = await executeShellCommand(cmd, wsConfig.activeSetupState.setupPath, true);
-        if (res.stderr) {
+        let res = await executeTaskHelper("Zephyr IDE West Environment Setup", cmd, wsConfig.activeSetupState.setupPath);
+        if (!res) {
           output.appendLine("[SETUP] Unable to create Python Virtual Environment");
           vscode.window.showErrorMessage("Error installing virtualenv. Check output for more info.");
           return;
@@ -245,10 +245,11 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
         wsConfig.activeSetupState.env["PATH"] = path.join(pythonenv, `bin${pathdivider}`);
       }
 
+      reloadEnvironmentVariables(context, wsConfig.activeSetupState);
+
       // Install `west`
-      let res = await executeShellCommandInPythonEnv(`python -m pip install west`, wsConfig.activeSetupState.setupPath, wsConfig.activeSetupState, true);
-      if (res.stdout) {
-        output.append(res.stdout);
+      let res = await executeTaskHelperInPythonEnv(wsConfig.activeSetupState, "Zephyr IDE West Environment Setup", `pip install west`, wsConfig.activeSetupState.setupPath);
+      if (res) {
         output.appendLine("[SETUP] west installed");
       } else {
         output.appendLine("[SETUP] Unable to install west");
@@ -260,7 +261,6 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
 
       // Setup flag complete
       wsConfig.activeSetupState.pythonEnvironmentSetup = true;
-      reloadEnvironmentVariables(context, wsConfig.activeSetupState);
       saveSetupState(context, wsConfig, globalConfig);
 
       progress.report({ increment: 100 });
