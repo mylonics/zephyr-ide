@@ -35,14 +35,14 @@ try {
     let grepPattern;
     switch (testType) {
         case 'standard':
-            grepPattern = '"Standard Workflow Integration Test Suite"';
+            grepPattern = '"Standard Workspace Test Suite"';
             break;
         case 'git':
-            grepPattern = '"Git Workflow Integration Test Suite"';
+            grepPattern = '"West Git Workspace Test Suite"';
             break;
         case 'all':
         default:
-            grepPattern = '"Workflow Integration Test Suite"';
+            grepPattern = '"Workspace Test Suite"';
             break;
     }
 

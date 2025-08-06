@@ -49,7 +49,7 @@ import { UIMockInterface, MockInteraction } from "./ui-mock-interface";
  * - Clear intent with descriptive interactions
  */
 
-suite("Standard Workflow Integration Test Suite", () => {
+suite("Standard Workspace Test Suite", () => {
     let testWorkspaceDir: string;
     let originalWorkspaceFolders: readonly vscode.WorkspaceFolder[] | undefined;
 

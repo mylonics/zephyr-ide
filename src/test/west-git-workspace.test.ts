@@ -38,7 +38,7 @@ import { UIMockInterface, MockInteraction } from "./ui-mock-interface";
  * - Clean separation of concerns
  */
 
-suite("Git Workflow Integration Test Suite", () => {
+suite("West Git Workspace Test Suite", () => {
     let testWorkspaceDir: string;
     let originalWorkspaceFolders: readonly vscode.WorkspaceFolder[] | undefined;
 
@@ -100,7 +100,7 @@ suite("Git Workflow Integration Test Suite", () => {
         }
     });
 
-    test("Git Workspace Setup: West Git → Add Project → Custom Board Build", async function () {
+    test("Git Workspace Setup: West Git → SDK Install → Add Project → Custom Board Build", async function () {
         this.timeout(1800000);
 
         console.log("🚀 Starting git workspace test...");
@@ -130,7 +130,18 @@ suite("Git Workflow Integration Test Suite", () => {
 
             await monitorWorkspaceSetup("git workspace");
 
-            console.log("📁 Step 2: Adding project from example repo...");
+            console.log("⚙️ Step 2: Installing SDK...");
+            // Prime the mock interface for SDK installation interactions
+            gitUiMock.primeInteractions([
+                { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
+                { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
+                { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
+            ]);
+
+            result = await vscode.commands.executeCommand("zephyr-ide.install-sdk");
+            assert.ok(result, "SDK installation should succeed");
+
+            console.log("📁 Step 3: Adding project from example repo...");
             // Prime the mock interface for project addition interactions  
             gitUiMock.primeInteractions([
                 { type: 'opendialog', value: path.join(testWorkspaceDir, "zephyr-example.git", "app"), description: 'Select app folder' }
@@ -139,7 +150,7 @@ suite("Git Workflow Integration Test Suite", () => {
             result = await vscode.commands.executeCommand("zephyr-ide.add-project");
             assert.ok(result, "Project addition should succeed");
 
-            console.log("🔨 Step 3: Adding build configuration with custom board...");
+            console.log("🔨 Step 4: Adding build configuration with custom board...");
             // Prime the mock interface for build configuration interactions
             gitUiMock.primeInteractions([
                 { type: 'quickpick', value: 'select other folder', description: 'Select other folder for boards' },
@@ -161,7 +172,7 @@ suite("Git Workflow Integration Test Suite", () => {
             result = await vscode.commands.executeCommand("zephyr-ide.add-build");
             assert.ok(result, "Build configuration should succeed");
 
-            console.log("⚡ Step 4: Executing build with custom board...");
+            console.log("⚡ Step 5: Executing build with custom board...");
             result = await vscode.commands.executeCommand("zephyr-ide.build");
             assert.ok(result, "Build execution should succeed");
 
