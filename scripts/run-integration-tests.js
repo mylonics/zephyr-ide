@@ -40,6 +40,9 @@ try {
         case 'git':
             grepPattern = '"West Git Workspace Test Suite"';
             break;
+        case 'zephyr-ide-git':
+            grepPattern = '"Zephyr IDE Git Workspace Test Suite"';
+            break;
         case 'all':
         default:
             grepPattern = '"Workspace Test Suite"';

@@ -48,3 +48,10 @@ jobs:
         env:
           NODE_ENV: test
           ZEPHYR_BASE: /tmp/zephyr
+
+      - name: Run zephyr ide git workspace integration tests
+        run: |
+          xvfb-run -a node scripts/run-integration-tests.js zephyr-ide-git
+        env:
+          NODE_ENV: test
+          ZEPHYR_BASE: /tmp/zephyr

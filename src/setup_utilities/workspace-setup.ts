@@ -18,7 +18,7 @@ limitations under the License.
 import * as vscode from "vscode";
 import * as fs from "fs-extra";
 import * as path from "path";
-import { output } from "../utilities/utils";
+import { output, executeTaskHelper } from "../utilities/utils";
 import { westSelector, WestLocation } from "./west_selector";
 import { WorkspaceConfig, GlobalConfig } from "./types";
 import { setSetupState, loadExternalSetupState } from "./state-management";
@@ -26,6 +26,9 @@ import { westInit, postWorkspaceSetup, setupWestEnvironment } from "./west-opera
 import { getToolsDir } from "./workspace-config";
 
 export async function workspaceSetupFromGit(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
+  // Clear all context flags at start
+  await clearWorkspaceSetupContextFlags(wsConfig);
+
   const gitUrl = await vscode.window.showInputBox({
     prompt: "Enter the Git repository URL for the Zephyr IDE workspace",
     placeHolder: "https://github.com/mylonics/zephyr-ide-workspace-template.git",
@@ -45,9 +48,31 @@ export async function workspaceSetupFromGit(context: vscode.ExtensionContext, ws
     return false;
   }
 
-  // TODO: Implement git clone and workspace import logic
-  vscode.window.showInformationMessage("Zephyr IDE workspace from Git setup is not yet implemented");
+  const currentDir = wsConfig.rootPath;
+  if (!currentDir) {
+    vscode.window.showErrorMessage("No workspace folder open. Please open a folder first.");
+    return false;
+  }
+
+  output.show();
+  output.appendLine(`[SETUP] Cloning Zephyr IDE workspace from: ${gitUrl}`);
+
+  // Set context flag for workspace type selected
+  await vscode.commands.executeCommand("setContext", "zephyr-ide.workspaceTypeSelected", true);
+  output.appendLine("[SETUP] Workspace type selected: Zephyr IDE Workspace from Git");
+
+  let cmd = `git clone "${gitUrl}" .`;
+  let gitCloneRes = await executeTaskHelper("Zephyr IDE: Git Clone", cmd, currentDir);
+
+  if (!gitCloneRes) {
+  vscode.window.showErrorMessage("Git clone failed. See terminal for error information.");
   return false;
+  }
+
+  output.appendLine(`[SETUP] Git clone completed successfully`);
+
+  // After successful clone, run workspaceSetupFromCurrentDirectory
+  return await workspaceSetupFromCurrentDirectory(context, wsConfig, globalConfig);
 }
 
 async function clearWorkspaceSetupContextFlags(wsConfig: WorkspaceConfig) {
@@ -189,6 +214,11 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
   output.show();
   output.appendLine(`[SETUP] Setting up current directory as Zephyr IDE workspace: ${currentDir}`);
 
+  // Load projects from file
+  await vscode.commands.executeCommand("zephyr-ide.load-projects-from-file");
+
+  wsConfig.initialSetupComplete = true;
+
   // Set context flag for workspace type selected
   await vscode.commands.executeCommand("setContext", "zephyr-ide.workspaceTypeSelected", true);
   output.appendLine("[SETUP] Workspace type selected: Current Directory");
@@ -265,6 +295,13 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
       postWorkspaceSetup(context, wsConfig, globalConfig, selectedPath);
       return true;
     }
+  }
+
+  // Check if .venv folder exists - if not, setup west environment
+  const venvPath = path.join(currentDir, ".venv");
+  if (!fs.pathExistsSync(venvPath)) {
+    output.appendLine("[SETUP] No .venv folder found, setting up west environment...");
+    await setupWestEnvironment(context, wsConfig, globalConfig, false);
   }
 
   // Set up the workspace using current directory
