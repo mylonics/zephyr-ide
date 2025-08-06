@@ -70,6 +70,10 @@ export function getPythonVenvBinaryFolder(setupState: SetupState) {
   return '';
 }
 
+function generatePythonModuleCmdString(setupState: SetupState, cmd: string) {
+  return path.join(getPythonVenvBinaryFolder(setupState), "python -m " + cmd);
+}
+
 export async function getRootPathFs(first = false) {
   let rootPath = await getRootPath(first);
   if (rootPath && rootPath.fsPath) {
@@ -169,9 +173,9 @@ async function executeTask(task: vscode.Task) {
 export async function executeTaskHelperInPythonEnv(setupState: SetupState | undefined, taskName: string, cmd: string, cwd: string | undefined) {
   if (setupState && isMacOS()) {
     let newCmd = path.join(getPythonVenvBinaryFolder(setupState), cmd);
-    return executeTaskHelper(taskName, newCmd, cwd);
+    return await executeTaskHelper(taskName, newCmd, cwd);
   } else {
-    return executeTaskHelper(taskName, cmd, cwd);
+    return await executeTaskHelper(taskName, cmd, cwd);
   }
 }
 
@@ -197,7 +201,8 @@ export async function executeTaskHelper(taskName: string, cmd: string, cwd: stri
 }
 
 export async function executeShellCommandInPythonEnv(cmd: string, cwd: string, setupState: SetupState, display_error = true) {
-  let newCmd = path.join(getPythonVenvBinaryFolder(setupState), cmd);
+  let newCmd = generatePythonModuleCmdString(setupState, cmd);
+  console.log("Running new python command", JSON.stringify(newCmd));
   return executeShellCommand(newCmd, cwd, display_error);
 };
 
@@ -212,6 +217,7 @@ export async function executeShellCommand(cmd: string, cwd: string, display_erro
       if (display_error) {
         output.append(reason);
       }
+      console.log(JSON.stringify(reason));
       return { stdout: undefined, stderr: reason.stderr };
     }
   );
