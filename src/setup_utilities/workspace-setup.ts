@@ -145,7 +145,7 @@ export async function workspaceSetupFromGit(context: vscode.ExtensionContext, ws
   await clearWorkspaceSetupContextFlags(context, wsConfig);
 
   const gitUrl = await vscode.window.showInputBox({
-    prompt: "Enter the Git repository URL for the Zephyr IDE workspace",
+    prompt: "Enter the Git repository URL/clone string",
     placeHolder:
       "https://github.com/mylonics/zephyr-ide-workspace-template.git",
     ignoreFocusOut: true,

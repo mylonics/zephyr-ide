@@ -55,3 +55,17 @@ jobs:
         env:
           NODE_ENV: test
           ZEPHYR_BASE: /tmp/zephyr
+
+      - name: Run open current directory integration tests
+        run: |
+          xvfb-run -a node scripts/run-integration-tests.js open-current-dir
+        env:
+          NODE_ENV: test
+          ZEPHYR_BASE: /tmp/zephyr
+
+      - name: Run workspace out of tree integration tests
+        run: |
+          xvfb-run -a node scripts/run-integration-tests.js out-of-tree
+        env:
+          NODE_ENV: test
+          ZEPHYR_BASE: /tmp/zephyr

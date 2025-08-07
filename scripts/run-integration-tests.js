@@ -43,9 +43,15 @@ try {
         case 'zephyr-ide-git':
             grepPattern = '"Zephyr IDE Git Workspace Test Suite"';
             break;
+        case 'open-current-dir':
+            grepPattern = '"Open Current Directory Test Suite"';
+            break;
+        case 'out-of-tree':
+            grepPattern = '"Workspace Out Of Tree Test Suite"';
+            break;
         case 'all':
         default:
-            grepPattern = '"Workspace Test Suite"';
+            grepPattern = '"Test Suite"';
             break;
     }
 

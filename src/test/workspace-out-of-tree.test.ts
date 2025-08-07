@@ -24,37 +24,38 @@ import { logTestEnvironment, monitorWorkspaceSetup } from "./test-runner";
 import { UIMockInterface, MockInteraction } from "./ui-mock-interface";
 
 /*
- * ZEPHYR IDE GIT WORKSPACE INTEGRATION TEST:
+ * WORKSPACE OUT OF TREE INTEGRATION TEST:
  * 
- * Tests the Zephyr IDE specific git workspace setup workflow:
- * 1. Setup workspace from Zephyr IDE Git repository
- * 2. Install SDK
- * 3. Execute build
+ * Tests the out-of-tree workspace setup workflow:
+ * 1. Setup workspace from git with --branch no_west
+ * 2. When prompted, choose "Use Existing Zephyr Installation"
+ * 3. Select "Global Installation" option
+ * 4. Go through west selector process (minimal, stm32)
+ * 5. Execute build
  * 
- * Uses zephyr-ide.workspace-setup-from-git command with:
- * - Sample project: https://github.com/mylonics/zephyr-ide-sample-project.git
- * - Automatic SDK installation
- * - Build execution on existing project structure
+ * This tests the scenario where a git repository does not contain
+ * west.yml files and the user chooses to use an existing Zephyr
+ * installation with global installation type.
  * 
- * This differs from west-git-workspace.test.ts which uses west manifest
- * repositories and workspace-setup-from-west-git command.
+ * Git command: --branch no_west -- https://github.com/mylonics/zephyr-ide-sample-project.git
+ * UI Flow: "Use Existing Zephyr Installation" → "Global Installation" → west selector
  */
 
-suite("Zephyr IDE Git Workspace Test Suite", () => {
+suite("Workspace Out Of Tree Test Suite", () => {
     let testWorkspaceDir: string;
     let originalWorkspaceFolders: readonly vscode.WorkspaceFolder[] | undefined;
 
     suiteSetup(() => {
         logTestEnvironment();
-        console.log("🔬 Testing Zephyr IDE git workspace workflow");
+        console.log("🔬 Testing workspace out of tree workflow");
     });
 
     setup(async () => {
         const existingWorkspace =
             vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
         testWorkspaceDir = existingWorkspace
-            ? path.join(existingWorkspace, "zephyr-ide-git-workspace-test")
-            : path.join(os.tmpdir(), "zephyr-ide-git-workspace-test-" + Date.now());
+            ? path.join(existingWorkspace, "workspace-out-of-tree-test")
+            : path.join(os.tmpdir(), "workspace-out-of-tree-test-" + Date.now());
 
         await fs.ensureDir(testWorkspaceDir);
 
@@ -102,10 +103,10 @@ suite("Zephyr IDE Git Workspace Test Suite", () => {
         }
     });
 
-    test("Zephyr IDE Git Workspace: Git Setup → SDK Install → Build", async function () {
+    test("Workspace Out Of Tree: Git Setup → Use Existing → Global → West Selector → Build", async function () {
         this.timeout(1800000);
 
-        console.log("🚀 Starting Zephyr IDE git workspace test...");
+        console.log("🚀 Starting workspace out of tree test...");
 
         try {
             const extension = vscode.extensions.getExtension("mylonics.zephyr-ide");
@@ -114,36 +115,46 @@ suite("Zephyr IDE Git Workspace Test Suite", () => {
             }
             await new Promise((resolve) => setTimeout(resolve, 3000));
 
-            // Initialize UI Mock Interface for Zephyr IDE git workflow
-            const gitUiMock = new UIMockInterface();
-            gitUiMock.activate();
+            // Initialize UI Mock Interface
+            const uiMock = new UIMockInterface();
+            uiMock.activate();
 
-            console.log("🏗️ Step 1: Setting up workspace from Zephyr IDE Git...");
-            // Prime the mock interface for Zephyr IDE git workspace setup
-            gitUiMock.primeInteractions([
-                { type: 'input', value: '--branch main -- https://github.com/mylonics/zephyr-ide-sample-project.git', description: 'Enter Zephyr IDE git repo URL' }
+            console.log("🏗️ Step 1: Setting up workspace from git without west folder...");
+            // Prime the mock interface for git setup with no_west branch
+            uiMock.primeInteractions([
+                { type: 'input', value: '--branch no_west -- https://github.com/mylonics/zephyr-ide-sample-project.git', description: 'Enter git clone string for no_west branch' }
             ]);
 
             let result = await vscode.commands.executeCommand(
                 "zephyr-ide.workspace-setup-from-git"
             );
-            assert.ok(result, "Zephyr IDE git workspace setup should succeed");
+            assert.ok(result, "Git workspace setup should succeed");
 
-            await monitorWorkspaceSetup("Zephyr IDE git workspace");
-
-            console.log("⚙️ Step 2: Installing SDK...");
-            // Prime the mock interface for SDK installation interactions
-            gitUiMock.primeInteractions([
-                { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
-                { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
-                { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
+            console.log("🔗 Step 2: Choosing existing Zephyr installation...");
+            // Prime the mock interface for installation type selection
+            uiMock.primeInteractions([
+                { type: 'quickpick', value: 'existing-install', description: 'Choose Use Existing Zephyr Installation option' }
             ]);
 
-            result = await vscode.commands.executeCommand("zephyr-ide.install-sdk");
-            assert.ok(result, "SDK installation should succeed");
+            console.log("🌐 Step 3: Selecting global installation...");
+            // Prime the mock interface for global installation selection
+            uiMock.primeInteractions([
+                { type: 'quickpick', value: 'global', description: 'Choose Global Installation option' }
+            ]);
 
-            console.log("⚡ Step 3: Executing build...");
-            // Wait a moment for workspace setup to complete
+            console.log("⚙️ Step 4: Going through west selector process...");
+            // Prime the mock interface for west selector (same as standard setup)
+            uiMock.primeInteractions([
+                { type: 'quickpick', value: 'minimal', description: 'Select minimal manifest' },
+                { type: 'quickpick', value: 'stm32', description: 'Select STM32 toolchain' },
+                { type: 'quickpick', value: 'v4.2.0', description: 'Select default configuration' },
+                { type: 'input', value: '', description: 'Select additional west init args' }
+            ]);
+
+            await monitorWorkspaceSetup("workspace out of tree");
+
+            console.log("⚡ Step 5: Executing build...");
+            // Wait for workspace setup to complete
             const ext = vscode.extensions.getExtension("mylonics.zephyr-ide");
             const wsConfig = ext?.exports?.getWorkspaceConfig();
             if (!wsConfig?.initialSetupComplete) {
@@ -155,11 +166,10 @@ suite("Zephyr IDE Git Workspace Test Suite", () => {
             assert.ok(result, "Build execution should succeed");
 
             // Deactivate the UI Mock Interface
-            gitUiMock.deactivate();
-            await new Promise((resolve) => setTimeout(resolve, 30000));
+            uiMock.deactivate();
 
         } catch (error) {
-            console.error("❌ Zephyr IDE git workflow test failed:", error);
+            console.error("❌ Workspace out of tree test failed:", error);
             await new Promise((resolve) => setTimeout(resolve, 30000));
             throw error;
         }
