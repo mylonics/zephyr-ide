@@ -122,38 +122,25 @@ suite("Workspace Out Of Tree Test Suite", () => {
             console.log("🏗️ Step 1: Setting up workspace from git without west folder...");
             // Prime the mock interface for git setup with no_west branch
             uiMock.primeInteractions([
-                { type: 'input', value: '--branch no_west -- https://github.com/mylonics/zephyr-ide-sample-project.git', description: 'Enter git clone string for no_west branch' }
+                { type: 'input', value: '--branch no_west -- https://github.com/mylonics/zephyr-ide-sample-project.git', description: 'Enter git clone string for no_west branch' },
+                { type: 'quickpick', value: 'existing-install', description: 'Choose Use Existing Zephyr Installation option' },
+                { type: 'quickpick', value: 'global', description: 'Choose Global Installation option' },
+                { type: 'quickpick', value: 'minimal', description: 'Select minimal manifest' },
+                { type: 'quickpick', value: 'stm32', description: 'Select STM32 toolchain' },
+                { type: 'quickpick', value: 'v4.2.0', description: 'Select default configuration' },
+                { type: 'input', value: '', description: 'Select additional west init args' }
+
             ]);
+
 
             let result = await vscode.commands.executeCommand(
                 "zephyr-ide.workspace-setup-from-git"
             );
             assert.ok(result, "Git workspace setup should succeed");
 
-            console.log("🔗 Step 2: Choosing existing Zephyr installation...");
-            // Prime the mock interface for installation type selection
-            uiMock.primeInteractions([
-                { type: 'quickpick', value: 'existing-install', description: 'Choose Use Existing Zephyr Installation option' }
-            ]);
-
-            console.log("🌐 Step 3: Selecting global installation...");
-            // Prime the mock interface for global installation selection
-            uiMock.primeInteractions([
-                { type: 'quickpick', value: 'global', description: 'Choose Global Installation option' }
-            ]);
-
-            console.log("⚙️ Step 4: Going through west selector process...");
-            // Prime the mock interface for west selector (same as standard setup)
-            uiMock.primeInteractions([
-                { type: 'quickpick', value: 'minimal', description: 'Select minimal manifest' },
-                { type: 'quickpick', value: 'stm32', description: 'Select STM32 toolchain' },
-                { type: 'quickpick', value: 'v4.2.0', description: 'Select default configuration' },
-                { type: 'input', value: '', description: 'Select additional west init args' }
-            ]);
-
             await monitorWorkspaceSetup("workspace out of tree");
 
-            console.log("⚡ Step 5: Executing build...");
+            console.log("⚡ Step 2: Executing build...");
             // Wait for workspace setup to complete
             const ext = vscode.extensions.getExtension("mylonics.zephyr-ide");
             const wsConfig = ext?.exports?.getWorkspaceConfig();

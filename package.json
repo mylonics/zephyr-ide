@@ -488,18 +488,6 @@
       {
         "command": "zephyr-ide.workspace-setup-standard",
         "title": "Zephyr IDE: Setup Standard Workspace"
-      },
-      {
-        "command": "zephyr-ide.workspace-setup-global-zephyr",
-        "title": "Zephyr IDE: Setup Workspace with Global Zephyr"
-      },
-      {
-        "command": "zephyr-ide.workspace-setup-create-new-shared",
-        "title": "Zephyr IDE: Setup Workspace Using New Shared Zephyr Installation"
-      },
-      {
-        "command": "zephyr-ide.workspace-setup-use-existing",
-        "title": "Zephyr IDE: Setup Workspace Using Existing Zephyr Installation"
       }
     ],
     "terminal": {

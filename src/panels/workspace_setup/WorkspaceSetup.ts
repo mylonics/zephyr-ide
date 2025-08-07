@@ -141,6 +141,18 @@ export class WorkspaceSetup {
             case "copyHostToolsCommands":
                 this.copyHostToolsCommands(message.platform);
                 return;
+            case "workspaceSetupFromGit":
+                this.workspaceSetupFromGit();
+                return;
+            case "workspaceSetupFromWestGit":
+                this.workspaceSetupFromWestGit();
+                return;
+            case "workspaceSetupStandard":
+                this.workspaceSetupStandard();
+                return;
+            case "workspaceSetupFromCurrentDirectory":
+                this.workspaceSetupFromCurrentDirectory();
+                return;
         }
     }
 
@@ -273,6 +285,42 @@ export class WorkspaceSetup {
             vscode.commands.executeCommand("zephyr-ide.west-update");
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to run west update: ${error}`);
+        }
+    }
+
+    private async workspaceSetupFromGit() {
+        try {
+            vscode.commands.executeCommand("zephyr-ide.workspace-setup-from-git");
+            this._panel.dispose();
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to setup workspace from Git: ${error}`);
+        }
+    }
+
+    private async workspaceSetupFromWestGit() {
+        try {
+            vscode.commands.executeCommand("zephyr-ide.workspace-setup-from-west-git");
+            this._panel.dispose();
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to setup workspace from West Git: ${error}`);
+        }
+    }
+
+    private async workspaceSetupStandard() {
+        try {
+            vscode.commands.executeCommand("zephyr-ide.workspace-setup-standard");
+            this._panel.dispose();
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to setup standard workspace: ${error}`);
+        }
+    }
+
+    private async workspaceSetupFromCurrentDirectory() {
+        try {
+            vscode.commands.executeCommand("zephyr-ide.workspace-setup-from-current-directory");
+            this._panel.dispose();
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to setup workspace from current directory: ${error}`);
         }
     }
 
