@@ -1,9 +1,6 @@
 // Workspace Setup Panel Client-Side Logic
 
 const vscode = acquireVsCodeApi();
-let selectedWorkspaceType = null;
-let selectedZephyrInstall = null;
-let selectedImportSource = null;
 
 // Section Toggle Functions
 function toggleSection(sectionId) {
@@ -287,114 +284,32 @@ function displaySDKList(sdkData) {
     contentDiv.innerHTML = html;
 }
 
-// Workspace Selection Functions
-function hideWorkspaceOptions() {
-    selectedWorkspaceType = null;
-    selectedZephyrInstall = null;
-    selectedImportSource = null;
-    updateButtonStates();
-}
-
-function selectWorkspaceType(type) {
-    selectedWorkspaceType = type;
-    selectedImportSource = null; // Clear import selection
-    selectedZephyrInstall = null; // Clear external selection
-    
-    // Update UI - clear all selections first
-    document.querySelectorAll('.option-card').forEach(card => {
-        card.classList.remove('selected');
+// Workspace Setup Functions - Now direct handlers
+function workspaceSetupFromGit() {
+    vscode.postMessage({
+        command: 'workspaceSetupFromGit'
     });
-    document.querySelectorAll('.external-option').forEach(option => {
-        option.classList.remove('selected');
+}
+
+function workspaceSetupFromWestGit() {
+    vscode.postMessage({
+        command: 'workspaceSetupFromWestGit'
     });
-    event.target.closest('.option-card').classList.add('selected');
-    
-    updateButtonStates();
 }
 
-function selectZephyrInstall(installType) {
-    selectedZephyrInstall = installType;
-    selectedWorkspaceType = 'external'; // Set workspace type to external
-    selectedImportSource = null; // Clear import selection
-    
-    // Stop event propagation to prevent card selection
-    event.stopPropagation();
-    
-    // Update UI - clear all selections first
-    document.querySelectorAll('.option-card').forEach(card => {
-        card.classList.remove('selected');
+function workspaceSetupStandard() {
+    vscode.postMessage({
+        command: 'workspaceSetupStandard'
     });
-    document.querySelectorAll('.external-option').forEach(option => {
-        option.classList.remove('selected');
+}
+
+function workspaceSetupFromCurrentDirectory() {
+    vscode.postMessage({
+        command: 'workspaceSetupFromCurrentDirectory'
     });
-    
-    // Select the external workspace card and the clicked external option
-    document.querySelector('.external-zephyr-card').classList.add('selected');
-    event.target.closest('.external-option').classList.add('selected');
-    
-    updateButtonStates();
 }
 
-function selectImportSource(source) {
-    selectedImportSource = source;
-    selectedWorkspaceType = null; // Clear workspace type selection
-    
-    // Update UI - clear all selections first
-    document.querySelectorAll('.option-card').forEach(card => {
-        card.classList.remove('selected');
-    });
-    event.target.closest('.option-card').classList.add('selected');
-    
-    updateButtonStates();
-}
 
-function updateButtonStates() {
-    const createButton = document.getElementById('createWorkspaceButton');
-    const createExternalButton = document.getElementById('createExternalWorkspaceButton');
-    const importButton = document.getElementById('importWorkspaceButton');
-    
-    // Hide all buttons first
-    createButton.classList.add('hidden');
-    createExternalButton.classList.add('hidden');
-    importButton.classList.add('hidden');
-    
-    // Show appropriate button based on selection
-    if (selectedWorkspaceType === 'standard') {
-        createButton.classList.remove('hidden');
-    } else if (selectedWorkspaceType === 'external' && selectedZephyrInstall) {
-        createExternalButton.classList.remove('hidden');
-    } else if (selectedImportSource) {
-        importButton.classList.remove('hidden');
-    }
-}
-
-function createWorkspace() {
-    if (selectedWorkspaceType === 'standard') {
-        vscode.postMessage({
-            command: 'createWorkspace',
-            type: 'standard'
-        });
-    }
-}
-
-function createExternalWorkspace() {
-    if (selectedWorkspaceType === 'external' && selectedZephyrInstall) {
-        vscode.postMessage({
-            command: 'createWorkspace',
-            type: 'external',
-            zephyrInstall: selectedZephyrInstall
-        });
-    }
-}
-
-function importWorkspace() {
-    if (selectedImportSource) {
-        vscode.postMessage({
-            command: 'importWorkspace',
-            source: selectedImportSource
-        });
-    }
-}
 
 // Message Listener
 window.addEventListener('message', event => {

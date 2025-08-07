@@ -226,8 +226,8 @@
         "title": "Zephyr IDE: West Update"
       },
       {
-        "command": "zephyr-ide.reset-extension",
-        "title": "Zephyr IDE: Reset Extension"
+        "command": "zephyr-ide.reset-workspace",
+        "title": "Zephyr IDE: Reset Workspace"
       },
       {
         "command": "zephyr-ide.clear-projects",

@@ -166,7 +166,7 @@ h1 {
     display: none;
 }
 
-.topology-options, .import-options {
+.topology-options, .import-options, .workspace-options {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 18px;

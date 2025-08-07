@@ -17,7 +17,11 @@ limitations under the License.
 
 import * as vscode from "vscode";
 import { WorkspaceConfig, GlobalConfig } from "../../setup_utilities/types";
-import { getWestSDKContext, listAvailableSDKs, ParsedSDKList } from "../../setup_utilities/west_sdk";
+import {
+    getWestSDKContext,
+    listAvailableSDKs,
+    ParsedSDKList,
+} from "../../setup_utilities/west_sdk";
 import { installHostTools } from "../../setup_utilities/host_tools";
 import * as os from "os";
 
@@ -105,12 +109,6 @@ export class WorkspaceSetup {
     // Message Handler
     private handleWebviewMessage(message: any) {
         switch (message.command) {
-            case "createWorkspace":
-                this.createWorkspace(message.type, message.zephyrInstall);
-                return;
-            case "importWorkspace":
-                this.importWorkspace(message.source);
-                return;
             case "openWingetLink":
                 this.openWingetLink();
                 return;
@@ -157,82 +155,6 @@ export class WorkspaceSetup {
     }
 
     // Workspace Management Methods
-    private async createWorkspace(type: string, zephyrInstall?: string) {
-        try {
-            if (type === "standard") {
-                // Use new standard workspace setup command
-                vscode.commands.executeCommand("zephyr-ide.workspace-setup-standard");
-                vscode.window.showInformationMessage(
-                    "Creating new standard workspace..."
-                );
-            } else if (type === "external") {
-                // Handle external Zephyr install workspace
-                if (zephyrInstall === "global") {
-                    vscode.commands.executeCommand(
-                        "zephyr-ide.workspace-setup-global-zephyr"
-                    );
-                    vscode.window.showInformationMessage(
-                        "Setting up workspace with global Zephyr install..."
-                    );
-                } else if (zephyrInstall === "create-new") {
-                    vscode.commands.executeCommand(
-                        "zephyr-ide.workspace-setup-create-new-shared"
-                    );
-                    vscode.window.showInformationMessage(
-                        "Creating new shared Zephyr installation..."
-                    );
-                } else if (zephyrInstall === "existing") {
-                    vscode.commands.executeCommand(
-                        "zephyr-ide.workspace-setup-use-existing"
-                    );
-                    vscode.window.showInformationMessage(
-                        "Setting up workspace with existing Zephyr install..."
-                    );
-                } else {
-                    vscode.window.showErrorMessage(
-                        "Invalid Zephyr install type selected"
-                    );
-                    return;
-                }
-            } else {
-                vscode.window.showErrorMessage("Invalid workspace type selected");
-                return;
-            }
-        } catch (error) {
-            vscode.window.showErrorMessage(`Failed to create workspace: ${error}`);
-        }
-    }
-
-    private async importWorkspace(source: string) {
-        try {
-            if (source === "current-directory") {
-                vscode.commands.executeCommand(
-                    "zephyr-ide.workspace-setup-from-current-directory"
-                );
-                vscode.window.showInformationMessage(
-                    "Setting up current directory as Zephyr IDE workspace..."
-                );
-            } else if (source === "zephyr-ide-git") {
-                vscode.commands.executeCommand("zephyr-ide.workspace-setup-from-git");
-                vscode.window.showInformationMessage(
-                    "Setting up Zephyr IDE workspace from Git..."
-                );
-            } else if (source === "west-git") {
-                vscode.commands.executeCommand(
-                    "zephyr-ide.workspace-setup-from-west-git"
-                );
-                vscode.window.showInformationMessage(
-                    "Setting up West workspace from Git..."
-                );
-            } else {
-                vscode.window.showInformationMessage(
-                    `Import from ${source} is coming soon!`
-                );
-            }
-        } catch (error) {
-            vscode.window.showErrorMessage(`Failed to import workspace: ${error}`);
-        }
-    }
 
     // Utility Methods
     private async openWingetLink() {
@@ -252,7 +174,7 @@ export class WorkspaceSetup {
     }
 
     private async reinitializeWorkspace() {
-        vscode.commands.executeCommand("zephyr-ide.reset-extension");
+        vscode.commands.executeCommand("zephyr-ide.reset-workspace");
     }
 
     // SDK and West Management Methods
@@ -268,7 +190,9 @@ export class WorkspaceSetup {
         try {
             vscode.commands.executeCommand("zephyr-ide.setup-west-environment");
         } catch (error) {
-            vscode.window.showErrorMessage(`Failed to setup west environment: ${error}`);
+            vscode.window.showErrorMessage(
+                `Failed to setup west environment: ${error}`
+            );
         }
     }
 
@@ -293,16 +217,22 @@ export class WorkspaceSetup {
             vscode.commands.executeCommand("zephyr-ide.workspace-setup-from-git");
             this._panel.dispose();
         } catch (error) {
-            vscode.window.showErrorMessage(`Failed to setup workspace from Git: ${error}`);
+            vscode.window.showErrorMessage(
+                `Failed to setup workspace from Git: ${error}`
+            );
         }
     }
 
     private async workspaceSetupFromWestGit() {
         try {
-            vscode.commands.executeCommand("zephyr-ide.workspace-setup-from-west-git");
+            vscode.commands.executeCommand(
+                "zephyr-ide.workspace-setup-from-west-git"
+            );
             this._panel.dispose();
         } catch (error) {
-            vscode.window.showErrorMessage(`Failed to setup workspace from West Git: ${error}`);
+            vscode.window.showErrorMessage(
+                `Failed to setup workspace from West Git: ${error}`
+            );
         }
     }
 
@@ -311,16 +241,22 @@ export class WorkspaceSetup {
             vscode.commands.executeCommand("zephyr-ide.workspace-setup-standard");
             this._panel.dispose();
         } catch (error) {
-            vscode.window.showErrorMessage(`Failed to setup standard workspace: ${error}`);
+            vscode.window.showErrorMessage(
+                `Failed to setup standard workspace: ${error}`
+            );
         }
     }
 
     private async workspaceSetupFromCurrentDirectory() {
         try {
-            vscode.commands.executeCommand("zephyr-ide.workspace-setup-from-current-directory");
+            vscode.commands.executeCommand(
+                "zephyr-ide.workspace-setup-from-current-directory"
+            );
             this._panel.dispose();
         } catch (error) {
-            vscode.window.showErrorMessage(`Failed to setup workspace from current directory: ${error}`);
+            vscode.window.showErrorMessage(
+                `Failed to setup workspace from current directory: ${error}`
+            );
         }
     }
 
@@ -331,9 +267,15 @@ export class WorkspaceSetup {
                 return;
             }
 
-            const setupState = await getWestSDKContext(this.currentWsConfig, this.currentGlobalConfig, this._context);
+            const setupState = await getWestSDKContext(
+                this.currentWsConfig,
+                this.currentGlobalConfig,
+                this._context
+            );
             if (!setupState) {
-                vscode.window.showErrorMessage("No valid west installation found for SDK management");
+                vscode.window.showErrorMessage(
+                    "No valid west installation found for SDK management"
+                );
                 return;
             }
 
@@ -341,20 +283,19 @@ export class WorkspaceSetup {
 
             // Send the parsed SDK list back to the webview
             this._panel.webview.postMessage({
-                command: 'sdkListResult',
-                data: sdkList
+                command: "sdkListResult",
+                data: sdkList,
             });
-
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to list SDKs: ${error}`);
             // Send error back to webview
             this._panel.webview.postMessage({
-                command: 'sdkListResult',
+                command: "sdkListResult",
                 data: {
                     success: false,
                     versions: [],
-                    error: `Failed to list SDKs: ${error}`
-                }
+                    error: `Failed to list SDKs: ${error}`,
+                },
             });
         }
     }
@@ -377,17 +318,22 @@ export class WorkspaceSetup {
             let commands = "";
             switch (platform) {
                 case "windows":
-                    commands = "winget install Kitware.CMake Ninja-build.Ninja oss-winget.gperf python Git.Git oss-winget.dtc wget 7zip.7zip; setx path '%path%;C:\\Program Files\\7-Zip'";
+                    commands =
+                        "winget install Kitware.CMake Ninja-build.Ninja oss-winget.gperf python Git.Git oss-winget.dtc wget 7zip.7zip; setx path '%path%;C:\\Program Files\\7-Zip'";
                     break;
                 case "macos":
-                    commands = "brew install cmake ninja gperf python3 python-tk ccache qemu dtc libmagic wget openocd";
+                    commands =
+                        "brew install cmake ninja gperf python3 python-tk ccache qemu dtc libmagic wget openocd";
                     break;
                 case "linux":
-                    commands = "sudo apt install --no-install-recommends git cmake ninja-build gperf ccache dfu-util device-tree-compiler wget python3-dev python3-venv python3-tk xz-utils file make gcc gcc-multilib g++-multilib libsdl2-dev libmagic1";
+                    commands =
+                        "sudo apt install --no-install-recommends git cmake ninja-build gperf ccache dfu-util device-tree-compiler wget python3-dev python3-venv python3-tk xz-utils file make gcc gcc-multilib g++-multilib libsdl2-dev libmagic1";
                     break;
             }
             await vscode.env.clipboard.writeText(commands);
-            vscode.window.showInformationMessage("Host tools installation commands copied to clipboard");
+            vscode.window.showInformationMessage(
+                "Host tools installation commands copied to clipboard"
+            );
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to copy commands: ${error}`);
         }
@@ -430,7 +376,10 @@ export class WorkspaceSetup {
                 ${this.generateHostToolsSection()}
                 ${this.generateSDKSection(globalConfig)}
                 ${this.generateWestOperationsSection()}
-                ${this.generateWorkspaceSetupSection(folderOpen, workspaceInitialized)}
+                ${this.generateWorkspaceSetupSection(
+            folderOpen,
+            workspaceInitialized
+        )}
             </div>
             ${this.getScriptTags()}
         </body>
@@ -439,14 +388,26 @@ export class WorkspaceSetup {
 
     private getStylesheetLinks(): string {
         const cssUri = this._panel.webview.asWebviewUri(
-            vscode.Uri.joinPath(vscode.Uri.file(this._extensionPath), 'src', 'panels', 'workspace_setup', 'workspace-setup.css')
+            vscode.Uri.joinPath(
+                vscode.Uri.file(this._extensionPath),
+                "src",
+                "panels",
+                "workspace_setup",
+                "workspace-setup.css"
+            )
         );
         return `<link rel="stylesheet" type="text/css" href="${cssUri}">`;
     }
 
     private getScriptTags(): string {
         const jsUri = this._panel.webview.asWebviewUri(
-            vscode.Uri.joinPath(vscode.Uri.file(this._extensionPath), 'src', 'panels', 'workspace_setup', 'workspace-setup.js')
+            vscode.Uri.joinPath(
+                vscode.Uri.file(this._extensionPath),
+                "src",
+                "panels",
+                "workspace_setup",
+                "workspace-setup.js"
+            )
         );
         return `<script src="${jsUri}"></script>`;
     }
@@ -459,25 +420,32 @@ export class WorkspaceSetup {
         let description = "";
         let installCommand = "";
         let stepsContent = "";
-        
+
         // Platform selector for preview
         const platformSelector = `
         <div style="margin-bottom: 15px; padding: 12px; border: 1px solid var(--vscode-panel-border); border-radius: 6px; background-color: var(--vscode-input-background);">
             <h4 style="margin: 0 0 8px 0; font-size: 12px; font-weight: 600;">Preview Platform (Development Only):</h4>
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                <button class="button-small ${actualPlatform === 'win32' ? 'active' : ''}" onclick="switchHostToolsPlatform('win32')" id="platform-win32">🪟 Windows</button>
-                <button class="button-small ${actualPlatform === 'darwin' ? 'active' : ''}" onclick="switchHostToolsPlatform('darwin')" id="platform-darwin">🍎 macOS</button>
-                <button class="button-small ${actualPlatform === 'linux' ? 'active' : ''}" onclick="switchHostToolsPlatform('linux')" id="platform-linux">🐧 Linux</button>
+                <button class="button-small ${actualPlatform === "win32" ? "active" : ""
+            }" onclick="switchHostToolsPlatform('win32')" id="platform-win32">🪟 Windows</button>
+                <button class="button-small ${actualPlatform === "darwin" ? "active" : ""
+            }" onclick="switchHostToolsPlatform('darwin')" id="platform-darwin">🍎 macOS</button>
+                <button class="button-small ${actualPlatform === "linux" ? "active" : ""
+            }" onclick="switchHostToolsPlatform('linux')" id="platform-linux">🐧 Linux</button>
             </div>
-            <p style="margin: 8px 0 0 0; font-size: 11px; color: var(--vscode-descriptionForeground);">Current actual platform: ${this.getPlatformDisplayName(actualPlatform)}</p>
+            <p style="margin: 8px 0 0 0; font-size: 11px; color: var(--vscode-descriptionForeground);">Current actual platform: ${this.getPlatformDisplayName(
+                actualPlatform
+            )}</p>
         </div>`;
 
         switch (platform) {
             case "win32":
                 platformName = "Windows";
                 platformIcon = "🪟";
-                description = "Install development tools using the winget package manager. Winget must be available on your system first.";
-                installCommand = "winget install Kitware.CMake Ninja-build.Ninja oss-winget.gperf python Git.Git oss-winget.dtc wget 7zip.7zip; setx path '%path%;C:\\Program Files\\7-Zip'";
+                description =
+                    "Install development tools using the winget package manager. Winget must be available on your system first.";
+                installCommand =
+                    "winget install Kitware.CMake Ninja-build.Ninja oss-winget.gperf python Git.Git oss-winget.dtc wget 7zip.7zip; setx path '%path%;C:\\Program Files\\7-Zip'";
                 stepsContent = `
                     <div class="installation-steps">
                         <h4 style="margin: 15px 0 10px 0; font-size: 13px; font-weight: 600;">Installation Steps:</h4>
@@ -507,8 +475,10 @@ export class WorkspaceSetup {
             case "darwin":
                 platformName = "macOS";
                 platformIcon = "🍎";
-                description = "Install development tools using the Homebrew package manager for macOS.";
-                installCommand = "brew install cmake ninja gperf python3 python-tk ccache qemu dtc libmagic wget openocd";
+                description =
+                    "Install development tools using the Homebrew package manager for macOS.";
+                installCommand =
+                    "brew install cmake ninja gperf python3 python-tk ccache qemu dtc libmagic wget openocd";
                 stepsContent = `
                     <div class="installation-steps">
                         <h4 style="margin: 15px 0 10px 0; font-size: 13px; font-weight: 600;">Installation Steps:</h4>
@@ -545,8 +515,10 @@ export class WorkspaceSetup {
             case "linux":
                 platformName = "Linux";
                 platformIcon = "🐧";
-                description = "Install development tools using the apt package manager (Ubuntu/Debian).";
-                installCommand = "sudo apt install --no-install-recommends git cmake ninja-build gperf ccache dfu-util device-tree-compiler wget python3-dev python3-venv python3-tk xz-utils file make gcc gcc-multilib g++-multilib libsdl2-dev libmagic1";
+                description =
+                    "Install development tools using the apt package manager (Ubuntu/Debian).";
+                installCommand =
+                    "sudo apt install --no-install-recommends git cmake ninja-build gperf ccache dfu-util device-tree-compiler wget python3-dev python3-venv python3-tk xz-utils file make gcc gcc-multilib g++-multilib libsdl2-dev libmagic1";
                 stepsContent = `
                     <div class="installation-steps">
                         <h4 style="margin: 15px 0 10px 0; font-size: 13px; font-weight: 600;">Installation Steps:</h4>
@@ -603,7 +575,12 @@ export class WorkspaceSetup {
                 </div>
                 <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                     <button class="button" onclick="runHostToolsInstall()">Run Automatic Install</button>
-                    <button class="button button-secondary" onclick="copyHostToolsCommands('${platform === 'win32' ? 'windows' : platform === 'darwin' ? 'macos' : 'linux'}')">Copy Commands</button>
+                    <button class="button button-secondary" onclick="copyHostToolsCommands('${platform === "win32"
+                ? "windows"
+                : platform === "darwin"
+                    ? "macos"
+                    : "linux"
+            }')">Copy Commands</button>
                 </div>
             </div>
         </div>
@@ -672,17 +649,25 @@ export class WorkspaceSetup {
 
     private getPlatformDisplayName(platform: string): string {
         switch (platform) {
-            case "win32": return "Windows";
-            case "darwin": return "macOS";
-            case "linux": return "Linux";
-            default: return platform;
+            case "win32":
+                return "Windows";
+            case "darwin":
+                return "macOS";
+            case "linux":
+                return "Linux";
+            default:
+                return platform;
         }
     }
 
     private generateSDKSection(globalConfig: GlobalConfig): string {
         const sdkCollapsed = globalConfig.sdkInstalled;
-        const statusClass = globalConfig.sdkInstalled ? "status-success" : "status-error";
-        const statusText = globalConfig.sdkInstalled ? "✓ SDK Installed" : "✗ SDK Not Installed";
+        const statusClass = globalConfig.sdkInstalled
+            ? "status-success"
+            : "status-error";
+        const statusText = globalConfig.sdkInstalled
+            ? "✓ SDK Installed"
+            : "✗ SDK Not Installed";
         const expandedClass = sdkCollapsed ? "" : "expanded";
 
         const description = globalConfig.sdkInstalled
@@ -732,15 +717,35 @@ export class WorkspaceSetup {
                     Set up and manage west workspace environments for Zephyr project development and dependency management.
                 </div>
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; margin-top: 15px;">
-                    ${this.generateWestOperationCard("🌐", "Setup West Environment", "Create a Python virtual environment and install west tools required for Zephyr development.", "setupWestEnvironment()")}
-                    ${this.generateWestOperationCard("🔧", "West Init", "Initialize a new west workspace with project manifests and source repositories.", "westInit()")}
-                    ${this.generateWestOperationCard("🔄", "West Update", "Update workspace repositories and install Python dependencies for the current Zephyr version.", "westUpdate()")}
+                    ${this.generateWestOperationCard(
+            "🌐",
+            "Setup West Environment",
+            "Create a Python virtual environment and install west tools required for Zephyr development.",
+            "setupWestEnvironment()"
+        )}
+                    ${this.generateWestOperationCard(
+            "🔧",
+            "West Init",
+            "Initialize a new west workspace with project manifests and source repositories.",
+            "westInit()"
+        )}
+                    ${this.generateWestOperationCard(
+            "🔄",
+            "West Update",
+            "Update workspace repositories and install Python dependencies for the current Zephyr version.",
+            "westUpdate()"
+        )}
                 </div>
             </div>
         </div>`;
     }
 
-    private generateWestOperationCard(icon: string, title: string, description: string, onClick: string): string {
+    private generateWestOperationCard(
+        icon: string,
+        title: string,
+        description: string,
+        onClick: string
+    ): string {
         return `
         <div style="padding: 20px; border: 1px solid var(--vscode-panel-border); border-radius: 6px; background-color: var(--vscode-input-background);">
             <h4 style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
@@ -752,11 +757,20 @@ export class WorkspaceSetup {
         </div>`;
     }
 
-    private generateWorkspaceSetupSection(folderOpen: boolean, workspaceInitialized: boolean): string {
+    private generateWorkspaceSetupSection(
+        folderOpen: boolean,
+        workspaceInitialized: boolean
+    ): string {
         if (!folderOpen) {
             // Keep as regular step when no folder is open
-            const description = this.getWorkspaceDescription(folderOpen, workspaceInitialized);
-            const content = this.getWorkspaceContent(folderOpen, workspaceInitialized);
+            const description = this.getWorkspaceDescription(
+                folderOpen,
+                workspaceInitialized
+            );
+            const content = this.getWorkspaceContent(
+                folderOpen,
+                workspaceInitialized
+            );
             return `
             <div class="step">
                 <div class="step-title">Workspace Setup</div>
@@ -767,10 +781,17 @@ export class WorkspaceSetup {
 
         // Make it collapsible when folder is open
         const workspaceCollapsed = workspaceInitialized; // Collapse when initialized
-        const statusClass = workspaceInitialized ? "status-success" : "status-warning";
-        const statusText = workspaceInitialized ? "✅ Workspace Ready" : "⚙️ Workspace Setup";
+        const statusClass = workspaceInitialized
+            ? "status-success"
+            : "status-warning";
+        const statusText = workspaceInitialized
+            ? "✅ Workspace Ready"
+            : "⚙️ Workspace Setup";
         const expandedClass = workspaceCollapsed ? "" : "expanded";
-        const description = this.getWorkspaceDescription(folderOpen, workspaceInitialized);
+        const description = this.getWorkspaceDescription(
+            folderOpen,
+            workspaceInitialized
+        );
         const content = this.getWorkspaceContent(folderOpen, workspaceInitialized);
 
         return `
@@ -789,7 +810,10 @@ export class WorkspaceSetup {
         </div>`;
     }
 
-    private getWorkspaceDescription(folderOpen: boolean, workspaceInitialized: boolean): string {
+    private getWorkspaceDescription(
+        folderOpen: boolean,
+        workspaceInitialized: boolean
+    ): string {
         if (!folderOpen) {
             return "Open a folder in VS Code to begin setting up your Zephyr development workspace.";
         } else if (workspaceInitialized) {
@@ -799,7 +823,10 @@ export class WorkspaceSetup {
         }
     }
 
-    private getWorkspaceContent(folderOpen: boolean, workspaceInitialized: boolean): string {
+    private getWorkspaceContent(
+        folderOpen: boolean,
+        workspaceInitialized: boolean
+    ): string {
         if (!folderOpen) {
             return this.generateNoFolderContent();
         } else if (workspaceInitialized) {
@@ -829,76 +856,65 @@ export class WorkspaceSetup {
 
     private generateWorkspaceOptions(): string {
         return `
-        <h4>Import Existing Workspace</h4>
-        <div class="import-options">
-            ${this.generateImportOptionCard("🌐", "Zephyr IDE Workspace from Git", "Clone and import a complete Zephyr IDE workspace from a Git repository with pre-configured project structure and settings.", "Team collaboration, shared development environments, and standardized project templates.", "zephyr-ide-git")}
-            ${this.generateImportOptionCard("⚙️", "West Workspace from Git", "Clone a standard west manifest workspace from a Git repository using Zephyr's recommended workspace structure.", "Upstream Zephyr projects, community examples, and official sample applications.", "west-git")}
-            ${this.generateImportOptionCard("📁", "Initialize Current Directory", "Configure the current VS Code workspace directory as a Zephyr IDE workspace, detecting existing projects and configurations.", "Local projects, downloaded samples, or existing Zephyr code directories.", "current-directory")}
-        </div>
-        
-        <h4>Create New Workspace</h4>
-        <div class="topology-options">
-            ${this.generateCreateOptionCard("📦", "Standard Workspace", "Create a self-contained workspace with Zephyr installed locally within the workspace directory. Each workspace maintains its own Zephyr installation.", "Individual projects, isolated development, or when specific Zephyr versions are required per project.", "standard")}
-            ${this.generateExternalZephyrCard()}
-        </div>
-        
-        <div class="flex-buttons">
-            <button class="button hidden" id="createWorkspaceButton" onclick="createWorkspace()">Create Workspace</button>
-            <button class="button hidden" id="createExternalWorkspaceButton" onclick="createExternalWorkspace()">Create Workspace</button>
-            <button class="button hidden" id="importWorkspaceButton" onclick="importWorkspace()">Import Workspace</button>
+        <h4>Workspace Setup Options</h4>
+        <div class="workspace-options">
+            ${this.generateWorkspaceOptionCard(
+            "🌐",
+            "Zephyr IDE Workspace from Git",
+            "Clone and import a complete Zephyr IDE workspace from a Git repository with pre-configured project structure and settings.",
+            "Team collaboration, shared development environments, and standardized project templates.",
+            "zephyr-ide-git"
+        )}
+            ${this.generateWorkspaceOptionCard(
+            "⚙️",
+            "West Workspace from Git",
+            "Clone a standard west manifest workspace from a Git repository using Zephyr's recommended workspace structure.",
+            "Upstream Zephyr projects, community examples, and official sample applications.",
+            "west-git"
+        )}
+            ${this.generateWorkspaceOptionCard(
+            "📦",
+            "Standard Workspace",
+            "Create a self-contained workspace with Zephyr installed locally within the workspace directory. Each workspace maintains its own Zephyr installation.",
+            "Individual projects, isolated development, or when specific Zephyr versions are required per project.",
+            "standard"
+        )}
+            ${this.generateWorkspaceOptionCard(
+            "📁",
+            "Initialize Current Directory",
+            "Set up the current VS Code workspace directory for Zephyr development, preserving any existing files and configurations.",
+            "Existing projects, downloaded samples, or when you want to add Zephyr development to an existing directory.",
+            "current-directory"
+        )}
         </div>`;
     }
 
-    private generateImportOptionCard(icon: string, title: string, description: string, usage: string, source: string): string {
+    private generateWorkspaceOptionCard(
+        icon: string,
+        title: string,
+        description: string,
+        usage: string,
+        action: string
+    ): string {
+        let clickHandler = "";
+        if (action === "zephyr-ide-git") {
+            clickHandler = "workspaceSetupFromGit()";
+        } else if (action === "west-git") {
+            clickHandler = "workspaceSetupFromWestGit()";
+        } else if (action === "standard") {
+            clickHandler = "workspaceSetupStandard()";
+        } else if (action === "current-directory") {
+            clickHandler = "workspaceSetupFromCurrentDirectory()";
+        }
+
         return `
-        <div class="option-card" onclick="selectImportSource('${source}')">
+        <div class="option-card" onclick="${clickHandler}">
             <div class="option-card-header">
                 <div class="topology-icon">${icon}</div>
                 <h3>${title}</h3>
             </div>
             <p class="option-card-description">${description}</p>
             <p class="option-card-usage">Best for: ${usage}</p>
-        </div>`;
-    }
-
-    private generateCreateOptionCard(icon: string, title: string, description: string, usage: string, type: string): string {
-        return `
-        <div class="option-card" onclick="selectWorkspaceType('${type}')">
-            <div class="option-card-header">
-                <div class="topology-icon">${icon}</div>
-                <h3>${title}</h3>
-            </div>
-            <p class="option-card-description">${description}</p>
-            <p class="option-card-usage">Best for: ${usage}</p>
-        </div>`;
-    }
-
-    private generateExternalZephyrCard(): string {
-        return `
-        <div class="option-card external-zephyr-card">
-            <div class="option-card-header">
-                <div class="topology-icon">🔗</div>
-                <h3>Workspace Using External Zephyr Installation</h3>
-            </div>
-            <p class="option-card-description">Create a workspace that references a shared Zephyr installation. Avoids duplicating Zephyr downloads across multiple projects and enables reuse of existing installations.</p>
-            <p class="option-card-usage">Best for: Multiple projects, shared development environments, or reusing existing Zephyr installations.</p>
-            
-            <div class="external-options">
-                ${this.generateExternalOption("🌍", "Global Installation", "Use system-wide global Zephyr installation", "global")}
-                ${this.generateExternalOption("📁", "Create New Shared Installation", "Create a new shared installation in a custom directory", "create-new")}
-                ${this.generateExternalOption("🔍", "Use Existing Installation", "Point to an existing folder containing a .west directory", "existing")}
-            </div>
-        </div>`;
-    }
-
-    private generateExternalOption(icon: string, title: string, description: string, type: string): string {
-        return `
-        <div class="external-option" onclick="selectZephyrInstall('${type}')">
-            <div class="external-option-radio"></div>
-            <div style="flex: 1;">
-                <div style="font-weight: 600; margin-bottom: 2px; font-size: 12px;">${icon} ${title}</div>
-                <div style="font-size: 11px; color: var(--vscode-descriptionForeground);">${description}</div>
-            </div>
         </div>`;
     }
 }

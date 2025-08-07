@@ -425,15 +425,7 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("zephyr-ide.reset-extension", async () => {
-      const selection = await vscode.window.showWarningMessage(
-        "Are you sure you want to Reset the Extension?",
-        "Yes",
-        "Cancel"
-      );
-      if (selection !== "Yes") {
-        return;
-      }
+    vscode.commands.registerCommand("zephyr-ide.reset-workspace", async () => {
       await clearWorkspaceState(context, wsConfig);
       extensionSetupView.updateWebView(wsConfig, globalConfig);
       // Also update workspace setup panel if it's open
