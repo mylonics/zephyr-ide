@@ -227,17 +227,13 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
   output.appendLine("[SETUP] Workspace type selected: Current Directory");
 
 
-  // Check if .venv folder exists - if not, setup west environment
-  const venvPath = path.join(currentDir, ".venv");
-  if (!fs.pathExistsSync(venvPath)) {
-    output.appendLine("[SETUP] No .venv folder found, setting up west environment...");
-    await setupWestEnvironment(context, wsConfig, globalConfig, false);
-    output.appendLine("[SETUP] Continuing...");
-  }
 
   // Check if .west folder exists
   let westPath = path.join(currentDir, ".west");
   let westExists = fs.pathExistsSync(westPath);
+  let using_current_directory_for_install = westExists;
+  let westYmlPath;
+
 
   if (!westExists) {
     // Look for west.yml file to determine subdirectory
@@ -260,59 +256,102 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
       output.appendLine(`[SETUP] Error searching for west.yml: ${error}`);
     }
 
-    if (westYmlFiles.length === 0) {
-      const proceed = await vscode.window.showWarningMessage(
-        "No .west folder detected and no west.yml found. This directory may not be a west workspace.",
-        "Continue Anyway",
-        "Cancel"
-      );
-      if (proceed !== "Continue Anyway") {
-        return false;
-      }
-    } else if (westYmlFiles.length === 1) {
-      const useSubdir = await vscode.window.showInformationMessage(
-        `Found west.yml in subdirectory: ${path.relative(currentDir, westYmlFiles[0])}. Use this as the workspace root?`,
-        "Yes",
-        "Use Current Directory",
-        "Cancel"
-      );
-      if (useSubdir === "Cancel") {
-        return false;
-      } else if (useSubdir === "Yes") {
-        // Update workspace config to use subdirectory
-        const subdirPath = westYmlFiles[0];
-        await setSetupState(context, wsConfig, globalConfig, subdirPath);
-        postWorkspaceSetup(context, wsConfig, globalConfig, subdirPath);
-        return true;
-      }
-    } else {
-      // Multiple west.yml files found
-      const subdirOptions = westYmlFiles.map(dir => ({
-        label: path.relative(currentDir, dir),
-        description: dir
-      }));
-      subdirOptions.push({ label: "Use Current Directory", description: currentDir });
+    // Create options for user choice
+    const setupOptions: vscode.QuickPickItem[] = [];
 
-      const selectedSubdir = await vscode.window.showQuickPick(subdirOptions, {
-        placeHolder: "Multiple west.yml files found. Select the workspace root:",
-        ignoreFocusOut: true
-      });
-
-      if (!selectedSubdir) {
-        return false;
-      }
-
-      const selectedPath = selectedSubdir.description;
-      await setSetupState(context, wsConfig, globalConfig, selectedPath);
-      postWorkspaceSetup(context, wsConfig, globalConfig, selectedPath);
-      return true;
+    // Add west.yml directories found
+    if (westYmlFiles.length > 0) {
+      setupOptions.push({
+        label: "$(folder) Use Local West Workspace",
+        description: `Found ${westYmlFiles.length} west.yml file(s) in subdirectories`,
+        id: "local-west"
+      } as any);
     }
+
+    // Add option to use existing Zephyr installation
+    if (globalConfig.setupStateDictionary && Object.keys(globalConfig.setupStateDictionary).length > 0) {
+      setupOptions.push({
+        label: "$(link) Use Existing Zephyr Installation",
+        description: "Use an existing Zephyr installation from another workspace",
+        id: "existing-install"
+      } as any);
+    }
+
+
+    const selectedOption = await vscode.window.showQuickPick(setupOptions, {
+      placeHolder: "How would you like to set up this workspace?",
+      ignoreFocusOut: true
+    });
+
+    if (!selectedOption) {
+      return false;
+    }
+
+    switch ((selectedOption as any).id) {
+      case "local-west":
+        // Handle west.yml selection
+        if (westYmlFiles.length === 1) {
+          westYmlPath = westYmlFiles[0];
+        } else {
+          // Multiple west.yml files found
+          const subdirOptions = westYmlFiles.map(dir => ({
+            label: path.relative(currentDir, dir),
+            description: dir
+          }));
+
+          const selectedSubdir = await vscode.window.showQuickPick(subdirOptions, {
+            placeHolder: "Multiple west.yml files found. Select the west manifest:",
+            ignoreFocusOut: true
+          });
+
+          if (!selectedSubdir) {
+            return false;
+          }
+
+          westYmlPath = selectedSubdir.description;
+        }
+        using_current_directory_for_install = true;
+        break;
+
+      case "existing-install":
+        // Use existing installation
+        const selectedPath = await selectExistingInstallation(wsConfig, globalConfig, "Select an existing Zephyr installation to use for this workspace");
+        if (!selectedPath) {
+          return false;
+        }
+
+        await setSetupState(context, wsConfig, globalConfig, selectedPath);
+        vscode.window.showInformationMessage(`Workspace configured to use existing Zephyr installation at: ${selectedPath}`);
+        return true;
+
+      default:
+        return false;
+    }
+
   }
 
+  if (using_current_directory_for_install) {
+    // Check if .venv folder exists - if not, setup west environment
+    const venvPath = path.join(currentDir, ".venv");
+    if (!fs.pathExistsSync(venvPath)) {
+      output.appendLine("[SETUP] No .venv folder found, setting up west environment...");
+      await setupWestEnvironment(context, wsConfig, globalConfig, false);
+      output.appendLine("[SETUP] Continuing...");
+    }
 
-  // Set up the workspace using current directory
-  await setSetupState(context, wsConfig, globalConfig, currentDir);
+    // Set up the workspace using current directory
+    await setSetupState(context, wsConfig, globalConfig, currentDir);
+    if (westYmlPath) {
+      let westSelection: WestLocation = {
+        path: westYmlPath,
+        failed: false,
+        gitRepo: "",
+        additionalArgs: ""
+      };
 
+      westInit(context, wsConfig, globalConfig, false, westSelection);
+    }
+  }
   // Run post-setup process
   postWorkspaceSetup(context, wsConfig, globalConfig, currentDir);
   return true;
@@ -517,13 +556,10 @@ export async function workspaceSetupCreateNewShared(context: vscode.ExtensionCon
   return true;
 }
 
-export async function workspaceSetupUseExisting(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
-  // Clear all context flags at start
-  await clearWorkspaceSetupContextFlags(context, wsConfig);
-
+async function selectExistingInstallation(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, placeHolder: string = "Select an existing Zephyr installation"): Promise<string | null> {
   if (!globalConfig.setupStateDictionary) {
     vscode.window.showInformationMessage("No existing Zephyr installations found.");
-    return false;
+    return null;
   }
 
   // Create list of existing installations
@@ -535,13 +571,13 @@ export async function workspaceSetupUseExisting(context: vscode.ExtensionContext
       let description = "";
 
       // Add helpful descriptions
-      const versionStr = setupState.zephyrVersion ? setupState.zephyrVersion.major + "." + setupState.zephyrVersion.minor + "." + setupState.zephyrVersion.patch : "installation";
+      const versionStr = setupState.zephyrVersion ? String(setupState.zephyrVersion) : "installation";
       if (installPath === getToolsDir()) {
-        description = `Global Zephyr ${versionStr}`;
+        description = `Global ${versionStr}`;
       } else if (installPath === wsConfig.rootPath) {
-        description = `Current Zephyr ${versionStr}`;
+        description = `Current ${versionStr}`;
       } else if (setupState.zephyrVersion) {
-        description = `Zephyr ` + versionStr;
+        description = versionStr;
       } else {
         description = "West installation";
       }
@@ -556,20 +592,31 @@ export async function workspaceSetupUseExisting(context: vscode.ExtensionContext
 
   if (installOptions.length === 0) {
     vscode.window.showInformationMessage("No valid existing Zephyr installations found.");
-    return false;
+    return null;
   }
 
   // Let user select from existing installations
   const selectedInstall = await vscode.window.showQuickPick(installOptions, {
-    placeHolder: "Select an existing Zephyr installation",
+    placeHolder: placeHolder,
     ignoreFocusOut: true
   });
 
   if (!selectedInstall) {
-    return false;
+    return null;
   }
 
-  const selectedPath = selectedInstall.detail!;
+  return selectedInstall.detail!;
+}
+
+export async function workspaceSetupUseExisting(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
+  // Clear all context flags at start
+  await clearWorkspaceSetupContextFlags(context, wsConfig);
+
+  const selectedPath = await selectExistingInstallation(wsConfig, globalConfig);
+
+  if (!selectedPath) {
+    return false;
+  }
 
   output.show();
   output.appendLine(`[SETUP] Setting up workspace with existing Zephyr installation: ${selectedPath}`);
