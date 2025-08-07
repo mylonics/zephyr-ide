@@ -121,6 +121,11 @@ h1 {
     color: var(--vscode-editor-background);
 }
 
+.status-info {
+    background-color: var(--vscode-terminal-ansiBlue);
+    color: var(--vscode-editor-background);
+}
+
 .button {
     font-family: inherit;
     background-color: var(--vscode-button-background);
@@ -160,6 +165,11 @@ h1 {
 .button-small {
     padding: 4px 12px;
     font-size: 12px;
+}
+
+.button-small.active {
+    background-color: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
 }
 
 .hidden {
@@ -373,6 +383,53 @@ h1 {
     border-radius: 50%;
     border-top-color: var(--vscode-progressBar-foreground);
     animation: spin 1s ease-in-out infinite;
+}
+
+.installation-steps {
+    margin: 15px 0;
+}
+
+.step-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 15px;
+    padding: 12px;
+    border-radius: 6px;
+    background-color: var(--vscode-editor-background);
+}
+
+.step-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background-color: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 600;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.step-content {
+    flex: 1;
+}
+
+.step-title {
+    font-size: 13px;
+    font-weight: 600;
+    margin: 0 0 4px 0;
+    color: var(--vscode-foreground);
+}
+
+.step-desc {
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+    line-height: 1.4;
+    margin: 0;
 }
 
 @keyframes spin {

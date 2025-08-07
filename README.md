@@ -44,7 +44,7 @@ See the [Install Dependecies Section of the Zephyr Getting Started Guide](https:
 
 ## Testing
 
-This extension includes comprehensive integration tests that validate the complete Zephyr IDE workflow with real Zephyr development tools.
+This extension includes integration tests that validate the complete Zephyr IDE workflow with west development tools.
 
 ### Prerequisites
 
@@ -85,15 +85,12 @@ The integration tests validate:
 ### CI/CD Integration
 
 Integration tests run in CI environments on:
-- Ubuntu (with full Zephyr toolchain)
-- Windows (with Python and west)
-- macOS (with Homebrew tools)
-
-Tests automatically skip when Zephyr tools are unavailable.
+- Ubuntu (with full Zephyr host tools)
 
 For more details, see [docs/TESTING.md](docs/TESTING.md).
 
 ## Known Issues
+- **When using dev containers with WSL and Windows folders, the setup may not work correctly.** If you're using dev containers in a WSL environment, ensure your workspace folder is located within the Ubuntu file system (e.g., `/home/username/project`) rather than in mounted Windows directories (e.g., `/mnt/c/Users/...`). This is an issue inherent with the west boards command.
 
 ## Release Notes
 See [CHANGELOG](CHANGELOG.md) for release notes

@@ -33,7 +33,7 @@ export class ExtensionSetupView implements vscode.WebviewViewProvider {
           leaf: 'folder-opened',
         },
         label: "Open Setup Panel",
-        value: { command: "zephyr-ide.open-workspace-setup" },
+        value: { command: "zephyr-ide.open-setup-panel" },
       }, {
         icons: {
           leaf: 'tools',

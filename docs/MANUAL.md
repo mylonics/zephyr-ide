@@ -4,6 +4,16 @@
 
 To get started install the extension from [visual studio code marketplace](https://marketplace.visualstudio.com/items?itemName=mylonics.zephyr-ide)
 
+## Version 2.0.0 Updates
+This major release includes enhanced workspace setup capabilities:
+- **Redesigned setup panel** with improved user guidance and interactive setup process
+- **Automated host tools installation** for required build dependencies
+- **Enhanced workspace setup methods** with better configuration options
+- **New West SDK integration** using the latest West tooling for SDK management
+- **Improved error handling** and setup instructions throughout the extension
+
+
+## Getting Started
 Open the extension in a workspace folder. \
 Under the extension setup panel you will be presented with a few options on which folder to setup Zephyr/West in:
 
@@ -22,9 +32,9 @@ Once the setup location is selected, the IDE will then provide a series of comma
 Each command may be run individually or triggered all at once with the Initialize Workspace button.
 
 ### Check Build Dependencies
-This command checks if the appropriate build dependencies are installed.
+This command checks if the appropriate build dependencies are installed and can now automatically install missing dependencies where possible.
 
-For this application to work correctly the Zephyr required build tools must be installed and available on the path. These include cmake, python3, and Devicetree Compiler. 
+For this application to work correctly the Zephyr required build tools must be installed and available on the path. These include cmake, python3, and Devicetree Compiler. The v2.0.0 update includes enhanced dependency checking and automated installation capabilities.
 
 See the [Install Dependencies Section of the Zephyr Getting Started Guide](https://docs.zephyrproject.org/latest/develop/getting_started/index.html#install-dependencies)
 
@@ -35,7 +45,7 @@ For macos there have been some reports of the python virtual environment not bei
 ### Setup West Environment
 This creates the python environment and installs west.
 ### Install SDK
-This command allows the user to specify which SDK to install. If you are new and unsure which one you need you should select the latest and you can select all available SDKs.
+This command uses the new West SDK integration to allow users to specify which SDK to install. The v2.0.0 update provides improved SDK management with better version selection and installation processes. If you are new and unsure which one you need you should select the latest and you can select all available SDKs.
 This command only needs to be done once per computer.
 ### West Init
 This command creates/uses a west.yml file or clones a git repository to setup the folder. 
@@ -170,3 +180,6 @@ The Zephyr IDE Extension also integrates with a handful of extensions and is rel
 - Serial Monitor - Send and receive text from serial ports.
 - Devicetree LSP - Devicetree Language Server
 - CMake - Intellisense for CMake Files
+
+## Known Issues
+⚠️ **When using dev containers with WSL and Windows folders, the setup may not work correctly.** If you're using dev containers in a WSL environment, ensure your workspace folder is located within the Ubuntu file system (e.g., `/home/username/project`) rather than in mounted Windows directories (e.g., `/mnt/c/Users/...`).

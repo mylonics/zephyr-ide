@@ -25,8 +25,8 @@ import {
 import { installHostTools } from "../../setup_utilities/host_tools";
 import * as os from "os";
 
-export class WorkspaceSetup {
-    public static currentPanel: WorkspaceSetup | undefined;
+export class SetupPanel {
+    public static currentPanel: SetupPanel | undefined;
     private readonly _panel: vscode.WebviewPanel;
     private readonly _extensionPath: string;
     private readonly _context: vscode.ExtensionContext;
@@ -46,15 +46,15 @@ export class WorkspaceSetup {
             ? vscode.window.activeTextEditor.viewColumn
             : undefined;
 
-        if (WorkspaceSetup.currentPanel) {
-            WorkspaceSetup.currentPanel._panel.reveal(column);
-            WorkspaceSetup.currentPanel.updateWebView(wsConfig, globalConfig);
-            return;
+        if (SetupPanel.currentPanel) {
+            SetupPanel.currentPanel._panel.reveal(column);
+            SetupPanel.currentPanel.updateContent(wsConfig, globalConfig);
+            return SetupPanel.currentPanel;
         }
 
         const panel = vscode.window.createWebviewPanel(
-            "zephyrWorkspaceSetup",
-            "Zephyr IDE Setup & Configuration",
+            "zephyrIDESetup",
+            "Zephyr IDE Setup Panel",
             column || vscode.ViewColumn.One,
             {
                 enableScripts: true,
@@ -62,45 +62,41 @@ export class WorkspaceSetup {
             }
         );
 
-        WorkspaceSetup.currentPanel = new WorkspaceSetup(
+        SetupPanel.currentPanel = new SetupPanel(
             panel,
             extensionPath,
-            context
+            context,
+            wsConfig,
+            globalConfig
         );
-        WorkspaceSetup.currentPanel.updateWebView(wsConfig, globalConfig);
+        return SetupPanel.currentPanel;
     }
 
     private constructor(
         panel: vscode.WebviewPanel,
         extensionPath: string,
-        context: vscode.ExtensionContext
+        context: vscode.ExtensionContext,
+        wsConfig: WorkspaceConfig,
+        globalConfig: GlobalConfig
     ) {
         this._panel = panel;
         this._extensionPath = extensionPath;
         this._context = context;
 
+        this.updateContent(wsConfig, globalConfig);
+
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
+
         this._panel.webview.onDidReceiveMessage(
-            (message) => this.handleWebviewMessage(message),
+            (message) => {
+                this.handleWebviewMessage(message);
+            },
             null,
             this._disposables
         );
     }
 
-    public dispose() {
-        WorkspaceSetup.currentPanel = undefined;
-        this._panel.dispose();
-
-        while (this._disposables.length) {
-            const x = this._disposables.pop();
-            if (x) {
-                x.dispose();
-            }
-        }
-    }
-
-    public updateWebView(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
-        // Store configs for use in methods
+    public updateContent(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
         this.currentWsConfig = wsConfig;
         this.currentGlobalConfig = globalConfig;
         this._panel.webview.html = this.getHtmlForWebview(wsConfig, globalConfig);
@@ -130,6 +126,9 @@ export class WorkspaceSetup {
             case "westUpdate":
                 this.westUpdate();
                 return;
+            case "manageWorkspace":
+                this.manageWorkspace();
+                return;
             case "listSDKs":
                 this.listSDKs();
                 return;
@@ -151,6 +150,19 @@ export class WorkspaceSetup {
             case "workspaceSetupFromCurrentDirectory":
                 this.workspaceSetupFromCurrentDirectory();
                 return;
+        }
+    }
+
+    public dispose() {
+        SetupPanel.currentPanel = undefined;
+
+        this._panel.dispose();
+
+        while (this._disposables.length) {
+            const x = this._disposables.pop();
+            if (x) {
+                x.dispose();
+            }
         }
     }
 
@@ -209,6 +221,14 @@ export class WorkspaceSetup {
             vscode.commands.executeCommand("zephyr-ide.west-update");
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to run west update: ${error}`);
+        }
+    }
+
+    private async manageWorkspace() {
+        try {
+            vscode.commands.executeCommand("zephyr-ide.manage-workspaces");
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to open workspace manager: ${error}`);
         }
     }
 
@@ -392,8 +412,8 @@ export class WorkspaceSetup {
                 vscode.Uri.file(this._extensionPath),
                 "src",
                 "panels",
-                "workspace_setup",
-                "workspace-setup.css"
+                "setup_panel",
+                "setup-panel.css"
             )
         );
         return `<link rel="stylesheet" type="text/css" href="${cssUri}">`;
@@ -405,8 +425,8 @@ export class WorkspaceSetup {
                 vscode.Uri.file(this._extensionPath),
                 "src",
                 "panels",
-                "workspace_setup",
-                "workspace-setup.js"
+                "setup_panel",
+                "setup-panel.js"
             )
         );
         return `<script src="${jsUri}"></script>`;
@@ -420,7 +440,7 @@ export class WorkspaceSetup {
         let description = "";
         let installCommand = "";
         let stepsContent = "";
-
+        
         // Platform selector for preview
         const platformSelector = `
         <div style="margin-bottom: 15px; padding: 12px; border: 1px solid var(--vscode-panel-border); border-radius: 6px; background-color: var(--vscode-input-background);">
@@ -585,66 +605,32 @@ export class WorkspaceSetup {
             </div>
         </div>
         
-        <style>
-        .installation-steps {
-            margin: 15px 0;
+        <script>
+        function switchHostToolsPlatform(platform) {
+            // Update button states
+            document.querySelectorAll('.button-small').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('platform-' + platform).classList.add('active');
+            
+            // Generate and update content dynamically
+            const stepsContent = generateHostToolsStepsContent(platform);
+            const commandContent = generateHostToolsCommandContent(platform);
+            
+            document.getElementById('hostToolsStepsContent').innerHTML = stepsContent;
+            
+            // Find and update the command section
+            const commandDiv = document.querySelector('#hostToolsContent .collapsible-content > div:nth-of-type(4)');
+            if (commandDiv) {
+                commandDiv.innerHTML = commandContent;
+            }
+            
+            // Update copy button
+            const copyButton = document.querySelector('#hostToolsContent button.button-secondary');
+            if (copyButton) {
+                const platformMap = { 'win32': 'windows', 'darwin': 'macos', 'linux': 'linux' };
+                copyButton.setAttribute('onclick', \`copyHostToolsCommands('\${platformMap[platform]}')\`);
+            }
         }
-        .step-item {
-            display: flex;
-            align-items: flex-start;
-            gap: 12px;
-            margin-bottom: 12px;
-            padding: 12px;
-            border: 1px solid var(--vscode-panel-border);
-            border-radius: 6px;
-            background-color: var(--vscode-editor-background);
-        }
-        .step-number {
-            background-color: var(--vscode-button-background);
-            color: var(--vscode-button-foreground);
-            border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            font-weight: 600;
-            flex-shrink: 0;
-        }
-        .step-content {
-            flex: 1;
-        }
-        .step-title {
-            font-weight: 600;
-            font-size: 12px;
-            margin-bottom: 4px;
-            color: var(--vscode-foreground);
-        }
-        .step-desc {
-            font-size: 11px;
-            color: var(--vscode-descriptionForeground);
-            line-height: 1.4;
-        }
-        .button-small {
-            padding: 6px 12px;
-            border: 1px solid var(--vscode-button-border);
-            background-color: var(--vscode-button-secondaryBackground);
-            color: var(--vscode-button-secondaryForeground);
-            border-radius: 4px;
-            font-size: 11px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .button-small:hover {
-            background-color: var(--vscode-button-secondaryHoverBackground);
-        }
-        .button-small.active {
-            background-color: var(--vscode-button-background);
-            color: var(--vscode-button-foreground);
-            border-color: var(--vscode-button-background);
-        }
-        </style>`;
+        </script>`;
     }
 
     private getPlatformDisplayName(platform: string): string {
@@ -672,32 +658,24 @@ export class WorkspaceSetup {
 
         const description = globalConfig.sdkInstalled
             ? "The Zephyr SDK is installed and ready to use. You can manage additional SDK versions or update to the latest release."
-            : "The Zephyr SDK provides cross-compilation toolchains and debugging tools needed to build and debug Zephyr applications for various target architectures. The SDK installation includes version management and integrates with your west installation.";
+            : "The Zephyr SDK is required for building Zephyr applications. Install it to enable cross-compilation for supported architectures.";
 
         return `
         <div class="collapsible-section">
             <div class="collapsible-header" onclick="toggleSection('sdk')">
                 <div class="collapsible-header-left">
                     <div class="status ${statusClass}">${statusText}</div>
-                    <div class="collapsible-title">Zephyr SDK</div>
+                    <div class="collapsible-title">Zephyr SDK Management</div>
                 </div>
                 <div class="collapsible-icon ${expandedClass}" id="sdkIcon">▶</div>
             </div>
             <div class="collapsible-content ${expandedClass}" id="sdkContent">
-                <div class="step-description">
-                    The Zephyr SDK provides essential cross-compilation toolchains for building Zephyr applications. Use the Install SDK command to download and configure the latest SDK with your preferred target architectures.
+                <div class="step-description">${description}</div>
+                <div style="display: flex; gap: 15px; margin: 20px 0; flex-wrap: wrap;">
+                    <button class="button" onclick="installSDK()">Install/Update SDK</button>
+                    <button class="button button-secondary" onclick="listSDKs()">List Available SDKs</button>
                 </div>
-                <p style="margin-bottom: 15px; color: var(--vscode-descriptionForeground); font-size: 12px;">
-                    ${description}
-                </p>
-                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
-                    <button class="button" onclick="installSDK()">Install SDK</button>
-                    <button class="button button-secondary" onclick="listSDKs()">List Installed SDKs</button>
-                </div>
-                <div id="sdkListResults" style="display: none; margin-top: 15px;">
-                    <h4 style="margin: 0 0 10px 0; font-size: 13px; font-weight: 600;">Installed SDK Versions:</h4>
-                    <div id="sdkListContent"></div>
-                </div>
+                <div id="sdkListContainer" style="margin-top: 20px;"></div>
             </div>
         </div>`;
     }
@@ -705,14 +683,14 @@ export class WorkspaceSetup {
     private generateWestOperationsSection(): string {
         return `
         <div class="collapsible-section">
-            <div class="collapsible-header" onclick="toggleSection('westOps')">
+            <div class="collapsible-header" onclick="toggleSection('west')">
                 <div class="collapsible-header-left">
-                    <div class="status status-warning">⚙️ West Operations</div>
-                    <div class="collapsible-title">West Environment Setup & Management</div>
+                    <div class="status status-info">⚙️ West Operations</div>
+                    <div class="collapsible-title">West Workspace Management</div>
                 </div>
-                <div class="collapsible-icon expanded" id="westOpsIcon">▶</div>
+                <div class="collapsible-icon expanded" id="westIcon">▶</div>
             </div>
-            <div class="collapsible-content expanded" id="westOpsContent">
+            <div class="collapsible-content expanded" id="westContent">
                 <div class="step-description">
                     Set up and manage west workspace environments for Zephyr project development and dependency management.
                 </div>
@@ -734,6 +712,12 @@ export class WorkspaceSetup {
             "West Update",
             "Update workspace repositories and install Python dependencies for the current Zephyr version.",
             "westUpdate()"
+        )}
+                    ${this.generateWestOperationCard(
+            "🗂️",
+            "Manage Workspace",
+            "Manage and configure existing workspaces, switch between different workspace configurations.",
+            "manageWorkspace()"
         )}
                 </div>
             </div>
@@ -854,6 +838,35 @@ export class WorkspaceSetup {
         </div>`;
     }
 
+    private generateWorkspaceOptionCard(
+        icon: string,
+        title: string,
+        description: string,
+        usage: string,
+        action: string
+    ): string {
+        let clickHandler = "";
+        if (action === "zephyr-ide-git") {
+            clickHandler = "workspaceSetupFromGit()";
+        } else if (action === "west-git") {
+            clickHandler = "workspaceSetupFromWestGit()";
+        } else if (action === "standard") {
+            clickHandler = "workspaceSetupStandard()";
+        } else if (action === "current-directory") {
+            clickHandler = "workspaceSetupFromCurrentDirectory()";
+        }
+
+        return `
+        <div class="option-card" onclick="${clickHandler}">
+            <div class="option-card-header">
+                <div class="topology-icon">${icon}</div>
+                <h3>${title}</h3>
+            </div>
+            <p class="option-card-description">${description}</p>
+            <p class="option-card-usage">Best for: ${usage}</p>
+        </div>`;
+    }
+
     private generateWorkspaceOptions(): string {
         return `
         <h4>Workspace Setup Options</h4>
@@ -886,35 +899,6 @@ export class WorkspaceSetup {
             "Existing projects, downloaded samples, or when you want to add Zephyr development to an existing directory.",
             "current-directory"
         )}
-        </div>`;
-    }
-
-    private generateWorkspaceOptionCard(
-        icon: string,
-        title: string,
-        description: string,
-        usage: string,
-        action: string
-    ): string {
-        let clickHandler = "";
-        if (action === "zephyr-ide-git") {
-            clickHandler = "workspaceSetupFromGit()";
-        } else if (action === "west-git") {
-            clickHandler = "workspaceSetupFromWestGit()";
-        } else if (action === "standard") {
-            clickHandler = "workspaceSetupStandard()";
-        } else if (action === "current-directory") {
-            clickHandler = "workspaceSetupFromCurrentDirectory()";
-        }
-
-        return `
-        <div class="option-card" onclick="${clickHandler}">
-            <div class="option-card-header">
-                <div class="topology-icon">${icon}</div>
-                <h3>${title}</h3>
-            </div>
-            <p class="option-card-description">${description}</p>
-            <p class="option-card-usage">Best for: ${usage}</p>
         </div>`;
     }
 }

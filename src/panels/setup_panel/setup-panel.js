@@ -1,4 +1,4 @@
-// Workspace Setup Panel Client-Side Logic
+// Zephyr IDE Setup Panel Client-Side Logic
 
 const vscode = acquireVsCodeApi();
 
@@ -56,6 +56,12 @@ function westInit() {
 function westUpdate() {
     vscode.postMessage({
         command: 'westUpdate'
+    });
+}
+
+function manageWorkspace() {
+    vscode.postMessage({
+        command: 'manageWorkspace'
     });
 }
 
@@ -308,8 +314,6 @@ function workspaceSetupFromCurrentDirectory() {
         command: 'workspaceSetupFromCurrentDirectory'
     });
 }
-
-
 
 // Message Listener
 window.addEventListener('message', event => {
