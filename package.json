@@ -414,6 +414,10 @@
         "title": "Zephyr IDE: Reset Zephyr Install Selection"
       },
       {
+        "command": "zephyr-ide.manage-workspaces",
+        "title": "Zephyr IDE: Manage Workspace Installations"
+      },
+      {
         "command": "zephyr-ide.mark-west-as-ready",
         "title": "Zephyr IDE: Mark West as Ready"
       },

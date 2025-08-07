@@ -78,9 +78,7 @@ import {
   workspaceSetupFromWestGit,
   workspaceSetupFromCurrentDirectory,
   workspaceSetupStandard,
-  workspaceSetupGlobalZephyr,
-  workspaceSetupCreateNewShared,
-  workspaceSetupUseExisting,
+  manageWorkspaces
 } from "./setup_utilities/workspace-setup";
 import {
   initializeDtsExt,
@@ -1249,6 +1247,15 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
+      "zephyr-ide.manage-workspaces",
+      async () => {
+        await manageWorkspaces(context, wsConfig, globalConfig);
+      }
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
       "zephyr-ide.mark-west-as-ready",
       async () => {
         if (wsConfig.activeSetupState) {
@@ -1373,7 +1380,7 @@ export async function activate(context: vscode.ExtensionContext) {
         const success = await workspaceSetupFromCurrentDirectory(
           context,
           wsConfig,
-          globalConfig
+          globalConfig, true
         );
         if (success) {
           await markWorkspaceSetupComplete(context, wsConfig, globalConfig);
@@ -1388,45 +1395,6 @@ export async function activate(context: vscode.ExtensionContext) {
       "zephyr-ide.workspace-setup-standard",
       async () => {
         const success = await workspaceSetupStandard(context, wsConfig, globalConfig);
-        if (success) {
-          await markWorkspaceSetupComplete(context, wsConfig, globalConfig);
-        }
-        return success;
-      }
-    )
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "zephyr-ide.workspace-setup-global-zephyr",
-      async () => {
-        const success = await workspaceSetupGlobalZephyr(context, wsConfig, globalConfig);
-        if (success) {
-          await markWorkspaceSetupComplete(context, wsConfig, globalConfig);
-        }
-        return success;
-      }
-    )
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "zephyr-ide.workspace-setup-create-new-shared",
-      async () => {
-        const success = await workspaceSetupCreateNewShared(context, wsConfig, globalConfig);
-        if (success) {
-          await markWorkspaceSetupComplete(context, wsConfig, globalConfig);
-        }
-        return success;
-      }
-    )
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "zephyr-ide.workspace-setup-use-existing",
-      async () => {
-        const success = await workspaceSetupUseExisting(context, wsConfig, globalConfig);
         if (success) {
           await markWorkspaceSetupComplete(context, wsConfig, globalConfig);
         }

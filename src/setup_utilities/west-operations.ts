@@ -180,15 +180,15 @@ export async function installPythonRequirements(context: vscode.ExtensionContext
   return reqRes;
 }
 
-export async function setupWestEnvironment(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, solo = true) {
+export async function setupWestEnvironment(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, useExisiting = false) {
   if (wsConfig.activeSetupState === undefined) {
     return;
   }
   let pythonenv = path.join(wsConfig.activeSetupState.setupPath, ".venv");
   let env_exists = await fs.pathExists(pythonenv);
 
-  let westEnvironmentSetup: string | undefined = 'Reinitialize';
-  if (wsConfig.activeSetupState.pythonEnvironmentSetup || env_exists) {
+  let westEnvironmentSetup: string | undefined = useExisiting ? 'UseExisiting' : 'Reinitialize';
+  if ((wsConfig.activeSetupState.pythonEnvironmentSetup || env_exists) && !useExisiting) {
     if (env_exists) {
       westEnvironmentSetup = await vscode.window.showWarningMessage('Zephyr IDE: Python Env already exists', 'Use Existing', 'Reinitialize', 'Cancel');
     } else {
@@ -264,9 +264,7 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
       saveSetupState(context, wsConfig, globalConfig);
 
       progress.report({ increment: 100 });
-      if (solo) {
-        vscode.window.showInformationMessage(`Zephyr IDE: West Python Environment Setup!`);
-      }
+      vscode.window.showInformationMessage(`Zephyr IDE: West Python Environment Setup!`);
     }
   );
 }
@@ -346,13 +344,9 @@ export async function westUpdateWithRequirements(context: vscode.ExtensionContex
 export async function postWorkspaceSetup(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, setupPath: string, westSelection: WestLocation | undefined) {
   // Setup west environment before initialization
   const venvPath = path.join(setupPath, ".venv");
-  if (!fs.pathExistsSync(venvPath)) {
-    output.appendLine("[SETUP] No .venv folder found, setting up west environment...");
-    await setupWestEnvironment(context, wsConfig, globalConfig, false);
-    output.appendLine("[SETUP] Continuing...");
-  }
+  await setupWestEnvironment(context, wsConfig, globalConfig, fs.pathExistsSync(venvPath));
 
-  if (westSelection) {
+  if (westSelection && !westSelection.failed) {
     let westInitResult = await westInit(context, wsConfig, globalConfig, false, westSelection);
     if (!westInitResult) {
       vscode.window.showErrorMessage("Failed to initialize west with git repository.");
