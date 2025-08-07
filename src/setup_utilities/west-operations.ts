@@ -343,7 +343,23 @@ export async function westUpdateWithRequirements(context: vscode.ExtensionContex
   return true;
 }
 
-export async function postWorkspaceSetup(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, setupPath: string) {
+export async function postWorkspaceSetup(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, setupPath: string, westSelection: WestLocation | undefined) {
+  // Setup west environment before initialization
+  const venvPath = path.join(setupPath, ".venv");
+  if (!fs.pathExistsSync(venvPath)) {
+    output.appendLine("[SETUP] No .venv folder found, setting up west environment...");
+    await setupWestEnvironment(context, wsConfig, globalConfig, false);
+    output.appendLine("[SETUP] Continuing...");
+  }
+
+  if (westSelection) {
+    let westInitResult = await westInit(context, wsConfig, globalConfig, false, westSelection);
+    if (!westInitResult) {
+      vscode.window.showErrorMessage("Failed to initialize west with git repository.");
+      return false;
+    }
+  }
+
   return westUpdateWithRequirements(context, wsConfig, globalConfig, {
     solo: true,
     isWorkspaceSetup: true,

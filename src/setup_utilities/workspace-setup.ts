@@ -129,8 +129,6 @@ export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext
     return false;
   }
 
-  // Setup west environment before initialization
-  await setupWestEnvironment(context, wsConfig, globalConfig, false);
 
   // Initialize west with the provided git URL
   let westSelection: WestLocation = {
@@ -140,14 +138,8 @@ export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext
     additionalArgs: ""
   };
 
-  let westInitResult = await westInit(context, wsConfig, globalConfig, false, westSelection);
-
-  if (!westInitResult) {
-    vscode.window.showErrorMessage("Failed to initialize west with git repository.");
-    return false;
-  }
   // Run post-setup process
-  postWorkspaceSetup(context, wsConfig, globalConfig, currentDir);
+  postWorkspaceSetup(context, wsConfig, globalConfig, currentDir, westSelection);
   return true;
 }
 
@@ -181,23 +173,8 @@ export async function workspaceSetupStandard(context: vscode.ExtensionContext, w
     return false;
   }
 
-  // If west selector created a manifest, we need to run west init
-  if (westSelection.path || westSelection.gitRepo) {
-    output.appendLine("[SETUP] Initializing west with selected configuration...");
-
-    // Setup west environment before initialization
-    await setupWestEnvironment(context, wsConfig, globalConfig, false);
-
-    let westInitResult = await westInit(context, wsConfig, globalConfig, false, westSelection);
-
-    if (!westInitResult) {
-      vscode.window.showErrorMessage("Failed to initialize west workspace.");
-      return false;
-    }
-  }
-
   // Run post-setup process (same as current directory)
-  postWorkspaceSetup(context, wsConfig, globalConfig, currentDir);
+  postWorkspaceSetup(context, wsConfig, globalConfig, currentDir, westSelection);
   return true;
 }
 
@@ -330,30 +307,22 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
 
   }
 
-  if (using_current_directory_for_install) {
-    // Check if .venv folder exists - if not, setup west environment
-    const venvPath = path.join(currentDir, ".venv");
-    if (!fs.pathExistsSync(venvPath)) {
-      output.appendLine("[SETUP] No .venv folder found, setting up west environment...");
-      await setupWestEnvironment(context, wsConfig, globalConfig, false);
-      output.appendLine("[SETUP] Continuing...");
-    }
+  let westSelection: WestLocation | undefined = undefined;
 
+  if (using_current_directory_for_install) {
     // Set up the workspace using current directory
     await setSetupState(context, wsConfig, globalConfig, currentDir);
     if (westYmlPath) {
-      let westSelection: WestLocation = {
+      westSelection = {
         path: westYmlPath,
         failed: false,
         gitRepo: "",
         additionalArgs: ""
       };
-
-      westInit(context, wsConfig, globalConfig, false, westSelection);
     }
   }
   // Run post-setup process
-  postWorkspaceSetup(context, wsConfig, globalConfig, currentDir);
+  postWorkspaceSetup(context, wsConfig, globalConfig, currentDir, westSelection);
   return true;
 }
 
@@ -421,24 +390,10 @@ export async function workspaceSetupGlobalZephyr(context: vscode.ExtensionContex
       return false;
     }
 
-    // If west selector created a manifest, we need to run west init
-    if (westSelection.path || westSelection.gitRepo) {
-      output.appendLine("[SETUP] Initializing west with selected configuration...");
-
-      // Setup west environment before initialization
-      await setupWestEnvironment(context, wsConfig, globalConfig, false);
-
-      let westInitResult = await westInit(context, wsConfig, globalConfig, false, westSelection);
-
-      if (!westInitResult) {
-        vscode.window.showErrorMessage("Failed to initialize west workspace.");
-        return false;
-      }
-    }
 
     // Run post-setup process
 
-    postWorkspaceSetup(context, wsConfig, globalConfig, globalToolsDir).then(
+    postWorkspaceSetup(context, wsConfig, globalConfig, globalToolsDir, westSelection).then(
       result => {
         if (result) {
           vscode.window.showInformationMessage(`Global Zephyr installation created and workspace configured at: ${globalToolsDir}`);
@@ -530,23 +485,9 @@ export async function workspaceSetupCreateNewShared(context: vscode.ExtensionCon
     return false;
   }
 
-  // If west selector created a manifest, we need to run west init
-  if (westSelection.path || westSelection.gitRepo) {
-    output.appendLine("[SETUP] Initializing west with selected configuration...");
-
-    // Setup west environment before initialization
-    await setupWestEnvironment(context, wsConfig, globalConfig, false);
-
-    let westInitResult = await westInit(context, wsConfig, globalConfig, false, westSelection);
-
-    if (!westInitResult) {
-      vscode.window.showErrorMessage("Failed to initialize west workspace.");
-      return false;
-    }
-  }
 
   // Run post-setup process
-  postWorkspaceSetup(context, wsConfig, globalConfig, selectedPath).then(
+  postWorkspaceSetup(context, wsConfig, globalConfig, selectedPath, westSelection).then(
     result => {
       if (result) {
         vscode.window.showInformationMessage(`New shared Zephyr installation created at: ${selectedPath}`);
@@ -570,14 +511,14 @@ async function selectExistingInstallation(wsConfig: WorkspaceConfig, globalConfi
       const setupState = globalConfig.setupStateDictionary[installPath];
       let description = "";
 
-      // Add helpful descriptions
-      const versionStr = setupState.zephyrVersion ? String(setupState.zephyrVersion) : "installation";
+      // Add helpful descriptionsconst 
+      let versionStr = setupState.zephyrVersion ? setupState.zephyrVersion.major + "." + setupState.zephyrVersion.minor + "." + setupState.zephyrVersion.patch : "installation";
       if (installPath === getToolsDir()) {
-        description = `Global ${versionStr}`;
+        description = `Global Zephyr ${versionStr}`;
       } else if (installPath === wsConfig.rootPath) {
-        description = `Current ${versionStr}`;
+        description = `Current Zephyr ${versionStr}`;
       } else if (setupState.zephyrVersion) {
-        description = versionStr;
+        description = `Zephyr ` + versionStr;
       } else {
         description = "West installation";
       }
