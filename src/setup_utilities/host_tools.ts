@@ -46,9 +46,9 @@ export async function installWindowsHostTools(context: vscode.ExtensionContext, 
   //7zip needs to be available in the path. The previous one line should have done it has it has "setx path '%path%;C:\\Program Files\\7-Zip'""" in it. We now need to ensure the new path is loaded in.
   // In windows this can be done with the following or by restarting Visual Studio Code and/or your PC
 
-  const extensionPath = context.extensionPath;
-  let refreshEnvScript = path.join(extensionPath, "scripts", "RefreshEnv.cmd");
-  executeTaskHelper("Refresh Environment", refreshEnvScript, "");
+  //const extensionPath = context.extensionPath;
+  //let refreshEnvScript = path.join(extensionPath, "scripts", "RefreshEnv.cmd");
+  //executeTaskHelper("Refresh Environment", refreshEnvScript, "");
 
   return result;
 }

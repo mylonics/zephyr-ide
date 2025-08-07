@@ -72,12 +72,7 @@ function runHostToolsInstall() {
     });
 }
 
-function copyHostToolsCommands(platform) {
-    vscode.postMessage({
-        command: 'copyHostToolsCommands',
-        platform: platform
-    });
-}
+
 
 function switchHostToolsPlatform(platform) {
     // Update button states
@@ -88,21 +83,9 @@ function switchHostToolsPlatform(platform) {
     
     // Generate content for the selected platform
     const stepsContent = generateHostToolsStepsContent(platform);
-    const commandContent = generateHostToolsCommandContent(platform);
     
     // Update the content
     document.getElementById('hostToolsStepsContent').innerHTML = stepsContent;
-    
-    // Update the command section
-    const commandSection = document.querySelector('#hostToolsContent .button').parentElement.previousElementSibling;
-    commandSection.innerHTML = commandContent;
-    
-    // Update the copy button
-    const copyButton = document.querySelector('button[onclick*="copyHostToolsCommands"]');
-    if (copyButton) {
-        const platformMap = { 'win32': 'windows', 'darwin': 'macos', 'linux': 'linux' };
-        copyButton.setAttribute('onclick', `copyHostToolsCommands('${platformMap[platform]}')`);
-    }
 }
 
 function generateHostToolsStepsContent(platform) {
@@ -112,17 +95,20 @@ function generateHostToolsStepsContent(platform) {
                 {
                     number: 1,
                     title: 'Verify Winget Installation',
-                    desc: 'Ensure the winget package manager is installed. If unavailable, download it from <a href="https://aka.ms/getwinget" style="color: var(--vscode-textLink-foreground);">Microsoft Store</a>'
+                    desc: 'Ensure the winget package manager is installed. If unavailable, download it from <a href="https://aka.ms/getwinget" style="color: var(--vscode-textLink-foreground);">Microsoft Store</a>',
+                    command: 'winget --version'
                 },
                 {
                     number: 2,
                     title: 'Install Development Tools',
-                    desc: 'Install required development tools including CMake, Ninja, Python, Git, and other essential utilities using winget'
+                    desc: 'Install required development tools including CMake, Ninja, Python, Git, and other essential utilities using winget',
+                    command: 'winget install Kitware.CMake Ninja-build.Ninja oss-winget.gperf python Git.Git oss-winget.dtc wget 7zip.7zip'
                 },
                 {
                     number: 3,
                     title: 'Configure Environment',
-                    desc: 'Update system PATH and environment variables. Restart VS Code to ensure all tools are properly configured'
+                    desc: 'Update system PATH and environment variables. Restart VS Code to ensure all tools are properly configured',
+                    command: 'setx path "%path%;C:\\Program Files\\7-Zip"'
                 }
             ]
         },
@@ -131,22 +117,35 @@ function generateHostToolsStepsContent(platform) {
                 {
                     number: 1,
                     title: 'Install Homebrew',
-                    desc: 'Install the Homebrew package manager if not already available on your system'
+                    desc: 'Install the Homebrew package manager if not already available on your system',
+                    command: '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
                 },
                 {
                     number: 2,
-                    title: 'Configure Shell PATH',
-                    desc: 'Update your shell profile to include Homebrew in the system PATH'
+                    title: 'Add Brew to Shell PATH',
+                    desc: 'Add Homebrew to your shell PATH. Choose the command based on your Mac type:',
+                    options: [
+                        {
+                            title: 'Apple Silicon Macs (M1/M2/M3)',
+                            command: '(echo; echo \'eval "$(/opt/homebrew/bin/brew shellenv)"\') >> ~/.zprofile && source ~/.zprofile'
+                        },
+                        {
+                            title: 'Intel Macs',
+                            command: '(echo; echo \'eval "$(/usr/local/bin/brew shellenv)"\') >> ~/.zprofile && source ~/.zprofile'
+                        }
+                    ]
                 },
                 {
                     number: 3,
                     title: 'Install Development Tools',
-                    desc: 'Install essential development tools including CMake, Ninja, Python, and compilation toolchain using brew'
+                    desc: 'Install essential development tools including CMake, Ninja, Python, and compilation toolchain using brew',
+                    command: 'brew install cmake ninja gperf python3 python-tk ccache qemu dtc libmagic wget openocd'
                 },
                 {
                     number: 4,
-                    title: 'Finalize Configuration',
-                    desc: 'Ensure Python is in your PATH and restart VS Code to apply all environment changes'
+                    title: 'Add Python to PATH',
+                    desc: 'Ensure Python is in your PATH and restart VS Code to apply all environment changes',
+                    command: '(echo; echo \'export PATH="\'$(brew --prefix)\'/opt/python/libexec/bin:$PATH"\') >> ~/.zprofile && source ~/.zprofile'
                 }
             ]
         },
@@ -154,13 +153,15 @@ function generateHostToolsStepsContent(platform) {
             steps: [
                 {
                     number: 1,
-                    title: 'Install Development Tools',
-                    desc: 'Install all required development tools and libraries using the apt package manager'
+                    title: 'Update Package Lists',
+                    desc: 'Update the package lists for upgrades and new installations',
+                    command: 'sudo apt update'
                 },
                 {
                     number: 2,
-                    title: 'Setup Complete',
-                    desc: 'Once installation completes, Zephyr IDE will be ready for development'
+                    title: 'Install Development Tools',
+                    desc: 'Install all required development tools and libraries using the apt package manager',
+                    command: 'sudo apt install --no-install-recommends git cmake ninja-build gperf ccache dfu-util device-tree-compiler wget python3-dev python3-venv python3-tk xz-utils file make gcc gcc-multilib g++-multilib libsdl2-dev libmagic1'
                 }
             ]
         }
@@ -176,6 +177,25 @@ function generateHostToolsStepsContent(platform) {
                 <div class="step-content">
                     <div class="step-title">${step.title}</div>
                     <div class="step-desc">${step.desc}</div>
+                    ${step.command ? `
+                        <div class="step-command">
+                            <code class="copyable-command" data-command="${step.command.replace(/"/g, '&quot;')}" onclick="copyToClipboardFromData(this)">${step.command}</code>
+                            <span class="copy-indicator">Click to copy</span>
+                        </div>
+                    ` : ''}
+                    ${step.options ? `
+                        <div class="step-options">
+                            ${step.options.map(option => `
+                                <div class="step-option">
+                                    <div class="step-option-title">${option.title}</div>
+                                    <div class="step-command">
+                                        <code class="copyable-command" data-command="${option.command.replace(/"/g, '&quot;')}" onclick="copyToClipboardFromData(this)">${option.command}</code>
+                                        <span class="copy-indicator">Click to copy</span>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
                 </div>
             </div>
         `;
@@ -185,33 +205,7 @@ function generateHostToolsStepsContent(platform) {
     return html;
 }
 
-function generateHostToolsCommandContent(platform) {
-    const commands = {
-        'win32': "winget install Kitware.CMake Ninja-build.Ninja oss-winget.gperf python Git.Git oss-winget.dtc wget 7zip.7zip; setx path '%path%;C:\\Program Files\\7-Zip'",
-        'darwin': "brew install cmake ninja gperf python3 python-tk ccache qemu dtc libmagic wget openocd",
-        'linux': "sudo apt install --no-install-recommends git cmake ninja-build gperf ccache dfu-util device-tree-compiler wget python3-dev python3-venv python3-tk xz-utils file make gcc gcc-multilib g++-multilib libsdl2-dev libmagic1"
-    };
-    
-    const icons = {
-        'win32': '🪟',
-        'darwin': '🍎',
-        'linux': '🐧'
-    };
-    
-    const names = {
-        'win32': 'Windows',
-        'darwin': 'macOS',
-        'linux': 'Linux'
-    };
-    
-    return `
-        <h4 style="margin: 0 0 8px 0; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
-            <span style="font-size: 16px;">${icons[platform]}</span>
-            ${names[platform]} Installation Command
-        </h4>
-        <code style="display: block; padding: 10px; background-color: var(--vscode-editor-background); border: 1px solid var(--vscode-panel-border); border-radius: 4px; font-family: monospace; font-size: 11px; word-wrap: break-word; white-space: pre-wrap;">${commands[platform]}</code>
-    `;
-}
+
 
 // SDK Management Functions
 function listSDKs() {
@@ -315,11 +309,108 @@ function workspaceSetupFromCurrentDirectory() {
     });
 }
 
+function workspaceSetupPicker() {
+    vscode.postMessage({
+        command: 'workspaceSetupPicker'
+    });
+}
+
+// Copy to clipboard function from data attribute
+function copyToClipboardFromData(element) {
+    const text = element.getAttribute('data-command');
+    if (!text) {
+        console.error('No command data found');
+        return;
+    }
+    copyToClipboard(text, element);
+}
+
+// Copy to clipboard function
+function copyToClipboard(text, element) {
+    // Function to handle feedback
+    function showFeedback(success = true) {
+        const indicator = element.nextElementSibling;
+        if (!indicator || !indicator.classList.contains('copy-indicator')) {
+            return;
+        }
+        
+        const originalText = indicator.textContent;
+        const originalColor = indicator.style.color;
+        
+        if (success) {
+            indicator.textContent = 'Copied!';
+            indicator.style.color = 'var(--vscode-terminal-ansiGreen)';
+        } else {
+            indicator.textContent = 'Failed to copy';
+            indicator.style.color = 'var(--vscode-terminal-ansiRed)';
+        }
+        
+        setTimeout(() => {
+            indicator.textContent = originalText;
+            indicator.style.color = originalColor;
+        }, 2000);
+    }
+    
+    // Try modern clipboard API first
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+            showFeedback(true);
+        }).catch(err => {
+            console.error('Clipboard API failed:', err);
+            // Try fallback
+            tryFallback();
+        });
+    } else {
+        // Use fallback directly
+        tryFallback();
+    }
+    
+    function tryFallback() {
+        try {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            textArea.style.top = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            
+            const successful = document.execCommand('copy');
+            document.body.removeChild(textArea);
+            
+            showFeedback(successful);
+            if (!successful) {
+                console.error('Fallback copy failed');
+            }
+        } catch (err) {
+            console.error('Fallback copy failed:', err);
+            showFeedback(false);
+        }
+    }
+}
+
 // Message Listener
 window.addEventListener('message', event => {
     const message = event.data;
     
     if (message.command === 'sdkListResult') {
         displaySDKList(message.data);
+    }
+});
+
+// Initialize host tools content on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Get the current platform and initialize content
+    const platform = window.navigator.platform.toLowerCase().includes('win') ? 'win32' :
+                    window.navigator.platform.toLowerCase().includes('mac') ? 'darwin' : 'linux';
+    
+    // Initialize steps content
+    const stepsContent = generateHostToolsStepsContent(platform);
+    
+    const stepsContainer = document.getElementById('hostToolsStepsContent');
+    
+    if (stepsContainer) {
+        stepsContainer.innerHTML = stepsContent;
     }
 });

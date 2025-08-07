@@ -338,6 +338,10 @@ export async function westUpdateWithRequirements(context: vscode.ExtensionContex
       vscode.window.showInformationMessage("Successfully completed West Update with Python requirements installation");
     }
   }
+
+  if (!globalConfig.sdkInstalled) {
+    vscode.commands.executeCommand("zephyr-ide.install-sdk");
+  }
   return true;
 }
 

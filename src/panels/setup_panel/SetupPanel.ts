@@ -135,9 +135,7 @@ export class SetupPanel {
             case "installHostTools":
                 this.installHostTools();
                 return;
-            case "copyHostToolsCommands":
-                this.copyHostToolsCommands(message.platform);
-                return;
+
             case "workspaceSetupFromGit":
                 this.workspaceSetupFromGit();
                 return;
@@ -149,6 +147,9 @@ export class SetupPanel {
                 return;
             case "workspaceSetupFromCurrentDirectory":
                 this.workspaceSetupFromCurrentDirectory();
+                return;
+            case "workspaceSetupPicker":
+                this.workspaceSetupPicker();
                 return;
         }
     }
@@ -228,7 +229,9 @@ export class SetupPanel {
         try {
             vscode.commands.executeCommand("zephyr-ide.manage-workspaces");
         } catch (error) {
-            vscode.window.showErrorMessage(`Failed to open workspace manager: ${error}`);
+            vscode.window.showErrorMessage(
+                `Failed to open workspace manager: ${error}`
+            );
         }
     }
 
@@ -276,6 +279,17 @@ export class SetupPanel {
         } catch (error) {
             vscode.window.showErrorMessage(
                 `Failed to setup workspace from current directory: ${error}`
+            );
+        }
+    }
+
+    private async workspaceSetupPicker() {
+        try {
+            vscode.commands.executeCommand("zephyr-ide.workspace-setup-picker");
+            this._panel.dispose();
+        } catch (error) {
+            vscode.window.showErrorMessage(
+                `Failed to open workspace setup picker: ${error}`
             );
         }
     }
@@ -333,46 +347,7 @@ export class SetupPanel {
         }
     }
 
-    private async copyHostToolsCommands(platform: string) {
-        try {
-            let commands = "";
-            switch (platform) {
-                case "windows":
-                    commands =
-                        "winget install Kitware.CMake Ninja-build.Ninja oss-winget.gperf python Git.Git oss-winget.dtc wget 7zip.7zip; setx path '%path%;C:\\Program Files\\7-Zip'";
-                    break;
-                case "macos":
-                    commands =
-                        "brew install cmake ninja gperf python3 python-tk ccache qemu dtc libmagic wget openocd";
-                    break;
-                case "linux":
-                    commands =
-                        "sudo apt install --no-install-recommends git cmake ninja-build gperf ccache dfu-util device-tree-compiler wget python3-dev python3-venv python3-tk xz-utils file make gcc gcc-multilib g++-multilib libsdl2-dev libmagic1";
-                    break;
-            }
-            await vscode.env.clipboard.writeText(commands);
-            vscode.window.showInformationMessage(
-                "Host tools installation commands copied to clipboard"
-            );
-        } catch (error) {
-            vscode.window.showErrorMessage(`Failed to copy commands: ${error}`);
-        }
-    }
 
-    // Helper methods to get current configs
-    private getCurrentWorkspaceConfig(): WorkspaceConfig {
-        if (!this.currentWsConfig) {
-            throw new Error("Workspace config not available");
-        }
-        return this.currentWsConfig;
-    }
-
-    private getCurrentGlobalConfig(): GlobalConfig {
-        if (!this.currentGlobalConfig) {
-            throw new Error("Global config not available");
-        }
-        return this.currentGlobalConfig;
-    }
 
     // HTML Generation Methods
     private getHtmlForWebview(
@@ -432,139 +407,65 @@ export class SetupPanel {
         return `<script src="${jsUri}"></script>`;
     }
 
-    private generateHostToolsSection(): string {
-        const actualPlatform = os.platform();
-        const platform = actualPlatform; // This will be overridden by selector
-        let platformName = "";
-        let platformIcon = "";
-        let description = "";
-        let installCommand = "";
-        let stepsContent = "";
-        
-        // Platform selector for preview
-        const platformSelector = `
-        <div style="margin-bottom: 15px; padding: 12px; border: 1px solid var(--vscode-panel-border); border-radius: 6px; background-color: var(--vscode-input-background);">
-            <h4 style="margin: 0 0 8px 0; font-size: 12px; font-weight: 600;">Preview Platform (Development Only):</h4>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                <button class="button-small ${actualPlatform === "win32" ? "active" : ""
-            }" onclick="switchHostToolsPlatform('win32')" id="platform-win32">🪟 Windows</button>
-                <button class="button-small ${actualPlatform === "darwin" ? "active" : ""
-            }" onclick="switchHostToolsPlatform('darwin')" id="platform-darwin">🍎 macOS</button>
-                <button class="button-small ${actualPlatform === "linux" ? "active" : ""
-            }" onclick="switchHostToolsPlatform('linux')" id="platform-linux">🐧 Linux</button>
-            </div>
-            <p style="margin: 8px 0 0 0; font-size: 11px; color: var(--vscode-descriptionForeground);">Current actual platform: ${this.getPlatformDisplayName(
-                actualPlatform
-            )}</p>
-        </div>`;
-
+    private getPlatformDisplayName(platform: string): string {
         switch (platform) {
             case "win32":
-                platformName = "Windows";
-                platformIcon = "🪟";
-                description =
-                    "Install development tools using the winget package manager. Winget must be available on your system first.";
-                installCommand =
-                    "winget install Kitware.CMake Ninja-build.Ninja oss-winget.gperf python Git.Git oss-winget.dtc wget 7zip.7zip; setx path '%path%;C:\\Program Files\\7-Zip'";
-                stepsContent = `
-                    <div class="installation-steps">
-                        <h4 style="margin: 15px 0 10px 0; font-size: 13px; font-weight: 600;">Installation Steps:</h4>
-                        <div class="step-item">
-                            <div class="step-number">1</div>
-                            <div class="step-content">
-                                <div class="step-title">Verify Winget Installation</div>
-                                <div class="step-desc">Ensure the winget package manager is installed. If unavailable, download it from <a href="https://aka.ms/getwinget" style="color: var(--vscode-textLink-foreground);">Microsoft Store</a></div>
-                            </div>
-                        </div>
-                        <div class="step-item">
-                            <div class="step-number">2</div>
-                            <div class="step-content">
-                                <div class="step-title">Install Development Tools</div>
-                                <div class="step-desc">Install required development tools including CMake, Ninja, Python, Git, and other essential utilities using winget</div>
-                            </div>
-                        </div>
-                        <div class="step-item">
-                            <div class="step-number">3</div>
-                            <div class="step-content">
-                                <div class="step-title">Configure Environment</div>
-                                <div class="step-desc">Update system PATH and environment variables. Restart VS Code to ensure all tools are properly configured</div>
-                            </div>
-                        </div>
-                    </div>`;
-                break;
+                return "Windows";
             case "darwin":
-                platformName = "macOS";
-                platformIcon = "🍎";
-                description =
-                    "Install development tools using the Homebrew package manager for macOS.";
-                installCommand =
-                    "brew install cmake ninja gperf python3 python-tk ccache qemu dtc libmagic wget openocd";
-                stepsContent = `
-                    <div class="installation-steps">
-                        <h4 style="margin: 15px 0 10px 0; font-size: 13px; font-weight: 600;">Installation Steps:</h4>
-                        <div class="step-item">
-                            <div class="step-number">1</div>
-                            <div class="step-content">
-                                <div class="step-title">Install Homebrew</div>
-                                <div class="step-desc">Install the Homebrew package manager if not already available on your system</div>
-                            </div>
-                        </div>
-                        <div class="step-item">
-                            <div class="step-number">2</div>
-                            <div class="step-content">
-                                <div class="step-title">Configure Shell PATH</div>
-                                <div class="step-desc">Update your shell profile to include Homebrew in the system PATH</div>
-                            </div>
-                        </div>
-                        <div class="step-item">
-                            <div class="step-number">3</div>
-                            <div class="step-content">
-                                <div class="step-title">Install Development Tools</div>
-                                <div class="step-desc">Install essential development tools including CMake, Ninja, Python, and compilation toolchain using brew</div>
-                            </div>
-                        </div>
-                        <div class="step-item">
-                            <div class="step-number">4</div>
-                            <div class="step-content">
-                                <div class="step-title">Finalize Configuration</div>
-                                <div class="step-desc">Ensure Python is in your PATH and restart VS Code to apply all environment changes</div>
-                            </div>
-                        </div>
-                    </div>`;
-                break;
+                return "macOS";
             case "linux":
-                platformName = "Linux";
-                platformIcon = "🐧";
-                description =
-                    "Install development tools using the apt package manager (Ubuntu/Debian).";
-                installCommand =
-                    "sudo apt install --no-install-recommends git cmake ninja-build gperf ccache dfu-util device-tree-compiler wget python3-dev python3-venv python3-tk xz-utils file make gcc gcc-multilib g++-multilib libsdl2-dev libmagic1";
-                stepsContent = `
-                    <div class="installation-steps">
-                        <h4 style="margin: 15px 0 10px 0; font-size: 13px; font-weight: 600;">Installation Steps:</h4>
-                        <div class="step-item">
-                            <div class="step-number">1</div>
-                            <div class="step-content">
-                                <div class="step-title">Install Development Tools</div>
-                                <div class="step-desc">Install all required development tools and libraries using the apt package manager</div>
-                            </div>
-                        </div>
-                        <div class="step-item">
-                            <div class="step-number">2</div>
-                            <div class="step-content">
-                                <div class="step-title">Setup Complete</div>
-                                <div class="step-desc">Once installation completes, Zephyr IDE will be ready for development</div>
-                            </div>
-                        </div>
-                    </div>`;
-                break;
+                return "Linux";
             default:
-                platformName = "Unknown";
-                platformIcon = "💻";
-                description = "Platform-specific host tools installation.";
-                installCommand = "";
-                stepsContent = "";
+                return platform;
         }
+    }
+
+    private getPlatformIcon(platform: string): string {
+        switch (platform) {
+            case "win32":
+                return "🪟";
+            case "darwin":
+                return "🍎";
+            case "linux":
+                return "🐧";
+            default:
+                return "💻";
+        }
+    }
+
+    private getPlatformDescription(platform: string): string {
+        switch (platform) {
+            case "win32":
+                return "Install development tools using the winget package manager. Winget must be available on your system first.";
+            case "darwin":
+                return "Install development tools using the Homebrew package manager for macOS.";
+            case "linux":
+                return "Install development tools using the apt package manager (Ubuntu/Debian).";
+            default:
+                return "Platform-specific host tools installation.";
+        }
+    }
+
+    private generateHostToolsSection(): string {
+        const actualPlatform = os.platform();
+        const platformName = this.getPlatformDisplayName(actualPlatform);
+        const platformIcon = this.getPlatformIcon(actualPlatform);
+        const description = this.getPlatformDescription(actualPlatform);
+
+        // Platform selector for preview - HIDDEN
+        // const platformSelector = `
+        // <div style="margin-bottom: 15px; padding: 12px; border: 1px solid var(--vscode-panel-border); border-radius: 6px; background-color: var(--vscode-input-background);">
+        //     <h4 style="margin: 0 0 8px 0; font-size: 12px; font-weight: 600;">Preview Platform (Development Only):</h4>
+        //     <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        //         <button class="button-small ${actualPlatform === "win32" ? "active" : ""
+        //     }" onclick="switchHostToolsPlatform('win32')" id="platform-win32">🪟 Windows</button>
+        //         <button class="button-small ${actualPlatform === "darwin" ? "active" : ""
+        //     }" onclick="switchHostToolsPlatform('darwin')" id="platform-darwin">🍎 macOS</button>
+        //         <button class="button-small ${actualPlatform === "linux" ? "active" : ""
+        //     }" onclick="switchHostToolsPlatform('linux')" id="platform-linux">🐧 Linux</button>
+        //     </div>
+        //     <p style="margin: 8px 0 0 0; font-size: 11px; color: var(--vscode-descriptionForeground);">Current actual platform: ${platformName}</p>
+        // </div>`;
 
         return `
         <div class="collapsible-section">
@@ -582,68 +483,17 @@ export class SetupPanel {
                 <p style="margin-bottom: 15px; color: var(--vscode-descriptionForeground); font-size: 12px;">
                     ${description}
                 </p>
-                ${platformSelector}
                 <div id="hostToolsStepsContent">
-                    ${stepsContent}
+                    <!-- Steps will be populated by JavaScript -->
                 </div>
-                <div style="padding: 15px; border: 1px solid var(--vscode-panel-border); border-radius: 6px; background-color: var(--vscode-input-background); margin: 15px 0;">
-                    <h4 style="margin: 0 0 8px 0; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
-                        <span style="font-size: 16px;">${platformIcon}</span>
-                        ${platformName} Installation Command
-                    </h4>
-                    <code style="display: block; padding: 10px; background-color: var(--vscode-editor-background); border: 1px solid var(--vscode-panel-border); border-radius: 4px; font-family: monospace; font-size: 11px; word-wrap: break-word; white-space: pre-wrap;">${installCommand}</code>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px;">
+                    <button class="button" onclick="runHostToolsInstall()">Run Automatic Install (Experimental)</button>
                 </div>
-                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button class="button" onclick="runHostToolsInstall()">Run Automatic Install</button>
-                    <button class="button button-secondary" onclick="copyHostToolsCommands('${platform === "win32"
-                ? "windows"
-                : platform === "darwin"
-                    ? "macos"
-                    : "linux"
-            }')">Copy Commands</button>
-                </div>
+                <p style="margin-top: 8px; font-size: 11px; color: var(--vscode-descriptionForeground); font-style: italic;">
+                    Note: Automatic installation is experimental. Please report any issues to <a href="https://github.com/mylonics/zephyr-ide/issues" style="color: var(--vscode-textLink-foreground);">GitHub</a>.
+                </p>
             </div>
-        </div>
-        
-        <script>
-        function switchHostToolsPlatform(platform) {
-            // Update button states
-            document.querySelectorAll('.button-small').forEach(btn => btn.classList.remove('active'));
-            document.getElementById('platform-' + platform).classList.add('active');
-            
-            // Generate and update content dynamically
-            const stepsContent = generateHostToolsStepsContent(platform);
-            const commandContent = generateHostToolsCommandContent(platform);
-            
-            document.getElementById('hostToolsStepsContent').innerHTML = stepsContent;
-            
-            // Find and update the command section
-            const commandDiv = document.querySelector('#hostToolsContent .collapsible-content > div:nth-of-type(4)');
-            if (commandDiv) {
-                commandDiv.innerHTML = commandContent;
-            }
-            
-            // Update copy button
-            const copyButton = document.querySelector('#hostToolsContent button.button-secondary');
-            if (copyButton) {
-                const platformMap = { 'win32': 'windows', 'darwin': 'macos', 'linux': 'linux' };
-                copyButton.setAttribute('onclick', \`copyHostToolsCommands('\${platformMap[platform]}')\`);
-            }
-        }
-        </script>`;
-    }
-
-    private getPlatformDisplayName(platform: string): string {
-        switch (platform) {
-            case "win32":
-                return "Windows";
-            case "darwin":
-                return "macOS";
-            case "linux":
-                return "Linux";
-            default:
-                return platform;
-        }
+        </div>`;
     }
 
     private generateSDKSection(globalConfig: GlobalConfig): string {
@@ -825,7 +675,10 @@ export class SetupPanel {
         <div style="text-align: center; padding: 30px;">
             <div style="font-size: 2em; margin-bottom: 15px;">📁</div>
             <p style="margin-bottom: 20px; color: var(--vscode-descriptionForeground); font-size: 12px;">Open a folder in VS Code to begin configuring your Zephyr development environment.</p>
-            <button class="button" onclick="openFolder()">Open Folder</button>
+            <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                <button class="button" onclick="workspaceSetupPicker()">Workspace Setup</button>
+                <button class="button button-secondary" onclick="openFolder()">Open Folder</button>
+            </div>
         </div>`;
     }
 
@@ -834,7 +687,10 @@ export class SetupPanel {
         <div style="text-align: center; padding: 30px;">
             <div style="font-size: 2em; margin-bottom: 15px;">✅</div>
             <p style="margin-bottom: 20px; color: var(--vscode-descriptionForeground); font-size: 12px;">Your Zephyr workspace is configured and ready for development!</p>
-            <button class="button button-secondary" onclick="reinitializeWorkspace()">Reinitialize Workspace</button>
+            <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                <button class="button" onclick="manageWorkspace()">Manage Workspaces</button>
+                <button class="button button-secondary" onclick="reinitializeWorkspace()">Reinitialize Workspace</button>
+            </div>
         </div>`;
     }
 
@@ -873,30 +729,30 @@ export class SetupPanel {
         <div class="workspace-options">
             ${this.generateWorkspaceOptionCard(
             "🌐",
-            "Zephyr IDE Workspace from Git",
-            "Clone and import a complete Zephyr IDE workspace from a Git repository with pre-configured project structure and settings.",
-            "Team collaboration, shared development environments, and standardized project templates.",
+            "Import Zephyr IDE Workspace from Git",
+            "Clone and import a complete Zephyr IDE workspace or any repo with projects as subdirectories using Git.",
+            "Team collaboration, and shared development environments.",
             "zephyr-ide-git"
         )}
             ${this.generateWorkspaceOptionCard(
             "⚙️",
-            "West Workspace from Git",
-            "Clone a standard west manifest workspace from a Git repository using Zephyr's recommended workspace structure.",
+            "Import West Workspace from Git",
+            "Clone a standard west manifest repo (contains west.yml) from a Git repository using West Init.",
             "Upstream Zephyr projects, community examples, and official sample applications.",
             "west-git"
         )}
             ${this.generateWorkspaceOptionCard(
             "📦",
-            "Standard Workspace",
+            "New Standard Workspace",
             "Create a self-contained workspace with Zephyr installed locally within the workspace directory. Each workspace maintains its own Zephyr installation.",
-            "Individual projects, isolated development, or when specific Zephyr versions are required per project.",
+            "Team collaboration, individual projects, isolated development, or when specific Zephyr versions are required per project.",
             "standard"
         )}
             ${this.generateWorkspaceOptionCard(
             "📁",
             "Initialize Current Directory",
-            "Set up the current VS Code workspace directory for Zephyr development, preserving any existing files and configurations.",
-            "Existing projects, downloaded samples, or when you want to add Zephyr development to an existing directory.",
+            "Set up the current VS Code workspace directory for Zephyr development, preserving any existing files and configurations. Process goes through aiding a user choose a zephyr install.",
+            "Existing projects, downloaded samples, or when you want to add quickly run projects with an external install.",
             "current-directory"
         )}
         </div>`;
