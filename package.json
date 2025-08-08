@@ -426,6 +426,10 @@
       {
         "command": "zephyr-ide.workspace-setup-standard",
         "title": "Zephyr IDE: Setup Standard Workspace"
+      },
+      {
+        "command": "zephyr-ide.detect-unused-code",
+        "title": "Zephyr IDE: Detect Unused Code"
       }
     ],
     "terminal": {
@@ -611,7 +615,8 @@
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
-    "test": "vscode-test"
+    "test": "vscode-test",
+    "detect-unused": "node scripts/detect-unused-code.js"
   },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",

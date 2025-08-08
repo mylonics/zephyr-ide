@@ -17,6 +17,7 @@ limitations under the License.
 
 import * as vscode from "vscode";
 import path from "path";
+import { spawn } from "child_process";
 
 import { ActiveProjectView } from "./panels/active_project_view/ActiveProjectView";
 import { ProjectTreeView } from "./panels/project_tree_view/ProjectTreeView";
@@ -1330,6 +1331,49 @@ export async function activate(context: vscode.ExtensionContext) {
         ) ?? ""
       );
       output.appendLine("Finished");
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.detect-unused-code", async () => {
+      output.show();
+      output.appendLine("🔍 Starting unused code detection...");
+      
+      const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+      if (!workspaceFolder) {
+        vscode.window.showErrorMessage("No workspace folder found");
+        return;
+      }
+      
+      const scriptPath = path.join(workspaceFolder.uri.fsPath, 'scripts', 'detect-unused-code.js');
+      
+      try {
+        const child = spawn('node', [scriptPath], {
+          cwd: workspaceFolder.uri.fsPath,
+          stdio: ['ignore', 'pipe', 'pipe']
+        });
+        
+        child.stdout.on('data', (data) => {
+          output.append(data.toString());
+        });
+        
+        child.stderr.on('data', (data) => {
+          output.append(`Error: ${data.toString()}`);
+        });
+        
+        child.on('close', (code) => {
+          if (code === 0) {
+            output.appendLine("\n✅ Unused code detection completed successfully!");
+            vscode.window.showInformationMessage("Unused code detection completed! Check the output panel for results.");
+          } else {
+            output.appendLine(`\n❌ Unused code detection failed with exit code ${code}`);
+            vscode.window.showErrorMessage("Unused code detection failed. Check the output panel for details.");
+          }
+        });
+      } catch (error) {
+        output.appendLine(`❌ Failed to run unused code detection: ${error}`);
+        vscode.window.showErrorMessage("Failed to run unused code detection script");
+      }
     })
   );
 
