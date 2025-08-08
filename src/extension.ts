@@ -36,6 +36,10 @@ async function markWorkspaceSetupComplete(
   if (SetupPanel.currentPanel) {
     SetupPanel.currentPanel.updateContent(wsConfig, globalConfig);
   }
+  // Update API server with new workspace config
+  if (apiServer) {
+    apiServer.updateConfig(wsConfig);
+  }
 }
 
 import {
@@ -106,9 +110,12 @@ import { installHostTools } from "./setup_utilities/host_tools";
 import { getModuleVersion } from "./setup_utilities/modules";
 import { reconfigureTest } from "./project_utilities/twister_selector";
 import { installSDKInteractive } from "./setup_utilities/west_sdk";
+import { ZephyrIdeApiServer } from "./api/api-server";
+import { ApiServerConfig } from "./api/api-types";
 
 let wsConfig: WorkspaceConfig;
 let globalConfig: GlobalConfig;
+let apiServer: ZephyrIdeApiServer | null = null;
 
 let activeProjectDisplay: vscode.StatusBarItem;
 let activeBuildDisplay: vscode.StatusBarItem;
@@ -1333,10 +1340,56 @@ export async function activate(context: vscode.ExtensionContext) {
     })
   );
 
+  // Initialize API server if enabled
+  initializeApiServer(context);
+
   // Return API for tests and other extensions
   return {
     getWorkspaceConfig: () => wsConfig,
   };
 }
 
-export function deactivate() { }
+// Helper function to initialize API server
+async function initializeApiServer(context: vscode.ExtensionContext): Promise<void> {
+  try {
+    const config = vscode.workspace.getConfiguration('zephyr-ide');
+    const apiServerConfig: ApiServerConfig = {
+      enabled: config.get('api_server_enabled', false),
+      port: config.get('api_server_port', 8080),
+      apiKey: config.get('api_server_key') || undefined,
+      allowedOrigins: ['*'] // Allow all origins by default
+    };
+
+    if (apiServerConfig.enabled) {
+      apiServer = new ZephyrIdeApiServer(context, wsConfig, apiServerConfig);
+      await apiServer.start();
+      output.appendLine(`Zephyr IDE API server started on port ${apiServerConfig.port}`);
+      
+      // Listen for configuration changes
+      const configListener = vscode.workspace.onDidChangeConfiguration(async (e) => {
+        if (e.affectsConfiguration('zephyr-ide.api_server_enabled') ||
+            e.affectsConfiguration('zephyr-ide.api_server_port') ||
+            e.affectsConfiguration('zephyr-ide.api_server_key')) {
+          // Restart API server with new configuration
+          if (apiServer) {
+            await apiServer.stop();
+          }
+          await initializeApiServer(context);
+        }
+      });
+      
+      context.subscriptions.push(configListener);
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    output.appendLine(`Failed to start API server: ${errorMessage}`);
+    vscode.window.showErrorMessage(`Failed to start Zephyr IDE API server: ${errorMessage}`);
+  }
+}
+
+export async function deactivate(): Promise<void> {
+  if (apiServer) {
+    await apiServer.stop();
+    apiServer = null;
+  }
+}

@@ -21,6 +21,7 @@ You can read a little bit more about the motivation behind the project [here](ht
   - GUI Panels to show the full project tree and active projects
   - Automatically changing active project based on the last viewed file in the editor
   - All commands that are available in the GUI are available in the command palette.
+  - Optional REST API server for AI agent integration and programmatic access
   - Provides useful functions to set up custom launch/debug configurations
   - Provides the user with a terminal to manually run west commands
   - Saves/loads project structure to workspace in a human readable and editable file
@@ -34,7 +35,12 @@ There is a [manual](docs/MANUAL.md) available to help get started along with a c
 
 [![STM32 Board Setup And Debugging with Zephyr IDE](https://mylonics.com/assets/images/zephyr-ide/board_setup_thumbnail.png)](https://www.youtube.com/watch?v=TXcTzyswBMQ)
 
-You can have a look at this [sample directory](https://github.com/mylonics/zephyr-ide-sample-project) to also help with getting started and sharing project. 
+You can have a look at this [sample directory](https://github.com/mylonics/zephyr-ide-sample-project) to also help with getting started and sharing project.
+
+## REST API for AI Agents
+
+The extension includes an optional REST API server for programmatic access by AI agents and external tools. See the [API documentation](docs/API.md) for detailed information on configuration and usage.
+
 ## Requirements
 
 In order for this application to work correctly the zephyr require build tools need to be installed and available on the path. These include cmake, python3, and Devicetree Compiler. 

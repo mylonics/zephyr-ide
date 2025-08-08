@@ -63,6 +63,24 @@
           ],
           "default": false,
           "description": "Display gui config instead of menu config in Project Tree View"
+        },
+        "zephyr-ide.api_server_enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable REST API server for AI agent integration"
+        },
+        "zephyr-ide.api_server_port": {
+          "type": "number",
+          "default": 8080,
+          "description": "Port for the REST API server"
+        },
+        "zephyr-ide.api_server_key": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "description": "Optional API key for authentication (leave empty to disable auth)"
         }
       }
     },
