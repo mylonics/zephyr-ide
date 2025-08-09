@@ -148,25 +148,88 @@ export async function getModuleSampleFolders(setupState: SetupState) {
   return samplefolders;
 }
 
-export async function getSampleRecursive(dir: string, moduleName: string, sampleList: [string, string, string, string][]) {
-  let tentativePath = path.join(dir, "sample.yaml");
-  if (fs.existsSync(tentativePath)) {
-    let yamlFile: any = await yaml.load(fs.readFileSync(tentativePath, 'utf-8'));
-    if (yamlFile && yamlFile.sample && yamlFile.sample.name) {
-      let description = yamlFile.sample.description ? yamlFile.sample.description : "";
-      return sampleList.push([moduleName, yamlFile.sample.name, description, dir]);
+/**
+ * Recursively walk the sample folder tree gathering (module, sample name, description, path).
+ * Previous implementation mixed sync FS calls inside an async function and relied on implicit
+ * synchronous execution. That could appear to "hang" if a directory cycle (via symlink) existed
+ * or an exceptionally large tree was traversed. This version:
+ *  - Is fully synchronous (no needless async/await overhead)
+ *  - Guards against directory cycles / symlinks
+ *  - Skips very common non-source dirs (build, .git, node_modules)
+ *  - Catches and logs (once) filesystem errors instead of aborting the whole traversal
+ */
+function getSampleRecursive(
+  dir: string,
+  moduleName: string,
+  sampleList: [string, string, string, string][],
+  visited: Set<string>,
+  logErrors: boolean = true
+) {
+  let realDir: string;
+  try {
+    realDir = fs.realpathSync(dir);
+  } catch (e) {
+    if (logErrors) {
+      output.appendLine(`[getSamples] Skipping unreadable path: ${dir} -> ${(e as Error).message}`);
     }
-  } else {
-    let folderList = fs.readdirSync(dir)
-      .map(fileName => {
-        return path.join(dir, fileName);
-      })
-      .filter(fileName => {
-        return !fs.lstatSync(fileName).isFile();
-      });
+    return;
+  }
 
-    for (let i in folderList) {
-      getSampleRecursive(folderList[i], moduleName, sampleList);
+  if (visited.has(realDir)) {
+    return; // cycle / already processed
+  }
+  visited.add(realDir);
+
+  const tentativePath = path.join(realDir, "sample.yaml");
+  try {
+    if (fs.existsSync(tentativePath)) {
+      const yamlFile: any = yaml.load(fs.readFileSync(tentativePath, 'utf-8'));
+      if (yamlFile && yamlFile.sample && yamlFile.sample.name) {
+        const description = yamlFile.sample.description ? yamlFile.sample.description : "";
+        sampleList.push([moduleName, yamlFile.sample.name, description, realDir]);
+      }
+      // Either way, do not recurse further below a folder that declares a sample.yaml
+      return;
+    }
+  } catch (e) {
+    if (logErrors) {
+      output.appendLine(`[getSamples] Error reading sample.yaml in ${realDir}: ${(e as Error).message}`);
+    }
+    // continue to try to descend
+  }
+
+  let entries: string[] = [];
+  try {
+    entries = fs.readdirSync(realDir);
+  } catch (e) {
+    if (logErrors) {
+      output.appendLine(`[getSamples] Cannot read directory ${realDir}: ${(e as Error).message}`);
+    }
+    return;
+  }
+
+  for (const name of entries) {
+    // Skip some common large / irrelevant directories
+    if (name === 'build' || name === '.git' || name === 'node_modules') {
+      continue;
+    }
+    const childPath = path.join(realDir, name);
+    let stat: fs.Stats;
+    try {
+      stat = fs.lstatSync(childPath);
+    } catch (e) {
+      if (logErrors) {
+        output.appendLine(`[getSamples] lstat failed for ${childPath}: ${(e as Error).message}`);
+      }
+      continue;
+    }
+    // Follow directories (but not symlink loops)
+    if (stat.isDirectory()) {
+      // Avoid descending into symlinked directories that could create cycles
+      if (stat.isSymbolicLink()) {
+        continue;
+      }
+      getSampleRecursive(childPath, moduleName, sampleList, visited, logErrors);
     }
   }
 }
@@ -174,8 +237,9 @@ export async function getSampleRecursive(dir: string, moduleName: string, sample
 export async function getSamples(setupState: SetupState) {
   let samplefolders = await getModuleSampleFolders(setupState);
   let sampleList: [string, string, string, string][] = [];
-  for (let i in samplefolders) {
-    await getSampleRecursive(samplefolders[i][1], samplefolders[i][0], sampleList);
+  const visited = new Set<string>();
+  for (const folder of samplefolders) {
+    getSampleRecursive(folder[1], folder[0], sampleList, visited);
   }
   return sampleList;
 }
