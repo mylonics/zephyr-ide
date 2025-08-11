@@ -38,10 +38,6 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      # Build the bundled extension (produces dist/extension.js for main entrypoint)
-      - name: Build Extension
-        run: npm run esbuild
-
       # Step 4: Handle prerelease logic for pushes to 'develop'.
       - name: Publish Prerelease to Open VSX
         if: github.ref == 'refs/heads/develop'
@@ -57,5 +53,4 @@ jobs:
         with:
           pat: ${{ env.publish_token }}
           registryUrl: https://marketplace.visualstudio.com
-          extensionFile: ${{ steps.prereleaseOpenVsx.outputs.vsixPath }}
           preRelease: true
