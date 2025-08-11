@@ -38,19 +38,28 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      # Optional build (ensure dist/extension.js exists if using bundler)
+      - name: Build Extension
+        run: npm run esbuild --if-present
+
       # Step 4: Handle prerelease logic for pushes to 'develop'.
       - name: Publish Prerelease to Open VSX
         if: github.ref == 'refs/heads/develop'
         id: prereleaseOpenVsx
+        continue-on-error: true
         uses: HaaLeo/publish-vscode-extension@v2
         with:
           pat: ${{ env.ovsx_token }}
           preRelease: true
 
-      - name: Publish Prerelease to VS Marketplace (reuse vsix)
+      - name: Note Open VSX prerelease failure (non-blocking)
+        if: github.ref == 'refs/heads/develop' && steps.prereleaseOpenVsx.outcome == 'failure'
+        run: echo "Warning: Open VSX prerelease publish failed; proceeding to VS Marketplace publish anyway." 
+
+      - name: Publish Prerelease to VS Marketplace (vsce)
         if: github.ref == 'refs/heads/develop'
-        uses: HaaLeo/publish-vscode-extension@v2
+        uses: lannonbr/vsce-action@4.0.0
+        env:
+          VSCE_TOKEN: ${{ env.publish_token }}
         with:
-          pat: ${{ env.publish_token }}
-          registryUrl: https://marketplace.visualstudio.com
-          preRelease: true
+          args: publish --pre-release -p $VSCE_TOKEN
