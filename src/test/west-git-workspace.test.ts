@@ -101,7 +101,7 @@ suite("West Git Workspace Test Suite", () => {
     });
 
     test("Git Workspace Setup: West Git → SDK Install → Add Project → Custom Board Build", async function () {
-        this.timeout(1800000);
+        this.timeout(420000);
 
         console.log("🚀 Starting git workspace test...");
 
