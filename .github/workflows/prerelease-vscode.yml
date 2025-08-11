@@ -19,8 +19,13 @@ jobs:
       - run: npm ci
       - run: npm --prefix server ci
       - run: npm --prefix client ci
+      - run: npm version patch --no-git-tag-version
+      - run: npm version patch --preid=alpha --no-git-tag-version
       - uses: lannonbr/vsce-action@4.0.0
         with:
           args: "publish --pre-release -p $VSCE_TOKEN"
         env:
           VSCE_TOKEN: ${{ secrets.VSCE_TOKEN }}
+      - run: |
+          VERSION=$(node -p "require('./package.json').version")
+          gh release create "v$VERSION" --prerelease --title "Prerelease $VERSION" -p "*.vsix"
