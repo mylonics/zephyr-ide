@@ -140,7 +140,10 @@ suite("Standard Workspace Test Suite", () => {
                 { type: 'quickpick', value: 'minimal', description: 'Select minimal manifest' },
                 { type: 'quickpick', value: 'stm32', description: 'Select STM32 toolchain' },
                 { type: 'quickpick', value: 'v4.2.0', description: 'Select default configuration' },
-                { type: 'input', value: '', description: 'Select additional west init args' }
+                { type: 'input', value: '', description: 'Select additional west init args' },
+                { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
+                { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
+                { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
             ]);
 
             result = await vscode.commands.executeCommand(
@@ -152,14 +155,9 @@ suite("Standard Workspace Test Suite", () => {
 
             console.log("⚙️ Step 3: Installing SDK...");
             // Prime the mock interface for SDK installation interactions
-            uiMock.primeInteractions([
-                { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
-                { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
-                { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
-            ]);
 
-            result = await vscode.commands.executeCommand("zephyr-ide.install-sdk");
-            assert.ok(result, "SDK installation should succeed");
+            //result = await vscode.commands.executeCommand("zephyr-ide.install-sdk");
+            //assert.ok(result, "SDK installation should succeed");
 
             console.log("📁 Step 4: Creating project from template...");
             // Prime the mock interface for project creation interactions

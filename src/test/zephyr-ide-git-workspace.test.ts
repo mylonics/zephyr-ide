@@ -121,7 +121,7 @@ suite("Zephyr IDE Git Workspace Test Suite", () => {
             console.log("🏗️ Step 1: Setting up workspace from Zephyr IDE Git...");
             // Prime the mock interface for Zephyr IDE git workspace setup
             gitUiMock.primeInteractions([
-                { type: 'input', value: '--branch main -- https://github.com/mylonics/zephyr-ide-samples.git', description: 'Enter Zephyr IDE git repo URL' }
+                { type: 'input', value: '--branch main -- https://github.com/mylonics/zephyr-ide-samples.git', description: 'Enter Zephyr IDE git repo URL' },
             ]);
 
             let result = await vscode.commands.executeCommand(
@@ -129,18 +129,20 @@ suite("Zephyr IDE Git Workspace Test Suite", () => {
             );
             assert.ok(result, "Zephyr IDE git workspace setup should succeed");
 
-            await monitorWorkspaceSetup("Zephyr IDE git workspace");
-
-            console.log("⚙️ Step 2: Installing SDK...");
-            // Prime the mock interface for SDK installation interactions
             gitUiMock.primeInteractions([
                 { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
                 { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
                 { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
             ]);
 
-            result = await vscode.commands.executeCommand("zephyr-ide.install-sdk");
-            assert.ok(result, "SDK installation should succeed");
+
+            await monitorWorkspaceSetup("Zephyr IDE git workspace");
+
+            console.log("⚙️ Step 2: Installing SDK...");
+            // Prime the mock interface for SDK installation interactions
+
+            //result = await vscode.commands.executeCommand("zephyr-ide.install-sdk");
+            //assert.ok(result, "SDK installation should succeed");
 
             console.log("⚡ Step 3: Executing build...");
             // Wait a moment for workspace setup to complete
