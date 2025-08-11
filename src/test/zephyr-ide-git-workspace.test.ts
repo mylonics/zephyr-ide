@@ -121,7 +121,7 @@ suite("Zephyr IDE Git Workspace Test Suite", () => {
             console.log("🏗️ Step 1: Setting up workspace from Zephyr IDE Git...");
             // Prime the mock interface for Zephyr IDE git workspace setup
             gitUiMock.primeInteractions([
-                { type: 'input', value: '--branch main -- https://github.com/mylonics/zephyr-ide-sample-project.git', description: 'Enter Zephyr IDE git repo URL' }
+                { type: 'input', value: '--branch main -- https://github.com/mylonics/zephyr-ide-samples.git', description: 'Enter Zephyr IDE git repo URL' }
             ]);
 
             let result = await vscode.commands.executeCommand(

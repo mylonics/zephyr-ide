@@ -120,7 +120,8 @@ suite("West Git Workspace Test Suite", () => {
             console.log("🏗️ Step 1: Setting up workspace from West Git...");
             // Prime the mock interface for git workspace setup interactions
             gitUiMock.primeInteractions([
-                { type: 'input', value: 'https://github.com/mylonics/zephyr-example.git', description: 'Enter git repo URL' }
+                { type: 'input', value: 'https://github.com/mylonics/zephyr-ide-samples.git', description: 'Enter git repo URL' },
+                { type: 'input', value: '-mr west_repo', description: 'Enter Additionaladditional arguments for west' }
             ]);
 
             let result = await vscode.commands.executeCommand(

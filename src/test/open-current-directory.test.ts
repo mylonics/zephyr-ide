@@ -120,7 +120,7 @@ suite("Open Current Directory Test Suite", () => {
             console.log("🏗️ Step 1: Setting up workspace from git with west.yml detection...");
             // Prime the mock interface for git setup with branch argument
             uiMock.primeInteractions([
-                { type: 'input', value: '--branch no_west_folder -- https://github.com/mylonics/zephyr-ide-sample-project.git', description: 'Enter git clone string with branch' }
+                { type: 'input', value: '--branch no_west_folder -- https://github.com/mylonics/zephyr-ide-samples.git', description: 'Enter git clone string with branch' }
             ]);
 
             let result = await vscode.commands.executeCommand(

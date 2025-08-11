@@ -223,6 +223,13 @@ export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext
     return false;
   }
 
+  // Second quick input for additional west arguments
+  const additionalArgs = await vscode.window.showInputBox({
+    prompt: "Enter any additional arguments for west init/update (optional)",
+    placeHolder: "-mr main",
+    ignoreFocusOut: true,
+  });
+
   const currentDir = wsConfig.rootPath;
   if (!currentDir) {
     vscode.window.showErrorMessage(
@@ -250,12 +257,12 @@ export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext
     return false;
   }
 
-  // Initialize west with the provided git URL
+  // Initialize west with the provided git URL and additional arguments
   let westSelection: WestLocation = {
     path: undefined,
     failed: false,
     gitRepo: gitUrl,
-    additionalArgs: "",
+    additionalArgs: additionalArgs || "",
   };
 
   // Run post-setup process
