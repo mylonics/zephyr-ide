@@ -112,6 +112,7 @@ export async function monitorWorkspaceSetup(setupType: string = "workspace"): Pr
     let pythonEnvironmentSetup = false;
     let westUpdated = false;
     let packagesInstalled = false;
+    let sdkInstalled = false;
 
     while (!packagesInstalled) {
         const extension = vscode.extensions.getExtension("mylonics.zephyr-ide");
@@ -140,14 +141,19 @@ export async function monitorWorkspaceSetup(setupType: string = "workspace"): Pr
             if (wsConfig.activeSetupState?.packagesInstalled) {
                 packagesInstalled = true;
                 console.log("    ✅ Packages installed completed");
-                console.log(`🎉 All ${setupType} setup stages completed!`);
                 break;
+            }
+
+            if (packagesInstalled && await vscode.commands.executeCommand("zephyr-ide.sdk-installed")) {
+                sdkInstalled = true;
+                console.log("    ✅ SDK installed");
+                console.log(`🎉 All ${setupType} setup stages completed!`);
             }
         }
 
         // Progress update every 30 seconds
         if (waitTime % 30000 === 0 && waitTime > 0) {
-            const completedStages = [initialSetupComplete, pythonEnvironmentSetup, westUpdated, packagesInstalled].filter(Boolean).length;
+            const completedStages = [initialSetupComplete, pythonEnvironmentSetup, westUpdated, packagesInstalled, sdkInstalled].filter(Boolean).length;
             console.log(`⏳ ${setupType} setup in progress... (${waitTime / 1000}s elapsed, ${completedStages}/4 stages completed)`);
         }
 

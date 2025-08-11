@@ -1239,6 +1239,12 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.is-sdk-installed", async () => {
+      return globalConfig.sdkInstalled;
+    })
+  );
+
+  context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.open-setup-panel", async () => {
       SetupPanel.createOrShow(
         context.extensionPath,
