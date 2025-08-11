@@ -138,7 +138,7 @@ export async function monitorWorkspaceSetup(setupType: string = "workspace"): Pr
                 pythonEnvironmentSetup = true;
             }
 
-            if (wsConfig.activeSetupState?.packagesInstalled) {
+            if (!packagesInstalled && wsConfig.activeSetupState?.packagesInstalled) {
                 packagesInstalled = true;
                 console.log("    ✅ Packages installed completed");
             }
