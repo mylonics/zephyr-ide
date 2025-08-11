@@ -128,7 +128,8 @@ suite("Workspace Out Of Tree Test Suite", () => {
                 { type: 'quickpick', value: 'minimal', description: 'Select minimal manifest' },
                 { type: 'quickpick', value: 'stm32', description: 'Select STM32 toolchain' },
                 { type: 'quickpick', value: 'v4.2.0', description: 'Select default configuration' },
-                { type: 'input', value: '', description: 'Select additional west init args' }
+                { type: 'input', value: '', description: 'Select additional west init args' },
+
 
             ]);
 
@@ -138,6 +139,12 @@ suite("Workspace Out Of Tree Test Suite", () => {
             );
             assert.ok(result, "Git workspace setup should succeed");
 
+
+            uiMock.primeInteractions([
+                { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
+                { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
+                { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
+            ]);
             await monitorWorkspaceSetup("workspace out of tree");
 
             console.log("⚡ Step 2: Executing build...");
