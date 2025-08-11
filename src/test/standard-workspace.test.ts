@@ -153,11 +153,7 @@ suite("Standard Workspace Test Suite", () => {
 
             await monitorWorkspaceSetup();
 
-            console.log("⚙️ Step 3: Installing SDK...");
-            // Prime the mock interface for SDK installation interactions
 
-            //result = await vscode.commands.executeCommand("zephyr-ide.install-sdk");
-            //assert.ok(result, "SDK installation should succeed");
 
             console.log("📁 Step 4: Creating project from template...");
             // Prime the mock interface for project creation interactions
