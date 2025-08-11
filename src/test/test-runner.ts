@@ -114,7 +114,7 @@ export async function monitorWorkspaceSetup(setupType: string = "workspace"): Pr
     let packagesInstalled = false;
     let sdkInstalled = false;
 
-    while (!packagesInstalled) {
+    while (!sdkInstalled) {
         const extension = vscode.extensions.getExtension("mylonics.zephyr-ide");
         let wsConfig = null;
 

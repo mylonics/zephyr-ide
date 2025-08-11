@@ -153,7 +153,6 @@ suite("Standard Workspace Test Suite", () => {
 
             await monitorWorkspaceSetup();
 
-            await new Promise((resolve) => setTimeout(resolve, 10000));
             console.log("📁 Step 4: Creating project from template...");
             // Prime the mock interface for project creation interactions
             uiMock.primeInteractions([

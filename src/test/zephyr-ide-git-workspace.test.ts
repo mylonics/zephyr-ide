@@ -158,7 +158,6 @@ suite("Zephyr IDE Git Workspace Test Suite", () => {
 
             // Deactivate the UI Mock Interface
             gitUiMock.deactivate();
-            await new Promise((resolve) => setTimeout(resolve, 30000));
 
         } catch (error) {
             console.error("❌ Zephyr IDE git workflow test failed:", error);
