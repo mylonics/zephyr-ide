@@ -143,7 +143,7 @@ export async function monitorWorkspaceSetup(setupType: string = "workspace"): Pr
                 console.log("    ✅ Packages installed completed");
             }
 
-            if (packagesInstalled && await vscode.commands.executeCommand("zephyr-ide.sdk-installed")) {
+            if (packagesInstalled && await vscode.commands.executeCommand("zephyr-ide.is-sdk-installed")) {
                 sdkInstalled = true;
                 console.log("    ✅ SDK installed");
                 console.log(`🎉 All ${setupType} setup stages completed!`);
