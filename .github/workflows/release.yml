@@ -1,0 +1,61 @@
+# This workflow automates the release process for a VS Code extension.
+# It runs on pushes to the 'develop' and 'main' branches.
+# The version number must be manually updated in the package.json file before pushing.
+
+name: Release VS Code Extension
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+
+jobs:
+  release:
+    # Set the runner environment.
+    runs-on: ubuntu-latest
+
+    # Define environment variables for the release process
+    # Note: The HaaLeo action uses different secret names.
+    # The 'publish_token' is for VS Code Marketplace, and 'ovsx_token' is for Open VSX.
+    env:
+      publish_token: ${{ secrets.VSCE_TOKEN }}
+      ovsx_token: ${{ secrets.OPEN_VSIX_TOKEN }}
+
+    steps:
+      # Step 1: Checkout the repository code.
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Step 2: Set up Node.js environment.
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x" # Use a stable Node.js version.
+          cache: "npm"
+
+      # Step 3: Install project dependencies.
+      - name: Install Dependencies
+        run: npm ci
+
+      # Step 4: Handle prerelease logic for pushes to 'develop'.
+      - name: Publish Prerelease
+        if: github.ref == 'refs/heads/develop'
+        uses: HaaLeo/publish-vscode-extension@v2
+        with:
+          pat: ${{ env.publish_token }}
+          ovsxPat: ${{ env.ovsx_token }}
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          preRelease: true
+          updateRelease: true
+
+      # Step 5: Handle official release logic for pushes to 'main'.
+      - name: Publish Official Release
+        if: github.ref == 'refs/heads/main'
+        uses: HaaLeo/publish-vscode-extension@v2
+        with:
+          pat: ${{ env.publish_token }}
+          ovsxPat: ${{ env.ovsx_token }}
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          preRelease: false
+          updateRelease: true
