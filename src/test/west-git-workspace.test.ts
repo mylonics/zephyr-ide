@@ -122,6 +122,9 @@ suite("West Git Workspace Test Suite", () => {
             gitUiMock.primeInteractions([
                 { type: 'input', value: 'https://github.com/mylonics/zephyr-ide-samples', description: 'Enter git repo URL' },
                 { type: 'input', value: '--mr west_repo', description: 'Enter Additionaladditional arguments for west' },
+                { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
+                { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
+                { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
             ]);
 
             let result = await vscode.commands.executeCommand(
@@ -129,11 +132,6 @@ suite("West Git Workspace Test Suite", () => {
             );
             assert.ok(result, "Git workspace setup should succeed");
 
-            gitUiMock.primeInteractions([
-                { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
-                { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
-                { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
-            ]);
 
             await monitorWorkspaceSetup("git workspace");
 
