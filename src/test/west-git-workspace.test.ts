@@ -132,7 +132,6 @@ suite("West Git Workspace Test Suite", () => {
             );
             assert.ok(result, "Git workspace setup should succeed");
 
-
             await monitorWorkspaceSetup("git workspace");
 
             console.log("⚙️ Step 2: Installing SDK...");

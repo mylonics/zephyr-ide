@@ -120,7 +120,11 @@ suite("Open Current Directory Test Suite", () => {
             console.log("🏗️ Step 1: Setting up workspace from git with west.yml detection...");
             // Prime the mock interface for git setup with branch argument
             uiMock.primeInteractions([
-                { type: 'input', value: '--branch no_west_folder -- https://github.com/mylonics/zephyr-ide-samples.git', description: 'Enter git clone string with branch' }
+                { type: 'input', value: '--branch no_west_folder -- https://github.com/mylonics/zephyr-ide-samples.git', description: 'Enter git clone string with branch' },
+                { type: 'quickpick', value: 'local-west', description: 'Choose Use Local West Workspace option' },
+                { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
+                { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
+                { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
             ]);
 
             let result = await vscode.commands.executeCommand(
@@ -129,10 +133,6 @@ suite("Open Current Directory Test Suite", () => {
             assert.ok(result, "Git workspace setup should succeed");
 
             console.log("🔍 Step 2: Choosing detected west.yml file...");
-            // Prime the mock interface for west.yml detection prompt
-            uiMock.primeInteractions([
-                { type: 'quickpick', value: 'local-west', description: 'Choose Use Local West Workspace option' }
-            ]);
 
             await monitorWorkspaceSetup("open current directory");
 

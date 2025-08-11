@@ -142,9 +142,6 @@ suite("Workspace Out Of Tree Test Suite", () => {
             );
             assert.ok(result, "Git workspace setup should succeed");
 
-
-            uiMock.primeInteractions([
-            ]);
             await monitorWorkspaceSetup("workspace out of tree");
 
             console.log("⚡ Step 2: Executing build...");

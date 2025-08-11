@@ -151,10 +151,6 @@ suite("Standard Workspace Test Suite", () => {
             );
             assert.ok(result, "Workspace setup should succeed");
 
-
-            uiMock.primeInteractions([
-            ]);
-
             await monitorWorkspaceSetup();
 
             console.log("📁 Step 4: Creating project from template...");

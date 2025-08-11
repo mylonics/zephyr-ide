@@ -135,7 +135,6 @@ suite("Zephyr IDE Git Workspace Test Suite", () => {
                 { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
             ]);
 
-
             await monitorWorkspaceSetup("Zephyr IDE git workspace");
 
             console.log("⚙️ Step 2: Installing SDK...");
