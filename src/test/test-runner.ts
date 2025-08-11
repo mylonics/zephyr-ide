@@ -27,14 +27,14 @@ const execAsync = util.promisify(cp.exec);
  * Check if build dependencies are available using the extension's built-in check
  */
 export async function checkBuildDependencies(
-    context: vscode.ExtensionContext, 
-    wsConfig: WorkspaceConfig, 
+    context: vscode.ExtensionContext,
+    wsConfig: WorkspaceConfig,
     globalConfig: GlobalConfig
 ): Promise<boolean> {
     try {
         // Use the extension's own build dependency checker
         const result = await checkIfToolsAvailable(context, wsConfig, globalConfig, false);
-        
+
         if (result) {
             console.log('✓ Build dependencies are available');
             return true;
@@ -57,7 +57,7 @@ export async function checkZephyrToolsAvailable(): Promise<boolean> {
         // Just check for basic tools as a fallback
         await execAsync('python --version');
         await execAsync('cmake --version');
-        
+
         console.log('✓ Basic development tools are available');
         return true;
     } catch (error) {

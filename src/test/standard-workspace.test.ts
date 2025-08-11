@@ -153,8 +153,7 @@ suite("Standard Workspace Test Suite", () => {
 
             await monitorWorkspaceSetup();
 
-
-
+            await new Promise((resolve) => setTimeout(resolve, 10000));
             console.log("📁 Step 4: Creating project from template...");
             // Prime the mock interface for project creation interactions
             uiMock.primeInteractions([
@@ -179,6 +178,7 @@ suite("Standard Workspace Test Suite", () => {
             result = await vscode.commands.executeCommand("zephyr-ide.add-build");
             assert.ok(result, "Build configuration should succeed");
 
+            await new Promise((resolve) => setTimeout(resolve, 10000));
             console.log("⚡ Step 6: Executing build...");
             result = await vscode.commands.executeCommand("zephyr-ide.build");
             assert.ok(result, "Build execution should succeed");
