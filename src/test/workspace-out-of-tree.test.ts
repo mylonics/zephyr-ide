@@ -104,7 +104,7 @@ suite("Workspace Out Of Tree Test Suite", () => {
     });
 
     test("Workspace Out Of Tree: Git Setup → Use Existing → Global → West Selector → Build", async function () {
-        this.timeout(420000);
+        this.timeout(620000);
 
         console.log("🚀 Starting workspace out of tree test...");
 

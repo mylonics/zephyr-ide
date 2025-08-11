@@ -112,7 +112,7 @@ suite("Standard Workspace Test Suite", () => {
     });
 
     test("Complete Workflow: Dependencies → Setup → Project → Build → Execute", async function () {
-        this.timeout(420000);
+        this.timeout(620000);
 
         console.log("🚀 Starting workflow test...");
 

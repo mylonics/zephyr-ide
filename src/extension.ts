@@ -1233,7 +1233,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.install-sdk", async () => {
-      return await installSDKInteractive(wsConfig, globalConfig, context);
+      let ret = await installSDKInteractive(wsConfig, globalConfig, context);
+      return ret;
     })
   );
 

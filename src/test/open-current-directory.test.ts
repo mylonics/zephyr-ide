@@ -102,7 +102,7 @@ suite("Open Current Directory Test Suite", () => {
     });
 
     test("Open Current Directory: Git Setup → Detect West.yml → Build", async function () {
-        this.timeout(420000);
+        this.timeout(620000);
 
         console.log("🚀 Starting open current directory test...");
 

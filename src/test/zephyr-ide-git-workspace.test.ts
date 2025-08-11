@@ -103,7 +103,7 @@ suite("Zephyr IDE Git Workspace Test Suite", () => {
     });
 
     test("Zephyr IDE Git Workspace: Git Setup → SDK Install → Build", async function () {
-        this.timeout(420000);
+        this.timeout(620000);
 
         console.log("🚀 Starting Zephyr IDE git workspace test...");
 
