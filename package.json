@@ -39,7 +39,7 @@
     "zephyr-ide.get-active-board-name",
     "workspaceContains:.vscode/zephyr-ide.json"
   ],
-  "main": "./out/extension.js",
+  "main": "./dist/extension.js",
   "contributes": {
     "taskDefinitions": [
       {
