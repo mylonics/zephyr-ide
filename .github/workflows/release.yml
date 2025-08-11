@@ -52,10 +52,6 @@ jobs:
           pat: ${{ env.ovsx_token }}
           preRelease: true
 
-      - name: Note Open VSX prerelease failure (non-blocking)
-        if: github.ref == 'refs/heads/develop' && steps.prereleaseOpenVsx.outcome == 'failure'
-        run: echo "Warning: Open VSX prerelease publish failed; proceeding to VS Marketplace publish anyway." 
-
       - name: Publish Prerelease to VS Marketplace (vsce)
         if: github.ref == 'refs/heads/develop'
         uses: lannonbr/vsce-action@4.0.0
