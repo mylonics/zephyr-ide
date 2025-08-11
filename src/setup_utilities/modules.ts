@@ -163,8 +163,13 @@ function getSampleRecursive(
   moduleName: string,
   sampleList: [string, string, string, string][],
   visited: Set<string>,
-  logErrors: boolean = true
+  logErrors: boolean = true,
+  depth: number = 0,
+  maxDepth: number = 8
 ) {
+  if (depth > maxDepth) {
+    return;
+  }
   let realDir: string;
   try {
     realDir = fs.realpathSync(dir);
@@ -229,7 +234,7 @@ function getSampleRecursive(
       if (stat.isSymbolicLink()) {
         continue;
       }
-      getSampleRecursive(childPath, moduleName, sampleList, visited, logErrors);
+      getSampleRecursive(childPath, moduleName, sampleList, visited, logErrors, depth + 1, maxDepth);
     }
   }
 }
@@ -238,8 +243,9 @@ export async function getSamples(setupState: SetupState) {
   let samplefolders = await getModuleSampleFolders(setupState);
   let sampleList: [string, string, string, string][] = [];
   const visited = new Set<string>();
+  const maxDepth = 3;
   for (const folder of samplefolders) {
-    getSampleRecursive(folder[1], folder[0], sampleList, visited);
+    getSampleRecursive(folder[1], folder[0], sampleList, visited, true, 0, maxDepth);
   }
   return sampleList;
 }
