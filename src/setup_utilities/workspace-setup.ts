@@ -206,7 +206,7 @@ export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext
   const gitUrl = await vscode.window.showInputBox({
     prompt: "Enter the Git repository URL for the West workspace",
     placeHolder:
-      "https://github.com/zephyrproject-rtos/example-application.git",
+      "https://github.com/zephyrproject-rtos/example-application",
     ignoreFocusOut: true,
     validateInput: (value) => {
       if (!value || value.trim() === "") {

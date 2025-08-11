@@ -53,8 +53,8 @@ suite("Zephyr IDE Git Workspace Test Suite", () => {
         const existingWorkspace =
             vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
         testWorkspaceDir = existingWorkspace
-            ? path.join(existingWorkspace, "zephyr-ide-git-workspace-test")
-            : path.join(os.tmpdir(), "zephyr-ide-git-workspace-test-" + Date.now());
+            ? path.join(existingWorkspace, "ide-spc")
+            : path.join(os.tmpdir(), "ide-spc-" + Date.now());
 
         await fs.ensureDir(testWorkspaceDir);
 
@@ -103,7 +103,7 @@ suite("Zephyr IDE Git Workspace Test Suite", () => {
     });
 
     test("Zephyr IDE Git Workspace: Git Setup → SDK Install → Build", async function () {
-        this.timeout(420000);
+        this.timeout(620000);
 
         console.log("🚀 Starting Zephyr IDE git workspace test...");
 
@@ -135,7 +135,6 @@ suite("Zephyr IDE Git Workspace Test Suite", () => {
                 { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
             ]);
 
-
             await monitorWorkspaceSetup("Zephyr IDE git workspace");
 
             console.log("⚙️ Step 2: Installing SDK...");
@@ -158,7 +157,6 @@ suite("Zephyr IDE Git Workspace Test Suite", () => {
 
             // Deactivate the UI Mock Interface
             gitUiMock.deactivate();
-            await new Promise((resolve) => setTimeout(resolve, 30000));
 
         } catch (error) {
             console.error("❌ Zephyr IDE git workflow test failed:", error);

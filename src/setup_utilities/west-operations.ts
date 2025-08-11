@@ -117,7 +117,7 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
   wsConfig.activeSetupState.zephyrVersion = undefined;
   saveSetupState(context, wsConfig, globalConfig);
 
-  let cmd = `west update`;
+  let cmd = `west update --narrow`;
   let westUpdateRes = await executeTaskHelperInPythonEnv(wsConfig.activeSetupState, "Zephyr IDE: West Update", cmd, wsConfig.activeSetupState.setupPath);
 
   if (!westUpdateRes) {

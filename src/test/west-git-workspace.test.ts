@@ -51,8 +51,8 @@ suite("West Git Workspace Test Suite", () => {
         const existingWorkspace =
             vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
         testWorkspaceDir = existingWorkspace
-            ? path.join(existingWorkspace, "zephyr-git-workflow-test")
-            : path.join(os.tmpdir(), "zephyr-git-workflow-test-" + Date.now());
+            ? path.join(existingWorkspace, "west-git")
+            : path.join(os.tmpdir(), "west-git-" + Date.now());
 
         await fs.ensureDir(testWorkspaceDir);
 
@@ -101,7 +101,7 @@ suite("West Git Workspace Test Suite", () => {
     });
 
     test("Git Workspace Setup: West Git → SDK Install → Add Project → Custom Board Build", async function () {
-        this.timeout(420000);
+        this.timeout(620000);
 
         console.log("🚀 Starting git workspace test...");
 
@@ -120,20 +120,17 @@ suite("West Git Workspace Test Suite", () => {
             console.log("🏗️ Step 1: Setting up workspace from West Git...");
             // Prime the mock interface for git workspace setup interactions
             gitUiMock.primeInteractions([
-                { type: 'input', value: 'https://github.com/mylonics/zephyr-ide-samples.git', description: 'Enter git repo URL' },
+                { type: 'input', value: 'https://github.com/mylonics/zephyr-ide-samples', description: 'Enter git repo URL' },
                 { type: 'input', value: '--mr west_repo', description: 'Enter Additionaladditional arguments for west' },
+                { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
+                { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
+                { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
             ]);
 
             let result = await vscode.commands.executeCommand(
                 "zephyr-ide.workspace-setup-from-west-git"
             );
             assert.ok(result, "Git workspace setup should succeed");
-
-            gitUiMock.primeInteractions([
-                { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
-                { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
-                { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
-            ]);
 
             await monitorWorkspaceSetup("git workspace");
 

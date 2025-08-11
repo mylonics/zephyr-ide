@@ -4,7 +4,7 @@ import { join } from 'path';
 import { mkdirSync } from 'fs';
 
 // Create a temporary test workspace
-const testWorkspace = join(tmpdir(), 'zephyr-ide-test-workspace-' + Date.now());
+const testWorkspace = join(tmpdir(), 'zide-spc-' + Date.now());
 mkdirSync(testWorkspace, { recursive: true });
 
 export default defineConfig({

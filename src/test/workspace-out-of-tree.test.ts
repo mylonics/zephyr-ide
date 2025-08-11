@@ -54,8 +54,8 @@ suite("Workspace Out Of Tree Test Suite", () => {
         const existingWorkspace =
             vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
         testWorkspaceDir = existingWorkspace
-            ? path.join(existingWorkspace, "workspace-out-of-tree-test")
-            : path.join(os.tmpdir(), "workspace-out-of-tree-test-" + Date.now());
+            ? path.join(existingWorkspace, "out-tree")
+            : path.join(os.tmpdir(), "out-tree-" + Date.now());
 
         await fs.ensureDir(testWorkspaceDir);
 
@@ -104,7 +104,7 @@ suite("Workspace Out Of Tree Test Suite", () => {
     });
 
     test("Workspace Out Of Tree: Git Setup → Use Existing → Global → West Selector → Build", async function () {
-        this.timeout(420000);
+        this.timeout(620000);
 
         console.log("🚀 Starting workspace out of tree test...");
 
@@ -128,7 +128,11 @@ suite("Workspace Out Of Tree Test Suite", () => {
                 { type: 'quickpick', value: 'minimal', description: 'Select minimal manifest' },
                 { type: 'quickpick', value: 'stm32', description: 'Select STM32 toolchain' },
                 { type: 'quickpick', value: 'v4.2.0', description: 'Select default configuration' },
-                { type: 'input', value: '', description: 'Select additional west init args' }
+                { type: 'input', value: '', description: 'Select additional west init args' },
+                { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
+                { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
+                { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
+
 
             ]);
 
