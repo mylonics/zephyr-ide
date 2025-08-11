@@ -341,7 +341,7 @@ export async function westUpdateWithRequirements(context: vscode.ExtensionContex
   saveSetupState(context, wsConfig, globalConfig);
 
   if (!globalConfig.sdkInstalled) {
-    vscode.commands.executeCommand("zephyr-ide.install-sdk");
+    return await vscode.commands.executeCommand("zephyr-ide.install-sdk");
   }
   return true;
 }
