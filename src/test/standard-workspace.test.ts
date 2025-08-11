@@ -62,8 +62,8 @@ suite("Standard Workspace Test Suite", () => {
         const existingWorkspace =
             vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
         testWorkspaceDir = existingWorkspace
-            ? path.join(existingWorkspace, "zephyr-workflow-test")
-            : path.join(os.tmpdir(), "zephyr-workflow-test-" + Date.now());
+            ? path.join(existingWorkspace, "std")
+            : path.join(os.tmpdir(), "std-" + Date.now());
 
         await fs.ensureDir(testWorkspaceDir);
 

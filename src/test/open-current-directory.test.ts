@@ -52,8 +52,8 @@ suite("Open Current Directory Test Suite", () => {
         const existingWorkspace =
             vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
         testWorkspaceDir = existingWorkspace
-            ? path.join(existingWorkspace, "open-current-directory-test")
-            : path.join(os.tmpdir(), "open-current-directory-test-" + Date.now());
+            ? path.join(existingWorkspace, "curr-dir")
+            : path.join(os.tmpdir(), "curr-dir-" + Date.now());
 
         await fs.ensureDir(testWorkspaceDir);
 

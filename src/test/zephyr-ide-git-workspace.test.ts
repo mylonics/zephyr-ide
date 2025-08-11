@@ -53,8 +53,8 @@ suite("Zephyr IDE Git Workspace Test Suite", () => {
         const existingWorkspace =
             vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
         testWorkspaceDir = existingWorkspace
-            ? path.join(existingWorkspace, "zephyr-ide-git-workspace-test")
-            : path.join(os.tmpdir(), "zephyr-ide-git-workspace-test-" + Date.now());
+            ? path.join(existingWorkspace, "ide-spc")
+            : path.join(os.tmpdir(), "ide-spc-" + Date.now());
 
         await fs.ensureDir(testWorkspaceDir);
 

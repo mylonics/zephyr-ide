@@ -54,8 +54,8 @@ suite("Workspace Out Of Tree Test Suite", () => {
         const existingWorkspace =
             vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
         testWorkspaceDir = existingWorkspace
-            ? path.join(existingWorkspace, "workspace-out-of-tree-test")
-            : path.join(os.tmpdir(), "workspace-out-of-tree-test-" + Date.now());
+            ? path.join(existingWorkspace, "out-tree")
+            : path.join(os.tmpdir(), "out-tree-" + Date.now());
 
         await fs.ensureDir(testWorkspaceDir);
 
