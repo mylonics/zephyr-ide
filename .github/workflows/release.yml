@@ -39,23 +39,19 @@ jobs:
         run: npm ci
 
       # Step 4: Handle prerelease logic for pushes to 'develop'.
-      - name: Publish Prerelease
+      - name: Publish Prerelease to Open VSX
+        if: github.ref == 'refs/heads/develop'
+        id: prereleaseOpenVsx
+        uses: HaaLeo/publish-vscode-extension@v2
+        with:
+          pat: ${{ env.ovsx_token }}
+          preRelease: true
+
+      - name: Publish Prerelease to VS Marketplace (reuse vsix)
         if: github.ref == 'refs/heads/develop'
         uses: HaaLeo/publish-vscode-extension@v2
         with:
           pat: ${{ env.publish_token }}
-          ovsxPat: ${{ env.ovsx_token }}
-          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          registryUrl: https://marketplace.visualstudio.com
+          extensionFile: ${{ steps.prereleaseOpenVsx.outputs.vsixPath }}
           preRelease: true
-          updateRelease: true
-
-      # Step 5: Handle official release logic for pushes to 'main'.
-      - name: Publish Official Release
-        if: github.ref == 'refs/heads/main'
-        uses: HaaLeo/publish-vscode-extension@v2
-        with:
-          pat: ${{ env.publish_token }}
-          ovsxPat: ${{ env.ovsx_token }}
-          githubToken: ${{ secrets.GITHUB_TOKEN }}
-          preRelease: false
-          updateRelease: true
