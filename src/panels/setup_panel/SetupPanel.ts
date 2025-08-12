@@ -151,6 +151,9 @@ export class SetupPanel {
             case "workspaceSetupPicker":
                 this.workspaceSetupPicker();
                 return;
+            case "westConfig":
+                this.westConfig();
+                return;
         }
     }
 
@@ -290,6 +293,16 @@ export class SetupPanel {
         } catch (error) {
             vscode.window.showErrorMessage(
                 `Failed to open workspace setup picker: ${error}`
+            );
+        }
+    }
+
+    private async westConfig() {
+        try {
+            vscode.commands.executeCommand("zephyr-ide.west-config");
+        } catch (error) {
+            vscode.window.showErrorMessage(
+                `Failed to open west config: ${error}`
             );
         }
     }
@@ -677,6 +690,7 @@ export class SetupPanel {
             <p style="margin-bottom: 20px; color: var(--vscode-descriptionForeground); font-size: 12px;">Open a folder in VS Code to begin configuring your Zephyr development environment.</p>
             <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
                 <button class="button" onclick="workspaceSetupPicker()">Workspace Setup</button>
+                <button class="button button-secondary" onclick="westConfig()">West Config</button>
                 <button class="button button-secondary" onclick="openFolder()">Open Folder</button>
             </div>
         </div>`;
@@ -710,6 +724,8 @@ export class SetupPanel {
             clickHandler = "workspaceSetupStandard()";
         } else if (action === "current-directory") {
             clickHandler = "workspaceSetupFromCurrentDirectory()";
+        } else if (action === "west-config") {
+            clickHandler = "westConfig()";
         }
 
         return `
@@ -754,6 +770,13 @@ export class SetupPanel {
             "Set up the current VS Code workspace directory for Zephyr development, preserving any existing files and configurations. Process goes through aiding a user choose a zephyr install.",
             "Existing projects, downloaded samples, or when you want to add quickly run projects with an external install.",
             "current-directory"
+        )}
+            ${this.generateWorkspaceOptionCard(
+            "⚙️",
+            "West Configuration",
+            "Configure west for the current workspace by detecting .west folders, west.yml files, or creating new west.yml from templates.",
+            "Flexible workspace configuration when you need granular control over west setup.",
+            "west-config"
         )}
         </div>`;
     }

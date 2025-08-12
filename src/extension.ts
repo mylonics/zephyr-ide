@@ -89,6 +89,7 @@ import {
   workspaceSetupFromCurrentDirectory,
   workspaceSetupStandard,
   manageWorkspaces,
+  westConfig,
 } from "./setup_utilities/workspace-setup";
 import {
   initializeDtsExt,
@@ -1321,6 +1322,13 @@ export async function activate(context: vscode.ExtensionContext) {
         await markWorkspaceSetupComplete(context, wsConfig, globalConfig);
       }
       return success;
+    }
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.west-config", async () => {
+      await westConfig(context, wsConfig, globalConfig);
     }
     )
   );

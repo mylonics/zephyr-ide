@@ -48,6 +48,12 @@ export class ExtensionSetupView implements vscode.WebviewViewProvider {
         value: { command: "zephyr-ide.workspace-setup-picker" },
       }, {
         icons: {
+          leaf: 'settings',
+        },
+        label: "West Config",
+        value: { command: "zephyr-ide.west-config" },
+      }, {
+        icons: {
           leaf: 'tools',
         },
         label: "Install Host Tools",

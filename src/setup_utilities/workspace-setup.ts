@@ -334,77 +334,57 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
   await vscode.commands.executeCommand("setContext", "zephyr-ide.workspaceTypeSelected", true);
   output.appendLine("[SETUP] Workspace type selected: Current Directory");
 
-  // Check if .west folder exists
-  let westDiscovery = await discoverWestConfiguration(installDir);
+  // Use westConfig to handle configuration selection
+  const configOptions: WestConfigOptions = {
+    showUseWestFolder: true,
+    showUseWestYml: true,
+    showCreateNewWestYml: true,
+    showUseExternalInstallation: giveExternalInstallOption
+  };
 
-  if (!westDiscovery.hasWestFolder) {
-    // Create options for user choice
-    const setupOptions: vscode.QuickPickItem[] = [];
-
-    let installationType = "local-west";
-    if (giveExternalInstallOption) {
-      // Add west.yml directories found
-      if (westDiscovery.westYmlFiles.length > 0) {
-
-        let subDirStr = westDiscovery.westYmlFiles.length === 1 ? path.relative(installDir, westDiscovery.westYmlFiles[0]) : "subdirectories";
-
-        setupOptions.push({
-          label: "$(folder) Use Local West Workspace",
-          description: `Found ${westDiscovery.westYmlFiles.length} west.yml file(s) in ${subDirStr}`,
-          id: "local-west",
-        } as any);
-      }
-
-      // Add option to use existing Zephyr installation
-      if (globalConfig.setupStateDictionary &&
-        Object.keys(globalConfig.setupStateDictionary).length > 0
-      ) {
-        setupOptions.push({
-          label: "$(link) Use Existing Zephyr Installation",
-          description:
-            "Use an out of tree Zephyr installation from another workspace",
-          id: "existing-install",
-        } as any);
-      }
-
-      const selectedOption = await vscode.window.showQuickPick(setupOptions, {
-        placeHolder: "How would you like to set up this workspace?",
-        ignoreFocusOut: true,
-      });
-
-      if (!selectedOption) {
-        return false;
-      }
-      installationType = (selectedOption as any).id;
-    }
-
-    switch (installationType) {
-      case "local-west":
-        // Handle west.yml selection
-        westDiscovery.selectedWestPath = await selectWestConfiguration(installDir, westDiscovery.westYmlFiles);
-        break;
-
-      case "existing-install":
-        return await workspaceSetupOutOfTree(context, wsConfig, globalConfig);
-
-      default:
-        return false;
-    }
+  const westConfigResult = await westConfig(context, wsConfig, globalConfig, configOptions);
+  
+  if (westConfigResult.cancelled) {
+    return false;
   }
 
   let westSelection: WestLocation | undefined = undefined;
-  if (!westDiscovery.hasWestFolder && westDiscovery.selectedWestPath) {
-    westSelection = {
-      path: westDiscovery.selectedWestPath,
-      failed: false,
-      gitRepo: "",
-      additionalArgs: "",
-    };
-  } else if (!westDiscovery.hasWestFolder) {
-    // Run west selector to create west manifest
-    output.appendLine("[SETUP] Running west selector to configure workspace...");
-    westSelection = await westSelector(context, wsConfig);
 
+  switch (westConfigResult.option) {
+    case 'use-west-folder':
+      // .west folder exists, no additional setup needed
+      output.appendLine("[SETUP] Using existing .west folder");
+      break;
+
+    case 'use-west-yml':
+      // Use selected west.yml file
+      if (westConfigResult.selectedWestPath) {
+        westSelection = {
+          path: westConfigResult.selectedWestPath,
+          failed: false,
+          gitRepo: "",
+          additionalArgs: "",
+        };
+        output.appendLine(`[SETUP] Using west.yml from: ${westConfigResult.selectedWestPath}`);
+      }
+      break;
+
+    case 'create-new-west-yml':
+      // Use west selector result
+      westSelection = westConfigResult.westSelection;
+      output.appendLine("[SETUP] Using new west.yml configuration");
+      break;
+
+    case 'use-external-installation':
+      // Handle external installation
+      if (westConfigResult.externalInstallPath) {
+        return await workspaceSetupOutOfTree(context, wsConfig, globalConfig);
+      }
+      break;
+
+    default:
+      vscode.window.showErrorMessage("Invalid west configuration option");
+      return false;
   }
 
   await setSetupState(context, wsConfig, globalConfig, installDir);
@@ -755,4 +735,188 @@ export async function showWorkspaceSetupPicker(context: vscode.ExtensionContext,
     vscode.window.showErrorMessage(`Workspace setup failed: ${error}`);
     output.appendLine(`[SETUP] Error: ${error}`);
   }
+}
+
+export interface WestConfigOptions {
+  showUseWestFolder: boolean;
+  showUseWestYml: boolean;
+  showCreateNewWestYml: boolean;
+  showUseExternalInstallation: boolean;
+}
+
+export interface WestConfigResult {
+  cancelled: boolean;
+  option: 'use-west-folder' | 'use-west-yml' | 'create-new-west-yml' | 'use-external-installation' | null;
+  selectedWestPath?: string;
+  westSelection?: WestLocation;
+  externalInstallPath?: string;
+}
+
+/**
+ * West Configuration selector that analyzes the current directory for .west folder and west.yml files,
+ * then prompts the user with configurable options.
+ * 
+ * @param context VS Code extension context
+ * @param wsConfig Current workspace configuration
+ * @param globalConfig Global configuration
+ * @param options Configuration options to control which choices are presented to the user
+ * @returns Promise resolving to WestConfigResult with user's selection
+ */
+export async function westConfig(
+  context: vscode.ExtensionContext, 
+  wsConfig: WorkspaceConfig, 
+  globalConfig: GlobalConfig,
+  options?: WestConfigOptions
+): Promise<WestConfigResult> {
+  // Default options if not provided
+  const configOptions: WestConfigOptions = options || {
+    showUseWestFolder: true,
+    showUseWestYml: true,
+    showCreateNewWestYml: true,
+    showUseExternalInstallation: true
+  };
+
+  const baseDir = wsConfig.rootPath;
+  if (!baseDir) {
+    vscode.window.showErrorMessage(
+      "No workspace folder open. Please open a folder first."
+    );
+    return { cancelled: true, option: null };
+  }
+
+  output.show();
+  output.appendLine(`[WEST CONFIG] Analyzing directory: ${baseDir}`);
+
+  // Discover west configuration in the current directory
+  const westDiscovery = await discoverWestConfiguration(baseDir);
+
+  // Build list of available options based on discovery and configuration
+  const setupOptions: vscode.QuickPickItem[] = [];
+
+  // Option 1: Use .west folder (if it exists and option is enabled)
+  if (westDiscovery.hasWestFolder && configOptions.showUseWestFolder) {
+    setupOptions.push({
+      label: "$(folder) Use .west folder",
+      description: "Found existing .west folder in current directory",
+      id: "use-west-folder",
+    } as any);
+  }
+
+  // Option 2: Use west.yml file (if files found and option is enabled)
+  if (westDiscovery.westYmlFiles.length > 0 && configOptions.showUseWestYml) {
+    const fileCount = westDiscovery.westYmlFiles.length;
+    const subDirStr = fileCount === 1 
+      ? path.relative(baseDir, westDiscovery.westYmlFiles[0]) 
+      : "subdirectories";
+    
+    setupOptions.push({
+      label: "$(file-code) Use west.yml file",
+      description: `Found ${fileCount} west.yml file(s) in ${subDirStr}`,
+      id: "use-west-yml",
+    } as any);
+  }
+
+  // Option 3: Create new west.yml from template (if option is enabled)
+  if (configOptions.showCreateNewWestYml) {
+    setupOptions.push({
+      label: "$(new-file) Create new west.yml",
+      description: "Create west.yml from template using west selector",
+      id: "create-new-west-yml",
+    } as any);
+  }
+
+  // Option 4: Use external Zephyr installation (if available and option is enabled)
+  if (configOptions.showUseExternalInstallation &&
+      globalConfig.setupStateDictionary &&
+      Object.keys(globalConfig.setupStateDictionary).length > 0) {
+    setupOptions.push({
+      label: "$(link) Use external Zephyr installation",
+      description: "Use an existing Zephyr installation from another workspace",
+      id: "use-external-installation",
+    } as any);
+  }
+
+  // If no options are available, show error
+  if (setupOptions.length === 0) {
+    vscode.window.showErrorMessage(
+      "No west configuration options available. Consider creating a new west.yml file or opening a different directory."
+    );
+    return { cancelled: true, option: null };
+  }
+
+  // Show options to user
+  const selectedOption = await vscode.window.showQuickPick(setupOptions, {
+    placeHolder: "How would you like to configure west for this workspace?",
+    ignoreFocusOut: true,
+  });
+
+  if (!selectedOption) {
+    return { cancelled: true, option: null };
+  }
+
+  const optionId = (selectedOption as any).id;
+  output.appendLine(`[WEST CONFIG] User selected: ${optionId}`);
+
+  // Handle the selected option
+  const result: WestConfigResult = { cancelled: false, option: optionId };
+
+  switch (optionId) {
+    case 'use-west-folder':
+      // .west folder already exists, nothing more to do
+      result.option = 'use-west-folder';
+      output.appendLine(`[WEST CONFIG] Using existing .west folder`);
+      break;
+
+    case 'use-west-yml':
+      // Select from available west.yml files
+      const selectedWestPath = await selectWestConfiguration(baseDir, westDiscovery.westYmlFiles);
+      if (!selectedWestPath) {
+        return { cancelled: true, option: null };
+      }
+      result.selectedWestPath = selectedWestPath;
+      result.option = 'use-west-yml';
+      output.appendLine(`[WEST CONFIG] Selected west.yml from: ${selectedWestPath}`);
+      break;
+
+    case 'create-new-west-yml':
+      // Run west selector to create new west.yml
+      output.appendLine(`[WEST CONFIG] Running west selector to create new west.yml...`);
+      const westSelection = await westSelector(context, wsConfig);
+      if (!westSelection || westSelection.failed) {
+        return { cancelled: true, option: null };
+      }
+      result.westSelection = westSelection;
+      result.option = 'create-new-west-yml';
+      output.appendLine(`[WEST CONFIG] West selector completed successfully`);
+      break;
+
+    case 'use-external-installation':
+      // Select external installation
+      const installOptions = await getExistingInstallationPicks(wsConfig, globalConfig);
+      if (!installOptions || installOptions.length === 0) {
+        vscode.window.showErrorMessage("No external installations available.");
+        return { cancelled: true, option: null };
+      }
+
+      const selectedInstall = await vscode.window.showQuickPick(installOptions, {
+        placeHolder: "Select an existing Zephyr installation",
+        ignoreFocusOut: true,
+      });
+
+      if (!selectedInstall) {
+        return { cancelled: true, option: null };
+      }
+
+      result.externalInstallPath = selectedInstall.detail;
+      result.option = 'use-external-installation';
+      output.appendLine(`[WEST CONFIG] Selected external installation: ${selectedInstall.detail}`);
+      break;
+
+    default:
+      vscode.window.showErrorMessage("Unknown west configuration option selected");
+      return { cancelled: true, option: null };
+  }
+
+  output.appendLine(`[WEST CONFIG] Configuration completed successfully`);
+  return result;
 }
