@@ -72,7 +72,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # Step 5: Handle official release logic for pushes to 'main'.
-      - name: Publish Prerelease to Open VSX
+      - name: Publish Release to Open VSX
         if: github.ref == 'refs/heads/main'
         id: prereleaseOpenVsx
         continue-on-error: true
