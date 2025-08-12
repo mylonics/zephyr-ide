@@ -51,12 +51,6 @@ jobs:
           echo "Detected version: $(node -p "require('./package.json').version")"
 
       # Step 4: Handle prerelease logic for pushes to 'pre-release'.
-      - name: Publish Prerelease to VS Marketplace
-        if: github.ref == 'refs/heads/pre-release'
-        uses: HaaLeo/publish-vscode-extension@v2
-        with:
-          pat: ${{ env.publish_token }}
-          preRelease: true
 
       # (Optional) Create a prerelease on GitHub for pre-release branch
       - name: Create GitHub Prerelease
@@ -69,7 +63,16 @@ jobs:
           prerelease: true
           generate_release_notes: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_GITHUB }}
+
+      - name: Publish Prerelease to VS Marketplace
+        if: github.ref == 'refs/heads/pre-release'
+        uses: HaaLeo/publish-vscode-extension@v2
+        env:
+          INPUT_PAT: ${{ secrets.VSCE_TOKEN }}
+        with:
+          pat: ${{ secrets.VSCE_TOKEN }}
+          preRelease: true
 
       # Step 5: Handle official release logic for pushes to 'main'.
       - name: Publish Release to Open VSX
@@ -77,15 +80,19 @@ jobs:
         id: prereleaseOpenVsx
         continue-on-error: true
         uses: HaaLeo/publish-vscode-extension@v2
+        env:
+          INPUT_PAT: ${{ secrets.OPEN_VSIX_TOKEN }}
         with:
-          pat: ${{ env.ovsx_token }}
+          pat: ${{ secrets.OPEN_VSIX_TOKEN }}
           preRelease: false
 
       - name: Publish Official Release to VS Marketplace
         if: github.ref == 'refs/heads/main'
         uses: HaaLeo/publish-vscode-extension@v2
+        env:
+          INPUT_PAT: ${{ secrets.VSCE_TOKEN }}
         with:
-          pat: ${{ env.publish_token }}
+          pat: ${{ secrets.VSCE_TOKEN }}
           preRelease: false
 
       # Package a VSIX for attaching to the GitHub Release (Marketplace publish already done)
@@ -105,4 +112,4 @@ jobs:
           files: |
             *.vsix
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_GITHUB }}
