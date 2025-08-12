@@ -348,44 +348,13 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
     return false;
   }
 
-  let westSelection: WestLocation | undefined = undefined;
-
-  switch (westConfigResult.option) {
-    case 'use-west-folder':
-      // .west folder exists, no additional setup needed
-      output.appendLine("[SETUP] Using existing .west folder");
-      break;
-
-    case 'use-west-yml':
-      // Use selected west.yml file
-      if (westConfigResult.selectedWestPath) {
-        westSelection = {
-          path: westConfigResult.selectedWestPath,
-          failed: false,
-          gitRepo: "",
-          additionalArgs: "",
-        };
-        output.appendLine(`[SETUP] Using west.yml from: ${westConfigResult.selectedWestPath}`);
-      }
-      break;
-
-    case 'create-new-west-yml':
-      // Use west selector result
-      westSelection = westConfigResult.westSelection;
-      output.appendLine("[SETUP] Using new west.yml configuration");
-      break;
-
-    case 'use-external-installation':
-      // Handle external installation
-      if (westConfigResult.externalInstallPath) {
-        return await workspaceSetupOutOfTree(context, wsConfig, globalConfig);
-      }
-      break;
-
-    default:
-      vscode.window.showErrorMessage("Invalid west configuration option");
-      return false;
+  // Handle external installation case
+  if (westConfigResult.useExternalInstallation) {
+    return await workspaceSetupOutOfTree(context, wsConfig, globalConfig);
   }
+
+  // Use the westSelection prepared by westConfig
+  const westSelection = westConfigResult.westSelection;
 
   await setSetupState(context, wsConfig, globalConfig, installDir);
 
@@ -750,6 +719,7 @@ export interface WestConfigResult {
   selectedWestPath?: string;
   westSelection?: WestLocation;
   externalInstallPath?: string;
+  useExternalInstallation?: boolean;
 }
 
 /**
@@ -864,6 +834,7 @@ export async function westConfig(
     case 'use-west-folder':
       // .west folder already exists, nothing more to do
       result.option = 'use-west-folder';
+      result.westSelection = undefined; // No west selection needed for existing .west folder
       output.appendLine(`[WEST CONFIG] Using existing .west folder`);
       break;
 
@@ -875,6 +846,12 @@ export async function westConfig(
       }
       result.selectedWestPath = selectedWestPath;
       result.option = 'use-west-yml';
+      result.westSelection = {
+        path: selectedWestPath,
+        failed: false,
+        gitRepo: "",
+        additionalArgs: "",
+      };
       output.appendLine(`[WEST CONFIG] Selected west.yml from: ${selectedWestPath}`);
       break;
 
@@ -909,6 +886,7 @@ export async function westConfig(
 
       result.externalInstallPath = selectedInstall.detail;
       result.option = 'use-external-installation';
+      result.useExternalInstallation = true;
       output.appendLine(`[WEST CONFIG] Selected external installation: ${selectedInstall.detail}`);
       break;
 
