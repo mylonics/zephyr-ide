@@ -7,7 +7,7 @@ name: Release VS Code Extension
 on:
   push:
     branches:
-      - develop
+      - pre-release
       - main
 
 jobs:
@@ -42,20 +42,66 @@ jobs:
       - name: Build Extension
         run: npm run esbuild --if-present
 
-      # Step 4: Handle prerelease logic for pushes to 'develop'.
-      - name: Publish Prerelease to Open VSX
-        if: github.ref == 'refs/heads/develop'
-        id: prereleaseOpenVsx
-        continue-on-error: true
-        uses: HaaLeo/publish-vscode-extension@v2
-        with:
-          pat: ${{ env.ovsx_token }}
-          preRelease: true
+      # Capture version from package.json for later release creation
+      - name: Extract Version
+        id: version
+        run: echo "version=$(node -p \"require('./package.json').version\")" >> $GITHUB_OUTPUT
 
+      # Step 4: Handle prerelease logic for pushes to 'pre-release'.
       - name: Publish Prerelease to VS Marketplace (vsce)
-        if: github.ref == 'refs/heads/develop'
+        if: github.ref == 'refs/heads/pre-release'
         uses: lannonbr/vsce-action@4.0.0
         env:
           VSCE_TOKEN: ${{ env.publish_token }}
         with:
           args: publish --pre-release -p $VSCE_TOKEN
+
+      # (Optional) Create a prerelease on GitHub for pre-release branch
+      - name: Create GitHub Prerelease
+        if: github.ref == 'refs/heads/pre-release'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}-prerelease-${{ github.run_number }}
+          name: v${{ steps.version.outputs.version }} Pre-release
+          draft: false
+          prerelease: true
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Step 5: Handle prerelease logic for pushes to 'main'.
+      - name: Publish Prerelease to Open VSX
+        if: github.ref == 'refs/heads/main'
+        id: prereleaseOpenVsx
+        continue-on-error: true
+        uses: HaaLeo/publish-vscode-extension@v2
+        with:
+          pat: ${{ env.ovsx_token }}
+          preRelease: false
+
+      - name: Publish Prerelease to VS Marketplace (vsce)
+        if: github.ref == 'refs/heads/main'
+        uses: lannonbr/vsce-action@4.0.0
+        env:
+          VSCE_TOKEN: ${{ env.publish_token }}
+        with:
+          args: publish -p $VSCE_TOKEN
+
+      # Package a VSIX for attaching to the GitHub Release (Marketplace publish already done)
+      - name: Package VSIX (for GitHub Release asset)
+        if: github.ref == 'refs/heads/main'
+        run: npx vsce package --no-yarn
+
+      - name: Create / Update GitHub Release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            *.vsix
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -2,9 +2,9 @@ name: Integration Tests
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, pre-release, develop]
   pull_request:
-    branches: [main, develop]
+    branches: [main, pre-release, develop]
 
 jobs:
   test-with-zephyr:
