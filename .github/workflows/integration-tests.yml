@@ -32,6 +32,9 @@ jobs:
       - name: Compile TypeScript
         run: npm run test-compile
 
+      - name: Bundle Extension (dist)
+        run: npm run esbuild
+
       - name: Run linting
         run: npm run lint
 
