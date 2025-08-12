@@ -96,33 +96,78 @@ The integration tests validate complete workflows:
 
 ## Repository Structure
 
-### Key Directories
+### Core Source Files
 ```
-src/                     - TypeScript source code
-├── extension.ts         - Main extension entry point
-├── panels/             - Webview panels for UI
-├── project_utilities/  - Project management logic
-├── setup_utilities/    - Workspace setup logic
-├── zephyr_utilities/   - Zephyr-specific tools
-├── test/               - Integration test suites
-└── utilities/          - Shared utilities
+src/
+├── extension.ts         - Main extension entry point, registers commands and webview panels
+├── defines.ts          - Zephyr toolchain targets, HALs, and UI dropdown definitions
+├── panels/             - 5 webview panels for different aspects of the UI
+│   ├── active_project_view/    - Shows current project build status and controls
+│   ├── extension_setup_view/   - Initial workspace setup and SDK installation
+│   ├── project_config_view/    - Project-specific configuration (boards, runners, etc.)
+│   ├── project_tree_view/      - File explorer for Zephyr projects
+│   ├── setup_panel/           - Workspace configuration and tool validation
+│   └── view.css               - Shared CSS styles for all webview panels
+├── project_utilities/  - Project-level operations and configuration
+│   ├── build_selector.ts      - Board and target selection logic
+│   ├── config_selector.ts     - Kconfig and devicetree configuration
+│   ├── project.ts             - Core project management and build operations
+│   ├── runner_selector.ts     - Flash/debug runner configuration
+│   └── twister_selector.ts    - Test runner configuration
+├── setup_utilities/    - Workspace setup and dependency management
+│   ├── dts_interface.ts       - Devicetree parsing and intellisense
+│   ├── host_tools.ts          - Host tool detection and validation
+│   ├── modules.ts             - Zephyr module management
+│   ├── state-management.ts   - Extension state persistence
+│   ├── tools-validation.ts   - Tool version checking and compatibility
+│   ├── types.ts               - TypeScript type definitions
+│   ├── west-operations.ts     - West workspace operations
+│   ├── west_sdk.ts            - Zephyr SDK installation and management
+│   ├── west_selector.ts       - West manifest selection and configuration
+│   ├── workspace-config.ts    - Workspace configuration management
+│   └── workspace-setup.ts     - Initial workspace setup orchestration
+├── zephyr_utilities/   - Core Zephyr build system integration
+│   ├── build.ts               - CMake/Ninja build execution
+│   ├── flash.ts               - Device flashing and debugging
+│   └── twister.ts             - Test execution and reporting
+├── test/               - Integration test suites (15+ min each)
+│   ├── standard-workspace.test.ts      - Full workspace setup → build
+│   ├── west-git-workspace.test.ts      - Git-based workspace creation
+│   ├── zephyr-ide-git-workspace.test.ts - Zephyr IDE specific git workflow
+│   ├── open-current-directory.test.ts  - Current directory workspace
+│   ├── workspace-out-of-tree.test.ts   - Out-of-tree project builds
+│   ├── test-runner.ts                  - Test execution framework
+│   └── ui-mock-interface.ts            - Mock UI for headless testing
+└── utilities/          - Shared helper functions
+    ├── getNonce.ts            - Security nonce generation for webviews
+    ├── multistepQuickPick.ts  - Multi-step UI selection workflows
+    └── utils.ts               - General utility functions
+```
 
-dist/                   - Bundled extension output (esbuild)
-out/                    - Compiled TypeScript output (tsc)
-scripts/                - Python/JS helper scripts
-west_templates/         - West.yml configuration templates
-.github/workflows/      - CI/CD integration tests
-docs/                   - User documentation
+### Build and Distribution
+```
+dist/                   - Production bundled extension (esbuild output)
+out/                    - Development compiled TypeScript (tsc output)
+scripts/                - Build automation and test runners
+west_templates/         - West.yml templates for different workspace types
 ```
 
-### Important Files
+### Configuration Files
 ```
-package.json           - Extension manifest and npm scripts
-tsconfig.json         - TypeScript configuration
-.eslintrc.json        - ESLint configuration
-.vscode-test.mjs      - VS Code test runner configuration
-.vscode/launch.json   - Debug configuration for extension development
+package.json           - Extension manifest, commands, activation events, npm scripts
+tsconfig.json         - TypeScript compilation settings, path mappings
+.eslintrc.json        - Code style rules, import organization
+.vscode-test.mjs      - VS Code test runner configuration, download settings
+.vscode/launch.json   - F5 debug launch configurations for extension development
+.vscodeignore         - Files excluded from extension package
 ```
+
+### Key Architecture Patterns
+- **Command Registration**: All VS Code commands defined in `package.json` and registered in `extension.ts`
+- **Webview Communication**: Panels use message passing between TypeScript and HTML/JS
+- **State Management**: Extension state persisted via VS Code APIs in `state-management.ts`
+- **Async Operations**: Long-running builds use VS Code Progress API with cancellation support
+- **Error Handling**: Consistent error reporting through VS Code notification APIs
 
 ## Common Development Tasks
 
