@@ -54,8 +54,10 @@ jobs:
       - name: Publish Prerelease to VS Marketplace
         if: github.ref == 'refs/heads/pre-release'
         uses: HaaLeo/publish-vscode-extension@v2
+        env:
+          INPUT_PAT: ${{ secrets.VSCE_TOKEN }}
         with:
-          pat: ${{ env.publish_token }}
+          pat: ${{ secrets.VSCE_TOKEN }}
           preRelease: true
 
       # (Optional) Create a prerelease on GitHub for pre-release branch
@@ -77,15 +79,19 @@ jobs:
         id: prereleaseOpenVsx
         continue-on-error: true
         uses: HaaLeo/publish-vscode-extension@v2
+        env:
+          INPUT_PAT: ${{ secrets.OPEN_VSIX_TOKEN }}
         with:
-          pat: ${{ env.ovsx_token }}
+          pat: ${{ secrets.OPEN_VSIX_TOKEN }}
           preRelease: false
 
       - name: Publish Official Release to VS Marketplace
         if: github.ref == 'refs/heads/main'
         uses: HaaLeo/publish-vscode-extension@v2
+        env:
+          INPUT_PAT: ${{ secrets.VSCE_TOKEN }}
         with:
-          pat: ${{ env.publish_token }}
+          pat: ${{ secrets.VSCE_TOKEN }}
           preRelease: false
 
       # Package a VSIX for attaching to the GitHub Release (Marketplace publish already done)
