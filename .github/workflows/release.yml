@@ -45,16 +45,18 @@ jobs:
       # Capture version from package.json for later release creation
       - name: Extract Version
         id: version
-        run: echo "version=$(node -p \"require('./package.json').version\")" >> $GITHUB_OUTPUT
+        shell: bash
+        run: |
+          node -e "console.log('version=' + require('./package.json').version)" >> "$GITHUB_OUTPUT"
+          echo "Detected version: $(node -p "require('./package.json').version")"
 
       # Step 4: Handle prerelease logic for pushes to 'pre-release'.
-      - name: Publish Prerelease to VS Marketplace (vsce)
+      - name: Publish Prerelease to VS Marketplace
         if: github.ref == 'refs/heads/pre-release'
-        uses: lannonbr/vsce-action@4.0.0
-        env:
-          VSCE_TOKEN: ${{ env.publish_token }}
+        uses: HaaLeo/publish-vscode-extension@v2
         with:
-          args: publish --pre-release -p $VSCE_TOKEN
+          pat: ${{ env.publish_token }}
+          preRelease: true
 
       # (Optional) Create a prerelease on GitHub for pre-release branch
       - name: Create GitHub Prerelease
@@ -69,8 +71,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Step 5: Handle prerelease logic for pushes to 'main'.
-      - name: Publish Prerelease to Open VSX
+      # Step 5: Handle official release logic for pushes to 'main'.
+      - name: Publish Release to Open VSX
         if: github.ref == 'refs/heads/main'
         id: prereleaseOpenVsx
         continue-on-error: true
@@ -79,13 +81,12 @@ jobs:
           pat: ${{ env.ovsx_token }}
           preRelease: false
 
-      - name: Publish Prerelease to VS Marketplace (vsce)
+      - name: Publish Official Release to VS Marketplace
         if: github.ref == 'refs/heads/main'
-        uses: lannonbr/vsce-action@4.0.0
-        env:
-          VSCE_TOKEN: ${{ env.publish_token }}
+        uses: HaaLeo/publish-vscode-extension@v2
         with:
-          args: publish -p $VSCE_TOKEN
+          pat: ${{ env.publish_token }}
+          preRelease: false
 
       # Package a VSIX for attaching to the GitHub Release (Marketplace publish already done)
       - name: Package VSIX (for GitHub Release asset)
