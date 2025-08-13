@@ -317,8 +317,6 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
     return false;
   }
 
-  // Set up the workspace using current directory
-  await setSetupState(context, wsConfig, globalConfig, installDir);
 
   output.show();
   output.appendLine(
@@ -343,7 +341,7 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
   };
 
   const westConfigResult = await westConfig(context, wsConfig, globalConfig, configOptions);
-  
+
   if (westConfigResult.cancelled) {
     return false;
   }
@@ -733,8 +731,8 @@ export interface WestConfigResult {
  * @returns Promise resolving to WestConfigResult with user's selection
  */
 export async function westConfig(
-  context: vscode.ExtensionContext, 
-  wsConfig: WorkspaceConfig, 
+  context: vscode.ExtensionContext,
+  wsConfig: WorkspaceConfig,
   globalConfig: GlobalConfig,
   options?: WestConfigOptions
 ): Promise<WestConfigResult> {
@@ -766,7 +764,7 @@ export async function westConfig(
   // Option 1: Use .west folder (if it exists and option is enabled)
   if (westDiscovery.hasWestFolder && configOptions.showUseWestFolder) {
     setupOptions.push({
-      label: "$(folder) Use .west folder",
+      label: "$(folder) Use .west folder (Recommended)",
       description: "Found existing .west folder in current directory",
       id: "use-west-folder",
     } as any);
@@ -775,10 +773,10 @@ export async function westConfig(
   // Option 2: Use west.yml file (if files found and option is enabled)
   if (westDiscovery.westYmlFiles.length > 0 && configOptions.showUseWestYml) {
     const fileCount = westDiscovery.westYmlFiles.length;
-    const subDirStr = fileCount === 1 
-      ? path.relative(baseDir, westDiscovery.westYmlFiles[0]) 
+    const subDirStr = fileCount === 1
+      ? path.relative(baseDir, westDiscovery.westYmlFiles[0])
       : "subdirectories";
-    
+
     setupOptions.push({
       label: "$(file-code) Use west.yml file",
       description: `Found ${fileCount} west.yml file(s) in ${subDirStr}`,
@@ -797,8 +795,8 @@ export async function westConfig(
 
   // Option 4: Use external Zephyr installation (if available and option is enabled)
   if (configOptions.showUseExternalInstallation &&
-      globalConfig.setupStateDictionary &&
-      Object.keys(globalConfig.setupStateDictionary).length > 0) {
+    globalConfig.setupStateDictionary &&
+    Object.keys(globalConfig.setupStateDictionary).length > 0) {
     setupOptions.push({
       label: "$(link) Use external Zephyr installation",
       description: "Use an existing Zephyr installation from another workspace",

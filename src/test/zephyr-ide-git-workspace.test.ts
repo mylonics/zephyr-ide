@@ -122,6 +122,7 @@ suite("Zephyr IDE Git Workspace Test Suite", () => {
             // Prime the mock interface for Zephyr IDE git workspace setup
             gitUiMock.primeInteractions([
                 { type: 'input', value: '--branch main -- https://github.com/mylonics/zephyr-ide-samples.git', description: 'Enter Zephyr IDE git repo URL' },
+                { type: 'quickpick', value: 'use-west-folder', description: 'Use .west folder (Recommended)' }
             ]);
 
             let result = await vscode.commands.executeCommand(

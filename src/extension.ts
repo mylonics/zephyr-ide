@@ -403,16 +403,14 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "zephyr-ide.setup-west-environment",
-      async () => {
-        if (wsConfig.rootPath !== "") {
-          await setupWestEnvironment(context, wsConfig, globalConfig);
-          extensionSetupView.updateWebView(wsConfig, globalConfig);
-        } else {
-          vscode.window.showErrorMessage("Open Folder Before Continuing");
-        }
+    vscode.commands.registerCommand("zephyr-ide.setup-west-environment", async () => {
+      if (wsConfig.rootPath !== "" && wsConfig.activeSetupState) {
+        await setupWestEnvironment(context, wsConfig, globalConfig);
+        extensionSetupView.updateWebView(wsConfig, globalConfig);
+      } else {
+        vscode.window.showErrorMessage("Open Folder or Setup Workspace Before Continuing");
       }
+    }
     )
   );
 
