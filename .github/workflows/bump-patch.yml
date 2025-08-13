@@ -26,7 +26,7 @@ jobs:
           npm version patch
           npm install
           git add -A
-          git commit -m "chore: update dependencies"
+          git commit -m "chore: update dependencies" || true
           git checkout -b bump-version-$(jq -r '.version' package.json)
           git push --set-upstream origin bump-version-$(jq -r '.version' package.json)
 
