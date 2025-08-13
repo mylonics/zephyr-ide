@@ -124,7 +124,7 @@ suite("Workspace Out Of Tree Test Suite", () => {
             uiMock.primeInteractions([
                 { type: 'input', value: '--branch no_west -- https://github.com/mylonics/zephyr-ide-samples.git', description: 'Enter git clone string for no_west branch' },
                 { type: 'quickpick', value: 'use-external-installation', description: 'Choose Use Existing Zephyr Installation option' },
-                { type: 'quickpick', value: 'global', description: 'Choose Global Installation option' },
+                { type: 'quickpick', value: 'global-install', description: 'Choose Global Installation option' },
                 { type: 'quickpick', value: 'minimal', description: 'Select minimal manifest' },
                 { type: 'quickpick', value: 'stm32', description: 'Select STM32 toolchain' },
                 { type: 'quickpick', value: 'v4.2.0', description: 'Select default configuration' },

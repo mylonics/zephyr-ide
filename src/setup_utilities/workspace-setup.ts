@@ -811,11 +811,10 @@ export async function westConfig(
         detail: "new-install"
       });
 
-      const globalPath = getToolsDir();
       externalOptions.push({
         label: "$(link) Global Installation",
         description: "Use or create the global Zephyr installation",
-        detail: globalPath
+        detail: "global-install",
       });
 
       const existingInstalls = await getExistingInstallationPicks(wsConfig, globalConfig);
@@ -857,7 +856,8 @@ export async function westConfig(
         }
         chosenPath = folderUris[0].fsPath;
         needsSetup = true;
-      } else if (chosenPath === globalPath) {
+      } else if (chosenPath === "global-install") {
+        chosenPath = getToolsDir();
         needsSetup = !(globalConfig.setupStateDictionary && globalConfig.setupStateDictionary[chosenPath]);
       } else {
         needsSetup = !(globalConfig.setupStateDictionary && globalConfig.setupStateDictionary[chosenPath]);
