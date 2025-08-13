@@ -24,19 +24,41 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           npm version patch
-          git checkout -b release-version-$(jq -r '.version' package.json)
-          git push --set-upstream origin release-version-$(jq -r '.version' package.json)
+          git checkout -b bump-version-$(jq -r '.version' package.json)
+          git push --set-upstream origin bump-version-$(jq -r '.version' package.json)
 
       - name: Create Pull Request
+        id: create-pr
         uses: actions/github-script@v6
         with:
           script: |
             const { owner, repo } = context.repo;
-            const branchName = `release-version-${require('./package.json').version}`;
-            await github.rest.pulls.create({
+            const branchName = `bump-version-${require('./package.json').version}`;
+            const pr = await github.rest.pulls.create({
               owner,
               repo,
               title: `feat: Bump version to ${require('./package.json').version}`,
               head: branchName,
               base: 'develop',
             });
+            core.setOutput('pr_number', pr.data.number);
+
+      - name: Approve Pull Request
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const prNumber = process.env.PR_NUMBER;
+            if (!prNumber) {
+              console.log("No PR number found. Skipping approval.");
+              return;
+            }
+            await github.rest.pulls.createReview({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+              event: 'APPROVE',
+              body: 'This PR was automatically approved by the workflow.'
+            });
+        env:
+          PR_NUMBER: ${{ steps.create-pr.outputs.pr_number }}
