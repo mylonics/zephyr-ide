@@ -83,6 +83,11 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
   }
 
   async function pickWestYml(input: MultiStepInput, state: Partial<WestLocation>) {
+    if (!wsConfig.activeSetupState) {
+      console.log("No active setup state found");
+      console.log("Workspace configuration:", JSON.stringify(wsConfig, null, 2));
+      return;
+    }
     type westOptionDict = { [name: string]: string };
     // Looks for board directories
     let westOptions: westOptionDict = {};
@@ -144,10 +149,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
 
       const extensionPath = context.extensionPath;
       let srcPath = path.join(extensionPath, "west_templates", westFile);
-      let westDirPath = "";
-      if (wsConfig.activeSetupState) {
-        westDirPath = path.join(wsConfig.activeSetupState.setupPath, "west-manifest");
-      }
+      let westDirPath = path.join(wsConfig.activeSetupState.setupPath, "west-manifest");
       let desPath = path.join(westDirPath, "west.yml");
       let exists = await fs.pathExists(westDirPath);
       if (!exists) {
