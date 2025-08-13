@@ -206,7 +206,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
               return undefined;
             }
           });
-          
+
           if (version && version.trim() !== "") {
             pick.label = version;
           } else {
@@ -226,8 +226,8 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
 
       // Update project revision
       doc.manifest.projects.forEach((project: any) => {
-        const shouldUpdate = (isNcsProject && project.name === "sdk-nrf") || 
-                           (!isNcsProject && project.name === "zephyr");
+        const shouldUpdate = (isNcsProject && project.name === "sdk-nrf") ||
+          (!isNcsProject && project.name === "zephyr");
         if (shouldUpdate) {
           project.revision = pick.label;
         }
@@ -265,6 +265,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
       return state as WestLocation;
     } catch (error) {
       console.error('Error in west selector:', error);
+      console.error(state);
       return { ...defaultState, failed: true };
     }
   }

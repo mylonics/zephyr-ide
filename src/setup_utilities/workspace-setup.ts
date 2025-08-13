@@ -318,7 +318,11 @@ async function handleExternalInstallation(
 
   await setSetupState(context, wsConfig, globalConfig, externalPath);
 
+
   if (needsSetup) {
+    console.log("ExternalPath: " + JSON.stringify(externalPath));
+    console.log("Active Setup State: " + JSON.stringify(wsConfig.activeSetupState));
+
     const extWestSelection = await westSelector(context, wsConfig);
     if (!extWestSelection || extWestSelection.failed) {
       vscode.window.showErrorMessage("External installation configuration cancelled or failed.");
