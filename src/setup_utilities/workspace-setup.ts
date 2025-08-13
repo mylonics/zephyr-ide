@@ -307,9 +307,9 @@ export async function workspaceSetupStandard(context: vscode.ExtensionContext, w
  * Handle external installation configuration and setup
  */
 async function handleExternalInstallation(
-  context: vscode.ExtensionContext, 
-  wsConfig: WorkspaceConfig, 
-  globalConfig: GlobalConfig, 
+  context: vscode.ExtensionContext,
+  wsConfig: WorkspaceConfig,
+  globalConfig: GlobalConfig,
   westConfigResult: WestConfigResult
 ): Promise<boolean> {
   const externalPath = westConfigResult.externalInstallPath!;
@@ -328,7 +328,7 @@ async function handleExternalInstallation(
   } else {
     vscode.window.showInformationMessage(`Workspace linked to external Zephyr installation at: ${externalPath}`);
   }
-  
+
   return true;
 }
 
@@ -788,6 +788,10 @@ export async function westConfig(
     case 'create-new-west-yml':
       // Run west selector to create new west.yml
       output.appendLine(`[WEST CONFIG] Running west selector to create new west.yml...`);
+      // Ensure setup state is initialized so westSelector has a valid destination path
+      if (!wsConfig.activeSetupState || !wsConfig.activeSetupState.setupPath) {
+        await setSetupState(context, wsConfig, globalConfig, baseDir);
+      }
       const westSelection = await westSelector(context, wsConfig);
       if (!westSelection || westSelection.failed) {
         return { cancelled: true, option: null };
