@@ -25,6 +25,16 @@ You can read a little bit more about the motivation behind the project [here](ht
   - Provides the user with a terminal to manually run west commands
   - Saves/loads project structure to workspace in a human readable and editable file
   - Works with all platforms zephyr supports
+  - **Code Quality Tools**: Includes unused code detection to help maintain clean codebases
+
+## Code Quality
+
+This extension includes tools to help maintain code quality:
+
+- **Unused Code Detection**: Static analysis tool to identify potentially unused files and exports
+  - Available via command palette: "Zephyr IDE: Detect Unused Code"  
+  - Also available via npm script: `npm run detect-unused`
+  - See [detailed documentation](docs/unused-code-detection.md) for more information
 
 
 ## Getting Started
