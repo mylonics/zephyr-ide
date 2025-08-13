@@ -8,9 +8,13 @@ permissions:
   pull-requests: write
 
 jobs:
-  bump_version:
+  make_release:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout develop branch
+        uses: actions/checkout@v4
+        with:
+          ref: develop
       - name: Create Pull Request
         id: create-pr
         uses: actions/github-script@v6
