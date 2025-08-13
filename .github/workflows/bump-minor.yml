@@ -15,13 +15,11 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Bump version
-        run: npm version minor
-
-      - name: Push changes
+      - name: Bump and Push changes
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
+          npm version minor
           git checkout -b release-version-$(jq -r '.version' package.json)
           git add package.json
           git commit -m "Bump version"
