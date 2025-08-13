@@ -582,6 +582,12 @@ export class SetupPanel {
             "Manage and configure existing workspaces, switch between different workspace configurations.",
             "manageWorkspace()"
         )}
+                    ${this.generateWestOperationCard(
+            "⚙️",
+            "West Configuration",
+            "Configure west by detecting existing .west folders or west.yml files, or create a new west.yml from templates.",
+            "westConfig()"
+        )}
                 </div>
             </div>
         </div>`;
@@ -770,13 +776,6 @@ export class SetupPanel {
             "Set up the current VS Code workspace directory for Zephyr development, preserving any existing files and configurations. Process goes through aiding a user choose a zephyr install.",
             "Existing projects, downloaded samples, or when you want to add quickly run projects with an external install.",
             "current-directory"
-        )}
-            ${this.generateWorkspaceOptionCard(
-            "⚙️",
-            "West Configuration",
-            "Configure west for the current workspace by detecting .west folders, west.yml files, or creating new west.yml from templates.",
-            "Flexible workspace configuration when you need granular control over west setup.",
-            "west-config"
         )}
         </div>`;
     }

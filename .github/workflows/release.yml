@@ -65,6 +65,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_GITHUB }}
 
+      - name: Publish Prerelease to Open VSX
+        if: github.ref == 'refs/heads/pre-release'
+        id: prereleaseOpenVsx
+        continue-on-error: true
+        uses: HaaLeo/publish-vscode-extension@v2
+        env:
+          INPUT_PAT: ${{ secrets.OPEN_VSIX_TOKEN }}
+        with:
+          pat: ${{ secrets.OPEN_VSIX_TOKEN }}
+          preRelease: true
+
       - name: Publish Prerelease to VS Marketplace
         if: github.ref == 'refs/heads/pre-release'
         uses: HaaLeo/publish-vscode-extension@v2
