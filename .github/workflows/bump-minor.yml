@@ -3,6 +3,9 @@ name: Bump Minor
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   bump_version:
     runs-on: ubuntu-latest
