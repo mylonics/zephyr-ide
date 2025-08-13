@@ -161,10 +161,14 @@ export function getToolsDir() {
   if (toolsDirFromFile) {
     toolsdir = toolsDirFromFile;
   }
-  console.log("Tools directory: " + toolsdir);
-  console.log("Tools Folder name: " + toolsfoldername);
-  console.log("Tools directory from config: " + toolsDirFromFile);
-  console.log("os.home: " + os.homedir());
+  // Ensure directory exists before returning
+  try {
+    if (!fs.pathExistsSync(toolsdir)) {
+      fs.ensureDirSync(toolsdir);
+    }
+  } catch (e) {
+    console.error("Failed to ensure tools directory exists:", toolsdir, e);
+  }
   return toolsdir;
 }
 
