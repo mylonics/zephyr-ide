@@ -348,7 +348,24 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
 
   // Handle external installation case
   if (westConfigResult.useExternalInstallation) {
-    return await workspaceSetupOutOfTree(context, wsConfig, globalConfig);
+    const externalPath = westConfigResult.externalInstallPath!;
+    const needsSetup = westConfigResult.externalInstallNeedsSetup;
+    output.appendLine(`[SETUP] Using external installation: ${externalPath} (needsSetup=${needsSetup})`);
+
+    if (needsSetup) {
+      await setSetupState(context, wsConfig, globalConfig, externalPath);
+      const extWestSelection = await westSelector(context, wsConfig);
+      if (!extWestSelection || extWestSelection.failed) {
+        vscode.window.showErrorMessage("External installation configuration cancelled or failed.");
+        return false;
+      }
+      postWorkspaceSetup(context, wsConfig, globalConfig, externalPath, extWestSelection);
+      return true;
+    } else {
+      await setSetupState(context, wsConfig, globalConfig, externalPath);
+      vscode.window.showInformationMessage(`Workspace linked to external Zephyr installation at: ${externalPath}`);
+      return true;
+    }
   }
 
   // Use the westSelection prepared by westConfig
@@ -358,88 +375,6 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
 
   // Run post-setup process
   postWorkspaceSetup(context, wsConfig, globalConfig, installDir, westSelection);
-  return true;
-}
-
-export async function workspaceSetupOutOfTree(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
-  // Clear all context flags at start
-  await clearWorkspaceSetupContextFlags(context, wsConfig);
-
-  // Create options for installation types
-  const installOptions: vscode.QuickPickItem[] = [];
-
-  // First option: New Installation
-  installOptions.push({
-    label: "$(folder-opened) New Installation",
-    description: "Create a new Zephyr installation in a folder you choose",
-    id: "new-install",
-  } as any);
-
-  // Second option: Global Installation
-  installOptions.push({
-    label: "$(link) Global Installation",
-    description: "Use or create a global Zephyr installation",
-    id: getToolsDir(),
-  } as any);
-
-  const installPicks = await getExistingInstallationPicks(wsConfig, globalConfig);
-
-  // Add separator if there are existing installations
-  if (installPicks && installPicks.length > 0) {
-    installOptions.push({
-      label: "$(three-bars) ─────────────────────",
-      description: "",
-      id: "separator",
-    } as any);
-
-    // Add existing installations
-    for (const ind in installPicks) {
-      let pick_cast = installPicks[ind] as vscode.QuickPickItem;
-      installOptions.push({
-        label: `$(file-directory) ${(pick_cast).label}`,
-        description: pick_cast.description,
-        detail: pick_cast.detail,
-        id: pick_cast.detail,
-      } as any);
-
-    }
-  }
-
-  const selectedOption = await vscode.window.showQuickPick(
-    installOptions.filter((opt) => (opt as any).id !== "separator"),
-    {
-      placeHolder: "Select an installation type for this out-of-tree workspace",
-      ignoreFocusOut: true,
-    }
-  );
-
-  if (!selectedOption) {
-    return false;
-  }
-
-  output.show();
-
-  let installationDir = (selectedOption as any).id!;
-  let needToConfigure = (!(installationDir in globalConfig.setupStateDictionary!));
-
-  // Set context flag for workspace type selected
-  await vscode.commands.executeCommand(
-    "setContext",
-    "zephyr-ide.workspaceTypeSelected",
-    true
-  );
-  output.appendLine(`[SETUP] Workspace type selected: Out of Tree at: ${installationDir!}; `);
-
-  // Set up the workspace using selected directory
-
-  vscode.window.showInformationMessage(`Workspace configured to use Zephyr installation at: ${installationDir!}`);
-  if (needToConfigure) {
-    workspaceSetupFromCurrentDirectory(context, wsConfig, globalConfig, false, installationDir);
-    return true;
-  }
-
-  await setSetupState(context, wsConfig, globalConfig, installationDir);
-
   return true;
 }
 
@@ -653,12 +588,6 @@ export async function showWorkspaceSetupPicker(context: vscode.ExtensionContext,
       description: "Create workspace with local Zephyr installation",
       id: "standard",
     },
-    {
-      label: "$(link) Out-of-Tree Workspace",
-      description:
-        "Create workspace using global, new, or existing Zephyr installation",
-      id: "out-of-tree",
-    },
   ];
 
   const selectedOption = await vscode.window.showQuickPick(setupOptions, {
@@ -690,9 +619,6 @@ export async function showWorkspaceSetupPicker(context: vscode.ExtensionContext,
       case "standard":
         await workspaceSetupStandard(context, wsConfig, globalConfig);
         break;
-      case "out-of-tree":
-        await workspaceSetupOutOfTree(context, wsConfig, globalConfig);
-        break;
       default:
         vscode.window.showErrorMessage(
           "Unknown workspace setup option selected"
@@ -718,6 +644,7 @@ export interface WestConfigResult {
   westSelection?: WestLocation;
   externalInstallPath?: string;
   useExternalInstallation?: boolean;
+  externalInstallNeedsSetup?: boolean;
 }
 
 /**
@@ -794,9 +721,7 @@ export async function westConfig(
   }
 
   // Option 4: Use external Zephyr installation (if available and option is enabled)
-  if (configOptions.showUseExternalInstallation &&
-    globalConfig.setupStateDictionary &&
-    Object.keys(globalConfig.setupStateDictionary).length > 0) {
+  if (configOptions.showUseExternalInstallation) { // always allow; submenu will handle availability
     setupOptions.push({
       label: "$(link) Use external Zephyr installation",
       description: "Use an existing Zephyr installation from another workspace",
@@ -866,26 +791,72 @@ export async function westConfig(
       break;
 
     case 'use-external-installation':
-      // Select external installation
-      const installOptions = await getExistingInstallationPicks(wsConfig, globalConfig);
-      if (!installOptions || installOptions.length === 0) {
-        vscode.window.showErrorMessage("No external installations available.");
-        return { cancelled: true, option: null };
-      }
+      // Build external installation submenu: New, Global, Existing
+      const externalOptions: vscode.QuickPickItem[] = [];
 
-      const selectedInstall = await vscode.window.showQuickPick(installOptions, {
-        placeHolder: "Select an existing Zephyr installation",
-        ignoreFocusOut: true,
+      externalOptions.push({
+        label: "$(folder-opened) New Installation",
+        description: "Create a new Zephyr installation in a chosen folder",
+        detail: "new-install"
       });
 
-      if (!selectedInstall) {
+      const globalPath = getToolsDir();
+      externalOptions.push({
+        label: "$(link) Global Installation",
+        description: "Use or create the global Zephyr installation",
+        detail: globalPath
+      });
+
+      const existingInstalls = await getExistingInstallationPicks(wsConfig, globalConfig);
+      if (existingInstalls && existingInstalls.length > 0) {
+        externalOptions.push({
+          label: "──────── Existing Installations ────────",
+          description: "",
+          detail: "__separator__"
+        });
+        for (const opt of existingInstalls) {
+          externalOptions.push({
+            label: `$(file-directory) ${opt.label}`,
+            description: opt.description,
+            detail: opt.detail
+          });
+        }
+      }
+
+      const pickedExternal = await vscode.window.showQuickPick(
+        externalOptions.filter(o => o.detail !== "__separator__"),
+        { placeHolder: "Select or create an external Zephyr installation", ignoreFocusOut: true }
+      );
+
+      if (!pickedExternal) {
         return { cancelled: true, option: null };
       }
 
-      result.externalInstallPath = selectedInstall.detail;
+      let chosenPath = pickedExternal.detail!;
+      let needsSetup = false;
+      if (chosenPath === "new-install") {
+        const folderUris = await vscode.window.showOpenDialog({
+          openLabel: "Select Folder for New Zephyr Installation",
+          canSelectFiles: false,
+          canSelectFolders: true,
+          canSelectMany: false
+        });
+        if (!folderUris || folderUris.length === 0) {
+          return { cancelled: true, option: null };
+        }
+        chosenPath = folderUris[0].fsPath;
+        needsSetup = true;
+      } else if (chosenPath === globalPath) {
+        needsSetup = !(globalConfig.setupStateDictionary && globalConfig.setupStateDictionary[chosenPath]);
+      } else {
+        needsSetup = !(globalConfig.setupStateDictionary && globalConfig.setupStateDictionary[chosenPath]);
+      }
+
+      result.externalInstallPath = chosenPath;
       result.option = 'use-external-installation';
       result.useExternalInstallation = true;
-      output.appendLine(`[WEST CONFIG] Selected external installation: ${selectedInstall.detail}`);
+      result.externalInstallNeedsSetup = needsSetup;
+      output.appendLine(`[WEST CONFIG] Selected external installation: ${chosenPath} (needsSetup=${needsSetup})`);
       break;
 
     default:
