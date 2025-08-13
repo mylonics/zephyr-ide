@@ -24,28 +24,8 @@ jobs:
             const pr = await github.rest.pulls.create({
               owner,
               repo,
-              title: `Creating Release: ${require('./package.json').version}`,
+              title: `Creating Pre-Release: ${require('./package.json').version}`,
               head: 'develop',
               base: 'pre-release',
             });
             core.setOutput('pr_number', pr.data.number);
-
-      - name: Approve Pull Request
-        uses: actions/github-script@v6
-        with:
-          github-token: ${{ secrets.PAT_GITHUB }}
-          script: |
-            const prNumber = process.env.PR_NUMBER;
-            if (!prNumber) {
-              console.log("No PR number found. Skipping approval.");
-              return;
-            }
-            await github.rest.pulls.createReview({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: prNumber,
-              event: 'APPROVE',
-              body: 'This PR was automatically approved by the workflow.'
-            });
-        env:
-          PR_NUMBER: ${{ steps.create-pr.outputs.pr_number }}

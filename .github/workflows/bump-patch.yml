@@ -24,6 +24,8 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           npm version patch
+          npm install
+          git commit -m "chore: update dependencies"
           git checkout -b bump-version-$(jq -r '.version' package.json)
           git push --set-upstream origin bump-version-$(jq -r '.version' package.json)
 

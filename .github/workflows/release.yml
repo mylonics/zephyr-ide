@@ -82,6 +82,7 @@ jobs:
         env:
           INPUT_PAT: ${{ secrets.VSCE_TOKEN }}
         with:
+          registryUrl: https://marketplace.visualstudio.com
           pat: ${{ secrets.VSCE_TOKEN }}
           preRelease: true
 
@@ -102,6 +103,7 @@ jobs:
         env:
           INPUT_PAT: ${{ secrets.VSCE_TOKEN }}
         with:
+          registryUrl: https://marketplace.visualstudio.com
           pat: ${{ secrets.VSCE_TOKEN }}
           preRelease: false
 

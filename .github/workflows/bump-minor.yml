@@ -24,8 +24,10 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           npm version minor
-          git checkout -b release-version-$(jq -r '.version' package.json)
-          git push --set-upstream origin release-version-$(jq -r '.version' package.json)
+          npm install
+          git commit -m "chore: update dependencies"
+          git checkout -b bump-version-$(jq -r '.version' package.json)
+          git push --set-upstream origin bump-version-$(jq -r '.version' package.json)
 
       - name: Create Pull Request
         id: create-pr
