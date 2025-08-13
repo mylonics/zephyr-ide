@@ -1,0 +1,42 @@
+name: Bump Patch
+
+on:
+  workflow_dispatch:
+
+jobs:
+  bump_version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout develop branch
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Bump version
+        run: npm version patch
+
+      - name: Push changes
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git checkout -b release-version-$(jq -r '.version' package.json)
+          git add package.json
+          git commit -m "Bump version"
+          git push --set-upstream origin release-version-$(jq -r '.version' package.json)
+
+      - name: Create Pull Request
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const branchName = `release-version-${require('./package.json').version}`;
+            await github.rest.pulls.create({
+              owner,
+              repo,
+              title: `feat: Bump version to ${require('./package.json').version}`,
+              head: branchName,
+              base: 'develop',
+            });
