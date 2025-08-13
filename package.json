@@ -426,10 +426,6 @@
       {
         "command": "zephyr-ide.workspace-setup-standard",
         "title": "Zephyr IDE: Setup Standard Workspace"
-      },
-      {
-        "command": "zephyr-ide.detect-unused-code",
-        "title": "Zephyr IDE: Detect Unused Code"
       }
     ],
     "terminal": {
