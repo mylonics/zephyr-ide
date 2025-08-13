@@ -166,31 +166,36 @@ export async function createNewProjectFromSample(wsConfig: WorkspaceConfig) {
     return;
   }
 
-  const samplesDir = await getSamples(wsConfig.activeSetupState);
-  const projectList: vscode.QuickPickItem[] = samplesDir.map(x => ({ label: x[1], detail: "(" + x[0] + ") " + x[3], description: x[2] }));
+  // Show loading QuickPick with no items, just a placeholder
+  const loadingQuickPick = vscode.window.createQuickPick();
+  loadingQuickPick.items = [];
+  loadingQuickPick.busy = true;
+  loadingQuickPick.enabled = false;
+  loadingQuickPick.placeholder = "Loading sample projects... Please wait.";
+  loadingQuickPick.show();
 
+  const samplesDir = await getSamples(wsConfig.activeSetupState);
+
+  loadingQuickPick.hide();
+
+  // Show sample selection QuickPick as usual
+  const projectList: vscode.QuickPickItem[] = samplesDir.map(x => ({ label: x[1], detail: "(" + x[0] + ") " + x[3], description: x[2] }));
   const pickOptions: vscode.QuickPickOptions = {
     ignoreFocusOut: true,
     matchOnDescription: true,
     placeHolder: "Select Sample Project",
   };
-
   let selectedSample = await vscode.window.showQuickPick(projectList, pickOptions);
   if (selectedSample && selectedSample.detail && selectedSample.label) {
     let selectedSamplePath = selectedSample.detail.split(") ")[1];
-
     const projectDest = await vscode.window.showInputBox({ title: "Choose Project Destination", value: path.basename(selectedSamplePath) });
-
     if (projectDest) {
       const destinationPath = path.join(wsConfig.rootPath, projectDest);
-
-
       fs.cpSync(selectedSamplePath, destinationPath, { recursive: true });
       let newProjectName = path.basename(projectDest);
       if (selectedSample.label !== newProjectName) {
         changeProjectNameInCMakeFile(destinationPath, newProjectName);
       }
-
       return destinationPath;
     }
   }
@@ -789,7 +794,7 @@ export async function addRunner(wsConfig: WorkspaceConfig, context: vscode.Exten
   await addRunnerToBuild(wsConfig, context, wsConfig.activeProject, activeBuild);
 }
 
-export async function getActiveBuild(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
+export async function getActiveBuild(wsConfig: WorkspaceConfig) {
   if (wsConfig.activeProject === undefined) {
     return;
   }
@@ -804,7 +809,7 @@ export async function getActiveBuild(context: vscode.ExtensionContext, wsConfig:
 }
 
 export async function selectDebugLaunchConfiguration(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
-  let activeBuild = await getActiveBuild(context, wsConfig);
+  let activeBuild = await getActiveBuild(wsConfig);
   let newConfig = await selectLaunchConfiguration(wsConfig);
   if (activeBuild && newConfig) {
     activeBuild.launchTarget = newConfig;
@@ -813,7 +818,7 @@ export async function selectDebugLaunchConfiguration(context: vscode.ExtensionCo
 }
 
 export async function selectBuildDebugLaunchConfiguration(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
-  let activeBuild = await getActiveBuild(context, wsConfig);
+  let activeBuild = await getActiveBuild(wsConfig);
   let newConfig = await selectLaunchConfiguration(wsConfig);
   if (activeBuild && newConfig) {
     activeBuild.buildDebugTarget = newConfig;
@@ -822,7 +827,7 @@ export async function selectBuildDebugLaunchConfiguration(context: vscode.Extens
 }
 
 export async function selectDebugAttachLaunchConfiguration(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
-  let activeBuild = await getActiveBuild(context, wsConfig);
+  let activeBuild = await getActiveBuild(wsConfig);
   let newConfig = await selectLaunchConfiguration(wsConfig);
   if (activeBuild && newConfig) {
     activeBuild.attachTarget = newConfig;

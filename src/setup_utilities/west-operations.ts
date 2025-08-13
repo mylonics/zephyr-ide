@@ -23,7 +23,7 @@ import { output, executeTaskHelperInPythonEnv, executeTaskHelper, reloadEnvironm
 import { getModulePathAndVersion, getModuleVersion } from "./modules";
 import { westSelector, WestLocation } from "./west_selector";
 import { WorkspaceConfig, GlobalConfig, SetupState } from "./types";
-import { saveSetupState } from "./state-management";
+import { saveSetupState, setSetupState, setWorkspaceState } from "./state-management";
 import { pathdivider } from "./tools-validation";
 
 let python = os.platform() === "linux" ? "python3" : "python";
@@ -117,7 +117,7 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
   wsConfig.activeSetupState.zephyrVersion = undefined;
   saveSetupState(context, wsConfig, globalConfig);
 
-  let cmd = `west update`;
+  let cmd = `west update --narrow`;
   let westUpdateRes = await executeTaskHelperInPythonEnv(wsConfig.activeSetupState, "Zephyr IDE: West Update", cmd, wsConfig.activeSetupState.setupPath);
 
   if (!westUpdateRes) {
@@ -338,9 +338,10 @@ export async function westUpdateWithRequirements(context: vscode.ExtensionContex
       vscode.window.showInformationMessage("Successfully completed West Update with Python requirements installation");
     }
   }
+  saveSetupState(context, wsConfig, globalConfig);
 
   if (!globalConfig.sdkInstalled) {
-    vscode.commands.executeCommand("zephyr-ide.install-sdk");
+    return await vscode.commands.executeCommand("zephyr-ide.install-sdk");
   }
   return true;
 }
@@ -357,6 +358,8 @@ export async function postWorkspaceSetup(context: vscode.ExtensionContext, wsCon
       return false;
     }
   }
+
+  saveSetupState(context, wsConfig, globalConfig);
 
   return westUpdateWithRequirements(context, wsConfig, globalConfig, {
     solo: true,

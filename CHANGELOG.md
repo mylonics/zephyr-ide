@@ -10,9 +10,13 @@ Major update with enhanced workspace setup and user experience improvements:
 - **Enhanced workspace setup methods** - Improved workspace configuration and initialization for git repos and folders
 - **New West SDK integration** - Updated SDK installation process to use `west sdk` command
 - **Improved user guidance** - Better error messages and setup instructions throughout the extension
+- Improved finding samples
+- Fixed bug in build and update command
 
-## 1.10.1, 1.10.0, 1.9.0
-- Incorrect publish version published 
+## 1.10.*
+- CI experimentation
+
+## 1.9.0
 - Added recommendations for dts language server and cpp intellisense
 - Removed configuration dependency on OneTimeWorkSpaceSetup
 - dded ability to use gui config in Project Tree view

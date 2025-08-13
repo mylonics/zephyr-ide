@@ -27,14 +27,14 @@ const execAsync = util.promisify(cp.exec);
  * Check if build dependencies are available using the extension's built-in check
  */
 export async function checkBuildDependencies(
-    context: vscode.ExtensionContext, 
-    wsConfig: WorkspaceConfig, 
+    context: vscode.ExtensionContext,
+    wsConfig: WorkspaceConfig,
     globalConfig: GlobalConfig
 ): Promise<boolean> {
     try {
         // Use the extension's own build dependency checker
         const result = await checkIfToolsAvailable(context, wsConfig, globalConfig, false);
-        
+
         if (result) {
             console.log('✓ Build dependencies are available');
             return true;
@@ -57,7 +57,7 @@ export async function checkZephyrToolsAvailable(): Promise<boolean> {
         // Just check for basic tools as a fallback
         await execAsync('python --version');
         await execAsync('cmake --version');
-        
+
         console.log('✓ Basic development tools are available');
         return true;
     } catch (error) {
@@ -112,8 +112,9 @@ export async function monitorWorkspaceSetup(setupType: string = "workspace"): Pr
     let pythonEnvironmentSetup = false;
     let westUpdated = false;
     let packagesInstalled = false;
+    let sdkInstalled = false;
 
-    while (!packagesInstalled) {
+    while (!sdkInstalled) {
         const extension = vscode.extensions.getExtension("mylonics.zephyr-ide");
         let wsConfig = null;
 
@@ -137,9 +138,14 @@ export async function monitorWorkspaceSetup(setupType: string = "workspace"): Pr
                 pythonEnvironmentSetup = true;
             }
 
-            if (wsConfig.activeSetupState?.packagesInstalled) {
+            if (!packagesInstalled && wsConfig.activeSetupState?.packagesInstalled) {
                 packagesInstalled = true;
                 console.log("    ✅ Packages installed completed");
+            }
+
+            if (packagesInstalled && await vscode.commands.executeCommand("zephyr-ide.is-sdk-installed")) {
+                sdkInstalled = true;
+                console.log("    ✅ SDK installed");
                 console.log(`🎉 All ${setupType} setup stages completed!`);
                 break;
             }
@@ -147,8 +153,8 @@ export async function monitorWorkspaceSetup(setupType: string = "workspace"): Pr
 
         // Progress update every 30 seconds
         if (waitTime % 30000 === 0 && waitTime > 0) {
-            const completedStages = [initialSetupComplete, pythonEnvironmentSetup, westUpdated, packagesInstalled].filter(Boolean).length;
-            console.log(`⏳ ${setupType} setup in progress... (${waitTime / 1000}s elapsed, ${completedStages}/4 stages completed)`);
+            const completedStages = [initialSetupComplete, pythonEnvironmentSetup, westUpdated, packagesInstalled, sdkInstalled].filter(Boolean).length;
+            console.log(`⏳ ${setupType} setup in progress... (${waitTime / 1000}s elapsed, ${completedStages}/5 stages completed)`);
         }
 
         await new Promise((resolve) => setTimeout(resolve, checkInterval));

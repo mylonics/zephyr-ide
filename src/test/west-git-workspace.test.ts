@@ -51,8 +51,8 @@ suite("West Git Workspace Test Suite", () => {
         const existingWorkspace =
             vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
         testWorkspaceDir = existingWorkspace
-            ? path.join(existingWorkspace, "zephyr-git-workflow-test")
-            : path.join(os.tmpdir(), "zephyr-git-workflow-test-" + Date.now());
+            ? path.join(existingWorkspace, "west-git")
+            : path.join(os.tmpdir(), "west-git-" + Date.now());
 
         await fs.ensureDir(testWorkspaceDir);
 
@@ -101,7 +101,7 @@ suite("West Git Workspace Test Suite", () => {
     });
 
     test("Git Workspace Setup: West Git → SDK Install → Add Project → Custom Board Build", async function () {
-        this.timeout(1800000);
+        this.timeout(620000);
 
         console.log("🚀 Starting git workspace test...");
 
@@ -120,7 +120,11 @@ suite("West Git Workspace Test Suite", () => {
             console.log("🏗️ Step 1: Setting up workspace from West Git...");
             // Prime the mock interface for git workspace setup interactions
             gitUiMock.primeInteractions([
-                { type: 'input', value: 'https://github.com/mylonics/zephyr-example.git', description: 'Enter git repo URL' }
+                { type: 'input', value: 'https://github.com/mylonics/zephyr-ide-samples', description: 'Enter git repo URL' },
+                { type: 'input', value: '--mr west_repo', description: 'Enter Additionaladditional arguments for west' },
+                { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
+                { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
+                { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
             ]);
 
             let result = await vscode.commands.executeCommand(
@@ -132,19 +136,11 @@ suite("West Git Workspace Test Suite", () => {
 
             console.log("⚙️ Step 2: Installing SDK...");
             // Prime the mock interface for SDK installation interactions
-            gitUiMock.primeInteractions([
-                { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
-                { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
-                { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
-            ]);
-
-            result = await vscode.commands.executeCommand("zephyr-ide.install-sdk");
-            assert.ok(result, "SDK installation should succeed");
 
             console.log("📁 Step 3: Adding project from example repo...");
             // Prime the mock interface for project addition interactions  
             gitUiMock.primeInteractions([
-                { type: 'opendialog', value: path.join(testWorkspaceDir, "zephyr-example.git", "app"), description: 'Select app folder' }
+                { type: 'opendialog', value: path.join(testWorkspaceDir, "zephyr-ide-samples", "app"), description: 'Select app folder' }
             ]);
 
             result = await vscode.commands.executeCommand("zephyr-ide.add-project");

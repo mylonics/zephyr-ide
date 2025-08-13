@@ -55,6 +55,7 @@ import {
   runDtshShell,
   clean,
   MenuConfig,
+  build,
 } from "./zephyr_utilities/build";
 import { flashActive } from "./zephyr_utilities/flash";
 import { WorkspaceConfig, GlobalConfig } from "./setup_utilities/types";
@@ -88,6 +89,7 @@ import {
   workspaceSetupFromCurrentDirectory,
   workspaceSetupStandard,
   manageWorkspaces,
+  westConfig,
 } from "./setup_utilities/workspace-setup";
 import {
   initializeDtsExt,
@@ -401,16 +403,14 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "zephyr-ide.setup-west-environment",
-      async () => {
-        if (wsConfig.rootPath !== "") {
-          await setupWestEnvironment(context, wsConfig, globalConfig);
-          extensionSetupView.updateWebView(wsConfig, globalConfig);
-        } else {
-          vscode.window.showErrorMessage("Open Folder Before Continuing");
-        }
+    vscode.commands.registerCommand("zephyr-ide.setup-west-environment", async () => {
+      if (wsConfig.rootPath !== "" && wsConfig.activeSetupState) {
+        await setupWestEnvironment(context, wsConfig, globalConfig);
+        extensionSetupView.updateWebView(wsConfig, globalConfig);
+      } else {
+        vscode.window.showErrorMessage("Open Folder or Setup Workspace Before Continuing");
       }
+    }
     )
   );
 
@@ -983,7 +983,7 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.debug", async () => {
       let debugTarget = "Zephyr IDE: Debug";
-      let activeBuild = await project.getActiveBuild(context, wsConfig);
+      let activeBuild = await project.getActiveBuild(wsConfig);
 
       if (activeBuild?.launchTarget) {
         debugTarget = activeBuild.launchTarget;
@@ -1008,7 +1008,7 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.debug-attach", async () => {
       let debugTarget = "Zephyr IDE: Attach";
-      let activeBuild = await project.getActiveBuild(context, wsConfig);
+      let activeBuild = await project.getActiveBuild(wsConfig);
 
       if (activeBuild?.attachTarget) {
         debugTarget = activeBuild.attachTarget;
@@ -1033,9 +1033,10 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.build-debug", async () => {
       let debugTarget = "Zephyr IDE: Debug";
-      let activeBuild = await project.getActiveBuild(context, wsConfig);
+      let activeProject = await project.getActiveProject(wsConfig);
+      let activeBuild = await project.getActiveBuild(wsConfig);
 
-      if (activeBuild?.buildDebugTarget) {
+      if (activeProject && activeBuild?.buildDebugTarget) {
         debugTarget = activeBuild.buildDebugTarget;
       }
       let debugConfig = await getLaunchConfigurationByName(
@@ -1043,8 +1044,29 @@ export async function activate(context: vscode.ExtensionContext) {
         debugTarget
       );
 
-      if (debugConfig) {
-        let res = await buildHelper(context, wsConfig, false);
+      if (debugConfig && activeProject && activeBuild) {
+        debugConfig.executable = '${command:zephyr-ide.get-active-build-path}/${command:zephyr-ide.get-active-project-name}/zephyr/zephyr.elf';
+        // Resolve all ${command:zephyr-ide.*} variables in debugConfig
+        async function resolveZephyrCommandsInObject(obj: Record<string, unknown>) {
+          for (const key of Object.keys(obj)) {
+            if (typeof obj[key] === "string") {
+              const strVal = obj[key] as string;
+              const matches = strVal.match(/\$\{command:zephyr-ide\.[^}]+\}/g);
+              if (matches) {
+                let newValue = strVal;
+                for (const match of matches) {
+                  const commandName = match.slice(10, -1); // Remove ${command: and }
+                  const result = await vscode.commands.executeCommand(commandName);
+                  const resultStr = result !== undefined ? String(result) : "";
+                  newValue = newValue.split(match).join(resultStr);
+                }
+                obj[key] = newValue;
+              }
+            }
+          }
+        }
+        await resolveZephyrCommandsInObject(debugConfig);
+        let res = await build(wsConfig, activeProject, activeBuild, false);
         if (res) {
           await vscode.commands.executeCommand(
             "debug.startFromConfig",
@@ -1210,7 +1232,14 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.install-sdk", async () => {
-      return await installSDKInteractive(wsConfig, globalConfig, context);
+      let ret = await installSDKInteractive(wsConfig, globalConfig, context);
+      return ret;
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.is-sdk-installed", async () => {
+      return globalConfig.sdkInstalled;
     })
   );
 
@@ -1291,6 +1320,13 @@ export async function activate(context: vscode.ExtensionContext) {
         await markWorkspaceSetupComplete(context, wsConfig, globalConfig);
       }
       return success;
+    }
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.west-config", async () => {
+      await westConfig(context, wsConfig, globalConfig);
     }
     )
   );

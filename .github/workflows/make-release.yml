@@ -1,0 +1,31 @@
+name: Make Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  make_release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout develop branch
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+      - name: Create Pull Request
+        id: create-pr
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pr = await github.rest.pulls.create({
+              owner,
+              repo,
+              title: `Creating Release: ${require('./package.json').version}`,
+              head: 'develop',
+              base: 'main',
+            });
+            core.setOutput('pr_number', pr.data.number);

@@ -53,8 +53,8 @@ suite("Zephyr IDE Git Workspace Test Suite", () => {
         const existingWorkspace =
             vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
         testWorkspaceDir = existingWorkspace
-            ? path.join(existingWorkspace, "zephyr-ide-git-workspace-test")
-            : path.join(os.tmpdir(), "zephyr-ide-git-workspace-test-" + Date.now());
+            ? path.join(existingWorkspace, "ide-spc")
+            : path.join(os.tmpdir(), "ide-spc-" + Date.now());
 
         await fs.ensureDir(testWorkspaceDir);
 
@@ -103,7 +103,7 @@ suite("Zephyr IDE Git Workspace Test Suite", () => {
     });
 
     test("Zephyr IDE Git Workspace: Git Setup → SDK Install → Build", async function () {
-        this.timeout(1800000);
+        this.timeout(620000);
 
         console.log("🚀 Starting Zephyr IDE git workspace test...");
 
@@ -121,7 +121,8 @@ suite("Zephyr IDE Git Workspace Test Suite", () => {
             console.log("🏗️ Step 1: Setting up workspace from Zephyr IDE Git...");
             // Prime the mock interface for Zephyr IDE git workspace setup
             gitUiMock.primeInteractions([
-                { type: 'input', value: '--branch main -- https://github.com/mylonics/zephyr-ide-sample-project.git', description: 'Enter Zephyr IDE git repo URL' }
+                { type: 'input', value: '--branch main -- https://github.com/mylonics/zephyr-ide-samples.git', description: 'Enter Zephyr IDE git repo URL' },
+                { type: 'quickpick', value: 'use-west-folder', description: 'Use .west folder (Recommended)' }
             ]);
 
             let result = await vscode.commands.executeCommand(
@@ -129,18 +130,19 @@ suite("Zephyr IDE Git Workspace Test Suite", () => {
             );
             assert.ok(result, "Zephyr IDE git workspace setup should succeed");
 
-            await monitorWorkspaceSetup("Zephyr IDE git workspace");
-
-            console.log("⚙️ Step 2: Installing SDK...");
-            // Prime the mock interface for SDK installation interactions
             gitUiMock.primeInteractions([
                 { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
                 { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
                 { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
             ]);
 
-            result = await vscode.commands.executeCommand("zephyr-ide.install-sdk");
-            assert.ok(result, "SDK installation should succeed");
+            await monitorWorkspaceSetup("Zephyr IDE git workspace");
+
+            console.log("⚙️ Step 2: Installing SDK...");
+            // Prime the mock interface for SDK installation interactions
+
+            //result = await vscode.commands.executeCommand("zephyr-ide.install-sdk");
+            //assert.ok(result, "SDK installation should succeed");
 
             console.log("⚡ Step 3: Executing build...");
             // Wait a moment for workspace setup to complete
@@ -156,7 +158,6 @@ suite("Zephyr IDE Git Workspace Test Suite", () => {
 
             // Deactivate the UI Mock Interface
             gitUiMock.deactivate();
-            await new Promise((resolve) => setTimeout(resolve, 30000));
 
         } catch (error) {
             console.error("❌ Zephyr IDE git workflow test failed:", error);
