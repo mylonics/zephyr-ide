@@ -88,7 +88,6 @@ jobs:
       # Step 5: Handle official release logic for pushes to 'main'.
       - name: Publish Release to Open VSX
         if: github.ref == 'refs/heads/main'
-        id: prereleaseOpenVsx
         continue-on-error: true
         uses: HaaLeo/publish-vscode-extension@v2
         env:
