@@ -303,6 +303,35 @@ export async function workspaceSetupStandard(context: vscode.ExtensionContext, w
   return true;
 }
 
+/**
+ * Handle external installation configuration and setup
+ */
+async function handleExternalInstallation(
+  context: vscode.ExtensionContext, 
+  wsConfig: WorkspaceConfig, 
+  globalConfig: GlobalConfig, 
+  westConfigResult: WestConfigResult
+): Promise<boolean> {
+  const externalPath = westConfigResult.externalInstallPath!;
+  const needsSetup = westConfigResult.externalInstallNeedsSetup;
+  output.appendLine(`[SETUP] Using external installation: ${externalPath} (needsSetup=${needsSetup})`);
+
+  await setSetupState(context, wsConfig, globalConfig, externalPath);
+
+  if (needsSetup) {
+    const extWestSelection = await westSelector(context, wsConfig);
+    if (!extWestSelection || extWestSelection.failed) {
+      vscode.window.showErrorMessage("External installation configuration cancelled or failed.");
+      return false;
+    }
+    postWorkspaceSetup(context, wsConfig, globalConfig, externalPath, extWestSelection);
+  } else {
+    vscode.window.showInformationMessage(`Workspace linked to external Zephyr installation at: ${externalPath}`);
+  }
+  
+  return true;
+}
+
 export async function workspaceSetupFromCurrentDirectory(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, giveExternalInstallOption: boolean, installDir?: string) {
   // Clear all context flags at start
   await clearWorkspaceSetupContextFlags(context, wsConfig);
@@ -316,7 +345,6 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
     );
     return false;
   }
-
 
   output.show();
   output.appendLine(
@@ -348,33 +376,12 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
 
   // Handle external installation case
   if (westConfigResult.useExternalInstallation) {
-    const externalPath = westConfigResult.externalInstallPath!;
-    const needsSetup = westConfigResult.externalInstallNeedsSetup;
-    output.appendLine(`[SETUP] Using external installation: ${externalPath} (needsSetup=${needsSetup})`);
-
-    if (needsSetup) {
-      await setSetupState(context, wsConfig, globalConfig, externalPath);
-      const extWestSelection = await westSelector(context, wsConfig);
-      if (!extWestSelection || extWestSelection.failed) {
-        vscode.window.showErrorMessage("External installation configuration cancelled or failed.");
-        return false;
-      }
-      postWorkspaceSetup(context, wsConfig, globalConfig, externalPath, extWestSelection);
-      return true;
-    } else {
-      await setSetupState(context, wsConfig, globalConfig, externalPath);
-      vscode.window.showInformationMessage(`Workspace linked to external Zephyr installation at: ${externalPath}`);
-      return true;
-    }
+    return await handleExternalInstallation(context, wsConfig, globalConfig, westConfigResult);
   }
 
-  // Use the westSelection prepared by westConfig
-  const westSelection = westConfigResult.westSelection;
-
+  // Handle local workspace setup
   await setSetupState(context, wsConfig, globalConfig, installDir);
-
-  // Run post-setup process
-  postWorkspaceSetup(context, wsConfig, globalConfig, installDir, westSelection);
+  postWorkspaceSetup(context, wsConfig, globalConfig, installDir, westConfigResult.westSelection);
   return true;
 }
 
