@@ -36,6 +36,12 @@ export class ExtensionSetupView implements vscode.WebviewViewProvider {
         value: { command: "zephyr-ide.open-setup-panel" },
       }, {
         icons: {
+          leaf: 'tools',
+        },
+        label: "Install Host Tools (Experimental)",
+        value: { command: "zephyr-ide.install-host-tools" },
+      }, {
+        icons: {
           leaf: 'folder-library',
         },
         label: "Manage Workspaces",
@@ -48,16 +54,16 @@ export class ExtensionSetupView implements vscode.WebviewViewProvider {
         value: { command: "zephyr-ide.workspace-setup-picker" },
       }, {
         icons: {
-          leaf: 'tools',
-        },
-        label: "Install Host Tools",
-        value: { command: "zephyr-ide.install-host-tools" },
-      }, {
-        icons: {
           leaf: 'package',
         },
         label: "Install SDK",
         value: { command: "zephyr-ide.install-sdk" },
+      }, {
+        icons: {
+          leaf: 'settings',
+        },
+        label: "West Config",
+        value: { command: "zephyr-ide.west-config" },
       }, {
         icons: {
           leaf: 'settings-gear',

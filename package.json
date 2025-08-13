@@ -426,6 +426,10 @@
       {
         "command": "zephyr-ide.workspace-setup-standard",
         "title": "Zephyr IDE: Setup Standard Workspace"
+      },
+      {
+        "command": "zephyr-ide.west-config",
+        "title": "Zephyr IDE: West Config"
       }
     ],
     "terminal": {
