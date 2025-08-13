@@ -161,6 +161,10 @@ export function getToolsDir() {
   if (toolsDirFromFile) {
     toolsdir = toolsDirFromFile;
   }
+  console.log("Tools directory: " + toolsdir);
+  console.log("Tools Folder name: " + toolsfoldername);
+  console.log("Tools directory from config: " + toolsDirFromFile);
+  console.log("os.home: " + os.homedir());
   return toolsdir;
 }
 
