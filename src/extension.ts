@@ -89,6 +89,7 @@ import {
   workspaceSetupFromCurrentDirectory,
   workspaceSetupStandard,
   manageWorkspaces,
+  westConfig,
 } from "./setup_utilities/workspace-setup";
 import {
   initializeDtsExt,
@@ -402,16 +403,14 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "zephyr-ide.setup-west-environment",
-      async () => {
-        if (wsConfig.rootPath !== "") {
-          await setupWestEnvironment(context, wsConfig, globalConfig);
-          extensionSetupView.updateWebView(wsConfig, globalConfig);
-        } else {
-          vscode.window.showErrorMessage("Open Folder Before Continuing");
-        }
+    vscode.commands.registerCommand("zephyr-ide.setup-west-environment", async () => {
+      if (wsConfig.rootPath !== "" && wsConfig.activeSetupState) {
+        await setupWestEnvironment(context, wsConfig, globalConfig);
+        extensionSetupView.updateWebView(wsConfig, globalConfig);
+      } else {
+        vscode.window.showErrorMessage("Open Folder or Setup Workspace Before Continuing");
       }
+    }
     )
   );
 
@@ -1233,7 +1232,14 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.install-sdk", async () => {
-      return await installSDKInteractive(wsConfig, globalConfig, context);
+      let ret = await installSDKInteractive(wsConfig, globalConfig, context);
+      return ret;
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.is-sdk-installed", async () => {
+      return globalConfig.sdkInstalled;
     })
   );
 
@@ -1314,6 +1320,13 @@ export async function activate(context: vscode.ExtensionContext) {
         await markWorkspaceSetupComplete(context, wsConfig, globalConfig);
       }
       return success;
+    }
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.west-config", async () => {
+      await westConfig(context, wsConfig, globalConfig);
     }
     )
   );

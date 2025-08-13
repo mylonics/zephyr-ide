@@ -118,7 +118,7 @@ Add tests to `src/test/standard-workspace.test.ts` for standard workflow validat
 
 ```typescript
 test('New Workflow Feature', async function() {
-    this.timeout(420000);
+    this.timeout(620000);
     
     const uiMock = new UIMockInterface();
     uiMock.activate();
@@ -142,7 +142,7 @@ Add tests to `src/test/west-git-workspace.test.ts` for git-based workflows:
 
 ```typescript
 test('Git Workflow Feature', async function() {
-    this.timeout(420000);
+    this.timeout(620000);
     
     const gitUiMock = new UIMockInterface();
     gitUiMock.activate();

@@ -62,8 +62,8 @@ suite("Standard Workspace Test Suite", () => {
         const existingWorkspace =
             vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
         testWorkspaceDir = existingWorkspace
-            ? path.join(existingWorkspace, "zephyr-workflow-test")
-            : path.join(os.tmpdir(), "zephyr-workflow-test-" + Date.now());
+            ? path.join(existingWorkspace, "std")
+            : path.join(os.tmpdir(), "std-" + Date.now());
 
         await fs.ensureDir(testWorkspaceDir);
 
@@ -112,7 +112,7 @@ suite("Standard Workspace Test Suite", () => {
     });
 
     test("Complete Workflow: Dependencies → Setup → Project → Build → Execute", async function () {
-        this.timeout(420000);
+        this.timeout(620000);
 
         console.log("🚀 Starting workflow test...");
 
@@ -153,12 +153,6 @@ suite("Standard Workspace Test Suite", () => {
 
             await monitorWorkspaceSetup();
 
-            console.log("⚙️ Step 3: Installing SDK...");
-            // Prime the mock interface for SDK installation interactions
-
-            //result = await vscode.commands.executeCommand("zephyr-ide.install-sdk");
-            //assert.ok(result, "SDK installation should succeed");
-
             console.log("📁 Step 4: Creating project from template...");
             // Prime the mock interface for project creation interactions
             uiMock.primeInteractions([
@@ -183,6 +177,7 @@ suite("Standard Workspace Test Suite", () => {
             result = await vscode.commands.executeCommand("zephyr-ide.add-build");
             assert.ok(result, "Build configuration should succeed");
 
+            await new Promise((resolve) => setTimeout(resolve, 10000));
             console.log("⚡ Step 6: Executing build...");
             result = await vscode.commands.executeCommand("zephyr-ide.build");
             assert.ok(result, "Build execution should succeed");

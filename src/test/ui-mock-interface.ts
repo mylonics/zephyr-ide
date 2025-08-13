@@ -17,6 +17,7 @@ limitations under the License.
 
 import * as vscode from "vscode";
 import * as fs from "fs-extra";
+import { error } from "console";
 
 export interface MockInteraction {
     type: 'quickpick' | 'input' | 'opendialog';
@@ -259,26 +260,25 @@ export class UIMockInterface {
     private async showQuickPickMock(items: any, options?: any): Promise<any> {
         const itemsArray = Array.isArray(items) ? items : await items;
         const interaction = this.getNextInteraction('quickpick');
-        
+
         if (!interaction) {
-            console.log('   → QuickPick: No mock interaction found, selecting first item');
-            return itemsArray[0];
+            throw new Error('No mock interaction found');
         }
 
         const value = interaction.value as string;
-        
+
         if (interaction.multiSelect || options?.canPickMany) {
             // Handle multiple selection
             const values = Array.isArray(interaction.value) ? interaction.value : [value];
-            const selectedItems = itemsArray.filter((item: any) => 
+            const selectedItems = itemsArray.filter((item: any) =>
                 values.some(val => this.getItemString(item).toLowerCase().includes(val.toLowerCase()))
             );
-            
+
             console.log(`   → QuickPick (multi): Selected [${selectedItems.map((item: any) => this.getItemString(item)).join(', ')}] (${interaction.description || 'auto'})`);
             return selectedItems.length > 0 ? selectedItems : [itemsArray[0]];
         } else {
             // Handle single selection
-            const selectedItem = itemsArray.find((item: any) => 
+            const selectedItem = itemsArray.find((item: any) =>
                 this.getItemString(item).toLowerCase().includes(value.toLowerCase())
             ) || itemsArray[0];
 
@@ -342,10 +342,10 @@ export class UIMockInterface {
             if (interaction.multiSelect) {
                 // Handle multiple selection
                 const values = Array.isArray(interaction.value) ? interaction.value : [value];
-                const selectedItems = mockQuickPick.items.filter((item: any) => 
+                const selectedItems = mockQuickPick.items.filter((item: any) =>
                     values.some((val: string) => this.getItemString(item).toLowerCase().includes(val.toLowerCase()))
                 );
-                
+
                 console.log(`   → QuickPick (multi): Selected [${selectedItems.map((item: any) => this.getItemString(item)).join(', ')}] (${interaction.description || 'auto'})`);
                 this.triggerQuickPickCallbacks(mockQuickPick, selectedItems.length > 0 ? selectedItems : [mockQuickPick.items[0]]);
             } else {

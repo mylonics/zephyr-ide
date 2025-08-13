@@ -151,6 +151,9 @@ export class SetupPanel {
             case "workspaceSetupPicker":
                 this.workspaceSetupPicker();
                 return;
+            case "westConfig":
+                this.westConfig();
+                return;
         }
     }
 
@@ -290,6 +293,16 @@ export class SetupPanel {
         } catch (error) {
             vscode.window.showErrorMessage(
                 `Failed to open workspace setup picker: ${error}`
+            );
+        }
+    }
+
+    private async westConfig() {
+        try {
+            vscode.commands.executeCommand("zephyr-ide.west-config");
+        } catch (error) {
+            vscode.window.showErrorMessage(
+                `Failed to open west config: ${error}`
             );
         }
     }
@@ -569,6 +582,12 @@ export class SetupPanel {
             "Manage and configure existing workspaces, switch between different workspace configurations.",
             "manageWorkspace()"
         )}
+                    ${this.generateWestOperationCard(
+            "⚙️",
+            "West Configuration",
+            "Configure west by detecting existing .west folders or west.yml files, or create a new west.yml from templates.",
+            "westConfig()"
+        )}
                 </div>
             </div>
         </div>`;
@@ -677,6 +696,7 @@ export class SetupPanel {
             <p style="margin-bottom: 20px; color: var(--vscode-descriptionForeground); font-size: 12px;">Open a folder in VS Code to begin configuring your Zephyr development environment.</p>
             <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
                 <button class="button" onclick="workspaceSetupPicker()">Workspace Setup</button>
+                <button class="button button-secondary" onclick="westConfig()">West Config</button>
                 <button class="button button-secondary" onclick="openFolder()">Open Folder</button>
             </div>
         </div>`;
@@ -710,6 +730,8 @@ export class SetupPanel {
             clickHandler = "workspaceSetupStandard()";
         } else if (action === "current-directory") {
             clickHandler = "workspaceSetupFromCurrentDirectory()";
+        } else if (action === "west-config") {
+            clickHandler = "westConfig()";
         }
 
         return `

@@ -2,9 +2,9 @@ name: Integration Tests
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main, pre-release, develop]
   pull_request:
-    branches: [main, develop]
+    branches: [main, pre-release, develop]
 
 jobs:
   test-with-zephyr:
@@ -32,8 +32,18 @@ jobs:
       - name: Compile TypeScript
         run: npm run test-compile
 
+      - name: Bundle Extension (dist)
+        run: npm run esbuild
+
       - name: Run linting
         run: npm run lint
+
+      - name: Run workspace out of tree integration tests
+        run: |
+          xvfb-run -a node scripts/run-integration-tests.js out-of-tree
+        env:
+          NODE_ENV: test
+          ZEPHYR_BASE: /tmp/zephyr
 
       - name: Run standard workflow integration tests
         run: |
@@ -59,13 +69,6 @@ jobs:
       - name: Run open current directory integration tests
         run: |
           xvfb-run -a node scripts/run-integration-tests.js open-current-dir
-        env:
-          NODE_ENV: test
-          ZEPHYR_BASE: /tmp/zephyr
-
-      - name: Run workspace out of tree integration tests
-        run: |
-          xvfb-run -a node scripts/run-integration-tests.js out-of-tree
         env:
           NODE_ENV: test
           ZEPHYR_BASE: /tmp/zephyr

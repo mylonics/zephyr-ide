@@ -1,0 +1,47 @@
+name: Bump Major
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump_version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout develop branch
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Bump and Push changes
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          npm version major
+          npm install
+          git add -A
+          git commit -m "chore: update dependencies" || true
+          git checkout -b bump-version-$(jq -r '.version' package.json)
+          git push --set-upstream origin bump-version-$(jq -r '.version' package.json)
+
+      - name: Create Pull Request
+        id: create-pr
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const branchName = `bump-version-${require('./package.json').version}`;
+            const pr = await github.rest.pulls.create({
+              owner,
+              repo,
+              title: `feat: Bump version to ${require('./package.json').version}`,
+              head: branchName,
+              base: 'develop',
+            });
+            core.setOutput('pr_number', pr.data.number);
