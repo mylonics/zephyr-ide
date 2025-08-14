@@ -121,7 +121,7 @@ async function injectWestSDKCommand(setupState: SetupState, context?: vscode.Ext
 
     try {
         const extensionPath = context.extensionPath;
-        const sourceSdkPyPath = path.join(extensionPath, "scripts", "sdk.py");
+        const sourceSdkPyPath = path.join(extensionPath, "resources", "sdk.py");
 
         // Check if source sdk.py exists
         if (!(await fs.pathExists(sourceSdkPyPath))) {
@@ -138,7 +138,7 @@ async function injectWestSDKCommand(setupState: SetupState, context?: vscode.Ext
         await fs.copy(sourceSdkPyPath, targetSdkPyPath);
 
         // Create sdk subfolder and copy listsdk.cmake
-        const sourceCmakePath = path.join(extensionPath, "scripts", "listsdk.cmake");
+        const sourceCmakePath = path.join(extensionPath, "resources", "listsdk.cmake");
         if (await fs.pathExists(sourceCmakePath)) {
             const sdkSubDir = path.join(westCommandsDir, "sdk");
             await fs.ensureDir(sdkSubDir);
@@ -149,7 +149,7 @@ async function injectWestSDKCommand(setupState: SetupState, context?: vscode.Ext
         }
 
         // Copy FindZephyr-sdk.cmake to cmake/modules directory
-        const sourceFindZephyrCmakePath = path.join(extensionPath, "scripts", "FindZephyr-sdk.cmake");
+        const sourceFindZephyrCmakePath = path.join(extensionPath, "resources", "FindZephyr-sdk.cmake");
         if (await fs.pathExists(sourceFindZephyrCmakePath)) {
             const cmakeModulesDir = path.join(setupState.zephyrDir, "cmake", "modules");
             await fs.ensureDir(cmakeModulesDir);
@@ -161,7 +161,7 @@ async function injectWestSDKCommand(setupState: SetupState, context?: vscode.Ext
 
         // Update west-commands.yml
         const westCommandsYmlPath = path.join(setupState.zephyrDir, "scripts", "west-commands.yml");
-        const sdkCommandConfigPath = path.join(extensionPath, "scripts", "west-sdk-command.yml");
+        const sdkCommandConfigPath = path.join(extensionPath, "resources", "west-sdk-command.yml");
         const sdkCommandConfig = await fs.readFile(sdkCommandConfigPath, 'utf-8');
 
         if (await fs.pathExists(westCommandsYmlPath)) {
