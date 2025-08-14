@@ -17,11 +17,10 @@ limitations under the License.
 
 import * as vscode from 'vscode';
 import path from 'path';
-import { ProjectConfig, addBuildToProject, addConfigFiles, addRunnerToBuild, removeBuild, removeProject, removeRunner, setActive, modifyBuildArguments, removeConfigFile, setActiveProject, getActiveBuildConfigOfProject, getActiveRunnerConfigOfBuild, getActiveTestConfigOfProject } from '../../project_utilities/project';
+import { ProjectConfig, addConfigFiles, setActive, modifyBuildArguments, removeConfigFile, setActiveProject, getActiveBuildConfigOfProject, getActiveRunnerConfigOfBuild, getActiveTestConfigOfProject } from '../../project_utilities/project';
 import { BuildConfig } from '../../project_utilities/build_selector';
 import { getNonce } from "../../utilities/getNonce";
 import { RunnerConfig } from '../../project_utilities/runner_selector';
-import { buildByName, MenuConfig } from '../../zephyr_utilities/build';
 import { flashByName } from '../../zephyr_utilities/flash';
 import { ConfigFiles } from '../../project_utilities/config_selector';
 
@@ -510,7 +509,7 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
     };
 
     this.view = webviewView;
-    webviewView.webview.onDidReceiveMessage(message => {
+    webviewView.webview.onDidReceiveMessage(async message => {
       console.log(message);
       if (message.treeData) {
         this.treeData = message.treeData;
@@ -518,43 +517,48 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
       }
       switch (message.command) {
         case "deleteProject": {
-          removeProject(this.context, this.wsConfig, message.value.project).finally(() => { vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
+          await setActive(this.wsConfig, message.value.project);
+          vscode.commands.executeCommand("zephyr-ide.remove-project");
           break;
         }
         case "addBuild": {
-          addBuildToProject(this.wsConfig, this.context, message.value.project).finally(() => { setActive(this.wsConfig, message.value.project); vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
+          await setActive(this.wsConfig, message.value.project);
+          vscode.commands.executeCommand("zephyr-ide.add-build");
           break;
         }
         case "deleteBuild": {
-          removeBuild(this.context, this.wsConfig, message.value.project, message.value.build).finally(() => { setActive(this.wsConfig, message.value.project); vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
+          await setActive(this.wsConfig, message.value.project, message.value.build);
+          vscode.commands.executeCommand("zephyr-ide.remove-build");
           break;
         }
         case "addRunner": {
-          addRunnerToBuild(this.wsConfig, this.context, message.value.project, message.value.build).finally(() => { setActive(this.wsConfig, message.value.project, message.value.build); vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
+          await setActive(this.wsConfig, message.value.project, message.value.build);
+          vscode.commands.executeCommand("zephyr-ide.add-runner");
           break;
         }
         case "deleteRunner": {
-          removeRunner(this.context, this.wsConfig, message.value.project, message.value.build, message.value.runner).finally(() => { setActive(this.wsConfig, message.value.project, message.value.build); vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
+          await setActive(this.wsConfig, message.value.project, message.value.build, message.value.runner);
+          vscode.commands.executeCommand("zephyr-ide.remove-runner");
           break;
         }
         case "build": {
-          buildByName(this.wsConfig, false, message.value.project, message.value.build);
-          setActive(this.wsConfig, message.value.project, message.value.build);
+          await setActive(this.wsConfig, message.value.project, message.value.build);
+          vscode.commands.executeCommand("zephyr-ide.build");
           break;
         }
         case "buildPristine": {
-          buildByName(this.wsConfig, true, message.value.project, message.value.build);
-          setActive(this.wsConfig, message.value.project, message.value.build);
+          await setActive(this.wsConfig, message.value.project, message.value.build);
+          vscode.commands.executeCommand("zephyr-ide.build-pristine");
           break;
         }
         case "menuConfig": {
-          buildByName(this.wsConfig, true, message.value.project, message.value.build, MenuConfig.MenuConfig);
-          setActive(this.wsConfig, message.value.project, message.value.build);
+          await setActive(this.wsConfig, message.value.project, message.value.build);
+          vscode.commands.executeCommand("zephyr-ide.start-menu-config");
           break;
         }
         case "guiConfig": {
-          buildByName(this.wsConfig, true, message.value.project, message.value.build, MenuConfig.GuiConfig);
-          setActive(this.wsConfig, message.value.project, message.value.build);
+          await setActive(this.wsConfig, message.value.project, message.value.build);
+          vscode.commands.executeCommand("zephyr-ide.start-gui-config");
           break;
         }
         case "flash": {

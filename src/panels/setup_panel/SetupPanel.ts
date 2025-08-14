@@ -401,7 +401,7 @@ export class SetupPanel {
                 "src",
                 "panels",
                 "setup_panel",
-                "setup-panel.css"
+                "SetupPanel.css"
             )
         );
         return `<link rel="stylesheet" type="text/css" href="${cssUri}">`;
@@ -414,7 +414,7 @@ export class SetupPanel {
                 "src",
                 "panels",
                 "setup_panel",
-                "setup-panel.js"
+                "SetupPanelHandler.js"
             )
         );
         return `<script src="${jsUri}"></script>`;
