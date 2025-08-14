@@ -136,7 +136,7 @@ export async function generateGitIgnore(context: vscode.ExtensionContext, wsConf
   let exists = await fs.pathExists(desPath);
   if (!exists) {
     const extensionPath = context.extensionPath;
-    let srcPath = path.join(extensionPath, "git_ignores", "gitignore_workspace_install");
+    let srcPath = path.join(extensionPath, "resources", "git_ignores", "gitignore_workspace_install");
     let res = await fs.copyFile(srcPath, desPath, fs.constants.COPYFILE_FICLONE);
   }
 }
@@ -146,7 +146,7 @@ export async function generateExtensionsRecommendations(context: vscode.Extensio
   let exists = await fs.pathExists(desPath);
   if (!exists) {
     const extensionPath = context.extensionPath;
-    let srcPath = path.join(extensionPath, "recommendations", "extensions.json");
+    let srcPath = path.join(extensionPath, "resources", "recommendations", "extensions.json");
     let res = await fs.copyFile(srcPath, desPath, fs.constants.COPYFILE_FICLONE);
   }
 }

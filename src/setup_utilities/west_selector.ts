@@ -148,7 +148,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
       }
 
       const extensionPath = context.extensionPath;
-      let srcPath = path.join(extensionPath, "west_templates", westFile);
+      let srcPath = path.join(extensionPath, "resources", "west_templates", westFile);
       let westDirPath = path.join(wsConfig.activeSetupState.setupPath, "west-manifest");
       let desPath = path.join(westDirPath, "west.yml");
       let exists = await fs.pathExists(westDirPath);
