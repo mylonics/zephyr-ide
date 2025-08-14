@@ -16,7 +16,7 @@ import { QuickPickItem, ExtensionContext } from 'vscode';
 import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs-extra";
-import { showQuickPick, showInputBox, showQuickPickMany } from "../utilities/multistepQuickPick";
+import { MultiStepInput, showQuickPickMany, showInputBox } from "../utilities/multistepQuickPick";
 import { SetupState } from '../setup_utilities/types';
 import { pickBoard, BoardConfig } from './build_selector';
 
@@ -67,10 +67,7 @@ export type TwisterStateDictionary = { [name: string]: TwisterState };
 export async function twisterSelector(projectFolder: string, context: ExtensionContext, setupState: SetupState, rootPath: string) {
   const title = 'Add Twister Configuration';
 
-  let twisterConfig: Partial<TwisterConfig> = {};
-  twisterConfig.tests = [];
-
-  //check if project contain sample.yaml or testcase.yaml
+  // Validate project has tests first
   let projectPath = path.join(rootPath, projectFolder);
   const tests = getTestsFromProject(projectPath);
 
@@ -79,142 +76,216 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
     return;
   }
 
-  let testQpItems: QuickPickItem[] = [];
-  testQpItems.push({ label: "All", picked: true });
-  testQpItems.push({ label: "", kind: vscode.QuickPickItemKind.Separator });
-  testQpItems = testQpItems.concat(tests.map(label => ({ label })));
+  async function selectTests(input: MultiStepInput, state: Partial<TwisterConfig>) {
+    let testQpItems: QuickPickItem[] = [];
+    testQpItems.push({ label: "All", picked: true });
+    testQpItems.push({ label: "", kind: vscode.QuickPickItemKind.Separator });
+    testQpItems = testQpItems.concat(tests.map(label => ({ label })));
 
-  const testPick = await showQuickPickMany({
-    title,
-    step: 1,
-    totalSteps: 3,
-    placeholder: 'Select Tests',
-    ignoreFocusOut: false,
-    items: testQpItems,
-    activeItem: undefined,
-    canSelectMany: false
-  }).catch((error) => {
-    console.error(error);
-    return undefined;
-  });
-  if (testPick === undefined) {
-    return;
-  }
-  if (testPick.length === 0) {
-    vscode.window.showErrorMessage("Need to select at least one test");
-    return;
-  }
+    // Use standalone showQuickPickMany for multi-select functionality
+    const testPick = await showQuickPickMany({
+      title,
+      step: 1,
+      totalSteps: 6, // Maximum possible steps for hardware path
+      placeholder: 'Select Tests',
+      ignoreFocusOut: false,
+      items: testQpItems,
+      activeItem: undefined
+    }).catch((error) => {
+      console.error(error);
+      return undefined;
+    });
 
-  for (let v of testPick) {
-    if (v.label === 'All') {
-      twisterConfig.tests = ['All'];
-      break;
+    if (testPick === undefined) {
+      return;
     }
-    twisterConfig.tests.push(v.label);
+    if (testPick.length === 0) {
+      vscode.window.showErrorMessage("Need to select at least one test");
+      return;
+    }
+
+    // Handle multi-select logic
+    let selectedTests: string[] = [];
+    for (let v of testPick) {
+      if (v.label === 'All') {
+        selectedTests = ['All'];
+        break;
+      }
+      selectedTests.push(v.label);
+    }
+
+    state.tests = selectedTests;
+    return (input: MultiStepInput) => selectPlatform(input, state);
   }
 
-  let platfroms = ["native_sim", "qemu", "hardware"];
+  async function selectPlatform(input: MultiStepInput, state: Partial<TwisterConfig>) {
+    let platforms = ["native_sim", "qemu", "hardware"];
+    const platformsQpItems: QuickPickItem[] = platforms.map(label => ({ label }));
+    platformsQpItems.push({ label: "", kind: vscode.QuickPickItemKind.Separator });
 
-  const platformsQpItems: QuickPickItem[] = platfroms.map(label => ({ label }));
-  platformsQpItems.push({ label: "", kind: vscode.QuickPickItemKind.Separator });
+    const pickPromise = input.showQuickPick({
+      title,
+      step: 2,
+      totalSteps: 6, // Maximum possible steps for hardware path
+      placeholder: 'Select Platform',
+      ignoreFocusOut: true,
+      items: platformsQpItems,
+      activeItem: undefined
+    }).catch((error) => {
+      console.error(error);
+      return undefined;
+    });
+
+    let pick = await pickPromise;
+    if (!pick) {
+      return;
+    }
+
+    state.platform = pick.label;
+
+    if (state.platform === "hardware") {
+      return (input: MultiStepInput) => selectBoardForHardware(input, state);
+    } else {
+      return (input: MultiStepInput) => inputTwisterArgs(input, state);
+    }
+  }
+
+  async function selectBoardForHardware(input: MultiStepInput, state: Partial<TwisterConfig>) {
+    let boardData = await pickBoard(setupState, rootPath);
+    if (boardData) {
+      state.boardConfig = boardData;
+      return (input: MultiStepInput) => inputSerialPort(input, state);
+    } else {
+      return;
+    }
+  }
+
+  async function inputSerialPort(input: MultiStepInput, state: Partial<TwisterConfig>) {
+    const inputPromise = input.showInputBox({
+      title,
+      step: 3,
+      totalSteps: 6,
+      value: "",
+      prompt: "Input a COM Port",
+      placeholder: "COM1",
+      ignoreFocusOut: true,
+      validate: validate
+    }).catch((error) => {
+      console.error(error);
+      return undefined;
+    });
+
+    state.serialPort = await inputPromise;
+    if (state.serialPort === undefined) {
+      return;
+    }
+
+    return (input: MultiStepInput) => inputSerialBaud(input, state);
+  }
+
+  async function inputSerialBaud(input: MultiStepInput, state: Partial<TwisterConfig>) {
+    const inputPromise = input.showInputBox({
+      title,
+      step: 4,
+      totalSteps: 6,
+      value: "",
+      prompt: "Input a COM Port Baudrate",
+      placeholder: "115200",
+      ignoreFocusOut: true,
+      validate: validate
+    }).catch((error) => {
+      console.error(error);
+      return undefined;
+    });
+
+    state.serialBaud = await inputPromise;
+    if (state.serialBaud === undefined) {
+      return;
+    }
+
+    return (input: MultiStepInput) => inputTwisterArgs(input, state);
+  }
+
+  async function inputTwisterArgs(input: MultiStepInput, state: Partial<TwisterConfig>) {
+    const totalSteps = state.platform === "hardware" ? 6 : 4;
+    const currentStep = state.platform === "hardware" ? 5 : 3;
+
+    const inputPromise = input.showInputBox({
+      title,
+      step: currentStep,
+      totalSteps: totalSteps,
+      value: "",
+      prompt: "Additional Twister Arguments",
+      placeholder: '--sysbuild',
+      ignoreFocusOut: true,
+      validate: validate
+    }).catch((error) => {
+      console.error(error);
+      return undefined;
+    });
+
+    state.args = await inputPromise;
+    if (state.args === undefined) {
+      return;
+    }
+
+    return (input: MultiStepInput) => inputConfigName(input, state);
+  }
+
+  async function inputConfigName(input: MultiStepInput, state: Partial<TwisterConfig>) {
+    const totalSteps = state.platform === "hardware" ? 6 : 4;
+    const currentStep = totalSteps;
+
+    // Generate default name
+    let default_name = (state.tests && state.tests.length > 1) ? "test" : (state.tests ? state.tests[0] : "test");
+
+    if (default_name === "All") {
+      default_name = "test";
+    }
+
+    if (state.boardConfig) {
+      default_name = default_name + "_" + state.boardConfig.board;
+      if (state.boardConfig.revision) {
+        default_name = default_name + "_" + state.boardConfig.revision;
+      }
+    } else {
+      default_name = default_name + "_" + state.platform;
+    }
+
+    const inputPromise = input.showInputBox({
+      title,
+      step: currentStep,
+      totalSteps: totalSteps,
+      value: default_name,
+      prompt: "Enter a name for this Test Configuration",
+      ignoreFocusOut: true,
+      validate: validate
+    }).catch((error) => {
+      console.error(error);
+      return undefined;
+    });
+
+    state.name = await inputPromise;
+    if (state.name === undefined) {
+      return;
+    }
+
+    return;
+  }
 
   async function validate(name: string) {
     return undefined;
   }
 
-  const platformPick = await showQuickPick({
-    title,
-    step: 2,
-    totalSteps: 3,
-    placeholder: 'Select Platform',
-    ignoreFocusOut: true,
-    items: platformsQpItems,
-    activeItem: undefined
-  }).catch((error) => {
-    console.error(error);
-    return undefined;
-  });
-  if (platformPick === undefined) {
-    return;
+  async function collectInputs() {
+    const state = {} as Partial<TwisterConfig>;
+    state.tests = [];
+    await MultiStepInput.run(input => selectTests(input, state));
+    return state as TwisterConfig;
   }
 
-  twisterConfig.platform = platformPick.label;
-  let totalSteps = 4;
-
-
-  if (twisterConfig.platform === "hardware") {
-    twisterConfig.boardConfig = await pickBoard(setupState, rootPath);
-    if (twisterConfig.boardConfig === undefined) {
-      return;
-    }
-    totalSteps = 6;
-
-    const comPortPick = await showInputBox({
-      title,
-      step: 3,
-      totalSteps: totalSteps,
-      prompt: "Input a COM Port",
-      value: "",
-      validate: validate,
-      placeholder: "COM1"
-    });
-
-    twisterConfig.serialPort = comPortPick;
-    const comPortBaudPick = await showInputBox({
-      title,
-      step: 4,
-      totalSteps: totalSteps,
-      prompt: "Input a COM Port Baudrate",
-      value: "",
-      validate: validate,
-      placeholder: "115200"
-    });
-    twisterConfig.serialBaud = comPortBaudPick;
-  }
-
-  const twisterArgsBox = await showInputBox({
-    title,
-    step: totalSteps - 1,
-    totalSteps: totalSteps,
-    prompt: "Additional Twister Arguments",
-    value: "",
-    placeholder: '--sysbuild',
-    validate: validate,
-  });
-  if (twisterArgsBox === undefined) {
-    return;
-  }
-  twisterConfig.args = twisterArgsBox;
-
-  let default_name = twisterConfig.tests.length > 1 ? "test" : twisterConfig.tests[0];
-
-  if (default_name === "All") {
-    default_name = "test";
-  }
-
-  if (twisterConfig.boardConfig) {
-    default_name = default_name + "_" + twisterConfig.boardConfig.board;
-    if (twisterConfig.boardConfig.revision) {
-      default_name = default_name + "_" + twisterConfig.boardConfig.revision;
-    }
-  } else {
-    default_name = default_name + "_" + twisterConfig.platform;
-  }
-
-  const nameInputBox = await showInputBox({
-    title,
-    step: totalSteps,
-    totalSteps: totalSteps,
-    prompt: "Enter a name for this Test Configuration",
-    value: default_name,
-    validate: validate,
-  });
-  if (nameInputBox === undefined) {
-    return;
-  }
-  twisterConfig.name = nameInputBox;
-
-  return twisterConfig as TwisterConfig;
+  const state = await collectInputs();
+  return state;
 }
 
 export async function reconfigureTest(config: TwisterConfig) {
