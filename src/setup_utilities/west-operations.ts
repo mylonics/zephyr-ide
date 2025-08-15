@@ -132,6 +132,46 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
     if (zephyrModuleInfo) {
       wsConfig.activeSetupState.zephyrDir = zephyrModuleInfo.path;
       wsConfig.activeSetupState.zephyrVersion = await getModuleVersion(zephyrModuleInfo.path);
+    } else {
+      // Fallback: check for zephyr/VERSION file in setupPath
+      const zephyrVersionFile = path.join(wsConfig.activeSetupState.setupPath, "zephyr", "VERSION");
+      if (fs.existsSync(zephyrVersionFile)) {
+        try {
+          const versionContent = fs.readFileSync(zephyrVersionFile, "utf8");
+          // Parse version info
+          const majorMatch = versionContent.match(/VERSION_MAJOR\s*=\s*(\d+)/);
+          const minorMatch = versionContent.match(/VERSION_MINOR\s*=\s*(\d+)/);
+          const patchMatch = versionContent.match(/PATCHLEVEL\s*=\s*(\d+)/);
+          const tweakMatch = versionContent.match(/VERSION_TWEAK\s*=\s*(\d+)/);
+          const extraMatch = versionContent.match(/EXTRAVERSION\s*=\s*(.*)/);
+          let version = "";
+          if (majorMatch && minorMatch && patchMatch) {
+            version = `${majorMatch[1]}.${minorMatch[1]}.${patchMatch[1]}`;
+            if (tweakMatch && tweakMatch[1] !== "0") {
+              version += `.${tweakMatch[1]}`;
+            }
+            if (extraMatch && extraMatch[1].trim()) {
+              version += `-${extraMatch[1].trim()}`;
+            }
+            wsConfig.activeSetupState.zephyrDir = path.join(wsConfig.activeSetupState.setupPath, "zephyr");
+            // Parse version string into ZephyrVersionNumber type
+            wsConfig.activeSetupState.zephyrVersion = {
+              major: majorMatch ? parseInt(majorMatch[1]) : 0,
+              minor: minorMatch ? parseInt(minorMatch[1]) : 0,
+              patch: patchMatch ? parseInt(patchMatch[1]) : 0,
+              tweak: tweakMatch ? parseInt(tweakMatch[1]) : 0,
+              extra: extraMatch && extraMatch[1].trim() !== "" ? parseInt(extraMatch[1].trim()) : 0
+            };
+            output.appendLine(`[SETUP] Zephyr version detected from VERSION file: ${version}`);
+          } else {
+            vscode.window.showErrorMessage("West Update succeeded, but Zephyr VERSION file could not be parsed.");
+          }
+        } catch (err) {
+          vscode.window.showErrorMessage("West Update succeeded, but error reading Zephyr VERSION file.");
+        }
+      } else {
+        vscode.window.showErrorMessage("West Update succeeded, but Zephyr module information could not be found.");
+      }
     }
 
     reloadEnvironmentVariables(context, wsConfig.activeSetupState);
@@ -160,16 +200,11 @@ export async function installPythonRequirements(context: vscode.ExtensionContext
     return false;
   }
 
-  let zephyrPath = await getModulePathAndVersion(wsConfig.activeSetupState, "zephyr");
-  if (!zephyrPath || !zephyrPath.path) {
-    vscode.window.showErrorMessage('Zephyr IDE: Zephyr folder not found. Please call West Update First');
-    return false;
-  }
 
   wsConfig.activeSetupState.packagesInstalled = false;
   saveSetupState(context, wsConfig, globalConfig);
 
-  let cmd = `pip install -r ${path.join(zephyrPath.path, "scripts", "requirements.txt")} -U dtsh patool semvar tqdm`;
+  let cmd = `pip install -r ${path.join(wsConfig.activeSetupState.zephyrDir, "scripts", "requirements.txt")} -U dtsh patool semvar tqdm`;
   let reqRes = await executeTaskHelperInPythonEnv(wsConfig.activeSetupState, "Zephyr IDE: Install Python Requirements", cmd, wsConfig.activeSetupState.setupPath);
 
   if (!reqRes) {
