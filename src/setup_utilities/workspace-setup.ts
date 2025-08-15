@@ -226,7 +226,7 @@ export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext
   // Second quick input for additional west arguments
   const additionalArgs = await vscode.window.showInputBox({
     prompt: "Enter any additional arguments for west init/update (optional)",
-    placeHolder: "-mr main",
+    placeHolder: "--mr main",
     ignoreFocusOut: true,
   });
 
