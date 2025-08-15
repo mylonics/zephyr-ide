@@ -40,7 +40,10 @@ jobs:
 
       # Optional build (ensure dist/extension.js exists if using bundler)
       - name: Build Extension
-        run: npm run esbuild --if-present
+        run: npm run esbuild
+
+      - name: Package extension
+        run: npx vsce package
 
       # Capture version from package.json for later release creation
       - name: Extract Version

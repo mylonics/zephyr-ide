@@ -1,5 +1,13 @@
 # Zephyr IDE for VS Code Developer's Guide
 
+This guide covers the development setup for the Zephyr IDE VS Code extension.
+
+## Related Documentation
+
+- [User Manual](MANUAL.md) - Complete user guide for the extension
+- [Testing Guide](TESTING.md) - Information about running tests and test infrastructure  
+- [Unused Code Detection](unused-code-detection.md) - Guide for detecting unused code
+
 ## Prerequisites
 
 * Git (https://git-scm.com/)

@@ -2,7 +2,7 @@
   "name": "zephyr-ide",
   "displayName": "Zephyr IDE",
   "description": "A VS Code extension that streamlines setup, build, flashing, and debugging of Zephyr Projects",
-  "version": "2.0.0",
+  "version": "2.0.2",
   "license": "Apache-2.0",
   "publisher": "mylonics",
   "icon": "media/logo.png",
@@ -63,6 +63,13 @@
           ],
           "default": false,
           "description": "Display gui config instead of menu config in Project Tree View"
+        },
+        "zephyr-ide.westNarrowUpdate": {
+          "type": [
+            "boolean"
+          ],
+          "default": false,
+          "description": "If true, uses 'west update --narrow'. If false, uses 'west update' without --narrow."
         }
       }
     },
@@ -615,7 +622,8 @@
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run esbuild && npm run lint",
     "lint": "eslint src --ext ts",
-    "test": "vscode-test"
+    "test": "vscode-test",
+    "detect-unused": "node scripts/detect-unused-code.js"
   },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
