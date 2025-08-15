@@ -63,6 +63,11 @@
           ],
           "default": false,
           "description": "Display gui config instead of menu config in Project Tree View"
+        },
+        "zephyr-ide.westNarrowUpdate": {
+          "type": ["boolean"],
+          "default": false,
+          "description": "If true, uses 'west update --narrow'. If false, uses 'west update' without --narrow."
         }
       }
     },
