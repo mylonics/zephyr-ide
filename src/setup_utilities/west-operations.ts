@@ -196,16 +196,11 @@ export async function installPythonRequirements(context: vscode.ExtensionContext
     return false;
   }
 
-  let zephyrPath = await getModulePathAndVersion(wsConfig.activeSetupState, "zephyr");
-  if (!zephyrPath || !zephyrPath.path) {
-    vscode.window.showErrorMessage('Zephyr IDE: Zephyr folder not found. Please call West Update First');
-    return false;
-  }
 
   wsConfig.activeSetupState.packagesInstalled = false;
   saveSetupState(context, wsConfig, globalConfig);
 
-  let cmd = `pip install -r ${path.join(zephyrPath.path, "scripts", "requirements.txt")} -U dtsh patool semvar tqdm`;
+  let cmd = `pip install -r ${path.join(wsConfig.activeSetupState.zephyrDir, "scripts", "requirements.txt")} -U dtsh patool semvar tqdm`;
   let reqRes = await executeTaskHelperInPythonEnv(wsConfig.activeSetupState, "Zephyr IDE: Install Python Requirements", cmd, wsConfig.activeSetupState.setupPath);
 
   if (!reqRes) {
