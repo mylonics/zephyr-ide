@@ -112,12 +112,16 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
     return false;
   }
 
+
   wsConfig.activeSetupState.westUpdated = false;
   wsConfig.activeSetupState.zephyrDir = "";
   wsConfig.activeSetupState.zephyrVersion = undefined;
   saveSetupState(context, wsConfig, globalConfig);
 
-  let cmd = `west update --narrow`;
+  // Read config option from settings.json
+  const configuration = vscode.workspace.getConfiguration('zephyr-ide');
+  const useNarrowUpdate = configuration.get<boolean>('westNarrowUpdate', false); // default false
+  let cmd = useNarrowUpdate ? 'west update --narrow' : 'west update';
   let westUpdateRes = await executeTaskHelperInPythonEnv(wsConfig.activeSetupState, "Zephyr IDE: West Update", cmd, wsConfig.activeSetupState.setupPath);
 
   if (!westUpdateRes) {
