@@ -2,7 +2,7 @@
   "name": "zephyr-ide",
   "displayName": "Zephyr IDE",
   "description": "A VS Code extension that streamlines setup, build, flashing, and debugging of Zephyr Projects",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "license": "Apache-2.0",
   "publisher": "mylonics",
   "icon": "media/logo.png",
@@ -65,7 +65,9 @@
           "description": "Display gui config instead of menu config in Project Tree View"
         },
         "zephyr-ide.westNarrowUpdate": {
-          "type": ["boolean"],
+          "type": [
+            "boolean"
+          ],
           "default": false,
           "description": "If true, uses 'west update --narrow'. If false, uses 'west update' without --narrow."
         }
