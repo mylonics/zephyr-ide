@@ -172,6 +172,7 @@ export async function createNewProjectFromSample(wsConfig: WorkspaceConfig) {
   loadingQuickPick.busy = true;
   loadingQuickPick.enabled = false;
   loadingQuickPick.placeholder = "Loading sample projects... Please wait.";
+  loadingQuickPick.ignoreFocusOut = true;
   loadingQuickPick.show();
 
   const samplesDir = await getSamples(wsConfig.activeSetupState);

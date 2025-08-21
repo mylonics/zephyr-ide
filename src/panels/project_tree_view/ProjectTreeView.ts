@@ -220,7 +220,7 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
     let projectData: any = {};
     projectData['icons'] = {
       branch: 'folder',
-      leaf: 'file',
+      leaf: 'folder',
       open: 'folder-opened',
     };
     projectData['actions'] = this.projectActions;
@@ -228,7 +228,12 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
     projectData['value'] = { project: project.name };
     projectData['subItems'] = [];
     projectData['open'] = viewOpen !== undefined ? viewOpen : true;
+    // Mark the active project (selected for highlight)
+    if (this.wsConfig.activeProject === project.name) {
+      projectData['selected'] = true;
+    }
 
+    // Always render children so arrows are visible; interaction is restricted in the webview handler
     for (let key in project.buildConfigs) {
       projectData.subItems.push(this.generateBuildString(project.name, project.buildConfigs[key]));
     }
@@ -236,7 +241,6 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
     for (let key in project.twisterConfigs) {
       projectData.subItems.push(this.generateTestString(project.name, project.twisterConfigs[key]));
     }
-
 
     if (projectData.subItems.length === 0) {
       projectData.subItems.push({
@@ -279,6 +283,7 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
     try {
       this.treeData.forEach((element: any) => {
         if (element.label in this.wsConfig.projects) {
+          // Persist open state for all projects so their state is restored when they become active
           this.wsConfig.projectStates[element.label].viewOpen = element.open;
           element.subItems.forEach((build_element: any) => {
             if (build_element.label in this.wsConfig.projects[element.label].buildConfigs) {
@@ -324,7 +329,7 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
       <script nonce="${nonce}" src="${assetUri('src/panels/project_tree_view/ProjectTreeViewHandler.js')}"  type="module"></script>
     </head>
     <body>
-    <vscode-tree id="project-tree" indent-guides arrows></vscode-tree>
+  <vscode-tree id="project-tree" indent-guides arrows></vscode-tree>
     ${body}
     </body>
     </html>`;
