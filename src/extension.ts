@@ -1106,13 +1106,34 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.show-container", async () => {
+      // Reveal any view inside our container; this triggers container visibility
+      await vscode.commands.executeCommand("workbench.view.extension.zephyr-ide-main");
+    })
+  );
+
+  context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.update-web-view", async () => {
       activeProjectView.updateWebView(wsConfig);
       projectTreeView.updateWebView(wsConfig);
       projectConfigView.updateWebView(wsConfig);
+      // Ensure the setup panel stays in sync as well
+      extensionSetupView.updateWebView(wsConfig, globalConfig);
+      if (SetupPanel.currentPanel) {
+        SetupPanel.currentPanel.updateContent(wsConfig, globalConfig);
+      }
       vscode.commands.executeCommand("zephyr-ide.update-status");
     })
   );
+
+  // Kick an initial refresh shortly after activation so views render even if no command ran yet
+  setTimeout(() => {
+    try {
+      vscode.commands.executeCommand("zephyr-ide.update-web-view");
+    } catch (e) {
+      console.error("Zephyr IDE: initial webview refresh failed", e);
+    }
+  }, 100);
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.start-menu-config", async () => {

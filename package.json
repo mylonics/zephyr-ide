@@ -26,18 +26,9 @@
     "Other"
   ],
   "activationEvents": [
-    "zephyr-ide.get-active-project-name",
-    "zephyr-ide.get-active-project-path",
-    "zephyr-ide.get-active-build-path",
-    "zephyr-ide.get-active-build-board-path",
-    "zephyr-ide.select-active-build-path",
-    "zephyr-ide.get-gdb-path",
-    "zephyr-ide.get-toolchain-path",
-    "zephyr-ide.get-zephyr-ide-json-variable",
-    "zephyr-ide.get-active-project-variable",
-    "zephyr-ide.get-active-build-variable",
-    "zephyr-ide.get-active-board-name",
-    "workspaceContains:.vscode/zephyr-ide.json"
+  "onStartupFinished",
+  "workspaceContains:.vscode/zephyr-ide.json",
+  "onViewContainer:zephyr-ide-main"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -166,6 +157,10 @@
       ]
     },
     "commands": [
+      {
+        "command": "zephyr-ide.show-container",
+        "title": "Zephyr IDE: Show View Container"
+      },
       {
         "command": "zephyr-ide.check-build-dependencies",
         "title": "Zephyr IDE: Setup Check Build Dependencies Available"
