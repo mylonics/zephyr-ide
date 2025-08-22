@@ -65,7 +65,8 @@ suite("Standard Workspace Test Suite", () => {
             ? path.join(existingWorkspace, "std")
             : path.join(os.tmpdir(), "std-" + Date.now());
 
-        await fs.ensureDir(testWorkspaceDir);
+        // Ensure the test workspace directory exists and is empty to avoid git clone/setup failures
+        await fs.emptyDir(testWorkspaceDir);
 
         const mockWorkspaceFolder: vscode.WorkspaceFolder = {
             uri: vscode.Uri.file(testWorkspaceDir),
