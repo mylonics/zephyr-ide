@@ -57,7 +57,8 @@ suite("Workspace Out Of Tree Test Suite", () => {
             ? path.join(existingWorkspace, "out-tree")
             : path.join(os.tmpdir(), "out-tree-" + Date.now());
 
-        await fs.ensureDir(testWorkspaceDir);
+        // Ensure the test workspace directory exists and is empty to avoid git clone/setup failures
+        await fs.emptyDir(testWorkspaceDir);
 
         const mockWorkspaceFolder: vscode.WorkspaceFolder = {
             uri: vscode.Uri.file(testWorkspaceDir),
