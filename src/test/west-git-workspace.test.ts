@@ -147,7 +147,7 @@ suite("West Git Workspace Test Suite", () => {
             // Prime the mock interface for build configuration interactions
             gitUiMock.primeInteractions([
                 { type: 'quickpick', value: 'select other folder', description: 'Select other folder for boards' },
-                { type: 'opendialog', value: path.join(testWorkspaceDir, "zephyr-example.git", "boards"), description: 'Select boards folder' },
+                { type: 'opendialog', value: path.join(testWorkspaceDir, "zephyr-ide-samples", "boards"), description: 'Select boards folder' },
                 { type: 'quickpick', value: 'custom_plank', description: 'Select custom_plank board' },
                 { type: 'input', value: 'test_build_2', description: 'Enter build name' },
                 { type: 'quickpick', value: 'debug', description: 'Select debug optimization' },
