@@ -49,11 +49,8 @@ suite("Open Current Directory Test Suite", () => {
     });
 
     setup(async () => {
-        const existingWorkspace =
-            vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-        testWorkspaceDir = existingWorkspace
-            ? path.join(existingWorkspace, "curr-dir")
-            : path.join(os.tmpdir(), "curr-dir-" + Date.now());
+        // Always use isolated temporary directory to ensure empty folder
+        testWorkspaceDir = path.join(os.tmpdir(), "curr-dir-" + Date.now());
 
         await fs.ensureDir(testWorkspaceDir);
 
