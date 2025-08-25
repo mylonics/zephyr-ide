@@ -48,11 +48,8 @@ suite("West Git Workspace Test Suite", () => {
     });
 
     setup(async () => {
-        const existingWorkspace =
-            vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-        testWorkspaceDir = existingWorkspace
-            ? path.join(existingWorkspace, "west-git")
-            : path.join(os.tmpdir(), "west-git-" + Date.now());
+        // Always use isolated temporary directory to ensure empty folder
+        testWorkspaceDir = path.join(os.tmpdir(), "west-git-" + Date.now());
 
         await fs.ensureDir(testWorkspaceDir);
 
