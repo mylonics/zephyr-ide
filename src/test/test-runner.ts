@@ -21,6 +21,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import * as os from 'os';
+import * as assert from 'assert';
 import { WorkspaceConfig, GlobalConfig } from '../setup_utilities/types';
 import { checkIfToolsAvailable } from '../setup_utilities/tools-validation';
 
@@ -216,9 +217,17 @@ export async function printWorkspaceOnFailure(testName: string, error: any): Pro
     } else {
         // Fallback: try to find test workspace directories in temp folder
         const tempDir = os.tmpdir();
+        console.log(`🔍 Searching for test workspace in temp directory: ${tempDir}`);
         try {
             const tempItems = await fs.readdir(tempDir);
+            console.log(`📋 Found ${tempItems.length} items in temp directory`);
+
             const testDirs = tempItems.filter(item =>
+                item.startsWith('std-') ||
+                item.startsWith('west-git-') ||
+                item.startsWith('curr-dir-') ||
+                item.startsWith('out-tree-') ||
+                item.startsWith('ide-spc-') ||
                 item.startsWith('zide-') ||
                 item.startsWith('test-') ||
                 item.includes('workspace')
@@ -232,6 +241,8 @@ export async function printWorkspaceOnFailure(testName: string, error: any): Pro
                     return 0;
                 }
             });
+
+            console.log(`🎯 Found ${testDirs.length} potential test directories: ${testDirs.slice(0, 5).join(', ')}${testDirs.length > 5 ? ', ...' : ''}`);
 
             if (testDirs.length > 0) {
                 testWorkspaceDir = path.join(tempDir, testDirs[0]);
@@ -306,9 +317,17 @@ export async function printWorkspaceOnSuccess(testName: string, workspaceDir?: s
         } else {
             // Try to find test workspace in temp directory
             const tempDir = os.tmpdir();
+            console.log(`🔍 Searching for test workspace in temp directory: ${tempDir}`);
             try {
                 const tempItems = await fs.readdir(tempDir);
+                console.log(`📋 Found ${tempItems.length} items in temp directory`);
+
                 const testDirs = tempItems.filter(item =>
+                    item.startsWith('std-') ||
+                    item.startsWith('west-git-') ||
+                    item.startsWith('curr-dir-') ||
+                    item.startsWith('out-tree-') ||
+                    item.startsWith('ide-spc-') ||
                     item.startsWith('zide-') ||
                     item.startsWith('test-') ||
                     item.includes('workspace')
@@ -322,6 +341,8 @@ export async function printWorkspaceOnSuccess(testName: string, workspaceDir?: s
                         return 0;
                     }
                 });
+
+                console.log(`🎯 Found ${testDirs.length} potential test directories: ${testDirs.slice(0, 5).join(', ')}${testDirs.length > 5 ? ', ...' : ''}`);
 
                 if (testDirs.length > 0) {
                     testWorkspaceDir = path.join(tempDir, testDirs[0]);
@@ -379,3 +400,197 @@ export async function printWorkspaceOnSuccess(testName: string, workspaceDir?: s
 
     console.log(`✅ ${testName} completed successfully!\n`);
 }
+
+/**
+ * Setup test workspace with VS Code mocking
+ * @param prefix Directory prefix for test workspace (e.g., "std", "west-git")
+ * @returns Object containing testWorkspaceDir and originalWorkspaceFolders
+ */
+export async function setupTestWorkspace(prefix: string): Promise<{
+    testWorkspaceDir: string;
+    originalWorkspaceFolders: readonly vscode.WorkspaceFolder[] | undefined;
+}> {
+    // Create isolated temporary directory
+    const testWorkspaceDir = path.join(os.tmpdir(), `${prefix}-${Date.now()}`);
+    await fs.ensureDir(testWorkspaceDir);
+
+    // Mock VS Code workspace folder
+    const mockWorkspaceFolder: vscode.WorkspaceFolder = {
+        uri: vscode.Uri.file(testWorkspaceDir),
+        name: path.basename(testWorkspaceDir),
+        index: 0,
+    };
+
+    // Store original workspace folders for restoration
+    const originalWorkspaceFolders = vscode.workspace.workspaceFolders;
+    Object.defineProperty(vscode.workspace, "workspaceFolders", {
+        value: [mockWorkspaceFolder],
+        configurable: true,
+    });
+
+    // Mock VS Code configuration and UI methods
+    vscode.workspace.getConfiguration = () =>
+    ({
+        get: () => undefined,
+        update: () => Promise.resolve(),
+        has: () => false,
+        inspect: (key: string) => ({
+            key,
+            defaultValue: undefined,
+            globalValue: undefined,
+            workspaceValue: undefined,
+            workspaceFolderValue: undefined,
+        }),
+    } as any);
+
+    vscode.window.showInformationMessage = async () => undefined;
+    vscode.window.showWarningMessage = async () => undefined;
+    vscode.window.showErrorMessage = async () => undefined;
+
+    return { testWorkspaceDir, originalWorkspaceFolders };
+}
+
+/**
+ * Cleanup test workspace and restore VS Code state
+ * @param testWorkspaceDir Directory to cleanup
+ * @param originalWorkspaceFolders Original workspace folders to restore
+ */
+export async function cleanupTestWorkspace(
+    testWorkspaceDir: string,
+    originalWorkspaceFolders: readonly vscode.WorkspaceFolder[] | undefined
+): Promise<void> {
+    // Restore original workspace folders
+    if (originalWorkspaceFolders !== undefined) {
+        Object.defineProperty(vscode.workspace, "workspaceFolders", {
+            value: originalWorkspaceFolders,
+            configurable: true,
+        });
+    }
+
+    // Remove test directory
+    if (testWorkspaceDir && (await fs.pathExists(testWorkspaceDir))) {
+        await fs.remove(testWorkspaceDir);
+    }
+}
+
+/**
+ * Activate extension and wait for initialization
+ * @param extensionId Extension ID to activate (default: "mylonics.zephyr-ide")
+ * @param waitTime Time to wait after activation in milliseconds (default: 3000)
+ */
+export async function activateExtension(
+    extensionId: string = "mylonics.zephyr-ide",
+    waitTime: number = 3000
+): Promise<void> {
+    const extension = vscode.extensions.getExtension(extensionId);
+    if (extension && !extension.isActive) {
+        await extension.activate();
+    }
+    await new Promise((resolve) => setTimeout(resolve, waitTime));
+}
+
+/**
+ * Execute final build command with workspace state validation
+ * @param testName Name of the test for logging
+ * @param retryDelayMs Delay before retry if setup not complete (default: 10000)
+ */
+export async function executeFinalBuild(
+    testName: string,
+    retryDelayMs: number = 10000
+): Promise<void> {
+    console.log("⚡ Executing final build...");
+
+    // Check if workspace setup is complete
+    const ext = vscode.extensions.getExtension("mylonics.zephyr-ide");
+    const wsConfig = ext?.exports?.getWorkspaceConfig();
+    if (!wsConfig?.initialSetupComplete) {
+        console.log(`⚠️ Setup not complete for ${testName}, retrying in ${retryDelayMs / 1000} seconds...`);
+        await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+    }
+
+    const result = await vscode.commands.executeCommand("zephyr-ide.build");
+    assert.ok(result, "Build execution should succeed");
+}
+
+/**
+ * Complete test execution wrapper with error handling and cleanup
+ * @param testName Name of the test
+ * @param testWorkspaceDir Test workspace directory
+ * @param uiMock UI mock interface to deactivate
+ * @param testFunction The actual test function to execute
+ */
+export async function executeTestWithErrorHandling(
+    testName: string,
+    testWorkspaceDir: string,
+    uiMock: any, // UIMockInterface type
+    testFunction: () => Promise<void>
+): Promise<void> {
+    try {
+        await testFunction();
+
+        // Deactivate UI mock on success
+        uiMock.deactivate();
+
+        // Print workspace structure on success
+        await printWorkspaceOnSuccess(testName, testWorkspaceDir);
+
+    } catch (error) {
+        // Handle failure with detailed logging
+        await printWorkspaceOnFailure(testName, error);
+        await new Promise((resolve) => setTimeout(resolve, 30000));
+        throw error;
+    }
+}
+
+/**
+ * Execute standard workspace setup command with UI mock interactions
+ * @param uiMock UI mock interface
+ * @param interactions Array of UI interactions to prime
+ * @param commandId VS Code command ID to execute
+ * @param successMessage Success assertion message
+ */
+export async function executeWorkspaceCommand(
+    uiMock: any,
+    interactions: Array<{ type: string, value: string, description: string, multiSelect?: boolean }>,
+    commandId: string,
+    successMessage: string
+): Promise<void> {
+    uiMock.primeInteractions(interactions);
+
+    const result = await vscode.commands.executeCommand(commandId);
+    assert.ok(result, successMessage);
+}
+
+/**
+ * Common UI interaction patterns for different workspace setup types
+ */
+export const CommonUIInteractions = {
+    // Standard workspace setup interactions
+    standardWorkspace: [
+        { type: 'quickpick', value: 'minimal', description: 'Select minimal manifest' },
+        { type: 'quickpick', value: 'stm32', description: 'Select STM32 toolchain' },
+        { type: 'quickpick', value: 'v4.2.0', description: 'Select default configuration' },
+        { type: 'input', value: '', description: 'Select additional west init args' },
+        { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
+        { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
+        { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
+    ],
+
+    // Project creation interactions
+    createBlinkyProject: [
+        { type: 'quickpick', value: 'blinky', description: 'Select blinky template' },
+        { type: 'input', value: 'blinky', description: 'Enter project name' }
+    ],
+
+    // Build configuration interactions
+    addBuildConfig: [
+        { type: 'quickpick', value: 'qemu_x86', description: 'Select QEMU x86 board' }
+    ],
+
+    // SDK installation interactions
+    sdkAutoInstall: [
+        { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
+        { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
+        { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
+    ]
+};

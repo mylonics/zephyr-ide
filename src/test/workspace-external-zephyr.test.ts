@@ -20,7 +20,18 @@ import * as vscode from "vscode";
 import * as fs from "fs-extra";
 import * as path from "path";
 import * as os from "os";
-import { logTestEnvironment, monitorWorkspaceSetup, printWorkspaceOnFailure, printWorkspaceOnSuccess } from "./test-runner";
+import {
+    logTestEnvironment,
+    monitorWorkspaceSetup,
+    printWorkspaceOnFailure,
+    printWorkspaceOnSuccess,
+    setupTestWorkspace,
+    cleanupTestWorkspace,
+    activateExtension,
+    executeFinalBuild,
+    executeTestWithErrorHandling,
+    executeWorkspaceCommand
+} from "./test-runner";
 import { UIMockInterface, MockInteraction } from "./ui-mock-interface";
 
 /*
@@ -51,53 +62,13 @@ suite("Workspace External Zephyr Test Suite", () => {
     });
 
     setup(async () => {
-        // Always use isolated temporary directory to ensure empty folder
-        testWorkspaceDir = path.join(os.tmpdir(), "out-tree-" + Date.now());
-
-        await fs.ensureDir(testWorkspaceDir);
-
-        const mockWorkspaceFolder: vscode.WorkspaceFolder = {
-            uri: vscode.Uri.file(testWorkspaceDir),
-            name: path.basename(testWorkspaceDir),
-            index: 0,
-        };
-
-        originalWorkspaceFolders = vscode.workspace.workspaceFolders;
-        Object.defineProperty(vscode.workspace, "workspaceFolders", {
-            value: [mockWorkspaceFolder],
-            configurable: true,
-        });
-
-        vscode.workspace.getConfiguration = () =>
-        ({
-            get: () => undefined,
-            update: () => Promise.resolve(),
-            has: () => false,
-            inspect: (key: string) => ({
-                key,
-                defaultValue: undefined,
-                globalValue: undefined,
-                workspaceValue: undefined,
-                workspaceFolderValue: undefined,
-            }),
-        } as any);
-
-        vscode.window.showInformationMessage = async () => undefined;
-        vscode.window.showWarningMessage = async () => undefined;
-        vscode.window.showErrorMessage = async () => undefined;
+        const workspace = await setupTestWorkspace("out-tree");
+        testWorkspaceDir = workspace.testWorkspaceDir;
+        originalWorkspaceFolders = workspace.originalWorkspaceFolders;
     });
 
     teardown(async () => {
-        if (originalWorkspaceFolders !== undefined) {
-            Object.defineProperty(vscode.workspace, "workspaceFolders", {
-                value: originalWorkspaceFolders,
-                configurable: true,
-            });
-        }
-
-        if (testWorkspaceDir && (await fs.pathExists(testWorkspaceDir))) {
-            await fs.remove(testWorkspaceDir);
-        }
+        await cleanupTestWorkspace(testWorkspaceDir, originalWorkspaceFolders);
     });
 
     test("Workspace Out Of Tree: Git Setup → Use Existing → Global → West Selector → Build", async function () {
@@ -105,63 +76,41 @@ suite("Workspace External Zephyr Test Suite", () => {
 
         console.log("🚀 Starting workspace out of tree test...");
 
-        try {
-            const extension = vscode.extensions.getExtension("mylonics.zephyr-ide");
-            if (extension && !extension.isActive) {
-                await extension.activate();
+        const uiMock = new UIMockInterface();
+
+        await executeTestWithErrorHandling(
+            "External Zephyr Workspace Test",
+            testWorkspaceDir,
+            uiMock,
+            async () => {
+                await activateExtension();
+                uiMock.activate();
+
+                console.log("🏗️ Step 1: Setting up workspace from git without west folder...");
+                await executeWorkspaceCommand(
+                    uiMock,
+                    [
+                        { type: 'input', value: '--branch no_west -- https://github.com/mylonics/zephyr-ide-samples.git', description: 'Enter git clone string for no_west branch' },
+                        { type: 'quickpick', value: 'Use external Zephyr installation', description: 'Choose Use Existing Zephyr Installation option' },
+                        { type: 'quickpick', value: 'Global Installation', description: 'Choose Global Installation option' },
+                        { type: 'quickpick', value: 'minimal', description: 'Select minimal manifest' },
+                        { type: 'quickpick', value: 'stm32', description: 'Select STM32 toolchain' },
+                        { type: 'quickpick', value: 'v4.2.0', description: 'Select default configuration' },
+                        { type: 'input', value: '', description: 'Select additional west init args' },
+                        { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
+                        { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
+                        { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
+                    ],
+                    "zephyr-ide.workspace-setup-from-git",
+                    "Git workspace setup should succeed"
+                );
+
+                await monitorWorkspaceSetup("workspace out of tree");
+
+                console.log("⚡ Step 2: Executing build...");
+                await executeFinalBuild("External Zephyr Workspace");
             }
-            await new Promise((resolve) => setTimeout(resolve, 3000));
-
-            // Initialize UI Mock Interface
-            const uiMock = new UIMockInterface();
-            uiMock.activate();
-
-            console.log("🏗️ Step 1: Setting up workspace from git without west folder...");
-            // Prime the mock interface for git setup with no_west branch
-            uiMock.primeInteractions([
-                { type: 'input', value: '--branch no_west -- https://github.com/mylonics/zephyr-ide-samples.git', description: 'Enter git clone string for no_west branch' },
-                { type: 'quickpick', value: 'Use external Zephyr installation', description: 'Choose Use Existing Zephyr Installation option' },
-                { type: 'quickpick', value: 'Global Installation', description: 'Choose Global Installation option' },
-                { type: 'quickpick', value: 'minimal', description: 'Select minimal manifest' },
-                { type: 'quickpick', value: 'stm32', description: 'Select STM32 toolchain' },
-                { type: 'quickpick', value: 'v4.2.0', description: 'Select default configuration' },
-                { type: 'input', value: '', description: 'Select additional west init args' },
-                { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
-                { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
-                { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
-            ]);
-
-
-            let result = await vscode.commands.executeCommand(
-                "zephyr-ide.workspace-setup-from-git"
-            );
-            assert.ok(result, "Git workspace setup should succeed");
-
-            await monitorWorkspaceSetup("workspace out of tree");
-
-            console.log("⚡ Step 2: Executing build...");
-            // Wait for workspace setup to complete
-            const ext = vscode.extensions.getExtension("mylonics.zephyr-ide");
-            const wsConfig = ext?.exports?.getWorkspaceConfig();
-            if (!wsConfig?.initialSetupComplete) {
-                console.log("⚠️ Setup not complete, retrying in 10 seconds...");
-                await new Promise((resolve) => setTimeout(resolve, 10000));
-            }
-
-            result = await vscode.commands.executeCommand("zephyr-ide.build");
-            assert.ok(result, "Build execution should succeed");
-
-            // Deactivate the UI Mock Interface
-            uiMock.deactivate();
-
-            // Print workspace structure on success
-            await printWorkspaceOnSuccess("External Zephyr Workspace Test", testWorkspaceDir);
-
-        } catch (error) {
-            await printWorkspaceOnFailure("External Zephyr Workspace", error);
-            await new Promise((resolve) => setTimeout(resolve, 30000));
-            throw error;
-        }
+        );
     }).timeout(900000);
 
 });

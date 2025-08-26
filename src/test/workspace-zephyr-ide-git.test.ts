@@ -20,7 +20,18 @@ import * as vscode from "vscode";
 import * as fs from "fs-extra";
 import * as path from "path";
 import * as os from "os";
-import { logTestEnvironment, monitorWorkspaceSetup, printWorkspaceOnFailure, printWorkspaceOnSuccess } from "./test-runner";
+import {
+    logTestEnvironment,
+    monitorWorkspaceSetup,
+    printWorkspaceOnFailure,
+    printWorkspaceOnSuccess,
+    setupTestWorkspace,
+    cleanupTestWorkspace,
+    activateExtension,
+    executeFinalBuild,
+    executeTestWithErrorHandling,
+    executeWorkspaceCommand
+} from "./test-runner";
 import { UIMockInterface, MockInteraction } from "./ui-mock-interface";
 
 /*
@@ -50,53 +61,13 @@ suite("Workspace Zephyr IDE Git Test Suite", () => {
     });
 
     setup(async () => {
-        // Always use isolated temporary directory to ensure empty folder
-        testWorkspaceDir = path.join(os.tmpdir(), "ide-spc-" + Date.now());
-
-        await fs.ensureDir(testWorkspaceDir);
-
-        const mockWorkspaceFolder: vscode.WorkspaceFolder = {
-            uri: vscode.Uri.file(testWorkspaceDir),
-            name: path.basename(testWorkspaceDir),
-            index: 0,
-        };
-
-        originalWorkspaceFolders = vscode.workspace.workspaceFolders;
-        Object.defineProperty(vscode.workspace, "workspaceFolders", {
-            value: [mockWorkspaceFolder],
-            configurable: true,
-        });
-
-        vscode.workspace.getConfiguration = () =>
-        ({
-            get: () => undefined,
-            update: () => Promise.resolve(),
-            has: () => false,
-            inspect: (key: string) => ({
-                key,
-                defaultValue: undefined,
-                globalValue: undefined,
-                workspaceValue: undefined,
-                workspaceFolderValue: undefined,
-            }),
-        } as any);
-
-        vscode.window.showInformationMessage = async () => undefined;
-        vscode.window.showWarningMessage = async () => undefined;
-        vscode.window.showErrorMessage = async () => undefined;
+        const workspace = await setupTestWorkspace("ide-spc");
+        testWorkspaceDir = workspace.testWorkspaceDir;
+        originalWorkspaceFolders = workspace.originalWorkspaceFolders;
     });
 
     teardown(async () => {
-        if (originalWorkspaceFolders !== undefined) {
-            Object.defineProperty(vscode.workspace, "workspaceFolders", {
-                value: originalWorkspaceFolders,
-                configurable: true,
-            });
-        }
-
-        if (testWorkspaceDir && (await fs.pathExists(testWorkspaceDir))) {
-            await fs.remove(testWorkspaceDir);
-        }
+        await cleanupTestWorkspace(testWorkspaceDir, originalWorkspaceFolders);
     });
 
     test("Zephyr IDE Git Workspace: Git Setup → SDK Install → Build", async function () {
@@ -104,66 +75,40 @@ suite("Workspace Zephyr IDE Git Test Suite", () => {
 
         console.log("🚀 Starting Zephyr IDE git workspace test...");
 
-        try {
-            const extension = vscode.extensions.getExtension("mylonics.zephyr-ide");
-            if (extension && !extension.isActive) {
-                await extension.activate();
+        const gitUiMock = new UIMockInterface();
+
+        await executeTestWithErrorHandling(
+            "Zephyr IDE Git Workspace Test",
+            testWorkspaceDir,
+            gitUiMock,
+            async () => {
+                await activateExtension();
+                gitUiMock.activate();
+
+                console.log("🏗️ Step 1: Setting up workspace from Zephyr IDE Git...");
+                await executeWorkspaceCommand(
+                    gitUiMock,
+                    [
+                        { type: 'input', value: '--branch main -- https://github.com/mylonics/zephyr-ide-samples.git', description: 'Enter Zephyr IDE git repo URL' },
+                        { type: 'quickpick', value: 'use-west-folder', description: 'Use .west folder (Recommended)' }
+                    ],
+                    "zephyr-ide.workspace-setup-from-git",
+                    "Zephyr IDE git workspace setup should succeed"
+                );
+
+                // Prime SDK installation interactions
+                gitUiMock.primeInteractions([
+                    { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
+                    { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
+                    { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
+                ]);
+
+                await monitorWorkspaceSetup("Zephyr IDE git workspace");
+
+                console.log("⚡ Step 2: Executing build...");
+                await executeFinalBuild("Zephyr IDE Git Workspace");
             }
-            await new Promise((resolve) => setTimeout(resolve, 3000));
-
-            // Initialize UI Mock Interface for Zephyr IDE git workflow
-            const gitUiMock = new UIMockInterface();
-            gitUiMock.activate();
-
-            console.log("🏗️ Step 1: Setting up workspace from Zephyr IDE Git...");
-            // Prime the mock interface for Zephyr IDE git workspace setup
-            gitUiMock.primeInteractions([
-                { type: 'input', value: '--branch main -- https://github.com/mylonics/zephyr-ide-samples.git', description: 'Enter Zephyr IDE git repo URL' },
-                { type: 'quickpick', value: 'use-west-folder', description: 'Use .west folder (Recommended)' }
-            ]);
-
-            let result = await vscode.commands.executeCommand(
-                "zephyr-ide.workspace-setup-from-git"
-            );
-            assert.ok(result, "Zephyr IDE git workspace setup should succeed");
-
-            gitUiMock.primeInteractions([
-                { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
-                { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
-                { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
-            ]);
-
-            await monitorWorkspaceSetup("Zephyr IDE git workspace");
-
-            console.log("⚙️ Step 2: Installing SDK...");
-            // Prime the mock interface for SDK installation interactions
-
-            //result = await vscode.commands.executeCommand("zephyr-ide.install-sdk");
-            //assert.ok(result, "SDK installation should succeed");
-
-            console.log("⚡ Step 3: Executing build...");
-            // Wait a moment for workspace setup to complete
-            const ext = vscode.extensions.getExtension("mylonics.zephyr-ide");
-            const wsConfig = ext?.exports?.getWorkspaceConfig();
-            if (!wsConfig?.initialSetupComplete) {
-                console.log("⚠️ Setup not complete, retrying in 10 seconds...");
-                await new Promise((resolve) => setTimeout(resolve, 10000));
-            }
-
-            result = await vscode.commands.executeCommand("zephyr-ide.build");
-            assert.ok(result, "Build execution should succeed");
-
-            // Deactivate the UI Mock Interface
-            gitUiMock.deactivate();
-
-            // Print workspace structure on success
-            await printWorkspaceOnSuccess("Zephyr IDE Git Workspace Test", testWorkspaceDir);
-
-        } catch (error) {
-            await printWorkspaceOnFailure("Zephyr IDE Git Workspace", error);
-            await new Promise((resolve) => setTimeout(resolve, 30000));
-            throw error;
-        }
+        );
     }).timeout(900000);
 
 });

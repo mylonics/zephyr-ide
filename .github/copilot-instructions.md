@@ -60,9 +60,9 @@ npm test
 # Run specific integration test suites (requires Zephyr SDK)
 # TIMEOUT: 15+ minutes each - NEVER CANCEL
 xvfb-run -a node scripts/run-integration-tests.js standard
-xvfb-run -a node scripts/run-integration-tests.js git
+xvfb-run -a node scripts/run-integration-tests.js west-git
 xvfb-run -a node scripts/run-integration-tests.js zephyr-ide-git
-xvfb-run -a node scripts/run-integration-tests.js open-current-dir
+xvfb-run -a node scripts/run-integration-tests.js local-west
 xvfb-run -a node scripts/run-integration-tests.js external-zephyr
 
 # Skip actual Zephyr builds in tests (faster testing)

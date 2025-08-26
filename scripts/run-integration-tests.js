@@ -61,10 +61,10 @@ try {
     let grepPattern;
     switch (testType) {
         case 'standard':
-            grepPattern = '"Workspace Standard Test Suite"';
+            grepPattern = '"Standard Workspace Test Suite"';
             break;
         case 'west-git':
-            grepPattern = '"Workspace West Git Test Suite"';
+            grepPattern = '"West Git Workspace Test Suite"';
             break;
         case 'zephyr-ide-git':
             grepPattern = '"Workspace Zephyr IDE Git Test Suite"';

@@ -24,7 +24,19 @@ import * as vscode from "vscode";
 import * as fs from "fs-extra";
 import * as path from "path";
 import * as os from "os";
-import { logTestEnvironment, monitorWorkspaceSetup, printWorkspaceOnFailure, printWorkspaceOnSuccess } from "./test-runner";
+import {
+    logTestEnvironment,
+    monitorWorkspaceSetup,
+    printWorkspaceOnFailure,
+    printWorkspaceOnSuccess,
+    setupTestWorkspace,
+    cleanupTestWorkspace,
+    activateExtension,
+    executeFinalBuild,
+    executeTestWithErrorHandling,
+    executeWorkspaceCommand,
+    CommonUIInteractions
+} from "./test-runner";
 import { UIMockInterface, MockInteraction } from "./ui-mock-interface";
 
 /*
@@ -63,137 +75,76 @@ suite("Standard Workspace Test Suite", () => {
     });
 
     setup(async () => {
-        // Always use isolated temporary directory to ensure empty folder
-        testWorkspaceDir = path.join(os.tmpdir(), "std-" + Date.now());
-
-        await fs.ensureDir(testWorkspaceDir);
-
-        const mockWorkspaceFolder: vscode.WorkspaceFolder = {
-            uri: vscode.Uri.file(testWorkspaceDir),
-            name: path.basename(testWorkspaceDir),
-            index: 0,
-        };
-
-        originalWorkspaceFolders = vscode.workspace.workspaceFolders;
-        Object.defineProperty(vscode.workspace, "workspaceFolders", {
-            value: [mockWorkspaceFolder],
-            configurable: true,
-        });
-
-        vscode.workspace.getConfiguration = () =>
-        ({
-            get: () => undefined,
-            update: () => Promise.resolve(),
-            has: () => false,
-            inspect: (key: string) => ({
-                key,
-                defaultValue: undefined,
-                globalValue: undefined,
-                workspaceValue: undefined,
-                workspaceFolderValue: undefined,
-            }),
-        } as any);
-
-        vscode.window.showInformationMessage = async () => undefined;
-        vscode.window.showWarningMessage = async () => undefined;
-        vscode.window.showErrorMessage = async () => undefined;
+        const workspace = await setupTestWorkspace("std");
+        testWorkspaceDir = workspace.testWorkspaceDir;
+        originalWorkspaceFolders = workspace.originalWorkspaceFolders;
     });
 
     teardown(async () => {
-        if (originalWorkspaceFolders !== undefined) {
-            Object.defineProperty(vscode.workspace, "workspaceFolders", {
-                value: originalWorkspaceFolders,
-                configurable: true,
-            });
-        }
-
-        if (testWorkspaceDir && (await fs.pathExists(testWorkspaceDir))) {
-            await fs.remove(testWorkspaceDir);
-        }
+        await cleanupTestWorkspace(testWorkspaceDir, originalWorkspaceFolders);
     });
 
     test("Complete Workflow: Dependencies → Setup → Project → Build → Execute", async function () {
-        this.timeout(620000);
+        this.timeout(900000);
 
         console.log("🚀 Starting workflow test...");
 
-        try {
-            const extension = vscode.extensions.getExtension("mylonics.zephyr-ide");
-            if (extension && !extension.isActive) {
-                await extension.activate();
+        const uiMock = new UIMockInterface();
+
+        await executeTestWithErrorHandling(
+            "Standard Workspace Test",
+            testWorkspaceDir,
+            uiMock,
+            async () => {
+                await activateExtension();
+                uiMock.activate();
+
+                console.log("📋 Step 1: Checking build dependencies...");
+                await executeWorkspaceCommand(
+                    uiMock,
+                    [],
+                    "zephyr-ide.check-build-dependencies",
+                    "Build dependencies check should succeed"
+                );
+
+                console.log("🏗️ Step 2: Setting up workspace...");
+                await executeWorkspaceCommand(
+                    uiMock,
+                    CommonUIInteractions.standardWorkspace,
+                    "zephyr-ide.workspace-setup-standard",
+                    "Workspace setup should succeed"
+                );
+
+                await monitorWorkspaceSetup();
+
+                console.log("📁 Step 3: Creating project from template...");
+                await executeWorkspaceCommand(
+                    uiMock,
+                    CommonUIInteractions.createBlinkyProject,
+                    "zephyr-ide.create-project",
+                    "Project creation should succeed"
+                );
+
+                console.log("🔨 Step 4: Adding build configuration...");
+                await executeWorkspaceCommand(
+                    uiMock,
+                    [
+                        { type: 'quickpick', value: 'zephyr directory', description: 'Use Zephyr directory only' },
+                        { type: 'quickpick', value: 'nucleo_f401', description: 'Select Nucleo board' },
+                        { type: 'input', value: 'test_build_1', description: 'Enter build name' },
+                        { type: 'quickpick', value: 'debug', description: 'Select debug optimization' },
+                        { type: 'input', value: '', description: 'Additional build args' },
+                        { type: 'input', value: '-DCONFIG_DEBUG_OPTIMIZATIONS=y -DCONFIG_DEBUG_THREAD_INFO=y ', description: 'CMake args' }
+                    ],
+                    "zephyr-ide.add-build",
+                    "Build configuration should succeed"
+                );
+
+                await new Promise((resolve) => setTimeout(resolve, 10000));
+                console.log("⚡ Step 5: Executing build...");
+                await executeFinalBuild("Standard Workspace");
             }
-            await new Promise((resolve) => setTimeout(resolve, 3000));
-
-            // Initialize UI Mock Interface
-            const uiMock = new UIMockInterface();
-            uiMock.activate();
-
-
-            console.log("📋 Step 1: Checking build dependencies...");
-            let result = await vscode.commands.executeCommand(
-                "zephyr-ide.check-build-dependencies"
-            );
-            assert.ok(result, "Build dependencies check should succeed");
-
-            console.log("🏗️ Step 2: Setting up workspace...");
-            // Prime the mock interface for workspace setup interactions
-            uiMock.primeInteractions([
-                { type: 'quickpick', value: 'minimal', description: 'Select minimal manifest' },
-                { type: 'quickpick', value: 'stm32', description: 'Select STM32 toolchain' },
-                { type: 'quickpick', value: 'v4.2.0', description: 'Select default configuration' },
-                { type: 'input', value: '', description: 'Select additional west init args' },
-                { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
-                { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
-                { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
-            ]);
-
-            result = await vscode.commands.executeCommand(
-                "zephyr-ide.workspace-setup-standard"
-            );
-            assert.ok(result, "Workspace setup should succeed");
-
-            await monitorWorkspaceSetup();
-
-            console.log("📁 Step 4: Creating project from template...");
-            // Prime the mock interface for project creation interactions
-            uiMock.primeInteractions([
-                { type: 'quickpick', value: 'blinky', description: 'Select blinky template' },
-                { type: 'input', value: 'blinky', description: 'Enter project name' }
-            ]);
-
-            result = await vscode.commands.executeCommand("zephyr-ide.create-project");
-            assert.ok(result, "Project creation should succeed");
-
-            console.log("🔨 Step 5: Adding build configuration...");
-            // Prime the mock interface for build configuration interactions
-            uiMock.primeInteractions([
-                { type: 'quickpick', value: 'zephyr directory', description: 'Use Zephyr directory only' },
-                { type: 'quickpick', value: 'nucleo_f401', description: 'Select Nucleo board' },
-                { type: 'input', value: 'test_build_1', description: 'Enter build name' },
-                { type: 'quickpick', value: 'debug', description: 'Select debug optimization' },
-                { type: 'input', value: '', description: 'Additional build args' },
-                { type: 'input', value: '-DCONFIG_DEBUG_OPTIMIZATIONS=y -DCONFIG_DEBUG_THREAD_INFO=y ', description: 'CMake args' }
-            ]);
-
-            result = await vscode.commands.executeCommand("zephyr-ide.add-build");
-            assert.ok(result, "Build configuration should succeed");
-
-            await new Promise((resolve) => setTimeout(resolve, 10000));
-            console.log("⚡ Step 6: Executing build...");
-            result = await vscode.commands.executeCommand("zephyr-ide.build");
-            assert.ok(result, "Build execution should succeed");
-
-            // Deactivate the UI Mock Interface
-            uiMock.deactivate();
-
-            // Print workspace structure on success
-            await printWorkspaceOnSuccess("Standard Workspace Test", testWorkspaceDir);
-
-        } catch (error) {
-            await printWorkspaceOnFailure("Standard Workspace", error);
-            await new Promise((resolve) => setTimeout(resolve, 30000));
-            throw error;
-        }
+        );
     }).timeout(900000);
 
 
