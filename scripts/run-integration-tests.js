@@ -40,6 +40,7 @@ if (testType === '--help' || testType === '-h' || testType === 'help') {
     console.log('Examples:');
     console.log('  node scripts/run-integration-tests.js standard');
     console.log('  node scripts/run-integration-tests.js west-git');
+    console.log('  node scripts/run-integration-tests.js external-zephyr');
     console.log('  node scripts/run-integration-tests.js all');
     console.log('');
     console.log('Environment Variables:');

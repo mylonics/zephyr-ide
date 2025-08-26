@@ -63,7 +63,7 @@ xvfb-run -a node scripts/run-integration-tests.js standard
 xvfb-run -a node scripts/run-integration-tests.js git
 xvfb-run -a node scripts/run-integration-tests.js zephyr-ide-git
 xvfb-run -a node scripts/run-integration-tests.js open-current-dir
-xvfb-run -a node scripts/run-integration-tests.js out-of-tree
+xvfb-run -a node scripts/run-integration-tests.js external-zephyr
 
 # Skip actual Zephyr builds in tests (faster testing)
 SKIP_BUILD_TESTS=true npm test
@@ -99,7 +99,7 @@ The integration tests validate complete workflows:
 - **Git Workspace**: Git clone → SDK → project → custom board build (15 min)
 - **Zephyr IDE Git**: Zephyr IDE specific git workflow (15 min)
 - **Open Directory**: Current directory workspace setup (15 min)
-- **Out of Tree**: Out-of-tree project builds (15 min)
+- **External Zephyr**: External zephyr workspace builds (15 min)
 
 ## Repository Structure
 
@@ -143,7 +143,7 @@ src/
 │   ├── workspace-west-git.test.ts         - Git-based workspace creation
 │   ├── workspace-zephyr-ide-git.test.ts   - Zephyr IDE specific git workflow
 │   ├── workspace-local-west.test.ts       - Current directory workspace
-│   ├── workspace-external-zephyr.test.ts  - Out-of-tree project builds
+│   ├── workspace-external-zephyr.test.ts  - External zephyr workspace builds
 │   ├── test-runner.ts                  - Test execution framework
 │   └── ui-mock-interface.ts            - Mock UI for headless testing
 └── utilities/          - Shared helper functions

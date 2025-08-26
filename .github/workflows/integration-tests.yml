@@ -38,9 +38,9 @@ jobs:
       - name: Run linting
         run: npm run lint
 
-      - name: Run workspace out of tree integration tests
+      - name: Run external zephyr workspace integration tests
         run: |
-          xvfb-run -a node scripts/run-integration-tests.js out-of-tree
+          xvfb-run -a node scripts/run-integration-tests.js external-zephyr
         env:
           NODE_ENV: test
           ZEPHYR_BASE: /tmp/zephyr

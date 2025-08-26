@@ -24,7 +24,7 @@ import * as vscode from "vscode";
 import * as fs from "fs-extra";
 import * as path from "path";
 import * as os from "os";
-import { logTestEnvironment, monitorWorkspaceSetup, printWorkspaceOnFailure } from "./test-runner";
+import { logTestEnvironment, monitorWorkspaceSetup, printWorkspaceOnFailure, printWorkspaceOnSuccess } from "./test-runner";
 import { UIMockInterface, MockInteraction } from "./ui-mock-interface";
 
 /*
@@ -185,6 +185,9 @@ suite("Standard Workspace Test Suite", () => {
 
             // Deactivate the UI Mock Interface
             uiMock.deactivate();
+
+            // Print workspace structure on success
+            await printWorkspaceOnSuccess("Standard Workspace Test", testWorkspaceDir);
 
         } catch (error) {
             await printWorkspaceOnFailure("Standard Workspace", error);

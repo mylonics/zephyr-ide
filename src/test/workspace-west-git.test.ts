@@ -26,7 +26,7 @@ import * as vscode from "vscode";
 import * as fs from "fs-extra";
 import * as path from "path";
 import * as os from "os";
-import { logTestEnvironment, monitorWorkspaceSetup, printWorkspaceOnFailure } from "./test-runner";
+import { logTestEnvironment, monitorWorkspaceSetup, printWorkspaceOnFailure, printWorkspaceOnSuccess } from "./test-runner";
 import { UIMockInterface, MockInteraction } from "./ui-mock-interface";
 
 /*
@@ -178,6 +178,9 @@ suite("West Git Workspace Test Suite", () => {
 
             // Deactivate the UI Mock Interface
             gitUiMock.deactivate();
+
+            // Print workspace structure on success
+            await printWorkspaceOnSuccess("West Git Workspace Test", testWorkspaceDir);
 
         } catch (error) {
             await printWorkspaceOnFailure("West Git Workspace", error);

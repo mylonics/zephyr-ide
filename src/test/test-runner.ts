@@ -286,3 +286,96 @@ export async function printWorkspaceOnFailure(testName: string, error: any): Pro
 
     console.log(`\n`);
 }
+
+/**
+ * Print workspace directory structure on test success for validation
+ * @param testName Name of the test that succeeded
+ * @param workspaceDir Optional workspace directory path (will auto-detect if not provided)
+ */
+export async function printWorkspaceOnSuccess(testName: string, workspaceDir?: string): Promise<void> {
+    console.log(`\n🎉 ${testName} SUCCEEDED! Final workspace structure:`);
+
+    let testWorkspaceDir = workspaceDir;
+
+    // Auto-detect workspace directory if not provided
+    if (!testWorkspaceDir) {
+        // Check VS Code workspace folders first
+        if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
+            testWorkspaceDir = vscode.workspace.workspaceFolders[0].uri.fsPath;
+            console.log(`📁 Using VS Code workspace: ${testWorkspaceDir}`);
+        } else {
+            // Try to find test workspace in temp directory
+            const tempDir = os.tmpdir();
+            try {
+                const tempItems = await fs.readdir(tempDir);
+                const testDirs = tempItems.filter(item =>
+                    item.startsWith('zide-') ||
+                    item.startsWith('test-') ||
+                    item.includes('workspace')
+                ).sort((a, b) => {
+                    // Sort by modification time, newest first
+                    try {
+                        const statA = fs.statSync(path.join(tempDir, a));
+                        const statB = fs.statSync(path.join(tempDir, b));
+                        return statB.mtime.getTime() - statA.mtime.getTime();
+                    } catch {
+                        return 0;
+                    }
+                });
+
+                if (testDirs.length > 0) {
+                    testWorkspaceDir = path.join(tempDir, testDirs[0]);
+                    console.log(`📁 Test workspace directory (detected from temp): ${testWorkspaceDir}`);
+                }
+            } catch (err) {
+                console.log(`⚠ Could not scan temp directory: ${err}`);
+            }
+        }
+    }
+
+    if (testWorkspaceDir && await fs.pathExists(testWorkspaceDir)) {
+        console.log(`📂 Final workspace directory structure:`);
+        await printDirectoryStructure(testWorkspaceDir, 3);
+
+        // Print key configuration files
+        const westYml = path.join(testWorkspaceDir, 'west.yml');
+        if (await fs.pathExists(westYml)) {
+            console.log(`📄 west.yml configuration:`);
+            try {
+                const content = await fs.readFile(westYml, 'utf8');
+                console.log(content.split('\n').slice(0, 20).join('\n')); // Show first 20 lines
+                if (content.split('\n').length > 20) {
+                    console.log('... (truncated)');
+                }
+            } catch (err) {
+                console.log(`❌ Error reading west.yml: ${err}`);
+            }
+        }
+
+        // Print project count summary
+        try {
+            const items = await fs.readdir(testWorkspaceDir);
+            const directories = [];
+            for (const item of items) {
+                const itemPath = path.join(testWorkspaceDir, item);
+                const stat = await fs.stat(itemPath);
+                if (stat.isDirectory() && !item.startsWith('.')) {
+                    directories.push(item);
+                }
+            }
+            console.log(`📊 Workspace summary: ${directories.length} main directories`);
+            if (directories.length > 0) {
+                console.log(`   Directories: ${directories.slice(0, 10).join(', ')}${directories.length > 10 ? ', ...' : ''}`);
+            }
+        } catch (err) {
+            console.log(`⚠ Could not analyze workspace summary: ${err}`);
+        }
+    } else if (testWorkspaceDir) {
+        console.log(`❌ Test workspace directory does not exist: ${testWorkspaceDir}`);
+    } else {
+        console.log(`❌ Could not determine test workspace directory`);
+        console.log(`📁 Current working directory: ${process.cwd()}`);
+    }
+
+    console.log(`✅ ${testName} completed successfully!\n`);
+}

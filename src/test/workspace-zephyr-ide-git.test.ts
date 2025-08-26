@@ -20,7 +20,7 @@ import * as vscode from "vscode";
 import * as fs from "fs-extra";
 import * as path from "path";
 import * as os from "os";
-import { logTestEnvironment, monitorWorkspaceSetup, printWorkspaceOnFailure } from "./test-runner";
+import { logTestEnvironment, monitorWorkspaceSetup, printWorkspaceOnFailure, printWorkspaceOnSuccess } from "./test-runner";
 import { UIMockInterface, MockInteraction } from "./ui-mock-interface";
 
 /*
@@ -155,6 +155,9 @@ suite("Workspace Zephyr IDE Git Test Suite", () => {
 
             // Deactivate the UI Mock Interface
             gitUiMock.deactivate();
+
+            // Print workspace structure on success
+            await printWorkspaceOnSuccess("Zephyr IDE Git Workspace Test", testWorkspaceDir);
 
         } catch (error) {
             await printWorkspaceOnFailure("Zephyr IDE Git Workspace", error);
