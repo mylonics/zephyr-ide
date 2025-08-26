@@ -23,6 +23,31 @@ const fs = require('fs');
 
 const testType = process.argv[2] || 'all';
 
+// Show help if requested
+if (testType === '--help' || testType === '-h' || testType === 'help') {
+    console.log('=== Zephyr IDE Integration Test Runner ===');
+    console.log('');
+    console.log('Usage: node scripts/run-integration-tests.js [test-type]');
+    console.log('');
+    console.log('Available test types:');
+    console.log('  standard        - Standard workspace workflow test');
+    console.log('  west-git        - West git workspace workflow test');
+    console.log('  zephyr-ide-git  - Zephyr IDE git workspace workflow test');
+    console.log('  local-west      - Local west workspace workflow test');
+    console.log('  external-zephyr - External zephyr workspace workflow test');
+    console.log('  all             - Run all tests (default)');
+    console.log('');
+    console.log('Examples:');
+    console.log('  node scripts/run-integration-tests.js standard');
+    console.log('  node scripts/run-integration-tests.js west-git');
+    console.log('  node scripts/run-integration-tests.js all');
+    console.log('');
+    console.log('Environment Variables:');
+    console.log('  SKIP_BUILD_TESTS=true - Skip actual build execution');
+    console.log('  CI=true              - Automatically detected in CI environments');
+    process.exit(0);
+}
+
 console.log(`=== Running Zephyr IDE ${testType.toUpperCase()} Workflow Integration Tests ===`);
 console.log('🔬 These tests execute the Zephyr IDE workflow using VS Code commands');
 console.log('');
@@ -35,19 +60,19 @@ try {
     let grepPattern;
     switch (testType) {
         case 'standard':
-            grepPattern = '"Standard Workspace Test Suite"';
+            grepPattern = '"Workspace Standard Test Suite"';
             break;
-        case 'git':
-            grepPattern = '"West Git Workspace Test Suite"';
+        case 'west-git':
+            grepPattern = '"Workspace West Git Test Suite"';
             break;
         case 'zephyr-ide-git':
-            grepPattern = '"Zephyr IDE Git Workspace Test Suite"';
+            grepPattern = '"Workspace Zephyr IDE Git Test Suite"';
             break;
-        case 'open-current-dir':
-            grepPattern = '"Open Current Directory Test Suite"';
+        case 'local-west':
+            grepPattern = '"Workspace Local West Test Suite"';
             break;
-        case 'out-of-tree':
-            grepPattern = '"Workspace Out Of Tree Test Suite"';
+        case 'external-zephyr':
+            grepPattern = '"Workspace External Zephyr Test Suite"';
             break;
         case 'all':
         default:
@@ -57,9 +82,9 @@ try {
 
     // Run workflow integration tests
     console.log(`Running ${testType} workflow integration tests...`);
-    execSync(`npx vscode-test --grep ${grepPattern}`, { 
-        stdio: 'inherit', 
-        cwd: path.dirname(__dirname) 
+    execSync(`npx vscode-test --grep ${grepPattern}`, {
+        stdio: 'inherit',
+        cwd: path.dirname(__dirname)
     });
 
     console.log(`✓ ${testType} workflow integration tests completed successfully`);
@@ -68,5 +93,8 @@ try {
     console.error('');
     console.error('This test executes the Zephyr IDE workflow.');
     console.error('Some steps may fail if build dependencies are not available.');
+    console.error('');
+    console.error('Available test types: standard, west-git, zephyr-ide-git, local-west, external-zephyr, all');
+    console.error('Run "node scripts/run-integration-tests.js help" for more information.');
     process.exit(1);
 }

@@ -2,7 +2,13 @@
 Copyright 2024 mylonics 
 Author Rijesh Augustine
 
-Licensed under the Apache License, Version 2.0 (the "License");
+Licensed usuite("Workspace West Git Test Suite", () => {
+    let testWorkspaceDir: string;
+    let originalWorkspaceFolders: readonly vscode.WorkspaceFolder[] | undefined;
+
+    suiteSetup(() => {
+        logTestEnvironment();
+        console.log("🔬 Testing west git workspace workflow");e Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
@@ -28,15 +34,15 @@ async function printDirectoryStructure(dirPath: string, maxDepth: number = 2, cu
     if (currentDepth >= maxDepth || !await fs.pathExists(dirPath)) {
         return;
     }
-    
+
     try {
         const items = await fs.readdir(dirPath);
         const indent = "  ".repeat(currentDepth);
-        
+
         for (const item of items.sort()) {
             const itemPath = path.join(dirPath, item);
             const stats = await fs.stat(itemPath);
-            
+
             if (stats.isDirectory()) {
                 console.log(`${indent}📁 ${item}/`);
                 await printDirectoryStructure(itemPath, maxDepth, currentDepth + 1);

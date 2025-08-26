@@ -1,8 +1,12 @@
 /*
 Copyright 2024 mylonics 
-Author Rijesh Augustine
+Author Rijesh Augustisuite("Workspace Standard Test Suite", () => {
+    let testWorkspaceDir: string;
+    let originalWorkspaceFolders: readonly vscode.WorkspaceFolder[] | undefined;
 
-Licensed under the Apache License, Version 2.0 (the "License");
+    suiteSetup(() => {
+        logTestEnvironment();
+        console.log("🔬 Testing standard workspace workflow");icensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
@@ -24,35 +28,43 @@ import { logTestEnvironment, monitorWorkspaceSetup } from "./test-runner";
 import { UIMockInterface, MockInteraction } from "./ui-mock-interface";
 
 /*
- * WORKSPACE OUT OF TREE INTEGRATION TEST:
+ * CLEAN INTEGRATION TEST ARCHITECTURE:
  * 
- * Tests the out-of-tree workspace setup workflow:
- * 1. Setup workspace from git with --branch no_west
- * 2. When prompted, choose "Use Existing Zephyr Installation"
- * 3. Select "Global Installation" option
- * 4. Go through west selector process (minimal, stm32)
- * 5. Execute build
+ * 1. UI Mock Interface (ui-mock-interface.ts):
+ *    - Handles all VSCode UI interactions (quickpick, input, opendialog)
+ *    - Step-by-step priming: uiMock.primeInteractions([...])
+ *    - Clean lifecycle: activate() → prime → execute → deactivate()
  * 
- * This tests the scenario where a git repository does not contain
- * west.yml files and the user chooses to use an existing Zephyr
- * installation with global installation type.
+ * 2. Workspace Monitoring (test-runner.ts):
+ *    - Centralized monitoring logic: await monitorWorkspaceSetup("type")
+ *    - Reusable across different test scenarios
+ *    - Progress tracking and timeout handling
  * 
- * Git command: --branch no_west -- https://github.com/mylonics/zephyr-ide-sample-project.git
- * UI Flow: "Use Existing Zephyr Installation" → "Global Installation" → west selector
+ * 3. Test Structure:
+ *    - Initialize UI mock once
+ *    - Prime interactions before each step
+ *    - Use shared monitoring utilities
+ *    - Clean separation of concerns
+ * 
+ * Benefits:
+ * - Reduced code duplication (100+ lines removed)
+ * - Maintainable and readable tests
+ * - Reusable components across test files
+ * - Clear intent with descriptive interactions
  */
 
-suite("Workspace Out Of Tree Test Suite", () => {
+suite("Standard Workspace Test Suite", () => {
     let testWorkspaceDir: string;
     let originalWorkspaceFolders: readonly vscode.WorkspaceFolder[] | undefined;
 
     suiteSetup(() => {
         logTestEnvironment();
-        console.log("🔬 Testing workspace out of tree workflow");
+        console.log("🔬 Testing standard Zephyr IDE workflow");
     });
 
     setup(async () => {
         // Always use isolated temporary directory to ensure empty folder
-        testWorkspaceDir = path.join(os.tmpdir(), "out-tree-" + Date.now());
+        testWorkspaceDir = path.join(os.tmpdir(), "std-" + Date.now());
 
         await fs.ensureDir(testWorkspaceDir);
 
@@ -100,10 +112,10 @@ suite("Workspace Out Of Tree Test Suite", () => {
         }
     });
 
-    test("Workspace Out Of Tree: Git Setup → Use Existing → Global → West Selector → Build", async function () {
+    test("Complete Workflow: Dependencies → Setup → Project → Build → Execute", async function () {
         this.timeout(620000);
 
-        console.log("🚀 Starting workspace out of tree test...");
+        console.log("🚀 Starting workflow test...");
 
         try {
             const extension = vscode.extensions.getExtension("mylonics.zephyr-ide");
@@ -116,12 +128,16 @@ suite("Workspace Out Of Tree Test Suite", () => {
             const uiMock = new UIMockInterface();
             uiMock.activate();
 
-            console.log("🏗️ Step 1: Setting up workspace from git without west folder...");
-            // Prime the mock interface for git setup with no_west branch
+
+            console.log("📋 Step 1: Checking build dependencies...");
+            let result = await vscode.commands.executeCommand(
+                "zephyr-ide.check-build-dependencies"
+            );
+            assert.ok(result, "Build dependencies check should succeed");
+
+            console.log("🏗️ Step 2: Setting up workspace...");
+            // Prime the mock interface for workspace setup interactions
             uiMock.primeInteractions([
-                { type: 'input', value: '--branch no_west -- https://github.com/mylonics/zephyr-ide-samples.git', description: 'Enter git clone string for no_west branch' },
-                { type: 'quickpick', value: 'Use external Zephyr installation', description: 'Choose Use Existing Zephyr Installation option' },
-                { type: 'quickpick', value: 'Global Installation', description: 'Choose Global Installation option' },
                 { type: 'quickpick', value: 'minimal', description: 'Select minimal manifest' },
                 { type: 'quickpick', value: 'stm32', description: 'Select STM32 toolchain' },
                 { type: 'quickpick', value: 'v4.2.0', description: 'Select default configuration' },
@@ -131,23 +147,39 @@ suite("Workspace Out Of Tree Test Suite", () => {
                 { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
             ]);
 
-
-            let result = await vscode.commands.executeCommand(
-                "zephyr-ide.workspace-setup-from-git"
+            result = await vscode.commands.executeCommand(
+                "zephyr-ide.workspace-setup-standard"
             );
-            assert.ok(result, "Git workspace setup should succeed");
+            assert.ok(result, "Workspace setup should succeed");
 
-            await monitorWorkspaceSetup("workspace out of tree");
+            await monitorWorkspaceSetup();
 
-            console.log("⚡ Step 2: Executing build...");
-            // Wait for workspace setup to complete
-            const ext = vscode.extensions.getExtension("mylonics.zephyr-ide");
-            const wsConfig = ext?.exports?.getWorkspaceConfig();
-            if (!wsConfig?.initialSetupComplete) {
-                console.log("⚠️ Setup not complete, retrying in 10 seconds...");
-                await new Promise((resolve) => setTimeout(resolve, 10000));
-            }
+            console.log("📁 Step 4: Creating project from template...");
+            // Prime the mock interface for project creation interactions
+            uiMock.primeInteractions([
+                { type: 'quickpick', value: 'blinky', description: 'Select blinky template' },
+                { type: 'input', value: 'blinky', description: 'Enter project name' }
+            ]);
 
+            result = await vscode.commands.executeCommand("zephyr-ide.create-project");
+            assert.ok(result, "Project creation should succeed");
+
+            console.log("🔨 Step 5: Adding build configuration...");
+            // Prime the mock interface for build configuration interactions
+            uiMock.primeInteractions([
+                { type: 'quickpick', value: 'zephyr directory', description: 'Use Zephyr directory only' },
+                { type: 'quickpick', value: 'nucleo_f401', description: 'Select Nucleo board' },
+                { type: 'input', value: 'test_build_1', description: 'Enter build name' },
+                { type: 'quickpick', value: 'debug', description: 'Select debug optimization' },
+                { type: 'input', value: '', description: 'Additional build args' },
+                { type: 'input', value: '-DCONFIG_DEBUG_OPTIMIZATIONS=y -DCONFIG_DEBUG_THREAD_INFO=y ', description: 'CMake args' }
+            ]);
+
+            result = await vscode.commands.executeCommand("zephyr-ide.add-build");
+            assert.ok(result, "Build configuration should succeed");
+
+            await new Promise((resolve) => setTimeout(resolve, 10000));
+            console.log("⚡ Step 6: Executing build...");
             result = await vscode.commands.executeCommand("zephyr-ide.build");
             assert.ok(result, "Build execution should succeed");
 
@@ -155,10 +187,14 @@ suite("Workspace Out Of Tree Test Suite", () => {
             uiMock.deactivate();
 
         } catch (error) {
-            console.error("❌ Workspace out of tree test failed:", error);
+            console.error("❌ Workflow test failed:", error);
             await new Promise((resolve) => setTimeout(resolve, 30000));
+
             throw error;
         }
     }).timeout(900000);
+
+
+
 
 });

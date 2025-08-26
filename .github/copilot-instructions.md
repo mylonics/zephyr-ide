@@ -7,6 +7,7 @@ Zephyr IDE is a VS Code extension that provides comprehensive tools for Zephyr R
 ## Working Effectively
 
 ### Bootstrap and Dependencies
+
 **CRITICAL: All build and test commands take significant time. NEVER CANCEL operations.**
 
 ```bash
@@ -24,13 +25,14 @@ which ninja && ninja --version
 ```
 
 ### Build Commands
+
 **Set timeouts to 10+ minutes for all build commands. NEVER CANCEL.**
 
 ```bash
 # Compile TypeScript (3 seconds)
 npm run test-compile
 
-# Compile for development (3 seconds) 
+# Compile for development (3 seconds)
 npm run compile
 
 # Bundle extension with esbuild (1 second)
@@ -47,6 +49,7 @@ npm run pretest
 ```
 
 ### Testing Commands
+
 **CRITICAL: Integration tests take 10-15 minutes each. Set timeouts to 20+ minutes. NEVER CANCEL.**
 
 ```bash
@@ -67,6 +70,7 @@ SKIP_BUILD_TESTS=true npm test
 ```
 
 ### VS Code Extension Development
+
 ```bash
 # Open extension for development
 # 1. Open VS Code in the repository directory
@@ -80,6 +84,7 @@ SKIP_BUILD_TESTS=true npm test
 **ALWAYS test these scenarios after making changes to ensure functionality:**
 
 ### Manual Extension Validation
+
 1. **Extension Loading**: Press F5 to launch extension host, verify Zephyr IDE appears in activity bar
 2. **Workspace Setup**: Test workspace initialization commands work
 3. **Project Creation**: Verify project creation from templates functions
@@ -87,9 +92,11 @@ SKIP_BUILD_TESTS=true npm test
 5. **Command Palette**: Verify all "Zephyr IDE:" commands are available
 
 ### Integration Test Coverage
+
 The integration tests validate complete workflows:
+
 - **Standard Workspace**: Dependencies → west setup → SDK install → project creation → build (15 min)
-- **Git Workspace**: Git clone → SDK → project → custom board build (15 min)  
+- **Git Workspace**: Git clone → SDK → project → custom board build (15 min)
 - **Zephyr IDE Git**: Zephyr IDE specific git workflow (15 min)
 - **Open Directory**: Current directory workspace setup (15 min)
 - **Out of Tree**: Out-of-tree project builds (15 min)
@@ -97,6 +104,7 @@ The integration tests validate complete workflows:
 ## Repository Structure
 
 ### Core Source Files
+
 ```
 src/
 ├── extension.ts         - Main extension entry point, registers commands and webview panels
@@ -131,11 +139,11 @@ src/
 │   ├── flash.ts               - Device flashing and debugging
 │   └── twister.ts             - Test execution and reporting
 ├── test/               - Integration test suites (15+ min each)
-│   ├── standard-workspace.test.ts      - Full workspace setup → build
-│   ├── west-git-workspace.test.ts      - Git-based workspace creation
-│   ├── zephyr-ide-git-workspace.test.ts - Zephyr IDE specific git workflow
-│   ├── open-current-directory.test.ts  - Current directory workspace
-│   ├── workspace-out-of-tree.test.ts   - Out-of-tree project builds
+│   ├── workspace-standard.test.ts         - Full workspace setup → build
+│   ├── workspace-west-git.test.ts         - Git-based workspace creation
+│   ├── workspace-zephyr-ide-git.test.ts   - Zephyr IDE specific git workflow
+│   ├── workspace-local-west.test.ts       - Current directory workspace
+│   ├── workspace-external-zephyr.test.ts  - Out-of-tree project builds
 │   ├── test-runner.ts                  - Test execution framework
 │   └── ui-mock-interface.ts            - Mock UI for headless testing
 └── utilities/          - Shared helper functions
@@ -145,6 +153,7 @@ src/
 ```
 
 ### Build and Distribution
+
 ```
 dist/                   - Production bundled extension (esbuild output)
 out/                    - Development compiled TypeScript (tsc output)
@@ -153,6 +162,7 @@ west_templates/         - West.yml templates for different workspace types
 ```
 
 ### Configuration Files
+
 ```
 package.json           - Extension manifest, commands, activation events, npm scripts
 tsconfig.json         - TypeScript compilation settings, path mappings
@@ -163,6 +173,7 @@ tsconfig.json         - TypeScript compilation settings, path mappings
 ```
 
 ### Key Architecture Patterns
+
 - **Command Registration**: All VS Code commands defined in `package.json` and registered in `extension.ts`
 - **Webview Communication**: Panels use message passing between TypeScript and HTML/JS
 - **State Management**: Extension state persisted via VS Code APIs in `state-management.ts`
@@ -172,6 +183,7 @@ tsconfig.json         - TypeScript compilation settings, path mappings
 ## Common Development Tasks
 
 ### Code Changes Workflow
+
 ```bash
 # 1. Make code changes to src/
 # 2. Compile and lint
@@ -187,7 +199,9 @@ xvfb-run -a node scripts/run-integration-tests.js standard  # Full test
 ```
 
 ### Before Committing
+
 **ALWAYS run these commands before committing changes:**
+
 ```bash
 # Required for CI to pass
 npm run lint
@@ -199,6 +213,7 @@ npm run pretest
 ```
 
 ### Extension Packaging
+
 ```bash
 # Build for production
 npm run vscode:prepublish
@@ -210,17 +225,20 @@ vsce package
 ## Troubleshooting
 
 ### Build Issues
+
 - **TypeScript errors**: Run `npm run compile` to see detailed errors
 - **Bundling issues**: Check `npm run esbuild` output
 - **Lint failures**: Run `npm run lint` and fix ESLint warnings
 
-### Test Issues  
+### Test Issues
+
 - **VS Code download failures**: Network connectivity issue, retry tests
 - **Integration test timeouts**: NEVER CANCEL - tests take 15+ minutes
 - **Zephyr build failures**: Install Zephyr SDK and build dependencies
 - **Mock UI failures**: Check UI mock interface in test files
 
 ### Development Issues
+
 - **Extension not loading**: Check console for errors in extension host
 - **Commands not working**: Verify command registration in package.json
 - **Webview issues**: Check panel implementations in src/panels/
@@ -228,10 +246,12 @@ vsce package
 ## CI/CD Integration
 
 The `.github/workflows/integration-tests.yml` runs on:
+
 - Push to main, pre-release, develop branches
 - Pull requests to those branches
 
 **CI Requirements:**
+
 - Ubuntu with Zephyr build tools
 - 20+ minute timeouts for integration tests
 - xvfb for headless VS Code testing
@@ -247,11 +267,13 @@ The `.github/workflows/integration-tests.yml` runs on:
 ## Dependencies
 
 ### Required for Development
+
 - Node.js 18+ (for npm and extension bundling)
 - VS Code (for extension development and testing)
 - Git (for version control)
 
 ### Required for Full Testing
+
 - Python 3.8+ with pip
 - west (`pip3 install west`)
 - cmake, ninja-build
@@ -259,6 +281,7 @@ The `.github/workflows/integration-tests.yml` runs on:
 - xvfb (for headless testing on Linux)
 
 ### System Packages (Ubuntu)
+
 ```bash
 sudo apt-get install python3-pip python3-venv cmake ninja-build gperf \
   ccache dfu-util device-tree-compiler wget file make gcc gcc-multilib \
@@ -266,8 +289,9 @@ sudo apt-get install python3-pip python3-venv cmake ninja-build gperf \
 ```
 
 **TIMING EXPECTATIONS:**
+
 - npm install: ~40 seconds
-- TypeScript compilation: ~3 seconds  
+- TypeScript compilation: ~3 seconds
 - ESLint: ~2 seconds
 - esbuild bundling: ~1 second
 - Integration tests: 15+ minutes each - NEVER CANCEL
