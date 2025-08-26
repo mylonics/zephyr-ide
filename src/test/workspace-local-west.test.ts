@@ -149,7 +149,7 @@ suite("Workspace Local West Test Suite", () => {
             uiMock.deactivate();
 
         } catch (error) {
-            await printWorkspaceOnFailure(testWorkspaceDir, "Local West Workspace", error);
+            await printWorkspaceOnFailure("Local West Workspace", error);
             await new Promise((resolve) => setTimeout(resolve, 30000));
             throw error;
         }

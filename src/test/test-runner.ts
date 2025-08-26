@@ -20,6 +20,7 @@ import * as util from 'util';
 import * as vscode from 'vscode';
 import * as fs from 'fs-extra';
 import * as path from 'path';
+import * as os from 'os';
 import { WorkspaceConfig, GlobalConfig } from '../setup_utilities/types';
 import { checkIfToolsAvailable } from '../setup_utilities/tools-validation';
 
@@ -198,26 +199,60 @@ export async function printDirectoryStructure(dirPath: string, maxDepth: number 
 
 /**
  * Print workspace structure on test failure for debugging
- * @param testWorkspaceDir Path to the test workspace directory
  * @param testName Name of the test that failed
  * @param error The error that occurred
  */
-export async function printWorkspaceOnFailure(testWorkspaceDir: string, testName: string, error: any): Promise<void> {
+export async function printWorkspaceOnFailure(testName: string, error: any): Promise<void> {
     console.log(`\n❌ Test "${testName}" failed:`);
     console.log(`Error: ${error.message || error}`);
-    console.log(`📁 Test workspace directory: ${testWorkspaceDir}`);
-    
-    if (await fs.pathExists(testWorkspaceDir)) {
+
+    // Try to get the test workspace directory from VS Code workspace folders
+    let testWorkspaceDir: string | undefined;
+
+    if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
+        // Use the first workspace folder as the test workspace directory
+        testWorkspaceDir = vscode.workspace.workspaceFolders[0].uri.fsPath;
+        console.log(`📁 Test workspace directory (from VS Code): ${testWorkspaceDir}`);
+    } else {
+        // Fallback: try to find test workspace directories in temp folder
+        const tempDir = os.tmpdir();
+        try {
+            const tempItems = await fs.readdir(tempDir);
+            const testDirs = tempItems.filter(item =>
+                item.startsWith('zide-') ||
+                item.startsWith('test-') ||
+                item.includes('workspace')
+            ).sort((a, b) => {
+                // Sort by modification time, newest first
+                try {
+                    const statA = fs.statSync(path.join(tempDir, a));
+                    const statB = fs.statSync(path.join(tempDir, b));
+                    return statB.mtime.getTime() - statA.mtime.getTime();
+                } catch {
+                    return 0;
+                }
+            });
+
+            if (testDirs.length > 0) {
+                testWorkspaceDir = path.join(tempDir, testDirs[0]);
+                console.log(`📁 Test workspace directory (detected from temp): ${testWorkspaceDir}`);
+            }
+        } catch (err) {
+            console.log(`⚠ Could not scan temp directory: ${err}`);
+        }
+    }
+
+    if (testWorkspaceDir && await fs.pathExists(testWorkspaceDir)) {
         console.log(`📂 Workspace directory structure:`);
         await printDirectoryStructure(testWorkspaceDir, 3);
-        
+
         // Also print .vscode directory if it exists (often relevant for failures)
         const vscodeDir = path.join(testWorkspaceDir, '.vscode');
         if (await fs.pathExists(vscodeDir)) {
             console.log(`📂 .vscode directory contents:`);
             await printDirectoryStructure(vscodeDir, 2);
         }
-        
+
         // Print west.yml if it exists
         const westYml = path.join(testWorkspaceDir, 'west.yml');
         if (await fs.pathExists(westYml)) {
@@ -229,9 +264,25 @@ export async function printWorkspaceOnFailure(testWorkspaceDir: string, testName
                 console.log(`❌ Error reading west.yml: ${err}`);
             }
         }
-    } else {
+
+        // Print zephyr-ide.json if it exists
+        const zephyrIdeJson = path.join(testWorkspaceDir, '.vscode', 'zephyr-ide.json');
+        if (await fs.pathExists(zephyrIdeJson)) {
+            console.log(`📄 zephyr-ide.json contents:`);
+            try {
+                const content = await fs.readFile(zephyrIdeJson, 'utf8');
+                console.log(content);
+            } catch (err) {
+                console.log(`❌ Error reading zephyr-ide.json: ${err}`);
+            }
+        }
+    } else if (testWorkspaceDir) {
         console.log(`❌ Test workspace directory does not exist: ${testWorkspaceDir}`);
+    } else {
+        console.log(`❌ Could not determine test workspace directory`);
+        console.log(`📁 Current working directory: ${process.cwd()}`);
+        console.log(`📁 VS Code workspace folders: ${vscode.workspace.workspaceFolders?.map(f => f.uri.fsPath).join(', ') || 'none'}`);
     }
-    
+
     console.log(`\n`);
 }

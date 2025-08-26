@@ -187,7 +187,7 @@ suite("Standard Workspace Test Suite", () => {
             uiMock.deactivate();
 
         } catch (error) {
-            await printWorkspaceOnFailure(testWorkspaceDir, "Standard Workspace", error);
+            await printWorkspaceOnFailure("Standard Workspace", error);
             await new Promise((resolve) => setTimeout(resolve, 30000));
             throw error;
         }

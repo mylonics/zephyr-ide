@@ -155,7 +155,7 @@ suite("Workspace External Zephyr Test Suite", () => {
             uiMock.deactivate();
 
         } catch (error) {
-            await printWorkspaceOnFailure(testWorkspaceDir, "External Zephyr Workspace", error);
+            await printWorkspaceOnFailure("External Zephyr Workspace", error);
             await new Promise((resolve) => setTimeout(resolve, 30000));
             throw error;
         }

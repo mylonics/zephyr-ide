@@ -157,7 +157,7 @@ suite("Workspace Zephyr IDE Git Test Suite", () => {
             gitUiMock.deactivate();
 
         } catch (error) {
-            await printWorkspaceOnFailure(testWorkspaceDir, "Zephyr IDE Git Workspace", error);
+            await printWorkspaceOnFailure("Zephyr IDE Git Workspace", error);
             await new Promise((resolve) => setTimeout(resolve, 30000));
             throw error;
         }
