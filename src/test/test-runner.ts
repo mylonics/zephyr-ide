@@ -18,6 +18,8 @@ limitations under the License.
 import * as cp from 'child_process';
 import * as util from 'util';
 import * as vscode from 'vscode';
+import * as fs from 'fs-extra';
+import * as path from 'path';
 import { WorkspaceConfig, GlobalConfig } from '../setup_utilities/types';
 import { checkIfToolsAvailable } from '../setup_utilities/tools-validation';
 
@@ -160,4 +162,76 @@ export async function monitorWorkspaceSetup(setupType: string = "workspace"): Pr
         await new Promise((resolve) => setTimeout(resolve, checkInterval));
         waitTime += checkInterval;
     }
+}
+
+/**
+ * Print directory structure for debugging test failures
+ * @param dirPath Path to the directory to print
+ * @param maxDepth Maximum depth to traverse (default: 3)
+ * @param currentDepth Current depth level (used internally)
+ */
+export async function printDirectoryStructure(dirPath: string, maxDepth: number = 3, currentDepth: number = 0): Promise<void> {
+    if (currentDepth >= maxDepth || !await fs.pathExists(dirPath)) {
+        return;
+    }
+
+    try {
+        const items = await fs.readdir(dirPath);
+        const indent = "  ".repeat(currentDepth);
+
+        for (const item of items.sort()) {
+            const itemPath = path.join(dirPath, item);
+            const stats = await fs.stat(itemPath);
+
+            if (stats.isDirectory()) {
+                console.log(`${indent}📁 ${item}/`);
+                await printDirectoryStructure(itemPath, maxDepth, currentDepth + 1);
+            } else {
+                console.log(`${indent}📄 ${item}`);
+            }
+        }
+    } catch (error) {
+        const indent = "  ".repeat(currentDepth);
+        console.log(`${indent}❌ Error reading directory: ${error}`);
+    }
+}
+
+/**
+ * Print workspace structure on test failure for debugging
+ * @param testWorkspaceDir Path to the test workspace directory
+ * @param testName Name of the test that failed
+ * @param error The error that occurred
+ */
+export async function printWorkspaceOnFailure(testWorkspaceDir: string, testName: string, error: any): Promise<void> {
+    console.log(`\n❌ Test "${testName}" failed:`);
+    console.log(`Error: ${error.message || error}`);
+    console.log(`📁 Test workspace directory: ${testWorkspaceDir}`);
+    
+    if (await fs.pathExists(testWorkspaceDir)) {
+        console.log(`📂 Workspace directory structure:`);
+        await printDirectoryStructure(testWorkspaceDir, 3);
+        
+        // Also print .vscode directory if it exists (often relevant for failures)
+        const vscodeDir = path.join(testWorkspaceDir, '.vscode');
+        if (await fs.pathExists(vscodeDir)) {
+            console.log(`📂 .vscode directory contents:`);
+            await printDirectoryStructure(vscodeDir, 2);
+        }
+        
+        // Print west.yml if it exists
+        const westYml = path.join(testWorkspaceDir, 'west.yml');
+        if (await fs.pathExists(westYml)) {
+            console.log(`📄 west.yml contents:`);
+            try {
+                const content = await fs.readFile(westYml, 'utf8');
+                console.log(content);
+            } catch (err) {
+                console.log(`❌ Error reading west.yml: ${err}`);
+            }
+        }
+    } else {
+        console.log(`❌ Test workspace directory does not exist: ${testWorkspaceDir}`);
+    }
+    
+    console.log(`\n`);
 }

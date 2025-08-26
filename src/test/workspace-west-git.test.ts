@@ -26,35 +26,8 @@ import * as vscode from "vscode";
 import * as fs from "fs-extra";
 import * as path from "path";
 import * as os from "os";
-import { logTestEnvironment, monitorWorkspaceSetup } from "./test-runner";
+import { logTestEnvironment, monitorWorkspaceSetup, printDirectoryStructure, printWorkspaceOnFailure } from "./test-runner";
 import { UIMockInterface, MockInteraction } from "./ui-mock-interface";
-
-// Helper function to print directory structure
-async function printDirectoryStructure(dirPath: string, maxDepth: number = 2, currentDepth: number = 0): Promise<void> {
-    if (currentDepth >= maxDepth || !await fs.pathExists(dirPath)) {
-        return;
-    }
-
-    try {
-        const items = await fs.readdir(dirPath);
-        const indent = "  ".repeat(currentDepth);
-
-        for (const item of items.sort()) {
-            const itemPath = path.join(dirPath, item);
-            const stats = await fs.stat(itemPath);
-
-            if (stats.isDirectory()) {
-                console.log(`${indent}📁 ${item}/`);
-                await printDirectoryStructure(itemPath, maxDepth, currentDepth + 1);
-            } else {
-                console.log(`${indent}📄 ${item}`);
-            }
-        }
-    } catch (error) {
-        const indent = "  ".repeat(currentDepth);
-        console.log(`${indent}❌ Error reading directory: ${error}`);
-    }
-}
 
 /*
  * GIT WORKFLOW INTEGRATION TEST:
@@ -171,7 +144,7 @@ suite("West Git Workspace Test Suite", () => {
             console.log("📁 Step 3: Adding project from example repo...");
             // Prime the mock interface for project addition interactions  
             gitUiMock.primeInteractions([
-                { type: 'opendialog', value: path.join(testWorkspaceDir, "zephyr-ide-samples", "blinky"), description: 'Select app folder' }
+                { type: 'opendialog', value: path.join(testWorkspaceDir, "zephyr-ide-samples", "app"), description: 'Select app folder' }
             ]);
 
             result = await vscode.commands.executeCommand("zephyr-ide.add-project");
@@ -181,7 +154,7 @@ suite("West Git Workspace Test Suite", () => {
             // Prime the mock interface for build configuration interactions
             gitUiMock.primeInteractions([
                 { type: 'quickpick', value: 'select other folder', description: 'Select other folder for boards' },
-                { type: 'opendialog', value: path.join(testWorkspaceDir, "zephyr", "boards"), description: 'Select boards folder' },
+                { type: 'opendialog', value: path.join(testWorkspaceDir, "zephyr-ide-samples", "boards"), description: 'Select boards folder' },
                 { type: 'quickpick', value: 'custom_plank', description: 'Select custom_plank board' },
                 { type: 'input', value: 'test_build_2', description: 'Enter build name' },
                 { type: 'quickpick', value: 'debug', description: 'Select debug optimization' },
@@ -207,10 +180,7 @@ suite("West Git Workspace Test Suite", () => {
             gitUiMock.deactivate();
 
         } catch (error) {
-            console.error("❌ Git workflow test failed:", error);
-            console.log("📁 Test workspace folder on failure:", testWorkspaceDir);
-            console.log("📂 Directory structure:");
-            await printDirectoryStructure(testWorkspaceDir, 2);
+            await printWorkspaceOnFailure(testWorkspaceDir, "West Git Workspace", error);
             await new Promise((resolve) => setTimeout(resolve, 30000));
             throw error;
         }

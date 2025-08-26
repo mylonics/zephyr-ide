@@ -24,7 +24,7 @@ import * as vscode from "vscode";
 import * as fs from "fs-extra";
 import * as path from "path";
 import * as os from "os";
-import { logTestEnvironment, monitorWorkspaceSetup } from "./test-runner";
+import { logTestEnvironment, monitorWorkspaceSetup, printWorkspaceOnFailure } from "./test-runner";
 import { UIMockInterface, MockInteraction } from "./ui-mock-interface";
 
 /*
@@ -187,9 +187,8 @@ suite("Standard Workspace Test Suite", () => {
             uiMock.deactivate();
 
         } catch (error) {
-            console.error("❌ Workflow test failed:", error);
+            await printWorkspaceOnFailure(testWorkspaceDir, "Standard Workspace", error);
             await new Promise((resolve) => setTimeout(resolve, 30000));
-
             throw error;
         }
     }).timeout(900000);
