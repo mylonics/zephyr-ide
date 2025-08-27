@@ -38,9 +38,9 @@ jobs:
       - name: Run linting
         run: npm run lint
 
-      - name: Run workspace out of tree integration tests
+      - name: Run external zephyr workspace integration tests
         run: |
-          xvfb-run -a node scripts/run-integration-tests.js out-of-tree
+          xvfb-run -a node scripts/run-integration-tests.js external-zephyr
         env:
           NODE_ENV: test
           ZEPHYR_BASE: /tmp/zephyr
@@ -52,9 +52,9 @@ jobs:
           NODE_ENV: test
           ZEPHYR_BASE: /tmp/zephyr
 
-      - name: Run git workflow integration tests
+      - name: Run west git workflow integration tests
         run: |
-          xvfb-run -a node scripts/run-integration-tests.js git
+          xvfb-run -a node scripts/run-integration-tests.js west-git
         env:
           NODE_ENV: test
           ZEPHYR_BASE: /tmp/zephyr
@@ -66,9 +66,9 @@ jobs:
           NODE_ENV: test
           ZEPHYR_BASE: /tmp/zephyr
 
-      - name: Run open current directory integration tests
+      - name: Run local west workspace integration tests
         run: |
-          xvfb-run -a node scripts/run-integration-tests.js open-current-dir
+          xvfb-run -a node scripts/run-integration-tests.js local-west
         env:
           NODE_ENV: test
           ZEPHYR_BASE: /tmp/zephyr

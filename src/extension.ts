@@ -17,6 +17,7 @@ limitations under the License.
 
 import * as vscode from "vscode";
 import path from "path";
+import * as fs from "fs";
 
 import { ActiveProjectView } from "./panels/active_project_view/ActiveProjectView";
 import { ProjectTreeView } from "./panels/project_tree_view/ProjectTreeView";
@@ -79,6 +80,7 @@ import { checkIfToolsAvailable } from "./setup_utilities/tools-validation";
 import {
   postWorkspaceSetup,
   westInit,
+  setForceNarrowUpdateForTest,
   setupWestEnvironment,
   westUpdateWithRequirements,
 } from "./setup_utilities/west-operations";
@@ -207,6 +209,15 @@ export async function activate(context: vscode.ExtensionContext) {
           activeRunnerDisplay.text = ``;
         }
       }
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.print-workspace", async () => {
+      const structure = await printWorkspaceStructure(wsConfig.rootPath);
+      output.appendLine("Workspace Directory Structure:");
+      output.appendLine(structure);
+      return structure;
     })
   );
 
@@ -1352,6 +1363,14 @@ export async function activate(context: vscode.ExtensionContext) {
     )
   );
 
+  // Test-only command: update-with-narrow (not in package.json)
+  context.subscriptions.push(
+    vscode.commands.registerCommand('zephyr-ide.update-with-narrow', async () => {
+      setForceNarrowUpdateForTest(true);
+      vscode.window.showInformationMessage('Zephyr IDE: Forced useNarrowUpdate for westUpdate (test only, variable override).');
+    })
+  );
+
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.shell_test", async () => {
       output.show();
@@ -1394,6 +1413,55 @@ export async function activate(context: vscode.ExtensionContext) {
   return {
     getWorkspaceConfig: () => wsConfig,
   };
+}
+
+/**
+ * Print workspace directory structure: rootPath + one layer down
+ * @param rootPath The root path to analyze
+ * @returns String representation of the directory structure
+ */
+async function printWorkspaceStructure(rootPath: string): Promise<string> {
+  try {
+    if (!fs.existsSync(rootPath)) {
+      return `Root path does not exist: ${rootPath}`;
+    }
+
+    const result: string[] = [];
+    result.push(`Root: ${rootPath}`);
+
+    // Read root directory contents
+    const rootContents = fs.readdirSync(rootPath);
+
+    for (const item of rootContents) {
+      const itemPath = path.join(rootPath, item);
+      const stats = fs.statSync(itemPath);
+
+      if (stats.isDirectory()) {
+        result.push(`├── ${item}/`);
+
+        // Read one layer down
+        try {
+          const subContents = fs.readdirSync(itemPath);
+          subContents.forEach((subItem, index) => {
+            const subItemPath = path.join(itemPath, subItem);
+            const subStats = fs.statSync(subItemPath);
+            const isLast = index === subContents.length - 1;
+            const prefix = isLast ? "    └── " : "    ├── ";
+            const suffix = subStats.isDirectory() ? "/" : "";
+            result.push(`${prefix}${subItem}${suffix}`);
+          });
+        } catch (error) {
+          result.push(`    └── [Error reading directory: ${error}]`);
+        }
+      } else {
+        result.push(`├── ${item}`);
+      }
+    }
+
+    return result.join('\n');
+  } catch (error) {
+    return `Error reading workspace structure: ${error}`;
+  }
 }
 
 export function deactivate() { }

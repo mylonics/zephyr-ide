@@ -18,6 +18,10 @@ limitations under the License.
 import * as cp from 'child_process';
 import * as util from 'util';
 import * as vscode from 'vscode';
+import * as fs from 'fs-extra';
+import * as path from 'path';
+import * as os from 'os';
+import * as assert from 'assert';
 import { WorkspaceConfig, GlobalConfig } from '../setup_utilities/types';
 import { checkIfToolsAvailable } from '../setup_utilities/tools-validation';
 
@@ -31,60 +35,19 @@ export async function checkBuildDependencies(
     wsConfig: WorkspaceConfig,
     globalConfig: GlobalConfig
 ): Promise<boolean> {
-    try {
-        // Use the extension's own build dependency checker
-        const result = await checkIfToolsAvailable(context, wsConfig, globalConfig, false);
-
-        if (result) {
-            console.log('✓ Build dependencies are available');
-            return true;
-        } else {
-            console.log('⚠ Build dependencies are not available');
-            return false;
-        }
-    } catch (error) {
-        console.log('⚠ Error checking build dependencies:', error);
+    const available = await checkIfToolsAvailable(context, wsConfig, globalConfig);
+    if (!available) {
+        console.log(`⚠️ Build dependencies not available`);
         return false;
     }
+    return true;
 }
 
 /**
- * Legacy function for backward compatibility - use checkBuildDependencies instead
- * @deprecated Use checkBuildDependencies instead
- */
-export async function checkZephyrToolsAvailable(): Promise<boolean> {
-    try {
-        // Just check for basic tools as a fallback
-        await execAsync('python --version');
-        await execAsync('cmake --version');
-
-        console.log('✓ Basic development tools are available');
-        return true;
-    } catch (error) {
-        console.log('⚠ Basic development tools not available:', error);
-        return false;
-    }
-}
-
-/**
- * Check if we're running in a CI environment
- */
-export function isCI(): boolean {
-    return !!(
-        process.env.CI ||
-        process.env.GITHUB_ACTIONS ||
-        process.env.GITLAB_CI ||
-        process.env.JENKINS_URL ||
-        process.env.BUILDKITE ||
-        process.env.CIRCLECI
-    );
-}
-
-/**
- * Check if we should skip build tests
+ * Check if build tests should be skipped based on environment variables
  */
 export function shouldSkipBuildTests(): boolean {
-    return process.env.SKIP_BUILD_TESTS === 'true';
+    return process.env.SKIP_BUILD_TESTS === 'true' || process.env.CI === 'true';
 }
 
 /**
@@ -92,7 +55,7 @@ export function shouldSkipBuildTests(): boolean {
  */
 export function logTestEnvironment(): void {
     console.log('=== Test Environment ===');
-    console.log('CI Environment:', isCI());
+    console.log('CI Environment:', process.env.CI === 'true');
     console.log('Skip Build Tests:', shouldSkipBuildTests());
     console.log('Node Version:', process.version);
     console.log('Platform:', process.platform);
@@ -161,3 +124,141 @@ export async function monitorWorkspaceSetup(setupType: string = "workspace"): Pr
         waitTime += checkInterval;
     }
 }
+
+/**
+ * Cleanup test workspace and restore VS Code workspace folders
+ * @param testWorkspaceDir Test workspace directory to remove
+ * @param originalWorkspaceFolders Original workspace folders to restore
+ */
+
+export async function printWorkspaceStructure(
+    testName: string
+): Promise<void> {
+    // Call the print-workspace command to display directory structure
+    try {
+        const structure = await vscode.commands.executeCommand("zephyr-ide.print-workspace");
+        console.log(`\n📁 ${testName} - Workspace Structure:`);
+        console.log(structure);
+    } catch (error) {
+        console.log(`\n❌ ${testName} - Failed to print workspace structure: ${error}`);
+    }
+}
+
+/**
+ * Activate extension and wait for initialization
+ * @param extensionId Extension ID to activate (default: "mylonics.zephyr-ide")
+ * @param waitTime Time to wait after activation in milliseconds (default: 3000)
+ */
+export async function activateExtension(
+    extensionId: string = "mylonics.zephyr-ide",
+    waitTime: number = 3000
+): Promise<void> {
+    const extension = vscode.extensions.getExtension(extensionId);
+    if (extension && !extension.isActive) {
+        await extension.activate();
+    }
+    await new Promise((resolve) => setTimeout(resolve, waitTime));
+}
+
+/**
+ * Execute final build command with workspace state validation
+ * @param testName Name of the test for logging
+ * @param retryDelayMs Delay before retry if setup not complete (default: 10000)
+ */
+export async function executeFinalBuild(
+    testName: string,
+    retryDelayMs: number = 10000
+): Promise<void> {
+    console.log("⚡ Executing final build...");
+
+    // Check if workspace setup is complete
+    const ext = vscode.extensions.getExtension("mylonics.zephyr-ide");
+    const wsConfig = ext?.exports?.getWorkspaceConfig();
+
+    if (!wsConfig?.initialSetupComplete) {
+        console.log(`⚠️ Setup not complete for ${testName}, retrying in ${retryDelayMs / 1000} seconds...`);
+        await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+    }
+
+    const result = await vscode.commands.executeCommand("zephyr-ide.build");
+    assert.ok(result, "Build execution should succeed");
+}
+
+/**
+ * Complete test execution wrapper with error handling and cleanup
+ * @param testName Name of the test
+ * @param testWorkspaceDir Test workspace directory
+ * @param uiMock UI mock interface to deactivate
+ * @param testFunction The actual test function to execute
+ */
+export async function executeTestWithErrorHandling(
+    testName: string,
+    testWorkspaceDir: string,
+    uiMock: any, // UIMockInterface type
+    testFunction: () => Promise<void>
+): Promise<void> {
+    try {
+        await testFunction();
+
+        // Deactivate UI mock on success
+        uiMock.deactivate();
+
+        // Note: printWorkspaceOnSuccess should be called by the test itself
+        // before the test completes to avoid race conditions with teardown
+
+    } catch (error) {
+        // Handle failure with detailed logging
+        await printWorkspaceStructure(testName);
+        await new Promise((resolve) => setTimeout(resolve, 30000));
+        throw error;
+    }
+}
+
+/**
+ * Execute standard workspace setup command with UI mock interactions
+ * @param uiMock UI mock interface
+ * @param interactions Array of UI interactions to prime
+ * @param commandId VS Code command ID to execute
+ * @param successMessage Success assertion message
+ */
+export async function executeWorkspaceCommand(
+    uiMock: any,
+    interactions: Array<{ type: string, value: string, description: string, multiSelect?: boolean }>,
+    commandId: string,
+    successMessage: string
+): Promise<void> {
+    await vscode.commands.executeCommand("zephyr-ide.update-with-narrow");
+    uiMock.primeInteractions(interactions);
+
+    const result = await vscode.commands.executeCommand(commandId);
+    assert.ok(result, successMessage);
+}
+
+/**
+ * Common UI interaction patterns for different workspace setup types
+ */
+export const CommonUIInteractions = {
+    // Standard workspace setup interactions
+    standardWorkspace: [
+        { type: 'quickpick', value: 'create new west.yml', description: 'Create new west.yml' },
+        { type: 'quickpick', value: 'minimal', description: 'Select minimal manifest' },
+        { type: 'quickpick', value: 'stm32', description: 'Select STM32 toolchain' },
+        { type: 'quickpick', value: 'v4.2.0', description: 'Select default configuration' },
+        { type: 'input', value: '', description: 'Select additional west init args' },
+        { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
+        { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
+        { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
+    ],
+
+    // Project creation interactions
+    createBlinkyProject: [
+        { type: 'quickpick', value: 'blinky', description: 'Select blinky template' },
+        { type: 'input', value: 'blinky', description: 'Enter project name' }
+    ],
+
+    // Build configuration interactions
+    configureBuild: [
+        { type: 'quickpick', value: 'nucleo_f401re', description: 'Select board' },
+        { type: 'quickpick', value: 'auto', description: 'Select pristine option' }
+    ]
+};
