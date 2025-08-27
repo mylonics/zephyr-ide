@@ -137,7 +137,17 @@ export async function generateGitIgnore(context: vscode.ExtensionContext, wsConf
   if (!exists) {
     const extensionPath = context.extensionPath;
     let srcPath = path.join(extensionPath, "resources", "git_ignores", "gitignore_workspace_install");
-    let res = await fs.copyFile(srcPath, desPath, fs.constants.COPYFILE_FICLONE);
+
+    try {
+      // Check if source file exists
+      if (await fs.pathExists(srcPath)) {
+        await fs.copy(srcPath, desPath);
+      } else {
+        console.warn(`Source gitignore file not found at: ${srcPath}`);
+      }
+    } catch (error) {
+      console.error(`Failed to copy gitignore from ${srcPath} to ${desPath}:`, error);
+    }
   }
 }
 
@@ -147,7 +157,20 @@ export async function generateExtensionsRecommendations(context: vscode.Extensio
   if (!exists) {
     const extensionPath = context.extensionPath;
     let srcPath = path.join(extensionPath, "resources", "recommendations", "extensions.json");
-    let res = await fs.copyFile(srcPath, desPath, fs.constants.COPYFILE_FICLONE);
+
+    try {
+      // Ensure the .vscode directory exists
+      await fs.ensureDir(path.dirname(desPath));
+
+      // Check if source file exists
+      if (await fs.pathExists(srcPath)) {
+        await fs.copy(srcPath, desPath);
+      } else {
+        console.warn(`Source extensions.json file not found at: ${srcPath}`);
+      }
+    } catch (error) {
+      console.error(`Failed to copy extensions.json from ${srcPath} to ${desPath}:`, error);
+    }
   }
 }
 
