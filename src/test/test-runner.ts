@@ -158,17 +158,8 @@ export async function setupTestWorkspace(prefix: string): Promise<{
     // Store original workspace folders
     const originalWorkspaceFolders = vscode.workspace.workspaceFolders;
 
-    // Mock VS Code workspace folders
-    const mockWorkspaceFolder: vscode.WorkspaceFolder = {
-        uri: vscode.Uri.file(testWorkspaceDir),
-        name: path.basename(testWorkspaceDir),
-        index: 0,
-    };
-
-    Object.defineProperty(vscode.workspace, "workspaceFolders", {
-        value: [mockWorkspaceFolder],
-        configurable: true,
-    });
+    // Use VS Code command to open the folder as workspace
+    await vscode.commands.executeCommand('workbench.action.files.openFolder', vscode.Uri.file(testWorkspaceDir));
 
     return { testWorkspaceDir, originalWorkspaceFolders };
 }
@@ -203,11 +194,8 @@ export async function cleanupTestWorkspace(
     }
 
     // Restore original workspace folders
-    if (originalWorkspaceFolders !== undefined) {
-        Object.defineProperty(vscode.workspace, "workspaceFolders", {
-            value: originalWorkspaceFolders,
-            configurable: true,
-        });
+    if (originalWorkspaceFolders !== undefined && originalWorkspaceFolders.length > 0) {
+        await vscode.commands.executeCommand('workbench.action.files.openFolder', originalWorkspaceFolders[0].uri);
     }
 
     // Remove test directory
