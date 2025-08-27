@@ -24,8 +24,6 @@ import {
     logTestEnvironment,
     monitorWorkspaceSetup,
     printWorkspaceStructure,
-    setupTestWorkspace,
-    cleanupTestWorkspace,
     activateExtension,
     executeFinalBuild,
     executeTestWithErrorHandling,
@@ -61,13 +59,14 @@ suite("Workspace External Zephyr Test Suite", () => {
     });
 
     setup(async () => {
-        const workspace = await setupTestWorkspace("out-tree");
-        testWorkspaceDir = workspace.testWorkspaceDir;
-        originalWorkspaceFolders = workspace.originalWorkspaceFolders;
+        originalWorkspaceFolders = vscode.workspace.workspaceFolders;
+        if (originalWorkspaceFolders) {
+            testWorkspaceDir = originalWorkspaceFolders[0].uri.fsPath;
+        }
     });
 
     teardown(async () => {
-        await cleanupTestWorkspace(testWorkspaceDir, originalWorkspaceFolders);
+        await printWorkspaceStructure("External Zephyr Workspace Test");
     });
 
     test("Workspace Out Of Tree: Git Setup → Use Existing → Global → West Selector → Build", async function () {

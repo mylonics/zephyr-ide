@@ -126,86 +126,21 @@ export async function monitorWorkspaceSetup(setupType: string = "workspace"): Pr
 }
 
 /**
- * Print workspace directory structure for test completion (success or failure)
- * @param testName Name of the test
- * @param error Optional error object if test failed
- */
-export async function printWorkspaceStructure(testName: string, error?: any): Promise<void> {
-    if (error) {
-        console.log(`\n❌ Test "${testName}" failed:`);
-        console.log(`Error: ${error.message || error}`);
-    } else {
-        console.log(`\n✅ ${testName} completed successfully!`);
-    }
-}
-
-/**
- * Setup test workspace with VS Code mocking
- * @param prefix Directory prefix for test workspace (e.g., "std", "west-git")
- * @returns Object containing testWorkspaceDir and originalWorkspaceFolders
- */
-export async function setupTestWorkspace(prefix: string): Promise<{
-    testWorkspaceDir: string;
-    originalWorkspaceFolders: readonly vscode.WorkspaceFolder[] | undefined;
-}> {
-    let base_dir;
-    const originalWorkspaceFolders = vscode.workspace.workspaceFolders;
-
-    if (originalWorkspaceFolders && originalWorkspaceFolders.length > 0) {
-        base_dir = originalWorkspaceFolders[0].uri.fsPath;
-    } else {
-        base_dir = os.tmpdir();
-    }
-    // Create isolated temporary directory
-    const testWorkspaceDir = path.join(base_dir, prefix);
-
-    await fs.ensureDir(testWorkspaceDir);
-
-    // Store original workspace folders
-
-    // Use VS Code command to open the folder as workspace
-    await vscode.commands.executeCommand('workbench.action.files.openFolder', vscode.Uri.file(testWorkspaceDir));
-
-    return { testWorkspaceDir, originalWorkspaceFolders };
-}
-
-/**
  * Cleanup test workspace and restore VS Code workspace folders
  * @param testWorkspaceDir Test workspace directory to remove
  * @param originalWorkspaceFolders Original workspace folders to restore
  */
-export async function cleanupTestWorkspace(
-    testWorkspaceDir: string,
-    originalWorkspaceFolders: readonly vscode.WorkspaceFolder[] | undefined
+
+export async function printWorkspaceStructure(
+    testName: string
 ): Promise<void> {
-    if (testWorkspaceDir && (await fs.pathExists(testWorkspaceDir))) {
-        const dirName = path.basename(testWorkspaceDir);
-        const testName = dirName.includes('basic-') ? 'Basic Workspace Test' :
-            dirName.includes('std-') ? 'Standard Workspace Test' :
-                dirName.includes('west-git-') ? 'West Git Workspace Test' :
-                    dirName.includes('curr-dir-') ? 'Local West Workspace Test' :
-                        dirName.includes('out-tree-') ? 'External Zephyr Workspace Test' :
-                            dirName.includes('ide-spc-') ? 'Zephyr IDE Git Workspace Test' :
-                                'Workspace Test';
-
-        // Call the print-workspace command to display directory structure
-        try {
-            const structure = await vscode.commands.executeCommand("zephyr-ide.print-workspace");
-            console.log(`\n📁 ${testName} - Workspace Structure:`);
-            console.log(structure);
-        } catch (error) {
-            console.log(`\n❌ ${testName} - Failed to print workspace structure: ${error}`);
-        }
-    }
-
-    // Restore original workspace folders
-    if (originalWorkspaceFolders !== undefined && originalWorkspaceFolders.length > 0) {
-        await vscode.commands.executeCommand('workbench.action.files.openFolder', originalWorkspaceFolders[0].uri);
-    }
-
-    // Remove test directory
-    if (testWorkspaceDir && (await fs.pathExists(testWorkspaceDir))) {
-        await fs.remove(testWorkspaceDir);
+    // Call the print-workspace command to display directory structure
+    try {
+        const structure = await vscode.commands.executeCommand("zephyr-ide.print-workspace");
+        console.log(`\n📁 ${testName} - Workspace Structure:`);
+        console.log(structure);
+    } catch (error) {
+        console.log(`\n❌ ${testName} - Failed to print workspace structure: ${error}`);
     }
 }
 

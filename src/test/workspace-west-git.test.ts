@@ -30,8 +30,6 @@ import {
     logTestEnvironment,
     monitorWorkspaceSetup,
     printWorkspaceStructure,
-    setupTestWorkspace,
-    cleanupTestWorkspace,
     activateExtension,
     executeFinalBuild,
     executeTestWithErrorHandling,
@@ -64,13 +62,14 @@ suite("West Git Workspace Test Suite", () => {
     });
 
     setup(async () => {
-        const workspace = await setupTestWorkspace("west-git");
-        testWorkspaceDir = workspace.testWorkspaceDir;
-        originalWorkspaceFolders = workspace.originalWorkspaceFolders;
+        originalWorkspaceFolders = vscode.workspace.workspaceFolders;
+        if (originalWorkspaceFolders) {
+            testWorkspaceDir = originalWorkspaceFolders[0].uri.fsPath;
+        }
     });
 
     teardown(async () => {
-        await cleanupTestWorkspace(testWorkspaceDir, originalWorkspaceFolders);
+        await printWorkspaceStructure("West Git Workspace Test");
     });
 
     test("Git Workspace Setup: West Git → SDK Install → Add Project → Custom Board Build", async function () {

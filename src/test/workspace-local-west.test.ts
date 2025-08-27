@@ -24,8 +24,6 @@ import {
     logTestEnvironment,
     monitorWorkspaceSetup,
     printWorkspaceStructure,
-    setupTestWorkspace,
-    cleanupTestWorkspace,
     activateExtension,
     executeFinalBuild,
     executeTestWithErrorHandling
@@ -56,15 +54,15 @@ suite("Workspace Local West Test Suite", () => {
         logTestEnvironment();
         console.log("🔬 Testing workspace local west workflow");
     });
-
     setup(async () => {
-        const workspace = await setupTestWorkspace("curr-dir");
-        testWorkspaceDir = workspace.testWorkspaceDir;
-        originalWorkspaceFolders = workspace.originalWorkspaceFolders;
+        originalWorkspaceFolders = vscode.workspace.workspaceFolders;
+        if (originalWorkspaceFolders) {
+            testWorkspaceDir = originalWorkspaceFolders[0].uri.fsPath;
+        }
     });
 
     teardown(async () => {
-        await cleanupTestWorkspace(testWorkspaceDir, originalWorkspaceFolders);
+        await printWorkspaceStructure("Local West Workspace Test");
     });
 
     test("Open Current Directory: Git Setup → Detect West.yml → Build", async function () {

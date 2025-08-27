@@ -24,8 +24,6 @@ import {
     logTestEnvironment,
     monitorWorkspaceSetup,
     printWorkspaceStructure,
-    setupTestWorkspace,
-    cleanupTestWorkspace,
     activateExtension,
     executeFinalBuild,
     executeTestWithErrorHandling,
@@ -60,13 +58,14 @@ suite("Workspace Zephyr IDE Git Test Suite", () => {
     });
 
     setup(async () => {
-        const workspace = await setupTestWorkspace("ide-spc");
-        testWorkspaceDir = workspace.testWorkspaceDir;
-        originalWorkspaceFolders = workspace.originalWorkspaceFolders;
+        originalWorkspaceFolders = vscode.workspace.workspaceFolders;
+        if (originalWorkspaceFolders) {
+            testWorkspaceDir = originalWorkspaceFolders[0].uri.fsPath;
+        }
     });
 
     teardown(async () => {
-        await cleanupTestWorkspace(testWorkspaceDir, originalWorkspaceFolders);
+        await printWorkspaceStructure("Zephyr IDE Git Workspace Test");
     });
 
     test("Zephyr IDE Git Workspace: Git Setup → SDK Install → Build", async function () {

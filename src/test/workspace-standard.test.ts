@@ -28,8 +28,6 @@ import {
     logTestEnvironment,
     monitorWorkspaceSetup,
     printWorkspaceStructure,
-    setupTestWorkspace,
-    cleanupTestWorkspace,
     activateExtension,
     executeFinalBuild,
     executeTestWithErrorHandling,
@@ -74,13 +72,14 @@ suite("Standard Workspace Test Suite", () => {
     });
 
     setup(async () => {
-        const workspace = await setupTestWorkspace("std");
-        testWorkspaceDir = workspace.testWorkspaceDir;
-        originalWorkspaceFolders = workspace.originalWorkspaceFolders;
+        originalWorkspaceFolders = vscode.workspace.workspaceFolders;
+        if (originalWorkspaceFolders) {
+            testWorkspaceDir = originalWorkspaceFolders[0].uri.fsPath;
+        }
     });
 
     teardown(async () => {
-        await cleanupTestWorkspace(testWorkspaceDir, originalWorkspaceFolders);
+        await printWorkspaceStructure("Standard Workspace Test");
     });
 
     test("Complete Workflow: Dependencies → Setup → Project → Build → Execute", async function () {
