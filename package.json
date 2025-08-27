@@ -64,18 +64,7 @@
         }
       }
     },
-    "keybindings": [
-      {
-        "command": "zephyr-ide.build",
-        "key": "ctrl+shift+B",
-        "mac": "ctrl+shift+B"
-      },
-      {
-        "command": "zephyr-ide.flash",
-        "key": "ctrl+shift+p",
-        "mac": "ctrl+shift+p"
-      }
-    ],
+
     "viewsWelcome": [
       {
         "view": "welcome",
