@@ -30,6 +30,7 @@ if (testType === '--help' || testType === '-h' || testType === 'help') {
     console.log('Usage: node scripts/run-integration-tests.js [test-type]');
     console.log('');
     console.log('Available test types:');
+    console.log('  basic           - Basic workspace structure test (quick)');
     console.log('  standard        - Standard workspace workflow test');
     console.log('  west-git        - West git workspace workflow test');
     console.log('  zephyr-ide-git  - Zephyr IDE git workspace workflow test');
@@ -38,6 +39,7 @@ if (testType === '--help' || testType === '-h' || testType === 'help') {
     console.log('  all             - Run all tests (default)');
     console.log('');
     console.log('Examples:');
+    console.log('  node scripts/run-integration-tests.js basic');
     console.log('  node scripts/run-integration-tests.js standard');
     console.log('  node scripts/run-integration-tests.js west-git');
     console.log('  node scripts/run-integration-tests.js external-zephyr');
@@ -60,6 +62,9 @@ try {
 
     let grepPattern;
     switch (testType) {
+        case 'basic':
+            grepPattern = '"Basic Workspace Test Suite"';
+            break;
         case 'standard':
             grepPattern = '"Standard Workspace Test Suite"';
             break;
@@ -95,7 +100,7 @@ try {
     console.error('This test executes the Zephyr IDE workflow.');
     console.error('Some steps may fail if build dependencies are not available.');
     console.error('');
-    console.error('Available test types: standard, west-git, zephyr-ide-git, local-west, external-zephyr, all');
+    console.error('Available test types: basic, standard, west-git, zephyr-ide-git, local-west, external-zephyr, all');
     console.error('Run "node scripts/run-integration-tests.js help" for more information.');
     process.exit(1);
 }

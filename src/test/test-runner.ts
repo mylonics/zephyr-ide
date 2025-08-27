@@ -417,12 +417,13 @@ export async function cleanupTestWorkspace(
     if (testWorkspaceDir && await fs.pathExists(testWorkspaceDir)) {
         // Extract test name from directory path for logging
         const dirName = path.basename(testWorkspaceDir);
-        const testName = dirName.includes('std-') ? 'Standard Workspace Test' :
-            dirName.includes('west-git-') ? 'West Git Workspace Test' :
-                dirName.includes('curr-dir-') ? 'Local West Workspace Test' :
-                    dirName.includes('out-tree-') ? 'External Zephyr Workspace Test' :
-                        dirName.includes('ide-spc-') ? 'Zephyr IDE Git Workspace Test' :
-                            'Workspace Test';
+        const testName = dirName.includes('basic-') ? 'Basic Workspace Test' :
+            dirName.includes('std-') ? 'Standard Workspace Test' :
+                dirName.includes('west-git-') ? 'West Git Workspace Test' :
+                    dirName.includes('curr-dir-') ? 'Local West Workspace Test' :
+                        dirName.includes('out-tree-') ? 'External Zephyr Workspace Test' :
+                            dirName.includes('ide-spc-') ? 'Zephyr IDE Git Workspace Test' :
+                                'Workspace Test';
 
         await printWorkspaceStructure(testName);
     }
@@ -468,15 +469,29 @@ export async function executeFinalBuild(
 ): Promise<void> {
     console.log("⚡ Executing final build...");
 
+    // Debug workspace state before build
+    const workspaceDir = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    console.log(`🔧 Debug: Build workspace directory: ${workspaceDir}`);
+    if (workspaceDir && await fs.pathExists(workspaceDir)) {
+        const items = await fs.readdir(workspaceDir);
+        console.log(`🔧 Debug: Workspace contents before build: ${items.length} items - ${items.join(', ')}`);
+    }
+
     // Check if workspace setup is complete
     const ext = vscode.extensions.getExtension("mylonics.zephyr-ide");
     const wsConfig = ext?.exports?.getWorkspaceConfig();
+    console.log(`🔧 Debug: Extension active: ${ext?.isActive}, wsConfig: ${!!wsConfig}`);
+    if (wsConfig) {
+        console.log(`🔧 Debug: initialSetupComplete: ${wsConfig.initialSetupComplete}`);
+    }
+
     if (!wsConfig?.initialSetupComplete) {
         console.log(`⚠️ Setup not complete for ${testName}, retrying in ${retryDelayMs / 1000} seconds...`);
         await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
     }
 
     const result = await vscode.commands.executeCommand("zephyr-ide.build");
+    console.log(`🔧 Debug: Build command result: ${result}`);
     assert.ok(result, "Build execution should succeed");
 }
 
@@ -523,9 +538,27 @@ export async function executeWorkspaceCommand(
     commandId: string,
     successMessage: string
 ): Promise<void> {
+    console.log(`🔧 Debug: Executing VS Code command: ${commandId}`);
+    console.log(`🔧 Debug: Current workspace folder: ${vscode.workspace.workspaceFolders?.[0]?.uri.fsPath}`);
+
+    // Check workspace directory before command
+    const workspaceDir = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    if (workspaceDir && await fs.pathExists(workspaceDir)) {
+        const itemsBefore = await fs.readdir(workspaceDir);
+        console.log(`🔧 Debug: Workspace contents BEFORE command: ${itemsBefore.length} items - ${itemsBefore.join(', ')}`);
+    }
+
     uiMock.primeInteractions(interactions);
 
     const result = await vscode.commands.executeCommand(commandId);
+    console.log(`🔧 Debug: Command result: ${result}`);
+
+    // Check workspace directory after command
+    if (workspaceDir && await fs.pathExists(workspaceDir)) {
+        const itemsAfter = await fs.readdir(workspaceDir);
+        console.log(`🔧 Debug: Workspace contents AFTER command: ${itemsAfter.length} items - ${itemsAfter.join(', ')}`);
+    }
+
     assert.ok(result, successMessage);
 }
 
@@ -535,6 +568,7 @@ export async function executeWorkspaceCommand(
 export const CommonUIInteractions = {
     // Standard workspace setup interactions
     standardWorkspace: [
+        { type: 'quickpick', value: 'create new west.yml', description: 'Create new west.yml' },
         { type: 'quickpick', value: 'minimal', description: 'Select minimal manifest' },
         { type: 'quickpick', value: 'stm32', description: 'Select STM32 toolchain' },
         { type: 'quickpick', value: 'v4.2.0', description: 'Select default configuration' },
