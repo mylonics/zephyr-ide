@@ -23,8 +23,7 @@ import * as os from "os";
 import {
     logTestEnvironment,
     monitorWorkspaceSetup,
-    printWorkspaceOnFailure,
-    printWorkspaceOnSuccess,
+    printWorkspaceStructure,
     setupTestWorkspace,
     cleanupTestWorkspace,
     activateExtension,

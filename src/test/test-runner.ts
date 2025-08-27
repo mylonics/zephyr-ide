@@ -199,172 +199,46 @@ export async function printDirectoryStructure(dirPath: string, maxDepth: number 
 }
 
 /**
- * Print workspace structure on test failure for debugging
- * @param testName Name of the test that failed
- * @param error The error that occurred
+ * Print workspace directory structure for test completion (success or failure)
+ * @param testName Name of the test
+ * @param error Optional error object if test failed
  */
-export async function printWorkspaceOnFailure(testName: string, error: any): Promise<void> {
-    console.log(`\n❌ Test "${testName}" failed:`);
-    console.log(`Error: ${error.message || error}`);
+export async function printWorkspaceStructure(testName: string, error?: any): Promise<void> {
+    if (error) {
+        console.log(`\n❌ Test "${testName}" failed:`);
+        console.log(`Error: ${error.message || error}`);
+    } else {
+        console.log(`\n🎉 ${testName} SUCCEEDED! Final workspace structure:`);
+    }
 
-    // Try to get the test workspace directory from VS Code workspace folders
+    // Get workspace directory from VS Code workspace folders
     let testWorkspaceDir: string | undefined;
 
     if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
-        // Use the first workspace folder as the test workspace directory
         testWorkspaceDir = vscode.workspace.workspaceFolders[0].uri.fsPath;
-        console.log(`📁 Test workspace directory (from VS Code): ${testWorkspaceDir}`);
+        console.log(`📁 Test workspace directory: ${testWorkspaceDir}`);
     } else {
-        // Fallback: try to find test workspace directories in temp folder
-        const tempDir = os.tmpdir();
-        console.log(`🔍 Searching for test workspace in temp directory: ${tempDir}`);
-        try {
-            const tempItems = await fs.readdir(tempDir);
-            console.log(`📋 Found ${tempItems.length} items in temp directory`);
-
-            const testDirs = tempItems.filter(item =>
-                item.startsWith('std-') ||
-                item.startsWith('west-git-') ||
-                item.startsWith('curr-dir-') ||
-                item.startsWith('out-tree-') ||
-                item.startsWith('ide-spc-') ||
-                item.startsWith('zide-') ||
-                item.startsWith('test-') ||
-                item.includes('workspace')
-            ).sort((a, b) => {
-                // Sort by modification time, newest first
-                try {
-                    const statA = fs.statSync(path.join(tempDir, a));
-                    const statB = fs.statSync(path.join(tempDir, b));
-                    return statB.mtime.getTime() - statA.mtime.getTime();
-                } catch {
-                    return 0;
-                }
-            });
-
-            console.log(`🎯 Found ${testDirs.length} potential test directories: ${testDirs.slice(0, 5).join(', ')}${testDirs.length > 5 ? ', ...' : ''}`);
-
-            if (testDirs.length > 0) {
-                testWorkspaceDir = path.join(tempDir, testDirs[0]);
-                console.log(`📁 Test workspace directory (detected from temp): ${testWorkspaceDir}`);
-            }
-        } catch (err) {
-            console.log(`⚠ Could not scan temp directory: ${err}`);
-        }
-    }
-
-    if (testWorkspaceDir && await fs.pathExists(testWorkspaceDir)) {
-        console.log(`📂 Workspace directory structure:`);
-        await printDirectoryStructure(testWorkspaceDir, 3);
-
-        // Also print .vscode directory if it exists (often relevant for failures)
-        const vscodeDir = path.join(testWorkspaceDir, '.vscode');
-        if (await fs.pathExists(vscodeDir)) {
-            console.log(`📂 .vscode directory contents:`);
-            await printDirectoryStructure(vscodeDir, 2);
-        }
-
-        // Print west.yml if it exists
-        const westYml = path.join(testWorkspaceDir, 'west.yml');
-        if (await fs.pathExists(westYml)) {
-            console.log(`📄 west.yml contents:`);
-            try {
-                const content = await fs.readFile(westYml, 'utf8');
-                console.log(content);
-            } catch (err) {
-                console.log(`❌ Error reading west.yml: ${err}`);
-            }
-        }
-
-        // Print zephyr-ide.json if it exists
-        const zephyrIdeJson = path.join(testWorkspaceDir, '.vscode', 'zephyr-ide.json');
-        if (await fs.pathExists(zephyrIdeJson)) {
-            console.log(`📄 zephyr-ide.json contents:`);
-            try {
-                const content = await fs.readFile(zephyrIdeJson, 'utf8');
-                console.log(content);
-            } catch (err) {
-                console.log(`❌ Error reading zephyr-ide.json: ${err}`);
-            }
-        }
-    } else if (testWorkspaceDir) {
-        console.log(`❌ Test workspace directory does not exist: ${testWorkspaceDir}`);
-    } else {
-        console.log(`❌ Could not determine test workspace directory`);
-        console.log(`📁 Current working directory: ${process.cwd()}`);
-        console.log(`📁 VS Code workspace folders: ${vscode.workspace.workspaceFolders?.map(f => f.uri.fsPath).join(', ') || 'none'}`);
-    }
-
-    console.log(`\n`);
-}
-
-/**
- * Print workspace directory structure on test success for validation
- * @param testName Name of the test that succeeded
- * @param workspaceDir Optional workspace directory path (will auto-detect if not provided)
- */
-export async function printWorkspaceOnSuccess(testName: string, workspaceDir?: string): Promise<void> {
-    console.log(`\n🎉 ${testName} SUCCEEDED! Final workspace structure:`);
-
-    let testWorkspaceDir = workspaceDir;
-
-    // Auto-detect workspace directory if not provided
-    if (!testWorkspaceDir) {
-        // Check VS Code workspace folders first
-        if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
-            testWorkspaceDir = vscode.workspace.workspaceFolders[0].uri.fsPath;
-            console.log(`📁 Using VS Code workspace: ${testWorkspaceDir}`);
+        console.log(`❌ No VS Code workspace folders available`);
+        console.log(`� Current working directory: ${process.cwd()}`);
+        if (error) {
+            console.log(`\n`);
         } else {
-            // Try to find test workspace in temp directory
-            const tempDir = os.tmpdir();
-            console.log(`🔍 Searching for test workspace in temp directory: ${tempDir}`);
-            try {
-                const tempItems = await fs.readdir(tempDir);
-                console.log(`📋 Found ${tempItems.length} items in temp directory`);
-
-                const testDirs = tempItems.filter(item =>
-                    item.startsWith('std-') ||
-                    item.startsWith('west-git-') ||
-                    item.startsWith('curr-dir-') ||
-                    item.startsWith('out-tree-') ||
-                    item.startsWith('ide-spc-') ||
-                    item.startsWith('zide-') ||
-                    item.startsWith('test-') ||
-                    item.includes('workspace')
-                ).sort((a, b) => {
-                    // Sort by modification time, newest first
-                    try {
-                        const statA = fs.statSync(path.join(tempDir, a));
-                        const statB = fs.statSync(path.join(tempDir, b));
-                        return statB.mtime.getTime() - statA.mtime.getTime();
-                    } catch {
-                        return 0;
-                    }
-                });
-
-                console.log(`🎯 Found ${testDirs.length} potential test directories: ${testDirs.slice(0, 5).join(', ')}${testDirs.length > 5 ? ', ...' : ''}`);
-
-                if (testDirs.length > 0) {
-                    testWorkspaceDir = path.join(tempDir, testDirs[0]);
-                    console.log(`📁 Test workspace directory (detected from temp): ${testWorkspaceDir}`);
-                }
-            } catch (err) {
-                console.log(`⚠ Could not scan temp directory: ${err}`);
-            }
+            console.log(`✅ ${testName} completed successfully!\n`);
         }
+        return;
     }
 
     if (testWorkspaceDir && await fs.pathExists(testWorkspaceDir)) {
         console.log(`📂 Final workspace directory structure:`);
         console.log(`🔍 Debug: Scanning directory: ${testWorkspaceDir}`);
-        
+
         try {
             const items = await fs.readdir(testWorkspaceDir);
             console.log(`🔍 Debug: Found ${items.length} items: ${items.join(', ')}`);
         } catch (err) {
             console.log(`🔍 Debug: Error reading directory: ${err}`);
         }
-        
+
         await printDirectoryStructure(testWorkspaceDir, 3);
 
         // Print key configuration files
@@ -408,14 +282,37 @@ export async function printWorkspaceOnSuccess(testName: string, workspaceDir?: s
         } catch (err) {
             console.log(`⚠ Could not analyze workspace summary: ${err}`);
         }
-    } else if (testWorkspaceDir) {
-        console.log(`❌ Test workspace directory does not exist: ${testWorkspaceDir}`);
+
+        // For failures, also print additional debug files
+        if (error) {
+            // Print .vscode directory if it exists (often relevant for failures)
+            const vscodeDir = path.join(testWorkspaceDir, '.vscode');
+            if (await fs.pathExists(vscodeDir)) {
+                console.log(`📂 .vscode directory contents:`);
+                await printDirectoryStructure(vscodeDir, 2);
+            }
+
+            // Print zephyr-ide.json if it exists
+            const zephyrIdeJson = path.join(testWorkspaceDir, '.vscode', 'zephyr-ide.json');
+            if (await fs.pathExists(zephyrIdeJson)) {
+                console.log(`📄 zephyr-ide.json contents:`);
+                try {
+                    const content = await fs.readFile(zephyrIdeJson, 'utf8');
+                    console.log(content);
+                } catch (err) {
+                    console.log(`❌ Error reading zephyr-ide.json: ${err}`);
+                }
+            }
+        }
     } else {
-        console.log(`❌ Could not determine test workspace directory`);
-        console.log(`📁 Current working directory: ${process.cwd()}`);
+        console.log(`❌ Test workspace directory does not exist: ${testWorkspaceDir}`);
     }
 
-    console.log(`✅ ${testName} completed successfully!\n`);
+    if (error) {
+        console.log(`\n`);
+    } else {
+        console.log(`✅ ${testName} completed successfully!\n`);
+    }
 }
 
 /**
@@ -487,7 +384,7 @@ export async function cleanupTestWorkspace(
                         dirName.includes('ide-spc-') ? 'Zephyr IDE Git Workspace Test' :
                             'Workspace Test';
 
-        await printWorkspaceOnSuccess(testName, testWorkspaceDir);
+        await printWorkspaceStructure(testName);
     }
 
     // Restore original workspace folders
@@ -567,7 +464,7 @@ export async function executeTestWithErrorHandling(
 
     } catch (error) {
         // Handle failure with detailed logging
-        await printWorkspaceOnFailure(testName, error);
+        await printWorkspaceStructure(testName, error);
         await new Promise((resolve) => setTimeout(resolve, 30000));
         throw error;
     }
