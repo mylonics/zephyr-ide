@@ -162,6 +162,10 @@
         "title": "Zephyr IDE: Show View Container"
       },
       {
+        "command": "zephyr-ide.print-workspace",
+        "title": "Zephyr IDE: Print Workspace Structure"
+      },
+      {
         "command": "zephyr-ide.check-build-dependencies",
         "title": "Zephyr IDE: Setup Check Build Dependencies Available"
       },

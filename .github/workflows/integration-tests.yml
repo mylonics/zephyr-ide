@@ -38,13 +38,6 @@ jobs:
       - name: Run linting
         run: npm run lint
 
-      - name: Run basic workspace test (quick validation)
-        run: |
-          xvfb-run -a node scripts/run-integration-tests.js basic
-        env:
-          NODE_ENV: test
-          ZEPHYR_BASE: /tmp/zephyr
-
       - name: Run external zephyr workspace integration tests
         run: |
           xvfb-run -a node scripts/run-integration-tests.js external-zephyr

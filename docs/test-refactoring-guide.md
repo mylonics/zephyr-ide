@@ -224,7 +224,7 @@ suite("Test Suite", () => {
 2. **Readability:** Tests focus on business logic, not boilerplate
 3. **Consistency:** Standardized error handling and workspace management
 4. **Reusability:** Common interaction patterns can be shared
-5. **Debugging:** Enhanced workspace structure printing on both success and failure
+5. **Debugging:** Enhanced logging for troubleshooting test failures
 
 ## Testing the Refactored Code
 
