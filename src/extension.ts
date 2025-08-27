@@ -80,6 +80,7 @@ import { checkIfToolsAvailable } from "./setup_utilities/tools-validation";
 import {
   postWorkspaceSetup,
   westInit,
+  setForceNarrowUpdateForTest,
   setupWestEnvironment,
   westUpdateWithRequirements,
 } from "./setup_utilities/west-operations";
@@ -1360,6 +1361,14 @@ export async function activate(context: vscode.ExtensionContext) {
       await westConfig(context, wsConfig, globalConfig);
     }
     )
+  );
+
+  // Test-only command: update-with-narrow (not in package.json)
+  context.subscriptions.push(
+    vscode.commands.registerCommand('zephyr-ide.update-with-narrow', async () => {
+      setForceNarrowUpdateForTest(true);
+      vscode.window.showInformationMessage('Zephyr IDE: Forced useNarrowUpdate for westUpdate (test only, variable override).');
+    })
   );
 
   context.subscriptions.push(

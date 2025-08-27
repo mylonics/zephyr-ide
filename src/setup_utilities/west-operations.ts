@@ -26,6 +26,13 @@ import { WorkspaceConfig, GlobalConfig, SetupState } from "./types";
 import { saveSetupState, setSetupState, setWorkspaceState } from "./state-management";
 import { pathdivider } from "./tools-validation";
 
+// Test-only override for narrow update
+let forceNarrowUpdateForTest = false;
+
+export function setForceNarrowUpdateForTest(value: boolean) {
+  forceNarrowUpdateForTest = value;
+}
+
 let python = os.platform() === "linux" ? "python3" : "python";
 
 export function checkWestInit(setupState: SetupState) {
@@ -118,9 +125,12 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
   wsConfig.activeSetupState.zephyrVersion = undefined;
   saveSetupState(context, wsConfig, globalConfig);
 
-  // Read config option from settings.json
+  // Read config option from settings.json, but allow test override
   const configuration = vscode.workspace.getConfiguration('zephyr-ide');
-  const useNarrowUpdate = configuration.get<boolean>('westNarrowUpdate', false); // default false
+  let useNarrowUpdate = configuration.get<boolean>('westNarrowUpdate', false);
+  if (forceNarrowUpdateForTest) {
+    useNarrowUpdate = true;
+  }
   let cmd = useNarrowUpdate ? 'west update --narrow' : 'west update';
   let westUpdateRes = await executeTaskHelperInPythonEnv(wsConfig.activeSetupState, "Zephyr IDE: West Update", cmd, wsConfig.activeSetupState.setupPath);
 

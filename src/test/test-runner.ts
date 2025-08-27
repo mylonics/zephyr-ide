@@ -227,6 +227,7 @@ export async function executeWorkspaceCommand(
     commandId: string,
     successMessage: string
 ): Promise<void> {
+    await vscode.commands.executeCommand("zephyr-ide.update-with-narrow");
     uiMock.primeInteractions(interactions);
 
     const result = await vscode.commands.executeCommand(commandId);
