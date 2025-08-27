@@ -109,6 +109,5 @@ suite("Workspace External Zephyr Test Suite", () => {
                 await executeFinalBuild("External Zephyr Workspace");
             }
         );
-    }).timeout(900000);
-
-});
+    });
+}).timeout(900000);

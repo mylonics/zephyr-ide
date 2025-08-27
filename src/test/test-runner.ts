@@ -208,7 +208,7 @@ export async function executeTestWithErrorHandling(
 
     } catch (error) {
         // Handle failure with detailed logging
-        await printWorkspaceStructure(testName, error);
+        await printWorkspaceStructure(testName);
         await new Promise((resolve) => setTimeout(resolve, 30000));
         throw error;
     }
