@@ -148,15 +148,20 @@ export async function setupTestWorkspace(prefix: string): Promise<{
     testWorkspaceDir: string;
     originalWorkspaceFolders: readonly vscode.WorkspaceFolder[] | undefined;
 }> {
+    let base_dir;
+    const originalWorkspaceFolders = vscode.workspace.workspaceFolders;
+
+    if (originalWorkspaceFolders && originalWorkspaceFolders.length > 0) {
+        base_dir = originalWorkspaceFolders[0].uri.fsPath;
+    } else {
+        base_dir = os.tmpdir();
+    }
     // Create isolated temporary directory
-    const timestamp = Date.now();
-    const randomSuffix = Math.random().toString(36).substring(2, 8);
-    const testWorkspaceDir = path.join(os.tmpdir(), `${prefix}-${timestamp}${randomSuffix}`);
+    const testWorkspaceDir = path.join(base_dir, prefix);
 
     await fs.ensureDir(testWorkspaceDir);
 
     // Store original workspace folders
-    const originalWorkspaceFolders = vscode.workspace.workspaceFolders;
 
     // Use VS Code command to open the folder as workspace
     await vscode.commands.executeCommand('workbench.action.files.openFolder', vscode.Uri.file(testWorkspaceDir));
