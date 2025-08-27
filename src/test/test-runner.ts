@@ -118,6 +118,10 @@ export async function monitorWorkspaceSetup(setupType: string = "workspace"): Pr
     let packagesInstalled = false;
     let sdkInstalled = false;
 
+    // Debug: Check workspace directory periodically
+    const workspaceDir = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    console.log(`🔧 Debug: Monitoring workspace directory: ${workspaceDir}`);
+
     while (!sdkInstalled) {
         const extension = vscode.extensions.getExtension("mylonics.zephyr-ide");
         let wsConfig = null;
@@ -126,10 +130,29 @@ export async function monitorWorkspaceSetup(setupType: string = "workspace"): Pr
             wsConfig = extension.exports.getWorkspaceConfig();
         }
 
+        // Debug: Check workspace contents periodically
+        if (workspaceDir && await fs.pathExists(workspaceDir)) {
+            try {
+                const items = await fs.readdir(workspaceDir);
+                if (items.length > 0 && waitTime % 30000 === 0) {
+                    console.log(`🔧 Debug: Workspace contents: ${items.join(', ')}`);
+                }
+            } catch (err) {
+                console.log(`🔧 Debug: Error reading workspace: ${err}`);
+            }
+        }
+
         if (wsConfig) {
             if (!initialSetupComplete && wsConfig.initialSetupComplete) {
                 console.log("    ✅ Initial setup completed - west.yml created");
                 initialSetupComplete = true;
+
+                // Debug: Check if files actually exist
+                if (workspaceDir) {
+                    const westYml = path.join(workspaceDir, 'west.yml');
+                    const exists = await fs.pathExists(westYml);
+                    console.log(`🔧 Debug: west.yml exists: ${exists}`);
+                }
             }
 
             if (!westUpdated && wsConfig.activeSetupState?.westUpdated) {
@@ -151,6 +174,12 @@ export async function monitorWorkspaceSetup(setupType: string = "workspace"): Pr
                 sdkInstalled = true;
                 console.log("    ✅ SDK installed");
                 console.log(`🎉 All ${setupType} setup stages completed!`);
+
+                // Debug: Final workspace check
+                if (workspaceDir && await fs.pathExists(workspaceDir)) {
+                    const items = await fs.readdir(workspaceDir);
+                    console.log(`🔧 Debug: Final workspace contents: ${items.join(', ')}`);
+                }
                 break;
             }
         }
@@ -327,6 +356,7 @@ export async function setupTestWorkspace(prefix: string): Promise<{
     // Create isolated temporary directory
     const testWorkspaceDir = path.join(os.tmpdir(), `${prefix}-${Date.now()}`);
     await fs.ensureDir(testWorkspaceDir);
+    console.log(`🔧 Debug: Created test workspace directory: ${testWorkspaceDir}`);
 
     // Mock VS Code workspace folder
     const mockWorkspaceFolder: vscode.WorkspaceFolder = {
@@ -341,6 +371,16 @@ export async function setupTestWorkspace(prefix: string): Promise<{
         value: [mockWorkspaceFolder],
         configurable: true,
     });
+
+    console.log(`🔧 Debug: Set VS Code workspace folder to: ${testWorkspaceDir}`);
+
+    // Check if directory actually exists and is accessible
+    const exists = await fs.pathExists(testWorkspaceDir);
+    console.log(`🔧 Debug: Directory exists: ${exists}`);
+    if (exists) {
+        const items = await fs.readdir(testWorkspaceDir);
+        console.log(`🔧 Debug: Initial directory contents: ${items.length} items`);
+    }
 
     // Mock VS Code configuration and UI methods
     vscode.workspace.getConfiguration = () =>
