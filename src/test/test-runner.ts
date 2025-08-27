@@ -459,6 +459,20 @@ export async function cleanupTestWorkspace(
     testWorkspaceDir: string,
     originalWorkspaceFolders: readonly vscode.WorkspaceFolder[] | undefined
 ): Promise<void> {
+    // Print workspace structure before cleanup (works for both success and failure)
+    if (testWorkspaceDir && await fs.pathExists(testWorkspaceDir)) {
+        // Extract test name from directory path for logging
+        const dirName = path.basename(testWorkspaceDir);
+        const testName = dirName.includes('std-') ? 'Standard Workspace Test' :
+            dirName.includes('west-git-') ? 'West Git Workspace Test' :
+                dirName.includes('curr-dir-') ? 'Local West Workspace Test' :
+                    dirName.includes('out-tree-') ? 'External Zephyr Workspace Test' :
+                        dirName.includes('ide-spc-') ? 'Zephyr IDE Git Workspace Test' :
+                            'Workspace Test';
+
+        await printWorkspaceOnSuccess(testName, testWorkspaceDir);
+    }
+
     // Restore original workspace folders
     if (originalWorkspaceFolders !== undefined) {
         Object.defineProperty(vscode.workspace, "workspaceFolders", {
@@ -531,8 +545,8 @@ export async function executeTestWithErrorHandling(
         // Deactivate UI mock on success
         uiMock.deactivate();
 
-        // Print workspace structure on success
-        await printWorkspaceOnSuccess(testName, testWorkspaceDir);
+        // Note: printWorkspaceOnSuccess should be called by the test itself
+        // before the test completes to avoid race conditions with teardown
 
     } catch (error) {
         // Handle failure with detailed logging
