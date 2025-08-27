@@ -356,6 +356,15 @@ export async function printWorkspaceOnSuccess(testName: string, workspaceDir?: s
 
     if (testWorkspaceDir && await fs.pathExists(testWorkspaceDir)) {
         console.log(`📂 Final workspace directory structure:`);
+        console.log(`🔍 Debug: Scanning directory: ${testWorkspaceDir}`);
+        
+        try {
+            const items = await fs.readdir(testWorkspaceDir);
+            console.log(`🔍 Debug: Found ${items.length} items: ${items.join(', ')}`);
+        } catch (err) {
+            console.log(`🔍 Debug: Error reading directory: ${err}`);
+        }
+        
         await printDirectoryStructure(testWorkspaceDir, 3);
 
         // Print key configuration files
@@ -376,12 +385,20 @@ export async function printWorkspaceOnSuccess(testName: string, workspaceDir?: s
         // Print project count summary
         try {
             const items = await fs.readdir(testWorkspaceDir);
+            console.log(`🔍 Debug: Directory contents for summary: ${items.join(', ')}`);
             const directories = [];
             for (const item of items) {
                 const itemPath = path.join(testWorkspaceDir, item);
-                const stat = await fs.stat(itemPath);
-                if (stat.isDirectory() && !item.startsWith('.')) {
-                    directories.push(item);
+                try {
+                    const stat = await fs.stat(itemPath);
+                    if (stat.isDirectory() && !item.startsWith('.')) {
+                        directories.push(item);
+                        console.log(`🔍 Debug: Found directory: ${item}`);
+                    } else {
+                        console.log(`🔍 Debug: Skipping ${item} (${stat.isDirectory() ? 'hidden' : 'file'})`);
+                    }
+                } catch (statErr) {
+                    console.log(`🔍 Debug: Error stating ${item}: ${statErr}`);
                 }
             }
             console.log(`📊 Workspace summary: ${directories.length} main directories`);
