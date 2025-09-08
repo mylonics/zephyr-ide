@@ -244,3 +244,35 @@ export function reloadEnvironmentVariables(context: vscode.ExtensionContext, set
     }
   }
 }
+
+/**
+ * Validates if a string is a valid Git URL
+ * Supports HTTP/HTTPS URLs and SSH URLs (both git@host:path and ssh://git@host/path formats)
+ */
+export function validateGitUrl(value: string): string | undefined {
+  if (!value || value.trim() === "") {
+    return "Please enter a valid Git URL";
+  }
+
+  const trimmedValue = value.trim();
+  
+  // Check for HTTP/HTTPS/SSH with protocol (contains ://)
+  if (trimmedValue.includes("://")) {
+    // Additional validation for protocol-based URLs
+    if (trimmedValue.startsWith("http://") || 
+        trimmedValue.startsWith("https://") || 
+        trimmedValue.startsWith("ssh://") ||
+        trimmedValue.startsWith("git://")) {
+      return undefined;
+    }
+    return "Please enter a valid Git URL (supported protocols: http, https, ssh, git)";
+  }
+  
+  // Check for SSH format: user@host:path (without protocol)
+  const sshPattern = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+:[a-zA-Z0-9._/-]+$/;
+  if (sshPattern.test(trimmedValue)) {
+    return undefined;
+  }
+  
+  return "Please enter a valid Git URL (e.g., https://github.com/user/repo.git or git@github.com:user/repo.git)";
+}

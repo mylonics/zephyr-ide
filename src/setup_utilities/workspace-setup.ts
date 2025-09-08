@@ -51,7 +51,7 @@ WorkspaceSetupFromWestGit
 import * as vscode from "vscode";
 import * as fs from "fs-extra";
 import * as path from "path";
-import { output, executeTaskHelper } from "../utilities/utils";
+import { output, executeTaskHelper, validateGitUrl } from "../utilities/utils";
 import { westSelector, WestLocation } from "./west_selector";
 import { WorkspaceConfig, GlobalConfig } from "./types";
 import { setSetupState, loadExternalSetupState, setWorkspaceState, setGlobalState } from "./state-management";
@@ -147,17 +147,9 @@ export async function workspaceSetupFromGit(context: vscode.ExtensionContext, ws
   const gitUrl = await vscode.window.showInputBox({
     prompt: "Enter the Git repository URL/clone string",
     placeHolder:
-      "https://github.com/mylonics/zephyr-ide-workspace-template.git",
+      "https://github.com/user/repo.git or git@github.com:user/repo.git",
     ignoreFocusOut: true,
-    validateInput: (value) => {
-      if (!value || value.trim() === "") {
-        return "Please enter a valid Git URL";
-      }
-      if (!value.includes("://")) {
-        return "Please enter a valid Git URL (must include protocol)";
-      }
-      return undefined;
-    },
+    validateInput: validateGitUrl,
   });
 
   if (!gitUrl) {
@@ -206,17 +198,9 @@ export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext
   const gitUrl = await vscode.window.showInputBox({
     prompt: "Enter the Git repository URL for the West workspace",
     placeHolder:
-      "https://github.com/zephyrproject-rtos/example-application",
+      "https://github.com/user/repo.git or git@github.com:user/repo.git",
     ignoreFocusOut: true,
-    validateInput: (value) => {
-      if (!value || value.trim() === "") {
-        return "Please enter a valid Git URL";
-      }
-      if (!value.includes("://")) {
-        return "Please enter a valid Git URL (must include protocol)";
-      }
-      return undefined;
-    },
+    validateInput: validateGitUrl,
   });
 
   if (!gitUrl) {
