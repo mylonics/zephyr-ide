@@ -40,7 +40,7 @@ export async function installWindowsHostTools(context: vscode.ExtensionContext, 
   //Step 2
   // If winget is installed then we can install the required dependencies with this one liner;
 
-  let result = await executeTaskHelper("Install Host Tools", "winget install Kitware.CMake Ninja-build.Ninja oss-winget.gperf python Git.Git oss-winget.dtc wget 7zip.7zip; setx path '%path%;C:\\Program Files\\7-Zip'", "");
+  let result = await executeTaskHelper("Install Host Tools", "winget install Kitware.CMake Ninja-build.Ninja oss-winget.gperf python Git.Git oss-winget.dtc wget 7zip.7zip; [System.Environment]::SetEnvironmentVariable('Path', [System.Environment]::GetEnvironmentVariable('Path', 'Machine') + ';C:\\Program Files\\7-Zip', 'Machine')", "");
 
   return result;
 }
