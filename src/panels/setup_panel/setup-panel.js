@@ -6,7 +6,7 @@ const vscode = acquireVsCodeApi();
 function toggleSection(sectionId) {
     const content = document.getElementById(sectionId + 'Content');
     const icon = document.getElementById(sectionId + 'Icon');
-    
+
     if (content.classList.contains('expanded')) {
         content.classList.remove('expanded');
         icon.classList.remove('expanded');
@@ -80,10 +80,10 @@ function switchHostToolsPlatform(platform) {
         btn.classList.remove('active');
     });
     document.getElementById(`platform-${platform}`).classList.add('active');
-    
+
     // Generate content for the selected platform
     const stepsContent = generateHostToolsStepsContent(platform);
-    
+
     // Update the content
     document.getElementById('hostToolsStepsContent').innerHTML = stepsContent;
 }
@@ -108,7 +108,7 @@ function generateHostToolsStepsContent(platform) {
                     number: 3,
                     title: 'Configure Environment',
                     desc: 'Update system PATH and environment variables. Restart VS Code to ensure all tools are properly configured',
-                    command: 'setx path "%path%;C:\\Program Files\\7-Zip"'
+                    command: "[System.Environment]::SetEnvironmentVariable('Path', [System.Environment]::GetEnvironmentVariable('Path', 'Machine') + ';C:\\Program Files\\7-Zip', 'Machine')"
                 }
             ]
         },
@@ -166,10 +166,10 @@ function generateHostToolsStepsContent(platform) {
             ]
         }
     };
-    
+
     const data = stepsData[platform] || stepsData['win32'];
     let html = '<div class="installation-steps"><h4 style="margin: 15px 0 10px 0; font-size: 13px; font-weight: 600;">Installation Steps:</h4>';
-    
+
     data.steps.forEach(step => {
         html += `
             <div class="step-item">
@@ -200,7 +200,7 @@ function generateHostToolsStepsContent(platform) {
             </div>
         `;
     });
-    
+
     html += '</div>';
     return html;
 }
@@ -212,12 +212,12 @@ function listSDKs() {
     // Show loading state
     const resultsDiv = document.getElementById('sdkListResults');
     const contentDiv = document.getElementById('sdkListContent');
-    
+
     if (resultsDiv && contentDiv) {
         resultsDiv.style.display = 'block';
         contentDiv.innerHTML = '<div style="display: flex; align-items: center; gap: 8px; padding: 10px;"><div class="loading-spinner"></div><span>Loading SDK information...</span></div>';
     }
-    
+
     vscode.postMessage({
         command: 'listSDKs'
     });
@@ -226,13 +226,13 @@ function listSDKs() {
 function displaySDKList(sdkData) {
     const resultsDiv = document.getElementById('sdkListResults');
     const contentDiv = document.getElementById('sdkListContent');
-    
+
     if (!resultsDiv || !contentDiv) {
         return;
     }
-    
+
     resultsDiv.style.display = 'block';
-    
+
     if (!sdkData.success) {
         contentDiv.innerHTML = `
             <div style="padding: 15px; border: 1px solid var(--vscode-inputValidation-errorBorder); border-radius: 6px; background-color: var(--vscode-inputValidation-errorBackground); color: var(--vscode-inputValidation-errorForeground);">
@@ -241,7 +241,7 @@ function displaySDKList(sdkData) {
         `;
         return;
     }
-    
+
     if (!sdkData.versions || sdkData.versions.length === 0) {
         contentDiv.innerHTML = `
             <div style="padding: 15px; border: 1px solid var(--vscode-panel-border); border-radius: 6px; background-color: var(--vscode-editor-background); color: var(--vscode-descriptionForeground); text-align: center;">
@@ -250,7 +250,7 @@ function displaySDKList(sdkData) {
         `;
         return;
     }
-    
+
     let html = '';
     for (const version of sdkData.versions) {
         html += `
@@ -280,7 +280,7 @@ function displaySDKList(sdkData) {
             </div>
         `;
     }
-    
+
     contentDiv.innerHTML = html;
 }
 
@@ -333,10 +333,10 @@ function copyToClipboard(text, element) {
         if (!indicator || !indicator.classList.contains('copy-indicator')) {
             return;
         }
-        
+
         const originalText = indicator.textContent;
         const originalColor = indicator.style.color;
-        
+
         if (success) {
             indicator.textContent = 'Copied!';
             indicator.style.color = 'var(--vscode-terminal-ansiGreen)';
@@ -344,13 +344,13 @@ function copyToClipboard(text, element) {
             indicator.textContent = 'Failed to copy';
             indicator.style.color = 'var(--vscode-terminal-ansiRed)';
         }
-        
+
         setTimeout(() => {
             indicator.textContent = originalText;
             indicator.style.color = originalColor;
         }, 2000);
     }
-    
+
     // Try modern clipboard API first
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text).then(() => {
@@ -364,7 +364,7 @@ function copyToClipboard(text, element) {
         // Use fallback directly
         tryFallback();
     }
-    
+
     function tryFallback() {
         try {
             const textArea = document.createElement('textarea');
@@ -375,10 +375,10 @@ function copyToClipboard(text, element) {
             document.body.appendChild(textArea);
             textArea.focus();
             textArea.select();
-            
+
             const successful = document.execCommand('copy');
             document.body.removeChild(textArea);
-            
+
             showFeedback(successful);
             if (!successful) {
                 console.error('Fallback copy failed');
@@ -393,23 +393,23 @@ function copyToClipboard(text, element) {
 // Message Listener
 window.addEventListener('message', event => {
     const message = event.data;
-    
+
     if (message.command === 'sdkListResult') {
         displaySDKList(message.data);
     }
 });
 
 // Initialize host tools content on page load
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // Get the current platform and initialize content
     const platform = window.navigator.platform.toLowerCase().includes('win') ? 'win32' :
-                    window.navigator.platform.toLowerCase().includes('mac') ? 'darwin' : 'linux';
-    
+        window.navigator.platform.toLowerCase().includes('mac') ? 'darwin' : 'linux';
+
     // Initialize steps content
     const stepsContent = generateHostToolsStepsContent(platform);
-    
+
     const stepsContainer = document.getElementById('hostToolsStepsContent');
-    
+
     if (stepsContainer) {
         stepsContainer.innerHTML = stepsContent;
     }
