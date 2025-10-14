@@ -122,6 +122,13 @@
           "type": "webview"
         },
         {
+          "id": "zephyrIdeWestWorkspaces",
+          "name": "West Workspaces",
+          "icon": "media/logo_small.jpg",
+          "contextualTitle": "Zephyr IDE West Workspaces",
+          "type": "webview"
+        },
+        {
           "id": "zephyrIdeProjects",
           "name": "Projects",
           "icon": "media/logo_small.jpg",
