@@ -58,14 +58,44 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
             description = 'West workspace';
           }
 
-          if (isActive) {
-            label = `$(check) ${label}`;
-          }
-
           const subItems: any[] = [];
 
           if (isValidPath) {
-            // Set as Active
+            // Open west.yml - First action
+            const westConfigPath = path.join(installPath, '.west', 'config');
+            const manifestPath = path.join(installPath, 'west.yml');
+            if (fs.pathExistsSync(westConfigPath) || fs.pathExistsSync(manifestPath)) {
+              subItems.push({
+                icons: { leaf: 'file-code' },
+                label: 'Open west.yml',
+                value: { 
+                  command: 'zephyr-ide.west-workspace-open-yml',
+                  installPath: installPath
+                }
+              });
+            }
+
+            // Guided Reconfigure - Second action
+            subItems.push({
+              icons: { leaf: 'tools' },
+              label: 'Guided Reconfigure',
+              value: { 
+                command: 'zephyr-ide.west-workspace-reconfigure',
+                installPath: installPath
+              }
+            });
+
+            // West Update - Third action
+            subItems.push({
+              icons: { leaf: 'sync' },
+              label: 'West Update',
+              value: { 
+                command: 'zephyr-ide.west-workspace-update',
+                installPath: installPath
+              }
+            });
+
+            // Set as Active - Only for non-active workspaces
             if (!isActive) {
               subItems.push({
                 icons: { leaf: 'target' },
@@ -76,43 +106,9 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
                 }
               });
             }
-
-            // Reconfigure
-            subItems.push({
-              icons: { leaf: 'tools' },
-              label: 'Reconfigure',
-              value: { 
-                command: 'zephyr-ide.west-workspace-reconfigure',
-                installPath: installPath
-              }
-            });
-
-            // West Update
-            subItems.push({
-              icons: { leaf: 'sync' },
-              label: 'West Update',
-              value: { 
-                command: 'zephyr-ide.west-workspace-update',
-                installPath: installPath
-              }
-            });
-
-            // Open west.yml
-            const westYmlPath = path.join(installPath, '.west', 'config');
-            const manifestPath = path.join(installPath, 'west.yml');
-            if (fs.pathExistsSync(westYmlPath) || fs.pathExistsSync(manifestPath)) {
-              subItems.push({
-                icons: { leaf: 'file-code' },
-                label: 'Open west.yml',
-                value: { 
-                  command: 'zephyr-ide.west-workspace-open-yml',
-                  installPath: installPath
-                }
-              });
-            }
           }
 
-          // Delete (available for both valid and invalid paths)
+          // Delete - Last action (available for both valid and invalid paths)
           subItems.push({
             icons: { leaf: 'trash' },
             label: 'Delete from Registry',
@@ -122,7 +118,7 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
             }
           });
 
-          data.push({
+          const workspaceData: any = {
             icons: { 
               open: 'folder-opened',
               closed: 'folder'
@@ -133,7 +129,14 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
             value: { installPath: installPath },
             subItems: subItems,
             open: false
-          });
+          };
+
+          // Mark the active workspace (selected for highlight)
+          if (isActive) {
+            workspaceData['selected'] = true;
+          }
+
+          data.push(workspaceData);
         }
       }
 
@@ -297,19 +300,16 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
 
   private async handleOpenWestYml(installPath: string) {
     try {
-      // Try to find west.yml in the installation
       let westYmlPath = path.join(installPath, 'west.yml');
       
-      if (!fs.pathExistsSync(westYmlPath)) {
-        // Look in .west/config for manifest path
-        const westConfigPath = path.join(installPath, '.west', 'config');
-        if (fs.pathExistsSync(westConfigPath)) {
-          const configContent = fs.readFileSync(westConfigPath, 'utf-8');
-          const manifestMatch = configContent.match(/manifest\.path\s*=\s*(.+)/);
-          if (manifestMatch) {
-            const manifestDir = manifestMatch[1].trim();
-            westYmlPath = path.join(installPath, manifestDir, 'west.yml');
-          }
+      // Check if .west/config exists and read manifest path from it
+      const westConfigPath = path.join(installPath, '.west', 'config');
+      if (fs.pathExistsSync(westConfigPath)) {
+        const configContent = fs.readFileSync(westConfigPath, 'utf-8');
+        const manifestMatch = configContent.match(/manifest\.path\s*=\s*(.+)/);
+        if (manifestMatch) {
+          const manifestDir = manifestMatch[1].trim();
+          westYmlPath = path.join(installPath, manifestDir, 'west.yml');
         }
       }
 
