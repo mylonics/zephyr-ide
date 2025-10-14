@@ -66,13 +66,24 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
       // Add special "Global Installation" option
       const globalPath = getToolsDir();
       const isGlobal = wsConfig.activeSetupState?.setupPath === globalPath;
+      
+      // Get version info for global installation if it exists in setupStateDictionary
+      let globalDescription = 'System-wide Zephyr installation';
+      if (globalConfig.setupStateDictionary && globalConfig.setupStateDictionary[globalPath]) {
+        const globalSetupState = globalConfig.setupStateDictionary[globalPath];
+        if (globalSetupState.zephyrVersion) {
+          const versionStr = `${globalSetupState.zephyrVersion.major}.${globalSetupState.zephyrVersion.minor}.${globalSetupState.zephyrVersion.patch}`;
+          globalDescription = `Zephyr ${versionStr}`;
+        }
+      }
+      
       const globalData: any = {
         icons: { 
           open: 'globe',
           closed: 'globe'
         },
         label: 'Global Installation',
-        description: 'System-wide Zephyr installation',
+        description: globalDescription,
         tooltip: globalPath,
         value: { installPath: globalPath }
       };

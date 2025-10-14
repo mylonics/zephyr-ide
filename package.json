@@ -103,6 +103,11 @@
           "when": "view == zephyrIdeProjects"
         },
         {
+          "command": "zephyr-ide.refresh-west-workspaces",
+          "group": "navigation",
+          "when": "view == zephyrIdeWestWorkspaces"
+        },
+        {
           "command": "zephyr-ide.disable-automatic-project-target",
           "when": "view == zephyrIdeActiveProject"
         },
@@ -179,6 +184,11 @@
       {
         "command": "zephyr-ide.west-update",
         "title": "Zephyr IDE: West Update"
+      },
+      {
+        "command": "zephyr-ide.refresh-west-workspaces",
+        "title": "Zephyr IDE: Refresh West Workspaces",
+        "icon": "$(refresh)"
       },
       {
         "command": "zephyr-ide.reset-workspace",

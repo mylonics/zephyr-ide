@@ -1153,6 +1153,12 @@ export async function activate(context: vscode.ExtensionContext) {
     })
   );
 
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.refresh-west-workspaces", async () => {
+      westWorkspaceView.updateWebView(wsConfig, globalConfig);
+    })
+  );
+
   // Kick an initial refresh shortly after activation so views render even if no command ran yet
   setTimeout(() => {
     try {
