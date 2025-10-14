@@ -139,10 +139,19 @@ function displayStatus(data) {
     
     // Update action buttons
     const installAllBtn = document.getElementById('install-all-btn');
+    const markCompleteBtn = document.getElementById('mark-complete-btn');
+    
     if (missingCount > 0 && data.managerAvailable) {
         installAllBtn.disabled = false;
     } else {
         installAllBtn.disabled = true;
+    }
+    
+    // Enable "Skip & Mark as Complete" only if there are missing packages
+    if (missingCount > 0) {
+        markCompleteBtn.disabled = false;
+    } else {
+        markCompleteBtn.disabled = true;
     }
 }
 
