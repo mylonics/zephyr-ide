@@ -55,6 +55,17 @@ export interface PackageStatus {
 }
 
 let manifestCache: HostToolsManifest | null = null;
+let cachedExtensionPath: string | undefined = undefined;
+
+/**
+ * Initialize the host tools system with the extension path
+ * This should be called early in the extension activation
+ */
+export function initializeHostTools(extensionPath: string): void {
+  cachedExtensionPath = extensionPath;
+  // Clear cache to force reload with new path
+  manifestCache = null;
+}
 
 /**
  * Load and parse the host tools manifest file
@@ -64,10 +75,38 @@ export function loadHostToolsManifest(): HostToolsManifest {
     return manifestCache;
   }
 
-  const manifestPath = path.join(__dirname, "host-tools-manifest.json");
-  const manifestContent = fs.readFileSync(manifestPath, "utf-8");
-  manifestCache = JSON.parse(manifestContent);
-  return manifestCache!;
+  try {
+    let manifestPath: string;
+    
+    if (cachedExtensionPath) {
+      // Use extension path when available (production/bundled environment)
+      manifestPath = path.join(cachedExtensionPath, "src", "setup_utilities", "host-tools-manifest.json");
+    } else {
+      // Fallback to __dirname for development
+      manifestPath = path.join(__dirname, "host-tools-manifest.json");
+    }
+
+    if (!fs.existsSync(manifestPath)) {
+      throw new Error(`Host tools manifest not found at: ${manifestPath}`);
+    }
+
+    const manifestContent = fs.readFileSync(manifestPath, "utf-8");
+    
+    try {
+      manifestCache = JSON.parse(manifestContent);
+    } catch (parseError) {
+      throw new Error(`Failed to parse host tools manifest: ${parseError}`);
+    }
+
+    if (!manifestCache) {
+      throw new Error("Host tools manifest is empty or invalid");
+    }
+
+    return manifestCache;
+  } catch (error) {
+    output.appendLine(`[HOST TOOLS] Error loading manifest: ${error}`);
+    throw new Error(`Failed to load host tools manifest: ${error}`);
+  }
 }
 
 /**

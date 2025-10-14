@@ -106,6 +106,7 @@ import {
   getActiveBuildConfigOfProject,
 } from "./project_utilities/project";
 import { testHelper, deleteTestDirs } from "./zephyr_utilities/twister";
+import { initializeHostTools } from "./setup_utilities/host_tools";
 
 import { getModuleVersion } from "./setup_utilities/modules";
 import { reconfigureTest } from "./project_utilities/twister_selector";
@@ -128,6 +129,9 @@ export async function activate(context: vscode.ExtensionContext) {
   context.environmentVariableCollection.description =
     "Zephyr IDE adds python path";
   context.environmentVariableCollection.replace("ZFUN", "REALLY FUN1");
+
+  // Initialize host tools system with extension path
+  initializeHostTools(context.extensionPath);
 
   wsConfig = await loadWorkspaceState(context);
   globalConfig = await loadGlobalState(context);

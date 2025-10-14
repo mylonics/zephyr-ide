@@ -51,7 +51,7 @@
       { "name": "wget", "package": "wget", "check_command": "wget --version" },
       { "name": "Python3", "package": "python3-dev", "check_command": "python3 --version" },
       { "name": "Python3 venv", "package": "python3-venv", "check_command": "python3 -m venv --help" },
-      { "name": "Python3 Tkinter", "package": "python3-tk", "check_command": "python3 -m tkinter" },
+      { "name": "Python3 Tkinter", "package": "python3-tk", "check_command": "python3 -c \"import tkinter\"" },
       { "name": "xz-utils", "package": "xz-utils", "check_command": "xz --version" },
       { "name": "file", "package": "file", "check_command": "file --version" },
       { "name": "make", "package": "make", "check_command": "make --version" },
@@ -81,7 +81,7 @@
         "check_command": "python3 --version",
         "post_install_step": "(echo; echo 'export PATH=\"$(brew --prefix)/opt/python/libexec/bin:$PATH\"') >> ~/.zprofile && source ~/.zprofile"
       },
-      { "name": "Python3 Tkinter", "package": "python-tk", "check_command": "python3 -m tkinter" },
+      { "name": "Python3 Tkinter", "package": "python-tk", "check_command": "python3 -c \"import tkinter\"" },
       { "name": "ccache", "package": "ccache", "check_command": "ccache --version" },
       { "name": "QEMU", "package": "qemu", "check_command": "qemu-system-arm --version" },
       { "name": "DTC (Device Tree Compiler)", "package": "dtc", "check_command": "dtc --version" },
