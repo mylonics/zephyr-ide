@@ -20,8 +20,10 @@ import * as fs from 'fs-extra';
 import path from 'path';
 import { WorkspaceConfig, GlobalConfig } from '../../setup_utilities/types';
 import { getNonce } from "../../utilities/getNonce";
-import { setSetupState, setGlobalState } from '../../setup_utilities/state-management';
+import { setSetupState, setGlobalState, clearSetupState } from '../../setup_utilities/state-management';
 import { output } from '../../utilities/utils';
+import { getToolsDir } from '../../setup_utilities/workspace-config';
+import { westConfig } from '../../setup_utilities/workspace-setup';
 
 export class WestWorkspaceView implements vscode.WebviewViewProvider {
   private view: vscode.WebviewView | undefined;
@@ -37,8 +39,98 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
     if (this.view) {
       const data: any[] = [];
 
+      // Add special "None" option at the top
+      const isNone = !wsConfig.activeSetupState;
+      const noneData: any = {
+        icons: { 
+          open: 'circle-slash',
+          closed: 'circle-slash'
+        },
+        label: 'None',
+        description: 'No active workspace',
+        tooltip: 'No Zephyr workspace active',
+        value: { installPath: 'none' }
+      };
+
+      if (isNone) {
+        noneData['selected'] = true;
+      } else {
+        noneData['actions'] = [{
+          icon: 'target',
+          actionId: 'activate',
+          tooltip: 'Set as Active'
+        }];
+      }
+      data.push(noneData);
+
+      // Add special "Global Installation" option
+      const globalPath = getToolsDir();
+      const isGlobal = wsConfig.activeSetupState?.setupPath === globalPath;
+      const globalData: any = {
+        icons: { 
+          open: 'globe',
+          closed: 'globe'
+        },
+        label: 'Global Installation',
+        description: 'System-wide Zephyr installation',
+        tooltip: globalPath,
+        value: { installPath: globalPath }
+      };
+
+      if (isGlobal) {
+        // Active global workspace: has dropdown with west operations (always open)
+        globalData['selected'] = true;
+        globalData['open'] = true;
+        globalData['subItems'] = [
+          {
+            icons: { leaf: 'settings' },
+            label: 'West Config',
+            value: { 
+              command: 'zephyr-ide.west-config-no-external',
+              installPath: globalPath
+            }
+          },
+          {
+            icons: { leaf: 'settings-gear' },
+            label: 'Setup West Environment',
+            value: { 
+              command: 'zephyr-ide.setup-west-environment',
+              installPath: globalPath
+            }
+          },
+          {
+            icons: { leaf: 'git-branch' },
+            label: 'West Init',
+            value: { 
+              command: 'zephyr-ide.west-init',
+              installPath: globalPath
+            }
+          },
+          {
+            icons: { leaf: 'sync' },
+            label: 'West Update',
+            value: { 
+              command: 'zephyr-ide.west-update',
+              installPath: globalPath
+            }
+          }
+        ];
+      } else {
+        globalData['actions'] = [{
+          icon: 'target',
+          actionId: 'activate',
+          tooltip: 'Set as Active'
+        }];
+      }
+      data.push(globalData);
+
       if (globalConfig.setupStateDictionary) {
         for (const installPath in globalConfig.setupStateDictionary) {
+          // Skip global path as it's already added above
+          if (installPath === globalPath) {
+            continue;
+          }
+
           const setupState = globalConfig.setupStateDictionary[installPath];
           const isValidPath = fs.pathExistsSync(installPath);
           const isActive = installPath === wsConfig.activeSetupState?.setupPath;
@@ -76,7 +168,7 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
                 icons: { leaf: 'settings' },
                 label: 'West Config',
                 value: { 
-                  command: 'zephyr-ide.west-config',
+                  command: 'zephyr-ide.west-config-no-external',
                   installPath: installPath
                 }
               },
@@ -128,17 +220,6 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
 
           data.push(workspaceData);
         }
-      }
-
-      if (data.length === 0) {
-        // Show message when no workspaces are found
-        data.push({
-          icons: { leaf: 'info' },
-          label: 'No West workspaces found',
-          description: 'Create one using Workspace Setup',
-          value: { command: 'zephyr-ide.workspace-setup-picker' },
-          subItems: []
-        });
       }
 
       this.view.webview.postMessage(data);
@@ -213,6 +294,20 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
         // Handle sub-item clicks and other commands
         switch (message.command) {
           case 'zephyr-ide.west-config':
+          case 'zephyr-ide.west-config-no-external':
+            // For west-config-no-external, we need to call westConfig with options
+            if (message.command === 'zephyr-ide.west-config-no-external') {
+              // Call westConfig programmatically without external installation option
+              await westConfig(this.context, this.wsConfig, this.globalConfig, {
+                showUseWestFolder: true,
+                showUseWestYml: true,
+                showCreateNewWestYml: true,
+                showUseExternalInstallation: false
+              });
+            } else {
+              vscode.commands.executeCommand(message.command);
+            }
+            break;
           case 'zephyr-ide.setup-west-environment':
           case 'zephyr-ide.west-init':
           case 'zephyr-ide.west-update':
@@ -234,12 +329,27 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
 
   private async handleActivate(installPath: string) {
     try {
+      // Handle special "none" case
+      if (installPath === 'none') {
+        const confirm = await vscode.window.showWarningMessage(
+          'Clear active workspace (set to None)?',
+          'Clear',
+          'Cancel'
+        );
+
+        if (confirm === 'Clear') {
+          await clearSetupState(this.context, this.wsConfig, this.globalConfig);
+          vscode.window.showInformationMessage('Active workspace cleared');
+          vscode.commands.executeCommand('zephyr-ide.update-web-view');
+        }
+        return;
+      }
+
       const installName = path.basename(installPath);
       
-      // Show confirmation prompt
+      // Show confirmation prompt (non-modal warning)
       const confirm = await vscode.window.showWarningMessage(
         `Switch to workspace "${installName}"?`,
-        { modal: true },
         'Switch',
         'Cancel'
       );
