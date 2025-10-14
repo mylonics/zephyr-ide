@@ -42,12 +42,6 @@ export class ExtensionSetupView implements vscode.WebviewViewProvider {
         value: { command: "zephyr-ide.install-host-tools" },
       }, {
         icons: {
-          leaf: 'folder-library',
-        },
-        label: "Manage Workspaces",
-        value: { command: "zephyr-ide.manage-workspaces" },
-      }, {
-        icons: {
           leaf: 'file-directory-create',
         },
         label: "Workspace Setup",
@@ -58,30 +52,6 @@ export class ExtensionSetupView implements vscode.WebviewViewProvider {
         },
         label: "Install SDK",
         value: { command: "zephyr-ide.install-sdk" },
-      }, {
-        icons: {
-          leaf: 'settings',
-        },
-        label: "West Config",
-        value: { command: "zephyr-ide.west-config" },
-      }, {
-        icons: {
-          leaf: 'settings-gear',
-        },
-        label: "Setup West Environment",
-        value: { command: "zephyr-ide.setup-west-environment" },
-      }, {
-        icons: {
-          leaf: 'git-branch',
-        },
-        label: "West Init",
-        value: { command: "zephyr-ide.west-init" },
-      }, {
-        icons: {
-          leaf: 'sync',
-        },
-        label: "West Update",
-        value: { command: "zephyr-ide.west-update" },
       }];
 
       this.view.webview.postMessage(data);

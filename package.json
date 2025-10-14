@@ -103,6 +103,11 @@
           "when": "view == zephyrIdeProjects"
         },
         {
+          "command": "zephyr-ide.refresh-west-workspaces",
+          "group": "navigation",
+          "when": "view == zephyrIdeWestWorkspaces"
+        },
+        {
           "command": "zephyr-ide.disable-automatic-project-target",
           "when": "view == zephyrIdeActiveProject"
         },
@@ -119,6 +124,13 @@
           "name": "Zephyr IDE and Workspace Setup",
           "icon": "media/logo_small.jpg",
           "contextualTitle": "Zephyr IDE",
+          "type": "webview"
+        },
+        {
+          "id": "zephyrIdeWestWorkspaces",
+          "name": "West Workspaces",
+          "icon": "media/logo_small.jpg",
+          "contextualTitle": "Zephyr IDE West Workspaces",
           "type": "webview"
         },
         {
@@ -172,6 +184,11 @@
       {
         "command": "zephyr-ide.west-update",
         "title": "Zephyr IDE: West Update"
+      },
+      {
+        "command": "zephyr-ide.refresh-west-workspaces",
+        "title": "Zephyr IDE: Refresh West Workspaces",
+        "icon": "$(refresh)"
       },
       {
         "command": "zephyr-ide.reset-workspace",

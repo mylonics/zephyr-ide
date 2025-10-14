@@ -22,6 +22,7 @@ import * as fs from "fs";
 import { ActiveProjectView } from "./panels/active_project_view/ActiveProjectView";
 import { ProjectTreeView } from "./panels/project_tree_view/ProjectTreeView";
 import { ExtensionSetupView } from "./panels/extension_setup_view/ExtensionSetupView";
+import { WestWorkspaceView } from "./panels/west_workspace_view/WestWorkspaceView";
 import { ProjectConfigView } from "./panels/project_config_view/ProjectConfigView";
 import { SetupPanel } from "./panels/setup_panel/SetupPanel";
 
@@ -174,6 +175,12 @@ export async function activate(context: vscode.ExtensionContext) {
     wsConfig,
     globalConfig
   );
+  let westWorkspaceView = new WestWorkspaceView(
+    context.extensionPath,
+    context,
+    wsConfig,
+    globalConfig
+  );
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.update-status", () => {
@@ -249,6 +256,14 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.window.registerWebviewViewProvider(
       "zephyrIdeExtensionSetup",
       extensionSetupView,
+      { webviewOptions: { retainContextWhenHidden: true } }
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      "zephyrIdeWestWorkspaces",
+      westWorkspaceView,
       { webviewOptions: { retainContextWhenHidden: true } }
     )
   );
@@ -1130,10 +1145,17 @@ export async function activate(context: vscode.ExtensionContext) {
       projectConfigView.updateWebView(wsConfig);
       // Ensure the setup panel stays in sync as well
       extensionSetupView.updateWebView(wsConfig, globalConfig);
+      westWorkspaceView.updateWebView(wsConfig, globalConfig);
       if (SetupPanel.currentPanel) {
         SetupPanel.currentPanel.updateContent(wsConfig, globalConfig);
       }
       vscode.commands.executeCommand("zephyr-ide.update-status");
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.refresh-west-workspaces", async () => {
+      westWorkspaceView.updateWebView(wsConfig, globalConfig);
     })
   );
 
