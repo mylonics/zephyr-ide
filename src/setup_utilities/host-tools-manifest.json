@@ -1,0 +1,108 @@
+{
+  "supported_architectures": [
+    "x86_64",
+    "aarch64"
+  ],
+  "package_managers": {
+    "apt": {
+      "check_command": "apt --version"
+    },
+    "homebrew": {
+      "check_command": "brew --version",
+      "install_command": "/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"",
+      "post_install_setup": [
+        {
+          "architectures": ["aarch64"],
+          "command": "(echo; echo 'eval \"$(/opt/homebrew/bin/brew shellenv)\"') >> ~/.zprofile && source ~/.zprofile",
+          "notes": "Required to set up environment path on Apple Silicon Macs."
+        },
+        {
+          "architectures": ["x86_64"],
+          "command": "(echo; echo 'eval \"$(/usr/local/bin/brew shellenv)\"') >> ~/.zprofile && source ~/.zprofile",
+          "notes": "Required to set up environment path on Intel Macs."
+        }
+      ]
+    },
+    "winget": {
+      "check_command": "winget --version",
+      "install_url": "https://aka.ms/getwinget"
+    }
+  },
+  "platforms": {
+    "linux": {
+      "manager": "apt"
+    },
+    "mac": {
+      "manager": "homebrew"
+    },
+    "windows": {
+      "manager": "winget"
+    }
+  },
+  "platform_packages": {
+    "apt": [
+      { "name": "Git", "package": "git", "check_command": "git --version" },
+      { "name": "CMake", "package": "cmake", "check_command": "cmake --version" },
+      { "name": "Ninja-build", "package": "ninja-build", "check_command": "ninja --version" },
+      { "name": "gperf", "package": "gperf", "check_command": "gperf --version" },
+      { "name": "ccache", "package": "ccache", "check_command": "ccache --version" },
+      { "name": "dfu-util", "package": "dfu-util", "check_command": "dfu-util --version" },
+      { "name": "DTC (Device Tree Compiler)", "package": "device-tree-compiler", "check_command": "dtc --version" },
+      { "name": "wget", "package": "wget", "check_command": "wget --version" },
+      { "name": "Python3", "package": "python3-dev", "check_command": "python3 --version" },
+      { "name": "Python3 venv", "package": "python3-venv", "check_command": "python3 -m venv --help" },
+      { "name": "Python3 Tkinter", "package": "python3-tk", "check_command": "python3 -m tkinter" },
+      { "name": "xz-utils", "package": "xz-utils", "check_command": "xz --version" },
+      { "name": "file", "package": "file", "check_command": "file --version" },
+      { "name": "make", "package": "make", "check_command": "make --version" },
+      { "name": "gcc", "package": "gcc", "check_command": "gcc --version" },
+      {
+        "name": "gcc-multilib",
+        "package": "gcc-multilib",
+        "check_command": "gcc --version",
+        "architectures": ["x86_64"]
+      },
+      {
+        "name": "g++-multilib",
+        "package": "g++-multilib",
+        "check_command": "g++ --version",
+        "architectures": ["x86_64"]
+      },
+      { "name": "libsdl2-dev", "package": "libsdl2-dev", "check_command": "pkg-config --modversion sdl2" },
+      { "name": "libmagic", "package": "libmagic1", "check_command": "file -v" }
+    ],
+    "homebrew": [
+      { "name": "CMake", "package": "cmake", "check_command": "cmake --version" },
+      { "name": "Ninja-build", "package": "ninja", "check_command": "ninja --version" },
+      { "name": "gperf", "package": "gperf", "check_command": "gperf --version" },
+      {
+        "name": "Python3",
+        "package": "python@3",
+        "check_command": "python3 --version",
+        "post_install_step": "(echo; echo 'export PATH=\"$(brew --prefix)/opt/python/libexec/bin:$PATH\"') >> ~/.zprofile && source ~/.zprofile"
+      },
+      { "name": "Python3 Tkinter", "package": "python-tk", "check_command": "python3 -m tkinter" },
+      { "name": "ccache", "package": "ccache", "check_command": "ccache --version" },
+      { "name": "QEMU", "package": "qemu", "check_command": "qemu-system-arm --version" },
+      { "name": "DTC (Device Tree Compiler)", "package": "dtc", "check_command": "dtc --version" },
+      { "name": "libmagic", "package": "libmagic", "check_command": "file -v" },
+      { "name": "wget", "package": "wget", "check_command": "wget --version" },
+      { "name": "openocd", "package": "openocd", "check_command": "openocd --version" }
+    ],
+    "winget": [
+      { "name": "CMake", "package": "Kitware.CMake", "check_command": "cmake --version" },
+      { "name": "Ninja-build", "package": "Ninja-build.Ninja", "check_command": "ninja --version" },
+      { "name": "gperf", "package": "oss-winget.gperf", "check_command": "gperf --version" },
+      { "name": "Python3", "package": "python", "check_command": "python --version" },
+      { "name": "Git", "package": "Git.Git", "check_command": "git --version" },
+      { "name": "DTC (Device Tree Compiler)", "package": "oss-winget.dtc", "check_command": "dtc --version" },
+      { "name": "wget", "package": "wget", "check_command": "wget --version" },
+      {
+        "name": "7-Zip",
+        "package": "7zip.7zip",
+        "check_command": "7z --help",
+        "post_install_step": "[System.Environment]::SetEnvironmentVariable('Path', [System.Environment]::GetEnvironmentVariable('Path', 'Machine') + ';C:\\Program Files\\7-Zip', 'Machine')"
+      }
+    ]
+  }
+}
