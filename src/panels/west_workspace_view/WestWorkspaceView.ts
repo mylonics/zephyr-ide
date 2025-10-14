@@ -209,6 +209,9 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
       
       if (message.command) {
         switch (message.command) {
+          case 'workspace-click':
+            await this.handleWorkspaceClick(message.installPath);
+            break;
           case 'zephyr-ide.west-workspace-set-active':
             await this.handleSetActive(message.installPath);
             break;
@@ -235,6 +238,32 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
     
     this.setHtml("");
     this.updateWebView(this.wsConfig, this.globalConfig);
+  }
+
+  private async handleWorkspaceClick(installPath: string) {
+    try {
+      const installName = path.basename(installPath);
+      const currentActive = this.wsConfig.activeSetupState?.setupPath;
+      
+      // If clicking on already active workspace, do nothing
+      if (installPath === currentActive) {
+        return;
+      }
+
+      // Show confirmation prompt
+      const confirm = await vscode.window.showWarningMessage(
+        `Switch to workspace "${installName}"?`,
+        { modal: true },
+        'Switch',
+        'Cancel'
+      );
+
+      if (confirm === 'Switch') {
+        await this.handleSetActive(installPath);
+      }
+    } catch (error) {
+      vscode.window.showErrorMessage(`Failed to switch workspace: ${error}`);
+    }
   }
 
   private async handleSetActive(installPath: string) {
