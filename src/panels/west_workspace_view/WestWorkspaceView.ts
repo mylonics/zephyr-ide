@@ -351,18 +351,18 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
   private async handleDeselect() {
     try {
       const confirm = await vscode.window.showWarningMessage(
-        'Clear active workspace?',
-        'Clear',
+        'Deselect active workspace?',
+        'Deselect',
         'Cancel'
       );
 
-      if (confirm === 'Clear') {
+      if (confirm === 'Deselect') {
         await clearSetupState(this.context, this.wsConfig, this.globalConfig);
-        vscode.window.showInformationMessage('Active workspace cleared');
+        vscode.window.showInformationMessage('Active workspace deselected');
         vscode.commands.executeCommand('zephyr-ide.update-web-view');
       }
     } catch (error) {
-      vscode.window.showErrorMessage(`Failed to clear workspace: ${error}`);
+      vscode.window.showErrorMessage(`Failed to deselect workspace: ${error}`);
     }
   }
 
