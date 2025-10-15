@@ -19,6 +19,7 @@ import * as vscode from "vscode";
 import {
   loadHostToolsManifest,
   getPackageManagerForPlatform,
+  getPackageManagerForPlatformAsync,
   checkPackageManagerAvailable,
   installPackageManager,
   getPlatformPackages,
@@ -135,7 +136,7 @@ export class HostToolInstallView {
 
   private async checkStatus() {
     try {
-      const manager = getPackageManagerForPlatform();
+      const manager = await getPackageManagerForPlatformAsync();
       if (!manager) {
         this._panel.webview.postMessage({
           command: "updateStatus",
@@ -197,7 +198,7 @@ export class HostToolInstallView {
 
   private async installSinglePackage(packageName: string) {
     try {
-      const packages = getPlatformPackages();
+      const packages = await getPlatformPackages();
       const pkg = packages.find((p) => p.name === packageName);
 
       if (!pkg) {
@@ -274,7 +275,7 @@ export class HostToolInstallView {
   }
 
   private async openManagerInstallUrl() {
-    const manager = getPackageManagerForPlatform();
+    const manager = await getPackageManagerForPlatformAsync();
     if (manager && manager.config.install_url) {
       vscode.env.openExternal(vscode.Uri.parse(manager.config.install_url));
     }

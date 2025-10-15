@@ -16,7 +16,7 @@ limitations under the License.
 */
 
 import * as vscode from "vscode";
-import { output, executeTaskHelper, getPlatformArch, getPlatformName, executeShellCommand } from "../utilities/utils";
+import { output, executeTaskHelper, getPlatformArch, getPlatformName, getPlatformNameAsync, executeShellCommand } from "../utilities/utils";
 import manifestData from "./host-tools-manifest.json";
 
 // Interfaces for the manifest structure
@@ -116,10 +116,47 @@ export function getPackageManagerForPlatform(): { name: string; config: PackageM
 }
 
 /**
+ * Get the package manager for the current platform (async version with remote detection)
+ */
+export async function getPackageManagerForPlatformAsync(): Promise<{ name: string; config: PackageManager } | null> {
+  const manifest = loadHostToolsManifest();
+  const platformName = await getPlatformNameAsync();
+  
+  let platformKey: string;
+  switch (platformName) {
+    case "linux":
+      platformKey = "linux";
+      break;
+    case "macos":
+      platformKey = "mac";
+      break;
+    case "windows":
+      platformKey = "windows";
+      break;
+    default:
+      return null;
+  }
+
+  const platformConfig = manifest.platforms[platformKey];
+  if (!platformConfig) {
+    return null;
+  }
+
+  const managerName = platformConfig.manager;
+  const managerConfig = manifest.package_managers[managerName];
+  
+  if (!managerConfig) {
+    return null;
+  }
+
+  return { name: managerName, config: managerConfig };
+}
+
+/**
  * Check if a package manager is available
  */
 export async function checkPackageManagerAvailable(): Promise<boolean> {
-  const manager = getPackageManagerForPlatform();
+  const manager = await getPackageManagerForPlatformAsync();
   if (!manager) {
     return false;
   }
@@ -137,7 +174,7 @@ export async function checkPackageManagerAvailable(): Promise<boolean> {
  * Install the package manager
  */
 export async function installPackageManager(): Promise<boolean> {
-  const manager = getPackageManagerForPlatform();
+  const manager = await getPackageManagerForPlatformAsync();
   if (!manager) {
     output.appendLine("[HOST TOOLS] No package manager found for this platform");
     return false;
@@ -187,9 +224,9 @@ export async function installPackageManager(): Promise<boolean> {
 /**
  * Get platform packages for the current platform
  */
-export function getPlatformPackages(): PlatformPackage[] {
+export async function getPlatformPackages(): Promise<PlatformPackage[]> {
   const manifest = loadHostToolsManifest();
-  const manager = getPackageManagerForPlatform();
+  const manager = await getPackageManagerForPlatformAsync();
   
   if (!manager) {
     return [];
@@ -236,7 +273,7 @@ export async function checkPackageAvailable(pkg: PlatformPackage): Promise<Packa
  * Check all platform packages
  */
 export async function checkAllPackages(): Promise<PackageStatus[]> {
-  const packages = getPlatformPackages();
+  const packages = await getPlatformPackages();
   const statuses: PackageStatus[] = [];
   
   for (const pkg of packages) {
@@ -251,7 +288,7 @@ export async function checkAllPackages(): Promise<PackageStatus[]> {
  * Install a single package
  */
 export async function installPackage(pkg: PlatformPackage): Promise<boolean> {
-  const manager = getPackageManagerForPlatform();
+  const manager = await getPackageManagerForPlatformAsync();
   if (!manager) {
     output.appendLine("[HOST TOOLS] No package manager found for this platform");
     return false;
@@ -316,7 +353,7 @@ export async function installAllMissingPackages(): Promise<boolean> {
 
   output.appendLine(`[HOST TOOLS] Found ${missingPackages.length} missing packages`);
   
-  const packages = getPlatformPackages();
+  const packages = await getPlatformPackages();
   let allSuccess = true;
   
   for (const status of missingPackages) {
