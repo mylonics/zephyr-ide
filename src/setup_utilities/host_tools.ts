@@ -126,7 +126,8 @@ export async function checkPackageManagerAvailable(): Promise<boolean> {
 
   try {
     const result = await executeShellCommand(manager.config.check_command, "", true);
-    return result.stdout !== null && result.stdout !== undefined && result.stdout.length > 0;
+    // Command succeeded if stdout is not undefined (even if empty)
+    return result.stdout !== null && result.stdout !== undefined;
   } catch (error) {
     return false;
   }
@@ -212,7 +213,8 @@ export function getPlatformPackages(): PlatformPackage[] {
 export async function checkPackageAvailable(pkg: PlatformPackage): Promise<PackageStatus> {
   try {
     const result = await executeShellCommand(pkg.check_command, "", true);
-    const available = result.stdout !== null && result.stdout !== undefined && result.stdout.length > 0;
+    // Command succeeded if stdout is not undefined (even if empty)
+    const available = result.stdout !== null && result.stdout !== undefined;
     
     return {
       name: pkg.name,
