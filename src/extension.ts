@@ -87,6 +87,7 @@ import {
 } from "./setup_utilities/west-operations";
 import {
   showWorkspaceSetupPicker,
+  showCreateWorkspaceMenu,
   workspaceSetupFromGit,
   workspaceSetupFromWestGit,
   workspaceSetupFromCurrentDirectory,
@@ -1155,7 +1156,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.create-new-west-workspace", async () => {
-      await showWorkspaceSetupPicker(context, wsConfig, globalConfig);
+      await showCreateWorkspaceMenu(context, wsConfig, globalConfig);
     })
   );
 
