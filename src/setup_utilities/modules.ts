@@ -54,6 +54,24 @@ export async function getModuleList(setupState: SetupState) {
   return outputList;
 }
 
+export async function getManifestRepository(setupState: SetupState): Promise<string[] | undefined> {
+  let cmd = `west list -f "{name:30} {abspath:28} {revision:40} {url}"`;
+  let res = await executeShellCommandInPythonEnv(cmd, setupState.setupPath, setupState, false);
+
+  if (!res.stdout) {
+    return undefined;
+  }
+
+  let modules = res.stdout.split(/\r?\n/);
+  for (let m in modules) {
+    let data = modules[m].split(/\s+/);
+    if (data[0] === "manifest") {
+      return data;
+    }
+  }
+  return undefined;
+}
+
 export async function getModuleVersion(modulePath: string): Promise<any> {
   let filePath = path.join(modulePath, "VERSION");
 
@@ -129,12 +147,40 @@ export async function getModulePathAndVersion(setupState: SetupState, moduleName
       return { path: modules[m][1], version: modules[m][2] };
     }
   }
+  
+  // Check if the requested module is the manifest repository
+  if (moduleName === "zephyr") {
+    const manifestRepo = await getManifestRepository(setupState);
+    if (manifestRepo && manifestRepo[1]) {
+      // Check if the manifest repo is zephyr by looking for VERSION file
+      const versionFile = path.join(manifestRepo[1], "VERSION");
+      if (fs.existsSync(versionFile)) {
+        return { path: manifestRepo[1], version: manifestRepo[2] };
+      }
+    }
+  }
+  
   return;
 }
 
 export async function getModuleSampleFolders(setupState: SetupState) {
   const modules = await getModuleList(setupState);
-  const samplefolders: [string, string][] = [["zephyr", path.join(setupState.zephyrDir, 'samples')]];
+  const samplefolders: [string, string][] = [];
+
+  // Add zephyr samples if zephyrDir is set
+  if (setupState.zephyrDir) {
+    samplefolders.push(["zephyr", path.join(setupState.zephyrDir, 'samples')]);
+  } else {
+    // Check if zephyr is the manifest repository
+    const manifestRepo = await getManifestRepository(setupState);
+    if (manifestRepo && manifestRepo[1]) {
+      // Check if the manifest repo is zephyr by looking for VERSION file
+      const versionFile = path.join(manifestRepo[1], "VERSION");
+      if (fs.existsSync(versionFile)) {
+        samplefolders.push(["zephyr", path.join(manifestRepo[1], 'samples')]);
+      }
+    }
+  }
 
   for (let m in modules) {
     let yamlFile = await getModuleYamlFile(modules[m][1]);
