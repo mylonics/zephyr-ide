@@ -16,36 +16,22 @@ limitations under the License.
 */
 
 import * as vscode from "vscode";
-import * as os from "os";
-import { output, executeShellCommand } from "../utilities/utils";
+import { output } from "../utilities/utils";
 import { WorkspaceConfig, GlobalConfig } from "./types";
 import { saveSetupState } from "./state-management";
+import { checkAllPackages } from "./host_tools";
 
-let python = os.platform() === "linux" ? "python3" : "python";
-export let pathdivider = os.platform() === "win32" ? ";" : ":";
+export let pathdivider = process.platform === "win32" ? ";" : ":";
 
-export async function checkIfToolAvailable(tool: string, cmd: string, wsConfig: WorkspaceConfig, printStdOut: boolean, includes?: string) {
-  let res = await executeShellCommand(cmd, "", true);
-  if (res.stdout) {
-    if (printStdOut) {
-      output.append(res.stdout);
-    }
-    if ((includes && res.stdout.includes(includes)) || includes === undefined) {
-      output.appendLine(`[SETUP] ${tool} installed`);
-      return true;
-    }
-    output.appendLine(`[SETUP] ${tool} of the correct version is not found`);
-    vscode.window.showErrorMessage(`Unable to continue. ${tool} not installed. Check output for more info.`);
-    return false;
-  } else {
-    output.appendLine(`[SETUP] ${tool} is not found`);
-    output.appendLine(`[SETUP] Follow zephyr getting started guide for how to install ${tool}`);
-    vscode.window.showErrorMessage(`Unable to continue. ${tool} not installed. Check output for more info.`);
-    return false;
-  }
-}
-
-export async function checkIfToolsAvailable(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, solo = true) {
+/**
+ * Check if all required tools are available using the new host tools system
+ */
+export async function checkIfToolsAvailable(
+  context: vscode.ExtensionContext,
+  wsConfig: WorkspaceConfig,
+  globalConfig: GlobalConfig,
+  solo = true
+): Promise<boolean> {
   globalConfig.toolsAvailable = false;
   saveSetupState(context, wsConfig, globalConfig);
   output.show();
@@ -58,46 +44,39 @@ export async function checkIfToolsAvailable(context: vscode.ExtensionContext, ws
     "Please follow the section Install Dependencies. https://docs.zephyrproject.org/latest/develop/getting_started/index.html#install-dependencies."
   );
 
-  let res = await checkIfToolAvailable("git", "git --version", wsConfig, true);
-  if (!res) {
-    console.log("git Tool Unavilable");
+  try {
+    const packageStatuses = await checkAllPackages();
+    const missingPackages = packageStatuses.filter(s => !s.available);
+    
+    if (missingPackages.length > 0) {
+      output.appendLine(`[SETUP] Missing ${missingPackages.length} required tools:`);
+      for (const pkg of missingPackages) {
+        output.appendLine(`[SETUP] - ${pkg.name} (${pkg.package})`);
+      }
+      
+      if (solo) {
+        vscode.window.showErrorMessage(
+          `Missing ${missingPackages.length} required tools. Check output for details or use Host Tools Install panel.`
+        );
+      }
+      return false;
+    }
+
+    output.appendLine("[SETUP] All required tools are available");
+    globalConfig.toolsAvailable = true;
+    saveSetupState(context, wsConfig, globalConfig);
+    
+    if (solo) {
+      vscode.window.showInformationMessage("Zephyr IDE: Build Tools are available");
+    }
+
+    return true;
+  } catch (error) {
+    output.appendLine(`[SETUP] Error checking tools: ${error}`);
+    if (solo) {
+      vscode.window.showErrorMessage(`Failed to check tools: ${error}`);
+    }
     return false;
   }
-  res = await checkIfToolAvailable("python", `${python} --version`, wsConfig, true, "Python 3");
-  if (!res) {
-    console.log("python Tool Unavilable");
-    return false;
-  }
-
-  res = await checkIfToolAvailable("pip", `${python} -m pip --version`, wsConfig, true);
-  if (!res) {
-    console.log("pip Tool Unavilable");
-    return false;
-  }
-
-  res = await checkIfToolAvailable("python3 venv", `${python} -m venv --help`, wsConfig, false);
-  if (!res) {
-    console.log("python3 venv Tool Unavilable");
-    return false;
-  }
-
-  res = await checkIfToolAvailable("cmake", `cmake --version`, wsConfig, true);
-  if (!res) {
-    console.log("cmake Tool Unavilable");
-    return false;
-  }
-
-  res = await checkIfToolAvailable("dtc", "dtc --version", wsConfig, true);
-  if (!res) {
-    console.log("DTC Tool Unavilable");
-    return false;
-  }
-
-  globalConfig.toolsAvailable = true;
-  saveSetupState(context, wsConfig, globalConfig);
-  if (solo) {
-    vscode.window.showInformationMessage("Zephyr IDE: Build Tools are available");
-  }
-
-  return true;
 }
+

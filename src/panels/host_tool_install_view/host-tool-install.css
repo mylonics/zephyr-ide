@@ -1,0 +1,246 @@
+/* Host Tool Install View Styles */
+
+body {
+    font-family: var(--vscode-font-family);
+    color: var(--vscode-foreground);
+    background-color: var(--vscode-editor-background);
+    padding: 20px;
+    margin: 0;
+}
+
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+h1 {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    color: var(--vscode-foreground);
+}
+
+h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 15px;
+    color: var(--vscode-foreground);
+}
+
+.info-box {
+    background-color: var(--vscode-textBlockQuote-background);
+    border-left: 4px solid var(--vscode-textLink-foreground);
+    padding: 15px;
+    margin-bottom: 25px;
+    border-radius: 4px;
+}
+
+.info-box p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.section {
+    margin-bottom: 30px;
+    padding: 20px;
+    background-color: var(--vscode-editor-background);
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 6px;
+}
+
+.status-area {
+    margin-top: 15px;
+}
+
+.loading {
+    text-align: center;
+    padding: 20px;
+    font-style: italic;
+    color: var(--vscode-descriptionForeground);
+}
+
+.manager-status-box {
+    padding: 15px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+}
+
+.manager-available {
+    background-color: rgba(0, 255, 0, 0.1);
+    border: 1px solid rgba(0, 255, 0, 0.3);
+}
+
+.manager-unavailable {
+    background-color: rgba(255, 0, 0, 0.1);
+    border: 1px solid rgba(255, 0, 0, 0.3);
+}
+
+.manager-info {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.manager-name {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.status-badge {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.status-available {
+    background-color: rgba(0, 200, 0, 0.2);
+    color: #00ff00;
+}
+
+.status-missing {
+    background-color: rgba(255, 100, 0, 0.2);
+    color: #ff6400;
+}
+
+.package-list {
+    display: grid;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.package-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 15px;
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 6px;
+    background-color: var(--vscode-input-background);
+}
+
+.package-item.available {
+    border-left: 3px solid rgba(0, 200, 0, 0.5);
+}
+
+.package-item.missing {
+    border-left: 3px solid rgba(255, 100, 0, 0.5);
+}
+
+.package-info {
+    flex: 1;
+}
+
+.package-name {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+.package-package {
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+    font-family: var(--vscode-editor-font-family);
+}
+
+.package-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.button-group {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    font-size: 13px;
+    cursor: pointer;
+    background-color: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+    transition: background-color 0.2s;
+}
+
+.button:hover:not(:disabled) {
+    background-color: var(--vscode-button-secondaryHoverBackground);
+}
+
+.button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.button-primary {
+    background-color: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+}
+
+.button-primary:hover:not(:disabled) {
+    background-color: var(--vscode-button-hoverBackground);
+}
+
+.button-secondary {
+    background-color: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+}
+
+.button-small {
+    padding: 6px 12px;
+    font-size: 12px;
+}
+
+.button-danger {
+    background-color: rgba(255, 0, 0, 0.2);
+    color: var(--vscode-errorForeground);
+}
+
+.button-danger:hover:not(:disabled) {
+    background-color: rgba(255, 0, 0, 0.3);
+}
+
+.progress-message {
+    text-align: center;
+    padding: 15px;
+    font-size: 14px;
+    color: var(--vscode-textLink-foreground);
+    font-weight: 600;
+}
+
+.summary-box {
+    display: flex;
+    justify-content: space-around;
+    padding: 15px;
+    margin-bottom: 15px;
+    background-color: var(--vscode-input-background);
+    border-radius: 6px;
+}
+
+.summary-item {
+    text-align: center;
+}
+
+.summary-count {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 5px;
+}
+
+.summary-count.available {
+    color: #00ff00;
+}
+
+.summary-count.missing {
+    color: #ff6400;
+}
+
+.summary-label {
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+}

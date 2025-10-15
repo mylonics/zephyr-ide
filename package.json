@@ -419,6 +419,10 @@
         "title": "Zephyr IDE: Open Setup Panel"
       },
       {
+        "command": "zephyr-ide.open-host-tools-panel",
+        "title": "Zephyr IDE: Host Tools Installation"
+      },
+      {
         "command": "zephyr-ide.workspace-setup-picker",
         "title": "Zephyr IDE: Workspace Setup"
       },

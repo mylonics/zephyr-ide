@@ -25,6 +25,7 @@ import { ExtensionSetupView } from "./panels/extension_setup_view/ExtensionSetup
 import { WestWorkspaceView } from "./panels/west_workspace_view/WestWorkspaceView";
 import { ProjectConfigView } from "./panels/project_config_view/ProjectConfigView";
 import { SetupPanel } from "./panels/setup_panel/SetupPanel";
+import { HostToolInstallView } from "./panels/host_tool_install_view/HostToolInstallView";
 
 // Helper function to mark workspace setup as complete and refresh UI
 async function markWorkspaceSetupComplete(
@@ -106,7 +107,6 @@ import {
   getActiveBuildConfigOfProject,
 } from "./project_utilities/project";
 import { testHelper, deleteTestDirs } from "./zephyr_utilities/twister";
-import { installHostTools } from "./setup_utilities/host_tools";
 
 import { getModuleVersion } from "./setup_utilities/modules";
 import { reconfigureTest } from "./project_utilities/twister_selector";
@@ -1272,14 +1272,13 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.install-host-tools", async () => {
-      let res = await installHostTools(context);
-      if (res) {
-        vscode.commands.executeCommand(
-          "setContext",
-          "hostToolsInstalled",
-          true
-        );
-      }
+      // Open the new Host Tools panel instead of running the old automated install
+      HostToolInstallView.createOrShow(
+        context.extensionPath,
+        context,
+        wsConfig,
+        globalConfig
+      );
     }
     )
   );
@@ -1300,6 +1299,18 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.open-setup-panel", async () => {
       SetupPanel.createOrShow(
+        context.extensionPath,
+        context,
+        wsConfig,
+        globalConfig
+      );
+    }
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.open-host-tools-panel", async () => {
+      HostToolInstallView.createOrShow(
         context.extensionPath,
         context,
         wsConfig,

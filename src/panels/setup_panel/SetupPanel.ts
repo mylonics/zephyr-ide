@@ -22,8 +22,6 @@ import {
     listAvailableSDKs,
     ParsedSDKList,
 } from "../../setup_utilities/west_sdk";
-import { installHostTools } from "../../setup_utilities/host_tools";
-import * as os from "os";
 
 export class SetupPanel {
     public static currentPanel: SetupPanel | undefined;
@@ -131,9 +129,6 @@ export class SetupPanel {
                 return;
             case "listSDKs":
                 this.listSDKs();
-                return;
-            case "installHostTools":
-                this.installHostTools();
                 return;
 
             case "workspaceSetupFromGit":
@@ -347,21 +342,6 @@ export class SetupPanel {
         }
     }
 
-    // Host Tools Management Methods
-    private async installHostTools() {
-        try {
-            if (!this.currentWsConfig) {
-                vscode.window.showErrorMessage("Configuration not available");
-                return;
-            }
-            await installHostTools(this._context, this.currentWsConfig);
-        } catch (error) {
-            vscode.window.showErrorMessage(`Failed to install host tools: ${error}`);
-        }
-    }
-
-
-
     // HTML Generation Methods
     private getHtmlForWebview(
         wsConfig: WorkspaceConfig,
@@ -381,7 +361,6 @@ export class SetupPanel {
         <body>
             <div class="wizard-container">
                 <h1>Zephyr IDE Setup & Configuration</h1>
-                ${this.generateHostToolsSection()}
                 ${this.generateSDKSection(globalConfig)}
                 ${this.generateWestOperationsSection()}
                 ${this.generateWorkspaceSetupSection(
@@ -418,95 +397,6 @@ export class SetupPanel {
             )
         );
         return `<script src="${jsUri}"></script>`;
-    }
-
-    private getPlatformDisplayName(platform: string): string {
-        switch (platform) {
-            case "win32":
-                return "Windows";
-            case "darwin":
-                return "macOS";
-            case "linux":
-                return "Linux";
-            default:
-                return platform;
-        }
-    }
-
-    private getPlatformIcon(platform: string): string {
-        switch (platform) {
-            case "win32":
-                return "🪟";
-            case "darwin":
-                return "🍎";
-            case "linux":
-                return "🐧";
-            default:
-                return "💻";
-        }
-    }
-
-    private getPlatformDescription(platform: string): string {
-        switch (platform) {
-            case "win32":
-                return "Install development tools using the winget package manager. Winget must be available on your system first.";
-            case "darwin":
-                return "Install development tools using the Homebrew package manager for macOS.";
-            case "linux":
-                return "Install development tools using the apt package manager (Ubuntu/Debian).";
-            default:
-                return "Platform-specific host tools installation.";
-        }
-    }
-
-    private generateHostToolsSection(): string {
-        const actualPlatform = os.platform();
-        const platformName = this.getPlatformDisplayName(actualPlatform);
-        const platformIcon = this.getPlatformIcon(actualPlatform);
-        const description = this.getPlatformDescription(actualPlatform);
-
-        // Platform selector for preview - HIDDEN
-        // const platformSelector = `
-        // <div style="margin-bottom: 15px; padding: 12px; border: 1px solid var(--vscode-panel-border); border-radius: 6px; background-color: var(--vscode-input-background);">
-        //     <h4 style="margin: 0 0 8px 0; font-size: 12px; font-weight: 600;">Preview Platform (Development Only):</h4>
-        //     <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-        //         <button class="button-small ${actualPlatform === "win32" ? "active" : ""
-        //     }" onclick="switchHostToolsPlatform('win32')" id="platform-win32">🪟 Windows</button>
-        //         <button class="button-small ${actualPlatform === "darwin" ? "active" : ""
-        //     }" onclick="switchHostToolsPlatform('darwin')" id="platform-darwin">🍎 macOS</button>
-        //         <button class="button-small ${actualPlatform === "linux" ? "active" : ""
-        //     }" onclick="switchHostToolsPlatform('linux')" id="platform-linux">🐧 Linux</button>
-        //     </div>
-        //     <p style="margin: 8px 0 0 0; font-size: 11px; color: var(--vscode-descriptionForeground);">Current actual platform: ${platformName}</p>
-        // </div>`;
-
-        return `
-        <div class="collapsible-section">
-            <div class="collapsible-header" onclick="toggleSection('hostTools')">
-                <div class="collapsible-header-left">
-                    <div class="status status-warning">🔧 Host Tools</div>
-                    <div class="collapsible-title">Development Tools Installation (${platformName})</div>
-                </div>
-                <div class="collapsible-icon expanded" id="hostToolsIcon">▶</div>
-            </div>
-            <div class="collapsible-content expanded" id="hostToolsContent">
-                <div class="step-description">
-                    Install essential development tools and dependencies required for building Zephyr applications on ${platformName}.
-                </div>
-                <p style="margin-bottom: 15px; color: var(--vscode-descriptionForeground); font-size: 12px;">
-                    ${description}
-                </p>
-                <div id="hostToolsStepsContent">
-                    <!-- Steps will be populated by JavaScript -->
-                </div>
-                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px;">
-                    <button class="button" onclick="runHostToolsInstall()">Run Automatic Install (Experimental)</button>
-                </div>
-                <p style="margin-top: 8px; font-size: 11px; color: var(--vscode-descriptionForeground); font-style: italic;">
-                    Note: Automatic installation is experimental. Please report any issues to <a href="https://github.com/mylonics/zephyr-ide/issues" style="color: var(--vscode-textLink-foreground);">GitHub</a>.
-                </p>
-            </div>
-        </div>`;
     }
 
     private generateSDKSection(globalConfig: GlobalConfig): string {
