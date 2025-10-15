@@ -32,21 +32,41 @@ export interface ZephyrVersionNumber {
   extra: number;
 }
 
-export async function getModuleList(setupState: SetupState) {
-
-  const outputList: Array<string[]> = [];
+/**
+ * Execute west list command and return the output
+ */
+async function executeWestList(setupState: SetupState): Promise<string[]> {
   let cmd = `west list -f "{name:30} {abspath:28} {revision:40} {url}"`;
   let res = await executeShellCommandInPythonEnv(cmd, setupState.setupPath, setupState, false);
 
   if (!res.stdout) {
     output.append(res.stderr);
+    return [];
+  }
+
+  return res.stdout.split(/\r?\n/);
+}
+
+/**
+ * Check if a directory is a Zephyr repository by looking for VERSION file
+ */
+function isZephyrRepository(dirPath: string): boolean {
+  const versionFile = path.join(dirPath, "VERSION");
+  return fs.existsSync(versionFile);
+}
+
+export async function getModuleList(setupState: SetupState) {
+
+  const outputList: Array<string[]> = [];
+  const modules = await executeWestList(setupState);
+
+  if (modules.length === 0) {
     vscode.window.showErrorMessage("Failed to run west list command. See Zephyr IDE Output for error message");
     return outputList;
   }
 
-  let modules = res.stdout.split(/\r?\n/);
-  for (let m in modules) {
-    let data = modules[m].split(/\s+/);
+  for (const line of modules) {
+    let data = line.split(/\s+/);
     if (data[0] !== "manifest" && data[0] !== "") {
       outputList.push(data);
     }
@@ -55,16 +75,14 @@ export async function getModuleList(setupState: SetupState) {
 }
 
 export async function getManifestRepository(setupState: SetupState): Promise<string[] | undefined> {
-  let cmd = `west list -f "{name:30} {abspath:28} {revision:40} {url}"`;
-  let res = await executeShellCommandInPythonEnv(cmd, setupState.setupPath, setupState, false);
+  const modules = await executeWestList(setupState);
 
-  if (!res.stdout) {
+  if (modules.length === 0) {
     return undefined;
   }
 
-  let modules = res.stdout.split(/\r?\n/);
-  for (let m in modules) {
-    let data = modules[m].split(/\s+/);
+  for (const line of modules) {
+    let data = line.split(/\s+/);
     if (data[0] === "manifest") {
       return data;
     }
@@ -131,10 +149,10 @@ export async function getModuleYamlFile(moduleAbsPath: string): Promise<any> {
 export async function getDtsIncludes(setupState: SetupState) {
   const modules = await getModuleList(setupState);
   const dtsIncludeArray: string[] = [];
-  for (let m in modules) {
-    let yamlFile = await getModuleYamlFile(modules[m][1]);
+  for (const module of modules) {
+    let yamlFile = await getModuleYamlFile(module[1]);
     if (yamlFile && yamlFile.build && yamlFile.build.settings && yamlFile.build.settings.dts_root) {
-      dtsIncludeArray.push(path.join(setupState.setupPath, modules[m][1], yamlFile.build.settings.dts_root, "dts"));
+      dtsIncludeArray.push(path.join(setupState.setupPath, module[1], yamlFile.build.settings.dts_root, "dts"));
     }
   }
   return dtsIncludeArray;
@@ -142,21 +160,17 @@ export async function getDtsIncludes(setupState: SetupState) {
 
 export async function getModulePathAndVersion(setupState: SetupState, moduleName: string) {
   const modules = await getModuleList(setupState);
-  for (let m in modules) {
-    if (modules[m][0] === moduleName) {
-      return { path: modules[m][1], version: modules[m][2] };
+  for (const module of modules) {
+    if (module[0] === moduleName) {
+      return { path: module[1], version: module[2] };
     }
   }
   
   // Check if the requested module is the manifest repository
   if (moduleName === "zephyr") {
     const manifestRepo = await getManifestRepository(setupState);
-    if (manifestRepo && manifestRepo[1]) {
-      // Check if the manifest repo is zephyr by looking for VERSION file
-      const versionFile = path.join(manifestRepo[1], "VERSION");
-      if (fs.existsSync(versionFile)) {
-        return { path: manifestRepo[1], version: manifestRepo[2] };
-      }
+    if (manifestRepo && manifestRepo[1] && isZephyrRepository(manifestRepo[1])) {
+      return { path: manifestRepo[1], version: manifestRepo[2] };
     }
   }
   
@@ -173,20 +187,16 @@ export async function getModuleSampleFolders(setupState: SetupState) {
   } else {
     // Check if zephyr is the manifest repository
     const manifestRepo = await getManifestRepository(setupState);
-    if (manifestRepo && manifestRepo[1]) {
-      // Check if the manifest repo is zephyr by looking for VERSION file
-      const versionFile = path.join(manifestRepo[1], "VERSION");
-      if (fs.existsSync(versionFile)) {
-        samplefolders.push(["zephyr", path.join(manifestRepo[1], 'samples')]);
-      }
+    if (manifestRepo && manifestRepo[1] && isZephyrRepository(manifestRepo[1])) {
+      samplefolders.push(["zephyr", path.join(manifestRepo[1], 'samples')]);
     }
   }
 
-  for (let m in modules) {
-    let yamlFile = await getModuleYamlFile(modules[m][1]);
+  for (const module of modules) {
+    let yamlFile = await getModuleYamlFile(module[1]);
     if (yamlFile && yamlFile.samples) {
       for (let i in yamlFile.samples) {
-        let sampleFolder: [string, string] = [modules[m][0], path.join(setupState.setupPath, modules[m][1], yamlFile.samples[i])];
+        let sampleFolder: [string, string] = [module[0], path.join(setupState.setupPath, module[1], yamlFile.samples[i])];
         samplefolders.push(sampleFolder);
       }
     }
