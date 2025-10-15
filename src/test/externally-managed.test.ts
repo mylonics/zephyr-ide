@@ -19,7 +19,7 @@ import * as assert from "assert";
 import { generateExternallyManagedSetupState } from "../setup_utilities/types";
 
 suite("Externally Managed Setup State Test Suite", () => {
-    
+
     test("Creates externally managed setup state correctly", () => {
         const setupState = generateExternallyManagedSetupState();
         
