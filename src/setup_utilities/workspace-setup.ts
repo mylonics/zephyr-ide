@@ -625,6 +625,119 @@ export async function showWorkspaceSetupPicker(context: vscode.ExtensionContext,
   }
 }
 
+/**
+ * Show a simplified workspace creation menu for adding/selecting external workspaces.
+ * Behavior:
+ * - If current workspace is already registered: immediately open folder selector
+ * - If current workspace is not registered: ask to use current folder or select other folder
+ */
+export async function showCreateWorkspaceMenu(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
+  const currentFolder = wsConfig.rootPath;
+  const isCurrentFolderRegistered = currentFolder && 
+    globalConfig.setupStateDictionary && 
+    globalConfig.setupStateDictionary[currentFolder];
+
+  output.show();
+  let chosenPath: string;
+  let needsSetup = false;
+
+  try {
+    // Case 1: Current workspace is already registered - directly open folder selector
+    if (isCurrentFolderRegistered) {
+      const folderUris = await vscode.window.showOpenDialog({
+        openLabel: "Select Folder for New Zephyr Installation",
+        canSelectFiles: false,
+        canSelectFolders: true,
+        canSelectMany: false
+      });
+      if (!folderUris || folderUris.length === 0) {
+        return;
+      }
+      chosenPath = folderUris[0].fsPath;
+      needsSetup = true;
+    } 
+    // Case 2: Current workspace is not registered - ask user
+    else if (currentFolder) {
+      const menuOptions: vscode.QuickPickItem[] = [
+        {
+          label: "$(folder) Use Current Folder",
+          description: "Use the current workspace folder as a Zephyr installation",
+          detail: "current-folder"
+        },
+        {
+          label: "$(folder-opened) Select Other Folder",
+          description: "Choose a different folder for Zephyr installation",
+          detail: "other-folder"
+        }
+      ];
+
+      const selected = await vscode.window.showQuickPick(menuOptions, { 
+        placeHolder: "Create Zephyr workspace", 
+        ignoreFocusOut: true 
+      });
+
+      if (!selected || !selected.detail) {
+        return;
+      }
+
+      if (selected.detail === "current-folder") {
+        chosenPath = currentFolder;
+        needsSetup = true;
+      } else {
+        // Select other folder
+        const folderUris = await vscode.window.showOpenDialog({
+          openLabel: "Select Folder for New Zephyr Installation",
+          canSelectFiles: false,
+          canSelectFolders: true,
+          canSelectMany: false
+        });
+        if (!folderUris || folderUris.length === 0) {
+          return;
+        }
+        chosenPath = folderUris[0].fsPath;
+        needsSetup = true;
+      }
+    } 
+    // Case 3: No workspace folder open - just open folder selector
+    else {
+      const folderUris = await vscode.window.showOpenDialog({
+        openLabel: "Select Folder for New Zephyr Installation",
+        canSelectFiles: false,
+        canSelectFolders: true,
+        canSelectMany: false
+      });
+      if (!folderUris || folderUris.length === 0) {
+        return;
+      }
+      chosenPath = folderUris[0].fsPath;
+      needsSetup = true;
+    }
+
+    output.appendLine(`[CREATE WORKSPACE] Selected: ${chosenPath} (needsSetup=${needsSetup})`);
+
+    // Set this as the active workspace
+    await setSetupState(context, wsConfig, globalConfig, chosenPath);
+
+    if (needsSetup) {
+      // Need to configure this installation
+      output.appendLine(`[CREATE WORKSPACE] Configuring new installation...`);
+      const westSelection = await westSelector(context, wsConfig);
+      if (!westSelection || westSelection.failed) {
+        vscode.window.showErrorMessage("Workspace configuration cancelled or failed.");
+        return;
+      }
+      await postWorkspaceSetup(context, wsConfig, globalConfig, chosenPath, westSelection);
+    } else {
+      // Installation already configured, just activate it
+      vscode.window.showInformationMessage(`Workspace activated: ${path.basename(chosenPath)}`);
+      vscode.commands.executeCommand('zephyr-ide.update-web-view');
+    }
+  } catch (error) {
+    vscode.window.showErrorMessage(`Failed to create/select workspace: ${error}`);
+    output.appendLine(`[CREATE WORKSPACE] Error: ${error}`);
+  }
+}
+
 export interface WestConfigOptions {
   showUseWestFolder: boolean;
   showUseWestYml: boolean;
