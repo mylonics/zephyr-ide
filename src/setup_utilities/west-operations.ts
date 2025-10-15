@@ -34,7 +34,7 @@ export function setForceNarrowUpdateForTest(value: boolean) {
 }
 
 // Python command - will be initialized on first use
-let python: string | undefined = undefined;
+let python: string | undefined;
 
 /**
  * Get the appropriate Python command for the current platform
@@ -304,9 +304,9 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
       // Add env/bin to path
       const platformName = await getPlatformNameAsync();
       if (platformName === "windows") {
-        wsConfig.activeSetupState.env["PATH"] = path.join(pythonenv, `Scripts;`);
+        wsConfig.activeSetupState.env["PATH"] = path.join(pythonenv, 'Scripts') + ';';
       } else {
-        wsConfig.activeSetupState.env["PATH"] = path.join(pythonenv, `bin:`);
+        wsConfig.activeSetupState.env["PATH"] = path.join(pythonenv, 'bin') + ':';
       }
 
       reloadEnvironmentVariables(context, wsConfig.activeSetupState);
