@@ -19,7 +19,7 @@ import * as vscode from "vscode";
 import * as os from "os";
 import * as fs from "fs-extra";
 import * as path from "path";
-import { output, executeTaskHelperInPythonEnv, executeTaskHelper, reloadEnvironmentVariables, getPlatformName } from "../utilities/utils";
+import { output, executeTaskHelperInPythonEnv, executeTaskHelper, reloadEnvironmentVariables, getPlatformName, getPlatformNameAsync } from "../utilities/utils";
 import { getModulePathAndVersion, getModuleVersion } from "./modules";
 import { westSelector, WestLocation } from "./west_selector";
 import { WorkspaceConfig, GlobalConfig, SetupState } from "./types";
@@ -33,7 +33,20 @@ export function setForceNarrowUpdateForTest(value: boolean) {
   forceNarrowUpdateForTest = value;
 }
 
-let python = os.platform() === "linux" ? "python3" : "python";
+// Python command - will be initialized on first use
+let python: string | undefined = undefined;
+
+/**
+ * Get the appropriate Python command for the current platform
+ * In remote environments (WSL, SSH), this detects the remote OS
+ */
+async function getPythonCommand(): Promise<string> {
+  if (python === undefined) {
+    const platformName = await getPlatformNameAsync();
+    python = platformName === "linux" || platformName === "macos" ? "python3" : "python";
+  }
+  return python;
+}
 
 export function checkWestInit(setupState: SetupState) {
   let westPath = path.join(setupState.setupPath, ".west");
@@ -271,7 +284,8 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
         }
 
         // Then create the virtualenv
-        let cmd = `${python} -m venv "${pythonenv}"`;
+        const pythonCmd = await getPythonCommand();
+        let cmd = `${pythonCmd} -m venv "${pythonenv}"`;
         let res = await executeTaskHelper("Zephyr IDE West Environment Setup", cmd, wsConfig.activeSetupState.setupPath);
         if (!res) {
           output.appendLine("[SETUP] Unable to create Python Virtual Environment");
@@ -288,10 +302,11 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
       wsConfig.activeSetupState.env["VIRTUAL_ENV"] = pythonenv;
 
       // Add env/bin to path
-      if (getPlatformName() === "windows") {
-        wsConfig.activeSetupState.env["PATH"] = path.join(pythonenv, `Scripts${pathdivider}`);
+      const platformName = await getPlatformNameAsync();
+      if (platformName === "windows") {
+        wsConfig.activeSetupState.env["PATH"] = path.join(pythonenv, `Scripts;`);
       } else {
-        wsConfig.activeSetupState.env["PATH"] = path.join(pythonenv, `bin${pathdivider}`);
+        wsConfig.activeSetupState.env["PATH"] = path.join(pythonenv, `bin:`);
       }
 
       reloadEnvironmentVariables(context, wsConfig.activeSetupState);
