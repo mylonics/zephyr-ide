@@ -195,8 +195,8 @@ export async function getModuleSampleFolders(setupState: SetupState) {
   for (const module of modules) {
     let yamlFile = await getModuleYamlFile(module[1]);
     if (yamlFile && yamlFile.samples) {
-      for (let i in yamlFile.samples) {
-        let sampleFolder: [string, string] = [module[0], path.join(setupState.setupPath, module[1], yamlFile.samples[i])];
+      for (const samplePath of yamlFile.samples) {
+        let sampleFolder: [string, string] = [module[0], path.join(setupState.setupPath, module[1], samplePath)];
         samplefolders.push(sampleFolder);
       }
     }
