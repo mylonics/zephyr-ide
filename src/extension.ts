@@ -1166,6 +1166,18 @@ export async function activate(context: vscode.ExtensionContext) {
     })
   );
 
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.use-externally-managed-west-workspace", async () => {
+      const { generateExternallyManagedSetupState } = await import("./setup_utilities/types.js");
+      const externalSetupState = generateExternallyManagedSetupState();
+      wsConfig.activeSetupState = externalSetupState;
+      await setWorkspaceState(context, wsConfig);
+      reloadEnvironmentVariables(context, externalSetupState);
+      westWorkspaceView.updateWebView(wsConfig, globalConfig);
+      vscode.window.showInformationMessage("Using externally managed west workspace. Environment variables from system will be used.");
+    })
+  );
+
   // Kick an initial refresh shortly after activation so views render even if no command ran yet
   setTimeout(() => {
     try {

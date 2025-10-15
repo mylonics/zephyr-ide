@@ -29,6 +29,7 @@ export interface SetupState {
   zephyrVersion?: ZephyrVersionNumber,
   env: { [name: string]: string | undefined },
   setupPath: string,
+  externallyManaged?: boolean,
 }
 
 export type SetupStateDictionary = { [name: string]: SetupState };
@@ -68,5 +69,17 @@ export function generateSetupState(setupPath: string): SetupState {
     zephyrDir: '',
     env: {},
     setupPath: setupPath
+  };
+}
+
+export function generateExternallyManagedSetupState(): SetupState {
+  return {
+    pythonEnvironmentSetup: true,
+    westUpdated: true,
+    packagesInstalled: true,
+    zephyrDir: process.env.ZEPHYR_BASE || '',
+    env: {},
+    setupPath: 'externally-managed',
+    externallyManaged: true
   };
 }

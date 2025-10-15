@@ -227,10 +227,20 @@ export function reloadEnvironmentVariables(context: vscode.ExtensionContext, set
   context.environmentVariableCollection.persistent = false;
   context.environmentVariableCollection.clear();
 
-  context.environmentVariableCollection.description = "Zephyr IDE adds `ZEPHYR_SDK_INSTALL_DIR`";
-  context.environmentVariableCollection.replace("ZEPHYR_SDK_INSTALL_DIR", getToolchainDir(), { applyAtProcessCreation: true, applyAtShellIntegration: true });
+  // Check if user wants to use system environment variables instead
+  const configuration = vscode.workspace.getConfiguration();
+  const useSystemEnvironment: boolean | undefined = configuration.get("zephyr-ide.use-system-environment");
+  
+  if (useSystemEnvironment) {
+    // User prefers system environment variables, don't override
+    context.environmentVariableCollection.description = "Using system environment variables";
+    return;
+  }
 
   if (setupState) {
+    context.environmentVariableCollection.description = "Zephyr IDE adds `ZEPHYR_SDK_INSTALL_DIR`";
+    context.environmentVariableCollection.replace("ZEPHYR_SDK_INSTALL_DIR", getToolchainDir(), { applyAtProcessCreation: true, applyAtShellIntegration: true });
+
     if (setupState.env["VIRTUAL_ENV"]) {
       context.environmentVariableCollection.description += ", `VIRTUAL_ENV`";
       context.environmentVariableCollection.replace("VIRTUAL_ENV", setupState.env["VIRTUAL_ENV"], { applyAtProcessCreation: true, applyAtShellIntegration: true });
