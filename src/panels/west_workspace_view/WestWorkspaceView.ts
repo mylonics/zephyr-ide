@@ -39,30 +39,6 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
     if (this.view) {
       const data: any[] = [];
 
-      // Add special "None" option at the top
-      const isNone = !wsConfig.activeSetupState;
-      const noneData: any = {
-        icons: { 
-          open: 'circle-slash',
-          closed: 'circle-slash'
-        },
-        label: 'None',
-        description: 'No active workspace',
-        tooltip: 'No Zephyr workspace active',
-        value: { installPath: 'none' }
-      };
-
-      if (isNone) {
-        noneData['selected'] = true;
-      } else {
-        noneData['actions'] = [{
-          icon: 'target',
-          actionId: 'activate',
-          tooltip: 'Set as Active'
-        }];
-      }
-      data.push(noneData);
-
       // Add special "Global Installation" option
       const globalPath = getToolsDir();
       const isGlobal = wsConfig.activeSetupState?.setupPath === globalPath;
@@ -92,6 +68,11 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
         // Active global workspace: has dropdown with west operations (always open)
         globalData['selected'] = true;
         globalData['open'] = true;
+        globalData['actions'] = [{
+          icon: 'close',
+          actionId: 'deselect',
+          tooltip: 'Deselect Workspace'
+        }];
         globalData['subItems'] = [
           {
             icons: { leaf: 'settings' },
@@ -174,6 +155,11 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
             // Active workspace: has dropdown with west operations (always open)
             workspaceData['selected'] = true;
             workspaceData['open'] = true;
+            workspaceData['actions'] = [{
+              icon: 'close',
+              actionId: 'deselect',
+              tooltip: 'Deselect Workspace'
+            }];
             workspaceData['subItems'] = [
               {
                 icons: { leaf: 'settings' },
@@ -295,6 +281,9 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
           case 'activate':
             await this.handleActivate(message.value.installPath);
             break;
+          case 'deselect':
+            await this.handleDeselect();
+            break;
           case 'delete':
             await this.handleDelete(message.value.installPath);
             break;
@@ -340,22 +329,6 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
 
   private async handleActivate(installPath: string) {
     try {
-      // Handle special "none" case
-      if (installPath === 'none') {
-        const confirm = await vscode.window.showWarningMessage(
-          'Clear active workspace (set to None)?',
-          'Clear',
-          'Cancel'
-        );
-
-        if (confirm === 'Clear') {
-          await clearSetupState(this.context, this.wsConfig, this.globalConfig);
-          vscode.window.showInformationMessage('Active workspace cleared');
-          vscode.commands.executeCommand('zephyr-ide.update-web-view');
-        }
-        return;
-      }
-
       const installName = path.basename(installPath);
       
       // Show confirmation prompt (non-modal warning)
@@ -372,6 +345,24 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
       }
     } catch (error) {
       vscode.window.showErrorMessage(`Failed to switch workspace: ${error}`);
+    }
+  }
+
+  private async handleDeselect() {
+    try {
+      const confirm = await vscode.window.showWarningMessage(
+        'Clear active workspace?',
+        'Clear',
+        'Cancel'
+      );
+
+      if (confirm === 'Clear') {
+        await clearSetupState(this.context, this.wsConfig, this.globalConfig);
+        vscode.window.showInformationMessage('Active workspace cleared');
+        vscode.commands.executeCommand('zephyr-ide.update-web-view');
+      }
+    } catch (error) {
+      vscode.window.showErrorMessage(`Failed to clear workspace: ${error}`);
     }
   }
 

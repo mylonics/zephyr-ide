@@ -103,6 +103,11 @@
           "when": "view == zephyrIdeProjects"
         },
         {
+          "command": "zephyr-ide.create-new-west-workspace",
+          "group": "navigation",
+          "when": "view == zephyrIdeWestWorkspaces"
+        },
+        {
           "command": "zephyr-ide.refresh-west-workspaces",
           "group": "navigation",
           "when": "view == zephyrIdeWestWorkspaces"
@@ -184,6 +189,11 @@
       {
         "command": "zephyr-ide.west-update",
         "title": "Zephyr IDE: West Update"
+      },
+      {
+        "command": "zephyr-ide.create-new-west-workspace",
+        "title": "Zephyr IDE: Create New West Workspace",
+        "icon": "$(add)"
       },
       {
         "command": "zephyr-ide.refresh-west-workspaces",

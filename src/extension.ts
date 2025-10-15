@@ -1154,6 +1154,12 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.create-new-west-workspace", async () => {
+      await showWorkspaceSetupPicker(context, wsConfig, globalConfig);
+    })
+  );
+
+  context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.refresh-west-workspaces", async () => {
       westWorkspaceView.updateWebView(wsConfig, globalConfig);
     })
