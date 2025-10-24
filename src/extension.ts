@@ -1072,7 +1072,6 @@ export async function activate(context: vscode.ExtensionContext) {
       );
 
       if (debugConfig && activeProject && activeBuild) {
-        debugConfig.executable = '${command:zephyr-ide.get-active-build-path}/${command:zephyr-ide.get-active-project-name}/zephyr/zephyr.elf';
         // Resolve all ${command:zephyr-ide.*} variables in debugConfig
         async function resolveZephyrCommandsInObject(obj: Record<string, unknown>) {
           for (const key of Object.keys(obj)) {
