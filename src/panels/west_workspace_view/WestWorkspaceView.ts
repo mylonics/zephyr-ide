@@ -58,7 +58,7 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
           open: 'globe',
           closed: 'globe'
         },
-        label: 'Global Installation',
+        label: 'Global',
         description: globalDescription,
         tooltip: globalPath,
         value: { installPath: globalPath }

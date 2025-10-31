@@ -383,6 +383,8 @@ export async function westUpdateWithRequirements(context: vscode.ExtensionContex
       await vscode.commands.executeCommand("setContext", "zephyr-ide.workspaceSetupComplete", true);
       output.appendLine("[SETUP] Workspace setup completed successfully");
       vscode.window.showInformationMessage(`Workspace setup completed successfully at: ${setupPath}`);
+      // Refresh the west workspace panel to show the new workspace
+      vscode.commands.executeCommand('zephyr-ide.update-web-view');
     } else {
       vscode.window.showInformationMessage("Successfully completed West Update with Python requirements installation");
     }
