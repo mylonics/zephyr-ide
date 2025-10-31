@@ -61,7 +61,7 @@ import {
   build,
 } from "./zephyr_utilities/build";
 import { flashActive } from "./zephyr_utilities/flash";
-import { WorkspaceConfig, GlobalConfig } from "./setup_utilities/types";
+import { WorkspaceConfig, GlobalConfig, generateExternallyManagedSetupState } from "./setup_utilities/types";
 import {
   loadGlobalState,
   setSetupState,
@@ -1168,7 +1168,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.use-externally-managed-west-workspace", async () => {
-      const { generateExternallyManagedSetupState } = await import("./setup_utilities/types.js");
       const externalSetupState = generateExternallyManagedSetupState();
       wsConfig.activeSetupState = externalSetupState;
       await setWorkspaceState(context, wsConfig);
