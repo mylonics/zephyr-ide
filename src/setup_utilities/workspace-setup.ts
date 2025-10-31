@@ -315,6 +315,7 @@ async function handleExternalInstallation(
     postWorkspaceSetup(context, wsConfig, globalConfig, externalPath, extWestSelection);
   } else {
     vscode.window.showInformationMessage(`Workspace linked to external Zephyr installation at: ${externalPath}`);
+    vscode.commands.executeCommand('zephyr-ide.update-web-view');
   }
 
   return true;
