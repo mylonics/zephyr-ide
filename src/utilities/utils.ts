@@ -237,7 +237,7 @@ export function reloadEnvironmentVariables(context: vscode.ExtensionContext, set
     return;
   }
 
-  if (setupState) {
+  if (setupState && !setupState.externallyManaged) {
     context.environmentVariableCollection.description = "Zephyr IDE adds `ZEPHYR_SDK_INSTALL_DIR`";
     context.environmentVariableCollection.replace("ZEPHYR_SDK_INSTALL_DIR", getToolchainDir(), { applyAtProcessCreation: true, applyAtShellIntegration: true });
 
