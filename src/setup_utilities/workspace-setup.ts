@@ -1009,7 +1009,7 @@ export async function selectExistingWestWorkspace(
   const installPath = selectedInstall.detail;
 
   // Load the setup state from the selected installation
-  const setupState = await loadExternalSetupState(installPath, globalConfig);
+  const setupState = await loadExternalSetupState(context, globalConfig, installPath);
   if (!setupState) {
     vscode.window.showErrorMessage(`Failed to load setup state from: ${installPath}`);
     return false;

@@ -699,13 +699,13 @@ export class SetupPanel {
                 </div>
                 
                 <div class="walkthrough-description">
-                    <p>Set up your Zephyr development environment by configuring each component:</p>
+                    <p>Complete these steps to set up your Zephyr development environment:</p>
                     <ul class="setup-requirements">
-                        <li><strong>Host Tools</strong> - Install CMake, Ninja, Python, Git, and other build tools</li>
-                        <li><strong>Zephyr SDK</strong> - Manage cross-compilation toolchains (requires west workspace)</li>
-                        <li><strong>Workspace</strong> - Configure project structure and dependencies</li>
+                        <li><strong>1. Host Tools</strong> - Ensure system has required build dependencies</li>
+                        <li><strong>2. Zephyr SDK</strong> - Download toolchains for target architectures</li>
+                        <li><strong>3. Workspace</strong> - Link to Zephyr source code and modules</li>
                     </ul>
-                    <p class="help-text">Click any card to get started.</p>
+                    <p class="help-text">Each step provides tools to verify status and complete setup. Click any card to begin.</p>
                 </div>
             </div>
         </div>`;
