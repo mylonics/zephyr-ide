@@ -196,9 +196,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // Check for workspace environment variables and warn if missing
   // This happens after initial setup state is loaded but before environment is reloaded
-  if (!wsConfig.activeSetupState) {
-    await checkAndWarnMissingEnvironment(context);
-  }
+  await checkAndWarnMissingEnvironment(context);
 
   reloadEnvironmentVariables(context, wsConfig.activeSetupState);
 
