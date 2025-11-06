@@ -102,7 +102,7 @@ function displayStatus(data) {
             </div>
             <div class="summary-item">
                 <div class="summary-count missing">${missingCount}</div>
-                <div class="summary-label">Missing</div>
+                <div class="summary-label">Not Found</div>
             </div>
             <div class="summary-item">
                 <div class="summary-count">${totalCount}</div>
@@ -121,7 +121,7 @@ function displayStatus(data) {
                 </div>
                 <div class="package-actions">
                     <span class="status-badge ${pkg.available ? 'status-available' : 'status-missing'}">
-                        ${pkg.available ? '✓ Installed' : '✗ Missing'}
+                        ${pkg.available ? '✓ Installed' : '✗ Not Found'}
                     </span>
                     ${!pkg.available && data.managerAvailable ? `
                         <button class="button button-small" onclick="installPackage('${pkg.name}')">
