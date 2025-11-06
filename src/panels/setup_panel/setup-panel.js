@@ -16,6 +16,34 @@ function toggleSection(sectionId) {
     }
 }
 
+// Scroll to section function
+function scrollToSection(sectionId) {
+    const section = document.getElementById(sectionId);
+    if (section) {
+        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // Expand the section if it's collapsed
+        const content = document.getElementById(sectionId + 'Content');
+        const icon = document.getElementById(sectionId + 'Icon');
+        if (content && icon && !content.classList.contains('expanded')) {
+            content.classList.add('expanded');
+            icon.classList.add('expanded');
+        }
+    }
+}
+
+// Host Tools Functions
+function openHostToolsPanel() {
+    vscode.postMessage({
+        command: 'openHostToolsPanel'
+    });
+}
+
+function markToolsComplete() {
+    vscode.postMessage({
+        command: 'markToolsComplete'
+    });
+}
+
 // Command Functions
 function openWingetInstall() {
     vscode.postMessage({

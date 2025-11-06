@@ -22,6 +22,7 @@ import {
     listAvailableSDKs,
     ParsedSDKList,
 } from "../../setup_utilities/west_sdk";
+import { saveSetupState } from "../../setup_utilities/state-management";
 
 export class SetupPanel {
     public static currentPanel: SetupPanel | undefined;
@@ -103,6 +104,12 @@ export class SetupPanel {
     // Message Handler
     private handleWebviewMessage(message: any) {
         switch (message.command) {
+            case "openHostToolsPanel":
+                this.openHostToolsPanel();
+                return;
+            case "markToolsComplete":
+                this.markToolsComplete();
+                return;
             case "openWingetLink":
                 this.openWingetLink();
                 return;
@@ -168,6 +175,35 @@ export class SetupPanel {
     // Workspace Management Methods
 
     // Utility Methods
+    private async openHostToolsPanel() {
+        try {
+            vscode.commands.executeCommand("zephyr-ide.install-host-tools");
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to open host tools panel: ${error}`);
+        }
+    }
+
+    private async markToolsComplete() {
+        if (!this.currentWsConfig || !this.currentGlobalConfig) {
+            vscode.window.showErrorMessage("Configuration not available");
+            return;
+        }
+
+        this.currentGlobalConfig.toolsAvailable = true;
+        await saveSetupState(
+            this._context,
+            this.currentWsConfig,
+            this.currentGlobalConfig
+        );
+
+        vscode.window.showInformationMessage(
+            "Host tools marked as available."
+        );
+
+        // Update the panel to reflect the change
+        this.updateContent(this.currentWsConfig, this.currentGlobalConfig);
+    }
+
     private async openWingetLink() {
         try {
             vscode.env.openExternal(vscode.Uri.parse("https://aka.ms/getwinget"));
@@ -361,6 +397,8 @@ export class SetupPanel {
         <body>
             <div class="wizard-container">
                 <h1>Zephyr IDE Setup & Configuration</h1>
+                ${this.generateOverviewSection(wsConfig, globalConfig, folderOpen, workspaceInitialized)}
+                ${this.generateHostToolsSection(globalConfig)}
                 ${this.generateSDKSection(globalConfig)}
                 ${this.generateWestOperationsSection()}
                 ${this.generateWorkspaceSetupSection(
@@ -399,6 +437,87 @@ export class SetupPanel {
         return `<script src="${jsUri}"></script>`;
     }
 
+    private generateOverviewSection(
+        wsConfig: WorkspaceConfig,
+        globalConfig: GlobalConfig,
+        folderOpen: boolean,
+        workspaceInitialized: boolean
+    ): string {
+        const hostToolsStatus = globalConfig.toolsAvailable ? "✓ Ready" : "⚠ Setup Required";
+        const sdkStatus = globalConfig.sdkInstalled ? "✓ Installed" : "✗ Not Installed";
+        const workspaceStatus = workspaceInitialized ? "✓ Initialized" : folderOpen ? "⚙ Setup Required" : "📁 No Folder";
+        
+        const hostToolsClass = globalConfig.toolsAvailable ? "status-success" : "status-warning";
+        const sdkClass = globalConfig.sdkInstalled ? "status-success" : "status-error";
+        const workspaceClass = workspaceInitialized ? "status-success" : folderOpen ? "status-warning" : "status-info";
+
+        return `
+        <div class="overview-section">
+            <h2 style="margin: 0 0 15px 0; font-size: 16px; font-weight: 600;">Setup Overview</h2>
+            <div class="overview-cards">
+                <div class="overview-card" onclick="scrollToSection('hostTools')">
+                    <div class="overview-card-header">
+                        <span class="overview-icon">🔧</span>
+                        <h3>Host Tools</h3>
+                    </div>
+                    <div class="status ${hostToolsClass}">${hostToolsStatus}</div>
+                    <p class="overview-description">Development tools and package manager</p>
+                </div>
+                
+                <div class="overview-card" onclick="scrollToSection('sdk')">
+                    <div class="overview-card-header">
+                        <span class="overview-icon">📦</span>
+                        <h3>Zephyr SDK</h3>
+                    </div>
+                    <div class="status ${sdkClass}">${sdkStatus}</div>
+                    <p class="overview-description">Cross-compilation toolchains</p>
+                </div>
+                
+                <div class="overview-card" onclick="scrollToSection('workspace')">
+                    <div class="overview-card-header">
+                        <span class="overview-icon">🗂️</span>
+                        <h3>Workspace</h3>
+                    </div>
+                    <div class="status ${workspaceClass}">${workspaceStatus}</div>
+                    <p class="overview-description">Project organization and dependencies</p>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    private generateHostToolsSection(globalConfig: GlobalConfig): string {
+        const hostToolsCollapsed = globalConfig.toolsAvailable;
+        const statusClass = globalConfig.toolsAvailable
+            ? "status-success"
+            : "status-warning";
+        const statusText = globalConfig.toolsAvailable
+            ? "✓ Tools Available"
+            : "⚠ Setup Required";
+        const expandedClass = hostToolsCollapsed ? "" : "expanded";
+
+        const description = globalConfig.toolsAvailable
+            ? "Host development tools are installed and available. You can manage or update tools as needed."
+            : "Host development tools (CMake, Ninja, Python, etc.) are required for building Zephyr applications. Install them to proceed.";
+
+        return `
+        <div class="collapsible-section" id="hostTools">
+            <div class="collapsible-header" onclick="toggleSection('hostTools')">
+                <div class="collapsible-header-left">
+                    <div class="status ${statusClass}">${statusText}</div>
+                    <div class="collapsible-title">Host Tools Installation</div>
+                </div>
+                <div class="collapsible-icon ${expandedClass}" id="hostToolsIcon">▶</div>
+            </div>
+            <div class="collapsible-content ${expandedClass}" id="hostToolsContent">
+                <div class="step-description">${description}</div>
+                <div style="display: flex; gap: 15px; margin: 20px 0; flex-wrap: wrap;">
+                    <button class="button button-primary" onclick="openHostToolsPanel()">Install Host Tools</button>
+                    <button class="button button-secondary" onclick="markToolsComplete()">Skip & Mark as Complete</button>
+                </div>
+            </div>
+        </div>`;
+    }
+
     private generateSDKSection(globalConfig: GlobalConfig): string {
         const sdkCollapsed = globalConfig.sdkInstalled;
         const statusClass = globalConfig.sdkInstalled
@@ -414,7 +533,7 @@ export class SetupPanel {
             : "The Zephyr SDK is required for building Zephyr applications. Install it to enable cross-compilation for supported architectures.";
 
         return `
-        <div class="collapsible-section">
+        <div class="collapsible-section" id="sdk">
             <div class="collapsible-header" onclick="toggleSection('sdk')">
                 <div class="collapsible-header-left">
                     <div class="status ${statusClass}">${statusText}</div>
@@ -538,7 +657,7 @@ export class SetupPanel {
         const content = this.getWorkspaceContent(folderOpen, workspaceInitialized);
 
         return `
-        <div class="collapsible-section">
+        <div class="collapsible-section" id="workspace">
             <div class="collapsible-header" onclick="toggleSection('workspace')">
                 <div class="collapsible-header-left">
                     <div class="status ${statusClass}">${statusText}</div>
