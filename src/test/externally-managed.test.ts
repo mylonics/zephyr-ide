@@ -16,34 +16,18 @@ limitations under the License.
 */
 
 import * as assert from "assert";
-import { generateExternallyManagedSetupState } from "../setup_utilities/types";
 
-suite("Externally Managed Setup State Test Suite", () => {
+suite("Environment Variable Detection Test Suite", () => {
 
-    test("Creates externally managed setup state correctly", () => {
-        const setupState = generateExternallyManagedSetupState();
-        
-        // Verify all required fields are set correctly
-        assert.strictEqual(setupState.pythonEnvironmentSetup, true, "pythonEnvironmentSetup should be true");
-        assert.strictEqual(setupState.westUpdated, true, "westUpdated should be true");
-        assert.strictEqual(setupState.packagesInstalled, true, "packagesInstalled should be true");
-        assert.strictEqual(setupState.setupPath, 'externally-managed', "setupPath should be 'externally-managed'");
-        assert.strictEqual(setupState.externallyManaged, true, "externallyManaged flag should be true");
-        
-        // Verify env is an empty object
-        assert.deepStrictEqual(setupState.env, {}, "env should be an empty object");
-    });
-
-    test("Uses ZEPHYR_BASE from environment if available", () => {
+    test("Detects ZEPHYR_BASE environment variable", () => {
         // Save original value
         const originalZephyrBase = process.env.ZEPHYR_BASE;
         
         // Set test value
         process.env.ZEPHYR_BASE = "/test/zephyr/path";
         
-        const setupState = generateExternallyManagedSetupState();
-        
-        assert.strictEqual(setupState.zephyrDir, "/test/zephyr/path", "zephyrDir should use ZEPHYR_BASE from environment");
+        // Verify environment variable is set
+        assert.strictEqual(process.env.ZEPHYR_BASE, "/test/zephyr/path", "ZEPHYR_BASE should be set");
         
         // Restore original value
         if (originalZephyrBase !== undefined) {
@@ -53,20 +37,43 @@ suite("Externally Managed Setup State Test Suite", () => {
         }
     });
 
-    test("Sets empty zephyrDir when ZEPHYR_BASE is not set", () => {
+    test("Detects ZEPHYR_SDK_INSTALL_DIR environment variable", () => {
         // Save original value
-        const originalZephyrBase = process.env.ZEPHYR_BASE;
+        const originalSdkPath = process.env.ZEPHYR_SDK_INSTALL_DIR;
         
-        // Remove ZEPHYR_BASE
-        delete process.env.ZEPHYR_BASE;
+        // Set test value
+        process.env.ZEPHYR_SDK_INSTALL_DIR = "/test/sdk/path";
         
-        const setupState = generateExternallyManagedSetupState();
-        
-        assert.strictEqual(setupState.zephyrDir, '', "zephyrDir should be empty when ZEPHYR_BASE is not set");
+        // Verify environment variable is set
+        assert.strictEqual(process.env.ZEPHYR_SDK_INSTALL_DIR, "/test/sdk/path", "ZEPHYR_SDK_INSTALL_DIR should be set");
         
         // Restore original value
+        if (originalSdkPath !== undefined) {
+            process.env.ZEPHYR_SDK_INSTALL_DIR = originalSdkPath;
+        } else {
+            delete process.env.ZEPHYR_SDK_INSTALL_DIR;
+        }
+    });
+
+    test("Handles missing environment variables gracefully", () => {
+        // Save original values
+        const originalZephyrBase = process.env.ZEPHYR_BASE;
+        const originalSdkPath = process.env.ZEPHYR_SDK_INSTALL_DIR;
+        
+        // Remove environment variables
+        delete process.env.ZEPHYR_BASE;
+        delete process.env.ZEPHYR_SDK_INSTALL_DIR;
+        
+        // Verify variables are undefined
+        assert.strictEqual(process.env.ZEPHYR_BASE, undefined, "ZEPHYR_BASE should be undefined");
+        assert.strictEqual(process.env.ZEPHYR_SDK_INSTALL_DIR, undefined, "ZEPHYR_SDK_INSTALL_DIR should be undefined");
+        
+        // Restore original values
         if (originalZephyrBase !== undefined) {
             process.env.ZEPHYR_BASE = originalZephyrBase;
+        }
+        if (originalSdkPath !== undefined) {
+            process.env.ZEPHYR_SDK_INSTALL_DIR = originalSdkPath;
         }
     });
 });

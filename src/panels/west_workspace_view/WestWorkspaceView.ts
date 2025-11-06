@@ -116,38 +116,6 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
       }
       data.push(globalData);
 
-      // Add special "Externally Managed" option
-      const isExternallyManaged = wsConfig.activeSetupState?.externallyManaged === true;
-      
-      const externalData: any = {
-        icons: { 
-          open: 'database',
-          closed: 'database'
-        },
-        label: 'Externally Managed',
-        description: 'Use system environment variables',
-        tooltip: 'Use existing ZEPHYR_BASE and ZEPHYR_SDK_INSTALL_DIR from system environment',
-        value: { installPath: 'externally-managed' }
-      };
-
-      if (isExternallyManaged) {
-        // Active externally managed workspace
-        externalData['selected'] = true;
-        externalData['open'] = false; // No sub-items, so don't open dropdown
-        externalData['actions'] = [{
-          icon: 'close',
-          actionId: 'deselect',
-          tooltip: 'Deselect Workspace'
-        }];
-      } else {
-        externalData['actions'] = [{
-          icon: 'target',
-          actionId: 'activate',
-          tooltip: 'Set as Active'
-        }];
-      }
-      data.push(externalData);
-
       if (globalConfig.setupStateDictionary) {
         for (const installPath in globalConfig.setupStateDictionary) {
           // Skip global path as it's already added above
@@ -361,20 +329,6 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
 
   private async handleActivate(installPath: string) {
     try {
-      // Handle special case for externally managed workspace
-      if (installPath === 'externally-managed') {
-        const confirm = await vscode.window.showWarningMessage(
-          'Switch to externally managed workspace? This will use system environment variables (ZEPHYR_BASE, ZEPHYR_SDK_INSTALL_DIR, etc.).',
-          'Switch',
-          'Cancel'
-        );
-
-        if (confirm === 'Switch') {
-          vscode.commands.executeCommand('zephyr-ide.use-externally-managed-west-workspace');
-        }
-        return;
-      }
-
       const installName = path.basename(installPath);
       
       // Show confirmation prompt (non-modal warning)

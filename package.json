@@ -62,12 +62,12 @@
           "default": false,
           "description": "If true, uses 'west update --narrow'. If false, uses 'west update' without --narrow."
         },
-        "zephyr-ide.use-system-environment": {
+        "zephyr-ide.suppress-workspace-warning": {
           "type": [
             "boolean"
           ],
           "default": false,
-          "description": "If true, uses system environment variables (ZEPHYR_BASE, ZEPHYR_SDK_INSTALL_DIR, etc.) instead of managing them. Useful for containerized or pre-configured environments."
+          "description": "If true, suppresses the warning about missing workspace environment variables (ZEPHYR_BASE, ZEPHYR_SDK_INSTALL_DIR)."
         }
       }
     },
@@ -206,10 +206,6 @@
         "command": "zephyr-ide.refresh-west-workspaces",
         "title": "Zephyr IDE: Refresh West Workspaces",
         "icon": "$(refresh)"
-      },
-      {
-        "command": "zephyr-ide.use-externally-managed-west-workspace",
-        "title": "Zephyr IDE: Use Externally Managed West Workspace"
       },
       {
         "command": "zephyr-ide.reset-workspace",
