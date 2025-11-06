@@ -40,6 +40,9 @@ window.addEventListener('message', event => {
         case 'hostToolsInstallComplete':
             hideHostToolsProgress();
             break;
+        case 'westYmlContent':
+            loadWestYmlContent(message.content);
+            break;
     }
 });
 
@@ -341,14 +344,6 @@ function loadWestYmlContent(content) {
         editor.value = content || '';
     }
 }
-
-// Listen for west.yml content updates
-window.addEventListener('message', event => {
-    const message = event.data;
-    if (message.command === 'westYmlContent') {
-        loadWestYmlContent(message.content);
-    }
-});
 
 // Copy to clipboard function from data attribute
 function copyToClipboardFromData(element) {

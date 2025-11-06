@@ -227,6 +227,7 @@ export class SetupPanel {
                     page: page
                 });
                 // Then load west.yml content if workspace is initialized
+                // Small delay ensures webview has rendered before loading content
                 if (this.currentWsConfig.initialSetupComplete) {
                     setTimeout(() => this.loadWestYmlContent(), 100);
                 }
@@ -465,7 +466,12 @@ export class SetupPanel {
             await vscode.commands.executeCommand("zephyr-ide.install-sdk");
             // Refresh the panel after SDK installation to update status
             if (this.currentWsConfig && this.currentGlobalConfig) {
-                this.updateContent(this.currentWsConfig, this.currentGlobalConfig);
+                try {
+                    this.updateContent(this.currentWsConfig, this.currentGlobalConfig);
+                } catch (updateError) {
+                    console.error("Failed to refresh panel after SDK installation:", updateError);
+                    // Don't show error to user as SDK installation was successful
+                }
             }
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to install west SDK: ${error}`);
