@@ -1017,6 +1017,7 @@ export async function selectExistingWestWorkspace(
 
   // Set it as the active setup state for this workspace
   wsConfig.activeSetupState = setupState;
+  wsConfig.initialSetupComplete = true; // Mark workspace as initialized
   await setWorkspaceState(context, wsConfig);
 
   vscode.window.showInformationMessage(
