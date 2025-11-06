@@ -320,7 +320,7 @@ export function reloadEnvironmentVariables(context: vscode.ExtensionContext, set
     return;
   }
 
-  // If setup state exists, use IDE-managed environment variables
+  // If setup state exists, IDE will always manage environment variables (no distinction between IDE-managed and external setups)
   context.environmentVariableCollection.description = "Zephyr IDE adds `ZEPHYR_SDK_INSTALL_DIR`";
   context.environmentVariableCollection.replace("ZEPHYR_SDK_INSTALL_DIR", getToolchainDir(), { applyAtProcessCreation: true, applyAtShellIntegration: true });
 
