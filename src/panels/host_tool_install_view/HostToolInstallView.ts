@@ -175,10 +175,25 @@ export class HostToolInstallView {
       const success = await installPackageManager();
 
       if (success) {
-        vscode.window.showInformationMessage(
-          "Package manager installed successfully. Please restart VS Code."
-        );
+        // Re-check the package manager status to see if it's available
         await this.checkStatus();
+        
+        const managerAvailable = await checkPackageManagerAvailable();
+        
+        if (!managerAvailable) {
+          vscode.window.showWarningMessage(
+            "Package manager was installed but is not yet available. Please restart VS Code for changes to take effect.",
+            "Restart Now"
+          ).then(selection => {
+            if (selection === "Restart Now") {
+              vscode.commands.executeCommand("workbench.action.reloadWindow");
+            }
+          });
+        } else {
+          vscode.window.showInformationMessage(
+            "Package manager installed successfully."
+          );
+        }
       } else {
         vscode.window.showErrorMessage(
           "Failed to install package manager. Check output for details."
@@ -214,10 +229,27 @@ export class HostToolInstallView {
       const success = await installPackage(pkg);
 
       if (success) {
-        vscode.window.showInformationMessage(
-          `${packageName} installed successfully.`
-        );
+        // Re-check the package status to see if it's available
         await this.checkStatus();
+        
+        // Get the updated status
+        const packageStatuses = await checkAllPackages();
+        const installedPkg = packageStatuses.find(p => p.name === packageName);
+        
+        if (installedPkg && !installedPkg.available) {
+          vscode.window.showWarningMessage(
+            `${packageName} was installed but is not yet available. Please restart VS Code for changes to take effect.`,
+            "Restart Now"
+          ).then(selection => {
+            if (selection === "Restart Now") {
+              vscode.commands.executeCommand("workbench.action.reloadWindow");
+            }
+          });
+        } else {
+          vscode.window.showInformationMessage(
+            `${packageName} installed successfully.`
+          );
+        }
       } else {
         vscode.window.showErrorMessage(
           `Failed to install ${packageName}. Check output for details.`
@@ -244,6 +276,21 @@ export class HostToolInstallView {
 
       await installAllMissingPackages();
       await this.checkStatus();
+      
+      // Check if any packages still aren't available after installation
+      const packageStatuses = await checkAllPackages();
+      const needsRestart = packageStatuses.some(p => !p.available);
+      
+      if (needsRestart) {
+        vscode.window.showWarningMessage(
+          "Some packages were installed but are not yet available. Please restart VS Code for changes to take effect.",
+          "Restart Now"
+        ).then(selection => {
+          if (selection === "Restart Now") {
+            vscode.commands.executeCommand("workbench.action.reloadWindow");
+          }
+        });
+      }
 
       this._panel.webview.postMessage({
         command: "installComplete",

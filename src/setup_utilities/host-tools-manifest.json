@@ -100,8 +100,7 @@
       {
         "name": "7-Zip",
         "package": "7zip.7zip",
-        "check_command": "7z --help",
-        "post_install_step": "[System.Environment]::SetEnvironmentVariable('Path', [System.Environment]::GetEnvironmentVariable('Path', 'Machine') + ';C:\\Program Files\\7-Zip', 'Machine')"
+        "check_command": "7z --help"
       }
     ]
   }

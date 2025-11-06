@@ -257,7 +257,7 @@ export async function checkPackageAvailable(pkg: PlatformPackage): Promise<Packa
       name: pkg.name,
       package: pkg.package,
       available,
-      error: available ? undefined : "Package not found"
+      error: available ? undefined : "Not found"
     };
   } catch (error) {
     return {
@@ -336,6 +336,13 @@ export async function installPackage(pkg: PlatformPackage): Promise<boolean> {
   }
 
   output.appendLine(`[HOST TOOLS] Successfully installed ${pkg.name}`);
+  
+  // Verify the package is now available
+  const status = await checkPackageAvailable(pkg);
+  if (!status.available) {
+    output.appendLine(`[HOST TOOLS] Warning: ${pkg.name} was installed but is not yet available. A VS Code restart may be required.`);
+  }
+  
   return true;
 }
 
