@@ -65,48 +65,13 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
       };
 
       if (isGlobal) {
-        // Active global workspace: has dropdown with west operations (always open)
+        // Active global workspace: no dropdown, just close action
         globalData['selected'] = true;
-        globalData['open'] = true;
         globalData['actions'] = [{
           icon: 'close',
           actionId: 'deselect',
           tooltip: 'Deselect Workspace'
         }];
-        globalData['subItems'] = [
-          {
-            icons: { leaf: 'settings' },
-            label: 'West Config',
-            value: { 
-              command: 'zephyr-ide.west-config-no-external',
-              installPath: globalPath
-            }
-          },
-          {
-            icons: { leaf: 'settings-gear' },
-            label: 'Setup West Environment',
-            value: { 
-              command: 'zephyr-ide.setup-west-environment',
-              installPath: globalPath
-            }
-          },
-          {
-            icons: { leaf: 'git-branch' },
-            label: 'West Init',
-            value: { 
-              command: 'zephyr-ide.west-init',
-              installPath: globalPath
-            }
-          },
-          {
-            icons: { leaf: 'sync' },
-            label: 'West Update',
-            value: { 
-              command: 'zephyr-ide.west-update',
-              installPath: globalPath
-            }
-          }
-        ];
       } else {
         globalData['actions'] = [{
           icon: 'target',
@@ -184,48 +149,13 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
           };
 
           if (isActive && isValidPath) {
-            // Active workspace: has dropdown with west operations (always open)
+            // Active workspace: no dropdown, just close action
             workspaceData['selected'] = true;
-            workspaceData['open'] = true;
             workspaceData['actions'] = [{
               icon: 'close',
               actionId: 'deselect',
               tooltip: 'Deselect Workspace'
             }];
-            workspaceData['subItems'] = [
-              {
-                icons: { leaf: 'settings' },
-                label: 'West Config',
-                value: { 
-                  command: 'zephyr-ide.west-config-no-external',
-                  installPath: installPath
-                }
-              },
-              {
-                icons: { leaf: 'settings-gear' },
-                label: 'Setup West Environment',
-                value: { 
-                  command: 'zephyr-ide.setup-west-environment',
-                  installPath: installPath
-                }
-              },
-              {
-                icons: { leaf: 'git-branch' },
-                label: 'West Init',
-                value: { 
-                  command: 'zephyr-ide.west-init',
-                  installPath: installPath
-                }
-              },
-              {
-                icons: { leaf: 'sync' },
-                label: 'West Update',
-                value: { 
-                  command: 'zephyr-ide.west-update',
-                  installPath: installPath
-                }
-              }
-            ];
           } else {
             // Non-active workspace: no dropdown, just action icons
             workspaceData['actions'] = [];

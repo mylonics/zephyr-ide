@@ -32,26 +32,32 @@ export class ExtensionSetupView implements vscode.WebviewViewProvider {
         icons: {
           leaf: 'folder-opened',
         },
-        label: "Open Setup Panel",
+        label: "Zephyr IDE Configuration",
         value: { command: "zephyr-ide.open-setup-panel" },
       }, {
         icons: {
-          leaf: 'tools',
+          leaf: 'settings',
         },
-        label: "Install Host Tools (Experimental)",
-        value: { command: "zephyr-ide.install-host-tools" },
+        label: "West Config",
+        value: { command: "zephyr-ide.west-config" },
       }, {
         icons: {
-          leaf: 'file-directory-create',
+          leaf: 'folder-opened',
         },
-        label: "Workspace Setup",
-        value: { command: "zephyr-ide.workspace-setup-picker" },
+        label: "Setup West Environment",
+        value: { command: "zephyr-ide.setup-west-environment" },
       }, {
         icons: {
-          leaf: 'package',
+          leaf: 'repo-create',
         },
-        label: "Install SDK",
-        value: { command: "zephyr-ide.install-sdk" },
+        label: "West Init",
+        value: { command: "zephyr-ide.west-init" },
+      }, {
+        icons: {
+          leaf: 'sync',
+        },
+        label: "West Update",
+        value: { command: "zephyr-ide.west-update" },
       }];
 
       this.view.webview.postMessage(data);
