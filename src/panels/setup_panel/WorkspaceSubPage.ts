@@ -103,28 +103,6 @@ export class WorkspaceSubPage {
         </div>
         
         <div class="action-section">
-            <h3>West Commands</h3>
-            <div class="button-group">
-                <button class="button button-secondary" onclick="westConfig()">
-                    <span class="codicon codicon-settings"></span>
-                    West Config
-                </button>
-                <button class="button button-secondary" onclick="setupWestEnvironment()">
-                    <span class="codicon codicon-folder-opened"></span>
-                    Setup West Environment
-                </button>
-                <button class="button button-secondary" onclick="westInit()">
-                    <span class="codicon codicon-repo-create"></span>
-                    West Init
-                </button>
-                <button class="button button-secondary" onclick="westUpdate()">
-                    <span class="codicon codicon-sync"></span>
-                    West Update
-                </button>
-            </div>
-        </div>
-        
-        <div class="action-section">
             <h3>Workspace Management</h3>
             <div class="button-group">
                 <button class="button button-secondary" onclick="manageWorkspace()">
@@ -179,12 +157,7 @@ export class WorkspaceSubPage {
         
         <div class="section-container">
             <h3>Use Existing West Workspace</h3>
-            <div class="button-group">
-                <button class="button button-secondary" onclick="westConfig()">
-                    <span class="codicon codicon-settings"></span>
-                    West Config
-                </button>
-            </div>
+            <p class="description">To configure an existing west workspace, use the West Config command from the "Zephyr IDE and Workspace Setup" panel.</p>
         </div>`;
     }
 
