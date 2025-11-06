@@ -16,6 +16,7 @@ limitations under the License.
 */
 
 import { WorkspaceConfig } from "../../setup_utilities/types";
+import * as path from "path";
 
 export class WorkspaceSubPage {
     static getHtml(wsConfig: WorkspaceConfig): string {
@@ -168,14 +169,14 @@ export class WorkspaceSubPage {
     
     private static getWestYmlPath(wsConfig: WorkspaceConfig): string {
         if (wsConfig.activeSetupState?.setupPath) {
-            return wsConfig.activeSetupState.setupPath + "/west.yml";
+            return path.join(wsConfig.activeSetupState.setupPath, "west.yml");
         }
         return "Not found";
     }
     
     private static getVenvPath(wsConfig: WorkspaceConfig): string {
         if (wsConfig.activeSetupState?.setupPath) {
-            return wsConfig.activeSetupState.setupPath + "/.venv";
+            return path.join(wsConfig.activeSetupState.setupPath, ".venv");
         }
         return "Not found";
     }

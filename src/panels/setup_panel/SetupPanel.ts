@@ -16,6 +16,7 @@ limitations under the License.
 */
 
 import * as vscode from "vscode";
+import * as path from "path";
 import { WorkspaceConfig, GlobalConfig } from "../../setup_utilities/types";
 import {
     getWestSDKContext,
@@ -739,7 +740,7 @@ export class SetupPanel {
             }
             
             const westYmlPath = vscode.Uri.file(
-                this.currentWsConfig.activeSetupState.setupPath + "/west.yml"
+                path.join(this.currentWsConfig.activeSetupState.setupPath, "west.yml")
             );
             
             const doc = await vscode.workspace.openTextDocument(westYmlPath);
@@ -756,7 +757,7 @@ export class SetupPanel {
             }
             
             const westYmlPath = vscode.Uri.file(
-                this.currentWsConfig.activeSetupState.setupPath + "/west.yml"
+                path.join(this.currentWsConfig.activeSetupState.setupPath, "west.yml")
             );
             
             const doc = await vscode.workspace.openTextDocument(westYmlPath);
@@ -783,7 +784,7 @@ export class SetupPanel {
             }
             
             const westYmlPath = vscode.Uri.file(
-                this.currentWsConfig.activeSetupState.setupPath + "/west.yml"
+                path.join(this.currentWsConfig.activeSetupState.setupPath, "west.yml")
             );
             
             // Write the content to the file
