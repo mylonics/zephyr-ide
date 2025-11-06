@@ -152,13 +152,11 @@ function manageWorkspace() {
 
 // SDK Management Functions
 function listSDKs() {
-    // Show loading state
-    const resultsDiv = document.getElementById('sdkListResults');
-    const contentDiv = document.getElementById('sdkListContent');
+    // Show loading state in the sdkListContainer
+    const containerDiv = document.getElementById('sdkListContainer');
 
-    if (resultsDiv && contentDiv) {
-        resultsDiv.style.display = 'block';
-        contentDiv.innerHTML = '<div style="display: flex; align-items: center; gap: 8px; padding: 10px;"><div class="loading-spinner"></div><span>Loading SDK information...</span></div>';
+    if (containerDiv) {
+        containerDiv.innerHTML = '<div style="display: flex; align-items: center; gap: 8px; padding: 10px;"><div class="loading-spinner"></div><span>Loading SDK information...</span></div>';
     }
 
     vscode.postMessage({
@@ -167,17 +165,14 @@ function listSDKs() {
 }
 
 function displaySDKList(sdkData) {
-    const resultsDiv = document.getElementById('sdkListResults');
-    const contentDiv = document.getElementById('sdkListContent');
+    const containerDiv = document.getElementById('sdkListContainer');
 
-    if (!resultsDiv || !contentDiv) {
+    if (!containerDiv) {
         return;
     }
 
-    resultsDiv.style.display = 'block';
-
     if (!sdkData.success) {
-        contentDiv.innerHTML = `
+        containerDiv.innerHTML = `
             <div style="padding: 15px; border: 1px solid var(--vscode-inputValidation-errorBorder); border-radius: 6px; background-color: var(--vscode-inputValidation-errorBackground); color: var(--vscode-inputValidation-errorForeground);">
                 <strong>Error:</strong> ${sdkData.error || 'Failed to list SDKs'}
             </div>
@@ -186,7 +181,7 @@ function displaySDKList(sdkData) {
     }
 
     if (!sdkData.versions || sdkData.versions.length === 0) {
-        contentDiv.innerHTML = `
+        containerDiv.innerHTML = `
             <div style="padding: 15px; border: 1px solid var(--vscode-panel-border); border-radius: 6px; background-color: var(--vscode-editor-background); color: var(--vscode-descriptionForeground); text-align: center;">
                 No SDK versions found. Try installing an SDK first.
             </div>
@@ -224,7 +219,7 @@ function displaySDKList(sdkData) {
         `;
     }
 
-    contentDiv.innerHTML = html;
+    containerDiv.innerHTML = html;
 }
 
 // Workspace Setup Functions - Now direct handlers
@@ -255,6 +250,12 @@ function workspaceSetupFromCurrentDirectory() {
 function workspaceSetupPicker() {
     vscode.postMessage({
         command: 'workspaceSetupPicker'
+    });
+}
+
+function westConfig() {
+    vscode.postMessage({
+        command: 'westConfig'
     });
 }
 

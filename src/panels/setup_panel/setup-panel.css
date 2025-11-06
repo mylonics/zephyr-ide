@@ -182,6 +182,18 @@ h1 {
     font-size: 13px;
     font-weight: 400;
     transition: background-color 0.1s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.button .codicon {
+    font-size: 14px;
+}
+
+.button-primary {
+    background-color: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
 }
 
 .button:hover {
