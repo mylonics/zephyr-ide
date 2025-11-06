@@ -317,6 +317,39 @@ function westConfig() {
     });
 }
 
+// West.yml editor functions
+function openWestYml() {
+    vscode.postMessage({
+        command: 'openWestYml'
+    });
+}
+
+function saveAndUpdateWestYml() {
+    const editor = document.getElementById('westYmlEditor');
+    if (editor) {
+        const content = editor.value;
+        vscode.postMessage({
+            command: 'saveAndUpdateWestYml',
+            content: content
+        });
+    }
+}
+
+function loadWestYmlContent(content) {
+    const editor = document.getElementById('westYmlEditor');
+    if (editor) {
+        editor.value = content || '';
+    }
+}
+
+// Listen for west.yml content updates
+window.addEventListener('message', event => {
+    const message = event.data;
+    if (message.command === 'westYmlContent') {
+        loadWestYmlContent(message.content);
+    }
+});
+
 // Copy to clipboard function from data attribute
 function copyToClipboardFromData(element) {
     const text = element.getAttribute('data-command');

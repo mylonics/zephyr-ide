@@ -187,6 +187,12 @@ export class SetupPanel {
             case "westConfig":
                 this.westConfig();
                 return;
+            case "openWestYml":
+                this.openWestYml();
+                return;
+            case "saveAndUpdateWestYml":
+                this.saveAndUpdateWestYml(message.content);
+                return;
         }
     }
 
@@ -213,7 +219,17 @@ export class SetupPanel {
                 break;
             case "workspace":
                 subPageContent = WorkspaceSubPage.getHtml(this.currentWsConfig);
-                break;
+                // Send sub-page content first
+                this._panel.webview.postMessage({
+                    command: "showSubPage",
+                    content: subPageContent,
+                    page: page
+                });
+                // Then load west.yml content if workspace is initialized
+                if (this.currentWsConfig.initialSetupComplete) {
+                    setTimeout(() => this.loadWestYmlContent(), 100);
+                }
+                return;
             case "overview":
             default:
                 // Navigate back to overview - send message to show it
@@ -445,7 +461,11 @@ export class SetupPanel {
     // SDK and West Management Methods
     private async installSDK() {
         try {
-            vscode.commands.executeCommand("zephyr-ide.install-sdk");
+            await vscode.commands.executeCommand("zephyr-ide.install-sdk");
+            // Refresh the panel after SDK installation to update status
+            if (this.currentWsConfig && this.currentGlobalConfig) {
+                this.updateContent(this.currentWsConfig, this.currentGlobalConfig);
+            }
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to install west SDK: ${error}`);
         }
@@ -709,5 +729,73 @@ export class SetupPanel {
                 </div>
             </div>
         </div>`;
+    }
+
+    private async openWestYml() {
+        try {
+            if (!this.currentWsConfig?.activeSetupState?.setupPath) {
+                vscode.window.showErrorMessage("No active workspace setup found");
+                return;
+            }
+            
+            const westYmlPath = vscode.Uri.file(
+                this.currentWsConfig.activeSetupState.setupPath + "/west.yml"
+            );
+            
+            const doc = await vscode.workspace.openTextDocument(westYmlPath);
+            await vscode.window.showTextDocument(doc);
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to open west.yml: ${error}`);
+        }
+    }
+
+    private async loadWestYmlContent() {
+        try {
+            if (!this.currentWsConfig?.activeSetupState?.setupPath) {
+                return;
+            }
+            
+            const westYmlPath = vscode.Uri.file(
+                this.currentWsConfig.activeSetupState.setupPath + "/west.yml"
+            );
+            
+            const doc = await vscode.workspace.openTextDocument(westYmlPath);
+            const content = doc.getText();
+            
+            this._panel.webview.postMessage({
+                command: "westYmlContent",
+                content: content
+            });
+        } catch (error) {
+            // If file doesn't exist, that's okay
+            this._panel.webview.postMessage({
+                command: "westYmlContent",
+                content: "# west.yml file not found"
+            });
+        }
+    }
+
+    private async saveAndUpdateWestYml(content: string) {
+        try {
+            if (!this.currentWsConfig?.activeSetupState?.setupPath) {
+                vscode.window.showErrorMessage("No active workspace setup found");
+                return;
+            }
+            
+            const westYmlPath = vscode.Uri.file(
+                this.currentWsConfig.activeSetupState.setupPath + "/west.yml"
+            );
+            
+            // Write the content to the file
+            const encoder = new TextEncoder();
+            await vscode.workspace.fs.writeFile(westYmlPath, encoder.encode(content));
+            
+            vscode.window.showInformationMessage("west.yml saved successfully");
+            
+            // Run west update
+            await vscode.commands.executeCommand("zephyr-ide.west-update");
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to save west.yml: ${error}`);
+        }
     }
 }
