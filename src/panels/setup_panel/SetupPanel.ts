@@ -228,9 +228,17 @@ export class SetupPanel {
         });
     }
 
-    // Public method to navigate to host tools page
+    // Public methods to navigate to specific pages
     public navigateToHostTools() {
         this.navigateToPage("hosttools");
+    }
+
+    public navigateToSDK() {
+        this.navigateToPage("sdk");
+    }
+
+    public navigateToWorkspace() {
+        this.navigateToPage("workspace");
     }
 
     public dispose() {

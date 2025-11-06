@@ -36,6 +36,12 @@ export class ExtensionSetupView implements vscode.WebviewViewProvider {
         value: { command: "zephyr-ide.open-setup-panel" },
       }, {
         icons: {
+          leaf: 'book',
+        },
+        label: "Setup Walkthrough (Interactive Guide)",
+        value: { command: "zephyr-ide.open-setup-walkthrough" },
+      }, {
+        icons: {
           leaf: 'tools',
         },
         label: "Install Host Tools (Experimental)",
