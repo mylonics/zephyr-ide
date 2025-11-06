@@ -21,8 +21,8 @@ import { HostToolInstallView } from "../host_tool_install_view/HostToolInstallVi
 export class HostToolsSubPage {
     static getHtml(globalConfig: GlobalConfig): string {
         const description = globalConfig.toolsAvailable
-            ? "Host development tools are installed and available. You can manage or update tools as needed."
-            : "Host development tools (CMake, Ninja, Python, etc.) are required for building Zephyr applications. Install them to proceed.";
+            ? "Host tools are installed. You can manage or update them below."
+            : "Install CMake, Ninja, Python, Git, and other tools required for building Zephyr applications.";
 
         const hostToolsManagerContent = HostToolInstallView.getContentHtml();
 
@@ -33,7 +33,7 @@ export class HostToolsSubPage {
                     <span class="codicon codicon-chevron-left"></span>
                     Back to Overview
                 </button>
-                <h2>Host Tools Installation</h2>
+                <h2>Host Tools</h2>
             </div>
             
             <div class="sub-page-body">

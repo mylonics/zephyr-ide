@@ -20,8 +20,8 @@ import { GlobalConfig } from "../../setup_utilities/types";
 export class SDKSubPage {
     static getHtml(globalConfig: GlobalConfig): string {
         const description = globalConfig.sdkInstalled
-            ? "The Zephyr SDK is installed and ready to use. You can manage additional SDK versions or update to the latest release."
-            : "The Zephyr SDK is required for building Zephyr applications. Install it to enable cross-compilation for supported architectures.";
+            ? "Zephyr SDK is installed. You can manage additional versions or update below."
+            : "Install the Zephyr SDK to enable cross-compilation for supported architectures.";
 
         return `
         <div class="sub-page-content">
@@ -43,17 +43,14 @@ export class SDKSubPage {
                 
                 <div class="info-box">
                     <p style="margin: 0;">
-                        <strong>Note:</strong> SDK installation uses the <code>west sdk</code> command. 
-                        A west installation is required in order to install the Zephyr SDK. 
-                        Please ensure west is set up before proceeding with SDK installation.
+                        <strong>Note:</strong> SDK installation uses the <code>west sdk</code> command and requires a west workspace.
                     </p>
                 </div>
                 
                 <div class="section-container">
                     <h3>About Zephyr SDK</h3>
                     <p class="description">
-                        The Zephyr SDK contains cross-compilation toolchains for multiple architectures including ARM, x86, RISC-V, and more.
-                        It provides everything needed to build Zephyr applications for various target platforms.
+                        The Zephyr SDK contains cross-compilation toolchains for ARM, x86, RISC-V, and other architectures.
                     </p>
                 </div>
                 

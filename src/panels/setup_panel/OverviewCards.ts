@@ -29,7 +29,7 @@ export class HostToolsCard {
                 <h3>Host Tools</h3>
             </div>
             <div class="status ${statusClass}">${status}</div>
-            <p class="overview-description">Development tools and package manager</p>
+            <p class="overview-description">Install and verify build tools, compilers, and utilities required for Zephyr development.</p>
             <div class="card-arrow">→</div>
         </div>`;
     }
@@ -44,10 +44,10 @@ export class SDKCard {
         <div class="overview-card" onclick="navigateToSubPage('sdk')">
             <div class="overview-card-header">
                 <span class="overview-icon">📦</span>
-                <h3>Zephyr SDK</h3>
+                <h3>Zephyr SDK Management</h3>
             </div>
             <div class="status ${statusClass}">${status}</div>
-            <p class="overview-description">Cross-compilation toolchains</p>
+            <p class="overview-description">Install and manage Zephyr SDK for different architectures and toolchains. Requires west workspace.</p>
             <div class="card-arrow">→</div>
         </div>`;
     }
@@ -65,7 +65,7 @@ export class WorkspaceCard {
                 <h3>Workspace</h3>
             </div>
             <div class="status ${statusClass}">${status}</div>
-            <p class="overview-description">Project organization and dependencies</p>
+            <p class="overview-description">Configure west workspace, initialize repositories, and manage Zephyr project dependencies.</p>
             <div class="card-arrow">→</div>
         </div>`;
     }

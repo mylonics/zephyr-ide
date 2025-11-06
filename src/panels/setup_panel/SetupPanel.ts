@@ -675,24 +675,24 @@ export class SetupPanel {
         <div class="overview-section">
             <div class="walkthrough-header">
                 <h1 class="walkthrough-title">Zephyr IDE Setup & Configuration</h1>
-                <p class="walkthrough-subtitle">Configure your development environment in three simple steps</p>
+                <p class="walkthrough-subtitle">Configure your development environment</p>
             </div>
             
             <div class="two-column-layout">
-                <div class="walkthrough-description">
-                    <p>Welcome to Zephyr IDE! To get started with Zephyr development, you'll need to configure three main components:</p>
-                    <ul class="setup-requirements">
-                        <li><strong>Host Tools</strong> - Development tools like CMake, Ninja, Python, and Git</li>
-                        <li><strong>Zephyr SDK</strong> - Cross-compilation toolchains for multiple architectures</li>
-                        <li><strong>Workspace</strong> - Your project organization and dependencies</li>
-                    </ul>
-                    <p class="help-text">Click on any card to the right to begin setup for that component.</p>
-                </div>
-                
                 <div class="overview-cards">
                     ${HostToolsCard.getHtml(globalConfig)}
                     ${SDKCard.getHtml(globalConfig)}
                     ${WorkspaceCard.getHtml(wsConfig, folderOpen, workspaceInitialized)}
+                </div>
+                
+                <div class="walkthrough-description">
+                    <p>Set up your Zephyr development environment by configuring each component:</p>
+                    <ul class="setup-requirements">
+                        <li><strong>Host Tools</strong> - Install CMake, Ninja, Python, Git, and other build tools</li>
+                        <li><strong>Zephyr SDK</strong> - Manage cross-compilation toolchains (requires west workspace)</li>
+                        <li><strong>Workspace</strong> - Configure project structure and dependencies</li>
+                    </ul>
+                    <p class="help-text">Click any card to get started.</p>
                 </div>
             </div>
         </div>`;

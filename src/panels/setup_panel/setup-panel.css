@@ -597,6 +597,15 @@ h1 {
     grid-template-columns: 1fr 1fr;
     gap: 40px;
     align-items: start;
+    grid-template-areas: "cards description";
+}
+
+.overview-cards {
+    grid-area: cards;
+}
+
+.walkthrough-description {
+    grid-area: description;
 }
 
 .walkthrough-description {

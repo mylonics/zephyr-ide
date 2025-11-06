@@ -71,13 +71,13 @@ export class WorkspaceSubPage {
 
     private static getNoFolderContent(): string {
         return `
-        <p class="description">Open a folder in VS Code to begin setting up your Zephyr development workspace.</p>
+        <p class="description">Open a folder in VS Code to set up your Zephyr workspace.</p>
         
         <div class="section-container centered">
             <div class="empty-state">
                 <div class="empty-state-icon">📁</div>
                 <h3>No Folder Open</h3>
-                <p>A workspace folder is required to set up Zephyr development environment.</p>
+                <p>A workspace folder is required for Zephyr development.</p>
             </div>
             
             <div class="button-group">
@@ -95,13 +95,13 @@ export class WorkspaceSubPage {
 
     private static getInitializedContent(): string {
         return `
-        <p class="description">Your Zephyr workspace is configured and ready for development!</p>
+        <p class="description">Workspace is configured and ready for development.</p>
         
         <div class="section-container">
             <h3>Workspace Information</h3>
             <div class="info-box">
-                <p>✅ Workspace successfully initialized</p>
-                <p>You can now create projects, build applications, and develop with Zephyr RTOS.</p>
+                <p>✅ Workspace initialized</p>
+                <p>You can now create projects and build applications.</p>
             </div>
         </div>
         
@@ -122,7 +122,7 @@ export class WorkspaceSubPage {
 
     private static getSetupOptionsContent(): string {
         return `
-        <p class="description">Select how to configure your Zephyr workspace. A workspace organizes projects and manages development dependencies.</p>
+        <p class="description">Select how to configure your workspace. Each option organizes projects and manages dependencies differently.</p>
         
         <div class="section-container">
             <h3>Workspace Setup Options</h3>
@@ -130,29 +130,29 @@ export class WorkspaceSubPage {
                 ${this.generateWorkspaceOptionCard(
                     "🌐",
                     "Import Zephyr IDE Workspace from Git",
-                    "Clone and import a complete Zephyr IDE workspace or any repo with projects as subdirectories using Git.",
-                    "Team collaboration and shared development environments",
+                    "Clone a complete workspace or repo with projects as subdirectories using Git.",
+                    "Team collaboration and shared environments",
                     "workspaceSetupFromGit()"
                 )}
                 ${this.generateWorkspaceOptionCard(
                     "⚙️",
                     "Import West Workspace from Git",
-                    "Clone a standard west manifest repo (contains west.yml) from a Git repository using West Init.",
-                    "Upstream Zephyr projects, community examples, and official samples",
+                    "Clone a west manifest repo (contains west.yml) using West Init.",
+                    "Upstream Zephyr projects and community examples",
                     "workspaceSetupFromWestGit()"
                 )}
                 ${this.generateWorkspaceOptionCard(
                     "📦",
                     "New Standard Workspace",
-                    "Create a self-contained workspace with Zephyr installed locally within the workspace directory.",
-                    "Individual projects, isolated development, or specific Zephyr versions",
+                    "Create a self-contained workspace with Zephyr installed locally.",
+                    "Individual projects or specific Zephyr versions",
                     "workspaceSetupStandard()"
                 )}
                 ${this.generateWorkspaceOptionCard(
                     "📁",
                     "Initialize Current Directory",
-                    "Set up the current VS Code workspace directory for Zephyr development, preserving existing files.",
-                    "Existing projects, downloaded samples, or external Zephyr installations",
+                    "Set up the current directory for Zephyr development, preserving existing files.",
+                    "Existing projects or external Zephyr installations",
                     "workspaceSetupFromCurrentDirectory()"
                 )}
             </div>
