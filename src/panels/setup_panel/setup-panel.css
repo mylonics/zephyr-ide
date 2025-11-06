@@ -872,3 +872,86 @@ h1 {
 .sdk-list-container {
     margin-top: 20px;
 }
+
+/* Host Tools Manager Styles */
+.host-tools-manager {
+    margin-top: 15px;
+}
+
+.manager-section {
+    margin-bottom: 20px;
+}
+
+.manager-section h3 {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.status-area {
+    padding: 15px;
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 4px;
+    background-color: var(--vscode-editor-background);
+}
+
+.status-area .loading {
+    text-align: center;
+    color: var(--vscode-descriptionForeground);
+    padding: 20px;
+}
+
+.status-area .success {
+    color: var(--vscode-terminal-ansiGreen);
+    padding: 10px;
+}
+
+.status-area .error {
+    color: var(--vscode-terminal-ansiRed);
+    padding: 10px;
+}
+
+.status-area .warning {
+    color: var(--vscode-terminal-ansiYellow);
+    padding: 10px;
+}
+
+.status-area .info {
+    color: var(--vscode-terminal-ansiBlue);
+    padding: 10px;
+}
+
+.packages-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.packages-table thead th {
+    text-align: left;
+    padding: 8px;
+    border-bottom: 1px solid var(--vscode-panel-border);
+    font-weight: 600;
+    font-size: 12px;
+}
+
+.packages-table tbody td {
+    padding: 8px;
+    border-bottom: 1px solid var(--vscode-panel-border);
+    font-size: 12px;
+}
+
+.packages-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.button-small {
+    padding: 4px 8px;
+    font-size: 11px;
+}
+
+.progress-message {
+    text-align: center;
+    padding: 15px;
+    font-style: italic;
+    color: var(--vscode-descriptionForeground);
+}

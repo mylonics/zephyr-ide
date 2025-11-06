@@ -42,6 +42,57 @@ export class HostToolInstallView {
   private currentWsConfig?: WorkspaceConfig;
   private currentGlobalConfig?: GlobalConfig;
 
+  /**
+   * Get just the host tools manager content HTML (without full page wrapper)
+   * for embedding in other panels
+   */
+  public static getContentHtml(): string {
+    return `
+      <div class="host-tools-manager">
+        <div class="info-box">
+          <p>
+            This tool helps you install and manage development tools required for Zephyr RTOS development.
+            The tools will be installed using your platform's package manager.
+          </p>
+          <p style="margin-top: 10px; font-style: italic; color: var(--vscode-descriptionForeground);">
+            <strong>Note:</strong> VS Code may need to be restarted after installation for tools to be available in the PATH.
+          </p>
+        </div>
+
+        <div id="package-manager-section" class="manager-section">
+          <h3>Package Manager Status</h3>
+          <div id="manager-status" class="status-area">
+            <div class="loading">Checking package manager...</div>
+          </div>
+        </div>
+
+        <div id="packages-section" class="manager-section">
+          <h3>Required Development Tools</h3>
+          <div id="packages-status" class="status-area">
+            <div class="loading">Checking packages...</div>
+          </div>
+        </div>
+
+        <div id="actions-section" class="manager-section">
+          <div class="button-group">
+            <button id="refresh-btn" class="button" onclick="refreshHostToolsStatus()">
+              <span class="codicon codicon-refresh"></span>
+              Refresh Status
+            </button>
+            <button id="install-all-btn" class="button button-primary" onclick="installAllMissingTools()" disabled>
+              <span class="codicon codicon-cloud-download"></span>
+              Install All Missing Packages
+            </button>
+          </div>
+        </div>
+
+        <div id="progress-section" class="manager-section" style="display: none;">
+          <div class="progress-message" id="progress-message">Processing...</div>
+        </div>
+      </div>
+    `;
+  }
+
   public static createOrShow(
     extensionPath: string,
     context: vscode.ExtensionContext,

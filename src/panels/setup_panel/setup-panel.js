@@ -25,8 +25,20 @@ window.addEventListener('message', event => {
         case 'showSubPage':
             showSubPage(message.content, message.page);
             break;
+        case 'showOverview':
+            showOverview();
+            break;
         case 'sdkListResult':
             displaySDKList(message.data);
+            break;
+        case 'updateHostToolsStatus':
+            updateHostToolsStatus(message.data, message.error);
+            break;
+        case 'hostToolsInstallProgress':
+            showHostToolsProgress(message.message);
+            break;
+        case 'hostToolsInstallComplete':
+            hideHostToolsProgress();
             break;
     }
 });
@@ -85,6 +97,10 @@ function hideSubPage() {
             subPageContainer.innerHTML = '';
         }, 300);
     }
+}
+
+function showOverview() {
+    hideSubPage();
 }
 
 // Section Toggle Functions (kept for compatibility)
@@ -368,6 +384,126 @@ function copyToClipboard(text, element) {
             showFeedback(false);
         }
     }
+}
+
+// Host Tools Manager Functions
+function refreshHostToolsStatus() {
+    vscode.postMessage({
+        command: 'checkHostToolsStatus'
+    });
+}
+
+function installAllMissingTools() {
+    vscode.postMessage({
+        command: 'installAllMissingTools'
+    });
+}
+
+function installSinglePackage(packageName) {
+    vscode.postMessage({
+        command: 'installPackage',
+        packageName: packageName
+    });
+}
+
+function installPackageManagerTool() {
+    vscode.postMessage({
+        command: 'installPackageManager'
+    });
+}
+
+function updateHostToolsStatus(data, error) {
+    const managerStatus = document.getElementById('manager-status');
+    const packagesStatus = document.getElementById('packages-status');
+    const installAllBtn = document.getElementById('install-all-btn');
+    
+    if (!managerStatus || !packagesStatus) {
+        return;
+    }
+    
+    if (error) {
+        managerStatus.innerHTML = `<div class="error">Error: ${escapeHtml(error)}</div>`;
+        packagesStatus.innerHTML = `<div class="error">Unable to check package status</div>`;
+        return;
+    }
+    
+    // Update package manager status
+    if (!data.managerAvailable) {
+        managerStatus.innerHTML = `
+            <div class="warning">
+                <strong>${escapeHtml(data.managerName)}</strong> is not installed or not in PATH.
+                <div style="margin-top: 10px;">
+                    <button class="button button-secondary" onclick="installPackageManagerTool()">
+                        Install ${escapeHtml(data.managerName)}
+                    </button>
+                </div>
+            </div>
+        `;
+    } else {
+        managerStatus.innerHTML = `
+            <div class="success">
+                ✓ <strong>${escapeHtml(data.managerName)}</strong> is available
+            </div>
+        `;
+    }
+    
+    // Update packages status
+    if (!data.packages || data.packages.length === 0) {
+        packagesStatus.innerHTML = '<div class="info">No packages to check</div>';
+        return;
+    }
+    
+    let html = '<table class="packages-table">';
+    html += '<thead><tr><th>Package</th><th>Status</th><th>Action</th></tr></thead><tbody>';
+    
+    let hasMissing = false;
+    for (const pkg of data.packages) {
+        const available = pkg.available;
+        const statusClass = available ? 'success' : 'error';
+        const statusText = available ? '✓ Installed' : '✗ Not installed';
+        
+        if (!available) {
+            hasMissing = true;
+        }
+        
+        html += `<tr>
+            <td><strong>${escapeHtml(pkg.name)}</strong></td>
+            <td><span class="${statusClass}">${statusText}</span></td>
+            <td>`;
+        
+        if (!available) {
+            html += `<button class="button button-small" onclick="installSinglePackage('${escapeHtml(pkg.name)}')">Install</button>`;
+        }
+        
+        html += `</td></tr>`;
+    }
+    
+    html += '</tbody></table>';
+    packagesStatus.innerHTML = html;
+    
+    // Enable/disable install all button
+    if (installAllBtn) {
+        installAllBtn.disabled = !hasMissing || !data.managerAvailable;
+    }
+}
+
+function showHostToolsProgress(message) {
+    const progressSection = document.getElementById('progress-section');
+    const progressMessage = document.getElementById('progress-message');
+    
+    if (progressSection && progressMessage) {
+        progressMessage.textContent = message;
+        progressSection.style.display = 'block';
+    }
+}
+
+function hideHostToolsProgress() {
+    const progressSection = document.getElementById('progress-section');
+    if (progressSection) {
+        progressSection.style.display = 'none';
+    }
+    // Refresh status after installation
+    refreshHostToolsStatus();
 }
 
 // Message Listener

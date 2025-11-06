@@ -16,12 +16,15 @@ limitations under the License.
 */
 
 import { GlobalConfig } from "../../setup_utilities/types";
+import { HostToolInstallView } from "../host_tool_install_view/HostToolInstallView";
 
 export class HostToolsSubPage {
     static getHtml(globalConfig: GlobalConfig): string {
         const description = globalConfig.toolsAvailable
             ? "Host development tools are installed and available. You can manage or update tools as needed."
             : "Host development tools (CMake, Ninja, Python, etc.) are required for building Zephyr applications. Install them to proceed.";
+
+        const hostToolsManagerContent = HostToolInstallView.getContentHtml();
 
         return `
         <div class="sub-page-content">
@@ -54,21 +57,21 @@ export class HostToolsSubPage {
                     </ul>
                 </div>
                 
+                <div class="section-container">
+                    <h3>Installation Manager</h3>
+                    ${hostToolsManagerContent}
+                </div>
+                
                 <div class="action-section">
-                    <h3>Installation Options</h3>
+                    <h3>Quick Actions</h3>
                     <div class="button-group">
-                        <button class="button button-primary" onclick="openHostToolsPanel()">
-                            <span class="codicon codicon-tools"></span>
-                            Open Advanced Host Tools Manager
-                        </button>
                         <button class="button button-secondary" onclick="markToolsComplete()">
                             <span class="codicon codicon-check"></span>
                             Mark Tools as Installed
                         </button>
                     </div>
                     <p class="help-text">
-                        The Advanced Host Tools Manager provides detailed installation guidance for your platform.
-                        If you've already installed the tools manually, you can mark them as complete.
+                        If you've already installed all required tools manually, you can mark them as complete to skip this step.
                     </p>
                 </div>
             </div>

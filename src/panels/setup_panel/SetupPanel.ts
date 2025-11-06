@@ -26,6 +26,15 @@ import { saveSetupState } from "../../setup_utilities/state-management";
 import { HostToolsSubPage } from "./HostToolsSubPage";
 import { SDKSubPage } from "./SDKSubPage";
 import { WorkspaceSubPage } from "./WorkspaceSubPage";
+import {
+    getPackageManagerForPlatformAsync,
+    checkPackageManagerAvailable,
+    checkAllPackages,
+    installPackageManager,
+    installPackage,
+    installAllMissingPackages,
+    getPlatformPackages,
+} from "../../setup_utilities/host_tools";
 
 export class SetupPanel {
     public static currentPanel: SetupPanel | undefined;
@@ -116,6 +125,18 @@ export class SetupPanel {
             case "markToolsComplete":
                 this.markToolsComplete();
                 return;
+            case "checkHostToolsStatus":
+                this.checkHostToolsStatus();
+                return;
+            case "installPackageManager":
+                this.installPackageManager();
+                return;
+            case "installPackage":
+                this.installPackage(message.packageName);
+                return;
+            case "installAllMissingTools":
+                this.installAllMissingTools();
+                return;
             case "openWingetLink":
                 this.openWingetLink();
                 return;
@@ -174,7 +195,15 @@ export class SetupPanel {
         switch (page) {
             case "hosttools":
                 subPageContent = HostToolsSubPage.getHtml(this.currentGlobalConfig);
-                break;
+                // Send sub-page content first
+                this._panel.webview.postMessage({
+                    command: "showSubPage",
+                    content: subPageContent,
+                    page: page
+                });
+                // Then automatically check host tools status
+                setTimeout(() => this.checkHostToolsStatus(), 100);
+                return;
             case "sdk":
                 subPageContent = SDKSubPage.getHtml(this.currentGlobalConfig);
                 break;
@@ -183,8 +212,10 @@ export class SetupPanel {
                 break;
             case "overview":
             default:
-                // Navigate back to overview - full refresh
-                this.updateContent(this.currentWsConfig, this.currentGlobalConfig);
+                // Navigate back to overview - send message to show it
+                this._panel.webview.postMessage({
+                    command: "showOverview"
+                });
                 return;
         }
         
@@ -239,6 +270,139 @@ export class SetupPanel {
 
         // Update the panel to reflect the change
         this.updateContent(this.currentWsConfig, this.currentGlobalConfig);
+    }
+
+    private async checkHostToolsStatus() {
+        try {
+            const manager = await getPackageManagerForPlatformAsync();
+            if (!manager) {
+                this._panel.webview.postMessage({
+                    command: "updateHostToolsStatus",
+                    error: "Unsupported platform",
+                });
+                return;
+            }
+
+            const managerAvailable = await checkPackageManagerAvailable();
+            const packageStatuses = await checkAllPackages();
+
+            this._panel.webview.postMessage({
+                command: "updateHostToolsStatus",
+                data: {
+                    managerName: manager.name,
+                    managerAvailable,
+                    managerInstallUrl: manager.config.install_url,
+                    packages: packageStatuses,
+                },
+            });
+        } catch (error) {
+            this._panel.webview.postMessage({
+                command: "updateHostToolsStatus",
+                error: String(error),
+            });
+        }
+    }
+
+    private async installPackageManager() {
+        try {
+            this._panel.webview.postMessage({
+                command: "hostToolsInstallProgress",
+                message: "Installing package manager...",
+            });
+
+            const success = await installPackageManager();
+
+            if (success) {
+                await this.checkHostToolsStatus();
+                
+                const managerAvailable = await checkPackageManagerAvailable();
+                
+                if (!managerAvailable) {
+                    vscode.window.showWarningMessage(
+                        "Package manager was installed but is not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect."
+                    );
+                } else {
+                    vscode.window.showInformationMessage(
+                        "Package manager installed successfully."
+                    );
+                }
+            } else {
+                vscode.window.showErrorMessage(
+                    "Failed to install package manager. Check output for details."
+                );
+            }
+
+            this._panel.webview.postMessage({
+                command: "hostToolsInstallComplete",
+            });
+        } catch (error) {
+            vscode.window.showErrorMessage(`Error: ${error}`);
+            this._panel.webview.postMessage({
+                command: "hostToolsInstallComplete",
+            });
+        }
+    }
+
+    private async installPackage(packageName: string) {
+        try {
+            this._panel.webview.postMessage({
+                command: "hostToolsInstallProgress",
+                message: `Installing ${packageName}...`,
+            });
+
+            const platformPackages = await getPlatformPackages();
+            const pkg = platformPackages.find(p => p.name === packageName);
+            
+            if (!pkg) {
+                vscode.window.showErrorMessage(`Package ${packageName} not found`);
+                this._panel.webview.postMessage({
+                    command: "hostToolsInstallComplete",
+                });
+                return;
+            }
+
+            await installPackage(pkg);
+            await this.checkHostToolsStatus();
+
+            this._panel.webview.postMessage({
+                command: "hostToolsInstallComplete",
+            });
+        } catch (error) {
+            vscode.window.showErrorMessage(`Error: ${error}`);
+            this._panel.webview.postMessage({
+                command: "hostToolsInstallComplete",
+            });
+        }
+    }
+
+    private async installAllMissingTools() {
+        try {
+            this._panel.webview.postMessage({
+                command: "hostToolsInstallProgress",
+                message: "Installing all missing packages...",
+            });
+
+            await installAllMissingPackages();
+            await this.checkHostToolsStatus();
+            
+            const packageStatuses = await checkAllPackages();
+            const needsRestart = packageStatuses.some(p => !p.available);
+            
+            if (needsRestart) {
+                vscode.window.showWarningMessage(
+                    "Some packages were installed but are not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect."
+                );
+            }
+
+            this._panel.webview.postMessage({
+                command: "hostToolsInstallComplete",
+            });
+        } catch (error) {
+            vscode.window.showErrorMessage(`Error: ${error}`);
+            this._panel.webview.postMessage({
+                command: "hostToolsInstallComplete",
+            });
+        }
     }
 
     private async openWingetLink() {
