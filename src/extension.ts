@@ -115,7 +115,7 @@ async function markWorkspaceSetupComplete(
 
 /**
  * Check if required Zephyr environment variables are present
- * @returns true if ZEPHYR_BASE or ZEPHYR_SDK_INSTALL_DIR are set, false otherwise
+ * @returns true if either ZEPHYR_BASE or ZEPHYR_SDK_INSTALL_DIR is set, false otherwise
  */
 function checkZephyrEnvironmentVariables(): boolean {
   return !!(process.env.ZEPHYR_BASE || process.env.ZEPHYR_SDK_INSTALL_DIR);
