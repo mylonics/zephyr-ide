@@ -137,7 +137,7 @@ async function checkAndWarnMissingEnvironment(context: vscode.ExtensionContext):
   // Check if environment variables are present
   if (!checkZephyrEnvironmentVariables()) {
     const result = await vscode.window.showWarningMessage(
-      "No Zephyr workspace environment detected. Neither ZEPHYR_BASE nor ZEPHYR_SDK_INSTALL_DIR environment variables are set. Do you want to continue without a workspace?",
+      "No Zephyr workspace environment detected. Neither ZEPHYR_BASE nor ZEPHYR_SDK_INSTALL_DIR environment variables are set. Continue using system environment variables?",
       "Continue",
       "Don't Show Again",
       "Cancel"
