@@ -674,8 +674,6 @@ export class SetupPanel {
     ): string {
         return `
         <div class="overview-section">
-            <h2 style="margin: 0 0 15px 0; font-size: 16px; font-weight: 600;">Setup Overview</h2>
-            <p class="section-description">Click on any card to view details and perform setup tasks.</p>
             <div class="overview-cards">
                 ${HostToolsCard.getHtml(globalConfig)}
                 ${SDKCard.getHtml(globalConfig)}

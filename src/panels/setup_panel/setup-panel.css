@@ -567,6 +567,12 @@ h1 {
     color: var(--vscode-descriptionForeground);
 }
 
+.overview-section {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
 .overview-cards {
     display: flex;
     flex-direction: column;
