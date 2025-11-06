@@ -157,7 +157,15 @@ export class WorkspaceSubPage {
         
         <div class="section-container">
             <h3>Use Existing West Workspace</h3>
-            <p class="description">To configure an existing west workspace, use the West Config command from the "Zephyr IDE and Workspace Setup" panel.</p>
+            <div class="workspace-options-grid">
+                ${this.generateWorkspaceOptionCard(
+                    "🔗",
+                    "Link to Existing Installation",
+                    "Select from existing Zephyr installations to link this workspace without initializing a new one.",
+                    "Sharing installations across multiple projects",
+                    "selectExistingWestWorkspace()"
+                )}
+            </div>
         </div>`;
     }
 

@@ -194,6 +194,12 @@ function manageWorkspace() {
     });
 }
 
+function selectExistingWestWorkspace() {
+    vscode.postMessage({
+        command: 'selectExistingWestWorkspace'
+    });
+}
+
 // SDK Management Functions
 function listSDKs() {
     // Show loading state in the sdkListContainer

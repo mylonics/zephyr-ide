@@ -980,3 +980,49 @@ export async function westConfig(
   output.appendLine(`[WEST CONFIG] Configuration completed successfully`);
   return result;
 }
+
+/**
+ * Select an existing west workspace installation and link it to the current workspace
+ */
+export async function selectExistingWestWorkspace(
+  context: vscode.ExtensionContext,
+  wsConfig: WorkspaceConfig,
+  globalConfig: GlobalConfig
+): Promise<boolean> {
+  // Get existing installations
+  const installOptions = await getExistingInstallationPicks(wsConfig, globalConfig);
+
+  if (!installOptions || installOptions.length === 0) {
+    return false; // getExistingInstallationPicks already shows appropriate message
+  }
+
+  // Show quickpick to user
+  const selectedInstall = await vscode.window.showQuickPick(installOptions, {
+    placeHolder: "Select an existing Zephyr installation to use for this workspace",
+    ignoreFocusOut: true,
+  });
+
+  if (!selectedInstall || !selectedInstall.detail) {
+    return false; // User cancelled
+  }
+
+  const installPath = selectedInstall.detail;
+
+  // Load the setup state from the selected installation
+  const setupState = await loadExternalSetupState(installPath, globalConfig);
+  if (!setupState) {
+    vscode.window.showErrorMessage(`Failed to load setup state from: ${installPath}`);
+    return false;
+  }
+
+  // Set it as the active setup state for this workspace
+  wsConfig.activeSetupState = setupState;
+  await setWorkspaceState(context, wsConfig);
+
+  vscode.window.showInformationMessage(
+    `Workspace linked to existing Zephyr installation at: ${installPath}`
+  );
+  
+  output.appendLine(`[WORKSPACE] Linked to existing installation: ${installPath}`);
+  return true;
+}

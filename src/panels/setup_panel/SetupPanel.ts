@@ -162,6 +162,9 @@ export class SetupPanel {
             case "manageWorkspace":
                 this.manageWorkspace();
                 return;
+            case "selectExistingWestWorkspace":
+                this.selectExistingWestWorkspace();
+                return;
             case "listSDKs":
                 this.listSDKs();
                 return;
@@ -480,6 +483,16 @@ export class SetupPanel {
         } catch (error) {
             vscode.window.showErrorMessage(
                 `Failed to open workspace manager: ${error}`
+            );
+        }
+    }
+
+    private async selectExistingWestWorkspace() {
+        try {
+            vscode.commands.executeCommand("zephyr-ide.select-existing-west-workspace");
+        } catch (error) {
+            vscode.window.showErrorMessage(
+                `Failed to select existing west workspace: ${error}`
             );
         }
     }
