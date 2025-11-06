@@ -26,6 +26,7 @@ import { saveSetupState } from "../../setup_utilities/state-management";
 import { HostToolsSubPage } from "./HostToolsSubPage";
 import { SDKSubPage } from "./SDKSubPage";
 import { WorkspaceSubPage } from "./WorkspaceSubPage";
+import { HostToolsCard, SDKCard, WorkspaceCard } from "./OverviewCards";
 import {
     getPackageManagerForPlatformAsync,
     checkPackageManagerAvailable,
@@ -663,48 +664,14 @@ export class SetupPanel {
         folderOpen: boolean,
         workspaceInitialized: boolean
     ): string {
-        const hostToolsStatus = globalConfig.toolsAvailable ? "✓ Ready" : "⚠ Setup Required";
-        const sdkStatus = globalConfig.sdkInstalled ? "✓ Installed" : "✗ Not Installed";
-        const workspaceStatus = workspaceInitialized ? "✓ Initialized" : folderOpen ? "⚙ Setup Required" : "📁 No Folder";
-        
-        const hostToolsClass = globalConfig.toolsAvailable ? "status-success" : "status-warning";
-        const sdkClass = globalConfig.sdkInstalled ? "status-success" : "status-error";
-        const workspaceClass = workspaceInitialized ? "status-success" : folderOpen ? "status-warning" : "status-info";
-
         return `
         <div class="overview-section">
             <h2 style="margin: 0 0 15px 0; font-size: 16px; font-weight: 600;">Setup Overview</h2>
             <p class="section-description">Click on any card to view details and perform setup tasks.</p>
             <div class="overview-cards">
-                <div class="overview-card" onclick="navigateToSubPage('hosttools')">
-                    <div class="overview-card-header">
-                        <span class="overview-icon">🔧</span>
-                        <h3>Host Tools</h3>
-                    </div>
-                    <div class="status ${hostToolsClass}">${hostToolsStatus}</div>
-                    <p class="overview-description">Development tools and package manager</p>
-                    <div class="card-arrow">→</div>
-                </div>
-                
-                <div class="overview-card" onclick="navigateToSubPage('sdk')">
-                    <div class="overview-card-header">
-                        <span class="overview-icon">📦</span>
-                        <h3>Zephyr SDK</h3>
-                    </div>
-                    <div class="status ${sdkClass}">${sdkStatus}</div>
-                    <p class="overview-description">Cross-compilation toolchains</p>
-                    <div class="card-arrow">→</div>
-                </div>
-                
-                <div class="overview-card" onclick="navigateToSubPage('workspace')">
-                    <div class="overview-card-header">
-                        <span class="overview-icon">🗂️</span>
-                        <h3>Workspace</h3>
-                    </div>
-                    <div class="status ${workspaceClass}">${workspaceStatus}</div>
-                    <p class="overview-description">Project organization and dependencies</p>
-                    <div class="card-arrow">→</div>
-                </div>
+                ${HostToolsCard.getHtml(globalConfig)}
+                ${SDKCard.getHtml(globalConfig)}
+                ${WorkspaceCard.getHtml(wsConfig, folderOpen, workspaceInitialized)}
             </div>
         </div>`;
     }
