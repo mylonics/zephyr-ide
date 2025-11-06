@@ -27,62 +27,6 @@ import { ProjectConfigView } from "./panels/project_config_view/ProjectConfigVie
 import { SetupPanel } from "./panels/setup_panel/SetupPanel";
 import { HostToolInstallView } from "./panels/host_tool_install_view/HostToolInstallView";
 
-// Helper function to mark workspace setup as complete and refresh UI
-async function markWorkspaceSetupComplete(
-  context: vscode.ExtensionContext,
-  wsConfig: WorkspaceConfig,
-  globalConfig: GlobalConfig
-) {
-  wsConfig.initialSetupComplete = true;
-  await setWorkspaceState(context, wsConfig);
-  // Update setup panel if it's open
-  if (SetupPanel.currentPanel) {
-    SetupPanel.currentPanel.updateContent(wsConfig, globalConfig);
-  }
-}
-
-/**
- * Check if required Zephyr environment variables are present
- * @returns true if ZEPHYR_BASE or ZEPHYR_SDK_INSTALL_DIR are set, false otherwise
- */
-function checkZephyrEnvironmentVariables(): boolean {
-  return !!(process.env.ZEPHYR_BASE || process.env.ZEPHYR_SDK_INSTALL_DIR);
-}
-
-/**
- * Show a warning if Zephyr environment variables are not set
- * Allows user to suppress future warnings
- */
-async function checkAndWarnMissingEnvironment(context: vscode.ExtensionContext): Promise<void> {
-  const configuration = vscode.workspace.getConfiguration();
-  const suppressWarning: boolean | undefined = configuration.get("zephyr-ide.suppress-workspace-warning");
-  
-  // Don't show warning if user has suppressed it
-  if (suppressWarning) {
-    return;
-  }
-  
-  // Check if environment variables are present
-  if (!checkZephyrEnvironmentVariables()) {
-    const result = await vscode.window.showWarningMessage(
-      "No Zephyr workspace environment detected. ZEPHYR_BASE and ZEPHYR_SDK_INSTALL_DIR environment variables are not set. Do you want to continue without a workspace?",
-      "Continue",
-      "Don't Show Again",
-      "Cancel"
-    );
-    
-    if (result === "Don't Show Again") {
-      // Save the preference to not show again
-      await configuration.update("zephyr-ide.suppress-workspace-warning", true, vscode.ConfigurationTarget.Workspace);
-      vscode.window.showInformationMessage("Workspace warning suppressed for this workspace.");
-    } else if (result === "Cancel") {
-      // User cancelled, but we don't prevent extension activation
-      output.appendLine("[EXTENSION] User cancelled workspace setup");
-    }
-  }
-}
-
-
 import {
   getLaunchConfigurationByName,
   output,
@@ -154,6 +98,61 @@ import { testHelper, deleteTestDirs } from "./zephyr_utilities/twister";
 import { getModuleVersion } from "./setup_utilities/modules";
 import { reconfigureTest } from "./project_utilities/twister_selector";
 import { installSDKInteractive } from "./setup_utilities/west_sdk";
+
+// Helper function to mark workspace setup as complete and refresh UI
+async function markWorkspaceSetupComplete(
+  context: vscode.ExtensionContext,
+  wsConfig: WorkspaceConfig,
+  globalConfig: GlobalConfig
+) {
+  wsConfig.initialSetupComplete = true;
+  await setWorkspaceState(context, wsConfig);
+  // Update setup panel if it's open
+  if (SetupPanel.currentPanel) {
+    SetupPanel.currentPanel.updateContent(wsConfig, globalConfig);
+  }
+}
+
+/**
+ * Check if required Zephyr environment variables are present
+ * @returns true if ZEPHYR_BASE or ZEPHYR_SDK_INSTALL_DIR are set, false otherwise
+ */
+function checkZephyrEnvironmentVariables(): boolean {
+  return !!(process.env.ZEPHYR_BASE || process.env.ZEPHYR_SDK_INSTALL_DIR);
+}
+
+/**
+ * Show a warning if Zephyr environment variables are not set
+ * Allows user to suppress future warnings
+ */
+async function checkAndWarnMissingEnvironment(context: vscode.ExtensionContext): Promise<void> {
+  const configuration = vscode.workspace.getConfiguration();
+  const suppressWarning: boolean | undefined = configuration.get("zephyr-ide.suppress-workspace-warning");
+  
+  // Don't show warning if user has suppressed it
+  if (suppressWarning) {
+    return;
+  }
+  
+  // Check if environment variables are present
+  if (!checkZephyrEnvironmentVariables()) {
+    const result = await vscode.window.showWarningMessage(
+      "No Zephyr workspace environment detected. Neither ZEPHYR_BASE nor ZEPHYR_SDK_INSTALL_DIR environment variables are set. Do you want to continue without a workspace?",
+      "Continue",
+      "Don't Show Again",
+      "Cancel"
+    );
+    
+    if (result === "Don't Show Again") {
+      // Save the preference to not show again
+      await configuration.update("zephyr-ide.suppress-workspace-warning", true, vscode.ConfigurationTarget.Workspace);
+      vscode.window.showInformationMessage("Workspace warning suppressed for this workspace.");
+    } else if (result === "Cancel") {
+      // User cancelled, but we don't prevent extension activation
+      output.appendLine("[EXTENSION] User cancelled workspace setup");
+    }
+  }
+}
 
 let wsConfig: WorkspaceConfig;
 let globalConfig: GlobalConfig;
