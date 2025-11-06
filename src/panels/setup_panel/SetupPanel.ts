@@ -227,6 +227,11 @@ export class SetupPanel {
         });
     }
 
+    // Public method to navigate to host tools page
+    public navigateToHostTools() {
+        this.navigateToPage("hosttools");
+    }
+
     public dispose() {
         SetupPanel.currentPanel = undefined;
 

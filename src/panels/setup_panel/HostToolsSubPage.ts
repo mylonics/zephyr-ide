@@ -45,19 +45,6 @@ export class HostToolsSubPage {
                 <p class="description">${description}</p>
                 
                 <div class="section-container">
-                    <h3>Required Tools</h3>
-                    <p class="description">The following tools are required for Zephyr development:</p>
-                    <ul class="tools-list">
-                        <li><strong>CMake</strong> - Build system generator</li>
-                        <li><strong>Ninja</strong> - Build tool for fast compilation</li>
-                        <li><strong>Python 3.8+</strong> - Scripting and build dependencies</li>
-                        <li><strong>Git</strong> - Version control system</li>
-                        <li><strong>DTC</strong> - Device Tree Compiler</li>
-                        <li><strong>GPerf</strong> - Perfect hash function generator</li>
-                    </ul>
-                </div>
-                
-                <div class="section-container">
                     <h3>Installation Manager</h3>
                     ${hostToolsManagerContent}
                 </div>
