@@ -682,10 +682,6 @@ h1 {
     font-weight: 600;
 }
 
-.sub-page-body {
-    /* Body content styles */
-}
-
 .status-banner {
     display: flex;
     align-items: center;
