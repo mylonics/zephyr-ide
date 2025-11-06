@@ -1352,60 +1352,6 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("zephyr-ide.open-setup-walkthrough", async () => {
-      vscode.commands.executeCommand('workbench.action.openWalkthrough', 'mylonics.zephyr-ide#zephyr-ide-setup');
-    })
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand("zephyr-ide.open-setup-panel-hosttools", async () => {
-      const panel = SetupPanel.createOrShow(
-        context.extensionPath,
-        context,
-        wsConfig,
-        globalConfig
-      );
-      setTimeout(() => {
-        if (SetupPanel.currentPanel) {
-          SetupPanel.currentPanel.navigateToHostTools();
-        }
-      }, 100);
-    })
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand("zephyr-ide.open-setup-panel-sdk", async () => {
-      const panel = SetupPanel.createOrShow(
-        context.extensionPath,
-        context,
-        wsConfig,
-        globalConfig
-      );
-      setTimeout(() => {
-        if (SetupPanel.currentPanel) {
-          SetupPanel.currentPanel.navigateToSDK();
-        }
-      }, 100);
-    })
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand("zephyr-ide.open-setup-panel-workspace", async () => {
-      const panel = SetupPanel.createOrShow(
-        context.extensionPath,
-        context,
-        wsConfig,
-        globalConfig
-      );
-      setTimeout(() => {
-        if (SetupPanel.currentPanel) {
-          SetupPanel.currentPanel.navigateToWorkspace();
-        }
-      }, 100);
-    })
-  );
-
-  context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.install-sdk", async () => {
       let ret = await installSDKInteractive(wsConfig, globalConfig, context);
       return ret;

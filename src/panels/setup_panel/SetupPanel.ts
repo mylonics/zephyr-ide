@@ -674,6 +674,21 @@ export class SetupPanel {
     ): string {
         return `
         <div class="overview-section">
+            <div class="walkthrough-header">
+                <h1 class="walkthrough-title">Zephyr IDE Setup & Configuration</h1>
+                <p class="walkthrough-subtitle">Configure your development environment in three simple steps</p>
+            </div>
+            
+            <div class="walkthrough-description">
+                <p>Welcome to Zephyr IDE! To get started with Zephyr development, you'll need to configure three main components:</p>
+                <ul class="setup-requirements">
+                    <li><strong>Host Tools</strong> - Development tools like CMake, Ninja, Python, and Git</li>
+                    <li><strong>Zephyr SDK</strong> - Cross-compilation toolchains for multiple architectures</li>
+                    <li><strong>Workspace</strong> - Your project organization and dependencies</li>
+                </ul>
+                <p class="help-text">Click on any card below to begin setup for that component.</p>
+            </div>
+            
             <div class="overview-cards">
                 ${HostToolsCard.getHtml(globalConfig)}
                 ${SDKCard.getHtml(globalConfig)}

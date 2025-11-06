@@ -568,9 +568,74 @@ h1 {
 }
 
 .overview-section {
-    max-width: 600px;
-    margin: 0 auto;
-    padding: 20px;
+    max-width: 800px;
+    margin: 0 auto 0 60px;
+    padding: 40px 60px 40px 40px;
+}
+
+.walkthrough-header {
+    margin-bottom: 30px;
+}
+
+.walkthrough-title {
+    font-size: 28px;
+    font-weight: 300;
+    margin: 0 0 12px 0;
+    color: var(--vscode-foreground);
+    letter-spacing: -0.5px;
+}
+
+.walkthrough-subtitle {
+    font-size: 16px;
+    margin: 0;
+    color: var(--vscode-descriptionForeground);
+    font-weight: 400;
+}
+
+.walkthrough-description {
+    margin-bottom: 32px;
+    padding: 20px 24px;
+    background-color: var(--vscode-editor-background);
+    border-left: 3px solid var(--vscode-textLink-foreground);
+    border-radius: 4px;
+}
+
+.walkthrough-description p {
+    margin: 0 0 12px 0;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--vscode-foreground);
+}
+
+.walkthrough-description p:last-child {
+    margin-bottom: 0;
+}
+
+.setup-requirements {
+    margin: 16px 0;
+    padding-left: 24px;
+    list-style-type: none;
+}
+
+.setup-requirements li {
+    margin: 8px 0;
+    font-size: 13px;
+    line-height: 1.6;
+    position: relative;
+    color: var(--vscode-foreground);
+}
+
+.setup-requirements li:before {
+    content: "→";
+    position: absolute;
+    left: -20px;
+    color: var(--vscode-textLink-foreground);
+    font-weight: bold;
+}
+
+.help-text {
+    font-style: italic;
+    opacity: 0.9;
 }
 
 .overview-cards {

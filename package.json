@@ -440,22 +440,6 @@
         "title": "Zephyr IDE: Open Setup Panel"
       },
       {
-        "command": "zephyr-ide.open-setup-walkthrough",
-        "title": "Zephyr IDE: Open Setup Walkthrough"
-      },
-      {
-        "command": "zephyr-ide.open-setup-panel-hosttools",
-        "title": "Zephyr IDE: Open Setup Panel (Host Tools)"
-      },
-      {
-        "command": "zephyr-ide.open-setup-panel-sdk",
-        "title": "Zephyr IDE: Open Setup Panel (SDK)"
-      },
-      {
-        "command": "zephyr-ide.open-setup-panel-workspace",
-        "title": "Zephyr IDE: Open Setup Panel (Workspace)"
-      },
-      {
         "command": "zephyr-ide.open-host-tools-panel",
         "title": "Zephyr IDE: Host Tools Installation"
       },
@@ -651,39 +635,6 @@
                   }
                 ]
               }
-            }
-          }
-        ]
-      }
-    ],
-    "walkthroughs": [
-      {
-        "id": "zephyr-ide-setup",
-        "title": "Get Started with Zephyr IDE",
-        "description": "Set up your Zephyr development environment step by step",
-        "steps": [
-          {
-            "id": "install-host-tools",
-            "title": "Install Host Tools",
-            "description": "Install required development tools like CMake, Ninja, Python, and Git.\n[Open Host Tools Setup](command:zephyr-ide.open-setup-panel-hosttools)",
-            "media": {
-              "markdown": "walkthroughs/setup.md"
-            }
-          },
-          {
-            "id": "install-sdk",
-            "title": "Install Zephyr SDK",
-            "description": "Install cross-compilation toolchains for multiple architectures.\n[Open SDK Management](command:zephyr-ide.open-setup-panel-sdk)",
-            "media": {
-              "markdown": "walkthroughs/setup.md"
-            }
-          },
-          {
-            "id": "configure-workspace",
-            "title": "Configure Workspace",
-            "description": "Set up your Zephyr workspace for project development.\n[Open Workspace Setup](command:zephyr-ide.open-setup-panel-workspace)",
-            "media": {
-              "markdown": "walkthroughs/setup.md"
             }
           }
         ]
