@@ -2,7 +2,64 @@
 
 const vscode = acquireVsCodeApi();
 
-// Section Toggle Functions
+// Navigation Functions
+function navigateToSubPage(page) {
+    vscode.postMessage({
+        command: 'navigateToPage',
+        page: page
+    });
+}
+
+function navigateToOverview() {
+    vscode.postMessage({
+        command: 'navigateToPage',
+        page: 'overview'
+    });
+}
+
+// Listen for messages from the extension
+window.addEventListener('message', event => {
+    const message = event.data;
+    
+    switch (message.command) {
+        case 'showSubPage':
+            showSubPage(message.content, message.page);
+            break;
+        case 'sdkListResult':
+            displaySDKList(message.data);
+            break;
+    }
+});
+
+function showSubPage(content, page) {
+    const overviewContainer = document.getElementById('overviewContainer');
+    const subPageContainer = document.getElementById('subPageContainer');
+    
+    if (overviewContainer && subPageContainer) {
+        // Hide overview and show sub-page
+        overviewContainer.classList.add('hidden');
+        subPageContainer.innerHTML = content;
+        subPageContainer.classList.add('visible');
+    }
+}
+
+function hideSubPage() {
+    const overviewContainer = document.getElementById('overviewContainer');
+    const subPageContainer = document.getElementById('subPageContainer');
+    
+    if (overviewContainer && subPageContainer) {
+        // Show overview and hide sub-page
+        subPageContainer.classList.remove('visible');
+        overviewContainer.classList.remove('hidden');
+        
+        // Clear sub-page content after animation
+        setTimeout(() => {
+            subPageContainer.innerHTML = '';
+        }, 300);
+    }
+}
+
+// Section Toggle Functions (kept for compatibility)
 function toggleSection(sectionId) {
     const content = document.getElementById(sectionId + 'Content');
     const icon = document.getElementById(sectionId + 'Icon');
@@ -16,7 +73,7 @@ function toggleSection(sectionId) {
     }
 }
 
-// Scroll to section function
+// Scroll to section function (kept for compatibility)
 function scrollToSection(sectionId) {
     const section = document.getElementById(sectionId);
     if (section) {

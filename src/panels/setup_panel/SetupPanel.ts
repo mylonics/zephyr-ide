@@ -23,6 +23,9 @@ import {
     ParsedSDKList,
 } from "../../setup_utilities/west_sdk";
 import { saveSetupState } from "../../setup_utilities/state-management";
+import { HostToolsSubPage } from "./HostToolsSubPage";
+import { SDKSubPage } from "./SDKSubPage";
+import { WorkspaceSubPage } from "./WorkspaceSubPage";
 
 export class SetupPanel {
     public static currentPanel: SetupPanel | undefined;
@@ -104,6 +107,9 @@ export class SetupPanel {
     // Message Handler
     private handleWebviewMessage(message: any) {
         switch (message.command) {
+            case "navigateToPage":
+                this.navigateToPage(message.page);
+                return;
             case "openHostToolsPanel":
                 this.openHostToolsPanel();
                 return;
@@ -157,6 +163,37 @@ export class SetupPanel {
                 this.westConfig();
                 return;
         }
+    }
+
+    private navigateToPage(page: string) {
+        if (!this.currentWsConfig || !this.currentGlobalConfig) {
+            return;
+        }
+        
+        let subPageContent = "";
+        switch (page) {
+            case "hosttools":
+                subPageContent = HostToolsSubPage.getHtml(this.currentGlobalConfig);
+                break;
+            case "sdk":
+                subPageContent = SDKSubPage.getHtml(this.currentGlobalConfig);
+                break;
+            case "workspace":
+                subPageContent = WorkspaceSubPage.getHtml(this.currentWsConfig);
+                break;
+            case "overview":
+            default:
+                // Navigate back to overview - full refresh
+                this.updateContent(this.currentWsConfig, this.currentGlobalConfig);
+                return;
+        }
+        
+        // Send sub-page content to webview
+        this._panel.webview.postMessage({
+            command: "showSubPage",
+            content: subPageContent,
+            page: page
+        });
     }
 
     public dispose() {
@@ -395,16 +432,14 @@ export class SetupPanel {
             ${this.getStylesheetLinks()}
         </head>
         <body>
-            <div class="wizard-container">
-                <h1>Zephyr IDE Setup & Configuration</h1>
-                ${this.generateOverviewSection(wsConfig, globalConfig, folderOpen, workspaceInitialized)}
-                ${this.generateHostToolsSection(globalConfig)}
-                ${this.generateSDKSection(globalConfig)}
-                ${this.generateWestOperationsSection()}
-                ${this.generateWorkspaceSetupSection(
-            folderOpen,
-            workspaceInitialized
-        )}
+            <div class="panel-container">
+                <div class="overview-container" id="overviewContainer">
+                    <h1>Zephyr IDE Setup & Configuration</h1>
+                    ${this.generateOverviewSection(wsConfig, globalConfig, folderOpen, workspaceInitialized)}
+                </div>
+                <div class="sub-page-container" id="subPageContainer">
+                    <!-- Sub-page content will be inserted here -->
+                </div>
             </div>
             ${this.getScriptTags()}
         </body>
@@ -421,7 +456,20 @@ export class SetupPanel {
                 "setup-panel.css"
             )
         );
-        return `<link rel="stylesheet" type="text/css" href="${cssUri}">`;
+        const codiconUri = this._panel.webview.asWebviewUri(
+            vscode.Uri.joinPath(
+                vscode.Uri.file(this._extensionPath),
+                "node_modules",
+                "@vscode",
+                "codicons",
+                "dist",
+                "codicon.css"
+            )
+        );
+        return `
+            <link rel="stylesheet" type="text/css" href="${cssUri}">
+            <link rel="stylesheet" type="text/css" href="${codiconUri}">
+        `;
     }
 
     private getScriptTags(): string {
@@ -454,338 +502,38 @@ export class SetupPanel {
         return `
         <div class="overview-section">
             <h2 style="margin: 0 0 15px 0; font-size: 16px; font-weight: 600;">Setup Overview</h2>
+            <p class="section-description">Click on any card to view details and perform setup tasks.</p>
             <div class="overview-cards">
-                <div class="overview-card" onclick="scrollToSection('hostTools')">
+                <div class="overview-card" onclick="navigateToSubPage('hosttools')">
                     <div class="overview-card-header">
                         <span class="overview-icon">🔧</span>
                         <h3>Host Tools</h3>
                     </div>
                     <div class="status ${hostToolsClass}">${hostToolsStatus}</div>
                     <p class="overview-description">Development tools and package manager</p>
+                    <div class="card-arrow">→</div>
                 </div>
                 
-                <div class="overview-card" onclick="scrollToSection('sdk')">
+                <div class="overview-card" onclick="navigateToSubPage('sdk')">
                     <div class="overview-card-header">
                         <span class="overview-icon">📦</span>
                         <h3>Zephyr SDK</h3>
                     </div>
                     <div class="status ${sdkClass}">${sdkStatus}</div>
                     <p class="overview-description">Cross-compilation toolchains</p>
+                    <div class="card-arrow">→</div>
                 </div>
                 
-                <div class="overview-card" onclick="scrollToSection('workspace')">
+                <div class="overview-card" onclick="navigateToSubPage('workspace')">
                     <div class="overview-card-header">
                         <span class="overview-icon">🗂️</span>
                         <h3>Workspace</h3>
                     </div>
                     <div class="status ${workspaceClass}">${workspaceStatus}</div>
                     <p class="overview-description">Project organization and dependencies</p>
+                    <div class="card-arrow">→</div>
                 </div>
             </div>
-        </div>`;
-    }
-
-    private generateHostToolsSection(globalConfig: GlobalConfig): string {
-        const hostToolsCollapsed = globalConfig.toolsAvailable;
-        const statusClass = globalConfig.toolsAvailable
-            ? "status-success"
-            : "status-warning";
-        const statusText = globalConfig.toolsAvailable
-            ? "✓ Tools Available"
-            : "⚠ Setup Required";
-        const expandedClass = hostToolsCollapsed ? "" : "expanded";
-
-        const description = globalConfig.toolsAvailable
-            ? "Host development tools are installed and available. You can manage or update tools as needed."
-            : "Host development tools (CMake, Ninja, Python, etc.) are required for building Zephyr applications. Install them to proceed.";
-
-        return `
-        <div class="collapsible-section" id="hostTools">
-            <div class="collapsible-header" onclick="toggleSection('hostTools')">
-                <div class="collapsible-header-left">
-                    <div class="status ${statusClass}">${statusText}</div>
-                    <div class="collapsible-title">Host Tools Installation</div>
-                </div>
-                <div class="collapsible-icon ${expandedClass}" id="hostToolsIcon">▶</div>
-            </div>
-            <div class="collapsible-content ${expandedClass}" id="hostToolsContent">
-                <div class="step-description">${description}</div>
-                <div style="display: flex; gap: 15px; margin: 20px 0; flex-wrap: wrap;">
-                    <button class="button button-primary" onclick="openHostToolsPanel()">Install Host Tools</button>
-                    <button class="button button-secondary" onclick="markToolsComplete()">Skip & Mark as Complete</button>
-                </div>
-            </div>
-        </div>`;
-    }
-
-    private generateSDKSection(globalConfig: GlobalConfig): string {
-        const sdkCollapsed = globalConfig.sdkInstalled;
-        const statusClass = globalConfig.sdkInstalled
-            ? "status-success"
-            : "status-error";
-        const statusText = globalConfig.sdkInstalled
-            ? "✓ SDK Installed"
-            : "✗ SDK Not Installed";
-        const expandedClass = sdkCollapsed ? "" : "expanded";
-
-        const description = globalConfig.sdkInstalled
-            ? "The Zephyr SDK is installed and ready to use. You can manage additional SDK versions or update to the latest release."
-            : "The Zephyr SDK is required for building Zephyr applications. Install it to enable cross-compilation for supported architectures.";
-
-        return `
-        <div class="collapsible-section" id="sdk">
-            <div class="collapsible-header" onclick="toggleSection('sdk')">
-                <div class="collapsible-header-left">
-                    <div class="status ${statusClass}">${statusText}</div>
-                    <div class="collapsible-title">Zephyr SDK Management</div>
-                </div>
-                <div class="collapsible-icon ${expandedClass}" id="sdkIcon">▶</div>
-            </div>
-            <div class="collapsible-content ${expandedClass}" id="sdkContent">
-                <div class="step-description">${description}</div>
-                <div style="display: flex; gap: 15px; margin: 20px 0; flex-wrap: wrap;">
-                    <button class="button" onclick="installSDK()">Install/Update SDK</button>
-                    <button class="button button-secondary" onclick="listSDKs()">List Available SDKs</button>
-                </div>
-                <div id="sdkListContainer" style="margin-top: 20px;"></div>
-            </div>
-        </div>`;
-    }
-
-    private generateWestOperationsSection(): string {
-        return `
-        <div class="collapsible-section">
-            <div class="collapsible-header" onclick="toggleSection('west')">
-                <div class="collapsible-header-left">
-                    <div class="status status-info">⚙️ West Operations</div>
-                    <div class="collapsible-title">West Workspace Management</div>
-                </div>
-                <div class="collapsible-icon expanded" id="westIcon">▶</div>
-            </div>
-            <div class="collapsible-content expanded" id="westContent">
-                <div class="step-description">
-                    Set up and manage west workspace environments for Zephyr project development and dependency management.
-                </div>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; margin-top: 15px;">
-                    ${this.generateWestOperationCard(
-            "🌐",
-            "Setup West Environment",
-            "Create a Python virtual environment and install west tools required for Zephyr development.",
-            "setupWestEnvironment()"
-        )}
-                    ${this.generateWestOperationCard(
-            "🔧",
-            "West Init",
-            "Initialize a new west workspace with project manifests and source repositories.",
-            "westInit()"
-        )}
-                    ${this.generateWestOperationCard(
-            "🔄",
-            "West Update",
-            "Update workspace repositories and install Python dependencies for the current Zephyr version.",
-            "westUpdate()"
-        )}
-                    ${this.generateWestOperationCard(
-            "🗂️",
-            "Manage Workspace",
-            "Manage and configure existing workspaces, switch between different workspace configurations.",
-            "manageWorkspace()"
-        )}
-                    ${this.generateWestOperationCard(
-            "⚙️",
-            "West Configuration",
-            "Configure west by detecting existing .west folders or west.yml files, or create a new west.yml from templates.",
-            "westConfig()"
-        )}
-                </div>
-            </div>
-        </div>`;
-    }
-
-    private generateWestOperationCard(
-        icon: string,
-        title: string,
-        description: string,
-        onClick: string
-    ): string {
-        return `
-        <div style="padding: 20px; border: 1px solid var(--vscode-panel-border); border-radius: 6px; background-color: var(--vscode-input-background);">
-            <h4 style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
-                <span style="font-size: 16px;">${icon}</span>
-                ${title}
-            </h4>
-            <p style="margin: 0 0 12px 0; font-size: 12px; color: var(--vscode-descriptionForeground);">${description}</p>
-            <button class="button" onclick="${onClick}">${title}</button>
-        </div>`;
-    }
-
-    private generateWorkspaceSetupSection(
-        folderOpen: boolean,
-        workspaceInitialized: boolean
-    ): string {
-        if (!folderOpen) {
-            // Keep as regular step when no folder is open
-            const description = this.getWorkspaceDescription(
-                folderOpen,
-                workspaceInitialized
-            );
-            const content = this.getWorkspaceContent(
-                folderOpen,
-                workspaceInitialized
-            );
-            return `
-            <div class="step">
-                <div class="step-title">Workspace Setup</div>
-                <div class="step-description">${description}</div>
-                ${content}
-            </div>`;
-        }
-
-        // Make it collapsible when folder is open
-        const workspaceCollapsed = workspaceInitialized; // Collapse when initialized
-        const statusClass = workspaceInitialized
-            ? "status-success"
-            : "status-warning";
-        const statusText = workspaceInitialized
-            ? "✅ Workspace Ready"
-            : "⚙️ Workspace Setup";
-        const expandedClass = workspaceCollapsed ? "" : "expanded";
-        const description = this.getWorkspaceDescription(
-            folderOpen,
-            workspaceInitialized
-        );
-        const content = this.getWorkspaceContent(folderOpen, workspaceInitialized);
-
-        return `
-        <div class="collapsible-section" id="workspace">
-            <div class="collapsible-header" onclick="toggleSection('workspace')">
-                <div class="collapsible-header-left">
-                    <div class="status ${statusClass}">${statusText}</div>
-                    <div class="collapsible-title">Workspace Setup</div>
-                </div>
-                <div class="collapsible-icon ${expandedClass}" id="workspaceIcon">▶</div>
-            </div>
-            <div class="collapsible-content ${expandedClass}" id="workspaceContent">
-                <div class="step-description">${description}</div>
-                ${content}
-            </div>
-        </div>`;
-    }
-
-    private getWorkspaceDescription(
-        folderOpen: boolean,
-        workspaceInitialized: boolean
-    ): string {
-        if (!folderOpen) {
-            return "Open a folder in VS Code to begin setting up your Zephyr development workspace.";
-        } else if (workspaceInitialized) {
-            return "Your workspace is ready for development. You can reinitialize if configuration changes are needed.";
-        } else {
-            return "Select how to configure your Zephyr workspace. A workspace organizes projects and manages development dependencies.";
-        }
-    }
-
-    private getWorkspaceContent(
-        folderOpen: boolean,
-        workspaceInitialized: boolean
-    ): string {
-        if (!folderOpen) {
-            return this.generateNoFolderContent();
-        } else if (workspaceInitialized) {
-            return this.generateInitializedContent();
-        } else {
-            return this.generateWorkspaceOptions();
-        }
-    }
-
-    private generateNoFolderContent(): string {
-        return `
-        <div style="text-align: center; padding: 30px;">
-            <div style="font-size: 2em; margin-bottom: 15px;">📁</div>
-            <p style="margin-bottom: 20px; color: var(--vscode-descriptionForeground); font-size: 12px;">Open a folder in VS Code to begin configuring your Zephyr development environment.</p>
-            <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-                <button class="button" onclick="workspaceSetupPicker()">Workspace Setup</button>
-                <button class="button button-secondary" onclick="westConfig()">West Config</button>
-                <button class="button button-secondary" onclick="openFolder()">Open Folder</button>
-            </div>
-        </div>`;
-    }
-
-    private generateInitializedContent(): string {
-        return `
-        <div style="text-align: center; padding: 30px;">
-            <div style="font-size: 2em; margin-bottom: 15px;">✅</div>
-            <p style="margin-bottom: 20px; color: var(--vscode-descriptionForeground); font-size: 12px;">Your Zephyr workspace is configured and ready for development!</p>
-            <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-                <button class="button" onclick="manageWorkspace()">Manage Workspaces</button>
-                <button class="button button-secondary" onclick="reinitializeWorkspace()">Reinitialize Workspace</button>
-            </div>
-        </div>`;
-    }
-
-    private generateWorkspaceOptionCard(
-        icon: string,
-        title: string,
-        description: string,
-        usage: string,
-        action: string
-    ): string {
-        let clickHandler = "";
-        if (action === "zephyr-ide-git") {
-            clickHandler = "workspaceSetupFromGit()";
-        } else if (action === "west-git") {
-            clickHandler = "workspaceSetupFromWestGit()";
-        } else if (action === "standard") {
-            clickHandler = "workspaceSetupStandard()";
-        } else if (action === "current-directory") {
-            clickHandler = "workspaceSetupFromCurrentDirectory()";
-        } else if (action === "west-config") {
-            clickHandler = "westConfig()";
-        }
-
-        return `
-        <div class="option-card" onclick="${clickHandler}">
-            <div class="option-card-header">
-                <div class="topology-icon">${icon}</div>
-                <h3>${title}</h3>
-            </div>
-            <p class="option-card-description">${description}</p>
-            <p class="option-card-usage">Best for: ${usage}</p>
-        </div>`;
-    }
-
-    private generateWorkspaceOptions(): string {
-        return `
-        <h4>Workspace Setup Options</h4>
-        <div class="workspace-options">
-            ${this.generateWorkspaceOptionCard(
-            "🌐",
-            "Import Zephyr IDE Workspace from Git",
-            "Clone and import a complete Zephyr IDE workspace or any repo with projects as subdirectories using Git.",
-            "Team collaboration, and shared development environments.",
-            "zephyr-ide-git"
-        )}
-            ${this.generateWorkspaceOptionCard(
-            "⚙️",
-            "Import West Workspace from Git",
-            "Clone a standard west manifest repo (contains west.yml) from a Git repository using West Init.",
-            "Upstream Zephyr projects, community examples, and official sample applications.",
-            "west-git"
-        )}
-            ${this.generateWorkspaceOptionCard(
-            "📦",
-            "New Standard Workspace",
-            "Create a self-contained workspace with Zephyr installed locally within the workspace directory. Each workspace maintains its own Zephyr installation.",
-            "Team collaboration, individual projects, isolated development, or when specific Zephyr versions are required per project.",
-            "standard"
-        )}
-            ${this.generateWorkspaceOptionCard(
-            "📁",
-            "Initialize Current Directory",
-            "Set up the current VS Code workspace directory for Zephyr development, preserving any existing files and configurations. Process goes through aiding a user choose a zephyr install.",
-            "Existing projects, downloaded samples, or when you want to add quickly run projects with an external install.",
-            "current-directory"
-        )}
         </div>`;
     }
 }
