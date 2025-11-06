@@ -54,16 +54,16 @@ export class WorkspaceSubPage {
                     <span class="status-text">${statusText}</span>
                 </div>
                 
-                ${this.getWorkspaceContent(folderOpen, workspaceInitialized)}
+                ${this.getWorkspaceContent(folderOpen, workspaceInitialized, wsConfig)}
             </div>
         </div>`;
     }
 
-    private static getWorkspaceContent(folderOpen: boolean, workspaceInitialized: boolean): string {
+    private static getWorkspaceContent(folderOpen: boolean, workspaceInitialized: boolean, wsConfig: WorkspaceConfig): string {
         if (!folderOpen) {
             return this.getNoFolderContent();
         } else if (workspaceInitialized) {
-            return this.getInitializedContent();
+            return this.getInitializedContent(wsConfig);
         } else {
             return this.getSetupOptionsContent();
         }
@@ -85,23 +85,42 @@ export class WorkspaceSubPage {
                     <span class="codicon codicon-folder-opened"></span>
                     Open Folder
                 </button>
-                <button class="button button-secondary" onclick="workspaceSetupPicker()">
-                    <span class="codicon codicon-settings-gear"></span>
-                    Workspace Setup Options
-                </button>
             </div>
         </div>`;
     }
 
-    private static getInitializedContent(): string {
+    private static getInitializedContent(wsConfig: WorkspaceConfig): string {
+        const activeSetupPath = wsConfig.activeSetupState?.setupPath || "Not configured";
+        
         return `
         <p class="description">Workspace is configured and ready for development.</p>
         
         <div class="section-container">
-            <h3>Workspace Information</h3>
+            <h3>Active West Workspace</h3>
             <div class="info-box">
-                <p>✅ Workspace initialized</p>
-                <p>You can now create projects and build applications.</p>
+                <p><strong>Path:</strong> <code>${activeSetupPath}</code></p>
+            </div>
+        </div>
+        
+        <div class="action-section">
+            <h3>West Commands</h3>
+            <div class="button-group">
+                <button class="button button-secondary" onclick="westConfig()">
+                    <span class="codicon codicon-settings"></span>
+                    West Config
+                </button>
+                <button class="button button-secondary" onclick="setupWestEnvironment()">
+                    <span class="codicon codicon-folder-opened"></span>
+                    Setup West Environment
+                </button>
+                <button class="button button-secondary" onclick="westInit()">
+                    <span class="codicon codicon-repo-create"></span>
+                    West Init
+                </button>
+                <button class="button button-secondary" onclick="westUpdate()">
+                    <span class="codicon codicon-sync"></span>
+                    West Update
+                </button>
             </div>
         </div>
         
@@ -125,7 +144,7 @@ export class WorkspaceSubPage {
         <p class="description">Select how to configure your workspace. Each option organizes projects and manages dependencies differently.</p>
         
         <div class="section-container">
-            <h3>Workspace Setup Options</h3>
+            <h3>Initialize West Workspace</h3>
             <div class="workspace-options-grid">
                 ${this.generateWorkspaceOptionCard(
                     "🌐",
@@ -159,11 +178,11 @@ export class WorkspaceSubPage {
         </div>
         
         <div class="section-container">
-            <h3>Advanced Options</h3>
+            <h3>Use Existing West Workspace</h3>
             <div class="button-group">
                 <button class="button button-secondary" onclick="westConfig()">
                     <span class="codicon codicon-settings"></span>
-                    West Configuration
+                    West Config
                 </button>
             </div>
         </div>`;
