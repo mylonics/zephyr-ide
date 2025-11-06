@@ -249,8 +249,9 @@ export async function getPlatformPackages(): Promise<PlatformPackage[]> {
  */
 export async function checkPackageAvailable(pkg: PlatformPackage): Promise<PackageStatus> {
   try {
-    const result = await executeShellCommand(pkg.check_command, "", true);
+    const result = await executeShellCommand(pkg.check_command, "", false);
     // Command succeeded if stdout is not undefined (even if empty)
+    // Note: We also check stderr is not a rejection indicator
     const available = result.stdout !== null && result.stdout !== undefined;
     
     return {

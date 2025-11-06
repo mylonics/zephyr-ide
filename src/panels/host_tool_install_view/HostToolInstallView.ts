@@ -182,13 +182,8 @@ export class HostToolInstallView {
         
         if (!managerAvailable) {
           vscode.window.showWarningMessage(
-            "Package manager was installed but is not yet available. Please restart VS Code for changes to take effect.",
-            "Restart Now"
-          ).then(selection => {
-            if (selection === "Restart Now") {
-              vscode.commands.executeCommand("workbench.action.reloadWindow");
-            }
-          });
+            "Package manager was installed but is not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect."
+          );
         } else {
           vscode.window.showInformationMessage(
             "Package manager installed successfully."
@@ -238,13 +233,8 @@ export class HostToolInstallView {
         
         if (installedPkg && !installedPkg.available) {
           vscode.window.showWarningMessage(
-            `${packageName} was installed but is not yet available. Please restart VS Code for changes to take effect.`,
-            "Restart Now"
-          ).then(selection => {
-            if (selection === "Restart Now") {
-              vscode.commands.executeCommand("workbench.action.reloadWindow");
-            }
-          });
+            `${packageName} was installed but is not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect.`
+          );
         } else {
           vscode.window.showInformationMessage(
             `${packageName} installed successfully.`
@@ -283,13 +273,8 @@ export class HostToolInstallView {
       
       if (needsRestart) {
         vscode.window.showWarningMessage(
-          "Some packages were installed but are not yet available. Please restart VS Code for changes to take effect.",
-          "Restart Now"
-        ).then(selection => {
-          if (selection === "Restart Now") {
-            vscode.commands.executeCommand("workbench.action.reloadWindow");
-          }
-        });
+          "Some packages were installed but are not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect."
+        );
       }
 
       this._panel.webview.postMessage({
