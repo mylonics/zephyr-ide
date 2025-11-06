@@ -456,6 +456,8 @@ export class SetupPanel {
                 "setup-panel.css"
             )
         );
+        
+        // Use codicons from node_modules - these are bundled with the extension
         const codiconUri = this._panel.webview.asWebviewUri(
             vscode.Uri.joinPath(
                 vscode.Uri.file(this._extensionPath),
@@ -466,6 +468,7 @@ export class SetupPanel {
                 "codicon.css"
             )
         );
+        
         return `
             <link rel="stylesheet" type="text/css" href="${cssUri}">
             <link rel="stylesheet" type="text/css" href="${codiconUri}">
