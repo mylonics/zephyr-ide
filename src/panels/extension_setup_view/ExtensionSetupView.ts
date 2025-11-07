@@ -28,30 +28,21 @@ export class ExtensionSetupView implements vscode.WebviewViewProvider {
 
   updateWebView(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
     if (this.view) {
+      // Simplified view showing only the most commonly needed commands
+      // Other commands (West Config, Setup West Environment, West Init) 
+      // remain available via Command Palette and Setup Panel
       let data = [{
         icons: {
           leaf: 'folder-opened',
         },
-        label: "Open Setup Panel",
+        label: "Zephyr IDE Configuration",
         value: { command: "zephyr-ide.open-setup-panel" },
       }, {
         icons: {
-          leaf: 'tools',
+          leaf: 'sync',
         },
-        label: "Install Host Tools (Experimental)",
-        value: { command: "zephyr-ide.install-host-tools" },
-      }, {
-        icons: {
-          leaf: 'file-directory-create',
-        },
-        label: "Workspace Setup",
-        value: { command: "zephyr-ide.workspace-setup-picker" },
-      }, {
-        icons: {
-          leaf: 'package',
-        },
-        label: "Install SDK",
-        value: { command: "zephyr-ide.install-sdk" },
+        label: "West Update",
+        value: { command: "zephyr-ide.west-update" },
       }];
 
       this.view.webview.postMessage(data);

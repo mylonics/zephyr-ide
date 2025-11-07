@@ -16,12 +16,29 @@ limitations under the License.
 */
 
 import * as vscode from "vscode";
+import * as path from "path";
+import * as fs from "fs";
 import { WorkspaceConfig, GlobalConfig } from "../../setup_utilities/types";
 import {
     getWestSDKContext,
     listAvailableSDKs,
     ParsedSDKList,
 } from "../../setup_utilities/west_sdk";
+import { saveSetupState } from "../../setup_utilities/state-management";
+import { parseWestConfigManifestPath } from "../../setup_utilities/west-config-parser";
+import { HostToolsSubPage } from "./HostToolsSubPage";
+import { SDKSubPage } from "./SDKSubPage";
+import { WorkspaceSubPage } from "./WorkspaceSubPage";
+import { HostToolsCard, SDKCard, WorkspaceCard } from "./OverviewCards";
+import {
+    getPackageManagerForPlatformAsync,
+    checkPackageManagerAvailable,
+    checkAllPackages,
+    installPackageManager,
+    installPackage,
+    installAllMissingPackages,
+    getPlatformPackages,
+} from "../../setup_utilities/host_tools";
 
 export class SetupPanel {
     public static currentPanel: SetupPanel | undefined;
@@ -103,6 +120,27 @@ export class SetupPanel {
     // Message Handler
     private handleWebviewMessage(message: any) {
         switch (message.command) {
+            case "navigateToPage":
+                this.navigateToPage(message.page);
+                return;
+            case "openHostToolsPanel":
+                this.openHostToolsPanel();
+                return;
+            case "markToolsComplete":
+                this.markToolsComplete();
+                return;
+            case "checkHostToolsStatus":
+                this.checkHostToolsStatus();
+                return;
+            case "installPackageManager":
+                this.installPackageManager();
+                return;
+            case "installPackage":
+                this.installPackage(message.packageName);
+                return;
+            case "installAllMissingTools":
+                this.installAllMissingTools();
+                return;
             case "openWingetLink":
                 this.openWingetLink();
                 return;
@@ -127,6 +165,9 @@ export class SetupPanel {
             case "manageWorkspace":
                 this.manageWorkspace();
                 return;
+            case "selectExistingWestWorkspace":
+                this.selectExistingWestWorkspace();
+                return;
             case "listSDKs":
                 this.listSDKs();
                 return;
@@ -149,7 +190,78 @@ export class SetupPanel {
             case "westConfig":
                 this.westConfig();
                 return;
+            case "openWestYml":
+                this.openWestYml();
+                return;
+            case "saveAndUpdateWestYml":
+                this.saveAndUpdateWestYml(message.content);
+                return;
         }
+    }
+
+    private navigateToPage(page: string) {
+        if (!this.currentWsConfig || !this.currentGlobalConfig) {
+            return;
+        }
+        
+        let subPageContent = "";
+        switch (page) {
+            case "hosttools":
+                subPageContent = HostToolsSubPage.getHtml(this.currentGlobalConfig);
+                // Send sub-page content first
+                this._panel.webview.postMessage({
+                    command: "showSubPage",
+                    content: subPageContent,
+                    page: page
+                });
+                // Then automatically check host tools status
+                setTimeout(() => this.checkHostToolsStatus(), 100);
+                return;
+            case "sdk":
+                subPageContent = SDKSubPage.getHtml(this.currentGlobalConfig);
+                break;
+            case "workspace":
+                subPageContent = WorkspaceSubPage.getHtml(this.currentWsConfig);
+                // Send sub-page content first
+                this._panel.webview.postMessage({
+                    command: "showSubPage",
+                    content: subPageContent,
+                    page: page
+                });
+                // Then load west.yml content if workspace is initialized
+                // Small delay ensures webview has rendered before loading content
+                if (this.currentWsConfig.initialSetupComplete) {
+                    setTimeout(() => this.loadWestYmlContent(), 100);
+                }
+                return;
+            case "overview":
+            default:
+                // Navigate back to overview - send message to show it
+                this._panel.webview.postMessage({
+                    command: "showOverview"
+                });
+                return;
+        }
+        
+        // Send sub-page content to webview
+        this._panel.webview.postMessage({
+            command: "showSubPage",
+            content: subPageContent,
+            page: page
+        });
+    }
+
+    // Public methods to navigate to specific pages
+    public navigateToHostTools() {
+        this.navigateToPage("hosttools");
+    }
+
+    public navigateToSDK() {
+        this.navigateToPage("sdk");
+    }
+
+    public navigateToWorkspace() {
+        this.navigateToPage("workspace");
     }
 
     public dispose() {
@@ -168,6 +280,168 @@ export class SetupPanel {
     // Workspace Management Methods
 
     // Utility Methods
+    private async openHostToolsPanel() {
+        try {
+            vscode.commands.executeCommand("zephyr-ide.install-host-tools");
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to open host tools panel: ${error}`);
+        }
+    }
+
+    private async markToolsComplete() {
+        if (!this.currentWsConfig || !this.currentGlobalConfig) {
+            vscode.window.showErrorMessage("Configuration not available");
+            return;
+        }
+
+        this.currentGlobalConfig.toolsAvailable = true;
+        await saveSetupState(
+            this._context,
+            this.currentWsConfig,
+            this.currentGlobalConfig
+        );
+
+        vscode.window.showInformationMessage(
+            "Host tools marked as available."
+        );
+
+        // Update the panel to reflect the change
+        this.updateContent(this.currentWsConfig, this.currentGlobalConfig);
+    }
+
+    private async checkHostToolsStatus() {
+        try {
+            const manager = await getPackageManagerForPlatformAsync();
+            if (!manager) {
+                this._panel.webview.postMessage({
+                    command: "updateHostToolsStatus",
+                    error: "Unsupported platform",
+                });
+                return;
+            }
+
+            const managerAvailable = await checkPackageManagerAvailable();
+            const packageStatuses = await checkAllPackages();
+
+            this._panel.webview.postMessage({
+                command: "updateHostToolsStatus",
+                data: {
+                    managerName: manager.name,
+                    managerAvailable,
+                    managerInstallUrl: manager.config.install_url,
+                    packages: packageStatuses,
+                },
+            });
+        } catch (error) {
+            this._panel.webview.postMessage({
+                command: "updateHostToolsStatus",
+                error: String(error),
+            });
+        }
+    }
+
+    private async installPackageManager() {
+        try {
+            this._panel.webview.postMessage({
+                command: "hostToolsInstallProgress",
+                message: "Installing package manager...",
+            });
+
+            const success = await installPackageManager();
+
+            if (success) {
+                await this.checkHostToolsStatus();
+                
+                const managerAvailable = await checkPackageManagerAvailable();
+                
+                if (!managerAvailable) {
+                    vscode.window.showWarningMessage(
+                        "Package manager was installed but is not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect."
+                    );
+                } else {
+                    vscode.window.showInformationMessage(
+                        "Package manager installed successfully."
+                    );
+                }
+            } else {
+                vscode.window.showErrorMessage(
+                    "Failed to install package manager. Check output for details."
+                );
+            }
+
+            this._panel.webview.postMessage({
+                command: "hostToolsInstallComplete",
+            });
+        } catch (error) {
+            vscode.window.showErrorMessage(`Error: ${error}`);
+            this._panel.webview.postMessage({
+                command: "hostToolsInstallComplete",
+            });
+        }
+    }
+
+    private async installPackage(packageName: string) {
+        try {
+            this._panel.webview.postMessage({
+                command: "hostToolsInstallProgress",
+                message: `Installing ${packageName}...`,
+            });
+
+            const platformPackages = await getPlatformPackages();
+            const pkg = platformPackages.find(p => p.name === packageName);
+            
+            if (!pkg) {
+                vscode.window.showErrorMessage(`Package ${packageName} not found`);
+                this._panel.webview.postMessage({
+                    command: "hostToolsInstallComplete",
+                });
+                return;
+            }
+
+            await installPackage(pkg);
+            await this.checkHostToolsStatus();
+
+            this._panel.webview.postMessage({
+                command: "hostToolsInstallComplete",
+            });
+        } catch (error) {
+            vscode.window.showErrorMessage(`Error: ${error}`);
+            this._panel.webview.postMessage({
+                command: "hostToolsInstallComplete",
+            });
+        }
+    }
+
+    private async installAllMissingTools() {
+        try {
+            this._panel.webview.postMessage({
+                command: "hostToolsInstallProgress",
+                message: "Installing all missing packages...",
+            });
+
+            await installAllMissingPackages();
+            await this.checkHostToolsStatus();
+            
+            const packageStatuses = await checkAllPackages();
+            const needsRestart = packageStatuses.some(p => !p.available);
+            
+            if (needsRestart) {
+                vscode.window.showWarningMessage(
+                    "Some packages were installed but are not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect."
+                );
+            }
+
+            this._panel.webview.postMessage({
+                command: "hostToolsInstallComplete",
+            });
+        } catch (error) {
+            vscode.window.showErrorMessage(`Error: ${error}`);
+            this._panel.webview.postMessage({
+                command: "hostToolsInstallComplete",
+            });
+        }
+    }
+
     private async openWingetLink() {
         try {
             vscode.env.openExternal(vscode.Uri.parse("https://aka.ms/getwinget"));
@@ -191,7 +465,16 @@ export class SetupPanel {
     // SDK and West Management Methods
     private async installSDK() {
         try {
-            vscode.commands.executeCommand("zephyr-ide.install-sdk");
+            await vscode.commands.executeCommand("zephyr-ide.install-sdk");
+            // Refresh the panel after SDK installation to update status
+            if (this.currentWsConfig && this.currentGlobalConfig) {
+                try {
+                    this.updateContent(this.currentWsConfig, this.currentGlobalConfig);
+                } catch (updateError) {
+                    console.error("Failed to refresh panel after SDK installation:", updateError);
+                    // Don't show error to user as SDK installation was successful
+                }
+            }
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to install west SDK: ${error}`);
         }
@@ -229,6 +512,16 @@ export class SetupPanel {
         } catch (error) {
             vscode.window.showErrorMessage(
                 `Failed to open workspace manager: ${error}`
+            );
+        }
+    }
+
+    private async selectExistingWestWorkspace() {
+        try {
+            vscode.commands.executeCommand("zephyr-ide.select-existing-west-workspace");
+        } catch (error) {
+            vscode.window.showErrorMessage(
+                `Failed to select existing west workspace: ${error}`
             );
         }
     }
@@ -359,14 +652,13 @@ export class SetupPanel {
             ${this.getStylesheetLinks()}
         </head>
         <body>
-            <div class="wizard-container">
-                <h1>Zephyr IDE Setup & Configuration</h1>
-                ${this.generateSDKSection(globalConfig)}
-                ${this.generateWestOperationsSection()}
-                ${this.generateWorkspaceSetupSection(
-            folderOpen,
-            workspaceInitialized
-        )}
+            <div class="panel-container">
+                <div class="overview-container" id="overviewContainer">
+                    ${this.generateOverviewSection(wsConfig, globalConfig, folderOpen, workspaceInitialized)}
+                </div>
+                <div class="sub-page-container" id="subPageContainer">
+                    <!-- Sub-page content will be inserted here -->
+                </div>
             </div>
             ${this.getScriptTags()}
         </body>
@@ -383,7 +675,23 @@ export class SetupPanel {
                 "setup-panel.css"
             )
         );
-        return `<link rel="stylesheet" type="text/css" href="${cssUri}">`;
+        
+        // Use codicons from node_modules - these are bundled with the extension
+        const codiconUri = this._panel.webview.asWebviewUri(
+            vscode.Uri.joinPath(
+                vscode.Uri.file(this._extensionPath),
+                "node_modules",
+                "@vscode",
+                "codicons",
+                "dist",
+                "codicon.css"
+            )
+        );
+        
+        return `
+            <link rel="stylesheet" type="text/css" href="${cssUri}">
+            <link rel="stylesheet" type="text/css" href="${codiconUri}">
+        `;
     }
 
     private getScriptTags(): string {
@@ -399,274 +707,144 @@ export class SetupPanel {
         return `<script src="${jsUri}"></script>`;
     }
 
-    private generateSDKSection(globalConfig: GlobalConfig): string {
-        const sdkCollapsed = globalConfig.sdkInstalled;
-        const statusClass = globalConfig.sdkInstalled
-            ? "status-success"
-            : "status-error";
-        const statusText = globalConfig.sdkInstalled
-            ? "✓ SDK Installed"
-            : "✗ SDK Not Installed";
-        const expandedClass = sdkCollapsed ? "" : "expanded";
-
-        const description = globalConfig.sdkInstalled
-            ? "The Zephyr SDK is installed and ready to use. You can manage additional SDK versions or update to the latest release."
-            : "The Zephyr SDK is required for building Zephyr applications. Install it to enable cross-compilation for supported architectures.";
-
-        return `
-        <div class="collapsible-section">
-            <div class="collapsible-header" onclick="toggleSection('sdk')">
-                <div class="collapsible-header-left">
-                    <div class="status ${statusClass}">${statusText}</div>
-                    <div class="collapsible-title">Zephyr SDK Management</div>
-                </div>
-                <div class="collapsible-icon ${expandedClass}" id="sdkIcon">▶</div>
-            </div>
-            <div class="collapsible-content ${expandedClass}" id="sdkContent">
-                <div class="step-description">${description}</div>
-                <div style="display: flex; gap: 15px; margin: 20px 0; flex-wrap: wrap;">
-                    <button class="button" onclick="installSDK()">Install/Update SDK</button>
-                    <button class="button button-secondary" onclick="listSDKs()">List Available SDKs</button>
-                </div>
-                <div id="sdkListContainer" style="margin-top: 20px;"></div>
-            </div>
-        </div>`;
-    }
-
-    private generateWestOperationsSection(): string {
-        return `
-        <div class="collapsible-section">
-            <div class="collapsible-header" onclick="toggleSection('west')">
-                <div class="collapsible-header-left">
-                    <div class="status status-info">⚙️ West Operations</div>
-                    <div class="collapsible-title">West Workspace Management</div>
-                </div>
-                <div class="collapsible-icon expanded" id="westIcon">▶</div>
-            </div>
-            <div class="collapsible-content expanded" id="westContent">
-                <div class="step-description">
-                    Set up and manage west workspace environments for Zephyr project development and dependency management.
-                </div>
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; margin-top: 15px;">
-                    ${this.generateWestOperationCard(
-            "🌐",
-            "Setup West Environment",
-            "Create a Python virtual environment and install west tools required for Zephyr development.",
-            "setupWestEnvironment()"
-        )}
-                    ${this.generateWestOperationCard(
-            "🔧",
-            "West Init",
-            "Initialize a new west workspace with project manifests and source repositories.",
-            "westInit()"
-        )}
-                    ${this.generateWestOperationCard(
-            "🔄",
-            "West Update",
-            "Update workspace repositories and install Python dependencies for the current Zephyr version.",
-            "westUpdate()"
-        )}
-                    ${this.generateWestOperationCard(
-            "🗂️",
-            "Manage Workspace",
-            "Manage and configure existing workspaces, switch between different workspace configurations.",
-            "manageWorkspace()"
-        )}
-                    ${this.generateWestOperationCard(
-            "⚙️",
-            "West Configuration",
-            "Configure west by detecting existing .west folders or west.yml files, or create a new west.yml from templates.",
-            "westConfig()"
-        )}
-                </div>
-            </div>
-        </div>`;
-    }
-
-    private generateWestOperationCard(
-        icon: string,
-        title: string,
-        description: string,
-        onClick: string
-    ): string {
-        return `
-        <div style="padding: 20px; border: 1px solid var(--vscode-panel-border); border-radius: 6px; background-color: var(--vscode-input-background);">
-            <h4 style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
-                <span style="font-size: 16px;">${icon}</span>
-                ${title}
-            </h4>
-            <p style="margin: 0 0 12px 0; font-size: 12px; color: var(--vscode-descriptionForeground);">${description}</p>
-            <button class="button" onclick="${onClick}">${title}</button>
-        </div>`;
-    }
-
-    private generateWorkspaceSetupSection(
+    private generateOverviewSection(
+        wsConfig: WorkspaceConfig,
+        globalConfig: GlobalConfig,
         folderOpen: boolean,
         workspaceInitialized: boolean
     ): string {
-        if (!folderOpen) {
-            // Keep as regular step when no folder is open
-            const description = this.getWorkspaceDescription(
-                folderOpen,
-                workspaceInitialized
-            );
-            const content = this.getWorkspaceContent(
-                folderOpen,
-                workspaceInitialized
-            );
-            return `
-            <div class="step">
-                <div class="step-title">Workspace Setup</div>
-                <div class="step-description">${description}</div>
-                ${content}
-            </div>`;
-        }
-
-        // Make it collapsible when folder is open
-        const workspaceCollapsed = workspaceInitialized; // Collapse when initialized
-        const statusClass = workspaceInitialized
-            ? "status-success"
-            : "status-warning";
-        const statusText = workspaceInitialized
-            ? "✅ Workspace Ready"
-            : "⚙️ Workspace Setup";
-        const expandedClass = workspaceCollapsed ? "" : "expanded";
-        const description = this.getWorkspaceDescription(
-            folderOpen,
-            workspaceInitialized
-        );
-        const content = this.getWorkspaceContent(folderOpen, workspaceInitialized);
-
         return `
-        <div class="collapsible-section">
-            <div class="collapsible-header" onclick="toggleSection('workspace')">
-                <div class="collapsible-header-left">
-                    <div class="status ${statusClass}">${statusText}</div>
-                    <div class="collapsible-title">Workspace Setup</div>
+        <div class="overview-section">
+            <div class="walkthrough-header">
+                <h1 class="walkthrough-title">Zephyr IDE Setup & Configuration</h1>
+                <p class="walkthrough-subtitle">Configure your development environment</p>
+            </div>
+            
+            <div class="two-column-layout">
+                <div class="overview-cards">
+                    ${HostToolsCard.getHtml(globalConfig)}
+                    ${SDKCard.getHtml(globalConfig)}
+                    ${WorkspaceCard.getHtml(wsConfig, folderOpen, workspaceInitialized)}
                 </div>
-                <div class="collapsible-icon ${expandedClass}" id="workspaceIcon">▶</div>
-            </div>
-            <div class="collapsible-content ${expandedClass}" id="workspaceContent">
-                <div class="step-description">${description}</div>
-                ${content}
+                
+                <div class="walkthrough-description">
+                    <h3>Getting Started</h3>
+                    <p>Complete these steps to set up your Zephyr development environment:</p>
+                    <ul class="setup-requirements">
+                        <li><strong>1. Host Tools</strong> - Ensure system has required build dependencies</li>
+                        <li><strong>2. Zephyr SDK</strong> - Download toolchains for target architectures</li>
+                        <li><strong>3. Workspace</strong> - Link to Zephyr source code and modules</li>
+                    </ul>
+                    <p class="help-text">Click any card above to configure that component.</p>
+                    
+                    <h3 style="margin-top: 24px;">Documentation & Help</h3>
+                    <p>Learn more about using Zephyr IDE:</p>
+                    <ul class="help-links">
+                        <li><a href="https://github.com/mylonics/zephyr-ide/blob/main/README.md" class="external-link">📖 Extension Documentation</a></li>
+                        <li><a href="https://docs.zephyrproject.org/latest/develop/getting_started/index.html" class="external-link">🚀 Zephyr Getting Started Guide</a></li>
+                        <li><a href="https://docs.zephyrproject.org/latest/develop/west/index.html" class="external-link">🔧 West Tool Documentation</a></li>
+                        <li><a href="https://github.com/mylonics/zephyr-ide/issues" class="external-link">💬 Report Issues or Get Help</a></li>
+                    </ul>
+                </div>
             </div>
         </div>`;
     }
 
-    private getWorkspaceDescription(
-        folderOpen: boolean,
-        workspaceInitialized: boolean
-    ): string {
-        if (!folderOpen) {
-            return "Open a folder in VS Code to begin setting up your Zephyr development workspace.";
-        } else if (workspaceInitialized) {
-            return "Your workspace is ready for development. You can reinitialize if configuration changes are needed.";
-        } else {
-            return "Select how to configure your Zephyr workspace. A workspace organizes projects and manages development dependencies.";
+    private async openWestYml() {
+        try {
+            const westYmlFilePath = this.getWestYmlPath();
+            
+            if (!westYmlFilePath) {
+                const setupPath = this.currentWsConfig?.activeSetupState?.setupPath || "unknown";
+                vscode.window.showErrorMessage(
+                    `west.yml file not found.\n\n` +
+                    `Checked location based on .west/config in: ${setupPath}\n\n` +
+                    `Make sure west is initialized. Try running 'West Init' or one of the workspace setup commands.`
+                );
+                return;
+            }
+            
+            const westYmlPath = vscode.Uri.file(westYmlFilePath);
+            const doc = await vscode.workspace.openTextDocument(westYmlPath);
+            await vscode.window.showTextDocument(doc);
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to open west.yml: ${error}`);
         }
     }
 
-    private getWorkspaceContent(
-        folderOpen: boolean,
-        workspaceInitialized: boolean
-    ): string {
-        if (!folderOpen) {
-            return this.generateNoFolderContent();
-        } else if (workspaceInitialized) {
-            return this.generateInitializedContent();
-        } else {
-            return this.generateWorkspaceOptions();
+    private async loadWestYmlContent() {
+        try {
+            const westYmlFilePath = this.getWestYmlPath();
+            
+            if (!westYmlFilePath) {
+                const setupPath = this.currentWsConfig?.activeSetupState?.setupPath || "unknown";
+                this._panel.webview.postMessage({
+                    command: "westYmlContent",
+                    content: 
+                        `# west.yml file not found\n` +
+                        `# \n` +
+                        `# Location is determined by reading manifest.path from:\n` +
+                        `# ${path.join(setupPath, ".west", "config")}\n` +
+                        `# \n` +
+                        `# The file may not have been created yet.\n` +
+                        `# Try running 'West Init' or one of the workspace setup commands.`
+                });
+                return;
+            }
+            
+            const westYmlPath = vscode.Uri.file(westYmlFilePath);
+            const doc = await vscode.workspace.openTextDocument(westYmlPath);
+            const content = doc.getText();
+            
+            this._panel.webview.postMessage({
+                command: "westYmlContent",
+                content: content
+            });
+        } catch (error) {
+            console.error("Error loading west.yml:", error);
+            this._panel.webview.postMessage({
+                command: "westYmlContent",
+                content: `# Error loading west.yml\n# ${error}`
+            });
         }
     }
 
-    private generateNoFolderContent(): string {
-        return `
-        <div style="text-align: center; padding: 30px;">
-            <div style="font-size: 2em; margin-bottom: 15px;">📁</div>
-            <p style="margin-bottom: 20px; color: var(--vscode-descriptionForeground); font-size: 12px;">Open a folder in VS Code to begin configuring your Zephyr development environment.</p>
-            <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-                <button class="button" onclick="workspaceSetupPicker()">Workspace Setup</button>
-                <button class="button button-secondary" onclick="westConfig()">West Config</button>
-                <button class="button button-secondary" onclick="openFolder()">Open Folder</button>
-            </div>
-        </div>`;
+    private async saveAndUpdateWestYml(content: string) {
+        try {
+            const westYmlFilePath = this.getWestYmlPath();
+            
+            if (!westYmlFilePath) {
+                vscode.window.showErrorMessage(
+                    "west.yml file not found. Cannot save changes.\n\n" +
+                    "Make sure west is initialized first."
+                );
+                return;
+            }
+            
+            const westYmlPath = vscode.Uri.file(westYmlFilePath);
+            
+            // Write the content to the file
+            const encoder = new TextEncoder();
+            await vscode.workspace.fs.writeFile(westYmlPath, encoder.encode(content));
+            
+            vscode.window.showInformationMessage(`west.yml saved successfully to: ${westYmlFilePath}`);
+            
+            // Run west update
+            await vscode.commands.executeCommand("zephyr-ide.west-update");
+        } catch (error) {
+            vscode.window.showErrorMessage(`Failed to save west.yml: ${error}`);
+        }
     }
 
-    private generateInitializedContent(): string {
-        return `
-        <div style="text-align: center; padding: 30px;">
-            <div style="font-size: 2em; margin-bottom: 15px;">✅</div>
-            <p style="margin-bottom: 20px; color: var(--vscode-descriptionForeground); font-size: 12px;">Your Zephyr workspace is configured and ready for development!</p>
-            <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-                <button class="button" onclick="manageWorkspace()">Manage Workspaces</button>
-                <button class="button button-secondary" onclick="reinitializeWorkspace()">Reinitialize Workspace</button>
-            </div>
-        </div>`;
-    }
-
-    private generateWorkspaceOptionCard(
-        icon: string,
-        title: string,
-        description: string,
-        usage: string,
-        action: string
-    ): string {
-        let clickHandler = "";
-        if (action === "zephyr-ide-git") {
-            clickHandler = "workspaceSetupFromGit()";
-        } else if (action === "west-git") {
-            clickHandler = "workspaceSetupFromWestGit()";
-        } else if (action === "standard") {
-            clickHandler = "workspaceSetupStandard()";
-        } else if (action === "current-directory") {
-            clickHandler = "workspaceSetupFromCurrentDirectory()";
-        } else if (action === "west-config") {
-            clickHandler = "westConfig()";
+    /**
+     * Get the west.yml file path by reading the manifest path from .west/config
+     * Returns the full path to west.yml or null if not found
+     */
+    private getWestYmlPath(): string | null {
+        if (!this.currentWsConfig?.activeSetupState?.setupPath) {
+            return null;
         }
 
-        return `
-        <div class="option-card" onclick="${clickHandler}">
-            <div class="option-card-header">
-                <div class="topology-icon">${icon}</div>
-                <h3>${title}</h3>
-            </div>
-            <p class="option-card-description">${description}</p>
-            <p class="option-card-usage">Best for: ${usage}</p>
-        </div>`;
-    }
-
-    private generateWorkspaceOptions(): string {
-        return `
-        <h4>Workspace Setup Options</h4>
-        <div class="workspace-options">
-            ${this.generateWorkspaceOptionCard(
-            "🌐",
-            "Import Zephyr IDE Workspace from Git",
-            "Clone and import a complete Zephyr IDE workspace or any repo with projects as subdirectories using Git.",
-            "Team collaboration, and shared development environments.",
-            "zephyr-ide-git"
-        )}
-            ${this.generateWorkspaceOptionCard(
-            "⚙️",
-            "Import West Workspace from Git",
-            "Clone a standard west manifest repo (contains west.yml) from a Git repository using West Init.",
-            "Upstream Zephyr projects, community examples, and official sample applications.",
-            "west-git"
-        )}
-            ${this.generateWorkspaceOptionCard(
-            "📦",
-            "New Standard Workspace",
-            "Create a self-contained workspace with Zephyr installed locally within the workspace directory. Each workspace maintains its own Zephyr installation.",
-            "Team collaboration, individual projects, isolated development, or when specific Zephyr versions are required per project.",
-            "standard"
-        )}
-            ${this.generateWorkspaceOptionCard(
-            "📁",
-            "Initialize Current Directory",
-            "Set up the current VS Code workspace directory for Zephyr development, preserving any existing files and configurations. Process goes through aiding a user choose a zephyr install.",
-            "Existing projects, downloaded samples, or when you want to add quickly run projects with an external install.",
-            "current-directory"
-        )}
-        </div>`;
+        return parseWestConfigManifestPath(this.currentWsConfig.activeSetupState.setupPath);
     }
 }

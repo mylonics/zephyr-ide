@@ -10,6 +10,11 @@ All notable changes to the "zephyr-ide" extension will be documented in this fil
 - **Configuration changes:**
   - Removed `zephyr-ide.use-system-environment` setting
   - Added `zephyr-ide.suppress-workspace-warning` setting to control environment variable warning display
+### Changed
+- **Simplified Workspace Setup panel** - Removed low-level commands (West Config, Setup West Environment, West Init) from sidebar view to reduce clutter
+  - Commands remain available via Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
+  - Only "Zephyr IDE Configuration" and "West Update" now shown in sidebar
+  - This change focuses the UI on commonly-used actions while preserving full functionality for advanced users
 
 ## 2.0.0
 Major update with enhanced workspace setup and user experience improvements:

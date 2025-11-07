@@ -96,12 +96,12 @@
       { "name": "Python3", "package": "python", "check_command": "python --version" },
       { "name": "Git", "package": "Git.Git", "check_command": "git --version" },
       { "name": "DTC (Device Tree Compiler)", "package": "oss-winget.dtc", "check_command": "dtc --version" },
-      { "name": "wget", "package": "wget", "check_command": "wget --version" },
+      { "name": "wget", "package": "wget", "check_command": "wget --help" },
       {
         "name": "7-Zip",
         "package": "7zip.7zip",
         "check_command": "7z --help",
-        "post_install_step": "[System.Environment]::SetEnvironmentVariable('Path', [System.Environment]::GetEnvironmentVariable('Path', 'Machine') + ';C:\\Program Files\\7-Zip', 'Machine')"
+        "post_install_step": "[System.Environment]::SetEnvironmentVariable('Path', [System.Environment]::GetEnvironmentVariable('Path', 'User') + ';C:\\Program Files\\7-Zip', 'User')"
       }
     ]
   }

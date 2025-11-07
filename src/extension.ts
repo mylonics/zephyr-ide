@@ -81,6 +81,7 @@ import {
   workspaceSetupStandard,
   manageWorkspaces,
   westConfig,
+  selectExistingWestWorkspace,
 } from "./setup_utilities/workspace-setup";
 import {
   initializeDtsExt,
@@ -1323,13 +1324,19 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.install-host-tools", async () => {
-      // Open the new Host Tools panel instead of running the old automated install
-      HostToolInstallView.createOrShow(
+      // Open the Setup Panel and navigate to host tools page
+      const panel = SetupPanel.createOrShow(
         context.extensionPath,
         context,
         wsConfig,
         globalConfig
       );
+      // Navigate to host tools page after a short delay to ensure panel is ready
+      setTimeout(() => {
+        if (SetupPanel.currentPanel) {
+          SetupPanel.currentPanel.navigateToHostTools();
+        }
+      }, 100);
     }
     )
   );
@@ -1443,6 +1450,17 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.west-config", async () => {
       await westConfig(context, wsConfig, globalConfig);
+    }
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.select-existing-west-workspace", async () => {
+      await selectExistingWestWorkspace(context, wsConfig, globalConfig);
+      // Refresh the setup panel if it's open
+      if (SetupPanel.currentPanel) {
+        SetupPanel.currentPanel.updateContent(wsConfig, globalConfig);
+      }
     }
     )
   );
