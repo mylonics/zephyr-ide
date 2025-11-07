@@ -17,6 +17,7 @@ limitations under the License.
 
 import { WorkspaceConfig } from "../../setup_utilities/types";
 import * as path from "path";
+import * as fs from "fs";
 
 export class WorkspaceSubPage {
     static getHtml(wsConfig: WorkspaceConfig): string {
@@ -168,9 +169,40 @@ export class WorkspaceSubPage {
     }
     
     private static getWestYmlPath(wsConfig: WorkspaceConfig): string {
-        if (wsConfig.activeSetupState?.setupPath) {
-            return path.join(wsConfig.activeSetupState.setupPath, "west.yml");
+        if (!wsConfig.activeSetupState?.setupPath) {
+            return "Not found";
         }
+
+        const setupPath = wsConfig.activeSetupState.setupPath;
+        const westConfigPath = path.join(setupPath, ".west", "config");
+
+        try {
+            // Check if .west/config exists
+            if (!fs.existsSync(westConfigPath)) {
+                return "Not found (.west/config missing)";
+            }
+
+            // Read .west/config file
+            const configContent = fs.readFileSync(westConfigPath, "utf8");
+            
+            // Parse the manifest.path from the config
+            const manifestPathMatch = configContent.match(/manifest\.path\s*=\s*(.+)/);
+            
+            if (manifestPathMatch && manifestPathMatch[1]) {
+                const manifestPath = manifestPathMatch[1].trim();
+                const westYmlPath = path.join(setupPath, manifestPath, "west.yml");
+                
+                // Verify the file exists
+                if (fs.existsSync(westYmlPath)) {
+                    return westYmlPath;
+                }
+                
+                return `Not found (expected at ${westYmlPath})`;
+            }
+        } catch (error) {
+            return `Error reading config: ${error}`;
+        }
+
         return "Not found";
     }
     

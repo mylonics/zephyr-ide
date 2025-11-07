@@ -741,16 +741,15 @@ export class SetupPanel {
 
     private async openWestYml() {
         try {
-            if (!this.currentWsConfig?.activeSetupState?.setupPath) {
-                vscode.window.showErrorMessage("No active workspace setup found");
-                return;
-            }
+            const westYmlFilePath = this.getWestYmlPath();
             
-            const westYmlFilePath = path.join(this.currentWsConfig.activeSetupState.setupPath, "west.yml");
-            
-            // Check if file exists before trying to open
-            if (!fs.existsSync(westYmlFilePath)) {
-                vscode.window.showErrorMessage(`west.yml file not found at: ${westYmlFilePath}\n\nThe file may not have been created yet. Try running 'West Init' or one of the workspace setup commands first.`);
+            if (!westYmlFilePath) {
+                const setupPath = this.currentWsConfig?.activeSetupState?.setupPath || "unknown";
+                vscode.window.showErrorMessage(
+                    `west.yml file not found.\n\n` +
+                    `Checked location based on .west/config in: ${setupPath}\n\n` +
+                    `Make sure west is initialized. Try running 'West Init' or one of the workspace setup commands.`
+                );
                 return;
             }
             
@@ -764,17 +763,20 @@ export class SetupPanel {
 
     private async loadWestYmlContent() {
         try {
-            if (!this.currentWsConfig?.activeSetupState?.setupPath) {
-                return;
-            }
+            const westYmlFilePath = this.getWestYmlPath();
             
-            const westYmlFilePath = path.join(this.currentWsConfig.activeSetupState.setupPath, "west.yml");
-            
-            // Check if file exists
-            if (!fs.existsSync(westYmlFilePath)) {
+            if (!westYmlFilePath) {
+                const setupPath = this.currentWsConfig?.activeSetupState?.setupPath || "unknown";
                 this._panel.webview.postMessage({
                     command: "westYmlContent",
-                    content: `# west.yml file not found\n# Expected location: ${westYmlFilePath}\n#\n# The file may not have been created yet.\n# Try running 'West Init' or one of the workspace setup commands.`
+                    content: 
+                        `# west.yml file not found\n` +
+                        `# \n` +
+                        `# Location is determined by reading manifest.path from:\n` +
+                        `# ${path.join(setupPath, ".west", "config")}\n` +
+                        `# \n` +
+                        `# The file may not have been created yet.\n` +
+                        `# Try running 'West Init' or one of the workspace setup commands.`
                 });
                 return;
             }
@@ -798,12 +800,16 @@ export class SetupPanel {
 
     private async saveAndUpdateWestYml(content: string) {
         try {
-            if (!this.currentWsConfig?.activeSetupState?.setupPath) {
-                vscode.window.showErrorMessage("No active workspace setup found");
+            const westYmlFilePath = this.getWestYmlPath();
+            
+            if (!westYmlFilePath) {
+                vscode.window.showErrorMessage(
+                    "west.yml file not found. Cannot save changes.\n\n" +
+                    "Make sure west is initialized first."
+                );
                 return;
             }
             
-            const westYmlFilePath = path.join(this.currentWsConfig.activeSetupState.setupPath, "west.yml");
             const westYmlPath = vscode.Uri.file(westYmlFilePath);
             
             // Write the content to the file
@@ -817,5 +823,51 @@ export class SetupPanel {
         } catch (error) {
             vscode.window.showErrorMessage(`Failed to save west.yml: ${error}`);
         }
+    }
+
+    /**
+     * Get the west.yml file path by reading the manifest path from .west/config
+     * Returns the full path to west.yml or null if not found
+     */
+    private getWestYmlPath(): string | null {
+        if (!this.currentWsConfig?.activeSetupState?.setupPath) {
+            return null;
+        }
+
+        const setupPath = this.currentWsConfig.activeSetupState.setupPath;
+        const westConfigPath = path.join(setupPath, ".west", "config");
+
+        try {
+            // Check if .west/config exists
+            if (!fs.existsSync(westConfigPath)) {
+                console.log(".west/config not found at:", westConfigPath);
+                return null;
+            }
+
+            // Read .west/config file
+            const configContent = fs.readFileSync(westConfigPath, "utf8");
+            
+            // Parse the manifest.path from the config
+            // Format is like: manifest.path = west-manifest
+            const manifestPathMatch = configContent.match(/manifest\.path\s*=\s*(.+)/);
+            
+            if (manifestPathMatch && manifestPathMatch[1]) {
+                const manifestPath = manifestPathMatch[1].trim();
+                const westYmlPath = path.join(setupPath, manifestPath, "west.yml");
+                
+                // Verify the file exists
+                if (fs.existsSync(westYmlPath)) {
+                    return westYmlPath;
+                }
+                
+                console.log("west.yml not found at expected location:", westYmlPath);
+            } else {
+                console.log("manifest.path not found in .west/config");
+            }
+        } catch (error) {
+            console.error("Error reading .west/config:", error);
+        }
+
+        return null;
     }
 }
