@@ -169,10 +169,6 @@ export class WorkspaceSubPage {
                     <span class="codicon codicon-repo-create"></span>
                     West Init
                 </button>
-                <button class="button button-secondary" onclick="westUpdate()">
-                    <span class="codicon codicon-sync"></span>
-                    West Update
-                </button>
             </div>
         </div>`;
     }
