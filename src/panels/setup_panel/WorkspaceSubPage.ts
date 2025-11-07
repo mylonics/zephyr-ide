@@ -18,6 +18,7 @@ limitations under the License.
 import { WorkspaceConfig } from "../../setup_utilities/types";
 import * as path from "path";
 import * as fs from "fs";
+import { parseWestConfigManifestPath } from "../../setup_utilities/west-config-parser";
 
 export class WorkspaceSubPage {
     static getHtml(wsConfig: WorkspaceConfig): string {
@@ -130,6 +131,10 @@ export class WorkspaceSubPage {
                         <span class="codicon codicon-save"></span>
                         Save and West Update
                     </button>
+                    <button class="button button-secondary" onclick="westUpdate()">
+                        <span class="codicon codicon-sync"></span>
+                        West Update
+                    </button>
                 </div>
             </div>
         </div>
@@ -139,11 +144,11 @@ export class WorkspaceSubPage {
             <div class="button-group">
                 <button class="button button-secondary" onclick="manageWorkspace()">
                     <span class="codicon codicon-folder-library"></span>
-                    Manage Workspaces
+                    Manage West Workspaces
                 </button>
                 <button class="button button-secondary" onclick="reinitializeWorkspace()">
                     <span class="codicon codicon-refresh"></span>
-                    Reinitialize Workspace
+                    Reinitialize VS Code Workspace
                 </button>
             </div>
         </div>
@@ -177,63 +182,8 @@ export class WorkspaceSubPage {
             return "Not found";
         }
 
-        const setupPath = wsConfig.activeSetupState.setupPath;
-        const westConfigPath = path.join(setupPath, ".west", "config");
-
-        try {
-            // Check if .west/config exists
-            if (!fs.existsSync(westConfigPath)) {
-                return "Not found (.west/config missing)";
-            }
-
-            // Read .west/config file
-            const configContent = fs.readFileSync(westConfigPath, "utf8");
-            
-            // Parse the manifest path from the INI-style config
-            // The config file has sections like [manifest] followed by key=value pairs
-            let manifestPath = "";
-            let inManifestSection = false;
-            
-            for (const line of configContent.split('\n')) {
-                const trimmedLine = line.trim();
-                
-                // Check if we're entering the [manifest] section
-                if (trimmedLine === '[manifest]') {
-                    inManifestSection = true;
-                    continue;
-                }
-                
-                // Check if we're entering a different section
-                if (trimmedLine.startsWith('[') && trimmedLine !== '[manifest]') {
-                    inManifestSection = false;
-                    continue;
-                }
-                
-                // If we're in the manifest section, look for the path key
-                if (inManifestSection && trimmedLine.includes('=')) {
-                    const [key, value] = trimmedLine.split('=').map(s => s.trim());
-                    if (key === 'path') {
-                        manifestPath = value;
-                        break;
-                    }
-                }
-            }
-            
-            if (manifestPath) {
-                const westYmlPath = path.join(setupPath, manifestPath, "west.yml");
-                
-                // Verify the file exists
-                if (fs.existsSync(westYmlPath)) {
-                    return westYmlPath;
-                }
-                
-                return `Not found (expected at ${westYmlPath})`;
-            }
-        } catch (error) {
-            return `Error reading config: ${error}`;
-        }
-
-        return "Not found";
+        const westYmlPath = parseWestConfigManifestPath(wsConfig.activeSetupState.setupPath);
+        return westYmlPath || "Not found";
     }
     
     private static getVenvPath(wsConfig: WorkspaceConfig): string {

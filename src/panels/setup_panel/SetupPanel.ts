@@ -25,6 +25,7 @@ import {
     ParsedSDKList,
 } from "../../setup_utilities/west_sdk";
 import { saveSetupState } from "../../setup_utilities/state-management";
+import { parseWestConfigManifestPath } from "../../setup_utilities/west-config-parser";
 import { HostToolsSubPage } from "./HostToolsSubPage";
 import { SDKSubPage } from "./SDKSubPage";
 import { WorkspaceSubPage } from "./WorkspaceSubPage";
@@ -844,67 +845,6 @@ export class SetupPanel {
             return null;
         }
 
-        const setupPath = this.currentWsConfig.activeSetupState.setupPath;
-        const westConfigPath = path.join(setupPath, ".west", "config");
-
-        try {
-            // Check if .west/config exists
-            if (!fs.existsSync(westConfigPath)) {
-                console.log(".west/config not found at:", westConfigPath);
-                return null;
-            }
-
-            // Read .west/config file
-            const configContent = fs.readFileSync(westConfigPath, "utf8");
-            
-            // Parse the manifest path from the INI-style config
-            // The config file has sections like [manifest] followed by key=value pairs
-            // We need to find the 'path' value under the [manifest] section
-            let manifestPath = "";
-            let inManifestSection = false;
-            
-            for (const line of configContent.split('\n')) {
-                const trimmedLine = line.trim();
-                
-                // Check if we're entering the [manifest] section
-                if (trimmedLine === '[manifest]') {
-                    inManifestSection = true;
-                    continue;
-                }
-                
-                // Check if we're entering a different section
-                if (trimmedLine.startsWith('[') && trimmedLine !== '[manifest]') {
-                    inManifestSection = false;
-                    continue;
-                }
-                
-                // If we're in the manifest section, look for the path key
-                if (inManifestSection && trimmedLine.includes('=')) {
-                    const [key, value] = trimmedLine.split('=').map(s => s.trim());
-                    if (key === 'path') {
-                        manifestPath = value;
-                        break;
-                    }
-                }
-            }
-            
-            if (manifestPath) {
-                const westYmlPath = path.join(setupPath, manifestPath, "west.yml");
-                
-                // Verify the file exists
-                if (fs.existsSync(westYmlPath)) {
-                    return westYmlPath;
-                }
-                
-                console.log("west.yml not found at expected location:", westYmlPath);
-                console.log("Parsed manifest path:", manifestPath);
-            } else {
-                console.log("manifest path not found in .west/config");
-            }
-        } catch (error) {
-            console.error("Error reading .west/config:", error);
-        }
-
-        return null;
+        return parseWestConfigManifestPath(this.currentWsConfig.activeSetupState.setupPath);
     }
 }
