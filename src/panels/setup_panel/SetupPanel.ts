@@ -17,6 +17,7 @@ limitations under the License.
 
 import * as vscode from "vscode";
 import * as path from "path";
+import * as fs from "fs";
 import { WorkspaceConfig, GlobalConfig } from "../../setup_utilities/types";
 import {
     getWestSDKContext,
@@ -745,10 +746,15 @@ export class SetupPanel {
                 return;
             }
             
-            const westYmlPath = vscode.Uri.file(
-                path.join(this.currentWsConfig.activeSetupState.setupPath, "west.yml")
-            );
+            const westYmlFilePath = path.join(this.currentWsConfig.activeSetupState.setupPath, "west.yml");
             
+            // Check if file exists before trying to open
+            if (!fs.existsSync(westYmlFilePath)) {
+                vscode.window.showErrorMessage(`west.yml file not found at: ${westYmlFilePath}\n\nThe file may not have been created yet. Try running 'West Init' or one of the workspace setup commands first.`);
+                return;
+            }
+            
+            const westYmlPath = vscode.Uri.file(westYmlFilePath);
             const doc = await vscode.workspace.openTextDocument(westYmlPath);
             await vscode.window.showTextDocument(doc);
         } catch (error) {
@@ -762,10 +768,18 @@ export class SetupPanel {
                 return;
             }
             
-            const westYmlPath = vscode.Uri.file(
-                path.join(this.currentWsConfig.activeSetupState.setupPath, "west.yml")
-            );
+            const westYmlFilePath = path.join(this.currentWsConfig.activeSetupState.setupPath, "west.yml");
             
+            // Check if file exists
+            if (!fs.existsSync(westYmlFilePath)) {
+                this._panel.webview.postMessage({
+                    command: "westYmlContent",
+                    content: `# west.yml file not found\n# Expected location: ${westYmlFilePath}\n#\n# The file may not have been created yet.\n# Try running 'West Init' or one of the workspace setup commands.`
+                });
+                return;
+            }
+            
+            const westYmlPath = vscode.Uri.file(westYmlFilePath);
             const doc = await vscode.workspace.openTextDocument(westYmlPath);
             const content = doc.getText();
             
@@ -774,10 +788,10 @@ export class SetupPanel {
                 content: content
             });
         } catch (error) {
-            // If file doesn't exist, that's okay
+            console.error("Error loading west.yml:", error);
             this._panel.webview.postMessage({
                 command: "westYmlContent",
-                content: "# west.yml file not found"
+                content: `# Error loading west.yml\n# ${error}`
             });
         }
     }
@@ -789,15 +803,14 @@ export class SetupPanel {
                 return;
             }
             
-            const westYmlPath = vscode.Uri.file(
-                path.join(this.currentWsConfig.activeSetupState.setupPath, "west.yml")
-            );
+            const westYmlFilePath = path.join(this.currentWsConfig.activeSetupState.setupPath, "west.yml");
+            const westYmlPath = vscode.Uri.file(westYmlFilePath);
             
             // Write the content to the file
             const encoder = new TextEncoder();
             await vscode.workspace.fs.writeFile(westYmlPath, encoder.encode(content));
             
-            vscode.window.showInformationMessage("west.yml saved successfully");
+            vscode.window.showInformationMessage(`west.yml saved successfully to: ${westYmlFilePath}`);
             
             // Run west update
             await vscode.commands.executeCommand("zephyr-ide.west-update");
