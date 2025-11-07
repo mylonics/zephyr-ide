@@ -2,6 +2,20 @@
 
 All notable changes to the "zephyr-ide" extension will be documented in this file.
 
+## Unreleased
+**Breaking Changes:**
+- **Removed externally managed workspace option** - The explicit "Use Externally Managed West Workspace" command and UI option have been removed
+- **Automatic environment detection** - The extension now automatically detects and uses system environment variables (ZEPHYR_BASE, ZEPHYR_SDK_INSTALL_DIR) when no workspace is configured
+- **New workspace warning** - A warning is now shown when environment variables are not detected, with an option to suppress it per workspace
+- **Configuration changes:**
+  - Removed `zephyr-ide.use-system-environment` setting
+  - Added `zephyr-ide.suppress-workspace-warning` setting to control environment variable warning display
+### Changed
+- **Simplified Workspace Setup panel** - Removed low-level commands (West Config, Setup West Environment, West Init) from sidebar view to reduce clutter
+  - Commands remain available via Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
+  - Only "Zephyr IDE Configuration" and "West Update" now shown in sidebar
+  - This change focuses the UI on commonly-used actions while preserving full functionality for advanced users
+
 ## 2.0.0
 Major update with enhanced workspace setup and user experience improvements:
 - **Updated Zephyr IDE and workspace setup panel** - Redesigned interface to match rest of GUI

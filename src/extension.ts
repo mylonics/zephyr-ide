@@ -27,20 +27,6 @@ import { ProjectConfigView } from "./panels/project_config_view/ProjectConfigVie
 import { SetupPanel } from "./panels/setup_panel/SetupPanel";
 import { HostToolInstallView } from "./panels/host_tool_install_view/HostToolInstallView";
 
-// Helper function to mark workspace setup as complete and refresh UI
-async function markWorkspaceSetupComplete(
-  context: vscode.ExtensionContext,
-  wsConfig: WorkspaceConfig,
-  globalConfig: GlobalConfig
-) {
-  wsConfig.initialSetupComplete = true;
-  await setWorkspaceState(context, wsConfig);
-  // Update setup panel if it's open
-  if (SetupPanel.currentPanel) {
-    SetupPanel.currentPanel.updateContent(wsConfig, globalConfig);
-  }
-}
-
 import {
   getLaunchConfigurationByName,
   output,
@@ -61,7 +47,7 @@ import {
   build,
 } from "./zephyr_utilities/build";
 import { flashActive } from "./zephyr_utilities/flash";
-import { WorkspaceConfig, GlobalConfig, generateExternallyManagedSetupState } from "./setup_utilities/types";
+import { WorkspaceConfig, GlobalConfig } from "./setup_utilities/types";
 import {
   loadGlobalState,
   setSetupState,
@@ -114,6 +100,61 @@ import { getModuleVersion } from "./setup_utilities/modules";
 import { reconfigureTest } from "./project_utilities/twister_selector";
 import { installSDKInteractive } from "./setup_utilities/west_sdk";
 
+// Helper function to mark workspace setup as complete and refresh UI
+async function markWorkspaceSetupComplete(
+  context: vscode.ExtensionContext,
+  wsConfig: WorkspaceConfig,
+  globalConfig: GlobalConfig
+) {
+  wsConfig.initialSetupComplete = true;
+  await setWorkspaceState(context, wsConfig);
+  // Update setup panel if it's open
+  if (SetupPanel.currentPanel) {
+    SetupPanel.currentPanel.updateContent(wsConfig, globalConfig);
+  }
+}
+
+/**
+ * Check if required Zephyr environment variables are present
+ * @returns true if either ZEPHYR_BASE or ZEPHYR_SDK_INSTALL_DIR is set, false otherwise
+ */
+function checkZephyrEnvironmentVariables(): boolean {
+  return !!(process.env.ZEPHYR_BASE || process.env.ZEPHYR_SDK_INSTALL_DIR);
+}
+
+/**
+ * Show a warning if Zephyr environment variables are not set
+ * Allows user to suppress future warnings
+ */
+async function checkAndWarnMissingEnvironment(context: vscode.ExtensionContext): Promise<void> {
+  const configuration = vscode.workspace.getConfiguration();
+  const suppressWarning: boolean | undefined = configuration.get("zephyr-ide.suppress-workspace-warning");
+  
+  // Don't show warning if user has suppressed it
+  if (suppressWarning) {
+    return;
+  }
+  
+  // Check if environment variables are present
+  if (!checkZephyrEnvironmentVariables()) {
+    const result = await vscode.window.showWarningMessage(
+      "No Zephyr workspace environment detected. Neither ZEPHYR_BASE nor ZEPHYR_SDK_INSTALL_DIR environment variables are set.\n\nChoose 'Continue' to proceed using system environment variables, 'Don't Show Again' to suppress this warning, or 'Setup Workspace' to open the setup wizard.",
+      "Continue",
+      "Don't Show Again",
+      "Setup Workspace"
+    );
+    
+    if (result === "Don't Show Again") {
+      // Save the preference to not show again
+      await configuration.update("zephyr-ide.suppress-workspace-warning", true, vscode.ConfigurationTarget.Workspace);
+      vscode.window.showInformationMessage("Workspace warning suppressed for this workspace.");
+    } else if (result === "Setup Workspace") {
+      // Open the setup wizard panel for workspace configuration
+      await vscode.commands.executeCommand("zephyr-ide.setupWorkspace");
+    }
+  }
+}
+
 let wsConfig: WorkspaceConfig;
 let globalConfig: GlobalConfig;
 
@@ -154,15 +195,9 @@ export async function activate(context: vscode.ExtensionContext) {
     );
   }
 
-  // Check if use-system-environment setting is enabled on startup
-  const configuration = vscode.workspace.getConfiguration();
-  const useSystemEnvironment: boolean | undefined = configuration.get("zephyr-ide.use-system-environment");
-  
-  if (useSystemEnvironment && (!wsConfig.activeSetupState || !wsConfig.activeSetupState.externallyManaged)) {
-    // Setting is enabled but setup state is not externally managed, so apply it
-    wsConfig.activeSetupState = generateExternallyManagedSetupState();
-    await setWorkspaceState(context, wsConfig);
-  }
+  // Check for workspace environment variables and warn if missing
+  // This happens after initial setup state is loaded but before environment is reloaded
+  await checkAndWarnMissingEnvironment(context);
 
   reloadEnvironmentVariables(context, wsConfig.activeSetupState);
 
@@ -1173,52 +1208,6 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.refresh-west-workspaces", async () => {
       westWorkspaceView.updateWebView(wsConfig, globalConfig);
-    })
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand("zephyr-ide.use-externally-managed-west-workspace", async () => {
-      const externalSetupState = generateExternallyManagedSetupState();
-      wsConfig.activeSetupState = externalSetupState;
-      await setWorkspaceState(context, wsConfig);
-      
-      // Also update the configuration setting
-      const configuration = vscode.workspace.getConfiguration();
-      await configuration.update("zephyr-ide.use-system-environment", true, vscode.ConfigurationTarget.Workspace);
-      
-      reloadEnvironmentVariables(context, externalSetupState);
-      westWorkspaceView.updateWebView(wsConfig, globalConfig);
-      vscode.window.showInformationMessage("Using externally managed west workspace. Environment variables from system will be used.");
-    })
-  );
-
-  // Watch for configuration changes to use-system-environment setting
-  context.subscriptions.push(
-    vscode.workspace.onDidChangeConfiguration(async (event) => {
-      if (event.affectsConfiguration("zephyr-ide.use-system-environment")) {
-        const configuration = vscode.workspace.getConfiguration();
-        const useSystemEnvironment: boolean | undefined = configuration.get("zephyr-ide.use-system-environment");
-        
-        if (useSystemEnvironment) {
-          // Setting enabled, switch to externally managed
-          if (!wsConfig.activeSetupState || !wsConfig.activeSetupState.externallyManaged) {
-            wsConfig.activeSetupState = generateExternallyManagedSetupState();
-            await setWorkspaceState(context, wsConfig);
-            reloadEnvironmentVariables(context, wsConfig.activeSetupState);
-            westWorkspaceView.updateWebView(wsConfig, globalConfig);
-            vscode.window.showInformationMessage("Switched to externally managed environment. System environment variables will be used.");
-          }
-        } else {
-          // Setting disabled, clear externally managed state
-          if (wsConfig.activeSetupState && wsConfig.activeSetupState.externallyManaged) {
-            wsConfig.activeSetupState = undefined;
-            await setWorkspaceState(context, wsConfig);
-            reloadEnvironmentVariables(context, wsConfig.activeSetupState);
-            westWorkspaceView.updateWebView(wsConfig, globalConfig);
-            vscode.window.showInformationMessage("Disabled externally managed environment. Zephyr IDE will manage environment variables.");
-          }
-        }
-      }
     })
   );
 

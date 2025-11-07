@@ -40,6 +40,9 @@ window.addEventListener('message', event => {
         case 'hostToolsInstallComplete':
             hideHostToolsProgress();
             break;
+        case 'westYmlContent':
+            loadWestYmlContent(message.content);
+            break;
     }
 });
 
@@ -315,6 +318,52 @@ function westConfig() {
     vscode.postMessage({
         command: 'westConfig'
     });
+}
+
+// West.yml editor functions
+function openWestYml() {
+    vscode.postMessage({
+        command: 'openWestYml'
+    });
+}
+
+function saveAndUpdateWestYml() {
+    const editor = document.getElementById('westYmlEditor');
+    if (editor) {
+        const content = editor.value;
+        vscode.postMessage({
+            command: 'saveAndUpdateWestYml',
+            content: content
+        });
+    }
+}
+
+function loadWestYmlContent(content) {
+    const editor = document.getElementById('westYmlEditor');
+    if (editor) {
+        editor.value = content || '';
+        
+        // Add tab key handler if not already added
+        if (!editor.dataset.tabHandlerAdded) {
+            editor.addEventListener('keydown', function(e) {
+                if (e.key === 'Tab') {
+                    e.preventDefault();
+                    
+                    // Get cursor position
+                    const start = this.selectionStart;
+                    const end = this.selectionEnd;
+                    
+                    // Insert two spaces at cursor position
+                    const value = this.value;
+                    this.value = value.substring(0, start) + '  ' + value.substring(end);
+                    
+                    // Move cursor after the inserted spaces
+                    this.selectionStart = this.selectionEnd = start + 2;
+                }
+            });
+            editor.dataset.tabHandlerAdded = 'true';
+        }
+    }
 }
 
 // Copy to clipboard function from data attribute

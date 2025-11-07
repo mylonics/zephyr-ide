@@ -16,6 +16,9 @@ limitations under the License.
 */
 
 import { WorkspaceConfig } from "../../setup_utilities/types";
+import * as path from "path";
+import * as fs from "fs";
+import { parseWestConfigManifestPath } from "../../setup_utilities/west-config-parser";
 
 export class WorkspaceSubPage {
     static getHtml(wsConfig: WorkspaceConfig): string {
@@ -91,14 +94,48 @@ export class WorkspaceSubPage {
 
     private static getInitializedContent(wsConfig: WorkspaceConfig): string {
         const activeSetupPath = wsConfig.activeSetupState?.setupPath || "Not configured";
+        const currentFolderPath = wsConfig.rootPath || "Not configured";
+        const westYmlPath = this.getWestYmlPath(wsConfig);
+        const venvPath = this.getVenvPath(wsConfig);
+        const zephyrVersion = wsConfig.activeSetupState?.zephyrVersion 
+            ? `${wsConfig.activeSetupState.zephyrVersion.major}.${wsConfig.activeSetupState.zephyrVersion.minor}.${wsConfig.activeSetupState.zephyrVersion.patch}` 
+            : "Not available";
         
         return `
         <p class="description">Workspace is configured and ready for development.</p>
         
         <div class="section-container">
-            <h3>Active West Workspace</h3>
+            <h3>Workspace Information</h3>
             <div class="info-box">
-                <p><strong>Path:</strong> <code>${activeSetupPath}</code></p>
+                <p><strong>Current Folder:</strong> <code>${currentFolderPath}</code></p>
+                <p><strong>West Workspace Path:</strong> <code>${activeSetupPath}</code></p>
+                <p><strong>West.yml Location:</strong> <code>${westYmlPath}</code></p>
+                <p><strong>Python .venv Location:</strong> <code>${venvPath}</code></p>
+                <p><strong>Zephyr Version:</strong> <code>${zephyrVersion}</code></p>
+            </div>
+        </div>
+        
+        <div class="section-container">
+            <h3>West Configuration</h3>
+            <div class="west-yml-editor">
+                <div class="editor-header">
+                    <label for="westYmlEditor">west.yml</label>
+                    <button class="button button-small button-secondary" onclick="openWestYml()">
+                        <span class="codicon codicon-go-to-file"></span>
+                        Open in Editor
+                    </button>
+                </div>
+                <textarea id="westYmlEditor" class="west-yml-textarea" rows="15" placeholder="Loading west.yml..."></textarea>
+                <div class="editor-actions">
+                    <button class="button button-primary" onclick="saveAndUpdateWestYml()">
+                        <span class="codicon codicon-save"></span>
+                        Save and West Update
+                    </button>
+                    <button class="button button-secondary" onclick="westUpdate()">
+                        <span class="codicon codicon-sync"></span>
+                        West Update
+                    </button>
+                </div>
             </div>
         </div>
         
@@ -107,14 +144,49 @@ export class WorkspaceSubPage {
             <div class="button-group">
                 <button class="button button-secondary" onclick="manageWorkspace()">
                     <span class="codicon codicon-folder-library"></span>
-                    Manage Workspaces
+                    Manage West Workspaces
                 </button>
                 <button class="button button-secondary" onclick="reinitializeWorkspace()">
                     <span class="codicon codicon-refresh"></span>
-                    Reinitialize Workspace
+                    Reinitialize VS Code Workspace
+                </button>
+            </div>
+        </div>
+        
+        <div class="action-section">
+            <h3>Advanced Commands</h3>
+            <p class="description">Low-level commands for advanced workspace management and troubleshooting.</p>
+            <div class="button-group">
+                <button class="button button-secondary" onclick="westConfig()">
+                    <span class="codicon codicon-settings"></span>
+                    West Config
+                </button>
+                <button class="button button-secondary" onclick="setupWestEnvironment()">
+                    <span class="codicon codicon-folder-opened"></span>
+                    Setup West Environment
+                </button>
+                <button class="button button-secondary" onclick="westInit()">
+                    <span class="codicon codicon-repo-create"></span>
+                    West Init
                 </button>
             </div>
         </div>`;
+    }
+    
+    private static getWestYmlPath(wsConfig: WorkspaceConfig): string {
+        if (!wsConfig.activeSetupState?.setupPath) {
+            return "Not found";
+        }
+
+        const westYmlPath = parseWestConfigManifestPath(wsConfig.activeSetupState.setupPath);
+        return westYmlPath || "Not found";
+    }
+    
+    private static getVenvPath(wsConfig: WorkspaceConfig): string {
+        if (wsConfig.activeSetupState?.setupPath) {
+            return path.join(wsConfig.activeSetupState.setupPath, ".venv");
+        }
+        return "Not found";
     }
 
     private static getSetupOptionsContent(): string {
