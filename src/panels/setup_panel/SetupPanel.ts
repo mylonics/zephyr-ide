@@ -727,13 +727,23 @@ export class SetupPanel {
                 </div>
                 
                 <div class="walkthrough-description">
+                    <h3>Getting Started</h3>
                     <p>Complete these steps to set up your Zephyr development environment:</p>
                     <ul class="setup-requirements">
                         <li><strong>1. Host Tools</strong> - Ensure system has required build dependencies</li>
                         <li><strong>2. Zephyr SDK</strong> - Download toolchains for target architectures</li>
                         <li><strong>3. Workspace</strong> - Link to Zephyr source code and modules</li>
                     </ul>
-                    <p class="help-text">Each step provides tools to verify status and complete setup. Click any card to begin.</p>
+                    <p class="help-text">Click any card above to configure that component.</p>
+                    
+                    <h3 style="margin-top: 24px;">Documentation & Help</h3>
+                    <p>Learn more about using Zephyr IDE:</p>
+                    <ul class="help-links">
+                        <li><a href="https://github.com/mylonics/zephyr-ide/blob/main/README.md" class="external-link">📖 Extension Documentation</a></li>
+                        <li><a href="https://docs.zephyrproject.org/latest/develop/getting_started/index.html" class="external-link">🚀 Zephyr Getting Started Guide</a></li>
+                        <li><a href="https://docs.zephyrproject.org/latest/develop/west/index.html" class="external-link">🔧 West Tool Documentation</a></li>
+                        <li><a href="https://github.com/mylonics/zephyr-ide/issues" class="external-link">💬 Report Issues or Get Help</a></li>
+                    </ul>
                 </div>
             </div>
         </div>`;

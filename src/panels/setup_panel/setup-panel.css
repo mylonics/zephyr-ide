@@ -1083,3 +1083,31 @@ h1 {
     display: flex;
     gap: 10px;
 }
+
+/* Help Links Styles */
+.help-links {
+    list-style: none;
+    padding: 0;
+    margin: 10px 0 0 0;
+}
+
+.help-links li {
+    margin-bottom: 8px;
+}
+
+.external-link {
+    color: var(--vscode-textLink-foreground);
+    text-decoration: none;
+    font-size: 13px;
+    line-height: 1.6;
+    display: inline-block;
+}
+
+.external-link:hover {
+    color: var(--vscode-textLink-activeForeground);
+    text-decoration: underline;
+}
+
+.external-link:visited {
+    color: var(--vscode-textLink-foreground);
+}

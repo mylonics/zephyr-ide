@@ -150,7 +150,7 @@ export class WorkspaceSubPage {
         
         <div class="action-section">
             <h3>Advanced Commands</h3>
-            <p class="description">Low-level commands for manual workspace configuration. Most users should use the workspace setup options above.</p>
+            <p class="description">Low-level commands for advanced workspace management and troubleshooting.</p>
             <div class="button-group">
                 <button class="button button-secondary" onclick="westConfig()">
                     <span class="codicon codicon-settings"></span>
