@@ -96,6 +96,9 @@ export class WorkspaceSubPage {
         const currentFolderPath = wsConfig.rootPath || "Not configured";
         const westYmlPath = this.getWestYmlPath(wsConfig);
         const venvPath = this.getVenvPath(wsConfig);
+        const zephyrVersion = wsConfig.activeSetupState?.zephyrVersion 
+            ? `${wsConfig.activeSetupState.zephyrVersion.major}.${wsConfig.activeSetupState.zephyrVersion.minor}.${wsConfig.activeSetupState.zephyrVersion.patch}` 
+            : "Not available";
         
         return `
         <p class="description">Workspace is configured and ready for development.</p>
@@ -107,6 +110,7 @@ export class WorkspaceSubPage {
                 <p><strong>West Workspace Path:</strong> <code>${activeSetupPath}</code></p>
                 <p><strong>West.yml Location:</strong> <code>${westYmlPath}</code></p>
                 <p><strong>Python .venv Location:</strong> <code>${venvPath}</code></p>
+                <p><strong>Zephyr Version:</strong> <code>${zephyrVersion}</code></p>
             </div>
         </div>
         

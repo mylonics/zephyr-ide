@@ -342,6 +342,27 @@ function loadWestYmlContent(content) {
     const editor = document.getElementById('westYmlEditor');
     if (editor) {
         editor.value = content || '';
+        
+        // Add tab key handler if not already added
+        if (!editor.dataset.tabHandlerAdded) {
+            editor.addEventListener('keydown', function(e) {
+                if (e.key === 'Tab') {
+                    e.preventDefault();
+                    
+                    // Get cursor position
+                    const start = this.selectionStart;
+                    const end = this.selectionEnd;
+                    
+                    // Insert two spaces at cursor position
+                    const value = this.value;
+                    this.value = value.substring(0, start) + '  ' + value.substring(end);
+                    
+                    // Move cursor after the inserted spaces
+                    this.selectionStart = this.selectionEnd = start + 2;
+                }
+            });
+            editor.dataset.tabHandlerAdded = 'true';
+        }
     }
 }
 
