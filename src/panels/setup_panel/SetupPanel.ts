@@ -847,12 +847,38 @@ export class SetupPanel {
             // Read .west/config file
             const configContent = fs.readFileSync(westConfigPath, "utf8");
             
-            // Parse the manifest.path from the config
-            // Format is like: manifest.path = west-manifest
-            const manifestPathMatch = configContent.match(/manifest\.path\s*=\s*(.+)/);
+            // Parse the manifest path from the INI-style config
+            // The config file has sections like [manifest] followed by key=value pairs
+            // We need to find the 'path' value under the [manifest] section
+            let manifestPath = "";
+            let inManifestSection = false;
             
-            if (manifestPathMatch && manifestPathMatch[1]) {
-                const manifestPath = manifestPathMatch[1].trim();
+            for (const line of configContent.split('\n')) {
+                const trimmedLine = line.trim();
+                
+                // Check if we're entering the [manifest] section
+                if (trimmedLine === '[manifest]') {
+                    inManifestSection = true;
+                    continue;
+                }
+                
+                // Check if we're entering a different section
+                if (trimmedLine.startsWith('[') && trimmedLine !== '[manifest]') {
+                    inManifestSection = false;
+                    continue;
+                }
+                
+                // If we're in the manifest section, look for the path key
+                if (inManifestSection && trimmedLine.includes('=')) {
+                    const [key, value] = trimmedLine.split('=').map(s => s.trim());
+                    if (key === 'path') {
+                        manifestPath = value;
+                        break;
+                    }
+                }
+            }
+            
+            if (manifestPath) {
                 const westYmlPath = path.join(setupPath, manifestPath, "west.yml");
                 
                 // Verify the file exists
@@ -861,8 +887,9 @@ export class SetupPanel {
                 }
                 
                 console.log("west.yml not found at expected location:", westYmlPath);
+                console.log("Parsed manifest path:", manifestPath);
             } else {
-                console.log("manifest.path not found in .west/config");
+                console.log("manifest path not found in .west/config");
             }
         } catch (error) {
             console.error("Error reading .west/config:", error);

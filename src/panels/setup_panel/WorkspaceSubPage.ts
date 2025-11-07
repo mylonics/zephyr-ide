@@ -185,11 +185,37 @@ export class WorkspaceSubPage {
             // Read .west/config file
             const configContent = fs.readFileSync(westConfigPath, "utf8");
             
-            // Parse the manifest.path from the config
-            const manifestPathMatch = configContent.match(/manifest\.path\s*=\s*(.+)/);
+            // Parse the manifest path from the INI-style config
+            // The config file has sections like [manifest] followed by key=value pairs
+            let manifestPath = "";
+            let inManifestSection = false;
             
-            if (manifestPathMatch && manifestPathMatch[1]) {
-                const manifestPath = manifestPathMatch[1].trim();
+            for (const line of configContent.split('\n')) {
+                const trimmedLine = line.trim();
+                
+                // Check if we're entering the [manifest] section
+                if (trimmedLine === '[manifest]') {
+                    inManifestSection = true;
+                    continue;
+                }
+                
+                // Check if we're entering a different section
+                if (trimmedLine.startsWith('[') && trimmedLine !== '[manifest]') {
+                    inManifestSection = false;
+                    continue;
+                }
+                
+                // If we're in the manifest section, look for the path key
+                if (inManifestSection && trimmedLine.includes('=')) {
+                    const [key, value] = trimmedLine.split('=').map(s => s.trim());
+                    if (key === 'path') {
+                        manifestPath = value;
+                        break;
+                    }
+                }
+            }
+            
+            if (manifestPath) {
                 const westYmlPath = path.join(setupPath, manifestPath, "west.yml");
                 
                 // Verify the file exists
