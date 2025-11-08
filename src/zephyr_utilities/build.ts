@@ -26,6 +26,7 @@ import { WorkspaceConfig } from '../setup_utilities/types';
 import { addBuild, ProjectConfig, getActiveBuildNameOfProject } from "../project_utilities/project";
 import { BuildConfig } from "../project_utilities/build_selector";
 import { updateDtsContext } from "../setup_utilities/dts_interface";
+import { getSetupState } from "../setup_utilities/workspace-config";
 
 
 export interface BuildInfo {
@@ -62,10 +63,11 @@ export async function regenerateCompileCommands(wsConfig: WorkspaceConfig) {
 
 export async function buildHelper(
   context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, pristine: boolean) {
-  if (wsConfig.activeSetupState === undefined) {
+  const setupState = await getSetupState(context, wsConfig);
+  if (!setupState) {
     return;
   }
-  if (wsConfig.activeSetupState.westUpdated) {
+  if (setupState.westUpdated) {
     if (wsConfig.activeProject === undefined) {
       vscode.window.showErrorMessage("Select a project before trying to build");
       return;

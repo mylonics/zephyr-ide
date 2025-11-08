@@ -26,6 +26,7 @@ import { runnerSelector } from "./runner_selector";
 import { configSelector, configRemover, ConfigFiles } from "./config_selector";
 import { setDtsContext } from "../setup_utilities/dts_interface";
 import { getSamples } from "../setup_utilities/modules";
+import { getSetupState } from "../setup_utilities/workspace-config";
 
 import { TwisterConfigDictionary, twisterSelector, TwisterStateDictionary } from "./twister_selector";
 
@@ -575,7 +576,8 @@ export async function removeBuild(context: vscode.ExtensionContext, wsConfig: Wo
 
 
 export async function addTest(wsConfig: WorkspaceConfig, context: vscode.ExtensionContext, projectName?: string) {
-  if (wsConfig.activeSetupState === undefined) {
+  const setupState = await getSetupState(context, wsConfig);
+  if (!setupState) {
     return;
   }
 
@@ -588,7 +590,7 @@ export async function addTest(wsConfig: WorkspaceConfig, context: vscode.Extensi
     return;
   }
 
-  let result = await twisterSelector(wsConfig.projects[projectName].rel_path, context, wsConfig.activeSetupState, wsConfig.rootPath);
+  let result = await twisterSelector(wsConfig.projects[projectName].rel_path, context, setupState, wsConfig.rootPath);
   if (result && result.name !== undefined) {
     if (wsConfig.projects[projectName].twisterConfigs[result.name]) {
       const selection = await vscode.window.showWarningMessage('Twister Configuration with name: ' + result.name + ' already exists!', 'Overwrite', 'Cancel');

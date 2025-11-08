@@ -23,14 +23,16 @@ import { executeTaskHelperInPythonEnv } from "../utilities/utils";
 import { WorkspaceConfig } from '../setup_utilities/types';
 import { addTest, ProjectConfig, getActiveTestNameOfProject } from "../project_utilities/project";
 import { TwisterConfig } from "../project_utilities/twister_selector";
+import { getSetupState } from "../setup_utilities/workspace-config";
 
 import * as fs from "fs-extra";
 
 export async function testHelper(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName?: string, testName?: string) {
-  if (wsConfig.activeSetupState === undefined) {
+  const setupState = await getSetupState(context, wsConfig);
+  if (!setupState) {
     return;
   }
-  if (wsConfig.activeSetupState.westUpdated) {
+  if (setupState.westUpdated) {
     if (projectName === undefined) {
       projectName = wsConfig.activeProject;
     }

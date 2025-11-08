@@ -64,6 +64,7 @@ import {
   getToolsDir,
   setWorkspaceSettings,
   getEnvironmentSetupState,
+  getSetupState,
 } from "./setup_utilities/workspace-config";
 import { checkIfToolsAvailable } from "./setup_utilities/tools-validation";
 import {
@@ -186,14 +187,12 @@ export async function activate(context: vscode.ExtensionContext) {
     );
   } else {
     // If no activeSetupState, try to get setup state from environment variables
-    const envSetupState = getEnvironmentSetupState();
+    // This also handles warning the user if no environment is detected
+    const envSetupState = await getSetupState(context, wsConfig);
     if (envSetupState) {
       // Set the environment-based setup state as the active state
       wsConfig.activeSetupState = envSetupState;
       await setWorkspaceState(context, wsConfig);
-    } else {
-      // No setup state and no environment variables - warn the user
-      await checkAndWarnMissingEnvironment(context);
     }
   }
 
