@@ -22,7 +22,7 @@ import { WorkspaceConfig, GlobalConfig } from '../../setup_utilities/types';
 import { getNonce } from "../../utilities/getNonce";
 import { setSetupState, setGlobalState, clearSetupState } from '../../setup_utilities/state-management';
 import { output } from '../../utilities/utils';
-import { getToolsDir } from '../../setup_utilities/workspace-config';
+import { getToolsDir, getEnvironmentSetupState } from '../../setup_utilities/workspace-config';
 import { westConfig } from '../../setup_utilities/workspace-setup';
 
 export class WestWorkspaceView implements vscode.WebviewViewProvider {
@@ -146,6 +146,33 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
           }
 
           data.push(workspaceData);
+        }
+      }
+
+      // If there's no activeSetupState, check for environment-based setup state
+      if (!wsConfig.activeSetupState) {
+        const envSetupState = getEnvironmentSetupState();
+        if (envSetupState) {
+          // Add environment setup state information
+          let envDescription = 'Using environment variables';
+          if (envSetupState.zephyrVersion) {
+            const versionStr = `${envSetupState.zephyrVersion.major}.${envSetupState.zephyrVersion.minor}.${envSetupState.zephyrVersion.patch}`;
+            envDescription = `Zephyr ${versionStr} (from environment)`;
+          }
+
+          const envData: any = {
+            icons: {
+              open: 'symbol-namespace',
+              closed: 'symbol-namespace'
+            },
+            label: 'Environment Setup',
+            description: envDescription,
+            tooltip: `ZEPHYR_BASE: ${envSetupState.zephyrDir}`,
+            value: { installPath: envSetupState.setupPath },
+            selected: true
+          };
+
+          data.push(envData);
         }
       }
 

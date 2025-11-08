@@ -404,7 +404,7 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
           break;
         }
         case "flash": {
-          flashByName(this.wsConfig, message.value.project, message.value.build, message.value.runner);
+          flashByName(this.context, this.wsConfig, message.value.project, message.value.build, message.value.runner);
           setActive(this.wsConfig, message.value.project, message.value.build, message.value.runner);
           break;
         }

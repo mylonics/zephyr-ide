@@ -629,7 +629,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.add-build", async () => {
-      if (wsConfig.activeSetupState && wsConfig.activeSetupState.westUpdated) {
+      const setupState = await getSetupState(context, wsConfig);
+      if (setupState && setupState.westUpdated) {
         let result = await project.addBuild(wsConfig, context);
         vscode.commands.executeCommand("zephyr-ide.update-web-view");
         return result;
@@ -649,7 +650,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.add-test", async () => {
-      if (wsConfig.activeSetupState && wsConfig.activeSetupState.westUpdated) {
+      const setupState = await getSetupState(context, wsConfig);
+      if (setupState && setupState.westUpdated) {
         await project.addTest(wsConfig, context);
         vscode.commands.executeCommand("zephyr-ide.update-web-view");
       } else {
@@ -756,7 +758,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.add-runner", async () => {
-      if (wsConfig.activeSetupState && wsConfig.activeSetupState.westUpdated) {
+      const setupState = await getSetupState(context, wsConfig);
+      if (setupState && setupState.westUpdated) {
         await project.addRunner(wsConfig, context);
         vscode.commands.executeCommand("zephyr-ide.update-web-view");
       } else {
@@ -858,23 +861,26 @@ export async function activate(context: vscode.ExtensionContext) {
           let activeBuildConfig =
             wsConfig.projectStates[wsConfig.activeProject].activeBuildConfig;
 
-          if (activeBuildConfig && wsConfig.activeSetupState) {
-            let build = project.buildConfigs[activeBuildConfig];
+          if (activeBuildConfig) {
+            const setupState = await getSetupState(context, wsConfig);
+            if (setupState) {
+              let build = project.buildConfigs[activeBuildConfig];
 
-            if (build.relBoardDir) {
-              //Custom Folder
-              return path.join(
-                wsConfig.rootPath,
-                build.relBoardDir,
-                build.relBoardSubDir
-              );
-            } else if (wsConfig.activeSetupState) {
-              //Default zephyr folder
-              return path.join(
-                wsConfig.activeSetupState?.zephyrDir,
-                "boards",
-                build.relBoardSubDir
-              );
+              if (build.relBoardDir) {
+                //Custom Folder
+                return path.join(
+                  wsConfig.rootPath,
+                  build.relBoardDir,
+                  build.relBoardSubDir
+                );
+              } else {
+                //Default zephyr folder
+                return path.join(
+                  setupState.zephyrDir,
+                  "boards",
+                  build.relBoardSubDir
+                );
+              }
             }
           }
         }
@@ -892,11 +898,14 @@ export async function activate(context: vscode.ExtensionContext) {
           let activeBuildConfig =
             wsConfig.projectStates[wsConfig.activeProject].activeBuildConfig;
 
-          if (activeBuildConfig && wsConfig.activeSetupState) {
-            return path.join(
-              wsConfig.activeSetupState.setupPath,
-              project.buildConfigs[activeBuildConfig].board
-            );
+          if (activeBuildConfig) {
+            const setupState = await getSetupState(context, wsConfig);
+            if (setupState) {
+              return path.join(
+                setupState.setupPath,
+                project.buildConfigs[activeBuildConfig].board
+              );
+            }
           }
         }
         return;
@@ -937,7 +946,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.get-zephyr-dir", async () => {
-      return wsConfig.activeSetupState?.zephyrDir;
+      const setupState = await getSetupState(context, wsConfig);
+      return setupState?.zephyrDir;
     })
   );
 
@@ -1005,8 +1015,9 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.flash", async () => {
-      if (wsConfig.activeSetupState && wsConfig.activeSetupState.westUpdated) {
-        await flashActive(wsConfig);
+      const setupState = await getSetupState(context, wsConfig);
+      if (setupState && setupState.westUpdated) {
+        await flashActive(context, wsConfig);
       } else {
         vscode.window.showErrorMessage("Run `Zephyr IDE: West Update` first.");
       }
