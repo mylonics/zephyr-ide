@@ -161,7 +161,7 @@ export async function modifyBuildArguments(context: vscode.ExtensionContext, wsC
 }
 
 
-export async function createNewProjectFromSample(wsConfig: WorkspaceConfig) {
+export async function createNewProjectFromSample(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
   // Show loading QuickPick with no items, just a placeholder
   const loadingQuickPick = vscode.window.createQuickPick();
   loadingQuickPick.items = [];
@@ -171,7 +171,12 @@ export async function createNewProjectFromSample(wsConfig: WorkspaceConfig) {
   loadingQuickPick.ignoreFocusOut = true;
   loadingQuickPick.show();
 
-  const samplesDir = await getSamples(wsConfig.activeSetupState);
+  const setupState = await getSetupState(context, wsConfig);
+  if (!setupState) {
+    loadingQuickPick.hide();
+    return;
+  }
+  const samplesDir = await getSamples(setupState);
 
   loadingQuickPick.hide();
 
@@ -506,7 +511,11 @@ export async function addProject(wsConfig: WorkspaceConfig, context: vscode.Exte
 }
 
 export async function addBuildToProject(wsConfig: WorkspaceConfig, context: vscode.ExtensionContext, projectName: string) {
-  let result = await buildSelector(context, wsConfig.activeSetupState, wsConfig.rootPath);
+  const setupState = await getSetupState(context, wsConfig);
+  if (!setupState) {
+    return;
+  }
+  let result = await buildSelector(context, setupState, wsConfig.rootPath);
   if (result && result.name !== undefined) {
     result.runnerConfigs = {};
     if (wsConfig.projects[projectName].buildConfigs[result.name]) {
@@ -750,9 +759,12 @@ export async function addRunnerToBuild(wsConfig: WorkspaceConfig, context: vscod
     if (build.relBoardDir) {
       //Custom Folder
       result = await runnerSelector(path.join(wsConfig.rootPath, build.relBoardDir, build.relBoardSubDir));
-    } else if (wsConfig.activeSetupState) {
-      //Default zephyr folder
-      result = await runnerSelector(path.join(wsConfig.activeSetupState?.zephyrDir, 'boards', build.relBoardSubDir));
+    } else {
+      const setupState = await getSetupState(context, wsConfig);
+      if (setupState) {
+        //Default zephyr folder
+        result = await runnerSelector(path.join(setupState.zephyrDir, 'boards', build.relBoardSubDir));
+      }
     }
   }
 

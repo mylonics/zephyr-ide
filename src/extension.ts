@@ -598,7 +598,7 @@ export async function activate(context: vscode.ExtensionContext) {
   // Project Setup Commands
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.create-project", async () => {
-      let projectPath = await project.createNewProjectFromSample(wsConfig);
+      let projectPath = await project.createNewProjectFromSample(context, wsConfig);
       if (projectPath !== undefined) {
         let result = await project.addProject(wsConfig, context, projectPath);
         extensionSetupView.updateWebView(wsConfig, globalConfig);
@@ -1145,7 +1145,7 @@ export async function activate(context: vscode.ExtensionContext) {
           }
         }
         await resolveZephyrCommandsInObject(debugConfig);
-        let res = await build(wsConfig, activeProject, activeBuild, false);
+        let res = await build(context, wsConfig, activeProject, activeBuild, false);
         if (res) {
           await vscode.commands.executeCommand(
             "debug.startFromConfig",
@@ -1229,32 +1229,32 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.start-menu-config", async () => {
-      buildMenuConfig(wsConfig, MenuConfig.MenuConfig);
+      buildMenuConfig(context, wsConfig, MenuConfig.MenuConfig);
     }
     )
   );
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.start-gui-config", async () => {
-      buildMenuConfig(wsConfig, MenuConfig.GuiConfig);
+      buildMenuConfig(context, wsConfig, MenuConfig.GuiConfig);
     })
   );
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.start-dtsh-shell", async () => {
-      runDtshShell(wsConfig);
+      runDtshShell(context, wsConfig);
     })
   );
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.run-ram-report", async () => {
-      buildRamRomReport(wsConfig, true);
+      buildRamRomReport(context, wsConfig, true);
     })
   );
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.run-rom-report", async () => {
-      buildRamRomReport(wsConfig, false);
+      buildRamRomReport(context, wsConfig, false);
     })
   );
 

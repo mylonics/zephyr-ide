@@ -54,13 +54,14 @@ export async function testHelper(context: vscode.ExtensionContext, wsConfig: Wor
         return;
       }
     }
-    return await runTest(wsConfig, project, project.twisterConfigs[testName]);
+    return await runTest(context, wsConfig, project, project.twisterConfigs[testName]);
   } else {
     vscode.window.showErrorMessage("Run `Zephyr IDE: West Update` command first.");
   }
 }
 
 export async function runTest(
+  context: vscode.ExtensionContext,
   wsConfig: WorkspaceConfig,
   project: ProjectConfig,
   testConfig: TwisterConfig
@@ -86,8 +87,11 @@ export async function runTest(
 
     if (testConfig.boardConfig.relBoardDir) {
       boardRoot = path.dirname(path.join(wsConfig.rootPath, testConfig.boardConfig.relBoardDir));
-    } else if (wsConfig.activeSetupState) {
-      boardRoot = wsConfig.activeSetupState?.zephyrDir;
+    } else {
+      const setupState = await getSetupState(context, wsConfig);
+      if (setupState) {
+        boardRoot = setupState.zephyrDir;
+      }
     }
 
     cmd = `west twister --device-testing  ${testConfig.serialPort ? "--device-serial " + testConfig.serialPort : ""} ${testConfig.serialBaud ? "--device-serial-baud " + testConfig.serialBaud : ""} -p ${testConfig.boardConfig.board} ${testString} -- -DBOARD_ROOT='${boardRoot}' `;
@@ -99,7 +103,8 @@ export async function runTest(
   let taskName = "Zephyr IDE Test: " + project.name + " " + testConfig.name;
 
   vscode.window.showInformationMessage(`Running ${testConfig.name} Test from project: ${project.name}`);
-  let ret = await executeTaskHelperInPythonEnv(wsConfig.activeSetupState, taskName, cmd, wsConfig.activeSetupState?.setupPath);
+  const setupState = await getSetupState(context, wsConfig);
+  let ret = await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState?.setupPath);
   return ret;
 }
 

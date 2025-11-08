@@ -27,6 +27,7 @@ import { ConfigFiles } from '../../project_utilities/config_selector';
 
 import { WorkspaceConfig } from '../../setup_utilities/types';
 import { TwisterConfig } from '../../project_utilities/twister_selector';
+import { getSetupState } from '../../setup_utilities/workspace-config';
 
 export class ProjectConfigState {
   projectOpenState: boolean = true;
@@ -510,7 +511,7 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
     };
 
     this.view = webviewView;
-    webviewView.webview.onDidReceiveMessage(message => {
+    webviewView.webview.onDidReceiveMessage(async message => {
       console.log(message);
       if (message.treeData) {
         this.treeData = message.treeData;
@@ -538,22 +539,22 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
           break;
         }
         case "build": {
-          buildByName(this.wsConfig, false, message.value.project, message.value.build);
+          buildByName(this.context, this.wsConfig, false, message.value.project, message.value.build);
           setActive(this.wsConfig, message.value.project, message.value.build);
           break;
         }
         case "buildPristine": {
-          buildByName(this.wsConfig, true, message.value.project, message.value.build);
+          buildByName(this.context, this.wsConfig, true, message.value.project, message.value.build);
           setActive(this.wsConfig, message.value.project, message.value.build);
           break;
         }
         case "menuConfig": {
-          buildByName(this.wsConfig, true, message.value.project, message.value.build, MenuConfig.MenuConfig);
+          buildByName(this.context, this.wsConfig, true, message.value.project, message.value.build, MenuConfig.MenuConfig);
           setActive(this.wsConfig, message.value.project, message.value.build);
           break;
         }
         case "guiConfig": {
-          buildByName(this.wsConfig, true, message.value.project, message.value.build, MenuConfig.GuiConfig);
+          buildByName(this.context, this.wsConfig, true, message.value.project, message.value.build, MenuConfig.GuiConfig);
           setActive(this.wsConfig, message.value.project, message.value.build);
           break;
         }
@@ -577,9 +578,12 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
             if (build.relBoardDir) {
               //Custom Folder
               boardPath = path.join(this.wsConfig.rootPath, build.relBoardDir, build.relBoardSubDir);
-            } else if (this.wsConfig.activeSetupState) {
-              //Default zephyr folder
-              boardPath = path.join(this.wsConfig.activeSetupState?.zephyrDir, 'boards', build.relBoardSubDir);
+            } else {
+              const setupState = await getSetupState(this.context, this.wsConfig);
+              if (setupState) {
+                //Default zephyr folder
+                boardPath = path.join(setupState.zephyrDir, 'boards', build.relBoardSubDir);
+              }
             }
           }
 
