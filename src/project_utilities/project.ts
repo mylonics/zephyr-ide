@@ -162,11 +162,6 @@ export async function modifyBuildArguments(context: vscode.ExtensionContext, wsC
 
 
 export async function createNewProjectFromSample(wsConfig: WorkspaceConfig) {
-  if (!wsConfig.activeSetupState || !wsConfig.activeSetupState.zephyrDir) {
-    vscode.window.showErrorMessage("Run `Zephyr IDE: West Update` first.");
-    return;
-  }
-
   // Show loading QuickPick with no items, just a placeholder
   const loadingQuickPick = vscode.window.createQuickPick();
   loadingQuickPick.items = [];
@@ -511,30 +506,25 @@ export async function addProject(wsConfig: WorkspaceConfig, context: vscode.Exte
 }
 
 export async function addBuildToProject(wsConfig: WorkspaceConfig, context: vscode.ExtensionContext, projectName: string) {
-
-  if (wsConfig.activeSetupState) {
-
-    let result = await buildSelector(context, wsConfig.activeSetupState, wsConfig.rootPath);
-    if (result && result.name !== undefined) {
-      result.runnerConfigs = {};
-      if (wsConfig.projects[projectName].buildConfigs[result.name]) {
-        const selection = await vscode.window.showWarningMessage('Build Configuration with name: ' + result.name + ' already exists!', 'Overwrite', 'Cancel');
-        if (selection !== 'Overwrite') {
-          vscode.window.showErrorMessage(`Failed to add build configuration`);
-          return;
-        }
+  let result = await buildSelector(context, wsConfig.activeSetupState, wsConfig.rootPath);
+  if (result && result.name !== undefined) {
+    result.runnerConfigs = {};
+    if (wsConfig.projects[projectName].buildConfigs[result.name]) {
+      const selection = await vscode.window.showWarningMessage('Build Configuration with name: ' + result.name + ' already exists!', 'Overwrite', 'Cancel');
+      if (selection !== 'Overwrite') {
+        vscode.window.showErrorMessage(`Failed to add build configuration`);
+        return;
       }
-
-      vscode.window.showInformationMessage(`Creating Build Configuration: ${result.name}`);
-      wsConfig.projects[projectName].buildConfigs[result.name] = result;
-      wsConfig.projectStates[projectName].buildStates[result.name] = { runnerStates: {}, viewOpen: true };
-      setActiveBuild(context, wsConfig, projectName, result.name);
-
-      await setWorkspaceState(context, wsConfig);
-      return true;
     }
+
+    vscode.window.showInformationMessage(`Creating Build Configuration: ${result.name}`);
+    wsConfig.projects[projectName].buildConfigs[result.name] = result;
+    wsConfig.projectStates[projectName].buildStates[result.name] = { runnerStates: {}, viewOpen: true };
+    setActiveBuild(context, wsConfig, projectName, result.name);
+
+    await setWorkspaceState(context, wsConfig);
+    return true;
   }
-  return false;
 }
 
 

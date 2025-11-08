@@ -96,20 +96,16 @@ export enum MenuConfig {
 }
 
 export async function buildByName(wsConfig: WorkspaceConfig, pristine: boolean, projectName: string, buildName: string, isMenuConfig = MenuConfig.None) {
-  if (wsConfig.activeSetupState && wsConfig.activeSetupState.westUpdated) {
-    let project = wsConfig.projects[projectName];
-    let buildconfig = project.buildConfigs[buildName];
-    if (project && build) {
-      if (isMenuConfig !== MenuConfig.None) {
-        buildMenuConfig(wsConfig, isMenuConfig, project, buildconfig);
-      } else {
-        build(wsConfig, project, buildconfig, pristine);
-      }
+  let project = wsConfig.projects[projectName];
+  let buildconfig = project.buildConfigs[buildName];
+  if (project && build) {
+    if (isMenuConfig !== MenuConfig.None) {
+      buildMenuConfig(wsConfig, isMenuConfig, project, buildconfig);
     } else {
-      vscode.window.showErrorMessage("Invalid project or build");
+      build(wsConfig, project, buildconfig, pristine);
     }
   } else {
-    vscode.window.showErrorMessage("Run `Zephyr IDE: West Update` command first.");
+    vscode.window.showErrorMessage("Invalid project or build");
   }
 }
 
