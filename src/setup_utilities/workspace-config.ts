@@ -20,7 +20,7 @@ import * as os from "os";
 import * as fs from "fs-extra";
 import * as path from "path";
 import { getPlatformName } from "../utilities/utils";
-import { WorkspaceConfig } from "./types";
+import { WorkspaceConfig, SetupState } from "./types";
 
 function projectLoader(config: WorkspaceConfig, projects: any) {
   config.projects = {};
@@ -197,4 +197,30 @@ export function getToolsDir() {
 
 export function getToolchainDir() {
   return path.join(getToolsDir(), "toolchains");
+}
+
+/**
+ * Create a SetupState from environment variables if they exist
+ * This allows the extension to work with externally-managed Zephyr environments
+ * @returns SetupState if ZEPHYR_BASE is set, undefined otherwise
+ */
+export function getEnvironmentSetupState(): SetupState | undefined {
+  const zephyrBase = process.env.ZEPHYR_BASE;
+  
+  if (!zephyrBase) {
+    return undefined;
+  }
+
+  // Create a setup state based on environment variables
+  const setupState: SetupState = {
+    pythonEnvironmentSetup: false,
+    westUpdated: true, // Assume west is already set up in external environment
+    packagesInstalled: true, // Assume packages are already installed in external environment
+    zephyrDir: zephyrBase,
+    zephyrVersion: undefined, // Will be determined later if needed
+    env: {},
+    setupPath: path.dirname(zephyrBase), // Use parent directory of ZEPHYR_BASE
+  };
+
+  return setupState;
 }

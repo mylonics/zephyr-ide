@@ -63,6 +63,7 @@ import {
   getToolchainDir,
   getToolsDir,
   setWorkspaceSettings,
+  getEnvironmentSetupState,
 } from "./setup_utilities/workspace-config";
 import { checkIfToolsAvailable } from "./setup_utilities/tools-validation";
 import {
@@ -183,6 +184,17 @@ export async function activate(context: vscode.ExtensionContext) {
       globalConfig,
       wsConfig.activeSetupState.setupPath
     );
+  } else {
+    // If no activeSetupState, try to get setup state from environment variables
+    const envSetupState = getEnvironmentSetupState();
+    if (envSetupState) {
+      // Set the environment-based setup state as the active state
+      wsConfig.activeSetupState = envSetupState;
+      await setWorkspaceState(context, wsConfig);
+    } else {
+      // No setup state and no environment variables - warn the user
+      await checkAndWarnMissingEnvironment(context);
+    }
   }
 
   if (
@@ -194,10 +206,6 @@ export async function activate(context: vscode.ExtensionContext) {
       wsConfig.activeSetupState.zephyrDir
     );
   }
-
-  // Check for workspace environment variables and warn if missing
-  // This happens after initial setup state is loaded but before environment is reloaded
-  await checkAndWarnMissingEnvironment(context);
 
   reloadEnvironmentVariables(context, wsConfig.activeSetupState);
 
