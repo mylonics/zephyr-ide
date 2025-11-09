@@ -43,8 +43,8 @@ Zephyr IDE automatically detects and works with externally managed Zephyr enviro
 
 - **Automatic detection** via `ZEPHYR_BASE` environment variable
 - **No setup required** when using Docker, DevContainers, or pre-configured environments
-- **Visual feedback** in the West Workspaces panel showing "Environment Setup"
 - **Full feature support** including build, flash, and debug operations
+- **Configurable warning**: Option to suppress environment variable warnings via `zephyr-ide.suppress-workspace-warning` setting
 
 Perfect for:
 - Docker/container workflows
@@ -52,7 +52,7 @@ Perfect for:
 - Shared development environments
 - Pre-installed Zephyr setups
 
-See [Externally Managed Environment Support](docs/externally-managed-environment.md) for detailed information.
+See the [User Manual](docs/MANUAL.md#using-externally-managed-environments) for detailed information.
 
 
 ## Getting Started
