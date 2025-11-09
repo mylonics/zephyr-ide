@@ -203,7 +203,7 @@ export class SetupPanel {
         if (!this.currentWsConfig || !this.currentGlobalConfig) {
             return;
         }
-        
+
         let subPageContent = "";
         switch (page) {
             case "hosttools":
@@ -242,7 +242,7 @@ export class SetupPanel {
                 });
                 return;
         }
-        
+
         // Send sub-page content to webview
         this._panel.webview.postMessage({
             command: "showSubPage",
@@ -351,9 +351,9 @@ export class SetupPanel {
 
             if (success) {
                 await this.checkHostToolsStatus();
-                
+
                 const managerAvailable = await checkPackageManagerAvailable();
-                
+
                 if (!managerAvailable) {
                     vscode.window.showWarningMessage(
                         "Package manager was installed but is not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect."
@@ -389,7 +389,7 @@ export class SetupPanel {
 
             const platformPackages = await getPlatformPackages();
             const pkg = platformPackages.find(p => p.name === packageName);
-            
+
             if (!pkg) {
                 vscode.window.showErrorMessage(`Package ${packageName} not found`);
                 this._panel.webview.postMessage({
@@ -421,10 +421,10 @@ export class SetupPanel {
 
             await installAllMissingPackages();
             await this.checkHostToolsStatus();
-            
+
             const packageStatuses = await checkAllPackages();
             const needsRestart = packageStatuses.some(p => !p.available);
-            
+
             if (needsRestart) {
                 vscode.window.showWarningMessage(
                     "Some packages were installed but are not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect."
@@ -641,7 +641,8 @@ export class SetupPanel {
         globalConfig: GlobalConfig
     ): string {
         const folderOpen = wsConfig.rootPath !== "";
-        const workspaceInitialized = wsConfig.initialSetupComplete || false;
+        // Workspace is only considered initialized if both flags are true AND there's an active setup state
+        const workspaceInitialized = (wsConfig.initialSetupComplete || false) && (wsConfig.activeSetupState !== undefined);
 
         return `<!DOCTYPE html>
         <html lang="en">
@@ -675,7 +676,7 @@ export class SetupPanel {
                 "setup-panel.css"
             )
         );
-        
+
         // Use codicons from node_modules - these are bundled with the extension
         const codiconUri = this._panel.webview.asWebviewUri(
             vscode.Uri.joinPath(
@@ -687,7 +688,7 @@ export class SetupPanel {
                 "codicon.css"
             )
         );
-        
+
         return `
             <link rel="stylesheet" type="text/css" href="${cssUri}">
             <link rel="stylesheet" type="text/css" href="${codiconUri}">
@@ -753,7 +754,7 @@ export class SetupPanel {
     private async openWestYml() {
         try {
             const westYmlFilePath = this.getWestYmlPath();
-            
+
             if (!westYmlFilePath) {
                 const setupPath = this.currentWsConfig?.activeSetupState?.setupPath || "unknown";
                 vscode.window.showErrorMessage(
@@ -763,7 +764,7 @@ export class SetupPanel {
                 );
                 return;
             }
-            
+
             const westYmlPath = vscode.Uri.file(westYmlFilePath);
             const doc = await vscode.workspace.openTextDocument(westYmlPath);
             await vscode.window.showTextDocument(doc);
@@ -775,12 +776,12 @@ export class SetupPanel {
     private async loadWestYmlContent() {
         try {
             const westYmlFilePath = this.getWestYmlPath();
-            
+
             if (!westYmlFilePath) {
                 const setupPath = this.currentWsConfig?.activeSetupState?.setupPath || "unknown";
                 this._panel.webview.postMessage({
                     command: "westYmlContent",
-                    content: 
+                    content:
                         `# west.yml file not found\n` +
                         `# \n` +
                         `# Location is determined by reading manifest.path from:\n` +
@@ -791,11 +792,11 @@ export class SetupPanel {
                 });
                 return;
             }
-            
+
             const westYmlPath = vscode.Uri.file(westYmlFilePath);
             const doc = await vscode.workspace.openTextDocument(westYmlPath);
             const content = doc.getText();
-            
+
             this._panel.webview.postMessage({
                 command: "westYmlContent",
                 content: content
@@ -812,7 +813,7 @@ export class SetupPanel {
     private async saveAndUpdateWestYml(content: string) {
         try {
             const westYmlFilePath = this.getWestYmlPath();
-            
+
             if (!westYmlFilePath) {
                 vscode.window.showErrorMessage(
                     "west.yml file not found. Cannot save changes.\n\n" +
@@ -820,15 +821,15 @@ export class SetupPanel {
                 );
                 return;
             }
-            
+
             const westYmlPath = vscode.Uri.file(westYmlFilePath);
-            
+
             // Write the content to the file
             const encoder = new TextEncoder();
             await vscode.workspace.fs.writeFile(westYmlPath, encoder.encode(content));
-            
+
             vscode.window.showInformationMessage(`west.yml saved successfully to: ${westYmlFilePath}`);
-            
+
             // Run west update
             await vscode.commands.executeCommand("zephyr-ide.west-update");
         } catch (error) {

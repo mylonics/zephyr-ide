@@ -23,7 +23,8 @@ import { parseWestConfigManifestPath } from "../../setup_utilities/west-config-p
 export class WorkspaceSubPage {
     static getHtml(wsConfig: WorkspaceConfig): string {
         const folderOpen = wsConfig.rootPath !== "";
-        const workspaceInitialized = wsConfig.initialSetupComplete || false;
+        // Workspace is only considered initialized if both flags are true AND there's an active setup state
+        const workspaceInitialized = (wsConfig.initialSetupComplete || false) && (wsConfig.activeSetupState !== undefined);
 
         let statusClass = "status-info";
         let statusIcon = "📁";
@@ -97,10 +98,10 @@ export class WorkspaceSubPage {
         const currentFolderPath = wsConfig.rootPath || "Not configured";
         const westYmlPath = this.getWestYmlPath(wsConfig);
         const venvPath = this.getVenvPath(wsConfig);
-        const zephyrVersion = wsConfig.activeSetupState?.zephyrVersion 
-            ? `${wsConfig.activeSetupState.zephyrVersion.major}.${wsConfig.activeSetupState.zephyrVersion.minor}.${wsConfig.activeSetupState.zephyrVersion.patch}` 
+        const zephyrVersion = wsConfig.activeSetupState?.zephyrVersion
+            ? `${wsConfig.activeSetupState.zephyrVersion.major}.${wsConfig.activeSetupState.zephyrVersion.minor}.${wsConfig.activeSetupState.zephyrVersion.patch}`
             : "Not available";
-        
+
         return `
         <p class="description">Workspace is configured and ready for development.</p>
         
@@ -172,7 +173,7 @@ export class WorkspaceSubPage {
             </div>
         </div>`;
     }
-    
+
     private static getWestYmlPath(wsConfig: WorkspaceConfig): string {
         if (!wsConfig.activeSetupState?.setupPath) {
             return "Not found";
@@ -181,7 +182,7 @@ export class WorkspaceSubPage {
         const westYmlPath = parseWestConfigManifestPath(wsConfig.activeSetupState.setupPath);
         return westYmlPath || "Not found";
     }
-    
+
     private static getVenvPath(wsConfig: WorkspaceConfig): string {
         if (wsConfig.activeSetupState?.setupPath) {
             return path.join(wsConfig.activeSetupState.setupPath, ".venv");
@@ -197,33 +198,33 @@ export class WorkspaceSubPage {
             <h3>Initialize West Workspace</h3>
             <div class="workspace-options-grid">
                 ${this.generateWorkspaceOptionCard(
-                    "🌐",
-                    "Import Zephyr IDE Workspace from Git",
-                    "Clone a complete workspace or repo with projects as subdirectories using Git.",
-                    "Team collaboration and shared environments",
-                    "workspaceSetupFromGit()"
-                )}
+            "🌐",
+            "Import Zephyr IDE Workspace from Git",
+            "Clone a complete workspace or repo with projects as subdirectories using Git.",
+            "Team collaboration and shared environments",
+            "workspaceSetupFromGit()"
+        )}
                 ${this.generateWorkspaceOptionCard(
-                    "⚙️",
-                    "Import West Workspace from Git",
-                    "Clone a west manifest repo (contains west.yml) using West Init.",
-                    "Upstream Zephyr projects and community examples",
-                    "workspaceSetupFromWestGit()"
-                )}
+            "⚙️",
+            "Import West Workspace from Git",
+            "Clone a west manifest repo (contains west.yml) using West Init.",
+            "Upstream Zephyr projects and community examples",
+            "workspaceSetupFromWestGit()"
+        )}
                 ${this.generateWorkspaceOptionCard(
-                    "📦",
-                    "New Standard Workspace",
-                    "Create a self-contained workspace with Zephyr installed locally.",
-                    "Individual projects or specific Zephyr versions",
-                    "workspaceSetupStandard()"
-                )}
+            "📦",
+            "New Standard Workspace",
+            "Create a self-contained workspace with Zephyr installed locally.",
+            "Individual projects or specific Zephyr versions",
+            "workspaceSetupStandard()"
+        )}
                 ${this.generateWorkspaceOptionCard(
-                    "📁",
-                    "Initialize Current Directory",
-                    "Set up the current directory for Zephyr development, preserving existing files.",
-                    "Existing projects or external Zephyr installations",
-                    "workspaceSetupFromCurrentDirectory()"
-                )}
+            "📁",
+            "Initialize Current Directory",
+            "Set up the current directory for Zephyr development, preserving existing files.",
+            "Existing projects or external Zephyr installations",
+            "workspaceSetupFromCurrentDirectory()"
+        )}
             </div>
         </div>
         
@@ -231,12 +232,12 @@ export class WorkspaceSubPage {
             <h3>Use Existing West Workspace</h3>
             <div class="workspace-options-grid">
                 ${this.generateWorkspaceOptionCard(
-                    "🔗",
-                    "Link to Existing Installation",
-                    "Select from existing Zephyr installations to link this workspace without initializing a new one.",
-                    "Sharing installations across multiple projects",
-                    "selectExistingWestWorkspace()"
-                )}
+            "🔗",
+            "Link to Existing Installation",
+            "Select from existing Zephyr installations to link this workspace without initializing a new one.",
+            "Sharing installations across multiple projects",
+            "selectExistingWestWorkspace()"
+        )}
             </div>
         </div>`;
     }

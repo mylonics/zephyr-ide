@@ -28,7 +28,7 @@ The Setup Panel is the central hub for configuring your Zephyr development envir
 
 The Setup Panel presents three configuration cards:
 
-![Setup Panel Overview](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/example_setup.png)
+![Setup Panel Overview](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/setup_panel.png)
 
 1. **🔧 Host Tools** - Install and verify build tools required for Zephyr development
 2. **📦 Zephyr SDK Management** - Install and manage Zephyr SDK for different architectures
@@ -48,6 +48,8 @@ Click the **Host Tools** card to access the Host Tools sub-page. This page helps
 
 - **Manual installation guide**: Links to the [Zephyr Getting Started Guide](https://docs.zephyrproject.org/latest/develop/getting_started/index.html#install-dependencies) for manual installation
 
+![Host Tools Installation](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/host_tool_install.png)
+
 ### Zephyr SDK Installation
 
 Click the **Zephyr SDK Management** card to access SDK installation. The SDK provides cross-compilation toolchains for various architectures (ARM, x86, RISC-V, etc.).
@@ -60,6 +62,8 @@ Click the **Zephyr SDK Management** card to access SDK installation. The SDK pro
 **For new users**: Select the latest SDK version and install all available architectures. You can add specific architectures later if storage is a concern.
 
 **Note**: SDK installation is a one-time process per computer and can be shared across multiple projects.
+
+![SDK Management](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/sdk_management.png)
 
 ### Workspace Configuration
 
@@ -76,6 +80,8 @@ Click the **Workspace** card to configure your west workspace. You have several 
    - Optional: Choose between minimal or full Zephyr installation (minimal is recommended for faster setup)
 
 4. **Initialize Current Directory** - Use the current folder as a west workspace if it already contains west configuration
+
+![Unconfigured Workspace Panel](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/unconfigured_workspace_panel.png)
 
 **Workspace Setup Process:**
 
@@ -103,6 +109,10 @@ During workspace initialization, you can choose:
 - **Path prefix**: Where Zephyr and modules will be installed relative to your application
 
 The west.yml file controls what gets installed. A minimal configuration only includes Zephyr and essential HALs, while a full installation includes all available modules.
+
+Once configured, the workspace panel will display your workspace information:
+
+![Configured Workspace Panel](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/configured_workspace_panel.png)
 
 ## Using Externally Managed Environments
 
