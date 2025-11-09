@@ -138,15 +138,6 @@ export async function activate(context: vscode.ExtensionContext) {
       globalConfig,
       wsConfig.activeSetupState.setupPath
     );
-  } else {
-    // If no activeSetupState, try to get setup state from environment variables
-    // This also handles warning the user if no environment is detected
-    const envSetupState = await getSetupState(context, wsConfig);
-    if (envSetupState) {
-      // Set the environment-based setup state as the active state
-      wsConfig.activeSetupState = envSetupState;
-      await setWorkspaceState(context, wsConfig);
-    }
   }
 
   if (
@@ -465,15 +456,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.west-update", async () => {
-      const setupState = await getSetupState(context, wsConfig);
-      if (setupState && setupState.pythonEnvironmentSetup) {
-        await westUpdateWithRequirements(context, wsConfig, globalConfig);
-        extensionSetupView.updateWebView(wsConfig, globalConfig);
-      } else {
-        vscode.window.showErrorMessage(
-          "Run `Zephyr IDE: Setup West Environment` first."
-        );
-      }
+      await westUpdateWithRequirements(context, wsConfig, globalConfig);
+      extensionSetupView.updateWebView(wsConfig, globalConfig);
     })
   );
 
@@ -1124,12 +1108,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.clean", async () => {
-      const setupState = await getSetupState(context, wsConfig);
-      if (setupState && setupState.westUpdated) {
-        await clean(wsConfig, undefined);
-      } else {
-        vscode.window.showErrorMessage("Run `Zephyr IDE: West Update` first.");
-      }
+      await clean(wsConfig, undefined);
     })
   );
 

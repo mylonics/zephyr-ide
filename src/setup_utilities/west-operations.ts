@@ -124,17 +124,6 @@ export async function westInit(context: vscode.ExtensionContext, wsConfig: Works
 
 export async function westUpdate(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, solo = true) {
   const setupState = await getSetupState(context, wsConfig);
-  if (!setupState || !setupState.setupPath) {
-    return;
-  }
-
-  let westInited = await checkWestInit(setupState);
-
-  if (!westInited) {
-    vscode.window.showErrorMessage('Zephyr IDE: West is not initialized. Call West Init First');
-    return false;
-  }
-
 
   setupState.westUpdated = false;
   setupState.zephyrDir = "";
@@ -343,25 +332,8 @@ export async function westUpdateWithRequirements(context: vscode.ExtensionContex
   solo?: boolean;
   isWorkspaceSetup?: boolean;
   setupPath?: string;
-  strictWestCheck?: boolean;
 } = {}) {
-  const { solo = true, isWorkspaceSetup = false, setupPath, strictWestCheck = true } = options;
-
-  const setupState = await getSetupState(context, wsConfig);
-  if (!setupState || !setupState.setupPath) {
-    return false;
-  }
-
-  let westInited = await checkWestInit(setupState);
-  if (!westInited) {
-    if (strictWestCheck) {
-      vscode.window.showErrorMessage('Zephyr IDE: West is not initialized. Call West Init First');
-      return false;
-    } else {
-      // For workspace setup, just warn but continue
-      output.appendLine("[SETUP] Warning: West init may not have completed successfully");
-    }
-  }
+  const { solo = true, isWorkspaceSetup = false, setupPath } = options;
 
   // Add setup-specific output messages
   if (isWorkspaceSetup) {
@@ -437,7 +409,6 @@ export async function postWorkspaceSetup(context: vscode.ExtensionContext, wsCon
   return westUpdateWithRequirements(context, wsConfig, globalConfig, {
     solo: true,
     isWorkspaceSetup: true,
-    setupPath: setupPath,
-    strictWestCheck: false
+    setupPath: setupPath
   });
 }

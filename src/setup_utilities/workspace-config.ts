@@ -204,16 +204,16 @@ export function getToolchainDir() {
  * This allows the extension to work with externally-managed Zephyr environments
  * @returns SetupState if ZEPHYR_BASE is set, undefined otherwise
  */
-export function getEnvironmentSetupState(): SetupState | undefined {
-  const zephyrBase = process.env.ZEPHYR_BASE;
-  
+export function getEnvironmentSetupState(): SetupState {
+  let zephyrBase = process.env.ZEPHYR_BASE;
+
   if (!zephyrBase) {
-    return undefined;
+    zephyrBase = "";
   }
 
   // Create a setup state based on environment variables
   const setupState: SetupState = {
-    pythonEnvironmentSetup: false,
+    pythonEnvironmentSetup: true,
     westUpdated: true, // Assume west is already set up in external environment
     packagesInstalled: true, // Assume packages are already installed in external environment
     zephyrDir: zephyrBase,
@@ -240,12 +240,12 @@ function checkZephyrEnvironmentVariables(): boolean {
 async function checkAndWarnMissingEnvironment(context: vscode.ExtensionContext): Promise<void> {
   const configuration = vscode.workspace.getConfiguration();
   const suppressWarning: boolean | undefined = configuration.get("zephyr-ide.suppress-workspace-warning");
-  
+
   // Don't show warning if user has suppressed it
   if (suppressWarning) {
     return;
   }
-  
+
   // Check if environment variables are present
   if (!checkZephyrEnvironmentVariables()) {
     const result = await vscode.window.showWarningMessage(
@@ -254,7 +254,7 @@ async function checkAndWarnMissingEnvironment(context: vscode.ExtensionContext):
       "Don't Show Again",
       "Setup Workspace"
     );
-    
+
     if (result === "Don't Show Again") {
       // Save the preference to not show again
       await configuration.update("zephyr-ide.suppress-workspace-warning", true, vscode.ConfigurationTarget.Workspace);
@@ -276,15 +276,15 @@ async function checkAndWarnMissingEnvironment(context: vscode.ExtensionContext):
  * @param wsConfig - Workspace configuration
  * @returns SetupState if available, undefined otherwise
  */
-export async function getSetupState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig): Promise<SetupState | undefined> {
+export async function getSetupState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig): Promise<SetupState> {
   // If activeSetupState exists, return it
   if (wsConfig.activeSetupState) {
     return wsConfig.activeSetupState;
   }
-  
+
   // No activeSetupState - warn the user about missing environment
   await checkAndWarnMissingEnvironment(context);
-  
+
   // Try to get setup state from environment variables
   return getEnvironmentSetupState();
 }
