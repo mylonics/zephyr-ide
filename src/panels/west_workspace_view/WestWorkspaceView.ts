@@ -29,9 +29,9 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
   private view: vscode.WebviewView | undefined;
 
   constructor(
-    public extensionPath: string, 
-    private context: vscode.ExtensionContext, 
-    private wsConfig: WorkspaceConfig, 
+    public extensionPath: string,
+    private context: vscode.ExtensionContext,
+    private wsConfig: WorkspaceConfig,
     private globalConfig: GlobalConfig
   ) { }
 
@@ -42,7 +42,7 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
       // Add special "Global Installation" option
       const globalPath = getToolsDir();
       const isGlobal = wsConfig.activeSetupState?.setupPath === globalPath;
-      
+
       // Get version info for global installation if it exists in setupStateDictionary
       let globalDescription = 'System-wide Zephyr installation';
       if (globalConfig.setupStateDictionary && globalConfig.setupStateDictionary[globalPath]) {
@@ -52,9 +52,9 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
           globalDescription = `Zephyr ${versionStr}`;
         }
       }
-      
+
       const globalData: any = {
-        icons: { 
+        icons: {
           open: 'globe',
           closed: 'globe'
         },
@@ -91,10 +91,10 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
           const setupState = globalConfig.setupStateDictionary[installPath];
           const isValidPath = fs.pathExistsSync(installPath);
           const isActive = installPath === wsConfig.activeSetupState?.setupPath;
-          
+
           let label = path.basename(installPath);
           let description = '';
-          
+
           if (!isValidPath) {
             label = `$(error) ${label}`;
             description = 'Path no longer exists';
@@ -106,7 +106,7 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
           }
 
           const workspaceData: any = {
-            icons: { 
+            icons: {
               open: 'folder-opened',
               closed: 'folder'
             },
@@ -127,7 +127,7 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
           } else {
             // Non-active workspace: no dropdown, just action icons
             workspaceData['actions'] = [];
-            
+
             if (isValidPath) {
               // Activate action
               workspaceData['actions'].push({
@@ -136,7 +136,7 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
                 tooltip: 'Set as Active'
               });
             }
-            
+
             // Delete action (available for both valid and invalid paths)
             workspaceData['actions'].push({
               icon: 'trash',
@@ -146,33 +146,6 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
           }
 
           data.push(workspaceData);
-        }
-      }
-
-      // If there's no activeSetupState, check for environment-based setup state
-      if (!wsConfig.activeSetupState) {
-        const envSetupState = getEnvironmentSetupState();
-        if (envSetupState) {
-          // Add environment setup state information
-          let envDescription = 'Using environment variables';
-          if (envSetupState.zephyrVersion) {
-            const versionStr = `${envSetupState.zephyrVersion.major}.${envSetupState.zephyrVersion.minor}.${envSetupState.zephyrVersion.patch}`;
-            envDescription = `Zephyr ${versionStr} (from environment)`;
-          }
-
-          const envData: any = {
-            icons: {
-              open: 'symbol-namespace',
-              closed: 'symbol-namespace'
-            },
-            label: 'Environment Setup',
-            description: envDescription,
-            tooltip: `ZEPHYR_BASE: ${envSetupState.zephyrDir}`,
-            value: { installPath: envSetupState.setupPath },
-            selected: true
-          };
-
-          data.push(envData);
         }
       }
 
@@ -211,7 +184,7 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
           <script nonce="${nonce}" src="${assetUri('src/panels/west_workspace_view/WestWorkspaceViewHandler.js')}"  type="module"></script>
         </head>
         <body>
-        <vscode-tree id="workspace-tree" indent-guides arrows></vscode-tree>
+        <vscode-tree id="workspace-tree"></vscode-tree>
         ${body}
         </body>
         </html>`;
@@ -219,8 +192,8 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
   }
 
   resolveWebviewView(
-    webviewView: vscode.WebviewView, 
-    context: vscode.WebviewViewResolveContext, 
+    webviewView: vscode.WebviewView,
+    context: vscode.WebviewViewResolveContext,
     token: vscode.CancellationToken
   ): void | Thenable<void> {
     webviewView.webview.options = {
@@ -231,7 +204,7 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
     this.view = webviewView;
     webviewView.webview.onDidReceiveMessage(async (message) => {
       console.log('WestWorkspaceView received message:', message);
-      
+
       if (message.actionId) {
         // Handle action button clicks
         switch (message.actionId) {
@@ -279,7 +252,7 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
         }
       }
     });
-    
+
     this.setHtml("");
     this.updateWebView(this.wsConfig, this.globalConfig);
   }
@@ -287,7 +260,7 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
   private async handleActivate(installPath: string) {
     try {
       const installName = path.basename(installPath);
-      
+
       // Show confirmation prompt (non-modal warning)
       const confirm = await vscode.window.showWarningMessage(
         `Switch to workspace "${installName}"?`,
