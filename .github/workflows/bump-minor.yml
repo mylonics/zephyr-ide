@@ -25,6 +25,7 @@ jobs:
           git config user.email "github-actions@github.com"
           npm version minor
           npm install
+          npx auto-changelog
           git add -A
           git commit -m "chore: update dependencies" || true
           git checkout -b bump-version-$(jq -r '.version' package.json)
