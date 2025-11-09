@@ -31,16 +31,8 @@ The Setup Panel presents three configuration cards:
 ![Setup Panel Overview](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/example_setup.png)
 
 1. **🔧 Host Tools** - Install and verify build tools required for Zephyr development
-   - Status shows "✓ Ready" when all tools are installed, or "⚠ Setup Required" when action is needed
-   - Click to access the Host Tools sub-page for detailed installation
-
 2. **📦 Zephyr SDK Management** - Install and manage Zephyr SDK for different architectures
-   - Status shows "✓ Installed" when SDK is available, or "✗ Not Installed" when needed
-   - Click to access SDK installation and management options
-
 3. **🗂️ Workspace** - Configure west workspace and Zephyr project dependencies
-   - Status shows "✓ Initialized" when workspace is ready, "⚙ Setup Required" when setup is needed, or "📁 No Folder" when no folder is open
-   - Click to access workspace configuration options
 
 ### Host Tools Setup
 
@@ -48,18 +40,13 @@ Click the **Host Tools** card to access the Host Tools sub-page. This page helps
 
 - **Check installed tools**: The extension verifies that required build dependencies are available on your PATH, including:
   - CMake (build system)
-  - Python 3 (scripting and tools)
+  - Python3 (scripting and tools)
   - Devicetree Compiler (DTC)
-  - West (Zephyr meta-tool)
-  - Other platform-specific tools
+  - gcc
 
-- **Automated installation** (v2.0+): On supported platforms, the extension can automatically install missing dependencies using your system's package manager
+- **Automated installation**: On supported platforms, the extension can automatically install missing dependencies using your system's package manager
 
 - **Manual installation guide**: Links to the [Zephyr Getting Started Guide](https://docs.zephyrproject.org/latest/develop/getting_started/index.html#install-dependencies) for manual installation
-
-**Platform-specific notes:**
-- **Ubuntu/Debian**: You may need to manually install `python3-venv` with `sudo apt install python3-venv`
-- **macOS**: If the Python virtual environment doesn't activate with zsh, install the "Python Environment Manager" extension, which automatically enables the venv when a `.venv` folder exists
 
 ### Zephyr SDK Installation
 
