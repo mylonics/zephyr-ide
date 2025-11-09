@@ -673,6 +673,7 @@
     "@vscode-elements/elements": "^1.2.0",
     "@vscode/codicons": "^0.0.35",
     "7zip-bin": "^5.2.0",
+    "auto-changelog": "^2.5.0",
     "compare-versions": "^6.1.0",
     "devicetree-language-server-vscode-types": "^0.0.1-alpha.6",
     "fs-extra": "^11.2.0",
