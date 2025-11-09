@@ -465,10 +465,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.west-update", async () => {
-      if (
-        wsConfig.activeSetupState &&
-        wsConfig.activeSetupState.pythonEnvironmentSetup
-      ) {
+      const setupState = await getSetupState(context, wsConfig);
+      if (setupState && setupState.pythonEnvironmentSetup) {
         await westUpdateWithRequirements(context, wsConfig, globalConfig);
         extensionSetupView.updateWebView(wsConfig, globalConfig);
       } else {
@@ -1126,7 +1124,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.clean", async () => {
-      if (wsConfig.activeSetupState && wsConfig.activeSetupState.westUpdated) {
+      const setupState = await getSetupState(context, wsConfig);
+      if (setupState && setupState.westUpdated) {
         await clean(wsConfig, undefined);
       } else {
         vscode.window.showErrorMessage("Run `Zephyr IDE: West Update` first.");
@@ -1276,8 +1275,9 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.reint-dts", async () => {
-      if (wsConfig.activeSetupState) {
-        initializeDtsExt(wsConfig.activeSetupState, wsConfig);
+      const setupState = await getSetupState(context, wsConfig);
+      if (setupState) {
+        initializeDtsExt(setupState, wsConfig);
       } else {
         vscode.window.showErrorMessage(
           "First Initialize Zephyr IDE Workspace Folder"
