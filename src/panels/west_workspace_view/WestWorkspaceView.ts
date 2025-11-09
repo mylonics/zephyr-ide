@@ -149,6 +149,33 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
         }
       }
 
+      // If there's no activeSetupState, check for environment-based setup state
+      if (!wsConfig.activeSetupState) {
+        const envSetupState = getEnvironmentSetupState();
+        if (envSetupState) {
+          // Add environment setup state information
+          let envDescription = 'Using environment variables';
+          if (envSetupState.zephyrVersion) {
+            const versionStr = `${envSetupState.zephyrVersion.major}.${envSetupState.zephyrVersion.minor}.${envSetupState.zephyrVersion.patch}`;
+            envDescription = `Zephyr ${versionStr} (from environment)`;
+          }
+
+          const envData: any = {
+            icons: {
+              open: 'symbol-namespace',
+              closed: 'symbol-namespace'
+            },
+            label: 'Environment Setup',
+            description: envDescription,
+            tooltip: `ZEPHYR_BASE: ${envSetupState.zephyrDir}`,
+            value: { installPath: envSetupState.setupPath },
+            selected: true
+          };
+
+          data.push(envData);
+        }
+      }
+
       this.view.webview.postMessage(data);
     }
   }
