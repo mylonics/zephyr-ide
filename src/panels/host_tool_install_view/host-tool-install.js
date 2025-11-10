@@ -21,6 +21,12 @@ limitations under the License.
 const vscode = acquireVsCodeApi();
 
 let currentStatus = null;
+let installationInProgress = false;
+let installationState = {
+    total: 0,
+    current: 0,
+    packageStates: {} // Store state for each package
+};
 
 // Handle messages from the extension
 window.addEventListener('message', event => {
@@ -41,8 +47,157 @@ window.addEventListener('message', event => {
         case 'installComplete':
             hideProgress();
             break;
+        case 'installAllStarted':
+            handleInstallAllStarted(message.total);
+            break;
+        case 'packageInstalling':
+            handlePackageInstalling(message.packageName, message.current, message.total);
+            break;
+        case 'packageInstalled':
+            handlePackageInstalled(message.packageName, message.success, message.pendingRestart, message.current, message.total);
+            break;
+        case 'installAllComplete':
+            handleInstallAllComplete(message.needsRestart, message.hasErrors);
+            break;
     }
 });
+
+function handleInstallAllStarted(total) {
+    installationInProgress = true;
+    installationState.total = total;
+    installationState.current = 0;
+    installationState.packageStates = {};
+    
+    // Update button to show it's installing
+    const installAllBtn = document.getElementById('install-all-btn');
+    installAllBtn.disabled = true;
+    installAllBtn.innerHTML = `
+        <span class="codicon codicon-sync codicon-modifier-spin"></span>
+        Installing Packages (0/${total})
+    `;
+    
+    // Disable all other buttons
+    disableAllButtons(true);
+}
+
+function handlePackageInstalling(packageName, current, total) {
+    // Update the button text
+    const installAllBtn = document.getElementById('install-all-btn');
+    installAllBtn.innerHTML = `
+        <span class="codicon codicon-sync codicon-modifier-spin"></span>
+        Installing Packages (${current}/${total})
+    `;
+    
+    // Update the specific package in the list to show "Installing" status
+    installationState.packageStates[packageName] = 'installing';
+    updatePackageStatus(packageName, 'installing');
+}
+
+function handlePackageInstalled(packageName, success, pendingRestart, current, total) {
+    installationState.current = current;
+    
+    // Update package state
+    if (!success) {
+        installationState.packageStates[packageName] = 'error';
+        updatePackageStatus(packageName, 'error');
+    } else if (pendingRestart) {
+        installationState.packageStates[packageName] = 'pending-restart';
+        updatePackageStatus(packageName, 'pending-restart');
+    } else {
+        installationState.packageStates[packageName] = 'installed';
+        updatePackageStatus(packageName, 'installed');
+    }
+}
+
+function handleInstallAllComplete(needsRestart, hasErrors) {
+    installationInProgress = false;
+    
+    const installAllBtn = document.getElementById('install-all-btn');
+    
+    if (needsRestart) {
+        installAllBtn.innerHTML = `
+            <span class="codicon codicon-warning"></span>
+            Pending Restart
+        `;
+    } else if (hasErrors) {
+        installAllBtn.innerHTML = `
+            <span class="codicon codicon-error"></span>
+            Installation Failed
+        `;
+    } else {
+        installAllBtn.innerHTML = `
+            <span class="codicon codicon-check"></span>
+            All Packages Installed
+        `;
+    }
+    
+    // Re-enable buttons after a delay
+    setTimeout(() => {
+        disableAllButtons(false);
+        refreshStatus();
+    }, 2000);
+}
+
+function updatePackageStatus(packageName, state) {
+    const packageItem = document.querySelector(`[data-package-name="${packageName}"]`);
+    if (!packageItem) {
+        return;
+    }
+    
+    const statusBadge = packageItem.querySelector('.status-badge');
+    const actionButtons = packageItem.querySelector('.package-actions');
+    
+    if (!statusBadge) {
+        return;
+    }
+    
+    // Remove all status classes
+    packageItem.classList.remove('available', 'missing', 'installing', 'pending-restart');
+    statusBadge.classList.remove('status-available', 'status-missing', 'status-installing', 'status-pending-restart');
+    
+    switch (state) {
+        case 'installing':
+            packageItem.classList.add('installing');
+            statusBadge.classList.add('status-installing');
+            statusBadge.innerHTML = '<span class="codicon codicon-sync codicon-modifier-spin"></span> Installing';
+            // Hide install button while installing
+            const installBtn = actionButtons.querySelector('.button');
+            if (installBtn) {
+                installBtn.style.display = 'none';
+            }
+            break;
+        case 'installed':
+            packageItem.classList.add('available');
+            statusBadge.classList.add('status-available');
+            statusBadge.innerHTML = '✓ Installed';
+            break;
+        case 'pending-restart':
+            packageItem.classList.add('pending-restart');
+            statusBadge.classList.add('status-pending-restart');
+            statusBadge.innerHTML = '<span class="codicon codicon-warning"></span> Not Available Pending Restart';
+            break;
+        case 'error':
+            packageItem.classList.add('missing');
+            statusBadge.classList.add('status-missing');
+            statusBadge.innerHTML = '✗ Installation Failed';
+            break;
+        default:
+            packageItem.classList.add('missing');
+            statusBadge.classList.add('status-missing');
+            statusBadge.innerHTML = '✗ Not Available';
+            break;
+    }
+}
+
+function disableAllButtons(disable) {
+    document.querySelectorAll('.button').forEach(btn => {
+        if (disable) {
+            btn.disabled = true;
+        } else {
+            btn.disabled = false;
+        }
+    });
+}
 
 function displayError(error) {
     document.getElementById('manager-status').innerHTML = `
@@ -65,7 +220,7 @@ function displayStatus(data) {
                     </div>
                 </div>
                 <span class="status-badge ${data.managerAvailable ? 'status-available' : 'status-missing'}">
-                    ${data.managerAvailable ? '✓ Available' : '✗ Not Found'}
+                    ${data.managerAvailable ? '✓ Available' : '✗ Not Available'}
                 </span>
             </div>
             ${!data.managerAvailable ? `
@@ -102,7 +257,7 @@ function displayStatus(data) {
             </div>
             <div class="summary-item">
                 <div class="summary-count missing">${missingCount}</div>
-                <div class="summary-label">Not Found</div>
+                <div class="summary-label">Not Available</div>
             </div>
             <div class="summary-item">
                 <div class="summary-count">${totalCount}</div>
@@ -114,14 +269,14 @@ function displayStatus(data) {
     
     for (const pkg of data.packages) {
         packagesHtml += `
-            <div class="package-item ${pkg.available ? 'available' : 'missing'}">
+            <div class="package-item ${pkg.available ? 'available' : 'missing'}" data-package-name="${pkg.name}">
                 <div class="package-info">
                     <div class="package-name">${pkg.name}</div>
                     <div class="package-package">${pkg.package}</div>
                 </div>
                 <div class="package-actions">
                     <span class="status-badge ${pkg.available ? 'status-available' : 'status-missing'}">
-                        ${pkg.available ? '✓ Installed' : '✗ Not Found'}
+                        ${pkg.available ? '✓ Installed' : '✗ Not Available'}
                     </span>
                     ${!pkg.available && data.managerAvailable ? `
                         <button class="button button-small" onclick="installPackage('${pkg.name}')">
