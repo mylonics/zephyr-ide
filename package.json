@@ -652,7 +652,8 @@
     "pretest": "npm run compile && npm run esbuild && npm run lint",
     "lint": "eslint src --ext ts",
     "test": "vscode-test",
-    "detect-unused": "node scripts/detect-unused-code.js"
+    "detect-unused": "node scripts/detect-unused-code.js",
+    "version": "npx auto-changelog -p && git add CHANGELOG.md"
   },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
