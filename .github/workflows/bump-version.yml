@@ -1,7 +1,16 @@
-name: Bump Minor
+name: Bump Version
 
 on:
   workflow_dispatch:
+    inputs:
+      bump_type:
+        description: "Version bump type"
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
 
 permissions:
   contents: write
@@ -20,14 +29,15 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Bump and Push changes
+      - name: Bump version and push changes
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          npm version minor
+          npm version ${{ inputs.bump_type }}
           npm install
+          npx auto-changelog --prepend
           git add -A
-          git commit -m "chore: update dependencies" || true
+          git commit -m "chore: update changelog and dependencies" || true
           git checkout -b bump-version-$(jq -r '.version' package.json)
           git push --set-upstream origin bump-version-$(jq -r '.version' package.json)
 
