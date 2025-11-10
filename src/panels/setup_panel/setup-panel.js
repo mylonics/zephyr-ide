@@ -527,7 +527,7 @@ function updateHostToolsStatus(data, error) {
     for (const pkg of data.packages) {
         const available = pkg.available;
         const statusClass = available ? 'success' : 'error';
-        const statusText = available ? '✓ Installed' : '✗ Not installed';
+        const statusText = available ? '✓ Installed' : '✗ Not Available';
         
         if (!available) {
             hasMissing = true;
