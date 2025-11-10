@@ -24,8 +24,9 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           npm version patch
+          git push --tags
           npm install
-          npx auto-changelog
+          npx auto-changelog --prepend
           git add -A
           git commit -m "chore: update dependencies" || true
           git checkout -b bump-version-$(jq -r '.version' package.json)
