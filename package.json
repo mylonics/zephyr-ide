@@ -2,7 +2,7 @@
   "name": "zephyr-ide",
   "displayName": "Zephyr IDE",
   "description": "A VS Code extension that streamlines setup, build, flashing, and debugging of Zephyr Projects",
-  "version": "2.0.9",
+  "version": "2.0.10",
   "license": "Apache-2.0",
   "publisher": "mylonics",
   "icon": "media/logo.png",
@@ -652,7 +652,8 @@
     "pretest": "npm run compile && npm run esbuild && npm run lint",
     "lint": "eslint src --ext ts",
     "test": "vscode-test",
-    "detect-unused": "node scripts/detect-unused-code.js"
+    "detect-unused": "node scripts/detect-unused-code.js",
+    "version": "npx auto-changelog -p && git add CHANGELOG.md"
   },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
@@ -673,6 +674,7 @@
     "@vscode-elements/elements": "^1.2.0",
     "@vscode/codicons": "^0.0.35",
     "7zip-bin": "^5.2.0",
+    "auto-changelog": "^2.5.0",
     "compare-versions": "^6.1.0",
     "devicetree-language-server-vscode-types": "^0.0.1-alpha.6",
     "fs-extra": "^11.2.0",
@@ -680,6 +682,7 @@
     "node-7z": "^3.0.0",
     "node-stream-zip": "^1.15.0",
     "replace-in-file": "^7.1.0",
-    "typed-rest-client": "^1.8.11"
+    "typed-rest-client": "^1.8.11",
+    "vscode-languageclient": "^9.0.1"
   }
 }

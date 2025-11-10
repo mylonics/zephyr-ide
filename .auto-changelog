@@ -1,0 +1,16 @@
+{
+  "commitLimit": false,
+  "unreleased": false,
+  "issueUrl": "https://github.com/mylonics/zephyr-ide/issues/{id}",
+  "replaceText": {
+    "^feat:": "- ",
+    "^fix:": "- ",
+    "^chore:": "- ",
+    "^docs:": "- ",
+    "^refactor:": "- ",
+    "^test:": "- ",
+    "^style:": "- ",
+    "^perf:": "- ",
+    "^ci:": "- "
+  }
+}

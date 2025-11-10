@@ -26,6 +26,7 @@ import { runnerSelector } from "./runner_selector";
 import { configSelector, configRemover, ConfigFiles } from "./config_selector";
 import { setDtsContext } from "../setup_utilities/dts_interface";
 import { getSamples } from "../setup_utilities/modules";
+import { getSetupState } from "../setup_utilities/workspace-config";
 
 import { TwisterConfigDictionary, twisterSelector, TwisterStateDictionary } from "./twister_selector";
 
@@ -160,12 +161,7 @@ export async function modifyBuildArguments(context: vscode.ExtensionContext, wsC
 }
 
 
-export async function createNewProjectFromSample(wsConfig: WorkspaceConfig) {
-  if (!wsConfig.activeSetupState || !wsConfig.activeSetupState.zephyrDir) {
-    vscode.window.showErrorMessage("Run `Zephyr IDE: West Update` first.");
-    return;
-  }
-
+export async function createNewProjectFromSample(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
   // Show loading QuickPick with no items, just a placeholder
   const loadingQuickPick = vscode.window.createQuickPick();
   loadingQuickPick.items = [];
@@ -175,7 +171,12 @@ export async function createNewProjectFromSample(wsConfig: WorkspaceConfig) {
   loadingQuickPick.ignoreFocusOut = true;
   loadingQuickPick.show();
 
-  const samplesDir = await getSamples(wsConfig.activeSetupState);
+  const setupState = await getSetupState(context, wsConfig);
+  if (!setupState) {
+    loadingQuickPick.hide();
+    return;
+  }
+  const samplesDir = await getSamples(setupState);
 
   loadingQuickPick.hide();
 
@@ -510,30 +511,29 @@ export async function addProject(wsConfig: WorkspaceConfig, context: vscode.Exte
 }
 
 export async function addBuildToProject(wsConfig: WorkspaceConfig, context: vscode.ExtensionContext, projectName: string) {
-
-  if (wsConfig.activeSetupState) {
-
-    let result = await buildSelector(context, wsConfig.activeSetupState, wsConfig.rootPath);
-    if (result && result.name !== undefined) {
-      result.runnerConfigs = {};
-      if (wsConfig.projects[projectName].buildConfigs[result.name]) {
-        const selection = await vscode.window.showWarningMessage('Build Configuration with name: ' + result.name + ' already exists!', 'Overwrite', 'Cancel');
-        if (selection !== 'Overwrite') {
-          vscode.window.showErrorMessage(`Failed to add build configuration`);
-          return;
-        }
-      }
-
-      vscode.window.showInformationMessage(`Creating Build Configuration: ${result.name}`);
-      wsConfig.projects[projectName].buildConfigs[result.name] = result;
-      wsConfig.projectStates[projectName].buildStates[result.name] = { runnerStates: {}, viewOpen: true };
-      setActiveBuild(context, wsConfig, projectName, result.name);
-
-      await setWorkspaceState(context, wsConfig);
-      return true;
-    }
+  const setupState = await getSetupState(context, wsConfig);
+  if (!setupState) {
+    return;
   }
-  return false;
+  let result = await buildSelector(context, setupState, wsConfig.rootPath);
+  if (result && result.name !== undefined) {
+    result.runnerConfigs = {};
+    if (wsConfig.projects[projectName].buildConfigs[result.name]) {
+      const selection = await vscode.window.showWarningMessage('Build Configuration with name: ' + result.name + ' already exists!', 'Overwrite', 'Cancel');
+      if (selection !== 'Overwrite') {
+        vscode.window.showErrorMessage(`Failed to add build configuration`);
+        return;
+      }
+    }
+
+    vscode.window.showInformationMessage(`Creating Build Configuration: ${result.name}`);
+    wsConfig.projects[projectName].buildConfigs[result.name] = result;
+    wsConfig.projectStates[projectName].buildStates[result.name] = { runnerStates: {}, viewOpen: true };
+    setActiveBuild(context, wsConfig, projectName, result.name);
+
+    await setWorkspaceState(context, wsConfig);
+    return true;
+  }
 }
 
 
@@ -575,7 +575,8 @@ export async function removeBuild(context: vscode.ExtensionContext, wsConfig: Wo
 
 
 export async function addTest(wsConfig: WorkspaceConfig, context: vscode.ExtensionContext, projectName?: string) {
-  if (wsConfig.activeSetupState === undefined) {
+  const setupState = await getSetupState(context, wsConfig);
+  if (!setupState) {
     return;
   }
 
@@ -588,7 +589,7 @@ export async function addTest(wsConfig: WorkspaceConfig, context: vscode.Extensi
     return;
   }
 
-  let result = await twisterSelector(wsConfig.projects[projectName].rel_path, context, wsConfig.activeSetupState, wsConfig.rootPath);
+  let result = await twisterSelector(wsConfig.projects[projectName].rel_path, context, setupState, wsConfig.rootPath);
   if (result && result.name !== undefined) {
     if (wsConfig.projects[projectName].twisterConfigs[result.name]) {
       const selection = await vscode.window.showWarningMessage('Twister Configuration with name: ' + result.name + ' already exists!', 'Overwrite', 'Cancel');
@@ -758,9 +759,12 @@ export async function addRunnerToBuild(wsConfig: WorkspaceConfig, context: vscod
     if (build.relBoardDir) {
       //Custom Folder
       result = await runnerSelector(path.join(wsConfig.rootPath, build.relBoardDir, build.relBoardSubDir));
-    } else if (wsConfig.activeSetupState) {
-      //Default zephyr folder
-      result = await runnerSelector(path.join(wsConfig.activeSetupState?.zephyrDir, 'boards', build.relBoardSubDir));
+    } else {
+      const setupState = await getSetupState(context, wsConfig);
+      if (setupState) {
+        //Default zephyr folder
+        result = await runnerSelector(path.join(setupState.zephyrDir, 'boards', build.relBoardSubDir));
+      }
     }
   }
 

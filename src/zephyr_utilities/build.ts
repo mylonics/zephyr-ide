@@ -26,6 +26,7 @@ import { WorkspaceConfig } from '../setup_utilities/types';
 import { addBuild, ProjectConfig, getActiveBuildNameOfProject } from "../project_utilities/project";
 import { BuildConfig } from "../project_utilities/build_selector";
 import { updateDtsContext } from "../setup_utilities/dts_interface";
+import { getSetupState } from "../setup_utilities/workspace-config";
 
 
 export interface BuildInfo {
@@ -62,10 +63,11 @@ export async function regenerateCompileCommands(wsConfig: WorkspaceConfig) {
 
 export async function buildHelper(
   context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, pristine: boolean) {
-  if (wsConfig.activeSetupState === undefined) {
+  const setupState = await getSetupState(context, wsConfig);
+  if (!setupState) {
     return;
   }
-  if (wsConfig.activeSetupState.westUpdated) {
+  if (setupState.westUpdated) {
     if (wsConfig.activeProject === undefined) {
       vscode.window.showErrorMessage("Select a project before trying to build");
       return;
@@ -81,7 +83,7 @@ export async function buildHelper(
         return;
       }
     }
-    return await build(wsConfig, project, project.buildConfigs[buildName], pristine);
+    return await build(context, wsConfig, project, project.buildConfigs[buildName], pristine);
   } else {
     vscode.window.showErrorMessage("Run `Zephyr IDE: West Update` command first.");
   }
@@ -93,25 +95,22 @@ export enum MenuConfig {
   GuiConfig,
 }
 
-export async function buildByName(wsConfig: WorkspaceConfig, pristine: boolean, projectName: string, buildName: string, isMenuConfig = MenuConfig.None) {
-  if (wsConfig.activeSetupState && wsConfig.activeSetupState.westUpdated) {
-    let project = wsConfig.projects[projectName];
-    let buildconfig = project.buildConfigs[buildName];
-    if (project && build) {
-      if (isMenuConfig !== MenuConfig.None) {
-        buildMenuConfig(wsConfig, isMenuConfig, project, buildconfig);
-      } else {
-        build(wsConfig, project, buildconfig, pristine);
-      }
+export async function buildByName(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, pristine: boolean, projectName: string, buildName: string, isMenuConfig = MenuConfig.None) {
+  let project = wsConfig.projects[projectName];
+  let buildconfig = project.buildConfigs[buildName];
+  if (project && build) {
+    if (isMenuConfig !== MenuConfig.None) {
+      buildMenuConfig(context, wsConfig, isMenuConfig, project, buildconfig);
     } else {
-      vscode.window.showErrorMessage("Invalid project or build");
+      build(context, wsConfig, project, buildconfig, pristine);
     }
   } else {
-    vscode.window.showErrorMessage("Run `Zephyr IDE: West Update` command first.");
+    vscode.window.showErrorMessage("Invalid project or build");
   }
 }
 
 export async function build(
+  context: vscode.ExtensionContext,
   wsConfig: WorkspaceConfig,
   project: ProjectConfig,
   build: BuildConfig,
@@ -153,8 +152,11 @@ export async function build(
     let boardRoot;
     if (build.relBoardDir) {
       boardRoot = path.dirname(path.join(wsConfig.rootPath, build.relBoardDir));
-    } else if (wsConfig.activeSetupState) {
-      boardRoot = wsConfig.activeSetupState?.zephyrDir;
+    } else {
+      const setupState = await getSetupState(context, wsConfig);
+      if (setupState) {
+        boardRoot = setupState.zephyrDir;
+      }
     }
     cmd = `west build -b ${build.board + (build.revision ? '@' + build.revision : "")} ${projectFolder} -p --build-dir ${buildFolder} ${extraWestBuildArgs} -- -DBOARD_ROOT='${boardRoot}' ${extraWestBuildCMakeArgs} `;
 
@@ -184,7 +186,8 @@ export async function build(
   let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
 
   vscode.window.showInformationMessage(`Building ${build.name} from project: ${project.name}`);
-  let ret = await executeTaskHelperInPythonEnv(wsConfig.activeSetupState, taskName, cmd, wsConfig.activeSetupState?.setupPath);
+  const setupState = await getSetupState(context, wsConfig);
+  let ret = await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState?.setupPath);
 
   regenerateCompileCommands(wsConfig);
   updateDtsContext(wsConfig, project, build);
@@ -193,6 +196,7 @@ export async function build(
 
 
 export async function buildMenuConfig(
+  context: vscode.ExtensionContext,
   wsConfig: WorkspaceConfig,
   config: MenuConfig,
   project?: ProjectConfig,
@@ -232,12 +236,14 @@ export async function buildMenuConfig(
   let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
 
   vscode.window.showInformationMessage(`Running MenuConfig ${build.name} from project: ${project.name}`);
-  await executeTaskHelperInPythonEnv(wsConfig.activeSetupState, taskName, cmd, wsConfig.activeSetupState?.setupPath);
+  const setupState = await getSetupState(context, wsConfig);
+  await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState?.setupPath);
   regenerateCompileCommands(wsConfig);
   updateDtsContext(wsConfig, project, build);
 }
 
 export async function buildRamRomReport(
+  context: vscode.ExtensionContext,
   wsConfig: WorkspaceConfig,
   isRamReport: boolean,
   project?: ProjectConfig,
@@ -277,11 +283,13 @@ export async function buildRamRomReport(
   let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
 
   vscode.window.showInformationMessage(`Running ${isRamReport ? "RAM" : "ROM"} Report ${build.name} from project: ${project.name}`);
-  await executeTaskHelperInPythonEnv(wsConfig.activeSetupState, taskName, cmd, wsConfig.activeSetupState?.setupPath);
+  const setupState = await getSetupState(context, wsConfig);
+  await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState?.setupPath);
   regenerateCompileCommands(wsConfig);
 }
 
 export async function runDtshShell(
+  context: vscode.ExtensionContext,
   wsConfig: WorkspaceConfig,
   project?: ProjectConfig,
   build?: BuildConfig
@@ -309,7 +317,8 @@ export async function runDtshShell(
   let taskName = "Zephyr IDE DTSH Sehll: " + project.name + " " + build.name;
 
   vscode.window.showInformationMessage(`Running DTSH Shell ${build.name} from project: ${project.name}`);
-  await executeTaskHelperInPythonEnv(wsConfig.activeSetupState, taskName, cmd, wsConfig.activeSetupState?.setupPath);
+  const setupState = await getSetupState(context, wsConfig);
+  await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState?.setupPath);
 }
 
 export async function clean(wsConfig: WorkspaceConfig, projectName: string | undefined) {

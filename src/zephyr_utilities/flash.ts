@@ -25,19 +25,20 @@ import { ProjectConfig } from "../project_utilities/project";
 import { WorkspaceConfig } from '../setup_utilities/types';
 import { BuildConfig } from "../project_utilities/build_selector";
 import { RunnerConfig } from "../project_utilities/runner_selector";
+import { getSetupState } from "../setup_utilities/workspace-config";
 
-export async function flashByName(wsConfig: WorkspaceConfig, projectName: string, buildName: string, runnerName: string) {
+export async function flashByName(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName: string, buildName: string, runnerName: string) {
   let project = wsConfig.projects[projectName];
   let buildConfig = project.buildConfigs[buildName];
   let runnerConfig = buildConfig.runnerConfigs[runnerName];
   if (project && buildConfig && runnerConfig) {
-    await flash(wsConfig, project, buildConfig, runnerConfig);
+    await flash(context, wsConfig, project, buildConfig, runnerConfig);
   } else {
     vscode.window.showErrorMessage("Invalid project or build");
   }
 }
 
-export async function flashActive(wsConfig: WorkspaceConfig) {
+export async function flashActive(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
 
   if (wsConfig.activeProject === undefined) {
     vscode.window.showErrorMessage("Select a project before trying to flash");
@@ -59,10 +60,10 @@ export async function flashActive(wsConfig: WorkspaceConfig) {
     return;
   }
   let runner = build.runnerConfigs[activeRunnerConfig];
-  flash(wsConfig, project, build, runner);
+  flash(context, wsConfig, project, build, runner);
 }
 
-export async function flash(wsConfig: WorkspaceConfig, project: ProjectConfig, build: BuildConfig, runner: RunnerConfig) {
+export async function flash(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, project: ProjectConfig, build: BuildConfig, runner: RunnerConfig) {
   //let cmds = await vscode.commands.getCommands();
   //const subArr = cmds.filter(str => str.includes("debug"));
 
@@ -77,5 +78,6 @@ export async function flash(wsConfig: WorkspaceConfig, project: ProjectConfig, b
   let taskName = "Zephyr IDE Flash: " + project.name + " " + build.name;
 
   vscode.window.showInformationMessage(`Flashing for ${build.name}`);
-  await executeTaskHelperInPythonEnv(wsConfig.activeSetupState, taskName, cmd, wsConfig.activeSetupState?.setupPath);
+  const setupState = await getSetupState(context, wsConfig);
+  await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState?.setupPath);
 }

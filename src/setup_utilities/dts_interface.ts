@@ -44,7 +44,7 @@ async function activateDtsExtension() {
 
 export async function initializeDtsExt(state: SetupState, wsConfig: WorkspaceConfig) {
   await activateDtsExtension();
-  if (api && state.westUpdated) {
+  if (api) {
     const dtsIncludeArray = await getDtsIncludes(state);
 
     let settings: IntegrationSettings = {
@@ -77,7 +77,7 @@ export async function initializeDtsExt(state: SetupState, wsConfig: WorkspaceCon
 
 
 export async function setDtsContext(wsConfig: WorkspaceConfig, project?: ProjectConfig, build?: BuildConfig) {
-  if (api && wsConfig.activeSetupState) {
+  if (api) {
     if (project === undefined) {
       project = getActiveProject(wsConfig);
     }
@@ -95,7 +95,7 @@ export async function setDtsContext(wsConfig: WorkspaceConfig, project?: Project
 }
 
 export async function updateAllDtsContexts(wsConfig: WorkspaceConfig) {
-  if (api && wsConfig.activeSetupState) {
+  if (api) {
     for (let projectName in wsConfig.projects) {
       let project = wsConfig.projects[projectName];
       for (let buildName in project.buildConfigs) {
@@ -109,7 +109,7 @@ export async function updateAllDtsContexts(wsConfig: WorkspaceConfig) {
 export async function updateDtsContext(wsConfig: WorkspaceConfig,
   project: ProjectConfig,
   build: BuildConfig) {
-  if (api && wsConfig.activeSetupState) {
+  if (api) {
     let buildInfo = await getBuildInfo(wsConfig, project, build);
 
     if (buildInfo) {
