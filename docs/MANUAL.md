@@ -61,6 +61,51 @@ The command has created a west.yml file in the application folder. In this examp
 ### West Update
 This command will install the remaining python requirements and clones the remote repository into the location.
 
+## Using Externally Managed Environments
+
+**New in v2.0**: Zephyr IDE now automatically detects and works with externally managed Zephyr environments!
+
+If you already have Zephyr installed (e.g., through Docker, a DevContainer, or manual installation), you don't need to go through the workspace setup process. Simply ensure the `ZEPHYR_BASE` environment variable is set, and Zephyr IDE will automatically detect and use your existing installation.
+
+### How It Works
+
+1. **Set the environment variable** (if not already set):
+   ```bash
+   export ZEPHYR_BASE=/path/to/zephyrproject/zephyr
+   export ZEPHYR_SDK_INSTALL_DIR=/path/to/zephyr-sdk  # optional
+   ```
+
+2. **Start VS Code** from a terminal that has these variables set:
+   ```bash
+   code /path/to/your/project
+   ```
+
+3. **Check the West Workspaces panel**:
+   - Open the Zephyr IDE sidebar
+   - Look for "Environment Setup" entry showing your ZEPHYR_BASE path
+   - It will be marked as active automatically
+
+4. **Start working** - all features (build, flash, debug) work immediately!
+
+### Visual Feedback
+
+When using an environment-based setup, the **West Workspaces** panel displays:
+- **Label**: "Environment Setup"
+- **Description**: "Using environment variables" or Zephyr version if detected
+- **Icon**: Namespace symbol (⊞)
+- **Tooltip**: Shows your `ZEPHYR_BASE` path
+- **Status**: Marked as selected/active
+
+### Use Cases
+
+Perfect for:
+- **Docker/DevContainer workflows** - Environment variables are already set in your container
+- **CI/CD pipelines** - Build with pre-installed Zephyr
+- **Shared development environments** - Team uses a common Zephyr installation
+- **Manual installations** - You've installed Zephyr following the official guide
+
+For detailed information, see [Externally Managed Environment Support](externally-managed-environment.md).
+
 
 ## Setting Up A Project
 To setup a project the project panel provides the ability to add a preexisting project or to copy a sample project as a starting point. In the following example, the blinky project is added from the Zephyr sample folder. To the project, an STM32F4 build is added. 

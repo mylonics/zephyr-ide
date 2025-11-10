@@ -379,12 +379,12 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
           break;
         }
         case "build": {
-          buildByName(this.wsConfig, false, message.value.project, message.value.build);
+          buildByName(this.context, this.wsConfig, false, message.value.project, message.value.build);
           setActive(this.wsConfig, message.value.project, message.value.build);
           break;
         }
         case "buildPristine": {
-          buildByName(this.wsConfig, true, message.value.project, message.value.build);
+          buildByName(this.context, this.wsConfig, true, message.value.project, message.value.build);
           setActive(this.wsConfig, message.value.project, message.value.build);
           break;
         }
@@ -394,17 +394,17 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
           break;
         }
         case "menuConfig": {
-          buildByName(this.wsConfig, true, message.value.project, message.value.build, MenuConfig.MenuConfig);
+          buildByName(this.context, this.wsConfig, true, message.value.project, message.value.build, MenuConfig.MenuConfig);
           setActive(this.wsConfig, message.value.project, message.value.build, undefined, undefined);
           break;
         }
         case "guiConfig": {
-          buildByName(this.wsConfig, true, message.value.project, message.value.build, MenuConfig.GuiConfig);
+          buildByName(this.context, this.wsConfig, true, message.value.project, message.value.build, MenuConfig.GuiConfig);
           setActive(this.wsConfig, message.value.project, message.value.build, undefined, undefined);
           break;
         }
         case "flash": {
-          flashByName(this.wsConfig, message.value.project, message.value.build, message.value.runner);
+          flashByName(this.context, this.wsConfig, message.value.project, message.value.build, message.value.runner);
           setActive(this.wsConfig, message.value.project, message.value.build, message.value.runner);
           break;
         }
