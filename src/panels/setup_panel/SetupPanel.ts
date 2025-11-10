@@ -414,30 +414,95 @@ export class SetupPanel {
 
     private async installAllMissingTools() {
         try {
+            // Get the list of missing packages
+            const statuses = await checkAllPackages();
+            const missingPackages = statuses.filter(s => !s.available);
+            
+            if (missingPackages.length === 0) {
+                vscode.window.showInformationMessage("All packages are already installed");
+                return;
+            }
+
+            const totalCount = missingPackages.length;
+            const packages = await getPlatformPackages();
+            
+            // Start installation progress
             this._panel.webview.postMessage({
-                command: "hostToolsInstallProgress",
-                message: "Installing all missing packages...",
+                command: "hostToolsInstallAllStarted",
+                total: totalCount,
             });
 
-            await installAllMissingPackages();
-            await this.checkHostToolsStatus();
+            let installedCount = 0;
+            let hasErrors = false;
+            
+            // Install each package one by one
+            for (const status of missingPackages) {
+                const pkg = packages.find(p => p.name === status.name);
+                if (pkg) {
+                    // Update status to installing
+                    this._panel.webview.postMessage({
+                        command: "hostToolsPackageInstalling",
+                        packageName: pkg.name,
+                        current: installedCount + 1,
+                        total: totalCount,
+                    });
 
+                    const success = await installPackage(pkg);
+                    installedCount++;
+
+                    // Check if package is now available
+                    const updatedStatus = await checkAllPackages();
+                    const installedPkg = updatedStatus.find(p => p.name === pkg.name);
+                    const pendingRestart = success && installedPkg && !installedPkg.available;
+
+                    // Update status after installation
+                    this._panel.webview.postMessage({
+                        command: "hostToolsPackageInstalled",
+                        packageName: pkg.name,
+                        success: success,
+                        pendingRestart: pendingRestart,
+                        current: installedCount,
+                        total: totalCount,
+                    });
+
+                    if (!success) {
+                        hasErrors = true;
+                    }
+                }
+            }
+            
+            // Check if any packages still aren't available after installation
             const packageStatuses = await checkAllPackages();
             const needsRestart = packageStatuses.some(p => !p.available);
+            
+            // Complete installation
+            this._panel.webview.postMessage({
+                command: "hostToolsInstallAllComplete",
+                needsRestart: needsRestart,
+                hasErrors: hasErrors,
+            });
 
             if (needsRestart) {
                 vscode.window.showWarningMessage(
                     "Some packages were installed but are not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect."
                 );
+            } else if (!hasErrors) {
+                vscode.window.showInformationMessage(
+                    "All missing packages installed successfully."
+                );
+            } else {
+                vscode.window.showWarningMessage(
+                    "Some host tools failed to install. Check the output for details."
+                );
             }
 
-            this._panel.webview.postMessage({
-                command: "hostToolsInstallComplete",
-            });
+            await this.checkHostToolsStatus();
         } catch (error) {
             vscode.window.showErrorMessage(`Error: ${error}`);
             this._panel.webview.postMessage({
-                command: "hostToolsInstallComplete",
+                command: "hostToolsInstallAllComplete",
+                needsRestart: false,
+                hasErrors: true,
             });
         }
     }

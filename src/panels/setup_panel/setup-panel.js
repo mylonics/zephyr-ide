@@ -40,6 +40,18 @@ window.addEventListener('message', event => {
         case 'hostToolsInstallComplete':
             hideHostToolsProgress();
             break;
+        case 'hostToolsInstallAllStarted':
+            handleHostToolsInstallAllStarted(message.total);
+            break;
+        case 'hostToolsPackageInstalling':
+            handleHostToolsPackageInstalling(message.packageName, message.current, message.total);
+            break;
+        case 'hostToolsPackageInstalled':
+            handleHostToolsPackageInstalled(message.packageName, message.success, message.pendingRestart, message.current, message.total);
+            break;
+        case 'hostToolsInstallAllComplete':
+            handleHostToolsInstallAllComplete(message.needsRestart, message.hasErrors);
+            break;
         case 'westYmlContent':
             loadWestYmlContent(message.content);
             break;
@@ -559,6 +571,116 @@ function hideHostToolsProgress() {
     }
     // Refresh status after installation
     refreshHostToolsStatus();
+}
+
+function handleHostToolsInstallAllStarted(total) {
+    const installAllBtn = document.getElementById('install-all-btn');
+    if (installAllBtn) {
+        installAllBtn.disabled = true;
+        installAllBtn.innerHTML = `
+            <span class="codicon codicon-sync codicon-modifier-spin"></span>
+            Installing Packages (0/${total})
+        `;
+    }
+}
+
+function handleHostToolsPackageInstalling(packageName, current, total) {
+    const installAllBtn = document.getElementById('install-all-btn');
+    if (installAllBtn) {
+        installAllBtn.innerHTML = `
+            <span class="codicon codicon-sync codicon-modifier-spin"></span>
+            Installing Packages (${current}/${total})
+        `;
+    }
+    
+    // Update the specific package row in the table
+    updateHostToolsPackageStatus(packageName, 'installing');
+}
+
+function handleHostToolsPackageInstalled(packageName, success, pendingRestart, current, total) {
+    // Update package state
+    let state = 'error';
+    if (success && !pendingRestart) {
+        state = 'installed';
+    } else if (success && pendingRestart) {
+        state = 'pending-restart';
+    }
+    
+    updateHostToolsPackageStatus(packageName, state);
+}
+
+function handleHostToolsInstallAllComplete(needsRestart, hasErrors) {
+    const installAllBtn = document.getElementById('install-all-btn');
+    if (installAllBtn) {
+        if (needsRestart) {
+            installAllBtn.innerHTML = `
+                <span class="codicon codicon-warning"></span>
+                Pending Restart
+            `;
+        } else if (hasErrors) {
+            installAllBtn.innerHTML = `
+                <span class="codicon codicon-error"></span>
+                Installation Failed
+            `;
+        } else {
+            installAllBtn.innerHTML = `
+                <span class="codicon codicon-check"></span>
+                All Packages Installed
+            `;
+        }
+        
+        // Re-enable button after a delay
+        setTimeout(() => {
+            installAllBtn.disabled = false;
+            refreshHostToolsStatus();
+        }, 2000);
+    }
+}
+
+function updateHostToolsPackageStatus(packageName, state) {
+    const packagesTable = document.querySelector('.packages-table');
+    if (!packagesTable) {
+        return;
+    }
+    
+    const rows = packagesTable.querySelectorAll('tbody tr');
+    for (const row of rows) {
+        const nameCell = row.querySelector('td:first-child strong');
+        if (nameCell && nameCell.textContent.trim() === packageName) {
+            const statusCell = row.querySelector('td:nth-child(2)');
+            const actionCell = row.querySelector('td:nth-child(3)');
+            
+            if (!statusCell) {
+                continue;
+            }
+            
+            // Update status text and style
+            switch (state) {
+                case 'installing':
+                    statusCell.innerHTML = '<span class="info"><span class="codicon codicon-sync codicon-modifier-spin"></span> Installing</span>';
+                    if (actionCell) {
+                        actionCell.innerHTML = '';
+                    }
+                    break;
+                case 'installed':
+                    statusCell.innerHTML = '<span class="success">✓ Installed</span>';
+                    if (actionCell) {
+                        actionCell.innerHTML = '';
+                    }
+                    break;
+                case 'pending-restart':
+                    statusCell.innerHTML = '<span class="warning"><span class="codicon codicon-warning"></span> Not Available Pending Restart</span>';
+                    if (actionCell) {
+                        actionCell.innerHTML = '';
+                    }
+                    break;
+                case 'error':
+                    statusCell.innerHTML = '<span class="error">✗ Installation Failed</span>';
+                    break;
+            }
+            break;
+        }
+    }
 }
 
 // Message Listener
