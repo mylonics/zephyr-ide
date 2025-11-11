@@ -81,12 +81,16 @@ function handleInstallAllStarted(total) {
 }
 
 function handlePackageInstalling(packageName, current, total) {
-    // Update the button text
-    const installAllBtn = document.getElementById('install-all-btn');
-    installAllBtn.innerHTML = `
-        <span class="codicon codicon-sync codicon-modifier-spin"></span>
-        Installing Packages (${current}/${total})
-    `;
+    // Update the button text only if installing multiple packages
+    if (total > 1) {
+        const installAllBtn = document.getElementById('install-all-btn');
+        if (installAllBtn) {
+            installAllBtn.innerHTML = `
+                <span class="codicon codicon-sync codicon-modifier-spin"></span>
+                Installing Packages (${current}/${total})
+            `;
+        }
+    }
     
     // Update the specific package in the list to show "Installing" status
     installationState.packageStates[packageName] = 'installing';
@@ -131,7 +135,8 @@ function handleInstallAllComplete(needsRestart, hasErrors) {
         `;
     }
     
-    // Re-enable buttons after a delay
+    // Re-enable buttons after a delay and refresh status
+    // The refresh will preserve pending-restart states via installationState.packageStates
     setTimeout(() => {
         disableAllButtons(false);
         refreshStatus();
@@ -268,17 +273,51 @@ function displayStatus(data) {
     `;
     
     for (const pkg of data.packages) {
+        // Check if this package has a saved pending-restart state
+        const savedState = installationState.packageStates[pkg.name];
+        const isPendingRestart = savedState === 'pending-restart';
+        const isInstalling = savedState === 'installing';
+        
+        // Determine the actual state to display
+        let statusClass, statusText, itemClass, showInstallButton;
+        
+        if (isInstalling) {
+            // Package is currently being installed
+            itemClass = 'installing';
+            statusClass = 'status-installing';
+            statusText = '<span class="codicon codicon-sync codicon-modifier-spin"></span> Installing';
+            showInstallButton = false;
+        } else if (isPendingRestart) {
+            // Package was installed but needs restart - preserve this state
+            itemClass = 'pending-restart';
+            statusClass = 'status-pending-restart';
+            statusText = '<span class="codicon codicon-warning"></span> Not Available Pending Restart';
+            showInstallButton = false;
+        } else if (pkg.available) {
+            // Package is available/installed
+            itemClass = 'available';
+            statusClass = 'status-available';
+            statusText = '✓ Installed';
+            showInstallButton = false;
+        } else {
+            // Package is not available
+            itemClass = 'missing';
+            statusClass = 'status-missing';
+            statusText = '✗ Not Available';
+            showInstallButton = data.managerAvailable;
+        }
+        
         packagesHtml += `
-            <div class="package-item ${pkg.available ? 'available' : 'missing'}" data-package-name="${pkg.name}">
+            <div class="package-item ${itemClass}" data-package-name="${pkg.name}">
                 <div class="package-info">
                     <div class="package-name">${pkg.name}</div>
                     <div class="package-package">${pkg.package}</div>
                 </div>
                 <div class="package-actions">
-                    <span class="status-badge ${pkg.available ? 'status-available' : 'status-missing'}">
-                        ${pkg.available ? '✓ Installed' : '✗ Not Available'}
+                    <span class="status-badge ${statusClass}">
+                        ${statusText}
                     </span>
-                    ${!pkg.available && data.managerAvailable ? `
+                    ${showInstallButton ? `
                         <button class="button button-small" onclick="installPackage('${pkg.name}')">
                             Install
                         </button>

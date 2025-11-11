@@ -2,6 +2,11 @@
 
 const vscode = acquireVsCodeApi();
 
+// State tracking for host tools installation
+let hostToolsInstallationState = {
+    packageStates: {} // Store state for each package (installing, pending-restart, etc.)
+};
+
 // Navigation Functions
 function navigateToSubPage(page) {
     vscode.postMessage({
@@ -525,11 +530,30 @@ function updateHostToolsStatus(data, error) {
     
     let hasMissing = false;
     for (const pkg of data.packages) {
-        const available = pkg.available;
-        const statusClass = available ? 'success' : 'error';
-        const statusText = available ? '✓ Installed' : '✗ Not Available';
+        // Check if this package has a saved pending-restart state
+        const savedState = hostToolsInstallationState.packageStates[pkg.name];
+        const isPendingRestart = savedState === 'pending-restart';
+        const isInstalling = savedState === 'installing';
         
-        if (!available) {
+        // Determine the actual state to display
+        let statusClass, statusText, showInstallButton;
+        
+        if (isInstalling) {
+            statusClass = 'info';
+            statusText = '<span class="codicon codicon-sync codicon-modifier-spin"></span> Installing';
+            showInstallButton = false;
+        } else if (isPendingRestart) {
+            statusClass = 'warning';
+            statusText = '<span class="codicon codicon-warning"></span> Not Available Pending Restart';
+            showInstallButton = false;
+        } else if (pkg.available) {
+            statusClass = 'success';
+            statusText = '✓ Installed';
+            showInstallButton = false;
+        } else {
+            statusClass = 'error';
+            statusText = '✗ Not Available';
+            showInstallButton = true;
             hasMissing = true;
         }
         
@@ -538,7 +562,7 @@ function updateHostToolsStatus(data, error) {
             <td><span class="${statusClass}">${statusText}</span></td>
             <td>`;
         
-        if (!available) {
+        if (showInstallButton) {
             html += `<button class="button button-small" onclick="installSinglePackage('${escapeHtml(pkg.name)}')">Install</button>`;
         }
         
@@ -585,20 +609,24 @@ function handleHostToolsInstallAllStarted(total) {
 }
 
 function handleHostToolsPackageInstalling(packageName, current, total) {
-    const installAllBtn = document.getElementById('install-all-btn');
-    if (installAllBtn) {
-        installAllBtn.innerHTML = `
-            <span class="codicon codicon-sync codicon-modifier-spin"></span>
-            Installing Packages (${current}/${total})
-        `;
+    // Update the button text only if installing multiple packages
+    if (total > 1) {
+        const installAllBtn = document.getElementById('install-all-btn');
+        if (installAllBtn) {
+            installAllBtn.innerHTML = `
+                <span class="codicon codicon-sync codicon-modifier-spin"></span>
+                Installing Packages (${current}/${total})
+            `;
+        }
     }
     
-    // Update the specific package row in the table
+    // Save the state and update the specific package row in the table
+    hostToolsInstallationState.packageStates[packageName] = 'installing';
     updateHostToolsPackageStatus(packageName, 'installing');
 }
 
 function handleHostToolsPackageInstalled(packageName, success, pendingRestart, current, total) {
-    // Update package state
+    // Update and save package state
     let state = 'error';
     if (success && !pendingRestart) {
         state = 'installed';
@@ -606,6 +634,7 @@ function handleHostToolsPackageInstalled(packageName, success, pendingRestart, c
         state = 'pending-restart';
     }
     
+    hostToolsInstallationState.packageStates[packageName] = state;
     updateHostToolsPackageStatus(packageName, state);
 }
 
