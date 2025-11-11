@@ -613,9 +613,12 @@ function handleHostToolsPackageInstalling(packageName, current, total) {
     if (total > 1) {
         const installAllBtn = document.getElementById('install-all-btn');
         if (installAllBtn) {
+            // Ensure values are numbers to prevent XSS
+            const currentNum = Number(current);
+            const totalNum = Number(total);
             installAllBtn.innerHTML = `
                 <span class="codicon codicon-sync codicon-modifier-spin"></span>
-                Installing Packages (${current}/${total})
+                Installing Packages (${currentNum}/${totalNum})
             `;
         }
     }
