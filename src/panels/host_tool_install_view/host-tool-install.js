@@ -41,12 +41,6 @@ window.addEventListener('message', event => {
                 displayStatus(message.data);
             }
             break;
-        case 'installProgress':
-            showProgress(message.message);
-            break;
-        case 'installComplete':
-            hideProgress();
-            break;
         case 'installAllStarted':
             handleInstallAllStarted(message.total);
             break;
@@ -350,31 +344,6 @@ function displayStatus(data) {
     } else {
         markCompleteBtn.disabled = true;
     }
-}
-
-function showProgress(message) {
-    const progressSection = document.getElementById('progress-section');
-    const progressMessage = document.getElementById('progress-message');
-    progressMessage.textContent = message;
-    progressSection.style.display = 'block';
-    
-    // Disable all buttons
-    document.querySelectorAll('.button').forEach(btn => {
-        btn.disabled = true;
-    });
-}
-
-function hideProgress() {
-    const progressSection = document.getElementById('progress-section');
-    progressSection.style.display = 'none';
-    
-    // Re-enable buttons
-    document.querySelectorAll('.button').forEach(btn => {
-        btn.disabled = false;
-    });
-    
-    // Refresh status after installation
-    refreshStatus();
 }
 
 function refreshStatus() {

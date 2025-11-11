@@ -85,10 +85,6 @@ export class HostToolInstallView {
             </button>
           </div>
         </div>
-
-        <div id="progress-section" class="manager-section" style="display: none;">
-          <div class="progress-message" id="progress-message">Processing...</div>
-        </div>
       </div>
     `;
   }
@@ -307,15 +303,8 @@ export class HostToolInstallView {
           `Failed to install ${packageName}. Check output for details.`
         );
       }
-
-      this._panel.webview.postMessage({
-        command: "installComplete",
-      });
     } catch (error) {
       vscode.window.showErrorMessage(`Error: ${error}`);
-      this._panel.webview.postMessage({
-        command: "installComplete",
-      });
     }
   }
 
@@ -517,10 +506,6 @@ export class HostToolInstallView {
                         ✓ Skip & Mark as Complete
                     </button>
                 </div>
-            </div>
-
-            <div id="progress-section" class="section" style="display: none;">
-                <div class="progress-message" id="progress-message">Processing...</div>
             </div>
         </div>
         <script src="${jsUri}"></script>

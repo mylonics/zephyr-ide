@@ -39,12 +39,6 @@ window.addEventListener('message', event => {
         case 'updateHostToolsStatus':
             updateHostToolsStatus(message.data, message.error);
             break;
-        case 'hostToolsInstallProgress':
-            showHostToolsProgress(message.message);
-            break;
-        case 'hostToolsInstallComplete':
-            hideHostToolsProgress();
-            break;
         case 'hostToolsInstallAllStarted':
             handleHostToolsInstallAllStarted(message.total);
             break;
@@ -576,25 +570,6 @@ function updateHostToolsStatus(data, error) {
     if (installAllBtn) {
         installAllBtn.disabled = !hasMissing || !data.managerAvailable;
     }
-}
-
-function showHostToolsProgress(message) {
-    const progressSection = document.getElementById('progress-section');
-    const progressMessage = document.getElementById('progress-message');
-    
-    if (progressSection && progressMessage) {
-        progressMessage.textContent = message;
-        progressSection.style.display = 'block';
-    }
-}
-
-function hideHostToolsProgress() {
-    const progressSection = document.getElementById('progress-section');
-    if (progressSection) {
-        progressSection.style.display = 'none';
-    }
-    // Refresh status after installation
-    refreshHostToolsStatus();
 }
 
 function handleHostToolsInstallAllStarted(total) {
