@@ -172,6 +172,9 @@ export class HostToolInstallView {
       case "installAllMissing":
         await this.installAllMissing();
         break;
+      case "installAllMissingPackages":
+        await this.installAllMissingPackages(message.packageNames);
+        break;
       case "markComplete":
         await this.markHostToolsComplete();
         break;
@@ -310,16 +313,24 @@ export class HostToolInstallView {
 
   private async installAllMissing() {
     try {
-      // Get the list of missing packages
-      const statuses = await checkAllPackages();
-      const missingPackages = statuses.filter(s => !s.available);
-      
-      if (missingPackages.length === 0) {
+      // Request the webview to start installation
+      // The webview will filter out packages that are already pending restart
+      this._panel.webview.postMessage({
+        command: "startInstallAll",
+      });
+    } catch (error) {
+      vscode.window.showErrorMessage(`Error: ${error}`);
+    }
+  }
+
+  private async installAllMissingPackages(packageNames: string[]) {
+    try {
+      if (packageNames.length === 0) {
         vscode.window.showInformationMessage("All packages are already installed");
         return;
       }
 
-      const totalCount = missingPackages.length;
+      const totalCount = packageNames.length;
       const packages = await getPlatformPackages();
       
       // Start installation progress
@@ -332,8 +343,8 @@ export class HostToolInstallView {
       let hasErrors = false;
       
       // Install each package one by one
-      for (const status of missingPackages) {
-        const pkg = packages.find(p => p.name === status.name);
+      for (const packageName of packageNames) {
+        const pkg = packages.find(p => p.name === packageName);
         if (pkg) {
           // Update status to installing
           this._panel.webview.postMessage({
@@ -348,7 +359,7 @@ export class HostToolInstallView {
 
           // Check if package is now available
           const updatedStatus = await checkAllPackages();
-          const installedPkg = updatedStatus.find(p => p.name === pkg.name);
+          const installedPkg = updatedStatus.find(p => p.name === packageName);
           const pendingRestart = success && installedPkg && !installedPkg.available;
 
           // Update status after installation

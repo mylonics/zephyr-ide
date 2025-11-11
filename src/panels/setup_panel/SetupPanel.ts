@@ -141,6 +141,9 @@ export class SetupPanel {
             case "installAllMissingTools":
                 this.installAllMissingTools();
                 return;
+            case "installAllMissingToolsPackages":
+                this.installAllMissingToolsPackages(message.packageNames);
+                return;
             case "openWingetLink":
                 this.openWingetLink();
                 return;
@@ -425,16 +428,24 @@ export class SetupPanel {
 
     private async installAllMissingTools() {
         try {
-            // Get the list of missing packages
-            const statuses = await checkAllPackages();
-            const missingPackages = statuses.filter(s => !s.available);
-            
-            if (missingPackages.length === 0) {
+            // Request the webview to start installation
+            // The webview will filter out packages that are already pending restart
+            this._panel.webview.postMessage({
+                command: "hostToolsStartInstallAll",
+            });
+        } catch (error) {
+            vscode.window.showErrorMessage(`Error: ${error}`);
+        }
+    }
+
+    private async installAllMissingToolsPackages(packageNames: string[]) {
+        try {
+            if (packageNames.length === 0) {
                 vscode.window.showInformationMessage("All packages are already installed");
                 return;
             }
 
-            const totalCount = missingPackages.length;
+            const totalCount = packageNames.length;
             const packages = await getPlatformPackages();
             
             // Start installation progress
@@ -447,8 +458,8 @@ export class SetupPanel {
             let hasErrors = false;
             
             // Install each package one by one
-            for (const status of missingPackages) {
-                const pkg = packages.find(p => p.name === status.name);
+            for (const packageName of packageNames) {
+                const pkg = packages.find(p => p.name === packageName);
                 if (pkg) {
                     // Update status to installing
                     this._panel.webview.postMessage({
@@ -463,7 +474,7 @@ export class SetupPanel {
 
                     // Check if package is now available
                     const updatedStatus = await checkAllPackages();
-                    const installedPkg = updatedStatus.find(p => p.name === pkg.name);
+                    const installedPkg = updatedStatus.find(p => p.name === packageName);
                     const pendingRestart = success && installedPkg && !installedPkg.available;
 
                     // Update status after installation

@@ -4,6 +4,7 @@ const vscode = acquireVsCodeApi();
 
 // State tracking for host tools installation
 let hostToolsInstallationState = {
+    inProgress: false,
     packageStates: {} // Store state for each package (installing, pending-restart, etc.)
 };
 
@@ -38,6 +39,9 @@ window.addEventListener('message', event => {
             break;
         case 'updateHostToolsStatus':
             updateHostToolsStatus(message.data, message.error);
+            break;
+        case 'hostToolsStartInstallAll':
+            handleHostToolsStartInstallAll();
             break;
         case 'hostToolsInstallAllStarted':
             handleHostToolsInstallAllStarted(message.total);
@@ -522,7 +526,7 @@ function updateHostToolsStatus(data, error) {
     let html = '<table class="packages-table">';
     html += '<thead><tr><th>Package</th><th>Status</th><th>Action</th></tr></thead><tbody>';
     
-    let hasMissing = false;
+    let actuallyMissing = false;
     for (const pkg of data.packages) {
         // Check if this package has a saved pending-restart state
         const savedState = hostToolsInstallationState.packageStates[pkg.name];
@@ -548,7 +552,7 @@ function updateHostToolsStatus(data, error) {
             statusClass = 'error';
             statusText = '✗ Not Available';
             showInstallButton = true;
-            hasMissing = true;
+            actuallyMissing = true;
         }
         
         html += `<tr>
@@ -566,13 +570,54 @@ function updateHostToolsStatus(data, error) {
     html += '</tbody></table>';
     packagesStatus.innerHTML = html;
     
-    // Enable/disable install all button
+    // Enable/disable install all button - disable if installation in progress or no packages to install
     if (installAllBtn) {
-        installAllBtn.disabled = !hasMissing || !data.managerAvailable;
+        installAllBtn.disabled = !actuallyMissing || !data.managerAvailable || hostToolsInstallationState.inProgress;
     }
 }
 
+function handleHostToolsStartInstallAll() {
+    // Get current status and filter packages
+    const packagesStatus = document.getElementById('packages-status');
+    if (!packagesStatus) {
+        return;
+    }
+    
+    const table = packagesStatus.querySelector('.packages-table');
+    if (!table) {
+        return;
+    }
+    
+    const packagesToInstall = [];
+    const rows = table.querySelectorAll('tbody tr');
+    
+    for (const row of rows) {
+        const nameCell = row.querySelector('td:first-child strong');
+        if (!nameCell) {
+            continue;
+        }
+        
+        const packageName = nameCell.textContent.trim();
+        const savedState = hostToolsInstallationState.packageStates[packageName];
+        const isPendingRestart = savedState === 'pending-restart';
+        const isInstalling = savedState === 'installing';
+        
+        // Only install if there's an install button (meaning not available and not pending restart)
+        const installButton = row.querySelector('.button');
+        if (installButton && !isPendingRestart && !isInstalling) {
+            packagesToInstall.push(packageName);
+        }
+    }
+    
+    // Send the filtered list back to the extension
+    vscode.postMessage({
+        command: 'installAllMissingToolsPackages',
+        packageNames: packagesToInstall
+    });
+}
+
 function handleHostToolsInstallAllStarted(total) {
+    hostToolsInstallationState.inProgress = true;
     const installAllBtn = document.getElementById('install-all-btn');
     if (installAllBtn) {
         installAllBtn.disabled = true;
@@ -617,6 +662,7 @@ function handleHostToolsPackageInstalled(packageName, success, pendingRestart, c
 }
 
 function handleHostToolsInstallAllComplete(needsRestart, hasErrors) {
+    hostToolsInstallationState.inProgress = false;
     const installAllBtn = document.getElementById('install-all-btn');
     if (installAllBtn) {
         if (needsRestart) {

@@ -41,6 +41,9 @@ window.addEventListener('message', event => {
                 displayStatus(message.data);
             }
             break;
+        case 'startInstallAll':
+            handleStartInstallAll();
+            break;
         case 'installAllStarted':
             handleInstallAllStarted(message.total);
             break;
@@ -55,6 +58,31 @@ window.addEventListener('message', event => {
             break;
     }
 });
+
+function handleStartInstallAll() {
+    if (!currentStatus || installationInProgress) {
+        return;
+    }
+    
+    // Filter packages: only install those that are "Not Available" (not pending restart, not installed, not installing)
+    const packagesToInstall = [];
+    for (const pkg of currentStatus.packages) {
+        const savedState = installationState.packageStates[pkg.name];
+        const isPendingRestart = savedState === 'pending-restart';
+        const isInstalling = savedState === 'installing';
+        
+        // Only install if not available AND not pending restart AND not currently installing
+        if (!pkg.available && !isPendingRestart && !isInstalling) {
+            packagesToInstall.push(pkg.name);
+        }
+    }
+    
+    // Send the filtered list back to the extension
+    vscode.postMessage({
+        command: 'installAllMissingPackages',
+        packageNames: packagesToInstall
+    });
+}
 
 function handleInstallAllStarted(total) {
     installationInProgress = true;
@@ -248,7 +276,17 @@ function displayStatus(data) {
     
     // Display packages status
     const availableCount = data.packages.filter(p => p.available).length;
-    const missingCount = data.packages.filter(p => !p.available).length;
+    
+    // Count packages that are truly not available (excluding those pending restart)
+    let actuallyMissingCount = 0;
+    for (const pkg of data.packages) {
+        const savedState = installationState.packageStates[pkg.name];
+        const isPendingRestart = savedState === 'pending-restart';
+        if (!pkg.available && !isPendingRestart) {
+            actuallyMissingCount++;
+        }
+    }
+    
     const totalCount = data.packages.length;
     
     let packagesHtml = `
@@ -258,7 +296,7 @@ function displayStatus(data) {
                 <div class="summary-label">Available</div>
             </div>
             <div class="summary-item">
-                <div class="summary-count missing">${missingCount}</div>
+                <div class="summary-count missing">${actuallyMissingCount}</div>
                 <div class="summary-label">Not Available</div>
             </div>
             <div class="summary-item">
@@ -332,14 +370,15 @@ function displayStatus(data) {
     const installAllBtn = document.getElementById('install-all-btn');
     const markCompleteBtn = document.getElementById('mark-complete-btn');
     
-    if (missingCount > 0 && data.managerAvailable) {
+    // Disable install button if installation is in progress or no packages to install
+    if (actuallyMissingCount > 0 && data.managerAvailable && !installationInProgress) {
         installAllBtn.disabled = false;
     } else {
         installAllBtn.disabled = true;
     }
     
     // Enable "Skip & Mark as Complete" only if there are missing packages
-    if (missingCount > 0) {
+    if (actuallyMissingCount > 0) {
         markCompleteBtn.disabled = false;
     } else {
         markCompleteBtn.disabled = true;
