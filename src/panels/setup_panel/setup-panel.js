@@ -2,6 +2,12 @@
 
 const vscode = acquireVsCodeApi();
 
+// State tracking for host tools installation
+let hostToolsInstallationState = {
+    inProgress: false,
+    packageStates: {} // Store state for each package (installing, pending-restart, etc.)
+};
+
 // Navigation Functions
 function navigateToSubPage(page) {
     vscode.postMessage({
@@ -34,11 +40,20 @@ window.addEventListener('message', event => {
         case 'updateHostToolsStatus':
             updateHostToolsStatus(message.data, message.error);
             break;
-        case 'hostToolsInstallProgress':
-            showHostToolsProgress(message.message);
+        case 'hostToolsStartInstallAll':
+            handleHostToolsStartInstallAll();
             break;
-        case 'hostToolsInstallComplete':
-            hideHostToolsProgress();
+        case 'hostToolsInstallAllStarted':
+            handleHostToolsInstallAllStarted(message.total);
+            break;
+        case 'hostToolsPackageInstalling':
+            handleHostToolsPackageInstalling(message.packageName, message.current, message.total);
+            break;
+        case 'hostToolsPackageInstalled':
+            handleHostToolsPackageInstalled(message.packageName, message.success, message.pendingRestart, message.current, message.total);
+            break;
+        case 'hostToolsInstallAllComplete':
+            handleHostToolsInstallAllComplete(message.needsRestart, message.hasErrors);
             break;
         case 'westYmlContent':
             loadWestYmlContent(message.content);
@@ -511,14 +526,33 @@ function updateHostToolsStatus(data, error) {
     let html = '<table class="packages-table">';
     html += '<thead><tr><th>Package</th><th>Status</th><th>Action</th></tr></thead><tbody>';
     
-    let hasMissing = false;
+    let actuallyMissing = false;
     for (const pkg of data.packages) {
-        const available = pkg.available;
-        const statusClass = available ? 'success' : 'error';
-        const statusText = available ? '✓ Installed' : '✗ Not installed';
+        // Check if this package has a saved pending-restart state
+        const savedState = hostToolsInstallationState.packageStates[pkg.name];
+        const isPendingRestart = savedState === 'pending-restart';
+        const isInstalling = savedState === 'installing';
         
-        if (!available) {
-            hasMissing = true;
+        // Determine the actual state to display
+        let statusClass, statusText, showInstallButton;
+        
+        if (isInstalling) {
+            statusClass = 'info';
+            statusText = '<span class="codicon codicon-sync codicon-modifier-spin"></span> Installing';
+            showInstallButton = false;
+        } else if (isPendingRestart) {
+            statusClass = 'warning';
+            statusText = '<span class="codicon codicon-warning"></span> Not Available Pending Restart';
+            showInstallButton = false;
+        } else if (pkg.available) {
+            statusClass = 'success';
+            statusText = '✓ Installed';
+            showInstallButton = false;
+        } else {
+            statusClass = 'error';
+            statusText = '✗ Not Available';
+            showInstallButton = true;
+            actuallyMissing = true;
         }
         
         html += `<tr>
@@ -526,7 +560,7 @@ function updateHostToolsStatus(data, error) {
             <td><span class="${statusClass}">${statusText}</span></td>
             <td>`;
         
-        if (!available) {
+        if (showInstallButton) {
             html += `<button class="button button-small" onclick="installSinglePackage('${escapeHtml(pkg.name)}')">Install</button>`;
         }
         
@@ -536,29 +570,170 @@ function updateHostToolsStatus(data, error) {
     html += '</tbody></table>';
     packagesStatus.innerHTML = html;
     
-    // Enable/disable install all button
+    // Enable/disable install all button - disable if installation in progress or no packages to install
     if (installAllBtn) {
-        installAllBtn.disabled = !hasMissing || !data.managerAvailable;
+        installAllBtn.disabled = !actuallyMissing || !data.managerAvailable || hostToolsInstallationState.inProgress;
     }
 }
 
-function showHostToolsProgress(message) {
-    const progressSection = document.getElementById('progress-section');
-    const progressMessage = document.getElementById('progress-message');
+function handleHostToolsStartInstallAll() {
+    // Get current status and filter packages
+    const packagesStatus = document.getElementById('packages-status');
+    if (!packagesStatus) {
+        return;
+    }
     
-    if (progressSection && progressMessage) {
-        progressMessage.textContent = message;
-        progressSection.style.display = 'block';
+    const table = packagesStatus.querySelector('.packages-table');
+    if (!table) {
+        return;
+    }
+    
+    const packagesToInstall = [];
+    const rows = table.querySelectorAll('tbody tr');
+    
+    for (const row of rows) {
+        const nameCell = row.querySelector('td:first-child strong');
+        if (!nameCell) {
+            continue;
+        }
+        
+        const packageName = nameCell.textContent.trim();
+        const savedState = hostToolsInstallationState.packageStates[packageName];
+        const isPendingRestart = savedState === 'pending-restart';
+        const isInstalling = savedState === 'installing';
+        
+        // Only install if there's an install button (meaning not available and not pending restart)
+        const installButton = row.querySelector('.button');
+        if (installButton && !isPendingRestart && !isInstalling) {
+            packagesToInstall.push(packageName);
+        }
+    }
+    
+    // Send the filtered list back to the extension
+    vscode.postMessage({
+        command: 'installAllMissingToolsPackages',
+        packageNames: packagesToInstall
+    });
+}
+
+function handleHostToolsInstallAllStarted(total) {
+    hostToolsInstallationState.inProgress = true;
+    const installAllBtn = document.getElementById('install-all-btn');
+    if (installAllBtn) {
+        installAllBtn.disabled = true;
+        installAllBtn.innerHTML = `
+            <span class="codicon codicon-sync codicon-modifier-spin"></span>
+            Installing Packages (0/${total})
+        `;
     }
 }
 
-function hideHostToolsProgress() {
-    const progressSection = document.getElementById('progress-section');
-    if (progressSection) {
-        progressSection.style.display = 'none';
+function handleHostToolsPackageInstalling(packageName, current, total) {
+    // Update the button text only if installing multiple packages
+    if (total > 1) {
+        const installAllBtn = document.getElementById('install-all-btn');
+        if (installAllBtn) {
+            // Ensure values are numbers to prevent XSS
+            const currentNum = Number(current);
+            const totalNum = Number(total);
+            installAllBtn.innerHTML = `
+                <span class="codicon codicon-sync codicon-modifier-spin"></span>
+                Installing Packages (${currentNum}/${totalNum})
+            `;
+        }
     }
-    // Refresh status after installation
-    refreshHostToolsStatus();
+    
+    // Save the state and update the specific package row in the table
+    hostToolsInstallationState.packageStates[packageName] = 'installing';
+    updateHostToolsPackageStatus(packageName, 'installing');
+}
+
+function handleHostToolsPackageInstalled(packageName, success, pendingRestart, current, total) {
+    // Update and save package state
+    let state = 'error';
+    if (success && !pendingRestart) {
+        state = 'installed';
+    } else if (success && pendingRestart) {
+        state = 'pending-restart';
+    }
+    
+    hostToolsInstallationState.packageStates[packageName] = state;
+    updateHostToolsPackageStatus(packageName, state);
+}
+
+function handleHostToolsInstallAllComplete(needsRestart, hasErrors) {
+    hostToolsInstallationState.inProgress = false;
+    const installAllBtn = document.getElementById('install-all-btn');
+    if (installAllBtn) {
+        if (needsRestart) {
+            installAllBtn.innerHTML = `
+                <span class="codicon codicon-warning"></span>
+                Pending Restart
+            `;
+        } else if (hasErrors) {
+            installAllBtn.innerHTML = `
+                <span class="codicon codicon-error"></span>
+                Installation Failed
+            `;
+        } else {
+            installAllBtn.innerHTML = `
+                <span class="codicon codicon-check"></span>
+                All Packages Installed
+            `;
+        }
+        
+        // Re-enable button after a delay
+        setTimeout(() => {
+            installAllBtn.disabled = false;
+            refreshHostToolsStatus();
+        }, 2000);
+    }
+}
+
+function updateHostToolsPackageStatus(packageName, state) {
+    const packagesTable = document.querySelector('.packages-table');
+    if (!packagesTable) {
+        return;
+    }
+    
+    const rows = packagesTable.querySelectorAll('tbody tr');
+    for (const row of rows) {
+        const nameCell = row.querySelector('td:first-child strong');
+        if (nameCell && nameCell.textContent.trim() === packageName) {
+            const statusCell = row.querySelector('td:nth-child(2)');
+            const actionCell = row.querySelector('td:nth-child(3)');
+            
+            if (!statusCell) {
+                continue;
+            }
+            
+            // Update status text and style
+            switch (state) {
+                case 'installing':
+                    statusCell.innerHTML = '<span class="info"><span class="codicon codicon-sync codicon-modifier-spin"></span> Installing</span>';
+                    if (actionCell) {
+                        actionCell.innerHTML = '';
+                    }
+                    break;
+                case 'installed':
+                    statusCell.innerHTML = '<span class="success">✓ Installed</span>';
+                    if (actionCell) {
+                        actionCell.innerHTML = '';
+                    }
+                    break;
+                case 'pending-restart':
+                    statusCell.innerHTML = '<span class="warning"><span class="codicon codicon-warning"></span> Not Available Pending Restart</span>';
+                    if (actionCell) {
+                        actionCell.innerHTML = '';
+                    }
+                    break;
+                case 'error':
+                    statusCell.innerHTML = '<span class="error">✗ Installation Failed</span>';
+                    break;
+            }
+            break;
+        }
+    }
 }
 
 // Message Listener

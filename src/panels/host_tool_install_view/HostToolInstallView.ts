@@ -85,10 +85,6 @@ export class HostToolInstallView {
             </button>
           </div>
         </div>
-
-        <div id="progress-section" class="manager-section" style="display: none;">
-          <div class="progress-message" id="progress-message">Processing...</div>
-        </div>
       </div>
     `;
   }
@@ -175,6 +171,9 @@ export class HostToolInstallView {
         break;
       case "installAllMissing":
         await this.installAllMissing();
+        break;
+      case "installAllMissingPackages":
+        await this.installAllMissingPackages(message.packageNames);
         break;
       case "markComplete":
         await this.markHostToolsComplete();
@@ -267,22 +266,33 @@ export class HostToolInstallView {
         return;
       }
 
+      // Update status to installing
       this._panel.webview.postMessage({
-        command: "installProgress",
-        message: `Installing ${packageName}...`,
+        command: "packageInstalling",
+        packageName: packageName,
+        current: 1,
+        total: 1,
       });
 
       const success = await installPackage(pkg);
 
+      // Check if package is now available
+      const packageStatuses = await checkAllPackages();
+      const installedPkg = packageStatuses.find(p => p.name === packageName);
+      const pendingRestart = success && installedPkg && !installedPkg.available;
+
+      // Update status after installation
+      this._panel.webview.postMessage({
+        command: "packageInstalled",
+        packageName: packageName,
+        success: success,
+        pendingRestart: pendingRestart,
+        current: 1,
+        total: 1,
+      });
+
       if (success) {
-        // Re-check the package status to see if it's available
-        await this.checkStatus();
-        
-        // Get the updated status
-        const packageStatuses = await checkAllPackages();
-        const installedPkg = packageStatuses.find(p => p.name === packageName);
-        
-        if (installedPkg && !installedPkg.available) {
+        if (pendingRestart) {
           vscode.window.showWarningMessage(
             `${packageName} was installed but is not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect.`
           );
@@ -296,45 +306,108 @@ export class HostToolInstallView {
           `Failed to install ${packageName}. Check output for details.`
         );
       }
-
-      this._panel.webview.postMessage({
-        command: "installComplete",
-      });
     } catch (error) {
       vscode.window.showErrorMessage(`Error: ${error}`);
-      this._panel.webview.postMessage({
-        command: "installComplete",
-      });
     }
   }
 
   private async installAllMissing() {
     try {
+      // Request the webview to start installation
+      // The webview will filter out packages that are already pending restart
       this._panel.webview.postMessage({
-        command: "installProgress",
-        message: "Installing all missing packages...",
+        command: "startInstallAll",
+      });
+    } catch (error) {
+      vscode.window.showErrorMessage(`Error: ${error}`);
+    }
+  }
+
+  private async installAllMissingPackages(packageNames: string[]) {
+    try {
+      if (packageNames.length === 0) {
+        vscode.window.showInformationMessage("All packages are already installed");
+        return;
+      }
+
+      const totalCount = packageNames.length;
+      const packages = await getPlatformPackages();
+      
+      // Start installation progress
+      this._panel.webview.postMessage({
+        command: "installAllStarted",
+        total: totalCount,
       });
 
-      await installAllMissingPackages();
-      await this.checkStatus();
+      let installedCount = 0;
+      let hasErrors = false;
+      
+      // Install each package one by one
+      for (const packageName of packageNames) {
+        const pkg = packages.find(p => p.name === packageName);
+        if (pkg) {
+          // Update status to installing
+          this._panel.webview.postMessage({
+            command: "packageInstalling",
+            packageName: pkg.name,
+            current: installedCount + 1,
+            total: totalCount,
+          });
+
+          const success = await installPackage(pkg);
+          installedCount++;
+
+          // Check if package is now available
+          const updatedStatus = await checkAllPackages();
+          const installedPkg = updatedStatus.find(p => p.name === packageName);
+          const pendingRestart = success && installedPkg && !installedPkg.available;
+
+          // Update status after installation
+          this._panel.webview.postMessage({
+            command: "packageInstalled",
+            packageName: pkg.name,
+            success: success,
+            pendingRestart: pendingRestart,
+            current: installedCount,
+            total: totalCount,
+          });
+
+          if (!success) {
+            hasErrors = true;
+          }
+        }
+      }
       
       // Check if any packages still aren't available after installation
       const packageStatuses = await checkAllPackages();
       const needsRestart = packageStatuses.some(p => !p.available);
       
+      // Complete installation
+      this._panel.webview.postMessage({
+        command: "installAllComplete",
+        needsRestart: needsRestart,
+        hasErrors: hasErrors,
+      });
+
       if (needsRestart) {
         vscode.window.showWarningMessage(
           "Some packages were installed but are not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect."
         );
+      } else if (!hasErrors) {
+        vscode.window.showInformationMessage(
+          "All missing packages installed successfully."
+        );
+      } else {
+        vscode.window.showWarningMessage(
+          "Some host tools failed to install. Check the output for details."
+        );
       }
-
-      this._panel.webview.postMessage({
-        command: "installComplete",
-      });
     } catch (error) {
       vscode.window.showErrorMessage(`Error: ${error}`);
       this._panel.webview.postMessage({
-        command: "installComplete",
+        command: "installAllComplete",
+        needsRestart: false,
+        hasErrors: true,
       });
     }
   }
@@ -444,10 +517,6 @@ export class HostToolInstallView {
                         ✓ Skip & Mark as Complete
                     </button>
                 </div>
-            </div>
-
-            <div id="progress-section" class="section" style="display: none;">
-                <div class="progress-message" id="progress-message">Processing...</div>
             </div>
         </div>
         <script src="${jsUri}"></script>

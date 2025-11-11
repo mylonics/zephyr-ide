@@ -141,6 +141,9 @@ export class SetupPanel {
             case "installAllMissingTools":
                 this.installAllMissingTools();
                 return;
+            case "installAllMissingToolsPackages":
+                this.installAllMissingToolsPackages(message.packageNames);
+                return;
             case "openWingetLink":
                 this.openWingetLink();
                 return;
@@ -342,11 +345,6 @@ export class SetupPanel {
 
     private async installPackageManager() {
         try {
-            this._panel.webview.postMessage({
-                command: "hostToolsInstallProgress",
-                message: "Installing package manager...",
-            });
-
             const success = await installPackageManager();
 
             if (success) {
@@ -368,76 +366,165 @@ export class SetupPanel {
                     "Failed to install package manager. Check output for details."
                 );
             }
-
-            this._panel.webview.postMessage({
-                command: "hostToolsInstallComplete",
-            });
         } catch (error) {
             vscode.window.showErrorMessage(`Error: ${error}`);
-            this._panel.webview.postMessage({
-                command: "hostToolsInstallComplete",
-            });
         }
     }
 
     private async installPackage(packageName: string) {
         try {
-            this._panel.webview.postMessage({
-                command: "hostToolsInstallProgress",
-                message: `Installing ${packageName}...`,
-            });
-
             const platformPackages = await getPlatformPackages();
             const pkg = platformPackages.find(p => p.name === packageName);
 
             if (!pkg) {
                 vscode.window.showErrorMessage(`Package ${packageName} not found`);
-                this._panel.webview.postMessage({
-                    command: "hostToolsInstallComplete",
-                });
                 return;
             }
 
-            await installPackage(pkg);
-            await this.checkHostToolsStatus();
-
+            // Update status to installing
             this._panel.webview.postMessage({
-                command: "hostToolsInstallComplete",
+                command: "hostToolsPackageInstalling",
+                packageName: packageName,
+                current: 1,
+                total: 1,
             });
+
+            const success = await installPackage(pkg);
+
+            // Check if package is now available
+            const packageStatuses = await checkAllPackages();
+            const installedPkg = packageStatuses.find(p => p.name === packageName);
+            const pendingRestart = success && installedPkg && !installedPkg.available;
+
+            // Update status after installation
+            this._panel.webview.postMessage({
+                command: "hostToolsPackageInstalled",
+                packageName: packageName,
+                success: success,
+                pendingRestart: pendingRestart,
+                current: 1,
+                total: 1,
+            });
+
+            if (success) {
+                if (pendingRestart) {
+                    vscode.window.showWarningMessage(
+                        `${packageName} was installed but is not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect.`
+                    );
+                } else {
+                    vscode.window.showInformationMessage(
+                        `${packageName} installed successfully.`
+                    );
+                }
+            } else {
+                vscode.window.showErrorMessage(
+                    `Failed to install ${packageName}. Check output for details.`
+                );
+            }
         } catch (error) {
             vscode.window.showErrorMessage(`Error: ${error}`);
-            this._panel.webview.postMessage({
-                command: "hostToolsInstallComplete",
-            });
         }
     }
 
     private async installAllMissingTools() {
         try {
+            // Request the webview to start installation
+            // The webview will filter out packages that are already pending restart
             this._panel.webview.postMessage({
-                command: "hostToolsInstallProgress",
-                message: "Installing all missing packages...",
+                command: "hostToolsStartInstallAll",
+            });
+        } catch (error) {
+            vscode.window.showErrorMessage(`Error: ${error}`);
+        }
+    }
+
+    private async installAllMissingToolsPackages(packageNames: string[]) {
+        try {
+            if (packageNames.length === 0) {
+                vscode.window.showInformationMessage("All packages are already installed");
+                return;
+            }
+
+            const totalCount = packageNames.length;
+            const packages = await getPlatformPackages();
+            
+            // Start installation progress
+            this._panel.webview.postMessage({
+                command: "hostToolsInstallAllStarted",
+                total: totalCount,
             });
 
-            await installAllMissingPackages();
-            await this.checkHostToolsStatus();
+            let installedCount = 0;
+            let hasErrors = false;
+            
+            // Install each package one by one
+            for (const packageName of packageNames) {
+                const pkg = packages.find(p => p.name === packageName);
+                if (pkg) {
+                    // Update status to installing
+                    this._panel.webview.postMessage({
+                        command: "hostToolsPackageInstalling",
+                        packageName: pkg.name,
+                        current: installedCount + 1,
+                        total: totalCount,
+                    });
 
+                    const success = await installPackage(pkg);
+                    installedCount++;
+
+                    // Check if package is now available
+                    const updatedStatus = await checkAllPackages();
+                    const installedPkg = updatedStatus.find(p => p.name === packageName);
+                    const pendingRestart = success && installedPkg && !installedPkg.available;
+
+                    // Update status after installation
+                    this._panel.webview.postMessage({
+                        command: "hostToolsPackageInstalled",
+                        packageName: pkg.name,
+                        success: success,
+                        pendingRestart: pendingRestart,
+                        current: installedCount,
+                        total: totalCount,
+                    });
+
+                    if (!success) {
+                        hasErrors = true;
+                    }
+                }
+            }
+            
+            // Check if any packages still aren't available after installation
             const packageStatuses = await checkAllPackages();
             const needsRestart = packageStatuses.some(p => !p.available);
+            
+            // Complete installation
+            this._panel.webview.postMessage({
+                command: "hostToolsInstallAllComplete",
+                needsRestart: needsRestart,
+                hasErrors: hasErrors,
+            });
 
             if (needsRestart) {
                 vscode.window.showWarningMessage(
                     "Some packages were installed but are not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect."
                 );
+            } else if (!hasErrors) {
+                vscode.window.showInformationMessage(
+                    "All missing packages installed successfully."
+                );
+            } else {
+                vscode.window.showWarningMessage(
+                    "Some host tools failed to install. Check the output for details."
+                );
             }
 
-            this._panel.webview.postMessage({
-                command: "hostToolsInstallComplete",
-            });
+            await this.checkHostToolsStatus();
         } catch (error) {
             vscode.window.showErrorMessage(`Error: ${error}`);
             this._panel.webview.postMessage({
-                command: "hostToolsInstallComplete",
+                command: "hostToolsInstallAllComplete",
+                needsRestart: false,
+                hasErrors: true,
             });
         }
     }

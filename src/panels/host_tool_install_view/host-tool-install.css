@@ -105,6 +105,16 @@ h2 {
     color: #ff6400;
 }
 
+.status-installing {
+    background-color: rgba(0, 150, 255, 0.2);
+    color: #0096ff;
+}
+
+.status-pending-restart {
+    background-color: rgba(255, 165, 0, 0.2);
+    color: #ffa500;
+}
+
 .package-list {
     display: grid;
     gap: 10px;
@@ -127,6 +137,16 @@ h2 {
 
 .package-item.missing {
     border-left: 3px solid rgba(255, 100, 0, 0.5);
+}
+
+.package-item.installing {
+    border-left: 3px solid rgba(0, 150, 255, 0.5);
+    background-color: rgba(0, 150, 255, 0.05);
+}
+
+.package-item.pending-restart {
+    border-left: 3px solid rgba(255, 165, 0, 0.5);
+    background-color: rgba(255, 165, 0, 0.05);
 }
 
 .package-info {
@@ -243,4 +263,15 @@ h2 {
 .summary-label {
     font-size: 12px;
     color: var(--vscode-descriptionForeground);
+}
+
+/* Animation for spinning icons */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.codicon-modifier-spin {
+    animation: spin 1s linear infinite;
+    display: inline-block;
 }

@@ -50,6 +50,8 @@ export interface PackageStatus {
   name: string;
   package: string;
   available: boolean;
+  installing?: boolean;
+  pendingRestart?: boolean;
   error?: string;
 }
 
