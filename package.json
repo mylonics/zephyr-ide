@@ -2,7 +2,7 @@
   "name": "zephyr-ide",
   "displayName": "Zephyr IDE",
   "description": "A VS Code extension that streamlines setup, build, flashing, and debugging of Zephyr Projects",
-  "version": "2.0.6",
+  "version": "2.1.0",
   "license": "Apache-2.0",
   "publisher": "mylonics",
   "icon": "media/logo.png",
@@ -61,6 +61,13 @@
           ],
           "default": false,
           "description": "If true, uses 'west update --narrow'. If false, uses 'west update' without --narrow."
+        },
+        "zephyr-ide.suppress-workspace-warning": {
+          "type": [
+            "boolean"
+          ],
+          "default": false,
+          "description": "If true, suppresses the warning about missing workspace environment variables (ZEPHYR_BASE, ZEPHYR_SDK_INSTALL_DIR)."
         }
       }
     },
@@ -103,6 +110,16 @@
           "when": "view == zephyrIdeProjects"
         },
         {
+          "command": "zephyr-ide.create-new-west-workspace",
+          "group": "navigation",
+          "when": "view == zephyrIdeWestWorkspaces"
+        },
+        {
+          "command": "zephyr-ide.refresh-west-workspaces",
+          "group": "navigation",
+          "when": "view == zephyrIdeWestWorkspaces"
+        },
+        {
           "command": "zephyr-ide.disable-automatic-project-target",
           "when": "view == zephyrIdeActiveProject"
         },
@@ -119,6 +136,13 @@
           "name": "Zephyr IDE and Workspace Setup",
           "icon": "media/logo_small.jpg",
           "contextualTitle": "Zephyr IDE",
+          "type": "webview"
+        },
+        {
+          "id": "zephyrIdeWestWorkspaces",
+          "name": "West Workspaces",
+          "icon": "media/logo_small.jpg",
+          "contextualTitle": "Zephyr IDE West Workspaces",
           "type": "webview"
         },
         {
@@ -172,6 +196,16 @@
       {
         "command": "zephyr-ide.west-update",
         "title": "Zephyr IDE: West Update"
+      },
+      {
+        "command": "zephyr-ide.create-new-west-workspace",
+        "title": "Zephyr IDE: Create New West Workspace",
+        "icon": "$(add)"
+      },
+      {
+        "command": "zephyr-ide.refresh-west-workspaces",
+        "title": "Zephyr IDE: Refresh West Workspaces",
+        "icon": "$(refresh)"
       },
       {
         "command": "zephyr-ide.reset-workspace",
@@ -402,6 +436,10 @@
         "title": "Zephyr IDE: Open Setup Panel"
       },
       {
+        "command": "zephyr-ide.open-host-tools-panel",
+        "title": "Zephyr IDE: Host Tools Installation"
+      },
+      {
         "command": "zephyr-ide.workspace-setup-picker",
         "title": "Zephyr IDE: Workspace Setup"
       },
@@ -424,6 +462,10 @@
       {
         "command": "zephyr-ide.west-config",
         "title": "Zephyr IDE: West Config"
+      },
+      {
+        "command": "zephyr-ide.select-existing-west-workspace",
+        "title": "Zephyr IDE: Select Existing West Workspace"
       }
     ],
     "terminal": {
@@ -610,7 +652,8 @@
     "pretest": "npm run compile && npm run esbuild && npm run lint",
     "lint": "eslint src --ext ts",
     "test": "vscode-test",
-    "detect-unused": "node scripts/detect-unused-code.js"
+    "detect-unused": "node scripts/detect-unused-code.js",
+    "version": "npx auto-changelog -p && git add CHANGELOG.md"
   },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
@@ -631,6 +674,7 @@
     "@vscode-elements/elements": "^1.2.0",
     "@vscode/codicons": "^0.0.35",
     "7zip-bin": "^5.2.0",
+    "auto-changelog": "^2.5.0",
     "compare-versions": "^6.1.0",
     "devicetree-language-server-vscode-types": "^0.0.1-alpha.6",
     "fs-extra": "^11.2.0",
@@ -638,6 +682,7 @@
     "node-7z": "^3.0.0",
     "node-stream-zip": "^1.15.0",
     "replace-in-file": "^7.1.0",
-    "typed-rest-client": "^1.8.11"
+    "typed-rest-client": "^1.8.11",
+    "vscode-languageclient": "^9.0.1"
   }
 }

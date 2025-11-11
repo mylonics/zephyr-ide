@@ -14,52 +14,175 @@ This major release includes enhanced workspace setup capabilities:
 
 
 ## Getting Started
-Open the extension in a workspace folder. \
-Under the extension setup panel you will be presented with a few options on which folder to setup Zephyr/West in:
 
-![New Workspace](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/new_workspace.png)
+### Opening the Zephyr IDE Setup Panel
 
-- **Workspace** - Use this option to setup west and install Zephyr into the current workspace directory.\
-- **Global** - Use this option if you want to use a global Zephyr setup located in the Zephyr IDE folder \
-- **External** - Use this option if you have Zephyr setup in another directory and want to use that  
+When you first open a workspace in VS Code with Zephyr IDE installed, you can access the Setup Panel through:
+- The **Zephyr IDE** sidebar activity bar icon
+- Command Palette: `Zephyr IDE: Setup Workspace`
+- The Extension Setup View panel
 
-The folder selected will house the west.yml, .west folder, zephyr folder and python environment.
+The Setup Panel is the central hub for configuring your Zephyr development environment. It provides a card-based interface with three main areas:
 
-Once the setup location is selected, the IDE will then provide a series of commands to run.
+### Setup Panel Overview
 
-![Extension Setup](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/extension_setup.png)
+The Setup Panel presents three configuration cards:
 
-Each command may be run individually or triggered all at once with the Initialize Workspace button.
+![Setup Panel Overview](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/setup_panel.png)
 
-### Check Build Dependencies
-This command checks if the appropriate build dependencies are installed and can now automatically install missing dependencies where possible.
+1. **🔧 Host Tools** - Install and verify build tools required for Zephyr development
+2. **📦 Zephyr SDK Management** - Install and manage Zephyr SDK for different architectures
+3. **🗂️ Workspace** - Configure west workspace and Zephyr project dependencies
 
-For this application to work correctly the Zephyr required build tools must be installed and available on the path. These include cmake, python3, and Devicetree Compiler. The v2.0.0 update includes enhanced dependency checking and automated installation capabilities.
+### Host Tools Setup
 
-See the [Install Dependencies Section of the Zephyr Getting Started Guide](https://docs.zephyrproject.org/latest/develop/getting_started/index.html#install-dependencies)
+![Host Tools Installation](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/host_tool_install.png)
 
-For ubuntu please also install python3-venv by ```sudo apt install python3-venv```
 
-For macos there have been some reports of the python virtual environment not being enabled with zsh. It may be necessary to install the "Python Environment Manager" extension. That extension automatically automatically enables the python venv if the ".venv folder exist.
+Click the **Host Tools** card to access the Host Tools sub-page. This page helps you:
 
-### Setup West Environment
-This creates the python environment and installs west.
-### Install SDK
-This command uses the new West SDK integration to allow users to specify which SDK to install. The v2.0.0 update provides improved SDK management with better version selection and installation processes. If you are new and unsure which one you need you should select the latest and you can select all available SDKs.
-This command only needs to be done once per computer.
-### West Init
-This command creates/uses a west.yml file or clones a git repository to setup the folder. 
-This command provides a menu to help you choose what you to install with Zephyr. A full install will have all the features but will take longer to download, so a minimal install is recommended.
+- **Check installed tools**: The extension verifies that required build dependencies are available on your PATH, including:
+  - CMake (build system)
+  - Python3 (scripting and tools)
+  - Devicetree Compiler (DTC)
+  - gcc
 
-![West Init](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/west_init.png)
+- **Automated installation**: On supported platforms, the extension can automatically install missing dependencies using your system's package manager
 
-The folder structure now will look like this:
+- **Manual installation guide**: Links to the [Zephyr Getting Started Guide](https://docs.zephyrproject.org/latest/develop/getting_started/index.html#install-dependencies) for manual installation
 
-![West Structure](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/west_structure.png)
+### Zephyr SDK Installation
 
-The command has created a west.yml file in the application folder. In this example, it is a minimal file that supports STM32 and RPI Pico. In addition, the Zephyr install will be in the external folder as seen by path-prefix. The west init command has also been run as seen by the .west folder and .west/config file being present.
-### West Update
-This command will install the remaining python requirements and clones the remote repository into the location.
+![SDK Management](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/sdk_management.png)
+
+Click the **Zephyr SDK Management** card to access SDK installation. The SDK provides cross-compilation toolchains for various architectures (ARM, x86, RISC-V, etc.).
+
+**New in v2.0**: The extension now uses West's SDK integration for improved version management:
+- Select which SDK versions to install
+- Install multiple SDKs for different architectures
+- Manage SDK updates through the extension
+
+**For new users**: Select the latest SDK version and install all available architectures. You can add specific architectures later if storage is a concern.
+
+**Note**: SDK installation is a one-time process per computer and can be shared across multiple projects. SDK installation uses the west SDK command, so a west workspace needs to be configured before SDK management can occur.
+
+### Workspace Configuration
+
+![Unconfigured Workspace Panel](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/unconfigured_workspace_panel.png)
+
+Click the **Workspace** card to configure your west workspace. You have several options:
+
+1. **Import from Git (Zephyr IDE workspace)** - Clone a repository that contains a pre-configured Zephyr IDE workspace setup
+
+2. **Import from Git (West workspace)** - Clone a west-based Zephyr repository from Git
+
+3. **New Standard Workspace** - Create a fresh workspace in the current folder with:
+   - Python virtual environment setup
+   - West installation
+   - Zephyr repository initialization
+   - Optional: Choose between minimal or full Zephyr installation (minimal is recommended for faster setup)
+
+4. **Initialize Current Directory** - Use the current folder as a west workspace if it already contains a west configuration
+
+**Workspace Setup Process:**
+
+When setting up a new workspace, the extension will:
+
+1. **Setup West Environment**: Create a Python virtual environment and install west
+2. **West Init**: Initialize the workspace with a west.yml manifest file
+3. **West Update**: Clone Zephyr and its dependencies into the workspace
+
+The folder structure after setup will typically look like:
+```
+workspace/
+├── .west/              # West configuration
+├── .venv/              # Python virtual environment
+├── zephyr/             # Zephyr RTOS source
+├── modules/            # Zephyr modules and dependencies
+└── your-app/           # Your application folder (with west.yml)
+```
+
+### Workspace Setup Options
+
+During workspace initialization, you can choose:
+- **Installation type**: Minimal (recommended, faster) or Full (all features)
+- **Board support**: Select specific board vendors (e.g., STM32, Nordic, ESP32, Raspberry Pi Pico)
+- **Path prefix**: Where Zephyr and modules will be installed relative to your application
+
+The west.yml file controls what gets installed. A minimal configuration only includes Zephyr and essential HALs, while a full installation includes all available modules.
+
+Once configured, the workspace panel will display your workspace information and allow you to directly update the west.yml file:
+
+![Configured Workspace Panel](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/configured_workspace_panel.png)
+
+## Using Externally Managed Environments
+
+**New in v2.0**: Zephyr IDE now automatically detects and works with externally managed Zephyr environments!
+
+If you already have Zephyr installed outside of Zephyr IDE (e.g., through Docker, a DevContainer, manual installation, or another workspace manager), the extension will automatically detect and use your existing installation through environment variables.
+
+### How It Works
+
+When Zephyr IDE starts and no workspace is actively configured:
+
+1. **Automatic Detection**: The extension checks for the `ZEPHYR_BASE` environment variable
+2. **Environment Warning**: If neither `ZEPHYR_BASE` nor `ZEPHYR_SDK_INSTALL_DIR` is set, a warning appears with three options:
+   - **Continue**: Proceed using system environment variables (commands may still work if tools are in PATH)
+   - **Don't Show Again**: Suppress this warning for the current workspace
+   - **Setup Workspace**: Open the Setup Panel to configure a workspace
+
+
+### Setting Up Environment Variables
+
+To use an externally managed environment:
+
+1. **Set the environment variable** in your shell profile (`.bashrc`, `.zshrc`, etc.):
+   ```bash
+   export ZEPHYR_BASE=/path/to/zephyrproject/zephyr
+   export ZEPHYR_SDK_INSTALL_DIR=/path/to/zephyr-sdk  # optional
+   ```
+
+2. **Start VS Code** from a terminal that has these variables set:
+   ```bash
+   code /path/to/your/project
+   ```
+
+3. **Verify**: All Zephyr IDE commands will use your environment-based setup
+
+### Suppressing the Environment Warning
+
+If you prefer to work without setting `ZEPHYR_BASE` (e.g., using west commands directly), you can suppress the warning:
+
+**Option 1**: Click **"Don't Show Again"** when the warning appears
+
+**Option 2**: Manually add to `.vscode/settings.json`:
+```json
+{
+  "zephyr-ide.suppress-workspace-warning": true
+}
+```
+
+This setting prevents the warning from appearing, allowing you to work with system tools without additional prompts.
+
+### Use Cases
+
+Externally managed environments are perfect for:
+
+- **Docker/DevContainer workflows**: Environment variables are pre-configured in your container
+- **CI/CD pipelines**: Build with pre-installed Zephyr in automated environments
+- **Shared development environments**: Teams using a common Zephyr installation
+- **Manual installations**: You've installed Zephyr following the official Zephyr Getting Started guide
+- **Multiple projects**: Share one Zephyr installation across multiple project workspaces
+
+### How the Extension Handles Externally Managed Environments
+
+When `ZEPHYR_BASE` is set, the extension:
+- Assumes west and required packages are already installed in the environment
+- Uses the detected Zephyr installation for all build operations
+- Allows all commands (build, flash, debug) to run without workspace-specific configuration
+- Shows a warning if environment variables are missing (unless suppressed with the setting above)
+
+This approach provides maximum flexibility for developers who manage their own Zephyr installations while still offering guided setup for those who prefer IDE-managed workspaces.
 
 
 ## Setting Up A Project

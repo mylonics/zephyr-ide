@@ -32,7 +32,74 @@ let platform: NodeJS.Platform = os.platform();
 // Arch
 let arch: string = os.arch();
 
+// Cache for remote platform detection
+let remotePlatformCache: string | undefined = undefined;
+let remotePlatformDetected = false;
+
+/**
+ * Detect the actual platform when running in a remote environment (WSL, SSH, etc.)
+ * This is necessary because os.platform() returns the local OS, not the remote OS
+ */
+async function detectRemotePlatform(): Promise<string | undefined> {
+  if (remotePlatformDetected) {
+    return remotePlatformCache;
+  }
+
+  remotePlatformDetected = true;
+
+  try {
+    // Check if we're in a remote environment
+    const remoteName = vscode.env.remoteName;
+    if (!remoteName) {
+      // Not in a remote environment, use local platform
+      remotePlatformCache = undefined;
+      return undefined;
+    }
+
+    // We're in a remote environment, detect the actual OS
+    // Run uname to detect the OS (works on Linux/macOS)
+    const result = await executeShellCommand("uname -s", "", false);
+    if (result.stdout) {
+      const uname = result.stdout.trim().toLowerCase();
+      if (uname === "linux") {
+        remotePlatformCache = "linux";
+        return "linux";
+      } else if (uname === "darwin") {
+        remotePlatformCache = "darwin";
+        return "darwin";
+      }
+    }
+
+    // If uname fails, try to detect Windows (though unlikely in remote)
+    const winResult = await executeShellCommand("ver", "", false);
+    if (winResult.stdout && winResult.stdout.toLowerCase().includes("windows")) {
+      remotePlatformCache = "win32";
+      return "win32";
+    }
+  } catch (error) {
+    // If detection fails, log and fall back to local platform
+    output.appendLine(`[PLATFORM] Remote platform detection failed: ${error}`);
+  }
+
+  remotePlatformCache = undefined;
+  return undefined;
+}
+
 export function getPlatformName() {
+  // For remote environments, we need to detect asynchronously
+  // This synchronous function will return the cached value if available
+  if (remotePlatformCache !== undefined) {
+    switch (remotePlatformCache) {
+      case "darwin":
+        return "macos";
+      case "linux":
+        return "linux";
+      case "win32":
+        return "windows";
+    }
+  }
+
+  // Fall back to local platform
   switch (platform) {
     case "darwin":
       return "macos";
@@ -42,6 +109,26 @@ export function getPlatformName() {
       return "windows";
   }
   return;
+}
+
+/**
+ * Async version of getPlatformName that detects remote platform
+ */
+export async function getPlatformNameAsync(): Promise<string | undefined> {
+  const remotePlatform = await detectRemotePlatform();
+  if (remotePlatform !== undefined) {
+    switch (remotePlatform) {
+      case "darwin":
+        return "macos";
+      case "linux":
+        return "linux";
+      case "win32":
+        return "windows";
+    }
+  }
+
+  // Fall back to local platform
+  return getPlatformName();
 }
 
 export function getPlatformArch() {
@@ -227,21 +314,31 @@ export function reloadEnvironmentVariables(context: vscode.ExtensionContext, set
   context.environmentVariableCollection.persistent = false;
   context.environmentVariableCollection.clear();
 
-  context.environmentVariableCollection.description = "Zephyr IDE adds `ZEPHYR_SDK_INSTALL_DIR`";
-  context.environmentVariableCollection.replace("ZEPHYR_SDK_INSTALL_DIR", getToolchainDir(), { applyAtProcessCreation: true, applyAtShellIntegration: true });
+  // If no setup state, use system environment variables
+  if (!setupState) {
+    context.environmentVariableCollection.description = "Using system environment variables";
+    return;
+  }
 
-  if (setupState) {
-    if (setupState.env["VIRTUAL_ENV"]) {
-      context.environmentVariableCollection.description += ", `VIRTUAL_ENV`";
-      context.environmentVariableCollection.replace("VIRTUAL_ENV", setupState.env["VIRTUAL_ENV"], { applyAtProcessCreation: true, applyAtShellIntegration: true });
-    }
+  // If setup state exists, IDE will always manage environment variables (no distinction between IDE-managed and external setups)
+  // Only set ZEPHYR_SDK_INSTALL_DIR if not already set by user
+  if (process.env.ZEPHYR_SDK_INSTALL_DIR) {
+    context.environmentVariableCollection.description = "Using user-defined `ZEPHYR_SDK_INSTALL_DIR`";
+  } else {
+    context.environmentVariableCollection.description = "Zephyr IDE adds `ZEPHYR_SDK_INSTALL_DIR`";
+    context.environmentVariableCollection.replace("ZEPHYR_SDK_INSTALL_DIR", getToolchainDir(), { applyAtProcessCreation: true, applyAtShellIntegration: true });
+  }
 
-    if (setupState.env["PATH"]) {
-      context.environmentVariableCollection.description += ", `Python .venv PATH`";
-      context.environmentVariableCollection.prepend("PATH", setupState.env["PATH"], { applyAtProcessCreation: true, applyAtShellIntegration: true });
-      context.environmentVariableCollection.description += ", `ZEPHYR_BASE`";
-      context.environmentVariableCollection.replace("ZEPHYR_BASE", setupState.zephyrDir, { applyAtProcessCreation: true, applyAtShellIntegration: true });
-    }
+  if (setupState.env["VIRTUAL_ENV"]) {
+    context.environmentVariableCollection.description += ", `VIRTUAL_ENV`";
+    context.environmentVariableCollection.replace("VIRTUAL_ENV", setupState.env["VIRTUAL_ENV"], { applyAtProcessCreation: true, applyAtShellIntegration: true });
+  }
+
+  if (setupState.env["PATH"]) {
+    context.environmentVariableCollection.description += ", `Python .venv PATH`";
+    context.environmentVariableCollection.prepend("PATH", setupState.env["PATH"], { applyAtProcessCreation: true, applyAtShellIntegration: true });
+    context.environmentVariableCollection.description += ", `ZEPHYR_BASE`";
+    context.environmentVariableCollection.replace("ZEPHYR_BASE", setupState.zephyrDir, { applyAtProcessCreation: true, applyAtShellIntegration: true });
   }
 }
 

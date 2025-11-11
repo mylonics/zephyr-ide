@@ -12,6 +12,7 @@ You can read a little bit more about the motivation behind the project [here](ht
   - Sets up a west environment
   - Installs the Zephyr SDK using West SDK commands
   - Provides west.yml templates to start with or you can provide your own
+  - **Automatic detection of externally managed environments** via `ZEPHYR_BASE` environment variable
   - Allows you to add projects from scratch or from templates
   - Create multiple projects
   - For each project, you can create multiple builds
@@ -35,6 +36,23 @@ This extension includes tools to help maintain code quality:
   - Available via command palette: "Zephyr IDE: Detect Unused Code"  
   - Also available via npm script: `npm run detect-unused`
   - See [detailed documentation](docs/unused-code-detection.md) for more information
+
+## Externally Managed Environments
+
+Zephyr IDE automatically detects and works with externally managed Zephyr environments:
+
+- **Automatic detection** via `ZEPHYR_BASE` environment variable
+- **No setup required** when using Docker, DevContainers, or pre-configured environments
+- **Full feature support** including build, flash, and debug operations
+- **Configurable warning**: Option to suppress environment variable warnings via `zephyr-ide.suppress-workspace-warning` setting
+
+Perfect for:
+- Docker/container workflows
+- CI/CD pipelines
+- Shared development environments
+- Pre-installed Zephyr setups
+
+See the [User Manual](docs/MANUAL.md#using-externally-managed-environments) for detailed information.
 
 
 ## Getting Started

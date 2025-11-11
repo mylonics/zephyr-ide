@@ -20,7 +20,7 @@ import * as os from "os";
 import * as fs from "fs-extra";
 import * as path from "path";
 import { getPlatformName } from "../utilities/utils";
-import { WorkspaceConfig } from "./types";
+import { WorkspaceConfig, SetupState } from "./types";
 
 function projectLoader(config: WorkspaceConfig, projects: any) {
   config.projects = {};
@@ -197,4 +197,94 @@ export function getToolsDir() {
 
 export function getToolchainDir() {
   return path.join(getToolsDir(), "toolchains");
+}
+
+/**
+ * Create a SetupState from environment variables if they exist
+ * This allows the extension to work with externally-managed Zephyr environments
+ * @returns SetupState if ZEPHYR_BASE is set, undefined otherwise
+ */
+export function getEnvironmentSetupState(): SetupState {
+  let zephyrBase = process.env.ZEPHYR_BASE;
+
+  if (!zephyrBase) {
+    zephyrBase = "";
+  }
+
+  // Create a setup state based on environment variables
+  const setupState: SetupState = {
+    pythonEnvironmentSetup: true,
+    westUpdated: true, // Assume west is already set up in external environment
+    packagesInstalled: true, // Assume packages are already installed in external environment
+    zephyrDir: zephyrBase,
+    zephyrVersion: undefined, // Will be determined later if needed
+    env: {},
+    setupPath: path.dirname(zephyrBase), // Use parent directory of ZEPHYR_BASE
+  };
+
+  return setupState;
+}
+
+/**
+ * Check if required Zephyr environment variables are present
+ * @returns true if either ZEPHYR_BASE or ZEPHYR_SDK_INSTALL_DIR is set, false otherwise
+ */
+function checkZephyrEnvironmentVariables(): boolean {
+  return !!(process.env.ZEPHYR_BASE || process.env.ZEPHYR_SDK_INSTALL_DIR);
+}
+
+/**
+ * Show a warning if Zephyr environment variables are not set
+ * Allows user to suppress future warnings
+ */
+async function checkAndWarnMissingEnvironment(context: vscode.ExtensionContext): Promise<void> {
+  const configuration = vscode.workspace.getConfiguration();
+  const suppressWarning: boolean | undefined = configuration.get("zephyr-ide.suppress-workspace-warning");
+
+  // Don't show warning if user has suppressed it
+  if (suppressWarning) {
+    return;
+  }
+
+  // Check if environment variables are present
+  if (!checkZephyrEnvironmentVariables()) {
+    const result = await vscode.window.showWarningMessage(
+      "No Zephyr workspace environment detected. Neither ZEPHYR_BASE nor ZEPHYR_SDK_INSTALL_DIR environment variables are set.\n\nChoose 'Continue' to proceed using system environment variables, 'Don't Show Again' to suppress this warning, or 'Setup Workspace' to open the setup wizard.",
+      "Continue",
+      "Don't Show Again",
+      "Setup Workspace"
+    );
+
+    if (result === "Don't Show Again") {
+      // Save the preference to not show again
+      await configuration.update("zephyr-ide.suppress-workspace-warning", true, vscode.ConfigurationTarget.Workspace);
+      vscode.window.showInformationMessage("Workspace warning suppressed for this workspace.");
+    } else if (result === "Setup Workspace") {
+      // Open the setup wizard panel for workspace configuration
+      await vscode.commands.executeCommand("zephyr-ide.setupWorkspace");
+    }
+  }
+}
+
+/**
+ * Get the setup state for the workspace, handling all the logic for:
+ * - Returning existing activeSetupState if available
+ * - Warning user if no environment is set up
+ * - Creating setup state from environment variables if available
+ * 
+ * @param context - VS Code extension context
+ * @param wsConfig - Workspace configuration
+ * @returns SetupState if available, undefined otherwise
+ */
+export async function getSetupState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig): Promise<SetupState> {
+  // If activeSetupState exists, return it
+  if (wsConfig.activeSetupState) {
+    return wsConfig.activeSetupState;
+  }
+
+  // No activeSetupState - warn the user about missing environment
+  await checkAndWarnMissingEnvironment(context);
+
+  // Try to get setup state from environment variables
+  return getEnvironmentSetupState();
 }
