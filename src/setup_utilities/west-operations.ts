@@ -220,7 +220,7 @@ export async function installPythonRequirements(context: vscode.ExtensionContext
   setupState.packagesInstalled = false;
   saveSetupState(context, wsConfig, globalConfig);
 
-  let cmd = `pip install -r ${path.join(setupState.zephyrDir, "scripts", "requirements.txt")} -U dtsh patool semvar tqdm`;
+  let cmd = `pip install -r ${path.join(setupState.zephyrDir, "scripts", "requirements.txt")} -U dtsh patool semver tqdm`;
   let reqRes = await executeTaskHelperInPythonEnv(setupState, "Zephyr IDE: Install Python Requirements", cmd, setupState.setupPath);
 
   if (!reqRes) {
