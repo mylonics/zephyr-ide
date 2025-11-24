@@ -19,6 +19,7 @@ import { WorkspaceConfig } from "../../setup_utilities/types";
 import * as path from "path";
 import * as fs from "fs";
 import { parseWestConfigManifestPath } from "../../setup_utilities/west-config-parser";
+import { getVenvPath } from "../../setup_utilities/workspace-config";
 
 export class WorkspaceSubPage {
     static getHtml(wsConfig: WorkspaceConfig): string {
@@ -185,7 +186,7 @@ export class WorkspaceSubPage {
 
     private static getVenvPath(wsConfig: WorkspaceConfig): string {
         if (wsConfig.activeSetupState?.setupPath) {
-            return path.join(wsConfig.activeSetupState.setupPath, ".venv");
+            return getVenvPath(wsConfig.activeSetupState.setupPath);
         }
         return "Not found";
     }
