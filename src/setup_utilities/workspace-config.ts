@@ -200,6 +200,23 @@ export function getToolchainDir() {
 }
 
 /**
+ * Get the Python virtual environment path, either from configuration or default
+ * @param setupPath - The setup path to use for the default venv location
+ * @returns The path to the Python virtual environment
+ */
+export function getVenvPath(setupPath: string): string {
+  const configuration = vscode.workspace.getConfiguration();
+  let venvPath: string | undefined = configuration.get("zephyr-ide.venv-folder");
+  
+  if (venvPath) {
+    return venvPath;
+  }
+  
+  // Default to .venv in the setup path
+  return path.join(setupPath, ".venv");
+}
+
+/**
  * Create a SetupState from environment variables if they exist
  * This allows the extension to work with externally-managed Zephyr environments
  * @returns SetupState if ZEPHYR_BASE is set, undefined otherwise
