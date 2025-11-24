@@ -207,6 +207,8 @@ export class SetupPanel {
             return;
         }
 
+        const workspaceInitialized = (this.currentWsConfig.initialSetupComplete || false) && (this.currentWsConfig.activeSetupState !== undefined);
+
         let subPageContent = "";
         switch (page) {
             case "hosttools":
@@ -221,7 +223,7 @@ export class SetupPanel {
                 setTimeout(() => this.checkHostToolsStatus(), 100);
                 return;
             case "sdk":
-                subPageContent = SDKSubPage.getHtml(this.currentGlobalConfig);
+                subPageContent = SDKSubPage.getHtml(this.currentGlobalConfig, workspaceInitialized);
                 break;
             case "workspace":
                 subPageContent = WorkspaceSubPage.getHtml(this.currentWsConfig);
@@ -811,8 +813,8 @@ export class SetupPanel {
             <div class="two-column-layout">
                 <div class="overview-cards">
                     ${HostToolsCard.getHtml(globalConfig)}
-                    ${SDKCard.getHtml(globalConfig)}
                     ${WorkspaceCard.getHtml(wsConfig, folderOpen, workspaceInitialized)}
+                    ${SDKCard.getHtml(globalConfig, workspaceInitialized)}
                 </div>
                 
                 <div class="walkthrough-description">
@@ -820,8 +822,8 @@ export class SetupPanel {
                     <p>Complete these steps to set up your Zephyr development environment:</p>
                     <ul class="setup-requirements">
                         <li><strong>1. Host Tools</strong> - Ensure system has required build dependencies</li>
-                        <li><strong>2. Zephyr SDK</strong> - Download toolchains for target architectures</li>
-                        <li><strong>3. Workspace</strong> - Link to Zephyr source code and modules</li>
+                        <li><strong>2. Workspace</strong> - Link to Zephyr source code and modules</li>
+                        <li><strong>3. Zephyr SDK</strong> - Download toolchains for target architectures</li>
                     </ul>
                     <p class="help-text">Click any card above to configure that component.</p>
                     

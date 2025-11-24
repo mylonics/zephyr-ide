@@ -15,13 +15,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { GlobalConfig } from "../../setup_utilities/types";
+import { GlobalConfig, WorkspaceConfig } from "../../setup_utilities/types";
 
 export class SDKSubPage {
-    static getHtml(globalConfig: GlobalConfig): string {
-        const description = globalConfig.sdkInstalled
-            ? "Zephyr SDK is installed. You can manage additional versions or update below."
-            : "Install the Zephyr SDK to enable cross-compilation for supported architectures.";
+    static getHtml(globalConfig: GlobalConfig, workspaceInitialized: boolean): string {
+        let description: string;
+        let warningSection = "";
+        
+        if (!workspaceInitialized) {
+            description = "A west workspace is required before installing the Zephyr SDK.";
+            warningSection = `
+                <div class="warning-box">
+                    <p style="margin: 0;">
+                        <strong>⚠ Workspace Setup Required</strong><br>
+                        Please set up a west workspace first before managing the SDK. 
+                        Go back to the overview and configure the Workspace card.
+                    </p>
+                </div>`;
+        } else if (globalConfig.sdkInstalled) {
+            description = "Zephyr SDK is installed. You can manage additional versions or update below.";
+        } else {
+            description = "Install the Zephyr SDK to enable cross-compilation for supported architectures.";
+        }
 
         return `
         <div class="sub-page-content">
@@ -34,12 +49,14 @@ export class SDKSubPage {
             </div>
             
             <div class="sub-page-body">
-                <div class="status-banner ${globalConfig.sdkInstalled ? 'status-success' : 'status-error'}">
-                    <span class="status-icon">${globalConfig.sdkInstalled ? '✓' : '✗'}</span>
-                    <span class="status-text">${globalConfig.sdkInstalled ? 'SDK Installed' : 'SDK Not Installed'}</span>
+                <div class="status-banner ${globalConfig.sdkInstalled ? 'status-success' : workspaceInitialized ? 'status-warning' : 'status-error'}">
+                    <span class="status-icon">${globalConfig.sdkInstalled ? '✓' : workspaceInitialized ? '⚙' : '⚠'}</span>
+                    <span class="status-text">${globalConfig.sdkInstalled ? 'SDK Installed' : workspaceInitialized ? 'Setup Required' : 'Workspace Required'}</span>
                 </div>
                 
                 <p class="description">${description}</p>
+                
+                ${warningSection}
                 
                 <div class="info-box">
                     <p style="margin: 0;">
@@ -57,11 +74,11 @@ export class SDKSubPage {
                 <div class="action-section">
                     <h3>SDK Management</h3>
                     <div class="button-group">
-                        <button class="button button-primary" onclick="installSDK()">
+                        <button class="button button-primary" onclick="installSDK()" ${!workspaceInitialized ? 'disabled' : ''}>
                             <span class="codicon codicon-cloud-download"></span>
                             Install / Update SDK
                         </button>
-                        <button class="button button-secondary" onclick="listSDKs()">
+                        <button class="button button-secondary" onclick="listSDKs()" ${!workspaceInitialized ? 'disabled' : ''}>
                             <span class="codicon codicon-list-unordered"></span>
                             List Available SDKs
                         </button>
