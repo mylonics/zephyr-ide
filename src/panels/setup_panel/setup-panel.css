@@ -901,6 +901,18 @@ h1 {
     margin: 8px 0;
 }
 
+.warning-box {
+    padding: 15px;
+    background-color: var(--vscode-editor-background);
+    border-left: 3px solid var(--vscode-terminal-ansiYellow);
+    border-radius: 4px;
+    margin-bottom: 15px;
+}
+
+.warning-box p {
+    margin: 8px 0;
+}
+
 .workspace-options-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
