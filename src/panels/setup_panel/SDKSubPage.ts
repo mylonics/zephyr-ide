@@ -15,7 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { GlobalConfig, WorkspaceConfig } from "../../setup_utilities/types";
+import { GlobalConfig } from "../../setup_utilities/types";
 
 export class SDKSubPage {
     static getHtml(globalConfig: GlobalConfig, workspaceInitialized: boolean): string {
