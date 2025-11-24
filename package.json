@@ -71,7 +71,8 @@
         },
         "zephyr-ide.venv-folder": {
           "type": [
-            "string"
+            "string",
+            "null"
           ],
           "default": null,
           "description": "Manually specify a Python virtual environment folder path. If not specified, defaults to .venv in the workspace setup path."

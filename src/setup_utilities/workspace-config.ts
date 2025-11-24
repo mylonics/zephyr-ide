@@ -208,7 +208,8 @@ export function getVenvPath(setupPath: string): string {
   const configuration = vscode.workspace.getConfiguration();
   let venvPath: string | undefined = configuration.get("zephyr-ide.venv-folder");
   
-  if (venvPath) {
+  // Use configured path if it's a non-empty string
+  if (venvPath && venvPath.trim()) {
     return venvPath;
   }
   
