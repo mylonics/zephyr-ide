@@ -200,6 +200,132 @@ export function getToolchainDir() {
 }
 
 /**
+ * Map board subdirectory architecture prefix to toolchain name
+ * @param boardSubDir The board subdirectory (e.g., "arm/st/nucleo_f401re")
+ * @returns The toolchain prefix (e.g., "arm-zephyr-eabi") or undefined if unknown
+ */
+function getToolchainFromBoardDir(boardSubDir: string): string | undefined {
+  const archPrefix = boardSubDir.split('/')[0].toLowerCase();
+  
+  // Map architecture prefixes to toolchain names
+  const archToToolchain: { [key: string]: string } = {
+    'arm': 'arm-zephyr-eabi',
+    'arm64': 'aarch64-zephyr-elf',
+    'aarch64': 'aarch64-zephyr-elf',
+    'arc': 'arc-zephyr-elf',
+    'arc64': 'arc64-zephyr-elf',
+    'mips': 'mips-zephyr-elf',
+    'nios2': 'nios2-zephyr-elf',
+    'riscv': 'riscv64-zephyr-elf',
+    'riscv32': 'riscv64-zephyr-elf',
+    'riscv64': 'riscv64-zephyr-elf',
+    'sparc': 'sparc-zephyr-elf',
+    'x86': 'x86_64-zephyr-elf',
+    'x86_64': 'x86_64-zephyr-elf',
+    'xtensa': 'xtensa-sample_controller_zephyr-elf', // Default xtensa toolchain
+    'microblaze': 'microblazeel-zephyr-elf',
+  };
+  
+  return archToToolchain[archPrefix];
+}
+
+/**
+ * Find the latest installed SDK version in the toolchains directory
+ * @returns The SDK directory name (e.g., "zephyr-sdk-0.17.3") or undefined
+ */
+function findLatestSdkVersion(): string | undefined {
+  const toolchainDir = getToolchainDir();
+  
+  if (!fs.pathExistsSync(toolchainDir)) {
+    return undefined;
+  }
+  
+  const entries = fs.readdirSync(toolchainDir);
+  const sdkDirs = entries.filter(entry => {
+    const fullPath = path.join(toolchainDir, entry);
+    return fs.statSync(fullPath).isDirectory() && entry.startsWith('zephyr-sdk-');
+  });
+  
+  if (sdkDirs.length === 0) {
+    return undefined;
+  }
+  
+  // Sort by version number (descending) to get the latest
+  sdkDirs.sort((a, b) => {
+    const versionA = a.replace('zephyr-sdk-', '');
+    const versionB = b.replace('zephyr-sdk-', '');
+    return versionB.localeCompare(versionA, undefined, { numeric: true });
+  });
+  
+  return sdkDirs[0];
+}
+
+/**
+ * Get the GDB path for the active build based on its board architecture
+ * @param wsConfig The workspace configuration
+ * @returns The full path to the GDB executable or undefined if not found
+ */
+export function getGdbPath(wsConfig: WorkspaceConfig): string | undefined {
+  // Check for user-defined ZEPHYR_SDK_INSTALL_DIR first
+  const userSdkDir = process.env.ZEPHYR_SDK_INSTALL_DIR;
+  
+  // Get the active project and build
+  if (!wsConfig.activeProject) {
+    return undefined;
+  }
+  
+  const project = wsConfig.projects[wsConfig.activeProject];
+  if (!project) {
+    return undefined;
+  }
+  
+  const activeBuildName = wsConfig.projectStates[wsConfig.activeProject]?.activeBuildConfig;
+  if (!activeBuildName) {
+    return undefined;
+  }
+  
+  const build = project.buildConfigs[activeBuildName];
+  if (!build) {
+    return undefined;
+  }
+  
+  // Determine the toolchain from the board subdirectory
+  const toolchain = getToolchainFromBoardDir(build.relBoardSubDir);
+  if (!toolchain) {
+    return undefined;
+  }
+  
+  // Find the SDK directory
+  let sdkDir: string;
+  if (userSdkDir && fs.pathExistsSync(userSdkDir)) {
+    sdkDir = userSdkDir;
+  } else {
+    const latestSdk = findLatestSdkVersion();
+    if (!latestSdk) {
+      return undefined;
+    }
+    sdkDir = path.join(getToolchainDir(), latestSdk);
+  }
+  
+  // Construct the GDB path
+  const gdbName = `${toolchain}-gdb`;
+  const gdbPath = path.join(sdkDir, toolchain, 'bin', gdbName);
+  
+  // Check if the GDB executable exists
+  if (fs.pathExistsSync(gdbPath)) {
+    return gdbPath;
+  }
+  
+  // On Windows, check for .exe extension
+  const gdbPathExe = gdbPath + '.exe';
+  if (fs.pathExistsSync(gdbPathExe)) {
+    return gdbPathExe;
+  }
+  
+  return undefined;
+}
+
+/**
  * Create a SetupState from environment variables if they exist
  * This allows the extension to work with externally-managed Zephyr environments
  * @returns SetupState if ZEPHYR_BASE is set, undefined otherwise

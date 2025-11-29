@@ -60,6 +60,7 @@ import {
   getToolchainDir,
   setWorkspaceSettings,
   getSetupState,
+  getGdbPath,
 } from "./setup_utilities/workspace-config";
 import { checkIfToolsAvailable } from "./setup_utilities/tools-validation";
 import {
@@ -922,7 +923,13 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.get-gdb-path", async () => {
-      return globalConfig.armGdbPath;
+      // Try to get GDB path from active build's architecture
+      const gdbPath = getGdbPath(wsConfig);
+      if (gdbPath) {
+        return gdbPath;
+      }
+      // Fall back to legacy global config if available
+      return globalConfig.armGdbPath || undefined;
     })
   );
 
