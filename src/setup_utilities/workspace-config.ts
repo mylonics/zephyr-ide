@@ -201,6 +201,7 @@ export function getToolchainDir() {
 
 /**
  * Map board subdirectory architecture prefix to toolchain name
+ * For architectures with multiple variants (like Xtensa), returns the prefix pattern
  * @param boardSubDir The board subdirectory (e.g., "arm/st/nucleo_f401re")
  * @returns The toolchain prefix (e.g., "arm-zephyr-eabi") or undefined if unknown
  */
@@ -208,6 +209,7 @@ function getToolchainFromBoardDir(boardSubDir: string): string | undefined {
   const archPrefix = boardSubDir.split('/')[0].toLowerCase();
   
   // Map architecture prefixes to toolchain names
+  // Note: For xtensa, we return 'xtensa' as a prefix marker since it has many variants
   const archToToolchain: { [key: string]: string } = {
     'arm': 'arm-zephyr-eabi',
     'arm64': 'aarch64-zephyr-elf',
@@ -222,11 +224,33 @@ function getToolchainFromBoardDir(boardSubDir: string): string | undefined {
     'sparc': 'sparc-zephyr-elf',
     'x86': 'x86_64-zephyr-elf',
     'x86_64': 'x86_64-zephyr-elf',
-    'xtensa': 'xtensa-sample_controller_zephyr-elf', // Default xtensa toolchain
+    'xtensa': 'xtensa', // Will be resolved to specific variant in findXtensaToolchain
     'microblaze': 'microblazeel-zephyr-elf',
   };
   
   return archToToolchain[archPrefix];
+}
+
+/**
+ * Find an installed Xtensa toolchain variant in the SDK directory
+ * @param sdkDir The SDK directory path
+ * @returns The full toolchain name or undefined if none found
+ */
+function findXtensaToolchain(sdkDir: string): string | undefined {
+  if (!fs.pathExistsSync(sdkDir)) {
+    return undefined;
+  }
+  
+  const entries = fs.readdirSync(sdkDir);
+  // Look for any xtensa-*-zephyr-elf directory
+  const xtensaToolchain = entries.find(entry => {
+    const fullPath = path.join(sdkDir, entry);
+    return fs.statSync(fullPath).isDirectory() && 
+           entry.startsWith('xtensa-') && 
+           entry.endsWith('-zephyr-elf');
+  });
+  
+  return xtensaToolchain;
 }
 
 /**
@@ -251,6 +275,7 @@ function findLatestSdkVersion(): string | undefined {
   }
   
   // Sort by version number (descending) to get the latest
+  // localeCompare with numeric:true handles version strings like "0.17.10" vs "0.17.2" correctly
   sdkDirs.sort((a, b) => {
     const versionA = a.replace('zephyr-sdk-', '');
     const versionB = b.replace('zephyr-sdk-', '');
@@ -271,27 +296,32 @@ export function getGdbPath(wsConfig: WorkspaceConfig): string | undefined {
   
   // Get the active project and build
   if (!wsConfig.activeProject) {
+    console.log('Zephyr IDE: No active project set for GDB path detection');
     return undefined;
   }
   
   const project = wsConfig.projects[wsConfig.activeProject];
   if (!project) {
+    console.log(`Zephyr IDE: Project "${wsConfig.activeProject}" not found for GDB path detection`);
     return undefined;
   }
   
   const activeBuildName = wsConfig.projectStates[wsConfig.activeProject]?.activeBuildConfig;
   if (!activeBuildName) {
+    console.log(`Zephyr IDE: No active build set for project "${wsConfig.activeProject}"`);
     return undefined;
   }
   
   const build = project.buildConfigs[activeBuildName];
   if (!build) {
+    console.log(`Zephyr IDE: Build "${activeBuildName}" not found in project "${wsConfig.activeProject}"`);
     return undefined;
   }
   
   // Determine the toolchain from the board subdirectory
-  const toolchain = getToolchainFromBoardDir(build.relBoardSubDir);
+  let toolchain = getToolchainFromBoardDir(build.relBoardSubDir);
   if (!toolchain) {
+    console.log(`Zephyr IDE: Unknown architecture in board path "${build.relBoardSubDir}"`);
     return undefined;
   }
   
@@ -302,9 +332,20 @@ export function getGdbPath(wsConfig: WorkspaceConfig): string | undefined {
   } else {
     const latestSdk = findLatestSdkVersion();
     if (!latestSdk) {
+      console.log(`Zephyr IDE: No SDK found in toolchains directory "${getToolchainDir()}"`);
       return undefined;
     }
     sdkDir = path.join(getToolchainDir(), latestSdk);
+  }
+  
+  // Handle Xtensa variants - find an installed Xtensa toolchain
+  if (toolchain === 'xtensa') {
+    const xtensaToolchain = findXtensaToolchain(sdkDir);
+    if (!xtensaToolchain) {
+      console.log(`Zephyr IDE: No Xtensa toolchain found in SDK "${sdkDir}"`);
+      return undefined;
+    }
+    toolchain = xtensaToolchain;
   }
   
   // Construct the GDB path
@@ -322,6 +363,7 @@ export function getGdbPath(wsConfig: WorkspaceConfig): string | undefined {
     return gdbPathExe;
   }
   
+  console.log(`Zephyr IDE: GDB executable not found at "${gdbPath}"`);
   return undefined;
 }
 
