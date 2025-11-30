@@ -26,7 +26,6 @@ import { loadProjectsFromFile, setWorkspaceSettings, generateGitIgnore, generate
 export async function loadGlobalState(context: vscode.ExtensionContext): Promise<GlobalConfig> {
   let globalConfig: GlobalConfig = await context.globalState.get("zephyr-ide.state") ?? {
     toolchains: {},
-    armGdbPath: '',
     setupStateDictionary: {}
   };
   return globalConfig;
