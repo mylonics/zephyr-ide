@@ -36,11 +36,11 @@ export class HostToolsCard {
 }
 
 export class SDKCard {
-    static getHtml(globalConfig: GlobalConfig, workspaceInitialized: boolean): string {
+    static getHtml(globalConfig: GlobalConfig, hasValidSetupState: boolean): string {
         let status: string;
         let statusClass: string;
         
-        if (!workspaceInitialized) {
+        if (!hasValidSetupState) {
             status = "⚠ Workspace Required";
             statusClass = "status-warning";
         } else if (globalConfig.sdkInstalled) {

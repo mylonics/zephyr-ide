@@ -18,11 +18,11 @@ limitations under the License.
 import { GlobalConfig } from "../../setup_utilities/types";
 
 export class SDKSubPage {
-    static getHtml(globalConfig: GlobalConfig, workspaceInitialized: boolean): string {
+    static getHtml(globalConfig: GlobalConfig, hasValidSetupState: boolean): string {
         let description: string;
         let warningSection = "";
         
-        if (!workspaceInitialized) {
+        if (!hasValidSetupState) {
             description = "A west workspace is required before installing the Zephyr SDK.";
             warningSection = `
                 <div class="warning-box">
@@ -49,9 +49,9 @@ export class SDKSubPage {
             </div>
             
             <div class="sub-page-body">
-                <div class="status-banner ${globalConfig.sdkInstalled ? 'status-success' : workspaceInitialized ? 'status-warning' : 'status-error'}">
-                    <span class="status-icon">${globalConfig.sdkInstalled ? '✓' : workspaceInitialized ? '⚙' : '⚠'}</span>
-                    <span class="status-text">${globalConfig.sdkInstalled ? 'SDK Installed' : workspaceInitialized ? 'Setup Required' : 'Workspace Required'}</span>
+                <div class="status-banner ${globalConfig.sdkInstalled ? 'status-success' : hasValidSetupState ? 'status-warning' : 'status-error'}">
+                    <span class="status-icon">${globalConfig.sdkInstalled ? '✓' : hasValidSetupState ? '⚙' : '⚠'}</span>
+                    <span class="status-text">${globalConfig.sdkInstalled ? 'SDK Installed' : hasValidSetupState ? 'Setup Required' : 'Workspace Required'}</span>
                 </div>
                 
                 <p class="description">${description}</p>
@@ -74,11 +74,11 @@ export class SDKSubPage {
                 <div class="action-section">
                     <h3>SDK Management</h3>
                     <div class="button-group">
-                        <button class="button button-primary" onclick="installSDK()" ${!workspaceInitialized ? 'disabled' : ''}>
+                        <button class="button button-primary" onclick="installSDK()" ${!hasValidSetupState ? 'disabled' : ''}>
                             <span class="codicon codicon-cloud-download"></span>
                             Install / Update SDK
                         </button>
-                        <button class="button button-secondary" onclick="listSDKs()" ${!workspaceInitialized ? 'disabled' : ''}>
+                        <button class="button button-secondary" onclick="listSDKs()" ${!hasValidSetupState ? 'disabled' : ''}>
                             <span class="codicon codicon-list-unordered"></span>
                             List Available SDKs
                         </button>

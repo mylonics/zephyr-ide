@@ -117,6 +117,15 @@ export class SetupPanel {
         this._panel.webview.html = this.getHtmlForWebview(wsConfig, globalConfig);
     }
 
+    /**
+     * Check if any valid west workspace has ever been initialized.
+     * SDK installation is allowed as long as at least one workspace exists in setupStateDictionary.
+     */
+    private hasValidSetupState(): boolean {
+        return this.currentGlobalConfig?.setupStateDictionary !== undefined && 
+            Object.keys(this.currentGlobalConfig.setupStateDictionary).length > 0;
+    }
+
     // Message Handler
     private handleWebviewMessage(message: any) {
         switch (message.command) {
@@ -207,8 +216,6 @@ export class SetupPanel {
             return;
         }
 
-        const workspaceInitialized = (this.currentWsConfig.initialSetupComplete || false) && (this.currentWsConfig.activeSetupState !== undefined);
-
         let subPageContent = "";
         switch (page) {
             case "hosttools":
@@ -223,7 +230,7 @@ export class SetupPanel {
                 setTimeout(() => this.checkHostToolsStatus(), 100);
                 return;
             case "sdk":
-                subPageContent = SDKSubPage.getHtml(this.currentGlobalConfig, workspaceInitialized);
+                subPageContent = SDKSubPage.getHtml(this.currentGlobalConfig, this.hasValidSetupState());
                 break;
             case "workspace":
                 subPageContent = WorkspaceSubPage.getHtml(this.currentWsConfig);
@@ -744,7 +751,7 @@ export class SetupPanel {
         <body>
             <div class="panel-container">
                 <div class="overview-container" id="overviewContainer">
-                    ${this.generateOverviewSection(wsConfig, globalConfig, folderOpen, workspaceInitialized)}
+                    ${this.generateOverviewSection(wsConfig, globalConfig, folderOpen, workspaceInitialized, this.hasValidSetupState())}
                 </div>
                 <div class="sub-page-container" id="subPageContainer">
                     <!-- Sub-page content will be inserted here -->
@@ -801,7 +808,8 @@ export class SetupPanel {
         wsConfig: WorkspaceConfig,
         globalConfig: GlobalConfig,
         folderOpen: boolean,
-        workspaceInitialized: boolean
+        workspaceInitialized: boolean,
+        hasValidSetupState: boolean
     ): string {
         return `
         <div class="overview-section">
@@ -814,7 +822,7 @@ export class SetupPanel {
                 <div class="overview-cards">
                     ${HostToolsCard.getHtml(globalConfig)}
                     ${WorkspaceCard.getHtml(wsConfig, folderOpen, workspaceInitialized)}
-                    ${SDKCard.getHtml(globalConfig, workspaceInitialized)}
+                    ${SDKCard.getHtml(globalConfig, hasValidSetupState)}
                 </div>
                 
                 <div class="walkthrough-description">
