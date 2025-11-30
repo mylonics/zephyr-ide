@@ -28,6 +28,24 @@ export async function loadGlobalState(context: vscode.ExtensionContext): Promise
     toolchains: {},
     setupStateDictionary: {}
   };
+  
+  // Migrate old config: remove deprecated fields
+  const deprecatedFields = ['armGdbPath'];
+  const configAny = globalConfig as any;
+  let needsSave = false;
+  
+  for (const field of deprecatedFields) {
+    if (field in configAny) {
+      delete configAny[field];
+      needsSave = true;
+    }
+  }
+  
+  // Save migrated config if changes were made
+  if (needsSave) {
+    await context.globalState.update("zephyr-ide.state", globalConfig);
+  }
+  
   return globalConfig;
 }
 
