@@ -36,9 +36,20 @@ export class HostToolsCard {
 }
 
 export class SDKCard {
-    static getHtml(globalConfig: GlobalConfig): string {
-        const status = globalConfig.sdkInstalled ? "✓ Installed" : "✗ Not Installed";
-        const statusClass = globalConfig.sdkInstalled ? "status-success" : "status-error";
+    static getHtml(globalConfig: GlobalConfig, hasValidSetupState: boolean): string {
+        let status: string;
+        let statusClass: string;
+        
+        if (!hasValidSetupState) {
+            status = "⚠ Workspace Required";
+            statusClass = "status-warning";
+        } else if (globalConfig.sdkInstalled) {
+            status = "✓ Installed";
+            statusClass = "status-success";
+        } else {
+            status = "⚙ Setup Required";
+            statusClass = "status-warning";
+        }
 
         return `
         <div class="overview-card" onclick="navigateToSubPage('sdk')">
