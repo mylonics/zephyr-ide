@@ -923,7 +923,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.get-arm-gdb-path", async () => {
-      return getArmGdbPath();
+      return getArmGdbPath(wsConfig);
     })
   );
 
@@ -931,7 +931,7 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.get-gdb-path", async () => {
       // For now, just call the ARM GDB path function
       // In the future, this will expand to support other architectures
-      return getArmGdbPath();
+      return getArmGdbPath(wsConfig);
     })
   );
 

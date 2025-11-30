@@ -232,19 +232,87 @@ function findLatestSdkVersion(): string | undefined {
 }
 
 /**
- * Get the ARM GDB path from the latest installed SDK
- * Path format: {toolchainDir}/{latestSdk}/arm-zephyr-eabi/bin/arm-zephyr-eabi-gdb
- * @returns The full path to the ARM GDB executable or undefined if not found
+ * Get SDK install directory from CMakeCache.txt of the active build
+ * @param wsConfig The workspace configuration
+ * @returns The SDK install directory path or undefined if not found
  */
-export function getArmGdbPath(): string | undefined {
-  const toolchainDir = getToolchainDir();
-  const latestSdk = findLatestSdkVersion();
-  if (!latestSdk) {
-    console.log(`Zephyr IDE: No SDK found in toolchains directory "${toolchainDir}"`);
+function getSdkPathFromCMakeCache(wsConfig: WorkspaceConfig): string | undefined {
+  // Get active project and build
+  if (!wsConfig.activeProject) {
     return undefined;
   }
   
-  const gdbPath = path.join(toolchainDir, latestSdk, "arm-zephyr-eabi", "bin", "arm-zephyr-eabi-gdb");
+  const project = wsConfig.projects[wsConfig.activeProject];
+  if (!project) {
+    return undefined;
+  }
+  
+  const activeBuildName = wsConfig.projectStates[wsConfig.activeProject]?.activeBuildConfig;
+  if (!activeBuildName) {
+    return undefined;
+  }
+  
+  const build = project.buildConfigs[activeBuildName];
+  if (!build) {
+    return undefined;
+  }
+  
+  // Construct path to CMakeCache.txt
+  const buildDir = path.join(wsConfig.rootPath, project.rel_path, build.name);
+  const cmakeCachePath = path.join(buildDir, "CMakeCache.txt");
+  
+  if (!fs.pathExistsSync(cmakeCachePath)) {
+    console.log(`Zephyr IDE: CMakeCache.txt not found at "${cmakeCachePath}"`);
+    return undefined;
+  }
+  
+  try {
+    const cacheContent = fs.readFileSync(cmakeCachePath, 'utf-8');
+    // Look for ZEPHYR_SDK_INSTALL_DIR:PATH= line
+    const match = cacheContent.match(/^ZEPHYR_SDK_INSTALL_DIR:PATH=(.+)$/m);
+    if (match && match[1]) {
+      const sdkPath = match[1].trim();
+      if (fs.pathExistsSync(sdkPath)) {
+        console.log(`Zephyr IDE: Found SDK path from CMakeCache.txt: "${sdkPath}"`);
+        return sdkPath;
+      }
+    }
+  } catch (error) {
+    console.log(`Zephyr IDE: Error reading CMakeCache.txt: ${error}`);
+  }
+  
+  return undefined;
+}
+
+/**
+ * Get the ARM GDB path from the active build's SDK or latest installed SDK
+ * First tries to get SDK path from CMakeCache.txt of the active build
+ * Falls back to the latest SDK in toolchains directory
+ * Path format: {sdkPath}/arm-zephyr-eabi/bin/arm-zephyr-eabi-gdb
+ * @param wsConfig The workspace configuration (optional, for CMakeCache lookup)
+ * @returns The full path to the ARM GDB executable or undefined if not found
+ */
+export function getArmGdbPath(wsConfig?: WorkspaceConfig): string | undefined {
+  let sdkPath: string | undefined;
+  
+  // First try to get SDK path from CMakeCache.txt of active build
+  if (wsConfig) {
+    sdkPath = getSdkPathFromCMakeCache(wsConfig);
+  }
+  
+  // Fall back to latest SDK in toolchains directory
+  if (!sdkPath) {
+    const toolchainDir = getToolchainDir();
+    const latestSdk = findLatestSdkVersion();
+    if (!latestSdk) {
+      console.log(`Zephyr IDE: No SDK found in toolchains directory "${toolchainDir}"`);
+      return undefined;
+    }
+    sdkPath = path.join(toolchainDir, latestSdk);
+    console.log(`Zephyr IDE: Using latest SDK: "${sdkPath}"`);
+  }
+  
+  const gdbPath = path.join(sdkPath, "arm-zephyr-eabi", "bin", "arm-zephyr-eabi-gdb");
   
   // Check if the GDB executable exists
   if (fs.pathExistsSync(gdbPath)) {
