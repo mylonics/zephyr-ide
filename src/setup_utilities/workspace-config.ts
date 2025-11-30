@@ -233,17 +233,17 @@ function findLatestSdkVersion(): string | undefined {
 
 /**
  * Get the ARM GDB path from the latest installed SDK
- * Uses the legacy method: path.join(getToolsDir(), toolchainBasePath, "arm-zephyr-eabi", "bin", "arm-zephyr-eabi-gdb")
+ * Path format: {toolchainDir}/{latestSdk}/arm-zephyr-eabi/bin/arm-zephyr-eabi-gdb
  * @returns The full path to the ARM GDB executable or undefined if not found
  */
 export function getArmGdbPath(): string | undefined {
+  const toolchainDir = getToolchainDir();
   const latestSdk = findLatestSdkVersion();
   if (!latestSdk) {
-    console.log(`Zephyr IDE: No SDK found in toolchains directory "${getToolchainDir()}"`);
+    console.log(`Zephyr IDE: No SDK found in toolchains directory "${toolchainDir}"`);
     return undefined;
   }
   
-  const toolchainDir = getToolchainDir();
   const gdbPath = path.join(toolchainDir, latestSdk, "arm-zephyr-eabi", "bin", "arm-zephyr-eabi-gdb");
   
   // Check if the GDB executable exists
