@@ -232,33 +232,11 @@ function findLatestSdkVersion(): string | undefined {
 }
 
 /**
- * Get SDK install directory from CMakeCache.txt of the active build
- * @param wsConfig The workspace configuration
+ * Read SDK install directory from CMakeCache.txt
+ * @param buildDir The build directory path
  * @returns The SDK install directory path or undefined if not found
  */
-function getSdkPathFromCMakeCache(wsConfig: WorkspaceConfig): string | undefined {
-  // Get active project and build
-  if (!wsConfig.activeProject) {
-    return undefined;
-  }
-  
-  const project = wsConfig.projects[wsConfig.activeProject];
-  if (!project) {
-    return undefined;
-  }
-  
-  const activeBuildName = wsConfig.projectStates[wsConfig.activeProject]?.activeBuildConfig;
-  if (!activeBuildName) {
-    return undefined;
-  }
-  
-  const build = project.buildConfigs[activeBuildName];
-  if (!build) {
-    return undefined;
-  }
-  
-  // Construct path to CMakeCache.txt
-  const buildDir = path.join(wsConfig.rootPath, project.rel_path, build.name);
+function readSdkPathFromCMakeCache(buildDir: string): string | undefined {
   const cmakeCachePath = path.join(buildDir, "CMakeCache.txt");
   
   if (!fs.pathExistsSync(cmakeCachePath)) {
@@ -285,8 +263,99 @@ function getSdkPathFromCMakeCache(wsConfig: WorkspaceConfig): string | undefined
 }
 
 /**
+ * Get SDK path for the active build, using cached value if available
+ * @param wsConfig The workspace configuration
+ * @returns The SDK install directory path or undefined if not found
+ */
+function getSdkPathFromBuild(wsConfig: WorkspaceConfig): string | undefined {
+  // Get active project and build
+  if (!wsConfig.activeProject) {
+    return undefined;
+  }
+  
+  const project = wsConfig.projects[wsConfig.activeProject];
+  if (!project) {
+    return undefined;
+  }
+  
+  const activeBuildName = wsConfig.projectStates[wsConfig.activeProject]?.activeBuildConfig;
+  if (!activeBuildName) {
+    return undefined;
+  }
+  
+  const build = project.buildConfigs[activeBuildName];
+  if (!build) {
+    return undefined;
+  }
+  
+  const buildState = wsConfig.projectStates[wsConfig.activeProject]?.buildStates[activeBuildName];
+  
+  // First check if we have a cached SDK path
+  if (buildState?.sdkPath && fs.pathExistsSync(buildState.sdkPath)) {
+    console.log(`Zephyr IDE: Using cached SDK path: "${buildState.sdkPath}"`);
+    return buildState.sdkPath;
+  }
+  
+  // Otherwise read from CMakeCache.txt
+  const buildDir = path.join(wsConfig.rootPath, project.rel_path, build.name);
+  const sdkPath = readSdkPathFromCMakeCache(buildDir);
+  
+  // Cache the SDK path in BuildState if found
+  if (sdkPath && buildState) {
+    buildState.sdkPath = sdkPath;
+  }
+  
+  return sdkPath;
+}
+
+/**
+ * Update cached SDK path for a build after build completes
+ * @param wsConfig The workspace configuration  
+ * @param projectName The project name
+ * @param buildName The build name
+ */
+export function updateBuildSdkPath(wsConfig: WorkspaceConfig, projectName: string, buildName: string): void {
+  const project = wsConfig.projects[projectName];
+  if (!project) {
+    return;
+  }
+  
+  const build = project.buildConfigs[buildName];
+  if (!build) {
+    return;
+  }
+  
+  const buildState = wsConfig.projectStates[projectName]?.buildStates[buildName];
+  if (!buildState) {
+    return;
+  }
+  
+  const buildDir = path.join(wsConfig.rootPath, project.rel_path, build.name);
+  const sdkPath = readSdkPathFromCMakeCache(buildDir);
+  
+  if (sdkPath) {
+    buildState.sdkPath = sdkPath;
+    console.log(`Zephyr IDE: Updated cached SDK path for ${buildName}: "${sdkPath}"`);
+  }
+}
+
+/**
+ * Clear cached SDK path for a build (called on pristine/clean)
+ * @param wsConfig The workspace configuration
+ * @param projectName The project name
+ * @param buildName The build name
+ */
+export function clearBuildSdkPath(wsConfig: WorkspaceConfig, projectName: string, buildName: string): void {
+  const buildState = wsConfig.projectStates[projectName]?.buildStates[buildName];
+  if (buildState) {
+    buildState.sdkPath = undefined;
+    console.log(`Zephyr IDE: Cleared cached SDK path for ${buildName}`);
+  }
+}
+
+/**
  * Get the ARM GDB path from the active build's SDK or latest installed SDK
- * First tries to get SDK path from CMakeCache.txt of the active build
+ * First tries to get SDK path from cached BuildState or CMakeCache.txt
  * Falls back to the latest SDK in toolchains directory
  * Path format: {sdkPath}/arm-zephyr-eabi/bin/arm-zephyr-eabi-gdb
  * @param wsConfig The workspace configuration (optional, for CMakeCache lookup)
@@ -295,9 +364,9 @@ function getSdkPathFromCMakeCache(wsConfig: WorkspaceConfig): string | undefined
 export function getArmGdbPath(wsConfig?: WorkspaceConfig): string | undefined {
   let sdkPath: string | undefined;
   
-  // First try to get SDK path from CMakeCache.txt of active build
+  // First try to get SDK path from active build (cached or CMakeCache)
   if (wsConfig) {
-    sdkPath = getSdkPathFromCMakeCache(wsConfig);
+    sdkPath = getSdkPathFromBuild(wsConfig);
   }
   
   // Fall back to latest SDK in toolchains directory

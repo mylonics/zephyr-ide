@@ -28,7 +28,7 @@ export async function loadGlobalState(context: vscode.ExtensionContext): Promise
   const rawConfig: any = await context.globalState.get("zephyr-ide.state") ?? {};
   
   // Migrate old config: remove deprecated fields
-  const deprecatedFields = ['armGdbPath'];
+  const deprecatedFields = ['armGdbPath', 'toolchains', 'setupState'];
   let needsSave = false;
   
   for (const field of deprecatedFields) {
@@ -40,9 +40,7 @@ export async function loadGlobalState(context: vscode.ExtensionContext): Promise
   
   // Ensure required fields exist
   const globalConfig: GlobalConfig = {
-    toolchains: rawConfig.toolchains ?? {},
     setupStateDictionary: rawConfig.setupStateDictionary ?? {},
-    setupState: rawConfig.setupState,
     toolsAvailable: rawConfig.toolsAvailable,
     sdkInstalled: rawConfig.sdkInstalled,
   };
