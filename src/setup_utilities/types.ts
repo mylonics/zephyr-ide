@@ -43,7 +43,6 @@ export type ToolChainDictionary = { [name: string]: ToolChainEntry };
 
 export interface GlobalConfig {
   toolchains: ToolChainDictionary,
-  armGdbPath?: string,  // Deprecated: kept for backward compatibility with old configs
   setupState?: SetupState,
   toolsAvailable?: boolean,
   sdkInstalled?: boolean,
