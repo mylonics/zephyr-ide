@@ -25,7 +25,7 @@ import { westSelector, WestLocation } from "./west_selector";
 import { WorkspaceConfig, GlobalConfig, SetupState } from "./types";
 import { saveSetupState, setSetupState, setWorkspaceState } from "./state-management";
 import { pathdivider } from "./tools-validation";
-import { getSetupState } from "./workspace-config";
+import { getSetupState, getVenvPath } from "./workspace-config";
 
 // Test-only override for narrow update
 let forceNarrowUpdateForTest = false;
@@ -240,7 +240,7 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
   if (!setupState) {
     return;
   }
-  let pythonenv = path.join(setupState.setupPath, ".venv");
+  let pythonenv = getVenvPath(setupState.setupPath);
   let env_exists = await fs.pathExists(pythonenv);
 
   let westEnvironmentSetup: string | undefined = useExisiting ? 'UseExisiting' : 'Reinitialize';
@@ -393,7 +393,7 @@ export async function westUpdateWithRequirements(context: vscode.ExtensionContex
 
 export async function postWorkspaceSetup(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, setupPath: string, westSelection: WestLocation | undefined) {
   // Setup west environment before initialization
-  const venvPath = path.join(setupPath, ".venv");
+  const venvPath = getVenvPath(setupPath);
   await setupWestEnvironment(context, wsConfig, globalConfig, fs.pathExistsSync(venvPath));
 
   if (westSelection && !westSelection.failed) {

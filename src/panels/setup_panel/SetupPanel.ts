@@ -117,6 +117,15 @@ export class SetupPanel {
         this._panel.webview.html = this.getHtmlForWebview(wsConfig, globalConfig);
     }
 
+    /**
+     * Check if any valid west workspace has ever been initialized.
+     * SDK installation is allowed as long as at least one workspace exists in setupStateDictionary.
+     */
+    private hasValidSetupState(): boolean {
+        return this.currentGlobalConfig?.setupStateDictionary !== undefined && 
+            Object.keys(this.currentGlobalConfig.setupStateDictionary).length > 0;
+    }
+
     // Message Handler
     private handleWebviewMessage(message: any) {
         switch (message.command) {
@@ -221,7 +230,7 @@ export class SetupPanel {
                 setTimeout(() => this.checkHostToolsStatus(), 100);
                 return;
             case "sdk":
-                subPageContent = SDKSubPage.getHtml(this.currentGlobalConfig);
+                subPageContent = SDKSubPage.getHtml(this.currentGlobalConfig, this.hasValidSetupState());
                 break;
             case "workspace":
                 subPageContent = WorkspaceSubPage.getHtml(this.currentWsConfig);
@@ -742,7 +751,7 @@ export class SetupPanel {
         <body>
             <div class="panel-container">
                 <div class="overview-container" id="overviewContainer">
-                    ${this.generateOverviewSection(wsConfig, globalConfig, folderOpen, workspaceInitialized)}
+                    ${this.generateOverviewSection(wsConfig, globalConfig, folderOpen, workspaceInitialized, this.hasValidSetupState())}
                 </div>
                 <div class="sub-page-container" id="subPageContainer">
                     <!-- Sub-page content will be inserted here -->
@@ -799,7 +808,8 @@ export class SetupPanel {
         wsConfig: WorkspaceConfig,
         globalConfig: GlobalConfig,
         folderOpen: boolean,
-        workspaceInitialized: boolean
+        workspaceInitialized: boolean,
+        hasValidSetupState: boolean
     ): string {
         return `
         <div class="overview-section">
@@ -811,8 +821,8 @@ export class SetupPanel {
             <div class="two-column-layout">
                 <div class="overview-cards">
                     ${HostToolsCard.getHtml(globalConfig)}
-                    ${SDKCard.getHtml(globalConfig)}
                     ${WorkspaceCard.getHtml(wsConfig, folderOpen, workspaceInitialized)}
+                    ${SDKCard.getHtml(globalConfig, hasValidSetupState)}
                 </div>
                 
                 <div class="walkthrough-description">
@@ -820,8 +830,8 @@ export class SetupPanel {
                     <p>Complete these steps to set up your Zephyr development environment:</p>
                     <ul class="setup-requirements">
                         <li><strong>1. Host Tools</strong> - Ensure system has required build dependencies</li>
-                        <li><strong>2. Zephyr SDK</strong> - Download toolchains for target architectures</li>
-                        <li><strong>3. Workspace</strong> - Link to Zephyr source code and modules</li>
+                        <li><strong>2. Workspace</strong> - Link to Zephyr source code and modules</li>
+                        <li><strong>3. Zephyr SDK</strong> - Download toolchains for target architectures</li>
                     </ul>
                     <p class="help-text">Click any card above to configure that component.</p>
                     

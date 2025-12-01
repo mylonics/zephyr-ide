@@ -396,6 +396,21 @@ export function getArmGdbPath(wsConfig?: WorkspaceConfig): string | undefined {
   
   console.log(`Zephyr IDE: ARM GDB executable not found at "${gdbPath}"`);
   return undefined;
+ * Get the Python virtual environment path, either from configuration or default
+ * @param setupPath - The setup path to use for the default venv location
+ * @returns The path to the Python virtual environment
+ */
+export function getVenvPath(setupPath: string): string {
+  const configuration = vscode.workspace.getConfiguration();
+  let venvPath: string | undefined = configuration.get("zephyr-ide.venv-folder");
+  
+  // Use configured path if it's a non-empty string
+  if (venvPath && venvPath.trim()) {
+    return venvPath;
+  }
+  
+  // Default to .venv in the setup path
+  return path.join(setupPath, ".venv");
 }
 
 /**

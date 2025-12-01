@@ -68,6 +68,14 @@
           ],
           "default": false,
           "description": "If true, suppresses the warning about missing workspace environment variables (ZEPHYR_BASE, ZEPHYR_SDK_INSTALL_DIR)."
+        },
+        "zephyr-ide.venv-folder": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "description": "Manually specify a Python virtual environment folder path. If not specified, defaults to .venv in the workspace setup path."
         }
       }
     },
