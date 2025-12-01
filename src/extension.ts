@@ -60,6 +60,7 @@ import {
   getToolchainDir,
   setWorkspaceSettings,
   getSetupState,
+  getArmGdbPath,
 } from "./setup_utilities/workspace-config";
 import { checkIfToolsAvailable } from "./setup_utilities/tools-validation";
 import {
@@ -921,8 +922,16 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.get-arm-gdb-path", async () => {
+      return getArmGdbPath(wsConfig);
+    })
+  );
+
+  context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.get-gdb-path", async () => {
-      return globalConfig.armGdbPath;
+      // For now, just call the ARM GDB path function
+      // In the future, this will expand to support other architectures
+      return getArmGdbPath(wsConfig);
     })
   );
 

@@ -57,6 +57,7 @@ export interface BuildState {
   activeRunner?: string;
   viewOpen?: boolean;
   runnerStates: RunnerStateDictionary;
+  sdkPath?: string; // Cached SDK path from CMakeCache.txt
 }
 
 interface BoardItem extends QuickPickItem {
