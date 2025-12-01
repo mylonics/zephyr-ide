@@ -42,9 +42,6 @@ export interface ToolChainEntry {
 export type ToolChainDictionary = { [name: string]: ToolChainEntry };
 
 export interface GlobalConfig {
-  toolchains: ToolChainDictionary,
-  armGdbPath: string,
-  setupState?: SetupState,
   toolsAvailable?: boolean,
   sdkInstalled?: boolean,
   setupStateDictionary?: SetupStateDictionary

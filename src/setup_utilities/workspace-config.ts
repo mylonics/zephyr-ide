@@ -200,6 +200,205 @@ export function getToolchainDir() {
 }
 
 /**
+ * Find the latest installed SDK version in the toolchains directory
+ * @returns The SDK directory name (e.g., "zephyr-sdk-0.17.3") or undefined
+ */
+function findLatestSdkVersion(): string | undefined {
+  const toolchainDir = getToolchainDir();
+
+  if (!fs.pathExistsSync(toolchainDir)) {
+    return undefined;
+  }
+
+  const entries = fs.readdirSync(toolchainDir);
+  const sdkDirs = entries.filter(entry => {
+    const fullPath = path.join(toolchainDir, entry);
+    return fs.statSync(fullPath).isDirectory() && entry.startsWith('zephyr-sdk-');
+  });
+
+  if (sdkDirs.length === 0) {
+    return undefined;
+  }
+
+  // Sort by version number (descending) to get the latest
+  // localeCompare with numeric:true handles version strings like "0.17.10" vs "0.17.2" correctly
+  sdkDirs.sort((a, b) => {
+    const versionA = a.replace('zephyr-sdk-', '');
+    const versionB = b.replace('zephyr-sdk-', '');
+    return versionB.localeCompare(versionA, undefined, { numeric: true });
+  });
+
+  return sdkDirs[0];
+}
+
+/**
+ * Read SDK install directory from CMakeCache.txt
+ * @param buildDir The build directory path
+ * @returns The SDK install directory path or undefined if not found
+ */
+function readSdkPathFromCMakeCache(buildDir: string): string | undefined {
+  const cmakeCachePath = path.join(buildDir, "CMakeCache.txt");
+
+  if (!fs.pathExistsSync(cmakeCachePath)) {
+    console.log(`Zephyr IDE: CMakeCache.txt not found at "${cmakeCachePath}"`);
+    return undefined;
+  }
+
+  try {
+    const cacheContent = fs.readFileSync(cmakeCachePath, 'utf-8');
+    // Look for ZEPHYR_SDK_INSTALL_DIR:PATH= line
+    const match = cacheContent.match(/^ZEPHYR_SDK_INSTALL_DIR:PATH=(.+)$/m);
+    if (match && match[1]) {
+      const sdkPath = match[1].trim();
+      if (fs.pathExistsSync(sdkPath)) {
+        console.log(`Zephyr IDE: Found SDK path from CMakeCache.txt: "${sdkPath}"`);
+        return sdkPath;
+      }
+    }
+  } catch (error) {
+    console.log(`Zephyr IDE: Error reading CMakeCache.txt: ${error}`);
+  }
+
+  return undefined;
+}
+
+/**
+ * Get SDK path for the active build, using cached value if available
+ * @param wsConfig The workspace configuration
+ * @returns The SDK install directory path or undefined if not found
+ */
+function getSdkPathFromBuild(wsConfig: WorkspaceConfig): string | undefined {
+  // Get active project and build
+  if (!wsConfig.activeProject) {
+    return undefined;
+  }
+
+  const project = wsConfig.projects[wsConfig.activeProject];
+  if (!project) {
+    return undefined;
+  }
+
+  const activeBuildName = wsConfig.projectStates[wsConfig.activeProject]?.activeBuildConfig;
+  if (!activeBuildName) {
+    return undefined;
+  }
+
+  const build = project.buildConfigs[activeBuildName];
+  if (!build) {
+    return undefined;
+  }
+
+  const buildState = wsConfig.projectStates[wsConfig.activeProject]?.buildStates[activeBuildName];
+
+  // First check if we have a cached SDK path
+  if (buildState?.sdkPath && fs.pathExistsSync(buildState.sdkPath)) {
+    console.log(`Zephyr IDE: Using cached SDK path: "${buildState.sdkPath}"`);
+    return buildState.sdkPath;
+  }
+
+  // Otherwise read from CMakeCache.txt
+  const buildDir = path.join(wsConfig.rootPath, project.rel_path, build.name);
+  const sdkPath = readSdkPathFromCMakeCache(buildDir);
+
+  // Cache the SDK path in BuildState if found
+  if (sdkPath && buildState) {
+    buildState.sdkPath = sdkPath;
+  }
+
+  return sdkPath;
+}
+
+/**
+ * Update cached SDK path for a build after build completes
+ * @param wsConfig The workspace configuration  
+ * @param projectName The project name
+ * @param buildName The build name
+ */
+export function updateBuildSdkPath(wsConfig: WorkspaceConfig, projectName: string, buildName: string): void {
+  const project = wsConfig.projects[projectName];
+  if (!project) {
+    return;
+  }
+
+  const build = project.buildConfigs[buildName];
+  if (!build) {
+    return;
+  }
+
+  const buildState = wsConfig.projectStates[projectName]?.buildStates[buildName];
+  if (!buildState) {
+    return;
+  }
+
+  const buildDir = path.join(wsConfig.rootPath, project.rel_path, build.name);
+  const sdkPath = readSdkPathFromCMakeCache(buildDir);
+
+  if (sdkPath) {
+    buildState.sdkPath = sdkPath;
+    console.log(`Zephyr IDE: Updated cached SDK path for ${buildName}: "${sdkPath}"`);
+  }
+}
+
+/**
+ * Clear cached SDK path for a build (called on pristine/clean)
+ * @param wsConfig The workspace configuration
+ * @param projectName The project name
+ * @param buildName The build name
+ */
+export function clearBuildSdkPath(wsConfig: WorkspaceConfig, projectName: string, buildName: string): void {
+  const buildState = wsConfig.projectStates[projectName]?.buildStates[buildName];
+  if (buildState) {
+    buildState.sdkPath = undefined;
+    console.log(`Zephyr IDE: Cleared cached SDK path for ${buildName}`);
+  }
+}
+
+/**
+ * Get the ARM GDB path from the active build's SDK or latest installed SDK
+ * First tries to get SDK path from cached BuildState or CMakeCache.txt
+ * Falls back to the latest SDK in toolchains directory
+ * Path format: {sdkPath}/arm-zephyr-eabi/bin/arm-zephyr-eabi-gdb
+ * @param wsConfig The workspace configuration (optional, for CMakeCache lookup)
+ * @returns The full path to the ARM GDB executable or undefined if not found
+ */
+export function getArmGdbPath(wsConfig?: WorkspaceConfig): string | undefined {
+  let sdkPath: string | undefined;
+
+  // First try to get SDK path from active build (cached or CMakeCache)
+  if (wsConfig) {
+    sdkPath = getSdkPathFromBuild(wsConfig);
+  }
+
+  // Fall back to latest SDK in toolchains directory
+  if (!sdkPath) {
+    const toolchainDir = getToolchainDir();
+    const latestSdk = findLatestSdkVersion();
+    if (!latestSdk) {
+      console.log(`Zephyr IDE: No SDK found in toolchains directory "${toolchainDir}"`);
+      return undefined;
+    }
+    sdkPath = path.join(toolchainDir, latestSdk);
+    console.log(`Zephyr IDE: Using latest SDK: "${sdkPath}"`);
+  }
+
+  const gdbPath = path.join(sdkPath, "arm-zephyr-eabi", "bin", "arm-zephyr-eabi-gdb");
+
+  // Check if the GDB executable exists
+  if (fs.pathExistsSync(gdbPath)) {
+    return gdbPath;
+  }
+
+  // On Windows, check for .exe extension
+  const gdbPathExe = gdbPath + '.exe';
+  if (fs.pathExistsSync(gdbPathExe)) {
+    return gdbPathExe;
+  }
+
+  console.log(`Zephyr IDE: ARM GDB executable not found at "${gdbPath}"`);
+  return undefined;
+}
+
+/**
  * Get the Python virtual environment path, either from configuration or default
  * @param setupPath - The setup path to use for the default venv location
  * @returns The path to the Python virtual environment
@@ -207,12 +406,12 @@ export function getToolchainDir() {
 export function getVenvPath(setupPath: string): string {
   const configuration = vscode.workspace.getConfiguration();
   let venvPath: string | undefined = configuration.get("zephyr-ide.venv-folder");
-  
+
   // Use configured path if it's a non-empty string
   if (venvPath && venvPath.trim()) {
     return venvPath;
   }
-  
+
   // Default to .venv in the setup path
   return path.join(setupPath, ".venv");
 }

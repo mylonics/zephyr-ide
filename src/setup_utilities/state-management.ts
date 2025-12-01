@@ -24,11 +24,32 @@ import { GlobalConfig, WorkspaceConfig, SetupState, generateSetupState } from ".
 import { loadProjectsFromFile, setWorkspaceSettings, generateGitIgnore, generateExtensionsRecommendations } from "./workspace-config";
 
 export async function loadGlobalState(context: vscode.ExtensionContext): Promise<GlobalConfig> {
-  let globalConfig: GlobalConfig = await context.globalState.get("zephyr-ide.state") ?? {
-    toolchains: {},
-    armGdbPath: '',
-    setupStateDictionary: {}
+  // Load raw config as any to handle deprecated fields
+  const rawConfig: any = await context.globalState.get("zephyr-ide.state") ?? {};
+  
+  // Migrate old config: remove deprecated fields
+  const deprecatedFields = ['armGdbPath', 'toolchains', 'setupState'];
+  let needsSave = false;
+  
+  for (const field of deprecatedFields) {
+    if (field in rawConfig) {
+      delete rawConfig[field];
+      needsSave = true;
+    }
+  }
+  
+  // Ensure required fields exist
+  const globalConfig: GlobalConfig = {
+    setupStateDictionary: rawConfig.setupStateDictionary ?? {},
+    toolsAvailable: rawConfig.toolsAvailable,
+    sdkInstalled: rawConfig.sdkInstalled,
   };
+  
+  // Save migrated config if changes were made
+  if (needsSave) {
+    await context.globalState.update("zephyr-ide.state", globalConfig);
+  }
+  
   return globalConfig;
 }
 

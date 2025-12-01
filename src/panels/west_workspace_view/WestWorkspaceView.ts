@@ -22,7 +22,7 @@ import { WorkspaceConfig, GlobalConfig } from '../../setup_utilities/types';
 import { getNonce } from "../../utilities/getNonce";
 import { setSetupState, setGlobalState, clearSetupState } from '../../setup_utilities/state-management';
 import { output } from '../../utilities/utils';
-import { getToolsDir, getEnvironmentSetupState } from '../../setup_utilities/workspace-config';
+import { getToolsDir } from '../../setup_utilities/workspace-config';
 import { westConfig } from '../../setup_utilities/workspace-setup';
 
 export class WestWorkspaceView implements vscode.WebviewViewProvider {
