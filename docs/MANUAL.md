@@ -1,15 +1,15 @@
-#  Zephyr IDE User Manual
+#  Zephyr IDE User Manual
 
 <img src="https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/zephyr-ide_branding.png" alt="Zephyr IDE for Visual Studio Code" width="50%"/>
 
 To get started install the extension from [visual studio code marketplace](https://marketplace.visualstudio.com/items?itemName=mylonics.zephyr-ide)
 
 ## Version 2.0.0 Updates
-This major release includes enhanced workspace setup capabilities:
+This major release includes workspace setup capabilities:
 - **Redesigned setup panel** with improved user guidance and interactive setup process
 - **Automated host tools installation** for required build dependencies
-- **Enhanced workspace setup methods** with better configuration options
-- **New West SDK integration** using the latest West tooling for SDK management
+- **Workspace setup methods** with configuration options
+- **West SDK integration** using West tooling for SDK management
 - **Improved error handling** and setup instructions throughout the extension
 
 
@@ -30,9 +30,9 @@ The Setup Panel presents three configuration cards:
 
 ![Setup Panel Overview](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/setup_panel.png)
 
-1. **🔧 Host Tools** - Install and verify build tools required for Zephyr development
-2. **📦 Zephyr SDK Management** - Install and manage Zephyr SDK for different architectures
-3. **🗂️ Workspace** - Configure west workspace and Zephyr project dependencies
+1. **Host Tools** - Install and verify build tools required for Zephyr development
+2. **Zephyr SDK Management** - Install and manage Zephyr SDK for different architectures
+3. **Workspace** - Configure west workspace and Zephyr project dependencies
 
 ### Host Tools Setup
 
@@ -64,7 +64,7 @@ Click the **Zephyr SDK Management** card to access SDK installation. The SDK pro
 
 **For new users**: Select the latest SDK version and install all available architectures. You can add specific architectures later if storage is a concern.
 
-**Note**: SDK installation is a one-time process per computer and can be shared across multiple projects. SDK installation uses the west SDK command, so a west workspace needs to be configured before SDK management can occur.
+**Note**: SDK installation is a one-time process per computer and can be shared across multiple projects. SDK installation uses the west SDK command, so a west workspace must be configured before SDK management can occur.
 
 ### Workspace Configuration
 
@@ -95,11 +95,11 @@ When setting up a new workspace, the extension will:
 The folder structure after setup will typically look like:
 ```
 workspace/
-├── .west/              # West configuration
-├── .venv/              # Python virtual environment
-├── zephyr/             # Zephyr RTOS source
-├── modules/            # Zephyr modules and dependencies
-└── your-app/           # Your application folder (with west.yml)
++-- .west/              # West configuration
++-- .venv/              # Python virtual environment
++-- zephyr/             # Zephyr RTOS source
++-- modules/            # Zephyr modules and dependencies
++-- your-app/           # Your application folder (with west.yml)
 ```
 
 ### Workspace Setup Options
@@ -117,7 +117,7 @@ Once configured, the workspace panel will display your workspace information and
 
 ## Using Externally Managed Environments
 
-**New in v2.0**: Zephyr IDE now automatically detects and works with externally managed Zephyr environments!
+Zephyr IDE automatically detects and works with externally managed Zephyr environments.
 
 If you already have Zephyr installed outside of Zephyr IDE (e.g., through Docker, a DevContainer, manual installation, or another workspace manager), the extension will automatically detect and use your existing installation through environment variables.
 
@@ -166,12 +166,12 @@ This setting prevents the warning from appearing, allowing you to work with syst
 
 ### Use Cases
 
-Externally managed environments are perfect for:
+Externally managed environments are suitable for:
 
 - **Docker/DevContainer workflows**: Environment variables are pre-configured in your container
 - **CI/CD pipelines**: Build with pre-installed Zephyr in automated environments
 - **Shared development environments**: Teams using a common Zephyr installation
-- **Manual installations**: You've installed Zephyr following the official Zephyr Getting Started guide
+- **Manual installations**: You have installed Zephyr following the official Zephyr Getting Started guide
 - **Multiple projects**: Share one Zephyr installation across multiple project workspaces
 
 ### How the Extension Handles Externally Managed Environments
@@ -266,19 +266,21 @@ launch.json
 ```
 
 ## Twister Tests
-The extension also supports testing with twister. Look for the beaker icon to get started. Tests configurations are handled very similiarily to build configurations
+The extension also supports testing with twister. Look for the beaker icon to get started. Test configurations are handled similarly to build configurations.
 
 ![Zephyr IDE Twister Testing](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/adding_twister_test.gif)
 
 ## Sharing your Code
-In general you should commit everything in your workspace folder, except for build directories, .venv, .vscode/compile_commands.json and external. A .gitignore is automatically generated that should exclude the relevant files. Settings.json and launch.json may be committed on a case by case basis depending on user descretion.
-If you are trying to share a non-local workspace then committing settings.json, is not advisable as some variables may change. Unfortunately, VSCode does not provide a way for having user specific settings/configurations per workspace. See this [issue](https://github.com/Microsoft/vscode/issues/15909) on the VSCode repo.
-You can also try to use a code-workspace.json file to help manage projects across different machines.
+In general, you should commit everything in your workspace folder except for build directories, .venv, .vscode/compile_commands.json and external. A .gitignore is automatically generated that should exclude the relevant files. Settings.json and launch.json may be committed on a case-by-case basis depending on user discretion.
+
+If you are trying to share a non-local workspace, then committing settings.json is not advisable as some variables may change. Unfortunately, VSCode does not provide a way for having user-specific settings/configurations per workspace. See this [issue](https://github.com/Microsoft/vscode/issues/15909) on the VSCode repo.
+
+You can also use a code-workspace.json file to help manage projects across different machines.
 
 You can have a look at this [sample directory](https://github.com/mylonics/zephyr-ide-sample-project) to also help with getting started with sharing projects.
 
 ## Other Features
-The Zephyr Menu Config or GUI Config may be run from the active project panel. In the project config panel by default a Menu Config option is avaialable. This can be changed to GUI Config using add ```"zephyr-ide.use_gui_config": true``` to settings.json. Each debug target may be bound to a custom launch configuration (by default they use "Zephyr IDE: Debug" and "Zephyr IDE: Attach")
+The Zephyr Menu Config or GUI Config may be run from the active project panel. In the project config panel, by default, a Menu Config option is available. This can be changed to GUI Config by adding `"zephyr-ide.use_gui_config": true` to settings.json. Each debug target may be bound to a custom launch configuration (by default they use "Zephyr IDE: Debug" and "Zephyr IDE: Attach").
 
 ![Demonstrating MenuConfig](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/demonstrating_menu_config_debug_binding.gif)
 
@@ -286,7 +288,7 @@ The IDE allows modifying the west and cmake arguments per build. It allows the u
 
 ![Demonstrating KConfig](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/kConfig_dtc.gif)
 
-Custom west commands may be run using the inbuilt Zephyr IDE Terminal.  
+Custom west commands may be run using the inbuilt Zephyr IDE Terminal.  
 
 ![West Terminal](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/west_terminal.gif)
 
@@ -305,4 +307,148 @@ The Zephyr IDE Extension also integrates with a handful of extensions and is rel
 - CMake - Intellisense for CMake Files
 
 ## Known Issues
-⚠️ **When using dev containers with WSL and Windows folders, the setup may not work correctly.** If you're using dev containers in a WSL environment, ensure your workspace folder is located within the Ubuntu file system (e.g., `/home/username/project`) rather than in mounted Windows directories (e.g., `/mnt/c/Users/...`).
+**Dev containers with WSL and Windows folders**: When using dev containers in a WSL environment, ensure your workspace folder is located within the Ubuntu file system (e.g., `/home/username/project`) rather than in mounted Windows directories (e.g., `/mnt/c/Users/...`).
+
+## Available Commands
+
+Zephyr IDE provides the following commands accessible via the command palette (Ctrl+Shift+P or Cmd+Shift+P):
+
+### Setup and Workspace Management
+- `Zephyr IDE: Workspace Setup` - Open workspace setup picker
+- `Zephyr IDE: Setup Workspace from Git` - Clone and setup workspace from Git repository
+- `Zephyr IDE: Setup West Workspace from Git` - Clone and setup West workspace from Git
+- `Zephyr IDE: Setup Workspace from Current Directory` - Initialize current directory as workspace
+- `Zephyr IDE: Setup Standard Workspace` - Create new standard workspace
+- `Zephyr IDE: Setup West Environment` - Setup West environment
+- `Zephyr IDE: West Init` - Initialize West workspace
+- `Zephyr IDE: West Update` - Update West workspace
+- `Zephyr IDE: West Config` - Configure West settings
+- `Zephyr IDE: Reset Workspace` - Reset workspace configuration
+- `Zephyr IDE: Open Setup Panel` - Open the setup panel interface
+- `Zephyr IDE: Create New West Workspace` - Create new West workspace
+- `Zephyr IDE: Refresh West Workspaces` - Refresh workspace list
+- `Zephyr IDE: Select Existing West Workspace` - Select from existing workspaces
+- `Zephyr IDE: Manage Workspace Installations` - Manage workspace installations
+- `Zephyr IDE: Mark West as Ready` - Mark West workspace as ready
+- `Zephyr IDE: Set Workspace Settings` - Configure workspace settings
+- `Zephyr IDE: Reset Zephyr Install Selection` - Reset Zephyr installation selection
+- `Zephyr IDE: Print Workspace Structure` - Print workspace structure to console
+
+### Host Tools and SDK Management
+- `Zephyr IDE: Host Tools Installation` - Open host tools installation panel
+- `Zephyr IDE: Install Host Tools` - Install required host tools
+- `Zephyr IDE: Setup Check Build Dependencies Available` - Check build dependencies
+- `Zephyr IDE: Install SDK` - Install Zephyr SDK
+- `Zephyr IDE: Reinitialize DTS Language Server` - Reinitialize DTS language server
+
+### Project Management
+- `Zephyr IDE: Add Project` - Add existing project
+- `Zephyr IDE: Create Project From Template` - Create new project from template
+- `Zephyr IDE: Remove Project` - Remove project
+- `Zephyr IDE: Set Active Project` - Set active project
+- `Zephyr IDE: Clear Projects` - Clear all projects
+- `Zephyr IDE: Load Projects From File` - Load projects from zephyr-ide.json
+- `Zephyr IDE: Save Projects To File` - Save projects to zephyr-ide.json
+- `Zephyr IDE: Add Project KConfig Files` - Add KConfig files to project
+- `Zephyr IDE: Remove Project KConfig Files` - Remove KConfig files from project
+- `Zephyr IDE: Add Project Overlay Files` - Add overlay files to project
+- `Zephyr IDE: Remove Project Overlay Files` - Remove overlay files from project
+
+### Build Configuration Management
+- `Zephyr IDE: Add Build Configuration` - Add new build configuration
+- `Zephyr IDE: Remove Build` - Remove build configuration
+- `Zephyr IDE: Set Active Build` - Set active build configuration
+- `Zephyr IDE: Add Build KConfig Files` - Add KConfig files to build
+- `Zephyr IDE: Remove Build KConfig Files` - Remove KConfig files from build
+- `Zephyr IDE: Add Build Overlay Files` - Add overlay files to build
+- `Zephyr IDE: Remove Build Overlay Files` - Remove overlay files from build
+- `Zephyr IDE: Modify Build Arguments` - Modify build arguments
+
+### Runner Management
+- `Zephyr IDE: Add Runner` - Add runner to build configuration
+- `Zephyr IDE: Remove Runner` - Remove runner from build configuration
+- `Zephyr IDE: Set Active Runner` - Set active runner
+
+### Build and Flash Operations
+- `Zephyr IDE: Build Pristine` - Build with pristine flag (clean build)
+- `Zephyr IDE: Build` - Build active project
+- `Zephyr IDE: Clean` - Clean build artifacts
+- `Zephyr IDE: Flash` - Flash build to target device
+
+### Debug Operations
+- `Zephyr IDE: Debug` - Start debugging session
+- `Zephyr IDE: Debug Attach` - Attach debugger to running target
+- `Zephyr IDE: Build and Debug` - Build and start debugging
+- `Zephyr IDE: Change Debug Launch Configuration For Build` - Change debug launch configuration
+- `Zephyr IDE: Change Build and Debug Launch Configuration For Build` - Change build and debug launch configuration
+- `Zephyr IDE: Change Debug Attach Launch Configuration For Build` - Change debug attach launch configuration
+
+### Configuration and Analysis Tools
+- `Zephyr IDE: Start Menu Config` - Start Kconfig menu configuration
+- `Zephyr IDE: Start GUI Config` - Start Kconfig GUI configuration
+- `Zephyr IDE: Run ROM Report` - Generate ROM usage report
+- `Zephyr IDE: Run RAM Report` - Generate RAM usage report
+- `Zephyr IDE: Start DTSh Shell` - Start devicetree shell
+
+### Testing with Twister
+- `Zephyr IDE: Add Twister Test to Project` - Add Twister test
+- `Zephyr IDE: Remove Twister Test from Project` - Remove Twister test
+- `Zephyr IDE: Set Active Test` - Set active test
+- `Zephyr IDE: Run Test` - Run Twister test
+- `Zephyr IDE: Reconfigure Active Test` - Reconfigure active test
+- `Zephyr IDE: Delete Test Output Directories` - Delete test output directories
+
+### Automatic Project Targeting
+- `Zephyr IDE: Enable Automatic Active Project Targeting` - Enable automatic project targeting based on active file
+- `Zephyr IDE: Disable Automatic Active Project Targeting` - Disable automatic project targeting
+
+### Utility Commands
+- `Zephyr IDE: Show View Container` - Show Zephyr IDE view container
+- `Zephyr IDE: Reload Web Views` - Reload web view panels
+- `Zephyr IDE: Debug Internal Shell` - Debug internal shell
+- `Zephyr IDE: Shell Test` - Test shell functionality
+
+## Configuration Settings
+
+The following settings are available in VS Code settings (File > Preferences > Settings):
+
+### `zephyr-ide.tools_directory`
+- **Type**: String or null
+- **Default**: null
+- **Description**: Manually specify a tools directory for SDK installation and global Zephyr install location
+
+### `zephyr-ide.use_gui_config`
+- **Type**: Boolean
+- **Default**: false
+- **Description**: Display GUI config instead of menu config in Project Tree View
+
+### `zephyr-ide.westNarrowUpdate`
+- **Type**: Boolean
+- **Default**: false
+- **Description**: If true, uses 'west update --narrow'. If false, uses 'west update' without --narrow.
+
+### `zephyr-ide.suppress-workspace-warning`
+- **Type**: Boolean
+- **Default**: false
+- **Description**: If true, suppresses the warning about missing workspace environment variables (ZEPHYR_BASE, ZEPHYR_SDK_INSTALL_DIR).
+
+### `zephyr-ide.venv-folder`
+- **Type**: String or null
+- **Default**: null
+- **Description**: Manually specify a Python virtual environment folder path. If not specified, defaults to .venv in the workspace setup path.
+
+## Launch Configuration Helper Commands
+
+The following commands can be used in launch.json configurations to dynamically retrieve project and build information:
+
+- `zephyr-ide.get-active-project-name` - Get active project name
+- `zephyr-ide.get-active-project-path` - Get active project path
+- `zephyr-ide.get-active-build-path` - Get active build path
+- `zephyr-ide.get-active-build-board-path` - Get active build board path
+- `zephyr-ide.select-active-build-path` - Select active build path (prompts user)
+- `zephyr-ide.get-gdb-path` - Get GDB path from toolchain
+- `zephyr-ide.get-toolchain-path` - Get toolchain path
+- `zephyr-ide.get-zephyr-ide-json-variable` - Get variable from zephyr-ide.json
+- `zephyr-ide.get-active-project-variable` - Get custom variable from active project
+- `zephyr-ide.get-active-build-variable` - Get custom variable from active build
+- `zephyr-ide.get-active-board-name` - Get active board name

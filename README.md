@@ -1,8 +1,8 @@
-#  Zephyr IDE for VS Code
+# Zephyr IDE for VS Code
 
 <img src="https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/zephyr-ide_branding.png" alt="Zephyr IDE for Visual Studio Code" width="50%"/>
 
-The Zephyr IDE for VS code extension provides tools to aide in your Zephyr Project work flow. This extension helps you to build Zephyr projects and share them with your team.
+The Zephyr IDE for VS Code extension provides tools to assist in your Zephyr project workflow. This extension helps you build Zephyr projects and share them with your team.
 
 Please check out our new [extension pack](https://marketplace.visualstudio.com/items?itemName=mylonics.zephyr-ide-extension-pack) that bundles in additional tools.
 
@@ -43,10 +43,10 @@ Zephyr IDE automatically detects and works with externally managed Zephyr enviro
 
 - **Automatic detection** via `ZEPHYR_BASE` environment variable
 - **No setup required** when using Docker, DevContainers, or pre-configured environments
-- **Full feature support** including build, flash, and debug operations
+- **Feature support** including build, flash, and debug operations
 - **Configurable warning**: Option to suppress environment variable warnings via `zephyr-ide.suppress-workspace-warning` setting
 
-Perfect for:
+Suitable for:
 - Docker/container workflows
 - CI/CD pipelines
 - Shared development environments
@@ -65,9 +65,9 @@ There is a [manual](docs/MANUAL.md) available to help get started along with a c
 You can have a look at this [sample directory](https://github.com/mylonics/zephyr-ide-sample-project) to also help with getting started and sharing project. 
 ## Requirements
 
-In order for this application to work correctly the zephyr require build tools need to be installed and available on the path. These include cmake, python3, and Devicetree Compiler. 
+For this extension to work correctly, the required Zephyr build tools must be installed and available on the system path. These include cmake, python3, and Devicetree Compiler.
 
-See the [Install Dependecies Section of the Zephyr Getting Started Guide](https://docs.zephyrproject.org/latest/develop/getting_started/index.html#install-dependencies)
+See the [Install Dependencies Section of the Zephyr Getting Started Guide](https://docs.zephyrproject.org/latest/develop/getting_started/index.html#install-dependencies)
 
 
 ## Testing
@@ -104,11 +104,11 @@ node scripts/run-tests.js
 ### Test Coverage
 
 The integration tests validate:
-- ✅ **Real workspace creation** with west init and update
-- ✅ **Actual project creation** from Zephyr blinky sample
-- ✅ **STM32 build configuration** for nucleo_f103rb board
-- ✅ **Complete build execution** with west build
-- ✅ **Build artifact verification** (binary, ELF files)
+- **Real workspace creation** with west init and update
+- **Actual project creation** from Zephyr blinky sample
+- **STM32 build configuration** for nucleo_f103rb board
+- **Complete build execution** with west build
+- **Build artifact verification** (binary, ELF files)
 
 ### CI/CD Integration
 
@@ -118,7 +118,7 @@ Integration tests run in CI environments on:
 For more details, see [docs/TESTING.md](docs/TESTING.md).
 
 ## Known Issues
-- **When using dev containers with WSL and Windows folders, the setup may not work correctly.** If you're using dev containers in a WSL environment, ensure your workspace folder is located within the Ubuntu file system (e.g., `/home/username/project`) rather than in mounted Windows directories (e.g., `/mnt/c/Users/...`). This is an issue inherent with the west boards command.
+- **Dev containers with WSL and Windows folders**: When using dev containers in a WSL environment, ensure your workspace folder is located within the Ubuntu file system (e.g., `/home/username/project`) rather than in mounted Windows directories (e.g., `/mnt/c/Users/...`). This is an issue inherent with the west boards command.
 
 ## Release Notes
 See [CHANGELOG](CHANGELOG.md) for release notes
