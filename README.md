@@ -8,6 +8,8 @@ An [extension pack](https://marketplace.visualstudio.com/items?itemName=mylonics
 
 You can read a little bit more about the motivation behind the project [here](https://mylonics.com/blog/zephyr-ide-for-vscode/).
 
+![Zephyr IDE Setup Panel](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/setup_panel.png)
+
 ## Features
   - Installs host tools required for Zephyr development
   - Sets up west environment
@@ -57,14 +59,14 @@ The [User Manual](docs/MANUAL.md) is available to help get started along with a 
 You can have a look at this [sample directory](https://github.com/mylonics/zephyr-ide-sample-project) to also help with getting started and sharing project. 
 ## Requirements
 
-This extension can automatically install host tools required for Zephyr development on supported platforms. The automated installation follows the methods described in the Zephyr Getting Started Guide and installs tools such as cmake, python3, devicetree compiler, and other build dependencies.
+This extension can automatically install host tools required for Zephyr development on supported platforms. The automated installation follows the methods described in the [Zephyr Getting Started Guide](https://docs.zephyrproject.org/latest/develop/getting_started/index.html#install-dependencies) and installs tools such as **cmake**, **python3**, and **devicetree compiler**.
 
-For manual installation or unsupported platforms, see the [Install Dependencies Section of the Zephyr Getting Started Guide](https://docs.zephyrproject.org/latest/develop/getting_started/index.html#install-dependencies)
+For installation on unsupported platforms, install the required packages from the getting started guide using your platform's package manager and consider making an issue or pull request for that specific platform at the zephyr-ide repository.
 
 
 ## Testing
 
-This extension includes integration tests that validate the complete Zephyr IDE workflow. For more details, see [docs/TESTING.md](docs/TESTING.md).
+This extension includes integration tests that validate the Zephyr IDE workflow. For more details, see [docs/TESTING.md](docs/TESTING.md).
 
 ## Known Issues
 - **Dev containers with WSL and Windows folders**: When using dev containers in a WSL environment, ensure your workspace folder is located within the Ubuntu file system (e.g., `/home/username/project`) rather than in mounted Windows directories (e.g., `/mnt/c/Users/...`). This is an issue inherent with the west boards command.
