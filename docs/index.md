@@ -55,7 +55,7 @@ For installation on unsupported platforms, install the required packages from th
 
 ## Testing
 
-This extension includes integration tests that validate the Zephyr IDE workflow. For more details, see [TESTING.md](TESTING.md).
+This extension includes integration tests that validate the Zephyr IDE workflow. For more details, see the [GitHub repository](https://github.com/mylonics/zephyr-ide).
 
 ## Getting Help
 

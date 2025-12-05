@@ -3,41 +3,43 @@
 {% block extrahead %}
   {{ super() }}
   
-  {# Page-specific meta description from frontmatter #}
-  {% if page.meta.description %}
-    <meta name="description" content="{{ page.meta.description }}">
+  {% if page %}
+    {# Page-specific meta description from frontmatter #}
+    {% if page.meta.description %}
+      <meta name="description" content="{{ page.meta.description }}">
+    {% endif %}
+    
+    {# Page-specific keywords from frontmatter #}
+    {% if page.meta.keywords %}
+      <meta name="keywords" content="{{ page.meta.keywords | join(', ') if page.meta.keywords is iterable and page.meta.keywords is not string else page.meta.keywords }}">
+    {% endif %}
+    
+    {# Open Graph meta tags #}
+    <meta property="og:title" content="{% if page.meta.title %}{{ page.meta.title }}{% else %}{{ page.title }} - {{ config.site_name }}{% endif %}">
+    {% if page.meta.description %}
+      <meta property="og:description" content="{{ page.meta.description }}">
+    {% else %}
+      <meta property="og:description" content="{{ config.site_description }}">
+    {% endif %}
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ page.canonical_url }}">
+    <meta property="og:site_name" content="{{ config.site_name }}">
+    <meta property="og:image" content="https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/zephyr-ide_branding.png">
+    
+    {# Twitter Card meta tags #}
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@mylonics">
+    <meta name="twitter:title" content="{% if page.meta.title %}{{ page.meta.title }}{% else %}{{ page.title }} - {{ config.site_name }}{% endif %}">
+    {% if page.meta.description %}
+      <meta name="twitter:description" content="{{ page.meta.description }}">
+    {% else %}
+      <meta name="twitter:description" content="{{ config.site_description }}">
+    {% endif %}
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/zephyr-ide_branding.png">
+    
+    {# Canonical URL #}
+    <link rel="canonical" href="{{ page.canonical_url }}">
   {% endif %}
-  
-  {# Page-specific keywords from frontmatter #}
-  {% if page.meta.keywords %}
-    <meta name="keywords" content="{{ page.meta.keywords | join(', ') if page.meta.keywords is iterable and page.meta.keywords is not string else page.meta.keywords }}">
-  {% endif %}
-  
-  {# Open Graph meta tags #}
-  <meta property="og:title" content="{% if page.meta.title %}{{ page.meta.title }}{% else %}{{ page.title }} - {{ config.site_name }}{% endif %}">
-  {% if page.meta.description %}
-    <meta property="og:description" content="{{ page.meta.description }}">
-  {% else %}
-    <meta property="og:description" content="{{ config.site_description }}">
-  {% endif %}
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="{{ page.canonical_url }}">
-  <meta property="og:site_name" content="{{ config.site_name }}">
-  <meta property="og:image" content="https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/zephyr-ide_branding.png">
-  
-  {# Twitter Card meta tags #}
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:site" content="@mylonics">
-  <meta name="twitter:title" content="{% if page.meta.title %}{{ page.meta.title }}{% else %}{{ page.title }} - {{ config.site_name }}{% endif %}">
-  {% if page.meta.description %}
-    <meta name="twitter:description" content="{{ page.meta.description }}">
-  {% else %}
-    <meta name="twitter:description" content="{{ config.site_description }}">
-  {% endif %}
-  <meta name="twitter:image" content="https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/zephyr-ide_branding.png">
-  
-  {# Canonical URL #}
-  <link rel="canonical" href="{{ page.canonical_url }}">
   
   {# Structured data for search engines #}
   <script type="application/ld+json">
@@ -67,9 +69,13 @@
 {% endblock %}
 
 {% block htmltitle %}
-  {% if page.meta.title %}
-    <title>{{ page.meta.title }}</title>
+  {% if page %}
+    {% if page.meta.title %}
+      <title>{{ page.meta.title }}</title>
+    {% else %}
+      <title>{{ page.title }} - {{ config.site_name }}</title>
+    {% endif %}
   {% else %}
-    <title>{{ page.title }} - {{ config.site_name }}</title>
+    <title>{{ config.site_name }}</title>
   {% endif %}
 {% endblock %}

@@ -10,9 +10,7 @@ This guide covers the development setup for the Zephyr IDE VS Code extension.
 
 ## Related Documentation
 
-- [User Manual](MANUAL.md) - Complete user guide for the extension
-- [Testing Guide](TESTING.md) - Information about running tests and test infrastructure  
-- [Unused Code Detection](unused-code-detection.md) - Guide for detecting unused code
+For more developer documentation, please visit the [GitHub repository](https://github.com/mylonics/zephyr-ide).
 
 ## Prerequisites
 
