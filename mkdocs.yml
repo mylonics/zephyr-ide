@@ -1,7 +1,7 @@
 site_name: Zephyr IDE for VS Code
 site_description: A VS Code extension that streamlines setup, build, flashing, and debugging of Zephyr Projects
 site_author: Mylonics
-site_url: https://mylonics.github.io/zephyr-ide
+site_url: https://zephyr-ide.mylonics.com
 repo_url: https://github.com/mylonics/zephyr-ide
 repo_name: mylonics/zephyr-ide
 copyright: Copyright &copy; 2025 Mylonics
