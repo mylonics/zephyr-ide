@@ -4,10 +4,12 @@ on:
   push:
     branches:
       - main
+      - pre-release
       - develop
   pull_request:
     branches:
       - main
+      - pre-release
       - develop
   workflow_dispatch:
 
@@ -37,6 +39,6 @@ jobs:
           mkdocs build --verbose
 
       - name: Deploy to GitHub Pages
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/pre-release')) || github.event_name == 'workflow_dispatch'
         run: |
           mkdocs gh-deploy --force --message "Deploy documentation [skip ci]"
