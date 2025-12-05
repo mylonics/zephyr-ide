@@ -15,12 +15,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: develop
-      - name: Create Pull Request
+      - name: Create Pull Request and Enable Auto-Merge with Rebase
         id: create-pr
         uses: actions/github-script@v6
         with:
           script: |
             const { owner, repo } = context.repo;
+            
+            // Create the pull request
             const pr = await github.rest.pulls.create({
               owner,
               repo,
@@ -29,3 +31,27 @@ jobs:
               base: 'main',
             });
             core.setOutput('pr_number', pr.data.number);
+            
+            // Enable auto-merge with REBASE method using GraphQL
+            try {
+              await github.graphql(`
+                mutation($pullRequestId: ID!, $mergeMethod: PullRequestMergeMethod!) {
+                  enablePullRequestAutoMerge(input: {
+                    pullRequestId: $pullRequestId,
+                    mergeMethod: $mergeMethod
+                  }) {
+                    pullRequest {
+                      id
+                    }
+                  }
+                }
+              `, {
+                pullRequestId: pr.data.node_id,
+                mergeMethod: 'REBASE'
+              });
+              
+              console.log(`PR #${pr.data.number} created and auto-merge enabled with REBASE method`);
+            } catch (error) {
+              console.error(`Failed to enable auto-merge: ${error.message}`);
+              core.warning(`Auto-merge could not be enabled. You may need to enable it manually or check repository settings.`);
+            }
