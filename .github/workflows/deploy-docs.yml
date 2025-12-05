@@ -1,44 +1,19 @@
-name: Deploy Documentation
+name: Publish docs via GitHub Pages
 
 on:
   push:
     branches:
       - main
-      - pre-release
-      - develop
-  pull_request:
-    branches:
-      - main
-      - pre-release
-      - develop
-  workflow_dispatch:
-
-permissions:
-  contents: write
 
 jobs:
-  deploy:
+  build:
+    name: Deploy docs
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout main
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
-
-      - name: Install dependencies
-        run: |
-          pip install -r requirements-docs.txt
-
-      - name: Build documentation
-        run: |
-          mkdocs build --verbose
-
-      - name: Deploy to GitHub Pages
-        if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/pre-release')) || github.event_name == 'workflow_dispatch'
-        run: |
-          mkdocs gh-deploy --force --message "Deploy documentation [skip ci]"
+      - name: Deploy docs
+        uses: mhausenblas/mkdocs-deploy-gh-pages@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
