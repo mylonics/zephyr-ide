@@ -1,0 +1,75 @@
+site_name: Zephyr IDE for VS Code
+site_description: A VS Code extension that streamlines setup, build, flashing, and debugging of Zephyr Projects
+site_author: Mylonics
+site_url: https://mylonics.github.io/zephyr-ide
+repo_url: https://github.com/mylonics/zephyr-ide
+repo_name: mylonics/zephyr-ide
+copyright: Copyright &copy; 2025 Mylonics
+
+theme:
+  name: cinder
+  colorscheme: github
+  highlightjs: true
+  hljs_languages:
+    - yaml
+    - c
+    - cpp
+    - bash
+    - python
+    - json
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Installation: getting-started/installation.md
+    - Setup Panel: getting-started/setup-panel.md
+    - Host Tools: getting-started/host-tools.md
+    - Workspace Configuration: getting-started/workspace-configuration.md
+    - SDK Installation: getting-started/sdk-installation.md
+    - Externally Managed Environments: getting-started/external-environments.md
+  - User Guide:
+    - Setting Up Projects: user-guide/project-setup.md
+    - Building and Debugging: user-guide/building-debugging.md
+    - Testing with Twister: user-guide/testing.md
+    - Sharing Your Code: user-guide/sharing.md
+    - Other Features: user-guide/other-features.md
+  - Reference:
+    - Commands: reference/commands.md
+    - Configuration Settings: reference/configuration.md
+    - Launch Configuration Helpers: reference/launch-configuration.md
+    - Extension Pack: reference/extension-pack.md
+    - Known Issues: reference/known-issues.md
+  - Changelog: changelog.md
+  - Developer Guide: developer-guide.md
+
+markdown_extensions:
+  - toc:
+      permalink: true
+  - admonition
+  - codehilite:
+      guess_lang: false
+  - def_list
+  - footnotes
+  - meta
+  - tables
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.details
+  - pymdownx.tabbed:
+      alternate_style: true
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/mylonics/zephyr-ide
+    - icon: fontawesome/solid/globe
+      link: https://mylonics.com
+
+plugins:
+  - search
+
+exclude_docs: |
+  README.md
