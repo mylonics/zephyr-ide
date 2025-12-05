@@ -1,3 +1,9 @@
+---
+title: Zephyr IDE Commands Reference - Complete Command Palette Guide
+description: Complete reference of all Zephyr IDE VS Code commands for workspace setup, project management, building, debugging, and testing. Access via command palette (Ctrl+Shift+P).
+keywords: Zephyr IDE commands, command palette, VS Code commands, workspace commands, build commands, debug commands, west commands
+---
+
 # Available Commands
 
 Zephyr IDE provides the following commands accessible via the command palette (Ctrl+Shift+P or Cmd+Shift+P):

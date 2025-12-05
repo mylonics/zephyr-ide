@@ -1,3 +1,9 @@
+---
+title: Developer Guide - Contributing to Zephyr IDE VS Code Extension
+description: Learn how to contribute to Zephyr IDE. Development setup, build instructions, testing, and guidelines for extending the VS Code extension for Zephyr RTOS.
+keywords: developer guide, contributing, VS Code extension development, Zephyr IDE development, build from source, extension testing, open source contribution
+---
+
 # Zephyr IDE for VS Code Developer's Guide
 
 This guide covers the development setup for the Zephyr IDE VS Code extension.

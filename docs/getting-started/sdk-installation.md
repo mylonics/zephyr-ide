@@ -1,3 +1,9 @@
+---
+title: Install Zephyr SDK - Cross-Compilation Toolchains for Embedded Development
+description: Install and manage Zephyr SDK with support for ARM, x86, RISC-V architectures. West SDK integration for easy version management and multi-architecture support.
+keywords: Zephyr SDK, cross-compilation, ARM toolchain, RISC-V toolchain, x86 toolchain, SDK installation, west SDK, embedded toolchains
+---
+
 # Zephyr SDK Installation
 
 ![SDK Management](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/sdk_management.png)

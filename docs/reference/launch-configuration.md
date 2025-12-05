@@ -1,3 +1,9 @@
+---
+title: Launch Configuration Helpers - Dynamic Debug Configuration Commands
+description: Use Zephyr IDE helper commands in launch.json for dynamic project and build information. Get active project paths, GDB paths, toolchain paths, and custom variables.
+keywords: launch configuration, debug configuration, GDB path, toolchain path, launch.json helpers, dynamic configuration, debug commands
+---
+
 # Launch Configuration Helper Commands
 
 The following commands can be used in launch.json configurations to dynamically retrieve project and build information:

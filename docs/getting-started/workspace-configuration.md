@@ -1,3 +1,9 @@
+---
+title: Configure Zephyr Workspace - West Workspace Setup and Management
+description: Set up your Zephyr workspace with west integration. Import from Git, create standard workspace, or initialize current directory for Zephyr RTOS development.
+keywords: Zephyr workspace, west workspace, workspace configuration, Git import, west initialization, Python virtual environment
+---
+
 # Workspace Configuration
 
 ![Unconfigured Workspace Panel](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/unconfigured_workspace_panel.png)

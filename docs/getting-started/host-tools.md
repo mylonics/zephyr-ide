@@ -1,3 +1,9 @@
+---
+title: Install Host Tools for Zephyr Development - Automated Build Dependencies
+description: Automated host tools installation for Zephyr RTOS development. Install CMake, Python3, devicetree compiler, and gcc on supported platforms with one click.
+keywords: host tools installation, Zephyr build dependencies, CMake, Python3, devicetree compiler, automated installation, build tools
+---
+
 # Host Tools Setup
 
 ![Host Tools Installation](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/host_tool_install.png)
