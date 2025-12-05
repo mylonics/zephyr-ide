@@ -58,7 +58,7 @@
       "name": "Mylonics",
       "url": "https://mylonics.com"
     },
-    "softwareVersion": "{{ config.extra.version }}",
+    "softwareVersion": "{{ config.extra.version | default('2.2.0', true) }}",
     "url": "{{ config.site_url }}",
     "downloadUrl": "https://marketplace.visualstudio.com/items?itemName=mylonics.zephyr-ide",
     "screenshot": "https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/zephyr-ide_branding.png"
