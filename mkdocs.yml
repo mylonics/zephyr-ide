@@ -70,3 +70,6 @@ extra:
 
 plugins:
   - search
+
+exclude_docs: |
+  README.md
