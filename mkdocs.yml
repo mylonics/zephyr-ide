@@ -98,3 +98,10 @@ plugins:
 
 exclude_docs: |
   README.md
+  MANUAL.md
+  SETUP_PANEL_ARCHITECTURE.md
+  TESTING.md
+  WORKSPACE_PANEL_UI_CHANGES.md
+  test-infrastructure-fixes.md
+  test-refactoring-guide.md
+  unused-code-detection.md
