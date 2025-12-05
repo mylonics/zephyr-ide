@@ -18,6 +18,23 @@ theme:
     - python
     - json
   custom_dir: docs/theme_overrides
+  # Zephyr IDE branding - icons located in docs/media/
+  logo: media/icon.svg
+  favicon: media/icon.png
+  palette:
+    scheme: default
+    primary: white
+    accent: indigo
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
 
 nav:
   - Home: index.md
@@ -61,6 +78,9 @@ markdown_extensions:
   - pymdownx.details
   - pymdownx.tabbed:
       alternate_style: true
+
+extra_css:
+  - assets/stylesheets/extra.css
 
 extra:
   version: "2.2.0"
