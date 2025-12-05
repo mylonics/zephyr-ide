@@ -2,7 +2,7 @@
 
 <img src="https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/zephyr-ide_branding.png" alt="Zephyr IDE for Visual Studio Code" width="50%"/>
 
-To get started, install the extension from [Visual Studio Code marketplace](https://marketplace.visualstudio.com/items?itemName=mylonics.zephyr-ide)
+To get started, install the extension from [Visual Studio Code marketplace](https://marketplace.visualstudio.com/items?itemName=mylonics.zephyr-ide) or [Open VSX Registry](https://open-vsx.org/extension/mylonics/zephyr-ide)
 
 ## Version 2.0.0 Updates
 This major release includes workspace setup capabilities:
@@ -50,21 +50,6 @@ Click the Host Tools card to access the Host Tools sub-page. This page helps you
 - Automated installation: On supported platforms, the extension can automatically install missing dependencies using your system's package manager
 
 - Manual installation guide: Links to the [Zephyr Getting Started Guide](https://docs.zephyrproject.org/latest/develop/getting_started/index.html#install-dependencies) for manual installation
-
-### Zephyr SDK Installation
-
-![SDK Management](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/sdk_management.png)
-
-Click the Zephyr SDK Management card to access SDK installation. The SDK provides cross-compilation toolchains for various architectures (ARM, x86, RISC-V, etc.).
-
-The extension uses West's SDK integration for version management:
-- Select which SDK versions to install
-- Install multiple SDKs for different architectures
-- Manage SDK updates through the extension
-
-For new users: Select the latest SDK version and install all available architectures. You can add specific architectures later if storage is a concern.
-
-Note: SDK installation is a one-time process per computer and can be shared across multiple projects. SDK installation uses the west SDK command, so a west workspace must be configured before SDK management can occur.
 
 ### Workspace Configuration
 
@@ -115,6 +100,21 @@ Once configured, the workspace panel will display your workspace information and
 
 ![Configured Workspace Panel](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/configured_workspace_panel.png)
 
+### Zephyr SDK Installation
+
+![SDK Management](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/sdk_management.png)
+
+Click the Zephyr SDK Management card to access SDK installation. The SDK provides cross-compilation toolchains for various architectures (ARM, x86, RISC-V, etc.).
+
+The extension uses West's SDK integration for version management:
+- Select which SDK versions to install
+- Install multiple SDKs for different architectures
+- Manage SDK updates through the extension
+
+For new users: Select the latest SDK version and install all available architectures. You can add specific architectures later if storage is a concern.
+
+Note: SDK installation is a one-time process per computer and can be shared across multiple projects. SDK installation uses the west SDK command, so a west workspace must be configured before SDK management can occur.
+
 ## Using Externally Managed Environments
 
 Zephyr IDE automatically detects and works with externally managed Zephyr environments.
@@ -130,6 +130,12 @@ When Zephyr IDE starts and no workspace is actively configured:
    - Continue: Proceed using system environment variables (commands may still work if tools are in PATH)
    - Don't Show Again: Suppress this warning for the current workspace
    - Setup Workspace: Open the Setup Panel to configure a workspace
+
+When `ZEPHYR_BASE` is set, the extension:
+- Assumes west and required packages are already installed in the environment
+- Uses the detected Zephyr installation for all build operations
+- Allows all commands (build, flash, debug) to run without workspace-specific configuration
+- Shows a warning if environment variables are missing (unless suppressed with the setting above)
 
 
 ### Setting Up Environment Variables
@@ -173,16 +179,6 @@ Externally managed environments are suitable for:
 - Shared development environments: Teams using a common Zephyr installation
 - Manual installations: You have installed Zephyr following the official Zephyr Getting Started guide
 - Multiple projects: Share one Zephyr installation across multiple project workspaces
-
-### How the Extension Handles Externally Managed Environments
-
-When `ZEPHYR_BASE` is set, the extension:
-- Assumes west and required packages are already installed in the environment
-- Uses the detected Zephyr installation for all build operations
-- Allows all commands (build, flash, debug) to run without workspace-specific configuration
-- Shows a warning if environment variables are missing (unless suppressed with the setting above)
-
-This approach provides maximum flexibility for developers who manage their own Zephyr installations while still offering guided setup for those who prefer IDE-managed workspaces.
 
 
 ## Setting Up A Project
