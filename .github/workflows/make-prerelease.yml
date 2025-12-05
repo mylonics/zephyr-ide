@@ -29,3 +29,34 @@ jobs:
               base: 'pre-release',
             });
             core.setOutput('pr_number', pr.data.number);
+      - name: Enable Auto-Merge with Rebase
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const prNumber = ${{ steps.create-pr.outputs.pr_number }};
+            
+            // Get the PR node ID for GraphQL
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber
+            });
+            
+            // Enable auto-merge with REBASE method using GraphQL
+            await github.graphql(`
+              mutation($pullRequestId: ID!, $mergeMethod: PullRequestMergeMethod!) {
+                enablePullRequestAutoMerge(input: {
+                  pullRequestId: $pullRequestId,
+                  mergeMethod: $mergeMethod
+                }) {
+                  pullRequest {
+                    id
+                  }
+                }
+              }
+            `, {
+              pullRequestId: pr.data.node_id,
+              mergeMethod: 'REBASE'
+            });
+            
+            console.log(`Auto-merge enabled for PR #${prNumber} with REBASE method`);
