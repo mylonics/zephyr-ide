@@ -7,7 +7,7 @@ repo_name: mylonics/zephyr-ide
 copyright: Copyright &copy; 2025 Mylonics
 
 theme:
-  name: cinder
+  name: material
   colorscheme: github
   highlightjs: true
   hljs_languages:
