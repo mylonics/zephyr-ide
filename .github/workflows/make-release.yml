@@ -15,12 +15,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: develop
-      - name: Create Pull Request
+      - name: Create Pull Request and Enable Auto-Merge with Rebase
         id: create-pr
         uses: actions/github-script@v6
         with:
           script: |
             const { owner, repo } = context.repo;
+            
+            // Create the pull request
             const pr = await github.rest.pulls.create({
               owner,
               repo,
@@ -29,18 +31,6 @@ jobs:
               base: 'main',
             });
             core.setOutput('pr_number', pr.data.number);
-      - name: Enable Auto-Merge with Rebase
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const prNumber = ${{ steps.create-pr.outputs.pr_number }};
-            
-            // Get the PR node ID for GraphQL
-            const pr = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: prNumber
-            });
             
             // Enable auto-merge with REBASE method using GraphQL
             await github.graphql(`
@@ -59,4 +49,4 @@ jobs:
               mergeMethod: 'REBASE'
             });
             
-            console.log(`Auto-merge enabled for PR #${prNumber} with REBASE method`);
+            console.log(`PR #${pr.data.number} created and auto-merge enabled with REBASE method`);
