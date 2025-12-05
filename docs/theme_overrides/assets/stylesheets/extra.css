@@ -7,6 +7,7 @@
   --md-primary-fg-color--dark: #e9ecef;
   --md-accent-fg-color: #4051b5;
   --md-accent-fg-color--transparent: rgba(64, 81, 181, 0.1);
+  --md-logo-height: 2.4rem;
 }
 
 /* Header styling - clean and minimal */
@@ -23,7 +24,7 @@
 /* Logo sizing */
 .md-header__button.md-logo img,
 .md-header__button.md-logo svg {
-  height: 2.4rem;
+  height: var(--md-logo-height);
   width: auto;
 }
 
@@ -125,8 +126,4 @@
 
 .md-button:hover {
   background-color: #2c3e9c;
-}
-
-.md-button--primary {
-  background-color: #4051b5;
 }

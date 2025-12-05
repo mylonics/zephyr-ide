@@ -18,6 +18,7 @@ theme:
     - python
     - json
   custom_dir: docs/theme_overrides
+  # Zephyr IDE branding - icons located in docs/media/
   logo: media/icon.svg
   favicon: media/icon.png
   palette:
