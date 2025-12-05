@@ -10,7 +10,7 @@
   
   {# Page-specific keywords from frontmatter #}
   {% if page.meta.keywords %}
-    <meta name="keywords" content="{{ page.meta.keywords }}">
+    <meta name="keywords" content="{{ page.meta.keywords | join(', ') if page.meta.keywords is iterable and page.meta.keywords is not string else page.meta.keywords }}">
   {% endif %}
   
   {# Open Graph meta tags #}
@@ -58,7 +58,7 @@
       "name": "Mylonics",
       "url": "https://mylonics.com"
     },
-    "softwareVersion": "2.2.0",
+    "softwareVersion": "{{ config.extra.version }}",
     "url": "{{ config.site_url }}",
     "downloadUrl": "https://marketplace.visualstudio.com/items?itemName=mylonics.zephyr-ide",
     "screenshot": "https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/zephyr-ide_branding.png"
