@@ -1,3 +1,9 @@
+---
+title: Build and Debug Zephyr Projects - Complete Guide to Development Workflow
+description: Build, flash, and debug Zephyr RTOS projects with cortex-debug integration. Set up launch configurations, use helper commands, and debug with ST-Link, Black Magic Probe, and OpenOCD.
+keywords: Zephyr debugging, build Zephyr, flash firmware, cortex-debug, launch configuration, ST-Link, Black Magic Probe, OpenOCD, GDB debugging
+---
+
 # Building and Debugging A Project
 
 The project may now be built. This can be done with the Active Project Panel or Taskbar buttons. There are options to build pristine, build, flash and debug. The taskbar also displays the active project.

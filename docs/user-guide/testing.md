@@ -1,3 +1,9 @@
+---
+title: Test Zephyr Projects with Twister - Automated Testing Framework
+description: Run automated tests with Twister test framework integration. Configure test parameters, run multiple test configurations, and view results in the Zephyr IDE test panel.
+keywords: Twister testing, Zephyr tests, automated testing, test configuration, test framework, embedded testing, unit testing
+---
+
 # Testing with Twister
 
 The extension supports testing with twister. Look for the beaker icon to get started. Test configurations are handled similarly to build configurations.

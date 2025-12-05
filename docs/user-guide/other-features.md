@@ -1,3 +1,9 @@
+---
+title: Advanced Zephyr IDE Features - MenuConfig, Build Customization, Analysis Tools
+description: Explore advanced features including MenuConfig/GuiConfig, build customization with west and cmake arguments, West Terminal, and analysis tools like ROM/RAM reports and DTSh shell.
+keywords: MenuConfig, GuiConfig, build customization, west arguments, cmake arguments, West Terminal, ROM report, RAM report, DTSh shell, KConfig, DTS overlay
+---
+
 # Other Features
 
 ## Menu Config and GUI Config

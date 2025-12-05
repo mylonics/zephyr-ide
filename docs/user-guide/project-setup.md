@@ -1,3 +1,9 @@
+---
+title: Set Up Zephyr Projects - Add, Configure, and Manage Multiple Projects
+description: Learn how to set up Zephyr projects with multiple builds and configurations. Add existing projects, create from templates, and manage build configurations with Zephyr IDE.
+keywords: Zephyr project setup, multiple builds, build configuration, project management, Zephyr samples, project JSON, board configuration
+---
+
 # Setting Up A Project
 
 To set up a project, the project panel provides the ability to add a preexisting project or to copy a sample project as a starting point.

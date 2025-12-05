@@ -1,5 +1,5 @@
 site_name: Zephyr IDE for VS Code
-site_description: A VS Code extension that streamlines setup, build, flashing, and debugging of Zephyr Projects
+site_description: Professional VS Code extension for Zephyr RTOS development. Streamline setup, building, flashing, and debugging of Zephyr projects with automated SDK installation, west integration, and comprehensive project management tools.
 site_author: Mylonics
 site_url: https://zephyr-ide.mylonics.com
 repo_url: https://github.com/mylonics/zephyr-ide
@@ -17,6 +17,7 @@ theme:
     - bash
     - python
     - json
+  custom_dir: docs/theme_overrides
 
 nav:
   - Home: index.md
@@ -26,17 +27,17 @@ nav:
     - Host Tools: getting-started/host-tools.md
     - Workspace Configuration: getting-started/workspace-configuration.md
     - SDK Installation: getting-started/sdk-installation.md
-    - Externally Managed Environments: getting-started/external-environments.md
+    - External Environments: getting-started/external-environments.md
   - User Guide:
-    - Setting Up Projects: user-guide/project-setup.md
-    - Building and Debugging: user-guide/building-debugging.md
+    - Project Setup: user-guide/project-setup.md
+    - Building & Debugging: user-guide/building-debugging.md
     - Testing with Twister: user-guide/testing.md
-    - Sharing Your Code: user-guide/sharing.md
-    - Other Features: user-guide/other-features.md
+    - Sharing Code: user-guide/sharing.md
+    - Advanced Features: user-guide/other-features.md
   - Reference:
     - Commands: reference/commands.md
-    - Configuration Settings: reference/configuration.md
-    - Launch Configuration Helpers: reference/launch-configuration.md
+    - Configuration: reference/configuration.md
+    - Launch Helpers: reference/launch-configuration.md
     - Extension Pack: reference/extension-pack.md
     - Known Issues: reference/known-issues.md
   - Changelog: changelog.md
@@ -67,9 +68,32 @@ extra:
       link: https://github.com/mylonics/zephyr-ide
     - icon: fontawesome/solid/globe
       link: https://mylonics.com
+  analytics:
+    provider: google
+    property: !ENV GOOGLE_ANALYTICS_KEY
+  seo:
+    keywords: 
+      - Zephyr RTOS
+      - VS Code extension
+      - embedded development
+      - Zephyr IDE
+      - west tool
+      - embedded systems
+      - IoT development
+      - firmware development
+      - cross-platform development
+      - Zephyr SDK
+      - debugging tools
+      - build automation
+    og_image: https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/zephyr-ide_branding.png
+    og_type: website
+    twitter_card: summary_large_image
+    twitter_creator: '@mylonics'
 
 plugins:
-  - search
+  - search:
+      lang: en
+      separator: '[\s\-\.]+'
 
 exclude_docs: |
   README.md

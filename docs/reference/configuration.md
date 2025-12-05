@@ -1,3 +1,9 @@
+---
+title: Zephyr IDE Configuration Settings - Customize Your Development Environment
+description: Complete guide to Zephyr IDE VS Code settings including tools directory, GUI config, west narrow update, and workspace warning suppression.
+keywords: Zephyr IDE settings, VS Code configuration, tools directory, GUI config, west settings, workspace configuration, extension settings
+---
+
 # Configuration Settings
 
 The following settings are available in VS Code settings (File > Preferences > Settings):
