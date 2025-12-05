@@ -9,3 +9,6 @@ node_modules
 __pycache__/
 *.py[cod]
 *$py.class
+
+# MkDocs
+site/

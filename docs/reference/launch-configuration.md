@@ -1,0 +1,114 @@
+# Launch Configuration Helper Commands
+
+The following commands can be used in launch.json configurations to dynamically retrieve project and build information:
+
+## Available Commands
+
+### `zephyr-ide.get-active-project-name`
+
+Get the name of the currently active project.
+
+### `zephyr-ide.get-active-project-path`
+
+Get the file system path to the currently active project.
+
+### `zephyr-ide.get-active-build-path`
+
+Get the file system path to the build directory of the currently active build configuration.
+
+### `zephyr-ide.get-active-build-board-path`
+
+Get the file system path to the board directory for the currently active build.
+
+### `zephyr-ide.select-active-build-path`
+
+Prompts the user to select a build configuration and returns its path. Useful for debug configurations that allow selecting which build to debug.
+
+### `zephyr-ide.get-gdb-path`
+
+Get the path to the GDB executable from the toolchain for the active build.
+
+### `zephyr-ide.get-toolchain-path`
+
+Get the path to the toolchain directory for the active build.
+
+### `zephyr-ide.get-zephyr-ide-json-variable`
+
+Get a variable value from the zephyr-ide.json file.
+
+### `zephyr-ide.get-active-project-variable`
+
+Get a custom variable defined in the active project's `vars` section.
+
+### `zephyr-ide.get-active-build-variable`
+
+Get a custom variable defined in the active build configuration's `vars` section.
+
+### `zephyr-ide.get-active-board-name`
+
+Get the board name for the currently active build configuration.
+
+## Usage Example
+
+Here's an example of using these commands in a launch.json file:
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Zephyr IDE: Debug",
+      "type": "cortex-debug",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "executable": "${command:zephyr-ide.get-active-build-path}/zephyr/zephyr.elf",
+      "servertype": "openocd",
+      "device": "${command:zephyr-ide.get-active-board-name}",
+      "armToolchainPath": "${command:zephyr-ide.get-toolchain-path}/bin"
+    }
+  ]
+}
+```
+
+## Custom Variables
+
+You can define custom variables in your zephyr-ide.json file and access them in your launch configurations:
+
+**zephyr-ide.json**:
+```json
+{
+  "projects": {
+    "myproject": {
+      "vars": {
+        "debug_port": "COM3",
+        "jlink_device": "STM32F401RE"
+      }
+    }
+  }
+}
+```
+
+**launch.json**:
+```json
+{
+  "inputs": [
+    {
+      "id": "debugPort",
+      "type": "command",
+      "command": "zephyr-ide.get-active-project-variable",
+      "args": "debug_port"
+    }
+  ],
+  "configurations": [
+    {
+      "name": "Debug",
+      "serialNumber": "${input:debugPort}"
+    }
+  ]
+}
+```
+
+## Next Steps
+
+- [See all available commands](commands.md)
+- [Learn about building and debugging](../user-guide/building-debugging.md)

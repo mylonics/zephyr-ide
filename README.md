@@ -50,7 +50,10 @@ See the externally managed environments section in the [User Manual](docs/MANUAL
 
 
 ## Getting Started
-The [User Manual](docs/MANUAL.md) is available to help get started along with a couple Youtube tutorials.
+
+The [User Manual](https://mylonics.github.io/zephyr-ide/) is available online, or you can read it locally at [docs/MANUAL.md](docs/MANUAL.md).
+
+You can also watch our video tutorials:
 
 [![Getting Started with Zephyr IDE](https://mylonics.com/assets/images/zephyr-ide/getting_started_thumbnail.png)](https://www.youtube.com/watch?v=Asfolnh9kqM&t "Getting Started with Zephyr IDE")
 
