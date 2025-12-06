@@ -31,6 +31,7 @@
 }
 
 /* Ensure logo is visible on mobile */
+/* Material theme hides logo on tablets and mobile by default at 76.1875em (1219px) breakpoint */
 @media screen and (max-width: 76.1875em) {
   .md-header__button.md-logo {
     display: inline-block;
