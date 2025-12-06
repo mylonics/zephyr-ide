@@ -1,4 +1,4 @@
-site_name: zephyr IDE
+site_name: zephyr-ide
 site_description: Professional VS Code extension for Zephyr RTOS development. Streamline setup, building, flashing, and debugging of Zephyr projects with automated SDK installation, west integration, and comprehensive project management tools.
 site_author: Mylonics
 site_url: https://zephyr-ide.mylonics.com
@@ -19,7 +19,7 @@ theme:
     - json
   custom_dir: docs/theme_overrides
   # Zephyr IDE branding - icons located in docs/media/
-  logo: media/zephyr-ide_branding.png
+  logo: media/logo.png
   favicon: media/icon.png
   palette:
     scheme: default
@@ -106,7 +106,7 @@ extra:
       - Zephyr SDK
       - debugging tools
       - build automation
-    og_image: https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/zephyr-ide_branding.png
+    og_image: https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/logo.png
     og_type: website
     twitter_card: summary_large_image
     twitter_creator: '@mylonics'

@@ -1,14 +1,14 @@
 ---
-title: zephyr IDE - Professional Zephyr RTOS Development Extension
+title: zephyr-ide - Professional Zephyr RTOS Development Extension
 description: Professional VS Code extension for Zephyr RTOS development. Automated SDK installation, west integration, project management, debugging tools, and build automation for embedded systems development.
 keywords: Zephyr RTOS, VS Code extension, embedded development, Zephyr IDE, west tool, IoT development, firmware development, Zephyr SDK, debugging, embedded systems
 hide:
   - navigation
 ---
 
-# zephyr IDE
+# Zephyr IDE
 
-The zephyr IDE extension provides tools to assist in your Zephyr project development workflow. This extension helps you build Zephyr projects and share them with your team.
+The Zephyr IDE extension provides tools to assist in your Zephyr project development workflow. This extension helps you build Zephyr projects and share them with your team.
 
 An [extension pack](https://marketplace.visualstudio.com/items?itemName=mylonics.zephyr-ide-extension-pack) is available that bundles in additional tools.
 

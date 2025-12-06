@@ -18,9 +18,11 @@
 }
 
 .md-header__title {
-  color: #333333;
+  color: #6b7280;
   font-family: 'K2D', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-weight: 600;
+  font-size: 1.8rem;
+  margin-top: -0.2rem;
 }
 
 /* Logo sizing */
