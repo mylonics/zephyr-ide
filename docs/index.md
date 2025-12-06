@@ -6,8 +6,6 @@ keywords: Zephyr RTOS, VS Code extension, embedded development, Zephyr IDE, west
 
 # Zephyr IDE for VS Code
 
-<img src="https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/zephyr-ide_branding.png" alt="Zephyr IDE for Visual Studio Code" width="50%"/>
-
 The Zephyr IDE for VS Code extension provides tools to assist in your Zephyr project development workflow. This extension helps you build Zephyr projects and share them with your team.
 
 An [extension pack](https://marketplace.visualstudio.com/items?itemName=mylonics.zephyr-ide-extension-pack) is available that bundles in additional tools.
