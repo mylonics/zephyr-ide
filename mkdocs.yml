@@ -19,7 +19,7 @@ theme:
     - json
   custom_dir: docs/theme_overrides
   # Zephyr IDE branding - icons located in docs/media/
-  logo: media/icon.svg
+  logo: media/zephyr-ide_branding.png
   favicon: media/icon.png
   palette:
     scheme: default
