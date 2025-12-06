@@ -1,0 +1,3 @@
+[submodule "docs/theme_overrides"]
+	path = docs/theme_overrides
+	url = https://github.com/mylonics/mylonics-mkdocs-theme
