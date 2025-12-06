@@ -1,4 +1,4 @@
-name: Publish docs via GitHub Pages
+name: Deploy Docs
 
 on:
   workflow_dispatch:
@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Checkout main
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Deploy docs
         uses: mhausenblas/mkdocs-deploy-gh-pages@master
