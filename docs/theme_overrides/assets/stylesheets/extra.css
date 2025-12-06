@@ -19,6 +19,8 @@
 
 .md-header__title {
   color: #333333;
+  font-family: 'K2D', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-weight: 600;
 }
 
 /* Logo sizing */
@@ -26,6 +28,19 @@
 .md-header__button.md-logo svg {
   height: var(--md-logo-height);
   width: auto;
+}
+
+/* Ensure logo is visible on mobile */
+/* Material theme hides logo on tablets and mobile by default at 76.1875em (1219px) breakpoint */
+@media screen and (max-width: 76.1875em) {
+  .md-header__button.md-logo {
+    display: inline-block;
+  }
+  
+  .md-header__button.md-logo img,
+  .md-header__button.md-logo svg {
+    height: 2rem;
+  }
 }
 
 /* Navigation tabs - light and airy */

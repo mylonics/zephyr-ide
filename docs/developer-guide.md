@@ -6,7 +6,7 @@ hide:
   - navigation
 ---
 
-# Zephyr IDE for VS Code Developer's Guide
+# zephyr IDE Developer's Guide
 
 This guide covers the development setup for the Zephyr IDE VS Code extension.
 

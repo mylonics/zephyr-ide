@@ -1,4 +1,4 @@
-site_name: Zephyr IDE for VS Code
+site_name: zephyr IDE
 site_description: Professional VS Code extension for Zephyr RTOS development. Streamline setup, building, flashing, and debugging of Zephyr projects with automated SDK installation, west integration, and comprehensive project management tools.
 site_author: Mylonics
 site_url: https://zephyr-ide.mylonics.com
