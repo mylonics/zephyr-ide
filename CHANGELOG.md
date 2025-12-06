@@ -1,3 +1,11 @@
+---
+title: Zephyr IDE Changelog - Release Notes and Version History
+description: Complete changelog of Zephyr IDE releases including new features, bug fixes, and improvements. Track version updates and enhancement history.
+keywords: changelog, release notes, version history, updates, new features, bug fixes, Zephyr IDE releases
+hide:
+  - navigation
+---
+
 ### Changelog
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
