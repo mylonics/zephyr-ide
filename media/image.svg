@@ -1,4 +1,8 @@
 <svg viewBox="0 0 516 349" fill="none" xmlns="http://www.w3.org/2000/svg">
+	<title>Zephyr IDE Logo</title>
+	<!-- Zephyr IDE Title Text with K2D Font -->
+	<text x="258" y="330" font-family="'K2D', 'Segoe UI', Arial, sans-serif" font-size="28" font-weight="700" fill="var(--vscode-foreground, #cccccc)" text-anchor="middle" aria-label="Zephyr IDE">zephyr-ide</text>
+	
 	<rect width="474" height="35" transform="translate(21.6238)" fill="var(--vscode-editorGroupHeader-tabsBackground, #252526)" />
 	<g clip-path="url(#clip0)">
 		<rect width="123" height="35" transform="translate(21.6238)" fill="var(--vscode-tab-activeBackground, #1e1e1e)" />

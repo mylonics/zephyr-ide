@@ -19,8 +19,6 @@
 
 .md-header__title {
   color: #333333;
-  /* Hide the site name text in header since logo contains it */
-  display: none;
 }
 
 /* Logo sizing */
@@ -105,9 +103,8 @@
   font-weight: 500;
 }
 
-/* Hide site name in navigation drawer since logo contains it */
 .md-nav--primary > .md-nav__title {
-  display: none;
+  color: #333333;
 }
 
 /* Table styling - clean borders */
