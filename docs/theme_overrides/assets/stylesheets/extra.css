@@ -1,8 +1,5 @@
 /* Custom styling to match mylonics.com minimal-mistakes "air" theme */
 
-/* Import K2D font for branding */
-@import url('https://fonts.googleapis.com/css2?family=K2D:wght@400;500;600;700&display=swap');
-
 /* Root variables for consistent theming */
 :root {
   --md-primary-fg-color: #ffffff;
