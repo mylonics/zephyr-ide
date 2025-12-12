@@ -224,21 +224,12 @@ export async function selectLaunchConfiguration(wsConfig: WorkspaceConfig) {
 
 export async function getLaunchConfigurations(wsConfig: WorkspaceConfig) {
   if (wsConfig.rootPath !== "") {
-    // First, try to get workspace-level configurations (from .code-workspace file)
-    // This is done by calling getConfiguration without a resource URI
-    const workspaceConfig = vscode.workspace.getConfiguration("launch");
-    const workspaceConfigurations = workspaceConfig.get<any[]>("configurations");
+    // Get workspace-level configurations which includes both .code-workspace file
+    // and .vscode/launch.json configurations merged together
+    const config = vscode.workspace.getConfiguration("launch");
+    const configurations = config.get<any[]>("configurations");
     
-    // If workspace-level configurations exist, return them
-    if (workspaceConfigurations && workspaceConfigurations.length > 0) {
-      return workspaceConfigurations;
-    }
-    
-    // Otherwise, fall back to folder-level configurations (from .vscode/launch.json)
-    const folderConfig = vscode.workspace.getConfiguration("launch", vscode.Uri.file(wsConfig.rootPath));
-    const folderConfigurations = folderConfig.get<any[]>("configurations");
-    
-    return folderConfigurations;
+    return configurations;
   }
 }
 
