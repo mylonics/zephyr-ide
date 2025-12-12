@@ -373,12 +373,29 @@ export function getArmGdbPath(wsConfig?: WorkspaceConfig): string | undefined {
   if (!sdkPath) {
     const toolchainDir = getToolchainDir();
     const latestSdk = findLatestSdkVersion();
-    if (!latestSdk) {
+    if (latestSdk) {
+      sdkPath = path.join(toolchainDir, latestSdk);
+      console.log(`Zephyr IDE: Using latest SDK from toolchains directory: "${sdkPath}"`);
+    } else {
       console.log(`Zephyr IDE: No SDK found in toolchains directory "${toolchainDir}"`);
-      return undefined;
     }
-    sdkPath = path.join(toolchainDir, latestSdk);
-    console.log(`Zephyr IDE: Using latest SDK: "${sdkPath}"`);
+  }
+
+  // Fall back to ZEPHYR_SDK_INSTALL_DIR environment variable
+  if (!sdkPath && process.env.ZEPHYR_SDK_INSTALL_DIR) {
+    const envSdkPath = process.env.ZEPHYR_SDK_INSTALL_DIR;
+    if (fs.pathExistsSync(envSdkPath)) {
+      sdkPath = envSdkPath;
+      console.log(`Zephyr IDE: Using SDK from ZEPHYR_SDK_INSTALL_DIR environment variable: "${sdkPath}"`);
+    } else {
+      console.log(`Zephyr IDE: ZEPHYR_SDK_INSTALL_DIR is set but path does not exist: "${envSdkPath}"`);
+    }
+  }
+
+  // If still no SDK path found, we cannot proceed
+  if (!sdkPath) {
+    console.log(`Zephyr IDE: No SDK path found. Please install a Zephyr SDK or set ZEPHYR_SDK_INSTALL_DIR environment variable.`);
+    return undefined;
   }
 
   const gdbPath = path.join(sdkPath, "arm-zephyr-eabi", "bin", "arm-zephyr-eabi-gdb");
