@@ -196,14 +196,35 @@ export function getToolsDir() {
 }
 
 export function getToolchainDir() {
-  return path.join(getToolsDir(), "toolchains");
+  const configuration = vscode.workspace.getConfiguration();
+  
+  // First check if direct toolchain directory is configured
+  let toolchainDir: string | undefined = configuration.get("zephyr-ide.toolchain_directory");
+  if (toolchainDir && toolchainDir.trim()) {
+    // Return configured path without creating it - user is responsible for ensuring it exists
+    return toolchainDir;
+  }
+  
+  // Fall back to toolchains subdirectory in tools directory
+  const defaultDir = path.join(getToolsDir(), "toolchains");
+  
+  // Ensure the default directory exists
+  try {
+    if (!fs.pathExistsSync(defaultDir)) {
+      fs.ensureDirSync(defaultDir);
+    }
+  } catch (e) {
+    console.error(`Failed to create default toolchain directory "${defaultDir}":`, e);
+  }
+  
+  return defaultDir;
 }
 
 /**
  * Find the latest installed SDK version in the toolchains directory
- * @returns The SDK directory name (e.g., "zephyr-sdk-0.17.3") or undefined
+ * @returns A tuple of [version, full path] (e.g., ["0.17.3", "/path/to/toolchains/zephyr-sdk-0.17.3"]) or undefined
  */
-function findLatestSdkVersion(): string | undefined {
+function findLatestSdkVersion(): [string, string] | undefined {
   const toolchainDir = getToolchainDir();
 
   if (!fs.pathExistsSync(toolchainDir)) {
@@ -228,7 +249,11 @@ function findLatestSdkVersion(): string | undefined {
     return versionB.localeCompare(versionA, undefined, { numeric: true });
   });
 
-  return sdkDirs[0];
+  const latestSdkDir = sdkDirs[0];
+  const version = latestSdkDir.replace('zephyr-sdk-', '');
+  const fullPath = path.join(toolchainDir, latestSdkDir);
+  
+  return [version, fullPath];
 }
 
 /**
@@ -246,8 +271,8 @@ function readSdkPathFromCMakeCache(buildDir: string): string | undefined {
 
   try {
     const cacheContent = fs.readFileSync(cmakeCachePath, 'utf-8');
-    // Look for ZEPHYR_SDK_INSTALL_DIR:PATH= line
-    const match = cacheContent.match(/^ZEPHYR_SDK_INSTALL_DIR:PATH=(.+)$/m);
+    // Look for ZEPHYR_SDK_INSTALL_DIR with either :PATH or :INTERNAL
+    const match = cacheContent.match(/^ZEPHYR_SDK_INSTALL_DIR:(?:PATH|INTERNAL)=(.+)$/m);
     if (match && match[1]) {
       const sdkPath = match[1].trim();
       if (fs.pathExistsSync(sdkPath)) {
@@ -355,8 +380,10 @@ export function clearBuildSdkPath(wsConfig: WorkspaceConfig, projectName: string
 
 /**
  * Get the ARM GDB path from the active build's SDK or latest installed SDK
- * First tries to get SDK path from cached BuildState or CMakeCache.txt
- * Falls back to the latest SDK in toolchains directory
+ * Priority order:
+ * 1. SDK path from cached BuildState or CMakeCache.txt (for active build)
+ * 2. SDK path from ZEPHYR_SDK_INSTALL_DIR environment variable
+ * 3. SDK path from getToolchainDir (configured or default toolchains directory)
  * Path format: {sdkPath}/arm-zephyr-eabi/bin/arm-zephyr-eabi-gdb
  * @param wsConfig The workspace configuration (optional, for CMakeCache lookup)
  * @returns The full path to the ARM GDB executable or undefined if not found
@@ -364,21 +391,32 @@ export function clearBuildSdkPath(wsConfig: WorkspaceConfig, projectName: string
 export function getArmGdbPath(wsConfig?: WorkspaceConfig): string | undefined {
   let sdkPath: string | undefined;
 
-  // First try to get SDK path from active build (cached or CMakeCache)
+  // Priority 1: Try to get SDK path from active build (cached or CMakeCache)
   if (wsConfig) {
     sdkPath = getSdkPathFromBuild(wsConfig);
   }
 
-  // Fall back to latest SDK in toolchains directory
+  // Priority 2: Fall back to ZEPHYR_SDK_INSTALL_DIR environment variable
+  if (!sdkPath && process.env.ZEPHYR_SDK_INSTALL_DIR) {
+    sdkPath = process.env.ZEPHYR_SDK_INSTALL_DIR;
+    console.log(`Zephyr IDE: Using SDK from ZEPHYR_SDK_INSTALL_DIR environment variable: "${sdkPath}"`);
+  }
+
+  // Priority 3: Fall back to latest SDK in toolchains directory (from getToolchainDir)
   if (!sdkPath) {
-    const toolchainDir = getToolchainDir();
-    const latestSdk = findLatestSdkVersion();
-    if (!latestSdk) {
-      console.log(`Zephyr IDE: No SDK found in toolchains directory "${toolchainDir}"`);
-      return undefined;
+    const result = findLatestSdkVersion();
+    if (result) {
+      const [version, fullPath] = result;
+      sdkPath = fullPath;
+      console.log(`Zephyr IDE: Using latest SDK version ${version} from toolchain directory: "${sdkPath}"`);
+    } else {
+      console.log(`Zephyr IDE: No SDK found in toolchains directory "${getToolchainDir()}"`);
     }
-    sdkPath = path.join(toolchainDir, latestSdk);
-    console.log(`Zephyr IDE: Using latest SDK: "${sdkPath}"`);
+  }
+
+  if (!sdkPath) {
+    console.log(`Zephyr IDE: No SDK path found`);
+    return undefined;
   }
 
   const gdbPath = path.join(sdkPath, "arm-zephyr-eabi", "bin", "arm-zephyr-eabi-gdb");
