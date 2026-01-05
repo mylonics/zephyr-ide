@@ -48,6 +48,14 @@
           "default": null,
           "description": "Manually specify a tools directory for SDK installation and global zephyr install location"
         },
+        "zephyr-ide.toolchain_directory": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "description": "Manually specify the direct path to the Zephyr SDK toolchain directory. If not specified, defaults to toolchains subdirectory within the tools directory."
+        },
         "zephyr-ide.use_gui_config": {
           "type": [
             "boolean"
