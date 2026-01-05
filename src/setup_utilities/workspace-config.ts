@@ -222,9 +222,9 @@ export function getToolchainDir() {
 
 /**
  * Find the latest installed SDK version in the toolchains directory
- * @returns The SDK directory name (e.g., "zephyr-sdk-0.17.3") or undefined
+ * @returns A tuple of [version, full path] (e.g., ["0.17.3", "/path/to/toolchains/zephyr-sdk-0.17.3"]) or undefined
  */
-function findLatestSdkVersion(): string | undefined {
+function findLatestSdkVersion(): [string, string] | undefined {
   const toolchainDir = getToolchainDir();
 
   if (!fs.pathExistsSync(toolchainDir)) {
@@ -249,7 +249,11 @@ function findLatestSdkVersion(): string | undefined {
     return versionB.localeCompare(versionA, undefined, { numeric: true });
   });
 
-  return sdkDirs[0];
+  const latestSdkDir = sdkDirs[0];
+  const version = latestSdkDir.replace('zephyr-sdk-', '');
+  const fullPath = path.join(toolchainDir, latestSdkDir);
+  
+  return [version, fullPath];
 }
 
 /**
@@ -398,25 +402,15 @@ export function getArmGdbPath(wsConfig?: WorkspaceConfig): string | undefined {
     console.log(`Zephyr IDE: Using SDK from ZEPHYR_SDK_INSTALL_DIR environment variable: "${sdkPath}"`);
   }
 
-  // Priority 3: Fall back to SDK in toolchains directory (from getToolchainDir)
+  // Priority 3: Fall back to latest SDK in toolchains directory (from getToolchainDir)
   if (!sdkPath) {
-    const toolchainDir = getToolchainDir();
-    
-    // Check if toolchainDir itself is an SDK installation (has arm-zephyr-eabi subdirectory)
-    const directSdkGdbPath = path.join(toolchainDir, "arm-zephyr-eabi", "bin", "arm-zephyr-eabi-gdb");
-    if (fs.pathExistsSync(directSdkGdbPath) || fs.pathExistsSync(directSdkGdbPath + '.exe')) {
-      // toolchainDir is directly pointing to an SDK installation
-      sdkPath = toolchainDir;
-      console.log(`Zephyr IDE: Using SDK from direct toolchain directory: "${sdkPath}"`);
+    const result = findLatestSdkVersion();
+    if (result) {
+      const [version, fullPath] = result;
+      sdkPath = fullPath;
+      console.log(`Zephyr IDE: Using latest SDK version ${version} from toolchain directory: "${sdkPath}"`);
     } else {
-      // toolchainDir contains multiple SDK installations, find the latest
-      const latestSdk = findLatestSdkVersion();
-      if (latestSdk) {
-        sdkPath = path.join(toolchainDir, latestSdk);
-        console.log(`Zephyr IDE: Using latest SDK from toolchain directory: "${sdkPath}"`);
-      } else {
-        console.log(`Zephyr IDE: No SDK found in toolchains directory "${toolchainDir}"`);
-      }
+      console.log(`Zephyr IDE: No SDK found in toolchains directory "${getToolchainDir()}"`);
     }
   }
 

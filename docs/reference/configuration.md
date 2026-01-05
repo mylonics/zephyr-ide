@@ -16,6 +16,23 @@ The following settings are available in VS Code settings (File > Preferences > S
 
 This setting allows you to override the default location where the SDK and Zephyr tools are installed. Useful for shared environments or when you need to install tools in a specific location.
 
+## `zephyr-ide.toolchain_directory`
+
+- **Type**: String or null
+- **Default**: null
+- **Description**: Manually specify the directory containing Zephyr SDK installations (e.g., containing zephyr-sdk-0.17.0, zephyr-sdk-0.17.3 subdirectories). If not specified, defaults to toolchains subdirectory within the tools directory.
+
+This setting allows you to use a custom location for SDK installations. The directory should contain one or more Zephyr SDK installations with names like `zephyr-sdk-0.17.0`, `zephyr-sdk-0.17.3`, etc. The extension will automatically detect and use the latest version.
+
+**Example:**
+```json
+{
+  "zephyr-ide.toolchain_directory": "/opt/zephyr-sdks"
+}
+```
+
+With this configuration, the extension will look for SDKs in `/opt/zephyr-sdks/zephyr-sdk-0.17.0`, `/opt/zephyr-sdks/zephyr-sdk-0.17.3`, etc.
+
 ## `zephyr-ide.use_gui_config`
 
 - **Type**: Boolean
