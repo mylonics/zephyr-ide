@@ -225,34 +225,33 @@ export async function selectLaunchConfiguration(wsConfig: WorkspaceConfig) {
 export async function getLaunchConfigurations(wsConfig: WorkspaceConfig) {
   if (wsConfig.rootPath !== "") {
     let allConfigurations: any[] = [];
+    const seenNames = new Set<string>();
     
     // Check if we have a workspace file (.code-workspace)
     if (vscode.workspace.workspaceFile) {
       // Get workspace-level configurations from .code-workspace file
       const workspaceConfig = vscode.workspace.getConfiguration("launch");
       const workspaceConfigurations = workspaceConfig.get<any[]>("configurations") || [];
-      allConfigurations.push(...workspaceConfigurations);
+      for (const config of workspaceConfigurations) {
+        allConfigurations.push(config);
+        seenNames.add(config.name);
+      }
     }
     
     // Also check folder-level configurations from .vscode/launch.json
-    if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
+    if (vscode.workspace.workspaceFolders) {
       for (const folder of vscode.workspace.workspaceFolders) {
         const folderConfig = vscode.workspace.getConfiguration("launch", folder.uri);
         const folderConfigurations = folderConfig.get<any[]>("configurations") || [];
         
         // Add folder configurations, avoiding duplicates based on name
         for (const config of folderConfigurations) {
-          if (!allConfigurations.some(c => c.name === config.name)) {
+          if (!seenNames.has(config.name)) {
             allConfigurations.push(config);
+            seenNames.add(config.name);
           }
         }
       }
-    }
-    
-    // If no workspace file and only one folder, use folder-level config directly
-    if (!vscode.workspace.workspaceFile && allConfigurations.length === 0) {
-      const config = vscode.workspace.getConfiguration("launch");
-      allConfigurations = config.get<any[]>("configurations") || [];
     }
     
     return allConfigurations.length > 0 ? allConfigurations : undefined;
