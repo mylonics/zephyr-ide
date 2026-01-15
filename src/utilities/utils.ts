@@ -234,7 +234,9 @@ export async function getLaunchConfigurations(wsConfig: WorkspaceConfig) {
       const workspaceConfigurations = workspaceConfig.get<any[]>("configurations") || [];
       for (const config of workspaceConfigurations) {
         allConfigurations.push(config);
-        seenNames.add(config.name);
+        if (config.name) {
+          seenNames.add(config.name);
+        }
       }
     }
     
@@ -246,9 +248,12 @@ export async function getLaunchConfigurations(wsConfig: WorkspaceConfig) {
         
         // Add folder configurations, avoiding duplicates based on name
         for (const config of folderConfigurations) {
-          if (!seenNames.has(config.name)) {
+          if (config.name && !seenNames.has(config.name)) {
             allConfigurations.push(config);
             seenNames.add(config.name);
+          } else if (!config.name) {
+            // Add configurations without names (though they're technically invalid)
+            allConfigurations.push(config);
           }
         }
       }
