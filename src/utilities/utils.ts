@@ -224,42 +224,13 @@ export async function selectLaunchConfiguration(wsConfig: WorkspaceConfig) {
 
 export async function getLaunchConfigurations(wsConfig: WorkspaceConfig) {
   if (wsConfig.rootPath !== "") {
-    let allConfigurations: any[] = [];
-    const seenNames = new Set<string>();
+    // Get launch configurations with proper workspace folder context
+    // This handles both .code-workspace files and .vscode/launch.json
+    const resourceUri = vscode.workspace.workspaceFolders?.[0]?.uri;
+    const config = vscode.workspace.getConfiguration("launch", resourceUri);
+    const configurations = config.get<any[]>("configurations");
     
-    // Check if we have a workspace file (.code-workspace)
-    if (vscode.workspace.workspaceFile) {
-      // Get workspace-level configurations from .code-workspace file
-      const workspaceConfig = vscode.workspace.getConfiguration("launch");
-      const workspaceConfigurations = workspaceConfig.get<any[]>("configurations") || [];
-      for (const config of workspaceConfigurations) {
-        allConfigurations.push(config);
-        if (config.name) {
-          seenNames.add(config.name);
-        }
-      }
-    }
-    
-    // Also check folder-level configurations from .vscode/launch.json
-    if (vscode.workspace.workspaceFolders) {
-      for (const folder of vscode.workspace.workspaceFolders) {
-        const folderConfig = vscode.workspace.getConfiguration("launch", folder.uri);
-        const folderConfigurations = folderConfig.get<any[]>("configurations") || [];
-        
-        // Add folder configurations, avoiding duplicates based on name
-        for (const config of folderConfigurations) {
-          if (config.name && !seenNames.has(config.name)) {
-            allConfigurations.push(config);
-            seenNames.add(config.name);
-          } else if (!config.name) {
-            // Add configurations without names (though they're technically invalid)
-            allConfigurations.push(config);
-          }
-        }
-      }
-    }
-    
-    return allConfigurations.length > 0 ? allConfigurations : undefined;
+    return configurations;
   }
 }
 
