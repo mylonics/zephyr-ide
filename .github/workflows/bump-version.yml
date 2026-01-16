@@ -58,13 +58,13 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          
+
           # Build commit message with release type tag if specified
           RELEASE_TAG=""
           if [ "${{ inputs.release_type }}" != "none" ]; then
             RELEASE_TAG=" [${{ inputs.release_type }}]"
           fi
-          
+
           # Use npm version with custom message to include release tag
           npm version ${{ inputs.bump_type }} -m "%s${RELEASE_TAG}"
           npm install
@@ -78,6 +78,7 @@ jobs:
         id: create-pr
         uses: actions/github-script@v6
         with:
+          github-token: ${{ secrets.PAT_GITHUB || secrets.GITHUB_TOKEN }}
           script: |
             const { owner, repo } = context.repo;
             const fs = require('fs');
