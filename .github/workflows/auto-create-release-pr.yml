@@ -1,0 +1,117 @@
+# This workflow automatically creates release PRs when version bumps are merged to develop.
+# 
+# It triggers on every push to the develop branch and checks if the commit message
+# contains [release] or [prerelease] tags (added by the bump-version.yml workflow).
+# 
+# If found, it creates a PR to the appropriate branch (main or pre-release) with
+# auto-merge enabled (REBASE method).
+# 
+# This workflow works in conjunction with bump-version.yml to provide a streamlined
+# release process.
+
+name: Auto Create Release PR
+
+on:
+  push:
+    branches:
+      - develop
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  create_release_pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout develop branch
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+          
+      - name: Check for release type and create PR
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            
+            // Get the commit that triggered this workflow
+            const commit = context.payload.head_commit;
+            if (!commit) {
+              console.log('No commit found in payload');
+              return;
+            }
+            
+            console.log(`Commit message: ${commit.message}`);
+            
+            // Check if this is a version bump commit with release type
+            const releaseMatch = commit.message.match(/\[(release|prerelease)\]/);
+            if (!releaseMatch) {
+              console.log('No release type found in commit message');
+              return;
+            }
+            
+            const releaseType = releaseMatch[1];
+            console.log(`Detected release type: ${releaseType}`);
+            
+            // Get current version
+            const version = require('./package.json').version;
+            console.log(`Current version: ${version}`);
+            
+            // Determine target branch
+            const targetBranch = releaseType === 'release' ? 'main' : 'pre-release';
+            const prTitle = releaseType === 'release' 
+              ? `Creating Release: ${version}`
+              : `Creating Pre-Release: ${version}`;
+            
+            // Check if PR already exists
+            const existingPRs = await github.rest.pulls.list({
+              owner,
+              repo,
+              state: 'open',
+              head: `${owner}:develop`,
+              base: targetBranch
+            });
+            
+            if (existingPRs.data.length > 0) {
+              console.log(`PR to ${targetBranch} already exists: #${existingPRs.data[0].number}`);
+              return;
+            }
+            
+            console.log(`Creating PR to ${targetBranch} for version ${version}`);
+            
+            // Create the pull request
+            const pr = await github.rest.pulls.create({
+              owner,
+              repo,
+              title: prTitle,
+              head: 'develop',
+              base: targetBranch,
+              body: `Automated ${releaseType} PR for version ${version}`
+            });
+            
+            console.log(`PR #${pr.data.number} created`);
+            
+            // Enable auto-merge with REBASE method using GraphQL
+            try {
+              await github.graphql(`
+                mutation($pullRequestId: ID!, $mergeMethod: PullRequestMergeMethod!) {
+                  enablePullRequestAutoMerge(input: {
+                    pullRequestId: $pullRequestId,
+                    mergeMethod: $mergeMethod
+                  }) {
+                    pullRequest {
+                      id
+                    }
+                  }
+                }
+              `, {
+                pullRequestId: pr.data.node_id,
+                mergeMethod: 'REBASE'
+              });
+              
+              console.log(`Auto-merge enabled with REBASE method for PR #${pr.data.number}`);
+            } catch (error) {
+              console.error(`Failed to enable auto-merge: ${error.message}`);
+              core.warning(`Auto-merge could not be enabled. You may need to enable it manually or check repository settings.`);
+            }
