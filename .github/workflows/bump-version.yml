@@ -58,14 +58,18 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          npm version ${{ inputs.bump_type }}
-          npm install
-          git add -A
+          
+          # Build commit message with release type tag if specified
           RELEASE_TAG=""
           if [ "${{ inputs.release_type }}" != "none" ]; then
             RELEASE_TAG=" [${{ inputs.release_type }}]"
           fi
-          git commit -m "chore: update changelog and dependencies${RELEASE_TAG}" || true
+          
+          # Use npm version with custom message to include release tag
+          npm version ${{ inputs.bump_type }} -m "%s${RELEASE_TAG}"
+          npm install
+          git add -A
+          git commit -m "chore: update dependencies${RELEASE_TAG}" || true
           VERSION=$(jq -r '.version' package.json)
           git checkout -b "bump-version-${VERSION}"
           git push --set-upstream origin "bump-version-${VERSION}"
