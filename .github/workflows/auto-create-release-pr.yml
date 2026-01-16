@@ -54,8 +54,17 @@ jobs:
             const releaseType = releaseMatch[1];
             console.log(`Detected release type: ${releaseType}`);
             
-            // Get current version
-            const version = require('./package.json').version;
+            // Get current version with error handling
+            const fs = require('fs');
+            let version;
+            try {
+              const packageContent = fs.readFileSync('./package.json', 'utf8');
+              const packageJson = JSON.parse(packageContent);
+              version = packageJson.version;
+            } catch (error) {
+              core.setFailed(`Failed to read package.json: ${error.message}`);
+              return;
+            }
             console.log(`Current version: ${version}`);
             
             // Determine target branch

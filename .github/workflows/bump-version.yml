@@ -72,11 +72,24 @@ jobs:
         with:
           script: |
             const { owner, repo } = context.repo;
-            const branchName = `bump-version-${require('./package.json').version}`;
+            const fs = require('fs');
+            
+            // Read and parse package.json with error handling
+            let packageJson;
+            try {
+              const packageContent = fs.readFileSync('./package.json', 'utf8');
+              packageJson = JSON.parse(packageContent);
+            } catch (error) {
+              core.setFailed(`Failed to read package.json: ${error.message}`);
+              return;
+            }
+            
+            const version = packageJson.version;
+            const branchName = `bump-version-${version}`;
             const releaseType = '${{ inputs.release_type }}';
             
             // Add release type info to PR title if specified
-            let title = `feat: Bump version to ${require('./package.json').version}`;
+            let title = `feat: Bump version to ${version}`;
             if (releaseType !== 'none') {
               title += ` [${releaseType}]`;
             }
