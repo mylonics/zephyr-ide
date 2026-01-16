@@ -1,3 +1,20 @@
+# This workflow handles version bumping and optionally triggers release PR creation.
+# 
+# How to use:
+# 1. Run this workflow manually from GitHub Actions
+# 2. Select version bump type (patch/minor/major)
+# 3. Select release type:
+#    - none: Only bump version (no release)
+#    - release: Bump version and auto-create PR to main branch
+#    - prerelease: Bump version and auto-create PR to pre-release branch
+# 
+# What happens:
+# 1. Version is bumped in package.json
+# 2. PR is created to develop branch with auto-merge enabled (SQUASH)
+# 3. After PR merges, if release type is not 'none', auto-create-release-pr.yml
+#    workflow automatically creates a PR to main or pre-release branch
+# 4. When that PR merges, release.yml publishes the extension automatically
+
 name: Bump Version
 
 on:
@@ -11,6 +28,14 @@ on:
           - patch
           - minor
           - major
+      release_type:
+        description: "Release type (auto-creates PR after merge to develop)"
+        required: true
+        type: choice
+        options:
+          - none
+          - release
+          - prerelease
 
 permissions:
   contents: write
@@ -37,8 +62,9 @@ jobs:
           npm install
           git add -A
           git commit -m "chore: update changelog and dependencies" || true
-          git checkout -b bump-version-$(jq -r '.version' package.json)
-          git push --set-upstream origin bump-version-$(jq -r '.version' package.json)
+          VERSION=$(jq -r '.version' package.json)
+          git checkout -b "bump-version-${VERSION}"
+          git push --set-upstream origin "bump-version-${VERSION}"
 
       - name: Create Pull Request
         id: create-pr
@@ -46,12 +72,60 @@ jobs:
         with:
           script: |
             const { owner, repo } = context.repo;
-            const branchName = `bump-version-${require('./package.json').version}`;
+            const fs = require('fs');
+            
+            // Read and parse package.json with error handling
+            let packageJson;
+            try {
+              const packageContent = fs.readFileSync('./package.json', 'utf8');
+              packageJson = JSON.parse(packageContent);
+            } catch (error) {
+              core.setFailed(`Failed to read package.json: ${error.message}`);
+              return;
+            }
+            
+            const version = packageJson.version;
+            const branchName = `bump-version-${version}`;
+            const releaseType = '${{ inputs.release_type }}';
+            
+            // Add release type info to PR title if specified
+            let title = `feat: Bump version to ${version}`;
+            if (releaseType !== 'none') {
+              title += ` [${releaseType}]`;
+            }
+            
             const pr = await github.rest.pulls.create({
               owner,
               repo,
-              title: `feat: Bump version to ${require('./package.json').version}`,
+              title: title,
               head: branchName,
               base: 'develop',
+              body: releaseType !== 'none' 
+                ? `This version bump will automatically create a ${releaseType} PR after merge.`
+                : ''
             });
             core.setOutput('pr_number', pr.data.number);
+            
+            // Enable auto-merge with SQUASH method
+            try {
+              await github.graphql(`
+                mutation($pullRequestId: ID!, $mergeMethod: PullRequestMergeMethod!) {
+                  enablePullRequestAutoMerge(input: {
+                    pullRequestId: $pullRequestId,
+                    mergeMethod: $mergeMethod
+                  }) {
+                    pullRequest {
+                      id
+                    }
+                  }
+                }
+              `, {
+                pullRequestId: pr.data.node_id,
+                mergeMethod: 'SQUASH'
+              });
+              
+              console.log(`PR #${pr.data.number} created with auto-merge enabled (SQUASH method)`);
+            } catch (error) {
+              console.error(`Failed to enable auto-merge: ${error.message}`);
+              core.warning(`Auto-merge could not be enabled. Please merge manually.`);
+            }

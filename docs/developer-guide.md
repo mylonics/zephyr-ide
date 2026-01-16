@@ -67,9 +67,40 @@ It is recommended that you run `npm install [-g]` again after switching git chec
 ---
 ## Publishing
 
-### Prepublishing
-`vsce publish --pre-release patch`
+The release process has been streamlined to require only one GitHub Action to be triggered.
 
+### Release Process
 
-### Publish
-`vsce publish patch`
+1. **Trigger the Bump Version Workflow**
+   - Navigate to Actions → "Bump Version" in the GitHub repository
+   - Click "Run workflow"
+   - Select the **bump type** (patch, minor, or major)
+   - Select the **release type**:
+     - `none` - Only bump version (no release)
+     - `release` - Create a full release to the main branch
+     - `prerelease` - Create a pre-release to the pre-release branch
+
+2. **Automated Steps**
+   - A PR is created to merge the version bump into the `develop` branch with auto-merge enabled (SQUASH)
+   - After the PR is merged to `develop`, if a release type was specified:
+     - The workflow automatically creates a PR from `develop` to `main` (for release) or `pre-release` (for prerelease)
+     - Auto-merge is enabled on this PR (REBASE)
+   - When the release PR is merged, the extension is automatically published to:
+     - VS Code Marketplace
+     - Open VSX Registry
+
+### Manual Publishing (Not Recommended)
+
+For emergency releases or testing, you can manually publish using vsce:
+
+#### Pre-release
+```bash
+vsce publish --pre-release patch
+```
+
+#### Full Release
+```bash
+vsce publish patch
+```
+
+**Note:** Manual publishing is not recommended as it bypasses the automated workflow and may lead to inconsistencies.
