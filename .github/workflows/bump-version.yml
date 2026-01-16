@@ -62,8 +62,9 @@ jobs:
           npm install
           git add -A
           git commit -m "chore: update changelog and dependencies" || true
-          git checkout -b bump-version-$(jq -r '.version' package.json)
-          git push --set-upstream origin bump-version-$(jq -r '.version' package.json)
+          VERSION=$(jq -r '.version' package.json)
+          git checkout -b "bump-version-${VERSION}"
+          git push --set-upstream origin "bump-version-${VERSION}"
 
       - name: Create Pull Request
         id: create-pr
@@ -115,5 +116,3 @@ jobs:
               console.error(`Failed to enable auto-merge: ${error.message}`);
               core.warning(`Auto-merge could not be enabled. Please merge manually.`);
             }
-
-
