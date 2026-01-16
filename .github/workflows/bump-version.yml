@@ -1,5 +1,5 @@
 # This workflow handles version bumping and optionally triggers release PR creation.
-# 
+#
 # How to use:
 # 1. Run this workflow manually from GitHub Actions
 # 2. Select version bump type (patch/minor/major)
@@ -7,7 +7,7 @@
 #    - none: Only bump version (no release)
 #    - release: Bump version and auto-create PR to main branch
 #    - prerelease: Bump version and auto-create PR to pre-release branch
-# 
+#
 # What happens:
 # 1. Version is bumped in package.json
 # 2. PR is created to develop branch with auto-merge enabled (SQUASH)
@@ -58,10 +58,18 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          npm version ${{ inputs.bump_type }}
+          
+          # Build commit message with release type tag if specified
+          RELEASE_TAG=""
+          if [ "${{ inputs.release_type }}" != "none" ]; then
+            RELEASE_TAG=" [${{ inputs.release_type }}]"
+          fi
+          
+          # Use npm version with custom message to include release tag
+          npm version ${{ inputs.bump_type }} -m "%s${RELEASE_TAG}"
           npm install
           git add -A
-          git commit -m "chore: update changelog and dependencies" || true
+          git commit -m "chore: update dependencies${RELEASE_TAG}" || true
           VERSION=$(jq -r '.version' package.json)
           git checkout -b "bump-version-${VERSION}"
           git push --set-upstream origin "bump-version-${VERSION}"
@@ -73,7 +81,7 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             const fs = require('fs');
-            
+
             // Read and parse package.json with error handling
             let packageJson;
             try {
@@ -83,17 +91,17 @@ jobs:
               core.setFailed(`Failed to read package.json: ${error.message}`);
               return;
             }
-            
+
             const version = packageJson.version;
             const branchName = `bump-version-${version}`;
             const releaseType = '${{ inputs.release_type }}';
-            
+
             // Add release type info to PR title if specified
             let title = `feat: Bump version to ${version}`;
             if (releaseType !== 'none') {
               title += ` [${releaseType}]`;
             }
-            
+
             const pr = await github.rest.pulls.create({
               owner,
               repo,
@@ -105,7 +113,7 @@ jobs:
                 : ''
             });
             core.setOutput('pr_number', pr.data.number);
-            
+
             // Enable auto-merge with SQUASH method
             try {
               await github.graphql(`

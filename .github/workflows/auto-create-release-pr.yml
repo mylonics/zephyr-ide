@@ -1,20 +1,35 @@
-# This workflow automatically creates release PRs when version bumps are merged to develop.
+# This workflow creates release PRs either automatically or manually.
 # 
-# It triggers on every push to the develop branch and checks if the commit message
-# contains [release] or [prerelease] tags (added by the bump-version.yml workflow).
+# Automatic mode:
+# - Triggers when a PR is merged to develop and checks if the PR title
+#   contains [release] or [prerelease] tags (added by the bump-version.yml workflow).
+# - If found, creates a PR to the appropriate branch (main or pre-release) with
+#   auto-merge enabled (REBASE method).
 # 
-# If found, it creates a PR to the appropriate branch (main or pre-release) with
-# auto-merge enabled (REBASE method).
+# Manual mode:
+# - Run this workflow manually from GitHub Actions
+# - Select release type (release or prerelease)
+# - Creates a PR from develop to the appropriate branch
 # 
 # This workflow works in conjunction with bump-version.yml to provide a streamlined
 # release process.
 
-name: Auto Create Release PR
+name: Create Release PR
 
 on:
-  push:
+  pull_request:
+    types: [closed]
     branches:
       - develop
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: "Release type"
+        required: true
+        type: choice
+        options:
+          - release
+          - prerelease
 
 permissions:
   contents: read
@@ -22,6 +37,9 @@ permissions:
 
 jobs:
   create_release_pr:
+    # For PR events: only run if the PR was actually merged (not just closed)
+    # For workflow_dispatch: always run
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
       - name: Checkout develop branch
@@ -29,30 +47,38 @@ jobs:
         with:
           ref: develop
           
-      - name: Check for release type and create PR
+      - name: Determine release type and create PR
         uses: actions/github-script@v6
         with:
           script: |
             const { owner, repo } = context.repo;
+            let releaseType;
             
-            // Get the commit that triggered this workflow
-            const commit = context.payload.head_commit;
-            if (!commit) {
-              console.log('No commit found in payload');
-              return;
+            // Determine release type based on trigger
+            if (context.eventName === 'workflow_dispatch') {
+              // Manual trigger - use input
+              releaseType = '${{ inputs.release_type }}';
+              console.log(`Manual trigger with release type: ${releaseType}`);
+            } else {
+              // PR merge trigger - check PR title
+              const pr = context.payload.pull_request;
+              if (!pr) {
+                console.log('No PR found in payload');
+                return;
+              }
+              
+              console.log(`PR title: ${pr.title}`);
+              
+              // Check if this is a version bump PR with release type in the title
+              const releaseMatch = pr.title.match(/\[(release|prerelease)\]/);
+              if (!releaseMatch) {
+                console.log('No release type found in PR title');
+                return;
+              }
+              
+              releaseType = releaseMatch[1];
+              console.log(`Detected release type from PR: ${releaseType}`);
             }
-            
-            console.log(`Commit message: ${commit.message}`);
-            
-            // Check if this is a version bump commit with release type
-            const releaseMatch = commit.message.match(/\[(release|prerelease)\]/);
-            if (!releaseMatch) {
-              console.log('No release type found in commit message');
-              return;
-            }
-            
-            const releaseType = releaseMatch[1];
-            console.log(`Detected release type: ${releaseType}`);
             
             // Get current version with error handling
             const fs = require('fs');
