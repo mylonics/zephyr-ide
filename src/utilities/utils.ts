@@ -157,10 +157,6 @@ export function getPythonVenvBinaryFolder(setupState: SetupState) {
   return '';
 }
 
-function generatePythonModuleCmdString(setupState: SetupState, cmd: string) {
-  return path.join(getPythonVenvBinaryFolder(setupState), "python -m " + cmd);
-}
-
 export async function getRootPathFs(first = false) {
   let rootPath = await getRootPath(first);
   if (rootPath && rootPath.fsPath) {
@@ -298,13 +294,31 @@ export async function executeTaskHelper(taskName: string, cmd: string, cwd: stri
 }
 
 export async function executeShellCommandInPythonEnv(cmd: string, cwd: string, setupState: SetupState, display_error = true) {
-  let newCmd = generatePythonModuleCmdString(setupState, cmd);
-  return executeShellCommand(newCmd, cwd, display_error);
+  // Build environment with venv PATH prepended
+  const env = { ...process.env };
+  
+  if (setupState.env["PATH"]) {
+    // Prepend the venv's bin/Scripts directory to PATH
+    env["PATH"] = setupState.env["PATH"] + (env["PATH"] || "");
+  }
+  
+  if (setupState.env["VIRTUAL_ENV"]) {
+    env["VIRTUAL_ENV"] = setupState.env["VIRTUAL_ENV"];
+  }
+  
+  return executeShellCommand(cmd, cwd, display_error, env);
 };
 
-export async function executeShellCommand(cmd: string, cwd: string, display_error = true) {
+export async function executeShellCommand(cmd: string, cwd: string, display_error = true, env?: NodeJS.ProcessEnv) {
   let exec = util.promisify(cp.exec);
-  let res = await exec(cmd, { cwd: cwd }).then(
+  const execOptions: cp.ExecOptions = { cwd: cwd };
+  
+  // Use provided environment or default to process.env
+  if (env) {
+    execOptions.env = env;
+  }
+  
+  let res = await exec(cmd, execOptions).then(
 
     value => {
       return { stdout: value.stdout, stderr: value.stderr };

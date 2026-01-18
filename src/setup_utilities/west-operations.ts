@@ -40,11 +40,36 @@ let python: string | undefined;
 /**
  * Get the appropriate Python command for the current platform
  * In remote environments (WSL, SSH), this detects the remote OS
+ * On all platforms, respects VS Code's configured Python interpreter if available
  */
 async function getPythonCommand(): Promise<string> {
   if (python === undefined) {
+    // First, try to get the Python interpreter configured in VS Code settings
+    const configuration = vscode.workspace.getConfiguration();
+    const configuredPython = configuration.get<string>("python.defaultInterpreterPath");
+    
+    if (configuredPython && configuredPython.trim()) {
+      // Expand environment variables in the path (e.g., ${env:HOME})
+      let expandedPath = configuredPython;
+      const envVarRegex = /\$\{env:(\w+)\}/g;
+      expandedPath = expandedPath.replace(envVarRegex, (_, varName) => {
+        return process.env[varName] || "";
+      });
+      
+      // Check if the configured Python executable exists
+      if (fs.pathExistsSync(expandedPath)) {
+        python = expandedPath;
+        output.appendLine(`[SETUP] Using configured Python interpreter: ${python}`);
+        return python;
+      } else {
+        output.appendLine(`[SETUP] Configured Python interpreter not found: ${expandedPath}, falling back to default`);
+      }
+    }
+    
+    // Fall back to platform default
     const platformName = await getPlatformNameAsync();
     python = platformName === "linux" || platformName === "macos" ? "python3" : "python";
+    output.appendLine(`[SETUP] Using platform default Python: ${python}`);
   }
   return python;
 }
@@ -220,7 +245,9 @@ export async function installPythonRequirements(context: vscode.ExtensionContext
   setupState.packagesInstalled = false;
   saveSetupState(context, wsConfig, globalConfig);
 
-  let cmd = `pip install -r ${path.join(setupState.zephyrDir, "scripts", "requirements.txt")} -U dtsh patool semver tqdm`;
+  // Install requirements from Zephyr's requirements.txt plus additional packages needed by Zephyr IDE
+  // Note: patool is already in requirements.txt, so we don't include it here to avoid conflicts
+  let cmd = `pip install -r ${path.join(setupState.zephyrDir, "scripts", "requirements.txt")} -U dtsh semver tqdm`;
   let reqRes = await executeTaskHelperInPythonEnv(setupState, "Zephyr IDE: Install Python Requirements", cmd, setupState.setupPath);
 
   if (!reqRes) {
