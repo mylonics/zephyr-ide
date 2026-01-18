@@ -50,10 +50,16 @@ async function getPythonCommand(): Promise<string> {
     
     if (configuredPython && configuredPython.trim()) {
       // Expand environment variables in the path (e.g., ${env:HOME})
+      // Only allow common safe environment variables to prevent potential security issues
+      const safeEnvVars = new Set(['HOME', 'USER', 'USERPROFILE', 'APPDATA', 'LOCALAPPDATA', 'PATH']);
       let expandedPath = configuredPython;
       const envVarRegex = /\$\{env:(\w+)\}/g;
-      expandedPath = expandedPath.replace(envVarRegex, (_, varName) => {
-        return process.env[varName] || "";
+      expandedPath = expandedPath.replace(envVarRegex, (_: string, varName: string) => {
+        if (safeEnvVars.has(varName) && process.env[varName]) {
+          return process.env[varName];
+        }
+        output.appendLine(`[SETUP] Warning: Environment variable ${varName} not found or not allowed in Python path`);
+        return "";
       });
       
       // Check if the configured Python executable exists

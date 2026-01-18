@@ -298,8 +298,10 @@ export async function executeShellCommandInPythonEnv(cmd: string, cwd: string, s
   const env = { ...process.env };
   
   if (setupState.env["PATH"]) {
-    // Prepend the venv's bin/Scripts directory to PATH
-    env["PATH"] = setupState.env["PATH"] + (env["PATH"] || "");
+    // Prepend the venv's bin/Scripts directory to PATH so venv executables are found first
+    // setupState.env["PATH"] already includes the trailing path separator (: or ;)
+    const existingPath = env["PATH"] || "";
+    env["PATH"] = setupState.env["PATH"] + existingPath;
   }
   
   if (setupState.env["VIRTUAL_ENV"]) {
