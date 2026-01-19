@@ -252,12 +252,16 @@ export async function installPythonRequirements(context: vscode.ExtensionContext
   saveSetupState(context, wsConfig, globalConfig);
 
   // Install requirements from Zephyr's requirements.txt plus additional packages needed by Zephyr IDE
-  // For Zephyr >= 3.8.0, patool is in requirements.txt, so we don't include it to avoid conflicts
-  // For older versions (< 3.8.0), we need to explicitly install patool for west sdk command to work
-  let additionalPackages = "dtsh semver tqdm";
+  // For Zephyr >= 3.8.0, several packages (patool, semver, tqdm) are in requirements.txt
+  // For older versions (< 3.8.0), we need to explicitly install them:
+  //   - patool: needed for west sdk command to extract SDK archives
+  //   - semver: needed by sdk.py (Zephyr IDE's custom west SDK command)
+  //   - tqdm: needed by sdk.py for progress bars during SDK downloads
+  // dtsh is always needed as it's a Zephyr IDE-specific tool
+  let additionalPackages = "dtsh";
   if (setupState.zephyrVersion && !isVersionNumberGreaterEqual(setupState.zephyrVersion, 3, 8, 0)) {
-    additionalPackages += " patool";
-    output.appendLine(`[SETUP] Adding patool explicitly for Zephyr < 3.8.0`);
+    additionalPackages += " patool semver tqdm";
+    output.appendLine(`[SETUP] Adding patool, semver, tqdm explicitly for Zephyr < 3.8.0`);
   }
   
   let cmd = `pip install -r ${path.join(setupState.zephyrDir, "scripts", "requirements.txt")} -U ${additionalPackages}`;
