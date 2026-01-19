@@ -258,6 +258,8 @@ export async function installPythonRequirements(context: vscode.ExtensionContext
   //   - semver: needed by sdk.py (Zephyr IDE's custom west SDK command)
   //   - tqdm: needed by sdk.py for progress bars during SDK downloads
   // dtsh is always needed as it's a Zephyr IDE-specific tool
+  // Note: If zephyrVersion is not set, we default to newer behavior (no explicit packages)
+  //       to avoid conflicts, as the version should always be set after west update
   let additionalPackages = "dtsh";
   if (setupState.zephyrVersion && !isVersionNumberGreaterEqual(setupState.zephyrVersion, 3, 8, 0)) {
     additionalPackages += " patool semver tqdm";
