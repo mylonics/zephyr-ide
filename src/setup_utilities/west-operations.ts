@@ -20,7 +20,7 @@ import * as os from "os";
 import * as fs from "fs-extra";
 import * as path from "path";
 import { output, executeTaskHelperInPythonEnv, executeTaskHelper, reloadEnvironmentVariables, getPlatformName, getPlatformNameAsync } from "../utilities/utils";
-import { getModulePathAndVersion, getModuleVersion } from "./modules";
+import { getModulePathAndVersion, getModuleVersion, isVersionNumberGreaterEqual } from "./modules";
 import { westSelector, WestLocation } from "./west_selector";
 import { WorkspaceConfig, GlobalConfig, SetupState } from "./types";
 import { saveSetupState, setSetupState, setWorkspaceState } from "./state-management";
@@ -252,8 +252,15 @@ export async function installPythonRequirements(context: vscode.ExtensionContext
   saveSetupState(context, wsConfig, globalConfig);
 
   // Install requirements from Zephyr's requirements.txt plus additional packages needed by Zephyr IDE
-  // Note: patool is already in requirements.txt, so we don't include it here to avoid conflicts
-  let cmd = `pip install -r ${path.join(setupState.zephyrDir, "scripts", "requirements.txt")} -U dtsh semver tqdm`;
+  // For Zephyr >= 3.8.0, patool is in requirements.txt, so we don't include it to avoid conflicts
+  // For older versions (< 3.8.0), we need to explicitly install patool for west sdk command to work
+  let additionalPackages = "dtsh semver tqdm";
+  if (setupState.zephyrVersion && !isVersionNumberGreaterEqual(setupState.zephyrVersion, 3, 8, 0)) {
+    additionalPackages += " patool";
+    output.appendLine(`[SETUP] Adding patool explicitly for Zephyr < 3.8.0`);
+  }
+  
+  let cmd = `pip install -r ${path.join(setupState.zephyrDir, "scripts", "requirements.txt")} -U ${additionalPackages}`;
   let reqRes = await executeTaskHelperInPythonEnv(setupState, "Zephyr IDE: Install Python Requirements", cmd, setupState.setupPath);
 
   if (!reqRes) {
