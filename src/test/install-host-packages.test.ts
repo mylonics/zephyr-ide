@@ -16,7 +16,6 @@ limitations under the License.
 */
 
 import * as vscode from 'vscode';
-import * as assert from 'assert';
 import { logTestEnvironment } from './test-runner';
 
 suite('Install Host Packages Test Suite', () => {
