@@ -54,21 +54,30 @@ async function getPythonCommand(): Promise<string> {
       const safeEnvVars = new Set(['HOME', 'USER', 'USERPROFILE', 'APPDATA', 'LOCALAPPDATA', 'PATH']);
       let expandedPath = configuredPython;
       const envVarRegex = /\$\{env:(\w+)\}/g;
-      expandedPath = expandedPath.replace(envVarRegex, (_: string, varName: string) => {
-        if (safeEnvVars.has(varName) && process.env[varName]) {
-          return process.env[varName];
+      let hadExpansionError = false;
+      expandedPath = expandedPath.replace(envVarRegex, (match: string, varName: string) => {
+        const value = process.env[varName];
+        if (safeEnvVars.has(varName) && value && value.trim()) {
+          return value;
         }
+        hadExpansionError = true;
         output.appendLine(`[SETUP] Warning: Environment variable ${varName} not found or not allowed in Python path`);
-        return "";
+        // Preserve the original placeholder to avoid creating malformed paths
+        return match;
       });
       
-      // Check if the configured Python executable exists
-      if (fs.pathExistsSync(expandedPath)) {
-        python = expandedPath;
-        output.appendLine(`[SETUP] Using configured Python interpreter: ${python}`);
-        return python;
+      // If expansion failed for any variable, skip using the configured path entirely
+      if (!hadExpansionError) {
+        // Check if the configured Python executable exists
+        if (fs.pathExistsSync(expandedPath)) {
+          python = expandedPath;
+          output.appendLine(`[SETUP] Using configured Python interpreter: ${python}`);
+          return python;
+        } else {
+          output.appendLine(`[SETUP] Configured Python interpreter not found: ${expandedPath}, falling back to default`);
+        }
       } else {
-        output.appendLine(`[SETUP] Configured Python interpreter not found: ${expandedPath}, falling back to default`);
+        output.appendLine("[SETUP] Skipping configured Python interpreter due to environment variable expansion errors, falling back to default");
       }
     }
     
