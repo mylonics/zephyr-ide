@@ -1,8 +1,9 @@
 name: Integration Tests
 
+# This workflow runs full integration tests on Ubuntu for development purposes.
+# For multi-platform tests that run on version bumps, see integration-tests-multi-platform.yml
+
 on:
-  push:
-    branches: [main, pre-release, develop]
   pull_request:
     branches: [main, pre-release, develop]
 

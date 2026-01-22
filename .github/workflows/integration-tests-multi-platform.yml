@@ -1,0 +1,275 @@
+# Multi-Platform Integration Tests Pipeline
+# 
+# This workflow runs integration tests on multiple platforms (Windows, Ubuntu, macOS).
+# It is triggered only when a version bump occurs on the develop branch.
+#
+# Architecture:
+# 1. Stage 1: Build VSIX on Ubuntu
+# 2. Stage 2: Three parallel platform jobs that:
+#    - Install VS Code
+#    - Install the VSIX extension
+#    - Install host tools (build dependencies)
+#    - Run the standard workspace test
+#
+# Note: VS Code may need to be restarted after package manager and packages
+# are installed to make them available in PATH.
+
+name: Multi-Platform Integration Tests
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - 'package.json'
+  workflow_dispatch:
+    inputs:
+      skip_version_check:
+        description: 'Skip version bump check (for testing)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  # Check if this is a version bump commit
+  check-version-bump:
+    runs-on: ubuntu-latest
+    outputs:
+      is_version_bump: ${{ steps.check.outputs.is_version_bump }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check if version changed
+        id: check
+        run: |
+          # Skip check if manually triggered with skip_version_check
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.skip_version_check }}" = "true" ]; then
+            echo "Manual trigger with skip_version_check=true"
+            echo "is_version_bump=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Get current and previous version from package.json
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          git checkout HEAD~1 -- package.json 2>/dev/null || echo "No previous commit"
+          PREVIOUS_VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "0.0.0")
+          git checkout HEAD -- package.json
+
+          echo "Current version: $CURRENT_VERSION"
+          echo "Previous version: $PREVIOUS_VERSION"
+
+          if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
+            echo "Version bump detected: $PREVIOUS_VERSION -> $CURRENT_VERSION"
+            echo "is_version_bump=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No version bump detected"
+            echo "is_version_bump=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Stage 1: Build VSIX on Ubuntu
+  build-vsix:
+    needs: check-version-bump
+    if: needs.check-version-bump.outputs.is_version_bump == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      vsix_name: ${{ steps.package.outputs.vsix_name }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Extension
+        run: npm run vscode:prepublish
+
+      - name: Get version info
+        id: version_info
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          COMMIT_HASH=$(git rev-parse --short=6 HEAD)
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "commit_hash=${COMMIT_HASH}" >> "$GITHUB_OUTPUT"
+
+      - name: Package Extension
+        id: package
+        run: |
+          VSIX_NAME="zephyr-ide-${{ steps.version_info.outputs.version }}-${{ steps.version_info.outputs.commit_hash }}.vsix"
+          npx vsce package --out "$VSIX_NAME"
+          echo "vsix_name=${VSIX_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload VSIX Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vsix-package
+          path: "*.vsix"
+          retention-days: 7
+
+  # Stage 2: Platform Integration Tests
+  # Each platform job installs VS Code, the VSIX extension, host tools, and runs tests
+  
+  test-ubuntu:
+    needs: build-vsix
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+
+      - name: Download VSIX
+        uses: actions/download-artifact@v4
+        with:
+          name: vsix-package
+          path: ./vsix
+
+      - name: Install system dependencies for VS Code
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libgtk-3-0 libgbm1 libnss3 libasound2
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Compile TypeScript
+        run: npm run test-compile
+
+      - name: Bundle Extension (dist)
+        run: npm run esbuild
+
+      - name: Install Zephyr build dependencies
+        run: |
+          sudo apt-get install --no-install-recommends -y git cmake ninja-build gperf \
+            ccache dfu-util device-tree-compiler wget python3-dev python3-venv python3-tk \
+            xz-utils file make gcc gcc-multilib g++-multilib libsdl2-dev libmagic1
+
+      - name: Run standard workflow integration tests
+        run: |
+          xvfb-run -a node scripts/run-integration-tests.js standard
+        env:
+          NODE_ENV: test
+          ZEPHYR_BASE: /tmp/zephyr
+          VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
+
+  test-windows:
+    needs: build-vsix
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+
+      - name: Download VSIX
+        uses: actions/download-artifact@v4
+        with:
+          name: vsix-package
+          path: ./vsix
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Compile TypeScript
+        run: npm run test-compile
+
+      - name: Bundle Extension (dist)
+        run: npm run esbuild
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install west
+
+      - name: Install build tools via winget
+        shell: pwsh
+        run: |
+          # Install CMake
+          winget install --accept-package-agreements --accept-source-agreements Kitware.CMake
+          # Install Ninja
+          winget install --accept-package-agreements --accept-source-agreements Ninja-build.Ninja
+          # Install Git (usually pre-installed)
+          winget install --accept-package-agreements --accept-source-agreements Git.Git
+        continue-on-error: true
+
+      - name: Add tools to PATH
+        shell: pwsh
+        run: |
+          # Add common tool paths to PATH for this session
+          $env:PATH = "$env:PATH;C:\Program Files\CMake\bin;C:\Program Files\Ninja"
+          echo "PATH=$env:PATH" >> $env:GITHUB_ENV
+
+      - name: Run standard workflow integration tests
+        shell: pwsh
+        run: |
+          node scripts/run-integration-tests.js standard
+        env:
+          NODE_ENV: test
+          ZEPHYR_BASE: C:\temp\zephyr
+          VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
+
+  test-macos:
+    needs: build-vsix
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+
+      - name: Download VSIX
+        uses: actions/download-artifact@v4
+        with:
+          name: vsix-package
+          path: ./vsix
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Compile TypeScript
+        run: npm run test-compile
+
+      - name: Bundle Extension (dist)
+        run: npm run esbuild
+
+      - name: Install Zephyr build dependencies via Homebrew
+        run: |
+          brew install cmake ninja gperf python3 ccache qemu dtc wget libmagic
+
+      - name: Setup Python virtual environment
+        run: |
+          python3 -m venv ~/.zephyr-venv
+          source ~/.zephyr-venv/bin/activate
+          pip install west
+
+      - name: Run standard workflow integration tests
+        run: |
+          source ~/.zephyr-venv/bin/activate
+          node scripts/run-integration-tests.js standard
+        env:
+          NODE_ENV: test
+          ZEPHYR_BASE: /tmp/zephyr
+          VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
