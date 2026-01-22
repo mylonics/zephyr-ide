@@ -114,14 +114,35 @@ jobs:
       - name: Bundle Extension (dist)
         run: npm run esbuild
 
-      - name: Run standard workflow integration tests with host tools installation
+      # Run host tools installation 3 times in separate steps
+      # Each step runs in a fresh shell context which picks up PATH changes
+      - name: "Host Tools Installation - Step 1: Install package manager"
         run: |
           xvfb-run -a node scripts/run-integration-tests.js standard
         env:
           NODE_ENV: test
           ZEPHYR_BASE: /tmp/zephyr
           VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
-          # Signal to test runner to use zephyr-ide.install-host-tools command for dependency installation
+          INSTALL_HOST_TOOLS: true
+        continue-on-error: true
+
+      - name: "Host Tools Installation - Step 2: Install remaining tools"
+        run: |
+          xvfb-run -a node scripts/run-integration-tests.js standard
+        env:
+          NODE_ENV: test
+          ZEPHYR_BASE: /tmp/zephyr
+          VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
+          INSTALL_HOST_TOOLS: true
+        continue-on-error: true
+
+      - name: "Host Tools Installation - Step 3: Verify and run tests"
+        run: |
+          xvfb-run -a node scripts/run-integration-tests.js standard
+        env:
+          NODE_ENV: test
+          ZEPHYR_BASE: /tmp/zephyr
+          VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
           INSTALL_HOST_TOOLS: true
 
   test-windows:
@@ -153,7 +174,9 @@ jobs:
       - name: Bundle Extension (dist)
         run: npm run esbuild
 
-      - name: Run standard workflow integration tests with host tools installation
+      # Run host tools installation 3 times in separate steps
+      # Each step runs in a fresh shell context which picks up PATH changes
+      - name: "Host Tools Installation - Step 1: Install package manager"
         shell: pwsh
         run: |
           node scripts/run-integration-tests.js standard
@@ -161,7 +184,28 @@ jobs:
           NODE_ENV: test
           ZEPHYR_BASE: C:\temp\zephyr
           VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
-          # Signal to test runner to use zephyr-ide.install-host-tools command for dependency installation
+          INSTALL_HOST_TOOLS: true
+        continue-on-error: true
+
+      - name: "Host Tools Installation - Step 2: Install remaining tools"
+        shell: pwsh
+        run: |
+          node scripts/run-integration-tests.js standard
+        env:
+          NODE_ENV: test
+          ZEPHYR_BASE: C:\temp\zephyr
+          VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
+          INSTALL_HOST_TOOLS: true
+        continue-on-error: true
+
+      - name: "Host Tools Installation - Step 3: Verify and run tests"
+        shell: pwsh
+        run: |
+          node scripts/run-integration-tests.js standard
+        env:
+          NODE_ENV: test
+          ZEPHYR_BASE: C:\temp\zephyr
+          VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
           INSTALL_HOST_TOOLS: true
 
   test-macos:
@@ -193,12 +237,33 @@ jobs:
       - name: Bundle Extension (dist)
         run: npm run esbuild
 
-      - name: Run standard workflow integration tests with host tools installation
+      # Run host tools installation 3 times in separate steps
+      # Each step runs in a fresh shell context which picks up PATH changes
+      - name: "Host Tools Installation - Step 1: Install package manager"
         run: |
           node scripts/run-integration-tests.js standard
         env:
           NODE_ENV: test
           ZEPHYR_BASE: /tmp/zephyr
           VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
-          # Signal to test runner to use zephyr-ide.install-host-tools command for dependency installation
+          INSTALL_HOST_TOOLS: true
+        continue-on-error: true
+
+      - name: "Host Tools Installation - Step 2: Install remaining tools"
+        run: |
+          node scripts/run-integration-tests.js standard
+        env:
+          NODE_ENV: test
+          ZEPHYR_BASE: /tmp/zephyr
+          VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
+          INSTALL_HOST_TOOLS: true
+        continue-on-error: true
+
+      - name: "Host Tools Installation - Step 3: Verify and run tests"
+        run: |
+          node scripts/run-integration-tests.js standard
+        env:
+          NODE_ENV: test
+          ZEPHYR_BASE: /tmp/zephyr
+          VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
           INSTALL_HOST_TOOLS: true
