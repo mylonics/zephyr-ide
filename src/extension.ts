@@ -31,6 +31,7 @@ import {
   getLaunchConfigurationByName,
   output,
   executeShellCommand,
+  executeShellCommandInPythonEnv,
   reloadEnvironmentVariables,
 } from "./utilities/utils";
 import * as project from "./project_utilities/project";
@@ -224,6 +225,36 @@ export async function activate(context: vscode.ExtensionContext) {
       output.appendLine("Workspace Directory Structure:");
       output.appendLine(structure);
       return structure;
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.print-python-path", async () => {
+      if (!wsConfig.activeSetupState) {
+        const errorMsg = "No active setup state. Please initialize the workspace first.";
+        output.appendLine(errorMsg);
+        return { error: errorMsg };
+      }
+
+      // Use simple string formatting instead of f-strings to avoid shell escaping issues
+      const pythonScript = `import sys; print('Python interpreter path: ' + sys.executable)`;
+      const cmd = `python -c "${pythonScript}"`;
+      
+      try {
+        const result = await executeShellCommandInPythonEnv(cmd, wsConfig.rootPath, wsConfig.activeSetupState, false);
+        if (result.stdout) {
+          output.appendLine(result.stdout);
+          return { stdout: result.stdout, stderr: result.stderr };
+        } else if (result.stderr) {
+          output.appendLine(`Error: ${result.stderr}`);
+          return { error: result.stderr };
+        }
+        return { error: "No output from Python command" };
+      } catch (error) {
+        const errorMsg = `Failed to execute Python command: ${error}`;
+        output.appendLine(errorMsg);
+        return { error: errorMsg };
+      }
     })
   );
 

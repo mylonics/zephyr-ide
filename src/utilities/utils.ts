@@ -60,7 +60,7 @@ async function detectRemotePlatform(): Promise<string | undefined> {
     // Run uname to detect the OS (works on Linux/macOS)
     const result = await executeShellCommand("uname -s", "", false);
     if (result.stdout) {
-      const uname = result.stdout.trim().toLowerCase();
+      const uname = result.stdout.toString().trim().toLowerCase();
       if (uname === "linux") {
         remotePlatformCache = "linux";
         return "linux";
@@ -72,7 +72,7 @@ async function detectRemotePlatform(): Promise<string | undefined> {
 
     // If uname fails, try to detect Windows (though unlikely in remote)
     const winResult = await executeShellCommand("ver", "", false);
-    if (winResult.stdout && winResult.stdout.toLowerCase().includes("windows")) {
+    if (winResult.stdout && winResult.stdout.toString().toLowerCase().includes("windows")) {
       remotePlatformCache = "win32";
       return "win32";
     }
@@ -155,10 +155,6 @@ export function getPythonVenvBinaryFolder(setupState: SetupState) {
     }
   }
   return '';
-}
-
-function generatePythonModuleCmdString(setupState: SetupState, cmd: string) {
-  return path.join(getPythonVenvBinaryFolder(setupState), "python -m " + cmd);
 }
 
 export async function getRootPathFs(first = false) {
@@ -298,23 +294,46 @@ export async function executeTaskHelper(taskName: string, cmd: string, cwd: stri
 }
 
 export async function executeShellCommandInPythonEnv(cmd: string, cwd: string, setupState: SetupState, display_error = true) {
-  let newCmd = generatePythonModuleCmdString(setupState, cmd);
-  return executeShellCommand(newCmd, cwd, display_error);
+  // Build environment with venv PATH prepended
+  const env = { ...process.env };
+  
+  if (setupState.env["PATH"]) {
+    // Prepend the venv's bin/Scripts directory to PATH so venv executables are found first
+    // setupState.env["PATH"] already includes the trailing path separator (: or ;)
+    const existingPath = env["PATH"] || "";
+    env["PATH"] = setupState.env["PATH"] + existingPath;
+  }
+  
+  if (setupState.env["VIRTUAL_ENV"]) {
+    env["VIRTUAL_ENV"] = setupState.env["VIRTUAL_ENV"];
+  }
+  
+  return executeShellCommand(cmd, cwd, display_error, env);
 };
 
-export async function executeShellCommand(cmd: string, cwd: string, display_error = true) {
+export async function executeShellCommand(cmd: string, cwd: string, display_error = true, env?: NodeJS.ProcessEnv): Promise<{ stdout: string | undefined, stderr: string | undefined }> {
   let exec = util.promisify(cp.exec);
-  let res = await exec(cmd, { cwd: cwd }).then(
+  const execOptions: cp.ExecOptions = { 
+    cwd: cwd,
+    encoding: 'utf8'  // Ensure stdout and stderr are strings, not Buffers
+  };
+  
+  // Use provided environment or default to process.env
+  if (env) {
+    execOptions.env = env;
+  }
+  
+  let res = await exec(cmd, execOptions).then(
 
     value => {
-      return { stdout: value.stdout, stderr: value.stderr };
+      return { stdout: value.stdout as string, stderr: value.stderr as string };
     },
     reason => {
       if (display_error) {
         output.append(reason);
       }
       console.log(JSON.stringify(reason));
-      return { stdout: undefined, stderr: reason.stderr };
+      return { stdout: undefined, stderr: reason.stderr as string | undefined };
     }
   );
   return res;

@@ -20,7 +20,7 @@ import * as os from "os";
 import * as fs from "fs-extra";
 import * as path from "path";
 import { output, executeTaskHelperInPythonEnv, executeTaskHelper, reloadEnvironmentVariables, getPlatformName, getPlatformNameAsync } from "../utilities/utils";
-import { getModulePathAndVersion, getModuleVersion } from "./modules";
+import { getModulePathAndVersion, getModuleVersion, isVersionNumberGreaterEqual } from "./modules";
 import { westSelector, WestLocation } from "./west_selector";
 import { WorkspaceConfig, GlobalConfig, SetupState } from "./types";
 import { saveSetupState, setSetupState, setWorkspaceState } from "./state-management";
@@ -38,15 +38,63 @@ export function setForceNarrowUpdateForTest(value: boolean) {
 let python: string | undefined;
 
 /**
+ * Reset the cached Python command (for testing purposes)
+ * @internal
+ */
+export function resetPythonCommand(): void {
+  python = undefined;
+}
+
+/**
  * Get the appropriate Python command for the current platform
  * In remote environments (WSL, SSH), this detects the remote OS
+ * On all platforms, respects VS Code's configured Python interpreter if available
  */
-async function getPythonCommand(): Promise<string> {
+export async function getPythonCommand(): Promise<string> {
   if (python === undefined) {
+    // First, try to get the Python interpreter configured in VS Code settings
+    const configuration = vscode.workspace.getConfiguration();
+    const configuredPython = configuration.get<string>("python.defaultInterpreterPath");
+    
+    if (configuredPython && configuredPython.trim()) {
+      // Expand environment variables in the path (e.g., ${env:HOME})
+      // Only allow common safe environment variables to prevent potential security issues
+      const safeEnvVars = new Set(['HOME', 'USER', 'USERPROFILE', 'APPDATA', 'LOCALAPPDATA', 'PATH']);
+      let expandedPath = configuredPython;
+      const envVarRegex = /\$\{env:(\w+)\}/g;
+      let hadExpansionError = false;
+      expandedPath = expandedPath.replace(envVarRegex, (match: string, varName: string) => {
+        const value = process.env[varName];
+        if (safeEnvVars.has(varName) && value && value.trim()) {
+          return value;
+        }
+        hadExpansionError = true;
+        output.appendLine(`[SETUP] Warning: Environment variable ${varName} not found or not allowed in Python path`);
+        // Preserve the original placeholder to avoid creating malformed paths
+        return match;
+      });
+      
+      // If expansion failed for any variable, skip using the configured path entirely
+      if (!hadExpansionError) {
+        // Check if the configured Python executable exists
+        if (fs.pathExistsSync(expandedPath)) {
+          python = expandedPath;
+          output.appendLine(`[SETUP] Using configured Python interpreter: ${python}`);
+          return python as string;
+        } else {
+          output.appendLine(`[SETUP] Configured Python interpreter not found: ${expandedPath}, falling back to default`);
+        }
+      } else {
+        output.appendLine("[SETUP] Skipping configured Python interpreter due to environment variable expansion errors, falling back to default");
+      }
+    }
+    
+    // Fall back to platform default
     const platformName = await getPlatformNameAsync();
     python = platformName === "linux" || platformName === "macos" ? "python3" : "python";
+    output.appendLine(`[SETUP] Using platform default Python: ${python}`);
   }
-  return python;
+  return python as string;
 }
 
 export function checkWestInit(setupState: SetupState) {
@@ -220,7 +268,22 @@ export async function installPythonRequirements(context: vscode.ExtensionContext
   setupState.packagesInstalled = false;
   saveSetupState(context, wsConfig, globalConfig);
 
-  let cmd = `pip install -r ${path.join(setupState.zephyrDir, "scripts", "requirements.txt")} -U dtsh patool semver tqdm`;
+  // Install requirements from Zephyr's requirements.txt plus additional packages needed by Zephyr IDE
+  // For Zephyr >= 3.8.0, several packages (patool, semver, tqdm) are in requirements.txt
+  // For older versions (< 3.8.0), we need to explicitly install them:
+  //   - patool: needed for west sdk command to extract SDK archives
+  //   - semver: needed by sdk.py (Zephyr IDE's custom west SDK command)
+  //   - tqdm: needed by sdk.py for progress bars during SDK downloads
+  // dtsh is always needed as it's a Zephyr IDE-specific tool
+  // Note: If zephyrVersion is not set, we default to newer behavior (no explicit packages)
+  //       to avoid conflicts, as the version should always be set after west update
+  let additionalPackages = "dtsh";
+  if (setupState.zephyrVersion && !isVersionNumberGreaterEqual(setupState.zephyrVersion, 3, 8, 0)) {
+    additionalPackages += " patool semver tqdm";
+    output.appendLine(`[SETUP] Adding patool, semver, tqdm explicitly for Zephyr < 3.8.0`);
+  }
+  
+  let cmd = `pip install -r ${path.join(setupState.zephyrDir, "scripts", "requirements.txt")} -U ${additionalPackages}`;
   let reqRes = await executeTaskHelperInPythonEnv(setupState, "Zephyr IDE: Install Python Requirements", cmd, setupState.setupPath);
 
   if (!reqRes) {

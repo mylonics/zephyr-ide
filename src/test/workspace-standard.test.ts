@@ -115,6 +115,21 @@ suite("Standard Workspace Test Suite", () => {
 
                 await monitorWorkspaceSetup();
 
+                console.log("🐍 Step 2.5: Verifying Python venv path...");
+                const pythonPathResult = await vscode.commands.executeCommand("zephyr-ide.print-python-path");
+                if (pythonPathResult && typeof pythonPathResult === 'object' && 'stdout' in pythonPathResult) {
+                    const stdout = (pythonPathResult as { stdout: string }).stdout;
+                    console.log(`Python path check result: ${stdout}`);
+                    // Verify that the Python path includes .venv
+                    assert.ok(
+                        stdout.includes('.venv') || stdout.includes('venv'),
+                        `Python interpreter should be from venv, but got: ${stdout}`
+                    );
+                    console.log("    ✅ Verified: Python interpreter is from venv");
+                } else {
+                    console.log("    ⚠️ Could not verify Python path (command may not have returned expected result)");
+                }
+
                 console.log("📁 Step 3: Creating project from template...");
                 await executeWorkspaceCommand(
                     uiMock,

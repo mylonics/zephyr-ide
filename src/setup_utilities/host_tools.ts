@@ -247,6 +247,42 @@ export async function getPlatformPackages(): Promise<PlatformPackage[]> {
 }
 
 /**
+ * Check Python version and ensure it meets minimum requirements (>= 3.10)
+ */
+async function checkPythonVersion(pythonCommand: string): Promise<{valid: boolean, version?: string, error?: string}> {
+  try {
+    // Try to get Python version
+    const result = await executeShellCommand(`${pythonCommand} --version`, "", false);
+    if (!result.stdout) {
+      return {valid: false, error: "Could not determine Python version"};
+    }
+    
+    // Parse version from output like "Python 3.x.y"
+    const versionMatch = result.stdout.match(/Python\s+(\d+)\.(\d+)\.(\d+)/i);
+    if (!versionMatch) {
+      return {valid: false, error: "Could not parse Python version"};
+    }
+    
+    const major = parseInt(versionMatch[1]);
+    const minor = parseInt(versionMatch[2]);
+    const versionStr = `${major}.${minor}.${versionMatch[3]}`;
+    
+    // Check minimum version: Python >= 3.10
+    if (major < 3 || (major === 3 && minor < 10)) {
+      return {
+        valid: false,
+        version: versionStr,
+        error: `Python ${versionStr} found, but version >= 3.10 is required`
+      };
+    }
+    
+    return {valid: true, version: versionStr};
+  } catch (error) {
+    return {valid: false, error: String(error)};
+  }
+}
+
+/**
  * Check if a single package is available
  */
 export async function checkPackageAvailable(pkg: PlatformPackage): Promise<PackageStatus> {
@@ -255,6 +291,28 @@ export async function checkPackageAvailable(pkg: PlatformPackage): Promise<Packa
     // Command succeeded if stdout is not undefined (even if empty)
     // Note: We also check stderr is not a rejection indicator
     const available = result.stdout !== null && result.stdout !== undefined;
+    
+    // Special handling for Python packages - check version
+    if (available && pkg.name.toLowerCase().includes("python")) {
+      // Extract the python command from check_command (e.g., "python3 --version" -> "python3")
+      const pythonCmdMatch = pkg.check_command.match(/^(python\d*)\s/);
+      if (pythonCmdMatch) {
+        const pythonCmd = pythonCmdMatch[1];
+        const versionCheck = await checkPythonVersion(pythonCmd);
+        
+        if (!versionCheck.valid) {
+          output.appendLine(`[HOST TOOLS] ${pkg.name}: ${versionCheck.error || "Version check failed"}`);
+          return {
+            name: pkg.name,
+            package: pkg.package,
+            available: false,
+            error: versionCheck.error || "Python version < 3.10"
+          };
+        } else {
+          output.appendLine(`[HOST TOOLS] ${pkg.name} version ${versionCheck.version} detected (>= 3.10 required)`);
+        }
+      }
+    }
     
     return {
       name: pkg.name,

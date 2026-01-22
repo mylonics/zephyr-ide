@@ -194,6 +194,10 @@
         "title": "Zephyr IDE: Print Workspace Structure"
       },
       {
+        "command": "zephyr-ide.print-python-path",
+        "title": "Zephyr IDE: Print Python Interpreter Path"
+      },
+      {
         "command": "zephyr-ide.check-build-dependencies",
         "title": "Zephyr IDE: Setup Check Build Dependencies Available"
       },
