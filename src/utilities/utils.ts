@@ -311,7 +311,7 @@ export async function executeShellCommandInPythonEnv(cmd: string, cwd: string, s
   return executeShellCommand(cmd, cwd, display_error, env);
 };
 
-export async function executeShellCommand(cmd: string, cwd: string, display_error = true, env?: NodeJS.ProcessEnv) {
+export async function executeShellCommand(cmd: string, cwd: string, display_error = true, env?: NodeJS.ProcessEnv): Promise<{ stdout: string | undefined, stderr: string | undefined }> {
   let exec = util.promisify(cp.exec);
   const execOptions: cp.ExecOptions = { 
     cwd: cwd,
@@ -326,14 +326,14 @@ export async function executeShellCommand(cmd: string, cwd: string, display_erro
   let res = await exec(cmd, execOptions).then(
 
     value => {
-      return { stdout: value.stdout, stderr: value.stderr };
+      return { stdout: value.stdout as string, stderr: value.stderr as string };
     },
     reason => {
       if (display_error) {
         output.append(reason);
       }
       console.log(JSON.stringify(reason));
-      return { stdout: undefined, stderr: reason.stderr };
+      return { stdout: undefined, stderr: reason.stderr as string | undefined };
     }
   );
   return res;
