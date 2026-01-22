@@ -96,6 +96,11 @@ import { testHelper, deleteTestDirs } from "./zephyr_utilities/twister";
 import { getModuleVersion } from "./setup_utilities/modules";
 import { reconfigureTest } from "./project_utilities/twister_selector";
 import { installSDKInteractive } from "./setup_utilities/west_sdk";
+import {
+  installAllMissingPackages,
+  installPackageManager,
+  checkPackageManagerAvailable,
+} from "./setup_utilities/host_tools";
 
 // Helper function to mark workspace setup as complete and refresh UI
 async function markWorkspaceSetupComplete(
@@ -1298,6 +1303,32 @@ export async function activate(context: vscode.ExtensionContext) {
       }, 100);
     }
     )
+  );
+
+  // Programmatic host tools installation command (for CI/testing)
+  // This command installs package manager and all missing host tool packages without UI
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.install-host-tools-headless", async () => {
+      output.appendLine("[HOST TOOLS] Starting headless host tools installation...");
+      
+      // First check if package manager is available
+      const pmAvailable = await checkPackageManagerAvailable();
+      if (!pmAvailable) {
+        output.appendLine("[HOST TOOLS] Package manager not available, attempting to install...");
+        const pmSuccess = await installPackageManager();
+        if (!pmSuccess) {
+          output.appendLine("[HOST TOOLS] Failed to install package manager");
+          return false;
+        }
+        output.appendLine("[HOST TOOLS] Package manager installed successfully");
+        // Note: May need to restart VS Code for package manager to be available in PATH
+      }
+      
+      // Install all missing packages
+      const success = await installAllMissingPackages();
+      output.appendLine(`[HOST TOOLS] Host tools installation ${success ? "completed successfully" : "failed"}`);
+      return success;
+    })
   );
 
   context.subscriptions.push(

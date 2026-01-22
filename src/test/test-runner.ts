@@ -51,12 +51,46 @@ export function shouldSkipBuildTests(): boolean {
 }
 
 /**
+ * Check if host tools should be installed via the extension command
+ */
+export function shouldInstallHostTools(): boolean {
+    return process.env.INSTALL_HOST_TOOLS === 'true';
+}
+
+/**
+ * Install host tools using the zephyr-ide extension command
+ * This is called when INSTALL_HOST_TOOLS=true environment variable is set
+ */
+export async function installHostToolsIfNeeded(): Promise<void> {
+    if (!shouldInstallHostTools()) {
+        console.log('🔧 INSTALL_HOST_TOOLS not set, skipping host tools installation');
+        return;
+    }
+
+    console.log('🔧 INSTALL_HOST_TOOLS=true detected, installing host tools via extension...');
+    
+    try {
+        const result = await vscode.commands.executeCommand('zephyr-ide.install-host-tools-headless');
+        if (result) {
+            console.log('✅ Host tools installation completed successfully');
+            console.log('⚠️  Note: VS Code may need to be restarted for tools to be available in PATH');
+        } else {
+            console.log('⚠️  Host tools installation returned false - some tools may not have installed');
+        }
+    } catch (error) {
+        console.log(`❌ Host tools installation failed: ${error}`);
+        throw error;
+    }
+}
+
+/**
  * Log test environment information
  */
 export function logTestEnvironment(): void {
     console.log('=== Test Environment ===');
     console.log('CI Environment:', process.env.CI === 'true');
     console.log('Skip Build Tests:', shouldSkipBuildTests());
+    console.log('Install Host Tools:', shouldInstallHostTools());
     console.log('Node Version:', process.version);
     console.log('Platform:', process.platform);
     console.log('Architecture:', process.arch);

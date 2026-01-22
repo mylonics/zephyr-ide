@@ -32,7 +32,8 @@ import {
     executeFinalBuild,
     executeTestWithErrorHandling,
     executeWorkspaceCommand,
-    CommonUIInteractions
+    CommonUIInteractions,
+    installHostToolsIfNeeded
 } from "./test-runner";
 import { UIMockInterface, MockInteraction } from "./ui-mock-interface";
 
@@ -96,6 +97,10 @@ suite("Standard Workspace Test Suite", () => {
             async () => {
                 await activateExtension();
                 uiMock.activate();
+
+                // Install host tools if INSTALL_HOST_TOOLS=true is set
+                console.log("🔧 Step 0: Installing host tools if needed...");
+                await installHostToolsIfNeeded();
 
                 console.log("📋 Step 1: Checking build dependencies...");
                 await executeWorkspaceCommand(
