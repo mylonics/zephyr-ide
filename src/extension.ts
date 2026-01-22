@@ -236,7 +236,8 @@ export async function activate(context: vscode.ExtensionContext) {
         return { error: errorMsg };
       }
 
-      const pythonScript = `import sys\ninterpreter_path = sys.executable\nprint(f"Python interpreter path: {interpreter_path}")`;
+      // Use simple string formatting instead of f-strings to avoid shell escaping issues
+      const pythonScript = `import sys; print('Python interpreter path: ' + sys.executable)`;
       const cmd = `python -c "${pythonScript}"`;
       
       try {
