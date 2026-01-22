@@ -86,7 +86,16 @@ The release process has been consolidated into a streamlined workflow that requi
 
 - **`integration-tests.yml`** - Runs integration tests on PR and push events
 - **`deploy-docs.yml`** - Deploys documentation to GitHub Pages
-- **`package-artifact.yml`** - Packages the extension as a VSIX file
+- **`package-artifact.yml`** - Packages the extension as a VSIX file (runs on develop branch)
+- **`build-vsix.yml`** - Manually triggered workflow to build VSIX from any branch
+  - **Trigger**: Manual (workflow_dispatch)
+  - **Inputs**:
+    - `branch`: The branch name to build the VSIX from (default: 'main')
+  - **Actions**:
+    - Checks out the specified branch
+    - Builds and packages the extension
+    - Uploads VSIX as a downloadable artifact
+    - Artifact name includes version, branch, and commit hash for easy identification
 
 ## Deprecated Workflows
 
