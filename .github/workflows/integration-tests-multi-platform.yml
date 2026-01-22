@@ -141,7 +141,6 @@ jobs:
           NODE_ENV: test
           ZEPHYR_BASE: /tmp/zephyr
           VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
-          INSTALL_HOST_TOOLS: true
 
   test-windows:
     needs: build-vsix
