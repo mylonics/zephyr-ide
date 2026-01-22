@@ -40,7 +40,9 @@ async function executeWestList(setupState: SetupState): Promise<string[]> {
   let res = await executeShellCommandInPythonEnv(cmd, setupState.setupPath, setupState, false);
 
   if (!res.stdout) {
-    output.append(res.stderr);
+    if (res.stderr) {
+      output.append(res.stderr);
+    }
     return [];
   }
 
