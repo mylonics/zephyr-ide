@@ -55,6 +55,15 @@ export interface PackageStatus {
   error?: string;
 }
 
+/**
+ * Helper function to log messages to both output channel and console
+ * Useful for messages that need to appear in both Extension Host output and test console
+ */
+function logDual(message: string): void {
+  output.appendLine(message);
+  console.log(message);
+}
+
 let manifestCache: HostToolsManifest | null = null;
 
 /**
@@ -456,35 +465,25 @@ export async function installAllMissingPackages(): Promise<boolean> {
 export async function installPackageManagerHeadless(): Promise<boolean> {
   const manager = await getPackageManagerForPlatformAsync();
   if (!manager) {
-    const msg = "[HOST TOOLS] No package manager configuration found for this platform";
-    output.appendLine(msg);
-    console.log(msg);
+    logDual("[HOST TOOLS] No package manager configuration found for this platform");
     return false;
   }
 
   const pmAvailable = await checkPackageManagerAvailable();
   if (pmAvailable) {
-    const msg = `✅ ${manager.name} found`;
-    output.appendLine(msg);
-    console.log(msg);
+    logDual(`✅ ${manager.name} found`);
     return true;
   }
   
-  const notFoundMsg = `⚠️  ${manager.name} not found`;
-  output.appendLine(notFoundMsg);
-  console.log(notFoundMsg);
+  logDual(`⚠️  ${manager.name} not found`);
   
   const pmSuccess = await installPackageManager();
   if (!pmSuccess) {
-    const failMsg = `❌ Failed to install ${manager.name}`;
-    output.appendLine(failMsg);
-    console.log(failMsg);
+    logDual(`❌ Failed to install ${manager.name}`);
     return false;
   }
   
-  const installedMsg = `✅ Installed ${manager.name}`;
-  output.appendLine(installedMsg);
-  console.log(installedMsg);
+  logDual(`✅ Installed ${manager.name}`);
   return false; // Return false to indicate restart needed for PATH updates
 }
 
@@ -496,9 +495,7 @@ export async function installHostPackagesHeadless(): Promise<boolean> {
   // First verify package manager is available
   const pmAvailable = await checkPackageManagerAvailable();
   if (!pmAvailable) {
-    const msg = "[HOST TOOLS] Package manager not available - run install-package-manager-headless first";
-    output.appendLine(msg);
-    console.log(msg);
+    logDual("[HOST TOOLS] Package manager not available - run install-package-manager-headless first");
     return false;
   }
   
@@ -509,9 +506,7 @@ export async function installHostPackagesHeadless(): Promise<boolean> {
   if (allAvailable) {
     // All packages already available - log each one
     for (const status of statuses) {
-      const msg = `✅ ${status.name} found`;
-      output.appendLine(msg);
-      console.log(msg);
+      logDual(`✅ ${status.name} found`);
     }
     return true;
   }
@@ -522,25 +517,17 @@ export async function installHostPackagesHeadless(): Promise<boolean> {
   
   for (const status of statuses) {
     if (status.available) {
-      const msg = `✅ ${status.name} found`;
-      output.appendLine(msg);
-      console.log(msg);
+      logDual(`✅ ${status.name} found`);
     } else {
-      const notFoundMsg = `⚠️  ${status.name} not found`;
-      output.appendLine(notFoundMsg);
-      console.log(notFoundMsg);
+      logDual(`⚠️  ${status.name} not found`);
       
       const pkg = packages.find(p => p.name === status.name);
       if (pkg) {
         const success = await installPackage(pkg);
         if (success) {
-          const successMsg = `✅ Installed ${status.name}`;
-          output.appendLine(successMsg);
-          console.log(successMsg);
+          logDual(`✅ Installed ${status.name}`);
         } else {
-          const failMsg = `❌ Failed to install ${status.name}`;
-          output.appendLine(failMsg);
-          console.log(failMsg);
+          logDual(`❌ Failed to install ${status.name}`);
         }
       }
     }
@@ -622,13 +609,9 @@ export async function checkHostToolsHeadless(): Promise<boolean> {
   // Log each package status
   for (const status of statuses) {
     if (status.available) {
-      const msg = `✅ ${status.name} found`;
-      output.appendLine(msg);
-      console.log(msg);
+      logDual(`✅ ${status.name} found`);
     } else {
-      const msg = `❌ ${status.name} not found`;
-      output.appendLine(msg);
-      console.log(msg);
+      logDual(`❌ ${status.name} not found`);
     }
   }
   
