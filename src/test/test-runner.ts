@@ -60,6 +60,11 @@ export function shouldInstallHostTools(): boolean {
 /**
  * Install host tools using the zephyr-ide extension command
  * This is called when INSTALL_HOST_TOOLS=true environment variable is set
+ * 
+ * The installation is attempted three times:
+ * 1. First call: Installs the package manager (may require restart for PATH)
+ * 2. Second call: With package manager available, installs all other tools
+ * 3. Third call: Verifies all tools are available for use
  */
 export async function installHostToolsIfNeeded(): Promise<void> {
     if (!shouldInstallHostTools()) {
@@ -68,19 +73,54 @@ export async function installHostToolsIfNeeded(): Promise<void> {
     }
 
     console.log('🔧 INSTALL_HOST_TOOLS=true detected, installing host tools via extension...');
+    console.log('📦 Will attempt installation 3 times to ensure all tools are properly installed');
     
-    try {
-        const result = await vscode.commands.executeCommand('zephyr-ide.install-host-tools-headless');
-        if (result) {
-            console.log('✅ Host tools installation completed successfully');
-            console.log('⚠️  Note: VS Code may need to be restarted for tools to be available in PATH');
-        } else {
-            console.log('⚠️  Host tools installation returned false - some tools may not have installed');
+    const maxAttempts = 3;
+    
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        console.log(`\n🔄 Host tools installation attempt ${attempt}/${maxAttempts}...`);
+        
+        try {
+            const result = await vscode.commands.executeCommand('zephyr-ide.install-host-tools-headless');
+            
+            if (attempt === 1) {
+                console.log('📦 Attempt 1: Package manager installation');
+                if (result) {
+                    console.log('✅ Package manager should now be available');
+                } else {
+                    console.log('⚠️  Package manager may not have been installed');
+                }
+            } else if (attempt === 2) {
+                console.log('📦 Attempt 2: Installing remaining host tools');
+                if (result) {
+                    console.log('✅ Host tools installation completed');
+                } else {
+                    console.log('⚠️  Some host tools may not have been installed');
+                }
+            } else {
+                console.log('📦 Attempt 3: Verifying all tools are available');
+                if (result) {
+                    console.log('✅ All host tools are available for use');
+                } else {
+                    console.log('⚠️  Some tools may still be missing');
+                }
+            }
+            
+            // Wait a bit between attempts to allow PATH updates to take effect
+            if (attempt < maxAttempts) {
+                console.log('⏳ Waiting for PATH updates to take effect...');
+                await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+            
+        } catch (error) {
+            console.log(`❌ Host tools installation attempt ${attempt} failed: ${error}`);
+            if (attempt === maxAttempts) {
+                throw error;
+            }
         }
-    } catch (error) {
-        console.log(`❌ Host tools installation failed: ${error}`);
-        throw error;
     }
+    
+    console.log('\n✅ Host tools installation process completed');
 }
 
 /**
