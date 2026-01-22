@@ -39,5 +39,5 @@ suite('Install Host Packages Test Suite', () => {
             console.error(`❌ Host packages installation/check failed: ${error}`);
             throw error;
         }
-    }).timeout(300000); // 5 minutes timeout for package installation
+    }).timeout(420000); // 7 minutes timeout for package installation
 });

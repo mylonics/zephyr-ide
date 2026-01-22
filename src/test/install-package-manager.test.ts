@@ -39,5 +39,5 @@ suite('Install Package Manager Test Suite', () => {
             console.error(`❌ Package manager installation/check failed: ${error}`);
             throw error;
         }
-    }).timeout(300000); // 5 minutes timeout for package manager installation
+    }).timeout(420000); // 7 minutes timeout for package manager installation
 });
