@@ -90,7 +90,8 @@ export async function installHostToolsIfNeeded(): Promise<boolean> {
         }
     } catch (error) {
         console.log(`❌ Host tools installation failed: ${error}`);
-        throw error;
+        console.log('    Returning false to allow workflow retry');
+        return false;
     }
 }
 
