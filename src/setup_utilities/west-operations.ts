@@ -38,11 +38,19 @@ export function setForceNarrowUpdateForTest(value: boolean) {
 let python: string | undefined;
 
 /**
+ * Reset the cached Python command (for testing purposes)
+ * @internal
+ */
+export function resetPythonCommand(): void {
+  python = undefined;
+}
+
+/**
  * Get the appropriate Python command for the current platform
  * In remote environments (WSL, SSH), this detects the remote OS
  * On all platforms, respects VS Code's configured Python interpreter if available
  */
-async function getPythonCommand(): Promise<string> {
+export async function getPythonCommand(): Promise<string> {
   if (python === undefined) {
     // First, try to get the Python interpreter configured in VS Code settings
     const configuration = vscode.workspace.getConfiguration();
