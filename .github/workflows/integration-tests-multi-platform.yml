@@ -121,6 +121,7 @@ jobs:
           NODE_ENV: test
           ZEPHYR_BASE: /tmp/zephyr
           VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
+          # Signal to test runner to use zephyr-ide.install-host-tools command for dependency installation
           INSTALL_HOST_TOOLS: true
 
   test-windows:
@@ -160,6 +161,7 @@ jobs:
           NODE_ENV: test
           ZEPHYR_BASE: C:\temp\zephyr
           VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
+          # Signal to test runner to use zephyr-ide.install-host-tools command for dependency installation
           INSTALL_HOST_TOOLS: true
 
   test-macos:
@@ -198,4 +200,5 @@ jobs:
           NODE_ENV: test
           ZEPHYR_BASE: /tmp/zephyr
           VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
+          # Signal to test runner to use zephyr-ide.install-host-tools command for dependency installation
           INSTALL_HOST_TOOLS: true

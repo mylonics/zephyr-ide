@@ -42,14 +42,9 @@ jobs:
           # Get current version from package.json
           CURRENT_VERSION=$(node -p "require('./package.json').version")
 
-          # Try to get previous version
+          # Try to get previous version using git show (avoids modifying working directory)
           if git rev-parse HEAD~1 >/dev/null 2>&1; then
-            if git checkout HEAD~1 -- package.json 2>/dev/null; then
-              PREVIOUS_VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "0.0.0")
-              git checkout HEAD -- package.json
-            else
-              PREVIOUS_VERSION="0.0.0"
-            fi
+            PREVIOUS_VERSION=$(git show HEAD~1:package.json 2>/dev/null | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin', 'utf8')).version" 2>/dev/null || echo "0.0.0")
           else
             PREVIOUS_VERSION="0.0.0"
           fi
