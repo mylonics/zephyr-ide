@@ -64,6 +64,43 @@ function logDual(message: string): void {
   console.log(message);
 }
 
+/**
+ * Refresh PATH environment variable on Windows to pick up newly installed tools
+ * This updates the current process's PATH with the latest from the registry
+ */
+async function refreshWindowsPath(): Promise<void> {
+  if (process.platform !== 'win32') {
+    return;
+  }
+  
+  try {
+    logDual("[HOST TOOLS] Refreshing Windows PATH environment variable...");
+    
+    // Get Machine and User PATH from registry
+    const machinePathCmd = `powershell -Command "[System.Environment]::GetEnvironmentVariable('Path','Machine')"`;
+    const userPathCmd = `powershell -Command "[System.Environment]::GetEnvironmentVariable('Path','User')"`;
+    
+    const machinePathResult = await executeShellCommand(machinePathCmd, false);
+    const userPathResult = await executeShellCommand(userPathCmd, false);
+    
+    if (machinePathResult.code === 0 || userPathResult.code === 0) {
+      const machinePath = machinePathResult.stdout.trim();
+      const userPath = userPathResult.stdout.trim();
+      
+      // Combine Machine and User paths
+      const newPath = machinePath + (userPath ? ';' + userPath : '');
+      
+      if (newPath) {
+        // Update the current process PATH
+        process.env.PATH = newPath;
+        logDual("[HOST TOOLS] ✅ Windows PATH refreshed successfully");
+      }
+    }
+  } catch (error) {
+    logDual(`[HOST TOOLS] Warning: Failed to refresh Windows PATH: ${error}`);
+  }
+}
+
 let manifestCache: HostToolsManifest | null = null;
 
 /**
@@ -484,6 +521,19 @@ export async function installPackageManagerHeadless(): Promise<boolean> {
   }
   
   logDual(`✅ Installed ${manager.name}`);
+  
+  // On Windows, refresh PATH after installing package manager
+  if (process.platform === 'win32') {
+    await refreshWindowsPath();
+    
+    // Check if package manager is now available after PATH refresh
+    const pmNowAvailable = await checkPackageManagerAvailable();
+    if (pmNowAvailable) {
+      logDual(`✅ ${manager.name} is now available`);
+      return true;
+    }
+  }
+  
   return false; // Return false to indicate restart needed for PATH updates
 }
 
@@ -515,6 +565,8 @@ export async function installHostPackagesHeadless(): Promise<boolean> {
   const missingPackages = statuses.filter(s => !s.available);
   const packages = await getPlatformPackages();
   
+  let packagesWereInstalled = false;
+  
   for (const status of statuses) {
     if (status.available) {
       logDual(`✅ ${status.name} found`);
@@ -526,11 +578,17 @@ export async function installHostPackagesHeadless(): Promise<boolean> {
         const success = await installPackage(pkg);
         if (success) {
           logDual(`✅ Installed ${status.name}`);
+          packagesWereInstalled = true;
         } else {
           logDual(`❌ Failed to install ${status.name}`);
         }
       }
     }
+  }
+  
+  // On Windows, refresh PATH after installing packages so they become available immediately
+  if (packagesWereInstalled && process.platform === 'win32') {
+    await refreshWindowsPath();
   }
   
   // Verify all packages are now available on PATH

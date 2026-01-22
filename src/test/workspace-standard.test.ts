@@ -105,11 +105,12 @@ suite("Standard Workspace Test Suite", () => {
                 }
 
                 const skipBuilds = shouldSkipBuildTests();
-                const requiresPathPropagation = process.platform === 'win32' || process.platform === 'darwin';
+                const isMacOS = process.platform === 'darwin';
                 
-                // Skip build dependency check on Windows/macOS in CI because winget/brew don't update PATH for current process
-                if (skipBuilds && requiresPathPropagation) {
-                    console.log("📋 Step 1: Skipping build dependencies check (Windows/macOS PATH limitation in CI)...");
+                // Skip build dependency check on macOS in CI because brew doesn't update PATH for current process
+                // Windows now uses PATH refresh so it should work
+                if (skipBuilds && isMacOS) {
+                    console.log("📋 Step 1: Skipping build dependencies check (macOS PATH limitation in CI)...");
                     console.log("   Tools were installed in previous steps but may not be visible in current process");
                 } else {
                     console.log("📋 Step 1: Checking build dependencies...");
