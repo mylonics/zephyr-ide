@@ -40,8 +40,8 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           COMMIT_HASH=$(git rev-parse --short=6 HEAD)
           BRANCH_NAME="${{ inputs.branch }}"
-          # Sanitize branch name for filename (replace / with -)
-          SAFE_BRANCH=$(echo "${BRANCH_NAME}" | sed 's/\//-/g')
+          # Sanitize branch name for filename (replace special chars with -)
+          SAFE_BRANCH=$(echo "${BRANCH_NAME}" | sed 's/[^a-zA-Z0-9._-]/-/g' | cut -c1-30)
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "commit_hash=${COMMIT_HASH}" >> "$GITHUB_OUTPUT"
           echo "safe_branch=${SAFE_BRANCH}" >> "$GITHUB_OUTPUT"
