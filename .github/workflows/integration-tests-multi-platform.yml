@@ -53,11 +53,18 @@ jobs:
             exit 0
           fi
 
-          # Get current and previous version from package.json
+          # Get current version from package.json
           CURRENT_VERSION=$(node -p "require('./package.json').version")
-          git checkout HEAD~1 -- package.json 2>/dev/null || echo "No previous commit"
-          PREVIOUS_VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "0.0.0")
-          git checkout HEAD -- package.json
+
+          # Try to get previous version - if HEAD~1 doesn't exist (first commit), default to 0.0.0
+          if git rev-parse HEAD~1 >/dev/null 2>&1; then
+            git checkout HEAD~1 -- package.json 2>/dev/null
+            PREVIOUS_VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "0.0.0")
+            git checkout HEAD -- package.json
+          else
+            echo "No previous commit found (first commit in repository)"
+            PREVIOUS_VERSION="0.0.0"
+          fi
 
           echo "Current version: $CURRENT_VERSION"
           echo "Previous version: $PREVIOUS_VERSION"
@@ -204,20 +211,71 @@ jobs:
       - name: Install build tools via winget
         shell: pwsh
         run: |
-          # Install CMake
-          winget install --accept-package-agreements --accept-source-agreements Kitware.CMake
-          # Install Ninja
-          winget install --accept-package-agreements --accept-source-agreements Ninja-build.Ninja
-          # Install Git (usually pre-installed)
-          winget install --accept-package-agreements --accept-source-agreements Git.Git
-        continue-on-error: true
+          # Install CMake (if not already available)
+          if (-not (Get-Command cmake -ErrorAction SilentlyContinue)) {
+            Write-Host "Installing CMake..."
+            winget install --accept-package-agreements --accept-source-agreements Kitware.CMake
+          } else {
+            Write-Host "CMake already installed"
+          }
+          
+          # Install Ninja (if not already available)
+          if (-not (Get-Command ninja -ErrorAction SilentlyContinue)) {
+            Write-Host "Installing Ninja..."
+            winget install --accept-package-agreements --accept-source-agreements Ninja-build.Ninja
+          } else {
+            Write-Host "Ninja already installed"
+          }
+          
+          # Install Git (if not already available)
+          if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+            Write-Host "Installing Git..."
+            winget install --accept-package-agreements --accept-source-agreements Git.Git
+          } else {
+            Write-Host "Git already installed"
+          }
 
-      - name: Add tools to PATH
+      - name: Refresh PATH and verify tools
         shell: pwsh
         run: |
-          # Add common tool paths to PATH for this session
-          $env:PATH = "$env:PATH;C:\Program Files\CMake\bin;C:\Program Files\Ninja"
+          # Refresh PATH to include newly installed tools
+          $machinePath = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
+          $userPath = [System.Environment]::GetEnvironmentVariable("Path", "User")
+          $env:PATH = "$machinePath;$userPath"
+          
+          # Add common installation paths if tools not found
+          $additionalPaths = @(
+            "C:\Program Files\CMake\bin",
+            "C:\Program Files\Ninja",
+            "$env:LOCALAPPDATA\Microsoft\WinGet\Packages"
+          )
+          foreach ($path in $additionalPaths) {
+            if (Test-Path $path) {
+              $env:PATH = "$env:PATH;$path"
+            }
+          }
+          
+          # Export updated PATH for subsequent steps
           echo "PATH=$env:PATH" >> $env:GITHUB_ENV
+          
+          # Verify required tools are available
+          Write-Host "Verifying installed tools..."
+          $tools = @("cmake", "ninja", "git", "python")
+          $missing = @()
+          foreach ($tool in $tools) {
+            if (Get-Command $tool -ErrorAction SilentlyContinue) {
+              $version = & $tool --version 2>&1 | Select-Object -First 1
+              Write-Host "  $tool : $version"
+            } else {
+              $missing += $tool
+              Write-Host "  $tool : NOT FOUND"
+            }
+          }
+          
+          if ($missing.Count -gt 0) {
+            Write-Host "WARNING: Some tools may not be available: $($missing -join ', ')"
+            Write-Host "Tests may fail if these tools are required."
+          }
 
       - name: Run standard workflow integration tests
         shell: pwsh
@@ -259,15 +317,23 @@ jobs:
         run: |
           brew install cmake ninja gperf python3 ccache qemu dtc wget libmagic
 
-      - name: Setup Python virtual environment
+      - name: Setup Python virtual environment and install west
         run: |
           python3 -m venv ~/.zephyr-venv
           source ~/.zephyr-venv/bin/activate
           pip install west
+          # Add venv to PATH for subsequent steps
+          echo "$HOME/.zephyr-venv/bin" >> $GITHUB_PATH
+
+      - name: Verify tools
+        run: |
+          echo "Python: $(python3 --version)"
+          echo "West: $(west --version)"
+          echo "CMake: $(cmake --version | head -n1)"
+          echo "Ninja: $(ninja --version)"
 
       - name: Run standard workflow integration tests
         run: |
-          source ~/.zephyr-venv/bin/activate
           node scripts/run-integration-tests.js standard
         env:
           NODE_ENV: test
