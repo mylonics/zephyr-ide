@@ -51,12 +51,53 @@ export function shouldSkipBuildTests(): boolean {
 }
 
 /**
+ * Check if host tools should be installed via the extension command
+ */
+export function shouldInstallHostTools(): boolean {
+    return process.env.INSTALL_HOST_TOOLS === 'true';
+}
+
+/**
+ * Install host tools using the zephyr-ide extension command
+ * This is called when INSTALL_HOST_TOOLS=true environment variable is set
+ * 
+ * Note: The workflow YAML runs this 3 times in separate steps:
+ * 1. First run: Installs the package manager
+ * 2. Second run: With package manager in PATH, installs all other tools
+ * 3. Third run: Verifies all tools are available and runs tests
+ * 
+ * Each workflow step runs in a fresh shell context which picks up PATH changes.
+ */
+export async function installHostToolsIfNeeded(): Promise<void> {
+    if (!shouldInstallHostTools()) {
+        console.log('🔧 INSTALL_HOST_TOOLS not set, skipping host tools installation');
+        return;
+    }
+
+    console.log('🔧 INSTALL_HOST_TOOLS=true detected, installing host tools via extension...');
+    
+    try {
+        const result = await vscode.commands.executeCommand('zephyr-ide.install-host-tools-headless');
+        if (result) {
+            console.log('✅ Host tools installation completed successfully');
+        } else {
+            console.log('⚠️  Host tools installation returned false - some tools may not have installed yet');
+            console.log('    This is expected on first runs. The workflow will retry in the next step.');
+        }
+    } catch (error) {
+        console.log(`❌ Host tools installation failed: ${error}`);
+        throw error;
+    }
+}
+
+/**
  * Log test environment information
  */
 export function logTestEnvironment(): void {
     console.log('=== Test Environment ===');
     console.log('CI Environment:', process.env.CI === 'true');
     console.log('Skip Build Tests:', shouldSkipBuildTests());
+    console.log('Install Host Tools:', shouldInstallHostTools());
     console.log('Node Version:', process.version);
     console.log('Platform:', process.platform);
     console.log('Architecture:', process.arch);
