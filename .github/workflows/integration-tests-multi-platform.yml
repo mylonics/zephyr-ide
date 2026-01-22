@@ -1,14 +1,14 @@
 # Multi-Platform Integration Tests Pipeline
 # 
 # This workflow runs integration tests on multiple platforms (Windows, Ubuntu, macOS).
-# It is triggered only when a version bump occurs on the develop branch.
+# It is triggered on pull requests to validate cross-platform compatibility.
 #
 # Architecture:
 # 1. Stage 1: Build VSIX on Ubuntu
 # 2. Stage 2: Three parallel platform jobs that:
 #    - Install VS Code
 #    - Install the VSIX extension
-#    - Install host tools (build dependencies)
+#    - Use zephyr-ide.install-host-tools command to install dependencies
 #    - Run the standard workspace test
 #
 # Note: VS Code may need to be restarted after package manager and packages
@@ -17,81 +17,30 @@
 name: Multi-Platform Integration Tests
 
 on:
-  push:
-    branches: [develop]
-    paths:
-      - 'package.json'
+  pull_request:
+    branches: [main, pre-release, develop]
   workflow_dispatch:
     inputs:
-      skip_version_check:
-        description: 'Skip version bump check (for testing)'
+      branch:
+        description: 'Branch to run tests on'
         required: false
-        type: boolean
-        default: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
 
 jobs:
-  # Check if this is a version bump commit
-  check-version-bump:
-    runs-on: ubuntu-latest
-    outputs:
-      is_version_bump: ${{ steps.check.outputs.is_version_bump }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-
-      - name: Check if version changed
-        id: check
-        run: |
-          # Skip check if manually triggered with skip_version_check
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.skip_version_check }}" = "true" ]; then
-            echo "Manual trigger with skip_version_check=true"
-            echo "is_version_bump=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # Get current version from package.json
-          CURRENT_VERSION=$(node -p "require('./package.json').version")
-
-          # Try to get previous version - if HEAD~1 doesn't exist (first commit), default to 0.0.0
-          if git rev-parse HEAD~1 >/dev/null 2>&1; then
-            # Checkout previous version of package.json to compare versions
-            if git checkout HEAD~1 -- package.json; then
-              PREVIOUS_VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "0.0.0")
-              git checkout HEAD -- package.json
-            else
-              echo "Could not checkout previous package.json, treating as version bump"
-              PREVIOUS_VERSION="0.0.0"
-            fi
-          else
-            echo "No previous commit found (first commit in repository)"
-            PREVIOUS_VERSION="0.0.0"
-          fi
-
-          echo "Current version: $CURRENT_VERSION"
-          echo "Previous version: $PREVIOUS_VERSION"
-
-          if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
-            echo "Version bump detected: $PREVIOUS_VERSION -> $CURRENT_VERSION"
-            echo "is_version_bump=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "No version bump detected"
-            echo "is_version_bump=false" >> "$GITHUB_OUTPUT"
-          fi
-
   # Stage 1: Build VSIX on Ubuntu
   build-vsix:
-    needs: check-version-bump
-    if: needs.check-version-bump.outputs.is_version_bump == 'true'
     runs-on: ubuntu-latest
     outputs:
       vsix_name: ${{ steps.package.outputs.vsix_name }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch || github.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -128,13 +77,16 @@ jobs:
           retention-days: 7
 
   # Stage 2: Platform Integration Tests
-  # Each platform job installs VS Code, the VSIX extension, host tools, and runs tests
+  # Each platform job installs VS Code, the VSIX extension, and runs tests
+  # Host tools are installed via the zephyr-ide.install-host-tools command during tests
   
   test-ubuntu:
     needs: build-vsix
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch || github.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -162,25 +114,22 @@ jobs:
       - name: Bundle Extension (dist)
         run: npm run esbuild
 
-      - name: Install Zephyr build dependencies
-        run: |
-          sudo apt-get install --no-install-recommends -y git cmake ninja-build gperf \
-            ccache dfu-util device-tree-compiler wget python3-dev python3-venv python3-tk \
-            xz-utils file make gcc gcc-multilib g++-multilib libsdl2-dev libmagic1
-
-      - name: Run standard workflow integration tests
+      - name: Run standard workflow integration tests with host tools installation
         run: |
           xvfb-run -a node scripts/run-integration-tests.js standard
         env:
           NODE_ENV: test
           ZEPHYR_BASE: /tmp/zephyr
           VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
+          INSTALL_HOST_TOOLS: true
 
   test-windows:
     needs: build-vsix
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch || github.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -203,110 +152,7 @@ jobs:
       - name: Bundle Extension (dist)
         run: npm run esbuild
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install Python dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install west
-
-      - name: Install build tools via winget
-        shell: pwsh
-        run: |
-          # Winget exit code for "already installed" (No applicable update found)
-          $WINGET_ALREADY_INSTALLED = -1978335189
-          $installErrors = @()
-          
-          # Install CMake (if not already available)
-          if (-not (Get-Command cmake -ErrorAction SilentlyContinue)) {
-            Write-Host "Installing CMake..."
-            $result = winget install --accept-package-agreements --accept-source-agreements Kitware.CMake 2>&1
-            if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne $WINGET_ALREADY_INSTALLED) {
-              $installErrors += "CMake installation failed with exit code $LASTEXITCODE"
-            }
-          } else {
-            Write-Host "CMake already installed"
-          }
-          
-          # Install Ninja (if not already available)
-          if (-not (Get-Command ninja -ErrorAction SilentlyContinue)) {
-            Write-Host "Installing Ninja..."
-            $result = winget install --accept-package-agreements --accept-source-agreements Ninja-build.Ninja 2>&1
-            if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne $WINGET_ALREADY_INSTALLED) {
-              $installErrors += "Ninja installation failed with exit code $LASTEXITCODE"
-            }
-          } else {
-            Write-Host "Ninja already installed"
-          }
-          
-          # Install Git (if not already available)
-          if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-            Write-Host "Installing Git..."
-            $result = winget install --accept-package-agreements --accept-source-agreements Git.Git 2>&1
-            if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne $WINGET_ALREADY_INSTALLED) {
-              $installErrors += "Git installation failed with exit code $LASTEXITCODE"
-            }
-          } else {
-            Write-Host "Git already installed"
-          }
-          
-          # Log any installation issues - these may be resolved after PATH refresh
-          if ($installErrors.Count -gt 0) {
-            Write-Host "Installation warnings (tools will be verified after PATH refresh):"
-            foreach ($err in $installErrors) {
-              Write-Warning "  - $err"
-            }
-          }
-
-      - name: Refresh PATH and verify tools
-        shell: pwsh
-        run: |
-          # Refresh PATH to include newly installed tools
-          $machinePath = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
-          $userPath = [System.Environment]::GetEnvironmentVariable("Path", "User")
-          $env:PATH = "$machinePath;$userPath"
-          
-          # Add common installation paths if tools not found
-          $additionalPaths = @(
-            "C:\Program Files\CMake\bin",
-            "C:\Program Files\Ninja",
-            "$env:LOCALAPPDATA\Microsoft\WinGet\Packages"
-          )
-          foreach ($path in $additionalPaths) {
-            if (Test-Path $path) {
-              $env:PATH = "$env:PATH;$path"
-            }
-          }
-          
-          # Export updated PATH for subsequent steps
-          echo "PATH=$env:PATH" >> $env:GITHUB_ENV
-          
-          # Verify required tools are available
-          Write-Host "Verifying installed tools..."
-          $requiredTools = @("cmake", "ninja", "git", "python")
-          $missing = @()
-          foreach ($tool in $requiredTools) {
-            if (Get-Command $tool -ErrorAction SilentlyContinue) {
-              $version = & $tool --version 2>&1 | Select-Object -First 1
-              Write-Host "  $tool : $version"
-            } else {
-              $missing += $tool
-              Write-Host "  $tool : NOT FOUND"
-            }
-          }
-          
-          # Fail early if critical tools are missing
-          if ($missing.Count -gt 0) {
-            Write-Error "FATAL: Required tools are missing: $($missing -join ', '). Cannot proceed with tests."
-            exit 1
-          }
-          
-          Write-Host "All required tools are available."
-
-      - name: Run standard workflow integration tests
+      - name: Run standard workflow integration tests with host tools installation
         shell: pwsh
         run: |
           node scripts/run-integration-tests.js standard
@@ -314,12 +160,15 @@ jobs:
           NODE_ENV: test
           ZEPHYR_BASE: C:\temp\zephyr
           VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
+          INSTALL_HOST_TOOLS: true
 
   test-macos:
     needs: build-vsix
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch || github.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -342,29 +191,11 @@ jobs:
       - name: Bundle Extension (dist)
         run: npm run esbuild
 
-      - name: Install Zephyr build dependencies via Homebrew
-        run: |
-          brew install cmake ninja gperf python3 ccache qemu dtc wget libmagic
-
-      - name: Setup Python virtual environment and install west
-        run: |
-          python3 -m venv ~/.zephyr-venv
-          source ~/.zephyr-venv/bin/activate
-          pip install west
-          # Add venv to PATH for subsequent steps
-          echo "$HOME/.zephyr-venv/bin" >> $GITHUB_PATH
-
-      - name: Verify tools
-        run: |
-          echo "Python: $(python3 --version)"
-          echo "West: $(west --version)"
-          echo "CMake: $(cmake --version | head -n1)"
-          echo "Ninja: $(ninja --version)"
-
-      - name: Run standard workflow integration tests
+      - name: Run standard workflow integration tests with host tools installation
         run: |
           node scripts/run-integration-tests.js standard
         env:
           NODE_ENV: test
           ZEPHYR_BASE: /tmp/zephyr
           VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
+          INSTALL_HOST_TOOLS: true

@@ -84,21 +84,22 @@ The release process has been consolidated into a streamlined workflow that requi
 
 ### Other Workflows
 
-- **`integration-tests.yml`** - Runs integration tests on Ubuntu for pull requests
-  - **Trigger**: Pull requests to main, pre-release, develop branches
+- **`integration-tests.yml`** - Runs full integration tests on Ubuntu on version bumps
+  - **Trigger**: Push to develop branch when package.json version changes
+  - **Manual Trigger**: Can be triggered manually with optional `branch` input
   - **Actions**: Runs all integration test suites (standard, west-git, zephyr-ide-git, local-west, external-zephyr)
 
-- **`integration-tests-multi-platform.yml`** - Multi-platform integration tests on version bumps
-  - **Trigger**: Push to develop branch when package.json changes AND version is bumped
-  - **Manual Trigger**: Can be triggered manually with `skip_version_check` option
+- **`integration-tests-multi-platform.yml`** - Multi-platform integration tests for PRs
+  - **Trigger**: Pull requests to main, pre-release, develop branches
+  - **Manual Trigger**: Can be triggered manually with optional `branch` input
   - **Architecture**:
     - Stage 1: Builds VSIX on Ubuntu
     - Stage 2: Three parallel platform jobs (Ubuntu, Windows, macOS 15)
   - **Actions per platform**:
     - Downloads the built VSIX artifact
-    - Installs host tools / build dependencies
+    - Uses `zephyr-ide.install-host-tools` command to install dependencies
     - Runs standard workspace integration test
-  - **Purpose**: Validates the extension works correctly across all supported platforms before release
+  - **Purpose**: Validates the extension works correctly across all supported platforms
 
 - **`deploy-docs.yml`** - Deploys documentation to GitHub Pages
 - **`package-artifact.yml`** - Packages the extension as a VSIX file (runs on develop branch)
