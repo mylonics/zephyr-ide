@@ -103,7 +103,7 @@ jobs:
       - name: Install system dependencies for VS Code
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb libgtk-3-0 libgbm1 libnss3 libasound2
+          sudo apt-get install -y xvfb libgtk-3-0 libgbm1 libnss3 libasound2t64
 
       - name: Install npm dependencies
         run: npm ci

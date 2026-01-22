@@ -101,6 +101,7 @@ import {
   installAllMissingPackages,
   installPackageManager,
   checkPackageManagerAvailable,
+  checkAllPackages,
 } from "./setup_utilities/host_tools";
 
 // Helper function to mark workspace setup as complete and refresh UI
@@ -1338,6 +1339,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // Programmatic host tools installation command (for CI/testing)
   // This command installs package manager and all missing host tool packages without UI
+  // Returns true only when ALL packages are available on PATH
+  // Returns false when package manager was installed or packages were installed but not yet available
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.install-host-tools-headless", async () => {
       output.appendLine("[HOST TOOLS] Starting headless host tools installation...");
@@ -1351,14 +1354,42 @@ export async function activate(context: vscode.ExtensionContext) {
           output.appendLine("[HOST TOOLS] Failed to install package manager");
           return false;
         }
-        output.appendLine("[HOST TOOLS] Package manager installed successfully");
-        // Note: May need to restart VS Code for package manager to be available in PATH
+        output.appendLine("[HOST TOOLS] Package manager installed successfully - restart may be needed for PATH updates");
+        // Return false to indicate VS Code may need restart for package manager to be in PATH
+        return false;
       }
       
-      // Install all missing packages
-      const success = await installAllMissingPackages();
-      output.appendLine(`[HOST TOOLS] Host tools installation ${success ? "completed successfully" : "failed"}`);
-      return success;
+      output.appendLine("[HOST TOOLS] Package manager is available");
+      
+      // Check if all packages are already available
+      const statuses = await checkAllPackages();
+      const allAvailable = statuses.every(s => s.available);
+      
+      if (allAvailable) {
+        output.appendLine("[HOST TOOLS] All packages are already available on PATH");
+        return true;
+      }
+      
+      // Install missing packages
+      const installSuccess = await installAllMissingPackages();
+      if (!installSuccess) {
+        output.appendLine("[HOST TOOLS] Some packages failed to install");
+        return false;
+      }
+      
+      // Verify all packages are now available on PATH
+      const finalStatuses = await checkAllPackages();
+      const finalAllAvailable = finalStatuses.every(s => s.available);
+      
+      if (finalAllAvailable) {
+        output.appendLine("[HOST TOOLS] All packages are now available on PATH");
+        return true;
+      } else {
+        const unavailable = finalStatuses.filter(s => !s.available).map(s => s.name);
+        output.appendLine(`[HOST TOOLS] Packages installed but not yet available on PATH: ${unavailable.join(', ')}`);
+        output.appendLine("[HOST TOOLS] A restart may be needed for PATH updates to take effect");
+        return false;
+      }
     })
   );
 
