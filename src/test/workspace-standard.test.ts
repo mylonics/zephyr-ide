@@ -32,8 +32,7 @@ import {
     executeFinalBuild,
     executeTestWithErrorHandling,
     executeWorkspaceCommand,
-    CommonUIInteractions,
-    installHostToolsIfNeeded
+    CommonUIInteractions
 } from "./test-runner";
 import { UIMockInterface, MockInteraction } from "./ui-mock-interface";
 
@@ -98,26 +97,13 @@ suite("Standard Workspace Test Suite", () => {
                 await activateExtension();
                 uiMock.activate();
 
-                // Install host tools if INSTALL_HOST_TOOLS=true is set
-                console.log("🔧 Step 0: Installing host tools if needed...");
-                const toolsReady = await installHostToolsIfNeeded();
-
-                // Only check build dependencies if tools are ready
-                // When INSTALL_HOST_TOOLS=true, tools may not be available until after restart
-                if (toolsReady) {
-                    console.log("📋 Step 1: Checking build dependencies...");
-                    await executeWorkspaceCommand(
-                        uiMock,
-                        [],
-                        "zephyr-ide.check-build-dependencies",
-                        "Build dependencies check should succeed"
-                    );
-                } else {
-                    console.log("⏭️  Step 1: Skipping build dependencies check - tools not ready yet");
-                    console.log("    (This is expected when installing tools - test will pass on retry)");
-                    // Exit early to allow workflow to retry with fresh environment
-                    throw new Error("Tools not ready - restart needed for PATH updates");
-                }
+                console.log("📋 Step 1: Checking build dependencies...");
+                await executeWorkspaceCommand(
+                    uiMock,
+                    [],
+                    "zephyr-ide.check-build-dependencies",
+                    "Build dependencies check should succeed"
+                );
 
                 console.log("🏗️ Step 2: Setting up workspace...");
                 await executeWorkspaceCommand(

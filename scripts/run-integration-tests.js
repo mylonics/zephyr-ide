@@ -30,14 +30,18 @@ if (testType === '--help' || testType === '-h' || testType === 'help') {
     console.log('Usage: node scripts/run-integration-tests.js [test-type]');
     console.log('');
     console.log('Available test types:');
-    console.log('  standard        - Standard workspace workflow test');
-    console.log('  west-git        - West git workspace workflow test');
-    console.log('  zephyr-ide-git  - Zephyr IDE git workspace workflow test');
-    console.log('  local-west      - Local west workspace workflow test');
-    console.log('  external-zephyr - External zephyr workspace workflow test');
-    console.log('  all             - Run all tests (default)');
+    console.log('  install-package-manager - Install/check package manager only');
+    console.log('  install-host-packages    - Install/check host packages (assumes package manager available)');
+    console.log('  standard                 - Standard workspace workflow test');
+    console.log('  west-git                 - West git workspace workflow test');
+    console.log('  zephyr-ide-git           - Zephyr IDE git workspace workflow test');
+    console.log('  local-west               - Local west workspace workflow test');
+    console.log('  external-zephyr          - External zephyr workspace workflow test');
+    console.log('  all                      - Run all tests (default)');
     console.log('');
     console.log('Examples:');
+    console.log('  node scripts/run-integration-tests.js install-package-manager');
+    console.log('  node scripts/run-integration-tests.js install-host-packages');
     console.log('  node scripts/run-integration-tests.js standard');
     console.log('  node scripts/run-integration-tests.js west-git');
     console.log('  node scripts/run-integration-tests.js external-zephyr');
@@ -60,6 +64,12 @@ try {
 
     let grepPattern;
     switch (testType) {
+        case 'install-package-manager':
+            grepPattern = '"Install Package Manager Test Suite"';
+            break;
+        case 'install-host-packages':
+            grepPattern = '"Install Host Packages Test Suite"';
+            break;
         case 'standard':
             grepPattern = '"Standard Workspace Test Suite"';
             break;
@@ -95,7 +105,7 @@ try {
     console.error('This test executes the Zephyr IDE workflow.');
     console.error('Some steps may fail if build dependencies are not available.');
     console.error('');
-    console.error('Available test types: standard, west-git, zephyr-ide-git, local-west, external-zephyr, all');
+    console.error('Available test types: install-package-manager, install-host-packages, standard, west-git, zephyr-ide-git, local-west, external-zephyr, all');
     console.error('Run "node scripts/run-integration-tests.js help" for more information.');
     process.exit(1);
 }

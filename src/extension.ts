@@ -1393,6 +1393,75 @@ export async function activate(context: vscode.ExtensionContext) {
     })
   );
 
+  // Install package manager only (for multi-step CI workflows)
+  // Returns true if package manager is available, false if it was installed and needs restart
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.install-package-manager-headless", async () => {
+      output.appendLine("[HOST TOOLS] Checking/installing package manager...");
+      
+      const pmAvailable = await checkPackageManagerAvailable();
+      if (pmAvailable) {
+        output.appendLine("[HOST TOOLS] Package manager is already available");
+        return true;
+      }
+      
+      output.appendLine("[HOST TOOLS] Package manager not available, attempting to install...");
+      const pmSuccess = await installPackageManager();
+      if (!pmSuccess) {
+        output.appendLine("[HOST TOOLS] Failed to install package manager");
+        return false;
+      }
+      
+      output.appendLine("[HOST TOOLS] Package manager installed - restart may be needed for PATH updates");
+      return false;
+    })
+  );
+
+  // Install host packages only (assumes package manager is available)
+  // Returns true if all packages are available, false if they were installed and need restart
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.install-host-packages-headless", async () => {
+      output.appendLine("[HOST TOOLS] Checking/installing host packages...");
+      
+      // First verify package manager is available
+      const pmAvailable = await checkPackageManagerAvailable();
+      if (!pmAvailable) {
+        output.appendLine("[HOST TOOLS] Package manager not available - run install-package-manager-headless first");
+        return false;
+      }
+      
+      // Check if all packages are already available
+      const statuses = await checkAllPackages();
+      const allAvailable = statuses.every(s => s.available);
+      
+      if (allAvailable) {
+        output.appendLine("[HOST TOOLS] All packages are already available on PATH");
+        return true;
+      }
+      
+      // Install missing packages
+      const installSuccess = await installAllMissingPackages();
+      if (!installSuccess) {
+        output.appendLine("[HOST TOOLS] Some packages failed to install");
+        return false;
+      }
+      
+      // Verify all packages are now available on PATH
+      const finalStatuses = await checkAllPackages();
+      const finalAllAvailable = finalStatuses.every(s => s.available);
+      
+      if (finalAllAvailable) {
+        output.appendLine("[HOST TOOLS] All packages are now available on PATH");
+        return true;
+      } else {
+        const unavailable = finalStatuses.filter(s => !s.available).map(s => s.name);
+        output.appendLine(`[HOST TOOLS] Packages installed but not yet available on PATH${unavailable.length > 0 ? ': ' + unavailable.join(', ') : ''}`);
+        output.appendLine("[HOST TOOLS] A restart may be needed for PATH updates to take effect");
+        return false;
+      }
+    })
+  );
+
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.install-sdk", async () => {
       let ret = await installSDKInteractive(wsConfig, globalConfig, context);
