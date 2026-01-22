@@ -72,7 +72,7 @@ async function getPythonCommand(): Promise<string> {
         if (fs.pathExistsSync(expandedPath)) {
           python = expandedPath;
           output.appendLine(`[SETUP] Using configured Python interpreter: ${python}`);
-          return python;
+          return python as string;
         } else {
           output.appendLine(`[SETUP] Configured Python interpreter not found: ${expandedPath}, falling back to default`);
         }
@@ -86,7 +86,7 @@ async function getPythonCommand(): Promise<string> {
     python = platformName === "linux" || platformName === "macos" ? "python3" : "python";
     output.appendLine(`[SETUP] Using platform default Python: ${python}`);
   }
-  return python;
+  return python as string;
 }
 
 export function checkWestInit(setupState: SetupState) {
