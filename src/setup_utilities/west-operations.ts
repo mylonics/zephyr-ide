@@ -283,7 +283,7 @@ export async function installPythonRequirements(context: vscode.ExtensionContext
     output.appendLine(`[SETUP] Adding patool, semver, tqdm explicitly for Zephyr < 3.8.0`);
   }
   
-  let cmd = `pip install -r ${path.join(setupState.zephyrDir, "scripts", "requirements.txt")} -U ${additionalPackages}`;
+  let cmd = `pip install -r "${path.join(setupState.zephyrDir, "scripts", "requirements.txt")}" -U ${additionalPackages}`;
   let reqRes = await executeTaskHelperInPythonEnv(setupState, "Zephyr IDE: Install Python Requirements", cmd, setupState.setupPath);
 
   if (!reqRes) {
