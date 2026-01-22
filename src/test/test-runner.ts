@@ -67,11 +67,13 @@ export function shouldInstallHostTools(): boolean {
  * 3. Third run: Verifies all tools are available and runs tests
  * 
  * Each workflow step runs in a fresh shell context which picks up PATH changes.
+ * 
+ * @returns true if all tools are available, false if tools were installed but need restart
  */
-export async function installHostToolsIfNeeded(): Promise<void> {
+export async function installHostToolsIfNeeded(): Promise<boolean> {
     if (!shouldInstallHostTools()) {
         console.log('🔧 INSTALL_HOST_TOOLS not set, skipping host tools installation');
-        return;
+        return true; // Not installing, so don't skip checks
     }
 
     console.log('🔧 INSTALL_HOST_TOOLS=true detected, installing host tools via extension...');
@@ -79,10 +81,12 @@ export async function installHostToolsIfNeeded(): Promise<void> {
     try {
         const result = await vscode.commands.executeCommand('zephyr-ide.install-host-tools-headless');
         if (result) {
-            console.log('✅ Host tools installation completed successfully');
+            console.log('✅ Host tools installation completed successfully - all tools available');
+            return true;
         } else {
             console.log('⚠️  Host tools installation returned false - some tools may not have installed yet');
             console.log('    This is expected on first runs. The workflow will retry in the next step.');
+            return false;
         }
     } catch (error) {
         console.log(`❌ Host tools installation failed: ${error}`);
