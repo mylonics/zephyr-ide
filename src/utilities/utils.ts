@@ -60,7 +60,7 @@ async function detectRemotePlatform(): Promise<string | undefined> {
     // Run uname to detect the OS (works on Linux/macOS)
     const result = await executeShellCommand("uname -s", "", false);
     if (result.stdout) {
-      const uname = result.stdout.trim().toLowerCase();
+      const uname = result.stdout.toString().trim().toLowerCase();
       if (uname === "linux") {
         remotePlatformCache = "linux";
         return "linux";
@@ -72,7 +72,7 @@ async function detectRemotePlatform(): Promise<string | undefined> {
 
     // If uname fails, try to detect Windows (though unlikely in remote)
     const winResult = await executeShellCommand("ver", "", false);
-    if (winResult.stdout && winResult.stdout.toLowerCase().includes("windows")) {
+    if (winResult.stdout && winResult.stdout.toString().toLowerCase().includes("windows")) {
       remotePlatformCache = "win32";
       return "win32";
     }
@@ -313,7 +313,10 @@ export async function executeShellCommandInPythonEnv(cmd: string, cwd: string, s
 
 export async function executeShellCommand(cmd: string, cwd: string, display_error = true, env?: NodeJS.ProcessEnv) {
   let exec = util.promisify(cp.exec);
-  const execOptions: cp.ExecOptions = { cwd: cwd };
+  const execOptions: cp.ExecOptions = { 
+    cwd: cwd,
+    encoding: 'utf8'  // Ensure stdout and stderr are strings, not Buffers
+  };
   
   // Use provided environment or default to process.env
   if (env) {
