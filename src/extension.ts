@@ -98,10 +98,10 @@ import { getModuleVersion } from "./setup_utilities/modules";
 import { reconfigureTest } from "./project_utilities/twister_selector";
 import { installSDKInteractive } from "./setup_utilities/west_sdk";
 import {
-  installAllMissingPackages,
-  installPackageManager,
-  checkPackageManagerAvailable,
-  checkAllPackages,
+  installPackageManagerHeadless,
+  installHostPackagesHeadless,
+  installHostToolsHeadless,
+  checkHostToolsHeadless,
 } from "./setup_utilities/host_tools";
 
 // Helper function to mark workspace setup as complete and refresh UI
@@ -1337,128 +1337,29 @@ export async function activate(context: vscode.ExtensionContext) {
     )
   );
 
-  // Programmatic host tools installation command (for CI/testing)
-  // This command installs package manager and all missing host tool packages without UI
-  // Returns true only when ALL packages are available on PATH
-  // Returns false when package manager was installed or packages were installed but not yet available
+  // Programmatic host tools installation commands (for CI/testing)
+  // These commands delegate to host_tools.ts to keep extension.ts clean
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.install-host-tools-headless", async () => {
-      output.appendLine("[HOST TOOLS] Starting headless host tools installation...");
-      
-      // First check if package manager is available
-      const pmAvailable = await checkPackageManagerAvailable();
-      if (!pmAvailable) {
-        output.appendLine("[HOST TOOLS] Package manager not available, attempting to install...");
-        const pmSuccess = await installPackageManager();
-        if (!pmSuccess) {
-          output.appendLine("[HOST TOOLS] Failed to install package manager");
-          return false;
-        }
-        output.appendLine("[HOST TOOLS] Package manager installed successfully - restart may be needed for PATH updates");
-        // Return false to indicate VS Code may need restart for package manager to be in PATH
-        return false;
-      }
-      
-      output.appendLine("[HOST TOOLS] Package manager is available");
-      
-      // Check if all packages are already available
-      const statuses = await checkAllPackages();
-      const allAvailable = statuses.every(s => s.available);
-      
-      if (allAvailable) {
-        output.appendLine("[HOST TOOLS] All packages are already available on PATH");
-        return true;
-      }
-      
-      // Install missing packages
-      const installSuccess = await installAllMissingPackages();
-      if (!installSuccess) {
-        output.appendLine("[HOST TOOLS] Some packages failed to install");
-        return false;
-      }
-      
-      // Verify all packages are now available on PATH
-      const finalStatuses = await checkAllPackages();
-      const finalAllAvailable = finalStatuses.every(s => s.available);
-      
-      if (finalAllAvailable) {
-        output.appendLine("[HOST TOOLS] All packages are now available on PATH");
-        return true;
-      } else {
-        const unavailable = finalStatuses.filter(s => !s.available).map(s => s.name);
-        output.appendLine(`[HOST TOOLS] Packages installed but not yet available on PATH${unavailable.length > 0 ? ': ' + unavailable.join(', ') : ''}`);
-        output.appendLine("[HOST TOOLS] A restart may be needed for PATH updates to take effect");
-        return false;
-      }
+      return await installHostToolsHeadless();
     })
   );
 
-  // Install package manager only (for multi-step CI workflows)
-  // Returns true if package manager is available, false if it was installed and needs restart
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.install-package-manager-headless", async () => {
-      output.appendLine("[HOST TOOLS] Checking/installing package manager...");
-      
-      const pmAvailable = await checkPackageManagerAvailable();
-      if (pmAvailable) {
-        output.appendLine("[HOST TOOLS] Package manager is already available");
-        return true;
-      }
-      
-      output.appendLine("[HOST TOOLS] Package manager not available, attempting to install...");
-      const pmSuccess = await installPackageManager();
-      if (!pmSuccess) {
-        output.appendLine("[HOST TOOLS] Failed to install package manager");
-        return false;
-      }
-      
-      output.appendLine("[HOST TOOLS] Package manager installed - restart may be needed for PATH updates");
-      return false;
+      return await installPackageManagerHeadless();
     })
   );
 
-  // Install host packages only (assumes package manager is available)
-  // Returns true if all packages are available, false if they were installed and need restart
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.install-host-packages-headless", async () => {
-      output.appendLine("[HOST TOOLS] Checking/installing host packages...");
-      
-      // First verify package manager is available
-      const pmAvailable = await checkPackageManagerAvailable();
-      if (!pmAvailable) {
-        output.appendLine("[HOST TOOLS] Package manager not available - run install-package-manager-headless first");
-        return false;
-      }
-      
-      // Check if all packages are already available
-      const statuses = await checkAllPackages();
-      const allAvailable = statuses.every(s => s.available);
-      
-      if (allAvailable) {
-        output.appendLine("[HOST TOOLS] All packages are already available on PATH");
-        return true;
-      }
-      
-      // Install missing packages
-      const installSuccess = await installAllMissingPackages();
-      if (!installSuccess) {
-        output.appendLine("[HOST TOOLS] Some packages failed to install");
-        return false;
-      }
-      
-      // Verify all packages are now available on PATH
-      const finalStatuses = await checkAllPackages();
-      const finalAllAvailable = finalStatuses.every(s => s.available);
-      
-      if (finalAllAvailable) {
-        output.appendLine("[HOST TOOLS] All packages are now available on PATH");
-        return true;
-      } else {
-        const unavailable = finalStatuses.filter(s => !s.available).map(s => s.name);
-        output.appendLine(`[HOST TOOLS] Packages installed but not yet available on PATH${unavailable.length > 0 ? ': ' + unavailable.join(', ') : ''}`);
-        output.appendLine("[HOST TOOLS] A restart may be needed for PATH updates to take effect");
-        return false;
-      }
+      return await installHostPackagesHeadless();
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.check-host-tools-headless", async () => {
+      return await checkHostToolsHeadless();
     })
   );
 

@@ -97,6 +97,12 @@ suite("Standard Workspace Test Suite", () => {
                 await activateExtension();
                 uiMock.activate();
 
+                console.log("🔍 Step 0: Checking host tools...");
+                const toolsAvailable = await vscode.commands.executeCommand('zephyr-ide.check-host-tools-headless');
+                if (!toolsAvailable) {
+                    console.log("⚠️  Some host tools are not available - tests may fail");
+                }
+
                 console.log("📋 Step 1: Checking build dependencies...");
                 await executeWorkspaceCommand(
                     uiMock,
