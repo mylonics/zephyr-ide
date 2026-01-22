@@ -58,9 +58,14 @@ jobs:
 
           # Try to get previous version - if HEAD~1 doesn't exist (first commit), default to 0.0.0
           if git rev-parse HEAD~1 >/dev/null 2>&1; then
-            git checkout HEAD~1 -- package.json 2>/dev/null
-            PREVIOUS_VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "0.0.0")
-            git checkout HEAD -- package.json
+            # Checkout previous version of package.json to compare versions
+            if git checkout HEAD~1 -- package.json; then
+              PREVIOUS_VERSION=$(node -p "require('./package.json').version" 2>/dev/null || echo "0.0.0")
+              git checkout HEAD -- package.json
+            else
+              echo "Could not checkout previous package.json, treating as version bump"
+              PREVIOUS_VERSION="0.0.0"
+            fi
           else
             echo "No previous commit found (first commit in repository)"
             PREVIOUS_VERSION="0.0.0"
@@ -211,14 +216,15 @@ jobs:
       - name: Install build tools via winget
         shell: pwsh
         run: |
+          # Winget exit code for "already installed" (No applicable update found)
+          $WINGET_ALREADY_INSTALLED = -1978335189
           $installErrors = @()
           
           # Install CMake (if not already available)
           if (-not (Get-Command cmake -ErrorAction SilentlyContinue)) {
             Write-Host "Installing CMake..."
             $result = winget install --accept-package-agreements --accept-source-agreements Kitware.CMake 2>&1
-            if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne -1978335189) {
-              # -1978335189 means already installed
+            if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne $WINGET_ALREADY_INSTALLED) {
               $installErrors += "CMake installation failed with exit code $LASTEXITCODE"
             }
           } else {
@@ -229,7 +235,7 @@ jobs:
           if (-not (Get-Command ninja -ErrorAction SilentlyContinue)) {
             Write-Host "Installing Ninja..."
             $result = winget install --accept-package-agreements --accept-source-agreements Ninja-build.Ninja 2>&1
-            if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne -1978335189) {
+            if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne $WINGET_ALREADY_INSTALLED) {
               $installErrors += "Ninja installation failed with exit code $LASTEXITCODE"
             }
           } else {
@@ -240,17 +246,18 @@ jobs:
           if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
             Write-Host "Installing Git..."
             $result = winget install --accept-package-agreements --accept-source-agreements Git.Git 2>&1
-            if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne -1978335189) {
+            if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne $WINGET_ALREADY_INSTALLED) {
               $installErrors += "Git installation failed with exit code $LASTEXITCODE"
             }
           } else {
             Write-Host "Git already installed"
           }
           
+          # Log any installation issues - these may be resolved after PATH refresh
           if ($installErrors.Count -gt 0) {
-            Write-Host "Installation warnings (may be resolved after PATH refresh):"
+            Write-Host "Installation warnings (tools will be verified after PATH refresh):"
             foreach ($err in $installErrors) {
-              Write-Host "  - $err"
+              Write-Warning "  - $err"
             }
           }
 
