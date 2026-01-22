@@ -80,21 +80,19 @@ async function refreshWindowsPath(): Promise<void> {
     const machinePathCmd = `powershell -Command "[System.Environment]::GetEnvironmentVariable('Path','Machine')"`;
     const userPathCmd = `powershell -Command "[System.Environment]::GetEnvironmentVariable('Path','User')"`;
     
-    const machinePathResult = await executeShellCommand(machinePathCmd, false);
-    const userPathResult = await executeShellCommand(userPathCmd, false);
+    const machinePathResult = await executeShellCommand(machinePathCmd, '', false);
+    const userPathResult = await executeShellCommand(userPathCmd, '', false);
     
-    if (machinePathResult.code === 0 || userPathResult.code === 0) {
-      const machinePath = machinePathResult.stdout.trim();
-      const userPath = userPathResult.stdout.trim();
-      
-      // Combine Machine and User paths
-      const newPath = machinePath + (userPath ? ';' + userPath : '');
-      
-      if (newPath) {
-        // Update the current process PATH
-        process.env.PATH = newPath;
-        logDual("[HOST TOOLS] ✅ Windows PATH refreshed successfully");
-      }
+    const machinePath = machinePathResult.stdout?.trim() || '';
+    const userPath = userPathResult.stdout?.trim() || '';
+    
+    // Combine Machine and User paths
+    const newPath = machinePath + (userPath ? ';' + userPath : '');
+    
+    if (newPath) {
+      // Update the current process PATH
+      process.env.PATH = newPath;
+      logDual("[HOST TOOLS] ✅ Windows PATH refreshed successfully");
     }
   } catch (error) {
     logDual(`[HOST TOOLS] Warning: Failed to refresh Windows PATH: ${error}`);
@@ -534,7 +532,8 @@ export async function installPackageManagerHeadless(): Promise<boolean> {
     }
   }
   
-  return false; // Return false to indicate restart needed for PATH updates
+  // Return false on non-Windows or if PATH refresh didn't make package manager available
+  return false; // macOS/Linux may need restart for PATH updates
 }
 
 /**
