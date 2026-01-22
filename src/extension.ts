@@ -1386,9 +1386,7 @@ export async function activate(context: vscode.ExtensionContext) {
         return true;
       } else {
         const unavailable = finalStatuses.filter(s => !s.available).map(s => s.name);
-        if (unavailable.length > 0) {
-          output.appendLine(`[HOST TOOLS] Packages installed but not yet available on PATH: ${unavailable.join(', ')}`);
-        }
+        output.appendLine(`[HOST TOOLS] Packages installed but not yet available on PATH${unavailable.length > 0 ? ': ' + unavailable.join(', ') : ''}`);
         output.appendLine("[HOST TOOLS] A restart may be needed for PATH updates to take effect");
         return false;
       }
