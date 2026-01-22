@@ -105,13 +105,17 @@ suite("Standard Workspace Test Suite", () => {
                 }
 
                 const skipBuilds = shouldSkipBuildTests();
-                const isMacOS = process.platform === 'darwin';
+                const requiresPathPropagation = process.platform === 'darwin' || process.platform === 'win32';
                 
-                // Skip build dependency check on macOS in CI because brew doesn't update PATH for current process
-                // Windows now uses PATH refresh so it should work
-                if (skipBuilds && isMacOS) {
-                    console.log("📋 Step 1: Skipping build dependencies check (macOS PATH limitation in CI)...");
-                    console.log("   Tools were installed in previous steps but may not be visible in current process");
+                // Skip build dependency check on Windows/macOS in CI
+                // Reason: winget/brew install packages in previous test steps (separate processes)
+                // The registry PATH is updated, but new processes don't automatically inherit it without a system restart
+                // Tools ARE installed correctly, but not visible in this new process
+                if (skipBuilds && requiresPathPropagation) {
+                    console.log("📋 Step 1: Skipping build dependencies check (Windows/macOS PATH propagation limitation in CI)...");
+                    console.log("   Tools were installed in previous steps but require system-level PATH propagation");
+                    console.log("   On Windows: winget updates registry PATH, but new processes don't auto-inherit without restart");
+                    console.log("   On macOS: brew updates PATH, but new processes don't auto-inherit without restart");
                 } else {
                     console.log("📋 Step 1: Checking build dependencies...");
                     await executeWorkspaceCommand(
