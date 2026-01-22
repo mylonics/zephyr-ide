@@ -456,24 +456,35 @@ export async function installAllMissingPackages(): Promise<boolean> {
 export async function installPackageManagerHeadless(): Promise<boolean> {
   const manager = await getPackageManagerForPlatformAsync();
   if (!manager) {
-    output.appendLine("[HOST TOOLS] No package manager configuration found for this platform");
+    const msg = "[HOST TOOLS] No package manager configuration found for this platform";
+    output.appendLine(msg);
+    console.log(msg);
     return false;
   }
 
   const pmAvailable = await checkPackageManagerAvailable();
   if (pmAvailable) {
-    console.log(`✅ ${manager.name} found`);
+    const msg = `✅ ${manager.name} found`;
+    output.appendLine(msg);
+    console.log(msg);
     return true;
   }
   
-  console.log(`⚠️  ${manager.name} not found`);
+  const notFoundMsg = `⚠️  ${manager.name} not found`;
+  output.appendLine(notFoundMsg);
+  console.log(notFoundMsg);
+  
   const pmSuccess = await installPackageManager();
   if (!pmSuccess) {
-    console.log(`❌ Failed to install ${manager.name}`);
+    const failMsg = `❌ Failed to install ${manager.name}`;
+    output.appendLine(failMsg);
+    console.log(failMsg);
     return false;
   }
   
-  console.log(`✅ Installed ${manager.name}`);
+  const installedMsg = `✅ Installed ${manager.name}`;
+  output.appendLine(installedMsg);
+  console.log(installedMsg);
   return false; // Return false to indicate restart needed for PATH updates
 }
 
@@ -485,7 +496,9 @@ export async function installHostPackagesHeadless(): Promise<boolean> {
   // First verify package manager is available
   const pmAvailable = await checkPackageManagerAvailable();
   if (!pmAvailable) {
-    output.appendLine("[HOST TOOLS] Package manager not available - run install-package-manager-headless first");
+    const msg = "[HOST TOOLS] Package manager not available - run install-package-manager-headless first";
+    output.appendLine(msg);
+    console.log(msg);
     return false;
   }
   
@@ -496,7 +509,9 @@ export async function installHostPackagesHeadless(): Promise<boolean> {
   if (allAvailable) {
     // All packages already available - log each one
     for (const status of statuses) {
-      console.log(`✅ ${status.name} found`);
+      const msg = `✅ ${status.name} found`;
+      output.appendLine(msg);
+      console.log(msg);
     }
     return true;
   }
@@ -507,16 +522,25 @@ export async function installHostPackagesHeadless(): Promise<boolean> {
   
   for (const status of statuses) {
     if (status.available) {
-      console.log(`✅ ${status.name} found`);
+      const msg = `✅ ${status.name} found`;
+      output.appendLine(msg);
+      console.log(msg);
     } else {
-      console.log(`⚠️  ${status.name} not found`);
+      const notFoundMsg = `⚠️  ${status.name} not found`;
+      output.appendLine(notFoundMsg);
+      console.log(notFoundMsg);
+      
       const pkg = packages.find(p => p.name === status.name);
       if (pkg) {
         const success = await installPackage(pkg);
         if (success) {
-          console.log(`✅ Installed ${status.name}`);
+          const successMsg = `✅ Installed ${status.name}`;
+          output.appendLine(successMsg);
+          console.log(successMsg);
         } else {
-          console.log(`❌ Failed to install ${status.name}`);
+          const failMsg = `❌ Failed to install ${status.name}`;
+          output.appendLine(failMsg);
+          console.log(failMsg);
         }
       }
     }
@@ -598,9 +622,13 @@ export async function checkHostToolsHeadless(): Promise<boolean> {
   // Log each package status
   for (const status of statuses) {
     if (status.available) {
-      console.log(`✅ ${status.name} found`);
+      const msg = `✅ ${status.name} found`;
+      output.appendLine(msg);
+      console.log(msg);
     } else {
-      console.log(`❌ ${status.name} not found`);
+      const msg = `❌ ${status.name} not found`;
+      output.appendLine(msg);
+      console.log(msg);
     }
   }
   
