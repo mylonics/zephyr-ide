@@ -331,8 +331,8 @@ export async function executeShellCommand(cmd: string, cwd: string, display_erro
     reason => {
       if (display_error) {
         output.append(reason);
+        console.log(JSON.stringify(reason));
       }
-      console.log(JSON.stringify(reason));
       return { stdout: undefined, stderr: reason.stderr as string | undefined };
     }
   );
