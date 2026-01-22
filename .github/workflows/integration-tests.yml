@@ -1,17 +1,74 @@
 name: Integration Tests
 
+# This workflow runs full integration tests on Ubuntu.
+# It triggers on version bumps in develop branch or can be run manually.
+# For multi-platform tests that run on PRs, see integration-tests-multi-platform.yml
+
 on:
   push:
-    branches: [main, pre-release, develop]
-  pull_request:
-    branches: [main, pre-release, develop]
+    branches: [develop]
+    paths:
+      - 'package.json'
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to run tests on'
+        required: false
+        type: string
+        default: ''
 
 jobs:
+  # Check if this is a version bump commit (skip for manual triggers)
+  check-version-bump:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch || github.ref }}
+          fetch-depth: 2
+
+      - name: Check if should run
+        id: check
+        run: |
+          # Always run for manual triggers
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Manual trigger - running tests"
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Get current version from package.json
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+
+          # Try to get previous version using git show (avoids modifying working directory)
+          if git rev-parse HEAD~1 >/dev/null 2>&1; then
+            PREVIOUS_VERSION=$(git show HEAD~1:package.json 2>/dev/null | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin', 'utf8')).version" 2>/dev/null || echo "0.0.0")
+          else
+            PREVIOUS_VERSION="0.0.0"
+          fi
+
+          echo "Current version: $CURRENT_VERSION"
+          echo "Previous version: $PREVIOUS_VERSION"
+
+          if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
+            echo "Version bump detected: $PREVIOUS_VERSION -> $CURRENT_VERSION"
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No version bump detected"
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          fi
+
   test-with-zephyr:
+    needs: check-version-bump
+    if: needs.check-version-bump.outputs.should_run == 'true'
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch || github.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
