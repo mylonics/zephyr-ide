@@ -198,11 +198,8 @@ class ZephyrDebugConfigurationProvider implements vscode.DebugConfigurationProvi
     // Only process configurations that contain zephyr-ide commands
     if (containsZephyrCommands(config)) {
       // Clone the config to avoid mutating the original
-      // Using JSON stringify/parse for a deep clone is acceptable here as:
-      // 1. This only runs when launching a debug session (infrequent operation)
-      // 2. Debug configurations are pure JSON objects (no functions/special types)
-      // 3. It ensures all nested structures are properly cloned
-      const resolvedConfig = JSON.parse(JSON.stringify(config));
+      // Use structuredClone for efficient deep cloning of the debug configuration
+      const resolvedConfig = structuredClone(config);
       await resolveZephyrCommandsInObject(resolvedConfig);
       return resolvedConfig;
     }
