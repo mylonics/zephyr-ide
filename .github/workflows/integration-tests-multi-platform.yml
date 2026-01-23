@@ -1,18 +1,25 @@
 # Multi-Platform Integration Tests Pipeline
 # 
 # This workflow runs integration tests on multiple platforms (Windows, Ubuntu, macOS).
-# It is triggered on pull requests to validate cross-platform compatibility.
+# It uses a single-process approach where all installation and test steps run
+# sequentially in the same VS Code instance, solving Windows PATH propagation issues.
 #
 # Architecture:
 # 1. Stage 1: Build VSIX on Ubuntu
 # 2. Stage 2: Three parallel platform jobs that:
 #    - Install VS Code
 #    - Install the VSIX extension
-#    - Use zephyr-ide.install-host-tools command to install dependencies
-#    - Run the standard workspace test
+#    - Run a single combined test that sequentially:
+#      a) Installs package manager (winget/apt/brew)
+#      b) Installs host packages (cmake, ninja, gperf, etc.)
+#      c) Runs workspace tests
+#    - All steps execute in the SAME process, so PATH refresh works immediately
 #
-# Note: VS Code may need to be restarted after package manager and packages
-# are installed to make them available in PATH.
+# Benefits:
+# - PATH updates propagate within same process
+# - refreshWindowsPath() makes tools immediately visible on Windows
+# - No cross-process PATH issues
+# - Cleaner architecture with single test execution
 
 name: Multi-Platform Integration Tests
 
@@ -77,12 +84,37 @@ jobs:
           retention-days: 7
 
   # Stage 2: Platform Integration Tests
-  # Each platform job installs VS Code, the VSIX extension, and runs tests
-  # Host tools are installed via the zephyr-ide.install-host-tools command during tests
-  
-  test-ubuntu:
+  # Use matrix strategy to reduce code duplication across platforms
+  test-platforms:
     needs: build-vsix
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu
+            os: ubuntu-latest
+            shell: bash
+            xvfb: "xvfb-run -a "
+            zephyr_base: /tmp/zephyr
+            setup_cmd: |
+              sudo apt-get update
+              sudo apt-get install -y xvfb libgtk-3-0 libgbm1 libnss3 libasound2t64
+          - platform: windows
+            os: windows-latest
+            shell: pwsh
+            xvfb: ""
+            zephyr_base: C:\temp\zephyr
+            setup_cmd: ""
+          - platform: macos
+            os: macos-15
+            shell: bash
+            xvfb: ""
+            zephyr_base: /tmp/zephyr
+            setup_cmd: ""
+    
+    runs-on: ${{ matrix.os }}
+    name: test-${{ matrix.platform }}
+    
     steps:
       - uses: actions/checkout@v4
         with:
@@ -100,10 +132,10 @@ jobs:
           name: vsix-package
           path: ./vsix
 
-      - name: Install system dependencies for VS Code
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y xvfb libgtk-3-0 libgbm1 libnss3 libasound2t64
+      - name: Install system dependencies
+        if: matrix.setup_cmd != ''
+        shell: ${{ matrix.shell }}
+        run: ${{ matrix.setup_cmd }}
 
       - name: Install npm dependencies
         run: npm ci
@@ -114,147 +146,15 @@ jobs:
       - name: Bundle Extension (dist)
         run: npm run esbuild
 
-      # Run host tools installation in separate steps
-      # Each step runs in a fresh shell context which picks up PATH changes
-      - name: "Host Tools Installation - Step 1: Install package manager"
+      # Single test run that performs all 3 steps sequentially in same process
+      # This solves the Windows PATH propagation issue by running everything
+      # in a single VS Code instance where PATH refresh is effective
+      - name: "Run Combined Test (All Steps in Same Process)"
+        shell: ${{ matrix.shell }}
         run: |
-          xvfb-run -a node scripts/run-integration-tests.js install-package-manager
+          ${{ matrix.xvfb }}node scripts/run-integration-tests.js combined
         env:
           NODE_ENV: test
-          ZEPHYR_BASE: /tmp/zephyr
+          ZEPHYR_BASE: ${{ matrix.zephyr_base }}
           VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
-        continue-on-error: true
-
-      - name: "Host Tools Installation - Step 2: Install host packages"
-        run: |
-          xvfb-run -a node scripts/run-integration-tests.js install-host-packages
-        env:
-          NODE_ENV: test
-          ZEPHYR_BASE: /tmp/zephyr
-          VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
-        continue-on-error: true
-
-      - name: "Run Standard Workspace Tests"
-        run: |
-          xvfb-run -a node scripts/run-integration-tests.js standard
-        env:
-          NODE_ENV: test
-          ZEPHYR_BASE: /tmp/zephyr
-          VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
-
-  test-windows:
-    needs: build-vsix
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.branch || github.ref }}
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20.x"
-          cache: "npm"
-
-      - name: Download VSIX
-        uses: actions/download-artifact@v4.1.3
-        with:
-          name: vsix-package
-          path: ./vsix
-
-      - name: Install npm dependencies
-        run: npm ci
-
-      - name: Compile TypeScript
-        run: npm run test-compile
-
-      - name: Bundle Extension (dist)
-        run: npm run esbuild
-
-      # Run host tools installation in separate steps
-      # Each step runs in a fresh shell context which picks up PATH changes
-      - name: "Host Tools Installation - Step 1: Install package manager"
-        shell: pwsh
-        run: |
-          node scripts/run-integration-tests.js install-package-manager
-        env:
-          NODE_ENV: test
-          ZEPHYR_BASE: C:\temp\zephyr
-          VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
-        continue-on-error: true
-
-      - name: "Host Tools Installation - Step 2: Install host packages"
-        shell: pwsh
-        run: |
-          node scripts/run-integration-tests.js install-host-packages
-        env:
-          NODE_ENV: test
-          ZEPHYR_BASE: C:\temp\zephyr
-          VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
-        continue-on-error: true
-
-      - name: "Run Standard Workspace Tests"
-        shell: pwsh
-        run: |
-          node scripts/run-integration-tests.js standard
-        env:
-          NODE_ENV: test
-          ZEPHYR_BASE: C:\temp\zephyr
-          VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
-
-  test-macos:
-    needs: build-vsix
-    runs-on: macos-15
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.branch || github.ref }}
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20.x"
-          cache: "npm"
-
-      - name: Download VSIX
-        uses: actions/download-artifact@v4.1.3
-        with:
-          name: vsix-package
-          path: ./vsix
-
-      - name: Install npm dependencies
-        run: npm ci
-
-      - name: Compile TypeScript
-        run: npm run test-compile
-
-      - name: Bundle Extension (dist)
-        run: npm run esbuild
-
-      # Run host tools installation in separate steps
-      # Each step runs in a fresh shell context which picks up PATH changes
-      - name: "Host Tools Installation - Step 1: Install package manager"
-        run: |
-          node scripts/run-integration-tests.js install-package-manager
-        env:
-          NODE_ENV: test
-          ZEPHYR_BASE: /tmp/zephyr
-          VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
-        continue-on-error: true
-
-      - name: "Host Tools Installation - Step 2: Install host packages"
-        run: |
-          node scripts/run-integration-tests.js install-host-packages
-        env:
-          NODE_ENV: test
-          ZEPHYR_BASE: /tmp/zephyr
-          VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
-        continue-on-error: true
-
-      - name: "Run Standard Workspace Tests"
-        run: |
-          node scripts/run-integration-tests.js standard
-        env:
-          NODE_ENV: test
-          ZEPHYR_BASE: /tmp/zephyr
-          VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
+        timeout-minutes: 15
