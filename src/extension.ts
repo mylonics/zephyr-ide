@@ -131,21 +131,26 @@ export function getWorkspaceConfig(): WorkspaceConfig {
 
 // Helper function to resolve all ${command:zephyr-ide.*} variables in a debug configuration
 async function resolveZephyrCommandsInObject(obj: Record<string, unknown>): Promise<void> {
+  // Helper to resolve variables in a string value
+  async function resolveStringValue(strVal: string): Promise<string> {
+    const matches = strVal.match(/\$\{command:zephyr-ide\.[^}]+\}/g);
+    if (matches) {
+      let newValue = strVal;
+      for (const match of matches) {
+        const commandName = match.slice(10, -1); // Remove ${command: and }
+        const result = await vscode.commands.executeCommand(commandName);
+        const resultStr = result !== undefined ? String(result) : "";
+        newValue = newValue.split(match).join(resultStr);
+      }
+      return newValue;
+    }
+    return strVal;
+  }
+
   for (const key of Object.keys(obj)) {
     const value = obj[key];
     if (typeof value === "string") {
-      const strVal = value as string;
-      const matches = strVal.match(/\$\{command:zephyr-ide\.[^}]+\}/g);
-      if (matches) {
-        let newValue = strVal;
-        for (const match of matches) {
-          const commandName = match.slice(10, -1); // Remove ${command: and }
-          const result = await vscode.commands.executeCommand(commandName);
-          const resultStr = result !== undefined ? String(result) : "";
-          newValue = newValue.split(match).join(resultStr);
-        }
-        obj[key] = newValue;
-      }
+      obj[key] = await resolveStringValue(value);
     } else if (typeof value === "object" && value !== null && !Array.isArray(value)) {
       // Recursively resolve nested objects
       await resolveZephyrCommandsInObject(value as Record<string, unknown>);
@@ -153,18 +158,7 @@ async function resolveZephyrCommandsInObject(obj: Record<string, unknown>): Prom
       // Recursively resolve arrays
       for (let i = 0; i < value.length; i++) {
         if (typeof value[i] === "string") {
-          const strVal = value[i] as string;
-          const matches = strVal.match(/\$\{command:zephyr-ide\.[^}]+\}/g);
-          if (matches) {
-            let newValue = strVal;
-            for (const match of matches) {
-              const commandName = match.slice(10, -1);
-              const result = await vscode.commands.executeCommand(commandName);
-              const resultStr = result !== undefined ? String(result) : "";
-              newValue = newValue.split(match).join(resultStr);
-            }
-            value[i] = newValue;
-          }
+          value[i] = await resolveStringValue(value[i]);
         } else if (typeof value[i] === "object" && value[i] !== null) {
           await resolveZephyrCommandsInObject(value[i] as Record<string, unknown>);
         }
@@ -184,6 +178,10 @@ class ZephyrDebugConfigurationProvider implements vscode.DebugConfigurationProvi
     const configStr = JSON.stringify(config);
     if (configStr.includes("${command:zephyr-ide.")) {
       // Clone the config to avoid mutating the original
+      // Using JSON stringify/parse for a deep clone is acceptable here as:
+      // 1. This only runs when launching a debug session (infrequent operation)
+      // 2. Debug configurations are pure JSON objects (no functions/special types)
+      // 3. It ensures all nested structures are properly cloned
       const resolvedConfig = JSON.parse(configStr);
       await resolveZephyrCommandsInObject(resolvedConfig);
       return resolvedConfig;
