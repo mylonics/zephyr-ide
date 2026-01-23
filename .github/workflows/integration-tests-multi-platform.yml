@@ -115,6 +115,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     name: test-${{ matrix.platform }}
     
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
+    
     steps:
       - uses: actions/checkout@v4
         with:
@@ -134,7 +138,6 @@ jobs:
 
       - name: Install system dependencies
         if: matrix.setup_cmd != ''
-        shell: ${{ matrix.shell }}
         run: ${{ matrix.setup_cmd }}
 
       - name: Install npm dependencies
@@ -150,7 +153,6 @@ jobs:
       # This solves the Windows PATH propagation issue by running everything
       # in a single VS Code instance where PATH refresh is effective
       - name: "Run Combined Test (All Steps in Same Process)"
-        shell: ${{ matrix.shell }}
         run: |
           ${{ matrix.xvfb }}node scripts/run-integration-tests.js combined
         env:
