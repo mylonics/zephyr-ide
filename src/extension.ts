@@ -129,6 +129,69 @@ export function getWorkspaceConfig(): WorkspaceConfig {
   return wsConfig;
 }
 
+// Helper function to resolve all ${command:zephyr-ide.*} variables in a debug configuration
+async function resolveZephyrCommandsInObject(obj: Record<string, unknown>): Promise<void> {
+  for (const key of Object.keys(obj)) {
+    const value = obj[key];
+    if (typeof value === "string") {
+      const strVal = value as string;
+      const matches = strVal.match(/\$\{command:zephyr-ide\.[^}]+\}/g);
+      if (matches) {
+        let newValue = strVal;
+        for (const match of matches) {
+          const commandName = match.slice(10, -1); // Remove ${command: and }
+          const result = await vscode.commands.executeCommand(commandName);
+          const resultStr = result !== undefined ? String(result) : "";
+          newValue = newValue.split(match).join(resultStr);
+        }
+        obj[key] = newValue;
+      }
+    } else if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+      // Recursively resolve nested objects
+      await resolveZephyrCommandsInObject(value as Record<string, unknown>);
+    } else if (Array.isArray(value)) {
+      // Recursively resolve arrays
+      for (let i = 0; i < value.length; i++) {
+        if (typeof value[i] === "string") {
+          const strVal = value[i] as string;
+          const matches = strVal.match(/\$\{command:zephyr-ide\.[^}]+\}/g);
+          if (matches) {
+            let newValue = strVal;
+            for (const match of matches) {
+              const commandName = match.slice(10, -1);
+              const result = await vscode.commands.executeCommand(commandName);
+              const resultStr = result !== undefined ? String(result) : "";
+              newValue = newValue.split(match).join(resultStr);
+            }
+            value[i] = newValue;
+          }
+        } else if (typeof value[i] === "object" && value[i] !== null) {
+          await resolveZephyrCommandsInObject(value[i] as Record<string, unknown>);
+        }
+      }
+    }
+  }
+}
+
+// Debug configuration provider to resolve Zephyr IDE command variables
+class ZephyrDebugConfigurationProvider implements vscode.DebugConfigurationProvider {
+  async resolveDebugConfiguration(
+    folder: vscode.WorkspaceFolder | undefined,
+    config: vscode.DebugConfiguration,
+    token?: vscode.CancellationToken
+  ): Promise<vscode.DebugConfiguration | null | undefined> {
+    // Only process configurations that contain zephyr-ide commands
+    const configStr = JSON.stringify(config);
+    if (configStr.includes("${command:zephyr-ide.")) {
+      // Clone the config to avoid mutating the original
+      const resolvedConfig = JSON.parse(configStr);
+      await resolveZephyrCommandsInObject(resolvedConfig);
+      return resolvedConfig;
+    }
+    return config;
+  }
+}
+
 export async function activate(context: vscode.ExtensionContext) {
   context.environmentVariableCollection.persistent = false;
   context.environmentVariableCollection.description =
@@ -158,6 +221,15 @@ export async function activate(context: vscode.ExtensionContext) {
   }
 
   reloadEnvironmentVariables(context, wsConfig.activeSetupState);
+
+  // Register debug configuration provider to resolve Zephyr IDE command variables
+  // This ensures command substitution works for all debug sessions, not just "Build and Debug"
+  context.subscriptions.push(
+    vscode.debug.registerDebugConfigurationProvider(
+      "cortex-debug",
+      new ZephyrDebugConfigurationProvider()
+    )
+  );
 
   let activeProjectView = new ActiveProjectView(
     context.extensionPath,
@@ -1117,24 +1189,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
       if (debugConfig && activeProject && activeBuild) {
         // Resolve all ${command:zephyr-ide.*} variables in debugConfig
-        async function resolveZephyrCommandsInObject(obj: Record<string, unknown>) {
-          for (const key of Object.keys(obj)) {
-            if (typeof obj[key] === "string") {
-              const strVal = obj[key] as string;
-              const matches = strVal.match(/\$\{command:zephyr-ide\.[^}]+\}/g);
-              if (matches) {
-                let newValue = strVal;
-                for (const match of matches) {
-                  const commandName = match.slice(10, -1); // Remove ${command: and }
-                  const result = await vscode.commands.executeCommand(commandName);
-                  const resultStr = result !== undefined ? String(result) : "";
-                  newValue = newValue.split(match).join(resultStr);
-                }
-                obj[key] = newValue;
-              }
-            }
-          }
-        }
         await resolveZephyrCommandsInObject(debugConfig);
         let res = await build(context, wsConfig, activeProject, activeBuild, false);
         if (res) {
