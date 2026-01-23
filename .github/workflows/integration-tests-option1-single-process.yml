@@ -1,0 +1,209 @@
+# Multi-Platform Integration Tests - Option 1: Single Process
+# 
+# This workflow implements Option 1 to solve Windows PATH propagation:
+# All 3 steps (install package manager, install packages, run tests) execute
+# sequentially in the SAME VS Code instance/process.
+#
+# Benefits:
+# - PATH updates propagate within same process
+# - refreshWindowsPath() makes tools immediately visible
+# - No cross-process PATH issues
+#
+# Architecture:
+# 1. Stage 1: Build VSIX on Ubuntu
+# 2. Stage 2: Three parallel platform jobs that run a SINGLE combined test:
+#    - Install VS Code
+#    - Install the VSIX extension
+#    - Run combined test that sequentially calls:
+#      a) install-package-manager-headless command
+#      b) install-host-packages-headless command (PATH refresh happens here)
+#      c) workspace tests (tools now visible in same process)
+
+name: Multi-Platform Tests - Option 1 (Single Process)
+
+on:
+  pull_request:
+    branches: [main, pre-release, develop]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to run tests on'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  # Stage 1: Build VSIX on Ubuntu
+  build-vsix:
+    runs-on: ubuntu-latest
+    outputs:
+      vsix_name: ${{ steps.package.outputs.vsix_name }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Extension
+        run: npm run vscode:prepublish
+
+      - name: Get version info
+        id: version_info
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          COMMIT_HASH=$(git rev-parse --short=6 HEAD)
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "commit_hash=${COMMIT_HASH}" >> "$GITHUB_OUTPUT"
+
+      - name: Package Extension
+        id: package
+        run: |
+          VSIX_NAME="zephyr-ide-${{ steps.version_info.outputs.version }}-${{ steps.version_info.outputs.commit_hash }}.vsix"
+          npx vsce package --out "$VSIX_NAME"
+          echo "vsix_name=${VSIX_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload VSIX Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vsix-package-option1
+          path: "*.vsix"
+          retention-days: 7
+
+  # Stage 2: Platform Integration Tests - Single Process Approach
+  # Each platform runs ONE test that performs all 3 steps sequentially
+  
+  test-ubuntu:
+    needs: build-vsix
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+
+      - name: Download VSIX
+        uses: actions/download-artifact@v4.1.3
+        with:
+          name: vsix-package-option1
+          path: ./vsix
+
+      - name: Install system dependencies for VS Code
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libgtk-3-0 libgbm1 libnss3 libasound2t64
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Compile TypeScript
+        run: npm run test-compile
+
+      - name: Bundle Extension (dist)
+        run: npm run esbuild
+
+      # Single test run that performs all 3 steps sequentially in same process
+      - name: "Run Combined Test (All Steps in Same Process)"
+        run: |
+          xvfb-run -a node scripts/run-integration-tests.js combined
+        env:
+          NODE_ENV: test
+          ZEPHYR_BASE: /tmp/zephyr
+          VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
+        timeout-minutes: 15
+
+  test-windows:
+    needs: build-vsix
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+
+      - name: Download VSIX
+        uses: actions/download-artifact@v4.1.3
+        with:
+          name: vsix-package-option1
+          path: ./vsix
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Compile TypeScript
+        run: npm run test-compile
+
+      - name: Bundle Extension (dist)
+        run: npm run esbuild
+
+      # Single test run that performs all 3 steps sequentially in same process
+      # This solves the Windows PATH propagation issue
+      - name: "Run Combined Test (All Steps in Same Process)"
+        shell: pwsh
+        run: |
+          node scripts/run-integration-tests.js combined
+        env:
+          NODE_ENV: test
+          ZEPHYR_BASE: C:\temp\zephyr
+          VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
+        timeout-minutes: 15
+
+  test-macos:
+    needs: build-vsix
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+
+      - name: Download VSIX
+        uses: actions/download-artifact@v4.1.3
+        with:
+          name: vsix-package-option1
+          path: ./vsix
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Compile TypeScript
+        run: npm run test-compile
+
+      - name: Bundle Extension (dist)
+        run: npm run esbuild
+
+      # Single test run that performs all 3 steps sequentially in same process
+      - name: "Run Combined Test (All Steps in Same Process)"
+        run: |
+          node scripts/run-integration-tests.js combined
+        env:
+          NODE_ENV: test
+          ZEPHYR_BASE: /tmp/zephyr
+          VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
+        timeout-minutes: 15

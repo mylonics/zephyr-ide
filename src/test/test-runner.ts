@@ -51,6 +51,61 @@ export function shouldSkipBuildTests(): boolean {
 }
 
 /**
+ * Export current PATH to a file (Option 2: File-Based PATH Sharing)
+ * Used after installing packages to save updated PATH for next test step
+ */
+export function exportPathToFile(): void {
+    if (process.env.EXPORT_PATH_TO_FILE !== 'true') {
+        return;
+    }
+
+    const pathFile = process.env.PATH_FILE;
+    if (!pathFile) {
+        console.log('⚠️  EXPORT_PATH_TO_FILE=true but PATH_FILE not specified');
+        return;
+    }
+
+    try {
+        const currentPath = process.env.PATH || '';
+        fs.writeFileSync(pathFile, currentPath, 'utf8');
+        console.log(`✅ Exported PATH to file: ${pathFile}`);
+        console.log(`   PATH length: ${currentPath.length} characters`);
+    } catch (error) {
+        console.log(`❌ Failed to export PATH to file: ${error}`);
+    }
+}
+
+/**
+ * Import PATH from a file (Option 2: File-Based PATH Sharing)
+ * Used before running tests to restore PATH from previous installation step
+ */
+export function importPathFromFile(): void {
+    if (process.env.IMPORT_PATH_FROM_FILE !== 'true') {
+        return;
+    }
+
+    const pathFile = process.env.PATH_FILE;
+    if (!pathFile) {
+        console.log('⚠️  IMPORT_PATH_FROM_FILE=true but PATH_FILE not specified');
+        return;
+    }
+
+    try {
+        if (!fs.existsSync(pathFile)) {
+            console.log(`⚠️  PATH file not found: ${pathFile}`);
+            return;
+        }
+
+        const savedPath = fs.readFileSync(pathFile, 'utf8');
+        process.env.PATH = savedPath;
+        console.log(`✅ Imported PATH from file: ${pathFile}`);
+        console.log(`   PATH length: ${savedPath.length} characters`);
+    } catch (error) {
+        console.log(`❌ Failed to import PATH from file: ${error}`);
+    }
+}
+
+/**
  * Check if host tools should be installed via the extension command
  */
 export function shouldInstallHostTools(): boolean {

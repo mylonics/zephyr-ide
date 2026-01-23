@@ -32,6 +32,7 @@ if (testType === '--help' || testType === '-h' || testType === 'help') {
     console.log('Available test types:');
     console.log('  install-package-manager - Install/check package manager only');
     console.log('  install-host-packages    - Install/check host packages (assumes package manager available)');
+    console.log('  combined                 - Combined test: install pkg mgr + packages + standard tests (single process)');
     console.log('  standard                 - Standard workspace workflow test');
     console.log('  west-git                 - West git workspace workflow test');
     console.log('  zephyr-ide-git           - Zephyr IDE git workspace workflow test');
@@ -69,6 +70,9 @@ try {
             break;
         case 'install-host-packages':
             grepPattern = '"Install Host Packages Test Suite"';
+            break;
+        case 'combined':
+            grepPattern = '"Combined Installation Test Suite"';
             break;
         case 'standard':
             grepPattern = '"Standard Workspace Test Suite"';

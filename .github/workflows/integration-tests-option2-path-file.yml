@@ -1,0 +1,278 @@
+# Multi-Platform Integration Tests - Option 2: File-Based PATH Sharing
+# 
+# This workflow implements Option 2 to solve Windows PATH propagation:
+# PATH updates from Step 2 are written to a file, then read and applied
+# in Step 3 before running tests.
+#
+# Benefits:
+# - Maintains separate test steps for clarity
+# - PATH state persists across process boundaries via file
+# - No need to run all steps in same process
+#
+# Architecture:
+# 1. Stage 1: Build VSIX on Ubuntu
+# 2. Stage 2: Three parallel platform jobs that:
+#    - Install VS Code
+#    - Install the VSIX extension
+#    - Step 1: Install package manager
+#    - Step 2: Install packages + export PATH to file
+#    - Step 3: Import PATH from file + run tests
+
+name: Multi-Platform Tests - Option 2 (PATH File)
+
+on:
+  pull_request:
+    branches: [main, pre-release, develop]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to run tests on'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  # Stage 1: Build VSIX on Ubuntu
+  build-vsix:
+    runs-on: ubuntu-latest
+    outputs:
+      vsix_name: ${{ steps.package.outputs.vsix_name }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Extension
+        run: npm run vscode:prepublish
+
+      - name: Get version info
+        id: version_info
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          COMMIT_HASH=$(git rev-parse --short=6 HEAD)
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "commit_hash=${COMMIT_HASH}" >> "$GITHUB_OUTPUT"
+
+      - name: Package Extension
+        id: package
+        run: |
+          VSIX_NAME="zephyr-ide-${{ steps.version_info.outputs.version }}-${{ steps.version_info.outputs.commit_hash }}.vsix"
+          npx vsce package --out "$VSIX_NAME"
+          echo "vsix_name=${VSIX_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload VSIX Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vsix-package-option2
+          path: "*.vsix"
+          retention-days: 7
+
+  # Stage 2: Platform Integration Tests - File-Based PATH Sharing
+  # Step 2 exports PATH to file, Step 3 imports it
+  
+  test-ubuntu:
+    needs: build-vsix
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+
+      - name: Download VSIX
+        uses: actions/download-artifact@v4.1.3
+        with:
+          name: vsix-package-option2
+          path: ./vsix
+
+      - name: Install system dependencies for VS Code
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libgtk-3-0 libgbm1 libnss3 libasound2t64
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Compile TypeScript
+        run: npm run test-compile
+
+      - name: Bundle Extension (dist)
+        run: npm run esbuild
+
+      - name: "Step 1: Install package manager"
+        run: |
+          xvfb-run -a node scripts/run-integration-tests.js install-package-manager
+        env:
+          NODE_ENV: test
+          ZEPHYR_BASE: /tmp/zephyr
+          VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
+        continue-on-error: true
+        timeout-minutes: 7
+
+      - name: "Step 2: Install host packages + Export PATH"
+        run: |
+          xvfb-run -a node scripts/run-integration-tests.js install-host-packages
+        env:
+          NODE_ENV: test
+          ZEPHYR_BASE: /tmp/zephyr
+          VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
+          EXPORT_PATH_TO_FILE: "true"
+          PATH_FILE: ${{ runner.temp }}/updated-path.txt
+        continue-on-error: true
+        timeout-minutes: 7
+
+      - name: "Step 3: Import PATH + Run tests"
+        run: |
+          xvfb-run -a node scripts/run-integration-tests.js standard
+        env:
+          NODE_ENV: test
+          ZEPHYR_BASE: /tmp/zephyr
+          VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
+          IMPORT_PATH_FROM_FILE: "true"
+          PATH_FILE: ${{ runner.temp }}/updated-path.txt
+        timeout-minutes: 7
+
+  test-windows:
+    needs: build-vsix
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+
+      - name: Download VSIX
+        uses: actions/download-artifact@v4.1.3
+        with:
+          name: vsix-package-option2
+          path: ./vsix
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Compile TypeScript
+        run: npm run test-compile
+
+      - name: Bundle Extension (dist)
+        run: npm run esbuild
+
+      - name: "Step 1: Install package manager"
+        shell: pwsh
+        run: |
+          node scripts/run-integration-tests.js install-package-manager
+        env:
+          NODE_ENV: test
+          ZEPHYR_BASE: C:\temp\zephyr
+          VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
+        continue-on-error: true
+        timeout-minutes: 7
+
+      - name: "Step 2: Install host packages + Export PATH"
+        shell: pwsh
+        run: |
+          node scripts/run-integration-tests.js install-host-packages
+        env:
+          NODE_ENV: test
+          ZEPHYR_BASE: C:\temp\zephyr
+          VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
+          EXPORT_PATH_TO_FILE: "true"
+          PATH_FILE: ${{ runner.temp }}\updated-path.txt
+        continue-on-error: true
+        timeout-minutes: 7
+
+      - name: "Step 3: Import PATH + Run tests"
+        shell: pwsh
+        run: |
+          node scripts/run-integration-tests.js standard
+        env:
+          NODE_ENV: test
+          ZEPHYR_BASE: C:\temp\zephyr
+          VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
+          IMPORT_PATH_FROM_FILE: "true"
+          PATH_FILE: ${{ runner.temp }}\updated-path.txt
+        timeout-minutes: 7
+
+  test-macos:
+    needs: build-vsix
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+
+      - name: Download VSIX
+        uses: actions/download-artifact@v4.1.3
+        with:
+          name: vsix-package-option2
+          path: ./vsix
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Compile TypeScript
+        run: npm run test-compile
+
+      - name: Bundle Extension (dist)
+        run: npm run esbuild
+
+      - name: "Step 1: Install package manager"
+        run: |
+          node scripts/run-integration-tests.js install-package-manager
+        env:
+          NODE_ENV: test
+          ZEPHYR_BASE: /tmp/zephyr
+          VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
+        continue-on-error: true
+        timeout-minutes: 7
+
+      - name: "Step 2: Install host packages + Export PATH"
+        run: |
+          node scripts/run-integration-tests.js install-host-packages
+        env:
+          NODE_ENV: test
+          ZEPHYR_BASE: /tmp/zephyr
+          VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
+          EXPORT_PATH_TO_FILE: "true"
+          PATH_FILE: ${{ runner.temp }}/updated-path.txt
+        continue-on-error: true
+        timeout-minutes: 7
+
+      - name: "Step 3: Import PATH + Run tests"
+        run: |
+          node scripts/run-integration-tests.js standard
+        env:
+          NODE_ENV: test
+          ZEPHYR_BASE: /tmp/zephyr
+          VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
+          IMPORT_PATH_FROM_FILE: "true"
+          PATH_FILE: ${{ runner.temp }}/updated-path.txt
+        timeout-minutes: 7

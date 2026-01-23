@@ -16,7 +16,7 @@ limitations under the License.
 */
 
 import * as vscode from 'vscode';
-import { logTestEnvironment } from './test-runner';
+import { logTestEnvironment, exportPathToFile } from './test-runner';
 
 suite('Install Host Packages Test Suite', () => {
     test('Install or verify host packages', async () => {
@@ -27,6 +27,9 @@ suite('Install Host Packages Test Suite', () => {
             const result = await vscode.commands.executeCommand('zephyr-ide.install-host-packages-headless');
             console.log(`Host packages installation result: ${result}`);
             
+            // Export PATH to file if Option 2 (file-based PATH sharing) is enabled
+            exportPathToFile();
+            
             if (result === true) {
                 console.log('✅ All host packages are available on PATH');
             } else {
@@ -36,6 +39,8 @@ suite('Install Host Packages Test Suite', () => {
                 throw new Error('Host packages installed - restart needed for PATH updates');
             }
         } catch (error) {
+            // Still export PATH even on error - tools might be installed
+            exportPathToFile();
             console.error(`❌ Host packages installation/check failed: ${error}`);
             throw error;
         }

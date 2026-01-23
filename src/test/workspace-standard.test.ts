@@ -33,7 +33,8 @@ import {
     executeTestWithErrorHandling,
     executeWorkspaceCommand,
     CommonUIInteractions,
-    shouldSkipBuildTests
+    shouldSkipBuildTests,
+    importPathFromFile
 } from "./test-runner";
 import { UIMockInterface, MockInteraction } from "./ui-mock-interface";
 
@@ -69,6 +70,10 @@ suite("Standard Workspace Test Suite", () => {
 
     suiteSetup(() => {
         logTestEnvironment();
+        
+        // Import PATH from file if Option 2 (file-based PATH sharing) is enabled
+        importPathFromFile();
+        
         console.log("🔬 Testing standard Zephyr IDE workflow");
     });
 
