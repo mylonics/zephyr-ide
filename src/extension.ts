@@ -134,10 +134,10 @@ async function resolveZephyrCommandsInObject(obj: Record<string, unknown>): Prom
   let hasZephyrCommands = false;
 
   // Helper to resolve variables in a string value
-  async function resolveStringValue(strVal: string): Promise<string> {
+  // Returns tuple of [resolvedString, hadCommands]
+  async function resolveStringValue(strVal: string): Promise<[string, boolean]> {
     const matches = strVal.match(/\$\{command:zephyr-ide\.[^}]+\}/g);
     if (matches) {
-      hasZephyrCommands = true;
       let newValue = strVal;
       for (const match of matches) {
         // Extract command name from ${command:commandName} format
@@ -147,15 +147,17 @@ async function resolveZephyrCommandsInObject(obj: Record<string, unknown>): Prom
         // Replace all occurrences of the command variable with its resolved value
         newValue = newValue.replaceAll(match, resultStr);
       }
-      return newValue;
+      return [newValue, true];
     }
-    return strVal;
+    return [strVal, false];
   }
 
   for (const key of Object.keys(obj)) {
     const value = obj[key];
     if (typeof value === "string") {
-      obj[key] = await resolveStringValue(value);
+      const [resolved, hadCommands] = await resolveStringValue(value);
+      obj[key] = resolved;
+      hasZephyrCommands = hasZephyrCommands || hadCommands;
     } else if (typeof value === "object" && value !== null && !Array.isArray(value)) {
       // Recursively resolve nested objects
       const resolved = await resolveZephyrCommandsInObject(value as Record<string, unknown>);
@@ -164,7 +166,9 @@ async function resolveZephyrCommandsInObject(obj: Record<string, unknown>): Prom
       // Recursively resolve arrays
       for (let i = 0; i < value.length; i++) {
         if (typeof value[i] === "string") {
-          value[i] = await resolveStringValue(value[i]);
+          const [resolved, hadCommands] = await resolveStringValue(value[i]);
+          value[i] = resolved;
+          hasZephyrCommands = hasZephyrCommands || hadCommands;
         } else if (typeof value[i] === "object" && value[i] !== null) {
           const resolved = await resolveZephyrCommandsInObject(value[i] as Record<string, unknown>);
           hasZephyrCommands = hasZephyrCommands || resolved;
