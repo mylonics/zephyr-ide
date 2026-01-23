@@ -16,7 +16,7 @@ limitations under the License.
 */
 
 import * as vscode from "vscode";
-import { output, executeTaskHelper, getPlatformArch, getPlatformName, getPlatformNameAsync, executeShellCommand } from "../utilities/utils";
+import { output, executeTaskHelper, getPlatformArch, getPlatformName, getPlatformNameAsync, executeShellCommand, logDual } from "../utilities/utils";
 import manifestData from "./host-tools-manifest.json";
 
 // Interfaces for the manifest structure
@@ -55,14 +55,7 @@ export interface PackageStatus {
   error?: string;
 }
 
-/**
- * Helper function to log messages to both output channel and console
- * Useful for messages that need to appear in both Extension Host output and test console
- */
-function logDual(message: string): void {
-  output.appendLine(message);
-  console.log(message);
-}
+
 
 /**
  * Refresh PATH environment variable on Windows to pick up newly installed tools

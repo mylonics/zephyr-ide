@@ -26,6 +26,28 @@ import { SetupState, WorkspaceConfig } from "../setup_utilities/types";
 import { pathdivider } from "../setup_utilities/tools-validation";
 import { getToolchainDir } from "../setup_utilities/workspace-config";
 
+// Output channel for logging
+let outputChannel: vscode.OutputChannel | undefined;
+
+/**
+ * Set the output channel for dual logging
+ * This should be called once during extension activation
+ */
+export function setOutputChannel(channel: vscode.OutputChannel): void {
+  outputChannel = channel;
+}
+
+/**
+ * Helper function to log messages to both output channel and console
+ * Useful for messages that need to appear in both Extension Host output and test console
+ */
+export function logDual(message: string): void {
+  if (outputChannel) {
+    outputChannel.appendLine(message);
+  }
+  console.log(message);
+}
+
 // Platform
 let platform: NodeJS.Platform = os.platform();
 
@@ -239,6 +261,9 @@ export async function getLaunchConfigurations(wsConfig: WorkspaceConfig) {
 
 
 export let output = vscode.window.createOutputChannel("Zephyr IDE");
+
+// Initialize output channel for dual logging
+setOutputChannel(output);
 
 export function closeTerminals(names: string[]) {
   const terminals = vscode.window.terminals;
