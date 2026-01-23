@@ -16,7 +16,7 @@ limitations under the License.
 */
 
 import * as vscode from "vscode";
-import { output, executeTaskHelper, getPlatformArch, getPlatformName, getPlatformNameAsync, executeShellCommand } from "../utilities/utils";
+import { output, executeTaskHelper, getPlatformArch, getPlatformName, getPlatformNameAsync, executeShellCommand, logDual } from "../utilities/utils";
 import manifestData from "./host-tools-manifest.json";
 
 // Interfaces for the manifest structure
@@ -53,6 +53,43 @@ export interface PackageStatus {
   installing?: boolean;
   pendingRestart?: boolean;
   error?: string;
+}
+
+
+
+/**
+ * Refresh PATH environment variable on Windows to pick up newly installed tools
+ * This updates the current process's PATH with the latest from the registry
+ */
+async function refreshWindowsPath(): Promise<void> {
+  if (process.platform !== 'win32') {
+    return;
+  }
+  
+  try {
+    logDual("[HOST TOOLS] Refreshing Windows PATH environment variable...");
+    
+    // Get Machine and User PATH from registry
+    const machinePathCmd = `powershell -Command "[System.Environment]::GetEnvironmentVariable('Path','Machine')"`;
+    const userPathCmd = `powershell -Command "[System.Environment]::GetEnvironmentVariable('Path','User')"`;
+    
+    const machinePathResult = await executeShellCommand(machinePathCmd, '', false);
+    const userPathResult = await executeShellCommand(userPathCmd, '', false);
+    
+    const machinePath = machinePathResult.stdout?.trim() || '';
+    const userPath = userPathResult.stdout?.trim() || '';
+    
+    // Combine Machine and User paths
+    const newPath = machinePath + (userPath ? ';' + userPath : '');
+    
+    if (newPath) {
+      // Update the current process PATH
+      process.env.PATH = newPath;
+      logDual("[HOST TOOLS] ✅ Windows PATH refreshed successfully");
+    }
+  } catch (error) {
+    logDual(`[HOST TOOLS] Warning: Failed to refresh Windows PATH: ${error}`);
+  }
 }
 
 let manifestCache: HostToolsManifest | null = null;
@@ -447,4 +484,186 @@ export async function installAllMissingPackages(): Promise<boolean> {
   }
   
   return allSuccess;
+}
+
+/**
+ * Install package manager only (for multi-step CI workflows)
+ * Returns true if package manager is available, false if it was installed and needs restart
+ */
+export async function installPackageManagerHeadless(): Promise<boolean> {
+  const manager = await getPackageManagerForPlatformAsync();
+  if (!manager) {
+    logDual("[HOST TOOLS] No package manager configuration found for this platform");
+    return false;
+  }
+
+  const pmAvailable = await checkPackageManagerAvailable();
+  if (pmAvailable) {
+    logDual(`✅ ${manager.name} found`);
+    return true;
+  }
+  
+  logDual(`⚠️  ${manager.name} not found`);
+  
+  const pmSuccess = await installPackageManager();
+  if (!pmSuccess) {
+    logDual(`❌ Failed to install ${manager.name}`);
+    return false;
+  }
+  
+  logDual(`✅ Installed ${manager.name}`);
+  
+  // On Windows, refresh PATH after installing package manager
+  if (process.platform === 'win32') {
+    await refreshWindowsPath();
+    
+    // Check if package manager is now available after PATH refresh
+    const pmNowAvailable = await checkPackageManagerAvailable();
+    if (pmNowAvailable) {
+      logDual(`✅ ${manager.name} is now available`);
+      return true;
+    }
+  }
+  
+  // Return false on non-Windows or if PATH refresh didn't make package manager available
+  return false; // macOS/Linux may need restart for PATH updates
+}
+
+/**
+ * Install host packages only (assumes package manager is available)
+ * Returns true if all packages are available, false if they were installed and need restart
+ */
+export async function installHostPackagesHeadless(): Promise<boolean> {
+  // First verify package manager is available
+  const pmAvailable = await checkPackageManagerAvailable();
+  if (!pmAvailable) {
+    logDual("[HOST TOOLS] Package manager not available - run install-package-manager-headless first");
+    return false;
+  }
+  
+  // Check all packages and log status
+  const statuses = await checkAllPackages();
+  const allAvailable = statuses.every(s => s.available);
+  
+  if (allAvailable) {
+    // All packages already available - log each one
+    for (const status of statuses) {
+      logDual(`✅ ${status.name} found`);
+    }
+    return true;
+  }
+  
+  // Install missing packages with cleaner logging
+  const missingPackages = statuses.filter(s => !s.available);
+  const packages = await getPlatformPackages();
+  
+  let packagesWereInstalled = false;
+  
+  for (const status of statuses) {
+    if (status.available) {
+      logDual(`✅ ${status.name} found`);
+    } else {
+      logDual(`⚠️  ${status.name} not found`);
+      
+      const pkg = packages.find(p => p.name === status.name);
+      if (pkg) {
+        const success = await installPackage(pkg);
+        if (success) {
+          logDual(`✅ Installed ${status.name}`);
+          packagesWereInstalled = true;
+        } else {
+          logDual(`❌ Failed to install ${status.name}`);
+        }
+      }
+    }
+  }
+  
+  // On Windows, refresh PATH after installing packages so they become available immediately
+  if (packagesWereInstalled && process.platform === 'win32') {
+    await refreshWindowsPath();
+  }
+  
+  // Verify all packages are now available on PATH
+  const finalStatuses = await checkAllPackages();
+  const finalAllAvailable = finalStatuses.every(s => s.available);
+  
+  if (finalAllAvailable) {
+    return true;
+  } else {
+    return false; // Return false to indicate restart needed for PATH updates
+  }
+}
+
+/**
+ * Install host tools (package manager + packages)
+ * Returns true only when ALL packages are available on PATH
+ * Returns false when package manager was installed or packages were installed but not yet available
+ */
+export async function installHostToolsHeadless(): Promise<boolean> {
+  output.appendLine("[HOST TOOLS] Starting headless host tools installation...");
+  
+  // First check if package manager is available
+  const pmAvailable = await checkPackageManagerAvailable();
+  if (!pmAvailable) {
+    output.appendLine("[HOST TOOLS] Package manager not available, attempting to install...");
+    const pmSuccess = await installPackageManager();
+    if (!pmSuccess) {
+      output.appendLine("[HOST TOOLS] Failed to install package manager");
+      return false;
+    }
+    output.appendLine("[HOST TOOLS] Package manager installed successfully - restart may be needed for PATH updates");
+    // Return false to indicate VS Code may need restart for package manager to be in PATH
+    return false;
+  }
+  
+  output.appendLine("[HOST TOOLS] Package manager is available");
+  
+  // Check if all packages are already available
+  const statuses = await checkAllPackages();
+  const allAvailable = statuses.every(s => s.available);
+  
+  if (allAvailable) {
+    output.appendLine("[HOST TOOLS] All packages are already available on PATH");
+    return true;
+  }
+  
+  // Install missing packages
+  const installSuccess = await installAllMissingPackages();
+  if (!installSuccess) {
+    output.appendLine("[HOST TOOLS] Some packages failed to install");
+    return false;
+  }
+  
+  // Verify all packages are now available on PATH
+  const finalStatuses = await checkAllPackages();
+  const finalAllAvailable = finalStatuses.every(s => s.available);
+  
+  if (finalAllAvailable) {
+    output.appendLine("[HOST TOOLS] All packages are now available on PATH");
+    return true;
+  } else {
+    const unavailable = finalStatuses.filter(s => !s.available).map(s => s.name);
+    output.appendLine(`[HOST TOOLS] Packages installed but not yet available on PATH${unavailable.length > 0 ? ': ' + unavailable.join(', ') : ''}`);
+    output.appendLine("[HOST TOOLS] A restart may be needed for PATH updates to take effect");
+    return false;
+  }
+}
+
+/**
+ * Check if all host tools are available (for Step 3 verification)
+ * Logs the status of each tool
+ */
+export async function checkHostToolsHeadless(): Promise<boolean> {
+  const statuses = await checkAllPackages();
+  
+  // Log each package status
+  for (const status of statuses) {
+    if (status.available) {
+      logDual(`✅ ${status.name} found`);
+    } else {
+      logDual(`❌ ${status.name} not found`);
+    }
+  }
+  
+  return statuses.every(s => s.available);
 }
