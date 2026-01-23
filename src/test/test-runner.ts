@@ -57,7 +57,6 @@ export function logTestEnvironment(): void {
     console.log('=== Test Environment ===');
     console.log('CI Environment:', process.env.CI === 'true');
     console.log('Skip Build Tests:', shouldSkipBuildTests());
-    console.log('Install Host Tools:', shouldInstallHostTools());
     console.log('Node Version:', process.version);
     console.log('Platform:', process.platform);
     console.log('Architecture:', process.arch);
