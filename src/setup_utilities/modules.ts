@@ -36,7 +36,10 @@ export interface ZephyrVersionNumber {
  * Execute west list command and return the output
  */
 async function executeWestList(setupState: SetupState): Promise<string[]> {
-  let cmd = `west list -f "{name:30} {abspath:28} {revision:40} {url}"`;
+  // Use pipe separator to avoid:
+  // 1. Windows cmd.exe nested double-quote stripping issues
+  // 2. Paths with spaces being split incorrectly by whitespace-based parsing
+  let cmd = `west list -f "{name}|{abspath}|{revision}|{url}"`;
   let res = await executeShellCommandInPythonEnv(cmd, setupState.setupPath, setupState, false);
 
   if (!res.stdout) {
@@ -68,7 +71,10 @@ export async function getModuleList(setupState: SetupState) {
   }
 
   for (const line of modules) {
-    let data = line.split(/\s+/);
+    if (!line.trim()) {
+      continue;
+    }
+    let data = line.split('|').map(s => s.trim());
     if (data[0] !== "manifest" && data[0] !== "") {
       outputList.push(data);
     }
@@ -84,7 +90,10 @@ export async function getManifestRepository(setupState: SetupState): Promise<str
   }
 
   for (const line of modules) {
-    let data = line.split(/\s+/);
+    if (!line.trim()) {
+      continue;
+    }
+    let data = line.split('|').map(s => s.trim());
     if (data[0] === "manifest") {
       return data;
     }

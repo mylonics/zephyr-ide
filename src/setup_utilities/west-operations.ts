@@ -195,7 +195,9 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
     if (zephyrModuleInfo) {
       setupState.zephyrDir = zephyrModuleInfo.path;
       setupState.zephyrVersion = await getModuleVersion(zephyrModuleInfo.path);
+      output.appendLine(`[SETUP] Zephyr directory set from west list: ${setupState.zephyrDir}`);
     } else {
+      output.appendLine(`[SETUP] Could not find zephyr module via west list, trying fallback...`);
       // Fallback: check for zephyr/VERSION file in setupPath
       const zephyrVersionFile = path.join(setupState.setupPath, "zephyr", "VERSION");
       if (fs.existsSync(zephyrVersionFile)) {
@@ -264,6 +266,10 @@ export async function installPythonRequirements(context: vscode.ExtensionContext
     return false;
   }
 
+  if (!setupState.zephyrDir) {
+    vscode.window.showErrorMessage('Zephyr IDE: Zephyr directory not found. Please run West Update again.');
+    return false;
+  }
 
   setupState.packagesInstalled = false;
   saveSetupState(context, wsConfig, globalConfig);
