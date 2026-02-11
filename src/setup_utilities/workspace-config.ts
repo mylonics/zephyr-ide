@@ -197,17 +197,17 @@ export function getToolsDir() {
 
 export function getToolchainDir() {
   const configuration = vscode.workspace.getConfiguration();
-  
+
   // First check if direct toolchain directory is configured
   let toolchainDir: string | undefined = configuration.get("zephyr-ide.toolchain_directory");
   if (toolchainDir && toolchainDir.trim()) {
     // Return configured path without creating it - user is responsible for ensuring it exists
     return toolchainDir;
   }
-  
+
   // Fall back to toolchains subdirectory in tools directory
   const defaultDir = path.join(getToolsDir(), "toolchains");
-  
+
   // Ensure the default directory exists
   try {
     if (!fs.pathExistsSync(defaultDir)) {
@@ -216,7 +216,7 @@ export function getToolchainDir() {
   } catch (e) {
     console.error(`Failed to create default toolchain directory "${defaultDir}":`, e);
   }
-  
+
   return defaultDir;
 }
 
@@ -252,7 +252,7 @@ function findLatestSdkVersion(): [string, string] | undefined {
   const latestSdkDir = sdkDirs[0];
   const version = latestSdkDir.replace('zephyr-sdk-', '');
   const fullPath = path.join(toolchainDir, latestSdkDir);
-  
+
   return [version, fullPath];
 }
 
