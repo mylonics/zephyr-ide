@@ -79,33 +79,19 @@ suite('Combined Installation Test Suite', function() {
             console.log(`⚠️  Step 3a: Host tools check: ${error}`);
         }
 
-        // Step 3b: Run standard workspace workflow
-        console.log('🚀 Step 3b: Running standard workspace workflow...');
+        // Step 3b: Verify workspace is available
+        console.log('🚀 Step 3b: Verifying workspace availability...');
         
-        // Set up test workspace
-        const projectUtils = require('../project_utilities/project').default;
-        const workspaceUtils = require('../setup_utilities/workspace-setup');
-        
-        console.log('🔧 Step 3b.1: Creating test workspace directory...');
-        const fs = require('fs');
-        const path = require('path');
-        const os = require('os');
-        
-        const testWorkspaceDir = process.env.ZEPHYR_BASE || path.join(os.tmpdir(), 'zephyr-test-workspace');
-        if (!fs.existsSync(testWorkspaceDir)) {
-            fs.mkdirSync(testWorkspaceDir, { recursive: true });
+        // The workspace folder should already be open from .vscode-test.mjs
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        if (!workspaceFolders || workspaceFolders.length === 0) {
+            throw new Error('❌ No workspace folder available. The test requires a workspace to be open.');
         }
         
-        console.log(`✅ Test workspace: ${testWorkspaceDir}`);
+        const testWorkspaceDir = workspaceFolders[0].uri.fsPath;
+        console.log(`✅ Using workspace: ${testWorkspaceDir}`);
         
-        // Open the workspace folder
-        const workspaceUri = vscode.Uri.file(testWorkspaceDir);
-        await vscode.commands.executeCommand('vscode.openFolder', workspaceUri, false);
-        
-        // Wait for workspace to be ready
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        
-        console.log('✅ Step 3b completed: Standard workspace workflow finished');
+        console.log('✅ Step 3b completed: Workspace verification finished');
         console.log('🎉 Combined installation test passed! All steps completed in single process.');
     });
 });
