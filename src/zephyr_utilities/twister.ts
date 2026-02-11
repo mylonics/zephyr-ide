@@ -72,7 +72,7 @@ export async function runTest(
   let cmd: string;
 
 
-  let testString = `-T ${projectFolder} `;
+  let testString = `-T "${projectFolder}" `;
   if (testConfig.tests[0] !== "All") {
     testString += "-s ";
     for (let test of testConfig.tests) {
@@ -80,7 +80,7 @@ export async function runTest(
     }
   }
 
-  testString += `--outdir ${path.join(projectFolder, "twister-out")}  ${testConfig.args ? testConfig.args : ""}`;
+  testString += `--outdir "${path.join(projectFolder, "twister-out")}"  ${testConfig.args ? testConfig.args : ""}`;
 
   if (testConfig.boardConfig) {
     let boardRoot;
@@ -94,7 +94,7 @@ export async function runTest(
       }
     }
 
-    cmd = `west twister --device-testing  ${testConfig.serialPort ? "--device-serial " + testConfig.serialPort : ""} ${testConfig.serialBaud ? "--device-serial-baud " + testConfig.serialBaud : ""} -p ${testConfig.boardConfig.board} ${testString} -- -DBOARD_ROOT='${boardRoot}' `;
+    cmd = `west twister --device-testing  ${testConfig.serialPort ? "--device-serial " + testConfig.serialPort : ""} ${testConfig.serialBaud ? "--device-serial-baud " + testConfig.serialBaud : ""} -p ${testConfig.boardConfig.board} ${testString} -- -DBOARD_ROOT="${boardRoot}" `;
   } else {
     cmd = `west twister -p ${testConfig.platform} ${testString} `;
   }

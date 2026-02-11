@@ -140,7 +140,7 @@ export async function build(
   let projectFolder = path.join(wsConfig.rootPath, project.rel_path);
   let buildFolder = path.join(wsConfig.rootPath, project.rel_path, build.name);
 
-  let cmd = `west build ${projectFolder} --build-dir ${buildFolder} `;
+  let cmd = `west build "${projectFolder}" --build-dir "${buildFolder}" `;
 
   let buildFsDir;
   if (fs.existsSync(buildFolder)) {
@@ -160,27 +160,27 @@ export async function build(
         boardRoot = setupState.zephyrDir;
       }
     }
-    cmd = `west build -b ${build.board + (build.revision ? '@' + build.revision : "")} ${projectFolder} -p --build-dir ${buildFolder} ${extraWestBuildArgs} -- -DBOARD_ROOT='${boardRoot}' ${extraWestBuildCMakeArgs} `;
+    cmd = `west build -b ${build.board + (build.revision ? '@' + build.revision : "")} "${projectFolder}" -p --build-dir "${buildFolder}" ${extraWestBuildArgs} -- -DBOARD_ROOT="${boardRoot}" ${extraWestBuildCMakeArgs} `;
 
     if (primaryConfFiles.length) {
       let confFileString = "";
       primaryConfFiles.map(x => (confFileString = confFileString + x + ";"));
-      cmd = cmd + ` -DCONF_FILE='${confFileString}' `;
+      cmd = cmd + ` -DCONF_FILE="${confFileString}" `;
     }
     if (secondaryConfFiles.length) {
       let confFileString = "";
       secondaryConfFiles.map(x => (confFileString = confFileString + x + ";"));
-      cmd = cmd + ` -DEXTRA_CONF_FILE='${confFileString}' `;
+      cmd = cmd + ` -DEXTRA_CONF_FILE="${confFileString}" `;
     }
     if (overlayFiles.length) {
       let overlayFileString = "";
       overlayFiles.map(x => (overlayFileString = overlayFileString + x + ";"));
-      cmd = cmd + ` -DDTC_OVERLAY_FILE='${overlayFileString}' `;
+      cmd = cmd + ` -DDTC_OVERLAY_FILE="${overlayFileString}" `;
     }
     if (extraOverlayFiles.length) {
       let overlayFileString = "";
       extraOverlayFiles.map(x => (overlayFileString = overlayFileString + x + ";"));
-      cmd = cmd + ` -DEXTRA_DTC_OVERLAY_FILE='${overlayFileString}' `;
+      cmd = cmd + ` -DEXTRA_DTC_OVERLAY_FILE="${overlayFileString}" `;
     }
   }
 
@@ -237,7 +237,7 @@ export async function buildMenuConfig(
     return;
   }
 
-  let cmd = `west build -t ${config === MenuConfig.MenuConfig ? "menuconfig" : "guiconfig"} ${projectFolder} --build-dir ${buildFolder} `;
+  let cmd = `west build -t ${config === MenuConfig.MenuConfig ? "menuconfig" : "guiconfig"} "${projectFolder}" --build-dir "${buildFolder}" `;
   let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
 
   vscode.window.showInformationMessage(`Running MenuConfig ${build.name} from project: ${project.name}`);
@@ -283,7 +283,7 @@ export async function buildRamRomReport(
     return;
   }
 
-  let cmd = `west build -t ${isRamReport ? "ram_report" : "rom_report"} ${projectFolder} --build-dir ${buildFolder} `;
+  let cmd = `west build -t ${isRamReport ? "ram_report" : "rom_report"} "${projectFolder}" --build-dir "${buildFolder}" `;
 
   let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
 
@@ -317,7 +317,7 @@ export async function runDtshShell(
     build = project.buildConfigs[buildName];
   }
 
-  let cmd = `dtsh ${path.join(wsConfig.rootPath, project.rel_path, build.name, 'zephyr', 'zephyr.dts')} `;
+  let cmd = `dtsh "${path.join(wsConfig.rootPath, project.rel_path, build.name, 'zephyr', 'zephyr.dts')}" `;
 
   let taskName = "Zephyr IDE DTSH Sehll: " + project.name + " " + build.name;
 

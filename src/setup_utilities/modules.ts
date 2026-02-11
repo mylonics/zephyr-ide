@@ -151,7 +151,7 @@ export function isVersionNumberGreater(version: ZephyrVersionNumber, major: numb
 }
 
 export async function getModuleYamlFile(moduleAbsPath: string): Promise<any> {
-  let filePath = path.join(moduleAbsPath, "zephyr/module.yml");
+  let filePath = path.join(moduleAbsPath, "zephyr", "module.yml");
   if (fs.existsSync(filePath)) {
     return yaml.load(fs.readFileSync(filePath, 'utf-8'));
   }

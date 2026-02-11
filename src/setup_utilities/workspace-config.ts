@@ -66,7 +66,7 @@ function projectLoader(config: WorkspaceConfig, projects: any) {
 }
 
 export async function getVariable(config: WorkspaceConfig, variable_name: string, project_name?: string, build_name?: string) {
-  const zephyrIdeSettingFilePath = path.join(config.rootPath, ".vscode/zephyr-ide.json");
+  const zephyrIdeSettingFilePath = path.join(config.rootPath, ".vscode", "zephyr-ide.json");
   try {
     var object = await JSON.parse(fs.readFileSync(zephyrIdeSettingFilePath, 'utf8'));
     if (project_name) {
@@ -85,7 +85,7 @@ export async function getVariable(config: WorkspaceConfig, variable_name: string
 }
 
 export async function loadProjectsFromFile(config: WorkspaceConfig) {
-  const zephyrIdeSettingFilePath = path.join(config.rootPath, ".vscode/zephyr-ide.json");
+  const zephyrIdeSettingFilePath = path.join(config.rootPath, ".vscode", "zephyr-ide.json");
   try {
     if (!fs.pathExistsSync(zephyrIdeSettingFilePath)) {
       await fs.outputFile(zephyrIdeSettingFilePath, JSON.stringify({}, null, 2), { flag: 'w+' }, function (err: any) {
@@ -152,7 +152,7 @@ export async function generateGitIgnore(context: vscode.ExtensionContext, wsConf
 }
 
 export async function generateExtensionsRecommendations(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
-  let desPath = path.join(wsConfig.rootPath, ".vscode/extensions.json");
+  let desPath = path.join(wsConfig.rootPath, ".vscode", "extensions.json");
   let exists = await fs.pathExists(desPath);
   if (!exists) {
     const extensionPath = context.extensionPath;

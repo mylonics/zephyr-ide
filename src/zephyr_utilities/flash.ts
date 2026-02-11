@@ -68,7 +68,7 @@ export async function flash(context: vscode.ExtensionContext, wsConfig: Workspac
   //const subArr = cmds.filter(str => str.includes("debug"));
 
   // Tasks
-  let cmd = `west flash --build-dir ${path.join(wsConfig.rootPath, project.rel_path, build.name)}`;
+  let cmd = `west flash --build-dir "${path.join(wsConfig.rootPath, project.rel_path, build.name)}"`;
 
   if (runner.runner !== "default") {
     cmd += ` -r ${runner.runner}`;
