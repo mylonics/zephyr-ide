@@ -51,6 +51,13 @@ export function shouldSkipBuildTests(): boolean {
 }
 
 /**
+ * Check if host tools should be installed via the extension command
+ */
+export function shouldInstallHostTools(): boolean {
+    return process.env.INSTALL_HOST_TOOLS === 'true';
+}
+
+/**
  * Log test environment information
  */
 export function logTestEnvironment(): void {
