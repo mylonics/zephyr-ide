@@ -82,10 +82,6 @@ suite('Combined Installation Test Suite', function() {
         // Step 3b: Run standard workspace workflow
         console.log('🚀 Step 3b: Running standard workspace workflow...');
         
-        // Set up test workspace
-        const projectUtils = require('../project_utilities/project').default;
-        const workspaceUtils = require('../setup_utilities/workspace-setup');
-        
         console.log('🔧 Step 3b.1: Creating test workspace directory...');
         const fs = require('fs');
         const path = require('path');
@@ -98,9 +94,12 @@ suite('Combined Installation Test Suite', function() {
         
         console.log(`✅ Test workspace: ${testWorkspaceDir}`);
         
-        // Open the workspace folder
+        // Use updateWorkspaceFolders instead of vscode.openFolder to avoid
+        // reloading the VS Code window (which kills the extension host and cancels the test)
         const workspaceUri = vscode.Uri.file(testWorkspaceDir);
-        await vscode.commands.executeCommand('vscode.openFolder', workspaceUri, false);
+        const currentFolders = vscode.workspace.workspaceFolders;
+        const numFoldersToRemove = currentFolders ? currentFolders.length : 0;
+        vscode.workspace.updateWorkspaceFolders(0, numFoldersToRemove, { uri: workspaceUri });
         
         // Wait for workspace to be ready
         await new Promise(resolve => setTimeout(resolve, 3000));
