@@ -75,7 +75,7 @@ export function logTestEnvironment(): void {
  * Monitor workspace setup progress for integration tests
  * @param setupType Type of setup being monitored (e.g., "workspace", "git workspace")
  */
-export async function monitorWorkspaceSetup(setupType: string = "workspace", timeoutMs: number = 600000): Promise<void> {
+export async function monitorWorkspaceSetup(commandPromise: Thenable<any>, setupType: string = "workspace", timeoutMs: number = 600000): Promise<void> {
     console.log(`⏳ Monitoring ${setupType} setup progress... (timeout: ${timeoutMs / 1000}s)`);
     let waitTime = 0;
     const checkInterval = 3000;
@@ -85,7 +85,41 @@ export async function monitorWorkspaceSetup(setupType: string = "workspace", tim
     let packagesInstalled = false;
     let sdkInstalled = false;
 
+    // Attach handlers to detect early completion or failure
+    // without blocking the polling loop.
+    let commandDone = false;
+    let commandError: Error | undefined;
+    let commandResult: any;
+    commandPromise.then(
+        (result) => { commandDone = true; commandResult = result; },
+        (err) => { commandDone = true; commandError = err; }
+    );
+
     while (!sdkInstalled) {
+        // If the command promise rejected, fail immediately with its error
+        if (commandError) {
+            throw new Error(
+                `${setupType} setup command failed: ${commandError.message || commandError}`
+            );
+        }
+
+        // If the command promise resolved with a falsy result, fail immediately
+        if (commandDone && !commandResult) {
+            const completedStages = [initialSetupComplete, pythonEnvironmentSetup, westUpdated, packagesInstalled, sdkInstalled].filter(Boolean).length;
+            const stageDetails = [
+                `initialSetup=${initialSetupComplete}`,
+                `pythonEnv=${pythonEnvironmentSetup}`,
+                `westUpdated=${westUpdated}`,
+                `packagesInstalled=${packagesInstalled}`,
+                `sdkInstalled=${sdkInstalled}`
+            ].join(', ');
+            throw new Error(
+                `${setupType} setup command returned false/undefined. ` +
+                `Completed ${completedStages}/5 stages (${stageDetails}). ` +
+                `The workspace setup failed on this platform.`
+            );
+        }
+
         if (waitTime >= timeoutMs) {
             const completedStages = [initialSetupComplete, pythonEnvironmentSetup, westUpdated, packagesInstalled, sdkInstalled].filter(Boolean).length;
             const stageDetails = [
@@ -239,7 +273,29 @@ export async function executeTestWithErrorHandling(
 }
 
 /**
- * Execute standard workspace setup command with UI mock interactions
+ * Start a workspace setup command without awaiting it.
+ * Returns the command promise so it can be passed to monitorWorkspaceSetup
+ * for concurrent progress monitoring and early failure detection.
+ * @param uiMock UI mock interface
+ * @param interactions Array of UI interactions to prime
+ * @param commandId VS Code command ID to execute
+ */
+export async function startWorkspaceCommand(
+    uiMock: any,
+    interactions: Array<{ type: string, value: string, description: string, multiSelect?: boolean }>,
+    commandId: string,
+): Promise<Thenable<any>> {
+    await vscode.commands.executeCommand("zephyr-ide.update-with-narrow");
+    uiMock.primeInteractions(interactions);
+
+    // Start the command but do NOT await it — return the thenable
+    return vscode.commands.executeCommand(commandId);
+}
+
+/**
+ * Execute standard workspace setup command with UI mock interactions.
+ * Awaits the command and asserts success. For long-running setup commands,
+ * prefer startWorkspaceCommand + monitorWorkspaceSetup instead.
  * @param uiMock UI mock interface
  * @param interactions Array of UI interactions to prime
  * @param commandId VS Code command ID to execute

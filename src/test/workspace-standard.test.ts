@@ -27,6 +27,7 @@ import * as os from "os";
 import {
     logTestEnvironment,
     monitorWorkspaceSetup,
+    startWorkspaceCommand,
     printWorkspaceStructure,
     activateExtension,
     executeFinalBuild,
@@ -127,14 +128,13 @@ suite("Standard Workspace Test Suite", () => {
                 }
 
                 console.log("🏗️ Step 2: Setting up workspace...");
-                await executeWorkspaceCommand(
+                const setupPromise = await startWorkspaceCommand(
                     uiMock,
                     CommonUIInteractions.standardWorkspace,
                     "zephyr-ide.workspace-setup-standard",
-                    "Workspace setup should succeed"
                 );
 
-                await monitorWorkspaceSetup();
+                await monitorWorkspaceSetup(setupPromise);
 
                 console.log("🐍 Step 2.5: Verifying Python venv path...");
                 const pythonPathResult = await vscode.commands.executeCommand("zephyr-ide.print-python-path");

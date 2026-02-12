@@ -23,6 +23,7 @@ import * as os from "os";
 import {
     logTestEnvironment,
     monitorWorkspaceSetup,
+    startWorkspaceCommand,
     printWorkspaceStructure,
     activateExtension,
     executeFinalBuild,
@@ -84,14 +85,13 @@ suite("Workspace Zephyr IDE Git Test Suite", () => {
                 gitUiMock.activate();
 
                 console.log("🏗️ Step 1: Setting up workspace from Zephyr IDE Git...");
-                await executeWorkspaceCommand(
+                const setupPromise = await startWorkspaceCommand(
                     gitUiMock,
                     [
                         { type: 'input', value: '--branch main -- https://github.com/mylonics/zephyr-ide-samples.git', description: 'Enter Zephyr IDE git repo URL' },
                         { type: 'quickpick', value: 'use-west-folder', description: 'Use .west folder (Recommended)' }
                     ],
                     "zephyr-ide.workspace-setup-from-git",
-                    "Zephyr IDE git workspace setup should succeed"
                 );
 
                 // Prime SDK installation interactions
@@ -101,7 +101,7 @@ suite("Workspace Zephyr IDE Git Test Suite", () => {
                     { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
                 ]);
 
-                await monitorWorkspaceSetup("Zephyr IDE git workspace");
+                await monitorWorkspaceSetup(setupPromise, "Zephyr IDE git workspace");
 
                 console.log("⚡ Step 2: Executing build...");
                 await executeFinalBuild("Zephyr IDE Git Workspace");

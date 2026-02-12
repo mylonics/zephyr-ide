@@ -29,6 +29,7 @@ import * as os from "os";
 import {
     logTestEnvironment,
     monitorWorkspaceSetup,
+    startWorkspaceCommand,
     printWorkspaceStructure,
     activateExtension,
     executeFinalBuild,
@@ -89,7 +90,7 @@ suite("West Git Workspace Test Suite", () => {
                 gitUiMock.activate();
 
                 console.log("🏗️ Step 1: Setting up workspace from West Git...");
-                await executeWorkspaceCommand(
+                const setupPromise = await startWorkspaceCommand(
                     gitUiMock,
                     [
                         { type: 'input', value: 'https://github.com/mylonics/zephyr-ide-samples', description: 'Enter git repo URL' },
@@ -99,10 +100,9 @@ suite("West Git Workspace Test Suite", () => {
                         { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
                     ],
                     "zephyr-ide.workspace-setup-from-west-git",
-                    "Git workspace setup should succeed"
                 );
 
-                await monitorWorkspaceSetup("git workspace");
+                await monitorWorkspaceSetup(setupPromise, "git workspace");
 
                 console.log("📁 Step 2: Adding project from example repo...");
                 await executeWorkspaceCommand(

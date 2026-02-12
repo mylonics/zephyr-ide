@@ -91,13 +91,12 @@ suite("Workspace Local West Test Suite", () => {
                     { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
                 ]);
 
-                let result = await vscode.commands.executeCommand(
+                const setupPromise = vscode.commands.executeCommand(
                     "zephyr-ide.workspace-setup-from-git"
                 );
-                assert.ok(result, "Git workspace setup should succeed");
 
                 console.log("🔍 Step 2: Choosing detected west.yml file...");
-                await monitorWorkspaceSetup("open current directory");
+                await monitorWorkspaceSetup(setupPromise, "open current directory");
 
                 console.log("⚡ Step 3: Executing build...");
                 await executeFinalBuild("Local West Workspace");
