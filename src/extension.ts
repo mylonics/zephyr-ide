@@ -65,7 +65,10 @@ import {
   getToolchainDir,
   setWorkspaceSettings,
   getSetupState,
+  getGdbPath,
   getArmGdbPath,
+  getZephyrElfPath,
+  getZephyrElfDir,
 } from "./setup_utilities/workspace-config";
 import { checkIfToolsAvailable } from "./setup_utilities/tools-validation";
 import {
@@ -969,9 +972,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.get-gdb-path", async () => {
-      // For now, just call the ARM GDB path function
-      // In the future, this will expand to support other architectures
-      return getArmGdbPath(wsConfig);
+      return getGdbPath(wsConfig);
     })
   );
 
@@ -979,6 +980,18 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.get-zephyr-dir", async () => {
       const setupState = await getSetupState(context, wsConfig);
       return setupState?.zephyrDir;
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.get-zephyr-elf", async () => {
+      return getZephyrElfPath(wsConfig);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.get-zephyr-elf-dir", async () => {
+      return getZephyrElfDir(wsConfig);
     })
   );
 
