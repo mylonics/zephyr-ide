@@ -352,8 +352,14 @@ export async function executeShellCommandInPythonEnv(cmd: string, cwd: string, s
   const env = { ...process.env };
 
   if (setupState.env["PATH"]) {
-    const existingPath = env["PATH"] || "";
-    env["PATH"] = setupState.env["PATH"] + existingPath;
+    // On Windows, process.env spreads as "Path" (title-case).  We must
+    // prepend the venv directory onto the *same* key that already exists,
+    // otherwise executeShellCommand's PATH consolidation will see two
+    // separate keys and may order the system PATH before the venv PATH,
+    // causing the system Python to shadow the venv Python.
+    const existingKey = Object.keys(env).find(k => k.toLowerCase() === "path") || "PATH";
+    const existingPath = env[existingKey] || "";
+    env[existingKey] = setupState.env["PATH"] + existingPath;
   }
 
   if (setupState.env["VIRTUAL_ENV"]) {
@@ -369,7 +375,6 @@ export async function executeShellCommand(cmd: string, cwd: string, display_erro
   const execOptions: cp.ExecOptions = {
     cwd: cwd,
     encoding: 'utf8',  // Ensure stdout and stderr are strings, not Buffers
-    maxBuffer: 10 * 1024 * 1024,  // 10 MB — SDK installs can produce large output
   };
 
   // Use provided environment or default to process.env
