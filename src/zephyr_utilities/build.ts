@@ -27,7 +27,7 @@ import { WorkspaceConfig } from '../setup_utilities/types';
 import { addBuild, ProjectConfig, getActiveBuildNameOfProject } from "../project_utilities/project";
 import { BuildConfig } from "../project_utilities/build_selector";
 import { updateDtsContext } from "../setup_utilities/dts_interface";
-import { getSetupState, updateBuildSdkPath, clearBuildSdkPath } from "../setup_utilities/workspace-config";
+import { getSetupState, updateBuildCMakeInfo, clearBuildCMakeInfo } from "../setup_utilities/workspace-config";
 
 
 export interface BuildInfo {
@@ -149,8 +149,8 @@ export async function build(
   }
 
   if (pristine || buildFsDir === undefined || buildFsDir.length === 0) {
-    // Clear cached SDK path on pristine build
-    clearBuildSdkPath(wsConfig, project.name, build.name);
+    // Clear cached CMake info on pristine build
+    clearBuildCMakeInfo(wsConfig, project.name, build.name);
 
     let boardRoot;
     if (build.relBoardDir) {
@@ -192,8 +192,8 @@ export async function build(
   const setupState = await getSetupState(context, wsConfig);
   let ret = await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState?.setupPath);
 
-  // Update cached SDK path after build completes
-  updateBuildSdkPath(wsConfig, project.name, build.name);
+  // Update cached CMake info after build completes
+  updateBuildCMakeInfo(wsConfig, project.name, build.name);
 
   regenerateCompileCommands(wsConfig);
   updateDtsContext(wsConfig, project, build);

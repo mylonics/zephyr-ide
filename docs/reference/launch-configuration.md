@@ -32,11 +32,23 @@ Prompts the user to select a build configuration and returns its path. Useful fo
 
 ### `zephyr-ide.get-gdb-path`
 
-Get the path to the GDB executable from the toolchain for the active build.
+Get the path to the GDB executable for the active build. The path is read from the `CMAKE_GDB` variable in the CMake cache after a build completes. This typically returns the Python-enabled GDB variant (e.g. `arm-zephyr-eabi-gdb-py`).
+
+### `zephyr-ide.get-arm-gdb-path`
+
+Get the path to the ARM GDB executable (without Python support) for the active build. This takes the `CMAKE_GDB` path and replaces the Python-enabled variant (e.g. `arm-zephyr-eabi-gdb-py`) with the plain variant (`arm-zephyr-eabi-gdb`).
 
 ### `zephyr-ide.get-toolchain-path`
 
 Get the path to the toolchain directory for the active build.
+
+### `zephyr-ide.get-zephyr-elf`
+
+Get the full path to the Zephyr kernel ELF file for the active build. The ELF filename is read from the `BYPRODUCT_KERNEL_ELF_NAME` variable in the CMake cache after a build completes. Falls back to `zephyr.elf` if the CMake cache has not been generated yet. This command replaces the previous pattern of `${command:zephyr-ide.get-active-build-path}/${command:zephyr-ide.get-active-project-name}/zephyr/zephyr.elf`.
+
+### `zephyr-ide.get-zephyr-elf-dir`
+
+Get the directory containing the Zephyr kernel ELF file for the active build. This is the `zephyr` subdirectory within the build output directory.
 
 ### `zephyr-ide.get-zephyr-ide-json-variable`
 
@@ -67,7 +79,7 @@ Here's an example of using these commands in a launch.json file:
       "type": "cortex-debug",
       "request": "launch",
       "cwd": "${workspaceFolder}",
-      "executable": "${command:zephyr-ide.get-active-build-path}/zephyr/zephyr.elf",
+      "executable": "${command:zephyr-ide.get-zephyr-elf}",
       "servertype": "openocd",
       "device": "${command:zephyr-ide.get-active-board-name}",
       "armToolchainPath": "${command:zephyr-ide.get-toolchain-path}/bin"

@@ -109,6 +109,10 @@ Zephyr IDE provides the following commands accessible via the command palette (C
 
 ## Utility Commands
 
+- `Zephyr IDE: Get GDB Path` - Get the GDB path (CMAKE_GDB) for the active build
+- `Zephyr IDE: Get ARM GDB Path` - Get the ARM GDB path (without Python support) for the active build
+- `Zephyr IDE: Get Zephyr ELF Path` - Get the full path to the kernel ELF file for the active build
+- `Zephyr IDE: Get Zephyr ELF Directory` - Get the directory containing the kernel ELF file for the active build
 - `Zephyr IDE: Show View Container` - Show Zephyr IDE view container
 - `Zephyr IDE: Reload Web Views` - Reload web view panels
 - `Zephyr IDE: Debug Internal Shell` - Debug internal shell
