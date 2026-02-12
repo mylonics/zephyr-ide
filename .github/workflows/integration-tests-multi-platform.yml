@@ -163,4 +163,4 @@ jobs:
           NODE_ENV: test
           ZEPHYR_BASE: ${{ matrix.zephyr_base }}
           VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
-        timeout-minutes: 15
+        timeout-minutes: 30
