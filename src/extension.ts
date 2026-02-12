@@ -16,7 +16,7 @@ limitations under the License.
 */
 
 import * as vscode from "vscode";
-import path from "path";
+import path from "upath";
 import * as fs from "fs";
 
 import { ActiveProjectView } from "./panels/active_project_view/ActiveProjectView";

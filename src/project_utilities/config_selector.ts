@@ -18,7 +18,7 @@ limitations under the License.
 import { QuickPickItem } from 'vscode';
 import * as vscode from "vscode";
 import { MultiStepInput } from "../utilities/multistepQuickPick";
-import path from 'path';
+import path from 'upath';
 
 import { WorkspaceConfig } from "../setup_utilities/types";
 

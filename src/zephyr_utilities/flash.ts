@@ -16,7 +16,7 @@ limitations under the License.
 */
 
 import * as vscode from "vscode";
-import path from "path";
+import path from "upath";
 
 import { executeTaskHelperInPythonEnv } from "../utilities/utils";
 import { notifyError, outputInfo } from "../utilities/output";

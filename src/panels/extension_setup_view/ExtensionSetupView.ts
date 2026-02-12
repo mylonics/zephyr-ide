@@ -16,7 +16,7 @@ limitations under the License.
 */
 
 import * as vscode from 'vscode';
-import path from 'path';
+import path from 'upath';
 import { WorkspaceConfig, GlobalConfig } from '../../setup_utilities/types';
 import { getNonce } from "../../utilities/getNonce";
 

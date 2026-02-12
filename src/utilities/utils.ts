@@ -17,7 +17,7 @@ limitations under the License.
 
 
 import * as vscode from "vscode";
-import * as path from "path";
+import * as path from "upath";
 import * as util from "util";
 import * as cp from "child_process";
 import * as fs from "fs";

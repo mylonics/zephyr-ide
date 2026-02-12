@@ -16,7 +16,7 @@ limitations under the License.
 */
 
 import * as vscode from 'vscode';
-import path from 'path';
+import path from 'upath';
 import { ProjectConfig, addBuildToProject, addConfigFiles, addRunnerToBuild, removeBuild, removeProject, removeRunner, setActive, modifyBuildArguments, removeConfigFile, setActiveProject, getActiveBuildConfigOfProject, getActiveRunnerConfigOfBuild, getActiveTestConfigOfProject } from '../../project_utilities/project';
 import { BuildConfig } from '../../project_utilities/build_selector';
 import { getNonce } from "../../utilities/getNonce";

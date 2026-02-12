@@ -17,7 +17,7 @@ limitations under the License.
 
 import * as vscode from "vscode";
 import * as fs from "fs-extra";
-import * as path from "path";
+import * as path from "upath";
 import { selectLaunchConfiguration } from "../utilities/utils";
 import { notifyError, notifyWarningWithActions } from "../utilities/output";
 import { buildSelector, BuildConfigDictionary, BuildStateDictionary } from "./build_selector";

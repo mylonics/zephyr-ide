@@ -16,7 +16,7 @@ limitations under the License.
 */
 
 import * as fs from "fs";
-import * as path from "path";
+import * as path from "upath";
 import { outputWarning } from "../utilities/output";
 
 export interface WestManifestConfig {

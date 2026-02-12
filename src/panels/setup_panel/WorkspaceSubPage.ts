@@ -16,7 +16,7 @@ limitations under the License.
 */
 
 import { WorkspaceConfig } from "../../setup_utilities/types";
-import * as path from "path";
+import * as path from "upath";
 import * as fs from "fs";
 import { parseWestConfigManifestPath } from "../../setup_utilities/west-config-parser";
 import { getVenvPath } from "../../setup_utilities/workspace-config";

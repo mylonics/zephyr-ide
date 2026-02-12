@@ -16,7 +16,7 @@ limitations under the License.
 */
 
 import * as vscode from "vscode";
-import * as path from "path";
+import * as path from "upath";
 import * as fs from "fs";
 import { WorkspaceConfig, GlobalConfig } from "../../setup_utilities/types";
 import {
