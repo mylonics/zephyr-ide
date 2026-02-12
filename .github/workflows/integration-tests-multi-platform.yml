@@ -4,9 +4,16 @@
 # It uses a single-process approach where all installation and test steps run
 # sequentially in the same VS Code instance, solving Windows PATH propagation issues.
 #
+# Trigger behavior:
+# - PRs to main/pre-release/develop: Ubuntu-only by default (fast CI)
+# - PRs with 'test-all-platforms' label: All platforms (Ubuntu, Windows, macOS)
+# - Push to main/pre-release (releases): All platforms
+# - Manual dispatch: All platforms
+#
 # Architecture:
-# 1. Stage 1: Build VSIX on Ubuntu
-# 2. Stage 2: Three parallel platform jobs that:
+# 1. Stage 1: Determine which platforms to test
+# 2. Stage 2: Build VSIX on Ubuntu
+# 3. Stage 3: Parallel platform jobs that:
 #    - Install VS Code
 #    - Install the VSIX extension
 #    - Run a single combined test that sequentially:
@@ -14,16 +21,12 @@
 #      b) Installs host packages (cmake, ninja, gperf, etc.)
 #      c) Runs workspace tests
 #    - All steps execute in the SAME process, so PATH refresh works immediately
-#
-# Benefits:
-# - PATH updates propagate within same process
-# - refreshWindowsPath() makes tools immediately visible on Windows
-# - No cross-process PATH issues
-# - Cleaner architecture with single test execution
 
 name: Multi-Platform Integration Tests
 
 on:
+  push:
+    branches: [main, pre-release]
   pull_request:
     branches: [main, pre-release, develop]
   workflow_dispatch:
@@ -38,8 +41,33 @@ permissions:
   contents: read
 
 jobs:
-  # Stage 1: Build VSIX on Ubuntu
+  # Stage 1: Determine which platforms to test
+  determine-platforms:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Determine platform matrix
+        id: set-matrix
+        run: |
+          # All platforms: push to main/pre-release, manual dispatch, or PR with label
+          ALL_PLATFORMS='{"include":[{"platform":"ubuntu","os":"ubuntu-latest","xvfb":"xvfb-run -a ","zephyr_base":"/tmp/zephyr","setup_cmd":"sudo apt-get update && sudo apt-get install -y xvfb libgtk-3-0 libgbm1 libnss3 libasound2t64"},{"platform":"windows","os":"windows-latest","xvfb":"","zephyr_base":"D:\\zephyr","setup_cmd":""},{"platform":"macos","os":"macos-15","xvfb":"","zephyr_base":"/tmp/zephyr","setup_cmd":""}]}'
+          UBUNTU_ONLY='{"include":[{"platform":"ubuntu","os":"ubuntu-latest","xvfb":"xvfb-run -a ","zephyr_base":"/tmp/zephyr","setup_cmd":"sudo apt-get update && sudo apt-get install -y xvfb libgtk-3-0 libgbm1 libnss3 libasound2t64"}]}'
+
+          if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Running all platforms (push to release branch or manual dispatch)"
+            echo "matrix=$ALL_PLATFORMS" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ contains(github.event.pull_request.labels.*.name, 'test-all-platforms') }}" = "true" ]; then
+            echo "Running all platforms (test-all-platforms label detected)"
+            echo "matrix=$ALL_PLATFORMS" >> "$GITHUB_OUTPUT"
+          else
+            echo "Running Ubuntu only (default PR test)"
+            echo "matrix=$UBUNTU_ONLY" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Stage 2: Build VSIX on Ubuntu
   build-vsix:
+    needs: determine-platforms
     runs-on: ubuntu-latest
     outputs:
       vsix_name: ${{ steps.package.outputs.vsix_name }}
@@ -83,31 +111,13 @@ jobs:
           path: "*.vsix"
           retention-days: 7
 
-  # Stage 2: Platform Integration Tests
-  # Use matrix strategy to reduce code duplication across platforms
+  # Stage 3: Platform Integration Tests
+  # Platform matrix is determined dynamically based on trigger type and labels
   test-platforms:
-    needs: build-vsix
+    needs: [determine-platforms, build-vsix]
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - platform: ubuntu
-            os: ubuntu-latest
-            xvfb: "xvfb-run -a "
-            zephyr_base: /tmp/zephyr
-            setup_cmd: |
-              sudo apt-get update
-              sudo apt-get install -y xvfb libgtk-3-0 libgbm1 libnss3 libasound2t64
-          - platform: windows
-            os: windows-latest
-            xvfb: ""
-            zephyr_base: 'D:\zephyr'
-            setup_cmd: ""
-          - platform: macos
-            os: macos-15
-            xvfb: ""
-            zephyr_base: /tmp/zephyr
-            setup_cmd: ""
+      matrix: ${{ fromJson(needs.determine-platforms.outputs.matrix) }}
 
     runs-on: ${{ matrix.os }}
     name: test-${{ matrix.platform }}

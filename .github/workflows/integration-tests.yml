@@ -1,10 +1,13 @@
 name: Integration Tests
 
 # This workflow runs full integration tests on Ubuntu.
-# It triggers on version bumps in develop branch or can be run manually.
-# For multi-platform tests that run on PRs, see integration-tests-multi-platform.yml
+# It is the default fast test that runs on every PR.
+# It also triggers on version bumps in develop branch or can be run manually.
+# For multi-platform tests, see integration-tests-multi-platform.yml
 
 on:
+  pull_request:
+    branches: [main, pre-release, develop]
   push:
     branches: [develop]
     paths:
@@ -18,8 +21,8 @@ on:
         default: ''
 
 jobs:
-  # Check if this is a version bump commit (skip for manual triggers)
-  check-version-bump:
+  # Check if this is a version bump commit (skip for push events without version bump)
+  check-should-run:
     runs-on: ubuntu-latest
     outputs:
       should_run: ${{ steps.check.outputs.should_run }}
@@ -32,13 +35,14 @@ jobs:
       - name: Check if should run
         id: check
         run: |
-          # Always run for manual triggers
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "Manual trigger - running tests"
+          # Always run for manual triggers and pull requests
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "Manual trigger or PR - running tests"
             echo "should_run=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
+          # For push events: only run if version was bumped
           # Get current version from package.json
           CURRENT_VERSION=$(node -p "require('./package.json').version")
 
@@ -61,8 +65,8 @@ jobs:
           fi
 
   test-with-zephyr:
-    needs: check-version-bump
-    if: needs.check-version-bump.outputs.should_run == 'true'
+    needs: check-should-run
+    if: needs.check-should-run.outputs.should_run == 'true'
     runs-on: ubuntu-latest
 
     steps:
