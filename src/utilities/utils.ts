@@ -368,7 +368,8 @@ export async function executeShellCommand(cmd: string, cwd: string, display_erro
   const effectiveEnv = env ?? process.env;
   const execOptions: cp.ExecOptions = {
     cwd: cwd,
-    encoding: 'utf8'  // Ensure stdout and stderr are strings, not Buffers
+    encoding: 'utf8',  // Ensure stdout and stderr are strings, not Buffers
+    maxBuffer: 10 * 1024 * 1024,  // 10 MB — SDK installs can produce large output
   };
 
   // Use provided environment or default to process.env

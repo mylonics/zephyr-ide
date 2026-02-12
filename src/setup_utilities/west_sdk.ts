@@ -21,7 +21,7 @@ import * as fs from "fs-extra";
 
 import { WorkspaceConfig, GlobalConfig, SetupState } from "./types";
 import { getToolsDir } from "./workspace-config";
-import { executeTaskHelperInPythonEnv, executeShellCommandInPythonEnv, output } from "../utilities/utils";
+import { executeShellCommandInPythonEnv } from "../utilities/utils";
 import { outputInfo, outputWarning, outputError, notifyError, outputCommandFailure } from "../utilities/output";
 import { sdkVersions, toolchainTargets } from "../defines";
 
@@ -421,14 +421,32 @@ export async function installSDK(
         }
 
         outputInfo("SDK Install", `Installing SDK using: ${command}`);
+        outputInfo("SDK Install", `  cwd: ${setupState.setupPath}`);
+        outputInfo("SDK Install", `  toolchains dir: ${toolchainsDir}`);
 
-        const result = await executeTaskHelperInPythonEnv(
-            setupState,
-            "Install Zephyr SDK",
+        const result = await executeShellCommandInPythonEnv(
             command,
-            setupState.setupPath
+            setupState.setupPath,
+            setupState
         );
-        return result;
+
+        if (result.stdout) {
+            outputInfo("SDK Install", `SDK install stdout:\n${result.stdout}`);
+        }
+        if (result.stderr) {
+            // west sdk install writes progress to stderr, so log it as info
+            // unless the command actually failed
+            outputInfo("SDK Install", `SDK install stderr:\n${result.stderr}`);
+        }
+
+        if (result.stdout !== undefined) {
+            outputInfo("SDK Install", "SDK install command completed successfully");
+            return true;
+        } else {
+            outputError("SDK Install", "SDK install command failed");
+            outputCommandFailure("SDK Install", result, true);
+            return false;
+        }
     } catch (error) {
         const errorMsg = `Error installing SDK: ${error}`;
         outputError("SDK Install", errorMsg);
