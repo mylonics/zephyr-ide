@@ -51,7 +51,8 @@ import { UIMockInterface } from './ui-mock-interface';
 
 suite('Combined Installation Test Suite', function() {
     // Extended timeout for all installation steps + workspace test
-    this.timeout(900000); // 15 minutes total
+    // Windows SDK installation can take 20+ minutes
+    this.timeout(1500000); // 25 minutes total
 
     let testWorkspaceDir: string;
 
@@ -147,7 +148,10 @@ suite('Combined Installation Test Suite', function() {
                     'Workspace setup should succeed'
                 );
 
-                await monitorWorkspaceSetup();
+                // Windows SDK installation can take significantly longer (>10 minutes)
+                // due to download + extraction. Use extended timeout on Windows.
+                const setupTimeout = process.platform === 'win32' ? 1200000 : 600000; // 20 min for Windows, 10 min for others
+                await monitorWorkspaceSetup("workspace", setupTimeout);
 
                 console.log('🐍 Step 5c: Verifying Python venv path...');
                 const pythonPathResult = await vscode.commands.executeCommand('zephyr-ide.print-python-path');
