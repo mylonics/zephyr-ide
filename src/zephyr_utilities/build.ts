@@ -161,27 +161,27 @@ export async function build(
         boardRoot = setupState.zephyrDir;
       }
     }
-    cmd = `west build -b ${build.board + (build.revision ? '@' + build.revision : "")} "${projectFolder}" -p --build-dir "${buildFolder}" ${extraWestBuildArgs} -- -DBOARD_ROOT="${boardRoot}" ${extraWestBuildCMakeArgs} `;
+    cmd = `west build -b ${build.board + (build.revision ? '@' + build.revision : "")} "${projectFolder}" -p --build-dir "${buildFolder}" ${extraWestBuildArgs} -- -DBOARD_ROOT='${boardRoot}' ${extraWestBuildCMakeArgs} `;
 
     if (primaryConfFiles.length) {
       let confFileString = "";
       primaryConfFiles.map(x => (confFileString = confFileString + x + ";"));
-      cmd = cmd + ` -DCONF_FILE="${confFileString}" `;
+      cmd = cmd + ` -DCONF_FILE='${confFileString}' `;
     }
     if (secondaryConfFiles.length) {
       let confFileString = "";
       secondaryConfFiles.map(x => (confFileString = confFileString + x + ";"));
-      cmd = cmd + ` -DEXTRA_CONF_FILE="${confFileString}" `;
+      cmd = cmd + ` -DEXTRA_CONF_FILE='${confFileString}' `;
     }
     if (overlayFiles.length) {
       let overlayFileString = "";
       overlayFiles.map(x => (overlayFileString = overlayFileString + x + ";"));
-      cmd = cmd + ` -DDTC_OVERLAY_FILE="${overlayFileString}" `;
+      cmd = cmd + ` -DDTC_OVERLAY_FILE='${overlayFileString}' `;
     }
     if (extraOverlayFiles.length) {
       let overlayFileString = "";
       extraOverlayFiles.map(x => (overlayFileString = overlayFileString + x + ";"));
-      cmd = cmd + ` -DEXTRA_DTC_OVERLAY_FILE="${overlayFileString}" `;
+      cmd = cmd + ` -DEXTRA_DTC_OVERLAY_FILE='${overlayFileString}' `;
     }
   }
 

@@ -374,7 +374,9 @@ export async function executeShellCommandInPythonEnv(cmd: string, cwd: string, s
   if (setupState.env["VIRTUAL_ENV"]) {
     env["VIRTUAL_ENV"] = setupState.env["VIRTUAL_ENV"];
   }
-  
+
+  // On Windows, use PowerShell instead of cmd.exe for Python venv commands.
+  // cmd.exe has quoting and environment issues that break tools like west.
   return executeShellCommand(cmd, cwd, display_error, env);
 };
 
@@ -395,6 +397,8 @@ export async function executeShellCommand(cmd: string, cwd: string, display_erro
   // subtle quoting and environment-propagation issues that break Python-based
   // CLI tools like west (e.g. "manifest file not found: None"). PowerShell
   // matches the behaviour of VS Code's integrated terminal and task execution.
+  // Note: commands that conflict with PowerShell aliases (e.g. wget) should
+  // use the explicit .exe extension (e.g. wget.exe) to bypass aliases.
   if (os.platform() === "win32") {
     execOptions.shell = "powershell.exe";
   }
