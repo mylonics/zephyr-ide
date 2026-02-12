@@ -657,6 +657,7 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
           console.log(message);
       }
     });
+    // Initialize webview: setHtml() sets up the HTML structure, updateWebView() populates it with current data
     this.setHtml("");
     this.updateWebView(this.wsConfig);
   }
