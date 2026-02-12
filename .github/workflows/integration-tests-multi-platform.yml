@@ -128,11 +128,6 @@ jobs:
           echo 'TMP=D:\Temp' >> $env:GITHUB_ENV
         shell: pwsh
 
-      - name: Add 7-Zip to PATH
-        if: runner.os == 'Windows'
-        run: echo "C:\Program Files\7-Zip" >> $env:GITHUB_PATH
-        shell: pwsh
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:

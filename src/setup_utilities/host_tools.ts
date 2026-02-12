@@ -81,12 +81,29 @@ async function refreshWindowsPath(): Promise<void> {
     const userPath = userPathResult.stdout?.trim() || '';
     
     // Combine Machine and User paths
-    const newPath = machinePath + (userPath ? ';' + userPath : '');
+    const registryPath = machinePath + (userPath ? ';' + userPath : '');
     
-    if (newPath) {
-      // Update the current process PATH
-      process.env.PATH = newPath;
+    if (registryPath) {
+      // Merge registry paths with existing process PATH to preserve any
+      // paths added at the process level (e.g. GITHUB_PATH in CI, or
+      // paths added by the VS Code extension host).
+      const registryEntries = registryPath.split(';').filter(Boolean);
+      const currentEntries = (process.env.PATH || '').split(';').filter(Boolean);
+      
+      // Build a set of registry entries (lowercased) for deduplication
+      const registrySet = new Set(registryEntries.map(e => e.toLowerCase()));
+      
+      // Keep any current PATH entries that are NOT in the registry
+      // (these were added at the process level and should be preserved)
+      const extraEntries = currentEntries.filter(e => !registrySet.has(e.toLowerCase()));
+      
+      // Final PATH: registry paths first, then any extra process-level paths
+      const mergedPath = [...registryEntries, ...extraEntries].join(';');
+      process.env.PATH = mergedPath;
       logDual("[HOST TOOLS] ✅ Windows PATH refreshed successfully");
+      if (extraEntries.length > 0) {
+        logDual(`[HOST TOOLS]    Preserved ${extraEntries.length} process-level PATH entries`);
+      }
     }
   } catch (error) {
     logDual(`[HOST TOOLS] Warning: Failed to refresh Windows PATH: ${error}`);
