@@ -430,18 +430,19 @@ export async function executeShellCommand(cmd: string, cwd: string, display_erro
   let res = await exec(cmd, execOptions).then(
 
     value => {
-      return { stdout: value.stdout as string, stderr: value.stderr as string, cmd, cwd, env: effectiveEnv };
+      return { stdout: value.stdout as string, stderr: value.stderr as string, cmd, cwd, env: effectiveEnv, exitCode: 0 };
     },
     reason => {
+      const exitCode: number | undefined = reason.code ?? undefined;
       if (display_error) {
         outputError("Shell Command", `Command failed: ${cmd}`, {
           command: cmd,
-          detail: `Exit code: ${reason.code ?? 'unknown'} | cwd: ${cwd || '(not set)'}`,
+          detail: `Exit code: ${exitCode ?? 'unknown'} | cwd: ${cwd || '(not set)'}`,
           stdout: reason.stdout as string | undefined,
           stderr: reason.stderr as string | undefined,
         });
       }
-      return { stdout: undefined, stderr: reason.stderr as string | undefined, cmd, cwd, env: effectiveEnv };
+      return { stdout: undefined, stderr: reason.stderr as string | undefined, cmd, cwd, env: effectiveEnv, exitCode };
     }
   );
   return res;

@@ -356,6 +356,8 @@ export interface ShellCommandResult {
   cwd: string;
   /** The environment variables the command ran with (may be large). */
   env: NodeJS.ProcessEnv;
+  /** The exit code of the command (undefined on success or when not available). */
+  exitCode?: number;
 }
 
 /**
@@ -376,6 +378,7 @@ export function outputCommandFailure(
   outputChannel?.appendLine(formatLine(task, `✖ Command failed`));
   outputChannel?.appendLine(`  Command : ${result.cmd}`);
   outputChannel?.appendLine(`  Cwd     : ${result.cwd || '(not set)'}`);
+  outputChannel?.appendLine(`  Exit code: ${result.exitCode ?? 'unknown'}`);
 
   // Print the env vars that are most likely relevant to Zephyr/west/Python.
   // Dumping the full env would be hundreds of lines, so we filter.
@@ -402,12 +405,23 @@ export function outputCommandFailure(
     for (const line of result.stdout.split(/\r?\n/)) {
       outputChannel?.appendLine(`  ${line}`);
     }
+  } else {
+    outputChannel?.appendLine(`  ── stdout: (empty) ──`);
   }
   if (result.stderr) {
     outputChannel?.appendLine(`  ── stderr (${result.stderr.length} chars) ──`);
     for (const line of result.stderr.split(/\r?\n/)) {
       outputChannel?.appendLine(`  ${line}`);
     }
+  } else {
+    outputChannel?.appendLine(`  ── stderr: (empty) ──`);
+  }
+
+  if (!result.stdout && !result.stderr) {
+    outputChannel?.appendLine(`  ⚠ The command produced no output at all. Possible causes:`);
+    outputChannel?.appendLine(`    - The command timed out or was killed by the OS`);
+    outputChannel?.appendLine(`    - A required tool (west, python, cmake) is not installed or not on PATH`);
+    outputChannel?.appendLine(`    - The working directory does not contain a valid west workspace`);
   }
 
   if (notify) {
