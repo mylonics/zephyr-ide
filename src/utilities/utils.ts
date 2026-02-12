@@ -192,6 +192,18 @@ export function isMacOS() {
   return platform === "darwin";
 }
 
+/**
+ * Convert a file path to use forward slashes.
+ * This is necessary when embedding paths in CMake arguments on Windows,
+ * where backslashes are interpreted as escape characters.
+ */
+export function toPosixPath(p: string | undefined): string {
+  if (p === undefined) {
+    return '';
+  }
+  return p.replace(/\\/g, '/');
+}
+
 export function getPythonVenvBinaryFolder(setupState: SetupState) {
   if (setupState.env["VIRTUAL_ENV"]) {
     switch (platform) {
