@@ -326,14 +326,14 @@ async function detectSDKVersionFromWorkspace(setupState: SetupState): Promise<st
 /**
  * Prompts user to select SDK version
  */
-async function selectSDKVersion(setupState: SetupState): Promise<string | null | undefined> {
+async function selectSDKVersion(setupState: SetupState): Promise<string | undefined> {
     const selectedVersion = await vscode.window.showQuickPick(sdkVersions, {
         placeHolder: "Select SDK version to install",
         ignoreFocusOut: true,
     });
 
     if (!selectedVersion) {
-        return null; // user cancelled
+        return undefined;
     }
 
     if (selectedVersion.label === "automatic") {
@@ -342,7 +342,7 @@ async function selectSDKVersion(setupState: SetupState): Promise<string | null |
             notifyError("SDK Install",
                 "Could not auto-detect SDK version from workspace. Please select a specific version."
             );
-            return null; // auto-detect failed
+            return undefined;
         }
         vscode.window.showInformationMessage(
             `Auto-detected SDK version: ${detectedVersion}`
@@ -441,7 +441,6 @@ export async function installSDK(
  */
 export async function installSDKInteractive(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, context?: vscode.ExtensionContext) {
     try {
-        outputInfo("SDK Install", "Starting interactive SDK installation...");
         const setupState = await getWestSDKContext(wsConfig, globalConfig, context);
 
         if (!setupState) {
@@ -450,19 +449,15 @@ export async function installSDKInteractive(wsConfig: WorkspaceConfig, globalCon
             );
             return;
         }
-        outputInfo("SDK Install", `Found west SDK context (setupPath: ${setupState.setupPath})`);
 
         // Step 1: Select SDK version
         const sdkVersion = await selectSDKVersion(setupState);
-        outputInfo("SDK Install", `SDK version selection result: ${sdkVersion === null ? 'cancelled' : sdkVersion === undefined ? 'latest' : sdkVersion}`);
-        if (sdkVersion === null) { // user cancelled or auto-detect failed
-            outputInfo("SDK Install", "SDK version selection was cancelled or failed, aborting SDK install");
+        if (sdkVersion === null) { // user cancelled
             return;
         }
 
         // Step 2: Select toolchains
         const toolchains = await selectToolchains();
-        outputInfo("SDK Install", `Toolchain selection result: ${toolchains ? toolchains.join(', ') : 'cancelled'}`);
         if (!toolchains) { // user cancelled
             return;
         }
@@ -479,9 +474,7 @@ export async function installSDKInteractive(wsConfig: WorkspaceConfig, globalCon
                     message: "Installing SDK using west sdk command...",
                 });
 
-                outputInfo("SDK Install", `Starting SDK install task (version: ${sdkVersion}, toolchains: ${toolchains.join(', ')})...`);
                 const result = await installSDK(setupState, sdkVersion, toolchains);
-                outputInfo("SDK Install", `SDK install task completed with result: ${result}`);
                 if (result) {
                     globalConfig.sdkInstalled = true;
                     vscode.window.showInformationMessage(
@@ -496,7 +489,6 @@ export async function installSDKInteractive(wsConfig: WorkspaceConfig, globalCon
             }
         );
     } catch (error) {
-        outputError("SDK Install", `SDK installation threw an error: ${error}`);
         notifyError("SDK Install", `Failed to install SDK: ${error}`);
     }
 }

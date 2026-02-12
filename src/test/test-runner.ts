@@ -123,6 +123,26 @@ export async function monitorWorkspaceSetup(setupType: string = "workspace", tim
             if (!pythonEnvironmentSetup && wsConfig.activeSetupState?.pythonEnvironmentSetup) {
                 console.log("    ✅ Python environment setup completed");
                 pythonEnvironmentSetup = true;
+
+                // Inject venv environment into process.env so that VS Code task
+                // shells inherit the correct PATH.  On Windows CI the
+                // environmentVariableCollection may not propagate to task shells
+                // in time, causing west/pip/cmake to not be found.
+                const setupEnv = wsConfig.activeSetupState?.env;
+                if (setupEnv?.["PATH"]) {
+                    const venvPath = setupEnv["PATH"];
+                    const currentPath = process.env.PATH || process.env.Path || '';
+                    if (!currentPath.includes(venvPath.replace(/[;\/:]$/,''))) {
+                        process.env.PATH = venvPath + currentPath;
+                        console.log(`    🔧 Injected venv PATH into process.env: ${venvPath}`);
+                    }
+                }
+                if (setupEnv?.["VIRTUAL_ENV"]) {
+                    process.env.VIRTUAL_ENV = setupEnv["VIRTUAL_ENV"];
+                }
+                if (wsConfig.activeSetupState?.zephyrDir) {
+                    process.env.ZEPHYR_BASE = wsConfig.activeSetupState.zephyrDir;
+                }
             }
 
             if (!packagesInstalled && wsConfig.activeSetupState?.packagesInstalled) {
