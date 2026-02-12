@@ -20,6 +20,7 @@ import * as vscode from "vscode";
 import * as path from "path";
 import * as util from "util";
 import * as cp from "child_process";
+import * as fs from "fs";
 import * as os from "os";
 
 import { SetupState, WorkspaceConfig } from "../setup_utilities/types";
@@ -350,27 +351,7 @@ export async function executeShellCommandInPythonEnv(cmd: string, cwd: string, s
   // Build environment with venv PATH prepended
   const env = { ...process.env };
 
-  // On Windows, process.env is case-insensitive but spreading it into a plain
-  // object can produce both "PATH" and "Path" keys.  PowerShell reads "Path",
-  // so if we only prepend to "PATH" the venv directory is never found.
-  // Consolidate into a single "Path" key (the casing PowerShell expects).
-  if (os.platform() === "win32") {
-    // Gather every PATH-like value regardless of casing
-    const pathValues: string[] = [];
-    for (const key of Object.keys(env)) {
-      if (key.toLowerCase() === "path") {
-        if (env[key]) {
-          pathValues.push(env[key] as string);
-        }
-        delete env[key];
-      }
-    }
-    // Re-create a single "Path" entry with the venv directory prepended
-    const combinedPath = pathValues.join(";");
-    env["Path"] = setupState.env["PATH"]
-      ? setupState.env["PATH"] + combinedPath
-      : combinedPath;
-  } else if (setupState.env["PATH"]) {
+  if (setupState.env["PATH"]) {
     const existingPath = env["PATH"] || "";
     env["PATH"] = setupState.env["PATH"] + existingPath;
   }
@@ -379,8 +360,6 @@ export async function executeShellCommandInPythonEnv(cmd: string, cwd: string, s
     env["VIRTUAL_ENV"] = setupState.env["VIRTUAL_ENV"];
   }
 
-  // On Windows, use PowerShell instead of cmd.exe for Python venv commands.
-  // cmd.exe has quoting and environment issues that break tools like west.
   return executeShellCommand(cmd, cwd, display_error, env);
 };
 
@@ -405,6 +384,41 @@ export async function executeShellCommand(cmd: string, cwd: string, display_erro
   // use the explicit .exe extension (e.g. wget.exe) to bypass aliases.
   if (os.platform() === "win32") {
     execOptions.shell = "powershell.exe";
+
+    // process.env is case-insensitive on Windows, but spreading it into a
+    // plain object can produce both "PATH" and "Path" keys.  PowerShell
+    // reads "Path", so consolidate all PATH-like keys into a single "Path"
+    // entry.  This also handles 7-Zip injection in the same pass.
+    if (!execOptions.env) {
+      execOptions.env = { ...effectiveEnv };
+    }
+    const envObj = execOptions.env as Record<string, string | undefined>;
+
+    // Gather and remove all PATH-like keys, merging their values
+    const pathValues: string[] = [];
+    for (const key of Object.keys(envObj)) {
+      if (key.toLowerCase() === "path") {
+        if (envObj[key]) {
+          pathValues.push(envObj[key] as string);
+        }
+        delete envObj[key];
+      }
+    }
+    const consolidatedPath = pathValues.join(";");
+
+    // Ensure 7-Zip is on PATH so that west/sdk operations that shell out to
+    // 7z.exe work immediately.  The directory may be missing from PATH when
+    // refreshWindowsPath() rebuilds it from the registry before the
+    // post-install step has persisted the entry, or in CI environments.
+    const sevenZipDir = "C:\\Program Files\\7-Zip";
+    const hasSevenZip = consolidatedPath.split(";").some(
+      entry => entry.toLowerCase() === sevenZipDir.toLowerCase()
+    );
+    if (!hasSevenZip && fs.existsSync(sevenZipDir)) {
+      envObj["Path"] = `${sevenZipDir};${consolidatedPath}`;
+    } else {
+      envObj["Path"] = consolidatedPath;
+    }
   }
 
   let res = await exec(cmd, execOptions).then(
