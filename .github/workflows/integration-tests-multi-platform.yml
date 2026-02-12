@@ -5,7 +5,8 @@
 # sequentially in the same VS Code instance, solving Windows PATH propagation issues.
 #
 # Trigger behavior:
-# - PRs to main/pre-release/develop: Ubuntu-only by default (fast CI)
+# - PRs to develop: Ubuntu-only by default (fast CI)
+# - PRs to main/pre-release: All platforms (Ubuntu, Windows, macOS)
 # - PRs with 'test-all-platforms' label: All platforms (Ubuntu, Windows, macOS)
 # - Push to main/pre-release (releases): All platforms
 # - Manual dispatch: All platforms
@@ -59,6 +60,9 @@ jobs:
             echo "matrix=$ALL_PLATFORMS" >> "$GITHUB_OUTPUT"
           elif [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ contains(github.event.pull_request.labels.*.name, 'test-all-platforms') }}" = "true" ]; then
             echo "Running all platforms (test-all-platforms label detected)"
+            echo "matrix=$ALL_PLATFORMS" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "pull_request" ] && ([ "${{ github.event.pull_request.base.ref }}" = "main" ] || [ "${{ github.event.pull_request.base.ref }}" = "pre-release" ]); then
+            echo "Running all platforms (PR targets main or pre-release)"
             echo "matrix=$ALL_PLATFORMS" >> "$GITHUB_OUTPUT"
           else
             echo "Running Ubuntu only (default PR test)"

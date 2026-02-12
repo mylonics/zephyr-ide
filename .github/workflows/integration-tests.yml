@@ -1,9 +1,9 @@
 name: Integration Tests
 
-# This workflow runs full integration tests on Ubuntu.
-# It is the default fast test that runs on every PR.
-# It also triggers on version bumps in develop branch or can be run manually.
-# For multi-platform tests, see integration-tests-multi-platform.yml
+# This workflow runs full integration tests (all workspace types) on Ubuntu.
+# It runs on PRs into main/pre-release, PRs with 'test-all-workspaces' label,
+# version bumps on develop, or manual dispatch.
+# For the default fast test, see integration-tests-multi-platform.yml
 
 on:
   pull_request:
@@ -24,7 +24,7 @@ permissions:
   contents: read
 
 jobs:
-  # Check if this is a version bump commit (skip for push events without version bump)
+  # Determine if this workflow should run
   check-should-run:
     runs-on: ubuntu-latest
     outputs:
@@ -38,18 +38,36 @@ jobs:
       - name: Check if should run
         id: check
         run: |
-          # Always run for manual triggers and pull requests
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "Manual trigger or PR - running tests"
+          # Always run for manual triggers
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Manual trigger - running tests"
             echo "should_run=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
+          # For PRs: run if targeting main/pre-release or has test-all-workspaces label
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_REF="${{ github.event.pull_request.base.ref }}"
+            HAS_LABEL="${{ contains(github.event.pull_request.labels.*.name, 'test-all-workspaces') }}"
+
+            if [ "$BASE_REF" = "main" ] || [ "$BASE_REF" = "pre-release" ]; then
+              echo "PR targets $BASE_REF - running tests"
+              echo "should_run=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            elif [ "$HAS_LABEL" = "true" ]; then
+              echo "test-all-workspaces label detected - running tests"
+              echo "should_run=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            else
+              echo "PR targets $BASE_REF without test-all-workspaces label - skipping"
+              echo "should_run=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
           # For push events: only run if version was bumped
-          # Get current version from package.json
           CURRENT_VERSION=$(node -p "require('./package.json').version")
 
-          # Try to get previous version using git show (avoids modifying working directory)
           if git rev-parse HEAD~1 >/dev/null 2>&1; then
             PREVIOUS_VERSION=$(git show HEAD~1:package.json 2>/dev/null | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin', 'utf8')).version" 2>/dev/null || echo "0.0.0")
           else
