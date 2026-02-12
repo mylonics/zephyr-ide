@@ -107,7 +107,7 @@ export async function monitorWorkspaceSetup(setupType: string = "workspace", tim
             
             // On Windows CI, allow test to proceed if packages are installed (skip SDK)
             if (isWindowsCI && packagesInstalled) {
-                console.log('⚠️  SDK installation timed out on Windows CI, but packages are installed. Proceeding with test.');
+                console.log('⚠️  Windows CI detected with packages installed. Skipping SDK installation wait and proceeding with test.');
                 console.log(`📊 Completed ${completedStages}/5 stages (${stageDetails})`);
                 break;
             }
