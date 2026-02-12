@@ -299,10 +299,9 @@ export function closeTerminals(names: string[]) {
 }
 
 async function executeTask(task: vscode.Task) {
-  const execution = await vscode.tasks.executeTask(task);
-  outputLine("Starting Task: " + task.name);
-
-  return new Promise<number | undefined>(resolve => {
+  // Register the listener BEFORE executing the task to avoid a race condition
+  // where the task completes before the listener is set up.
+  const taskDone = new Promise<number | undefined>(resolve => {
     let disposable = vscode.tasks.onDidEndTaskProcess(e => {
       if (e.execution.task.name === task.name) {
         disposable.dispose();
@@ -310,6 +309,11 @@ async function executeTask(task: vscode.Task) {
       }
     });
   });
+
+  const execution = await vscode.tasks.executeTask(task);
+  outputLine("Starting Task: " + task.name);
+
+  return taskDone;
 }
 
 export async function executeTaskHelperInPythonEnv(setupState: SetupState | undefined, taskName: string, cmd: string, cwd: string | undefined) {

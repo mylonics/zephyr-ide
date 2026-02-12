@@ -75,8 +75,8 @@ export function logTestEnvironment(): void {
  * Monitor workspace setup progress for integration tests
  * @param setupType Type of setup being monitored (e.g., "workspace", "git workspace")
  */
-export async function monitorWorkspaceSetup(setupType: string = "workspace"): Promise<void> {
-    console.log(`⏳ Monitoring ${setupType} setup progress...`);
+export async function monitorWorkspaceSetup(setupType: string = "workspace", timeoutMs: number = 600000): Promise<void> {
+    console.log(`⏳ Monitoring ${setupType} setup progress... (timeout: ${timeoutMs / 1000}s)`);
     let waitTime = 0;
     const checkInterval = 3000;
     let initialSetupComplete = false;
@@ -86,6 +86,22 @@ export async function monitorWorkspaceSetup(setupType: string = "workspace"): Pr
     let sdkInstalled = false;
 
     while (!sdkInstalled) {
+        if (waitTime >= timeoutMs) {
+            const completedStages = [initialSetupComplete, pythonEnvironmentSetup, westUpdated, packagesInstalled, sdkInstalled].filter(Boolean).length;
+            const stageDetails = [
+                `initialSetup=${initialSetupComplete}`,
+                `pythonEnv=${pythonEnvironmentSetup}`,
+                `westUpdated=${westUpdated}`,
+                `packagesInstalled=${packagesInstalled}`,
+                `sdkInstalled=${sdkInstalled}`
+            ].join(', ');
+            throw new Error(
+                `${setupType} setup timed out after ${timeoutMs / 1000}s. ` +
+                `Completed ${completedStages}/5 stages (${stageDetails}). ` +
+                `The SDK installation may have failed or hung on this platform.`
+            );
+        }
+
         const extension = vscode.extensions.getExtension("mylonics.zephyr-ide");
         let wsConfig = null;
 
