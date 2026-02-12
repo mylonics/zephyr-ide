@@ -424,14 +424,26 @@ export async function installSDK(
         outputInfo("SDK Install", `  cwd: ${setupState.setupPath}`);
         outputInfo("SDK Install", `  toolchains dir: ${toolchainsDir}`);
 
-        const result = await executeTaskHelperInPythonEnv(
-            setupState,
-            "Zephyr IDE: SDK Install",
-            command,
-            setupState.setupPath
-        );
+        // In CI or on Windows, use shell command execution since VS Code tasks
+        // may not be available or reliable in those environments
+        let success: boolean;
+        if (process.env.CI || process.platform === 'win32') {
+            const result = await executeShellCommandInPythonEnv(
+                command,
+                setupState.setupPath,
+                setupState
+            );
+            success = result.stdout !== undefined;
+        } else {
+            success = await executeTaskHelperInPythonEnv(
+                setupState,
+                "Zephyr IDE: SDK Install",
+                command,
+                setupState.setupPath
+            );
+        }
 
-        if (result) {
+        if (success) {
             outputInfo("SDK Install", "SDK install command completed successfully");
             return true;
         } else {
