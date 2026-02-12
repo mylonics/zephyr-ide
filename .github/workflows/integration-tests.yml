@@ -20,6 +20,9 @@ on:
         type: string
         default: ''
 
+permissions:
+  contents: read
+
 jobs:
   # Check if this is a version bump commit (skip for push events without version bump)
   check-should-run:
