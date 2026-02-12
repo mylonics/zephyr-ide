@@ -218,7 +218,9 @@ export async function activateExtension(
 }
 
 /**
- * Execute final build command with workspace state validation
+ * Execute final build command with workspace state validation.
+ * Monitors the build command's exit code to determine success.
+ * The build command returns `true` when the underlying process exits with code 0.
  * @param testName Name of the test for logging
  * @param retryDelayMs Delay before retry if setup not complete (default: 10000)
  */
@@ -238,7 +240,12 @@ export async function executeFinalBuild(
     }
 
     const result = await vscode.commands.executeCommand("zephyr-ide.build");
-    assert.ok(result, "Build execution should succeed");
+    console.log(`   Build command returned: ${result} (exit code ${result ? '0 - success' : 'non-zero - failure'})`);
+    assert.strictEqual(result, true, `Build command must return true (exit code 0). Got: ${result}`);
+    console.log(`   ✅ Build succeeded for ${testName}`);
+
+    // Dump extension output window after build
+    await dumpExtensionOutput(`${testName} - Build Output`);
 }
 
 /**
