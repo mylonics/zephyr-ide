@@ -317,19 +317,64 @@ async function executeTask(task: vscode.Task) {
 }
 
 export async function executeTaskHelperInPythonEnv(setupState: SetupState | undefined, taskName: string, cmd: string, cwd: string | undefined) {
-  if (setupState && isMacOS()) {
-    let newCmd = path.join(getPythonVenvBinaryFolder(setupState), cmd);
-    return await executeTaskHelper(taskName, newCmd, cwd);
-  } else {
+  if (!setupState) {
     return await executeTaskHelper(taskName, cmd, cwd);
   }
+
+  // Build environment variables that ensure the Python venv is active in the task shell.
+  // This is critical on all platforms but especially Windows CI where the
+  // environmentVariableCollection may not propagate to task shells in time.
+  const env: { [key: string]: string } = {};
+
+  if (setupState.env["VIRTUAL_ENV"]) {
+    env["VIRTUAL_ENV"] = setupState.env["VIRTUAL_ENV"];
+  }
+
+  if (setupState.zephyrDir) {
+    env["ZEPHYR_BASE"] = setupState.zephyrDir;
+  }
+
+  // On macOS, also prefix the command with the venv binary path for reliable resolution
+  let effectiveCmd = cmd;
+  if (isMacOS()) {
+    effectiveCmd = path.join(getPythonVenvBinaryFolder(setupState), cmd);
+  }
+
+  return await executeTaskHelper(taskName, effectiveCmd, cwd, setupState.env["PATH"], env);
 }
 
-export async function executeTaskHelper(taskName: string, cmd: string, cwd: string | undefined) {
+export async function executeTaskHelper(taskName: string, cmd: string, cwd: string | undefined, prependPath?: string, extraEnv?: { [key: string]: string }) {
   outputCommand(taskName, cmd);
   let options: vscode.ShellExecutionOptions = {
     cwd: cwd,
   };
+
+  // If we have environment variables to set, add them to the shell options.
+  // For PATH, we prepend the venv directory so that python/west/pip from the
+  // venv are found first.  ShellExecutionOptions.env is merged with the parent
+  // process' environment, so we must build the full PATH value here.
+  if (prependPath || extraEnv) {
+    const env: { [key: string]: string } = {};
+    if (extraEnv) {
+      Object.assign(env, extraEnv);
+    }
+    if (prependPath) {
+      if (os.platform() === "win32") {
+        // On Windows, process.env keys are case-insensitive but the spread
+        // can produce both "PATH" and "Path".  Consolidate them.
+        const pathValues: string[] = [];
+        for (const key of Object.keys(process.env)) {
+          if (key.toLowerCase() === "path" && process.env[key]) {
+            pathValues.push(process.env[key] as string);
+          }
+        }
+        env["Path"] = prependPath + pathValues.join(";");
+      } else {
+        env["PATH"] = prependPath + (process.env["PATH"] || "");
+      }
+    }
+    options.env = env;
+  }
 
   let exec = new vscode.ShellExecution(cmd, options);
 
