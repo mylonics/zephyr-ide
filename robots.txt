@@ -1,0 +1,9 @@
+# robots.txt for Zephyr IDE Documentation
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://zephyr-ide.mylonics.com/sitemap.xml
+
+# Crawl delay (optional, be respectful to server)
+Crawl-delay: 1

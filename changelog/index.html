@@ -1,0 +1,4126 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Professional VS Code extension for Zephyr RTOS development. Streamline setup, building, flashing, and debugging of Zephyr projects with automated SDK installation, west integration, and comprehensive project management tools.">
+      
+      
+        <meta name="author" content="Mylonics">
+      
+      
+        <link rel="canonical" href="https://zephyr-ide.mylonics.com/changelog/">
+      
+      
+        <link rel="prev" href="../reference/known-issues/">
+      
+      
+        <link rel="next" href="../developer-guide/">
+      
+      
+      <link rel="icon" href="../media/icon.png">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.5.17">
+    
+    
+  
+    
+      <title>Changelog - zephyr-ide</title>
+    
+  
+
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.bcfcd587.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+  
+
+
+  
+  
+
+<script id="__analytics">function __md_analytics(){function n(){dataLayer.push(arguments)}window.dataLayer=window.dataLayer||[],n("js",new Date),n("config",""),document.addEventListener("DOMContentLoaded",function(){document.forms.search&&document.forms.search.query.addEventListener("blur",function(){this.value&&n("event","search",{search_term:this.value})}),document$.subscribe(function(){var a=document.forms.feedback;if(void 0!==a)for(var e of a.querySelectorAll("[type=submit]"))e.addEventListener("click",function(e){e.preventDefault();var t=document.location.pathname,e=this.getAttribute("data-md-value");n("event","feedback",{page:t,data:e}),a.firstElementChild.disabled=!0;e=a.querySelector(".md-feedback__note [data-md-value='"+e+"']");e&&(e.hidden=!1)}),a.hidden=!1}),location$.subscribe(function(e){n("config","",{page_path:e.pathname})})});var e=document.createElement("script");e.async=!0,e.src="https://www.googletagmanager.com/gtag/js?id=",document.getElementById("__analytics").insertAdjacentElement("afterEnd",e)}</script>
+  
+    <script>"undefined"!=typeof __md_analytics&&__md_analytics()</script>
+  
+
+    
+    
+    
+  
+  
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=K2D:wght@600&display=swap" rel="stylesheet">
+  
+  
+    
+    
+    
+    
+    
+    
+    
+    <meta property="og:title" content="Changelog - zephyr-ide">
+    
+      <meta property="og:description" content="Professional VS Code extension for Zephyr RTOS development. Streamline setup, building, flashing, and debugging of Zephyr projects with automated SDK installation, west integration, and comprehensive project management tools.">
+    
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://zephyr-ide.mylonics.com/changelog/">
+    <meta property="og:site_name" content="zephyr-ide">
+    <meta property="og:image" content="https://raw.githubusercontent.com/mylonics/zephyr-ide/main/media/logo.png">
+    
+    
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@mylonics">
+    <meta name="twitter:title" content="Changelog - zephyr-ide">
+    
+      <meta name="twitter:description" content="Professional VS Code extension for Zephyr RTOS development. Streamline setup, building, flashing, and debugging of Zephyr projects with automated SDK installation, west integration, and comprehensive project management tools.">
+    
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/mylonics/zephyr-ide/main/media/logo.png">
+    
+    
+    <link rel="canonical" href="https://zephyr-ide.mylonics.com/changelog/">
+  
+  
+  
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "zephyr ide",
+    "applicationCategory": "DeveloperApplication",
+    "description": "Professional VS Code extension for Zephyr RTOS development. Streamline setup, building, flashing, and debugging of Zephyr projects with automated SDK installation, west integration, and comprehensive project management tools.",
+    "operatingSystem": "Windows, macOS, Linux",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "author": {
+      "@type": "Organization",
+      "name": "Mylonics",
+      "url": "https://mylonics.com"
+    },
+    "softwareVersion": "2.2.0",
+    "url": "https://zephyr-ide.mylonics.com/",
+    "downloadUrl": "https://marketplace.visualstudio.com/items?itemName=mylonics.zephyr-ide",
+    "screenshot": "https://raw.githubusercontent.com/mylonics/zephyr-ide/main/media/logo.png"
+  }
+  </script>
+
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#changelog" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      <!--
+  Copyright (c) 2016-2025 Martin Donath <martin.donath@squidfunk.com>
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to
+  deal in the Software without restriction, including without limitation the
+  rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+  sell copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in
+  all copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+  IN THE SOFTWARE.
+-->
+
+<!-- Determine classes -->
+
+
+
+<!-- Header -->
+<header class="md-header" data-md-component="header">
+  <nav
+    class="md-header__inner md-grid"
+    aria-label="Header"
+  >
+
+    <!-- Link to home -->
+    <a
+      href=".."
+      title="zephyr-ide"
+      class="md-header__button md-logo"
+      aria-label="zephyr-ide"
+      data-md-component="logo"
+    >
+      
+  <img src="../media/logo.png" alt="logo">
+
+    </a>
+
+    <!-- Button to open drawer -->
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+
+    <!-- Header title -->
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            zephyr-ide
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+            Changelog
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Color palette toggle -->
+    
+      
+    
+
+    <!-- User preference: color palette -->
+    
+
+    <!-- Site language selector -->
+    
+
+    <!-- Button to open search modal -->
+    
+      
+
+      <!-- Check if search is actually enabled -->
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        </label>
+
+        <!-- Search interface -->
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+
+    <!-- Repository information -->
+    
+      <div class="md-header__source">
+        <a href="https://github.com/mylonics/zephyr-ide" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mylonics/zephyr-ide
+  </div>
+</a>
+      </div>
+    
+  </nav>
+
+  <!-- Navigation tabs (sticky) -->
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../getting-started/installation/" class="md-tabs__link">
+          
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../user-guide/project-setup/" class="md-tabs__link">
+          
+  
+  User Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../reference/commands/" class="md-tabs__link">
+          
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
+        
+  
+    
+  
+  Changelog
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../developer-guide/" class="md-tabs__link">
+        
+  
+    
+  
+  Developer Guide
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="zephyr-ide" class="md-nav__button md-logo" aria-label="zephyr-ide" data-md-component="logo">
+      
+  <img src="../media/logo.png" alt="logo">
+
+    </a>
+    zephyr-ide
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/mylonics/zephyr-ide" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mylonics/zephyr-ide
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Getting Started
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Getting Started
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/installation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Installation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/setup-panel/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Setup Panel
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/host-tools/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Host Tools
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/workspace-configuration/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Workspace Configuration
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/sdk-installation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    SDK Installation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/external-environments/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    External Environments
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    User Guide
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            User Guide
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/project-setup/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Project Setup
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/building-debugging/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Building & Debugging
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/testing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Testing with Twister
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/sharing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Sharing Code
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/other-features/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Advanced Features
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Reference
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/commands/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Commands
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/configuration/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Configuration
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/launch-configuration/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Launch Helpers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/extension-pack/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Extension Pack
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/known-issues/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Known Issues
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Changelog
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Changelog
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#changelog" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changelog
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Changelog">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#v230" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.3.0
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v225-prerelease" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.2.5-prerelease
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v224-prerelease" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.2.4-prerelease
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v223-prerelease" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.2.3-prerelease
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v222-prerelease" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.2.2-prerelease
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v221-prerelease" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.2.1-prerelease
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v220" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.2.0
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v210" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.1.0
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v2010-prerelease" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.0.10-prerelease
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v209-prerelease" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.0.9-prerelease
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v208-prerelease" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.0.8-prerelease
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v207-prerelease" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.0.7-prerelease
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v206" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.0.6
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v205" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.0.5
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v204" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.0.4
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v202" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.0.2
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v201-prerelease" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.0.1-prerelease
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v200" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.0.0
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="v2.0.0">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#v11019" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.19
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v11019-prerelease-19" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.19-prerelease-19
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v11019-prerelease-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.19-prerelease-18
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v11018-prerelease-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.18-prerelease-15
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v11018-prerelease-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.18-prerelease-14
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v11015" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.15
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v11014" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.14
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v11013" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.13
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v11012" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.12
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v11011" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.11
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v11010" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.10
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1109" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.9
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1108" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.8
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1107" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.7
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1106" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.6
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1105" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.5
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1104" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.4
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1103" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.3
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1102" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.2
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1101" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.1
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1100" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.0
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v190" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.9.0
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v188" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.8.8
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v187" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.8.7
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v186" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.8.6
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v185" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.8.5
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v184" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.8.4
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v183" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.8.3
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v182" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.8.2
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v181" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.8.1
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v180" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.8.0
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v177" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.7.7
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v176" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.7.6
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v175" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.7.5
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v174" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.7.4
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v173" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.7.3
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v172" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.7.2
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v171" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.7.1
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v170" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.7.0
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v169" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.6.9
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v168" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.6.8
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v167" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.6.7
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v166" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.6.6
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v165" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.6.5
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v163" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.6.3
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v162" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.6.2
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v161" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.6.1
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v160" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.6.0
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v155" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.5.5
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v154" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.5.4
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v153" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.5.3
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v152" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.5.2
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v151" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.5.1
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v150" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.5.0
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v142" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.4.2
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v141" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.4.1
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v140" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.4.0
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v135" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.3.5
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v134" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.3.4
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v133" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.3.3
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v132" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.3.2
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v131" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.3.1
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v130" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.3.0
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v122" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.2.2
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v121" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.2.1
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v120" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.2.0
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v115" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.1.5
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v114" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.1.4
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v113" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.1.3
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v112" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.1.2
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v111" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.1.1
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v110" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.1.0
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1044" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.0.44
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1043" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.0.43
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1042" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.0.42
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1041" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.0.41
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1040" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.0.40
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1039" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.0.39
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1038" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.0.38
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1037" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.0.37
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1036" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.0.36
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1035" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.0.35
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1034" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.0.34
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1033" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.0.33
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1032" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.0.32
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1031" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.0.31
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1030" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.0.30
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1029" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.0.29
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../developer-guide/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Developer Guide
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#changelog" class="md-nav__link">
+    <span class="md-ellipsis">
+      Changelog
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Changelog">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#v230" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.3.0
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v225-prerelease" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.2.5-prerelease
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v224-prerelease" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.2.4-prerelease
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v223-prerelease" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.2.3-prerelease
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v222-prerelease" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.2.2-prerelease
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v221-prerelease" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.2.1-prerelease
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v220" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.2.0
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v210" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.1.0
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v2010-prerelease" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.0.10-prerelease
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v209-prerelease" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.0.9-prerelease
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v208-prerelease" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.0.8-prerelease
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v207-prerelease" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.0.7-prerelease
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v206" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.0.6
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v205" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.0.5
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v204" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.0.4
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v202" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.0.2
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v201-prerelease" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.0.1-prerelease
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v200" class="md-nav__link">
+    <span class="md-ellipsis">
+      v2.0.0
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="v2.0.0">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#v11019" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.19
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v11019-prerelease-19" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.19-prerelease-19
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v11019-prerelease-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.19-prerelease-18
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v11018-prerelease-15" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.18-prerelease-15
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v11018-prerelease-14" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.18-prerelease-14
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v11015" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.15
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v11014" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.14
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v11013" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.13
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v11012" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.12
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v11011" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.11
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v11010" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.10
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1109" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.9
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1108" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.8
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1107" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.7
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1106" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.6
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1105" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.5
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1104" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.4
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1103" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.3
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1102" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.2
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1101" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.1
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1100" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.10.0
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v190" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.9.0
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v188" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.8.8
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v187" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.8.7
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v186" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.8.6
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v185" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.8.5
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v184" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.8.4
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v183" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.8.3
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v182" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.8.2
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v181" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.8.1
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v180" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.8.0
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v177" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.7.7
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v176" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.7.6
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v175" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.7.5
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v174" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.7.4
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v173" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.7.3
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v172" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.7.2
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v171" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.7.1
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v170" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.7.0
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v169" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.6.9
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v168" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.6.8
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v167" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.6.7
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v166" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.6.6
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v165" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.6.5
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v163" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.6.3
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v162" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.6.2
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v161" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.6.1
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v160" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.6.0
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v155" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.5.5
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v154" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.5.4
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v153" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.5.3
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v152" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.5.2
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v151" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.5.1
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v150" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.5.0
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v142" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.4.2
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v141" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.4.1
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v140" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.4.0
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v135" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.3.5
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v134" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.3.4
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v133" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.3.3
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v132" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.3.2
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v131" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.3.1
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v130" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.3.0
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v122" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.2.2
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v121" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.2.1
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v120" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.2.0
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v115" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.1.5
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v114" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.1.4
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v113" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.1.3
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v112" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.1.2
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v111" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.1.1
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v110" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.1.0
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1044" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.0.44
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1043" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.0.43
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1042" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.0.42
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1041" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.0.41
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1040" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.0.40
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1039" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.0.39
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1038" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.0.38
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1037" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.0.37
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1036" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.0.36
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1035" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.0.35
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1034" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.0.34
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1033" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.0.33
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1032" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.0.32
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1031" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.0.31
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1030" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.0.30
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#v1029" class="md-nav__link">
+    <span class="md-ellipsis">
+      v1.0.29
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+  
+
+
+  <h1>Changelog</h1>
+
+<h3 id="changelog">Changelog<a class="headerlink" href="#changelog" title="Permanent link">&para;</a></h3>
+<p>All notable changes to this project will be documented in this file. Dates are displayed in UTC.</p>
+<p>Generated by <a href="https://github.com/CookPete/auto-changelog"><code>auto-changelog</code></a>.</p>
+<h4 id="v230"><a href="https://github.com/mylonics/zephyr-ide/compare/v2.2.5-prerelease...v2.3.0">v2.3.0</a><a class="headerlink" href="#v230" title="Permanent link">&para;</a></h4>
+<ul>
+<li>Fix webview initialization race condition on startup <a href="https://github.com/mylonics/zephyr-ide/pull/350"><code>#350</code></a></li>
+<li>fixing node vulnerabilities <a href="https://github.com/mylonics/zephyr-ide/pull/349"><code>#349</code></a></li>
+<li>Fix webview initialization race condition on extension startup <a href="https://github.com/mylonics/zephyr-ide/pull/348"><code>#348</code></a></li>
+<li>Fix Windows backslash paths in west build CMake arguments <a href="https://github.com/mylonics/zephyr-ide/pull/342"><code>#342</code></a></li>
+<li>CI: Ubuntu-only default PR tests, label-gated multi-platform, all platforms on release <a href="https://github.com/mylonics/zephyr-ide/pull/344"><code>#344</code></a></li>
+<li>Fixing Build Pipeline - Ensuring Powershell is used to run commands and improving debug output <a href="https://github.com/mylonics/zephyr-ide/pull/337"><code>#337</code></a></li>
+<li>2.2.6 [release] <a href="https://github.com/mylonics/zephyr-ide/pull/335"><code>#335</code></a></li>
+<li>Fix multiplatform test failure: upgrade Node.js 18 → 20.x, refactor host tools installation, and implement single-process approach <a href="https://github.com/mylonics/zephyr-ide/pull/324"><code>#324</code></a></li>
+<li>Fix Windows backslash paths in west build CMake arguments (#342) <a href="https://github.com/mylonics/zephyr-ide/issues/340"><code>#340</code></a></li>
+<li>Fix ${command:zephyr-ide.*} substitution in debug and debug-attach commands and added get elf command(#345) <a href="https://github.com/mylonics/zephyr-ide/commit/5d2b40392cb562baf411359c72595ab1c0ec63e4"><code>5d2b403</code></a></li>
+</ul>
+<h4 id="v225-prerelease"><a href="https://github.com/mylonics/zephyr-ide/compare/v2.2.4-prerelease...v2.2.5-prerelease">v2.2.5-prerelease</a><a class="headerlink" href="#v225-prerelease" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>22 January 2026</p>
+</blockquote>
+<ul>
+<li>2.2.5 [prerelease] <a href="https://github.com/mylonics/zephyr-ide/pull/328"><code>#328</code></a></li>
+<li>Quote requirements.txt path in pip install command for Windows compatibility <a href="https://github.com/mylonics/zephyr-ide/pull/326"><code>#326</code></a></li>
+<li>Add multi-platform integration test pipeline triggered on version bumps <a href="https://github.com/mylonics/zephyr-ide/pull/320"><code>#320</code></a></li>
+</ul>
+<h4 id="v224-prerelease"><a href="https://github.com/mylonics/zephyr-ide/compare/v2.2.3-prerelease...v2.2.4-prerelease">v2.2.4-prerelease</a><a class="headerlink" href="#v224-prerelease" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>22 January 2026</p>
+</blockquote>
+<ul>
+<li>2.2.4 [prerelease] <a href="https://github.com/mylonics/zephyr-ide/pull/321"><code>#321</code></a></li>
+<li>Fix macOS workspace initialization: Python interpreter, package conflicts, west boards, version validation <a href="https://github.com/mylonics/zephyr-ide/pull/315"><code>#315</code></a></li>
+<li>Add workflow_dispatch pipeline for building VSIX from any branch <a href="https://github.com/mylonics/zephyr-ide/pull/318"><code>#318</code></a></li>
+</ul>
+<h4 id="v223-prerelease"><a href="https://github.com/mylonics/zephyr-ide/compare/v2.2.2-prerelease...v2.2.3-prerelease">v2.2.3-prerelease</a><a class="headerlink" href="#v223-prerelease" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>16 January 2026</p>
+</blockquote>
+<ul>
+<li>2.2.3 [prerelease] <a href="https://github.com/mylonics/zephyr-ide/pull/312"><code>#312</code></a></li>
+<li>Using PAT for release (#311) <a href="https://github.com/mylonics/zephyr-ide/commit/0769b4a27ccf3f1b663e66951a752c5596f36011"><code>0769b4a</code></a></li>
+</ul>
+<h4 id="v222-prerelease"><a href="https://github.com/mylonics/zephyr-ide/compare/v2.2.1-prerelease...v2.2.2-prerelease">v2.2.2-prerelease</a><a class="headerlink" href="#v222-prerelease" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>16 January 2026</p>
+</blockquote>
+<ul>
+<li>2.2.2 [prerelease] <a href="https://github.com/mylonics/zephyr-ide/pull/309"><code>#309</code></a></li>
+<li>Consolidate release workflows into single action <a href="https://github.com/mylonics/zephyr-ide/pull/303"><code>#303</code></a></li>
+<li>Fix launch configurations in .code-workspace file recognition <a href="https://github.com/mylonics/zephyr-ide/pull/301"><code>#301</code></a></li>
+<li>Added autorelease workflow <a href="https://github.com/mylonics/zephyr-ide/commit/7b612872d8b8767f5f3c6221f77c3882cb5a72c8"><code>7b61287</code></a></li>
+</ul>
+<h4 id="v221-prerelease"><a href="https://github.com/mylonics/zephyr-ide/compare/v2.2.0...v2.2.1-prerelease">v2.2.1-prerelease</a><a class="headerlink" href="#v221-prerelease" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>5 January 2026</p>
+</blockquote>
+<ul>
+<li>2.2.1 <a href="https://github.com/mylonics/zephyr-ide/pull/299"><code>#299</code></a></li>
+<li>Fix toolchain directory configuration and SDK path resolution <a href="https://github.com/mylonics/zephyr-ide/pull/298"><code>#298</code></a></li>
+<li>Fix launch configurations from .code-workspace files not recognized <a href="https://github.com/mylonics/zephyr-ide/pull/295"><code>#295</code></a></li>
+<li>rename pipelien <a href="https://github.com/mylonics/zephyr-ide/pull/292"><code>#292</code></a></li>
+<li>Fix docs theming <a href="https://github.com/mylonics/zephyr-ide/pull/291"><code>#291</code></a></li>
+<li>Update docs title to "zephyr IDE" and add K2D font branding <a href="https://github.com/mylonics/zephyr-ide/pull/290"><code>#290</code></a></li>
+<li>Add "zephyr-ide" text to logo using K2D font and update documentation branding <a href="https://github.com/mylonics/zephyr-ide/pull/288"><code>#288</code></a></li>
+<li>New branding image <a href="https://github.com/mylonics/zephyr-ide/pull/286"><code>#286</code></a></li>
+<li>Remove redundant navigation sidebar and header text from single-page documentation sections <a href="https://github.com/mylonics/zephyr-ide/pull/285"><code>#285</code></a></li>
+<li>Fix logo not rendering in docs and use colored branding <a href="https://github.com/mylonics/zephyr-ide/pull/282"><code>#282</code></a></li>
+<li>Update docs theme to better match branding <a href="https://github.com/mylonics/zephyr-ide/pull/280"><code>#280</code></a></li>
+<li>[WIP] Fix docs build error <a href="https://github.com/mylonics/zephyr-ide/pull/278"><code>#278</code></a></li>
+<li>Change theme from 'cinder' to 'material' <a href="https://github.com/mylonics/zephyr-ide/pull/276"><code>#276</code></a></li>
+<li>Add workflow_dispatch trigger to deploy-docs.yml <a href="https://github.com/mylonics/zephyr-ide/pull/275"><code>#275</code></a></li>
+<li>[WIP] Fix docs not deploying with GitHub Pages <a href="https://github.com/mylonics/zephyr-ide/pull/274"><code>#274</code></a></li>
+<li>Add CNAME for custom domain <a href="https://github.com/mylonics/zephyr-ide/pull/272"><code>#272</code></a></li>
+<li>[WIP] Update site URL in mkdocs configuration <a href="https://github.com/mylonics/zephyr-ide/pull/271"><code>#271</code></a></li>
+<li>Update site URL in mkdocs configuration <a href="https://github.com/mylonics/zephyr-ide/pull/270"><code>#270</code></a></li>
+<li>Enable auto-merge with rebase for make-release and make-prerelease workflows <a href="https://github.com/mylonics/zephyr-ide/pull/269"><code>#269</code></a></li>
+<li>[WIP] Update mkdocs push for main, prerelease, and manual trigger <a href="https://github.com/mylonics/zephyr-ide/pull/267"><code>#267</code></a></li>
+<li>Add MkDocs documentation with Cinder theme <a href="https://github.com/mylonics/zephyr-ide/pull/265"><code>#265</code></a></li>
+</ul>
+<h4 id="v220"><a href="https://github.com/mylonics/zephyr-ide/compare/v2.1.0...v2.2.0">v2.2.0</a><a class="headerlink" href="#v220" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>5 December 2025</p>
+</blockquote>
+<ul>
+<li>2.2.0 <a href="https://github.com/mylonics/zephyr-ide/pull/262"><code>#262</code></a></li>
+<li>Documentation: Remove non-ASCII characters, superlatives, and add comprehensive command reference <a href="https://github.com/mylonics/zephyr-ide/pull/261"><code>#261</code></a></li>
+<li>Fix get-gdb-path to use active build's SDK version from CMakeCache <a href="https://github.com/mylonics/zephyr-ide/pull/259"><code>#259</code></a></li>
+<li>Add venv-folder configuration setting <a href="https://github.com/mylonics/zephyr-ide/pull/257"><code>#257</code></a></li>
+<li>Fix typo: change 'semvar' to 'semver' in west-operations.ts <a href="https://github.com/mylonics/zephyr-ide/pull/255"><code>#255</code></a></li>
+<li>Reorder SDK card below Workspace and add workspace requirement checks (#256) <a href="https://github.com/mylonics/zephyr-ide/commit/a69aab98cca5dd125fcaef81f2523f848fc5a669"><code>a69aab9</code></a></li>
+</ul>
+<h4 id="v210"><a href="https://github.com/mylonics/zephyr-ide/compare/v2.0.10-prerelease...v2.1.0">v2.1.0</a><a class="headerlink" href="#v210" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>10 November 2025</p>
+</blockquote>
+<ul>
+<li>2.1.0 <a href="https://github.com/mylonics/zephyr-ide/pull/251"><code>#251</code></a></li>
+<li>Removed changelog from pipeline <a href="https://github.com/mylonics/zephyr-ide/pull/250"><code>#250</code></a></li>
+<li>Add more feedback for installing host tools <a href="https://github.com/mylonics/zephyr-ide/pull/245"><code>#245</code></a></li>
+<li>Added package artifact pipeline <a href="https://github.com/mylonics/zephyr-ide/pull/246"><code>#246</code></a></li>
+</ul>
+<h4 id="v2010-prerelease"><a href="https://github.com/mylonics/zephyr-ide/compare/v2.0.9-prerelease...v2.0.10-prerelease">v2.0.10-prerelease</a><a class="headerlink" href="#v2010-prerelease" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>9 November 2025</p>
+</blockquote>
+<ul>
+<li>Combined bump workflows into a single file <a href="https://github.com/mylonics/zephyr-ide/pull/243"><code>#243</code></a></li>
+<li>2.0.10 <a href="https://github.com/mylonics/zephyr-ide/pull/241"><code>#241</code></a></li>
+<li>Allowed Extension to run commands with no active setup state. Added <a href="https://github.com/mylonics/zephyr-ide/commit/5d27e674cc4a1c583d2b19641f4c8231d6e6fbd9"><code>5d27e67</code></a></li>
+<li>Added autochangelog package (#237) <a href="https://github.com/mylonics/zephyr-ide/commit/f3875ad1fa090f10ca1b0151d9aaae475acfb11b"><code>f3875ad</code></a></li>
+<li>Added auto changelog (#235, #237, #239) <a href="https://github.com/mylonics/zephyr-ide/commit/927965c9ae194c4cd3c0d62aceba7e8d1ab06fa6"><code>927965c</code></a></li>
+<li>Updated Manual (#225) <a href="https://github.com/mylonics/zephyr-ide/commit/a59e33d41e0feac10da36eb0797f67faecb6d56f"><code>a59e33d</code></a></li>
+</ul>
+<h4 id="v209-prerelease"><a href="https://github.com/mylonics/zephyr-ide/compare/v2.0.8-prerelease...v2.0.9-prerelease">v2.0.9-prerelease</a><a class="headerlink" href="#v209-prerelease" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>7 November 2025</p>
+</blockquote>
+<ul>
+<li>2.0.9 <a href="https://github.com/mylonics/zephyr-ide/pull/219"><code>#219</code></a></li>
+<li>Remove externally managed workspace option in favor of automatic environment detection <a href="https://github.com/mylonics/zephyr-ide/pull/212"><code>#212</code></a></li>
+<li>Simplify workspace setup sidebar and enhance workspace configuration panel <a href="https://github.com/mylonics/zephyr-ide/pull/218"><code>#218</code></a></li>
+</ul>
+<h4 id="v208-prerelease"><a href="https://github.com/mylonics/zephyr-ide/compare/v2.0.7-prerelease...v2.0.8-prerelease">v2.0.8-prerelease</a><a class="headerlink" href="#v208-prerelease" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>6 November 2025</p>
+</blockquote>
+<ul>
+<li>2.0.8 <a href="https://github.com/mylonics/zephyr-ide/pull/216"><code>#216</code></a></li>
+<li>Refactor Setup Panel to unified sub-page navigation with slide-in transitions and reorganized Extension Setup View <a href="https://github.com/mylonics/zephyr-ide/pull/214"><code>#214</code></a></li>
+<li>Improve host tools installation UX and fix Windows 7-Zip error <a href="https://github.com/mylonics/zephyr-ide/pull/210"><code>#210</code></a></li>
+</ul>
+<h4 id="v207-prerelease"><a href="https://github.com/mylonics/zephyr-ide/compare/v2.0.6...v2.0.7-prerelease">v2.0.7-prerelease</a><a class="headerlink" href="#v207-prerelease" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>31 October 2025</p>
+</blockquote>
+<ul>
+<li>2.0.7 <a href="https://github.com/mylonics/zephyr-ide/pull/207"><code>#207</code></a></li>
+<li>Add support for externally managed environment variables <a href="https://github.com/mylonics/zephyr-ide/pull/201"><code>#201</code></a></li>
+<li>Fix WSL/Remote OS detection for host tools installation <a href="https://github.com/mylonics/zephyr-ide/pull/202"><code>#202</code></a></li>
+<li>West Workspace Panel: Rename "Global Installation" to "Global" and refresh on workspace add <a href="https://github.com/mylonics/zephyr-ide/pull/206"><code>#206</code></a></li>
+<li>Fix: Getting samples when Zephyr is manifest repository <a href="https://github.com/mylonics/zephyr-ide/pull/203"><code>#203</code></a></li>
+<li>Fix zephyr-ide.build-debug: remove hard coded override of debugConfig.executable <a href="https://github.com/mylonics/zephyr-ide/pull/204"><code>#204</code></a></li>
+<li>Workspace Panel Improvements: Remove None Option and Add Deselect/Create Actions <a href="https://github.com/mylonics/zephyr-ide/pull/200"><code>#200</code></a></li>
+<li>Improve Host Tools Installation with Manifest-Based System and Dedicated Panel <a href="https://github.com/mylonics/zephyr-ide/pull/196"><code>#196</code></a></li>
+<li>Add West Workspace Panel for Managing Zephyr Installations <a href="https://github.com/mylonics/zephyr-ide/pull/198"><code>#198</code></a></li>
+</ul>
+<h4 id="v206"><a href="https://github.com/mylonics/zephyr-ide/compare/v2.0.5...v2.0.6">v2.0.6</a><a class="headerlink" href="#v206" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>17 September 2025</p>
+</blockquote>
+<ul>
+<li>2.0.6 <a href="https://github.com/mylonics/zephyr-ide/pull/192"><code>#192</code></a></li>
+<li>Removed setx PATH from windows install instructions <a href="https://github.com/mylonics/zephyr-ide/pull/191"><code>#191</code></a></li>
+</ul>
+<h4 id="v205"><a href="https://github.com/mylonics/zephyr-ide/compare/v2.0.4...v2.0.5">v2.0.5</a><a class="headerlink" href="#v205" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>8 September 2025</p>
+</blockquote>
+<ul>
+<li>
+<ul>
+<li>Bump version to 2.0.5 <a href="https://github.com/mylonics/zephyr-ide/pull/187"><code>#187</code></a></li>
+</ul>
+</li>
+<li>Fix SSH URL validation in Git workspace setup <a href="https://github.com/mylonics/zephyr-ide/pull/186"><code>#186</code></a></li>
+<li>Add SSH URL support for Git workspace setup <a href="https://github.com/mylonics/zephyr-ide/commit/bb091487068240c8f2ea7647c8fb0b7e8f779f5c"><code>bb09148</code></a></li>
+<li>Add comprehensive Git URL validation tests and documentation <a href="https://github.com/mylonics/zephyr-ide/commit/a70164bbfedeccb7f724cff8522189233f06f777"><code>a70164b</code></a></li>
+<li>Initial plan <a href="https://github.com/mylonics/zephyr-ide/commit/fc7fda3ee11fa07613fa8b2116b5d1367d5f7790"><code>fc7fda3</code></a></li>
+</ul>
+<h4 id="v204"><a href="https://github.com/mylonics/zephyr-ide/compare/v2.0.2...v2.0.4">v2.0.4</a><a class="headerlink" href="#v204" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>27 August 2025</p>
+</blockquote>
+<ul>
+<li>2.0.4 <a href="https://github.com/mylonics/zephyr-ide/pull/183"><code>#183</code></a></li>
+<li>Remove conflicting keybindings to fix Ctrl+Shift+P Command Palette issue <a href="https://github.com/mylonics/zephyr-ide/pull/181"><code>#181</code></a></li>
+<li>Fix integration test folder isolation and west git workspace test path references <a href="https://github.com/mylonics/zephyr-ide/pull/180"><code>#180</code></a></li>
+<li>2.0.3 <a href="https://github.com/mylonics/zephyr-ide/pull/174"><code>#174</code></a></li>
+<li>Updated Project view to highlight active project <a href="https://github.com/mylonics/zephyr-ide/pull/172"><code>#172</code></a></li>
+<li>Changed package.json to render on startup and added timer to trigger a rerender after 100ms of startup. <a href="https://github.com/mylonics/zephyr-ide/pull/173"><code>#173</code></a></li>
+</ul>
+<h4 id="v202"><a href="https://github.com/mylonics/zephyr-ide/compare/v2.0.1-prerelease...v2.0.2">v2.0.2</a><a class="headerlink" href="#v202" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>15 August 2025</p>
+</blockquote>
+<ul>
+<li>2.0.2 <a href="https://github.com/mylonics/zephyr-ide/pull/169"><code>#169</code></a></li>
+<li>Fixed issue where workspace would not set up if zephyr folder was used directly <a href="https://github.com/mylonics/zephyr-ide/pull/167"><code>#167</code></a></li>
+<li>Made west narrow false by default with an option in settings to make it true <a href="https://github.com/mylonics/zephyr-ide/pull/168"><code>#168</code></a></li>
+<li>Fixed prompt for additional arguments from -mr to --mr <a href="https://github.com/mylonics/zephyr-ide/pull/166"><code>#166</code></a></li>
+<li>Reorganize repository structure - separate build scripts from extension resources <a href="https://github.com/mylonics/zephyr-ide/pull/158"><code>#158</code></a></li>
+</ul>
+<h4 id="v201-prerelease"><a href="https://github.com/mylonics/zephyr-ide/compare/v2.0.0...v2.0.1-prerelease">v2.0.1-prerelease</a><a class="headerlink" href="#v201-prerelease" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>13 August 2025</p>
+</blockquote>
+<ul>
+<li>Added files .vscodeignore and added bundling to release.yml <a href="https://github.com/mylonics/zephyr-ide/pull/159"><code>#159</code></a></li>
+<li>Implement unused code detection feature for static analysis (command-line only) <a href="https://github.com/mylonics/zephyr-ide/pull/121"><code>#121</code></a></li>
+<li>Update issue templates <a href="https://github.com/mylonics/zephyr-ide/commit/68e22705c3b5ee8d2bec54b2cf9c94b79538c7f1"><code>68e2270</code></a></li>
+<li>2.0.1 (#162) - Testing new packaging <a href="https://github.com/mylonics/zephyr-ide/commit/f6958866709cf3d5b30691614edef1db5ab09e3c"><code>f695886</code></a></li>
+</ul>
+<h3 id="v200"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.10.19...v2.0.0">v2.0.0</a><a class="headerlink" href="#v200" title="Permanent link">&para;</a></h3>
+<blockquote>
+<p>13 August 2025</p>
+</blockquote>
+<ul>
+<li>2.0.0 <a href="https://github.com/mylonics/zephyr-ide/pull/154"><code>#154</code></a></li>
+<li>1.10.20 <a href="https://github.com/mylonics/zephyr-ide/pull/149"><code>#149</code></a></li>
+<li>Automated bump pr approve <a href="https://github.com/mylonics/zephyr-ide/pull/148"><code>#148</code></a></li>
+<li>Automated bump pr approve <a href="https://github.com/mylonics/zephyr-ide/pull/146"><code>#146</code></a></li>
+<li>1.10.19 <a href="https://github.com/mylonics/zephyr-ide/pull/145"><code>#145</code></a></li>
+<li>Add new west config command with UI integration and optimize workspace setup <a href="https://github.com/mylonics/zephyr-ide/pull/134"><code>#134</code></a></li>
+<li>Bump fix <a href="https://github.com/mylonics/zephyr-ide/pull/144"><code>#144</code></a></li>
+<li>Bump fix <a href="https://github.com/mylonics/zephyr-ide/pull/143"><code>#143</code></a></li>
+<li>Bump fix <a href="https://github.com/mylonics/zephyr-ide/pull/142"><code>#142</code></a></li>
+<li>More fixes to bump workflow <a href="https://github.com/mylonics/zephyr-ide/pull/141"><code>#141</code></a></li>
+<li>Removed automatic PR approval <a href="https://github.com/mylonics/zephyr-ide/commit/2a8d98f9c7c0c2603217d115cbb05f85f82e945b"><code>2a8d98f</code></a></li>
+<li>More fixes to automated workflows <a href="https://github.com/mylonics/zephyr-ide/commit/c0eada628f4b34f7a8c49e00d1a6dc7279390f92"><code>c0eada6</code></a></li>
+<li>Manually Fixing make pre-release.yml <a href="https://github.com/mylonics/zephyr-ide/commit/cf4f2d640ca53e25bc511bbe7701eb6ca1b5b15a"><code>cf4f2d6</code></a></li>
+<li>Ignore committing if there are no new file <a href="https://github.com/mylonics/zephyr-ide/commit/199177965bcec704bca4a70c2fb07ad1005e87c8"><code>1991779</code></a></li>
+<li>Updated Changelog <a href="https://github.com/mylonics/zephyr-ide/commit/03974689f523a4874d84e0ca3c05cb44e5ed1643"><code>0397468</code></a></li>
+<li>Added git add -A <a href="https://github.com/mylonics/zephyr-ide/commit/bf3c0a535a21e30ab811897b2091b2865950f2e1"><code>bf3c0a5</code></a></li>
+<li>Fixed pre-release flow wording <a href="https://github.com/mylonics/zephyr-ide/commit/06a069d4b38f2a3607f82092e79c805408533ed2"><code>06a069d</code></a></li>
+</ul>
+<h4 id="v11019"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.10.19-prerelease-19...v1.10.19">v1.10.19</a><a class="headerlink" href="#v11019" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>13 August 2025</p>
+</blockquote>
+<ul>
+<li>More fixes to bump workflow <a href="https://github.com/mylonics/zephyr-ide/commit/096bdafa6400a213f7229374e51b2d81e87b0b1d"><code>096bdaf</code></a></li>
+</ul>
+<h4 id="v11019-prerelease-19"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.10.19-prerelease-18...v1.10.19-prerelease-19">v1.10.19-prerelease-19</a><a class="headerlink" href="#v11019-prerelease-19" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>13 August 2025</p>
+</blockquote>
+<ul>
+<li>More fixes to automated workflows <a href="https://github.com/mylonics/zephyr-ide/commit/c0eada628f4b34f7a8c49e00d1a6dc7279390f92"><code>c0eada6</code></a></li>
+</ul>
+<h4 id="v11019-prerelease-18"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.10.18-prerelease-15...v1.10.19-prerelease-18">v1.10.19-prerelease-18</a><a class="headerlink" href="#v11019-prerelease-18" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>13 August 2025</p>
+</blockquote>
+<ul>
+<li>1.10.20 <a href="https://github.com/mylonics/zephyr-ide/pull/149"><code>#149</code></a></li>
+<li>Automated bump pr approve <a href="https://github.com/mylonics/zephyr-ide/pull/148"><code>#148</code></a></li>
+<li>Automated bump pr approve <a href="https://github.com/mylonics/zephyr-ide/pull/146"><code>#146</code></a></li>
+<li>1.10.19 <a href="https://github.com/mylonics/zephyr-ide/pull/145"><code>#145</code></a></li>
+<li>Add new west config command with UI integration and optimize workspace setup <a href="https://github.com/mylonics/zephyr-ide/pull/134"><code>#134</code></a></li>
+<li>Bump fix <a href="https://github.com/mylonics/zephyr-ide/pull/144"><code>#144</code></a></li>
+<li>Bump fix <a href="https://github.com/mylonics/zephyr-ide/pull/143"><code>#143</code></a></li>
+<li>Bump fix <a href="https://github.com/mylonics/zephyr-ide/pull/142"><code>#142</code></a></li>
+<li>More fixes to bump workflow <a href="https://github.com/mylonics/zephyr-ide/pull/141"><code>#141</code></a></li>
+<li>Bump brace-expansion from 1.1.11 to 1.1.12 <a href="https://github.com/mylonics/zephyr-ide/pull/138"><code>#138</code></a></li>
+<li>Bump serialize-javascript and mocha <a href="https://github.com/mylonics/zephyr-ide/pull/139"><code>#139</code></a></li>
+<li>Bump esbuild from 0.20.2 to 0.25.0 <a href="https://github.com/mylonics/zephyr-ide/pull/140"><code>#140</code></a></li>
+<li>Added new bump patches <a href="https://github.com/mylonics/zephyr-ide/pull/137"><code>#137</code></a></li>
+<li>Add comprehensive GitHub Copilot instructions with expanded repository structure for Zephyr IDE development <a href="https://github.com/mylonics/zephyr-ide/pull/136"><code>#136</code></a></li>
+<li>Pre release <a href="https://github.com/mylonics/zephyr-ide/pull/133"><code>#133</code></a></li>
+<li>Prerelease branch prep (#131) <a href="https://github.com/mylonics/zephyr-ide/pull/132"><code>#132</code></a></li>
+<li>Update release.yml <a href="https://github.com/mylonics/zephyr-ide/commit/4d47716ae3cfa8ae8f79d5abf66eaae9e88b5382"><code>4d47716</code></a></li>
+<li>Manually Fixing make pre-release.yml <a href="https://github.com/mylonics/zephyr-ide/commit/cf4f2d640ca53e25bc511bbe7701eb6ca1b5b15a"><code>cf4f2d6</code></a></li>
+<li>Update release.yml to hopefully fix release with Haaleo action <a href="https://github.com/mylonics/zephyr-ide/commit/03d8a6265a0654066630fda2c918fb6a6df7e4de"><code>03d8a62</code></a></li>
+</ul>
+<h4 id="v11018-prerelease-15"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.10.18-prerelease-14...v1.10.18-prerelease-15">v1.10.18-prerelease-15</a><a class="headerlink" href="#v11018-prerelease-15" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>11 August 2025</p>
+</blockquote>
+<h4 id="v11018-prerelease-14"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.10.15...v1.10.18-prerelease-14">v1.10.18-prerelease-14</a><a class="headerlink" href="#v11018-prerelease-14" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>11 August 2025</p>
+</blockquote>
+<ul>
+<li>Prerelease branch prep <a href="https://github.com/mylonics/zephyr-ide/pull/131"><code>#131</code></a></li>
+<li>Changed the way releases work <a href="https://github.com/mylonics/zephyr-ide/pull/130"><code>#130</code></a></li>
+<li>Fixing release workflow <a href="https://github.com/mylonics/zephyr-ide/pull/129"><code>#129</code></a></li>
+<li>Fixing release workflow <a href="https://github.com/mylonics/zephyr-ide/pull/128"><code>#128</code></a></li>
+<li>Fixing release workflow <a href="https://github.com/mylonics/zephyr-ide/pull/127"><code>#127</code></a></li>
+<li>Fixing test errors <a href="https://github.com/mylonics/zephyr-ide/pull/124"><code>#124</code></a></li>
+<li>Added prerelease deploy on develop branch <a href="https://github.com/mylonics/zephyr-ide/commit/1f31de296d4b92cd25d6005cdde81575536213aa"><code>1f31de2</code></a></li>
+<li>Update release.yml <a href="https://github.com/mylonics/zephyr-ide/commit/803231d6f029395e08323d8e49d0fbc0b457c1cd"><code>803231d</code></a></li>
+<li>Updated git repo used for tests <a href="https://github.com/mylonics/zephyr-ide/commit/7620b8c82b1f7abc3c646aef4e0be964110e9fc3"><code>7620b8c</code></a></li>
+<li>Update release.yml <a href="https://github.com/mylonics/zephyr-ide/commit/bb6aea2c10362129a5d580b0715d11867c7ebb33"><code>bb6aea2</code></a></li>
+<li>Changed get samples quick input to display load samples first <a href="https://github.com/mylonics/zephyr-ide/commit/279d52dae0e0b09d65d2b42ff0a7969cb043595e"><code>279d52d</code></a></li>
+<li>Added sample recursion depth of 3 <a href="https://github.com/mylonics/zephyr-ide/commit/a1230e9d03424d38566ecc87e60b5ad07fb1a629"><code>a1230e9</code></a></li>
+<li>Decreased test timeout <a href="https://github.com/mylonics/zephyr-ide/commit/638f4636ffba6c0be48593f21a53a827c339fa41"><code>638f463</code></a></li>
+<li>Update release.yml <a href="https://github.com/mylonics/zephyr-ide/commit/cedb01ccef0f7d6e61a47e03c15c1e369cdebf4d"><code>cedb01c</code></a></li>
+<li>Added devlop release code <a href="https://github.com/mylonics/zephyr-ide/commit/10bfad32c4619c196bcd83011ef7aa8f5c4ac597"><code>10bfad3</code></a></li>
+<li>Update release.yml <a href="https://github.com/mylonics/zephyr-ide/commit/dabe3fc5ae77770537570eae17fa8b54eeece417"><code>dabe3fc</code></a></li>
+<li>Update release.yml <a href="https://github.com/mylonics/zephyr-ide/commit/437a8e7733ffb051cd26103ee86ecdac5a923f5d"><code>437a8e7</code></a></li>
+<li>Added await on sdk install if not installed <a href="https://github.com/mylonics/zephyr-ide/commit/fcb995dea43a6a45335f14ac27770b139c126b1f"><code>fcb995d</code></a></li>
+<li>Update package.json <a href="https://github.com/mylonics/zephyr-ide/commit/bb9696f31477161707fd4a0cddd873cd4972c646"><code>bb9696f</code></a></li>
+<li>Update package.json <a href="https://github.com/mylonics/zephyr-ide/commit/f1f139b7b1653025523fb3fd84adc9dd0cf134ca"><code>f1f139b</code></a></li>
+</ul>
+<h4 id="v11015"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.10.14...v1.10.15">v1.10.15</a><a class="headerlink" href="#v11015" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>10 August 2025</p>
+</blockquote>
+<ul>
+<li>Fixed issue with build-debug not working in quick succession <a href="https://github.com/mylonics/zephyr-ide/commit/a01bc7fb561232c16d01bfd9fac8f71e2d197d0f"><code>a01bc7f</code></a></li>
+</ul>
+<h4 id="v11014"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.10.13...v1.10.14">v1.10.14</a><a class="headerlink" href="#v11014" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>9 August 2025</p>
+</blockquote>
+<ul>
+<li>Ensuring setupState is being saved in workspace setup <a href="https://github.com/mylonics/zephyr-ide/commit/151649ea7142ba0815b1f5f1b46d75336be31701"><code>151649e</code></a></li>
+</ul>
+<h4 id="v11013"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.10.12...v1.10.13">v1.10.13</a><a class="headerlink" href="#v11013" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>9 August 2025</p>
+</blockquote>
+<ul>
+<li>Updated getSamples Function <a href="https://github.com/mylonics/zephyr-ide/commit/15e2d13d57f5ef0dfd1f801bc769da2f4ec5da10"><code>15e2d13</code></a></li>
+</ul>
+<h4 id="v11012"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.10.11...v1.10.12">v1.10.12</a><a class="headerlink" href="#v11012" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>7 August 2025</p>
+</blockquote>
+<ul>
+<li>More GUI updates <a href="https://github.com/mylonics/zephyr-ide/commit/f6936466a8fe26d918bb688c706ccee766c72918"><code>f693646</code></a></li>
+</ul>
+<h4 id="v11011"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.10.10...v1.10.11">v1.10.11</a><a class="headerlink" href="#v11011" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>7 August 2025</p>
+</blockquote>
+<ul>
+<li>Renamed panel and updatead readme and changelog <a href="https://github.com/mylonics/zephyr-ide/commit/59ca5af7b763f24e70e48b0a69c911aeed4efc79"><code>59ca5af</code></a></li>
+<li>Update workspace panel <a href="https://github.com/mylonics/zephyr-ide/commit/183cff17738b1e34ec072af2cd7782e6a5599dd5"><code>183cff1</code></a></li>
+</ul>
+<h4 id="v11010"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.10.9...v1.10.10">v1.10.10</a><a class="headerlink" href="#v11010" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>7 August 2025</p>
+</blockquote>
+<ul>
+<li>New CI mock input class <a href="https://github.com/mylonics/zephyr-ide/commit/d24cd2ba77d30a491218ee27fd6f9c07785267b2"><code>d24cd2b</code></a></li>
+<li>Optimized workspace-setup functions <a href="https://github.com/mylonics/zephyr-ide/commit/986ab9f445035b81406ddfeb4a6af7814988d017"><code>986ab9f</code></a></li>
+<li>Added test for zephyr ide git workspace <a href="https://github.com/mylonics/zephyr-ide/commit/366e51a8d9912236b9df6e92e338ad07bd06a628"><code>366e51a</code></a></li>
+<li>Added two new tests to try out <a href="https://github.com/mylonics/zephyr-ide/commit/6228ac8e3a9b69d6b644ec315a506a99e954e797"><code>6228ac8</code></a></li>
+<li>Experimental adding install from west git repo <a href="https://github.com/mylonics/zephyr-ide/commit/1dbc6421910fdabaec0891aaa49f7763179b624e"><code>1dbc642</code></a></li>
+<li>Split tests into seperate files <a href="https://github.com/mylonics/zephyr-ide/commit/0f6ae356419ad36f90b5e5da5bdc6fb2805207f5"><code>0f6ae35</code></a></li>
+<li>improvements to workspace setup from current directory <a href="https://github.com/mylonics/zephyr-ide/commit/c6ed6a3199a495f96868778219d840e3516774a9"><code>c6ed6a3</code></a></li>
+<li>More changes need to test <a href="https://github.com/mylonics/zephyr-ide/commit/183a23b6e2124bc86b672c43215bedd81c10df07"><code>183a23b</code></a></li>
+<li>Minor updates to how python tasks are run <a href="https://github.com/mylonics/zephyr-ide/commit/48df8bccb5d5913e89f2a8919384d4fe191d3bb4"><code>48df8bc</code></a></li>
+<li>Modified CI test for out of tree <a href="https://github.com/mylonics/zephyr-ide/commit/201c7a0bf31946e5cac824e3544a1e52ac3dd09d"><code>201c7a0</code></a></li>
+<li>fixed some workspace issues with zephyr-ide git workspace <a href="https://github.com/mylonics/zephyr-ide/commit/f87def774d153ee41496786ef64856aaee47b852"><code>f87def7</code></a></li>
+<li>Renamed the CI tests <a href="https://github.com/mylonics/zephyr-ide/commit/b18a1ecc14f1d1a66e9306bca2dbde31743eafb8"><code>b18a1ec</code></a></li>
+<li>Added fallback code if west boards fails in CI <a href="https://github.com/mylonics/zephyr-ide/commit/75c402b3430ce23ea4d09cdd100d7be0410a6c08"><code>75c402b</code></a></li>
+<li>bumped version number <a href="https://github.com/mylonics/zephyr-ide/commit/49a369a18166c645a99e8a3919845cd4b75518b0"><code>49a369a</code></a></li>
+</ul>
+<h4 id="v1109"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.10.8...v1.10.9">v1.10.9</a><a class="headerlink" href="#v1109" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>6 August 2025</p>
+</blockquote>
+<ul>
+<li>Improved Error messages on board list and fixed python command issue <a href="https://github.com/mylonics/zephyr-ide/commit/50a1184f8ec6b2c3f6b539aeedd99b266fb2bc48"><code>50a1184</code></a></li>
+</ul>
+<h4 id="v1108"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.10.7...v1.10.8">v1.10.8</a><a class="headerlink" href="#v1108" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>6 August 2025</p>
+</blockquote>
+<ul>
+<li>Improved Error messages on board list and fixed python command issue <a href="https://github.com/mylonics/zephyr-ide/commit/f56b00501fd38253b1cf5b40be0eaffe027862f6"><code>f56b005</code></a></li>
+</ul>
+<h4 id="v1107"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.10.6...v1.10.7">v1.10.7</a><a class="headerlink" href="#v1107" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>6 August 2025</p>
+</blockquote>
+<ul>
+<li>Improved Error messages on board list and fixed python command issue <a href="https://github.com/mylonics/zephyr-ide/commit/e89e029b5c28eeecd37b49127a167759119f0d77"><code>e89e029</code></a></li>
+</ul>
+<h4 id="v1106"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.10.5...v1.10.6">v1.10.6</a><a class="headerlink" href="#v1106" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>6 August 2025</p>
+</blockquote>
+<ul>
+<li>Improved Error messages on board list and fixed python command issue <a href="https://github.com/mylonics/zephyr-ide/commit/fc28add37120666fadaa8a2de7658349d6f1dc59"><code>fc28add</code></a></li>
+</ul>
+<h4 id="v1105"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.10.4...v1.10.5">v1.10.5</a><a class="headerlink" href="#v1105" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>6 August 2025</p>
+</blockquote>
+<ul>
+<li>Minor change to readme <a href="https://github.com/mylonics/zephyr-ide/commit/6d3b7db5ed8f6bb61df328211a60cfc9c8e9ae73"><code>6d3b7db</code></a></li>
+</ul>
+<h4 id="v1104"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.10.3...v1.10.4">v1.10.4</a><a class="headerlink" href="#v1104" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>6 August 2025</p>
+</blockquote>
+<ul>
+<li>removed custom sdk install command and utilizing new west sdk command <a href="https://github.com/mylonics/zephyr-ide/commit/99fc3fcb3b08531a788a34132b4b7f45dd40a4f5"><code>99fc3fc</code></a></li>
+<li>Added CI testing <a href="https://github.com/mylonics/zephyr-ide/commit/9ea8061648462a3f20c39f22282eb9a381d3ee9f"><code>9ea8061</code></a></li>
+<li>Split setup.ts into multiple files <a href="https://github.com/mylonics/zephyr-ide/commit/accd8523798e8ca48c633d204fc9de90a414caa8"><code>accd852</code></a></li>
+<li>Update workspace panel for easier development <a href="https://github.com/mylonics/zephyr-ide/commit/f13031f3f724ddaa3f70467de67c6ae103905953"><code>f13031f</code></a></li>
+<li>Added new zephyr ide setup panel <a href="https://github.com/mylonics/zephyr-ide/commit/7ad03b457ff66fe728f1d9d725ec15dd6f74239b"><code>7ad03b4</code></a></li>
+<li>Added west sdk command injection <a href="https://github.com/mylonics/zephyr-ide/commit/59caa3b66ffbf85f7ddb661593fb46562e9c40ca"><code>59caa3b</code></a></li>
+<li>Added host tools back to workspace setup panel <a href="https://github.com/mylonics/zephyr-ide/commit/add214033a383ea95bff2b845527c71609285e76"><code>add2140</code></a></li>
+<li>Added parsing out the result from west sdk and displaying it to the user <a href="https://github.com/mylonics/zephyr-ide/commit/2da7ac79c12b3ec41d9eeec63f88b90062ea9335"><code>2da7ac7</code></a></li>
+<li>Global Tools Directory experimental changes <a href="https://github.com/mylonics/zephyr-ide/commit/bdb9bbcfd5b5f2c46fb36eca6b175107759d056b"><code>bdb9bbc</code></a></li>
+<li>Added new setup methods <a href="https://github.com/mylonics/zephyr-ide/commit/786584d29a0f85501e5528f946d120c56f71ba20"><code>786584d</code></a></li>
+<li>removed host tools card from workspace panel <a href="https://github.com/mylonics/zephyr-ide/commit/55c8dfd09c2b89a4039e1d7159b71c4c11aee0fe"><code>55c8dfd</code></a></li>
+<li>Fixed ESLint Warnings <a href="https://github.com/mylonics/zephyr-ide/commit/27ba1432074b007ecb41ac68e9cac30401533c1e"><code>27ba143</code></a></li>
+<li>Cleaned up west selector <a href="https://github.com/mylonics/zephyr-ide/commit/a8956a6a2e5017329ccfd82fa1594cf8a7fc49a8"><code>a8956a6</code></a></li>
+<li>Added a few more gui elements to workspace panel <a href="https://github.com/mylonics/zephyr-ide/commit/c7e629271494f2e910efe74a3c68526c779adc51"><code>c7e6292</code></a></li>
+<li>Experimental build selector fixes <a href="https://github.com/mylonics/zephyr-ide/commit/a520a91102860bb74f8c451f6b0b45c000f71bcc"><code>a520a91</code></a></li>
+<li>Removed unnecessary variables from setup state <a href="https://github.com/mylonics/zephyr-ide/commit/733d78af1c0e4ef0ad333c879f3504f325fdc0e0"><code>733d78a</code></a></li>
+<li>Cleaned up west workspace Setup card <a href="https://github.com/mylonics/zephyr-ide/commit/79cfdf9004e440fdc6cdf56518e3a669d2c0a875"><code>79cfdf9</code></a></li>
+<li>Using tree view for extension setup <a href="https://github.com/mylonics/zephyr-ide/commit/45451851b4e49eaf48229a1e9428bee7c1653c49"><code>4545185</code></a></li>
+<li>Removed SetupStateType <a href="https://github.com/mylonics/zephyr-ide/commit/1083185d8f2d13d161eff54d2617001f533c14f4"><code>1083185</code></a></li>
+<li>Fixed issue where all toolchains were being installed <a href="https://github.com/mylonics/zephyr-ide/commit/3ca14b2fb36efa72eb501a31f7119ee03f360a2f"><code>3ca14b2</code></a></li>
+<li>slimmed down extension setup panel <a href="https://github.com/mylonics/zephyr-ide/commit/7b3e9ede919b234eb0b02aa746ff32f88b880462"><code>7b3e9ed</code></a></li>
+</ul>
+<h4 id="v1103"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.10.2...v1.10.3">v1.10.3</a><a class="headerlink" href="#v1103" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>1 August 2025</p>
+</blockquote>
+<ul>
+<li>made macos commands one liners <a href="https://github.com/mylonics/zephyr-ide/commit/2c685e71bcead06f9ac17c1c26c4286dd821fc84"><code>2c685e7</code></a></li>
+</ul>
+<h4 id="v1102"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.10.1...v1.10.2">v1.10.2</a><a class="headerlink" href="#v1102" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>1 August 2025</p>
+</blockquote>
+<ul>
+<li>Added experimental host tools install <a href="https://github.com/mylonics/zephyr-ide/commit/f8c4cd53edc16a56ef5d00e489b356c67e3b6633"><code>f8c4cd5</code></a></li>
+<li>Changes to package.json file <a href="https://github.com/mylonics/zephyr-ide/commit/978f65cdbd5d6f7c4f6b0d1c36fa86ba82c54e71"><code>978f65c</code></a></li>
+</ul>
+<h4 id="v1101"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.10.0...v1.10.1">v1.10.1</a><a class="headerlink" href="#v1101" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>1 August 2025</p>
+</blockquote>
+<ul>
+<li>Incorrect version published <a href="https://github.com/mylonics/zephyr-ide/commit/2f6df117cd5ec72f3c372225f1c1f504c2e6c4ce"><code>2f6df11</code></a></li>
+</ul>
+<h4 id="v1100"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.9.0...v1.10.0">v1.10.0</a><a class="headerlink" href="#v1100" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>1 August 2025</p>
+</blockquote>
+<h4 id="v190"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.8.8...v1.9.0">v1.9.0</a><a class="headerlink" href="#v190" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>1 August 2025</p>
+</blockquote>
+<ul>
+<li>Changed to 1.9.0 <a href="https://github.com/mylonics/zephyr-ide/commit/a0596d542515c711c631f51f87675d9d9639def6"><code>a0596d5</code></a></li>
+</ul>
+<h4 id="v188"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.8.7...v1.8.8">v1.8.8</a><a class="headerlink" href="#v188" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>1 August 2025</p>
+</blockquote>
+<ul>
+<li>Added recommendations for dts and cpp language server <a href="https://github.com/mylonics/zephyr-ide/commit/da7ba4276e745b6e3944c3e9ec197085ca33ffa1"><code>da7ba42</code></a></li>
+</ul>
+<h4 id="v187"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.8.6...v1.8.7">v1.8.7</a><a class="headerlink" href="#v187" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>1 August 2025</p>
+</blockquote>
+<ul>
+<li>Removed onetime workspace setup <a href="https://github.com/mylonics/zephyr-ide/commit/8f0a3d1b9a81d555da9c550e4cec412cc903c0b6"><code>8f0a3d1</code></a></li>
+</ul>
+<h4 id="v186"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.8.5...v1.8.6">v1.8.6</a><a class="headerlink" href="#v186" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>1 August 2025</p>
+</blockquote>
+<ul>
+<li>modified Changelog to corrent version number <a href="https://github.com/mylonics/zephyr-ide/commit/3a14a16e02ca60c2a9aafceddf67c22c2bf96668"><code>3a14a16</code></a></li>
+</ul>
+<h4 id="v185"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.8.4...v1.8.5">v1.8.5</a><a class="headerlink" href="#v185" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>1 August 2025</p>
+</blockquote>
+<ul>
+<li>Added setting to enable use of gui config <a href="https://github.com/mylonics/zephyr-ide/commit/77462d22c0e10bc094433c2a41266ba74b305dc9"><code>77462d2</code></a></li>
+</ul>
+<h4 id="v184"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.8.3...v1.8.4">v1.8.4</a><a class="headerlink" href="#v184" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>1 August 2025</p>
+</blockquote>
+<ul>
+<li>updated readme <a href="https://github.com/mylonics/zephyr-ide/commit/5edfcc60ae49cad91843c6e5731b0ecc51fbb38f"><code>5edfcc6</code></a></li>
+</ul>
+<h4 id="v183"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.8.2...v1.8.3">v1.8.3</a><a class="headerlink" href="#v183" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>26 June 2025</p>
+</blockquote>
+<ul>
+<li>Fixed board build command not working <a href="https://github.com/mylonics/zephyr-ide/commit/478a6cedfadda55eb699c06c7cabdecb53bda437"><code>478a6ce</code></a></li>
+</ul>
+<h4 id="v182"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.8.1...v1.8.2">v1.8.2</a><a class="headerlink" href="#v182" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>26 June 2025</p>
+</blockquote>
+<ul>
+<li>Added openocd debug examples and fixed debug button issues. <a href="https://github.com/mylonics/zephyr-ide/commit/aafcaf95d3a2a464c0d26c5c610bb7d94e6d8fba"><code>aafcaf9</code></a></li>
+</ul>
+<h4 id="v181"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.8.0...v1.8.1">v1.8.1</a><a class="headerlink" href="#v181" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>25 June 2025</p>
+</blockquote>
+<ul>
+<li>Reverted cmsis6 fix on template <a href="https://github.com/mylonics/zephyr-ide/commit/4f1435e05fc7244c5482118c7bbe07ef8cd9b36e"><code>4f1435e</code></a></li>
+</ul>
+<h4 id="v180"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.7.7...v1.8.0">v1.8.0</a><a class="headerlink" href="#v180" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>25 June 2025</p>
+</blockquote>
+<ul>
+<li>board subdir path improvements <a href="https://github.com/mylonics/zephyr-ide/commit/9738ba6a4d9bb14d80a5ba30f92afea52d0bc6ad"><code>9738ba6</code></a></li>
+<li>Updated changelog <a href="https://github.com/mylonics/zephyr-ide/commit/b15a08f328e1351421e3c1df71373bc4d41c3338"><code>b15a08f</code></a></li>
+<li>Reverted option for zephyr ide style topology for release <a href="https://github.com/mylonics/zephyr-ide/commit/38f1de493f171cb4abab31e653df8cedacb7e38c"><code>38f1de4</code></a></li>
+<li>Disabled isMacOs from returning true <a href="https://github.com/mylonics/zephyr-ide/commit/eaa14753f8d770c38083fe7dd9e791258a83ea56"><code>eaa1475</code></a></li>
+</ul>
+<h4 id="v177"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.7.6...v1.7.7">v1.7.7</a><a class="headerlink" href="#v177" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>23 June 2025</p>
+</blockquote>
+<ul>
+<li>Maybe fixed macOS issues <a href="https://github.com/mylonics/zephyr-ide/commit/4b054045896032a15e445e03943786da4416cdfd"><code>4b05404</code></a></li>
+</ul>
+<h4 id="v176"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.7.5...v1.7.6">v1.7.6</a><a class="headerlink" href="#v176" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>22 June 2025</p>
+</blockquote>
+<ul>
+<li>Saving state on twister integration <a href="https://github.com/mylonics/zephyr-ide/commit/f3bd0948e9ac2aaf576845426ba68992827a94a5"><code>f3bd094</code></a></li>
+<li>Added twister.ts file <a href="https://github.com/mylonics/zephyr-ide/commit/362b0dd6b8cb9720ec8044ffcf99e41bfaca5780"><code>362b0dd</code></a></li>
+<li>Finished adding twister tests <a href="https://github.com/mylonics/zephyr-ide/commit/4e7732b987fe2fd686c8be24e8bed724af8bfeb7"><code>4e7732b</code></a></li>
+<li>Tested twister gui changes for active project view <a href="https://github.com/mylonics/zephyr-ide/commit/e8f40f5bc1f95bf476b271d4f8ad358cbb40a5a6"><code>e8f40f5</code></a></li>
+<li>Added twister gui changes for project config view <a href="https://github.com/mylonics/zephyr-ide/commit/11d4c8f3f1d7d26642ecb811fa6dbae7aca23404"><code>11d4c8f</code></a></li>
+</ul>
+<h4 id="v175"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.7.4...v1.7.5">v1.7.5</a><a class="headerlink" href="#v175" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>13 June 2025</p>
+</blockquote>
+<ul>
+<li>Added parsing board revision numbers <a href="https://github.com/mylonics/zephyr-ide/commit/8bb4b5a918c429c50a51086d829e0fd5b63b2063"><code>8bb4b5a</code></a></li>
+</ul>
+<h4 id="v174"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.7.3...v1.7.4">v1.7.4</a><a class="headerlink" href="#v174" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>11 June 2025</p>
+</blockquote>
+<ul>
+<li>Updated Changelog <a href="https://github.com/mylonics/zephyr-ide/commit/1b764943cf98cb7efd7ad67f040d50e86fd3cf79"><code>1b76494</code></a></li>
+</ul>
+<h4 id="v173"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.7.2...v1.7.3">v1.7.3</a><a class="headerlink" href="#v173" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>25 April 2025</p>
+</blockquote>
+<ul>
+<li>checking if build_info exists before using it <a href="https://github.com/mylonics/zephyr-ide/commit/d385148d30bd5c7b88b16945f46b4468a80e10cf"><code>d385148</code></a></li>
+</ul>
+<h4 id="v172"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.7.1...v1.7.2">v1.7.2</a><a class="headerlink" href="#v172" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>25 April 2025</p>
+</blockquote>
+<ul>
+<li>Fixed bug <a href="https://github.com/mylonics/zephyr-ide/commit/6f1f826a35e4bc1167aae6af4fd6b3b05926a0f4"><code>6f1f826</code></a></li>
+</ul>
+<h4 id="v171"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.7.0...v1.7.1">v1.7.1</a><a class="headerlink" href="#v171" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>24 April 2025</p>
+</blockquote>
+<ul>
+<li>removed deprecated vscode settings <a href="https://github.com/mylonics/zephyr-ide/commit/6ed5b21657fb271b486554609a44bf3facaf82df"><code>6ed5b21</code></a></li>
+</ul>
+<h4 id="v170"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.6.9...v1.7.0">v1.7.0</a><a class="headerlink" href="#v170" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>19 April 2025</p>
+</blockquote>
+<ul>
+<li>Further dts integration <a href="https://github.com/mylonics/zephyr-ide/commit/be3989a2315795f178fc3bccc85d76de21928e89"><code>be3989a</code></a></li>
+<li>Added Full support for dts-lsp <a href="https://github.com/mylonics/zephyr-ide/commit/f44d611f674f947740e0fed3957837138fcf98f1"><code>f44d611</code></a></li>
+</ul>
+<h4 id="v169"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.6.8...v1.6.9">v1.6.9</a><a class="headerlink" href="#v169" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>14 April 2025</p>
+</blockquote>
+<ul>
+<li>Added support for multiroot workspaces <a href="https://github.com/mylonics/zephyr-ide/commit/f224a2555d6fb2887960354fce5a610b9246a2e8"><code>f224a25</code></a></li>
+</ul>
+<h4 id="v168"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.6.7...v1.6.8">v1.6.8</a><a class="headerlink" href="#v168" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>14 April 2025</p>
+</blockquote>
+<ul>
+<li>Added the ability to load samples from modules as well <a href="https://github.com/mylonics/zephyr-ide/commit/a56bf52ace55c4db35c52d9d294b8785eaaafe24"><code>a56bf52</code></a></li>
+</ul>
+<h4 id="v167"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.6.6...v1.6.7">v1.6.7</a><a class="headerlink" href="#v167" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>14 April 2025</p>
+</blockquote>
+<ul>
+<li>Fix project name parsing #105 <a href="https://github.com/mylonics/zephyr-ide/pull/106"><code>#106</code></a></li>
+<li>Started integrating dts-lsp contexts <a href="https://github.com/mylonics/zephyr-ide/commit/5b564d282e00344ba8dfa96b8c96c21966a7d9f5"><code>5b564d2</code></a></li>
+<li>zephyr path now obtained fromm modules.ts <a href="https://github.com/mylonics/zephyr-ide/commit/743f785a09d882dfdd2189fc544624be7f4c7289"><code>743f785</code></a></li>
+</ul>
+<h4 id="v166"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.6.5...v1.6.6">v1.6.6</a><a class="headerlink" href="#v166" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>13 April 2025</p>
+</blockquote>
+<ul>
+<li>Fixed module yaml file not found bug <a href="https://github.com/mylonics/zephyr-ide/commit/ed4e097b0db90bf921febd59eec0b629f69321d1"><code>ed4e097</code></a></li>
+<li>updated changelog error <a href="https://github.com/mylonics/zephyr-ide/commit/c4c40996333f1d2fd9fd70ccdfcb46efb8203a7a"><code>c4c4099</code></a></li>
+</ul>
+<h4 id="v165"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.6.3...v1.6.5">v1.6.5</a><a class="headerlink" href="#v165" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>13 April 2025</p>
+</blockquote>
+<ul>
+<li>Initial addition of dts-lsp feature <a href="https://github.com/mylonics/zephyr-ide/commit/6fe59416b6061c81602d8f8ed3f79d4ed5faf08e"><code>6fe5941</code></a></li>
+<li>Update issue templates <a href="https://github.com/mylonics/zephyr-ide/commit/41fb8a72ed8ab57571c46482f43c759cc9e57063"><code>41fb8a7</code></a></li>
+<li>Update issue templates <a href="https://github.com/mylonics/zephyr-ide/commit/a33394f246b899466b7c57543f0796a34a33f2cf"><code>a33394f</code></a></li>
+<li>Create FUNDING.yml <a href="https://github.com/mylonics/zephyr-ide/commit/31551af5a8667446039f360989c0604a21aaa01b"><code>31551af</code></a></li>
+<li>Create config.yml <a href="https://github.com/mylonics/zephyr-ide/commit/636ab6992bd461f1c8667615f37521d04a9ecfaa"><code>636ab69</code></a></li>
+</ul>
+<h4 id="v163"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.6.2...v1.6.3">v1.6.3</a><a class="headerlink" href="#v163" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>27 March 2025</p>
+</blockquote>
+<ul>
+<li>Saving State <a href="https://github.com/mylonics/zephyr-ide/commit/f76e0d4105723008a57c1ccfc32ff787c75e401f"><code>f76e0d4</code></a></li>
+<li>Ready to merge to main <a href="https://github.com/mylonics/zephyr-ide/commit/d06a0728b3017285255bd139ec6ab07271811c60"><code>d06a072</code></a></li>
+<li>Initial use of global environmental collection <a href="https://github.com/mylonics/zephyr-ide/commit/b252df804730d07d05ecb15fecd5c4dbaba8a6a6"><code>b252df8</code></a></li>
+</ul>
+<h4 id="v162"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.6.1...v1.6.2">v1.6.2</a><a class="headerlink" href="#v162" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>6 January 2025</p>
+</blockquote>
+<ul>
+<li>Replace fs.writeFile with fs.outputFile to create parent directories. <a href="https://github.com/mylonics/zephyr-ide/pull/94"><code>#94</code></a></li>
+<li>MANUAL.md <a href="https://github.com/mylonics/zephyr-ide/pull/95"><code>#95</code></a></li>
+<li>updated changelog <a href="https://github.com/mylonics/zephyr-ide/commit/6127ddb64c56af091a6d9553571796b447e27c90"><code>6127ddb</code></a></li>
+</ul>
+<h4 id="v161"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.6.0...v1.6.1">v1.6.1</a><a class="headerlink" href="#v161" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>17 December 2024</p>
+</blockquote>
+<ul>
+<li>Added new sdk 0.17.0 <a href="https://github.com/mylonics/zephyr-ide/commit/b9cbbd1528753c742f6c32ee532f99445c5c4786"><code>b9cbbd1</code></a></li>
+<li>Added minimal ble and updated default .gitignore <a href="https://github.com/mylonics/zephyr-ide/commit/b229e52fb0a0f14c454a4fd655556ed074ac0c55"><code>b229e52</code></a></li>
+<li>Updated manual for notes on macos use <a href="https://github.com/mylonics/zephyr-ide/commit/ff2d55bfb8248178af8f1ea22201f857231e2cf4"><code>ff2d55b</code></a></li>
+</ul>
+<h4 id="v160"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.5.5...v1.6.0">v1.6.0</a><a class="headerlink" href="#v160" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>12 December 2024</p>
+</blockquote>
+<ul>
+<li>Fixes for global workspace install <a href="https://github.com/mylonics/zephyr-ide/commit/f09f2527413ec9f651ffaa5c1f58c6cc06bfcd05"><code>f09f252</code></a></li>
+</ul>
+<h4 id="v155"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.5.4...v1.5.5">v1.5.5</a><a class="headerlink" href="#v155" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>12 December 2024</p>
+</blockquote>
+<ul>
+<li>Moved release notes to changelog <a href="https://github.com/mylonics/zephyr-ide/commit/f4fe5cdb6f2e92590da1f928b6c119521d603173"><code>f4fe5cd</code></a></li>
+</ul>
+<h4 id="v154"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.5.3...v1.5.4">v1.5.4</a><a class="headerlink" href="#v154" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>12 December 2024</p>
+</blockquote>
+<ul>
+<li>Removed filter on KConfig files <a href="https://github.com/mylonics/zephyr-ide/commit/0cc805540c1f9a6b5f0092b6504bb5a95b086667"><code>0cc8055</code></a></li>
+</ul>
+<h4 id="v153"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.5.2...v1.5.3">v1.5.3</a><a class="headerlink" href="#v153" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>12 December 2024</p>
+</blockquote>
+<ul>
+<li>fixed board issues <a href="https://github.com/mylonics/zephyr-ide/commit/ac9a7e36840c5a79c21c815a0dd2b18f60e24ccf"><code>ac9a7e3</code></a></li>
+</ul>
+<h4 id="v152"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.5.1...v1.5.2">v1.5.2</a><a class="headerlink" href="#v152" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>30 November 2024</p>
+</blockquote>
+<ul>
+<li>fixing build cmd <a href="https://github.com/mylonics/zephyr-ide/commit/fbf4a6a6e83caa1f6089ec65f94763dc46b6095e"><code>fbf4a6a</code></a></li>
+</ul>
+<h4 id="v151"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.5.0...v1.5.1">v1.5.1</a><a class="headerlink" href="#v151" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>29 November 2024</p>
+</blockquote>
+<ul>
+<li>Removed West arguments from regular build <a href="https://github.com/mylonics/zephyr-ide/commit/0050df63384c3c7b02e08a836232afc74b28693a"><code>0050df6</code></a></li>
+</ul>
+<h4 id="v150"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.4.2...v1.5.0">v1.5.0</a><a class="headerlink" href="#v150" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>28 November 2024</p>
+</blockquote>
+<ul>
+<li>reworked buid command <a href="https://github.com/mylonics/zephyr-ide/commit/d230e18d00277476158be70ef26805010de7cfd4"><code>d230e18</code></a></li>
+</ul>
+<h4 id="v142"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.4.1...v1.4.2">v1.4.2</a><a class="headerlink" href="#v142" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>28 November 2024</p>
+</blockquote>
+<h4 id="v141"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.4.0...v1.4.1">v1.4.1</a><a class="headerlink" href="#v141" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>22 November 2024</p>
+</blockquote>
+<ul>
+<li>Updates for v1.4.1 <a href="https://github.com/mylonics/zephyr-ide/commit/fca2f997d97bdb3c8621875f7423391df6affd40"><code>fca2f99</code></a></li>
+</ul>
+<h4 id="v140"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.3.5...v1.4.0">v1.4.0</a><a class="headerlink" href="#v140" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>2 November 2024</p>
+</blockquote>
+<ul>
+<li>Fixed west initialzation asking for west init when it already exists <a href="https://github.com/mylonics/zephyr-ide/commit/ecef2346195f65ce22e8e5dd0309b251a1405d22"><code>ecef234</code></a></li>
+<li>Updated Readme for v 1.4.0 <a href="https://github.com/mylonics/zephyr-ide/commit/5343c147f20f814fb8e3107398c4e6116265e7d2"><code>5343c14</code></a></li>
+<li>Fixed incorrect board sub directory when adding runner <a href="https://github.com/mylonics/zephyr-ide/commit/68ab65e02e80f0965334453d002be50f6ea1dbdf"><code>68ab65e</code></a></li>
+</ul>
+<h4 id="v135"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.3.4...v1.3.5">v1.3.5</a><a class="headerlink" href="#v135" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>2 November 2024</p>
+</blockquote>
+<ul>
+<li>Added custom vars <a href="https://github.com/mylonics/zephyr-ide/commit/86d031e03b6e3edec4f2c360cbfc10afe6027874"><code>86d031e</code></a></li>
+</ul>
+<h4 id="v134"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.3.3...v1.3.4">v1.3.4</a><a class="headerlink" href="#v134" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>30 October 2024</p>
+</blockquote>
+<ul>
+<li>Added dtsh shell and ability to select active build/project from status bar <a href="https://github.com/mylonics/zephyr-ide/commit/42910b01da2826c780481d71bb9de996ef566a3b"><code>42910b0</code></a></li>
+<li>Added ram/rom report <a href="https://github.com/mylonics/zephyr-ide/commit/39adf033bb8336456f69bb81a709040ddad47a2d"><code>39adf03</code></a></li>
+<li>Added .gitignore automatic generation <a href="https://github.com/mylonics/zephyr-ide/commit/fb7ae792df1c87f60a2daa970746d189a647053f"><code>fb7ae79</code></a></li>
+<li>Changed devicetree and kconfig variables relative to workspace path if set up as local install <a href="https://github.com/mylonics/zephyr-ide/commit/72fd1ee75c787d92140eff987af55fe3037786a6"><code>72fd1ee</code></a></li>
+<li>Updated available versions <a href="https://github.com/mylonics/zephyr-ide/commit/ef0c85547342d7bd9ab8ef1ce72c26011f3e6736"><code>ef0c855</code></a></li>
+<li>Added references to sample project <a href="https://github.com/mylonics/zephyr-ide/commit/08569a120df03cb66608137db7d68056770e4bdf"><code>08569a1</code></a></li>
+</ul>
+<h4 id="v133"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.3.2...v1.3.3">v1.3.3</a><a class="headerlink" href="#v133" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>28 September 2024</p>
+</blockquote>
+<ul>
+<li>Added new command for debugging <a href="https://github.com/mylonics/zephyr-ide/commit/5afc03cefd7496649eb5348692d00131eeb7673d"><code>5afc03c</code></a></li>
+</ul>
+<h4 id="v132"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.3.1...v1.3.2">v1.3.2</a><a class="headerlink" href="#v132" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>17 September 2024</p>
+</blockquote>
+<ul>
+<li>Added manual <a href="https://github.com/mylonics/zephyr-ide/commit/55b729b6518bcced1a8183deb381533e3a7731b8"><code>55b729b</code></a></li>
+<li>fixing manual <a href="https://github.com/mylonics/zephyr-ide/commit/495d006c52980a33903461b3e909bc6274156cef"><code>495d006</code></a></li>
+<li>Updated Manual <a href="https://github.com/mylonics/zephyr-ide/commit/3aa04bdc9ed11687751fee636aee934675238b3b"><code>3aa04bd</code></a></li>
+</ul>
+<h4 id="v131"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.3.0...v1.3.1">v1.3.1</a><a class="headerlink" href="#v131" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>16 September 2024</p>
+</blockquote>
+<ul>
+<li>
+<ul>
+<li>Macos Unable to download the xtensa toolchain <a href="https://github.com/mylonics/zephyr-ide/pull/60"><code>#60</code></a></li>
+</ul>
+</li>
+<li>check if python environment already exists <a href="https://github.com/mylonics/zephyr-ide/commit/d2d720303b28184176de728910a2c7568995fb6d"><code>d2d7203</code></a></li>
+<li>updated release notes <a href="https://github.com/mylonics/zephyr-ide/commit/e0a30fa492e6370abdc6ac0fd89e5da9fe421105"><code>e0a30fa</code></a></li>
+</ul>
+<h4 id="v130"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.2.2...v1.3.0">v1.3.0</a><a class="headerlink" href="#v130" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>4 September 2024</p>
+</blockquote>
+<ul>
+<li>check if python environment already exists <a href="https://github.com/mylonics/zephyr-ide/commit/012e0578d1e8f3404f2b8b31ce60f2bab6cde24a"><code>012e057</code></a></li>
+<li>Fixed setting build states on new project and build. Fixed missing deliminator on conf files <a href="https://github.com/mylonics/zephyr-ide/commit/cc65d4cac3416b4ae23d6fe9f54be85ae0982bf6"><code>cc65d4c</code></a></li>
+</ul>
+<h4 id="v122"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.2.1...v1.2.2">v1.2.2</a><a class="headerlink" href="#v122" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>30 August 2024</p>
+</blockquote>
+<ul>
+<li>Added shell test command <a href="https://github.com/mylonics/zephyr-ide/commit/31cc98fab823dd68e81abb5676c8367498484515"><code>31cc98f</code></a></li>
+<li>Added link to extension pack <a href="https://github.com/mylonics/zephyr-ide/commit/aa6111dc5b2ff9a7a9a37befefc954c7a6fe5cb0"><code>aa6111d</code></a></li>
+</ul>
+<h4 id="v121"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.2.0...v1.2.1">v1.2.1</a><a class="headerlink" href="#v121" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>29 August 2024</p>
+</blockquote>
+<ul>
+<li>Force use of bash os on macos always <a href="https://github.com/mylonics/zephyr-ide/commit/608a07f22e32b614120b68b9bd1b4c9dd5702bcc"><code>608a07f</code></a></li>
+</ul>
+<h4 id="v120"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.1.5...v1.2.0">v1.2.0</a><a class="headerlink" href="#v120" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>28 August 2024</p>
+</blockquote>
+<ul>
+<li>Added mark west as ready command <a href="https://github.com/mylonics/zephyr-ide/commit/3661a447eaed9974d0f32405364724c8f61f54e8"><code>3661a44</code></a></li>
+</ul>
+<h4 id="v115"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.1.4...v1.1.5">v1.1.5</a><a class="headerlink" href="#v115" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>28 August 2024</p>
+</blockquote>
+<ul>
+<li>Set python as default for macos <a href="https://github.com/mylonics/zephyr-ide/commit/4eca5613063f32232a8098cd2781d573bb37dc3a"><code>4eca561</code></a></li>
+</ul>
+<h4 id="v114"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.1.3...v1.1.4">v1.1.4</a><a class="headerlink" href="#v114" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>28 August 2024</p>
+</blockquote>
+<ul>
+<li>Force use of bash when zsh is default <a href="https://github.com/mylonics/zephyr-ide/commit/9006a018ef6803e3e66f7cccaa23ab51927756bc"><code>9006a01</code></a></li>
+</ul>
+<h4 id="v113"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.1.2...v1.1.3">v1.1.3</a><a class="headerlink" href="#v113" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>28 August 2024</p>
+</blockquote>
+<ul>
+<li>ZSH fix <a href="https://github.com/mylonics/zephyr-ide/commit/1e899dc06aa7a0ee28422dfb15f06ff4924e429d"><code>1e899dc</code></a></li>
+<li>Ensure extension setup panel always renders something <a href="https://github.com/mylonics/zephyr-ide/commit/ad49158a4d7ffdd23e2e905f076bf25263069459"><code>ad49158</code></a></li>
+<li>Testing terminal fix <a href="https://github.com/mylonics/zephyr-ide/commit/f11cf0d118ae0d8aee178ff0872f35b4b7e086ef"><code>f11cf0d</code></a></li>
+</ul>
+<h4 id="v112"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.1.1...v1.1.2">v1.1.2</a><a class="headerlink" href="#v112" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>26 August 2024</p>
+</blockquote>
+<ul>
+<li>Added the ability to use any folder as the zephyr install folder <a href="https://github.com/mylonics/zephyr-ide/commit/c916653f996c3b86609560d4f5378bfbed2c3476"><code>c916653</code></a></li>
+<li>Prevent zephyr ide from loading in settings/config files before workspace has initialized <a href="https://github.com/mylonics/zephyr-ide/commit/873fa598ca8f95fa7eb4003f6f796f6c0f63c6c6"><code>873fa59</code></a></li>
+<li>Updated README <a href="https://github.com/mylonics/zephyr-ide/commit/58c949ade438dcc062e8a2931dc2f8949a9e575a"><code>58c949a</code></a></li>
+</ul>
+<h4 id="v111"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.1.0...v1.1.1">v1.1.1</a><a class="headerlink" href="#v111" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>26 August 2024</p>
+</blockquote>
+<ul>
+<li>Fixed Issue with west init <a href="https://github.com/mylonics/zephyr-ide/commit/7af0011e3ca45cebf420121f6d3f155879a91f1d"><code>7af0011</code></a></li>
+</ul>
+<h4 id="v110"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.0.44...v1.1.0">v1.1.0</a><a class="headerlink" href="#v110" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>26 August 2024</p>
+</blockquote>
+<ul>
+<li>Integration with nrf device tree <a href="https://github.com/mylonics/zephyr-ide/commit/7a336e6c1fdcae2d3e6ce9efec619be2e5177707"><code>7a336e6</code></a></li>
+<li>Fixed bugs in GUI rendering <a href="https://github.com/mylonics/zephyr-ide/commit/e32f6e150816c120ac43a608f3b3d47f85e18828"><code>e32f6e1</code></a></li>
+<li>Updated release notes <a href="https://github.com/mylonics/zephyr-ide/commit/87318ef8f6c2442f47c97c586319215e736d018c"><code>87318ef</code></a></li>
+<li>Allow multiple tasks to run at once <a href="https://github.com/mylonics/zephyr-ide/commit/ec4b6755911ed1988ef7f8d2407b5e9815296052"><code>ec4b675</code></a></li>
+</ul>
+<h4 id="v1044"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.0.43...v1.0.44">v1.0.44</a><a class="headerlink" href="#v1044" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>23 August 2024</p>
+</blockquote>
+<ul>
+<li>fixed onetime config name <a href="https://github.com/mylonics/zephyr-ide/commit/473ed6f7ade3d90fb4a10a77728e0f87cbe8d40f"><code>473ed6f</code></a></li>
+</ul>
+<h4 id="v1043"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.0.42...v1.0.43">v1.0.43</a><a class="headerlink" href="#v1043" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>23 August 2024</p>
+</blockquote>
+<ul>
+<li>Added compile commands <a href="https://github.com/mylonics/zephyr-ide/commit/0c7b7e00bb92cf1d0d5bf2ca9c6d385565eee86b"><code>0c7b7e0</code></a></li>
+</ul>
+<h4 id="v1042"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.0.41...v1.0.42">v1.0.42</a><a class="headerlink" href="#v1042" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>23 August 2024</p>
+</blockquote>
+<ul>
+<li>Added onetime setup when extension is initialized in a workspace. with default terminal profile <a href="https://github.com/mylonics/zephyr-ide/commit/fd0ffcc8d7f0c2761035a011739ef1b7d1024977"><code>fd0ffcc</code></a></li>
+<li>removed projects from settings.json. Now they are only accessed via zephyr-ide-json <a href="https://github.com/mylonics/zephyr-ide/commit/e55d13035e96386e0de3c78dae9b2c6b5bb2df8e"><code>e55d130</code></a></li>
+<li>Updated readme to v1.0.42 <a href="https://github.com/mylonics/zephyr-ide/commit/0f35c256dac0e5801e8fdd057f917f1d257487b9"><code>0f35c25</code></a></li>
+<li>Added proper path separator to arm gdb path <a href="https://github.com/mylonics/zephyr-ide/commit/3d00d4c1134a92e29bf05fc537a0839f558c10ff"><code>3d00d4c</code></a></li>
+</ul>
+<h4 id="v1041"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.0.40...v1.0.41">v1.0.41</a><a class="headerlink" href="#v1041" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>23 August 2024</p>
+</blockquote>
+<ul>
+<li>Fixed conflict with python environment manager <a href="https://github.com/mylonics/zephyr-ide/commit/0b3f8af329d6a33d6d462530e995e302472836bf"><code>0b3f8af</code></a></li>
+</ul>
+<h4 id="v1040"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.0.39...v1.0.40">v1.0.40</a><a class="headerlink" href="#v1040" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>5 August 2024</p>
+</blockquote>
+<h4 id="v1039"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.0.38...v1.0.39">v1.0.39</a><a class="headerlink" href="#v1039" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>1 August 2024</p>
+</blockquote>
+<h4 id="v1038"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.0.37...v1.0.38">v1.0.38</a><a class="headerlink" href="#v1038" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>1 August 2024</p>
+</blockquote>
+<h4 id="v1037"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.0.36...v1.0.37">v1.0.37</a><a class="headerlink" href="#v1037" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>1 August 2024</p>
+</blockquote>
+<ul>
+<li>Fixed not updating status view and split up project list from project config by adding a new webview <a href="https://github.com/mylonics/zephyr-ide/commit/c448acee3fa3991391274d1d423c66474e77051c"><code>c448ace</code></a></li>
+<li>GUI updates for maintaining tree states on extension open/close <a href="https://github.com/mylonics/zephyr-ide/commit/79691082b865536b14890ec94f9302ed0b827640"><code>7969108</code></a></li>
+<li>Made some fixes <a href="https://github.com/mylonics/zephyr-ide/commit/471ec3e430b7ea0c58831565b5134acd620e091d"><code>471ec3e</code></a></li>
+<li>Minor clean up <a href="https://github.com/mylonics/zephyr-ide/commit/68e990b2c5c330e2ef746c81319fb856205b53e0"><code>68e990b</code></a></li>
+</ul>
+<h4 id="v1036"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.0.35...v1.0.36">v1.0.36</a><a class="headerlink" href="#v1036" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>24 June 2024</p>
+</blockquote>
+<ul>
+<li>added additional debug command <a href="https://github.com/mylonics/zephyr-ide/commit/f26fe222fbd890cb2514a5799a98e32129da7860"><code>f26fe22</code></a></li>
+</ul>
+<h4 id="v1035"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.0.34...v1.0.35">v1.0.35</a><a class="headerlink" href="#v1035" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>20 June 2024</p>
+</blockquote>
+<h4 id="v1034"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.0.33...v1.0.34">v1.0.34</a><a class="headerlink" href="#v1034" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>20 June 2024</p>
+</blockquote>
+<ul>
+<li>fixed setup path bug <a href="https://github.com/mylonics/zephyr-ide/commit/8c280f55ae90f86a23ef6091dad5fca54a34a6b4"><code>8c280f5</code></a></li>
+</ul>
+<h4 id="v1033"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.0.32...v1.0.33">v1.0.33</a><a class="headerlink" href="#v1033" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>17 June 2024</p>
+</blockquote>
+<h4 id="v1032"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.0.31...v1.0.32">v1.0.32</a><a class="headerlink" href="#v1032" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>17 June 2024</p>
+</blockquote>
+<ul>
+<li>Split out modifications from Zephyr Tools code for sdk install <a href="https://github.com/mylonics/zephyr-ide/commit/ca2813843bdf5c5fa8cb00cc9deb90d0737cb1e6"><code>ca28138</code></a></li>
+<li>Added global zephyr install <a href="https://github.com/mylonics/zephyr-ide/commit/3de7bdc678895f61f7b8b72d43a2dca9d00e637c"><code>3de7bdc</code></a></li>
+<li>Improved handling of sdk installs <a href="https://github.com/mylonics/zephyr-ide/commit/053be230c485146389ab93162979c18a41f8f710"><code>053be23</code></a></li>
+<li>Added some details to developer guide <a href="https://github.com/mylonics/zephyr-ide/commit/e4bf0f79b01a5698cd564846413c744567946467"><code>e4bf0f7</code></a></li>
+</ul>
+<h4 id="v1031"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.0.30...v1.0.31">v1.0.31</a><a class="headerlink" href="#v1031" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>29 May 2024</p>
+</blockquote>
+<ul>
+<li>Updated Readme <a href="https://github.com/mylonics/zephyr-ide/commit/37138763beca2d18b35c61c4441f59490b6897aa"><code>3713876</code></a></li>
+</ul>
+<h4 id="v1030"><a href="https://github.com/mylonics/zephyr-ide/compare/v1.0.29...v1.0.30">v1.0.30</a><a class="headerlink" href="#v1030" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>29 May 2024</p>
+</blockquote>
+<ul>
+<li>Finalizing west build gui changes <a href="https://github.com/mylonics/zephyr-ide/commit/921c084ef77e5e658d5308d213af4994db23f3ad"><code>921c084</code></a></li>
+</ul>
+<h4 id="v1029">v1.0.29<a class="headerlink" href="#v1029" title="Permanent link">&para;</a></h4>
+<blockquote>
+<p>27 May 2024</p>
+</blockquote>
+<ul>
+<li>BuildConfig: Add westBuildArgs and westBuildCMakeArgs <a href="https://github.com/mylonics/zephyr-ide/pull/22"><code>#22</code></a></li>
+<li>README: Add "Development and Debugging" section <a href="https://github.com/mylonics/zephyr-ide/pull/21"><code>#21</code></a></li>
+<li>add scan sub for "samples" <a href="https://github.com/mylonics/zephyr-ide/pull/20"><code>#20</code></a></li>
+<li>included missing else <a href="https://github.com/mylonics/zephyr-ide/commit/8c8da2e73bc4f6229efbb5d8c49c6604ffb6ffcd"><code>8c8da2e</code></a></li>
+<li>merged <a href="https://github.com/mylonics/zephyr-ide/commit/97596d2be371caa2bbbe6fbc0865eff7e7190b63"><code>97596d2</code></a></li>
+<li>first commit <a href="https://github.com/mylonics/zephyr-ide/commit/64ec6df44768f3f34d51f20dd42cbafd21b32dd6"><code>64ec6df</code></a></li>
+<li>Cleaned up setup code <a href="https://github.com/mylonics/zephyr-ide/commit/51d7a6b311aa6bff1e4d078cc03f9413f7162d06"><code>51d7a6b</code></a></li>
+<li>V1.0.25 <a href="https://github.com/mylonics/zephyr-ide/commit/31af827e7d699fd7b89cf0ff433cfeb85a45f981"><code>31af827</code></a></li>
+<li>Fixed missing js and css files <a href="https://github.com/mylonics/zephyr-ide/commit/8b165d8e47d9081f710ff67aaa0708d575a6241d"><code>8b165d8</code></a></li>
+<li>Added additional status bar icons, Added gui for build flags, prevent initializations of workspace without folder open, added menuconfig buttons to tree view <a href="https://github.com/mylonics/zephyr-ide/commit/43914758152350cb41a204cf45b4562e6cf2369a"><code>4391475</code></a></li>
+<li>initial publish <a href="https://github.com/mylonics/zephyr-ide/commit/32a4f4c54ef84796e23c447409404e11f9aca3a3"><code>32a4f4c</code></a></li>
+<li>added two different get board list files <a href="https://github.com/mylonics/zephyr-ide/commit/76b0c8c5a04c695929a24c7a807184ffbdd7bcee"><code>76b0c8c</code></a></li>
+<li>Changed the way boards are loaded <a href="https://github.com/mylonics/zephyr-ide/commit/f12b280ec1206ec0a92d73de092da06ad91e09e7"><code>f12b280</code></a></li>
+<li>Ability to select different HALs during west init phase <a href="https://github.com/mylonics/zephyr-ide/commit/a10217e1d2b8b7117d0ecfd954d7a1f292da1de0"><code>a10217e</code></a></li>
+<li>Properly changed project name when copying sample <a href="https://github.com/mylonics/zephyr-ide/commit/56d8d94484374072b5d4840f22fd424d44c018d9"><code>56d8d94</code></a></li>
+<li>Added menuconfig <a href="https://github.com/mylonics/zephyr-ide/commit/5cf747c342447624f8bc726ac3a0eb0000d94033"><code>5cf747c</code></a></li>
+<li>Added video tutorials and fix debug configuration snippets <a href="https://github.com/mylonics/zephyr-ide/commit/810130155734d6e489f06e982a615fa3c0ad2774"><code>8101301</code></a></li>
+<li>should be able to build for esp now <a href="https://github.com/mylonics/zephyr-ide/commit/2e0e92a634811bb68ed7df268e6de633dc5714e4"><code>2e0e92a</code></a></li>
+<li>v1.0.17 fixing not packaging js-yaml properly <a href="https://github.com/mylonics/zephyr-ide/commit/3d6caf6311d23ffd3a85f292bde499491db344c3"><code>3d6caf6</code></a></li>
+<li>GUI now opens non-arm board files <a href="https://github.com/mylonics/zephyr-ide/commit/19edd5b4765e90b4c4655a4dbd5905cded37c5b5"><code>19edd5b</code></a></li>
+<li>Updated Readme <a href="https://github.com/mylonics/zephyr-ide/commit/90ae50c9110e92a127652e33a0dff9654489efc1"><code>90ae50c</code></a></li>
+<li>Make list of samples project short <a href="https://github.com/mylonics/zephyr-ide/commit/01e8c70c8a20fcca9fea4f5dadb34b1c80a35441"><code>01e8c70</code></a></li>
+<li>Added runners from list <a href="https://github.com/mylonics/zephyr-ide/commit/1a6685c621bae084efec16334a125e7328a3875a"><code>1a6685c</code></a></li>
+<li>Fixed project proxy issue <a href="https://github.com/mylonics/zephyr-ide/commit/2501f8da9e89b5b9948a7cb73ef40eec7509b503"><code>2501f8d</code></a></li>
+<li>Fixed introduced bug with reading stdout when setting up west environment <a href="https://github.com/mylonics/zephyr-ide/commit/0e932d1453299399a932ef1e914b9594d0658d73"><code>0e932d1</code></a></li>
+<li>Added description to project <a href="https://github.com/mylonics/zephyr-ide/commit/12b6ea46679f92907fd9d3e9a9999a88c7c75e12"><code>12b6ea4</code></a></li>
+<li>removed switch case <a href="https://github.com/mylonics/zephyr-ide/commit/4784c43c5c656f9742b5a8d4c1029de09a5ccd5f"><code>4784c43</code></a></li>
+<li>Hopefully added js-yaml correctly now <a href="https://github.com/mylonics/zephyr-ide/commit/cf7de4078734c7c79e69f2fd16bec5451aacb7ab"><code>cf7de40</code></a></li>
+<li>Updated templates <a href="https://github.com/mylonics/zephyr-ide/commit/953a6735632aa5b393f94f5c5e9d98cfc8e4979a"><code>953a673</code></a></li>
+<li>Fix for split path <a href="https://github.com/mylonics/zephyr-ide/commit/dfa549fb5bfb10838a824bcc2942b6869ce8cc66"><code>dfa549f</code></a></li>
+<li>V1.0.23 <a href="https://github.com/mylonics/zephyr-ide/commit/989059676a7f3b7a452173ab8bb8cf97fee4758a"><code>9890596</code></a></li>
+<li>added back runner argument for default <a href="https://github.com/mylonics/zephyr-ide/commit/21b77d5c91a9cfa95eb5172f17aa91247d790759"><code>21b77d5</code></a></li>
+<li>modified ncs_west template <a href="https://github.com/mylonics/zephyr-ide/commit/1921c6d576a6ee6f13b6e700c7dd8acd7a9f441e"><code>1921c6d</code></a></li>
+<li>Fixed incorrect build name <a href="https://github.com/mylonics/zephyr-ide/commit/35d8e7fafb770ae9d2476ed35584ee14ba950e8e"><code>35d8e7f</code></a></li>
+<li>reverted default project file to use <a href="https://github.com/mylonics/zephyr-ide/commit/3a1c0bf8518c8b8910e70fd4bd91eb9334ca4f29"><code>3a1c0bf</code></a></li>
+<li>Minor Readme modifications <a href="https://github.com/mylonics/zephyr-ide/commit/ded341ba120d3beee244d19f00bd26f0304ca95e"><code>ded341b</code></a></li>
+<li>added icon svg properly <a href="https://github.com/mylonics/zephyr-ide/commit/62176c5b96f909f4eaea088c4fdd9f22cf5818c5"><code>62176c5</code></a></li>
+<li>Removed narrow <a href="https://github.com/mylonics/zephyr-ide/commit/f4b0483c5a6455697e987dae0817d6a05bb9794e"><code>f4b0483</code></a></li>
+<li>increased logo size <a href="https://github.com/mylonics/zephyr-ide/commit/81cdfb3f776689cdde90378fdd6226ac556d73e6"><code>81cdfb3</code></a></li>
+<li>Fixed incorrect error message <a href="https://github.com/mylonics/zephyr-ide/commit/9189461e7ed6396fd631f7af3ba87ea09ed4ba14"><code>9189461</code></a></li>
+</ul>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12Z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2025 Mylonics
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        <div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/mylonics/zephyr-ide" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://mylonics.com" target="_blank" rel="noopener" title="mylonics.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M352 256c0 22.2-1.2 43.6-3.3 64H163.3c-2.2-20.4-3.3-41.8-3.3-64s1.2-43.6 3.3-64h185.4c2.2 20.4 3.3 41.8 3.3 64zm28.8-64h123.1c5.3 20.5 8.1 41.9 8.1 64s-2.8 43.5-8.1 64H380.8c2.1-20.6 3.2-42 3.2-64s-1.1-43.4-3.2-64zm112.6-32H376.7c-10-63.9-29.8-117.4-55.3-151.6 78.3 20.7 142 77.5 171.9 151.6zm-149.1 0H167.7c6.1-36.4 15.5-68.6 27-94.7 10.5-23.6 22.2-40.7 33.5-51.5C239.4 3.2 248.7 0 256 0s16.6 3.2 27.8 13.8c11.3 10.8 23 27.9 33.5 51.5 11.6 26 20.9 58.2 27 94.7zm-209 0H18.6c30-74.1 93.6-130.9 172-151.6-25.5 34.2-45.3 87.7-55.3 151.6zM8.1 192h123.1c-2.1 20.6-3.2 42-3.2 64s1.1 43.4 3.2 64H8.1C2.8 299.5 0 278.1 0 256s2.8-43.5 8.1-64zm186.6 254.6c-11.6-26-20.9-58.2-27-94.6h176.6c-6.1 36.4-15.5 68.6-27 94.6-10.5 23.6-22.2 40.7-33.5 51.5-11.2 10.7-20.5 13.9-27.8 13.9s-16.6-3.2-27.8-13.8c-11.3-10.8-23-27.9-33.5-51.5zM135.3 352c10 63.9 29.8 117.4 55.3 151.6-78.4-20.7-142-77.5-172-151.6h116.7zm358.1 0c-30 74.1-93.6 130.9-171.9 151.6 25.5-34.2 45.2-87.7 55.3-151.6h116.6z"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": "2.2.0"}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.1e8ae164.min.js"></script>
+      
+    
+  </body>
+</html>
