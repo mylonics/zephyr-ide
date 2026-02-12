@@ -31,7 +31,7 @@ The testing infrastructure consists of:
 The standard workspace test validates the complete Zephyr IDE workflow:
 
 1. **Check Dependencies**: Validates build dependencies
-2. **Setup Workspace**: Creates standard workspace with west configuration (minimal manifest, STM32 toolchain, v4.2.0)
+2. **Setup Workspace**: Creates standard workspace with west configuration (minimal manifest, STM32 toolchain, v4.3.0)
 3. **Install SDK**: Installs SDK with automatic version and ARM toolchain
 4. **Create Project**: Creates blinky project from template
 5. **Configure Build**: Sets up build for nucleo_f401 with debug optimization
@@ -253,7 +253,7 @@ Current test coverage includes:
 
 ### Standard Workspace Test (`workspace-standard.test.ts`)
 - ✅ Build dependencies check
-- ✅ Standard workspace setup (minimal manifest, STM32 toolchain, v4.2.0)
+- ✅ Standard workspace setup (minimal manifest, STM32 toolchain, v4.3.0)
 - ✅ SDK installation (automatic version, ARM toolchain)
 - ✅ Project creation from template (blinky)
 - ✅ Build configuration (nucleo_f401, debug optimization)

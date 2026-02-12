@@ -24,6 +24,7 @@ import { RunnerConfigDictionary, RunnerStateDictionary } from './runner_selector
 import { ConfigFiles } from './config_selector';
 import { SetupState } from '../setup_utilities/types';
 import { executeShellCommandInPythonEnv, output } from "../utilities/utils";
+import { notifyError, outputCommandFailure } from "../utilities/output";
 import { isVersionNumberGreaterEqual, isVersionNumberGreater } from '../setup_utilities/modules';
 
 
@@ -98,8 +99,7 @@ async function getBoardlistWest(setupState: SetupState, folder: vscode.Uri | und
   }
 
   if (!res.stdout || res.stdout === "") {
-    console.log("Board list error");
-    console.log(res.stderr);
+    outputCommandFailure("Board Selection", res);
 
     // Check if we're in CI environment and provide fallback
     if (process.env.CI || process.env.GITHUB_ACTIONS || process.env.JENKINS_URL || process.env.BUILD_NUMBER) {
@@ -110,7 +110,7 @@ async function getBoardlistWest(setupState: SetupState, folder: vscode.Uri | und
       ];
     }
 
-    vscode.window.showErrorMessage("Failed to run west boards command. See Zephyr IDE Output for error message");
+    notifyError("Board Selection", "Failed to run west boards command. Check the Zephyr IDE output for details.");
     return;
   }
 

@@ -396,6 +396,10 @@
         "title": "Zephyr IDE: Debug Internal Shell"
       },
       {
+        "command": "zephyr-ide.west-list",
+        "title": "Zephyr IDE: West List"
+      },
+      {
         "command": "zephyr-ide.update-web-view",
         "title": "Zephyr IDE: Reload Web Views"
       },

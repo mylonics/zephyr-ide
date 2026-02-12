@@ -20,12 +20,14 @@ import * as os from "os";
 import * as fs from "fs-extra";
 import * as path from "path";
 import { output, executeTaskHelperInPythonEnv, executeTaskHelper, reloadEnvironmentVariables, getPlatformName, getPlatformNameAsync } from "../utilities/utils";
+import { outputInfo, outputWarning, outputRaw, notifyError, notifyWarningWithActions } from "../utilities/output";
 import { getModulePathAndVersion, getModuleVersion, isVersionNumberGreaterEqual } from "./modules";
 import { westSelector, WestLocation } from "./west_selector";
 import { WorkspaceConfig, GlobalConfig, SetupState } from "./types";
 import { saveSetupState, setSetupState, setWorkspaceState } from "./state-management";
 import { pathdivider } from "./tools-validation";
 import { getSetupState, getVenvPath } from "./workspace-config";
+import { ensureWestConfigManifest } from "./west-config-parser";
 
 // Test-only override for narrow update
 let forceNarrowUpdateForTest = false;
@@ -69,7 +71,7 @@ export async function getPythonCommand(): Promise<string> {
           return value;
         }
         hadExpansionError = true;
-        output.appendLine(`[SETUP] Warning: Environment variable ${varName} not found or not allowed in Python path`);
+        outputWarning("Python Setup", `Environment variable ${varName} not found or not allowed in Python path`);
         // Preserve the original placeholder to avoid creating malformed paths
         return match;
       });
@@ -79,20 +81,20 @@ export async function getPythonCommand(): Promise<string> {
         // Check if the configured Python executable exists
         if (fs.pathExistsSync(expandedPath)) {
           python = expandedPath;
-          output.appendLine(`[SETUP] Using configured Python interpreter: ${python}`);
+          outputInfo("Python Setup", `Using configured Python interpreter: ${python}`);
           return python as string;
         } else {
-          output.appendLine(`[SETUP] Configured Python interpreter not found: ${expandedPath}, falling back to default`);
+          outputWarning("Python Setup", `Configured Python interpreter not found: ${expandedPath} (original: ${configuredPython}). Falling back to platform default. Ensure the path exists or update python.defaultInterpreterPath.`);
         }
       } else {
-        output.appendLine("[SETUP] Skipping configured Python interpreter due to environment variable expansion errors, falling back to default");
+        outputWarning("Python Setup", "Skipping configured Python interpreter due to environment variable expansion errors, falling back to default");
       }
     }
     
     // Fall back to platform default
     const platformName = await getPlatformNameAsync();
     python = platformName === "linux" || platformName === "macos" ? "python3" : "python";
-    output.appendLine(`[SETUP] Using platform default Python: ${python}`);
+    outputInfo("Python Setup", `Using platform default Python: ${python}`);
   }
   return python as string;
 }
@@ -111,7 +113,7 @@ export async function westInit(context: vscode.ExtensionContext, wsConfig: Works
   let westInited = await checkWestInit(setupState);
 
   if (westInited) {
-    const selection = await vscode.window.showWarningMessage('Zephyr IDE: West already initialized. Call West Update instead. If you would like to reinitialize the .west folder will be deleted', 'Reinitialize', 'Cancel');
+    const selection = await notifyWarningWithActions('West Init', 'Zephyr IDE: West already initialized. Call West Update instead. If you would like to reinitialize the .west folder will be deleted', ['Reinitialize', 'Cancel']);
     if (selection !== 'Reinitialize') {
       return true;
     }
@@ -155,8 +157,15 @@ export async function westInit(context: vscode.ExtensionContext, wsConfig: Works
   let westInitRes = await executeTaskHelperInPythonEnv(setupState, "Zephyr IDE: West Init", cmd, setupState.setupPath);
 
   if (!westInitRes) {
-    vscode.window.showErrorMessage("West Init Failed. See terminal for error information.");
+    notifyError("West Init", "West Init Failed. Check the Zephyr IDE output for details.", { command: cmd });
   } else {
+    // Validate .west/config manifest section after init to prevent
+    // "manifest file not found: None" errors during subsequent west commands.
+    // west init -l can sometimes leave manifest.file or manifest.path empty/None.
+    const manifestPath = westSelection.path ? path.basename(westSelection.path) : undefined;
+    if (ensureWestConfigManifest(setupState.setupPath, { manifestPath })) {
+      outputInfo("West Init", `Repaired .west/config manifest section (setupPath: ${setupState.setupPath})`);
+    }
     if (solo) {
       vscode.window.showInformationMessage(`Successfully Completed West Init`);
     }
@@ -173,6 +182,12 @@ export async function westInit(context: vscode.ExtensionContext, wsConfig: Works
 export async function westUpdate(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, solo = true) {
   const setupState = await getSetupState(context, wsConfig);
 
+  // Safety check: ensure .west/config has valid manifest entries before running west update.
+  // This prevents "manifest file not found: None" errors if the config was corrupted.
+  if (ensureWestConfigManifest(setupState.setupPath)) {
+    outputInfo("West Update", `Repaired .west/config manifest section before update (setupPath: ${setupState.setupPath})`);
+  }
+
   setupState.westUpdated = false;
   setupState.zephyrDir = "";
   setupState.zephyrVersion = undefined;
@@ -188,16 +203,33 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
   let westUpdateRes = await executeTaskHelperInPythonEnv(setupState, "Zephyr IDE: West Update", cmd, setupState.setupPath);
 
   if (!westUpdateRes) {
-    vscode.window.showErrorMessage("West Update Failed. See terminal for error information.");
+    notifyError("West Update", "West Update Failed. Check the Zephyr IDE output for details.", { command: cmd });
   } else {
+    // Debug: dump .west/config after west update to see if it was modified
+    const postUpdateConfigPath = path.join(setupState.setupPath, ".west", "config");
+    try {
+      if (fs.existsSync(postUpdateConfigPath)) {
+        const postUpdateConfig = fs.readFileSync(postUpdateConfigPath, 'utf-8');
+        outputInfo("West Update Debug", `.west/config after west update:`);
+        outputRaw(postUpdateConfig);
+        // Show raw bytes of manifest section to detect encoding issues
+        const buf = fs.readFileSync(postUpdateConfigPath);
+        outputInfo("West Update Debug", `.west/config hex (first 256 bytes): ${buf.subarray(0, 256).toString('hex')}`);
+      } else {
+        outputWarning("West Update Debug", `.west/config NOT found after west update!`);
+      }
+    } catch (e) {
+      outputWarning("West Update Debug", `Failed to read .west/config after update: ${(e as Error).message}`);
+    }
+
     setupState.westUpdated = true;
     let zephyrModuleInfo = await getModulePathAndVersion(setupState, "zephyr");
     if (zephyrModuleInfo) {
       setupState.zephyrDir = zephyrModuleInfo.path;
       setupState.zephyrVersion = await getModuleVersion(zephyrModuleInfo.path);
-      output.appendLine(`[SETUP] Zephyr directory set from west list: ${setupState.zephyrDir}`);
+      outputInfo("West Update", `Zephyr directory set from west list: ${setupState.zephyrDir}`);
     } else {
-      output.appendLine(`[SETUP] Could not find zephyr module via west list, trying fallback...`);
+      outputWarning("West Update", `Could not find zephyr module via 'west list' in setupPath: ${setupState.setupPath}. Trying fallback VERSION file lookup...`);
       // Fallback: check for zephyr/VERSION file in setupPath
       const zephyrVersionFile = path.join(setupState.setupPath, "zephyr", "VERSION");
       if (fs.existsSync(zephyrVersionFile)) {
@@ -227,15 +259,15 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
               tweak: tweakMatch ? parseInt(tweakMatch[1]) : 0,
               extra: extraMatch && extraMatch[1].trim() !== "" ? parseInt(extraMatch[1].trim()) : 0
             };
-            output.appendLine(`[SETUP] Zephyr version detected from VERSION file: ${version}`);
+            outputInfo("West Update", `Zephyr version detected from VERSION file: ${version}`);
           } else {
-            vscode.window.showErrorMessage("West Update succeeded, but Zephyr VERSION file could not be parsed.");
+            notifyError("West Update", "West Update succeeded, but Zephyr VERSION file could not be parsed.");
           }
         } catch (err) {
-          vscode.window.showErrorMessage("West Update succeeded, but error reading Zephyr VERSION file.");
+          notifyError("West Update", "West Update succeeded, but error reading Zephyr VERSION file.");
         }
       } else {
-        vscode.window.showErrorMessage("West Update succeeded, but Zephyr module information could not be found.");
+        notifyError("West Update", "West Update succeeded, but Zephyr module information could not be found.");
       }
     }
 
@@ -257,17 +289,17 @@ export async function installPythonRequirements(context: vscode.ExtensionContext
   let westInited = await checkWestInit(setupState);
 
   if (!westInited) {
-    vscode.window.showErrorMessage('Zephyr IDE: West is not initialized. Call West Init First');
+    notifyError('Python Requirements', 'Zephyr IDE: West is not initialized. Call West Init First');
     return false;
   }
 
   if (!setupState.westUpdated) {
-    vscode.window.showErrorMessage('Zephyr IDE: Please call West Update First');
+    notifyError('Python Requirements', 'Zephyr IDE: Please call West Update First');
     return false;
   }
 
   if (!setupState.zephyrDir) {
-    vscode.window.showErrorMessage('Zephyr IDE: Zephyr directory not found. Please run West Update again.');
+    notifyError('Python Requirements', `Zephyr directory not found (setupPath: ${setupState.setupPath}). Please run West Update again.`);
     return false;
   }
 
@@ -286,14 +318,14 @@ export async function installPythonRequirements(context: vscode.ExtensionContext
   let additionalPackages = "dtsh";
   if (setupState.zephyrVersion && !isVersionNumberGreaterEqual(setupState.zephyrVersion, 3, 8, 0)) {
     additionalPackages += " patool semver tqdm";
-    output.appendLine(`[SETUP] Adding patool, semver, tqdm explicitly for Zephyr < 3.8.0`);
+    outputInfo("Python Requirements", `Adding patool, semver, tqdm explicitly for Zephyr < 3.8.0`);
   }
   
   let cmd = `pip install -r "${path.join(setupState.zephyrDir, "scripts", "requirements.txt")}" -U ${additionalPackages}`;
   let reqRes = await executeTaskHelperInPythonEnv(setupState, "Zephyr IDE: Install Python Requirements", cmd, setupState.setupPath);
 
   if (!reqRes) {
-    vscode.window.showErrorMessage("Python Requirement Installation Failed. See terminal for error information.");
+    notifyError("Python Requirements", "Python Requirement Installation Failed. Check the Zephyr IDE output for details.", { command: cmd });
   } else {
     setupState.packagesInstalled = true;
     saveSetupState(context, wsConfig, globalConfig);
@@ -315,9 +347,9 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
   let westEnvironmentSetup: string | undefined = useExisiting ? 'UseExisiting' : 'Reinitialize';
   if ((setupState.pythonEnvironmentSetup || env_exists) && !useExisiting) {
     if (env_exists) {
-      westEnvironmentSetup = await vscode.window.showWarningMessage('Zephyr IDE: Python Env already exists', 'Use Existing', 'Reinitialize', 'Cancel');
+      westEnvironmentSetup = await notifyWarningWithActions('West Environment', 'Zephyr IDE: Python Env already exists', ['Use Existing', 'Reinitialize', 'Cancel']);
     } else {
-      westEnvironmentSetup = await vscode.window.showWarningMessage('Zephyr IDE: Python Env already setup', 'Reinitialize', 'Cancel');
+      westEnvironmentSetup = await notifyWarningWithActions('West Environment', 'Zephyr IDE: Python Env already setup', ['Reinitialize', 'Cancel']);
     }
 
     if (westEnvironmentSetup !== 'Reinitialize' && westEnvironmentSetup !== 'Use Existing') {
@@ -352,11 +384,10 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
         let cmd = `${pythonCmd} -m venv "${pythonenv}"`;
         let res = await executeTaskHelper("Zephyr IDE West Environment Setup", cmd, currentSetupState.setupPath);
         if (!res) {
-          output.appendLine("[SETUP] Unable to create Python Virtual Environment");
-          vscode.window.showErrorMessage("Error installing virtualenv. Check output for more info.");
+          notifyError("West Environment", "Unable to create Python Virtual Environment. Check the Zephyr IDE output for details.", { command: cmd });
           return;
         } else {
-          output.appendLine("[SETUP] Python Virtual Environment created");
+          outputInfo("West Environment", "Python Virtual Environment created");
         }
       }
 
@@ -378,14 +409,13 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
       // Install `west`
       let res = await executeTaskHelperInPythonEnv(currentSetupState, "Zephyr IDE West Environment Setup", `pip install west`, currentSetupState.setupPath);
       if (res) {
-        output.appendLine("[SETUP] west installed");
+        outputInfo("West Environment", "west installed");
       } else {
-        output.appendLine("[SETUP] Unable to install west");
-        vscode.window.showErrorMessage("Error installing west. Check output for more info.");
+        notifyError("West Environment", "Unable to install west. Check the Zephyr IDE output for details.");
         return;
       }
 
-      output.appendLine("[SETUP] West Python Environment Setup complete!");
+      outputInfo("West Environment", "West Python Environment Setup complete!");
 
       // Setup flag complete
       currentSetupState.pythonEnvironmentSetup = true;
@@ -406,45 +436,45 @@ export async function westUpdateWithRequirements(context: vscode.ExtensionContex
 
   // Add setup-specific output messages
   if (isWorkspaceSetup) {
-    output.appendLine("[SETUP] Running west update...");
+    outputInfo("Workspace Setup", "Running west update...");
   }
 
   // Run west update first
   let westUpdateResult = await westUpdate(context, wsConfig, globalConfig, false);
   if (!westUpdateResult) {
-    vscode.window.showErrorMessage("West update failed. Please check the terminal for details.");
+    notifyError("Workspace Setup", "West update failed. Check the Zephyr IDE output for details.");
     return false;
   }
 
   // Set context flag for west update completion (during workspace setup)
   if (isWorkspaceSetup) {
     await vscode.commands.executeCommand("setContext", "zephyr-ide.westUpdateComplete", true);
-    output.appendLine("[SETUP] West update completed");
+    outputInfo("Workspace Setup", "West update completed");
   }
 
   // Add setup-specific output messages
   if (isWorkspaceSetup) {
-    output.appendLine("[SETUP] Installing Python requirements...");
+    outputInfo("Workspace Setup", "Installing Python requirements...");
   }
 
   // Then install Python requirements
   let pythonReqResult = await installPythonRequirements(context, wsConfig, globalConfig, false);
   if (!pythonReqResult) {
-    vscode.window.showErrorMessage("Python requirements installation failed. Please check the terminal for details.");
+    notifyError("Workspace Setup", "Python requirements installation failed. Check the Zephyr IDE output for details.");
     return false;
   }
 
   // Set context flag for python requirements installation completion (during workspace setup)
   if (isWorkspaceSetup) {
     await vscode.commands.executeCommand("setContext", "zephyr-ide.pythonRequirementsComplete", true);
-    output.appendLine("[SETUP] Python requirements installation completed");
+    outputInfo("Workspace Setup", "Python requirements installation completed");
   }
 
   if (solo) {
     if (isWorkspaceSetup && setupPath) {
       // Set context flag for complete workspace setup
       await vscode.commands.executeCommand("setContext", "zephyr-ide.workspaceSetupComplete", true);
-      output.appendLine("[SETUP] Workspace setup completed successfully");
+      outputInfo("Workspace Setup", "Workspace setup completed successfully");
       vscode.window.showInformationMessage(`Workspace setup completed successfully at: ${setupPath}`);
       // Refresh the west workspace panel to show the new workspace
       vscode.commands.executeCommand('zephyr-ide.update-web-view');
@@ -468,7 +498,7 @@ export async function postWorkspaceSetup(context: vscode.ExtensionContext, wsCon
   if (westSelection && !westSelection.failed) {
     let westInitResult = await westInit(context, wsConfig, globalConfig, false, westSelection);
     if (!westInitResult) {
-      vscode.window.showErrorMessage("Failed to initialize west with git repository.");
+      notifyError("Workspace Setup", "Failed to initialize west with git repository.");
       return false;
     }
   }

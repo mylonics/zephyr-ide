@@ -16,7 +16,7 @@ limitations under the License.
 */
 
 import * as vscode from "vscode";
-import { output } from "../utilities/utils";
+import { outputInfo, outputError, notifyError, showOutput } from "../utilities/output";
 import { WorkspaceConfig, GlobalConfig } from "./types";
 import { saveSetupState } from "./state-management";
 import { checkAllPackages } from "./host_tools";
@@ -34,13 +34,13 @@ export async function checkIfToolsAvailable(
 ): Promise<boolean> {
   globalConfig.toolsAvailable = false;
   saveSetupState(context, wsConfig, globalConfig);
-  output.show();
+  showOutput();
 
-  output.appendLine(
-    "Zephyr IDE will now check if build tools are installed and available in system path."
+  outputInfo("Tools Check",
+    "Checking if build tools are installed and available in system path."
   );
 
-  output.appendLine(
+  outputInfo("Tools Check",
     "Please follow the section Install Dependencies. https://docs.zephyrproject.org/latest/develop/getting_started/index.html#install-dependencies."
   );
 
@@ -49,20 +49,20 @@ export async function checkIfToolsAvailable(
     const missingPackages = packageStatuses.filter(s => !s.available);
     
     if (missingPackages.length > 0) {
-      output.appendLine(`[SETUP] Missing ${missingPackages.length} required tools:`);
+      outputInfo("Tools Check", `Missing ${missingPackages.length} required tools:`);
       for (const pkg of missingPackages) {
-        output.appendLine(`[SETUP] - ${pkg.name} (${pkg.package})`);
+        outputInfo("Tools Check", `  - ${pkg.name} (${pkg.package})`);
       }
       
       if (solo) {
-        vscode.window.showErrorMessage(
+        notifyError("Tools Check",
           `Missing ${missingPackages.length} required tools. Check output for details or use Host Tools Install panel.`
         );
       }
       return false;
     }
 
-    output.appendLine("[SETUP] All required tools are available");
+    outputInfo("Tools Check", "All required tools are available");
     globalConfig.toolsAvailable = true;
     saveSetupState(context, wsConfig, globalConfig);
     
@@ -72,9 +72,9 @@ export async function checkIfToolsAvailable(
 
     return true;
   } catch (error) {
-    output.appendLine(`[SETUP] Error checking tools: ${error}`);
+    outputError("Tools Check", `Error checking tools: ${error}`);
     if (solo) {
-      vscode.window.showErrorMessage(`Failed to check tools: ${error}`);
+      notifyError("Tools Check", `Failed to check tools: ${error}`);
     }
     return false;
   }

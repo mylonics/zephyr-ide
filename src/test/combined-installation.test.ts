@@ -144,7 +144,7 @@ suite('Combined Installation Test Suite', function() {
                 console.log('🏗️ Step 5b: Setting up workspace...');
                 await executeWorkspaceCommand(
                     uiMock,
-                    CommonUIInteractions.standardWorkspace,
+                    CommonUIInteractions.simWorkspace,
                     'zephyr-ide.workspace-setup-standard',
                     'Workspace setup should succeed'
                 );
@@ -178,11 +178,11 @@ suite('Combined Installation Test Suite', function() {
                     uiMock,
                     [
                         { type: 'quickpick', value: 'zephyr directory', description: 'Use Zephyr directory only' },
-                        { type: 'quickpick', value: 'nucleo_f401', description: 'Select Nucleo board' },
+                        { type: 'quickpick', value: 'native_sim', description: 'Select native_sim board' },
                         { type: 'input', value: 'test_build_1', description: 'Enter build name' },
                         { type: 'quickpick', value: 'debug', description: 'Select debug optimization' },
                         { type: 'input', value: '', description: 'Additional build args' },
-                        { type: 'input', value: '-DCONFIG_DEBUG_OPTIMIZATIONS=y -DCONFIG_DEBUG_THREAD_INFO=y ', description: 'CMake args' }
+                        { type: 'input', value: '', description: 'CMake args' }
                     ],
                     'zephyr-ide.add-build',
                     'Build configuration should succeed'

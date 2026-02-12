@@ -26,6 +26,7 @@ import {
 } from "../../setup_utilities/west_sdk";
 import { saveSetupState } from "../../setup_utilities/state-management";
 import { parseWestConfigManifestPath } from "../../setup_utilities/west-config-parser";
+import { notifyError, notifyWarning } from "../../utilities/output";
 import { HostToolsSubPage } from "./HostToolsSubPage";
 import { SDKSubPage } from "./SDKSubPage";
 import { WorkspaceSubPage } from "./WorkspaceSubPage";
@@ -296,13 +297,13 @@ export class SetupPanel {
         try {
             vscode.commands.executeCommand("zephyr-ide.install-host-tools");
         } catch (error) {
-            vscode.window.showErrorMessage(`Failed to open host tools panel: ${error}`);
+            notifyError("Setup Panel", `Failed to open host tools panel: ${error}`);
         }
     }
 
     private async markToolsComplete() {
         if (!this.currentWsConfig || !this.currentGlobalConfig) {
-            vscode.window.showErrorMessage("Configuration not available");
+            notifyError("Setup Panel", "Configuration not available");
             return;
         }
 
@@ -362,7 +363,7 @@ export class SetupPanel {
                 const managerAvailable = await checkPackageManagerAvailable();
 
                 if (!managerAvailable) {
-                    vscode.window.showWarningMessage(
+                    notifyWarning("Host Tools",
                         "Package manager was installed but is not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect."
                     );
                 } else {
@@ -371,12 +372,12 @@ export class SetupPanel {
                     );
                 }
             } else {
-                vscode.window.showErrorMessage(
+                notifyError("Host Tools",
                     "Failed to install package manager. Check output for details."
                 );
             }
         } catch (error) {
-            vscode.window.showErrorMessage(`Error: ${error}`);
+            notifyError("Host Tools", `Package manager installation error: ${error}`);
         }
     }
 
@@ -386,7 +387,7 @@ export class SetupPanel {
             const pkg = platformPackages.find(p => p.name === packageName);
 
             if (!pkg) {
-                vscode.window.showErrorMessage(`Package ${packageName} not found`);
+                notifyError("Host Tools", `Package ${packageName} not found`);
                 return;
             }
 
@@ -417,7 +418,7 @@ export class SetupPanel {
 
             if (success) {
                 if (pendingRestart) {
-                    vscode.window.showWarningMessage(
+                    notifyWarning("Host Tools",
                         `${packageName} was installed but is not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect.`
                     );
                 } else {
@@ -426,12 +427,12 @@ export class SetupPanel {
                     );
                 }
             } else {
-                vscode.window.showErrorMessage(
+                notifyError("Host Tools",
                     `Failed to install ${packageName}. Check output for details.`
                 );
             }
         } catch (error) {
-            vscode.window.showErrorMessage(`Error: ${error}`);
+            notifyError("Host Tools", `Package installation error: ${error}`);
         }
     }
 
@@ -443,7 +444,7 @@ export class SetupPanel {
                 command: "hostToolsStartInstallAll",
             });
         } catch (error) {
-            vscode.window.showErrorMessage(`Error: ${error}`);
+            notifyError("Host Tools", `Install all tools error: ${error}`);
         }
     }
 
@@ -514,7 +515,7 @@ export class SetupPanel {
             });
 
             if (needsRestart) {
-                vscode.window.showWarningMessage(
+                notifyWarning("Host Tools",
                     "Some packages were installed but are not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect."
                 );
             } else if (!hasErrors) {
@@ -522,14 +523,14 @@ export class SetupPanel {
                     "All missing packages installed successfully."
                 );
             } else {
-                vscode.window.showWarningMessage(
+                notifyWarning("Host Tools",
                     "Some host tools failed to install. Check the output for details."
                 );
             }
 
             await this.checkHostToolsStatus();
         } catch (error) {
-            vscode.window.showErrorMessage(`Error: ${error}`);
+            notifyError("Host Tools", `Batch installation error: ${error}`);
             this._panel.webview.postMessage({
                 command: "hostToolsInstallAllComplete",
                 needsRestart: false,
@@ -542,7 +543,7 @@ export class SetupPanel {
         try {
             vscode.env.openExternal(vscode.Uri.parse("https://aka.ms/getwinget"));
         } catch (error) {
-            vscode.window.showErrorMessage(`Failed to open winget link: ${error}`);
+            notifyError("Setup Panel", `Failed to open winget link: ${error}`);
         }
     }
 
@@ -550,7 +551,7 @@ export class SetupPanel {
         try {
             vscode.commands.executeCommand("vscode.openFolder");
         } catch (error) {
-            vscode.window.showErrorMessage(`Failed to open folder: ${error}`);
+            notifyError("Setup Panel", `Failed to open folder: ${error}`);
         }
     }
 
@@ -572,7 +573,7 @@ export class SetupPanel {
                 }
             }
         } catch (error) {
-            vscode.window.showErrorMessage(`Failed to install west SDK: ${error}`);
+            notifyError("SDK Install", `Failed to install west SDK: ${error}`);
         }
     }
 
@@ -580,7 +581,7 @@ export class SetupPanel {
         try {
             vscode.commands.executeCommand("zephyr-ide.setup-west-environment");
         } catch (error) {
-            vscode.window.showErrorMessage(
+            notifyError("West Environment",
                 `Failed to setup west environment: ${error}`
             );
         }
@@ -590,7 +591,7 @@ export class SetupPanel {
         try {
             vscode.commands.executeCommand("zephyr-ide.west-init");
         } catch (error) {
-            vscode.window.showErrorMessage(`Failed to run west init: ${error}`);
+            notifyError("West Init", `Failed to run west init: ${error}`);
         }
     }
 
@@ -598,7 +599,7 @@ export class SetupPanel {
         try {
             vscode.commands.executeCommand("zephyr-ide.west-update");
         } catch (error) {
-            vscode.window.showErrorMessage(`Failed to run west update: ${error}`);
+            notifyError("West Update", `Failed to run west update: ${error}`);
         }
     }
 
@@ -606,7 +607,7 @@ export class SetupPanel {
         try {
             vscode.commands.executeCommand("zephyr-ide.manage-workspaces");
         } catch (error) {
-            vscode.window.showErrorMessage(
+            notifyError("Setup Panel",
                 `Failed to open workspace manager: ${error}`
             );
         }
@@ -616,7 +617,7 @@ export class SetupPanel {
         try {
             vscode.commands.executeCommand("zephyr-ide.select-existing-west-workspace");
         } catch (error) {
-            vscode.window.showErrorMessage(
+            notifyError("Setup Panel",
                 `Failed to select existing west workspace: ${error}`
             );
         }
@@ -627,7 +628,7 @@ export class SetupPanel {
             vscode.commands.executeCommand("zephyr-ide.workspace-setup-from-git");
             this._panel.dispose();
         } catch (error) {
-            vscode.window.showErrorMessage(
+            notifyError("Setup Panel",
                 `Failed to setup workspace from Git: ${error}`
             );
         }
@@ -640,7 +641,7 @@ export class SetupPanel {
             );
             this._panel.dispose();
         } catch (error) {
-            vscode.window.showErrorMessage(
+            notifyError("Setup Panel",
                 `Failed to setup workspace from West Git: ${error}`
             );
         }
@@ -651,7 +652,7 @@ export class SetupPanel {
             vscode.commands.executeCommand("zephyr-ide.workspace-setup-standard");
             this._panel.dispose();
         } catch (error) {
-            vscode.window.showErrorMessage(
+            notifyError("Setup Panel",
                 `Failed to setup standard workspace: ${error}`
             );
         }
@@ -664,7 +665,7 @@ export class SetupPanel {
             );
             this._panel.dispose();
         } catch (error) {
-            vscode.window.showErrorMessage(
+            notifyError("Setup Panel",
                 `Failed to setup workspace from current directory: ${error}`
             );
         }
@@ -675,7 +676,7 @@ export class SetupPanel {
             vscode.commands.executeCommand("zephyr-ide.workspace-setup-picker");
             this._panel.dispose();
         } catch (error) {
-            vscode.window.showErrorMessage(
+            notifyError("Setup Panel",
                 `Failed to open workspace setup picker: ${error}`
             );
         }
@@ -685,7 +686,7 @@ export class SetupPanel {
         try {
             vscode.commands.executeCommand("zephyr-ide.west-config");
         } catch (error) {
-            vscode.window.showErrorMessage(
+            notifyError("West Config",
                 `Failed to open west config: ${error}`
             );
         }
@@ -694,7 +695,7 @@ export class SetupPanel {
     private async listSDKs() {
         try {
             if (!this.currentWsConfig || !this.currentGlobalConfig) {
-                vscode.window.showErrorMessage("Configuration not available");
+                notifyError("SDK List", "Configuration not available");
                 return;
             }
 
@@ -704,7 +705,7 @@ export class SetupPanel {
                 this._context
             );
             if (!setupState) {
-                vscode.window.showErrorMessage(
+                notifyError("SDK List",
                     "No valid west installation found for SDK management"
                 );
                 return;
@@ -718,7 +719,7 @@ export class SetupPanel {
                 data: sdkList,
             });
         } catch (error) {
-            vscode.window.showErrorMessage(`Failed to list SDKs: ${error}`);
+            notifyError("SDK List", `Failed to list SDKs: ${error}`);
             // Send error back to webview
             this._panel.webview.postMessage({
                 command: "sdkListResult",
@@ -854,7 +855,7 @@ export class SetupPanel {
 
             if (!westYmlFilePath) {
                 const setupPath = this.currentWsConfig?.activeSetupState?.setupPath || "unknown";
-                vscode.window.showErrorMessage(
+                notifyError("West Config",
                     `west.yml file not found.\n\n` +
                     `Checked location based on .west/config in: ${setupPath}\n\n` +
                     `Make sure west is initialized. Try running 'West Init' or one of the workspace setup commands.`
@@ -866,7 +867,7 @@ export class SetupPanel {
             const doc = await vscode.workspace.openTextDocument(westYmlPath);
             await vscode.window.showTextDocument(doc);
         } catch (error) {
-            vscode.window.showErrorMessage(`Failed to open west.yml: ${error}`);
+            notifyError("West Config", `Failed to open west.yml: ${error}`);
         }
     }
 
@@ -912,7 +913,7 @@ export class SetupPanel {
             const westYmlFilePath = this.getWestYmlPath();
 
             if (!westYmlFilePath) {
-                vscode.window.showErrorMessage(
+                notifyError("West Config",
                     "west.yml file not found. Cannot save changes.\n\n" +
                     "Make sure west is initialized first."
                 );
@@ -930,7 +931,7 @@ export class SetupPanel {
             // Run west update
             await vscode.commands.executeCommand("zephyr-ide.west-update");
         } catch (error) {
-            vscode.window.showErrorMessage(`Failed to save west.yml: ${error}`);
+            notifyError("West Config", `Failed to save west.yml: ${error}`);
         }
     }
 

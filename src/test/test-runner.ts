@@ -258,6 +258,17 @@ export const CommonUIInteractions = {
         { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
     ],
 
+    // Simulated workspace setup interactions (native_sim, no HALs)
+    simWorkspace: [
+        { type: 'quickpick', value: 'create new west.yml', description: 'Create new west.yml' },
+        { type: 'quickpick', value: 'sim only', description: 'Select simulated manifest' },
+        { type: 'quickpick', value: 'v4.2.0', description: 'Select default configuration' },
+        { type: 'input', value: '', description: 'Select additional west init args' },
+        { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
+        { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
+        { type: 'quickpick', value: 'x86_64-zephyr-elf', description: 'Select x86_64 toolchain', multiSelect: true }
+    ],
+
     // Project creation interactions
     createBlinkyProject: [
         { type: 'quickpick', value: 'blinky', description: 'Select blinky template' },

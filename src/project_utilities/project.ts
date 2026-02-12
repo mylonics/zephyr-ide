@@ -19,6 +19,7 @@ import * as vscode from "vscode";
 import * as fs from "fs-extra";
 import * as path from "path";
 import { selectLaunchConfiguration } from "../utilities/utils";
+import { notifyError, notifyWarningWithActions } from "../utilities/output";
 import { buildSelector, BuildConfigDictionary, BuildStateDictionary } from "./build_selector";
 import { WorkspaceConfig } from "../setup_utilities/types";
 import { setWorkspaceState } from "../setup_utilities/state-management";
@@ -117,7 +118,7 @@ export function getActiveRunnerConfigOfBuild(wsConfig: WorkspaceConfig, project:
 export function getProjectName(wsConfig: WorkspaceConfig, projectName?: string) {
   if (!projectName) {
     if (wsConfig.activeProject === undefined) {
-      vscode.window.showErrorMessage("Set Active Project before running this command");
+      notifyError("Project", "Set Active Project before running this command");
       return;
     }
     projectName = wsConfig.activeProject;
@@ -129,7 +130,7 @@ export function getBuildName(wsConfig: WorkspaceConfig, projectName: string, bui
   if (!buildName) {
     buildName = getActiveBuildNameOfProject(wsConfig, projectName);
     if (buildName === undefined) {
-      vscode.window.showErrorMessage("Set Active Build before running this command");
+      notifyError("Project", "Set Active Build before running this command");
       return;
     }
   }
@@ -275,7 +276,7 @@ export async function removeConfigFile(context: vscode.ExtensionContext, wsConfi
   let confFiles = wsConfig.projects[projectName].confFiles;
   if (!isToProject) {
     if (buildName === undefined) {
-      vscode.window.showErrorMessage("Set build before trying to remove Config Files");
+      notifyError("Project", "Set build before trying to remove Config Files");
       return;
     }
     confFiles = wsConfig.projects[projectName].buildConfigs[buildName].confFiles;
@@ -312,7 +313,7 @@ export async function askUserForProject(wsConfig: WorkspaceConfig) {
     placeHolder: "Select Project",
   };
   if (Object.keys(wsConfig.projects).length === 0) {
-    vscode.window.showErrorMessage("First Run `Add Project` or `Create Project`");
+    notifyError("Project", "First Run `Add Project` or `Create Project`");
     return;
   }
 
@@ -377,7 +378,7 @@ export async function setActiveBuild(context: vscode.ExtensionContext, wsConfig:
   if (wsConfig.activeProject === undefined) {
     setActiveProject(context, wsConfig);
     if (wsConfig.activeProject === undefined) {
-      vscode.window.showErrorMessage("Set Active Project before trying to Set Active Build");
+      notifyError("Build Config", "Set Active Project before trying to Set Active Build");
       return;
     }
   }
@@ -400,7 +401,7 @@ export async function setActiveTest(context: vscode.ExtensionContext, wsConfig: 
   if (wsConfig.activeProject === undefined) {
     setActiveProject(context, wsConfig);
     if (wsConfig.activeProject === undefined) {
-      vscode.window.showErrorMessage("Set Active Project before trying to Set Active Build");
+      notifyError("Test Config", "Set Active Project before trying to Set Active Build");
       return;
     }
   }
@@ -464,7 +465,7 @@ export async function addProject(wsConfig: WorkspaceConfig, context: vscode.Exte
     // Open file picker for destination directory
     let open = await vscode.window.showOpenDialog(dialogOptions);
     if (open === undefined) {
-      vscode.window.showErrorMessage('Failed to provide a valid target folder.');
+      notifyError("Project", 'Failed to provide a valid target folder.');
       return null;
     }
 
@@ -521,7 +522,7 @@ export async function addBuildToProject(wsConfig: WorkspaceConfig, context: vsco
     if (wsConfig.projects[projectName].buildConfigs[result.name]) {
       const selection = await vscode.window.showWarningMessage('Build Configuration with name: ' + result.name + ' already exists!', 'Overwrite', 'Cancel');
       if (selection !== 'Overwrite') {
-        vscode.window.showErrorMessage(`Failed to add build configuration`);
+        notifyError("Build Config", `Failed to add build configuration`);
         return;
       }
     }
@@ -539,7 +540,7 @@ export async function addBuildToProject(wsConfig: WorkspaceConfig, context: vsco
 
 export async function addBuild(wsConfig: WorkspaceConfig, context: vscode.ExtensionContext) {
   if (wsConfig.activeProject === undefined) {
-    vscode.window.showErrorMessage(`Failed to Add Build Configuration, please first select a project`);
+    notifyError("Build Config", `Failed to Add Build Configuration, please first select a project`);
     return;
   }
   return await addBuildToProject(wsConfig, context, wsConfig.activeProject);
@@ -585,7 +586,7 @@ export async function addTest(wsConfig: WorkspaceConfig, context: vscode.Extensi
   }
 
   if (projectName === undefined) {
-    vscode.window.showErrorMessage(`Failed to Add Test Configuration, please first select a project`);
+    notifyError("Test Config", `Failed to Add Test Configuration, please first select a project`);
     return;
   }
 
@@ -594,7 +595,7 @@ export async function addTest(wsConfig: WorkspaceConfig, context: vscode.Extensi
     if (wsConfig.projects[projectName].twisterConfigs[result.name]) {
       const selection = await vscode.window.showWarningMessage('Twister Configuration with name: ' + result.name + ' already exists!', 'Overwrite', 'Cancel');
       if (selection !== 'Overwrite') {
-        vscode.window.showErrorMessage(`Failed to add twister configuration`);
+        notifyError("Test Config", `Failed to add twister configuration`);
         return;
       }
     }
@@ -716,7 +717,7 @@ export async function setActiveRunner(context: vscode.ExtensionContext, wsConfig
   if (wsConfig.activeProject === undefined) {
     setActiveProject(context, wsConfig);
     if (wsConfig.activeProject === undefined) {
-      vscode.window.showErrorMessage("Set Active Project before trying to Set Active Build");
+      notifyError("Runner Config", "Set Active Project before trying to Set Active Build");
       return;
     }
   }
@@ -726,7 +727,7 @@ export async function setActiveRunner(context: vscode.ExtensionContext, wsConfig
     setActiveBuild(context, wsConfig);
     activeBuildName = getActiveBuildNameOfProject(wsConfig, wsConfig.activeProject);
     if (activeBuildName === undefined) {
-      vscode.window.showErrorMessage("Set Active Build before trying to Set Active Runner");
+      notifyError("Runner Config", "Set Active Build before trying to Set Active Runner");
       return;
     }
     return;
@@ -772,7 +773,7 @@ export async function addRunnerToBuild(wsConfig: WorkspaceConfig, context: vscod
     if (build.runnerConfigs[result.name]) {
       const selection = await vscode.window.showWarningMessage('Runner Configuration with name: ' + result.name + ' already exists!', 'Overwrite', 'Cancel');
       if (selection !== 'Overwrite') {
-        vscode.window.showErrorMessage(`Failed to add runner configuration`);
+        notifyError("Runner Config", `Failed to add runner configuration`);
         return;
       }
     }

@@ -59,45 +59,64 @@ console.log('🔬 These tests execute the Zephyr IDE workflow using VS Code comm
 console.log('');
 
 try {
+    // Clean stale VS Code test state that can interfere with extension loading
+    const vscodeTestDir = path.join(path.dirname(__dirname), '.vscode-test');
+    const staleDirs = ['extensions', 'user-data'];
+    for (const dir of staleDirs) {
+        const dirPath = path.join(vscodeTestDir, dir);
+        if (fs.existsSync(dirPath)) {
+            console.log(`Cleaning stale test state: ${dirPath}`);
+            fs.rmSync(dirPath, { recursive: true, force: true });
+        }
+    }
+
     // Compile TypeScript
     console.log('Compiling TypeScript...');
     execSync('npm run test-compile', { stdio: 'inherit', cwd: path.dirname(__dirname) });
 
+    // Bundle extension so dist/extension.js (the "main" entry) is up to date
+    console.log('Bundling extension with esbuild...');
+    execSync('npm run esbuild', { stdio: 'inherit', cwd: path.dirname(__dirname) });
+
     let grepPattern;
     switch (testType) {
         case 'install-package-manager':
-            grepPattern = '"Install Package Manager Test Suite"';
+            grepPattern = 'Install Package Manager Test Suite';
             break;
         case 'install-host-packages':
-            grepPattern = '"Install Host Packages Test Suite"';
+            grepPattern = 'Install Host Packages Test Suite';
             break;
         case 'combined':
-            grepPattern = '"Combined Installation Test Suite"';
+            grepPattern = 'Combined Installation Test Suite';
             break;
         case 'standard':
-            grepPattern = '"Standard Workspace Test Suite"';
+            grepPattern = 'Standard Workspace Test Suite';
             break;
         case 'west-git':
-            grepPattern = '"West Git Workspace Test Suite"';
+            grepPattern = 'West Git Workspace Test Suite';
             break;
         case 'zephyr-ide-git':
-            grepPattern = '"Workspace Zephyr IDE Git Test Suite"';
+            grepPattern = 'Workspace Zephyr IDE Git Test Suite';
             break;
         case 'local-west':
-            grepPattern = '"Workspace Local West Test Suite"';
+            grepPattern = 'Workspace Local West Test Suite';
             break;
         case 'external-zephyr':
-            grepPattern = '"Workspace External Zephyr Test Suite"';
+            grepPattern = 'Workspace External Zephyr Test Suite';
             break;
         case 'all':
         default:
-            grepPattern = '"Test Suite"';
+            grepPattern = 'Test Suite';
             break;
     }
 
     // Run workflow integration tests
+    // Use platform-appropriate quoting for the --grep pattern:
+    // - Windows cmd.exe uses double quotes
+    // - Linux/macOS bash/zsh use single or double quotes
+    const quote = process.platform === 'win32' ? '"' : "'";
     console.log(`Running ${testType} workflow integration tests...`);
-    execSync(`npx vscode-test --grep ${grepPattern}`, {
+    execSync(`npx vscode-test --grep ${quote}${grepPattern}${quote}`, {
         stdio: 'inherit',
         cwd: path.dirname(__dirname)
     });

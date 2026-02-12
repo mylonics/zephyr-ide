@@ -78,8 +78,11 @@ suite("Python Command Test Suite", () => {
     });
 
     test("Uses configured Python path when available and exists", async () => {
-        // Find the actual Python executable on the system
-        const pythonPath = process.env.PYTHON_PATH || "/usr/bin/python3";
+        // Find the actual Python executable on the system (platform-appropriate fallback)
+        const defaultPythonPath = os.platform() === 'win32' 
+            ? path.join(process.env.LOCALAPPDATA || 'C:\\Python3', 'Programs', 'Python', 'Python3', 'python.exe')
+            : '/usr/bin/python3';
+        const pythonPath = process.env.PYTHON_PATH || defaultPythonPath;
         
         // Only run this test if the Python path exists
         if (fs.existsSync(pythonPath)) {
@@ -95,23 +98,28 @@ suite("Python Command Test Suite", () => {
     });
 
     test("Expands environment variables correctly for whitelisted variables", async () => {
-        // Set up a test environment variable
-        const testHome = "/home/testuser";
+        // Set up a test environment variable using a cross-platform temp path
+        const testHome = fs.mkdtempSync(path.join(os.tmpdir(), "python-home-"));
         process.env.HOME = testHome;
         
         // Create a mock Python path using environment variable
-        const configPath = "${env:HOME}/.pyenv/shims/python3";
-        const expectedPath = path.join(testHome, ".pyenv/shims/python3");
+        const pythonExeName = os.platform() === 'win32' ? 'python.exe' : 'python3';
+        const configPath = `\${env:HOME}/.pyenv/shims/${pythonExeName}`;
+        const expectedPath = path.join(testHome, ".pyenv", "shims", pythonExeName);
         
         // Create a temporary file to simulate the Python executable
         const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "python-test-"));
-        const tempPythonPath = path.join(tempDir, "python3");
+        const tempPythonPath = path.join(tempDir, pythonExeName);
         fs.writeFileSync(tempPythonPath, "#!/bin/bash\necho test");
-        fs.chmodSync(tempPythonPath, 0o755);
+        if (os.platform() !== 'win32') {
+            fs.chmodSync(tempPythonPath, 0o755);
+        }
         
         try {
             // Configure with the actual temp path but using env var syntax
-            const testConfigPath = `\${env:HOME}/${path.relative(testHome, tempPythonPath)}`;
+            // Use forward slashes for cross-platform compatibility in config paths
+            const relativePath = path.relative(testHome, tempPythonPath).split(path.sep).join('/');
+            const testConfigPath = `\${env:HOME}/${relativePath}`;
             
             const config = vscode.workspace.getConfiguration();
             await config.update("python.defaultInterpreterPath", testConfigPath, vscode.ConfigurationTarget.Global);
@@ -126,8 +134,9 @@ suite("Python Command Test Suite", () => {
             assert.ok(pythonCmd.includes(testHome) || pythonCmd === "python3" || pythonCmd === "python", 
                 "Should either expand the variable or fall back to default");
         } finally {
-            // Clean up temp file
+            // Clean up temp files and directories
             fs.removeSync(tempDir);
+            fs.removeSync(testHome);
         }
     });
 

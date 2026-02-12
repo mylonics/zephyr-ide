@@ -19,6 +19,7 @@ import * as vscode from "vscode";
 import * as path from 'path';
 
 import { executeTaskHelperInPythonEnv } from "../utilities/utils";
+import { notifyError, outputInfo } from "../utilities/output";
 
 import { WorkspaceConfig } from '../setup_utilities/types';
 import { addTest, ProjectConfig, getActiveTestNameOfProject } from "../project_utilities/project";
@@ -37,7 +38,7 @@ export async function testHelper(context: vscode.ExtensionContext, wsConfig: Wor
       projectName = wsConfig.activeProject;
     }
     if (projectName === undefined) {
-      vscode.window.showErrorMessage("Select a project before trying to run test");
+      notifyError("Twister Test", "Select a project before trying to run test");
       return;
     }
     let project = wsConfig.projects[projectName];
@@ -50,13 +51,13 @@ export async function testHelper(context: vscode.ExtensionContext, wsConfig: Wor
       await addTest(wsConfig, context);
       testName = getActiveTestNameOfProject(wsConfig, project.name);
       if (testName === undefined) {
-        await vscode.window.showErrorMessage(`You must choose a Test Configuration to continue.`);
+        notifyError("Twister Test", `You must choose a Test Configuration to continue.`);
         return;
       }
     }
     return await runTest(context, wsConfig, project, project.twisterConfigs[testName]);
   } else {
-    vscode.window.showErrorMessage("Run `Zephyr IDE: West Update` command first.");
+    notifyError("Twister Test", "Run `Zephyr IDE: West Update` command first.");
   }
 }
 
@@ -102,7 +103,7 @@ export async function runTest(
 
   let taskName = "Zephyr IDE Test: " + project.name + " " + testConfig.name;
 
-  vscode.window.showInformationMessage(`Running ${testConfig.name} Test from project: ${project.name}`);
+  outputInfo(`Twister: ${project.name}/${testConfig.name}`, `Running ${testConfig.name} Test from project: ${project.name} (cmd: ${cmd})`, true);
   const setupState = await getSetupState(context, wsConfig);
   let ret = await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState?.setupPath);
   return ret;

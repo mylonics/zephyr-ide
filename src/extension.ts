@@ -30,10 +30,12 @@ import { HostToolInstallView } from "./panels/host_tool_install_view/HostToolIns
 import {
   getLaunchConfigurationByName,
   output,
+  outputLine,
   executeShellCommand,
   executeShellCommandInPythonEnv,
   reloadEnvironmentVariables,
 } from "./utilities/utils";
+import { notifyError, outputInfo, outputError, outputCommandFailure } from "./utilities/output";
 import * as project from "./project_utilities/project";
 import {
   buildHelper,
@@ -94,7 +96,7 @@ import {
 } from "./project_utilities/project";
 import { testHelper, deleteTestDirs } from "./zephyr_utilities/twister";
 
-import { getModuleVersion } from "./setup_utilities/modules";
+import { getModuleVersion, getModuleList } from "./setup_utilities/modules";
 import { reconfigureTest } from "./project_utilities/twister_selector";
 import { installSDKInteractive } from "./setup_utilities/west_sdk";
 import {
@@ -228,8 +230,8 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.print-workspace", async () => {
       const structure = await printWorkspaceStructure(wsConfig.rootPath);
-      output.appendLine("Workspace Directory Structure:");
-      output.appendLine(structure);
+      outputInfo("Workspace", "Directory Structure:");
+      outputLine(structure);
       return structure;
     })
   );
@@ -238,7 +240,7 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.print-python-path", async () => {
       if (!wsConfig.activeSetupState) {
         const errorMsg = "No active setup state. Please initialize the workspace first.";
-        output.appendLine(errorMsg);
+        outputError("Python Path", errorMsg);
         return { error: errorMsg };
       }
 
@@ -249,16 +251,15 @@ export async function activate(context: vscode.ExtensionContext) {
       try {
         const result = await executeShellCommandInPythonEnv(cmd, wsConfig.rootPath, wsConfig.activeSetupState, false);
         if (result.stdout) {
-          output.appendLine(result.stdout);
+          outputInfo("Python Path", result.stdout.trim());
           return { stdout: result.stdout, stderr: result.stderr };
-        } else if (result.stderr) {
-          output.appendLine(`Error: ${result.stderr}`);
-          return { error: result.stderr };
+        } else {
+          outputCommandFailure("Python Path", result);
+          return { error: result.stderr || "No output from Python command" };
         }
-        return { error: "No output from Python command" };
       } catch (error) {
         const errorMsg = `Failed to execute Python command: ${error}`;
-        output.appendLine(errorMsg);
+        outputError("Python Path", errorMsg);
         return { error: errorMsg };
       }
     })
@@ -470,7 +471,7 @@ export async function activate(context: vscode.ExtensionContext) {
         await setupWestEnvironment(context, wsConfig, globalConfig);
         extensionSetupView.updateWebView(wsConfig, globalConfig);
       } else {
-        vscode.window.showErrorMessage("Open Folder or Setup Workspace Before Continuing");
+        notifyError("West Environment", "Open Folder or Setup Workspace Before Continuing");
       }
     }
     )
@@ -485,7 +486,7 @@ export async function activate(context: vscode.ExtensionContext) {
         await westInit(context, wsConfig, globalConfig);
         extensionSetupView.updateWebView(wsConfig, globalConfig);
       } else {
-        vscode.window.showErrorMessage(
+        notifyError("West Init",
           "Run `Zephyr IDE: Setup West Environment` first."
         );
       }
@@ -655,7 +656,7 @@ export async function activate(context: vscode.ExtensionContext) {
         vscode.commands.executeCommand("zephyr-ide.update-web-view");
         return result;
       } else {
-        vscode.window.showErrorMessage("Run `Zephyr IDE: West Update` first.");
+        notifyError("Build Config", "Run `Zephyr IDE: West Update` first.");
       }
       return false;
     })
@@ -675,7 +676,7 @@ export async function activate(context: vscode.ExtensionContext) {
         await project.addTest(wsConfig, context);
         vscode.commands.executeCommand("zephyr-ide.update-web-view");
       } else {
-        vscode.window.showErrorMessage("Run `Zephyr IDE: West Update` first.");
+        notifyError("Test Config", "Run `Zephyr IDE: West Update` first.");
       }
     })
   );
@@ -783,7 +784,7 @@ export async function activate(context: vscode.ExtensionContext) {
         await project.addRunner(wsConfig, context);
         vscode.commands.executeCommand("zephyr-ide.update-web-view");
       } else {
-        vscode.window.showErrorMessage("Run `Zephyr IDE: West Update` first.");
+        notifyError("Runner Config", "Run `Zephyr IDE: West Update` first.");
       }
     })
   );
@@ -1047,7 +1048,7 @@ export async function activate(context: vscode.ExtensionContext) {
       if (setupState && setupState.westUpdated) {
         await flashActive(context, wsConfig);
       } else {
-        vscode.window.showErrorMessage("Run `Zephyr IDE: West Update` first.");
+        notifyError("Flash", "Run `Zephyr IDE: West Update` first.");
       }
     })
   );
@@ -1070,7 +1071,7 @@ export async function activate(context: vscode.ExtensionContext) {
           debugConfig
         );
       } else {
-        vscode.window.showErrorMessage(
+        notifyError("Debug",
           "Launch Configuration: " + debugTarget + " not found"
         );
       }
@@ -1095,7 +1096,7 @@ export async function activate(context: vscode.ExtensionContext) {
           debugConfig
         );
       } else {
-        vscode.window.showErrorMessage(
+        notifyError("Debug",
           "Launch Configuration: " + debugTarget + " not found"
         );
       }
@@ -1145,7 +1146,7 @@ export async function activate(context: vscode.ExtensionContext) {
           );
         }
       } else {
-        vscode.window.showErrorMessage(
+        notifyError("Debug",
           "Launch Configuration: " + debugTarget + " not found"
         );
       }
@@ -1256,14 +1257,36 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.debug-internal-shell", async () => {
       output.clear();
-      let temp = await executeShellCommand("SET", wsConfig.rootPath, false);
+      let temp = await executeShellCommand("Get-ChildItem Env: | Format-Table -AutoSize", wsConfig.rootPath, false);
       if (temp.stdout) {
-        output.append(temp.stdout);
+        outputLine(temp.stdout);
       }
-      output.append(JSON.stringify({ wsConfig }));
-      output.append(JSON.stringify({ globalConfig }));
+      outputLine(JSON.stringify({ wsConfig }));
+      outputLine(JSON.stringify({ globalConfig }));
     }
     )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.west-list", async () => {
+      if (!wsConfig.activeSetupState) {
+        notifyError("West List", "No active setup state. Please set up a workspace first.");
+        return;
+      }
+      output.clear();
+      output.show(true);
+      const modules = await getModuleList(wsConfig.activeSetupState);
+      if (modules.length === 0) {
+        return;
+      }
+      outputLine("West Modules:");
+      outputLine("─".repeat(80));
+      for (const mod of modules) {
+        outputLine(`  ${mod[0].padEnd(30)} ${mod[1]}`);
+      }
+      outputLine("─".repeat(80));
+      outputLine(`Total: ${modules.length} modules`);
+    })
   );
 
   context.subscriptions.push(
@@ -1304,7 +1327,7 @@ export async function activate(context: vscode.ExtensionContext) {
       if (setupState) {
         initializeDtsExt(setupState, wsConfig);
       } else {
-        vscode.window.showErrorMessage(
+        notifyError("DTS Init",
           "First Initialize Zephyr IDE Workspace Folder"
         );
       }
@@ -1503,12 +1526,12 @@ export async function activate(context: vscode.ExtensionContext) {
       const configuration = await vscode.workspace.getConfiguration();
       let platform_name = "osx";
       let force_bash = true;
-      output.appendLine(
+      outputLine(
         configuration.get(
           "terminal.integrated.defaultProfile." + platform_name
         ) ?? ""
       );
-      output.appendLine(
+      outputLine(
         configuration.get(
           "terminal.integrated.defaultProfile." + platform_name
         ) === "zsh"
@@ -1522,14 +1545,14 @@ export async function activate(context: vscode.ExtensionContext) {
         ) === "zsh" || force_bash
           ? "bash"
           : "Zephyr IDE Terminal";
-      output.appendLine("Setting terminal to: " + default_terminal);
+      outputLine("Setting terminal to: " + default_terminal);
       //configuration.update('terminal.integrated.defaultProfile.' + platform_name, default_terminal, target, false);
-      output.appendLine(
+      outputLine(
         configuration.get(
           "terminal.integrated.defaultProfile." + platform_name
         ) ?? ""
       );
-      output.appendLine("Finished");
+      outputLine("Finished");
     })
   );
 

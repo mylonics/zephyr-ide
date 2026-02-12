@@ -16,7 +16,8 @@ limitations under the License.
 */
 
 import * as vscode from "vscode";
-import { output, executeTaskHelper, getPlatformArch, getPlatformName, getPlatformNameAsync, executeShellCommand, logDual } from "../utilities/utils";
+import { executeTaskHelper, getPlatformArch, getPlatformName, getPlatformNameAsync, executeShellCommand, logDual } from "../utilities/utils";
+import { outputInfo, outputWarning, outputError, notifyWarning } from "../utilities/output";
 import manifestData from "./host-tools-manifest.json";
 
 // Interfaces for the manifest structure
@@ -112,7 +113,7 @@ export function loadHostToolsManifest(): HostToolsManifest {
 
     return manifestCache;
   } catch (error) {
-    output.appendLine(`[HOST TOOLS] Error loading manifest: ${error}`);
+    outputError("Host Tools", `Error loading manifest: ${error}`);
     throw new Error(`Failed to load host tools manifest: ${error}`);
   }
 }
@@ -215,19 +216,19 @@ export async function checkPackageManagerAvailable(): Promise<boolean> {
 export async function installPackageManager(): Promise<boolean> {
   const manager = await getPackageManagerForPlatformAsync();
   if (!manager) {
-    output.appendLine("[HOST TOOLS] No package manager found for this platform");
+    outputInfo("Host Tools", "No package manager found for this platform");
     return false;
   }
 
   if (!manager.config.install_command) {
-    output.appendLine(`[HOST TOOLS] ${manager.name} requires manual installation`);
+    outputInfo("Host Tools", `${manager.name} requires manual installation`);
     if (manager.config.install_url) {
-      output.appendLine(`[HOST TOOLS] Please install from: ${manager.config.install_url}`);
+      outputInfo("Host Tools", `Please install from: ${manager.config.install_url}`);
     }
     return false;
   }
 
-  output.appendLine(`[HOST TOOLS] Installing ${manager.name}...`);
+  outputInfo("Host Tools", `Installing ${manager.name}...`);
   const result = await executeTaskHelper(
     `Install ${manager.name}`,
     manager.config.install_command,
@@ -235,7 +236,7 @@ export async function installPackageManager(): Promise<boolean> {
   );
 
   if (!result) {
-    output.appendLine(`[HOST TOOLS] Failed to install ${manager.name}`);
+    outputError("Host Tools", `Failed to install ${manager.name}`);
     return false;
   }
 
@@ -244,14 +245,14 @@ export async function installPackageManager(): Promise<boolean> {
     const arch = getPlatformArch();
     for (const setup of manager.config.post_install_setup) {
       if (setup.architectures.includes(arch)) {
-        output.appendLine(`[HOST TOOLS] Running post-install setup: ${setup.notes}`);
+        outputInfo("Host Tools", `Running post-install setup: ${setup.notes}`);
         const setupResult = await executeTaskHelper(
           `Setup ${manager.name}`,
           setup.command,
           ""
         );
         if (!setupResult) {
-          output.appendLine(`[HOST TOOLS] Warning: Post-install setup failed`);
+          outputWarning("Host Tools", `Post-install setup failed`);
         }
       }
     }
@@ -338,7 +339,7 @@ export async function checkPackageAvailable(pkg: PlatformPackage): Promise<Packa
         const versionCheck = await checkPythonVersion(pythonCmd);
         
         if (!versionCheck.valid) {
-          output.appendLine(`[HOST TOOLS] ${pkg.name}: ${versionCheck.error || "Version check failed"}`);
+          outputWarning("Host Tools", `${pkg.name}: ${versionCheck.error || "Version check failed"}`);
           return {
             name: pkg.name,
             package: pkg.package,
@@ -346,7 +347,7 @@ export async function checkPackageAvailable(pkg: PlatformPackage): Promise<Packa
             error: versionCheck.error || "Python version < 3.10"
           };
         } else {
-          output.appendLine(`[HOST TOOLS] ${pkg.name} version ${versionCheck.version} detected (>= 3.10 required)`);
+          outputInfo("Host Tools", `${pkg.name} version ${versionCheck.version} detected (>= 3.10 required)`);
         }
       }
     }
@@ -388,7 +389,7 @@ export async function checkAllPackages(): Promise<PackageStatus[]> {
 export async function installPackage(pkg: PlatformPackage): Promise<boolean> {
   const manager = await getPackageManagerForPlatformAsync();
   if (!manager) {
-    output.appendLine("[HOST TOOLS] No package manager found for this platform");
+    outputWarning("Host Tools", "No package manager found for this platform");
     return false;
   }
 
@@ -404,11 +405,11 @@ export async function installPackage(pkg: PlatformPackage): Promise<boolean> {
       installCommand = `winget install --accept-package-agreements --accept-source-agreements ${pkg.package}`;
       break;
     default:
-      output.appendLine(`[HOST TOOLS] Unknown package manager: ${manager.name}`);
+      outputWarning("Host Tools", `Unknown package manager: ${manager.name}`);
       return false;
   }
 
-  output.appendLine(`[HOST TOOLS] Installing ${pkg.name}...`);
+  outputInfo("Host Tools", `Installing ${pkg.name}...`);
   const result = await executeTaskHelper(
     `Install ${pkg.name}`,
     installCommand,
@@ -416,29 +417,29 @@ export async function installPackage(pkg: PlatformPackage): Promise<boolean> {
   );
 
   if (!result) {
-    output.appendLine(`[HOST TOOLS] Failed to install ${pkg.name}`);
+    outputError("Host Tools", `Failed to install ${pkg.name}`);
     return false;
   }
 
   // Run post-install step if specified
   if (pkg.post_install_step) {
-    output.appendLine(`[HOST TOOLS] Running post-install step for ${pkg.name}...`);
+    outputInfo("Host Tools", `Running post-install step for ${pkg.name}...`);
     const postInstallResult = await executeTaskHelper(
       `Post-install ${pkg.name}`,
       pkg.post_install_step,
       ""
     );
     if (!postInstallResult) {
-      output.appendLine(`[HOST TOOLS] Warning: Post-install step failed for ${pkg.name}`);
+      outputWarning("Host Tools", `Post-install step failed for ${pkg.name}`);
     }
   }
 
-  output.appendLine(`[HOST TOOLS] Successfully installed ${pkg.name}`);
+  outputInfo("Host Tools", `Successfully installed ${pkg.name}`);
   
   // Verify the package is now available
   const status = await checkPackageAvailable(pkg);
   if (!status.available) {
-    output.appendLine(`[HOST TOOLS] Warning: ${pkg.name} was installed but is not yet available. A VS Code restart may be required.`);
+    outputWarning("Host Tools", `${pkg.name} was installed but is not yet available. A VS Code restart may be required.`);
   }
   
   return true;
@@ -452,11 +453,11 @@ export async function installAllMissingPackages(): Promise<boolean> {
   const missingPackages = statuses.filter(s => !s.available);
   
   if (missingPackages.length === 0) {
-    output.appendLine("[HOST TOOLS] All packages are already installed");
+    outputInfo("Host Tools", "All packages are already installed");
     return true;
   }
 
-  output.appendLine(`[HOST TOOLS] Found ${missingPackages.length} missing packages`);
+  outputInfo("Host Tools", `Found ${missingPackages.length} missing packages`);
   
   const packages = await getPlatformPackages();
   let allSuccess = true;
@@ -472,13 +473,13 @@ export async function installAllMissingPackages(): Promise<boolean> {
   }
   
   if (allSuccess) {
-    output.appendLine("[HOST TOOLS] All missing packages installed successfully");
+    outputInfo("Host Tools", "All missing packages installed successfully");
     vscode.window.showInformationMessage(
       "Host tools installed successfully. You may need to restart VS Code for changes to take effect."
     );
   } else {
-    output.appendLine("[HOST TOOLS] Some packages failed to install");
-    vscode.window.showWarningMessage(
+    outputWarning("Host Tools", "Some packages failed to install");
+    notifyWarning("Host Tools",
       "Some host tools failed to install. Check the output for details."
     );
   }
@@ -600,37 +601,37 @@ export async function installHostPackagesHeadless(): Promise<boolean> {
  * Returns false when package manager was installed or packages were installed but not yet available
  */
 export async function installHostToolsHeadless(): Promise<boolean> {
-  output.appendLine("[HOST TOOLS] Starting headless host tools installation...");
+  outputInfo("Host Tools", "Starting headless host tools installation...");
   
   // First check if package manager is available
   const pmAvailable = await checkPackageManagerAvailable();
   if (!pmAvailable) {
-    output.appendLine("[HOST TOOLS] Package manager not available, attempting to install...");
+    outputInfo("Host Tools", "Package manager not available, attempting to install...");
     const pmSuccess = await installPackageManager();
     if (!pmSuccess) {
-      output.appendLine("[HOST TOOLS] Failed to install package manager");
+      outputWarning("Host Tools", "Failed to install package manager");
       return false;
     }
-    output.appendLine("[HOST TOOLS] Package manager installed successfully - restart may be needed for PATH updates");
+    outputInfo("Host Tools", "Package manager installed successfully - restart may be needed for PATH updates");
     // Return false to indicate VS Code may need restart for package manager to be in PATH
     return false;
   }
   
-  output.appendLine("[HOST TOOLS] Package manager is available");
+  outputInfo("Host Tools", "Package manager is available");
   
   // Check if all packages are already available
   const statuses = await checkAllPackages();
   const allAvailable = statuses.every(s => s.available);
   
   if (allAvailable) {
-    output.appendLine("[HOST TOOLS] All packages are already available on PATH");
+    outputInfo("Host Tools", "All packages are already available on PATH");
     return true;
   }
   
   // Install missing packages
   const installSuccess = await installAllMissingPackages();
   if (!installSuccess) {
-    output.appendLine("[HOST TOOLS] Some packages failed to install");
+    outputWarning("Host Tools", "Some packages failed to install");
     return false;
   }
   
@@ -639,12 +640,12 @@ export async function installHostToolsHeadless(): Promise<boolean> {
   const finalAllAvailable = finalStatuses.every(s => s.available);
   
   if (finalAllAvailable) {
-    output.appendLine("[HOST TOOLS] All packages are now available on PATH");
+    outputInfo("Host Tools", "All packages are now available on PATH");
     return true;
   } else {
     const unavailable = finalStatuses.filter(s => !s.available).map(s => s.name);
-    output.appendLine(`[HOST TOOLS] Packages installed but not yet available on PATH${unavailable.length > 0 ? ': ' + unavailable.join(', ') : ''}`);
-    output.appendLine("[HOST TOOLS] A restart may be needed for PATH updates to take effect");
+    outputWarning("Host Tools", `Packages installed but not yet available on PATH${unavailable.length > 0 ? ': ' + unavailable.join(', ') : ''}`);
+    outputInfo("Host Tools", "A restart may be needed for PATH updates to take effect");
     return false;
   }
 }

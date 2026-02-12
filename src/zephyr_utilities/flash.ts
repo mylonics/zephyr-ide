@@ -19,6 +19,7 @@ import * as vscode from "vscode";
 import path from "path";
 
 import { executeTaskHelperInPythonEnv } from "../utilities/utils";
+import { notifyError, outputInfo } from "../utilities/output";
 
 import { ProjectConfig } from "../project_utilities/project";
 
@@ -34,14 +35,14 @@ export async function flashByName(context: vscode.ExtensionContext, wsConfig: Wo
   if (project && buildConfig && runnerConfig) {
     await flash(context, wsConfig, project, buildConfig, runnerConfig);
   } else {
-    vscode.window.showErrorMessage("Invalid project or build");
+    notifyError("Flash", "Invalid project or build");
   }
 }
 
 export async function flashActive(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
 
   if (wsConfig.activeProject === undefined) {
-    vscode.window.showErrorMessage("Select a project before trying to flash");
+    notifyError("Flash", "Select a project before trying to flash");
     return;
   }
   let projectName = wsConfig.activeProject;
@@ -49,14 +50,14 @@ export async function flashActive(context: vscode.ExtensionContext, wsConfig: Wo
   let activeBuildConfig = wsConfig.projectStates[wsConfig.activeProject].activeBuildConfig;
 
   if (activeBuildConfig === undefined) {
-    vscode.window.showErrorMessage("Select a build before trying to flash");
+    notifyError("Flash", "Select a build before trying to flash");
     return;
   }
   let build = project.buildConfigs[activeBuildConfig];
   let activeRunnerConfig = wsConfig.projectStates[wsConfig.activeProject].buildStates[activeBuildConfig].activeRunner;
 
   if (activeRunnerConfig === undefined) {
-    vscode.window.showErrorMessage("Select a runner before trying to flash");
+    notifyError("Flash", "Select a runner before trying to flash");
     return;
   }
   let runner = build.runnerConfigs[activeRunnerConfig];
@@ -77,7 +78,7 @@ export async function flash(context: vscode.ExtensionContext, wsConfig: Workspac
 
   let taskName = "Zephyr IDE Flash: " + project.name + " " + build.name;
 
-  vscode.window.showInformationMessage(`Flashing for ${build.name}`);
+  outputInfo(`Flash: ${project.name}/${build.name}`, `Flashing ${build.name} from project: ${project.name} (cmd: ${cmd})`, true);
   const setupState = await getSetupState(context, wsConfig);
   await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState?.setupPath);
 }

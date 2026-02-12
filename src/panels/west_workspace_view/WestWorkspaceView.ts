@@ -22,6 +22,7 @@ import { WorkspaceConfig, GlobalConfig } from '../../setup_utilities/types';
 import { getNonce } from "../../utilities/getNonce";
 import { setSetupState, setGlobalState, clearSetupState } from '../../setup_utilities/state-management';
 import { output } from '../../utilities/utils';
+import { notifyError, notifyWarningWithActions, outputInfo } from '../../utilities/output';
 import { getToolsDir } from '../../setup_utilities/workspace-config';
 import { westConfig } from '../../setup_utilities/workspace-setup';
 
@@ -262,10 +263,10 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
       const installName = path.basename(installPath);
 
       // Show confirmation prompt (non-modal warning)
-      const confirm = await vscode.window.showWarningMessage(
+      const confirm = await notifyWarningWithActions(
+        'West Workspace',
         `Switch to workspace "${installName}"?`,
-        'Switch',
-        'Cancel'
+        ['Switch', 'Cancel']
       );
 
       if (confirm === 'Switch') {
@@ -274,16 +275,16 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
         vscode.commands.executeCommand('zephyr-ide.update-web-view');
       }
     } catch (error) {
-      vscode.window.showErrorMessage(`Failed to switch workspace: ${error}`);
+      notifyError('West Workspace', `Failed to switch workspace: ${error}`);
     }
   }
 
   private async handleDeselect() {
     try {
-      const confirm = await vscode.window.showWarningMessage(
+      const confirm = await notifyWarningWithActions(
+        'West Workspace',
         'Deselect active workspace?',
-        'Deselect',
-        'Cancel'
+        ['Deselect', 'Cancel']
       );
 
       if (confirm === 'Deselect') {
@@ -292,17 +293,17 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
         vscode.commands.executeCommand('zephyr-ide.update-web-view');
       }
     } catch (error) {
-      vscode.window.showErrorMessage(`Failed to deselect workspace: ${error}`);
+      notifyError('West Workspace', `Failed to deselect workspace: ${error}`);
     }
   }
 
   private async handleDelete(installPath: string) {
     try {
       const installName = path.basename(installPath);
-      const confirm = await vscode.window.showWarningMessage(
+      const confirm = await notifyWarningWithActions(
+        'West Workspace',
         `Are you sure you want to remove "${installName}" from the workspace registry?\n\nPath: ${installPath}\n\nNote: This will only remove it from the registry, not delete the files.`,
-        'Remove from Registry',
-        'Cancel'
+        ['Remove from Registry', 'Cancel']
       );
 
       if (confirm !== 'Remove from Registry') {
@@ -317,11 +318,11 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
         await setGlobalState(this.context, this.globalConfig);
 
         vscode.window.showInformationMessage(`Installation "${installName}" has been removed from the registry.`);
-        output.appendLine(`[WEST WORKSPACE] Removed installation from registry: ${installPath}`);
+        outputInfo('West Workspace', `Removed installation from registry: ${installPath}`);
         vscode.commands.executeCommand('zephyr-ide.update-web-view');
       }
     } catch (error) {
-      vscode.window.showErrorMessage(`Failed to delete workspace: ${error}`);
+      notifyError('West Workspace', `Failed to delete workspace: ${error}`);
     }
   }
 }

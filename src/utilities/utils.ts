@@ -25,6 +25,28 @@ import * as os from "os";
 import { SetupState, WorkspaceConfig } from "../setup_utilities/types";
 import { pathdivider } from "../setup_utilities/tools-validation";
 import { getToolchainDir } from "../setup_utilities/workspace-config";
+import { initOutputChannel, getOutputChannel, outputCommand, outputError, outputInfo, outputRaw, outputLine, ShellCommandResult } from "./output";
+
+// Re-export everything from the new output module so existing
+// `import { … } from "../utilities/utils"` statements keep working.
+export {
+  initOutputChannel,
+  getOutputChannel,
+  outputInfo,
+  outputWarning,
+  outputError,
+  outputCommand,
+  outputRaw,
+  outputLine,
+  outputFileNotFound,
+  outputCommandFailure,
+  showOutput,
+  notifyError,
+  notifyWarning,
+  notifyWarningWithActions,
+  notifyInfo,
+} from "./output";
+export type { ShellCommandResult } from "./output";
 
 // Output channel for logging
 let outputChannel: vscode.OutputChannel | undefined;
@@ -35,6 +57,8 @@ let outputChannel: vscode.OutputChannel | undefined;
  */
 export function setOutputChannel(channel: vscode.OutputChannel): void {
   outputChannel = channel;
+  // Also wire up the new centralised output module
+  initOutputChannel(channel);
 }
 
 /**
@@ -100,7 +124,7 @@ async function detectRemotePlatform(): Promise<string | undefined> {
     }
   } catch (error) {
     // If detection fails, log and fall back to local platform
-    output.appendLine(`[PLATFORM] Remote platform detection failed: ${error}`);
+    outputInfo("Platform Detection", `Remote platform detection failed: ${error}`);
   }
 
   remotePlatformCache = undefined;
@@ -276,7 +300,7 @@ export function closeTerminals(names: string[]) {
 
 async function executeTask(task: vscode.Task) {
   const execution = await vscode.tasks.executeTask(task);
-  output.appendLine("Starting Task: " + task.name);
+  outputLine("Starting Task: " + task.name);
 
   return new Promise<number | undefined>(resolve => {
     let disposable = vscode.tasks.onDidEndTaskProcess(e => {
@@ -298,7 +322,7 @@ export async function executeTaskHelperInPythonEnv(setupState: SetupState | unde
 }
 
 export async function executeTaskHelper(taskName: string, cmd: string, cwd: string | undefined) {
-  output.appendLine(`Running cmd: ${cmd}`);
+  outputCommand(taskName, cmd);
   let options: vscode.ShellExecutionOptions = {
     cwd: cwd,
   };
@@ -318,13 +342,31 @@ export async function executeTaskHelper(taskName: string, cmd: string, cwd: stri
   return (res !== undefined && res === 0);
 }
 
-export async function executeShellCommandInPythonEnv(cmd: string, cwd: string, setupState: SetupState, display_error = true) {
+export async function executeShellCommandInPythonEnv(cmd: string, cwd: string, setupState: SetupState, display_error = true): Promise<ShellCommandResult> {
   // Build environment with venv PATH prepended
   const env = { ...process.env };
-  
-  if (setupState.env["PATH"]) {
-    // Prepend the venv's bin/Scripts directory to PATH so venv executables are found first
-    // setupState.env["PATH"] already includes the trailing path separator (: or ;)
+
+  // On Windows, process.env is case-insensitive but spreading it into a plain
+  // object can produce both "PATH" and "Path" keys.  PowerShell reads "Path",
+  // so if we only prepend to "PATH" the venv directory is never found.
+  // Consolidate into a single "Path" key (the casing PowerShell expects).
+  if (os.platform() === "win32") {
+    // Gather every PATH-like value regardless of casing
+    const pathValues: string[] = [];
+    for (const key of Object.keys(env)) {
+      if (key.toLowerCase() === "path") {
+        if (env[key]) {
+          pathValues.push(env[key] as string);
+        }
+        delete env[key];
+      }
+    }
+    // Re-create a single "Path" entry with the venv directory prepended
+    const combinedPath = pathValues.join(";");
+    env["Path"] = setupState.env["PATH"]
+      ? setupState.env["PATH"] + combinedPath
+      : combinedPath;
+  } else if (setupState.env["PATH"]) {
     const existingPath = env["PATH"] || "";
     env["PATH"] = setupState.env["PATH"] + existingPath;
   }
@@ -336,8 +378,9 @@ export async function executeShellCommandInPythonEnv(cmd: string, cwd: string, s
   return executeShellCommand(cmd, cwd, display_error, env);
 };
 
-export async function executeShellCommand(cmd: string, cwd: string, display_error = true, env?: NodeJS.ProcessEnv): Promise<{ stdout: string | undefined, stderr: string | undefined }> {
+export async function executeShellCommand(cmd: string, cwd: string, display_error = true, env?: NodeJS.ProcessEnv): Promise<ShellCommandResult> {
   let exec = util.promisify(cp.exec);
+  const effectiveEnv = env ?? process.env;
   const execOptions: cp.ExecOptions = { 
     cwd: cwd,
     encoding: 'utf8'  // Ensure stdout and stderr are strings, not Buffers
@@ -347,18 +390,30 @@ export async function executeShellCommand(cmd: string, cwd: string, display_erro
   if (env) {
     execOptions.env = env;
   }
+
+  // On Windows, use PowerShell instead of the default cmd.exe. cmd.exe has
+  // subtle quoting and environment-propagation issues that break Python-based
+  // CLI tools like west (e.g. "manifest file not found: None"). PowerShell
+  // matches the behaviour of VS Code's integrated terminal and task execution.
+  if (os.platform() === "win32") {
+    execOptions.shell = "powershell.exe";
+  }
   
   let res = await exec(cmd, execOptions).then(
 
     value => {
-      return { stdout: value.stdout as string, stderr: value.stderr as string };
+      return { stdout: value.stdout as string, stderr: value.stderr as string, cmd, cwd, env: effectiveEnv };
     },
     reason => {
       if (display_error) {
-        output.append(reason);
-        console.log(JSON.stringify(reason));
+        outputError("Shell Command", `Command failed: ${cmd}`, {
+          command: cmd,
+          detail: `Exit code: ${reason.code ?? 'unknown'} | cwd: ${cwd || '(not set)'}`,
+          stdout: reason.stdout as string | undefined,
+          stderr: reason.stderr as string | undefined,
+        });
       }
-      return { stdout: undefined, stderr: reason.stderr as string | undefined };
+      return { stdout: undefined, stderr: reason.stderr as string | undefined, cmd, cwd, env: effectiveEnv };
     }
   );
   return res;

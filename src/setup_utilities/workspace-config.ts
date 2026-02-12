@@ -20,6 +20,7 @@ import * as os from "os";
 import * as fs from "fs-extra";
 import * as path from "path";
 import { getPlatformName } from "../utilities/utils";
+import { outputWarning } from "../utilities/output";
 import { WorkspaceConfig, SetupState } from "./types";
 
 function projectLoader(config: WorkspaceConfig, projects: any) {
@@ -143,7 +144,7 @@ export async function generateGitIgnore(context: vscode.ExtensionContext, wsConf
       if (await fs.pathExists(srcPath)) {
         await fs.copy(srcPath, desPath);
       } else {
-        console.warn(`Source gitignore file not found at: ${srcPath}`);
+        outputWarning("Workspace Config", `Source gitignore file not found at: ${srcPath} (extensionPath: ${extensionPath}). The extension may not be installed correctly.`);
       }
     } catch (error) {
       console.error(`Failed to copy gitignore from ${srcPath} to ${desPath}:`, error);
@@ -166,7 +167,7 @@ export async function generateExtensionsRecommendations(context: vscode.Extensio
       if (await fs.pathExists(srcPath)) {
         await fs.copy(srcPath, desPath);
       } else {
-        console.warn(`Source extensions.json file not found at: ${srcPath}`);
+        outputWarning("Workspace Config", `Source extensions.json file not found at: ${srcPath} (extensionPath: ${extensionPath}). The extension may not be installed correctly.`);
       }
     } catch (error) {
       console.error(`Failed to copy extensions.json from ${srcPath} to ${desPath}:`, error);
@@ -265,7 +266,7 @@ function readSdkPathFromCMakeCache(buildDir: string): string | undefined {
   const cmakeCachePath = path.join(buildDir, "CMakeCache.txt");
 
   if (!fs.pathExistsSync(cmakeCachePath)) {
-    console.log(`Zephyr IDE: CMakeCache.txt not found at "${cmakeCachePath}"`);
+    outputWarning("SDK Path", `CMakeCache.txt not found at "${cmakeCachePath}". The project may not have been built yet.`);
     return undefined;
   }
 
@@ -432,7 +433,7 @@ export function getArmGdbPath(wsConfig?: WorkspaceConfig): string | undefined {
     return gdbPathExe;
   }
 
-  console.log(`Zephyr IDE: ARM GDB executable not found at "${gdbPath}"`);
+  outputWarning("SDK Path", `ARM GDB executable not found at "${gdbPath}". Ensure the Zephyr SDK is installed and contains the arm-zephyr-eabi toolchain (sdkPath: ${sdkPath}).`);
   return undefined;
 }
 

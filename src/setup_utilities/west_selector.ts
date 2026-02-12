@@ -20,6 +20,7 @@ import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs-extra";
 import { MultiStepInput, showQuickPickMany } from "../utilities/multistepQuickPick";
+import { notifyError } from "../utilities/output";
 import { WorkspaceConfig } from './types';
 import * as yaml from 'js-yaml';
 
@@ -95,6 +96,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
     westOptions["Full Zephyr"] = "default_west.yml";
     westOptions["Minimal Zephyr (Select Desired HALs)"] = "minimal_west.yml";
     westOptions["Minimal BLE Zephyr (Select Desired HALs)"] = "minimal_ble_west.yml";
+    westOptions["Sim Only"] = "simulated_west.yml";
     westOptions["NRF Connect Config"] = "ncs_west.yml";
 
     const westOptionQpItems: QuickPickItem[] = [];
@@ -125,7 +127,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
     const copyTemplate = true;
 
     if (!westFile) {
-      vscode.window.showErrorMessage(`Failed to select workspace template`);
+      notifyError("West Selector", `Failed to select workspace template`);
       state.failed = true;
       return;
     }

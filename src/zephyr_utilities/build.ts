@@ -21,6 +21,7 @@ import * as fs from 'fs-extra';
 import * as yaml from 'js-yaml';
 
 import { executeTaskHelperInPythonEnv } from "../utilities/utils";
+import { notifyError, outputInfo } from "../utilities/output";
 
 import { WorkspaceConfig } from '../setup_utilities/types';
 import { addBuild, ProjectConfig, getActiveBuildNameOfProject } from "../project_utilities/project";
@@ -69,7 +70,7 @@ export async function buildHelper(
   }
   if (setupState.westUpdated) {
     if (wsConfig.activeProject === undefined) {
-      vscode.window.showErrorMessage("Select a project before trying to build");
+      notifyError("Build", "Select a project before trying to build");
       return;
     }
     let project = wsConfig.projects[wsConfig.activeProject];
@@ -79,13 +80,13 @@ export async function buildHelper(
       await addBuild(wsConfig, context);
       buildName = getActiveBuildNameOfProject(wsConfig, project.name);
       if (buildName === undefined) {
-        await vscode.window.showErrorMessage(`You must choose a Build Configuration to continue.`);
+        notifyError("Build", `You must choose a Build Configuration to continue.`);
         return;
       }
     }
     return await build(context, wsConfig, project, project.buildConfigs[buildName], pristine);
   } else {
-    vscode.window.showErrorMessage("Run `Zephyr IDE: West Update` command first.");
+    notifyError("Build", "Run `Zephyr IDE: West Update` command first.");
   }
 }
 
@@ -105,7 +106,7 @@ export async function buildByName(context: vscode.ExtensionContext, wsConfig: Wo
       build(context, wsConfig, project, buildconfig, pristine);
     }
   } else {
-    vscode.window.showErrorMessage("Invalid project or build");
+    notifyError("Build", "Invalid project or build");
   }
 }
 
@@ -187,7 +188,7 @@ export async function build(
 
   let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
 
-  vscode.window.showInformationMessage(`Building ${build.name} from project: ${project.name}`);
+  outputInfo(`Build: ${project.name}/${build.name}`, `Building ${build.name} from project: ${project.name} (cmd: ${cmd})`, true);
   const setupState = await getSetupState(context, wsConfig);
   let ret = await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState?.setupPath);
 
@@ -210,7 +211,7 @@ export async function buildMenuConfig(
 
   if (project === undefined) {
     if (wsConfig.activeProject === undefined) {
-      vscode.window.showErrorMessage("Select a project before trying to build");
+      notifyError("Menu Config", "Select a project before trying to build");
       return;
     }
     project = wsConfig.projects[wsConfig.activeProject];
@@ -219,7 +220,7 @@ export async function buildMenuConfig(
   if (build === undefined) {
     let buildName = getActiveBuildNameOfProject(wsConfig, project.name);
     if (buildName === undefined) {
-      await vscode.window.showErrorMessage(`You must choose a Build Configuration to continue.`);
+      notifyError("Menu Config", `You must choose a Build Configuration to continue.`);
       return;
     }
     build = project.buildConfigs[buildName];
@@ -233,14 +234,14 @@ export async function buildMenuConfig(
     buildFsDir = fs.readdirSync(buildFolder);
   }
   if (buildFsDir === undefined || buildFsDir.length === 0) {
-    await vscode.window.showErrorMessage(`Run a Build or Build Pristine before running Menu/GUI Config.`);
+    notifyError("Menu Config", `Run a Build or Build Pristine before running Menu/GUI Config.`);
     return;
   }
 
   let cmd = `west build -t ${config === MenuConfig.MenuConfig ? "menuconfig" : "guiconfig"} "${projectFolder}" --build-dir "${buildFolder}" `;
   let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
 
-  vscode.window.showInformationMessage(`Running MenuConfig ${build.name} from project: ${project.name}`);
+  outputInfo(`MenuConfig: ${project.name}/${build.name}`, `Running MenuConfig ${build.name} from project: ${project.name} (cmd: ${cmd})`, true);
   const setupState = await getSetupState(context, wsConfig);
   await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState?.setupPath);
   regenerateCompileCommands(wsConfig);
@@ -257,7 +258,7 @@ export async function buildRamRomReport(
 
   if (project === undefined) {
     if (wsConfig.activeProject === undefined) {
-      vscode.window.showErrorMessage("Select a project before trying to run report");
+      notifyError("RAM/ROM Report", "Select a project before trying to run report");
       return;
     }
     project = wsConfig.projects[wsConfig.activeProject];
@@ -266,7 +267,7 @@ export async function buildRamRomReport(
   if (build === undefined) {
     let buildName = getActiveBuildNameOfProject(wsConfig, project.name);
     if (buildName === undefined) {
-      await vscode.window.showErrorMessage(`You must choose a Build Configuration to continue.`);
+      notifyError("RAM/ROM Report", `You must choose a Build Configuration to continue.`);
       return;
     }
     build = project.buildConfigs[buildName];
@@ -279,7 +280,7 @@ export async function buildRamRomReport(
     buildFsDir = fs.readdirSync(buildFolder);
   }
   if (buildFsDir === undefined || buildFsDir.length === 0) {
-    await vscode.window.showErrorMessage(`Run a Build or Build Pristine before running Menu/GUI Config.`);
+    notifyError("RAM/ROM Report", `Run a Build or Build Pristine before running Menu/GUI Config.`);
     return;
   }
 
@@ -287,7 +288,7 @@ export async function buildRamRomReport(
 
   let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
 
-  vscode.window.showInformationMessage(`Running ${isRamReport ? "RAM" : "ROM"} Report ${build.name} from project: ${project.name}`);
+  outputInfo(`${isRamReport ? "RAM" : "ROM"} Report: ${project.name}/${build.name}`, `Running ${isRamReport ? "RAM" : "ROM"} Report ${build.name} from project: ${project.name} (cmd: ${cmd})`, true);
   const setupState = await getSetupState(context, wsConfig);
   await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState?.setupPath);
   regenerateCompileCommands(wsConfig);
@@ -302,7 +303,7 @@ export async function runDtshShell(
 
   if (project === undefined) {
     if (wsConfig.activeProject === undefined) {
-      vscode.window.showErrorMessage("Select a project before trying to open dtsh shell");
+      notifyError("DTSH Shell", "Select a project before trying to open dtsh shell");
       return;
     }
     project = wsConfig.projects[wsConfig.activeProject];
@@ -311,7 +312,7 @@ export async function runDtshShell(
   if (build === undefined) {
     let buildName = getActiveBuildNameOfProject(wsConfig, project.name);
     if (buildName === undefined) {
-      await vscode.window.showErrorMessage(`You must choose a Build Configuration to continue.`);
+      notifyError("DTSH Shell", `You must choose a Build Configuration to continue.`);
       return;
     }
     build = project.buildConfigs[buildName];
@@ -321,7 +322,7 @@ export async function runDtshShell(
 
   let taskName = "Zephyr IDE DTSH Sehll: " + project.name + " " + build.name;
 
-  vscode.window.showInformationMessage(`Running DTSH Shell ${build.name} from project: ${project.name}`);
+  outputInfo(`DTSH Shell: ${project.name}/${build.name}`, `Running DTSH Shell ${build.name} from project: ${project.name} (cmd: ${cmd})`, true);
   const setupState = await getSetupState(context, wsConfig);
   await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState?.setupPath);
 }
@@ -329,7 +330,7 @@ export async function runDtshShell(
 export async function clean(wsConfig: WorkspaceConfig, projectName: string | undefined) {
   if (projectName === undefined) {
     if (wsConfig.activeProject === undefined) {
-      vscode.window.showErrorMessage("Select a project before trying to clean");
+      notifyError("Clean", "Select a project before trying to clean");
       return;
     }
     projectName = wsConfig.activeProject;
@@ -337,7 +338,7 @@ export async function clean(wsConfig: WorkspaceConfig, projectName: string | und
 
   let activeBuild = wsConfig.projectStates[projectName].activeBuildConfig;
   if (activeBuild === undefined) {
-    vscode.window.showErrorMessage("Select a build before trying to clean");
+    notifyError("Clean", "Select a build before trying to clean");
     return;
   }
   await fs.remove(path.join(wsConfig.rootPath, wsConfig.projects[projectName].rel_path, activeBuild));
