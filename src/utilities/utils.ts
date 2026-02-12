@@ -17,7 +17,7 @@ limitations under the License.
 
 
 import * as vscode from "vscode";
-import * as path from "path";
+import * as path from "upath";
 import * as util from "util";
 import * as cp from "child_process";
 import * as fs from "fs";
@@ -190,18 +190,6 @@ export function getPlatformArch() {
 
 export function isMacOS() {
   return platform === "darwin";
-}
-
-/**
- * Convert a file path to use forward slashes.
- * This is necessary when embedding paths in CMake arguments on Windows,
- * where backslashes are interpreted as escape characters.
- */
-export function toPosixPath(p: string | undefined): string {
-  if (p === undefined) {
-    return '';
-  }
-  return p.replace(/\\/g, '/');
 }
 
 export function getPythonVenvBinaryFolder(setupState: SetupState) {

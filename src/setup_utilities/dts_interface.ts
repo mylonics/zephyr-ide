@@ -21,7 +21,7 @@ import { IntegrationSettings, Context } from "devicetree-language-server-types";
 import { IDeviceTreeAPI } from "devicetree-language-server-vscode-types";
 
 import { SetupState, WorkspaceConfig } from "./types";
-import path from "path";
+import path from "upath";
 import { getDtsIncludes } from "./modules";
 import {
   getActiveProject, getActiveBuildConfigOfProject, ProjectConfig

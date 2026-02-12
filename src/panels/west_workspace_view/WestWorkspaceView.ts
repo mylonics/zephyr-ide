@@ -17,7 +17,7 @@ limitations under the License.
 
 import * as vscode from 'vscode';
 import * as fs from 'fs-extra';
-import path from 'path';
+import path from 'upath';
 import { WorkspaceConfig, GlobalConfig } from '../../setup_utilities/types';
 import { getNonce } from "../../utilities/getNonce";
 import { setSetupState, setGlobalState, clearSetupState } from '../../setup_utilities/state-management';

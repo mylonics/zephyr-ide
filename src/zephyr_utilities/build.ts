@@ -16,11 +16,11 @@ limitations under the License.
 */
 
 import * as vscode from "vscode";
-import * as path from 'path';
+import * as path from 'upath';
 import * as fs from 'fs-extra';
 import * as yaml from 'js-yaml';
 
-import { executeTaskHelperInPythonEnv, executeShellCommandInPythonEnv, toPosixPath } from "../utilities/utils";
+import { executeTaskHelperInPythonEnv, executeShellCommandInPythonEnv } from "../utilities/utils";
 import { notifyError, outputInfo } from "../utilities/output";
 
 import { WorkspaceConfig } from '../setup_utilities/types';
@@ -161,26 +161,26 @@ export async function build(
         boardRoot = setupState.zephyrDir;
       }
     }
-    cmd = `west build -b ${build.board + (build.revision ? '@' + build.revision : "")} "${projectFolder}" -p --build-dir "${buildFolder}" ${extraWestBuildArgs} -- -DBOARD_ROOT='${toPosixPath(boardRoot)}' ${extraWestBuildCMakeArgs} `;
+    cmd = `west build -b ${build.board + (build.revision ? '@' + build.revision : "")} "${projectFolder}" -p --build-dir "${buildFolder}" ${extraWestBuildArgs} -- -DBOARD_ROOT='${boardRoot}' ${extraWestBuildCMakeArgs} `;
 
     if (primaryConfFiles.length) {
       let confFileString = "";
-      primaryConfFiles.map(x => (confFileString = confFileString + toPosixPath(x) + ";"));
+      primaryConfFiles.map(x => (confFileString = confFileString + x + ";"));
       cmd = cmd + ` -DCONF_FILE='${confFileString}' `;
     }
     if (secondaryConfFiles.length) {
       let confFileString = "";
-      secondaryConfFiles.map(x => (confFileString = confFileString + toPosixPath(x) + ";"));
+      secondaryConfFiles.map(x => (confFileString = confFileString + x + ";"));
       cmd = cmd + ` -DEXTRA_CONF_FILE='${confFileString}' `;
     }
     if (overlayFiles.length) {
       let overlayFileString = "";
-      overlayFiles.map(x => (overlayFileString = overlayFileString + toPosixPath(x) + ";"));
+      overlayFiles.map(x => (overlayFileString = overlayFileString + x + ";"));
       cmd = cmd + ` -DDTC_OVERLAY_FILE='${overlayFileString}' `;
     }
     if (extraOverlayFiles.length) {
       let overlayFileString = "";
-      extraOverlayFiles.map(x => (overlayFileString = overlayFileString + toPosixPath(x) + ";"));
+      extraOverlayFiles.map(x => (overlayFileString = overlayFileString + x + ";"));
       cmd = cmd + ` -DEXTRA_DTC_OVERLAY_FILE='${overlayFileString}' `;
     }
   }

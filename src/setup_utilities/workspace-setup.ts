@@ -50,7 +50,7 @@ WorkspaceSetupFromWestGit
 
 import * as vscode from "vscode";
 import * as fs from "fs-extra";
-import * as path from "path";
+import * as path from "upath";
 import { output, executeTaskHelper, validateGitUrl } from "../utilities/utils";
 import { outputInfo, outputError, notifyError, showOutput } from "../utilities/output";
 import { westSelector, WestLocation } from "./west_selector";

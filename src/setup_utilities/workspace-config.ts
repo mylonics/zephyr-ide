@@ -18,7 +18,7 @@ limitations under the License.
 import * as vscode from "vscode";
 import * as os from "os";
 import * as fs from "fs-extra";
-import * as path from "path";
+import * as path from "upath";
 import { getPlatformName } from "../utilities/utils";
 import { outputWarning } from "../utilities/output";
 import { WorkspaceConfig, SetupState } from "./types";

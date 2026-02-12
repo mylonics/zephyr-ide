@@ -18,7 +18,7 @@ limitations under the License.
 import * as vscode from "vscode";
 import * as os from "os";
 import * as fs from "fs-extra";
-import * as path from "path";
+import * as path from "upath";
 import { output, executeTaskHelperInPythonEnv, executeTaskHelper, reloadEnvironmentVariables, getPlatformName, getPlatformNameAsync } from "../utilities/utils";
 import { outputInfo, outputWarning, notifyError, notifyWarningWithActions } from "../utilities/output";
 import { getModulePathAndVersion, getModuleVersion, isVersionNumberGreaterEqual } from "./modules";

@@ -17,7 +17,7 @@ limitations under the License.
 
 import * as vscode from "vscode";
 import * as fs from "fs-extra";
-import * as path from "path";
+import * as path from "upath";
 import { getRootPathFs, reloadEnvironmentVariables } from "../utilities/utils";
 import { initializeDtsExt } from "./dts_interface";
 import { GlobalConfig, WorkspaceConfig, SetupState, generateSetupState } from "./types";

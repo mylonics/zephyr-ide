@@ -18,7 +18,7 @@ limitations under the License.
 import * as vscode from "vscode";
 import * as yaml from 'js-yaml';
 import * as fs from "fs-extra";
-import path from "path";
+import path from "upath";
 
 import { executeShellCommandInPythonEnv } from "../utilities/utils";
 import { outputInfo, outputError, notifyError, outputCommandFailure } from "../utilities/output";

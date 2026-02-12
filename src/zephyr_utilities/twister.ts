@@ -16,9 +16,9 @@ limitations under the License.
 */
 
 import * as vscode from "vscode";
-import * as path from 'path';
+import * as path from 'upath';
 
-import { executeTaskHelperInPythonEnv, toPosixPath } from "../utilities/utils";
+import { executeTaskHelperInPythonEnv } from "../utilities/utils";
 import { notifyError, outputInfo } from "../utilities/output";
 
 import { WorkspaceConfig } from '../setup_utilities/types';
@@ -95,7 +95,7 @@ export async function runTest(
       }
     }
 
-    cmd = `west twister --device-testing  ${testConfig.serialPort ? "--device-serial " + testConfig.serialPort : ""} ${testConfig.serialBaud ? "--device-serial-baud " + testConfig.serialBaud : ""} -p ${testConfig.boardConfig.board} ${testString} -- -DBOARD_ROOT='${toPosixPath(boardRoot)}' `;
+    cmd = `west twister --device-testing  ${testConfig.serialPort ? "--device-serial " + testConfig.serialPort : ""} ${testConfig.serialBaud ? "--device-serial-baud " + testConfig.serialBaud : ""} -p ${testConfig.boardConfig.board} ${testString} -- -DBOARD_ROOT='${boardRoot}' `;
   } else {
     cmd = `west twister -p ${testConfig.platform} ${testString} `;
   }

@@ -14,7 +14,7 @@ limitations under the License.
 
 import { QuickPickItem, ExtensionContext } from 'vscode';
 import * as vscode from "vscode";
-import * as path from "path";
+import * as path from "upath";
 import * as fs from "fs-extra";
 import { showQuickPick, showInputBox, showQuickPickMany } from "../utilities/multistepQuickPick";
 import { notifyError } from "../utilities/output";
