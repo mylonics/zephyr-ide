@@ -132,7 +132,7 @@ suite('Combined Installation Test Suite', function() {
                 if (requiresPathPropagation) {
                     console.log('   Skipping build dependencies check (PATH propagation limitation in CI)');
                 } else {
-                    console.log('📋 Step 5a: Checking build dependencies...');
+                    console.log('📋 Checking build dependencies...');
                     await executeWorkspaceCommand(
                         uiMock,
                         [],
@@ -141,7 +141,7 @@ suite('Combined Installation Test Suite', function() {
                     );
                 }
 
-                console.log('🏗️ Step 5b: Setting up workspace...');
+                console.log('🏗️ Step 5: Setting up workspace...');
                 const setupPromise = startWorkspaceCommand(
                     uiMock,
                     CommonUIInteractions.testingWorkspace,
@@ -153,7 +153,7 @@ suite('Combined Installation Test Suite', function() {
                 const setupTimeout = process.platform === 'win32' ? 1200000 : 600000; // 20 min for Windows, 10 min for others
                 await monitorWorkspaceSetup(setupPromise, "workspace", setupTimeout);
 
-                console.log('🐍 Step 5c: Verifying Python venv path...');
+                console.log('🐍 Verifying Python venv path...');
                 const pythonPathResult = await vscode.commands.executeCommand('zephyr-ide.print-python-path');
                 if (pythonPathResult && typeof pythonPathResult === 'object' && 'stdout' in pythonPathResult) {
                     const stdout = (pythonPathResult as { stdout: string }).stdout;
@@ -167,7 +167,7 @@ suite('Combined Installation Test Suite', function() {
                     console.log('   ⚠️ Could not verify Python path');
                 }
 
-                console.log('📁 Step 5d: Creating project from template...');
+                console.log('📁 Step 6: Creating project from template...');
                 await executeWorkspaceCommand(
                     uiMock,
                     CommonUIInteractions.createBlinkyProject,
@@ -175,7 +175,7 @@ suite('Combined Installation Test Suite', function() {
                     'Project creation should succeed'
                 );
 
-                console.log('🔨 Step 5e: Adding build configuration...');
+                console.log('🔨 Step 7: Adding build configuration...');
                 await executeWorkspaceCommand(
                     uiMock,
                     [
@@ -191,7 +191,7 @@ suite('Combined Installation Test Suite', function() {
                 );
 
                 await new Promise((resolve) => setTimeout(resolve, 10000));
-                console.log('⚡ Step 5f: Executing build...');
+                console.log('⚡ Step 8: Executing build...');
                 await executeFinalBuild('Combined Installation Test');
             }
         );

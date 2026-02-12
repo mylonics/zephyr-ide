@@ -95,10 +95,9 @@ suite("Workspace Local West Test Suite", () => {
                     "zephyr-ide.workspace-setup-from-git"
                 );
 
-                console.log("🔍 Step 2: Choosing detected west.yml file...");
                 await monitorWorkspaceSetup(setupPromise, "open current directory");
 
-                console.log("⚡ Step 3: Executing build...");
+                console.log("⚡ Step 2: Executing build...");
                 await executeFinalBuild("Local West Workspace");
             }
         );

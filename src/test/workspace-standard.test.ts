@@ -136,7 +136,7 @@ suite("Standard Workspace Test Suite", () => {
 
                 await monitorWorkspaceSetup(setupPromise);
 
-                console.log("🐍 Step 2.5: Verifying Python venv path...");
+                console.log("🐍 Verifying Python venv path...");
                 const pythonPathResult = await vscode.commands.executeCommand("zephyr-ide.print-python-path");
                 if (pythonPathResult && typeof pythonPathResult === 'object' && 'stdout' in pythonPathResult) {
                     const stdout = (pythonPathResult as { stdout: string }).stdout;
