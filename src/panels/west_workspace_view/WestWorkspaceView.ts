@@ -203,6 +203,14 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
     };
 
     this.view = webviewView;
+    
+    // Refresh webview when it becomes visible to ensure content is loaded
+    webviewView.onDidChangeVisibility(() => {
+      if (webviewView.visible) {
+        this.updateWebView(this.wsConfig, this.globalConfig);
+      }
+    });
+    
     webviewView.webview.onDidReceiveMessage(async (message) => {
       console.log('WestWorkspaceView received message:', message);
 

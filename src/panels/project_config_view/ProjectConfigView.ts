@@ -511,6 +511,14 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
     };
 
     this.view = webviewView;
+    
+    // Refresh webview when it becomes visible to ensure content is loaded
+    webviewView.onDidChangeVisibility(() => {
+      if (webviewView.visible) {
+        this.updateWebView(this.wsConfig);
+      }
+    });
+    
     webviewView.webview.onDidReceiveMessage(async message => {
       console.log(message);
       if (message.treeData) {
