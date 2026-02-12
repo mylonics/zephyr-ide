@@ -191,6 +191,24 @@ suite('Combined Installation Test Suite', function() {
                 await new Promise((resolve) => setTimeout(resolve, 10000));
                 console.log('⚡ Step 5f: Executing build...');
                 await executeFinalBuild('Combined Installation Test');
+
+                if (!skipBuilds) {
+                    console.log('📊 Step 5g: Running RAM Report...');
+                    const ramResult = await vscode.commands.executeCommand<{ success: boolean; output: string }>('zephyr-ide.run-ram-report-headless');
+                    console.log('--- RAM Report Output ---');
+                    console.log(ramResult?.output ?? 'No output');
+                    console.log('--- End RAM Report ---');
+                    assert.ok(ramResult?.success, `RAM Report should succeed: ${ramResult?.output}`);
+
+                    console.log('📊 Step 5h: Running ROM Report...');
+                    const romResult = await vscode.commands.executeCommand<{ success: boolean; output: string }>('zephyr-ide.run-rom-report-headless');
+                    console.log('--- ROM Report Output ---');
+                    console.log(romResult?.output ?? 'No output');
+                    console.log('--- End ROM Report ---');
+                    assert.ok(romResult?.success, `ROM Report should succeed: ${romResult?.output}`);
+                } else {
+                    console.log('⏭️ Skipping RAM/ROM reports (build tests skipped)');
+                }
             }
         );
 

@@ -20,7 +20,7 @@ import * as path from 'path';
 import * as fs from 'fs-extra';
 import * as yaml from 'js-yaml';
 
-import { executeTaskHelperInPythonEnv } from "../utilities/utils";
+import { executeTaskHelperInPythonEnv, executeShellCommandInPythonEnv } from "../utilities/utils";
 import { notifyError, outputInfo } from "../utilities/output";
 
 import { WorkspaceConfig } from '../setup_utilities/types';
@@ -248,18 +248,23 @@ export async function buildMenuConfig(
   updateDtsContext(wsConfig, project, build);
 }
 
-export async function buildRamRomReport(
+/**
+ * Resolves and validates the project, build, command, and setup state needed for a RAM/ROM report.
+ * Returns undefined (and calls notifyError) if any prerequisite is missing.
+ */
+async function resolveRamRomReportParams(
   context: vscode.ExtensionContext,
   wsConfig: WorkspaceConfig,
   isRamReport: boolean,
   project?: ProjectConfig,
   build?: BuildConfig
 ) {
+  const reportType = isRamReport ? "RAM" : "ROM";
 
   if (project === undefined) {
     if (wsConfig.activeProject === undefined) {
       notifyError("RAM/ROM Report", "Select a project before trying to run report");
-      return;
+      return undefined;
     }
     project = wsConfig.projects[wsConfig.activeProject];
   }
@@ -268,7 +273,7 @@ export async function buildRamRomReport(
     let buildName = getActiveBuildNameOfProject(wsConfig, project.name);
     if (buildName === undefined) {
       notifyError("RAM/ROM Report", `You must choose a Build Configuration to continue.`);
-      return;
+      return undefined;
     }
     build = project.buildConfigs[buildName];
   }
@@ -280,18 +285,58 @@ export async function buildRamRomReport(
     buildFsDir = fs.readdirSync(buildFolder);
   }
   if (buildFsDir === undefined || buildFsDir.length === 0) {
-    notifyError("RAM/ROM Report", `Run a Build or Build Pristine before running Menu/GUI Config.`);
-    return;
+    notifyError("RAM/ROM Report", `Run a Build or Build Pristine before running ${reportType} Report.`);
+    return undefined;
   }
 
-  let cmd = `west build -t ${isRamReport ? "ram_report" : "rom_report"} "${projectFolder}" --build-dir "${buildFolder}" `;
-
-  let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
-
-  outputInfo(`${isRamReport ? "RAM" : "ROM"} Report: ${project.name}/${build.name}`, `Running ${isRamReport ? "RAM" : "ROM"} Report ${build.name} from project: ${project.name} (cmd: ${cmd})`, true);
+  const cmd = `west build -t ${isRamReport ? "ram_report" : "rom_report"} "${projectFolder}" --build-dir "${buildFolder}"`;
   const setupState = await getSetupState(context, wsConfig);
-  await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState?.setupPath);
+  if (!setupState) {
+    notifyError("RAM/ROM Report", `No setup state available for ${reportType} Report.`);
+    return undefined;
+  }
+
+  return { project, build, cmd, setupState };
+}
+
+export async function buildRamRomReport(
+  context: vscode.ExtensionContext,
+  wsConfig: WorkspaceConfig,
+  isRamReport: boolean,
+  project?: ProjectConfig,
+  build?: BuildConfig
+) {
+  const params = await resolveRamRomReportParams(context, wsConfig, isRamReport, project, build);
+  if (!params) { return; }
+
+  let taskName = "Zephyr IDE Build: " + params.project.name + " " + params.build.name;
+  outputInfo(`${isRamReport ? "RAM" : "ROM"} Report: ${params.project.name}/${params.build.name}`, `Running ${isRamReport ? "RAM" : "ROM"} Report ${params.build.name} from project: ${params.project.name} (cmd: ${params.cmd})`, true);
+  await executeTaskHelperInPythonEnv(params.setupState, taskName, params.cmd, params.setupState?.setupPath);
   regenerateCompileCommands(wsConfig);
+}
+
+/**
+ * Headless variant of buildRamRomReport that captures and returns the report output.
+ * Used in integration tests to assert on success and log report contents.
+ */
+export async function buildRamRomReportHeadless(
+  context: vscode.ExtensionContext,
+  wsConfig: WorkspaceConfig,
+  isRamReport: boolean,
+): Promise<{ success: boolean; output: string }> {
+  const reportType = isRamReport ? "RAM" : "ROM";
+  const params = await resolveRamRomReportParams(context, wsConfig, isRamReport);
+  if (!params) {
+    return { success: false, output: `${reportType} Report: prerequisite check failed` };
+  }
+
+  const result = await executeShellCommandInPythonEnv(params.cmd, params.setupState.setupPath, params.setupState, true);
+  const combined = [result.stdout, result.stderr].filter(Boolean).join('\n');
+  if (result.stdout) {
+    return { success: true, output: combined };
+  } else {
+    return { success: false, output: combined || `${reportType} Report: No output` };
+  }
 }
 
 export async function runDtshShell(

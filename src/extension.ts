@@ -41,6 +41,7 @@ import {
   buildHelper,
   buildMenuConfig,
   buildRamRomReport,
+  buildRamRomReportHeadless,
   runDtshShell,
   clean,
   MenuConfig,
@@ -1244,6 +1245,18 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.run-rom-report", async () => {
       buildRamRomReport(context, wsConfig, false);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.run-ram-report-headless", async () => {
+      return await buildRamRomReportHeadless(context, wsConfig, true);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.run-rom-report-headless", async () => {
+      return await buildRamRomReportHeadless(context, wsConfig, false);
     })
   );
 
