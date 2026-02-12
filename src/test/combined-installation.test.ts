@@ -123,7 +123,7 @@ suite('Combined Installation Test Suite', function() {
                     }
                 }
             }
-            console.log(`   Current PATH: ${process.env.PATH?.substring(0, 200)}...`);
+            console.log(`   Current PATH (first 3 entries): ${process.env.PATH?.split(';').slice(0, 3).join(';')}`);
         }
 
         // Step 4: Set up the test workspace directory
