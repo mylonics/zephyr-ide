@@ -65,9 +65,6 @@ export async function flashActive(context: vscode.ExtensionContext, wsConfig: Wo
 }
 
 export async function flash(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, project: ProjectConfig, build: BuildConfig, runner: RunnerConfig) {
-  //let cmds = await vscode.commands.getCommands();
-  //const subArr = cmds.filter(str => str.includes("debug"));
-
   // Tasks
   let cmd = `west flash --build-dir "${path.join(wsConfig.rootPath, project.rel_path, build.name)}"`;
 
