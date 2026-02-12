@@ -95,6 +95,28 @@ suite('Combined Installation Test Suite', function() {
             console.log(`⚠️  Step 3: Host tools check: ${error}`);
         }
 
+        // Step 3.5: Windows-specific 7zip PATH fix
+        // Explicitly add 7zip to PATH on Windows to ensure west sdk install can find it
+        if (process.platform === 'win32') {
+            console.log('🔧 Step 3.5: Adding 7zip to PATH explicitly for Windows...');
+            const sevenZipPaths = [
+                'C:\\Program Files\\7-Zip',
+                'C:\\Program Files (x86)\\7-Zip'
+            ];
+            
+            for (const zipPath of sevenZipPaths) {
+                if (fs.existsSync(zipPath)) {
+                    if (!process.env.PATH?.includes(zipPath)) {
+                        process.env.PATH = `${zipPath};${process.env.PATH}`;
+                        console.log(`   ✅ Added ${zipPath} to PATH`);
+                    } else {
+                        console.log(`   ✅ ${zipPath} already in PATH`);
+                    }
+                }
+            }
+            console.log(`   Current PATH: ${process.env.PATH?.substring(0, 200)}...`);
+        }
+
         // Step 4: Set up the test workspace directory
         console.log('🚀 Step 4: Setting up test workspace...');
         testWorkspaceDir = process.env.ZEPHYR_BASE || path.join(os.tmpdir(), 'zephyr-test-workspace');
