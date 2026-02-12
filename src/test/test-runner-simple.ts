@@ -73,9 +73,8 @@ export async function monitorWorkspaceSetup(setupType: string = "workspace", tim
   // On Windows CI, SDK installation hangs indefinitely due to 7z extraction issues
   // Skip SDK installation check to allow tests to proceed
   const isWindowsCI = process.platform === 'win32' && process.env.CI === 'true';
-  const skipSDKCheck = isWindowsCI;
   
-  if (skipSDKCheck) {
+  if (isWindowsCI) {
     console.log('⚠️  Skipping SDK installation check on Windows CI (known issue: SDK install hangs)');
   }
   
@@ -99,7 +98,7 @@ export async function monitorWorkspaceSetup(setupType: string = "workspace", tim
       ].join(', ');
       
       // On Windows CI, allow test to proceed if packages are installed (skip SDK)
-      if (skipSDKCheck && packagesInstalled) {
+      if (isWindowsCI && packagesInstalled) {
         console.log('⚠️  SDK installation timed out on Windows CI, but packages are installed. Proceeding with test.');
         console.log(`📊 Completed ${completedStages}/5 stages (${stageDetails})`);
         break;
@@ -140,7 +139,7 @@ export async function monitorWorkspaceSetup(setupType: string = "workspace", tim
         console.log("    ✅ Packages installed completed");
         
         // On Windows CI, skip SDK installation check after packages are installed
-        if (skipSDKCheck) {
+        if (isWindowsCI) {
           console.log("    ⚠️  Skipping SDK installation on Windows CI (known hanging issue)");
           sdkInstalled = true; // Mark as complete to exit monitoring loop
           console.log(`🎉 ${setupType} setup stages completed (SDK skipped on Windows CI)!`);
