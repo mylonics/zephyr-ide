@@ -284,6 +284,36 @@ export async function getLaunchConfigurations(wsConfig: WorkspaceConfig) {
   }
 }
 
+async function resolveZephyrCommandString(value: string): Promise<string> {
+  const matches = value.match(/\$\{command:zephyr-ide\.[^}]+\}/g);
+  if (!matches) {
+    return value;
+  }
+  let newValue = value;
+  for (const match of matches) {
+    const commandName = match.slice(10, -1); // Remove ${command: and }
+    const result = await vscode.commands.executeCommand(commandName);
+    const resultStr = result !== undefined ? String(result) : "";
+    newValue = newValue.split(match).join(resultStr);
+  }
+  return newValue;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function resolveZephyrCommandsInConfig(obj: any): Promise<any> {
+  if (typeof obj === "string") {
+    return resolveZephyrCommandString(obj);
+  }
+  if (Array.isArray(obj)) {
+    return Promise.all(obj.map(item => resolveZephyrCommandsInConfig(item)));
+  }
+  if (obj !== null && typeof obj === "object") {
+    for (const key of Object.keys(obj)) {
+      obj[key] = await resolveZephyrCommandsInConfig(obj[key]);
+    }
+  }
+  return obj;
+}
 
 export let output = vscode.window.createOutputChannel("Zephyr IDE");
 

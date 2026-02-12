@@ -29,6 +29,7 @@ import { HostToolInstallView } from "./panels/host_tool_install_view/HostToolIns
 
 import {
   getLaunchConfigurationByName,
+  resolveZephyrCommandsInConfig,
   output,
   outputLine,
   executeShellCommand,
@@ -1067,6 +1068,7 @@ export async function activate(context: vscode.ExtensionContext) {
         debugTarget
       );
       if (debugConfig) {
+        await resolveZephyrCommandsInConfig(debugConfig);
         await vscode.commands.executeCommand(
           "debug.startFromConfig",
           debugConfig
@@ -1092,6 +1094,7 @@ export async function activate(context: vscode.ExtensionContext) {
         debugTarget
       );
       if (debugConfig) {
+        await resolveZephyrCommandsInConfig(debugConfig);
         await vscode.commands.executeCommand(
           "debug.startFromConfig",
           debugConfig
@@ -1119,26 +1122,7 @@ export async function activate(context: vscode.ExtensionContext) {
       );
 
       if (debugConfig && activeProject && activeBuild) {
-        // Resolve all ${command:zephyr-ide.*} variables in debugConfig
-        async function resolveZephyrCommandsInObject(obj: Record<string, unknown>) {
-          for (const key of Object.keys(obj)) {
-            if (typeof obj[key] === "string") {
-              const strVal = obj[key] as string;
-              const matches = strVal.match(/\$\{command:zephyr-ide\.[^}]+\}/g);
-              if (matches) {
-                let newValue = strVal;
-                for (const match of matches) {
-                  const commandName = match.slice(10, -1); // Remove ${command: and }
-                  const result = await vscode.commands.executeCommand(commandName);
-                  const resultStr = result !== undefined ? String(result) : "";
-                  newValue = newValue.split(match).join(resultStr);
-                }
-                obj[key] = newValue;
-              }
-            }
-          }
-        }
-        await resolveZephyrCommandsInObject(debugConfig);
+        await resolveZephyrCommandsInConfig(debugConfig);
         let res = await build(context, wsConfig, activeProject, activeBuild, false);
         if (res) {
           await vscode.commands.executeCommand(
