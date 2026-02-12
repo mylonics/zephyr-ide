@@ -20,7 +20,7 @@ import * as os from "os";
 import * as fs from "fs-extra";
 import * as path from "path";
 import { output, executeTaskHelperInPythonEnv, executeTaskHelper, reloadEnvironmentVariables, getPlatformName, getPlatformNameAsync } from "../utilities/utils";
-import { outputInfo, outputWarning, outputRaw, notifyError, notifyWarningWithActions } from "../utilities/output";
+import { outputInfo, outputWarning, notifyError, notifyWarningWithActions } from "../utilities/output";
 import { getModulePathAndVersion, getModuleVersion, isVersionNumberGreaterEqual } from "./modules";
 import { westSelector, WestLocation } from "./west_selector";
 import { WorkspaceConfig, GlobalConfig, SetupState } from "./types";
@@ -205,23 +205,6 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
   if (!westUpdateRes) {
     notifyError("West Update", "West Update Failed. Check the Zephyr IDE output for details.", { command: cmd });
   } else {
-    // Debug: dump .west/config after west update to see if it was modified
-    const postUpdateConfigPath = path.join(setupState.setupPath, ".west", "config");
-    try {
-      if (fs.existsSync(postUpdateConfigPath)) {
-        const postUpdateConfig = fs.readFileSync(postUpdateConfigPath, 'utf-8');
-        outputInfo("West Update Debug", `.west/config after west update:`);
-        outputRaw(postUpdateConfig);
-        // Show raw bytes of manifest section to detect encoding issues
-        const buf = fs.readFileSync(postUpdateConfigPath);
-        outputInfo("West Update Debug", `.west/config hex (first 256 bytes): ${buf.subarray(0, 256).toString('hex')}`);
-      } else {
-        outputWarning("West Update Debug", `.west/config NOT found after west update!`);
-      }
-    } catch (e) {
-      outputWarning("West Update Debug", `Failed to read .west/config after update: ${(e as Error).message}`);
-    }
-
     setupState.westUpdated = true;
     let zephyrModuleInfo = await getModulePathAndVersion(setupState, "zephyr");
     if (zephyrModuleInfo) {
