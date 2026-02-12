@@ -243,9 +243,6 @@ export async function executeFinalBuild(
     console.log(`   Build command returned: ${result} (exit code ${result ? '0 - success' : 'non-zero - failure'})`);
     assert.strictEqual(result, true, `Build command must return true (exit code 0). Got: ${result}`);
     console.log(`   ✅ Build succeeded for ${testName}`);
-
-    // Dump extension output window after build
-    await dumpExtensionOutput(`${testName} - Build Output`);
 }
 
 /**

@@ -398,6 +398,40 @@ async function selectToolchains(): Promise<string[] | undefined> {
 }
 
 /**
+ * Filters out noisy progress lines from SDK install output.
+ * Removes wget download progress, 7-Zip extraction progress bars,
+ * patool verbose INFO lines, and blank lines to reduce output size.
+ */
+function filterSdkProgressLines(output: string): string {
+    const lines = output.split('\n');
+    const filtered = lines.filter(line => {
+        const trimmed = line.trim();
+        // Skip blank lines
+        if (trimmed === '') {
+            return false;
+        }
+        // Skip wget download progress lines (e.g. "  1000K .......... .......... ... 1% 16.6M 4s")
+        if (/^\s*\d+K\s+[.\s]+\d+%/.test(line)) {
+            return false;
+        }
+        // Skip progress bar lines (e.g. "zephyr-sdk...7z: 100%|#|")
+        if (/\d+%\|/.test(line)) {
+            return false;
+        }
+        // Skip patool verbose INFO lines
+        if (/^INFO\s+patool:/.test(trimmed)) {
+            return false;
+        }
+        // Skip 7-Zip progress percentage lines
+        if (/^\s*\d+%\s*$/.test(trimmed)) {
+            return false;
+        }
+        return true;
+    });
+    return filtered.join('\n');
+}
+
+/**
  * Installs SDK with specific toolchains
  */
 export async function installSDK(
@@ -431,12 +465,12 @@ export async function installSDK(
         );
 
         if (result.stdout) {
-            outputInfo("SDK Install", `SDK install stdout:\n${result.stdout}`);
+            outputInfo("SDK Install", `SDK install stdout:\n${filterSdkProgressLines(result.stdout)}`);
         }
         if (result.stderr) {
             // west sdk install writes progress to stderr, so log it as info
             // unless the command actually failed
-            outputInfo("SDK Install", `SDK install stderr:\n${result.stderr}`);
+            outputInfo("SDK Install", `SDK install stderr:\n${filterSdkProgressLines(result.stderr)}`);
         }
 
         if (result.stdout !== undefined) {
