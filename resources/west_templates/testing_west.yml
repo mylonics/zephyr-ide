@@ -10,3 +10,6 @@ manifest:
       clone-depth: 1
       import:
         path-prefix: external
+        name-allowlist:
+          - cmsis_6
+          - hal_rpi_pico

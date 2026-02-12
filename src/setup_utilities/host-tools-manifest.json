@@ -96,7 +96,7 @@
       { "name": "Python3", "package": "python", "check_command": "python --version" },
       { "name": "Git", "package": "Git.Git", "check_command": "git --version" },
       { "name": "DTC (Device Tree Compiler)", "package": "oss-winget.dtc", "check_command": "dtc --version" },
-      { "name": "wget", "package": "wget", "check_command": "wget --help" },
+      { "name": "wget", "package": "wget", "check_command": "wget.exe --help" },
       {
         "name": "7-Zip",
         "package": "7zip.7zip",

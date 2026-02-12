@@ -15,39 +15,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import * as cp from 'child_process';
-import * as util from 'util';
 import * as vscode from 'vscode';
-import * as fs from 'fs-extra';
-import * as path from 'path';
-import * as os from 'os';
 import * as assert from 'assert';
-import { WorkspaceConfig, GlobalConfig } from '../setup_utilities/types';
-import { checkIfToolsAvailable } from '../setup_utilities/tools-validation';
-
-const execAsync = util.promisify(cp.exec);
-
-/**
- * Check if build dependencies are available using the extension's built-in check
- */
-export async function checkBuildDependencies(
-    context: vscode.ExtensionContext,
-    wsConfig: WorkspaceConfig,
-    globalConfig: GlobalConfig
-): Promise<boolean> {
-    const available = await checkIfToolsAvailable(context, wsConfig, globalConfig);
-    if (!available) {
-        console.log(`⚠️ Build dependencies not available`);
-        return false;
-    }
-    return true;
-}
 
 /**
  * Check if build tests should be skipped based on environment variables
  */
 export function shouldSkipBuildTests(): boolean {
     return process.env.SKIP_BUILD_TESTS === 'true' || process.env.CI === 'true';
+}
+
+/**
+ * Check if host tools should be installed via the extension command
+ */
+export function shouldInstallHostTools(): boolean {
+    return process.env.INSTALL_HOST_TOOLS === 'true';
 }
 
 /**
@@ -65,11 +47,35 @@ export function logTestEnvironment(): void {
 }
 
 /**
+ * Retrieve and print the extension's debug output buffer into the test stream.
+ *
+ * Calls the `zephyr-ide.get-debug-output` command which atomically returns
+ * all buffered output lines and clears the buffer.  The output is printed
+ * via `console.log` so it appears in the VS Code test console / CI log.
+ *
+ * @param label  A heading printed before the output block for readability.
+ */
+export async function dumpExtensionOutput(label: string = "Extension Output"): Promise<void> {
+    try {
+        const output = await vscode.commands.executeCommand<string>("zephyr-ide.get-debug-output");
+        if (output && output.length > 0) {
+            console.log(`\n═══ ${label} ════════════════════════════════════════`);
+            console.log(output);
+            console.log(`═══ End ${label} ════════════════════════════════════\n`);
+        } else {
+            console.log(`\n(No extension output captured for: ${label})`);
+        }
+    } catch (error) {
+        console.log(`\n⚠️ Could not retrieve extension output: ${error}`);
+    }
+}
+
+/**
  * Monitor workspace setup progress for integration tests
  * @param setupType Type of setup being monitored (e.g., "workspace", "git workspace")
  */
-export async function monitorWorkspaceSetup(setupType: string = "workspace"): Promise<void> {
-    console.log(`⏳ Monitoring ${setupType} setup progress...`);
+export async function monitorWorkspaceSetup(commandPromise: Thenable<any>, setupType: string = "workspace", timeoutMs: number = 600000): Promise<void> {
+    console.log(`⏳ Monitoring ${setupType} setup progress... (timeout: ${timeoutMs / 1000}s)`);
     let waitTime = 0;
     const checkInterval = 3000;
     let initialSetupComplete = false;
@@ -78,7 +84,57 @@ export async function monitorWorkspaceSetup(setupType: string = "workspace"): Pr
     let packagesInstalled = false;
     let sdkInstalled = false;
 
+    // Attach handlers to detect early completion or failure
+    // without blocking the polling loop.
+    let commandDone = false;
+    let commandError: Error | undefined;
+    let commandResult: any;
+    commandPromise.then(
+        (result) => { commandDone = true; commandResult = result; },
+        (err) => { commandDone = true; commandError = err; }
+    );
+
     while (!sdkInstalled) {
+        // If the command promise rejected, fail immediately with its error
+        if (commandError) {
+            throw new Error(
+                `${setupType} setup command failed: ${commandError.message || commandError}`
+            );
+        }
+
+        // If the command promise resolved with a falsy result, fail immediately
+        if (commandDone && !commandResult) {
+            const completedStages = [initialSetupComplete, pythonEnvironmentSetup, westUpdated, packagesInstalled, sdkInstalled].filter(Boolean).length;
+            const stageDetails = [
+                `initialSetup=${initialSetupComplete}`,
+                `pythonEnv=${pythonEnvironmentSetup}`,
+                `westUpdated=${westUpdated}`,
+                `packagesInstalled=${packagesInstalled}`,
+                `sdkInstalled=${sdkInstalled}`
+            ].join(', ');
+            throw new Error(
+                `${setupType} setup command returned false/undefined. ` +
+                `Completed ${completedStages}/5 stages (${stageDetails}). ` +
+                `The workspace setup failed on this platform.`
+            );
+        }
+
+        if (waitTime >= timeoutMs) {
+            const completedStages = [initialSetupComplete, pythonEnvironmentSetup, westUpdated, packagesInstalled, sdkInstalled].filter(Boolean).length;
+            const stageDetails = [
+                `initialSetup=${initialSetupComplete}`,
+                `pythonEnv=${pythonEnvironmentSetup}`,
+                `westUpdated=${westUpdated}`,
+                `packagesInstalled=${packagesInstalled}`,
+                `sdkInstalled=${sdkInstalled}`
+            ].join(', ');
+            throw new Error(
+                `${setupType} setup timed out after ${timeoutMs / 1000}s. ` +
+                `Completed ${completedStages}/5 stages (${stageDetails}). ` +
+                `The SDK installation may have failed or hung on this platform.`
+            );
+        }
+
         const extension = vscode.extensions.getExtension("mylonics.zephyr-ide");
         let wsConfig = null;
 
@@ -162,7 +218,9 @@ export async function activateExtension(
 }
 
 /**
- * Execute final build command with workspace state validation
+ * Execute final build command with workspace state validation.
+ * Monitors the build command's exit code to determine success.
+ * The build command returns `true` when the underlying process exits with code 0.
  * @param testName Name of the test for logging
  * @param retryDelayMs Delay before retry if setup not complete (default: 10000)
  */
@@ -182,7 +240,9 @@ export async function executeFinalBuild(
     }
 
     const result = await vscode.commands.executeCommand("zephyr-ide.build");
-    assert.ok(result, "Build execution should succeed");
+    console.log(`   Build command returned: ${result} (exit code ${result ? '0 - success' : 'non-zero - failure'})`);
+    assert.strictEqual(result, true, `Build command must return true (exit code 0). Got: ${result}`);
+    console.log(`   ✅ Build succeeded for ${testName}`);
 }
 
 /**
@@ -204,10 +264,13 @@ export async function executeTestWithErrorHandling(
         // Deactivate UI mock on success
         uiMock.deactivate();
 
-        // Note: printWorkspaceOnSuccess should be called by the test itself
-        // before the test completes to avoid race conditions with teardown
+        // Dump extension output to the test stream
+        await dumpExtensionOutput(`${testName} - Extension Output`);
 
     } catch (error) {
+        // Dump extension output so the CI log contains the full trace
+        await dumpExtensionOutput(`${testName} - Extension Output (FAILED)`);
+
         // Handle failure with detailed logging
         await printWorkspaceStructure(testName);
         await new Promise((resolve) => setTimeout(resolve, 30000));
@@ -216,7 +279,29 @@ export async function executeTestWithErrorHandling(
 }
 
 /**
- * Execute standard workspace setup command with UI mock interactions
+ * Start a workspace setup command without awaiting it.
+ * Returns the command promise so it can be passed to monitorWorkspaceSetup
+ * for concurrent progress monitoring and early failure detection.
+ * @param uiMock UI mock interface
+ * @param interactions Array of UI interactions to prime
+ * @param commandId VS Code command ID to execute
+ */
+export async function startWorkspaceCommand(
+    uiMock: any,
+    interactions: Array<{ type: string, value: string, description: string, multiSelect?: boolean }>,
+    commandId: string,
+): Promise<Thenable<any>> {
+    await vscode.commands.executeCommand("zephyr-ide.update-with-narrow");
+    uiMock.primeInteractions(interactions);
+
+    // Start the command but do NOT await it — return the thenable
+    return vscode.commands.executeCommand(commandId);
+}
+
+/**
+ * Execute standard workspace setup command with UI mock interactions.
+ * Awaits the command and asserts success. For long-running setup commands,
+ * prefer startWorkspaceCommand + monitorWorkspaceSetup instead.
  * @param uiMock UI mock interface
  * @param interactions Array of UI interactions to prime
  * @param commandId VS Code command ID to execute
@@ -244,6 +329,28 @@ export const CommonUIInteractions = {
         { type: 'quickpick', value: 'create new west.yml', description: 'Create new west.yml' },
         { type: 'quickpick', value: 'minimal', description: 'Select minimal manifest' },
         { type: 'quickpick', value: 'stm32', description: 'Select STM32 toolchain' },
+        { type: 'quickpick', value: 'v4.2.0', description: 'Select default configuration' },
+        { type: 'input', value: '', description: 'Select additional west init args' },
+        { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
+        { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
+        { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
+    ],
+
+    // Simulated workspace setup interactions (native_sim, no HALs)
+    simWorkspace: [
+        { type: 'quickpick', value: 'create new west.yml', description: 'Create new west.yml' },
+        { type: 'quickpick', value: 'sim only', description: 'Select simulated manifest' },
+        { type: 'quickpick', value: 'v4.2.0', description: 'Select default configuration' },
+        { type: 'input', value: '', description: 'Select additional west init args' },
+        { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
+        { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
+        { type: 'quickpick', value: 'x86_64-zephyr-elf', description: 'Select x86_64 toolchain', multiSelect: true }
+    ],
+
+    // Testing workspace setup interactions (RPi Pico, ARM toolchain)
+    testingWorkspace: [
+        { type: 'quickpick', value: 'create new west.yml', description: 'Create new west.yml' },
+        { type: 'quickpick', value: 'testing', description: 'Select testing manifest' },
         { type: 'quickpick', value: 'v4.2.0', description: 'Select default configuration' },
         { type: 'input', value: '', description: 'Select additional west init args' },
         { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },

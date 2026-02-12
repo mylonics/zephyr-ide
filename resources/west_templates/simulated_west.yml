@@ -10,3 +10,5 @@ manifest:
       clone-depth: 1
       import:
         path-prefix: external
+        name-allowlist:
+          - __none__

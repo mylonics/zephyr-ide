@@ -21,7 +21,8 @@ import * as fs from "fs-extra";
 
 import { WorkspaceConfig, GlobalConfig, SetupState } from "./types";
 import { getToolsDir } from "./workspace-config";
-import { executeTaskHelperInPythonEnv, executeShellCommandInPythonEnv, output } from "../utilities/utils";
+import { executeShellCommandInPythonEnv, executeTaskHelperInPythonEnv } from "../utilities/utils";
+import { outputInfo, outputWarning, outputError, notifyError, outputCommandFailure } from "../utilities/output";
 import { sdkVersions, toolchainTargets } from "../defines";
 
 export interface WestSDKResult {
@@ -125,7 +126,7 @@ async function injectWestSDKCommand(setupState: SetupState, context?: vscode.Ext
 
         // Check if source sdk.py exists
         if (!(await fs.pathExists(sourceSdkPyPath))) {
-            output.appendLine(`Source sdk.py not found at: ${sourceSdkPyPath}`);
+            outputError("SDK Inject", `Source sdk.py not found at: ${sourceSdkPyPath}. The extension may not be installed correctly (extensionPath: ${extensionPath}).`);
             return false;
         }
 
@@ -145,7 +146,7 @@ async function injectWestSDKCommand(setupState: SetupState, context?: vscode.Ext
             const targetCmakePath = path.join(sdkSubDir, "listsdk.cmake");
             await fs.copy(sourceCmakePath, targetCmakePath);
         } else {
-            output.appendLine(`Warning: listsdk.cmake not found at: ${sourceCmakePath}`);
+            outputWarning("SDK Inject", `listsdk.cmake not found at: ${sourceCmakePath}. The extension package may be incomplete (extensionPath: ${extensionPath}).`);
         }
 
         // Copy FindZephyr-sdk.cmake to cmake/modules directory
@@ -156,7 +157,7 @@ async function injectWestSDKCommand(setupState: SetupState, context?: vscode.Ext
             const targetFindZephyrCmakePath = path.join(cmakeModulesDir, "FindZephyr-sdk.cmake");
             await fs.copy(sourceFindZephyrCmakePath, targetFindZephyrCmakePath);
         } else {
-            output.appendLine(`Warning: FindZephyr-sdk.cmake not found at: ${sourceFindZephyrCmakePath}`);
+            outputWarning("SDK Inject", `FindZephyr-sdk.cmake not found at: ${sourceFindZephyrCmakePath}. The extension package may be incomplete (extensionPath: ${extensionPath}).`);
         }
 
         // Update west-commands.yml
@@ -168,14 +169,14 @@ async function injectWestSDKCommand(setupState: SetupState, context?: vscode.Ext
             // Append to existing file
             await fs.appendFile(westCommandsYmlPath, "\n" + sdkCommandConfig);
         } else {
-            output.appendLine(`Failed to inject SDK command dues to missing west-commands.yml`);
+            outputError("SDK Inject", `Failed to inject SDK command: west-commands.yml not found at ${westCommandsYmlPath}. Ensure west update has been run and zephyrDir is correct (zephyrDir: ${setupState.zephyrDir}).`);
             return false;
         }
 
-        output.appendLine(`Successfully injected west SDK command into: ${setupState.zephyrDir}`);
+        outputInfo("SDK Inject", `Successfully injected west SDK command into: ${setupState.zephyrDir}`);
         return true;
     } catch (error) {
-        output.appendLine(`Failed to inject west SDK command: ${error}`);
+        outputError("SDK Inject", `Failed to inject west SDK command: ${error}`);
         return false;
     }
 }
@@ -285,6 +286,7 @@ export async function listAvailableSDKs(
                 versions: versions,
             };
         } else {
+            outputCommandFailure("SDK List", result);
             return {
                 success: false,
                 versions: [],
@@ -316,7 +318,7 @@ async function detectSDKVersionFromWorkspace(setupState: SetupState): Promise<st
             return content.trim();
         }
     } catch (error) {
-        output.appendLine(`Error detecting SDK version from workspace: ${error}`);
+        outputError("SDK Install", `Error detecting SDK version from workspace: ${error}`);
     }
     return undefined;
 }
@@ -324,23 +326,23 @@ async function detectSDKVersionFromWorkspace(setupState: SetupState): Promise<st
 /**
  * Prompts user to select SDK version
  */
-async function selectSDKVersion(setupState: SetupState): Promise<string | undefined> {
+async function selectSDKVersion(setupState: SetupState): Promise<string | null | undefined> {
     const selectedVersion = await vscode.window.showQuickPick(sdkVersions, {
         placeHolder: "Select SDK version to install",
         ignoreFocusOut: true,
     });
 
     if (!selectedVersion) {
-        return undefined;
+        return null; // user cancelled
     }
 
     if (selectedVersion.label === "automatic") {
         const detectedVersion = await detectSDKVersionFromWorkspace(setupState);
         if (!detectedVersion) {
-            vscode.window.showErrorMessage(
+            notifyError("SDK Install",
                 "Could not auto-detect SDK version from workspace. Please select a specific version."
             );
-            return undefined;
+            return null; // auto-detect failed
         }
         vscode.window.showInformationMessage(
             `Auto-detected SDK version: ${detectedVersion}`
@@ -418,18 +420,39 @@ export async function installSDK(
             command += ` ${toolchainArgs}`;
         }
 
-        output.appendLine(`Installing SDK using: ${command}`);
+        outputInfo("SDK Install", `Installing SDK using: ${command}`);
+        outputInfo("SDK Install", `  cwd: ${setupState.setupPath}`);
+        outputInfo("SDK Install", `  toolchains dir: ${toolchainsDir}`);
 
-        const result = await executeTaskHelperInPythonEnv(
-            setupState,
-            "Install Zephyr SDK",
-            command,
-            setupState.setupPath
-        );
-        return result;
+        // On Windows CI, use shell command execution since VS Code task
+        // infrastructure is not reliable in headless Windows CI environments
+        let success: boolean;
+        if (process.env.CI && process.platform === 'win32') {
+            const result = await executeShellCommandInPythonEnv(
+                command,
+                setupState.setupPath,
+                setupState
+            );
+            success = result.stdout !== undefined;
+        } else {
+            success = await executeTaskHelperInPythonEnv(
+                setupState,
+                "Zephyr IDE: SDK Install",
+                command,
+                setupState.setupPath
+            );
+        }
+
+        if (success) {
+            outputInfo("SDK Install", "SDK install command completed successfully");
+            return true;
+        } else {
+            outputError("SDK Install", "SDK install command failed");
+            return false;
+        }
     } catch (error) {
         const errorMsg = `Error installing SDK: ${error}`;
-        output.appendLine(errorMsg);
+        outputError("SDK Install", errorMsg);
         return false;
     }
 }
@@ -439,23 +462,28 @@ export async function installSDK(
  */
 export async function installSDKInteractive(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, context?: vscode.ExtensionContext) {
     try {
+        outputInfo("SDK Install", "Starting interactive SDK installation...");
         const setupState = await getWestSDKContext(wsConfig, globalConfig, context);
 
         if (!setupState) {
-            vscode.window.showErrorMessage(
+            notifyError("SDK Install",
                 "No valid west installation found. Please set up a Zephyr workspace first."
             );
             return;
         }
+        outputInfo("SDK Install", `Found west SDK context (setupPath: ${setupState.setupPath})`);
 
         // Step 1: Select SDK version
         const sdkVersion = await selectSDKVersion(setupState);
-        if (sdkVersion === null) { // user cancelled
+        outputInfo("SDK Install", `SDK version selection result: ${sdkVersion === null ? 'cancelled' : sdkVersion === undefined ? 'latest' : sdkVersion}`);
+        if (sdkVersion === null) { // user cancelled or auto-detect failed
+            outputInfo("SDK Install", "SDK version selection was cancelled or failed, aborting SDK install");
             return;
         }
 
         // Step 2: Select toolchains
         const toolchains = await selectToolchains();
+        outputInfo("SDK Install", `Toolchain selection result: ${toolchains ? toolchains.join(', ') : 'cancelled'}`);
         if (!toolchains) { // user cancelled
             return;
         }
@@ -472,14 +500,16 @@ export async function installSDKInteractive(wsConfig: WorkspaceConfig, globalCon
                     message: "Installing SDK using west sdk command...",
                 });
 
+                outputInfo("SDK Install", `Starting SDK install task (version: ${sdkVersion}, toolchains: ${toolchains.join(', ')})...`);
                 const result = await installSDK(setupState, sdkVersion, toolchains);
+                outputInfo("SDK Install", `SDK install task completed with result: ${result}`);
                 if (result) {
                     globalConfig.sdkInstalled = true;
                     vscode.window.showInformationMessage(
                         "Zephyr SDK installed successfully!"
                     );
                 } else {
-                    vscode.window.showErrorMessage(
+                    notifyError("SDK Install",
                         `Failed to install SDK: ${result}`
                     );
                 }
@@ -487,6 +517,7 @@ export async function installSDKInteractive(wsConfig: WorkspaceConfig, globalCon
             }
         );
     } catch (error) {
-        vscode.window.showErrorMessage(`Failed to install SDK: ${error}`);
+        outputError("SDK Install", `SDK installation threw an error: ${error}`);
+        notifyError("SDK Install", `Failed to install SDK: ${error}`);
     }
 }

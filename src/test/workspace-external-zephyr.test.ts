@@ -23,6 +23,7 @@ import * as os from "os";
 import {
     logTestEnvironment,
     monitorWorkspaceSetup,
+    startWorkspaceCommand,
     printWorkspaceStructure,
     activateExtension,
     executeFinalBuild,
@@ -85,7 +86,7 @@ suite("Workspace External Zephyr Test Suite", () => {
                 uiMock.activate();
 
                 console.log("🏗️ Step 1: Setting up workspace from git without west folder...");
-                await executeWorkspaceCommand(
+                const setupPromise = await startWorkspaceCommand(
                     uiMock,
                     [
                         { type: 'input', value: '--branch no_west -- https://github.com/mylonics/zephyr-ide-samples.git', description: 'Enter git clone string for no_west branch' },
@@ -100,10 +101,9 @@ suite("Workspace External Zephyr Test Suite", () => {
                         { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
                     ],
                     "zephyr-ide.workspace-setup-from-git",
-                    "Git workspace setup should succeed"
                 );
 
-                await monitorWorkspaceSetup("workspace out of tree");
+                await monitorWorkspaceSetup(setupPromise, "workspace out of tree");
 
                 console.log("⚡ Step 2: Executing build...");
                 await executeFinalBuild("External Zephyr Workspace");

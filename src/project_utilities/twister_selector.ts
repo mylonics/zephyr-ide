@@ -17,6 +17,7 @@ import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs-extra";
 import { showQuickPick, showInputBox, showQuickPickMany } from "../utilities/multistepQuickPick";
+import { notifyError } from "../utilities/output";
 import { SetupState } from '../setup_utilities/types';
 import { pickBoard, BoardConfig } from './build_selector';
 
@@ -75,7 +76,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
   const tests = getTestsFromProject(projectPath);
 
   if (tests.length === 0) {
-    vscode.window.showErrorMessage(`Project Directory does not contain tests in either a sample.yaml or testcase.yaml file`);
+    notifyError("Twister Config", `Project Directory does not contain tests in either a sample.yaml or testcase.yaml file`);
     return;
   }
 
@@ -101,7 +102,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
     return;
   }
   if (testPick.length === 0) {
-    vscode.window.showErrorMessage("Need to select at least one test");
+    notifyError("Twister Config", "Need to select at least one test");
     return;
   }
 

@@ -20,6 +20,7 @@ import * as os from "os";
 import * as fs from "fs-extra";
 import * as path from "path";
 import { getPlatformName } from "../utilities/utils";
+import { outputWarning } from "../utilities/output";
 import { WorkspaceConfig, SetupState } from "./types";
 
 function projectLoader(config: WorkspaceConfig, projects: any) {
@@ -66,7 +67,7 @@ function projectLoader(config: WorkspaceConfig, projects: any) {
 }
 
 export async function getVariable(config: WorkspaceConfig, variable_name: string, project_name?: string, build_name?: string) {
-  const zephyrIdeSettingFilePath = path.join(config.rootPath, ".vscode/zephyr-ide.json");
+  const zephyrIdeSettingFilePath = path.join(config.rootPath, ".vscode", "zephyr-ide.json");
   try {
     var object = await JSON.parse(fs.readFileSync(zephyrIdeSettingFilePath, 'utf8'));
     if (project_name) {
@@ -85,7 +86,7 @@ export async function getVariable(config: WorkspaceConfig, variable_name: string
 }
 
 export async function loadProjectsFromFile(config: WorkspaceConfig) {
-  const zephyrIdeSettingFilePath = path.join(config.rootPath, ".vscode/zephyr-ide.json");
+  const zephyrIdeSettingFilePath = path.join(config.rootPath, ".vscode", "zephyr-ide.json");
   try {
     if (!fs.pathExistsSync(zephyrIdeSettingFilePath)) {
       await fs.outputFile(zephyrIdeSettingFilePath, JSON.stringify({}, null, 2), { flag: 'w+' }, function (err: any) {
@@ -143,7 +144,7 @@ export async function generateGitIgnore(context: vscode.ExtensionContext, wsConf
       if (await fs.pathExists(srcPath)) {
         await fs.copy(srcPath, desPath);
       } else {
-        console.warn(`Source gitignore file not found at: ${srcPath}`);
+        outputWarning("Workspace Config", `Source gitignore file not found at: ${srcPath} (extensionPath: ${extensionPath}). The extension may not be installed correctly.`);
       }
     } catch (error) {
       console.error(`Failed to copy gitignore from ${srcPath} to ${desPath}:`, error);
@@ -152,7 +153,7 @@ export async function generateGitIgnore(context: vscode.ExtensionContext, wsConf
 }
 
 export async function generateExtensionsRecommendations(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
-  let desPath = path.join(wsConfig.rootPath, ".vscode/extensions.json");
+  let desPath = path.join(wsConfig.rootPath, ".vscode", "extensions.json");
   let exists = await fs.pathExists(desPath);
   if (!exists) {
     const extensionPath = context.extensionPath;
@@ -166,7 +167,7 @@ export async function generateExtensionsRecommendations(context: vscode.Extensio
       if (await fs.pathExists(srcPath)) {
         await fs.copy(srcPath, desPath);
       } else {
-        console.warn(`Source extensions.json file not found at: ${srcPath}`);
+        outputWarning("Workspace Config", `Source extensions.json file not found at: ${srcPath} (extensionPath: ${extensionPath}). The extension may not be installed correctly.`);
       }
     } catch (error) {
       console.error(`Failed to copy extensions.json from ${srcPath} to ${desPath}:`, error);
@@ -197,17 +198,17 @@ export function getToolsDir() {
 
 export function getToolchainDir() {
   const configuration = vscode.workspace.getConfiguration();
-  
+
   // First check if direct toolchain directory is configured
   let toolchainDir: string | undefined = configuration.get("zephyr-ide.toolchain_directory");
   if (toolchainDir && toolchainDir.trim()) {
     // Return configured path without creating it - user is responsible for ensuring it exists
     return toolchainDir;
   }
-  
+
   // Fall back to toolchains subdirectory in tools directory
   const defaultDir = path.join(getToolsDir(), "toolchains");
-  
+
   // Ensure the default directory exists
   try {
     if (!fs.pathExistsSync(defaultDir)) {
@@ -216,7 +217,7 @@ export function getToolchainDir() {
   } catch (e) {
     console.error(`Failed to create default toolchain directory "${defaultDir}":`, e);
   }
-  
+
   return defaultDir;
 }
 
@@ -252,7 +253,7 @@ function findLatestSdkVersion(): [string, string] | undefined {
   const latestSdkDir = sdkDirs[0];
   const version = latestSdkDir.replace('zephyr-sdk-', '');
   const fullPath = path.join(toolchainDir, latestSdkDir);
-  
+
   return [version, fullPath];
 }
 
@@ -265,7 +266,7 @@ function readSdkPathFromCMakeCache(buildDir: string): string | undefined {
   const cmakeCachePath = path.join(buildDir, "CMakeCache.txt");
 
   if (!fs.pathExistsSync(cmakeCachePath)) {
-    console.log(`Zephyr IDE: CMakeCache.txt not found at "${cmakeCachePath}"`);
+    outputWarning("SDK Path", `CMakeCache.txt not found at "${cmakeCachePath}". The project may not have been built yet.`);
     return undefined;
   }
 
@@ -432,7 +433,7 @@ export function getArmGdbPath(wsConfig?: WorkspaceConfig): string | undefined {
     return gdbPathExe;
   }
 
-  console.log(`Zephyr IDE: ARM GDB executable not found at "${gdbPath}"`);
+  outputWarning("SDK Path", `ARM GDB executable not found at "${gdbPath}". Ensure the Zephyr SDK is installed and contains the arm-zephyr-eabi toolchain (sdkPath: ${sdkPath}).`);
   return undefined;
 }
 

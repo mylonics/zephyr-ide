@@ -52,6 +52,7 @@ import * as vscode from "vscode";
 import * as fs from "fs-extra";
 import * as path from "path";
 import { output, executeTaskHelper, validateGitUrl } from "../utilities/utils";
+import { outputInfo, outputError, notifyError, showOutput } from "../utilities/output";
 import { westSelector, WestLocation } from "./west_selector";
 import { WorkspaceConfig, GlobalConfig } from "./types";
 import { setSetupState, loadExternalSetupState, setWorkspaceState, setGlobalState } from "./state-management";
@@ -92,7 +93,7 @@ async function discoverWestConfiguration(baseDir: string): Promise<WestDiscovery
     };
     searchForWestYml(baseDir);
   } catch (error) {
-    output.appendLine(`[SETUP] Error searching for west.yml: ${error}`);
+    outputError("West Discovery", `Error searching for west.yml`, { stderr: String(error) });
   }
 
   return { hasWestFolder: false, westYmlFiles };
@@ -102,7 +103,7 @@ async function selectWestConfiguration(baseDir: string, westYmlFiles: string[]) 
   // Check if selected directory directly contains west.yml
   const directWestYml = path.join(baseDir, "west.yml");
   if (fs.pathExistsSync(directWestYml)) {
-    vscode.window.showErrorMessage("The selected folder contains a west.yml file directly. Please select a parent directory or a different location.");
+    notifyError("Workspace Setup", "The selected folder contains a west.yml file directly. Please select a parent directory or a different location.");
     return;
   }
 
@@ -158,14 +159,14 @@ export async function workspaceSetupFromGit(context: vscode.ExtensionContext, ws
 
   const currentDir = wsConfig.rootPath;
   if (!currentDir) {
-    vscode.window.showErrorMessage(
+    notifyError("Git Clone",
       "No workspace folder open. Please open a folder first."
     );
     return false;
   }
 
-  output.show();
-  output.appendLine(`[SETUP] Cloning Zephyr IDE workspace from: ${gitUrl}`);
+  showOutput();
+  outputInfo("Git Clone", `Cloning Zephyr IDE workspace from: ${gitUrl}`);
 
   // Set context flag for workspace type selected
   await vscode.commands.executeCommand(
@@ -173,19 +174,19 @@ export async function workspaceSetupFromGit(context: vscode.ExtensionContext, ws
     "zephyr-ide.workspaceTypeSelected",
     true
   );
-  output.appendLine(
-    "[SETUP] Workspace type selected: Zephyr IDE Workspace from Git"
+  outputInfo("Git Clone",
+    "Workspace type selected: Zephyr IDE Workspace from Git"
   );
 
   let cmd = `git clone ${gitUrl} .`;
   let gitCloneRes = await executeTaskHelper("Zephyr IDE: Git Clone", cmd, currentDir);
 
   if (!gitCloneRes) {
-    vscode.window.showErrorMessage("Git clone failed. See terminal for error information.");
+    notifyError("Git Clone", "Git clone failed. Check the Zephyr IDE output for details.", { command: cmd });
     return false;
   }
 
-  output.appendLine(`[SETUP] Git clone completed successfully`);
+  outputInfo("Git Clone", `Git clone completed successfully`);
 
   // After successful clone, run workspaceSetupFromCurrentDirectory
   return await workspaceSetupFromCurrentDirectory(context, wsConfig, globalConfig, true);
@@ -216,14 +217,14 @@ export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext
 
   const currentDir = wsConfig.rootPath;
   if (!currentDir) {
-    vscode.window.showErrorMessage(
+    notifyError("West Git Setup",
       "No workspace folder open. Please open a folder first."
     );
     return false;
   }
 
-  output.show();
-  output.appendLine(`[SETUP] Setting up West workspace from: ${gitUrl}`);
+  showOutput();
+  outputInfo("West Git Setup", `Setting up West workspace from: ${gitUrl}`);
 
   // Set context flag for workspace type selected
   await vscode.commands.executeCommand(
@@ -231,13 +232,13 @@ export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext
     "zephyr-ide.workspaceTypeSelected",
     true
   );
-  output.appendLine("[SETUP] Workspace type selected: West Workspace from Git");
+  outputInfo("West Git Setup", "Workspace type selected: West Workspace from Git");
 
   // Set up the workspace using current directory
   await setSetupState(context, wsConfig, globalConfig, currentDir);
 
   if (!wsConfig.activeSetupState) {
-    vscode.window.showErrorMessage("Failed to setup workspace state.");
+    notifyError("West Git Setup", "Failed to setup workspace state.");
     return false;
   }
 
@@ -250,14 +251,13 @@ export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext
   };
 
   // Run post-setup process
-  postWorkspaceSetup(
+  return await postWorkspaceSetup(
     context,
     wsConfig,
     globalConfig,
     currentDir,
     westSelection
   );
-  return true;
 }
 
 export async function workspaceSetupStandard(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
@@ -266,25 +266,24 @@ export async function workspaceSetupStandard(context: vscode.ExtensionContext, w
 
   const currentDir = wsConfig.rootPath;
   if (!currentDir) {
-    vscode.window.showErrorMessage(
+    notifyError("Standard Setup",
       "No workspace folder open. Please open a folder first."
     );
     return false;
   }
 
-  output.show();
-  output.appendLine(`[SETUP] Creating standard workspace in: ${currentDir}`);
+  showOutput();
+  outputInfo("Standard Setup", `Creating standard workspace in: ${currentDir}`);
 
   // Set up the workspace using current directory
   await setSetupState(context, wsConfig, globalConfig, currentDir);
 
   if (!wsConfig.activeSetupState) {
-    vscode.window.showErrorMessage("Failed to setup workspace state.");
+    notifyError("Standard Setup", "Failed to setup workspace state.");
     return false;
   }
 
-  workspaceSetupFromCurrentDirectory(context, wsConfig, globalConfig, false);
-  return true;
+  return await workspaceSetupFromCurrentDirectory(context, wsConfig, globalConfig, false);
 }
 
 /**
@@ -298,7 +297,7 @@ async function handleExternalInstallation(
 ): Promise<boolean> {
   const externalPath = westConfigResult.externalInstallPath!;
   const needsSetup = westConfigResult.externalInstallNeedsSetup;
-  output.appendLine(`[SETUP] Using external installation: ${externalPath} (needsSetup=${needsSetup})`);
+  outputInfo("External Installation", `Using external installation: ${externalPath} (needsSetup=${needsSetup})`);
 
   await setSetupState(context, wsConfig, globalConfig, externalPath);
 
@@ -309,10 +308,10 @@ async function handleExternalInstallation(
 
     const extWestSelection = await westSelector(context, wsConfig);
     if (!extWestSelection || extWestSelection.failed) {
-      vscode.window.showErrorMessage("External installation configuration cancelled or failed.");
+      notifyError("External Installation", "External installation configuration cancelled or failed.");
       return false;
     }
-    postWorkspaceSetup(context, wsConfig, globalConfig, externalPath, extWestSelection);
+    await postWorkspaceSetup(context, wsConfig, globalConfig, externalPath, extWestSelection);
   } else {
     vscode.window.showInformationMessage(`Workspace linked to external Zephyr installation at: ${externalPath}`);
     vscode.commands.executeCommand('zephyr-ide.update-web-view');
@@ -329,15 +328,15 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
     installDir = wsConfig.rootPath;
   }
   if (!installDir) {
-    vscode.window.showErrorMessage(
+    notifyError("Directory Setup",
       "No workspace folder open. Please open a folder first."
     );
     return false;
   }
 
-  output.show();
-  output.appendLine(
-    `[SETUP] Setting up current directory as Zephyr IDE workspace: ${installDir}`
+  showOutput();
+  outputInfo("Directory Setup",
+    `Setting up current directory as Zephyr IDE workspace: ${installDir}`
   );
 
   // Load projects from file
@@ -347,7 +346,7 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
 
   // Set context flag for workspace type selected
   await vscode.commands.executeCommand("setContext", "zephyr-ide.workspaceTypeSelected", true);
-  output.appendLine("[SETUP] Workspace type selected: Current Directory");
+  outputInfo("Directory Setup", "Workspace type selected: Current Directory");
 
   // Use westConfig to handle configuration selection
   const configOptions: WestConfigOptions = {
@@ -370,8 +369,7 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
 
   // Handle local workspace setup
   await setSetupState(context, wsConfig, globalConfig, installDir);
-  postWorkspaceSetup(context, wsConfig, globalConfig, installDir, westConfigResult.westSelection);
-  return true;
+  return await postWorkspaceSetup(context, wsConfig, globalConfig, installDir, westConfigResult.westSelection);
 }
 
 async function getExistingInstallationPicks(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
@@ -510,18 +508,18 @@ async function handleReconfigureInstallation(context: vscode.ExtensionContext, w
   await setSetupState(context, wsConfig, globalConfig, installPath);
 
   if (!wsConfig.activeSetupState) {
-    vscode.window.showErrorMessage("Failed to load installation state for reconfiguration.");
+    notifyError("Manage Installations", "Failed to load installation state for reconfiguration.");
     return;
   }
 
   // Run west selector to reconfigure
-  output.show();
-  output.appendLine(`[MANAGE] Reconfiguring installation: ${installPath}`);
+  showOutput();
+  outputInfo("Manage Installations", `Reconfiguring installation: ${installPath}`);
 
   const westSelection = await westSelector(context, wsConfig);
 
   if (!westSelection || westSelection.failed) {
-    vscode.window.showErrorMessage("Reconfiguration cancelled or failed.");
+    notifyError("Manage Installations", "Reconfiguration cancelled or failed.");
     return;
   }
 
@@ -555,7 +553,7 @@ async function handleDeleteInstallation(context: vscode.ExtensionContext, global
     await setGlobalState(context, globalConfig);
 
     vscode.window.showInformationMessage(`Installation "${installName}" has been removed from the registry.`);
-    output.appendLine(`[MANAGE] Removed installation from registry: ${installPath}`);
+    outputInfo("Manage Installations", `Removed installation from registry: ${installPath}`);
   }
 }
 
@@ -595,8 +593,6 @@ export async function showWorkspaceSetupPicker(context: vscode.ExtensionContext,
     return;
   }
 
-  output.show();
-
   try {
     switch (selectedOption.id) {
       case "zephyr-ide-git":
@@ -616,13 +612,12 @@ export async function showWorkspaceSetupPicker(context: vscode.ExtensionContext,
         await workspaceSetupStandard(context, wsConfig, globalConfig);
         break;
       default:
-        vscode.window.showErrorMessage(
+        notifyError("Workspace Setup",
           "Unknown workspace setup option selected"
         );
     }
   } catch (error) {
-    vscode.window.showErrorMessage(`Workspace setup failed: ${error}`);
-    output.appendLine(`[SETUP] Error: ${error}`);
+    notifyError("Workspace Setup", `Workspace setup failed: ${error}`);
   }
 }
 
@@ -638,7 +633,7 @@ export async function showCreateWorkspaceMenu(context: vscode.ExtensionContext, 
     globalConfig.setupStateDictionary && 
     globalConfig.setupStateDictionary[currentFolder];
 
-  output.show();
+  showOutput();
   let chosenPath: string;
   let needsSetup = false;
 
@@ -714,17 +709,17 @@ export async function showCreateWorkspaceMenu(context: vscode.ExtensionContext, 
       needsSetup = true;
     }
 
-    output.appendLine(`[CREATE WORKSPACE] Selected: ${chosenPath} (needsSetup=${needsSetup})`);
+    outputInfo("Create Workspace", `Selected: ${chosenPath} (needsSetup=${needsSetup})`);
 
     // Set this as the active workspace
     await setSetupState(context, wsConfig, globalConfig, chosenPath);
 
     if (needsSetup) {
       // Need to configure this installation
-      output.appendLine(`[CREATE WORKSPACE] Configuring new installation...`);
+      outputInfo("Create Workspace", `Configuring new installation...`);
       const westSelection = await westSelector(context, wsConfig);
       if (!westSelection || westSelection.failed) {
-        vscode.window.showErrorMessage("Workspace configuration cancelled or failed.");
+        notifyError("Create Workspace", "Workspace configuration cancelled or failed.");
         return;
       }
       await postWorkspaceSetup(context, wsConfig, globalConfig, chosenPath, westSelection);
@@ -734,8 +729,7 @@ export async function showCreateWorkspaceMenu(context: vscode.ExtensionContext, 
       vscode.commands.executeCommand('zephyr-ide.update-web-view');
     }
   } catch (error) {
-    vscode.window.showErrorMessage(`Failed to create/select workspace: ${error}`);
-    output.appendLine(`[CREATE WORKSPACE] Error: ${error}`);
+    notifyError("Create Workspace", `Failed to create/select workspace: ${error}`);
   }
 }
 
@@ -782,14 +776,14 @@ export async function westConfig(
 
   const baseDir = wsConfig.rootPath;
   if (!baseDir) {
-    vscode.window.showErrorMessage(
+    notifyError("West Configuration",
       "No workspace folder open. Please open a folder first."
     );
     return { cancelled: true, option: null };
   }
 
-  output.show();
-  output.appendLine(`[WEST CONFIG] Analyzing directory: ${baseDir}`);
+  showOutput();
+  outputInfo("West Configuration", `Analyzing directory: ${baseDir}`);
 
   // Discover west configuration in the current directory
   const westDiscovery = await discoverWestConfiguration(baseDir);
@@ -840,7 +834,7 @@ export async function westConfig(
 
   // If no options are available, show error
   if (setupOptions.length === 0) {
-    vscode.window.showErrorMessage(
+    notifyError("West Configuration",
       "No west configuration options available. Consider creating a new west.yml file or opening a different directory."
     );
     return { cancelled: true, option: null };
@@ -857,7 +851,7 @@ export async function westConfig(
   }
 
   const optionId = (selectedOption as any).id;
-  output.appendLine(`[WEST CONFIG] User selected: ${optionId}`);
+  outputInfo("West Configuration", `User selected: ${optionId}`);
 
   // Handle the selected option
   const result: WestConfigResult = { cancelled: false, option: optionId };
@@ -867,7 +861,7 @@ export async function westConfig(
       // .west folder already exists, nothing more to do
       result.option = 'use-west-folder';
       result.westSelection = undefined; // No west selection needed for existing .west folder
-      output.appendLine(`[WEST CONFIG] Using existing .west folder`);
+      outputInfo("West Configuration", `Using existing .west folder`);
       break;
 
     case 'use-west-yml':
@@ -884,12 +878,12 @@ export async function westConfig(
         gitRepo: "",
         additionalArgs: "",
       };
-      output.appendLine(`[WEST CONFIG] Selected west.yml from: ${selectedWestPath}`);
+      outputInfo("West Configuration", `Selected west.yml from: ${selectedWestPath}`);
       break;
 
     case 'create-new-west-yml':
       // Run west selector to create new west.yml
-      output.appendLine(`[WEST CONFIG] Running west selector to create new west.yml...`);
+      outputInfo("West Configuration", `Running west selector to create new west.yml...`);
       // Ensure setup state is initialized so westSelector has a valid destination path
       if (!wsConfig.activeSetupState || !wsConfig.activeSetupState.setupPath) {
         await setSetupState(context, wsConfig, globalConfig, baseDir);
@@ -900,7 +894,7 @@ export async function westConfig(
       }
       result.westSelection = westSelection;
       result.option = 'create-new-west-yml';
-      output.appendLine(`[WEST CONFIG] West selector completed successfully`);
+      outputInfo("West Configuration", `West selector completed successfully`);
       break;
 
     case 'use-external-installation':
@@ -969,15 +963,15 @@ export async function westConfig(
       result.option = 'use-external-installation';
       result.useExternalInstallation = true;
       result.externalInstallNeedsSetup = needsSetup;
-      output.appendLine(`[WEST CONFIG] Selected external installation: ${chosenPath} (needsSetup=${needsSetup})`);
+      outputInfo("West Configuration", `Selected external installation: ${chosenPath} (needsSetup=${needsSetup})`);
       break;
 
     default:
-      vscode.window.showErrorMessage("Unknown west configuration option selected");
+      notifyError("West Configuration", "Unknown west configuration option selected");
       return { cancelled: true, option: null };
   }
 
-  output.appendLine(`[WEST CONFIG] Configuration completed successfully`);
+  outputInfo("West Configuration", `Configuration completed successfully`);
   return result;
 }
 
@@ -1011,7 +1005,7 @@ export async function selectExistingWestWorkspace(
   // Load the setup state from the selected installation
   const setupState = await loadExternalSetupState(context, globalConfig, installPath);
   if (!setupState) {
-    vscode.window.showErrorMessage(`Failed to load setup state from: ${installPath}`);
+    notifyError("Workspace Link", `Failed to load setup state from: ${installPath}`);
     return false;
   }
 
@@ -1024,6 +1018,6 @@ export async function selectExistingWestWorkspace(
     `Workspace linked to existing Zephyr installation at: ${installPath}`
   );
   
-  output.appendLine(`[WORKSPACE] Linked to existing installation: ${installPath}`);
+  outputInfo("Workspace Link", `Linked to existing installation: ${installPath}`);
   return true;
 }

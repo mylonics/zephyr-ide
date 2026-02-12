@@ -1,5 +1,5 @@
 # Multi-Platform Integration Tests Pipeline
-# 
+#
 # This workflow runs integration tests on multiple platforms (Windows, Ubuntu, macOS).
 # It uses a single-process approach where all installation and test steps run
 # sequentially in the same VS Code instance, solving Windows PATH propagation issues.
@@ -29,10 +29,10 @@ on:
   workflow_dispatch:
     inputs:
       branch:
-        description: 'Branch to run tests on'
+        description: "Branch to run tests on"
         required: false
         type: string
-        default: ''
+        default: ""
 
 permissions:
   contents: read
@@ -93,7 +93,6 @@ jobs:
         include:
           - platform: ubuntu
             os: ubuntu-latest
-            shell: bash
             xvfb: "xvfb-run -a "
             zephyr_base: /tmp/zephyr
             setup_cmd: |
@@ -101,24 +100,44 @@ jobs:
               sudo apt-get install -y xvfb libgtk-3-0 libgbm1 libnss3 libasound2t64
           - platform: windows
             os: windows-latest
-            shell: pwsh
             xvfb: ""
-            zephyr_base: C:\temp\zephyr
+            zephyr_base: 'D:\zephyr'
             setup_cmd: ""
           - platform: macos
             os: macos-15
-            shell: bash
             xvfb: ""
             zephyr_base: /tmp/zephyr
             setup_cmd: ""
-    
+
     runs-on: ${{ matrix.os }}
     name: test-${{ matrix.platform }}
-    
+
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.branch || github.ref }}
+
+      # Windows runners: move TEMP/TMP to the D: drive which has significantly
+      # more free space than C:.  SDK downloads, 7z extraction, venv creation,
+      # and other temp-heavy operations will use this path automatically.
+      - name: Set TEMP to D drive
+        if: runner.os == 'Windows'
+        run: |
+          New-Item -ItemType Directory -Force -Path 'D:\Temp'
+          echo 'TEMP=D:\Temp' >> $env:GITHUB_ENV
+          echo 'TMP=D:\Temp' >> $env:GITHUB_ENV
+        shell: pwsh
+
+      # 7-Zip is pre-installed on GitHub Windows runners but its directory
+      # is not always on PATH.  Adding it here via GITHUB_PATH ensures it
+      # is available when the VS Code extension host process spawns, so
+      # west/sdk operations that shell out to 7z work immediately.
+      # (refreshWindowsPath() now preserves process-level PATH entries,
+      # so this won't be clobbered.)
+      - name: Add 7-Zip to PATH
+        if: runner.os == 'Windows'
+        run: echo "C:\Program Files\7-Zip" >> $env:GITHUB_PATH
+        shell: pwsh
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -134,7 +153,6 @@ jobs:
 
       - name: Install system dependencies
         if: matrix.setup_cmd != ''
-        shell: ${{ matrix.shell }}
         run: ${{ matrix.setup_cmd }}
 
       - name: Install npm dependencies
@@ -150,11 +168,10 @@ jobs:
       # This solves the Windows PATH propagation issue by running everything
       # in a single VS Code instance where PATH refresh is effective
       - name: "Run Combined Test (All Steps in Same Process)"
-        shell: ${{ matrix.shell }}
         run: |
           ${{ matrix.xvfb }}node scripts/run-integration-tests.js combined
         env:
           NODE_ENV: test
           ZEPHYR_BASE: ${{ matrix.zephyr_base }}
           VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
-        timeout-minutes: 15
+        timeout-minutes: 30

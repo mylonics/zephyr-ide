@@ -20,7 +20,8 @@ import * as path from 'path';
 import * as fs from 'fs-extra';
 import * as yaml from 'js-yaml';
 
-import { executeTaskHelperInPythonEnv } from "../utilities/utils";
+import { executeTaskHelperInPythonEnv, executeShellCommandInPythonEnv } from "../utilities/utils";
+import { notifyError, outputInfo } from "../utilities/output";
 
 import { WorkspaceConfig } from '../setup_utilities/types';
 import { addBuild, ProjectConfig, getActiveBuildNameOfProject } from "../project_utilities/project";
@@ -69,7 +70,7 @@ export async function buildHelper(
   }
   if (setupState.westUpdated) {
     if (wsConfig.activeProject === undefined) {
-      vscode.window.showErrorMessage("Select a project before trying to build");
+      notifyError("Build", "Select a project before trying to build");
       return;
     }
     let project = wsConfig.projects[wsConfig.activeProject];
@@ -79,13 +80,13 @@ export async function buildHelper(
       await addBuild(wsConfig, context);
       buildName = getActiveBuildNameOfProject(wsConfig, project.name);
       if (buildName === undefined) {
-        await vscode.window.showErrorMessage(`You must choose a Build Configuration to continue.`);
+        notifyError("Build", `You must choose a Build Configuration to continue.`);
         return;
       }
     }
     return await build(context, wsConfig, project, project.buildConfigs[buildName], pristine);
   } else {
-    vscode.window.showErrorMessage("Run `Zephyr IDE: West Update` command first.");
+    notifyError("Build", "Run `Zephyr IDE: West Update` command first.");
   }
 }
 
@@ -105,7 +106,7 @@ export async function buildByName(context: vscode.ExtensionContext, wsConfig: Wo
       build(context, wsConfig, project, buildconfig, pristine);
     }
   } else {
-    vscode.window.showErrorMessage("Invalid project or build");
+    notifyError("Build", "Invalid project or build");
   }
 }
 
@@ -140,7 +141,7 @@ export async function build(
   let projectFolder = path.join(wsConfig.rootPath, project.rel_path);
   let buildFolder = path.join(wsConfig.rootPath, project.rel_path, build.name);
 
-  let cmd = `west build ${projectFolder} --build-dir ${buildFolder} `;
+  let cmd = `west build "${projectFolder}" --build-dir "${buildFolder}" `;
 
   let buildFsDir;
   if (fs.existsSync(buildFolder)) {
@@ -160,7 +161,7 @@ export async function build(
         boardRoot = setupState.zephyrDir;
       }
     }
-    cmd = `west build -b ${build.board + (build.revision ? '@' + build.revision : "")} ${projectFolder} -p --build-dir ${buildFolder} ${extraWestBuildArgs} -- -DBOARD_ROOT='${boardRoot}' ${extraWestBuildCMakeArgs} `;
+    cmd = `west build -b ${build.board + (build.revision ? '@' + build.revision : "")} "${projectFolder}" -p --build-dir "${buildFolder}" ${extraWestBuildArgs} -- -DBOARD_ROOT='${boardRoot}' ${extraWestBuildCMakeArgs} `;
 
     if (primaryConfFiles.length) {
       let confFileString = "";
@@ -187,7 +188,7 @@ export async function build(
 
   let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
 
-  vscode.window.showInformationMessage(`Building ${build.name} from project: ${project.name}`);
+  outputInfo(`Build: ${project.name}/${build.name}`, `Building ${build.name} from project: ${project.name} (cmd: ${cmd})`, true);
   const setupState = await getSetupState(context, wsConfig);
   let ret = await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState?.setupPath);
 
@@ -210,7 +211,7 @@ export async function buildMenuConfig(
 
   if (project === undefined) {
     if (wsConfig.activeProject === undefined) {
-      vscode.window.showErrorMessage("Select a project before trying to build");
+      notifyError("Menu Config", "Select a project before trying to build");
       return;
     }
     project = wsConfig.projects[wsConfig.activeProject];
@@ -219,7 +220,7 @@ export async function buildMenuConfig(
   if (build === undefined) {
     let buildName = getActiveBuildNameOfProject(wsConfig, project.name);
     if (buildName === undefined) {
-      await vscode.window.showErrorMessage(`You must choose a Build Configuration to continue.`);
+      notifyError("Menu Config", `You must choose a Build Configuration to continue.`);
       return;
     }
     build = project.buildConfigs[buildName];
@@ -233,18 +234,69 @@ export async function buildMenuConfig(
     buildFsDir = fs.readdirSync(buildFolder);
   }
   if (buildFsDir === undefined || buildFsDir.length === 0) {
-    await vscode.window.showErrorMessage(`Run a Build or Build Pristine before running Menu/GUI Config.`);
+    notifyError("Menu Config", `Run a Build or Build Pristine before running Menu/GUI Config.`);
     return;
   }
 
-  let cmd = `west build -t ${config === MenuConfig.MenuConfig ? "menuconfig" : "guiconfig"} ${projectFolder} --build-dir ${buildFolder} `;
+  let cmd = `west build -t ${config === MenuConfig.MenuConfig ? "menuconfig" : "guiconfig"} "${projectFolder}" --build-dir "${buildFolder}" `;
   let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
 
-  vscode.window.showInformationMessage(`Running MenuConfig ${build.name} from project: ${project.name}`);
+  outputInfo(`MenuConfig: ${project.name}/${build.name}`, `Running MenuConfig ${build.name} from project: ${project.name} (cmd: ${cmd})`, true);
   const setupState = await getSetupState(context, wsConfig);
   await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState?.setupPath);
   regenerateCompileCommands(wsConfig);
   updateDtsContext(wsConfig, project, build);
+}
+
+/**
+ * Resolves and validates the project, build, command, and setup state needed for a RAM/ROM report.
+ * Returns undefined (and calls notifyError) if any prerequisite is missing.
+ */
+async function resolveRamRomReportParams(
+  context: vscode.ExtensionContext,
+  wsConfig: WorkspaceConfig,
+  isRamReport: boolean,
+  project?: ProjectConfig,
+  build?: BuildConfig
+) {
+  const reportType = isRamReport ? "RAM" : "ROM";
+
+  if (project === undefined) {
+    if (wsConfig.activeProject === undefined) {
+      notifyError("RAM/ROM Report", "Select a project before trying to run report");
+      return undefined;
+    }
+    project = wsConfig.projects[wsConfig.activeProject];
+  }
+
+  if (build === undefined) {
+    let buildName = getActiveBuildNameOfProject(wsConfig, project.name);
+    if (buildName === undefined) {
+      notifyError("RAM/ROM Report", `You must choose a Build Configuration to continue.`);
+      return undefined;
+    }
+    build = project.buildConfigs[buildName];
+  }
+
+  let projectFolder = path.join(wsConfig.rootPath, project.rel_path);
+  let buildFolder = path.join(wsConfig.rootPath, project.rel_path, build.name);
+  let buildFsDir;
+  if (fs.existsSync(buildFolder)) {
+    buildFsDir = fs.readdirSync(buildFolder);
+  }
+  if (buildFsDir === undefined || buildFsDir.length === 0) {
+    notifyError("RAM/ROM Report", `Run a Build or Build Pristine before running ${reportType} Report.`);
+    return undefined;
+  }
+
+  const cmd = `west build -t ${isRamReport ? "ram_report" : "rom_report"} "${projectFolder}" --build-dir "${buildFolder}"`;
+  const setupState = await getSetupState(context, wsConfig);
+  if (!setupState) {
+    notifyError("RAM/ROM Report", `No setup state available for ${reportType} Report.`);
+    return undefined;
+  }
+
+  return { project, build, cmd, setupState };
 }
 
 export async function buildRamRomReport(
@@ -254,43 +306,37 @@ export async function buildRamRomReport(
   project?: ProjectConfig,
   build?: BuildConfig
 ) {
+  const params = await resolveRamRomReportParams(context, wsConfig, isRamReport, project, build);
+  if (!params) { return; }
 
-  if (project === undefined) {
-    if (wsConfig.activeProject === undefined) {
-      vscode.window.showErrorMessage("Select a project before trying to run report");
-      return;
-    }
-    project = wsConfig.projects[wsConfig.activeProject];
-  }
-
-  if (build === undefined) {
-    let buildName = getActiveBuildNameOfProject(wsConfig, project.name);
-    if (buildName === undefined) {
-      await vscode.window.showErrorMessage(`You must choose a Build Configuration to continue.`);
-      return;
-    }
-    build = project.buildConfigs[buildName];
-  }
-
-  let projectFolder = path.join(wsConfig.rootPath, project.rel_path);
-  let buildFolder = path.join(wsConfig.rootPath, project.rel_path, build.name);
-  let buildFsDir;
-  if (fs.existsSync(buildFolder)) {
-    buildFsDir = fs.readdirSync(buildFolder);
-  }
-  if (buildFsDir === undefined || buildFsDir.length === 0) {
-    await vscode.window.showErrorMessage(`Run a Build or Build Pristine before running Menu/GUI Config.`);
-    return;
-  }
-
-  let cmd = `west build -t ${isRamReport ? "ram_report" : "rom_report"} ${projectFolder} --build-dir ${buildFolder} `;
-
-  let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
-
-  vscode.window.showInformationMessage(`Running ${isRamReport ? "RAM" : "ROM"} Report ${build.name} from project: ${project.name}`);
-  const setupState = await getSetupState(context, wsConfig);
-  await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState?.setupPath);
+  let taskName = "Zephyr IDE Build: " + params.project.name + " " + params.build.name;
+  outputInfo(`${isRamReport ? "RAM" : "ROM"} Report: ${params.project.name}/${params.build.name}`, `Running ${isRamReport ? "RAM" : "ROM"} Report ${params.build.name} from project: ${params.project.name} (cmd: ${params.cmd})`, true);
+  await executeTaskHelperInPythonEnv(params.setupState, taskName, params.cmd, params.setupState?.setupPath);
   regenerateCompileCommands(wsConfig);
+}
+
+/**
+ * Headless variant of buildRamRomReport that captures and returns the report output.
+ * Used in integration tests to assert on success and log report contents.
+ */
+export async function buildRamRomReportHeadless(
+  context: vscode.ExtensionContext,
+  wsConfig: WorkspaceConfig,
+  isRamReport: boolean,
+): Promise<{ success: boolean; output: string }> {
+  const reportType = isRamReport ? "RAM" : "ROM";
+  const params = await resolveRamRomReportParams(context, wsConfig, isRamReport);
+  if (!params) {
+    return { success: false, output: `${reportType} Report: prerequisite check failed` };
+  }
+
+  const result = await executeShellCommandInPythonEnv(params.cmd, params.setupState.setupPath, params.setupState, true);
+  const combined = [result.stdout, result.stderr].filter(Boolean).join('\n');
+  if (result.stdout) {
+    return { success: true, output: combined };
+  } else {
+    return { success: false, output: combined || `${reportType} Report: No output` };
+  }
 }
 
 export async function runDtshShell(
@@ -302,7 +348,7 @@ export async function runDtshShell(
 
   if (project === undefined) {
     if (wsConfig.activeProject === undefined) {
-      vscode.window.showErrorMessage("Select a project before trying to open dtsh shell");
+      notifyError("DTSH Shell", "Select a project before trying to open dtsh shell");
       return;
     }
     project = wsConfig.projects[wsConfig.activeProject];
@@ -311,17 +357,17 @@ export async function runDtshShell(
   if (build === undefined) {
     let buildName = getActiveBuildNameOfProject(wsConfig, project.name);
     if (buildName === undefined) {
-      await vscode.window.showErrorMessage(`You must choose a Build Configuration to continue.`);
+      notifyError("DTSH Shell", `You must choose a Build Configuration to continue.`);
       return;
     }
     build = project.buildConfigs[buildName];
   }
 
-  let cmd = `dtsh ${path.join(wsConfig.rootPath, project.rel_path, build.name, 'zephyr', 'zephyr.dts')} `;
+  let cmd = `dtsh "${path.join(wsConfig.rootPath, project.rel_path, build.name, 'zephyr', 'zephyr.dts')}" `;
 
   let taskName = "Zephyr IDE DTSH Sehll: " + project.name + " " + build.name;
 
-  vscode.window.showInformationMessage(`Running DTSH Shell ${build.name} from project: ${project.name}`);
+  outputInfo(`DTSH Shell: ${project.name}/${build.name}`, `Running DTSH Shell ${build.name} from project: ${project.name} (cmd: ${cmd})`, true);
   const setupState = await getSetupState(context, wsConfig);
   await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState?.setupPath);
 }
@@ -329,7 +375,7 @@ export async function runDtshShell(
 export async function clean(wsConfig: WorkspaceConfig, projectName: string | undefined) {
   if (projectName === undefined) {
     if (wsConfig.activeProject === undefined) {
-      vscode.window.showErrorMessage("Select a project before trying to clean");
+      notifyError("Clean", "Select a project before trying to clean");
       return;
     }
     projectName = wsConfig.activeProject;
@@ -337,7 +383,7 @@ export async function clean(wsConfig: WorkspaceConfig, projectName: string | und
 
   let activeBuild = wsConfig.projectStates[projectName].activeBuildConfig;
   if (activeBuild === undefined) {
-    vscode.window.showErrorMessage("Select a build before trying to clean");
+    notifyError("Clean", "Select a build before trying to clean");
     return;
   }
   await fs.remove(path.join(wsConfig.rootPath, wsConfig.projects[projectName].rel_path, activeBuild));

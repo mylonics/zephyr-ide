@@ -31,6 +31,7 @@ import {
 } from "../../setup_utilities/host_tools";
 import { WorkspaceConfig, GlobalConfig } from "../../setup_utilities/types";
 import { saveSetupState } from "../../setup_utilities/state-management";
+import { notifyError, notifyWarning } from "../../utilities/output";
 
 export class HostToolInstallView {
   public static currentPanel: HostToolInstallView | undefined;
@@ -231,7 +232,7 @@ export class HostToolInstallView {
         const managerAvailable = await checkPackageManagerAvailable();
         
         if (!managerAvailable) {
-          vscode.window.showWarningMessage(
+          notifyWarning("Host Tools",
             "Package manager was installed but is not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect."
           );
         } else {
@@ -240,7 +241,7 @@ export class HostToolInstallView {
           );
         }
       } else {
-        vscode.window.showErrorMessage(
+        notifyError("Host Tools",
           "Failed to install package manager. Check output for details."
         );
       }
@@ -249,7 +250,7 @@ export class HostToolInstallView {
         command: "installComplete",
       });
     } catch (error) {
-      vscode.window.showErrorMessage(`Error: ${error}`);
+      notifyError("Host Tools", `Package manager installation error: ${error}`);
       this._panel.webview.postMessage({
         command: "installComplete",
       });
@@ -262,7 +263,7 @@ export class HostToolInstallView {
       const pkg = packages.find((p) => p.name === packageName);
 
       if (!pkg) {
-        vscode.window.showErrorMessage(`Package ${packageName} not found`);
+        notifyError("Host Tools", `Package ${packageName} not found`);
         return;
       }
 
@@ -293,7 +294,7 @@ export class HostToolInstallView {
 
       if (success) {
         if (pendingRestart) {
-          vscode.window.showWarningMessage(
+          notifyWarning("Host Tools",
             `${packageName} was installed but is not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect.`
           );
         } else {
@@ -302,12 +303,12 @@ export class HostToolInstallView {
           );
         }
       } else {
-        vscode.window.showErrorMessage(
+        notifyError("Host Tools",
           `Failed to install ${packageName}. Check output for details.`
         );
       }
     } catch (error) {
-      vscode.window.showErrorMessage(`Error: ${error}`);
+      notifyError("Host Tools", `Package installation error: ${error}`);
     }
   }
 
@@ -319,7 +320,7 @@ export class HostToolInstallView {
         command: "startInstallAll",
       });
     } catch (error) {
-      vscode.window.showErrorMessage(`Error: ${error}`);
+      notifyError("Host Tools", `Install all error: ${error}`);
     }
   }
 
@@ -390,7 +391,7 @@ export class HostToolInstallView {
       });
 
       if (needsRestart) {
-        vscode.window.showWarningMessage(
+        notifyWarning("Host Tools",
           "Some packages were installed but are not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect."
         );
       } else if (!hasErrors) {
@@ -398,12 +399,12 @@ export class HostToolInstallView {
           "All missing packages installed successfully."
         );
       } else {
-        vscode.window.showWarningMessage(
+        notifyWarning("Host Tools",
           "Some host tools failed to install. Check the output for details."
         );
       }
     } catch (error) {
-      vscode.window.showErrorMessage(`Error: ${error}`);
+      notifyError("Host Tools", `Batch installation error: ${error}`);
       this._panel.webview.postMessage({
         command: "installAllComplete",
         needsRestart: false,
@@ -414,7 +415,7 @@ export class HostToolInstallView {
 
   private async markHostToolsComplete() {
     if (!this.currentWsConfig || !this.currentGlobalConfig) {
-      vscode.window.showErrorMessage("Configuration not available");
+      notifyError("Host Tools", "Configuration not available");
       return;
     }
 

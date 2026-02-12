@@ -114,7 +114,7 @@ export async function loadWorkspaceState(context: vscode.ExtensionContext): Prom
 
 export async function setWorkspaceState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
   if (wsConfig.initialSetupComplete) {
-    fs.outputFile(path.join(wsConfig.rootPath, ".vscode/zephyr-ide.json"), JSON.stringify({ projects: wsConfig.projects }, null, 2), { flag: 'w+' }, function (err: any) {
+    fs.outputFile(path.join(wsConfig.rootPath, ".vscode", "zephyr-ide.json"), JSON.stringify({ projects: wsConfig.projects }, null, 2), { flag: 'w+' }, function (err: any) {
       if (err) { throw err; }
     });
   }

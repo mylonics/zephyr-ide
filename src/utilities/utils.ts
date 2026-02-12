@@ -20,11 +20,34 @@ import * as vscode from "vscode";
 import * as path from "path";
 import * as util from "util";
 import * as cp from "child_process";
+import * as fs from "fs";
 import * as os from "os";
 
 import { SetupState, WorkspaceConfig } from "../setup_utilities/types";
 import { pathdivider } from "../setup_utilities/tools-validation";
 import { getToolchainDir } from "../setup_utilities/workspace-config";
+import { initOutputChannel, getOutputChannel, outputCommand, outputError, outputInfo, outputRaw, outputLine, ShellCommandResult } from "./output";
+
+// Re-export everything from the new output module so existing
+// `import { … } from "../utilities/utils"` statements keep working.
+export {
+  initOutputChannel,
+  getOutputChannel,
+  outputInfo,
+  outputWarning,
+  outputError,
+  outputCommand,
+  outputRaw,
+  outputLine,
+  outputFileNotFound,
+  outputCommandFailure,
+  showOutput,
+  notifyError,
+  notifyWarning,
+  notifyWarningWithActions,
+  notifyInfo,
+} from "./output";
+export type { ShellCommandResult } from "./output";
 
 // Output channel for logging
 let outputChannel: vscode.OutputChannel | undefined;
@@ -35,6 +58,8 @@ let outputChannel: vscode.OutputChannel | undefined;
  */
 export function setOutputChannel(channel: vscode.OutputChannel): void {
   outputChannel = channel;
+  // Also wire up the new centralised output module
+  initOutputChannel(channel);
 }
 
 /**
@@ -100,7 +125,7 @@ async function detectRemotePlatform(): Promise<string | undefined> {
     }
   } catch (error) {
     // If detection fails, log and fall back to local platform
-    output.appendLine(`[PLATFORM] Remote platform detection failed: ${error}`);
+    outputInfo("Platform Detection", `Remote platform detection failed: ${error}`);
   }
 
   remotePlatformCache = undefined;
@@ -246,15 +271,15 @@ export async function getLaunchConfigurations(wsConfig: WorkspaceConfig) {
     const matchingFolder = vscode.workspace.workspaceFolders?.find(
       folder => folder.uri.fsPath === wsConfig.rootPath
     );
-    
+
     // Use the matching folder URI, or fall back to the first folder if no match
     const resourceUri = matchingFolder?.uri || vscode.workspace.workspaceFolders?.[0]?.uri;
-    
+
     // Get launch configurations with proper workspace folder context
     // This handles both .code-workspace files and .vscode/launch.json
     const config = vscode.workspace.getConfiguration("launch", resourceUri);
     const configurations = config.get<any[]>("configurations");
-    
+
     return configurations;
   }
 }
@@ -275,10 +300,9 @@ export function closeTerminals(names: string[]) {
 }
 
 async function executeTask(task: vscode.Task) {
-  const execution = await vscode.tasks.executeTask(task);
-  output.appendLine("Starting Task: " + task.name);
-
-  return new Promise<number | undefined>(resolve => {
+  // Register the listener BEFORE executing the task to avoid a race condition
+  // where the task completes before the listener is set up.
+  const taskDone = new Promise<number | undefined>(resolve => {
     let disposable = vscode.tasks.onDidEndTaskProcess(e => {
       if (e.execution.task.name === task.name) {
         disposable.dispose();
@@ -286,6 +310,11 @@ async function executeTask(task: vscode.Task) {
       }
     });
   });
+
+  const execution = await vscode.tasks.executeTask(task);
+  outputLine("Starting Task: " + task.name);
+
+  return taskDone;
 }
 
 export async function executeTaskHelperInPythonEnv(setupState: SetupState | undefined, taskName: string, cmd: string, cwd: string | undefined) {
@@ -298,7 +327,7 @@ export async function executeTaskHelperInPythonEnv(setupState: SetupState | unde
 }
 
 export async function executeTaskHelper(taskName: string, cmd: string, cwd: string | undefined) {
-  output.appendLine(`Running cmd: ${cmd}`);
+  outputCommand(taskName, cmd);
   let options: vscode.ShellExecutionOptions = {
     cwd: cwd,
   };
@@ -318,47 +347,102 @@ export async function executeTaskHelper(taskName: string, cmd: string, cwd: stri
   return (res !== undefined && res === 0);
 }
 
-export async function executeShellCommandInPythonEnv(cmd: string, cwd: string, setupState: SetupState, display_error = true) {
+export async function executeShellCommandInPythonEnv(cmd: string, cwd: string, setupState: SetupState, display_error = true): Promise<ShellCommandResult> {
   // Build environment with venv PATH prepended
   const env = { ...process.env };
-  
+
   if (setupState.env["PATH"]) {
-    // Prepend the venv's bin/Scripts directory to PATH so venv executables are found first
-    // setupState.env["PATH"] already includes the trailing path separator (: or ;)
-    const existingPath = env["PATH"] || "";
-    env["PATH"] = setupState.env["PATH"] + existingPath;
+    // On Windows, process.env spreads as "Path" (title-case).  We must
+    // prepend the venv directory onto the *same* key that already exists,
+    // otherwise executeShellCommand's PATH consolidation will see two
+    // separate keys and may order the system PATH before the venv PATH,
+    // causing the system Python to shadow the venv Python.
+    const existingKey = Object.keys(env).find(k => k.toLowerCase() === "path") || "PATH";
+    const existingPath = env[existingKey] || "";
+    env[existingKey] = setupState.env["PATH"] + existingPath;
   }
-  
+
   if (setupState.env["VIRTUAL_ENV"]) {
     env["VIRTUAL_ENV"] = setupState.env["VIRTUAL_ENV"];
   }
-  
+
   return executeShellCommand(cmd, cwd, display_error, env);
 };
 
-export async function executeShellCommand(cmd: string, cwd: string, display_error = true, env?: NodeJS.ProcessEnv): Promise<{ stdout: string | undefined, stderr: string | undefined }> {
+export async function executeShellCommand(cmd: string, cwd: string, display_error = true, env?: NodeJS.ProcessEnv): Promise<ShellCommandResult> {
   let exec = util.promisify(cp.exec);
-  const execOptions: cp.ExecOptions = { 
+  const effectiveEnv = env ?? process.env;
+  const execOptions: cp.ExecOptions = {
     cwd: cwd,
-    encoding: 'utf8'  // Ensure stdout and stderr are strings, not Buffers
+    encoding: 'utf8',  // Ensure stdout and stderr are strings, not Buffers
   };
-  
+
   // Use provided environment or default to process.env
   if (env) {
     execOptions.env = env;
   }
-  
+
+  // On Windows, use PowerShell instead of the default cmd.exe. cmd.exe has
+  // subtle quoting and environment-propagation issues that break Python-based
+  // CLI tools like west (e.g. "manifest file not found: None"). PowerShell
+  // matches the behaviour of VS Code's integrated terminal and task execution.
+  // Note: commands that conflict with PowerShell aliases (e.g. wget) should
+  // use the explicit .exe extension (e.g. wget.exe) to bypass aliases.
+  if (os.platform() === "win32") {
+    execOptions.shell = "powershell.exe";
+
+    // process.env is case-insensitive on Windows, but spreading it into a
+    // plain object can produce both "PATH" and "Path" keys.  PowerShell
+    // reads "Path", so consolidate all PATH-like keys into a single "Path"
+    // entry.  This also handles 7-Zip injection in the same pass.
+    if (!execOptions.env) {
+      execOptions.env = { ...effectiveEnv };
+    }
+    const envObj = execOptions.env as Record<string, string | undefined>;
+
+    // Gather and remove all PATH-like keys, merging their values
+    const pathValues: string[] = [];
+    for (const key of Object.keys(envObj)) {
+      if (key.toLowerCase() === "path") {
+        if (envObj[key]) {
+          pathValues.push(envObj[key] as string);
+        }
+        delete envObj[key];
+      }
+    }
+    const consolidatedPath = pathValues.join(";");
+
+    // Ensure 7-Zip is on PATH so that west/sdk operations that shell out to
+    // 7z.exe work immediately.  The directory may be missing from PATH when
+    // refreshWindowsPath() rebuilds it from the registry before the
+    // post-install step has persisted the entry, or in CI environments.
+    const sevenZipDir = "C:\\Program Files\\7-Zip";
+    const hasSevenZip = consolidatedPath.split(";").some(
+      entry => entry.toLowerCase() === sevenZipDir.toLowerCase()
+    );
+    if (!hasSevenZip && fs.existsSync(sevenZipDir)) {
+      envObj["Path"] = `${sevenZipDir};${consolidatedPath}`;
+    } else {
+      envObj["Path"] = consolidatedPath;
+    }
+  }
+
   let res = await exec(cmd, execOptions).then(
 
     value => {
-      return { stdout: value.stdout as string, stderr: value.stderr as string };
+      return { stdout: value.stdout as string, stderr: value.stderr as string, cmd, cwd, env: effectiveEnv, exitCode: 0 };
     },
     reason => {
+      const exitCode: number | undefined = reason.code ?? undefined;
       if (display_error) {
-        output.append(reason);
-        console.log(JSON.stringify(reason));
+        outputError("Shell Command", `Command failed: ${cmd}`, {
+          command: cmd,
+          detail: `Exit code: ${exitCode ?? 'unknown'} | cwd: ${cwd || '(not set)'}`,
+          stdout: reason.stdout as string | undefined,
+          stderr: reason.stderr as string | undefined,
+        });
       }
-      return { stdout: undefined, stderr: reason.stderr as string | undefined };
+      return { stdout: undefined, stderr: reason.stderr as string | undefined, cmd, cwd, env: effectiveEnv, exitCode };
     }
   );
   return res;
@@ -406,24 +490,24 @@ export function validateGitUrl(value: string): string | undefined {
   }
 
   const trimmedValue = value.trim();
-  
+
   // Check for HTTP/HTTPS/SSH with protocol (contains ://)
   if (trimmedValue.includes("://")) {
     // Additional validation for protocol-based URLs
-    if (trimmedValue.startsWith("http://") || 
-        trimmedValue.startsWith("https://") || 
-        trimmedValue.startsWith("ssh://") ||
-        trimmedValue.startsWith("git://")) {
+    if (trimmedValue.startsWith("http://") ||
+      trimmedValue.startsWith("https://") ||
+      trimmedValue.startsWith("ssh://") ||
+      trimmedValue.startsWith("git://")) {
       return undefined;
     }
     return "Please enter a valid Git URL (supported protocols: http, https, ssh, git)";
   }
-  
+
   // Check for SSH format: user@host:path (without protocol)
   const sshPattern = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+:[a-zA-Z0-9._/-]+$/;
   if (sshPattern.test(trimmedValue)) {
     return undefined;
   }
-  
+
   return "Please enter a valid Git URL (e.g., https://github.com/user/repo.git or git@github.com:user/repo.git)";
 }

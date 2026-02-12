@@ -20,7 +20,8 @@ import * as yaml from 'js-yaml';
 import * as fs from "fs-extra";
 import path from "path";
 
-import { executeShellCommandInPythonEnv, output } from "../utilities/utils";
+import { executeShellCommandInPythonEnv } from "../utilities/utils";
+import { outputInfo, outputError, notifyError, outputCommandFailure } from "../utilities/output";
 import { SetupState } from "./types";
 
 
@@ -36,13 +37,35 @@ export interface ZephyrVersionNumber {
  * Execute west list command and return the output
  */
 async function executeWestList(setupState: SetupState): Promise<string[]> {
-  let cmd = `west list -f "{name:30} {abspath:28} {revision:40} {url}"`;
+  // Verify .west/config and manifest file exist before invoking west.
+  // This uses Node's fs module directly — no shell subprocess needed.
+  const westConfigPath = path.join(setupState.setupPath, ".west", "config");
+  if (!fs.existsSync(westConfigPath)) {
+    outputError("West List", `.west/config not found at: ${westConfigPath}. West is not initialized.`);
+    return [];
+  }
+
+  const configContent = fs.readFileSync(westConfigPath, 'utf-8');
+  const pathMatch = configContent.match(/^path\s*=\s*(.+)$/m);
+  const fileMatch = configContent.match(/^file\s*=\s*(.+)$/m);
+  const manifestPath = pathMatch ? pathMatch[1].trim() : "west-manifest";
+  const manifestFile = fileMatch ? fileMatch[1].trim() : "west.yml";
+  const fullManifestPath = path.join(setupState.setupPath, manifestPath, manifestFile);
+
+  if (!fs.existsSync(fullManifestPath)) {
+    outputError("West List", `Manifest file not found at: ${fullManifestPath}. West list will fail.`);
+    return [];
+  }
+
+  // Use pipe separator to avoid paths with spaces being split incorrectly.
+  // On Windows, use PowerShell instead of the default cmd.exe to avoid
+  // quoting / environment issues that cause west to fail with
+  // "manifest file not found: None".
+  let cmd = `west list -f "{name}|{abspath}|{revision}|{url}"`;
   let res = await executeShellCommandInPythonEnv(cmd, setupState.setupPath, setupState, false);
 
   if (!res.stdout) {
-    if (res.stderr) {
-      output.append(res.stderr);
-    }
+    outputCommandFailure("West List", res);
     return [];
   }
 
@@ -63,12 +86,15 @@ export async function getModuleList(setupState: SetupState) {
   const modules = await executeWestList(setupState);
 
   if (modules.length === 0) {
-    vscode.window.showErrorMessage("Failed to run west list command. See Zephyr IDE Output for error message");
+    notifyError("West Modules", "Failed to run west list command. Check the Zephyr IDE output for details.");
     return outputList;
   }
 
   for (const line of modules) {
-    let data = line.split(/\s+/);
+    if (!line.trim()) {
+      continue;
+    }
+    let data = line.split('|').map(s => s.trim());
     if (data[0] !== "manifest" && data[0] !== "") {
       outputList.push(data);
     }
@@ -84,7 +110,10 @@ export async function getManifestRepository(setupState: SetupState): Promise<str
   }
 
   for (const line of modules) {
-    let data = line.split(/\s+/);
+    if (!line.trim()) {
+      continue;
+    }
+    let data = line.split('|').map(s => s.trim());
     if (data[0] === "manifest") {
       return data;
     }
@@ -142,7 +171,7 @@ export function isVersionNumberGreater(version: ZephyrVersionNumber, major: numb
 }
 
 export async function getModuleYamlFile(moduleAbsPath: string): Promise<any> {
-  let filePath = path.join(moduleAbsPath, "zephyr/module.yml");
+  let filePath = path.join(moduleAbsPath, "zephyr", "module.yml");
   if (fs.existsSync(filePath)) {
     return yaml.load(fs.readFileSync(filePath, 'utf-8'));
   }
@@ -167,7 +196,7 @@ export async function getModulePathAndVersion(setupState: SetupState, moduleName
       return { path: module[1], version: module[2] };
     }
   }
-  
+
   // Check if the requested module is the manifest repository
   if (moduleName === "zephyr") {
     const manifestRepo = await getManifestRepository(setupState);
@@ -175,7 +204,7 @@ export async function getModulePathAndVersion(setupState: SetupState, moduleName
       return { path: manifestRepo[1], version: manifestRepo[2] };
     }
   }
-  
+
   return;
 }
 
@@ -233,7 +262,7 @@ function getSampleRecursive(
     realDir = fs.realpathSync(dir);
   } catch (e) {
     if (logErrors) {
-      output.appendLine(`[getSamples] Skipping unreadable path: ${dir} -> ${(e as Error).message}`);
+      outputInfo("West Modules", `Skipping unreadable path: ${dir} -> ${(e as Error).message}`);
     }
     return;
   }
@@ -256,7 +285,7 @@ function getSampleRecursive(
     }
   } catch (e) {
     if (logErrors) {
-      output.appendLine(`[getSamples] Error reading sample.yaml in ${realDir}: ${(e as Error).message}`);
+      outputInfo("West Modules", `Error reading sample.yaml in ${realDir}: ${(e as Error).message}`);
     }
     // continue to try to descend
   }
@@ -266,7 +295,7 @@ function getSampleRecursive(
     entries = fs.readdirSync(realDir);
   } catch (e) {
     if (logErrors) {
-      output.appendLine(`[getSamples] Cannot read directory ${realDir}: ${(e as Error).message}`);
+      outputInfo("West Modules", `Cannot read directory ${realDir}: ${(e as Error).message}`);
     }
     return;
   }
@@ -282,7 +311,7 @@ function getSampleRecursive(
       stat = fs.lstatSync(childPath);
     } catch (e) {
       if (logErrors) {
-        output.appendLine(`[getSamples] lstat failed for ${childPath}: ${(e as Error).message}`);
+        outputInfo("West Modules", `lstat failed for ${childPath}: ${(e as Error).message}`);
       }
       continue;
     }
