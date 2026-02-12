@@ -46,7 +46,6 @@ import {
     executeTestWithErrorHandling,
     executeWorkspaceCommand,
     CommonUIInteractions,
-    shouldSkipBuildTests
 } from './test-runner';
 import { UIMockInterface } from './ui-mock-interface';
 
@@ -126,10 +125,9 @@ suite('Combined Installation Test Suite', function() {
                 await activateExtension();
                 uiMock.activate();
 
-                const skipBuilds = shouldSkipBuildTests();
                 const requiresPathPropagation = process.platform === 'darwin' || process.platform === 'win32';
 
-                if (skipBuilds && requiresPathPropagation) {
+                if (requiresPathPropagation) {
                     console.log('   Skipping build dependencies check (PATH propagation limitation in CI)');
                 } else {
                     console.log('📋 Step 5a: Checking build dependencies...');
@@ -192,23 +190,19 @@ suite('Combined Installation Test Suite', function() {
                 console.log('⚡ Step 5f: Executing build...');
                 await executeFinalBuild('Combined Installation Test');
 
-                if (!skipBuilds) {
-                    console.log('📊 Step 5g: Running RAM Report...');
-                    const ramResult = await vscode.commands.executeCommand<{ success: boolean; output: string }>('zephyr-ide.run-ram-report-headless');
-                    console.log('--- RAM Report Output ---');
-                    console.log(ramResult?.output ?? 'No output');
-                    console.log('--- End RAM Report ---');
-                    assert.ok(ramResult?.success, `RAM Report should succeed: ${ramResult?.output}`);
+                console.log('📊 Step 5g: Running RAM Report...');
+                const ramResult = await vscode.commands.executeCommand<{ success: boolean; output: string }>('zephyr-ide.run-ram-report-headless');
+                console.log('--- RAM Report Output ---');
+                console.log(ramResult?.output ?? 'No output');
+                console.log('--- End RAM Report ---');
+                assert.ok(ramResult?.success, `RAM Report should succeed: ${ramResult?.output}`);
 
-                    console.log('📊 Step 5h: Running ROM Report...');
-                    const romResult = await vscode.commands.executeCommand<{ success: boolean; output: string }>('zephyr-ide.run-rom-report-headless');
-                    console.log('--- ROM Report Output ---');
-                    console.log(romResult?.output ?? 'No output');
-                    console.log('--- End ROM Report ---');
-                    assert.ok(romResult?.success, `ROM Report should succeed: ${romResult?.output}`);
-                } else {
-                    console.log('⏭️ Skipping RAM/ROM reports (build tests skipped)');
-                }
+                console.log('📊 Step 5h: Running ROM Report...');
+                const romResult = await vscode.commands.executeCommand<{ success: boolean; output: string }>('zephyr-ide.run-rom-report-headless');
+                console.log('--- ROM Report Output ---');
+                console.log(romResult?.output ?? 'No output');
+                console.log('--- End ROM Report ---');
+                assert.ok(romResult?.success, `ROM Report should succeed: ${romResult?.output}`);
             }
         );
 
