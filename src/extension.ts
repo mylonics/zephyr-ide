@@ -35,7 +35,7 @@ import {
   executeShellCommandInPythonEnv,
   reloadEnvironmentVariables,
 } from "./utilities/utils";
-import { notifyError, outputInfo, outputError, outputCommandFailure } from "./utilities/output";
+import { notifyError, outputInfo, outputError, outputCommandFailure, getDebugOutput, clearDebugOutput } from "./utilities/output";
 import * as project from "./project_utilities/project";
 import {
   buildHelper,
@@ -1409,6 +1409,18 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.is-sdk-installed", async () => {
       return globalConfig.sdkInstalled;
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.get-debug-output", () => {
+      return getDebugOutput();
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.clear-debug-output", () => {
+      clearDebugOutput();
     })
   );
 

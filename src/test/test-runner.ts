@@ -15,33 +15,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import * as cp from 'child_process';
-import * as util from 'util';
 import * as vscode from 'vscode';
-import * as fs from 'fs-extra';
-import * as path from 'path';
-import * as os from 'os';
 import * as assert from 'assert';
-import { WorkspaceConfig, GlobalConfig } from '../setup_utilities/types';
-import { checkIfToolsAvailable } from '../setup_utilities/tools-validation';
-
-const execAsync = util.promisify(cp.exec);
-
-/**
- * Check if build dependencies are available using the extension's built-in check
- */
-export async function checkBuildDependencies(
-    context: vscode.ExtensionContext,
-    wsConfig: WorkspaceConfig,
-    globalConfig: GlobalConfig
-): Promise<boolean> {
-    const available = await checkIfToolsAvailable(context, wsConfig, globalConfig);
-    if (!available) {
-        console.log(`⚠️ Build dependencies not available`);
-        return false;
-    }
-    return true;
-}
 
 /**
  * Check if build tests should be skipped based on environment variables
@@ -69,6 +44,30 @@ export function logTestEnvironment(): void {
     console.log('Platform:', process.platform);
     console.log('Architecture:', process.arch);
     console.log('========================');
+}
+
+/**
+ * Retrieve and print the extension's debug output buffer into the test stream.
+ *
+ * Calls the `zephyr-ide.get-debug-output` command which atomically returns
+ * all buffered output lines and clears the buffer.  The output is printed
+ * via `console.log` so it appears in the VS Code test console / CI log.
+ *
+ * @param label  A heading printed before the output block for readability.
+ */
+export async function dumpExtensionOutput(label: string = "Extension Output"): Promise<void> {
+    try {
+        const output = await vscode.commands.executeCommand<string>("zephyr-ide.get-debug-output");
+        if (output && output.length > 0) {
+            console.log(`\n═══ ${label} ════════════════════════════════════════`);
+            console.log(output);
+            console.log(`═══ End ${label} ════════════════════════════════════\n`);
+        } else {
+            console.log(`\n(No extension output captured for: ${label})`);
+        }
+    } catch (error) {
+        console.log(`\n⚠️ Could not retrieve extension output: ${error}`);
+    }
 }
 
 /**
@@ -261,10 +260,13 @@ export async function executeTestWithErrorHandling(
         // Deactivate UI mock on success
         uiMock.deactivate();
 
-        // Note: printWorkspaceOnSuccess should be called by the test itself
-        // before the test completes to avoid race conditions with teardown
+        // Dump extension output to the test stream
+        await dumpExtensionOutput(`${testName} - Extension Output`);
 
     } catch (error) {
+        // Dump extension output so the CI log contains the full trace
+        await dumpExtensionOutput(`${testName} - Extension Output (FAILED)`);
+
         // Handle failure with detailed logging
         await printWorkspaceStructure(testName);
         await new Promise((resolve) => setTimeout(resolve, 30000));

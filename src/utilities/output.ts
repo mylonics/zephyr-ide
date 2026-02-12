@@ -21,11 +21,68 @@ import * as vscode from "vscode";
 
 let outputChannel: vscode.OutputChannel | undefined;
 
+// ─── Debug Output Buffer ─────────────────────────────────────────────────────
+//
+// A pseudo output channel that mirrors every line written to the real output
+// channel into an in-memory buffer.  Tests can retrieve the buffer contents
+// via the `zephyr-ide.get-debug-output` command so that extension output
+// appears in the test console / CI log alongside test assertions.
+
+let debugBuffer: string[] = [];
+
+/**
+ * Return all lines captured since the last clear and reset the buffer.
+ * Intended to be called at the end of each test step so that output is
+ * printed into the test stream.
+ */
+export function getDebugOutput(): string {
+  const content = debugBuffer.join("");
+  debugBuffer = [];
+  return content;
+}
+
+/**
+ * Discard any buffered output without returning it.
+ */
+export function clearDebugOutput(): void {
+  debugBuffer = [];
+}
+
+/**
+ * Wrap a real VS Code OutputChannel so that every `append` / `appendLine`
+ * call is also captured in {@link debugBuffer}.
+ */
+function createMirroredChannel(real: vscode.OutputChannel): vscode.OutputChannel {
+  // We return a Proxy so that any property access (show, hide, dispose, name …)
+  // transparently forwards to the real channel.  Only `append` and `appendLine`
+  // are intercepted to also push into the debug buffer.
+  return new Proxy(real, {
+    get(target, prop, receiver) {
+      if (prop === "appendLine") {
+        return (value: string) => {
+          debugBuffer.push(value + "\n");
+          target.appendLine(value);
+        };
+      }
+      if (prop === "append") {
+        return (value: string) => {
+          debugBuffer.push(value);
+          target.append(value);
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    },
+  });
+}
+
 /**
  * Initialize the output channel. Must be called once during extension activation.
+ *
+ * The channel is wrapped so that every write is also captured in an in-memory
+ * debug buffer that tests can retrieve via {@link getDebugOutput}.
  */
 export function initOutputChannel(channel: vscode.OutputChannel): void {
-  outputChannel = channel;
+  outputChannel = createMirroredChannel(channel);
 }
 
 /**
