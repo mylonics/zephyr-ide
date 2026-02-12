@@ -193,6 +193,14 @@ export class ActiveProjectView implements vscode.WebviewViewProvider {
     };
 
     this.view = webviewView;
+    
+    // Refresh webview when it becomes visible to ensure content is loaded
+    webviewView.onDidChangeVisibility(() => {
+      if (webviewView.visible) {
+        this.updateWebView(this.wsConfig);
+      }
+    });
+    
     webviewView.webview.onDidReceiveMessage(message => {
       switch (message.command) {
         case "vsCommand": {

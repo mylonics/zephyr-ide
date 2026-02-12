@@ -1206,13 +1206,17 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   // Kick an initial refresh shortly after activation so views render even if no command ran yet
-  setTimeout(() => {
-    try {
-      vscode.commands.executeCommand("zephyr-ide.update-web-view");
-    } catch (e) {
-      console.error("Zephyr IDE: initial webview refresh failed", e);
-    }
-  }, 100);
+  // Use multiple retry attempts to ensure webviews are loaded even if resolveWebviewView is delayed
+  const refreshAttempts = [500, 1000, 2000, 3000];
+  refreshAttempts.forEach((delay) => {
+    setTimeout(() => {
+      try {
+        vscode.commands.executeCommand("zephyr-ide.update-web-view");
+      } catch (e) {
+        console.error(`Zephyr IDE: webview refresh at ${delay}ms failed`, e);
+      }
+    }, delay);
+  });
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.start-menu-config", async () => {
