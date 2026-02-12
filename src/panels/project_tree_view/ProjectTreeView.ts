@@ -418,6 +418,7 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
       }
     });
     this.setHtml("");
+    this.updateWebView(this.wsConfig);
   }
 }
 
