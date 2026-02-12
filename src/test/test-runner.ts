@@ -269,6 +269,17 @@ export const CommonUIInteractions = {
         { type: 'quickpick', value: 'x86_64-zephyr-elf', description: 'Select x86_64 toolchain', multiSelect: true }
     ],
 
+    // Testing workspace setup interactions (RPi Pico, ARM toolchain)
+    testingWorkspace: [
+        { type: 'quickpick', value: 'create new west.yml', description: 'Create new west.yml' },
+        { type: 'quickpick', value: 'testing', description: 'Select testing manifest' },
+        { type: 'quickpick', value: 'v4.2.0', description: 'Select default configuration' },
+        { type: 'input', value: '', description: 'Select additional west init args' },
+        { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
+        { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
+        { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
+    ],
+
     // Project creation interactions
     createBlinkyProject: [
         { type: 'quickpick', value: 'blinky', description: 'Select blinky template' },

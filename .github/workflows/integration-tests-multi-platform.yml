@@ -1,5 +1,5 @@
 # Multi-Platform Integration Tests Pipeline
-# 
+#
 # This workflow runs integration tests on multiple platforms (Windows, Ubuntu, macOS).
 # It uses a single-process approach where all installation and test steps run
 # sequentially in the same VS Code instance, solving Windows PATH propagation issues.
@@ -29,10 +29,10 @@ on:
   workflow_dispatch:
     inputs:
       branch:
-        description: 'Branch to run tests on'
+        description: "Branch to run tests on"
         required: false
         type: string
-        default: ''
+        default: ""
 
 permissions:
   contents: read
@@ -108,10 +108,10 @@ jobs:
             xvfb: ""
             zephyr_base: /tmp/zephyr
             setup_cmd: ""
-    
+
     runs-on: ${{ matrix.os }}
     name: test-${{ matrix.platform }}
-    
+
     steps:
       - uses: actions/checkout@v4
         with:

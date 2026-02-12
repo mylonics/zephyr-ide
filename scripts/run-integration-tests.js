@@ -118,7 +118,8 @@ try {
     console.log(`Running ${testType} workflow integration tests...`);
     execSync(`npx vscode-test --grep ${quote}${grepPattern}${quote}`, {
         stdio: 'inherit',
-        cwd: path.dirname(__dirname)
+        cwd: path.dirname(__dirname),
+        env: { ...process.env, ZEPHYR_IDE_TESTING: 'true' }
     });
 
     console.log(`✓ ${testType} workflow integration tests completed successfully`);

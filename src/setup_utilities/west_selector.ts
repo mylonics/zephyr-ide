@@ -99,6 +99,11 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
     westOptions["Sim Only"] = "simulated_west.yml";
     westOptions["NRF Connect Config"] = "ncs_west.yml";
 
+    // Internal testing template — only visible in CI/test environments
+    if (process.env.CI || process.env.ZEPHYR_IDE_TESTING) {
+      westOptions["Testing"] = "testing_west.yml";
+    }
+
     const westOptionQpItems: QuickPickItem[] = [];
     for (let key in westOptions) {
       westOptionQpItems.push({ label: key });
