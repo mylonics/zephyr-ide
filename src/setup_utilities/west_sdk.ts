@@ -21,7 +21,7 @@ import * as fs from "fs-extra";
 
 import { WorkspaceConfig, GlobalConfig, SetupState } from "./types";
 import { getToolsDir } from "./workspace-config";
-import { executeShellCommandInPythonEnv } from "../utilities/utils";
+import { executeShellCommandInPythonEnv, executeTaskHelperInPythonEnv } from "../utilities/utils";
 import { outputInfo, outputWarning, outputError, notifyError, outputCommandFailure } from "../utilities/output";
 import { sdkVersions, toolchainTargets } from "../defines";
 
@@ -398,40 +398,6 @@ async function selectToolchains(): Promise<string[] | undefined> {
 }
 
 /**
- * Filters out noisy progress lines from SDK install output.
- * Removes wget download progress, 7-Zip extraction progress bars,
- * patool verbose INFO lines, and blank lines to reduce output size.
- */
-function filterSdkProgressLines(output: string): string {
-    const lines = output.split('\n');
-    const filtered = lines.filter(line => {
-        const trimmed = line.trim();
-        // Skip blank lines
-        if (trimmed === '') {
-            return false;
-        }
-        // Skip wget download progress lines (e.g. "  1000K .......... .......... ... 1% 16.6M 4s")
-        if (/^\s*\d+K\s+[.\s]+\d+%/.test(line)) {
-            return false;
-        }
-        // Skip progress bar lines (e.g. "zephyr-sdk...7z: 100%|#|")
-        if (/\d+%\|/.test(line)) {
-            return false;
-        }
-        // Skip patool verbose INFO lines
-        if (/^INFO\s+patool:/.test(trimmed)) {
-            return false;
-        }
-        // Skip 7-Zip progress percentage lines
-        if (/^\s*\d+%\s*$/.test(trimmed)) {
-            return false;
-        }
-        return true;
-    });
-    return filtered.join('\n');
-}
-
-/**
  * Installs SDK with specific toolchains
  */
 export async function installSDK(
@@ -458,27 +424,18 @@ export async function installSDK(
         outputInfo("SDK Install", `  cwd: ${setupState.setupPath}`);
         outputInfo("SDK Install", `  toolchains dir: ${toolchainsDir}`);
 
-        const result = await executeShellCommandInPythonEnv(
+        const result = await executeTaskHelperInPythonEnv(
+            setupState,
+            "Zephyr IDE: SDK Install",
             command,
-            setupState.setupPath,
-            setupState
+            setupState.setupPath
         );
 
-        if (result.stdout) {
-            outputInfo("SDK Install", `SDK install stdout:\n${filterSdkProgressLines(result.stdout)}`);
-        }
-        if (result.stderr) {
-            // west sdk install writes progress to stderr, so log it as info
-            // unless the command actually failed
-            outputInfo("SDK Install", `SDK install stderr:\n${filterSdkProgressLines(result.stderr)}`);
-        }
-
-        if (result.stdout !== undefined) {
+        if (result) {
             outputInfo("SDK Install", "SDK install command completed successfully");
             return true;
         } else {
             outputError("SDK Install", "SDK install command failed");
-            outputCommandFailure("SDK Install", result, true);
             return false;
         }
     } catch (error) {
