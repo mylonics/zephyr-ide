@@ -120,6 +120,12 @@ jobs:
       - name: Run linting
         run: npm run lint
 
+      - name: Run unit tests
+        run: |
+          xvfb-run -a node scripts/run-integration-tests.js unit
+        env:
+          NODE_ENV: test
+
       - name: Run external zephyr workspace integration tests
         run: |
           xvfb-run -a node scripts/run-integration-tests.js external-zephyr

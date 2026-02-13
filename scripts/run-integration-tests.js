@@ -30,6 +30,7 @@ if (testType === '--help' || testType === '-h' || testType === 'help') {
     console.log('Usage: node scripts/run-integration-tests.js [test-type]');
     console.log('');
     console.log('Available test types:');
+    console.log('  unit                     - Unit tests only (no Zephyr dependencies required)');
     console.log('  install-package-manager - Install/check package manager only');
     console.log('  install-host-packages    - Install/check host packages (assumes package manager available)');
     console.log('  combined                 - Combined test: install pkg mgr + packages + standard tests (single process)');
@@ -41,6 +42,7 @@ if (testType === '--help' || testType === '-h' || testType === 'help') {
     console.log('  all                      - Run all tests (default)');
     console.log('');
     console.log('Examples:');
+    console.log('  node scripts/run-integration-tests.js unit');
     console.log('  node scripts/run-integration-tests.js install-package-manager');
     console.log('  node scripts/run-integration-tests.js install-host-packages');
     console.log('  node scripts/run-integration-tests.js standard');
@@ -80,6 +82,9 @@ try {
 
     let grepPattern;
     switch (testType) {
+        case 'unit':
+            grepPattern = 'Platform Detection|Python Command|Launch Configuration|Venv Configuration|Toolchain Configuration|Git URL Validation|Environment Variable Detection|Debug Configuration';
+            break;
         case 'install-package-manager':
             grepPattern = 'Install Package Manager Test Suite';
             break;
@@ -129,7 +134,7 @@ try {
     console.error('This test executes the Zephyr IDE workflow.');
     console.error('Some steps may fail if build dependencies are not available.');
     console.error('');
-    console.error('Available test types: install-package-manager, install-host-packages, standard, west-git, zephyr-ide-git, local-west, external-zephyr, all');
+    console.error('Available test types: unit, install-package-manager, install-host-packages, standard, west-git, zephyr-ide-git, local-west, external-zephyr, all');
     console.error('Run "node scripts/run-integration-tests.js help" for more information.');
     process.exit(1);
 }

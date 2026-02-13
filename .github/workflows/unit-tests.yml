@@ -1,0 +1,48 @@
+name: Unit Tests
+
+# This workflow runs lightweight unit tests that do NOT require Zephyr SDK
+# or any heavy dependencies. It runs on every PR and push to key branches.
+# For full integration tests, see integration-tests.yml and
+# integration-tests-multi-platform.yml.
+
+on:
+  pull_request:
+    branches: [main, pre-release, develop]
+  push:
+    branches: [main, pre-release, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Compile TypeScript
+        run: npm run test-compile
+
+      - name: Bundle Extension (dist)
+        run: npm run esbuild
+
+      - name: Run linting
+        run: npm run lint
+
+      - name: Run unit tests
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libgtk-3-0 libgbm1 libnss3 libasound2t64
+          xvfb-run -a node scripts/run-integration-tests.js unit
+        env:
+          NODE_ENV: test
