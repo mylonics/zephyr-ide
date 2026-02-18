@@ -349,7 +349,16 @@ async function executeTask(task: vscode.Task) {
 
 export async function executeTaskHelperInPythonEnv(setupState: SetupState | undefined, taskName: string, cmd: string, cwd: string | undefined) {
   if (setupState && isMacOS()) {
-    let newCmd = path.join(getPythonVenvBinaryFolder(setupState), cmd);
+    // Extract the executable name (first word) from the command
+    const parts = cmd.trim().split(/\s+/);
+    const executable = parts[0];
+    const args = parts.slice(1).join(' ');
+    
+    // Only apply path.join to the executable, not the entire command string
+    // This prevents path.join from normalizing URLs (e.g., https:// -> https:/)
+    const executablePath = path.join(getPythonVenvBinaryFolder(setupState), executable);
+    const newCmd = args ? `${executablePath} ${args}` : executablePath;
+    
     return await executeTaskHelper(taskName, newCmd, cwd);
   } else {
     return await executeTaskHelper(taskName, cmd, cwd);
