@@ -29,7 +29,6 @@ import { HostToolInstallView } from "./panels/host_tool_install_view/HostToolIns
 
 import {
   getLaunchConfigurationByName,
-  resolveZephyrCommandsInConfig,
   output,
   outputLine,
   executeShellCommand,
@@ -252,7 +251,7 @@ export async function activate(context: vscode.ExtensionContext) {
       // Use simple string formatting instead of f-strings to avoid shell escaping issues
       const pythonScript = `import sys; print('Python interpreter path: ' + sys.executable)`;
       const cmd = `python -c "${pythonScript}"`;
-      
+
       try {
         const result = await executeShellCommandInPythonEnv(cmd, wsConfig.rootPath, wsConfig.activeSetupState, false);
         if (result.stdout) {
@@ -1076,20 +1075,15 @@ export async function activate(context: vscode.ExtensionContext) {
       if (activeBuild?.launchTarget) {
         debugTarget = activeBuild.launchTarget;
       }
-      let debugConfig = await getLaunchConfigurationByName(
-        wsConfig,
-        debugTarget
-      );
+
+      let debugConfig = await getLaunchConfigurationByName(wsConfig, debugTarget);
       if (debugConfig) {
-        await resolveZephyrCommandsInConfig(debugConfig);
-        await vscode.commands.executeCommand(
-          "debug.startFromConfig",
-          debugConfig
-        );
+        const started = await vscode.debug.startDebugging(undefined, debugConfig);
+        if (!started) {
+          notifyError("Debug", "Failed to start debug session: " + debugTarget);
+        }
       } else {
-        notifyError("Debug",
-          "Launch Configuration: " + debugTarget + " not found"
-        );
+        notifyError("Debug", "Launch configuration not found: " + debugTarget);
       }
     })
   );
@@ -1102,20 +1096,15 @@ export async function activate(context: vscode.ExtensionContext) {
       if (activeBuild?.attachTarget) {
         debugTarget = activeBuild.attachTarget;
       }
-      let debugConfig = await getLaunchConfigurationByName(
-        wsConfig,
-        debugTarget
-      );
+
+      let debugConfig = await getLaunchConfigurationByName(wsConfig, debugTarget);
       if (debugConfig) {
-        await resolveZephyrCommandsInConfig(debugConfig);
-        await vscode.commands.executeCommand(
-          "debug.startFromConfig",
-          debugConfig
-        );
+        const started = await vscode.debug.startDebugging(undefined, debugConfig);
+        if (!started) {
+          notifyError("Debug", "Failed to start attach session: " + debugTarget);
+        }
       } else {
-        notifyError("Debug",
-          "Launch Configuration: " + debugTarget + " not found"
-        );
+        notifyError("Debug", "Launch configuration not found: " + debugTarget);
       }
     })
   );
@@ -1129,24 +1118,21 @@ export async function activate(context: vscode.ExtensionContext) {
       if (activeProject && activeBuild?.buildDebugTarget) {
         debugTarget = activeBuild.buildDebugTarget;
       }
-      let debugConfig = await getLaunchConfigurationByName(
-        wsConfig,
-        debugTarget
-      );
+
+      let debugConfig = await getLaunchConfigurationByName(wsConfig, debugTarget);
 
       if (debugConfig && activeProject && activeBuild) {
-        await resolveZephyrCommandsInConfig(debugConfig);
         let res = await build(context, wsConfig, activeProject, activeBuild, false);
         if (res) {
-          await vscode.commands.executeCommand(
-            "debug.startFromConfig",
-            debugConfig
-          );
+          const started = await vscode.debug.startDebugging(undefined, debugConfig);
+          if (!started) {
+            notifyError("Debug", "Failed to start debug session: " + debugTarget);
+          }
         }
+      } else if (!debugConfig) {
+        notifyError("Debug", "Launch configuration not found: " + debugTarget);
       } else {
-        notifyError("Debug",
-          "Launch Configuration: " + debugTarget + " not found"
-        );
+        notifyError("Debug", "No active project or build configuration found");
       }
     })
   );
