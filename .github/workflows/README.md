@@ -84,22 +84,28 @@ The release process has been consolidated into a streamlined workflow that requi
 
 ### Other Workflows
 
-- **`integration-tests.yml`** - Runs full integration tests on Ubuntu on version bumps
-  - **Trigger**: Push to develop branch when package.json version changes
+- **`workspace-setup-tests.yml`** - Runs all 5 workspace setup type tests on Ubuntu
+  - **Trigger**: PRs to main/pre-release (always), PRs to develop (with `test-all-workspaces` label), push to develop (on version bump)
   - **Manual Trigger**: Can be triggered manually with optional `branch` input
-  - **Actions**: Runs all integration test suites (standard, west-git, zephyr-ide-git, local-west, external-zephyr)
+  - **Actions**: Runs all workspace setup test suites (standard, west-git, zephyr-ide-git, local-west, external-zephyr)
 
-- **`integration-tests-multi-platform.yml`** - Multi-platform integration tests for PRs
-  - **Trigger**: Pull requests to main, pre-release, develop branches
+- **`basic-tests.yml`** - Fast Ubuntu-only platform integration test for every PR
+  - **Trigger**: Pull requests to develop
   - **Manual Trigger**: Can be triggered manually with optional `branch` input
-  - **Architecture**:
-    - Stage 1: Builds VSIX on Ubuntu
-    - Stage 2: Three parallel platform jobs (Ubuntu, Windows, macOS 15)
-  - **Actions per platform**:
-    - Downloads the built VSIX artifact
-    - Uses `zephyr-ide.install-host-tools` command to install dependencies
-    - Runs standard workspace integration test
-  - **Purpose**: Validates the extension works correctly across all supported platforms
+  - **Actions**: Builds VSIX, runs platform integration test on Ubuntu
+  - **Purpose**: Fast CI gate for every PR
+
+- **`multiplatform-tests.yml`** - Multi-platform integration test for releases
+  - **Trigger**: Pull requests to main/pre-release, pushes to main/pre-release
+  - **Manual Trigger**: Can be triggered manually with optional `branch` input
+  - **Platforms**: Ubuntu, Windows, macOS 15 (all three)
+  - **Actions**: Builds VSIX, runs platform integration test on all platforms
+  - **Purpose**: Validates cross-platform compatibility before releases
+
+- **`_shared-platform-test.yml`** - Reusable workflow shared by basic-tests and multiplatform-tests
+  - **Trigger**: Called by other workflows (`workflow_call`)
+  - **Actions**: Builds VSIX on Ubuntu, then runs platform integration test on the requested platforms
+  - **Purpose**: Eliminates code duplication between basic-tests and multiplatform-tests
 
 - **`deploy-docs.yml`** - Deploys documentation to GitHub Pages
 - **`package-artifact.yml`** - Packages the extension as a VSIX file (runs on develop branch)

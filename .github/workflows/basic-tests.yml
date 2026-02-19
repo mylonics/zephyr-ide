@@ -1,0 +1,34 @@
+# Basic Tests Pipeline
+#
+# Runs the platform integration test on Ubuntu only.
+# This is the fast default CI that runs on every PR to ensure nothing is broken.
+#
+# For multi-platform testing (Windows, macOS), see multiplatform-tests.yml.
+# For all workspace setup types, see workspace-setup-tests.yml.
+#
+# Trigger behavior:
+# - PRs to develop: Always runs (Ubuntu-only)
+# - Manual dispatch: Always runs (Ubuntu-only)
+
+name: Basic Tests
+
+on:
+  pull_request:
+    branches: [develop]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to run tests on"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  basic-test:
+    uses: ./.github/workflows/_shared-platform-test.yml
+    with:
+      ref: ${{ inputs.branch || '' }}
+      platforms: ubuntu

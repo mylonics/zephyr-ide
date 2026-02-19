@@ -1,9 +1,23 @@
-name: Integration Tests
+# Workspace Setup Tests
+#
+# This workflow runs all 5 workspace setup type tests on Ubuntu and macOS.
+# Each test validates a different way to set up a Zephyr workspace:
+#   - Standard:       Fresh workspace → west.yml → SDK → project → build
+#   - External Zephyr: Git repo (no west) → external Zephyr installation → build
+#   - West Git:       West manifest git repo → SDK → custom board build
+#   - Zephyr IDE Git: Zephyr IDE sample git repo → SDK → build
+#   - Local West:     Git repo with west.yml → detect local west → build
+#
+# Trigger behavior:
+# - PRs to main/pre-release: Always runs
+# - PRs to develop with 'test-all-workspaces' label: Runs
+# - Push to develop when package.json version is bumped: Runs
+# - Manual dispatch: Always runs
+#
+# For fast single-workspace CI, see basic-tests.yml.
+# For multi-platform testing, see multiplatform-tests.yml.
 
-# This workflow runs full integration tests (all workspace types) on Ubuntu.
-# It runs on PRs into main/pre-release, PRs with 'test-all-workspaces' label,
-# version bumps on develop, or manual dispatch.
-# For the default fast test, see integration-tests-multi-platform.yml
+name: Workspace Setup Tests
 
 on:
   pull_request:
@@ -11,14 +25,14 @@ on:
   push:
     branches: [develop]
     paths:
-      - 'package.json'
+      - "package.json"
   workflow_dispatch:
     inputs:
       branch:
-        description: 'Branch to run tests on'
+        description: "Branch to run tests on"
         required: false
         type: string
-        default: ''
+        default: ""
 
 permissions:
   contents: read
@@ -88,7 +102,20 @@ jobs:
   test-with-zephyr:
     needs: check-should-run
     if: needs.check-should-run.outputs.should_run == 'true'
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: ubuntu
+            xvfb: "xvfb-run -a "
+            zephyr_base: /tmp/zephyr
+          - os: macos-15
+            platform: macos
+            xvfb: ""
+            zephyr_base: /tmp/zephyr
+    runs-on: ${{ matrix.os }}
+    name: test-workspace-${{ matrix.platform }}
 
     steps:
       - uses: actions/checkout@v4
@@ -101,12 +128,18 @@ jobs:
           node-version: "18"
           cache: "npm"
 
-      - name: Install system dependencies
+      - name: Install system dependencies (Ubuntu)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt install --no-install-recommends git cmake ninja-build gperf \
             ccache dfu-util device-tree-compiler wget python3-dev python3-venv python3-tk \
-            xz-utils file make gcc gcc-multilib g++-multilib libsdl2-dev libmagic1
+            xz-utils file make gcc gcc-multilib g++-multilib libsdl2-dev libmagic1 xvfb
+
+      - name: Install system dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install cmake ninja gperf ccache dfu-util dtc wget python3 sdl2
 
       - name: Install dependencies
         run: npm ci
@@ -122,35 +155,35 @@ jobs:
 
       - name: Run external zephyr workspace integration tests
         run: |
-          xvfb-run -a node scripts/run-integration-tests.js external-zephyr
+          ${{ matrix.xvfb }}node scripts/run-integration-tests.js external-zephyr
         env:
           NODE_ENV: test
-          ZEPHYR_BASE: /tmp/zephyr
+          ZEPHYR_BASE: ${{ matrix.zephyr_base }}
 
       - name: Run standard workflow integration tests
         run: |
-          xvfb-run -a node scripts/run-integration-tests.js standard
+          ${{ matrix.xvfb }}node scripts/run-integration-tests.js standard
         env:
           NODE_ENV: test
-          ZEPHYR_BASE: /tmp/zephyr
+          ZEPHYR_BASE: ${{ matrix.zephyr_base }}
 
       - name: Run west git workflow integration tests
         run: |
-          xvfb-run -a node scripts/run-integration-tests.js west-git
+          ${{ matrix.xvfb }}node scripts/run-integration-tests.js west-git
         env:
           NODE_ENV: test
-          ZEPHYR_BASE: /tmp/zephyr
+          ZEPHYR_BASE: ${{ matrix.zephyr_base }}
 
       - name: Run zephyr ide git workspace integration tests
         run: |
-          xvfb-run -a node scripts/run-integration-tests.js zephyr-ide-git
+          ${{ matrix.xvfb }}node scripts/run-integration-tests.js zephyr-ide-git
         env:
           NODE_ENV: test
-          ZEPHYR_BASE: /tmp/zephyr
+          ZEPHYR_BASE: ${{ matrix.zephyr_base }}
 
       - name: Run local west workspace integration tests
         run: |
-          xvfb-run -a node scripts/run-integration-tests.js local-west
+          ${{ matrix.xvfb }}node scripts/run-integration-tests.js local-west
         env:
           NODE_ENV: test
-          ZEPHYR_BASE: /tmp/zephyr
+          ZEPHYR_BASE: ${{ matrix.zephyr_base }}

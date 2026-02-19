@@ -1,0 +1,196 @@
+# Shared Platform Test Workflow (Reusable)
+#
+# This reusable workflow contains the shared logic for building VSIX and running
+# the platform integration test on one or more platforms.
+#
+# Callers only need to pass a comma-separated list of platforms to test.
+# All platform-specific details (runner OS, xvfb prefix, zephyr base path,
+# system dependencies) are hardcoded here.
+#
+# Called by:
+#   - basic-tests.yml (Ubuntu-only, fast CI for every PR)
+#   - multiplatform-tests.yml (Ubuntu + Windows + macOS for releases)
+
+name: _Shared Platform Test
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: "Git ref to checkout (branch, tag, or SHA)"
+        required: false
+        type: string
+        default: ""
+      platforms:
+        description: "Comma-separated list of platforms to test (ubuntu, windows, macos)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  # Stage 1: Build platform matrix from the comma-separated platforms input
+  build-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Build platform matrix
+        id: set-matrix
+        run: |
+          PLATFORMS="${{ inputs.platforms }}"
+          MATRIX='{"include":['
+          FIRST=true
+
+          for PLATFORM in $(echo "$PLATFORMS" | tr ',' ' '); do
+            PLATFORM=$(echo "$PLATFORM" | xargs)  # trim whitespace
+            case "$PLATFORM" in
+              ubuntu)
+                ENTRY='{"platform":"ubuntu","os":"ubuntu-latest","xvfb":"xvfb-run -a ","zephyr_base":"/tmp/zephyr"}'
+                ;;
+              windows)
+                ENTRY='{"platform":"windows","os":"windows-latest","xvfb":"","zephyr_base":"D:\\zephyr"}'
+                ;;
+              macos)
+                ENTRY='{"platform":"macos","os":"macos-15","xvfb":"","zephyr_base":"/tmp/zephyr"}'
+                ;;
+              *)
+                echo "Unknown platform: $PLATFORM"
+                exit 1
+                ;;
+            esac
+
+            if [ "$FIRST" = true ]; then
+              FIRST=false
+            else
+              MATRIX="$MATRIX,"
+            fi
+            MATRIX="$MATRIX$ENTRY"
+          done
+
+          MATRIX="$MATRIX]}"
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+          echo "Generated matrix: $MATRIX"
+
+  # Stage 2: Build VSIX on Ubuntu
+  build-vsix:
+    runs-on: ubuntu-latest
+    outputs:
+      vsix_name: ${{ steps.package.outputs.vsix_name }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Extension
+        run: npm run vscode:prepublish
+
+      - name: Get version info
+        id: version_info
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          COMMIT_HASH=$(git rev-parse --short=6 HEAD)
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "commit_hash=${COMMIT_HASH}" >> "$GITHUB_OUTPUT"
+
+      - name: Package Extension
+        id: package
+        run: |
+          VSIX_NAME="zephyr-ide-${{ steps.version_info.outputs.version }}-${{ steps.version_info.outputs.commit_hash }}.vsix"
+          npx vsce package --out "$VSIX_NAME"
+          echo "vsix_name=${VSIX_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload VSIX Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vsix-package
+          path: "*.vsix"
+          retention-days: 7
+
+  # Stage 3: Platform Integration Tests
+  test-platforms:
+    needs: [build-matrix, build-vsix]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.build-matrix.outputs.matrix) }}
+
+    runs-on: ${{ matrix.os }}
+    name: test-${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      # Windows runners: move TEMP/TMP to the D: drive which has significantly
+      # more free space than C:.  SDK downloads, 7z extraction, venv creation,
+      # and other temp-heavy operations will use this path automatically.
+      - name: Set TEMP to D drive
+        if: runner.os == 'Windows'
+        run: |
+          New-Item -ItemType Directory -Force -Path 'D:\Temp'
+          echo 'TEMP=D:\Temp' >> $env:GITHUB_ENV
+          echo 'TMP=D:\Temp' >> $env:GITHUB_ENV
+        shell: pwsh
+
+      # 7-Zip is pre-installed on GitHub Windows runners but its directory
+      # is not always on PATH.  Adding it here via GITHUB_PATH ensures it
+      # is available when the VS Code extension host process spawns, so
+      # west/sdk operations that shell out to 7z work immediately.
+      - name: Add 7-Zip to PATH
+        if: runner.os == 'Windows'
+        run: echo "C:\Program Files\7-Zip" >> $env:GITHUB_PATH
+        shell: pwsh
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+
+      - name: Download VSIX
+        uses: actions/download-artifact@v4.1.3
+        with:
+          name: vsix-package
+          path: ./vsix
+
+      # Ubuntu runners need additional packages for VS Code's Electron shell
+      # to launch headlessly (display server, GTK, GPU buffers, NSS, ALSA).
+      - name: Install VS Code runtime dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libgtk-3-0 libgbm1 libnss3 libasound2t64
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Compile TypeScript
+        run: npm run test-compile
+
+      - name: Bundle Extension (dist)
+        run: npm run esbuild
+
+      # Single test run that installs host tools + runs workspace setup sequentially
+      # in the same process. This solves the Windows PATH propagation issue by
+      # running everything in a single VS Code instance where PATH refresh is
+      # effective. xvfb-run wraps the command on Linux to provide a virtual display.
+      - name: Run Platform Integration Test
+        run: |
+          ${{ matrix.xvfb }}node scripts/run-integration-tests.js combined
+        env:
+          NODE_ENV: test
+          ZEPHYR_BASE: ${{ matrix.zephyr_base }}
+          VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
+        timeout-minutes: 30

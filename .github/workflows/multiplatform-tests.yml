@@ -1,0 +1,40 @@
+# Multi-Platform Tests Pipeline
+#
+# Runs the platform integration test on Ubuntu, Windows, and macOS.
+# This is the heavier CI that validates cross-platform compatibility before releases.
+#
+# For fast Ubuntu-only testing, see basic-tests.yml.
+# For all workspace setup types, see workspace-setup-tests.yml.
+#
+# Trigger behavior:
+# - Push to main/pre-release (releases): All platforms
+# - PRs to main/pre-release: All platforms
+# - PRs with 'test-all-platforms' label: All platforms
+# - Manual dispatch: All platforms
+
+name: Multi-Platform Tests
+
+on:
+  push:
+    branches: [main, pre-release]
+  pull_request:
+    branches: [main, pre-release]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to run tests on"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  # Skip duplicate runs: if basic-tests.yml already covers this PR on Ubuntu,
+  # this workflow adds Windows and macOS. For pushes it runs all three.
+  multiplatform-test:
+    uses: ./.github/workflows/_shared-platform-test.yml
+    with:
+      ref: ${{ inputs.branch || '' }}
+      platforms: ubuntu,windows,macos
