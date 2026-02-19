@@ -245,10 +245,12 @@ vsce package
 
 ## CI/CD Integration
 
-The `.github/workflows/integration-tests.yml` runs on:
+The CI workflows are:
 
-- Push to main, pre-release, develop branches
-- Pull requests to those branches
+- `.github/workflows/basic-tests.yml` — Ubuntu-only platform integration test, runs on every PR
+- `.github/workflows/multiplatform-tests.yml` — Ubuntu + Windows + macOS, runs on PRs/pushes to main/pre-release
+- `.github/workflows/workspace-setup-tests.yml` — All 5 workspace setup types on Ubuntu, runs on version bumps and release PRs
+- `.github/workflows/_shared-platform-test.yml` — Reusable workflow called by basic-tests and multiplatform-tests
 
 **CI Requirements:**
 

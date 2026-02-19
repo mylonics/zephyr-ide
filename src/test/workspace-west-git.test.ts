@@ -90,7 +90,7 @@ suite("West Git Workspace Test Suite", () => {
                 gitUiMock.activate();
 
                 console.log("🏗️ Step 1: Setting up workspace from West Git...");
-                const setupPromise = await startWorkspaceCommand(
+                const setupPromise = startWorkspaceCommand(
                     gitUiMock,
                     [
                         { type: 'input', value: 'https://github.com/mylonics/zephyr-ide-samples', description: 'Enter git repo URL' },

@@ -128,7 +128,7 @@ suite("Standard Workspace Test Suite", () => {
                 }
 
                 console.log("🏗️ Step 2: Setting up workspace...");
-                const setupPromise = await startWorkspaceCommand(
+                const setupPromise = startWorkspaceCommand(
                     uiMock,
                     CommonUIInteractions.standardWorkspace,
                     "zephyr-ide.workspace-setup-standard",

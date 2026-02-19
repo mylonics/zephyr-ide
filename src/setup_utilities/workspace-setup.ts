@@ -311,7 +311,7 @@ async function handleExternalInstallation(
       notifyError("External Installation", "External installation configuration cancelled or failed.");
       return false;
     }
-    await postWorkspaceSetup(context, wsConfig, globalConfig, externalPath, extWestSelection);
+    return !!(await postWorkspaceSetup(context, wsConfig, globalConfig, externalPath, extWestSelection));
   } else {
     vscode.window.showInformationMessage(`Workspace linked to external Zephyr installation at: ${externalPath}`);
     vscode.commands.executeCommand('zephyr-ide.update-web-view');
@@ -629,8 +629,8 @@ export async function showWorkspaceSetupPicker(context: vscode.ExtensionContext,
  */
 export async function showCreateWorkspaceMenu(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
   const currentFolder = wsConfig.rootPath;
-  const isCurrentFolderRegistered = currentFolder && 
-    globalConfig.setupStateDictionary && 
+  const isCurrentFolderRegistered = currentFolder &&
+    globalConfig.setupStateDictionary &&
     globalConfig.setupStateDictionary[currentFolder];
 
   showOutput();
@@ -651,7 +651,7 @@ export async function showCreateWorkspaceMenu(context: vscode.ExtensionContext, 
       }
       chosenPath = folderUris[0].fsPath;
       needsSetup = true;
-    } 
+    }
     // Case 2: Current workspace is not registered - ask user
     else if (currentFolder) {
       const menuOptions: vscode.QuickPickItem[] = [
@@ -667,9 +667,9 @@ export async function showCreateWorkspaceMenu(context: vscode.ExtensionContext, 
         }
       ];
 
-      const selected = await vscode.window.showQuickPick(menuOptions, { 
-        placeHolder: "Create Zephyr workspace", 
-        ignoreFocusOut: true 
+      const selected = await vscode.window.showQuickPick(menuOptions, {
+        placeHolder: "Create Zephyr workspace",
+        ignoreFocusOut: true
       });
 
       if (!selected || !selected.detail) {
@@ -693,7 +693,7 @@ export async function showCreateWorkspaceMenu(context: vscode.ExtensionContext, 
         chosenPath = folderUris[0].fsPath;
         needsSetup = true;
       }
-    } 
+    }
     // Case 3: No workspace folder open - just open folder selector
     else {
       const folderUris = await vscode.window.showOpenDialog({
@@ -1017,7 +1017,7 @@ export async function selectExistingWestWorkspace(
   vscode.window.showInformationMessage(
     `Workspace linked to existing Zephyr installation at: ${installPath}`
   );
-  
+
   outputInfo("Workspace Link", `Linked to existing installation: ${installPath}`);
   return true;
 }

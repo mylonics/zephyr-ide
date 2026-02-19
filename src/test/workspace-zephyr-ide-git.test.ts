@@ -85,7 +85,7 @@ suite("Workspace Zephyr IDE Git Test Suite", () => {
                 gitUiMock.activate();
 
                 console.log("🏗️ Step 1: Setting up workspace from Zephyr IDE Git...");
-                const setupPromise = await startWorkspaceCommand(
+                const setupPromise = startWorkspaceCommand(
                     gitUiMock,
                     [
                         { type: 'input', value: '--branch main -- https://github.com/mylonics/zephyr-ide-samples.git', description: 'Enter Zephyr IDE git repo URL' },

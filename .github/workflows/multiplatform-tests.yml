@@ -1,0 +1,86 @@
+# Multi-Platform Tests Pipeline
+#
+# Runs the platform integration test on Ubuntu, Windows, and macOS.
+# This is the heavier CI that validates cross-platform compatibility before releases.
+#
+# For fast Ubuntu-only testing, see basic-tests.yml.
+# For all workspace setup types, see workspace-setup-tests.yml.
+#
+# Trigger behavior:
+# - Push to main/pre-release (releases): All platforms
+# - PRs to main/pre-release: All platforms
+# - PRs with 'test-all-platforms' label: All platforms
+# - Manual dispatch: All platforms
+
+name: Multi-Platform Tests
+
+on:
+  push:
+    branches: [main, pre-release]
+  pull_request:
+    branches: [main, pre-release, develop]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to run tests on"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  check-should-run:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+    steps:
+      - name: Check if should run
+        id: check
+        run: |
+          # Always run for manual triggers
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Manual trigger - running tests"
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # For push events: always run
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "Push to ${{ github.ref_name }} - running tests"
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # For PRs: run if targeting main/pre-release, or has test-all-platforms label
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_REF="${{ github.event.pull_request.base.ref }}"
+            HAS_LABEL="${{ contains(github.event.pull_request.labels.*.name, 'test-all-platforms') }}"
+
+            if [ "$BASE_REF" = "main" ] || [ "$BASE_REF" = "pre-release" ]; then
+              echo "PR targets $BASE_REF - running tests"
+              echo "should_run=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            elif [ "$HAS_LABEL" = "true" ]; then
+              echo "test-all-platforms label detected - running tests"
+              echo "should_run=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            else
+              echo "PR targets $BASE_REF without test-all-platforms label - skipping"
+              echo "should_run=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
+          echo "should_run=false" >> "$GITHUB_OUTPUT"
+
+  # Skip duplicate runs: if basic-tests.yml already covers this PR on Ubuntu,
+  # this workflow adds Windows and macOS. For pushes it runs all three.
+  multiplatform-test:
+    needs: check-should-run
+    if: needs.check-should-run.outputs.should_run == 'true'
+    uses: ./.github/workflows/_shared-platform-test.yml
+    with:
+      ref: ${{ inputs.branch || '' }}
+      platforms: ubuntu,windows,macos

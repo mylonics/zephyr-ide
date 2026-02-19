@@ -23,7 +23,11 @@ The testing infrastructure consists of:
 - **External Zephyr Workspace Tests**: `src/test/workspace-external-zephyr.test.ts` - Out-of-tree workspace setup with existing Zephyr installation
 - **UI Mock Interface**: `src/test/ui-mock-interface.ts` - Clean interface for mocking VS Code UI interactions
 - **Test Runner**: `src/test/test-runner.ts` - Test utilities, workspace monitoring, and environment detection
-- **CI Configuration**: `.github/workflows/integration-tests.yml` - Automated testing with separate job steps
+- **CI Configuration**:
+  - `.github/workflows/basic-tests.yml` - Ubuntu-only platform integration test (fast CI for every PR)
+  - `.github/workflows/multiplatform-tests.yml` - Ubuntu + Windows + macOS platform integration test (releases)
+  - `.github/workflows/workspace-setup-tests.yml` - All 5 workspace setup types on Ubuntu
+  - `.github/workflows/_shared-platform-test.yml` - Shared reusable workflow for basic/multiplatform tests
 
 ## Test Workflows
 
