@@ -86,7 +86,7 @@ suite("Workspace External Zephyr Test Suite", () => {
                 uiMock.activate();
 
                 console.log("🏗️ Step 1: Setting up workspace from git without west folder...");
-                const setupPromise = await startWorkspaceCommand(
+                const setupPromise = startWorkspaceCommand(
                     uiMock,
                     [
                         { type: 'input', value: '--branch no_west -- https://github.com/mylonics/zephyr-ide-samples.git', description: 'Enter git clone string for no_west branch' },

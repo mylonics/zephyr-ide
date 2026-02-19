@@ -280,8 +280,13 @@ export async function executeTestWithErrorHandling(
 
 /**
  * Start a workspace setup command without awaiting it.
- * Returns the command promise so it can be passed to monitorWorkspaceSetup
- * for concurrent progress monitoring and early failure detection.
+ * Returns a promise that resolves once the command completes.
+ * 
+ * IMPORTANT: Do NOT `await` this function when passing the result to
+ * monitorWorkspaceSetup. JavaScript promise assimilation unwraps the inner
+ * Thenable, leaving the resolved value (not a Thenable) which breaks
+ * monitorWorkspaceSetup's `.then()` call. Pass the un-awaited Promise instead.
+ * 
  * @param uiMock UI mock interface
  * @param interactions Array of UI interactions to prime
  * @param commandId VS Code command ID to execute
