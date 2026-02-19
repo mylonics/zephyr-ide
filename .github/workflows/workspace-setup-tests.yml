@@ -154,6 +154,8 @@ jobs:
         run: npm run lint
 
       - name: Run external zephyr workspace integration tests
+        id: test_external
+        continue-on-error: true
         run: |
           ${{ matrix.xvfb }}node scripts/run-integration-tests.js external-zephyr
         env:
@@ -161,6 +163,8 @@ jobs:
           ZEPHYR_BASE: ${{ matrix.zephyr_base }}
 
       - name: Run standard workflow integration tests
+        id: test_standard
+        continue-on-error: true
         run: |
           ${{ matrix.xvfb }}node scripts/run-integration-tests.js standard
         env:
@@ -168,6 +172,8 @@ jobs:
           ZEPHYR_BASE: ${{ matrix.zephyr_base }}
 
       - name: Run west git workflow integration tests
+        id: test_west_git
+        continue-on-error: true
         run: |
           ${{ matrix.xvfb }}node scripts/run-integration-tests.js west-git
         env:
@@ -175,6 +181,8 @@ jobs:
           ZEPHYR_BASE: ${{ matrix.zephyr_base }}
 
       - name: Run zephyr ide git workspace integration tests
+        id: test_zephyr_ide_git
+        continue-on-error: true
         run: |
           ${{ matrix.xvfb }}node scripts/run-integration-tests.js zephyr-ide-git
         env:
@@ -182,8 +190,29 @@ jobs:
           ZEPHYR_BASE: ${{ matrix.zephyr_base }}
 
       - name: Run local west workspace integration tests
+        id: test_local_west
+        continue-on-error: true
         run: |
           ${{ matrix.xvfb }}node scripts/run-integration-tests.js local-west
         env:
           NODE_ENV: test
           ZEPHYR_BASE: ${{ matrix.zephyr_base }}
+
+      - name: Check test results
+        if: always()
+        run: |
+          echo "external-zephyr: ${{ steps.test_external.outcome }}"
+          echo "standard:        ${{ steps.test_standard.outcome }}"
+          echo "west-git:        ${{ steps.test_west_git.outcome }}"
+          echo "zephyr-ide-git:  ${{ steps.test_zephyr_ide_git.outcome }}"
+          echo "local-west:      ${{ steps.test_local_west.outcome }}"
+
+          if [ "${{ steps.test_external.outcome }}"      != "success" ] || \
+             [ "${{ steps.test_standard.outcome }}"      != "success" ] || \
+             [ "${{ steps.test_west_git.outcome }}"      != "success" ] || \
+             [ "${{ steps.test_zephyr_ide_git.outcome }}" != "success" ] || \
+             [ "${{ steps.test_local_west.outcome }}"    != "success" ]; then
+            echo "One or more tests failed."
+            exit 1
+          fi
+          echo "All tests passed."
