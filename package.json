@@ -490,6 +490,66 @@
       {
         "command": "zephyr-ide.select-existing-west-workspace",
         "title": "Zephyr IDE: Select Existing West Workspace"
+      },
+      {
+        "command": "zephyr-ide.get-active-project-name",
+        "title": "Zephyr IDE: Get Active Project Name"
+      },
+      {
+        "command": "zephyr-ide.get-active-project-path",
+        "title": "Zephyr IDE: Get Active Project Path"
+      },
+      {
+        "command": "zephyr-ide.get-active-build-path",
+        "title": "Zephyr IDE: Get Active Build Path"
+      },
+      {
+        "command": "zephyr-ide.get-active-build-board-path",
+        "title": "Zephyr IDE: Get Active Build Board Path"
+      },
+      {
+        "command": "zephyr-ide.get-active-board-name",
+        "title": "Zephyr IDE: Get Active Board Name"
+      },
+      {
+        "command": "zephyr-ide.select-active-build-path",
+        "title": "Zephyr IDE: Select Active Build Path"
+      },
+      {
+        "command": "zephyr-ide.get-arm-gdb-path",
+        "title": "Zephyr IDE: Get ARM GDB Path"
+      },
+      {
+        "command": "zephyr-ide.get-gdb-path",
+        "title": "Zephyr IDE: Get GDB Path"
+      },
+      {
+        "command": "zephyr-ide.get-zephyr-dir",
+        "title": "Zephyr IDE: Get Zephyr Directory"
+      },
+      {
+        "command": "zephyr-ide.get-zephyr-elf",
+        "title": "Zephyr IDE: Get Zephyr ELF Path"
+      },
+      {
+        "command": "zephyr-ide.get-zephyr-elf-dir",
+        "title": "Zephyr IDE: Get Zephyr ELF Directory"
+      },
+      {
+        "command": "zephyr-ide.get-toolchain-path",
+        "title": "Zephyr IDE: Get Toolchain Path"
+      },
+      {
+        "command": "zephyr-ide.get-zephyr-ide-json-variable",
+        "title": "Zephyr IDE: Get Zephyr IDE JSON Variable"
+      },
+      {
+        "command": "zephyr-ide.get-active-project-variable",
+        "title": "Zephyr IDE: Get Active Project Variable"
+      },
+      {
+        "command": "zephyr-ide.get-active-build-variable",
+        "title": "Zephyr IDE: Get Active Build Variable"
       }
     ],
     "terminal": {

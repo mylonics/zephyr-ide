@@ -19,8 +19,9 @@ import * as vscode from "vscode";
 import * as os from "os";
 import * as fs from "fs-extra";
 import * as path from "upath";
+import * as yaml from 'js-yaml';
 import { getPlatformName } from "../utilities/utils";
-import { outputWarning } from "../utilities/output";
+import { outputInfo, outputWarning } from "../utilities/output";
 import { WorkspaceConfig, SetupState } from "./types";
 
 function projectLoader(config: WorkspaceConfig, projects: any) {
@@ -91,7 +92,7 @@ export async function loadProjectsFromFile(config: WorkspaceConfig) {
     if (!fs.pathExistsSync(zephyrIdeSettingFilePath)) {
       await fs.outputFile(zephyrIdeSettingFilePath, JSON.stringify({}, null, 2), { flag: 'w+' }, function (err: any) {
         if (err) { throw err; }
-        console.log('Created zephyr-ide file');
+        outputInfo('Workspace Config', 'Created zephyr-ide file');
       }
       );
     } else {
@@ -232,12 +233,43 @@ interface CMakeCacheInfo {
 /**
  * Read build information from CMakeCache.txt in a single pass.
  * Extracts CMAKE_GDB and BYPRODUCT_KERNEL_ELF_NAME.
+ * For sysbuild projects, reads domains.yaml first to find the default domain's
+ * build directory and uses that domain's CMakeCache.txt instead.
  * @param buildDir The build directory path
  * @returns An object containing the parsed GDB path and ELF name
  */
 function readCMakeCacheInfo(buildDir: string): CMakeCacheInfo {
-  const cmakeCachePath = path.join(buildDir, "CMakeCache.txt");
   const info: CMakeCacheInfo = {};
+
+  // Check for sysbuild: if domains.yaml exists, use the default domain's CMakeCache.txt
+  let cmakeCachePath: string;
+  const domainsYamlPath = path.join(buildDir, "domains.yaml");
+  if (fs.pathExistsSync(domainsYamlPath)) {
+    outputInfo("CMakeCache", `Found domains.yaml at "${domainsYamlPath}" — sysbuild detected.`);
+    try {
+      const domainsDoc: any = yaml.load(fs.readFileSync(domainsYamlPath, 'utf-8'));
+      const defaultName = domainsDoc?.default;
+      const domains: any[] = domainsDoc?.domains;
+      if (defaultName && Array.isArray(domains)) {
+        const defaultDomain = domains.find((d: any) => d.name === defaultName);
+        if (defaultDomain?.build_dir) {
+          cmakeCachePath = path.join(defaultDomain.build_dir, "CMakeCache.txt");
+          outputInfo("CMakeCache", `Using domain "${defaultName}" CMakeCache at "${cmakeCachePath}".`);
+        } else {
+          outputWarning("CMakeCache", `Default domain "${defaultName}" has no build_dir in domains.yaml.`);
+          return info;
+        }
+      } else {
+        outputWarning("CMakeCache", `domains.yaml missing "default" or "domains" fields.`);
+        return info;
+      }
+    } catch (domainError) {
+      outputWarning("CMakeCache", `Error reading domains.yaml: ${domainError}`);
+      return info;
+    }
+  } else {
+    cmakeCachePath = path.join(buildDir, "CMakeCache.txt");
+  }
 
   if (!fs.pathExistsSync(cmakeCachePath)) {
     outputWarning("CMakeCache", `CMakeCache.txt not found at "${cmakeCachePath}". The project may not have been built yet.`);
@@ -247,20 +279,23 @@ function readCMakeCacheInfo(buildDir: string): CMakeCacheInfo {
   try {
     const cacheContent = fs.readFileSync(cmakeCachePath, 'utf-8');
 
-    const gdbMatch = cacheContent.match(/^CMAKE_GDB:(?:FILEPATH|INTERNAL)=(.+)$/m);
+    const gdbMatch = cacheContent.match(/^CMAKE_GDB:\w+=(.+)$/m);
     if (gdbMatch && gdbMatch[1]) {
-      const gdbPath = gdbMatch[1].trim();
-      console.log(`Zephyr IDE: Found GDB path from CMakeCache.txt: "${gdbPath}"`);
-      info.gdbPath = gdbPath;
+      info.gdbPath = gdbMatch[1].trim();
+      outputInfo("CMakeCache", `Found GDB path: "${info.gdbPath}"`);
+    } else {
+      outputInfo("CMakeCache", `CMAKE_GDB not found in "${cmakeCachePath}".`);
     }
 
-    const elfMatch = cacheContent.match(/^BYPRODUCT_KERNEL_ELF_NAME:(?:STRING|INTERNAL)=(.+)$/m);
+    const elfMatch = cacheContent.match(/^BYPRODUCT_KERNEL_ELF_NAME:\w+=(.+)$/m);
     if (elfMatch && elfMatch[1]) {
       info.elfName = elfMatch[1].trim();
-      console.log(`Zephyr IDE: Found kernel ELF name from CMakeCache.txt: "${info.elfName}"`);
+      outputInfo("CMakeCache", `Found kernel ELF name: "${info.elfName}"`);
+    } else {
+      outputWarning("CMakeCache", `BYPRODUCT_KERNEL_ELF_NAME not found in "${cmakeCachePath}".`);
     }
   } catch (error) {
-    console.log(`Zephyr IDE: Error reading CMakeCache.txt: ${error}`);
+    outputWarning("CMakeCache", `Error reading CMakeCache.txt: ${error}`);
   }
 
   return info;
@@ -293,11 +328,11 @@ export function updateBuildCMakeInfo(wsConfig: WorkspaceConfig, projectName: str
 
   if (info.gdbPath) {
     buildState.gdbPath = info.gdbPath;
-    console.log(`Zephyr IDE: Updated cached GDB path for ${buildName}: "${info.gdbPath}"`);
+    outputInfo("CMakeCache", `Updated cached GDB path for ${buildName}: "${info.gdbPath}"`);
   }
   if (info.elfName) {
     buildState.elfName = info.elfName;
-    console.log(`Zephyr IDE: Updated cached ELF name for ${buildName}: "${info.elfName}"`);
+    outputInfo("CMakeCache", `Updated cached ELF name for ${buildName}: "${info.elfName}"`);
   }
 }
 
@@ -312,7 +347,44 @@ export function clearBuildCMakeInfo(wsConfig: WorkspaceConfig, projectName: stri
   if (buildState) {
     buildState.gdbPath = undefined;
     buildState.elfName = undefined;
-    console.log(`Zephyr IDE: Cleared cached CMake info for ${buildName}`);
+    outputInfo("CMakeCache", `Cleared cached CMake info for ${buildName}`);
+  }
+}
+
+/**
+ * Ensure cached CMake info (GDB path and ELF name) is populated for the given build.
+ * Only reads CMakeCache.txt if either value is missing from the build state.
+ * This avoids redundant file reads when both getZephyrElfPath and getGdbPath are called.
+ */
+function ensureBuildCMakeInfoCached(wsConfig: WorkspaceConfig, projectName: string, buildName: string): void {
+  const project = wsConfig.projects[projectName];
+  if (!project) {
+    return;
+  }
+
+  const build = project.buildConfigs[buildName];
+  if (!build) {
+    return;
+  }
+
+  const buildState = wsConfig.projectStates[projectName]?.buildStates[buildName];
+  if (!buildState) {
+    return;
+  }
+
+  // Only read from disk if either value is missing
+  if (buildState.gdbPath && buildState.elfName) {
+    return;
+  }
+
+  const buildDir = path.join(wsConfig.rootPath, project.rel_path, build.name);
+  const info = readCMakeCacheInfo(buildDir);
+
+  if (info.gdbPath && !buildState.gdbPath) {
+    buildState.gdbPath = info.gdbPath;
+  }
+  if (info.elfName && !buildState.elfName) {
+    buildState.elfName = info.elfName;
   }
 }
 
@@ -343,22 +415,14 @@ export function getZephyrElfPath(wsConfig: WorkspaceConfig): string | undefined 
     return undefined;
   }
 
+  ensureBuildCMakeInfoCached(wsConfig, wsConfig.activeProject, activeBuildName);
+
   const buildState = wsConfig.projectStates[wsConfig.activeProject]?.buildStates[activeBuildName];
-  let elfName = buildState?.elfName;
+  let elfName = buildState?.elfName ?? "zephyr.elf";
 
-  // If not cached, try to read from CMakeCache
-  if (!elfName) {
-    const buildDir = path.join(wsConfig.rootPath, project.rel_path, build.name);
-    const info = readCMakeCacheInfo(buildDir);
-    if (info.elfName && buildState) {
-      buildState.elfName = info.elfName;
-    }
-    elfName = info.elfName;
-  }
-
-  // Default to zephyr.elf
-  if (!elfName) {
-    elfName = "zephyr.elf";
+  // For sysbuild, elfName may be an absolute path; use it directly
+  if (path.isAbsolute(elfName)) {
+    return elfName;
   }
 
   return path.join(wsConfig.rootPath, project.rel_path, activeBuildName, "zephyr", elfName);
@@ -409,28 +473,10 @@ export function getGdbPath(wsConfig: WorkspaceConfig): string | undefined {
     return undefined;
   }
 
-  const build = project.buildConfigs[activeBuildName];
-  if (!build) {
-    return undefined;
-  }
+  ensureBuildCMakeInfoCached(wsConfig, wsConfig.activeProject, activeBuildName);
 
   const buildState = wsConfig.projectStates[wsConfig.activeProject]?.buildStates[activeBuildName];
-
-  // Use cached GDB path if available
-  if (buildState?.gdbPath) {
-    return buildState.gdbPath;
-  }
-
-  // Otherwise read from CMakeCache.txt
-  const buildDir = path.join(wsConfig.rootPath, project.rel_path, build.name);
-  const { gdbPath } = readCMakeCacheInfo(buildDir);
-
-  // Cache the GDB path in BuildState if found
-  if (gdbPath && buildState) {
-    buildState.gdbPath = gdbPath;
-  }
-
-  return gdbPath;
+  return buildState?.gdbPath;
 }
 
 /**
