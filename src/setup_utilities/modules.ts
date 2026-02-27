@@ -183,7 +183,7 @@ export async function getDtsIncludes(setupState: SetupState) {
   for (const module of modules) {
     let yamlFile = await getModuleYamlFile(module[1]);
     if (yamlFile && yamlFile.build && yamlFile.build.settings && yamlFile.build.settings.dts_root) {
-      dtsIncludeArray.push(path.join(setupState.setupPath, module[1], yamlFile.build.settings.dts_root, "dts"));
+      dtsIncludeArray.push(path.join(module[1], yamlFile.build.settings.dts_root, "dts"));
     }
   }
   return dtsIncludeArray;
@@ -227,7 +227,7 @@ export async function getModuleSampleFolders(setupState: SetupState) {
     let yamlFile = await getModuleYamlFile(module[1]);
     if (yamlFile && yamlFile.samples) {
       for (const samplePath of yamlFile.samples) {
-        let sampleFolder: [string, string] = [module[0], path.join(setupState.setupPath, module[1], samplePath)];
+        let sampleFolder: [string, string] = [module[0], path.join(module[1], samplePath)];
         samplefolders.push(sampleFolder);
       }
     }

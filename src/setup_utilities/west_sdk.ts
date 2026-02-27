@@ -424,16 +424,21 @@ export async function installSDK(
         outputInfo("SDK Install", `  cwd: ${setupState.setupPath}`);
         outputInfo("SDK Install", `  toolchains dir: ${toolchainsDir}`);
 
-        // On Windows CI, use shell command execution since VS Code task
-        // infrastructure is not reliable in headless Windows CI environments
+        // In CI environments, use shell command execution since VS Code task
+        // infrastructure is not reliable in headless CI environments.
+        // The venv PATH must be explicitly set so that west and its extension
+        // dependencies (patoolib, semver, etc.) are found correctly.
         let success: boolean;
-        if (process.env.CI && process.platform === 'win32') {
+        if (process.env.CI) {
             const result = await executeShellCommandInPythonEnv(
                 command,
                 setupState.setupPath,
                 setupState
             );
             success = result.stdout !== undefined;
+            if (!success && result.stderr) {
+                outputError("SDK Install", `Command stderr: ${result.stderr}`);
+            }
         } else {
             success = await executeTaskHelperInPythonEnv(
                 setupState,
