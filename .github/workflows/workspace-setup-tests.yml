@@ -9,9 +9,8 @@
 #   - Local West:     Git repo with west.yml → detect local west → build
 #
 # Trigger behavior:
-# - PRs to main/pre-release: Always runs
-# - PRs to develop with 'test-all-workspaces' label: Runs
-# - Push to develop when package.json version is bumped: Runs
+# - PRs to develop from bump-version branches: Always runs
+# - PRs to develop with 'full_test' label: Runs
 # - Manual dispatch: Always runs
 #
 # For fast single-workspace CI, see basic-tests.yml.
@@ -21,11 +20,7 @@ name: Workspace Setup Tests
 
 on:
   pull_request:
-    branches: [main, pre-release, develop]
-  push:
     branches: [develop]
-    paths:
-      - "package.json"
   workflow_dispatch:
     inputs:
       branch:
@@ -44,11 +39,6 @@ jobs:
     outputs:
       should_run: ${{ steps.check.outputs.should_run }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.branch || github.ref }}
-          fetch-depth: 2
-
       - name: Check if should run
         id: check
         run: |
@@ -59,45 +49,27 @@ jobs:
             exit 0
           fi
 
-          # For PRs: run if targeting main/pre-release or has test-all-workspaces label
+          # For PRs: run if bump PR or has full_test label
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE_REF="${{ github.event.pull_request.base.ref }}"
-            HAS_LABEL="${{ contains(github.event.pull_request.labels.*.name, 'test-all-workspaces') }}"
+            HEAD_REF="${{ github.event.pull_request.head.ref }}"
+            HAS_LABEL="${{ contains(github.event.pull_request.labels.*.name, 'full_test') }}"
 
-            if [ "$BASE_REF" = "main" ] || [ "$BASE_REF" = "pre-release" ]; then
-              echo "PR targets $BASE_REF - running tests"
+            if echo "$HEAD_REF" | grep -q '^bump-version-'; then
+              echo "Bump version PR detected ($HEAD_REF) - running tests"
               echo "should_run=true" >> "$GITHUB_OUTPUT"
               exit 0
             elif [ "$HAS_LABEL" = "true" ]; then
-              echo "test-all-workspaces label detected - running tests"
+              echo "full_test label detected - running tests"
               echo "should_run=true" >> "$GITHUB_OUTPUT"
               exit 0
             else
-              echo "PR targets $BASE_REF without test-all-workspaces label - skipping"
+              echo "PR ($HEAD_REF) without full_test label - skipping"
               echo "should_run=false" >> "$GITHUB_OUTPUT"
               exit 0
             fi
           fi
 
-          # For push events: only run if version was bumped
-          CURRENT_VERSION=$(node -p "require('./package.json').version")
-
-          if git rev-parse HEAD~1 >/dev/null 2>&1; then
-            PREVIOUS_VERSION=$(git show HEAD~1:package.json 2>/dev/null | node -p "JSON.parse(require('fs').readFileSync('/dev/stdin', 'utf8')).version" 2>/dev/null || echo "0.0.0")
-          else
-            PREVIOUS_VERSION="0.0.0"
-          fi
-
-          echo "Current version: $CURRENT_VERSION"
-          echo "Previous version: $PREVIOUS_VERSION"
-
-          if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
-            echo "Version bump detected: $PREVIOUS_VERSION -> $CURRENT_VERSION"
-            echo "should_run=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "No version bump detected"
-            echo "should_run=false" >> "$GITHUB_OUTPUT"
-          fi
+          echo "should_run=false" >> "$GITHUB_OUTPUT"
 
   test-with-zephyr:
     needs: check-should-run

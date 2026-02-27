@@ -86,8 +86,8 @@ The release process has been consolidated into a streamlined workflow that requi
 
 ### Other Workflows
 
-- **`workspace-setup-tests.yml`** - Runs all 5 workspace setup type tests on Ubuntu
-  - **Trigger**: PRs to main/pre-release (always), PRs to develop (with `test-all-workspaces` label), push to develop (on version bump)
+- **`workspace-setup-tests.yml`** - Runs all 5 workspace setup type tests on Ubuntu and macOS
+  - **Trigger**: PRs to develop (bump PRs or `full_test` label)
   - **Manual Trigger**: Can be triggered manually with optional `branch` input
   - **Actions**: Runs all workspace setup test suites (standard, west-git, zephyr-ide-git, local-west, external-zephyr)
 
@@ -98,7 +98,7 @@ The release process has been consolidated into a streamlined workflow that requi
   - **Purpose**: Fast CI gate for every PR
 
 - **`multiplatform-tests.yml`** - Multi-platform integration test for releases
-  - **Trigger**: Pull requests to main/pre-release, pushes to main/pre-release
+  - **Trigger**: PRs to develop (bump PRs or `full_test` label)
   - **Manual Trigger**: Can be triggered manually with optional `branch` input
   - **Platforms**: Ubuntu, Windows, macOS 15 (all three)
   - **Actions**: Builds VSIX, runs platform integration test on all platforms
