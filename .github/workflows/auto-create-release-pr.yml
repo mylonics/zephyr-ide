@@ -1,20 +1,20 @@
-# This workflow creates release PRs either automatically or manually.
+# This workflow rebases develop into main or pre-release directly (no PR, no
+# squash, no merge commits).
 #
 # Automatic mode:
 # - Triggers when a PR is merged to develop and checks if the PR title
 #   contains [release] or [prerelease] tags (added by the bump-version.yml workflow).
-# - If found, creates a PR to the appropriate branch (main or pre-release) with
-#   auto-merge enabled (REBASE method).
+# - If found, rebases develop onto the appropriate branch (main or pre-release).
 #
 # Manual mode:
 # - Run this workflow manually from GitHub Actions
 # - Select release type (release or prerelease)
-# - Creates a PR from develop to the appropriate branch
+# - Rebases develop onto the appropriate branch
 #
 # This workflow works in conjunction with bump-version.yml to provide a streamlined
 # release process.
 
-name: Create Release PR
+name: "Auto: Merge to Release Branch"
 
 on:
   pull_request:
@@ -33,121 +33,59 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
 
 jobs:
-  create_release_pr:
+  merge_to_release:
     # For PR events: only run if the PR was actually merged (not just closed)
     # For workflow_dispatch: always run
     if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout develop branch
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: develop
+          fetch-depth: 0
+          token: ${{ secrets.PAT_GITHUB }}
 
-      - name: Determine release type and create PR
-        uses: actions/github-script@v6
-        with:
-          github-token: ${{ secrets.PAT_GITHUB || secrets.GITHUB_TOKEN }}
-          script: |
-            const { owner, repo } = context.repo;
-            let releaseType;
+      - name: Determine release type
+        id: release-type
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "type=${{ inputs.release_type }}" >> "$GITHUB_OUTPUT"
+            echo "Manual trigger with release type: ${{ inputs.release_type }}"
+          else
+            PR_TITLE="${{ github.event.pull_request.title }}"
+            echo "PR title: $PR_TITLE"
+            if echo "$PR_TITLE" | grep -q '\[release\]'; then
+              echo "type=release" >> "$GITHUB_OUTPUT"
+              echo "Detected release type: release"
+            elif echo "$PR_TITLE" | grep -q '\[prerelease\]'; then
+              echo "type=prerelease" >> "$GITHUB_OUTPUT"
+              echo "Detected release type: prerelease"
+            else
+              echo "type=none" >> "$GITHUB_OUTPUT"
+              echo "No release type found in PR title, skipping."
+            fi
+          fi
 
-            // Determine release type based on trigger
-            if (context.eventName === 'workflow_dispatch') {
-              // Manual trigger - use input
-              releaseType = '${{ inputs.release_type }}';
-              console.log(`Manual trigger with release type: ${releaseType}`);
-            } else {
-              // PR merge trigger - check PR title
-              const pr = context.payload.pull_request;
-              if (!pr) {
-                console.log('No PR found in payload');
-                return;
-              }
-              
-              console.log(`PR title: ${pr.title}`);
-              
-              // Check if this is a version bump PR with release type in the title
-              const releaseMatch = pr.title.match(/\[(release|prerelease)\]/);
-              if (!releaseMatch) {
-                console.log('No release type found in PR title');
-                return;
-              }
-              
-              releaseType = releaseMatch[1];
-              console.log(`Detected release type from PR: ${releaseType}`);
-            }
+      - name: Rebase develop into target branch
+        if: steps.release-type.outputs.type != 'none'
+        run: |
+          RELEASE_TYPE="${{ steps.release-type.outputs.type }}"
+          if [ "$RELEASE_TYPE" = "release" ]; then
+            TARGET_BRANCH="main"
+          else
+            TARGET_BRANCH="pre-release"
+          fi
 
-            // Get current version with error handling
-            const fs = require('fs');
-            let version;
-            try {
-              const packageContent = fs.readFileSync('./package.json', 'utf8');
-              const packageJson = JSON.parse(packageContent);
-              version = packageJson.version;
-            } catch (error) {
-              core.setFailed(`Failed to read package.json: ${error.message}`);
-              return;
-            }
-            console.log(`Current version: ${version}`);
+          VERSION=$(jq -r '.version' package.json)
+          echo "Rebasing develop into ${TARGET_BRANCH} (version ${VERSION})"
 
-            // Determine target branch
-            const targetBranch = releaseType === 'release' ? 'main' : 'pre-release';
-            const prTitle = releaseType === 'release' 
-              ? `Creating Release: ${version}`
-              : `Creating Pre-Release: ${version}`;
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
 
-            // Check if PR already exists
-            const existingPRs = await github.rest.pulls.list({
-              owner,
-              repo,
-              state: 'open',
-              head: `${owner}:develop`,
-              base: targetBranch
-            });
+          git checkout "${TARGET_BRANCH}"
+          git rebase origin/develop
+          git push --force-with-lease origin "${TARGET_BRANCH}"
 
-            if (existingPRs.data.length > 0) {
-              console.log(`PR to ${targetBranch} already exists: #${existingPRs.data[0].number}`);
-              return;
-            }
-
-            console.log(`Creating PR to ${targetBranch} for version ${version}`);
-
-            // Create the pull request
-            const pr = await github.rest.pulls.create({
-              owner,
-              repo,
-              title: prTitle,
-              head: 'develop',
-              base: targetBranch,
-              body: `Automated ${releaseType} PR for version ${version}`
-            });
-
-            console.log(`PR #${pr.data.number} created`);
-
-            // Enable auto-merge with REBASE method using GraphQL
-            try {
-              await github.graphql(`
-                mutation($pullRequestId: ID!, $mergeMethod: PullRequestMergeMethod!) {
-                  enablePullRequestAutoMerge(input: {
-                    pullRequestId: $pullRequestId,
-                    mergeMethod: $mergeMethod
-                  }) {
-                    pullRequest {
-                      id
-                    }
-                  }
-                }
-              `, {
-                pullRequestId: pr.data.node_id,
-                mergeMethod: 'REBASE'
-              });
-              
-              console.log(`Auto-merge enabled with REBASE method for PR #${pr.data.number}`);
-            } catch (error) {
-              console.error(`Failed to enable auto-merge: ${error.message}`);
-              core.warning(`Auto-merge could not be enabled. You may need to enable it manually or check repository settings.`);
-            }
+          echo "Successfully rebased develop into ${TARGET_BRANCH}"

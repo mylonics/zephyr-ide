@@ -7,18 +7,15 @@
 # For all workspace setup types, see workspace-setup-tests.yml.
 #
 # Trigger behavior:
-# - Push to main/pre-release (releases): All platforms
-# - PRs to main/pre-release: All platforms
-# - PRs with 'test-all-platforms' label: All platforms
+# - PRs to develop from bump-version branches: All platforms
+# - PRs with 'full_test' label: All platforms
 # - Manual dispatch: All platforms
 
 name: Multi-Platform Tests
 
 on:
-  push:
-    branches: [main, pre-release]
   pull_request:
-    branches: [main, pre-release, develop]
+    branches: [develop]
   workflow_dispatch:
     inputs:
       branch:
@@ -46,28 +43,21 @@ jobs:
             exit 0
           fi
 
-          # For push events: always run
-          if [ "${{ github.event_name }}" = "push" ]; then
-            echo "Push to ${{ github.ref_name }} - running tests"
-            echo "should_run=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # For PRs: run if targeting main/pre-release, or has test-all-platforms label
+          # For PRs: run if bump PR or has full_test label
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE_REF="${{ github.event.pull_request.base.ref }}"
-            HAS_LABEL="${{ contains(github.event.pull_request.labels.*.name, 'test-all-platforms') }}"
+            HEAD_REF="${{ github.event.pull_request.head.ref }}"
+            HAS_LABEL="${{ contains(github.event.pull_request.labels.*.name, 'full_test') }}"
 
-            if [ "$BASE_REF" = "main" ] || [ "$BASE_REF" = "pre-release" ]; then
-              echo "PR targets $BASE_REF - running tests"
+            if echo "$HEAD_REF" | grep -q '^bump-version-'; then
+              echo "Bump version PR detected ($HEAD_REF) - running tests"
               echo "should_run=true" >> "$GITHUB_OUTPUT"
               exit 0
             elif [ "$HAS_LABEL" = "true" ]; then
-              echo "test-all-platforms label detected - running tests"
+              echo "full_test label detected - running tests"
               echo "should_run=true" >> "$GITHUB_OUTPUT"
               exit 0
             else
-              echo "PR targets $BASE_REF without test-all-platforms label - skipping"
+              echo "PR ($HEAD_REF) without full_test label - skipping"
               echo "should_run=false" >> "$GITHUB_OUTPUT"
               exit 0
             fi
