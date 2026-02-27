@@ -1,8 +1,8 @@
 # This workflow automates the release process for a VS Code extension.
-# It runs on pushes to the 'develop' and 'main' branches.
-# The version number must be manually updated in the package.json file before pushing.
+# It runs on pushes to the 'pre-release' and 'main' branches.
+# The version number is managed by the bump-version.yml workflow.
 
-name: Release VS Code Extension
+name: "Auto: Release VS Code Extension"
 
 on:
   push:

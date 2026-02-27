@@ -1,19 +1,19 @@
-# This workflow handles version bumping and optionally triggers release PR creation.
+# This workflow handles version bumping and optionally triggers a release.
 #
 # How to use:
 # 1. Run this workflow manually from GitHub Actions
 # 2. Select version bump type (patch/minor/major)
 # 3. Select release type:
 #    - none: Only bump version (no release)
-#    - release: Bump version and auto-create PR to main branch
-#    - prerelease: Bump version and auto-create PR to pre-release branch
+#    - release: Bump version and auto-rebase develop onto main
+#    - prerelease: Bump version and auto-rebase develop onto pre-release
 #
 # What happens:
 # 1. Version is bumped in package.json
 # 2. PR is created to develop branch with auto-merge enabled (SQUASH)
 # 3. After PR merges, if release type is not 'none', auto-create-release-pr.yml
-#    workflow automatically creates a PR to main or pre-release branch
-# 4. When that PR merges, release.yml publishes the extension automatically
+#    workflow rebases develop directly onto main or pre-release (no PR)
+# 4. The push to main/pre-release triggers release.yml which publishes the extension
 
 name: Bump Version
 

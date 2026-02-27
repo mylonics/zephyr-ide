@@ -21,14 +21,16 @@ The release process has been consolidated into a streamlined workflow that requi
      - Tags the PR title with `[release]` or `[prerelease]` if specified
 
 2. **`auto-create-release-pr.yml`** - Automatic workflow triggered when version is bumped
-   - **Trigger**: Push to `develop` branch
+   - **Name**: `Auto: Merge to Release Branch`
+   - **Trigger**: PR merged to `develop` branch, or manual `workflow_dispatch`
    - **Actions**:
-     - Detects release type from commit message tag (`[release]` or `[prerelease]`)
-     - Creates a PR from `develop` to `main` (release) or `pre-release` (prerelease)
-     - Enables auto-merge with REBASE method
-     - Skips if PR already exists or no release tag is found
+     - Detects release type from PR title tag (`[release]` or `[prerelease]`)
+     - Directly rebases `develop` onto `main` (release) or `pre-release` (prerelease)
+     - No PRs, no squash, no merge commits — a straight rebase
+     - Skips if no release tag is found
 
 3. **`release.yml`** - Automatic workflow for publishing the extension
+   - **Name**: `Auto: Release VS Code Extension`
    - **Trigger**: Push to `main` or `pre-release` branches
    - **Actions**:
      - Builds the extension
@@ -62,14 +64,14 @@ The release process has been consolidated into a streamlined workflow that requi
                          ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │ 4. auto-create-release-pr.yml workflow triggers                 │
-│    - Detects [release] or [prerelease] tag in commit           │
-│    - Creates PR from develop to main/pre-release               │
-│    - Auto-merge enabled (REBASE)                               │
+│    - Detects [release] or [prerelease] tag in PR title         │
+│    - Rebases develop directly onto main/pre-release            │
+│    - No PRs, no squash, no merge commits                       │
 └────────────────────────┬────────────────────────────────────────┘
                          │
                          ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│ 5. PR auto-merges to main/pre-release (after CI passes)        │
+│ 5. Push to main/pre-release triggers release.yml               │
 └────────────────────────┬────────────────────────────────────────┘
                          │
                          ▼
@@ -142,4 +144,4 @@ To test workflow changes without affecting the main release process:
 1. Create a test repository with the same branch structure
 2. Copy the modified workflows to the test repository
 3. Test the complete flow from version bump to release
-4. Verify auto-merge behavior and PR creation logic
+4. Verify rebase and push behavior
