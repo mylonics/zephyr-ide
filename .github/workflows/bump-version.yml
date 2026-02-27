@@ -114,27 +114,4 @@ jobs:
                 : ''
             });
             core.setOutput('pr_number', pr.data.number);
-
-            // Enable auto-merge with SQUASH method
-            try {
-              await github.graphql(`
-                mutation($pullRequestId: ID!, $mergeMethod: PullRequestMergeMethod!) {
-                  enablePullRequestAutoMerge(input: {
-                    pullRequestId: $pullRequestId,
-                    mergeMethod: $mergeMethod
-                  }) {
-                    pullRequest {
-                      id
-                    }
-                  }
-                }
-              `, {
-                pullRequestId: pr.data.node_id,
-                mergeMethod: 'SQUASH'
-              });
-              
-              console.log(`PR #${pr.data.number} created with auto-merge enabled (SQUASH method)`);
-            } catch (error) {
-              console.error(`Failed to enable auto-merge: ${error.message}`);
-              core.warning(`Auto-merge could not be enabled. Please merge manually.`);
-            }
+            console.log(`PR #${pr.data.number} created — merge manually after tests pass`);
