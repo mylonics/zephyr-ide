@@ -237,12 +237,22 @@ export async function getRootPath(first = false) {
   }
 }
 
-export async function getLaunchConfigurationByName(wsConfig: WorkspaceConfig, configName: string) {
+export async function getLaunchConfigurationByName(wsConfig: WorkspaceConfig, configName: string, folderName?: string) {
   let configurations = await getLaunchConfigurations(wsConfig);
   if (!configurations) {
     return;
   }
 
+  // When a folder is specified, try an exact name+folder match first
+  if (folderName) {
+    for (var config of configurations) {
+      if (config.name === configName && config.workspaceFolder === folderName) {
+        return config;
+      }
+    }
+  }
+
+  // Fall back to name-only match (backward compatibility)
   for (var config of configurations) {
     if (config.name === configName) {
       return config;
@@ -250,7 +260,35 @@ export async function getLaunchConfigurationByName(wsConfig: WorkspaceConfig, co
   }
 }
 
-export async function selectLaunchConfiguration(wsConfig: WorkspaceConfig) {
+/**
+ * Format a launch target name for display.  In multi-root workspaces the
+ * originating workspace folder is appended so the user can distinguish
+ * identically-named configurations from different folders.
+ */
+export function getLaunchTargetDisplayName(targetName: string, targetFolder: string | undefined, fallback: string): string {
+  const label = targetName || fallback;
+  const folders = vscode.workspace.workspaceFolders;
+  if (!folders || folders.length <= 1 || !targetFolder) {
+    return label;
+  }
+  return `${label} (${targetFolder})`;
+}
+
+/**
+ * Resolve the VS Code WorkspaceFolder object for a launch configuration
+ * that carries a `workspaceFolder` name property (set by getLaunchConfigurations).
+ * Returns undefined when the folder cannot be matched.
+ */
+export function getWorkspaceFolderForConfig(config: any): vscode.WorkspaceFolder | undefined {
+  if (!config?.workspaceFolder) {
+    return undefined;
+  }
+  return vscode.workspace.workspaceFolders?.find(
+    folder => folder.name === config.workspaceFolder
+  );
+}
+
+export async function selectLaunchConfiguration(wsConfig: WorkspaceConfig): Promise<{ name: string; workspaceFolder?: string } | undefined> {
   let configurations = await getLaunchConfigurations(wsConfig);
   if (!configurations) {
     return;
@@ -260,28 +298,46 @@ export async function selectLaunchConfiguration(wsConfig: WorkspaceConfig) {
     ignoreFocusOut: true,
     placeHolder: "Select Launch Configuration",
   };
-  let names = configurations.map(x => (x.name));
+  const isMultiRoot = (vscode.workspace.workspaceFolders?.length ?? 0) > 1;
+  let items: vscode.QuickPickItem[] = configurations.map(x => ({
+    label: x.name,
+    description: isMultiRoot ? x.workspaceFolder : undefined,
+  }));
 
-  return await vscode.window.showQuickPick(names, pickOptions);
+  let selected = await vscode.window.showQuickPick(items, pickOptions);
+  if (!selected) {
+    return undefined;
+  }
+  return { name: selected.label, workspaceFolder: selected.description };
 }
 
 export async function getLaunchConfigurations(wsConfig: WorkspaceConfig) {
-  if (wsConfig.rootPath !== "") {
-    // Find the workspace folder that matches the root path for proper configuration scope
-    const matchingFolder = vscode.workspace.workspaceFolders?.find(
-      folder => folder.uri.fsPath === wsConfig.rootPath
-    );
-
-    // Use the matching folder URI, or fall back to the first folder if no match
-    const resourceUri = matchingFolder?.uri || vscode.workspace.workspaceFolders?.[0]?.uri;
-
-    // Get launch configurations with proper workspace folder context
-    // This handles both .code-workspace files and .vscode/launch.json
-    const config = vscode.workspace.getConfiguration("launch", resourceUri);
-    const configurations = config.get<any[]>("configurations");
-
-    return configurations;
+  const folders = vscode.workspace.workspaceFolders;
+  if (!folders || folders.length === 0) {
+    return;
   }
+
+  // Scan all workspace folders and collect launch configurations
+  const allConfigurations: any[] = [];
+  const seenKeys = new Set<string>();
+
+  for (const folder of folders) {
+    const config = vscode.workspace.getConfiguration("launch", folder.uri);
+    const configurations = config.get<any[]>("configurations");
+    if (configurations) {
+      for (const cfg of configurations) {
+        // Deduplicate by name+folder to avoid repeated entries from shared
+        // configs while still keeping same-named configs from different folders
+        const key = `${cfg.name}::${folder.name}`;
+        if (cfg.name && !seenKeys.has(key)) {
+          seenKeys.add(key);
+          allConfigurations.push({ ...cfg, workspaceFolder: folder.name });
+        }
+      }
+    }
+  }
+
+  return allConfigurations.length > 0 ? allConfigurations : undefined;
 }
 
 
