@@ -29,6 +29,8 @@ import { HostToolInstallView } from "./panels/host_tool_install_view/HostToolIns
 
 import {
   getLaunchConfigurationByName,
+  getLaunchConfigurations,
+  getWorkspaceFolderForConfig,
   output,
   outputLine,
   executeShellCommand,
@@ -1070,20 +1072,31 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.debug", async () => {
       let debugTarget = "Zephyr IDE: Debug";
+      let debugTargetFolder: string | undefined;
       let activeBuild = await project.getActiveBuild(wsConfig);
 
       if (activeBuild?.launchTarget) {
         debugTarget = activeBuild.launchTarget;
+        debugTargetFolder = activeBuild.launchTargetFolder;
       }
 
-      let debugConfig = await getLaunchConfigurationByName(wsConfig, debugTarget);
+      let debugConfig = await getLaunchConfigurationByName(wsConfig, debugTarget, debugTargetFolder);
       if (debugConfig) {
-        const started = await vscode.debug.startDebugging(undefined, debugConfig);
+        const folder = getWorkspaceFolderForConfig(debugConfig);
+        const started = await vscode.debug.startDebugging(folder, debugConfig);
         if (!started) {
-          notifyError("Debug", "Failed to start debug session: " + debugTarget);
+          notifyError("Debug", `Failed to start debug session: "${debugTarget}"` +
+            `\nType: ${debugConfig.type || 'unknown'}` +
+            `\nWorkspace folder: ${folder?.name || '(default)'}` +
+            `\nRequest: ${debugConfig.request || 'unknown'}` +
+            `\nCheck the Debug Console and Output panel for more details.`);
         }
       } else {
-        notifyError("Debug", "Launch configuration not found: " + debugTarget);
+        const allConfigs = await getLaunchConfigurations(wsConfig);
+        const available = allConfigs?.map((c: any) => c.name).join(', ') || 'none';
+        notifyError("Debug", `Launch configuration not found: "${debugTarget}"` +
+          (debugTargetFolder ? ` in folder "${debugTargetFolder}"` : '') +
+          `\nAvailable configurations: ${available}`);
       }
     })
   );
@@ -1091,20 +1104,31 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.debug-attach", async () => {
       let debugTarget = "Zephyr IDE: Attach";
+      let debugTargetFolder: string | undefined;
       let activeBuild = await project.getActiveBuild(wsConfig);
 
       if (activeBuild?.attachTarget) {
         debugTarget = activeBuild.attachTarget;
+        debugTargetFolder = activeBuild.attachTargetFolder;
       }
 
-      let debugConfig = await getLaunchConfigurationByName(wsConfig, debugTarget);
+      let debugConfig = await getLaunchConfigurationByName(wsConfig, debugTarget, debugTargetFolder);
       if (debugConfig) {
-        const started = await vscode.debug.startDebugging(undefined, debugConfig);
+        const folder = getWorkspaceFolderForConfig(debugConfig);
+        const started = await vscode.debug.startDebugging(folder, debugConfig);
         if (!started) {
-          notifyError("Debug", "Failed to start attach session: " + debugTarget);
+          notifyError("Debug", `Failed to start attach session: "${debugTarget}"` +
+            `\nType: ${debugConfig.type || 'unknown'}` +
+            `\nWorkspace folder: ${folder?.name || '(default)'}` +
+            `\nRequest: ${debugConfig.request || 'unknown'}` +
+            `\nCheck the Debug Console and Output panel for more details.`);
         }
       } else {
-        notifyError("Debug", "Launch configuration not found: " + debugTarget);
+        const allConfigs = await getLaunchConfigurations(wsConfig);
+        const available = allConfigs?.map((c: any) => c.name).join(', ') || 'none';
+        notifyError("Debug", `Launch configuration not found: "${debugTarget}"` +
+          (debugTargetFolder ? ` in folder "${debugTargetFolder}"` : '') +
+          `\nAvailable configurations: ${available}`);
       }
     })
   );
@@ -1112,25 +1136,36 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.build-debug", async () => {
       let debugTarget = "Zephyr IDE: Debug";
+      let debugTargetFolder: string | undefined;
       let activeProject = await project.getActiveProject(wsConfig);
       let activeBuild = await project.getActiveBuild(wsConfig);
 
       if (activeProject && activeBuild?.buildDebugTarget) {
         debugTarget = activeBuild.buildDebugTarget;
+        debugTargetFolder = activeBuild.buildDebugTargetFolder;
       }
 
-      let debugConfig = await getLaunchConfigurationByName(wsConfig, debugTarget);
+      let debugConfig = await getLaunchConfigurationByName(wsConfig, debugTarget, debugTargetFolder);
 
       if (debugConfig && activeProject && activeBuild) {
         let res = await build(context, wsConfig, activeProject, activeBuild, false);
         if (res) {
-          const started = await vscode.debug.startDebugging(undefined, debugConfig);
+          const folder = getWorkspaceFolderForConfig(debugConfig);
+          const started = await vscode.debug.startDebugging(folder, debugConfig);
           if (!started) {
-            notifyError("Debug", "Failed to start debug session: " + debugTarget);
+            notifyError("Debug", `Failed to start debug session: "${debugTarget}"` +
+              `\nType: ${debugConfig.type || 'unknown'}` +
+              `\nWorkspace folder: ${folder?.name || '(default)'}` +
+              `\nRequest: ${debugConfig.request || 'unknown'}` +
+              `\nCheck the Debug Console and Output panel for more details.`);
           }
         }
       } else if (!debugConfig) {
-        notifyError("Debug", "Launch configuration not found: " + debugTarget);
+        const allConfigs = await getLaunchConfigurations(wsConfig);
+        const available = allConfigs?.map((c: any) => c.name).join(', ') || 'none';
+        notifyError("Debug", `Launch configuration not found: "${debugTarget}"` +
+          (debugTargetFolder ? ` in folder "${debugTargetFolder}"` : '') +
+          `\nAvailable configurations: ${available}`);
       } else {
         notifyError("Debug", "No active project or build configuration found");
       }

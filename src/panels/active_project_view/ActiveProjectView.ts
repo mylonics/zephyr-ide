@@ -24,6 +24,7 @@ import { getNonce } from "../../utilities/getNonce";
 import { RunnerConfig } from '../../project_utilities/runner_selector';
 import { WorkspaceConfig } from '../../setup_utilities/types';
 import { TwisterConfig } from "../../project_utilities/twister_selector";
+import { getLaunchTargetDisplayName } from '../../utilities/utils';
 
 export class ActiveProjectView implements vscode.WebviewViewProvider {
   private view: vscode.WebviewView | undefined;
@@ -83,6 +84,11 @@ export class ActiveProjectView implements vscode.WebviewViewProvider {
       }
 
 
+      // Resolve display names for launch targets (shows workspace folder in multi-root)
+      const debugDisplay = getLaunchTargetDisplayName(activeBuild?.launchTarget ?? "", activeBuild?.launchTargetFolder, "Zephyr IDE: Debug");
+      const buildDebugDisplay = getLaunchTargetDisplayName(activeBuild?.buildDebugTarget ?? "", activeBuild?.buildDebugTargetFolder, "Zephyr IDE: Debug");
+      const attachDisplay = getLaunchTargetDisplayName(activeBuild?.attachTarget ?? "", activeBuild?.attachTargetFolder, "Zephyr IDE: Attach");
+
       let data = [{
         icons: {
           leaf: 'project',
@@ -113,7 +119,7 @@ export class ActiveProjectView implements vscode.WebviewViewProvider {
         actions: this.launchActions,
         label: "Debug",
         value: { command: "vsCommand", vsCommand: "zephyr-ide.debug", "launchChangeCmd": "zephyr-ide.change-debug-launch-for-build", },
-        description: activeBuild?.launchTarget ? activeBuild.launchTarget : "Zephyr IDE: Debug",
+        description: debugDisplay,
       }, {
         icons: {
           leaf: 'debug-all',
@@ -121,7 +127,7 @@ export class ActiveProjectView implements vscode.WebviewViewProvider {
         actions: this.launchActions,
         label: "Build and Debug",
         value: { command: "vsCommand", vsCommand: "zephyr-ide.build-debug", "launchChangeCmd": "zephyr-ide.change-build-debug-launch-for-build", },
-        description: activeBuild?.buildDebugTarget ? activeBuild.buildDebugTarget : "Zephyr IDE: Debug",
+        description: buildDebugDisplay,
       }, {
         icons: {
           leaf: 'debug-console',
@@ -129,7 +135,7 @@ export class ActiveProjectView implements vscode.WebviewViewProvider {
         actions: this.launchActions,
         label: "Debug Attach",
         value: { command: "vsCommand", vsCommand: "zephyr-ide.debug-attach", "launchChangeCmd": "zephyr-ide.change-debug-attach-launch-for-build" },
-        description: activeBuild?.attachTarget ? activeBuild.attachTarget : "Zephyr IDE: Attach",
+        description: attachDisplay,
       }];
 
       if (activeProject.twisterConfigs && Object.keys(activeProject.twisterConfigs).length) {

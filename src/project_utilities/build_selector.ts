@@ -48,8 +48,11 @@ export interface BuildConfig {
   runnerConfigs: RunnerConfigDictionary;
   confFiles: ConfigFiles;
   launchTarget: string;
+  launchTargetFolder?: string;
   buildDebugTarget: string;
+  buildDebugTargetFolder?: string;
   attachTarget: string;
+  attachTargetFolder?: string;
   revision?: string;
 }
 

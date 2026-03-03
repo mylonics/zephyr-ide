@@ -23,8 +23,8 @@ import { WorkspaceConfig } from "../setup_utilities/types";
 suite("Launch Configuration Test Suite", () => {
     
     test("getLaunchConfigurations should return workspace-level configurations when available", async () => {
-        // This test verifies that the function prioritizes workspace-level configurations
-        // over folder-level configurations when both exist
+        // This test verifies that the function scans all workspace folders
+        // and returns a deduplicated list of launch configurations
         
         // Create a mock workspace config
         const wsConfig: WorkspaceConfig = {
@@ -38,14 +38,13 @@ suite("Launch Configuration Test Suite", () => {
         // Call the function - it should work without errors
         const configurations = await getLaunchConfigurations(wsConfig);
         
-        // The function should return an array (even if empty) when rootPath is set
-        if (wsConfig.rootPath !== "") {
-            assert.ok(Array.isArray(configurations) || configurations === undefined);
-        }
+        // The function should return an array or undefined
+        assert.ok(Array.isArray(configurations) || configurations === undefined);
     });
     
     test("getLaunchConfigurations should handle empty workspace gracefully", async () => {
         // Create a mock workspace config with empty rootPath
+        // The function now scans all workspace folders regardless of rootPath
         const wsConfig: WorkspaceConfig = {
             rootPath: "",
             projects: {},
@@ -54,9 +53,10 @@ suite("Launch Configuration Test Suite", () => {
             automaticProjectSelction: false,
         };
         
-        // Call the function - it should return undefined for empty rootPath
+        // Call the function - it should return an array or undefined
+        // depending on whether workspace folders have launch configs
         const configurations = await getLaunchConfigurations(wsConfig);
         
-        assert.strictEqual(configurations, undefined);
+        assert.ok(Array.isArray(configurations) || configurations === undefined);
     });
 });
