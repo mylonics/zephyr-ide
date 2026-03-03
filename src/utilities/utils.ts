@@ -319,17 +319,30 @@ async function executeTask(task: vscode.Task) {
 
 export async function executeTaskHelperInPythonEnv(setupState: SetupState | undefined, taskName: string, cmd: string, cwd: string | undefined) {
   if (setupState && isMacOS()) {
-    let newCmd = path.join(getPythonVenvBinaryFolder(setupState), cmd);
-    return await executeTaskHelper(taskName, newCmd, cwd);
+    // On macOS, VS Code's environmentVariableCollection doesn't reliably
+    // propagate to task shells.  Instead of rewriting the command string
+    // (which corrupts URLs via path.join), prepend the venv bin directory
+    // to PATH in the task's own environment — mirroring what
+    // executeShellCommandInPythonEnv already does for child_process calls.
+    const env: { [key: string]: string } = {};
+    const venvBin = getPythonVenvBinaryFolder(setupState);
+    if (venvBin) {
+      env["PATH"] = venvBin + ":" + (process.env["PATH"] || "");
+    }
+    if (setupState.env["VIRTUAL_ENV"]) {
+      env["VIRTUAL_ENV"] = setupState.env["VIRTUAL_ENV"];
+    }
+    return await executeTaskHelper(taskName, cmd, cwd, env);
   } else {
     return await executeTaskHelper(taskName, cmd, cwd);
   }
 }
 
-export async function executeTaskHelper(taskName: string, cmd: string, cwd: string | undefined) {
+export async function executeTaskHelper(taskName: string, cmd: string, cwd: string | undefined, env?: { [key: string]: string }) {
   outputCommand(taskName, cmd);
   let options: vscode.ShellExecutionOptions = {
     cwd: cwd,
+    ...(env && { env }),
   };
 
   let exec = new vscode.ShellExecution(cmd, options);
