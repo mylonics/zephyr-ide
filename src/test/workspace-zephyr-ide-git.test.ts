@@ -89,17 +89,13 @@ suite("Workspace Zephyr IDE Git Test Suite", () => {
                     gitUiMock,
                     [
                         { type: 'input', value: '--branch main -- https://github.com/mylonics/zephyr-ide-samples.git', description: 'Enter Zephyr IDE git repo URL' },
-                        { type: 'quickpick', value: 'use-west-folder', description: 'Use .west folder (Recommended)' }
+                        { type: 'quickpick', value: 'use-west-folder', description: 'Use .west folder (Recommended)' },
+                        { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
+                        { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
+                        { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
                     ],
                     "zephyr-ide.workspace-setup-from-git",
                 );
-
-                // Prime SDK installation interactions
-                gitUiMock.primeInteractions([
-                    { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
-                    { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
-                    { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
-                ]);
 
                 await monitorWorkspaceSetup(setupPromise, "Zephyr IDE git workspace");
 
