@@ -193,4 +193,5 @@ jobs:
           NODE_ENV: test
           ZEPHYR_BASE: ${{ matrix.zephyr_base }}
           VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         timeout-minutes: 30

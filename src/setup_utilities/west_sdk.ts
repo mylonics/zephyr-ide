@@ -429,6 +429,15 @@ export async function installSDK(
 
         command += ` -b "${toolchainsDir}"`;
 
+        // Pass GitHub token to avoid API rate limits (especially in CI).
+        // The token is read from GITHUB_TOKEN which is automatically
+        // available in GitHub Actions runners.
+        const ghToken = process.env.GITHUB_TOKEN;
+        if (ghToken) {
+            command += ` --personal-access-token ${ghToken}`;
+            outputInfo("SDK Install", "Using GITHUB_TOKEN for authenticated GitHub API access");
+        }
+
         // Add toolchain selection if specified
         if (toolchains && toolchains.length > 0 && !toolchains.includes("all")) {
             const toolchainArgs = toolchains.map(tc => `-t ${tc}`).join(" ");

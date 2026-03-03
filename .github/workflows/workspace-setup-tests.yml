@@ -133,6 +133,7 @@ jobs:
         env:
           NODE_ENV: test
           ZEPHYR_BASE: ${{ matrix.zephyr_base }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run standard workflow integration tests
         id: test_standard
@@ -142,6 +143,7 @@ jobs:
         env:
           NODE_ENV: test
           ZEPHYR_BASE: ${{ matrix.zephyr_base }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run west git workflow integration tests
         id: test_west_git
@@ -151,6 +153,7 @@ jobs:
         env:
           NODE_ENV: test
           ZEPHYR_BASE: ${{ matrix.zephyr_base }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run zephyr ide git workspace integration tests
         id: test_zephyr_ide_git
@@ -160,6 +163,7 @@ jobs:
         env:
           NODE_ENV: test
           ZEPHYR_BASE: ${{ matrix.zephyr_base }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run local west workspace integration tests
         id: test_local_west
@@ -169,6 +173,7 @@ jobs:
         env:
           NODE_ENV: test
           ZEPHYR_BASE: ${{ matrix.zephyr_base }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check test results
         if: always()
