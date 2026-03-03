@@ -519,11 +519,11 @@ export function getVenvPath(setupPath: string): string {
  * This allows the extension to work with externally-managed Zephyr environments
  * @returns SetupState if ZEPHYR_BASE is set, undefined otherwise
  */
-export function getEnvironmentSetupState(): SetupState {
-  let zephyrBase = process.env.ZEPHYR_BASE;
+export function getEnvironmentSetupState(): SetupState | undefined {
+  const zephyrBase = process.env.ZEPHYR_BASE;
 
   if (!zephyrBase) {
-    zephyrBase = "";
+    return undefined;
   }
 
   // Create a setup state based on environment variables
@@ -601,5 +601,14 @@ export async function getSetupState(context: vscode.ExtensionContext, wsConfig: 
   await checkAndWarnMissingEnvironment(context);
 
   // Try to get setup state from environment variables
-  return getEnvironmentSetupState();
+  // Fall back to an empty default state if no environment is configured
+  return getEnvironmentSetupState() ?? {
+    pythonEnvironmentSetup: false,
+    westUpdated: false,
+    packagesInstalled: false,
+    zephyrDir: "",
+    zephyrVersion: undefined,
+    env: {},
+    setupPath: ".",
+  };
 }

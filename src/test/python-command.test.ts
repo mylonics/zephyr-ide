@@ -28,6 +28,9 @@ suite("Python Command Test Suite", () => {
     let originalConfig: string | undefined;
     let originalEnvVars: Map<string, string | undefined>;
     
+    // Track whether python.defaultInterpreterPath is writable (Python extension may not be installed)
+    let configWritable = true;
+
     setup(async () => {
         // Reset the cached Python command before each test
         resetPythonCommand();
@@ -43,17 +46,26 @@ suite("Python Command Test Suite", () => {
             ['USERPROFILE', process.env.USERPROFILE],
         ]);
         
-        // Reset to default (no configuration)
-        await config.update("python.defaultInterpreterPath", undefined, vscode.ConfigurationTarget.Global);
+        // Reset to default (no configuration) - may fail if Python extension is not installed
+        try {
+            await config.update("python.defaultInterpreterPath", undefined, vscode.ConfigurationTarget.Global);
+            configWritable = true;
+        } catch {
+            configWritable = false;
+        }
     });
     
     teardown(async () => {
         // Reset cached command
         resetPythonCommand();
         
-        // Restore original configuration
-        const config = vscode.workspace.getConfiguration();
-        await config.update("python.defaultInterpreterPath", originalConfig, vscode.ConfigurationTarget.Global);
+        // Restore original configuration (may fail if Python extension is not installed)
+        try {
+            const config = vscode.workspace.getConfiguration();
+            await config.update("python.defaultInterpreterPath", originalConfig, vscode.ConfigurationTarget.Global);
+        } catch {
+            // Ignore - Python extension not installed
+        }
         
         // Restore original environment variables
         for (const [key, value] of originalEnvVars.entries()) {
@@ -77,7 +89,9 @@ suite("Python Command Test Suite", () => {
         }
     });
 
-    test("Uses configured Python path when available and exists", async () => {
+    test("Uses configured Python path when available and exists", async function() {
+        if (!configWritable) { return this.skip(); }
+
         // Find the actual Python executable on the system (platform-appropriate fallback)
         const defaultPythonPath = os.platform() === 'win32' 
             ? path.join(process.env.LOCALAPPDATA || 'C:\\Python3', 'Programs', 'Python', 'Python3', 'python.exe')
@@ -97,7 +111,9 @@ suite("Python Command Test Suite", () => {
         }
     });
 
-    test("Expands environment variables correctly for whitelisted variables", async () => {
+    test("Expands environment variables correctly for whitelisted variables", async function() {
+        if (!configWritable) { return this.skip(); }
+
         // Set up a test environment variable using a cross-platform temp path
         const testHome = fs.mkdtempSync(path.join(os.tmpdir(), "python-home-"));
         process.env.HOME = testHome;
@@ -140,7 +156,9 @@ suite("Python Command Test Suite", () => {
         }
     });
 
-    test("Handles missing environment variables gracefully", async () => {
+    test("Handles missing environment variables gracefully", async function() {
+        if (!configWritable) { return this.skip(); }
+
         // Use a non-existent environment variable
         const configPath = "${env:NONEXISTENT_VAR}/python3";
         
@@ -161,7 +179,9 @@ suite("Python Command Test Suite", () => {
         }
     });
 
-    test("Falls back to platform default when configured path doesn't exist", async () => {
+    test("Falls back to platform default when configured path doesn't exist", async function() {
+        if (!configWritable) { return this.skip(); }
+
         const nonExistentPath = "/nonexistent/path/to/python";
         
         const config = vscode.workspace.getConfiguration();
@@ -181,7 +201,9 @@ suite("Python Command Test Suite", () => {
         }
     });
 
-    test("Caching behavior works correctly", async () => {
+    test("Caching behavior works correctly", async function() {
+        if (!configWritable) { return this.skip(); }
+
         // First call should determine the Python command
         const firstCall = await getPythonCommand();
         
@@ -198,7 +220,9 @@ suite("Python Command Test Suite", () => {
         assert.strictEqual(thirdCall, firstCall, "Should still return cached value even after config change");
     });
 
-    test("Ignores non-whitelisted environment variables", async () => {
+    test("Ignores non-whitelisted environment variables", async function() {
+        if (!configWritable) { return this.skip(); }
+
         // Set up a custom environment variable that's not in the whitelist
         process.env.CUSTOM_VAR = "/custom/path";
         
@@ -224,7 +248,9 @@ suite("Python Command Test Suite", () => {
         delete process.env.CUSTOM_VAR;
     });
 
-    test("Handles empty configured path", async () => {
+    test("Handles empty configured path", async function() {
+        if (!configWritable) { return this.skip(); }
+
         const config = vscode.workspace.getConfiguration();
         await config.update("python.defaultInterpreterPath", "", vscode.ConfigurationTarget.Global);
         
@@ -242,7 +268,9 @@ suite("Python Command Test Suite", () => {
         }
     });
 
-    test("Handles whitespace-only configured path", async () => {
+    test("Handles whitespace-only configured path", async function() {
+        if (!configWritable) { return this.skip(); }
+
         const config = vscode.workspace.getConfiguration();
         await config.update("python.defaultInterpreterPath", "   ", vscode.ConfigurationTarget.Global);
         
