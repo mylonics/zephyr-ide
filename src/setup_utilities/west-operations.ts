@@ -51,12 +51,15 @@ export function resetPythonCommand(): void {
  * Get the appropriate Python command for the current platform
  * In remote environments (WSL, SSH), this detects the remote OS
  * On all platforms, respects VS Code's configured Python interpreter if available
+ * @param configOverride Optional override for the configured Python path (used in tests to bypass VS Code settings)
  */
-export async function getPythonCommand(): Promise<string> {
+export async function getPythonCommand(configOverride?: string | null): Promise<string> {
   if (python === undefined) {
     // First, try to get the Python interpreter configured in VS Code settings
-    const configuration = vscode.workspace.getConfiguration();
-    const configuredPython = configuration.get<string>("python.defaultInterpreterPath");
+    // If configOverride is provided, use it instead of reading from VS Code settings
+    const configuredPython = configOverride !== undefined
+      ? (configOverride ?? undefined)
+      : vscode.workspace.getConfiguration().get<string>("python.defaultInterpreterPath");
     
     if (configuredPython && configuredPython.trim()) {
       // Expand environment variables in the path (e.g., ${env:HOME})
