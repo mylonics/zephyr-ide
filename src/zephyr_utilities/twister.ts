@@ -22,7 +22,7 @@ import { executeTaskHelperInPythonEnv } from "../utilities/utils";
 import { notifyError, outputInfo } from "../utilities/output";
 
 import { WorkspaceConfig } from '../setup_utilities/types';
-import { addTest, ProjectConfig, getActiveTestNameOfProject } from "../project_utilities/project";
+import { addTest, ProjectConfig, getResolvedTestName, resolveActiveProject } from "../project_utilities/project";
 import { TwisterConfig } from "../project_utilities/twister_selector";
 import { getSetupState } from "../setup_utilities/workspace-config";
 
@@ -34,22 +34,17 @@ export async function testHelper(context: vscode.ExtensionContext, wsConfig: Wor
     return;
   }
   if (setupState.westUpdated) {
-    if (projectName === undefined) {
-      projectName = wsConfig.activeProject;
-    }
-    if (projectName === undefined) {
-      notifyError("Twister Test", "Select a project before trying to run test");
-      return;
-    }
-    let project = wsConfig.projects[projectName];
+    const resolved = resolveActiveProject(wsConfig, { caller: "Twister Test", projectName });
+    if (!resolved) { return; }
+    let project = resolved.project;
 
     if (testName === undefined) {
-      testName = getActiveTestNameOfProject(wsConfig, project.name);
+      testName = getResolvedTestName(wsConfig, resolved);
     }
 
     if (testName === undefined) {
       await addTest(wsConfig, context);
-      testName = getActiveTestNameOfProject(wsConfig, project.name);
+      testName = getResolvedTestName(wsConfig, resolved);
       if (testName === undefined) {
         notifyError("Twister Test", `You must choose a Test Configuration to continue.`);
         return;
