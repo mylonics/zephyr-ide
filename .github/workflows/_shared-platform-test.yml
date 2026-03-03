@@ -1,7 +1,7 @@
-# Shared Platform Test Workflow (Reusable)
+# Shared Combined Integration Test Workflow (Reusable)
 #
 # This reusable workflow contains the shared logic for building VSIX and running
-# the platform integration test on one or more platforms.
+# the combined integration test on one or more platforms.
 #
 # Callers only need to pass a comma-separated list of platforms to test.
 # All platform-specific details (runner OS, xvfb prefix, zephyr base path,
@@ -11,7 +11,7 @@
 #   - basic-tests.yml (Ubuntu-only, fast CI for every PR)
 #   - multiplatform-tests.yml (Ubuntu + Windows + macOS for releases)
 
-name: _Shared Platform Test
+name: _Shared Combined Integration Test
 
 on:
   workflow_call:
@@ -186,7 +186,7 @@ jobs:
       # in the same process. This solves the Windows PATH propagation issue by
       # running everything in a single VS Code instance where PATH refresh is
       # effective. xvfb-run wraps the command on Linux to provide a virtual display.
-      - name: Run Platform Integration Test
+      - name: Run Combined Integration Test
         run: |
           ${{ matrix.xvfb }}node scripts/run-integration-tests.js combined
         env:

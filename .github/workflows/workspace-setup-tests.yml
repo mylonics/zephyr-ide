@@ -125,7 +125,7 @@ jobs:
       - name: Run linting
         run: npm run lint
 
-      - name: Run external zephyr workspace integration tests
+      - name: Run external zephyr workspace tests
         id: test_external
         continue-on-error: true
         run: |
@@ -135,7 +135,7 @@ jobs:
           ZEPHYR_BASE: ${{ matrix.zephyr_base }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run standard workflow integration tests
+      - name: Run standard workspace tests
         id: test_standard
         continue-on-error: true
         run: |
@@ -145,7 +145,7 @@ jobs:
           ZEPHYR_BASE: ${{ matrix.zephyr_base }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run west git workflow integration tests
+      - name: Run west git workspace tests
         id: test_west_git
         continue-on-error: true
         run: |
@@ -155,7 +155,7 @@ jobs:
           ZEPHYR_BASE: ${{ matrix.zephyr_base }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run zephyr ide git workspace integration tests
+      - name: Run zephyr ide git workspace tests
         id: test_zephyr_ide_git
         continue-on-error: true
         run: |
@@ -165,7 +165,7 @@ jobs:
           ZEPHYR_BASE: ${{ matrix.zephyr_base }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run local west workspace integration tests
+      - name: Run local west workspace tests
         id: test_local_west
         continue-on-error: true
         run: |

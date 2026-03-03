@@ -95,11 +95,12 @@ SKIP_BUILD_TESTS=true npm test
 
 The integration tests validate complete workflows:
 
-- **Standard Workspace**: Dependencies → west setup → SDK install → project creation → build (15 min)
-- **Git Workspace**: Git clone → SDK → project → custom board build (15 min)
-- **Zephyr IDE Git**: Zephyr IDE specific git workflow (15 min)
-- **Open Directory**: Current directory workspace setup (15 min)
-- **External Zephyr**: External zephyr workspace builds (15 min)
+- **Standard** (`workspace-standard.test.ts`): Dependencies → west setup → SDK install → project creation → build (15 min)
+- **West Git** (`workspace-west-git.test.ts`): West manifest git clone → SDK → project → custom board build (15 min)
+- **Zephyr IDE Git** (`workspace-zephyr-ide-git.test.ts`): Zephyr IDE sample project git workflow (15 min)
+- **Local West** (`workspace-local-west.test.ts`): Git clone with detected west.yml → local west workspace → build (15 min)
+- **External Zephyr** (`workspace-external-zephyr.test.ts`): Git clone without west → external Zephyr installation → build (15 min)
+- **Combined** (`combined-installation.test.ts`): Host tool install + standard workspace in single process (25 min)
 
 ## Repository Structure
 
@@ -109,12 +110,14 @@ The integration tests validate complete workflows:
 src/
 ├── extension.ts         - Main extension entry point, registers commands and webview panels
 ├── defines.ts          - Zephyr toolchain targets, HALs, and UI dropdown definitions
-├── panels/             - 5 webview panels for different aspects of the UI
+├── panels/             - Webview panels for different aspects of the UI
 │   ├── active_project_view/    - Shows current project build status and controls
 │   ├── extension_setup_view/   - Initial workspace setup and SDK installation
+│   ├── host_tool_install_view/ - Host tool installation wizard
 │   ├── project_config_view/    - Project-specific configuration (boards, runners, etc.)
 │   ├── project_tree_view/      - File explorer for Zephyr projects
 │   ├── setup_panel/           - Workspace configuration and tool validation
+│   ├── west_workspace_view/   - West workspace management panel
 │   └── view.css               - Shared CSS styles for all webview panels
 ├── project_utilities/  - Project-level operations and configuration
 │   ├── build_selector.ts      - Board and target selection logic
@@ -125,10 +128,12 @@ src/
 ├── setup_utilities/    - Workspace setup and dependency management
 │   ├── dts_interface.ts       - Devicetree parsing and intellisense
 │   ├── host_tools.ts          - Host tool detection and validation
+│   ├── host-tools-manifest.json - Host tool version/package definitions
 │   ├── modules.ts             - Zephyr module management
 │   ├── state-management.ts   - Extension state persistence
 │   ├── tools-validation.ts   - Tool version checking and compatibility
 │   ├── types.ts               - TypeScript type definitions
+│   ├── west-config-parser.ts  - West configuration file parsing
 │   ├── west-operations.ts     - West workspace operations
 │   ├── west_sdk.ts            - Zephyr SDK installation and management
 │   ├── west_selector.ts       - West manifest selection and configuration
@@ -138,14 +143,22 @@ src/
 │   ├── build.ts               - CMake/Ninja build execution
 │   ├── flash.ts               - Device flashing and debugging
 │   └── twister.ts             - Test execution and reporting
-├── test/               - Integration test suites (15+ min each)
-│   ├── workspace-standard.test.ts         - Full workspace setup → build
-│   ├── workspace-west-git.test.ts         - Git-based workspace creation
-│   ├── workspace-zephyr-ide-git.test.ts   - Zephyr IDE specific git workflow
-│   ├── workspace-local-west.test.ts       - Current directory workspace
-│   ├── workspace-external-zephyr.test.ts  - External zephyr workspace builds
-│   ├── test-runner.ts                  - Test execution framework
-│   └── ui-mock-interface.ts            - Mock UI for headless testing
+├── test/               - Unit and integration test suites
+│   ├── combined-installation.test.ts      - Combined host tools + workspace test (25 min)
+│   ├── workspace-standard.test.ts         - Standard workspace setup → build (15 min)
+│   ├── workspace-west-git.test.ts         - West manifest git workspace (15 min)
+│   ├── workspace-zephyr-ide-git.test.ts   - Zephyr IDE git workspace (15 min)
+│   ├── workspace-local-west.test.ts       - Local west.yml detection workspace (15 min)
+│   ├── workspace-external-zephyr.test.ts  - External Zephyr installation workspace (15 min)
+│   ├── env-detection.test.ts              - Environment variable detection tests
+│   ├── git-url-validation.test.ts         - Git URL parsing/validation tests
+│   ├── launch-config.test.ts              - Launch configuration tests
+│   ├── platform-detection.test.ts         - Platform detection tests
+│   ├── python-command.test.ts             - Python command resolution tests
+│   ├── toolchain-config.test.ts           - Toolchain directory configuration tests
+│   ├── venv-config.test.ts                - Venv path configuration tests
+│   ├── test-runner.ts                     - Test execution framework and shared utilities
+│   └── ui-mock-interface.ts               - Mock UI for headless testing
 └── utilities/          - Shared helper functions
     ├── getNonce.ts            - Security nonce generation for webviews
     ├── multistepQuickPick.ts  - Multi-step UI selection workflows
@@ -158,7 +171,10 @@ src/
 dist/                   - Production bundled extension (esbuild output)
 out/                    - Development compiled TypeScript (tsc output)
 scripts/                - Build automation and test runners
-west_templates/         - West.yml templates for different workspace types
+  ├── run-integration-tests.js  - Integration test runner with --grep support
+  ├── run-tests.js              - Simple test runner wrapper
+  └── detect-unused-code.js     - Unused code detection script
+resources/              - Build resources, west templates, SDK helpers
 ```
 
 ### Configuration Files
@@ -247,10 +263,20 @@ vsce package
 
 The CI workflows are:
 
-- `.github/workflows/basic-tests.yml` — Ubuntu-only platform integration test, runs on every PR
-- `.github/workflows/multiplatform-tests.yml` — Ubuntu + Windows + macOS, runs on PRs/pushes to main/pre-release
-- `.github/workflows/workspace-setup-tests.yml` — All 5 workspace setup types on Ubuntu, runs on version bumps and release PRs
-- `.github/workflows/_shared-platform-test.yml` — Reusable workflow called by basic-tests and multiplatform-tests
+### Test Workflows
+- `.github/workflows/unit-tests.yml` — Lightweight unit tests (no SDK needed), runs on every PR to develop
+- `.github/workflows/basic-tests.yml` — Ubuntu-only combined integration test, runs on every PR to develop
+- `.github/workflows/multiplatform-tests.yml` — Ubuntu + Windows + macOS combined test, runs on bump-version PRs or PRs with `full_test` label
+- `.github/workflows/workspace-setup-tests.yml` — All 5 workspace setup types on Ubuntu + macOS, runs on bump-version PRs or PRs with `full_test` label
+- `.github/workflows/_shared-platform-test.yml` — Reusable workflow called by basic-tests and multiplatform-tests (builds VSIX, runs combined test)
+
+### Release Workflows
+- `.github/workflows/bump-version.yml` — Manual version bump, creates PR to develop
+- `.github/workflows/auto-create-release-pr.yml` — Rebases develop onto main/pre-release after bump PR merges
+- `.github/workflows/release.yml` — Publishes extension on push to main/pre-release
+- `.github/workflows/package-artifact.yml` — Builds and uploads VSIX artifact on push to develop
+- `.github/workflows/build-vsix.yml` — Manual VSIX build from any branch
+- `.github/workflows/deploy-docs.yml` — Deploys documentation on push to main
 
 **CI Requirements:**
 

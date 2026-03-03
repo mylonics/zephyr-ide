@@ -21,11 +21,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import * as assert from "assert";
 import * as vscode from "vscode";
-import * as fs from "fs-extra";
 import * as path from "path";
-import * as os from "os";
 import {
     logTestEnvironment,
     monitorWorkspaceSetup,
@@ -36,7 +33,7 @@ import {
     executeTestWithErrorHandling,
     executeWorkspaceCommand
 } from "./test-runner";
-import { UIMockInterface, MockInteraction } from "./ui-mock-interface";
+import { UIMockInterface } from "./ui-mock-interface";
 
 /*
  * GIT WORKFLOW INTEGRATION TEST:
@@ -53,13 +50,13 @@ import { UIMockInterface, MockInteraction } from "./ui-mock-interface";
  * - Clean separation of concerns
  */
 
-suite("West Git Workspace Test Suite", () => {
+suite("Workspace West Git Test Suite", () => {
     let testWorkspaceDir: string;
     let originalWorkspaceFolders: readonly vscode.WorkspaceFolder[] | undefined;
 
     suiteSetup(() => {
         logTestEnvironment();
-        console.log("🔬 Testing Zephyr IDE git workflow");
+        console.log("🔬 Testing west git workspace workflow");
     });
 
     setup(async () => {
@@ -73,10 +70,10 @@ suite("West Git Workspace Test Suite", () => {
         await printWorkspaceStructure("West Git Workspace Test");
     });
 
-    test("Git Workspace Setup: West Git → SDK Install → Add Project → Custom Board Build", async function () {
+    test("West Git Workspace: West Manifest → SDK Install → Add Project → Custom Board Build", async function () {
         this.timeout(620000);
 
-        console.log("🚀 Starting git workspace test...");
+        console.log("🚀 Starting west git workspace test...");
         console.log("📁 Test workspace folder:", testWorkspaceDir);
 
         const gitUiMock = new UIMockInterface();
@@ -102,7 +99,7 @@ suite("West Git Workspace Test Suite", () => {
                     "zephyr-ide.workspace-setup-from-west-git",
                 );
 
-                await monitorWorkspaceSetup(setupPromise, "git workspace");
+                await monitorWorkspaceSetup(setupPromise, "west git workspace");
 
                 console.log("📁 Step 2: Adding project from example repo...");
                 await executeWorkspaceCommand(
