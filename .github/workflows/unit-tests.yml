@@ -1,0 +1,61 @@
+# Unit Tests Pipeline
+#
+# Runs lightweight unit tests that validate utility functions, configuration
+# parsing, platform detection, and other logic that does not require a Zephyr
+# SDK or workspace setup.
+#
+# These tests run inside a VS Code extension host but do not perform any
+# network-heavy or build-heavy operations, so they complete in under a minute.
+#
+# Trigger behavior:
+# - PRs to develop: Always runs
+# - Manual dispatch: Always runs
+#
+# For integration/workspace tests, see basic-tests.yml and workspace-setup-tests.yml.
+
+name: Unit Tests
+
+on:
+  pull_request:
+    branches: [develop]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to run tests on"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Compile TypeScript
+        run: npm run test-compile
+
+      - name: Bundle Extension
+        run: npm run esbuild
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run Unit Tests
+        run: |
+          xvfb-run -a npx vscode-test --grep '^(?!.*(Workspace|Combined))'
