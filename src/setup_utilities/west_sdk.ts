@@ -408,11 +408,35 @@ export async function installSDK(
     try {
         const toolchainsDir = path.join(await getToolsDir(), "toolchains");
 
+        // Check if SDK is already installed in the toolchains directory.
+        // The upstream `west sdk install` uses CMake find_package to detect
+        // installed SDKs, but it only searches standard OS paths (e.g. /opt,
+        // ~/), not the custom toolchains directory used by Zephyr IDE.
+        // Without this check, repeated installs to the same base directory
+        // fail with "Destination path already exists".
+        if (sdkVersion) {
+            const sdkDir = path.join(toolchainsDir, `zephyr-sdk-${sdkVersion}`);
+            const sdkVersionFile = path.join(sdkDir, "sdk_version");
+            if (await fs.pathExists(sdkVersionFile)) {
+                outputInfo("SDK Install", `SDK version ${sdkVersion} already installed at: ${sdkDir}, skipping download`);
+                return true;
+            }
+        }
+
         let command = sdkVersion
             ? `west sdk install --version ${sdkVersion} -H `
             : `west sdk install -H`;
 
         command += ` -b "${toolchainsDir}"`;
+
+        // Pass GitHub token to avoid API rate limits (especially in CI).
+        // The token is read from GITHUB_TOKEN which is automatically
+        // available in GitHub Actions runners.
+        const ghToken = process.env.GITHUB_TOKEN;
+        if (ghToken) {
+            command += ` --personal-access-token ${ghToken}`;
+            outputInfo("SDK Install", "Using GITHUB_TOKEN for authenticated GitHub API access");
+        }
 
         // Add toolchain selection if specified
         if (toolchains && toolchains.length > 0 && !toolchains.includes("all")) {

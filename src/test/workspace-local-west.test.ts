@@ -15,11 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import * as assert from "assert";
 import * as vscode from "vscode";
-import * as fs from "fs-extra";
-import * as path from "path";
-import * as os from "os";
 import {
     logTestEnvironment,
     monitorWorkspaceSetup,
@@ -28,7 +24,7 @@ import {
     executeFinalBuild,
     executeTestWithErrorHandling
 } from "./test-runner";
-import { UIMockInterface, MockInteraction } from "./ui-mock-interface";
+import { UIMockInterface } from "./ui-mock-interface";
 
 /*
  * WORKSPACE LOCAL WEST INTEGRATION TEST:
@@ -65,10 +61,10 @@ suite("Workspace Local West Test Suite", () => {
         await printWorkspaceStructure("Local West Workspace Test");
     });
 
-    test("Open Current Directory: Git Setup → Detect West.yml → Build", async function () {
+    test("Local West Workspace: Git Clone → Detect West.yml → SDK Install → Build", async function () {
         this.timeout(620000);
 
-        console.log("🚀 Starting open current directory test...");
+        console.log("🚀 Starting local west workspace test...");
 
         const uiMock = new UIMockInterface();
 
@@ -95,7 +91,7 @@ suite("Workspace Local West Test Suite", () => {
                     "zephyr-ide.workspace-setup-from-git"
                 );
 
-                await monitorWorkspaceSetup(setupPromise, "open current directory");
+                await monitorWorkspaceSetup(setupPromise, "local west workspace");
 
                 console.log("⚡ Step 2: Executing build...");
                 await executeFinalBuild("Local West Workspace");

@@ -30,8 +30,6 @@ if (testType === '--help' || testType === '-h' || testType === 'help') {
     console.log('Usage: node scripts/run-integration-tests.js [test-type]');
     console.log('');
     console.log('Available test types:');
-    console.log('  install-package-manager - Install/check package manager only');
-    console.log('  install-host-packages    - Install/check host packages (assumes package manager available)');
     console.log('  combined                 - Combined test: install pkg mgr + packages + standard tests (single process)');
     console.log('  standard                 - Standard workspace workflow test');
     console.log('  west-git                 - West git workspace workflow test');
@@ -41,8 +39,6 @@ if (testType === '--help' || testType === '-h' || testType === 'help') {
     console.log('  all                      - Run all tests (default)');
     console.log('');
     console.log('Examples:');
-    console.log('  node scripts/run-integration-tests.js install-package-manager');
-    console.log('  node scripts/run-integration-tests.js install-host-packages');
     console.log('  node scripts/run-integration-tests.js standard');
     console.log('  node scripts/run-integration-tests.js west-git');
     console.log('  node scripts/run-integration-tests.js external-zephyr');
@@ -80,20 +76,14 @@ try {
 
     let grepPattern;
     switch (testType) {
-        case 'install-package-manager':
-            grepPattern = 'Install Package Manager Test Suite';
-            break;
-        case 'install-host-packages':
-            grepPattern = 'Install Host Packages Test Suite';
-            break;
         case 'combined':
             grepPattern = 'Combined Installation Test Suite';
             break;
         case 'standard':
-            grepPattern = 'Standard Workspace Test Suite';
+            grepPattern = 'Workspace Standard Test Suite';
             break;
         case 'west-git':
-            grepPattern = 'West Git Workspace Test Suite';
+            grepPattern = 'Workspace West Git Test Suite';
             break;
         case 'zephyr-ide-git':
             grepPattern = 'Workspace Zephyr IDE Git Test Suite';
@@ -129,7 +119,7 @@ try {
     console.error('This test executes the Zephyr IDE workflow.');
     console.error('Some steps may fail if build dependencies are not available.');
     console.error('');
-    console.error('Available test types: install-package-manager, install-host-packages, standard, west-git, zephyr-ide-git, local-west, external-zephyr, all');
+    console.error('Available test types: combined, standard, west-git, zephyr-ide-git, local-west, external-zephyr, all');
     console.error('Run "node scripts/run-integration-tests.js help" for more information.');
     process.exit(1);
 }

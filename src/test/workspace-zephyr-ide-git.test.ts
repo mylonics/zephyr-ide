@@ -15,11 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import * as assert from "assert";
 import * as vscode from "vscode";
-import * as fs from "fs-extra";
-import * as path from "path";
-import * as os from "os";
 import {
     logTestEnvironment,
     monitorWorkspaceSetup,
@@ -30,7 +26,7 @@ import {
     executeTestWithErrorHandling,
     executeWorkspaceCommand
 } from "./test-runner";
-import { UIMockInterface, MockInteraction } from "./ui-mock-interface";
+import { UIMockInterface } from "./ui-mock-interface";
 
 /*
  * WORKSPACE ZEPHYR IDE GIT INTEGRATION TEST:
@@ -69,10 +65,10 @@ suite("Workspace Zephyr IDE Git Test Suite", () => {
         await printWorkspaceStructure("Zephyr IDE Git Workspace Test");
     });
 
-    test("Zephyr IDE Git Workspace: Git Setup → SDK Install → Build", async function () {
+    test("Zephyr IDE Git Workspace: Git Clone → SDK Install → Build", async function () {
         this.timeout(620000);
 
-        console.log("🚀 Starting Zephyr IDE git workspace test...");
+        console.log("🚀 Starting zephyr ide git workspace test...");
 
         const gitUiMock = new UIMockInterface();
 
@@ -89,19 +85,15 @@ suite("Workspace Zephyr IDE Git Test Suite", () => {
                     gitUiMock,
                     [
                         { type: 'input', value: '--branch main -- https://github.com/mylonics/zephyr-ide-samples.git', description: 'Enter Zephyr IDE git repo URL' },
-                        { type: 'quickpick', value: 'use-west-folder', description: 'Use .west folder (Recommended)' }
+                        { type: 'quickpick', value: 'use-west-folder', description: 'Use .west folder (Recommended)' },
+                        { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
+                        { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
+                        { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
                     ],
                     "zephyr-ide.workspace-setup-from-git",
                 );
 
-                // Prime SDK installation interactions
-                gitUiMock.primeInteractions([
-                    { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
-                    { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
-                    { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
-                ]);
-
-                await monitorWorkspaceSetup(setupPromise, "Zephyr IDE git workspace");
+                await monitorWorkspaceSetup(setupPromise, "zephyr ide git workspace");
 
                 console.log("⚡ Step 2: Executing build...");
                 await executeFinalBuild("Zephyr IDE Git Workspace");

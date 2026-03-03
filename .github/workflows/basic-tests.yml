@@ -1,6 +1,6 @@
-# Basic Tests Pipeline
+# Combined Integration Test (Ubuntu) Pipeline
 #
-# Runs the platform integration test on Ubuntu only.
+# Runs the combined integration test on Ubuntu only.
 # This is the fast default CI that runs on every PR to ensure nothing is broken.
 #
 # For multi-platform testing (Windows, macOS), see multiplatform-tests.yml.
@@ -10,7 +10,7 @@
 # - PRs to develop: Always runs (Ubuntu-only)
 # - Manual dispatch: Always runs (Ubuntu-only)
 
-name: Basic Tests
+name: Combined Integration Test (Ubuntu)
 
 on:
   pull_request:

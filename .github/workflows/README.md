@@ -97,6 +97,12 @@ The release process has been consolidated into a streamlined workflow that requi
   - **Actions**: Builds VSIX, runs platform integration test on Ubuntu
   - **Purpose**: Fast CI gate for every PR
 
+- **`unit-tests.yml`** - Lightweight unit tests for every PR
+  - **Trigger**: Pull requests to develop
+  - **Manual Trigger**: Can be triggered manually with optional `branch` input
+  - **Actions**: Compiles, lints, and runs unit tests (no Zephyr SDK required)
+  - **Purpose**: Fast validation of utility functions, configuration parsing, and logic
+
 - **`multiplatform-tests.yml`** - Multi-platform integration test for releases
   - **Trigger**: PRs to develop (bump PRs or `full_test` label)
   - **Manual Trigger**: Can be triggered manually with optional `branch` input

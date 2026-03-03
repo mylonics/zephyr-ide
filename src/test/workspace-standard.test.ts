@@ -21,9 +21,6 @@ limitations under the License.
 
 import * as assert from "assert";
 import * as vscode from "vscode";
-import * as fs from "fs-extra";
-import * as path from "path";
-import * as os from "os";
 import {
     logTestEnvironment,
     monitorWorkspaceSetup,
@@ -36,7 +33,7 @@ import {
     CommonUIInteractions,
     shouldSkipBuildTests
 } from "./test-runner";
-import { UIMockInterface, MockInteraction } from "./ui-mock-interface";
+import { UIMockInterface } from "./ui-mock-interface";
 
 /*
  * CLEAN INTEGRATION TEST ARCHITECTURE:
@@ -64,13 +61,13 @@ import { UIMockInterface, MockInteraction } from "./ui-mock-interface";
  * - Clear intent with descriptive interactions
  */
 
-suite("Standard Workspace Test Suite", () => {
+suite("Workspace Standard Test Suite", () => {
     let testWorkspaceDir: string;
     let originalWorkspaceFolders: readonly vscode.WorkspaceFolder[] | undefined;
 
     suiteSetup(() => {
         logTestEnvironment();
-        console.log("🔬 Testing standard Zephyr IDE workflow");
+        console.log("🔬 Testing standard workspace workflow");
     });
 
     setup(async () => {
@@ -84,10 +81,10 @@ suite("Standard Workspace Test Suite", () => {
         await printWorkspaceStructure("Standard Workspace Test");
     });
 
-    test("Complete Workflow: Dependencies → Setup → Project → Build → Execute", async function () {
+    test("Standard Workspace: Setup → Project → Build", async function () {
         this.timeout(420000); // 7 minutes timeout
 
-        console.log("🚀 Starting workflow test...");
+        console.log("🚀 Starting standard workspace test...");
 
         const uiMock = new UIMockInterface();
 
@@ -134,7 +131,7 @@ suite("Standard Workspace Test Suite", () => {
                     "zephyr-ide.workspace-setup-standard",
                 );
 
-                await monitorWorkspaceSetup(setupPromise);
+                await monitorWorkspaceSetup(setupPromise, "standard workspace");
 
                 console.log("🐍 Verifying Python venv path...");
                 const pythonPathResult = await vscode.commands.executeCommand("zephyr-ide.print-python-path");

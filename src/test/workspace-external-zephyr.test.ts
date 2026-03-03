@@ -15,11 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import * as assert from "assert";
 import * as vscode from "vscode";
-import * as fs from "fs-extra";
-import * as path from "path";
-import * as os from "os";
 import {
     logTestEnvironment,
     monitorWorkspaceSetup,
@@ -30,7 +26,7 @@ import {
     executeTestWithErrorHandling,
     executeWorkspaceCommand
 } from "./test-runner";
-import { UIMockInterface, MockInteraction } from "./ui-mock-interface";
+import { UIMockInterface } from "./ui-mock-interface";
 
 /*
  * WORKSPACE EXTERNAL ZEPHYR INTEGRATION TEST:
@@ -70,10 +66,10 @@ suite("Workspace External Zephyr Test Suite", () => {
         await printWorkspaceStructure("External Zephyr Workspace Test");
     });
 
-    test("Workspace Out Of Tree: Git Setup → Use Existing → Global → West Selector → Build", async function () {
+    test("External Zephyr Workspace: Git Clone → Use Existing Install → West Selector → Build", async function () {
         this.timeout(620000);
 
-        console.log("🚀 Starting workspace out of tree test...");
+        console.log("🚀 Starting external zephyr workspace test...");
 
         const uiMock = new UIMockInterface();
 
@@ -103,7 +99,7 @@ suite("Workspace External Zephyr Test Suite", () => {
                     "zephyr-ide.workspace-setup-from-git",
                 );
 
-                await monitorWorkspaceSetup(setupPromise, "workspace out of tree");
+                await monitorWorkspaceSetup(setupPromise, "external zephyr workspace");
 
                 console.log("⚡ Step 2: Executing build...");
                 await executeFinalBuild("External Zephyr Workspace");

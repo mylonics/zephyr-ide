@@ -61,7 +61,7 @@ export const zephyrVersions = ["v4.3.0", "v4.2.0", "main", "Other Version"];
 export const ncsVersions = ["v3.2.2", "v3.2.1", "v3.1.1", "main", "Other Version"];
 
 export const sdkVersions = [
-  { label: "0.17.3", description: "Zephyr 4.2" },
+  { label: "0.17.3", description: "Zephyr 4.2+" },
   { label: "0.17.0", description: "Zephyr 4.1-4.0" },
   { label: "0.16.9", description: "Zephyr 3.7" },
   { label: "sep", kind: vscode.QuickPickItemKind.Separator },

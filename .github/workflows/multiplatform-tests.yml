@@ -1,6 +1,6 @@
-# Multi-Platform Tests Pipeline
+# Combined Integration Test (All Platforms) Pipeline
 #
-# Runs the platform integration test on Ubuntu, Windows, and macOS.
+# Runs the combined integration test on Ubuntu, Windows, and macOS.
 # This is the heavier CI that validates cross-platform compatibility before releases.
 #
 # For fast Ubuntu-only testing, see basic-tests.yml.
@@ -11,7 +11,7 @@
 # - PRs with 'full_test' label: All platforms
 # - Manual dispatch: All platforms
 
-name: Multi-Platform Tests
+name: Combined Integration Test (All Platforms)
 
 on:
   pull_request:
