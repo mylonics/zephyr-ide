@@ -48,7 +48,7 @@ suite("Launch Configuration Test Suite", () => {
 
             assert.ok(Array.isArray(result), "result must be an array");
             for (const expected of folderConfigs) {
-                const found = result!.find((c: any) => c.name === expected.name);
+                const found: any = result!.find((c: any) => c.name === expected.name);
                 assert.ok(found, `folder config "${expected.name}" must appear in results`);
                 assert.strictEqual(found.workspaceFolder, folder.name,
                     `folder config must carry workspaceFolder = "${folder.name}"`);
