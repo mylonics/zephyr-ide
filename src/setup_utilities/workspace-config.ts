@@ -371,7 +371,7 @@ function readCMakeCacheInfo(buildDir: string): CMakeCacheInfo {
 }
 
 /**
- * Update cached CMake info (GDB path and ELF name) for a build after build completes
+ * Update cached CMake info (GDB path, ELF name, and toolchain path) for a build after build completes
  * @param wsConfig The workspace configuration  
  * @param projectName The project name
  * @param buildName The build name
@@ -403,10 +403,16 @@ export function updateBuildCMakeInfo(wsConfig: WorkspaceConfig, projectName: str
     buildState.elfName = info.elfName;
     outputInfo("CMakeCache", `Updated cached ELF name for ${buildName}: "${info.elfName}"`);
   }
+
+  const toolchainPath = readBuildInfoToolchainPath(buildDir);
+  if (toolchainPath) {
+    buildState.toolchainPath = toolchainPath;
+    outputInfo("BuildInfo", `Updated cached toolchain path for ${buildName}: "${toolchainPath}"`);
+  }
 }
 
 /**
- * Clear cached CMake info (GDB path and ELF name) for a build (called on pristine/clean)
+ * Clear cached CMake info (GDB path, ELF name, and toolchain path) for a build (called on pristine/clean)
  * @param wsConfig The workspace configuration
  * @param projectName The project name
  * @param buildName The build name
@@ -416,6 +422,7 @@ export function clearBuildCMakeInfo(wsConfig: WorkspaceConfig, projectName: stri
   if (buildState) {
     buildState.gdbPath = undefined;
     buildState.elfName = undefined;
+    buildState.toolchainPath = undefined;
     outputInfo("CMakeCache", `Cleared cached CMake info for ${buildName}`);
   }
 }
@@ -514,22 +521,33 @@ export function getGdbPath(wsConfig: WorkspaceConfig): string | undefined {
 
 /**
  * Get the toolchain directory for the active build.
- * Reads the toolchain path from build_info.yml (toolchain.path) in the active build's
- * directory, handling sysbuild by using the default domain's build_info.yml.
+ * Uses cached toolchain path from BuildState if available; otherwise reads from
+ * build_info.yml (toolchain.path) and caches the result for future calls.
+ * Handles sysbuild by using the default domain's build_info.yml.
  * Falls back to getToolchainDir() (the configured or default directory) when no
- * active build is available or build_info.yml is not present/readable.
+ * active build is selected or build_info.yml is not present/readable.
  * @param wsConfig The workspace configuration
  * @returns The toolchain directory path
  */
 export function getToolchainPath(wsConfig: WorkspaceConfig): string {
   const resolved = resolveActiveProjectBuild(wsConfig);
   if (resolved) {
-    const buildDir = path.join(wsConfig.rootPath, resolved.project.rel_path, resolved.buildName);
-    const toolchainPath = readBuildInfoToolchainPath(buildDir);
-    if (toolchainPath) {
-      return toolchainPath;
+    const buildState = wsConfig.projectStates[resolved.projectName]?.buildStates[resolved.buildName];
+    if (buildState) {
+      // Use cached value if available
+      if (buildState.toolchainPath) {
+        return buildState.toolchainPath;
+      }
+      // Lazy-load from build_info.yml and cache
+      const buildDir = path.join(wsConfig.rootPath, resolved.project.rel_path, resolved.buildName);
+      const toolchainPath = readBuildInfoToolchainPath(buildDir);
+      if (toolchainPath) {
+        buildState.toolchainPath = toolchainPath;
+        return toolchainPath;
+      }
     }
   }
+  // No active build or build_info.yml not available: return configured/default toolchain directory
   return getToolchainDir();
 }
 
