@@ -326,9 +326,12 @@ export async function getLaunchConfigurations(wsConfig: WorkspaceConfig) {
   const wsInspect = vscode.workspace.getConfiguration("launch").inspect<any[]>("configurations");
   if (wsInspect?.workspaceValue) {
     for (const cfg of wsInspect.workspaceValue) {
-      if (cfg.name && !seenKeys.has(cfg.name)) {
-        seenKeys.add(cfg.name);
-        allConfigurations.push({ ...cfg });
+      if (cfg.name) {
+        const wsKey = `workspace:${cfg.name}`;
+        if (!seenKeys.has(wsKey)) {
+          seenKeys.add(wsKey);
+          allConfigurations.push({ ...cfg });
+        }
       }
     }
   }
@@ -341,11 +344,13 @@ export async function getLaunchConfigurations(wsConfig: WorkspaceConfig) {
     const folderConfigs = folderInspect?.workspaceFolderValue;
     if (folderConfigs) {
       for (const cfg of folderConfigs) {
-        // Deduplicate by name+folder to allow same-named configs from different folders
-        const key = `${cfg.name}::${folder.name}`;
-        if (cfg.name && !seenKeys.has(key)) {
-          seenKeys.add(key);
-          allConfigurations.push({ ...cfg, workspaceFolder: folder.name });
+        // Deduplicate by scope+folder+name to allow same-named configs from different folders
+        if (cfg.name) {
+          const key = `folder:${folder.name}:${cfg.name}`;
+          if (!seenKeys.has(key)) {
+            seenKeys.add(key);
+            allConfigurations.push({ ...cfg, workspaceFolder: folder.name });
+          }
         }
       }
     }
