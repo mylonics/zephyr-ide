@@ -108,16 +108,15 @@ export async function deleteTestDirs(
   wsConfig: WorkspaceConfig,
   project: ProjectConfig
 ) {
-  let projectDir = path.join(wsConfig.rootPath, project.rel_path);
+  const projectDir = path.join(wsConfig.rootPath, project.rel_path);
 
-  fs.readdir(projectDir, (err, files) => {
-    for (var i = 0, len = files.length; i < len; i++) {
-      var match = files[i].match(/twister.*/);
-      if (match !== null) {
-        fs.rmSync(path.join(projectDir, match[0]), { recursive: true, force: true });
-      }
+  const files = await fs.readdir(projectDir);
+  for (const file of files) {
+    const match = file.match(/twister.*/);
+    if (match !== null) {
+      await fs.rm(path.join(projectDir, match[0]), { recursive: true, force: true });
     }
-  });
+  }
 
   vscode.window.showInformationMessage(`Deleted ${project.name} test directories`);
 }
