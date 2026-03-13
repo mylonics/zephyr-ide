@@ -71,7 +71,7 @@ function projectLoader(config: WorkspaceConfig, projects: any) {
 export async function getVariable(config: WorkspaceConfig, variable_name: string, project_name?: string, build_name?: string) {
   const zephyrIdeSettingFilePath = path.join(config.rootPath, ".vscode", "zephyr-ide.json");
   try {
-    var object = await JSON.parse(fs.readFileSync(zephyrIdeSettingFilePath, 'utf8'));
+    var object = JSON.parse(fs.readFileSync(zephyrIdeSettingFilePath, 'utf8'));
     if (project_name) {
       let projects = object.projects;
       if (build_name) {
@@ -97,7 +97,7 @@ export async function loadProjectsFromFile(config: WorkspaceConfig) {
       }
       );
     } else {
-      var object = await JSON.parse(fs.readFileSync(zephyrIdeSettingFilePath, 'utf8'));
+      var object = JSON.parse(fs.readFileSync(zephyrIdeSettingFilePath, 'utf8'));
       let projects = object.projects;
       projectLoader(config, projects);
     }
