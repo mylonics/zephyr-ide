@@ -97,7 +97,6 @@ import {
 import {
   setActiveProject,
   getResolvedRunnerName,
-  getResolvedTestConfig,
   resolveActiveProjectBuild,
   resolveActiveProject,
 } from "./project_utilities/project";
