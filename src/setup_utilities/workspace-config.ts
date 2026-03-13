@@ -248,70 +248,27 @@ export function getToolchainDir() {
 }
 
 /**
- * Information parsed from CMakeCache.txt
+ * Information parsed from a build directory (CMakeCache.txt + build_info.yml).
  */
 interface CMakeCacheInfo {
   gdbPath?: string;
   elfName?: string;
+  toolchainPath?: string;
 }
 
 /**
- * Read the toolchain path from build_info.yml for the given build directory.
- * Handles sysbuild by reading domains.yaml to find the default domain's build directory.
- * @param buildDir The build directory path
- * @returns The toolchain path string (e.g. "~/.zephyr_ide/toolchains/zephyr-sdk-0.17.4"), or undefined
- */
-function readBuildInfoToolchainPath(buildDir: string): string | undefined {
-  let effectiveBuildDir = buildDir;
-
-  // Check for sysbuild: if domains.yaml exists, use the default domain's build directory
-  const domainsYamlPath = path.join(buildDir, "domains.yaml");
-  if (fs.pathExistsSync(domainsYamlPath)) {
-    try {
-      const domainsDoc: any = yaml.load(fs.readFileSync(domainsYamlPath, 'utf-8'));
-      const defaultName = domainsDoc?.default;
-      const domains: any[] = domainsDoc?.domains;
-      if (defaultName && Array.isArray(domains)) {
-        const defaultDomain = domains.find((d: any) => d.name === defaultName);
-        if (defaultDomain?.build_dir) {
-          effectiveBuildDir = defaultDomain.build_dir;
-        }
-      }
-    } catch (e) {
-      // If parsing fails, fall back to the top-level build dir
-    }
-  }
-
-  const buildInfoPath = path.join(effectiveBuildDir, "build_info.yml");
-  if (!fs.pathExistsSync(buildInfoPath)) {
-    return undefined;
-  }
-
-  try {
-    const rawData: any = yaml.load(fs.readFileSync(buildInfoPath, 'utf-8'));
-    const toolchainPath = rawData?.toolchain?.path;
-    if (toolchainPath && typeof toolchainPath === 'string') {
-      return toolchainPath;
-    }
-  } catch (e) {
-    outputWarning("BuildInfo", `Failed to parse build_info.yml at "${buildInfoPath}": ${e}`);
-  }
-  return undefined;
-}
-
-/**
- * Read build information from CMakeCache.txt in a single pass.
- * Extracts CMAKE_GDB and BYPRODUCT_KERNEL_ELF_NAME.
- * For sysbuild projects, reads domains.yaml first to find the default domain's
- * build directory and uses that domain's CMakeCache.txt instead.
- * @param buildDir The build directory path
- * @returns An object containing the parsed GDB path and ELF name
+ * Read build information from a build directory in a single pass.
+ * Resolves the effective domain build directory once (via domains.yaml for sysbuild),
+ * then reads both CMakeCache.txt (for CMAKE_GDB / BYPRODUCT_KERNEL_ELF_NAME) and
+ * build_info.yml (for toolchain.path) from that directory.
+ * @param buildDir The top-level build directory path
+ * @returns An object containing the parsed GDB path, ELF name, and toolchain path
  */
 function readCMakeCacheInfo(buildDir: string): CMakeCacheInfo {
   const info: CMakeCacheInfo = {};
 
-  // Check for sysbuild: if domains.yaml exists, use the default domain's CMakeCache.txt
-  let cmakeCachePath: string;
+  // Resolve the effective build directory, handling sysbuild via domains.yaml
+  let effectiveBuildDir = buildDir;
   const domainsYamlPath = path.join(buildDir, "domains.yaml");
   if (fs.pathExistsSync(domainsYamlPath)) {
     outputInfo("CMakeCache", `Found domains.yaml at "${domainsYamlPath}" — sysbuild detected.`);
@@ -322,8 +279,8 @@ function readCMakeCacheInfo(buildDir: string): CMakeCacheInfo {
       if (defaultName && Array.isArray(domains)) {
         const defaultDomain = domains.find((d: any) => d.name === defaultName);
         if (defaultDomain?.build_dir) {
-          cmakeCachePath = path.join(defaultDomain.build_dir, "CMakeCache.txt");
-          outputInfo("CMakeCache", `Using domain "${defaultName}" CMakeCache at "${cmakeCachePath}".`);
+          effectiveBuildDir = defaultDomain.build_dir;
+          outputInfo("CMakeCache", `Using domain "${defaultName}" build dir at "${effectiveBuildDir}".`);
         } else {
           outputWarning("CMakeCache", `Default domain "${defaultName}" has no build_dir in domains.yaml.`);
           return info;
@@ -336,35 +293,49 @@ function readCMakeCacheInfo(buildDir: string): CMakeCacheInfo {
       outputWarning("CMakeCache", `Error reading domains.yaml: ${domainError}`);
       return info;
     }
-  } else {
-    cmakeCachePath = path.join(buildDir, "CMakeCache.txt");
   }
 
+  // Read CMakeCache.txt for GDB path and ELF name
+  const cmakeCachePath = path.join(effectiveBuildDir, "CMakeCache.txt");
   if (!fs.pathExistsSync(cmakeCachePath)) {
     outputWarning("CMakeCache", `CMakeCache.txt not found at "${cmakeCachePath}". The project may not have been built yet.`);
-    return info;
+  } else {
+    try {
+      const cacheContent = fs.readFileSync(cmakeCachePath, 'utf-8');
+
+      const gdbMatch = cacheContent.match(/^CMAKE_GDB:\w+=(.+)$/m);
+      if (gdbMatch && gdbMatch[1]) {
+        info.gdbPath = gdbMatch[1].trim();
+        outputInfo("CMakeCache", `Found GDB path: "${info.gdbPath}"`);
+      } else {
+        outputInfo("CMakeCache", `CMAKE_GDB not found in "${cmakeCachePath}".`);
+      }
+
+      const elfMatch = cacheContent.match(/^BYPRODUCT_KERNEL_ELF_NAME:\w+=(.+)$/m);
+      if (elfMatch && elfMatch[1]) {
+        info.elfName = elfMatch[1].trim();
+        outputInfo("CMakeCache", `Found kernel ELF name: "${info.elfName}"`);
+      } else {
+        outputWarning("CMakeCache", `BYPRODUCT_KERNEL_ELF_NAME not found in "${cmakeCachePath}".`);
+      }
+    } catch (error) {
+      outputWarning("CMakeCache", `Error reading CMakeCache.txt: ${error}`);
+    }
   }
 
-  try {
-    const cacheContent = fs.readFileSync(cmakeCachePath, 'utf-8');
-
-    const gdbMatch = cacheContent.match(/^CMAKE_GDB:\w+=(.+)$/m);
-    if (gdbMatch && gdbMatch[1]) {
-      info.gdbPath = gdbMatch[1].trim();
-      outputInfo("CMakeCache", `Found GDB path: "${info.gdbPath}"`);
-    } else {
-      outputInfo("CMakeCache", `CMAKE_GDB not found in "${cmakeCachePath}".`);
+  // Read build_info.yml for toolchain path (same effective build directory)
+  const buildInfoPath = path.join(effectiveBuildDir, "build_info.yml");
+  if (fs.pathExistsSync(buildInfoPath)) {
+    try {
+      const rawData: any = yaml.load(fs.readFileSync(buildInfoPath, 'utf-8'));
+      const toolchainPath = rawData?.toolchain?.path;
+      if (toolchainPath && typeof toolchainPath === 'string') {
+        info.toolchainPath = toolchainPath;
+        outputInfo("CMakeCache", `Found toolchain path: "${info.toolchainPath}"`);
+      }
+    } catch (e) {
+      outputWarning("CMakeCache", `Failed to parse build_info.yml at "${buildInfoPath}": ${e}`);
     }
-
-    const elfMatch = cacheContent.match(/^BYPRODUCT_KERNEL_ELF_NAME:\w+=(.+)$/m);
-    if (elfMatch && elfMatch[1]) {
-      info.elfName = elfMatch[1].trim();
-      outputInfo("CMakeCache", `Found kernel ELF name: "${info.elfName}"`);
-    } else {
-      outputWarning("CMakeCache", `BYPRODUCT_KERNEL_ELF_NAME not found in "${cmakeCachePath}".`);
-    }
-  } catch (error) {
-    outputWarning("CMakeCache", `Error reading CMakeCache.txt: ${error}`);
   }
 
   return info;
@@ -403,11 +374,9 @@ export function updateBuildCMakeInfo(wsConfig: WorkspaceConfig, projectName: str
     buildState.elfName = info.elfName;
     outputInfo("CMakeCache", `Updated cached ELF name for ${buildName}: "${info.elfName}"`);
   }
-
-  const toolchainPath = readBuildInfoToolchainPath(buildDir);
-  if (toolchainPath) {
-    buildState.toolchainPath = toolchainPath;
-    outputInfo("BuildInfo", `Updated cached toolchain path for ${buildName}: "${toolchainPath}"`);
+  if (info.toolchainPath) {
+    buildState.toolchainPath = info.toolchainPath;
+    outputInfo("CMakeCache", `Updated cached toolchain path for ${buildName}: "${info.toolchainPath}"`);
   }
 }
 
@@ -428,9 +397,9 @@ export function clearBuildCMakeInfo(wsConfig: WorkspaceConfig, projectName: stri
 }
 
 /**
- * Ensure cached CMake info (GDB path and ELF name) is populated for the given build.
- * Only reads CMakeCache.txt if either value is missing from the build state.
- * This avoids redundant file reads when both getZephyrElfPath and getGdbPath are called.
+ * Ensure cached build info (GDB path, ELF name, and toolchain path) is populated for the given build.
+ * Only reads from disk if any value is missing from the build state.
+ * This avoids redundant file reads when multiple getters are called for the same build.
  */
 function ensureBuildCMakeInfoCached(wsConfig: WorkspaceConfig, projectName: string, buildName: string): void {
   const project = wsConfig.projects[projectName];
@@ -448,8 +417,8 @@ function ensureBuildCMakeInfoCached(wsConfig: WorkspaceConfig, projectName: stri
     return;
   }
 
-  // Only read from disk if either value is missing
-  if (buildState.gdbPath && buildState.elfName) {
+  // Only read from disk if any value is missing
+  if (buildState.gdbPath && buildState.elfName && buildState.toolchainPath) {
     return;
   }
 
@@ -461,6 +430,9 @@ function ensureBuildCMakeInfoCached(wsConfig: WorkspaceConfig, projectName: stri
   }
   if (info.elfName && !buildState.elfName) {
     buildState.elfName = info.elfName;
+  }
+  if (info.toolchainPath && !buildState.toolchainPath) {
+    buildState.toolchainPath = info.toolchainPath;
   }
 }
 
@@ -532,19 +504,10 @@ export function getGdbPath(wsConfig: WorkspaceConfig): string | undefined {
 export function getToolchainPath(wsConfig: WorkspaceConfig): string {
   const resolved = resolveActiveProjectBuild(wsConfig);
   if (resolved) {
+    ensureBuildCMakeInfoCached(wsConfig, resolved.projectName, resolved.buildName);
     const buildState = wsConfig.projectStates[resolved.projectName]?.buildStates[resolved.buildName];
-    if (buildState) {
-      // Use cached value if available
-      if (buildState.toolchainPath) {
-        return buildState.toolchainPath;
-      }
-      // Lazy-load from build_info.yml and cache
-      const buildDir = path.join(wsConfig.rootPath, resolved.project.rel_path, resolved.buildName);
-      const toolchainPath = readBuildInfoToolchainPath(buildDir);
-      if (toolchainPath) {
-        buildState.toolchainPath = toolchainPath;
-        return toolchainPath;
-      }
+    if (buildState?.toolchainPath) {
+      return buildState.toolchainPath;
     }
   }
   // No active build or build_info.yml not available: return configured/default toolchain directory
