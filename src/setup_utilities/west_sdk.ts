@@ -20,7 +20,7 @@ import * as path from "upath";
 import * as fs from "fs-extra";
 
 import { WorkspaceConfig, GlobalConfig, SetupState } from "./types";
-import { getToolsDir } from "./workspace-config";
+import { getToolsDir, getToolchainDir } from "./workspace-config";
 import { executeShellCommandInPythonEnv, executeTaskHelperInPythonEnv } from "../utilities/utils";
 import { outputInfo, outputWarning, outputError, notifyError, outputCommandFailure } from "../utilities/output";
 import { sdkVersions, toolchainTargets } from "../defines";
@@ -406,7 +406,7 @@ export async function installSDK(
     toolchains?: string[]
 ): Promise<boolean> {
     try {
-        const toolchainsDir = path.join(await getToolsDir(), "toolchains");
+        const toolchainsDir = getToolchainDir();
 
         // Check if SDK is already installed in the toolchains directory.
         // The upstream `west sdk install` uses CMake find_package to detect

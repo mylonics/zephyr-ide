@@ -63,6 +63,7 @@ export interface BuildState {
   runnerStates: RunnerStateDictionary;
   gdbPath?: string; // Cached GDB path from CMakeCache.txt (CMAKE_GDB)
   elfName?: string; // Cached kernel ELF name from CMakeCache.txt (BYPRODUCT_KERNEL_ELF_NAME)
+  toolchainPath?: string; // Cached toolchain path from build_info.yml (toolchain.path)
 }
 
 interface BoardItem extends QuickPickItem {

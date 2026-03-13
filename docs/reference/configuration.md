@@ -8,13 +8,19 @@ keywords: Zephyr IDE settings, VS Code configuration, tools directory, GUI confi
 
 The following settings are available in VS Code settings (File > Preferences > Settings):
 
+## `zephyr-ide.global_directory`
+
+- **Type**: String or null
+- **Default**: null
+- **Description**: Manually specify a global directory for west workspace installation and Zephyr tools
+
+This setting replaces the deprecated `zephyr-ide.tools_directory`. It controls the root location used for west workspace setup, Python virtual environments, and (by default) SDK toolchain installations. Useful for shared environments or when you need to install tools in a specific location.
+
 ## `zephyr-ide.tools_directory`
 
 - **Type**: String or null
 - **Default**: null
-- **Description**: Manually specify a tools directory for SDK installation and global Zephyr install location
-
-This setting allows you to override the default location where the SDK and Zephyr tools are installed. Useful for shared environments or when you need to install tools in a specific location.
+- **Deprecated**: Use `zephyr-ide.global_directory` instead. The extension automatically migrates this setting on startup.
 
 ## `zephyr-ide.toolchain_directory`
 
