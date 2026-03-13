@@ -82,7 +82,7 @@ These are not command-level tests but validate the core logic behind commands or
 | `getPythonCommand()` / `resetPythonCommand()` | `python-command.test.ts` | Used by `setup-west-environment` and all west operations |
 | `getToolchainDir()` | `toolchain-config.test.ts` | `zephyr-ide.get-toolchain-path` |
 | `getVenvPath()` | `venv-config.test.ts` | Used by workspace setup for Python venv creation |
-| `getEnvironmentSetupState()` | `externally-managed.test.ts` | Used by workspace activation to detect external Zephyr environments |
+| `getEnvironmentSetupState()` | `env-detection.test.ts` | Used by workspace activation to detect external Zephyr environments |
 
 ### ❌ Commands with No Test Coverage
 
@@ -240,7 +240,7 @@ Runs on every PR to `develop` and on manual dispatch.
 
 | Step | `--grep` Pattern | Suites Matched |
 |------|------------------|----------------|
-| `unit-tests` | `^(?!.*(Workspace\|Combined))` | All 7 unit test suites (negative lookahead excludes any suite containing "Workspace" or "Combined") |
+| `unit-tests` | `^(?!.*(Workspace|Combined))` | All 7 unit test suites (negative lookahead excludes any suite containing "Workspace" or "Combined") |
 
 The 7 unit suites matched are:
 
@@ -290,8 +290,8 @@ Both `basic-tests.yml` and `multiplatform-tests.yml` call the shared reusable wo
 |----------|---------|------------|-------------------|
 | `unit-tests.yml` | PRs to `develop` | ✅ All 7 unit suites | ❌ No |
 | `basic-tests.yml` | PRs to `develop` | ❌ No | ✅ `combined-installation` only (Ubuntu) |
-| `multiplatform-tests.yml` | PRs to `main`/`pre-release` | ❌ No | ✅ `combined-installation` (Ubuntu + Windows + macOS) |
-| `workspace-setup-tests.yml` | PRs to `main`/`pre-release` (conditional) | ❌ No | ✅ All 5 workspace setup suites (Ubuntu) |
+| `multiplatform-tests.yml` | PRs to `develop` (`bump-version-*` or `full_test` label), manual dispatch | ❌ No | ✅ `combined-installation` (Ubuntu + Windows + macOS) |
+| `workspace-setup-tests.yml` | PRs to `develop` (`bump-version-*` or `full_test` label), manual dispatch | ❌ No | ✅ All 5 workspace setup suites (Ubuntu) |
 
 To run all tests locally:
 
@@ -313,7 +313,7 @@ npx vscode-test
 | Metric | Count |
 |--------|-------|
 | Commands in `package.json` (user-facing, contributed to VS Code UI) | 90 |
-| Commands registered via `registerCommand` in `extension.ts` (includes headless/test-only variants not in `package.json`) | 68 |
+| Commands registered via `registerCommand` in `extension.ts` (includes headless/test-only variants not in `package.json`) | 101 |
 | Commands exercised in integration tests | ~16 |
 | Utility functions covered by unit tests | ~7 |
 | Commands with **no test coverage** | ~74 |
