@@ -16,13 +16,12 @@ limitations under the License.
 */
 
 import * as vscode from 'vscode';
-import path from 'upath';
 import { WorkspaceConfig, GlobalConfig } from '../../setup_utilities/types';
-import { getNonce } from "../../utilities/getNonce";
+import { generateWebviewHtml, initWebviewView } from '../webviewHelper';
 
 
 export class ExtensionSetupView implements vscode.WebviewViewProvider {
-  private view: vscode.WebviewView | undefined;
+  public view: vscode.WebviewView | undefined;
 
   constructor(public extensionPath: string, private context: vscode.ExtensionContext, private wsConfig: WorkspaceConfig, private globalConfig: GlobalConfig) { }
 
@@ -51,65 +50,25 @@ export class ExtensionSetupView implements vscode.WebviewViewProvider {
 
   setHtml(body: string) {
     if (this.view !== undefined) {
-      const fileUri = (fp: string) => {
-        const fragments = fp.split('/');
-
-        return vscode.Uri.file(
-          path.join(this.extensionPath, ...fragments)
-        );
-      };
-
-      const assetUri = (fp: string) => {
-        if (this.view) {
-          return this.view.webview.asWebviewUri(fileUri(fp));
-        }
-      };
-
-      const nonce = getNonce();
-
-      this.view.webview.html = `
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Document</title>
-          <link rel="stylesheet" href="${assetUri('node_modules/@vscode/codicons/dist/codicon.css')}"  id="vscode-codicon-stylesheet">
-          <link rel="stylesheet" href="${assetUri('src/panels/view.css')}">
-          <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${this.view.webview.cspSource}; font-src ${this.view.webview.cspSource}; img-src ${this.view.webview.cspSource} https:; script-src 'nonce-${nonce}';">
-          <script nonce="${nonce}" src="${assetUri('node_modules/@vscode-elements/elements/dist/bundled.js')}"  type="module"></script>
-          <script nonce="${nonce}" src="${assetUri('src/panels/extension_setup_view/ExtensionSetupViewHandler.js')}"  type="module"></script>
-        </head>
-        <body>
-        <vscode-tree id="setup-tree"></vscode-tree>
-        ${body}
-        </body>
-        </html>`;
+      this.view.webview.html = generateWebviewHtml(this.view, this.extensionPath, body, {
+        handlerJsPath: 'src/panels/extension_setup_view/ExtensionSetupViewHandler.js',
+        treeElementHtml: '<vscode-tree id="setup-tree"></vscode-tree>',
+        includeCSP: true,
+      });
     }
   };
 
 
   resolveWebviewView(webviewView: vscode.WebviewView, context: vscode.WebviewViewResolveContext, token: vscode.CancellationToken): void | Thenable<void> {
-    webviewView.webview.options = {
-      enableScripts: true,
-      enableCommandUris: true,
-    };
-
-    this.view = webviewView;
-    
-    // Refresh webview when it becomes visible to ensure content is loaded
-    webviewView.onDidChangeVisibility(() => {
-      if (webviewView.visible) {
-        this.updateWebView(this.wsConfig, this.globalConfig);
-      }
-    });
-    
-    webviewView.webview.onDidReceiveMessage(message => {
-      console.log(message);
-      vscode.commands.executeCommand(message.command);
-    });
-    this.setHtml("");
-    this.updateWebView(this.wsConfig, this.globalConfig);
+    initWebviewView(
+      this, webviewView,
+      () => this.updateWebView(this.wsConfig, this.globalConfig),
+      (message) => {
+        console.log(message);
+        vscode.commands.executeCommand(message.command);
+      },
+      () => { this.setHtml(""); this.updateWebView(this.wsConfig, this.globalConfig); }
+    );
   }
 }
 

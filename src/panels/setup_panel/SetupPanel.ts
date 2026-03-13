@@ -31,15 +31,7 @@ import { HostToolsSubPage } from "./HostToolsSubPage";
 import { SDKSubPage } from "./SDKSubPage";
 import { WorkspaceSubPage } from "./WorkspaceSubPage";
 import { HostToolsCard, SDKCard, WorkspaceCard } from "./OverviewCards";
-import {
-    getPackageManagerForPlatformAsync,
-    checkPackageManagerAvailable,
-    checkAllPackages,
-    installPackageManager,
-    installPackage,
-    installAllMissingPackages,
-    getPlatformPackages,
-} from "../../setup_utilities/host_tools";
+import { HostToolsService, SETUP_PANEL_CONFIG } from "../hostToolsService";
 
 export class SetupPanel {
     public static currentPanel: SetupPanel | undefined;
@@ -47,6 +39,7 @@ export class SetupPanel {
     private readonly _extensionPath: string;
     private readonly _context: vscode.ExtensionContext;
     private _disposables: vscode.Disposable[] = [];
+    private _hostToolsService: HostToolsService;
 
     // Store configs as instance variables to access them in methods
     private currentWsConfig?: WorkspaceConfig;
@@ -99,6 +92,14 @@ export class SetupPanel {
         this._extensionPath = extensionPath;
         this._context = context;
 
+        const config = { ...SETUP_PANEL_CONFIG };
+        config.onMarkComplete = () => {
+            if (this.currentWsConfig && this.currentGlobalConfig) {
+                this.updateContent(this.currentWsConfig, this.currentGlobalConfig);
+            }
+        };
+        this._hostToolsService = new HostToolsService(panel.webview, config);
+
         this.updateContent(wsConfig, globalConfig);
 
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
@@ -137,25 +138,25 @@ export class SetupPanel {
                 this.openHostToolsPanel();
                 return;
             case "markToolsComplete":
-                this.markToolsComplete();
+                this._hostToolsService.markComplete(this._context, this.currentWsConfig, this.currentGlobalConfig);
                 return;
             case "checkHostToolsStatus":
-                this.checkHostToolsStatus();
+                this._hostToolsService.checkStatus();
                 return;
             case "installPackageManager":
-                this.installPackageManager();
+                this._hostToolsService.installPackageManager();
                 return;
             case "installPackage":
-                this.installPackage(message.packageName);
+                this._hostToolsService.installSinglePackage(message.packageName);
                 return;
             case "installAllMissingTools":
-                this.installAllMissingTools();
+                this._hostToolsService.installAllMissing();
                 return;
             case "installAllMissingToolsPackages":
-                this.installAllMissingToolsPackages(message.packageNames);
+                this._hostToolsService.installAllMissingPackages(message.packageNames);
                 return;
             case "openWingetLink":
-                this.openWingetLink();
+                this._hostToolsService.openManagerInstallUrl();
                 return;
             case "openFolder":
                 this.openFolder();
@@ -228,7 +229,7 @@ export class SetupPanel {
                     page: page
                 });
                 // Then automatically check host tools status
-                setTimeout(() => this.checkHostToolsStatus(), 100);
+                setTimeout(() => this._hostToolsService.checkStatus(), 100);
                 return;
             case "sdk":
                 subPageContent = SDKSubPage.getHtml(this.currentGlobalConfig, this.hasValidSetupState());
@@ -298,252 +299,6 @@ export class SetupPanel {
             vscode.commands.executeCommand("zephyr-ide.install-host-tools");
         } catch (error) {
             notifyError("Setup Panel", `Failed to open host tools panel: ${error}`);
-        }
-    }
-
-    private async markToolsComplete() {
-        if (!this.currentWsConfig || !this.currentGlobalConfig) {
-            notifyError("Setup Panel", "Configuration not available");
-            return;
-        }
-
-        this.currentGlobalConfig.toolsAvailable = true;
-        await saveSetupState(
-            this._context,
-            this.currentWsConfig,
-            this.currentGlobalConfig
-        );
-
-        vscode.window.showInformationMessage(
-            "Host tools marked as available."
-        );
-
-        // Update the panel to reflect the change
-        this.updateContent(this.currentWsConfig, this.currentGlobalConfig);
-    }
-
-    private async checkHostToolsStatus() {
-        try {
-            const manager = await getPackageManagerForPlatformAsync();
-            if (!manager) {
-                this._panel.webview.postMessage({
-                    command: "updateHostToolsStatus",
-                    error: "Unsupported platform",
-                });
-                return;
-            }
-
-            const managerAvailable = await checkPackageManagerAvailable();
-            const packageStatuses = await checkAllPackages();
-
-            this._panel.webview.postMessage({
-                command: "updateHostToolsStatus",
-                data: {
-                    managerName: manager.name,
-                    managerAvailable,
-                    managerInstallUrl: manager.config.install_url,
-                    packages: packageStatuses,
-                },
-            });
-        } catch (error) {
-            this._panel.webview.postMessage({
-                command: "updateHostToolsStatus",
-                error: String(error),
-            });
-        }
-    }
-
-    private async installPackageManager() {
-        try {
-            const success = await installPackageManager();
-
-            if (success) {
-                await this.checkHostToolsStatus();
-
-                const managerAvailable = await checkPackageManagerAvailable();
-
-                if (!managerAvailable) {
-                    notifyWarning("Host Tools",
-                        "Package manager was installed but is not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect."
-                    );
-                } else {
-                    vscode.window.showInformationMessage(
-                        "Package manager installed successfully."
-                    );
-                }
-            } else {
-                notifyError("Host Tools",
-                    "Failed to install package manager. Check output for details."
-                );
-            }
-        } catch (error) {
-            notifyError("Host Tools", `Package manager installation error: ${error}`);
-        }
-    }
-
-    private async installPackage(packageName: string) {
-        try {
-            const platformPackages = await getPlatformPackages();
-            const pkg = platformPackages.find(p => p.name === packageName);
-
-            if (!pkg) {
-                notifyError("Host Tools", `Package ${packageName} not found`);
-                return;
-            }
-
-            // Update status to installing
-            this._panel.webview.postMessage({
-                command: "hostToolsPackageInstalling",
-                packageName: packageName,
-                current: 1,
-                total: 1,
-            });
-
-            const success = await installPackage(pkg);
-
-            // Check if package is now available
-            const packageStatuses = await checkAllPackages();
-            const installedPkg = packageStatuses.find(p => p.name === packageName);
-            const pendingRestart = success && installedPkg && !installedPkg.available;
-
-            // Update status after installation
-            this._panel.webview.postMessage({
-                command: "hostToolsPackageInstalled",
-                packageName: packageName,
-                success: success,
-                pendingRestart: pendingRestart,
-                current: 1,
-                total: 1,
-            });
-
-            if (success) {
-                if (pendingRestart) {
-                    notifyWarning("Host Tools",
-                        `${packageName} was installed but is not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect.`
-                    );
-                } else {
-                    vscode.window.showInformationMessage(
-                        `${packageName} installed successfully.`
-                    );
-                }
-            } else {
-                notifyError("Host Tools",
-                    `Failed to install ${packageName}. Check output for details.`
-                );
-            }
-        } catch (error) {
-            notifyError("Host Tools", `Package installation error: ${error}`);
-        }
-    }
-
-    private async installAllMissingTools() {
-        try {
-            // Request the webview to start installation
-            // The webview will filter out packages that are already pending restart
-            this._panel.webview.postMessage({
-                command: "hostToolsStartInstallAll",
-            });
-        } catch (error) {
-            notifyError("Host Tools", `Install all tools error: ${error}`);
-        }
-    }
-
-    private async installAllMissingToolsPackages(packageNames: string[]) {
-        try {
-            if (packageNames.length === 0) {
-                vscode.window.showInformationMessage("All packages are already installed");
-                return;
-            }
-
-            const totalCount = packageNames.length;
-            const packages = await getPlatformPackages();
-            
-            // Start installation progress
-            this._panel.webview.postMessage({
-                command: "hostToolsInstallAllStarted",
-                total: totalCount,
-            });
-
-            let installedCount = 0;
-            let hasErrors = false;
-            
-            // Install each package one by one
-            for (const packageName of packageNames) {
-                const pkg = packages.find(p => p.name === packageName);
-                if (pkg) {
-                    // Update status to installing
-                    this._panel.webview.postMessage({
-                        command: "hostToolsPackageInstalling",
-                        packageName: pkg.name,
-                        current: installedCount + 1,
-                        total: totalCount,
-                    });
-
-                    const success = await installPackage(pkg);
-                    installedCount++;
-
-                    // Check if package is now available
-                    const updatedStatus = await checkAllPackages();
-                    const installedPkg = updatedStatus.find(p => p.name === packageName);
-                    const pendingRestart = success && installedPkg && !installedPkg.available;
-
-                    // Update status after installation
-                    this._panel.webview.postMessage({
-                        command: "hostToolsPackageInstalled",
-                        packageName: pkg.name,
-                        success: success,
-                        pendingRestart: pendingRestart,
-                        current: installedCount,
-                        total: totalCount,
-                    });
-
-                    if (!success) {
-                        hasErrors = true;
-                    }
-                }
-            }
-            
-            // Check if any packages still aren't available after installation
-            const packageStatuses = await checkAllPackages();
-            const needsRestart = packageStatuses.some(p => !p.available);
-            
-            // Complete installation
-            this._panel.webview.postMessage({
-                command: "hostToolsInstallAllComplete",
-                needsRestart: needsRestart,
-                hasErrors: hasErrors,
-            });
-
-            if (needsRestart) {
-                notifyWarning("Host Tools",
-                    "Some packages were installed but are not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect."
-                );
-            } else if (!hasErrors) {
-                vscode.window.showInformationMessage(
-                    "All missing packages installed successfully."
-                );
-            } else {
-                notifyWarning("Host Tools",
-                    "Some host tools failed to install. Check the output for details."
-                );
-            }
-
-            await this.checkHostToolsStatus();
-        } catch (error) {
-            notifyError("Host Tools", `Batch installation error: ${error}`);
-            this._panel.webview.postMessage({
-                command: "hostToolsInstallAllComplete",
-                needsRestart: false,
-                hasErrors: true,
-            });
-        }
-    }
-
-    private async openWingetLink() {
-        try {
-            vscode.env.openExternal(vscode.Uri.parse("https://aka.ms/getwinget"));
-        } catch (error) {
-            notifyError("Setup Panel", `Failed to open winget link: ${error}`);
         }
     }
 
