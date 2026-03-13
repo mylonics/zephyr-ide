@@ -320,10 +320,24 @@ export async function getLaunchConfigurations(wsConfig: WorkspaceConfig) {
   const allConfigurations: any[] = [];
   const seenKeys = new Set<string>();
 
+  const wsInspect = vscode.workspace.getConfiguration("launch").inspect<any[]>("configurations");
+
+  // Check global-level configurations (user settings.json) - lowest precedence.
+  if (wsInspect?.globalValue) {
+    for (const cfg of wsInspect.globalValue) {
+      if (cfg.name) {
+        const key = `global:${cfg.name}`;
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+          allConfigurations.push({ ...cfg });
+        }
+      }
+    }
+  }
+
   // Check workspace-level configurations (from .code-workspace file).
   // inspect() returns workspaceValue for configs stored at the workspace scope
   // (.code-workspace), which is distinct from per-folder .vscode/launch.json.
-  const wsInspect = vscode.workspace.getConfiguration("launch").inspect<any[]>("configurations");
   if (wsInspect?.workspaceValue) {
     for (const cfg of wsInspect.workspaceValue) {
       if (cfg.name) {
