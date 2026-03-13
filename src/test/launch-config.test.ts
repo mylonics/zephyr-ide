@@ -48,9 +48,6 @@ suite("Launch Configuration Test Suite", () => {
                     "Every returned configuration must have a non-empty name");
             }
 
-            // Names must be unique across the returned list
-            const names = configurations.map((c: any) => c.name);
-            const uniqueNames = new Set(names);
             // Allow same name from different folders, but workspace-level entries
             // (no workspaceFolder) must not be duplicated.
             const workspaceLevelNames = configurations
