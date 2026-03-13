@@ -826,7 +826,6 @@ export async function addRunnerToBuild(wsConfig: WorkspaceConfig, context: vscod
 export async function addRunner(wsConfig: WorkspaceConfig, context: vscode.ExtensionContext) {
   const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Runner" });
   if (!resolved) {
-    vscode.window.showInformationMessage(`Failed to add Runner, please first select a project and build`);
     return;
   }
   await addRunnerToBuild(wsConfig, context, resolved.projectName, resolved.buildName);

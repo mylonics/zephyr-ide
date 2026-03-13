@@ -79,7 +79,7 @@ export async function initializeDtsExt(state: SetupState, wsConfig: WorkspaceCon
 export async function setDtsContext(wsConfig: WorkspaceConfig, project?: ProjectConfig, build?: BuildConfig) {
   if (api) {
     if (!project || !build) {
-      const resolved = resolveActiveProjectBuild(wsConfig);
+      const resolved = resolveActiveProjectBuild(wsConfig, project ? { projectName: project.name } : undefined);
       if (!resolved) { return; }
       project = project ?? resolved.project;
       build = build ?? resolved.build;

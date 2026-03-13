@@ -208,7 +208,7 @@ export async function buildMenuConfig(
 ) {
 
   if (!project || !build) {
-    const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Menu Config" });
+    const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Menu Config", projectName: project?.name });
     if (!resolved) { return; }
     project = project ?? resolved.project;
     build = build ?? resolved.build;
@@ -249,7 +249,7 @@ async function resolveRamRomReportParams(
   const reportType = isRamReport ? "RAM" : "ROM";
 
   if (!project || !build) {
-    const resolved = resolveActiveProjectBuild(wsConfig, { caller: "RAM/ROM Report" });
+    const resolved = resolveActiveProjectBuild(wsConfig, { caller: "RAM/ROM Report", projectName: project?.name });
     if (!resolved) { return undefined; }
     project = project ?? resolved.project;
     build = build ?? resolved.build;
@@ -324,7 +324,7 @@ export async function runDtshShell(
 ) {
 
   if (!project || !build) {
-    const resolved = resolveActiveProjectBuild(wsConfig, { caller: "DTSH Shell" });
+    const resolved = resolveActiveProjectBuild(wsConfig, { caller: "DTSH Shell", projectName: project?.name });
     if (!resolved) { return; }
     project = project ?? resolved.project;
     build = build ?? resolved.build;
