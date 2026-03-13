@@ -21,42 +21,112 @@ import { getLaunchConfigurations } from "../utilities/utils";
 import { WorkspaceConfig } from "../setup_utilities/types";
 
 suite("Launch Configuration Test Suite", () => {
-    
-    test("getLaunchConfigurations should return workspace-level configurations when available", async () => {
-        // This test verifies that the function scans all workspace folders
-        // and returns a deduplicated list of launch configurations
-        
-        // Create a mock workspace config
-        const wsConfig: WorkspaceConfig = {
+
+    function makeWsConfig(): WorkspaceConfig {
+        return {
             rootPath: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || "",
             projects: {},
             projectStates: {},
             initialSetupComplete: false,
             automaticProjectSelction: false,
         };
-        
-        // Call the function - it should work without errors
-        const configurations = await getLaunchConfigurations(wsConfig);
-        
-        // The function should return an array or undefined
-        assert.ok(Array.isArray(configurations) || configurations === undefined);
+    }
+
+    test("folder-level configs appear with workspaceFolder property set", async () => {
+        const folder = vscode.workspace.workspaceFolders?.[0];
+        if (!folder) { return; } // skip when no workspace folder is available
+
+        const folderConfigs = [
+            { name: "Folder Launch A", type: "cppdbg", request: "launch" },
+            { name: "Folder Launch B", type: "cppdbg", request: "attach" },
+        ];
+        const launchCfg = vscode.workspace.getConfiguration("launch", folder.uri);
+        await launchCfg.update("configurations", folderConfigs, vscode.ConfigurationTarget.WorkspaceFolder);
+
+        try {
+            const result = await getLaunchConfigurations(makeWsConfig());
+
+            assert.ok(Array.isArray(result), "result must be an array");
+            for (const expected of folderConfigs) {
+                const found: any = result!.find((c: any) => c.name === expected.name);
+                assert.ok(found, `folder config "${expected.name}" must appear in results`);
+                assert.strictEqual(found.workspaceFolder, folder.name,
+                    `folder config must carry workspaceFolder = "${folder.name}"`);
+            }
+        } finally {
+            await launchCfg.update("configurations", undefined, vscode.ConfigurationTarget.WorkspaceFolder);
+        }
     });
-    
-    test("getLaunchConfigurations should handle empty workspace gracefully", async () => {
-        // Create a mock workspace config with empty rootPath
-        // The function now scans all workspace folders regardless of rootPath
-        const wsConfig: WorkspaceConfig = {
-            rootPath: "",
-            projects: {},
-            projectStates: {},
-            initialSetupComplete: false,
-            automaticProjectSelction: false,
-        };
-        
-        // Call the function - it should return an array or undefined
-        // depending on whether workspace folders have launch configs
-        const configurations = await getLaunchConfigurations(wsConfig);
-        
-        assert.ok(Array.isArray(configurations) || configurations === undefined);
+
+    test("configs written via Workspace scope appear in results without duplication", async () => {
+        const wsConfigs = [
+            { name: "Workspace Launch X", type: "cppdbg", request: "launch" },
+        ];
+        const launchCfg = vscode.workspace.getConfiguration("launch");
+        await launchCfg.update("configurations", wsConfigs, vscode.ConfigurationTarget.Workspace);
+
+        try {
+            const result = await getLaunchConfigurations(makeWsConfig());
+
+            assert.ok(Array.isArray(result), "result must be an array");
+
+            // Config must appear in results regardless of workspace type.
+            // In a single-folder workspace ConfigurationTarget.Workspace writes to
+            // workspaceFolderValue; in multi-folder it writes to workspaceValue
+            // (.code-workspace). Either way the config must be surfaced exactly once.
+            const found = result!.find((c: any) => c.name === "Workspace Launch X");
+            assert.ok(found, "workspace-level config must appear in results");
+
+            const matchingEntries = result!.filter((c: any) => c.name === "Workspace Launch X");
+            assert.strictEqual(matchingEntries.length, 1,
+                "workspace config must not appear more than once");
+        } finally {
+            await launchCfg.update("configurations", undefined, vscode.ConfigurationTarget.Workspace);
+        }
+    });
+
+    test("global-level configs appear in results without duplication", async () => {
+        const globalConfigs = [
+            { name: "Global Launch Y", type: "cppdbg", request: "launch" },
+        ];
+        const launchCfg = vscode.workspace.getConfiguration("launch");
+
+        // ConfigurationTarget.Global for launch.configurations may not be supported in
+        // all VS Code environments; skip gracefully if the write is rejected.
+        try {
+            await launchCfg.update("configurations", globalConfigs, vscode.ConfigurationTarget.Global);
+        } catch (e) {
+            console.log(`Skipping global-level launch config test: Global write not supported (${e})`);
+            return;
+        }
+
+        try {
+            const result = await getLaunchConfigurations(makeWsConfig());
+
+            // If global write was silently ignored, the config may not appear — that is
+            // acceptable. Only assert dedup when it is present.
+            if (!Array.isArray(result)) { return; }
+            const matchingEntries = result.filter((c: any) => c.name === "Global Launch Y");
+            assert.ok(matchingEntries.length <= 1, "global config must not be duplicated");
+        } finally {
+            try {
+                await launchCfg.update("configurations", undefined, vscode.ConfigurationTarget.Global);
+            } catch (e) {
+                console.log(`Global launch config cleanup failed (${e})`);
+            }
+        }
+    });
+
+    test("every returned configuration has a non-empty name", async () => {
+        const result = await getLaunchConfigurations(makeWsConfig());
+
+        if (Array.isArray(result)) {
+            for (const cfg of result) {
+                assert.ok(typeof cfg.name === "string" && cfg.name.length > 0,
+                    "every config must have a non-empty name string");
+            }
+        } else {
+            assert.strictEqual(result, undefined, "result must be an array or undefined");
+        }
     });
 });
