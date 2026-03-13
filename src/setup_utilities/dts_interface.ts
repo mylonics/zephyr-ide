@@ -24,7 +24,7 @@ import { SetupState, WorkspaceConfig } from "./types";
 import path from "upath";
 import { getDtsIncludes } from "./modules";
 import {
-  getActiveProject, getActiveBuildConfigOfProject, ProjectConfig
+  resolveActiveProjectBuild, ProjectConfig
 } from "../project_utilities/project";
 
 import { getBuildInfo } from "../zephyr_utilities/build";
@@ -78,19 +78,13 @@ export async function initializeDtsExt(state: SetupState, wsConfig: WorkspaceCon
 
 export async function setDtsContext(wsConfig: WorkspaceConfig, project?: ProjectConfig, build?: BuildConfig) {
   if (api) {
-    if (project === undefined) {
-      project = getActiveProject(wsConfig);
+    if (!project || !build) {
+      const resolved = resolveActiveProjectBuild(wsConfig);
+      if (!resolved) { return; }
+      project = project ?? resolved.project;
+      build = build ?? resolved.build;
     }
-
-    if (project) {
-      if (build === undefined) {
-        build = getActiveBuildConfigOfProject(wsConfig, project.name);
-      }
-      if (build) {
-        api.setActiveContextByName(project.name + "-" + build.name);
-        return;
-      }
-    }
+    api.setActiveContextByName(project.name + "-" + build.name);
   }
 }
 

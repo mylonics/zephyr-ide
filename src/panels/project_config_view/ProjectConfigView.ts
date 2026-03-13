@@ -17,7 +17,7 @@ limitations under the License.
 
 import * as vscode from 'vscode';
 import path from 'upath';
-import { ProjectConfig, addBuildToProject, addConfigFiles, addRunnerToBuild, removeBuild, removeProject, removeRunner, setActive, modifyBuildArguments, removeConfigFile, setActiveProject, getActiveBuildConfigOfProject, getActiveRunnerConfigOfBuild, getActiveTestConfigOfProject } from '../../project_utilities/project';
+import { ProjectConfig, addBuildToProject, addConfigFiles, addRunnerToBuild, removeBuild, removeProject, removeRunner, setActive, modifyBuildArguments, removeConfigFile, setActiveProject, getResolvedRunnerConfig, getResolvedTestConfig, resolveActiveProject, resolveActiveProjectBuild } from '../../project_utilities/project';
 import { BuildConfig } from '../../project_utilities/build_selector';
 import { getNonce } from "../../utilities/getNonce";
 import { RunnerConfig } from '../../project_utilities/runner_selector';
@@ -394,16 +394,18 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
     let activeRunner;
     let activeTest;
 
-    if (wsConfig.activeProject) {
-      activeProject = wsConfig.projects[wsConfig.activeProject];
+    const resolvedProject = resolveActiveProject(wsConfig);
+    if (resolvedProject) {
+      activeProject = resolvedProject.project;
 
-      activeBuild = getActiveBuildConfigOfProject(wsConfig, wsConfig.activeProject);
+      const resolved = resolveActiveProjectBuild(wsConfig);
+      activeBuild = resolved?.build;
 
-      if (activeBuild) {
-        activeRunner = getActiveRunnerConfigOfBuild(wsConfig, wsConfig.activeProject, activeBuild.name);
+      if (resolved) {
+        activeRunner = getResolvedRunnerConfig(wsConfig, resolved);
       }
 
-      activeTest = getActiveTestConfigOfProject(wsConfig, wsConfig.activeProject);
+      activeTest = getResolvedTestConfig(wsConfig, resolvedProject);
     }
 
 

@@ -96,9 +96,10 @@ import {
 } from "./setup_utilities/dts_interface";
 import {
   setActiveProject,
-  getActiveRunnerNameOfBuild,
-  getActiveBuildNameOfProject,
-  getActiveBuildConfigOfProject,
+  getResolvedRunnerName,
+  getResolvedTestConfig,
+  resolveActiveProjectBuild,
+  resolveActiveProject,
 } from "./project_utilities/project";
 import { testHelper, deleteTestDirs } from "./zephyr_utilities/twister";
 
@@ -200,26 +201,16 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.update-status", () => {
       if (wsConfig.activeProject) {
         activeProjectDisplay.text = `$(folder) ${wsConfig.activeProject}`;
-        let activeBuild = getActiveBuildConfigOfProject(
-          wsConfig,
-          wsConfig.activeProject
-        );
+        const resolved = resolveActiveProjectBuild(wsConfig);
 
-        if (activeBuild) {
+        if (resolved) {
           setDtsContext(
             wsConfig,
-            wsConfig.projects[wsConfig.activeProject],
-            activeBuild
+            resolved.project,
+            resolved.build
           );
-          activeBuildDisplay.text = `$(project) ${activeBuild.name}`;
-          let activeRunner;
-          if (activeBuild) {
-            activeRunner = getActiveRunnerNameOfBuild(
-              wsConfig,
-              wsConfig.activeProject,
-              activeBuild.name
-            );
-          }
+          activeBuildDisplay.text = `$(project) ${resolved.build.name}`;
+          let activeRunner = getResolvedRunnerName(wsConfig, resolved);
           if (activeRunner) {
             activeRunnerDisplay.text = `$(chip) ${activeRunner}`;
           } else {
@@ -336,13 +327,10 @@ export async function activate(context: vscode.ExtensionContext) {
     100
   );
   activeBuildDisplay.command = "zephyr-ide.set-active-build";
-  if (wsConfig.activeProject) {
-    let activeBuild = getActiveBuildNameOfProject(
-      wsConfig,
-      wsConfig.activeProject
-    );
-    if (activeBuild) {
-      activeBuildDisplay.text = `$(project) ${activeBuild}`;
+  {
+    const resolved = resolveActiveProjectBuild(wsConfig);
+    if (resolved) {
+      activeBuildDisplay.text = `$(project) ${resolved.buildName}`;
     }
   }
   activeBuildDisplay.tooltip = "Zephyr IDE Active Build";
@@ -355,17 +343,10 @@ export async function activate(context: vscode.ExtensionContext) {
   );
   activeRunnerDisplay.command = "zephyr-ide.set-active-runner";
 
-  if (wsConfig.activeProject) {
-    let activeBuild = getActiveBuildNameOfProject(
-      wsConfig,
-      wsConfig.activeProject
-    );
-    if (activeBuild) {
-      let activeRunner = getActiveRunnerNameOfBuild(
-        wsConfig,
-        wsConfig.activeProject,
-        activeBuild
-      );
+  {
+    const resolved = resolveActiveProjectBuild(wsConfig);
+    if (resolved) {
+      let activeRunner = getResolvedRunnerName(wsConfig, resolved);
       if (activeRunner) {
         activeRunnerDisplay.text = `$(chip) ${activeRunner}`;
       }
@@ -428,20 +409,10 @@ export async function activate(context: vscode.ExtensionContext) {
             if (wsConfig.activeProject !== key) {
               setActiveProject(context, wsConfig, key);
               activeProjectDisplay.text = `$(folder) ${key}`;
-              let activeBuild = getActiveBuildNameOfProject(
-                wsConfig,
-                wsConfig.activeProject
-              );
-              activeBuildDisplay.text = `$(project) ${activeBuild}`;
-              let activeRunner;
-              if (activeBuild) {
-                activeRunner = getActiveRunnerNameOfBuild(
-                  wsConfig,
-                  wsConfig.activeProject,
-                  activeBuild
-                );
-              }
-              activeRunnerDisplay.text = `$(chip) ${activeRunner}`;
+              const resolved = resolveActiveProjectBuild(wsConfig);
+              activeBuildDisplay.text = resolved ? `$(project) ${resolved.buildName}` : ``;
+              let activeRunner = resolved ? getResolvedRunnerName(wsConfig, resolved) : undefined;
+              activeRunnerDisplay.text = activeRunner ? `$(chip) ${activeRunner}` : ``;
             }
             vscode.commands.executeCommand("zephyr-ide.update-web-view");
           }
@@ -709,9 +680,9 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.remove-test-dirs", async () => {
-      let activeProject = project.getActiveProject(wsConfig);
-      if (activeProject) {
-        deleteTestDirs(wsConfig, activeProject);
+      const resolved = resolveActiveProject(wsConfig, { caller: "Remove Test Dirs" });
+      if (resolved) {
+        deleteTestDirs(wsConfig, resolved.project);
       }
     })
   );
@@ -720,11 +691,11 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "zephyr-ide.reconfigure-active-test",
       async () => {
-        let activeProject = project.getActiveProject(wsConfig);
-        if (activeProject) {
-          let activeTest = project.getActiveTestConfigOfProject(
+        const resolved = resolveActiveProject(wsConfig, { caller: "Reconfigure Test" });
+        if (resolved) {
+          let activeTest = project.getResolvedTestConfig(
             wsConfig,
-            activeProject.name
+            resolved
           );
           if (activeTest) {
             await reconfigureTest(activeTest);
@@ -861,20 +832,9 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "zephyr-ide.get-active-build-path",
       async () => {
-        if (wsConfig.activeProject) {
-          let project = wsConfig.projects[wsConfig.activeProject];
-          let activeBuildConfig =
-            wsConfig.projectStates[wsConfig.activeProject].activeBuildConfig;
-
-          if (activeBuildConfig) {
-            return path.join(
-              wsConfig.rootPath,
-              project.rel_path,
-              activeBuildConfig
-            );
-          }
-        }
-        return;
+        const resolved = resolveActiveProjectBuild(wsConfig);
+        if (!resolved) { return; }
+        return path.join(wsConfig.rootPath, resolved.project.rel_path, resolved.buildName);
       }
     )
   );
@@ -883,35 +843,27 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "zephyr-ide.get-active-build-board-path",
       async () => {
-        if (wsConfig.activeProject) {
-          let project = wsConfig.projects[wsConfig.activeProject];
-          let activeBuildConfig =
-            wsConfig.projectStates[wsConfig.activeProject].activeBuildConfig;
+        const resolved = resolveActiveProjectBuild(wsConfig);
+        if (!resolved) { return; }
 
-          if (activeBuildConfig) {
-            const setupState = await getSetupState(context, wsConfig);
-            if (setupState) {
-              let build = project.buildConfigs[activeBuildConfig];
+        const setupState = await getSetupState(context, wsConfig);
+        if (!setupState) { return; }
 
-              if (build.relBoardDir) {
-                //Custom Folder
-                return path.join(
-                  wsConfig.rootPath,
-                  build.relBoardDir,
-                  build.relBoardSubDir
-                );
-              } else {
-                //Default zephyr folder
-                return path.join(
-                  setupState.zephyrDir,
-                  "boards",
-                  build.relBoardSubDir
-                );
-              }
-            }
-          }
+        if (resolved.build.relBoardDir) {
+          //Custom Folder
+          return path.join(
+            wsConfig.rootPath,
+            resolved.build.relBoardDir,
+            resolved.build.relBoardSubDir
+          );
+        } else {
+          //Default zephyr folder
+          return path.join(
+            setupState.zephyrDir,
+            "boards",
+            resolved.build.relBoardSubDir
+          );
         }
-        return;
       }
     )
   );
@@ -920,22 +872,13 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "zephyr-ide.get-active-board-name",
       async () => {
-        if (wsConfig.activeProject) {
-          let project = wsConfig.projects[wsConfig.activeProject];
-          let activeBuildConfig =
-            wsConfig.projectStates[wsConfig.activeProject].activeBuildConfig;
+        const resolved = resolveActiveProjectBuild(wsConfig);
+        if (!resolved) { return; }
 
-          if (activeBuildConfig) {
-            const setupState = await getSetupState(context, wsConfig);
-            if (setupState) {
-              return path.join(
-                setupState.setupPath,
-                project.buildConfigs[activeBuildConfig].board
-              );
-            }
-          }
-        }
-        return;
+        const setupState = await getSetupState(context, wsConfig);
+        if (!setupState) { return; }
+
+        return path.join(setupState.setupPath, resolved.build.board);
       }
     )
   );
@@ -948,19 +891,9 @@ export async function activate(context: vscode.ExtensionContext) {
         await project.setActiveBuild(context, wsConfig);
         vscode.commands.executeCommand("zephyr-ide.update-web-view");
 
-        if (wsConfig.activeProject) {
-          let project = wsConfig.projects[wsConfig.activeProject];
-          let activeBuildConfig =
-            wsConfig.projectStates[wsConfig.activeProject].activeBuildConfig;
-          if (activeBuildConfig) {
-            return path.join(
-              wsConfig.rootPath,
-              project.rel_path,
-              activeBuildConfig
-            );
-          }
-        }
-        return;
+        const resolved = resolveActiveProjectBuild(wsConfig);
+        if (!resolved) { return; }
+        return path.join(wsConfig.rootPath, resolved.project.rel_path, resolved.buildName);
       }
     )
   );
@@ -1032,7 +965,7 @@ export async function activate(context: vscode.ExtensionContext) {
       async (var_name) => {
         if (wsConfig.activeProject) {
           let activeBuildConfig =
-            wsConfig.projectStates[wsConfig.activeProject].activeBuildConfig;
+            wsConfig.projectStates[wsConfig.activeProject]?.activeBuildConfig;
           return getVariable(
             wsConfig,
             var_name,
@@ -1137,18 +1070,17 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.build-debug", async () => {
       let debugTarget = "Zephyr IDE: Debug";
       let debugTargetFolder: string | undefined;
-      let activeProject = await project.getActiveProject(wsConfig);
-      let activeBuild = await project.getActiveBuild(wsConfig);
+      const resolved = resolveActiveProjectBuild(wsConfig);
 
-      if (activeProject && activeBuild?.buildDebugTarget) {
-        debugTarget = activeBuild.buildDebugTarget;
-        debugTargetFolder = activeBuild.buildDebugTargetFolder;
+      if (resolved?.build?.buildDebugTarget) {
+        debugTarget = resolved.build.buildDebugTarget;
+        debugTargetFolder = resolved.build.buildDebugTargetFolder;
       }
 
       let debugConfig = await getLaunchConfigurationByName(wsConfig, debugTarget, debugTargetFolder);
 
-      if (debugConfig && activeProject && activeBuild) {
-        let res = await build(context, wsConfig, activeProject, activeBuild, false);
+      if (debugConfig && resolved) {
+        let res = await build(context, wsConfig, resolved.project, resolved.build, false);
         if (res) {
           const folder = getWorkspaceFolderForConfig(debugConfig);
           const started = await vscode.debug.startDebugging(folder, debugConfig);

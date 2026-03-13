@@ -21,7 +21,7 @@ import path from "upath";
 import { executeTaskHelperInPythonEnv } from "../utilities/utils";
 import { notifyError, outputInfo } from "../utilities/output";
 
-import { ProjectConfig } from "../project_utilities/project";
+import { ProjectConfig, resolveActiveProjectBuildRunner } from "../project_utilities/project";
 
 import { WorkspaceConfig } from '../setup_utilities/types';
 import { BuildConfig } from "../project_utilities/build_selector";
@@ -40,28 +40,10 @@ export async function flashByName(context: vscode.ExtensionContext, wsConfig: Wo
 }
 
 export async function flashActive(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
+  const resolved = resolveActiveProjectBuildRunner(wsConfig, { caller: "Flash" });
+  if (!resolved) { return; }
 
-  if (wsConfig.activeProject === undefined) {
-    notifyError("Flash", "Select a project before trying to flash");
-    return;
-  }
-  let projectName = wsConfig.activeProject;
-  let project = wsConfig.projects[projectName];
-  let activeBuildConfig = wsConfig.projectStates[wsConfig.activeProject].activeBuildConfig;
-
-  if (activeBuildConfig === undefined) {
-    notifyError("Flash", "Select a build before trying to flash");
-    return;
-  }
-  let build = project.buildConfigs[activeBuildConfig];
-  let activeRunnerConfig = wsConfig.projectStates[wsConfig.activeProject].buildStates[activeBuildConfig].activeRunner;
-
-  if (activeRunnerConfig === undefined) {
-    notifyError("Flash", "Select a runner before trying to flash");
-    return;
-  }
-  let runner = build.runnerConfigs[activeRunnerConfig];
-  flash(context, wsConfig, project, build, runner);
+  flash(context, wsConfig, resolved.project, resolved.build, resolved.runner);
 }
 
 export async function flash(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, project: ProjectConfig, build: BuildConfig, runner: RunnerConfig) {
