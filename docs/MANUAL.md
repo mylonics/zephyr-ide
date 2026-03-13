@@ -408,10 +408,15 @@ Zephyr IDE provides the following commands accessible via the command palette (C
 
 The following settings are available in VS Code settings (File > Preferences > Settings):
 
+### `zephyr-ide.global_directory`
+- **Type**: String or null
+- **Default**: null
+- **Description**: Manually specify a global directory for west workspace installation and Zephyr tools. Replaces the deprecated `zephyr-ide.tools_directory`.
+
 ### `zephyr-ide.tools_directory`
 - **Type**: String or null
 - **Default**: null
-- **Description**: Manually specify a tools directory for SDK installation and global Zephyr install location
+- **Deprecated**: Use `zephyr-ide.global_directory` instead. The extension automatically migrates this setting on startup.
 
 ### `zephyr-ide.use_gui_config`
 - **Type**: Boolean

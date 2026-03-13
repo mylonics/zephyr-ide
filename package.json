@@ -41,12 +41,22 @@
       "type": "object",
       "title": "Zephyr IDE",
       "properties": {
-        "zephyr-ide.tools_directory": {
+        "zephyr-ide.global_directory": {
           "type": [
-            "string"
+            "string",
+            "null"
           ],
           "default": null,
-          "description": "Manually specify a tools directory for SDK installation and global zephyr install location"
+          "description": "Manually specify a global directory for west workspace installation and Zephyr tools. The toolchains subdirectory within this folder is used by default for SDK installations unless overridden by 'zephyr-ide.toolchain_directory'."
+        },
+        "zephyr-ide.tools_directory": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "deprecationMessage": "Deprecated: Use 'zephyr-ide.global_directory' instead. The extension will automatically migrate this setting on startup.",
+          "description": "Deprecated. Use 'zephyr-ide.global_directory' instead."
         },
         "zephyr-ide.toolchain_directory": {
           "type": [

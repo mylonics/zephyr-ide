@@ -65,6 +65,7 @@ import {
   loadProjectsFromFile,
   getToolchainDir,
   getToolchainPath,
+  migrateToolsDirectory,
   setWorkspaceSettings,
   getSetupState,
   getGdbPath,
@@ -144,6 +145,9 @@ export async function activate(context: vscode.ExtensionContext) {
   context.environmentVariableCollection.description =
     "Zephyr IDE adds python path";
   context.environmentVariableCollection.replace("ZFUN", "REALLY FUN1");
+
+  // Migrate deprecated tools_directory setting to global_directory
+  await migrateToolsDirectory();
 
   wsConfig = await loadWorkspaceState(context);
   globalConfig = await loadGlobalState(context);

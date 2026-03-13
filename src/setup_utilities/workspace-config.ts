@@ -183,9 +183,15 @@ export function getToolsDir() {
   let toolsdir = path.join(os.homedir(), toolsfoldername);
 
   const configuration = vscode.workspace.getConfiguration();
-  let toolsDirFromFile: string | undefined = configuration.get("zephyr-ide.tools_directory");
-  if (toolsDirFromFile) {
-    toolsdir = toolsDirFromFile;
+  // Prefer the new global_directory setting; fall back to deprecated tools_directory
+  let globalDir: string | undefined = configuration.get("zephyr-ide.global_directory");
+  if (globalDir) {
+    toolsdir = globalDir;
+  } else {
+    let toolsDirFromFile: string | undefined = configuration.get("zephyr-ide.tools_directory");
+    if (toolsDirFromFile) {
+      toolsdir = toolsDirFromFile;
+    }
   }
   // Ensure directory exists before returning
   try {
@@ -196,6 +202,24 @@ export function getToolsDir() {
     console.error("Failed to ensure tools directory exists:", toolsdir, e);
   }
   return toolsdir;
+}
+
+/**
+ * Automatically migrate the deprecated 'tools_directory' setting to 'global_directory'.
+ * Called once on extension activation. No-op if already migrated or tools_directory is unset.
+ */
+export async function migrateToolsDirectory(): Promise<void> {
+  const configuration = vscode.workspace.getConfiguration();
+  const toolsDir: string | undefined = configuration.get("zephyr-ide.tools_directory");
+  const globalDir: string | undefined = configuration.get("zephyr-ide.global_directory");
+
+  if (toolsDir && !globalDir) {
+    await configuration.update("zephyr-ide.global_directory", toolsDir, vscode.ConfigurationTarget.Global);
+    await configuration.update("zephyr-ide.tools_directory", undefined, vscode.ConfigurationTarget.Global);
+    vscode.window.showInformationMessage(
+      `Zephyr IDE: 'zephyr-ide.tools_directory' has been automatically migrated to 'zephyr-ide.global_directory' (${toolsDir}).`
+    );
+  }
 }
 
 export function getToolchainDir() {
@@ -229,6 +253,50 @@ export function getToolchainDir() {
 interface CMakeCacheInfo {
   gdbPath?: string;
   elfName?: string;
+}
+
+/**
+ * Read the toolchain path from build_info.yml for the given build directory.
+ * Handles sysbuild by reading domains.yaml to find the default domain's build directory.
+ * @param buildDir The build directory path
+ * @returns The toolchain path string (e.g. "~/.zephyr_ide/toolchains/zephyr-sdk-0.17.4"), or undefined
+ */
+function readBuildInfoToolchainPath(buildDir: string): string | undefined {
+  let effectiveBuildDir = buildDir;
+
+  // Check for sysbuild: if domains.yaml exists, use the default domain's build directory
+  const domainsYamlPath = path.join(buildDir, "domains.yaml");
+  if (fs.pathExistsSync(domainsYamlPath)) {
+    try {
+      const domainsDoc: any = yaml.load(fs.readFileSync(domainsYamlPath, 'utf-8'));
+      const defaultName = domainsDoc?.default;
+      const domains: any[] = domainsDoc?.domains;
+      if (defaultName && Array.isArray(domains)) {
+        const defaultDomain = domains.find((d: any) => d.name === defaultName);
+        if (defaultDomain?.build_dir) {
+          effectiveBuildDir = defaultDomain.build_dir;
+        }
+      }
+    } catch (e) {
+      // If parsing fails, fall back to the top-level build dir
+    }
+  }
+
+  const buildInfoPath = path.join(effectiveBuildDir, "build_info.yml");
+  if (!fs.pathExistsSync(buildInfoPath)) {
+    return undefined;
+  }
+
+  try {
+    const rawData: any = yaml.load(fs.readFileSync(buildInfoPath, 'utf-8'));
+    const toolchainPath = rawData?.toolchain?.path;
+    if (toolchainPath && typeof toolchainPath === 'string') {
+      return toolchainPath;
+    }
+  } catch (e) {
+    outputWarning("BuildInfo", `Failed to parse build_info.yml at "${buildInfoPath}": ${e}`);
+  }
+  return undefined;
 }
 
 /**
@@ -446,18 +514,21 @@ export function getGdbPath(wsConfig: WorkspaceConfig): string | undefined {
 
 /**
  * Get the toolchain directory for the active build.
- * Derives the path from the CMAKE_GDB debugger path in the CMake cache:
- * the GDB binary lives in `{toolchain}/bin/`, so the toolchain root is two
- * levels above the binary.  Falls back to getToolchainDir() (the configured
- * or default directory) when no active build or GDB path is available.
+ * Reads the toolchain path from build_info.yml (toolchain.path) in the active build's
+ * directory, handling sysbuild by using the default domain's build_info.yml.
+ * Falls back to getToolchainDir() (the configured or default directory) when no
+ * active build is available or build_info.yml is not present/readable.
  * @param wsConfig The workspace configuration
  * @returns The toolchain directory path
  */
 export function getToolchainPath(wsConfig: WorkspaceConfig): string {
-  const gdbPath = getGdbPath(wsConfig);
-  if (gdbPath) {
-    // GDB lives at {toolchain}/bin/{gdb-binary}; go up two levels to get the toolchain root
-    return path.dirname(path.dirname(gdbPath));
+  const resolved = resolveActiveProjectBuild(wsConfig);
+  if (resolved) {
+    const buildDir = path.join(wsConfig.rootPath, resolved.project.rel_path, resolved.buildName);
+    const toolchainPath = readBuildInfoToolchainPath(buildDir);
+    if (toolchainPath) {
+      return toolchainPath;
+    }
   }
   return getToolchainDir();
 }
