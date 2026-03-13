@@ -1,0 +1,2377 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Professional VS Code extension for Zephyr RTOS development. Streamline setup, building, flashing, and debugging of Zephyr projects with automated SDK installation, west integration, and comprehensive project management tools.">
+      
+      
+        <meta name="author" content="Mylonics">
+      
+      
+        <link rel="canonical" href="https://zephyr-ide.mylonics.com/test-coverage/">
+      
+      
+      
+      
+      <link rel="icon" href="../media/icon.png">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.5.17">
+    
+    
+  
+    
+      <title>Test Coverage Report - zephyr-ide</title>
+    
+  
+
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.bcfcd587.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+  
+
+
+  
+  
+
+<script id="__analytics">function __md_analytics(){function n(){dataLayer.push(arguments)}window.dataLayer=window.dataLayer||[],n("js",new Date),n("config",""),document.addEventListener("DOMContentLoaded",function(){document.forms.search&&document.forms.search.query.addEventListener("blur",function(){this.value&&n("event","search",{search_term:this.value})}),document$.subscribe(function(){var a=document.forms.feedback;if(void 0!==a)for(var e of a.querySelectorAll("[type=submit]"))e.addEventListener("click",function(e){e.preventDefault();var t=document.location.pathname,e=this.getAttribute("data-md-value");n("event","feedback",{page:t,data:e}),a.firstElementChild.disabled=!0;e=a.querySelector(".md-feedback__note [data-md-value='"+e+"']");e&&(e.hidden=!1)}),a.hidden=!1}),location$.subscribe(function(e){n("config","",{page_path:e.pathname})})});var e=document.createElement("script");e.async=!0,e.src="https://www.googletagmanager.com/gtag/js?id=",document.getElementById("__analytics").insertAdjacentElement("afterEnd",e)}</script>
+  
+    <script>"undefined"!=typeof __md_analytics&&__md_analytics()</script>
+  
+
+    
+    
+    
+  
+  
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=K2D:wght@600&display=swap" rel="stylesheet">
+  
+  
+    
+    
+    
+    
+    
+    
+    
+    <meta property="og:title" content="Test Coverage Report - zephyr-ide">
+    
+      <meta property="og:description" content="Professional VS Code extension for Zephyr RTOS development. Streamline setup, building, flashing, and debugging of Zephyr projects with automated SDK installation, west integration, and comprehensive project management tools.">
+    
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://zephyr-ide.mylonics.com/test-coverage/">
+    <meta property="og:site_name" content="zephyr-ide">
+    <meta property="og:image" content="https://raw.githubusercontent.com/mylonics/zephyr-ide/main/media/logo.png">
+    
+    
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@mylonics">
+    <meta name="twitter:title" content="Test Coverage Report - zephyr-ide">
+    
+      <meta name="twitter:description" content="Professional VS Code extension for Zephyr RTOS development. Streamline setup, building, flashing, and debugging of Zephyr projects with automated SDK installation, west integration, and comprehensive project management tools.">
+    
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/mylonics/zephyr-ide/main/media/logo.png">
+    
+    
+    <link rel="canonical" href="https://zephyr-ide.mylonics.com/test-coverage/">
+  
+  
+  
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "zephyr ide",
+    "applicationCategory": "DeveloperApplication",
+    "description": "Professional VS Code extension for Zephyr RTOS development. Streamline setup, building, flashing, and debugging of Zephyr projects with automated SDK installation, west integration, and comprehensive project management tools.",
+    "operatingSystem": "Windows, macOS, Linux",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "author": {
+      "@type": "Organization",
+      "name": "Mylonics",
+      "url": "https://mylonics.com"
+    },
+    "softwareVersion": "2.2.0",
+    "url": "https://zephyr-ide.mylonics.com/",
+    "downloadUrl": "https://marketplace.visualstudio.com/items?itemName=mylonics.zephyr-ide",
+    "screenshot": "https://raw.githubusercontent.com/mylonics/zephyr-ide/main/media/logo.png"
+  }
+  </script>
+
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#test-coverage-report" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      <!--
+  Copyright (c) 2016-2025 Martin Donath <martin.donath@squidfunk.com>
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to
+  deal in the Software without restriction, including without limitation the
+  rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+  sell copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in
+  all copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+  IN THE SOFTWARE.
+-->
+
+<!-- Determine classes -->
+
+
+
+<!-- Header -->
+<header class="md-header" data-md-component="header">
+  <nav
+    class="md-header__inner md-grid"
+    aria-label="Header"
+  >
+
+    <!-- Link to home -->
+    <a
+      href=".."
+      title="zephyr-ide"
+      class="md-header__button md-logo"
+      aria-label="zephyr-ide"
+      data-md-component="logo"
+    >
+      
+  <img src="../media/logo.png" alt="logo">
+
+    </a>
+
+    <!-- Button to open drawer -->
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+
+    <!-- Header title -->
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            zephyr-ide
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+            Test Coverage Report
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Color palette toggle -->
+    
+      
+    
+
+    <!-- User preference: color palette -->
+    
+
+    <!-- Site language selector -->
+    
+
+    <!-- Button to open search modal -->
+    
+      
+
+      <!-- Check if search is actually enabled -->
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        </label>
+
+        <!-- Search interface -->
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+
+    <!-- Repository information -->
+    
+      <div class="md-header__source">
+        <a href="https://github.com/mylonics/zephyr-ide" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mylonics/zephyr-ide
+  </div>
+</a>
+      </div>
+    
+  </nav>
+
+  <!-- Navigation tabs (sticky) -->
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../getting-started/installation/" class="md-tabs__link">
+          
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../user-guide/project-setup/" class="md-tabs__link">
+          
+  
+  User Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../reference/commands/" class="md-tabs__link">
+          
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../changelog/" class="md-tabs__link">
+        
+  
+    
+  
+  Changelog
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../developer-guide/" class="md-tabs__link">
+        
+  
+    
+  
+  Developer Guide
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="zephyr-ide" class="md-nav__button md-logo" aria-label="zephyr-ide" data-md-component="logo">
+      
+  <img src="../media/logo.png" alt="logo">
+
+    </a>
+    zephyr-ide
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/mylonics/zephyr-ide" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mylonics/zephyr-ide
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Getting Started
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Getting Started
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/installation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Installation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/setup-panel/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Setup Panel
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/host-tools/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Host Tools
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/workspace-configuration/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Workspace Configuration
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/sdk-installation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    SDK Installation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/external-environments/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    External Environments
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    User Guide
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            User Guide
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/project-setup/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Project Setup
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/building-debugging/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Building & Debugging
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/testing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Testing with Twister
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/sharing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Sharing Code
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/other-features/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Advanced Features
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Reference
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/commands/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Commands
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/configuration/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Configuration
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/launch-configuration/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Launch Helpers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/extension-pack/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Extension Pack
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/known-issues/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Known Issues
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../changelog/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Changelog
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../developer-guide/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Developer Guide
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#test-files-inventory" class="md-nav__link">
+    <span class="md-ellipsis">
+      Test Files Inventory
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Test Files Inventory">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#unit-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      Unit Tests
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#integration-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      Integration Tests
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-infrastructure" class="md-nav__link">
+    <span class="md-ellipsis">
+      Test Infrastructure
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#command-coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      Command Coverage
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Command Coverage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#commands-exercised-in-integration-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      ✅ Commands Exercised in Integration Tests
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#underlying-functions-tested-in-unit-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      ✅ Underlying Functions Tested in Unit Tests
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#commands-with-no-test-coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      ❌ Commands with No Test Coverage
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="❌ Commands with No Test Coverage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#workspace-setup-west-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Workspace Setup &amp; West Operations
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#project-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      Project Management
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#build-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      Build Management
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#device-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Device Operations
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#runner-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      Runner Management
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#debug-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Debug Configuration
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#debugger-helper-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      Debugger Helper Commands
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#testtwister-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      Test/Twister Commands
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#kconfig-dts-reports" class="md-nav__link">
+    <span class="md-ellipsis">
+      Kconfig, DTS &amp; Reports
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ui-miscellaneous" class="md-nav__link">
+    <span class="md-ellipsis">
+      UI &amp; Miscellaneous
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ci-pipeline-availability" class="md-nav__link">
+    <span class="md-ellipsis">
+      CI Pipeline Availability
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CI Pipeline Availability">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-test-selection-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      How test selection works
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#workspace-setup-testsyml-ubuntu-only-all-workspace-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      workspace-setup-tests.yml — Ubuntu Only, All Workspace Types
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#basic-testsyml-ubuntu-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      basic-tests.yml — Ubuntu Only
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#multiplatform-testsyml-ubuntu-windows-macos" class="md-nav__link">
+    <span class="md-ellipsis">
+      multiplatform-tests.yml — Ubuntu / Windows / macOS
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#unit-tests-are-not-run-in-any-ci-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      ⚠️ Unit Tests Are NOT Run in Any CI Pipeline
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#coverage-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      Coverage Summary
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Coverage Summary">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#coverage-by-category" class="md-nav__link">
+    <span class="md-ellipsis">
+      Coverage by Category
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+  
+
+
+<h1 id="test-coverage-report">Test Coverage Report<a class="headerlink" href="#test-coverage-report" title="Permanent link">&para;</a></h1>
+<p>This document maps every registered <code>zephyr-ide.*</code> command to its test coverage status
+and clarifies which tests actually execute in each CI pipeline.</p>
+<hr />
+<h2 id="test-files-inventory">Test Files Inventory<a class="headerlink" href="#test-files-inventory" title="Permanent link">&para;</a></h2>
+<h3 id="unit-tests">Unit Tests<a class="headerlink" href="#unit-tests" title="Permanent link">&para;</a></h3>
+<p>Unit tests validate individual utility functions in isolation.
+They do <strong>not</strong> require a Zephyr SDK, network access, or long build times.</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>File</th>
+<th>Suite Name</th>
+<th>Functions Under Test</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>git-url-validation.test.ts</code></td>
+<td><code>Git URL Validation Test Suite</code></td>
+<td><code>validateGitUrl()</code> from <code>utilities/utils.ts</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>launch-config.test.ts</code></td>
+<td><code>Launch Configuration Test Suite</code></td>
+<td><code>getLaunchConfigurations()</code> from <code>utilities/utils.ts</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>platform-detection.test.ts</code></td>
+<td><code>Platform Detection Test Suite</code></td>
+<td><code>getPlatformName()</code>, <code>getPlatformNameAsync()</code> from <code>utilities/utils.ts</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>python-command.test.ts</code></td>
+<td><code>Python Command Test Suite</code></td>
+<td><code>getPythonCommand()</code>, <code>resetPythonCommand()</code> from <code>setup_utilities/west-operations.ts</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>toolchain-config.test.ts</code></td>
+<td><code>Toolchain Configuration Test Suite</code></td>
+<td><code>getToolchainDir()</code> from <code>setup_utilities/workspace-config.ts</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>venv-config.test.ts</code></td>
+<td><code>Venv Configuration Test Suite</code></td>
+<td><code>getVenvPath()</code> from <code>setup_utilities/workspace-config.ts</code></td>
+</tr>
+<tr>
+<td>7</td>
+<td><code>externally-managed.test.ts</code></td>
+<td><code>Environment Variable Detection Test Suite</code></td>
+<td><code>getEnvironmentSetupState()</code> from <code>setup_utilities/workspace-config.ts</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="integration-tests">Integration Tests<a class="headerlink" href="#integration-tests" title="Permanent link">&para;</a></h3>
+<p>Integration tests execute full VS Code extension workflows end-to-end.
+They require network access, Zephyr SDK downloads, and take 15+ minutes each.</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>File</th>
+<th>Suite Name</th>
+<th>Workflow</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td><code>workspace-standard.test.ts</code></td>
+<td><code>Standard Workspace Test Suite</code></td>
+<td>Dependencies → West setup → SDK install → Create project → Add build → Build</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>workspace-west-git.test.ts</code></td>
+<td><code>West Git Workspace Test Suite</code></td>
+<td>West git clone → SDK install → Add project → Custom board build</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>workspace-zephyr-ide-git.test.ts</code></td>
+<td><code>Workspace Zephyr IDE Git Test Suite</code></td>
+<td>Zephyr IDE git clone → SDK install → Build existing project</td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>workspace-local-west.test.ts</code></td>
+<td><code>Workspace Local West Test Suite</code></td>
+<td>Git clone → Detect west.yml → Local west workspace → Build</td>
+</tr>
+<tr>
+<td>5</td>
+<td><code>workspace-external-zephyr.test.ts</code></td>
+<td><code>Workspace External Zephyr Test Suite</code></td>
+<td>Git clone (no west) → External Zephyr install → Global install → Build</td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>combined-installation.test.ts</code></td>
+<td><code>Combined Installation Test Suite</code></td>
+<td>Install package manager → Install host packages → Standard workspace workflow (single process)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="test-infrastructure">Test Infrastructure<a class="headerlink" href="#test-infrastructure" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test-runner.ts</code></td>
+<td>Shared utilities: <code>monitorWorkspaceSetup()</code>, <code>executeFinalBuild()</code>, <code>executeWorkspaceCommand()</code>, <code>CommonUIInteractions</code>, etc.</td>
+</tr>
+<tr>
+<td><code>ui-mock-interface.ts</code></td>
+<td>Mocks <code>vscode.window</code> methods (<code>createQuickPick</code>, <code>createInputBox</code>, <code>showOpenDialog</code>, etc.) for headless test execution</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="command-coverage">Command Coverage<a class="headerlink" href="#command-coverage" title="Permanent link">&para;</a></h2>
+<h3 id="commands-exercised-in-integration-tests">✅ Commands Exercised in Integration Tests<a class="headerlink" href="#commands-exercised-in-integration-tests" title="Permanent link">&para;</a></h3>
+<p>These commands are directly invoked via <code>vscode.commands.executeCommand()</code> during integration test workflows.</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Test File(s)</th>
+<th>How Invoked</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>zephyr-ide.check-host-tools-headless</code></td>
+<td><code>workspace-standard</code>, <code>combined-installation</code></td>
+<td>Called directly</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.check-build-dependencies</code></td>
+<td><code>workspace-standard</code>, <code>combined-installation</code></td>
+<td>Via <code>executeWorkspaceCommand()</code></td>
+</tr>
+<tr>
+<td><code>zephyr-ide.workspace-setup-standard</code></td>
+<td><code>workspace-standard</code>, <code>combined-installation</code></td>
+<td>Via <code>startWorkspaceCommand()</code></td>
+</tr>
+<tr>
+<td><code>zephyr-ide.workspace-setup-from-west-git</code></td>
+<td><code>workspace-west-git</code></td>
+<td>Via <code>startWorkspaceCommand()</code></td>
+</tr>
+<tr>
+<td><code>zephyr-ide.workspace-setup-from-git</code></td>
+<td><code>workspace-zephyr-ide-git</code>, <code>workspace-local-west</code>, <code>workspace-external-zephyr</code></td>
+<td>Via <code>startWorkspaceCommand()</code> / <code>executeCommand()</code></td>
+</tr>
+<tr>
+<td><code>zephyr-ide.create-project</code></td>
+<td><code>workspace-standard</code>, <code>combined-installation</code></td>
+<td>Via <code>executeWorkspaceCommand()</code></td>
+</tr>
+<tr>
+<td><code>zephyr-ide.add-project</code></td>
+<td><code>workspace-west-git</code></td>
+<td>Via <code>executeWorkspaceCommand()</code></td>
+</tr>
+<tr>
+<td><code>zephyr-ide.add-build</code></td>
+<td><code>workspace-standard</code>, <code>workspace-west-git</code>, <code>combined-installation</code></td>
+<td>Via <code>executeWorkspaceCommand()</code></td>
+</tr>
+<tr>
+<td><code>zephyr-ide.build</code></td>
+<td>All integration tests</td>
+<td>Via <code>executeFinalBuild()</code></td>
+</tr>
+<tr>
+<td><code>zephyr-ide.print-workspace</code></td>
+<td>All integration tests</td>
+<td>Via <code>printWorkspaceStructure()</code> in teardown</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.print-python-path</code></td>
+<td><code>workspace-standard</code>, <code>combined-installation</code></td>
+<td>Called directly to verify venv</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.is-sdk-installed</code></td>
+<td>All integration tests</td>
+<td>Polled in <code>monitorWorkspaceSetup()</code></td>
+</tr>
+<tr>
+<td><code>zephyr-ide.get-debug-output</code></td>
+<td>All integration tests</td>
+<td>Via <code>dumpExtensionOutput()</code></td>
+</tr>
+<tr>
+<td><code>zephyr-ide.update-with-narrow</code></td>
+<td>All integration tests</td>
+<td>Via <code>startWorkspaceCommand()</code> / <code>executeWorkspaceCommand()</code> (test-only command)</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.install-package-manager-headless</code></td>
+<td><code>combined-installation</code></td>
+<td>Called directly</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.install-host-packages-headless</code></td>
+<td><code>combined-installation</code></td>
+<td>Called directly</td>
+</tr>
+</tbody>
+</table>
+<h3 id="underlying-functions-tested-in-unit-tests">✅ Underlying Functions Tested in Unit Tests<a class="headerlink" href="#underlying-functions-tested-in-unit-tests" title="Permanent link">&para;</a></h3>
+<p>These are not command-level tests but validate the core logic behind commands or configuration.</p>
+<table>
+<thead>
+<tr>
+<th>Underlying Function</th>
+<th>Test File</th>
+<th>Related Command(s)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>validateGitUrl()</code></td>
+<td><code>git-url-validation.test.ts</code></td>
+<td>Used by <code>workspace-setup-from-git</code>, <code>workspace-setup-from-west-git</code></td>
+</tr>
+<tr>
+<td><code>getLaunchConfigurations()</code></td>
+<td><code>launch-config.test.ts</code></td>
+<td>Used by <code>change-debug-launch-for-build</code> and related debug commands</td>
+</tr>
+<tr>
+<td><code>getPlatformName()</code> / <code>getPlatformNameAsync()</code></td>
+<td><code>platform-detection.test.ts</code></td>
+<td>Used throughout extension for platform-specific logic</td>
+</tr>
+<tr>
+<td><code>getPythonCommand()</code> / <code>resetPythonCommand()</code></td>
+<td><code>python-command.test.ts</code></td>
+<td>Used by <code>setup-west-environment</code> and all west operations</td>
+</tr>
+<tr>
+<td><code>getToolchainDir()</code></td>
+<td><code>toolchain-config.test.ts</code></td>
+<td><code>zephyr-ide.get-toolchain-path</code></td>
+</tr>
+<tr>
+<td><code>getVenvPath()</code></td>
+<td><code>venv-config.test.ts</code></td>
+<td>Used by workspace setup for Python venv creation</td>
+</tr>
+<tr>
+<td><code>getEnvironmentSetupState()</code></td>
+<td><code>externally-managed.test.ts</code></td>
+<td>Used by workspace activation to detect external Zephyr environments</td>
+</tr>
+</tbody>
+</table>
+<h3 id="commands-with-no-test-coverage">❌ Commands with No Test Coverage<a class="headerlink" href="#commands-with-no-test-coverage" title="Permanent link">&para;</a></h3>
+<h4 id="workspace-setup-west-operations">Workspace Setup &amp; West Operations<a class="headerlink" href="#workspace-setup-west-operations" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>zephyr-ide.setup-west-environment</code></td>
+<td>Workspace Setup</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.west-init</code></td>
+<td>West Operations</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.west-update</code></td>
+<td>West Operations</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.west-list</code></td>
+<td>West Operations</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.west-config</code></td>
+<td>West Config</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.create-new-west-workspace</code></td>
+<td>West Operations</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.refresh-west-workspaces</code></td>
+<td>West Operations</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.mark-west-as-ready</code></td>
+<td>West Operations</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.reset-workspace</code></td>
+<td>Workspace Management</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.manage-workspaces</code></td>
+<td>Workspace Management</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.install-sdk</code></td>
+<td>SDK Management</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.reset-zephyr-install-selection</code></td>
+<td>SDK Management</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.workspace-setup-picker</code></td>
+<td>Workspace Setup</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.workspace-setup-from-current-directory</code></td>
+<td>Workspace Setup</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.select-existing-west-workspace</code></td>
+<td>Workspace Setup</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.set-workspace-settings</code></td>
+<td>Settings</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.install-host-tools</code></td>
+<td>Host Tools (interactive variant)</td>
+</tr>
+</tbody>
+</table>
+<h4 id="project-management">Project Management<a class="headerlink" href="#project-management" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>zephyr-ide.remove-project</code></td>
+<td>Project Management</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.clear-projects</code></td>
+<td>Project Management</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.load-projects-from-file</code></td>
+<td>Project Management</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.save-projects-to-file</code></td>
+<td>Project Management</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.set-active-project</code></td>
+<td>Project Selection</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.disable-automatic-project-target</code></td>
+<td>Project Management</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.enable-automatic-project-target</code></td>
+<td>Project Management</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.add-project-config-files</code></td>
+<td>Project Config</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.remove-project-config-files</code></td>
+<td>Project Config</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.add-project-overlay-files</code></td>
+<td>Project Config</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.remove-project-overlay-files</code></td>
+<td>Project Config</td>
+</tr>
+</tbody>
+</table>
+<h4 id="build-management">Build Management<a class="headerlink" href="#build-management" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>zephyr-ide.remove-build</code></td>
+<td>Build Management</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.set-active-build</code></td>
+<td>Build Selection</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.add-build-config-files</code></td>
+<td>Build Config</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.remove-build-config-files</code></td>
+<td>Build Config</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.add-build-overlay-files</code></td>
+<td>Build Config</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.remove-build-overlay-files</code></td>
+<td>Build Config</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.modify-build-arguments</code></td>
+<td>Build Config</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.build-pristine</code></td>
+<td>Build Operations</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.clean</code></td>
+<td>Build Operations</td>
+</tr>
+</tbody>
+</table>
+<h4 id="device-operations">Device Operations<a class="headerlink" href="#device-operations" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>zephyr-ide.flash</code></td>
+<td>Device Operations</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.debug</code></td>
+<td>Device Operations</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.debug-attach</code></td>
+<td>Device Operations</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.build-debug</code></td>
+<td>Device Operations</td>
+</tr>
+</tbody>
+</table>
+<h4 id="runner-management">Runner Management<a class="headerlink" href="#runner-management" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>zephyr-ide.add-runner</code></td>
+<td>Runner Management</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.remove-runner</code></td>
+<td>Runner Management</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.set-active-runner</code></td>
+<td>Runner Selection</td>
+</tr>
+</tbody>
+</table>
+<h4 id="debug-configuration">Debug Configuration<a class="headerlink" href="#debug-configuration" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>zephyr-ide.change-debug-launch-for-build</code></td>
+<td>Debug Config</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.change-build-debug-launch-for-build</code></td>
+<td>Debug Config</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.change-debug-attach-launch-for-build</code></td>
+<td>Debug Config</td>
+</tr>
+</tbody>
+</table>
+<h4 id="debugger-helper-commands">Debugger Helper Commands<a class="headerlink" href="#debugger-helper-commands" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>zephyr-ide.get-active-project-name</code></td>
+<td>Debugger Helpers</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.get-active-project-path</code></td>
+<td>Debugger Helpers</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.get-active-build-path</code></td>
+<td>Debugger Helpers</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.get-active-build-board-path</code></td>
+<td>Debugger Helpers</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.get-active-board-name</code></td>
+<td>Debugger Helpers</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.select-active-build-path</code></td>
+<td>Debugger Helpers</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.get-arm-gdb-path</code></td>
+<td>Debugger Helpers</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.get-gdb-path</code></td>
+<td>Debugger Helpers</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.get-zephyr-dir</code></td>
+<td>Debugger Helpers</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.get-zephyr-elf</code></td>
+<td>Debugger Helpers</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.get-zephyr-elf-dir</code></td>
+<td>Debugger Helpers</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.get-toolchain-path</code></td>
+<td>Debugger Helpers (underlying <code>getToolchainDir()</code> is unit tested)</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.get-zephyr-ide-json-variable</code></td>
+<td>Variable Resolution</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.get-active-project-variable</code></td>
+<td>Variable Resolution</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.get-active-build-variable</code></td>
+<td>Variable Resolution</td>
+</tr>
+</tbody>
+</table>
+<h4 id="testtwister-commands">Test/Twister Commands<a class="headerlink" href="#testtwister-commands" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>zephyr-ide.add-test</code></td>
+<td>Twister</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.remove-test</code></td>
+<td>Twister</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.set-active-test</code></td>
+<td>Twister</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.run-test</code></td>
+<td>Twister</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.remove-test-dirs</code></td>
+<td>Twister</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.reconfigure-active-test</code></td>
+<td>Twister</td>
+</tr>
+</tbody>
+</table>
+<h4 id="kconfig-dts-reports">Kconfig, DTS &amp; Reports<a class="headerlink" href="#kconfig-dts-reports" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>zephyr-ide.start-menu-config</code></td>
+<td>Kconfig</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.start-gui-config</code></td>
+<td>Kconfig</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.run-ram-report</code></td>
+<td>Reports</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.run-rom-report</code></td>
+<td>Reports</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.start-dtsh-shell</code></td>
+<td>Device Tree</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.reint-dts</code></td>
+<td>Device Tree</td>
+</tr>
+</tbody>
+</table>
+<h4 id="ui-miscellaneous">UI &amp; Miscellaneous<a class="headerlink" href="#ui-miscellaneous" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Category</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>zephyr-ide.show-container</code></td>
+<td>UI / Webview</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.update-web-view</code></td>
+<td>UI Refresh</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.open-setup-panel</code></td>
+<td>UI Panels</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.open-host-tools-panel</code></td>
+<td>UI Panels</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.debug-internal-shell</code></td>
+<td>Debug</td>
+</tr>
+<tr>
+<td><code>zephyr-ide.shell_test</code></td>
+<td>Debug / Testing</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="ci-pipeline-availability">CI Pipeline Availability<a class="headerlink" href="#ci-pipeline-availability" title="Permanent link">&para;</a></h2>
+<h3 id="how-test-selection-works">How test selection works<a class="headerlink" href="#how-test-selection-works" title="Permanent link">&para;</a></h3>
+<p>All CI pipelines invoke tests via <code>node scripts/run-integration-tests.js &lt;type&gt;</code>, which
+runs <code>npx vscode-test --grep '&lt;pattern&gt;'</code>. Mocha's <code>--grep</code> flag performs a <strong>regex match</strong>
+against suite and test names. Only suites whose names match the pattern will execute.</p>
+<h3 id="workspace-setup-testsyml-ubuntu-only-all-workspace-types"><code>workspace-setup-tests.yml</code> — Ubuntu Only, All Workspace Types<a class="headerlink" href="#workspace-setup-testsyml-ubuntu-only-all-workspace-types" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th><code>--grep</code> Pattern</th>
+<th>Suites Matched</th>
+<th>Unit tests included?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>external-zephyr</code></td>
+<td><code>Workspace External Zephyr Test Suite</code></td>
+<td><code>workspace-external-zephyr.test.ts</code> only</td>
+<td>❌ No</td>
+</tr>
+<tr>
+<td><code>standard</code></td>
+<td><code>Standard Workspace Test Suite</code></td>
+<td><code>workspace-standard.test.ts</code> only</td>
+<td>❌ No</td>
+</tr>
+<tr>
+<td><code>west-git</code></td>
+<td><code>West Git Workspace Test Suite</code></td>
+<td><code>workspace-west-git.test.ts</code> only</td>
+<td>❌ No</td>
+</tr>
+<tr>
+<td><code>zephyr-ide-git</code></td>
+<td><code>Workspace Zephyr IDE Git Test Suite</code></td>
+<td><code>workspace-zephyr-ide-git.test.ts</code> only</td>
+<td>❌ No</td>
+</tr>
+<tr>
+<td><code>local-west</code></td>
+<td><code>Workspace Local West Test Suite</code></td>
+<td><code>workspace-local-west.test.ts</code> only</td>
+<td>❌ No</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Triggers:</strong> PRs to <code>main</code>/<code>pre-release</code>/<code>develop</code> (conditional), pushes to <code>develop</code> (on version bump), manual dispatch.</p>
+<h3 id="basic-testsyml-ubuntu-only"><code>basic-tests.yml</code> — Ubuntu Only<a class="headerlink" href="#basic-testsyml-ubuntu-only" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th><code>--grep</code> Pattern</th>
+<th>Suites Matched</th>
+<th>Unit tests included?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>combined</code></td>
+<td><code>Combined Installation Test Suite</code></td>
+<td><code>combined-installation.test.ts</code> only</td>
+<td>❌ No</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Triggers:</strong> PRs to <code>develop</code>, manual dispatch. Always Ubuntu-only.</p>
+<h3 id="multiplatform-testsyml-ubuntu-windows-macos"><code>multiplatform-tests.yml</code> — Ubuntu / Windows / macOS<a class="headerlink" href="#multiplatform-testsyml-ubuntu-windows-macos" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th><code>--grep</code> Pattern</th>
+<th>Suites Matched</th>
+<th>Unit tests included?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>combined</code></td>
+<td><code>Combined Installation Test Suite</code></td>
+<td><code>combined-installation.test.ts</code> only</td>
+<td>❌ No</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Triggers:</strong> PRs to <code>main</code>/<code>pre-release</code>, pushes to <code>main</code>/<code>pre-release</code>, manual dispatch.
+Runs on all three platforms (Ubuntu, Windows, macOS).</p>
+<p>Both <code>basic-tests.yml</code> and <code>multiplatform-tests.yml</code> call the shared reusable workflow
+<code>_shared-platform-test.yml</code> which contains the VSIX build and test execution logic.</p>
+<h3 id="unit-tests-are-not-run-in-any-ci-pipeline">⚠️ Unit Tests Are NOT Run in Any CI Pipeline<a class="headerlink" href="#unit-tests-are-not-run-in-any-ci-pipeline" title="Permanent link">&para;</a></h3>
+<p>The 7 unit test suites (<code>Git URL Validation Test Suite</code>, <code>Launch Configuration Test Suite</code>,
+<code>Platform Detection Test Suite</code>, <code>Python Command Test Suite</code>, <code>Toolchain Configuration Test Suite</code>,
+<code>Venv Configuration Test Suite</code>, <code>Environment Variable Detection Test Suite</code>) are <strong>never executed</strong>
+in CI. This is because:</p>
+<ol>
+<li>Neither workflow runs bare <code>npm test</code> or <code>npx vscode-test</code> (which would match all <code>*.test.js</code> files).</li>
+<li>Each workflow step uses a <strong>specific</strong> <code>--grep</code> pattern that only matches a single integration test suite name.</li>
+<li>The <code>all</code> option (grep pattern <code>Test Suite</code> — which would match all suites) is never used in any workflow.</li>
+</ol>
+<p>To run unit tests, a developer must execute them locally:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Run all tests (unit + integration) — matches all *Test Suite names</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>node<span class="w"> </span>scripts/run-integration-tests.js<span class="w"> </span>all
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># Or run directly via vscode-test</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>npx<span class="w"> </span>vscode-test
+</code></pre></div>
+<hr />
+<h2 id="coverage-summary">Coverage Summary<a class="headerlink" href="#coverage-summary" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Count</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Total registered commands</td>
+<td>~68 (including headless/test-only variants)</td>
+</tr>
+<tr>
+<td>Commands in <code>package.json</code> (user-facing)</td>
+<td>~67</td>
+</tr>
+<tr>
+<td>Commands exercised in integration tests</td>
+<td>~16</td>
+</tr>
+<tr>
+<td>Utility functions covered by unit tests</td>
+<td>~7</td>
+</tr>
+<tr>
+<td>Commands with <strong>no test coverage</strong></td>
+<td>~55</td>
+</tr>
+<tr>
+<td><strong>Approximate command-level coverage</strong></td>
+<td><strong>~18%</strong></td>
+</tr>
+</tbody>
+</table>
+<h3 id="coverage-by-category">Coverage by Category<a class="headerlink" href="#coverage-by-category" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Total Commands</th>
+<th>Tested</th>
+<th>Coverage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Workspace Setup</td>
+<td>10</td>
+<td>4</td>
+<td>40%</td>
+</tr>
+<tr>
+<td>West Operations</td>
+<td>7</td>
+<td>0</td>
+<td>0%</td>
+</tr>
+<tr>
+<td>Project Management</td>
+<td>7</td>
+<td>2</td>
+<td>29%</td>
+</tr>
+<tr>
+<td>Project Config (files/overlays)</td>
+<td>4</td>
+<td>0</td>
+<td>0%</td>
+</tr>
+<tr>
+<td>Build Management</td>
+<td>7</td>
+<td>2</td>
+<td>29%</td>
+</tr>
+<tr>
+<td>Build Operations</td>
+<td>3</td>
+<td>1</td>
+<td>33%</td>
+</tr>
+<tr>
+<td>Device Operations (flash/debug)</td>
+<td>4</td>
+<td>0</td>
+<td>0%</td>
+</tr>
+<tr>
+<td>Runner Management</td>
+<td>3</td>
+<td>0</td>
+<td>0%</td>
+</tr>
+<tr>
+<td>Debug Config</td>
+<td>3</td>
+<td>0</td>
+<td>0%</td>
+</tr>
+<tr>
+<td>Debugger Helpers</td>
+<td>12</td>
+<td>0</td>
+<td>0%</td>
+</tr>
+<tr>
+<td>Variable Resolution</td>
+<td>3</td>
+<td>0</td>
+<td>0%</td>
+</tr>
+<tr>
+<td>Twister / Testing</td>
+<td>6</td>
+<td>0</td>
+<td>0%</td>
+</tr>
+<tr>
+<td>Kconfig / DTS / Reports</td>
+<td>6</td>
+<td>0</td>
+<td>0%</td>
+</tr>
+<tr>
+<td>UI / Panels</td>
+<td>5</td>
+<td>2</td>
+<td>40%</td>
+</tr>
+<tr>
+<td>Host Tools / SDK</td>
+<td>6</td>
+<td>3</td>
+<td>50%</td>
+</tr>
+<tr>
+<td>Misc / Internal</td>
+<td>3</td>
+<td>2</td>
+<td>67%</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12Z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2025 Mylonics
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        <div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/mylonics/zephyr-ide" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://mylonics.com" target="_blank" rel="noopener" title="mylonics.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.5.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M352 256c0 22.2-1.2 43.6-3.3 64H163.3c-2.2-20.4-3.3-41.8-3.3-64s1.2-43.6 3.3-64h185.4c2.2 20.4 3.3 41.8 3.3 64zm28.8-64h123.1c5.3 20.5 8.1 41.9 8.1 64s-2.8 43.5-8.1 64H380.8c2.1-20.6 3.2-42 3.2-64s-1.1-43.4-3.2-64zm112.6-32H376.7c-10-63.9-29.8-117.4-55.3-151.6 78.3 20.7 142 77.5 171.9 151.6zm-149.1 0H167.7c6.1-36.4 15.5-68.6 27-94.7 10.5-23.6 22.2-40.7 33.5-51.5C239.4 3.2 248.7 0 256 0s16.6 3.2 27.8 13.8c11.3 10.8 23 27.9 33.5 51.5 11.6 26 20.9 58.2 27 94.7zm-209 0H18.6c30-74.1 93.6-130.9 172-151.6-25.5 34.2-45.3 87.7-55.3 151.6zM8.1 192h123.1c-2.1 20.6-3.2 42-3.2 64s1.1 43.4 3.2 64H8.1C2.8 299.5 0 278.1 0 256s2.8-43.5 8.1-64zm186.6 254.6c-11.6-26-20.9-58.2-27-94.6h176.6c-6.1 36.4-15.5 68.6-27 94.6-10.5 23.6-22.2 40.7-33.5 51.5-11.2 10.7-20.5 13.9-27.8 13.9s-16.6-3.2-27.8-13.8c-11.3-10.8-23-27.9-33.5-51.5zM135.3 352c10 63.9 29.8 117.4 55.3 151.6-78.4-20.7-142-77.5-172-151.6h116.7zm358.1 0c-30 74.1-93.6 130.9-171.9 151.6 25.5-34.2 45.2-87.7 55.3-151.6h116.6z"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": "2.2.0"}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.1e8ae164.min.js"></script>
+      
+    
+  </body>
+</html>
