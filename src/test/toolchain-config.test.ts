@@ -153,8 +153,10 @@ suite("Toolchain Configuration Test Suite", () => {
 
         await migrateToolsDirectory();
 
-        const migratedGlobalDir = config.get<string>("zephyr-ide.global_directory");
-        const remainingToolsDir = config.get<string>("zephyr-ide.tools_directory");
+        // Re-fetch configuration after migration to get updated values
+        const updatedConfig = vscode.workspace.getConfiguration();
+        const migratedGlobalDir = updatedConfig.get<string>("zephyr-ide.global_directory");
+        const remainingToolsDir = updatedConfig.get<string>("zephyr-ide.tools_directory");
 
         assert.strictEqual(migratedGlobalDir, customToolsPath);
         assert.ok(!remainingToolsDir, "tools_directory should be cleared after migration");
@@ -173,7 +175,9 @@ suite("Toolchain Configuration Test Suite", () => {
 
         await migrateToolsDirectory();
 
-        const globalDir = config.get<string>("zephyr-ide.global_directory");
+        // Re-fetch configuration after migration to get updated values
+        const updatedConfig = vscode.workspace.getConfiguration();
+        const globalDir = updatedConfig.get<string>("zephyr-ide.global_directory");
         // Should NOT overwrite if global_directory was already set
         assert.strictEqual(globalDir, existingGlobalPath);
 
