@@ -58,7 +58,7 @@ suite("Launch Configuration Test Suite", () => {
         }
     });
 
-    test("workspace-level configs appear without workspaceFolder property", async () => {
+    test("workspace-level configs appear without workspaceFolder and are not duplicated", async () => {
         const wsConfigs = [
             { name: "Workspace Launch X", type: "cppdbg", request: "launch" },
         ];
@@ -69,32 +69,17 @@ suite("Launch Configuration Test Suite", () => {
             const result = await getLaunchConfigurations(makeWsConfig());
 
             assert.ok(Array.isArray(result), "result must be an array");
+
+            // Workspace-level entry must appear, with no workspaceFolder property.
             const found = result!.find((c: any) => c.name === "Workspace Launch X");
             assert.ok(found, "workspace-level config must appear in results");
             assert.ok(!found.workspaceFolder,
                 "workspace-level config must NOT have a workspaceFolder property");
-        } finally {
-            await launchCfg.update("configurations", undefined, vscode.ConfigurationTarget.Workspace);
-        }
-    });
 
-    test("workspace-level configs are not duplicated", async () => {
-        const wsConfigs = [
-            { name: "Dedup Config", type: "cppdbg", request: "launch" },
-        ];
-        const launchCfg = vscode.workspace.getConfiguration("launch");
-        await launchCfg.update("configurations", wsConfigs, vscode.ConfigurationTarget.Workspace);
-
-        try {
-            const result = await getLaunchConfigurations(makeWsConfig());
-
-            assert.ok(Array.isArray(result), "result must be an array");
-            // Workspace-level entries (no workspaceFolder) must appear exactly once.
-            const wsEntries = result!.filter((c: any) => !c.workspaceFolder);
-            const names = wsEntries.map((c: any) => c.name);
-            const uniqueNames = new Set(names);
-            assert.strictEqual(names.length, uniqueNames.size,
-                "workspace-level configurations must not be duplicated");
+            // Non-folder entries (workspace + global) must not be duplicated by name.
+            const nonFolderNames = result!.filter((c: any) => !c.workspaceFolder).map((c: any) => c.name);
+            assert.strictEqual(nonFolderNames.length, new Set(nonFolderNames).size,
+                "non-folder configurations must not be duplicated");
         } finally {
             await launchCfg.update("configurations", undefined, vscode.ConfigurationTarget.Workspace);
         }

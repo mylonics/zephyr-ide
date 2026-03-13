@@ -318,54 +318,30 @@ export async function getLaunchConfigurations(wsConfig: WorkspaceConfig) {
   }
 
   const allConfigurations: any[] = [];
-  const seenKeys = new Set<string>();
+  const inspect = vscode.workspace.getConfiguration("launch").inspect<any[]>("configurations");
 
-  const wsInspect = vscode.workspace.getConfiguration("launch").inspect<any[]>("configurations");
-
-  // Check global-level configurations (user settings.json) - lowest precedence.
-  if (wsInspect?.globalValue) {
-    for (const cfg of wsInspect.globalValue) {
-      if (cfg.name) {
-        const key = `global:${cfg.name}`;
-        if (!seenKeys.has(key)) {
-          seenKeys.add(key);
-          allConfigurations.push({ ...cfg });
-        }
-      }
+  // Collect workspace-level (.code-workspace) then global (user settings) configs — no folder context.
+  // Workspace-level takes precedence: process it first and skip any global entry with the same name.
+  const seenNames = new Set<string>();
+  for (const cfg of [...(inspect?.workspaceValue ?? []), ...(inspect?.globalValue ?? [])]) {
+    if (cfg.name && !seenNames.has(cfg.name)) {
+      seenNames.add(cfg.name);
+      allConfigurations.push({ ...cfg });
     }
   }
 
-  // Check workspace-level configurations (from .code-workspace file).
-  // inspect() returns workspaceValue for configs stored at the workspace scope
-  // (.code-workspace), which is distinct from per-folder .vscode/launch.json.
-  if (wsInspect?.workspaceValue) {
-    for (const cfg of wsInspect.workspaceValue) {
-      if (cfg.name) {
-        const wsKey = `workspace:${cfg.name}`;
-        if (!seenKeys.has(wsKey)) {
-          seenKeys.add(wsKey);
-          allConfigurations.push({ ...cfg });
-        }
-      }
-    }
-  }
-
-  // Check per-folder configurations (from .vscode/launch.json in each folder).
-  // Use workspaceFolderValue so we only get folder-scoped configs and avoid
-  // duplicating workspace-level ones already collected above.
+  // Collect per-folder configs (.vscode/launch.json), tagged with the folder name.
+  // workspaceFolderValue ensures workspace-level entries are not re-read here.
+  // Deduplicate within each folder using folder+name as key.
+  const seenFolderConfigs = new Set<string>();
   for (const folder of folders) {
-    const folderInspect = vscode.workspace.getConfiguration("launch", folder.uri).inspect<any[]>("configurations");
-    const folderConfigs = folderInspect?.workspaceFolderValue;
-    if (folderConfigs) {
-      for (const cfg of folderConfigs) {
-        // Deduplicate by scope+folder+name to allow same-named configs from different folders
-        if (cfg.name) {
-          const key = `folder:${folder.name}:${cfg.name}`;
-          if (!seenKeys.has(key)) {
-            seenKeys.add(key);
-            allConfigurations.push({ ...cfg, workspaceFolder: folder.name });
-          }
-        }
+    const folderConfigs = vscode.workspace.getConfiguration("launch", folder.uri)
+      .inspect<any[]>("configurations")?.workspaceFolderValue ?? [];
+    for (const cfg of folderConfigs) {
+      const key = `${folder.name}\0${cfg.name}`;
+      if (cfg.name && !seenFolderConfigs.has(key)) {
+        seenFolderConfigs.add(key);
+        allConfigurations.push({ ...cfg, workspaceFolder: folder.name });
       }
     }
   }
