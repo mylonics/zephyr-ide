@@ -445,6 +445,24 @@ export function getGdbPath(wsConfig: WorkspaceConfig): string | undefined {
 }
 
 /**
+ * Get the toolchain directory for the active build.
+ * Derives the path from the CMAKE_GDB debugger path in the CMake cache:
+ * the GDB binary lives in `{toolchain}/bin/`, so the toolchain root is two
+ * levels above the binary.  Falls back to getToolchainDir() (the configured
+ * or default directory) when no active build or GDB path is available.
+ * @param wsConfig The workspace configuration
+ * @returns The toolchain directory path
+ */
+export function getToolchainPath(wsConfig: WorkspaceConfig): string {
+  const gdbPath = getGdbPath(wsConfig);
+  if (gdbPath) {
+    // GDB lives at {toolchain}/bin/{gdb-binary}; go up two levels to get the toolchain root
+    return path.dirname(path.dirname(gdbPath));
+  }
+  return getToolchainDir();
+}
+
+/**
  * Get the ARM GDB path (without Python support) from the active build.
  * Takes the CMAKE_GDB path and replaces the Python-enabled GDB variant
  * (e.g. arm-zephyr-eabi-gdb-py) with the plain GDB variant (arm-zephyr-eabi-gdb).

@@ -64,6 +64,7 @@ import {
   getVariable,
   loadProjectsFromFile,
   getToolchainDir,
+  getToolchainPath,
   setWorkspaceSettings,
   getSetupState,
   getGdbPath,
@@ -931,8 +932,8 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand(
       "zephyr-ide.get-toolchain-path",
-      async () => {
-        return await getToolchainDir();
+      () => {
+        return getToolchainPath(wsConfig);
       }
     )
   );
