@@ -20,16 +20,16 @@ import * as fs from "fs-extra";
 import * as path from "upath";
 import { selectLaunchConfiguration } from "../utilities/utils";
 import { notifyError, notifyWarningWithActions } from "../utilities/output";
-import { buildSelector, BuildConfigDictionary, BuildStateDictionary } from "./build_selector";
+import { buildSelector, BuildConfig, BuildConfigDictionary, BuildStateDictionary } from "./build_selector";
 import { WorkspaceConfig } from "../setup_utilities/types";
 import { setWorkspaceState } from "../setup_utilities/state-management";
-import { runnerSelector } from "./runner_selector";
+import { runnerSelector, RunnerConfig } from "./runner_selector";
 import { configSelector, configRemover, ConfigFiles } from "./config_selector";
 import { setDtsContext } from "../setup_utilities/dts_interface";
 import { getSamples } from "../setup_utilities/modules";
 import { getSetupState } from "../setup_utilities/workspace-config";
 
-import { TwisterConfigDictionary, twisterSelector, TwisterStateDictionary } from "./twister_selector";
+import { TwisterConfig, TwisterConfigDictionary, twisterSelector, TwisterStateDictionary } from "./twister_selector";
 
 
 // Project specific configuration
@@ -50,112 +50,148 @@ export interface ProjectState {
   twisterStates: TwisterStateDictionary;
 }
 
-
-export function getActiveProjectName(wsConfig: WorkspaceConfig) {
-  return wsConfig.activeProject;
+/** Get active build name from an already-resolved project */
+export function getResolvedBuildName(wsConfig: WorkspaceConfig, resolved: ResolvedProject): string | undefined {
+  return wsConfig.projectStates[resolved.projectName].activeBuildConfig;
 }
 
-export function getActiveProject(wsConfig: WorkspaceConfig) {
-  if (wsConfig.activeProject) {
-    return wsConfig.projects[wsConfig.activeProject];
-  }
-  return;
+/** Get active runner name from an already-resolved project+build */
+export function getResolvedRunnerName(wsConfig: WorkspaceConfig, resolved: ResolvedProjectBuild): string | undefined {
+  return wsConfig.projectStates[resolved.projectName].buildStates[resolved.buildName]?.activeRunner;
 }
 
-export function getActiveBuildNameOfProject(wsConfig: WorkspaceConfig, project?: string) {
-  if (project) {
-    return wsConfig.projectStates[project].activeBuildConfig;
-  }
+/** Get active runner config from an already-resolved project+build */
+export function getResolvedRunnerConfig(wsConfig: WorkspaceConfig, resolved: ResolvedProjectBuild): RunnerConfig | undefined {
+  const runnerName = getResolvedRunnerName(wsConfig, resolved);
+  return runnerName ? resolved.build.runnerConfigs[runnerName] : undefined;
 }
 
-export function getActiveTestNameOfProject(wsConfig: WorkspaceConfig, project?: string) {
-  if (project) {
-    return wsConfig.projectStates[project].activeTwisterConfig;
-  }
+/** Get active test name from an already-resolved project */
+export function getResolvedTestName(wsConfig: WorkspaceConfig, resolved: ResolvedProject): string | undefined {
+  return wsConfig.projectStates[resolved.projectName].activeTwisterConfig;
 }
 
-
-export function getActiveTestConfigOfProject(wsConfig: WorkspaceConfig, project?: string) {
-  if (project) {
-    let testName = wsConfig.projectStates[project].activeTwisterConfig;
-    if (testName) {
-      return wsConfig.projects[project].twisterConfigs[testName];
-    }
-  }
-  return;
+/** Get active test config from an already-resolved project */
+export function getResolvedTestConfig(wsConfig: WorkspaceConfig, resolved: ResolvedProject): TwisterConfig | undefined {
+  const testName = getResolvedTestName(wsConfig, resolved);
+  return testName ? resolved.project.twisterConfigs[testName] : undefined;
 }
 
-export function getActiveBuildConfigOfProject(wsConfig: WorkspaceConfig, project?: string) {
-  if (project) {
-    let buildName = wsConfig.projectStates[project].activeBuildConfig;
-    if (buildName) {
-      return wsConfig.projects[project].buildConfigs[buildName];
-    }
-  }
-  return;
+/** Resolved active project info */
+export interface ResolvedProject {
+  projectName: string;
+  project: ProjectConfig;
 }
 
-export function getActiveRunnerNameOfBuild(wsConfig: WorkspaceConfig, project?: string, build?: string) {
-  if (project && build) {
-    let buildState = wsConfig.projectStates[project].buildStates[build];
-    if (buildState) {
-      return wsConfig.projectStates[project].buildStates[build].activeRunner;
-    }
-  }
+/** Resolved active project + build info */
+export interface ResolvedProjectBuild extends ResolvedProject {
+  buildName: string;
+  build: BuildConfig;
 }
 
-export function getActiveRunnerConfigOfBuild(wsConfig: WorkspaceConfig, project: string, build: string) {
-  let activeBuild = getActiveBuildConfigOfProject(wsConfig, project);
-  if (activeBuild && wsConfig.projectStates[project].buildStates[build].activeRunner !== undefined) {
-    let activeRunnerName = wsConfig.projectStates[project].buildStates[build].activeRunner;
-    if (activeRunnerName) {
-      return activeBuild.runnerConfigs[activeRunnerName];
-    }
-  }
-  return;
+/** Resolved active project + build + runner info */
+export interface ResolvedProjectBuildRunner extends ResolvedProjectBuild {
+  runnerName: string;
+  runner: RunnerConfig;
 }
 
-export function getProjectName(wsConfig: WorkspaceConfig, projectName?: string) {
-  if (!projectName) {
-    if (wsConfig.activeProject === undefined) {
-      notifyError("Project", "Set Active Project before running this command");
-      return;
-    }
-    projectName = wsConfig.activeProject;
-  }
-  return projectName;
+/** Options for resolver helpers */
+export interface ResolveOptions {
+  /** When provided, shows error notifications on failure. When omitted, returns undefined silently. */
+  caller?: string;
+  projectName?: string;
+  buildName?: string;
 }
 
-export function getBuildName(wsConfig: WorkspaceConfig, projectName: string, buildName?: string) {
-  if (!buildName) {
-    buildName = getActiveBuildNameOfProject(wsConfig, projectName);
-    if (buildName === undefined) {
-      notifyError("Project", "Set Active Build before running this command");
-      return;
-    }
+/**
+ * Resolve the active project, falling back to the given projectName.
+ * When `caller` is provided, shows error notifications on failure.
+ * When `caller` is omitted, returns undefined silently.
+ */
+export function resolveActiveProject(
+  wsConfig: WorkspaceConfig,
+  options?: ResolveOptions
+): ResolvedProject | undefined {
+  const name = options?.projectName ?? wsConfig.activeProject;
+  if (!name) {
+    if (options?.caller) { notifyError(options.caller, "Select a project before trying to continue"); }
+    return undefined;
   }
-  return buildName;
+  const project = wsConfig.projects[name];
+  if (!project) {
+    if (options?.caller) { notifyError(options.caller, `Project "${name}" not found`); }
+    return undefined;
+  }
+  return { projectName: name, project };
+}
+
+/**
+ * Resolve the active project and its active build.
+ * When `caller` is provided, shows error notifications on failure.
+ * When `caller` is omitted, returns undefined silently.
+ */
+export function resolveActiveProjectBuild(
+  wsConfig: WorkspaceConfig,
+  options?: ResolveOptions
+): ResolvedProjectBuild | undefined {
+  const resolved = resolveActiveProject(wsConfig, options);
+  if (!resolved) {
+    return undefined;
+  }
+  const bName = options?.buildName ?? getResolvedBuildName(wsConfig, resolved);
+  if (!bName) {
+    if (options?.caller) { notifyError(options.caller, "You must choose a Build Configuration to continue."); }
+    return undefined;
+  }
+  const build = resolved.project.buildConfigs[bName];
+  if (!build) {
+    if (options?.caller) { notifyError(options.caller, `Build "${bName}" not found`); }
+    return undefined;
+  }
+  return { ...resolved, buildName: bName, build };
+}
+
+/**
+ * Resolve the active project, build, and runner.
+ * When `caller` is provided, shows error notifications on failure.
+ * When `caller` is omitted, returns undefined silently.
+ */
+export function resolveActiveProjectBuildRunner(
+  wsConfig: WorkspaceConfig,
+  options?: ResolveOptions
+): ResolvedProjectBuildRunner | undefined {
+  const resolved = resolveActiveProjectBuild(wsConfig, options);
+  if (!resolved) {
+    return undefined;
+  }
+  const rName = getResolvedRunnerName(wsConfig, resolved);
+  if (!rName) {
+    if (options?.caller) { notifyError(options.caller, "Select a runner before trying to continue"); }
+    return undefined;
+  }
+  const runner = resolved.build.runnerConfigs[rName];
+  if (!runner) {
+    if (options?.caller) { notifyError(options.caller, `Runner "${rName}" not found`); }
+    return undefined;
+  }
+  return { ...resolved, runnerName: rName, runner };
 }
 
 export async function modifyBuildArguments(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName?: string, buildName?: string) {
-  projectName = getProjectName(wsConfig, projectName);
-  if (!projectName) {
-    return;
-  }
-  buildName = getBuildName(wsConfig, projectName, buildName);
-  if (!buildName) {
-    return;
-  }
-  const newWestBuildArgs = await vscode.window.showInputBox({ title: "Modify West Build Arguments", value: wsConfig.projects[projectName].buildConfigs[buildName].westBuildArgs, prompt: "West Build arguments i.e --sysbuild", placeHolder: "--sysbuild" });
+  const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Project", projectName, buildName });
+  if (!resolved) { return; }
+  const { project, build } = resolved;
+
+  const newWestBuildArgs = await vscode.window.showInputBox({ title: "Modify West Build Arguments", value: build.westBuildArgs, prompt: "West Build arguments i.e --sysbuild", placeHolder: "--sysbuild" });
 
   if (newWestBuildArgs !== undefined) {
-    wsConfig.projects[projectName].buildConfigs[buildName].westBuildArgs = newWestBuildArgs;
+    build.westBuildArgs = newWestBuildArgs;
   }
 
-  const newCMakeBuildArgs = await vscode.window.showInputBox({ title: "Modify CMake Build Arguments", value: wsConfig.projects[projectName].buildConfigs[buildName].westBuildCMakeArgs, prompt: "CMake Build arguments i.e -DCMAKE_VERBOSE_MAKEFILE=ON", placeHolder: "-DCMAKE_VERBOSE_MAKEFILE=ON" });
+  const newCMakeBuildArgs = await vscode.window.showInputBox({ title: "Modify CMake Build Arguments", value: build.westBuildCMakeArgs, prompt: "CMake Build arguments i.e -DCMAKE_VERBOSE_MAKEFILE=ON", placeHolder: "-DCMAKE_VERBOSE_MAKEFILE=ON" });
 
   if (newCMakeBuildArgs !== undefined) {
-    wsConfig.projects[projectName].buildConfigs[buildName].westBuildCMakeArgs = newCMakeBuildArgs;
+    build.westBuildCMakeArgs = newCMakeBuildArgs;
   }
 
   await setWorkspaceState(context, wsConfig);
@@ -206,31 +242,31 @@ export async function createNewProjectFromSample(context: vscode.ExtensionContex
 
 
 export async function addConfigFiles(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, isKConfig: boolean, isToProject: boolean, projectName?: string, buildName?: string, isPrimary?: boolean) {
-  projectName = getProjectName(wsConfig, projectName);
-  if (!projectName) {
-    return;
-  }
+  const resolvedProject = resolveActiveProject(wsConfig, { caller: "Project", projectName });
+  if (!resolvedProject) { return; }
+  const { project } = resolvedProject;
+  projectName = resolvedProject.projectName;
 
   if (!isToProject) {
-    buildName = getBuildName(wsConfig, projectName, buildName);
-    if (!buildName) {
-      return;
-    }
+    const resolvedBuild = resolveActiveProjectBuild(wsConfig, { caller: "Project", projectName, buildName });
+    if (!resolvedBuild) { return; }
+    buildName = resolvedBuild.buildName;
   }
 
   let result = await configSelector(wsConfig, isKConfig, isToProject, isPrimary);
   if (result) {
     if (isToProject) {
-      wsConfig.projects[projectName].confFiles.config = wsConfig.projects[projectName].confFiles.config.concat(result.config);
-      wsConfig.projects[projectName].confFiles.extraConfig = wsConfig.projects[projectName].confFiles.extraConfig.concat(result.extraConfig);
-      wsConfig.projects[projectName].confFiles.overlay = wsConfig.projects[projectName].confFiles.overlay.concat(result.overlay);
-      wsConfig.projects[projectName].confFiles.extraOverlay = wsConfig.projects[projectName].confFiles.extraOverlay.concat(result.extraOverlay);
+      project.confFiles.config = project.confFiles.config.concat(result.config);
+      project.confFiles.extraConfig = project.confFiles.extraConfig.concat(result.extraConfig);
+      project.confFiles.overlay = project.confFiles.overlay.concat(result.overlay);
+      project.confFiles.extraOverlay = project.confFiles.extraOverlay.concat(result.extraOverlay);
     } else {
       if (buildName) {
-        wsConfig.projects[projectName].buildConfigs[buildName].confFiles.config = wsConfig.projects[projectName].buildConfigs[buildName].confFiles.config.concat(result.config);
-        wsConfig.projects[projectName].buildConfigs[buildName].confFiles.extraConfig = wsConfig.projects[projectName].buildConfigs[buildName].confFiles.extraConfig.concat(result.extraConfig);
-        wsConfig.projects[projectName].buildConfigs[buildName].confFiles.overlay = wsConfig.projects[projectName].buildConfigs[buildName].confFiles.overlay.concat(result.overlay);
-        wsConfig.projects[projectName].buildConfigs[buildName].confFiles.extraOverlay = wsConfig.projects[projectName].buildConfigs[buildName].confFiles.extraOverlay.concat(result.extraOverlay);
+        let buildConf = project.buildConfigs[buildName].confFiles;
+        buildConf.config = buildConf.config.concat(result.config);
+        buildConf.extraConfig = buildConf.extraConfig.concat(result.extraConfig);
+        buildConf.overlay = buildConf.overlay.concat(result.overlay);
+        buildConf.extraOverlay = buildConf.extraOverlay.concat(result.extraOverlay);
       } else {
         return;
       }
@@ -242,18 +278,18 @@ export async function addConfigFiles(context: vscode.ExtensionContext, wsConfig:
 }
 
 export async function removeConfigFiles(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, isKConfig: boolean, isToProject: boolean, projectName?: string, buildName?: string, isPrimary?: boolean) {
-  projectName = getProjectName(wsConfig, projectName);
-  if (!projectName) {
-    return;
-  }
+  const resolvedProject = resolveActiveProject(wsConfig, { caller: "Project", projectName });
+  if (!resolvedProject) { return; }
+  const { project } = resolvedProject;
+  projectName = resolvedProject.projectName;
 
-
-  let confFiles = wsConfig.projects[projectName].confFiles;
+  let confFiles = project.confFiles;
 
   if (!isToProject) {
-    buildName = getBuildName(wsConfig, projectName, buildName);
-    if (buildName) {
-      confFiles = wsConfig.projects[projectName].buildConfigs[buildName].confFiles;
+    const resolvedBuild = resolveActiveProjectBuild(wsConfig, { caller: "Project", projectName, buildName });
+    if (resolvedBuild) {
+      buildName = resolvedBuild.buildName;
+      confFiles = resolvedBuild.build.confFiles;
     }
   }
   let result = await configRemover(confFiles, isKConfig, isToProject, isPrimary);
@@ -721,24 +757,19 @@ export async function setActiveRunner(context: vscode.ExtensionContext, wsConfig
       return;
     }
   }
-  let activeBuildName = getActiveBuildNameOfProject(wsConfig, wsConfig.activeProject);
+  let activeBuildName = wsConfig.projectStates[wsConfig.activeProject].activeBuildConfig;
 
   if (activeBuildName === undefined) {
     setActiveBuild(context, wsConfig);
-    activeBuildName = getActiveBuildNameOfProject(wsConfig, wsConfig.activeProject);
+    activeBuildName = wsConfig.projectStates[wsConfig.activeProject].activeBuildConfig;
     if (activeBuildName === undefined) {
       notifyError("Runner Config", "Set Active Build before trying to Set Active Runner");
       return;
     }
-    return;
   }
 
   let activeBuild = wsConfig.projects[wsConfig.activeProject].buildConfigs[activeBuildName];
 
-  let runnerList: string[] = [];
-  for (let key in activeBuild.runnerConfigs) {
-    runnerList.push(key);
-  }
   let selectedRunner = await askUserForRunner(context, wsConfig, wsConfig.activeProject, activeBuildName);
 
   if (selectedRunner === undefined) {
@@ -788,30 +819,17 @@ export async function addRunnerToBuild(wsConfig: WorkspaceConfig, context: vscod
 
 
 export async function addRunner(wsConfig: WorkspaceConfig, context: vscode.ExtensionContext) {
-  if (wsConfig.activeProject === undefined) {
-    vscode.window.showInformationMessage(`Failed to add Runner, please first select a project`);
+  const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Runner" });
+  if (!resolved) {
     return;
   }
-  let activeBuild = getActiveBuildNameOfProject(wsConfig, wsConfig.activeProject);
-  if (activeBuild === undefined) {
-    vscode.window.showInformationMessage(`Failed to add Runner, please first select a build`);
-    return;
-  }
-  await addRunnerToBuild(wsConfig, context, wsConfig.activeProject, activeBuild);
+  await addRunnerToBuild(wsConfig, context, resolved.projectName, resolved.buildName);
 }
 
 export async function getActiveBuild(wsConfig: WorkspaceConfig) {
-  if (wsConfig.activeProject === undefined) {
-    return;
-  }
-  let project = wsConfig.projects[wsConfig.activeProject];
-  let buildName = getActiveBuildNameOfProject(wsConfig, wsConfig.activeProject);
-
-  if (buildName === undefined) {
-    return;
-  }
-
-  return project.buildConfigs[buildName];
+  const resolved = resolveActiveProjectBuild(wsConfig);
+  if (!resolved) { return; }
+  return resolved.build;
 }
 
 export async function selectDebugLaunchConfiguration(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {

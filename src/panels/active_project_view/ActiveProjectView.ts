@@ -18,7 +18,7 @@ limitations under the License.
 import * as vscode from 'vscode';
 import path from 'upath';
 
-import { ProjectConfig, getActiveBuildConfigOfProject, getActiveRunnerConfigOfBuild, getActiveTestConfigOfProject } from '../../project_utilities/project';
+import { ProjectConfig, getResolvedRunnerConfig, getResolvedTestConfig, resolveActiveProject, resolveActiveProjectBuild } from '../../project_utilities/project';
 import { BuildConfig } from '../../project_utilities/build_selector';
 import { getNonce } from "../../utilities/getNonce";
 import { RunnerConfig } from '../../project_utilities/runner_selector';
@@ -67,16 +67,18 @@ export class ActiveProjectView implements vscode.WebviewViewProvider {
       let activeBuild: BuildConfig | undefined;
       let activeRunner: RunnerConfig | undefined;
       let activeTwister: TwisterConfig | undefined;
-      if (wsConfig.activeProject !== undefined) {
-        activeProject = wsConfig.projects[wsConfig.activeProject];
-        activeBuild = getActiveBuildConfigOfProject(wsConfig, wsConfig.activeProject);
-        if (activeBuild !== undefined) {
-          activeRunner = getActiveRunnerConfigOfBuild(wsConfig, wsConfig.activeProject, activeBuild.name);
-          this.view.title = activeProject.name + ": " + activeBuild.name;
+      const resolvedProject = resolveActiveProject(wsConfig);
+      if (resolvedProject) {
+        activeProject = resolvedProject.project;
+        const resolved = resolveActiveProjectBuild(wsConfig);
+        activeBuild = resolved?.build;
+        if (resolved) {
+          activeRunner = getResolvedRunnerConfig(wsConfig, resolved);
+          this.view.title = activeProject.name + ": " + resolved.build.name;
         } else {
           this.view.title = activeProject.name;
         }
-        activeTwister = getActiveTestConfigOfProject(wsConfig, wsConfig.activeProject);
+        activeTwister = getResolvedTestConfig(wsConfig, resolvedProject);
       } else {
         this.view.title = "Active Project: None";
         this.view.webview.postMessage([{}]);

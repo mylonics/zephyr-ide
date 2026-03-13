@@ -23,6 +23,7 @@ import * as yaml from 'js-yaml';
 import { getPlatformName } from "../utilities/utils";
 import { outputInfo, outputWarning } from "../utilities/output";
 import { WorkspaceConfig, SetupState } from "./types";
+import { resolveActiveProjectBuild } from "../project_utilities/project";
 
 function projectLoader(config: WorkspaceConfig, projects: any) {
   config.projects = {};
@@ -396,28 +397,14 @@ function ensureBuildCMakeInfoCached(wsConfig: WorkspaceConfig, projectName: stri
  * @returns The full path to the ELF file, or undefined if no active build
  */
 export function getZephyrElfPath(wsConfig: WorkspaceConfig): string | undefined {
-  if (!wsConfig.activeProject) {
-    return undefined;
-  }
+  const resolved = resolveActiveProjectBuild(wsConfig);
+  if (!resolved) { return undefined; }
 
-  const project = wsConfig.projects[wsConfig.activeProject];
-  if (!project) {
-    return undefined;
-  }
+  const { projectName, project, buildName, build } = resolved;
 
-  const activeBuildName = wsConfig.projectStates[wsConfig.activeProject]?.activeBuildConfig;
-  if (!activeBuildName) {
-    return undefined;
-  }
+  ensureBuildCMakeInfoCached(wsConfig, projectName, buildName);
 
-  const build = project.buildConfigs[activeBuildName];
-  if (!build) {
-    return undefined;
-  }
-
-  ensureBuildCMakeInfoCached(wsConfig, wsConfig.activeProject, activeBuildName);
-
-  const buildState = wsConfig.projectStates[wsConfig.activeProject]?.buildStates[activeBuildName];
+  const buildState = wsConfig.projectStates[projectName]?.buildStates[buildName];
   let elfName = buildState?.elfName ?? "zephyr.elf";
 
   // For sysbuild, elfName may be an absolute path; use it directly
@@ -425,7 +412,7 @@ export function getZephyrElfPath(wsConfig: WorkspaceConfig): string | undefined 
     return elfName;
   }
 
-  return path.join(wsConfig.rootPath, project.rel_path, activeBuildName, "zephyr", elfName);
+  return path.join(wsConfig.rootPath, project.rel_path, buildName, "zephyr", elfName);
 }
 
 /**
@@ -435,21 +422,10 @@ export function getZephyrElfPath(wsConfig: WorkspaceConfig): string | undefined 
  * @returns The path to the zephyr output directory, or undefined if no active build
  */
 export function getZephyrElfDir(wsConfig: WorkspaceConfig): string | undefined {
-  if (!wsConfig.activeProject) {
-    return undefined;
-  }
+  const resolved = resolveActiveProjectBuild(wsConfig);
+  if (!resolved) { return undefined; }
 
-  const project = wsConfig.projects[wsConfig.activeProject];
-  if (!project) {
-    return undefined;
-  }
-
-  const activeBuildName = wsConfig.projectStates[wsConfig.activeProject]?.activeBuildConfig;
-  if (!activeBuildName) {
-    return undefined;
-  }
-
-  return path.join(wsConfig.rootPath, project.rel_path, activeBuildName, "zephyr");
+  return path.join(wsConfig.rootPath, resolved.project.rel_path, resolved.buildName, "zephyr");
 }
 
 /**
@@ -459,23 +435,12 @@ export function getZephyrElfDir(wsConfig: WorkspaceConfig): string | undefined {
  * @returns The full path to the GDB executable or undefined if not found
  */
 export function getGdbPath(wsConfig: WorkspaceConfig): string | undefined {
-  if (!wsConfig.activeProject) {
-    return undefined;
-  }
+  const resolved = resolveActiveProjectBuild(wsConfig);
+  if (!resolved) { return undefined; }
 
-  const project = wsConfig.projects[wsConfig.activeProject];
-  if (!project) {
-    return undefined;
-  }
+  ensureBuildCMakeInfoCached(wsConfig, resolved.projectName, resolved.buildName);
 
-  const activeBuildName = wsConfig.projectStates[wsConfig.activeProject]?.activeBuildConfig;
-  if (!activeBuildName) {
-    return undefined;
-  }
-
-  ensureBuildCMakeInfoCached(wsConfig, wsConfig.activeProject, activeBuildName);
-
-  const buildState = wsConfig.projectStates[wsConfig.activeProject]?.buildStates[activeBuildName];
+  const buildState = wsConfig.projectStates[resolved.projectName]?.buildStates[resolved.buildName];
   return buildState?.gdbPath;
 }
 

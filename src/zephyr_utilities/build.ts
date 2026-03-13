@@ -24,7 +24,7 @@ import { executeTaskHelperInPythonEnv, executeShellCommandInPythonEnv } from "..
 import { notifyError, outputInfo } from "../utilities/output";
 
 import { WorkspaceConfig } from '../setup_utilities/types';
-import { addBuild, ProjectConfig, getActiveBuildNameOfProject } from "../project_utilities/project";
+import { addBuild, ProjectConfig, getResolvedBuildName, resolveActiveProject, resolveActiveProjectBuild } from "../project_utilities/project";
 import { BuildConfig } from "../project_utilities/build_selector";
 import { updateDtsContext } from "../setup_utilities/dts_interface";
 import { getSetupState, updateBuildCMakeInfo, clearBuildCMakeInfo } from "../setup_utilities/workspace-config";
@@ -69,16 +69,14 @@ export async function buildHelper(
     return;
   }
   if (setupState.westUpdated) {
-    if (wsConfig.activeProject === undefined) {
-      notifyError("Build", "Select a project before trying to build");
-      return;
-    }
-    let project = wsConfig.projects[wsConfig.activeProject];
+    const resolved = resolveActiveProject(wsConfig, { caller: "Build" });
+    if (!resolved) { return; }
+    const { project } = resolved;
 
-    let buildName = getActiveBuildNameOfProject(wsConfig, project.name);
+    let buildName = getResolvedBuildName(wsConfig, resolved);
     if (buildName === undefined) {
       await addBuild(wsConfig, context);
-      buildName = getActiveBuildNameOfProject(wsConfig, project.name);
+      buildName = getResolvedBuildName(wsConfig, resolved);
       if (buildName === undefined) {
         notifyError("Build", `You must choose a Build Configuration to continue.`);
         return;
@@ -99,7 +97,7 @@ export enum MenuConfig {
 export async function buildByName(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, pristine: boolean, projectName: string, buildName: string, isMenuConfig = MenuConfig.None) {
   let project = wsConfig.projects[projectName];
   let buildconfig = project.buildConfigs[buildName];
-  if (project && build) {
+  if (project && buildconfig) {
     if (isMenuConfig !== MenuConfig.None) {
       buildMenuConfig(context, wsConfig, isMenuConfig, project, buildconfig);
     } else {
@@ -209,23 +207,12 @@ export async function buildMenuConfig(
   build?: BuildConfig
 ) {
 
-  if (project === undefined) {
-    if (wsConfig.activeProject === undefined) {
-      notifyError("Menu Config", "Select a project before trying to build");
-      return;
-    }
-    project = wsConfig.projects[wsConfig.activeProject];
+  if (!project || !build) {
+    const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Menu Config", projectName: project?.name });
+    if (!resolved) { return; }
+    project = project ?? resolved.project;
+    build = build ?? resolved.build;
   }
-
-  if (build === undefined) {
-    let buildName = getActiveBuildNameOfProject(wsConfig, project.name);
-    if (buildName === undefined) {
-      notifyError("Menu Config", `You must choose a Build Configuration to continue.`);
-      return;
-    }
-    build = project.buildConfigs[buildName];
-  }
-
 
   let projectFolder = path.join(wsConfig.rootPath, project.rel_path);
   let buildFolder = path.join(wsConfig.rootPath, project.rel_path, build.name);
@@ -261,21 +248,11 @@ async function resolveRamRomReportParams(
 ) {
   const reportType = isRamReport ? "RAM" : "ROM";
 
-  if (project === undefined) {
-    if (wsConfig.activeProject === undefined) {
-      notifyError("RAM/ROM Report", "Select a project before trying to run report");
-      return undefined;
-    }
-    project = wsConfig.projects[wsConfig.activeProject];
-  }
-
-  if (build === undefined) {
-    let buildName = getActiveBuildNameOfProject(wsConfig, project.name);
-    if (buildName === undefined) {
-      notifyError("RAM/ROM Report", `You must choose a Build Configuration to continue.`);
-      return undefined;
-    }
-    build = project.buildConfigs[buildName];
+  if (!project || !build) {
+    const resolved = resolveActiveProjectBuild(wsConfig, { caller: "RAM/ROM Report", projectName: project?.name });
+    if (!resolved) { return undefined; }
+    project = project ?? resolved.project;
+    build = build ?? resolved.build;
   }
 
   let projectFolder = path.join(wsConfig.rootPath, project.rel_path);
@@ -346,21 +323,11 @@ export async function runDtshShell(
   build?: BuildConfig
 ) {
 
-  if (project === undefined) {
-    if (wsConfig.activeProject === undefined) {
-      notifyError("DTSH Shell", "Select a project before trying to open dtsh shell");
-      return;
-    }
-    project = wsConfig.projects[wsConfig.activeProject];
-  }
-
-  if (build === undefined) {
-    let buildName = getActiveBuildNameOfProject(wsConfig, project.name);
-    if (buildName === undefined) {
-      notifyError("DTSH Shell", `You must choose a Build Configuration to continue.`);
-      return;
-    }
-    build = project.buildConfigs[buildName];
+  if (!project || !build) {
+    const resolved = resolveActiveProjectBuild(wsConfig, { caller: "DTSH Shell", projectName: project?.name });
+    if (!resolved) { return; }
+    project = project ?? resolved.project;
+    build = build ?? resolved.build;
   }
 
   let cmd = `dtsh "${path.join(wsConfig.rootPath, project.rel_path, build.name, 'zephyr', 'zephyr.dts')}" `;
@@ -373,21 +340,11 @@ export async function runDtshShell(
 }
 
 export async function clean(wsConfig: WorkspaceConfig, projectName: string | undefined) {
-  if (projectName === undefined) {
-    if (wsConfig.activeProject === undefined) {
-      notifyError("Clean", "Select a project before trying to clean");
-      return;
-    }
-    projectName = wsConfig.activeProject;
-  }
+  const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Clean", projectName });
+  if (!resolved) { return; }
 
-  let activeBuild = wsConfig.projectStates[projectName].activeBuildConfig;
-  if (activeBuild === undefined) {
-    notifyError("Clean", "Select a build before trying to clean");
-    return;
-  }
-  await fs.remove(path.join(wsConfig.rootPath, wsConfig.projects[projectName].rel_path, activeBuild));
-  vscode.window.showInformationMessage(`Cleaning ${wsConfig.projects[projectName].rel_path}`);
+  await fs.remove(path.join(wsConfig.rootPath, resolved.project.rel_path, resolved.buildName));
+  vscode.window.showInformationMessage(`Cleaning ${resolved.project.rel_path}`);
 }
 
 export async function getBuildInfo(wsConfig: WorkspaceConfig,
