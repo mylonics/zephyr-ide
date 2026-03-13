@@ -323,7 +323,7 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
       }
 
       // Try shared handler first (covers: deleteProject, addBuild, deleteBuild, addRunner, deleteRunner, build, buildPristine, menuConfig, guiConfig, flash, setActive)
-      if (message.command && handleSharedProjectCommand(this.context, this.wsConfig, message.command, message.value, false)) {
+      if (message.command && handleSharedProjectCommand(this.context, this.wsConfig, message.command, message.value, true)) {
         return;
       }
 
