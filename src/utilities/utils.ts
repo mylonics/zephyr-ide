@@ -317,23 +317,35 @@ export async function getLaunchConfigurations(wsConfig: WorkspaceConfig) {
     return;
   }
 
-  // Scan all workspace folders and collect launch configurations
   const allConfigurations: any[] = [];
-  const seenKeys = new Set<string>();
 
+  // Step 1: Collect per-folder configs (.vscode/launch.json), tagged with the folder name.
+  // Process these first so that in a single-folder workspace (where WorkspaceFolder-scoped
+  // settings also appear in workspaceValue) folder entries always win over workspace entries.
+  const folderLevelNames = new Set<string>();
+  const seenFolderConfigs = new Set<string>();
   for (const folder of folders) {
-    const config = vscode.workspace.getConfiguration("launch", folder.uri);
-    const configurations = config.get<any[]>("configurations");
-    if (configurations) {
-      for (const cfg of configurations) {
-        // Deduplicate by name+folder to avoid repeated entries from shared
-        // configs while still keeping same-named configs from different folders
-        const key = `${cfg.name}::${folder.name}`;
-        if (cfg.name && !seenKeys.has(key)) {
-          seenKeys.add(key);
-          allConfigurations.push({ ...cfg, workspaceFolder: folder.name });
-        }
+    const folderConfigs = vscode.workspace.getConfiguration("launch", folder.uri)
+      .inspect<any[]>("configurations")?.workspaceFolderValue ?? [];
+    for (const cfg of folderConfigs) {
+      const key = `${folder.name}\0${cfg.name}`;
+      if (cfg.name && !seenFolderConfigs.has(key)) {
+        seenFolderConfigs.add(key);
+        folderLevelNames.add(cfg.name);
+        allConfigurations.push({ ...cfg, workspaceFolder: folder.name });
       }
+    }
+  }
+
+  // Step 2: Collect workspace-level (.code-workspace) then global (user settings) configs.
+  // Skip any entry whose name was already collected from a folder scope — this prevents
+  // duplicates in a single-folder workspace where both scopes read the same settings file.
+  const inspect = vscode.workspace.getConfiguration("launch").inspect<any[]>("configurations");
+  const seenNonFolderNames = new Set<string>();
+  for (const cfg of [...(inspect?.workspaceValue ?? []), ...(inspect?.globalValue ?? [])]) {
+    if (cfg.name && !seenNonFolderNames.has(cfg.name) && !folderLevelNames.has(cfg.name)) {
+      seenNonFolderNames.add(cfg.name);
+      allConfigurations.push({ ...cfg });
     }
   }
 

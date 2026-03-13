@@ -107,7 +107,7 @@ export async function loadWorkspaceState(context: vscode.ExtensionContext): Prom
   };
 
   if (config.initialSetupComplete) {
-    loadProjectsFromFile(config);
+    await loadProjectsFromFile(config);
   }
   return config;
 }

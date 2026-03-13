@@ -139,14 +139,17 @@ export async function build(
   let projectFolder = path.join(wsConfig.rootPath, project.rel_path);
   let buildFolder = path.join(wsConfig.rootPath, project.rel_path, build.name);
 
-  let cmd = `west build "${projectFolder}" --build-dir "${buildFolder}" `;
+  let cmd = `west build "${projectFolder}" --build-dir "${buildFolder}" ${extraWestBuildArgs} `;
 
-  let buildFsDir;
-  if (fs.existsSync(buildFolder)) {
-    buildFsDir = fs.readdirSync(buildFolder);
-  }
+  const buildFolderExists = fs.existsSync(buildFolder);
 
-  if (pristine || buildFsDir === undefined || buildFsDir.length === 0) {
+  // Treat a build folder with neither CMakeCache.txt nor domains.yaml (for sysbuild)
+  // as requiring a pristine build so that the board, cmake args, and conf files are passed.
+  const cmakeCacheExists = buildFolderExists &&
+    (fs.existsSync(path.join(buildFolder, 'CMakeCache.txt')) ||
+     fs.existsSync(path.join(buildFolder, 'domains.yaml')));
+
+  if (pristine || !buildFolderExists || !cmakeCacheExists) {
     // Clear cached CMake info on pristine build
     clearBuildCMakeInfo(wsConfig, project.name, build.name);
 
