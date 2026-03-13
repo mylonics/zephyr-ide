@@ -20,7 +20,7 @@ They do **not** require a Zephyr SDK, network access, or long build times.
 | 4 | `python-command.test.ts` | `Python Command Test Suite` | `getPythonCommand()`, `resetPythonCommand()` from `setup_utilities/west-operations.ts` |
 | 5 | `toolchain-config.test.ts` | `Toolchain Configuration Test Suite` | `getToolchainDir()` from `setup_utilities/workspace-config.ts` |
 | 6 | `venv-config.test.ts` | `Venv Configuration Test Suite` | `getVenvPath()` from `setup_utilities/workspace-config.ts` |
-| 7 | `externally-managed.test.ts` | `Environment Variable Detection Test Suite` | `getEnvironmentSetupState()` from `setup_utilities/workspace-config.ts` |
+| 7 | `env-detection.test.ts` | `Environment Variable Detection Test Suite` | `getEnvironmentSetupState()` from `setup_utilities/workspace-config.ts` |
 
 ### Integration Tests
 
@@ -234,6 +234,24 @@ All CI pipelines invoke tests via `node scripts/run-integration-tests.js <type>`
 runs `npx vscode-test --grep '<pattern>'`. Mocha's `--grep` flag performs a **regex match**
 against suite and test names. Only suites whose names match the pattern will execute.
 
+### `unit-tests.yml` — Ubuntu Only, Unit Tests
+
+Runs on every PR to `develop` and on manual dispatch.
+
+| Step | `--grep` Pattern | Suites Matched |
+|------|------------------|----------------|
+| `unit-tests` | `^(?!.*(Workspace\|Combined))` | All 7 unit test suites (negative lookahead excludes any suite containing "Workspace" or "Combined") |
+
+The 7 unit suites matched are:
+
+- `Environment Variable Detection Test Suite`
+- `Git URL Validation Test Suite`
+- `Launch Configuration Test Suite`
+- `Platform Detection Test Suite`
+- `Python Command Test Suite`
+- `Toolchain Configuration Test Suite`
+- `Venv Configuration Test Suite`
+
 ### `workspace-setup-tests.yml` — Ubuntu Only, All Workspace Types
 
 | Step | `--grep` Pattern | Suites Matched | Unit tests included? |
@@ -266,20 +284,21 @@ Runs on all three platforms (Ubuntu, Windows, macOS).
 Both `basic-tests.yml` and `multiplatform-tests.yml` call the shared reusable workflow
 `_shared-platform-test.yml` which contains the VSIX build and test execution logic.
 
-### ⚠️ Unit Tests Are NOT Run in Any CI Pipeline
+### Summary: Which tests run in which pipeline?
 
-The 7 unit test suites (`Git URL Validation Test Suite`, `Launch Configuration Test Suite`,
-`Platform Detection Test Suite`, `Python Command Test Suite`, `Toolchain Configuration Test Suite`,
-`Venv Configuration Test Suite`, `Environment Variable Detection Test Suite`) are **never executed**
-in CI. This is because:
+| Pipeline | Trigger | Unit Tests | Integration Tests |
+|----------|---------|------------|-------------------|
+| `unit-tests.yml` | PRs to `develop` | ✅ All 7 unit suites | ❌ No |
+| `basic-tests.yml` | PRs to `develop` | ❌ No | ✅ `combined-installation` only (Ubuntu) |
+| `multiplatform-tests.yml` | PRs to `main`/`pre-release` | ❌ No | ✅ `combined-installation` (Ubuntu + Windows + macOS) |
+| `workspace-setup-tests.yml` | PRs to `main`/`pre-release` (conditional) | ❌ No | ✅ All 5 workspace setup suites (Ubuntu) |
 
-1. Neither workflow runs bare `npm test` or `npx vscode-test` (which would match all `*.test.js` files).
-2. Each workflow step uses a **specific** `--grep` pattern that only matches a single integration test suite name.
-3. The `all` option (grep pattern `Test Suite` — which would match all suites) is never used in any workflow.
-
-To run unit tests, a developer must execute them locally:
+To run all tests locally:
 
 ```bash
+# Run unit tests only (fast, no SDK needed)
+xvfb-run -a npx vscode-test --grep '^(?!.*(Workspace|Combined))'
+
 # Run all tests (unit + integration) — matches all *Test Suite names
 node scripts/run-integration-tests.js all
 
