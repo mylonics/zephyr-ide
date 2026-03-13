@@ -17,17 +17,16 @@ limitations under the License.
 
 import * as vscode from 'vscode';
 import path from 'upath';
-import { ProjectConfig, addBuildToProject, addConfigFiles, addRunnerToBuild, removeBuild, removeProject, removeRunner, setActive, modifyBuildArguments, removeConfigFile, setActiveProject, getResolvedRunnerConfig, getResolvedTestConfig, resolveActiveProject, resolveActiveProjectBuild } from '../../project_utilities/project';
+import { ProjectConfig, addConfigFiles, setActive, modifyBuildArguments, removeConfigFile, setActiveProject, getResolvedRunnerConfig, getResolvedTestConfig, resolveActiveProject, resolveActiveProjectBuild } from '../../project_utilities/project';
 import { BuildConfig } from '../../project_utilities/build_selector';
-import { getNonce } from "../../utilities/getNonce";
 import { RunnerConfig } from '../../project_utilities/runner_selector';
-import { buildByName, MenuConfig } from '../../zephyr_utilities/build';
-import { flashByName } from '../../zephyr_utilities/flash';
 import { ConfigFiles } from '../../project_utilities/config_selector';
 
 import { WorkspaceConfig } from '../../setup_utilities/types';
 import { TwisterConfig } from '../../project_utilities/twister_selector';
 import { getSetupState } from '../../setup_utilities/workspace-config';
+import { generateWebviewHtml, initWebviewView } from '../webviewHelper';
+import { handleSharedProjectCommand } from '../projectCommandHandler';
 
 export class ProjectConfigState {
   projectOpenState: boolean = true;
@@ -41,7 +40,7 @@ export class ProjectConfigState {
 }
 
 export class ProjectConfigView implements vscode.WebviewViewProvider {
-  private view: vscode.WebviewView | undefined;
+  public view: vscode.WebviewView | undefined;
   private needToClearHtml: boolean = false;
   private treeData: any = [];
 
@@ -470,113 +469,37 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
 
   setHtml(body: string) {
     if (this.view !== undefined) {
-      const fileUri = (fp: string) => {
-        const fragments = fp.split('/');
-
-        return vscode.Uri.file(
-          path.join(this.extensionPath, ...fragments)
-        );
-      };
-
-      const assetUri = (fp: string) => {
-        if (this.view) {
-          return this.view.webview.asWebviewUri(fileUri(fp));
-        }
-      };
-
-      const nonce = getNonce();
-
-      this.view.webview.html = `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Document</title>
-      <link rel="stylesheet" href="${assetUri('node_modules/@vscode/codicons/dist/codicon.css')}"  id="vscode-codicon-stylesheet">
-      <link rel="stylesheet" href="${assetUri('src/panels/view.css')}">
-      <script nonce="${nonce}" src="${assetUri('node_modules/@vscode-elements/elements/dist/bundled.js')}"  type="module"></script>
-      <script nonce="${nonce}" src="${assetUri('src/panels/project_config_view/ProjectConfigViewHandler.js')}"  type="module"></script>
-    </head>
-    <body>
-    <vscode-tree id="project-config-tree" indent-guides arrows></vscode-tree>
-    ${body}
-    </body>
-    </html>`;
+      this.view.webview.html = generateWebviewHtml(this.view, this.extensionPath, body, {
+        handlerJsPath: 'src/panels/project_config_view/ProjectConfigViewHandler.js',
+        treeElementHtml: '<vscode-tree id="project-config-tree" indent-guides arrows></vscode-tree>',
+        includeCSP: false,
+      });
     }
   };
 
   resolveWebviewView(webviewView: vscode.WebviewView, context: vscode.WebviewViewResolveContext, token: vscode.CancellationToken): void | Thenable<void> {
-    webviewView.webview.options = {
-      enableScripts: true,
-      enableCommandUris: true,
-    };
+    initWebviewView(
+      this, webviewView,
+      () => this.updateWebView(this.wsConfig),
+      (message) => this.handleMessage(message),
+      () => { this.setHtml(""); this.updateWebView(this.wsConfig); }
+    );
+  }
 
-    this.view = webviewView;
-    
-    // Refresh webview when it becomes visible to ensure content is loaded
-    webviewView.onDidChangeVisibility(() => {
-      if (webviewView.visible) {
-        this.updateWebView(this.wsConfig);
-      }
-    });
-    
-    webviewView.webview.onDidReceiveMessage(async message => {
+  private async handleMessage(message: any) {
       console.log(message);
       if (message.treeData) {
         this.treeData = message.treeData;
         this.setProjectConfigState();
       }
+
+      // Try shared handler first (covers: deleteProject, addBuild, deleteBuild, addRunner, deleteRunner, build, buildPristine, menuConfig, guiConfig, flash, setActive)
+      if (message.command && handleSharedProjectCommand(this.context, this.wsConfig, message.command, message.value, true)) {
+        return;
+      }
+
+      // Handle view-specific commands
       switch (message.command) {
-        case "deleteProject": {
-          removeProject(this.context, this.wsConfig, message.value.project).finally(() => { vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
-          break;
-        }
-        case "addBuild": {
-          addBuildToProject(this.wsConfig, this.context, message.value.project).finally(() => { setActive(this.wsConfig, message.value.project); vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
-          break;
-        }
-        case "deleteBuild": {
-          removeBuild(this.context, this.wsConfig, message.value.project, message.value.build).finally(() => { setActive(this.wsConfig, message.value.project); vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
-          break;
-        }
-        case "addRunner": {
-          addRunnerToBuild(this.wsConfig, this.context, message.value.project, message.value.build).finally(() => { setActive(this.wsConfig, message.value.project, message.value.build); vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
-          break;
-        }
-        case "deleteRunner": {
-          removeRunner(this.context, this.wsConfig, message.value.project, message.value.build, message.value.runner).finally(() => { setActive(this.wsConfig, message.value.project, message.value.build); vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
-          break;
-        }
-        case "build": {
-          buildByName(this.context, this.wsConfig, false, message.value.project, message.value.build);
-          setActive(this.wsConfig, message.value.project, message.value.build);
-          break;
-        }
-        case "buildPristine": {
-          buildByName(this.context, this.wsConfig, true, message.value.project, message.value.build);
-          setActive(this.wsConfig, message.value.project, message.value.build);
-          break;
-        }
-        case "menuConfig": {
-          buildByName(this.context, this.wsConfig, true, message.value.project, message.value.build, MenuConfig.MenuConfig);
-          setActive(this.wsConfig, message.value.project, message.value.build);
-          break;
-        }
-        case "guiConfig": {
-          buildByName(this.context, this.wsConfig, true, message.value.project, message.value.build, MenuConfig.GuiConfig);
-          setActive(this.wsConfig, message.value.project, message.value.build);
-          break;
-        }
-        case "flash": {
-          flashByName(this.context, this.wsConfig, message.value.project, message.value.build, message.value.runner);
-          setActive(this.wsConfig, message.value.project, message.value.build, message.value.runner);
-          break;
-        }
-        case "setActive": {
-          setActive(this.wsConfig, message.value.project, message.value.build, message.value.runner);
-          break;
-        }
         case "openBoardDtc": {
           let build = this.wsConfig.projects[message.value.project].buildConfigs[message.value.build];
 
@@ -668,10 +591,6 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
           console.log("unknown command");
           console.log(message);
       }
-    });
-    // Initialize webview: setHtml() sets up the HTML structure, updateWebView() populates it with current data
-    this.setHtml("");
-    this.updateWebView(this.wsConfig);
   }
 }
 

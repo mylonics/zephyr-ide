@@ -16,18 +16,17 @@ limitations under the License.
 */
 
 import * as vscode from 'vscode';
-import path from 'upath';
 
 import { ProjectConfig, getResolvedRunnerConfig, getResolvedTestConfig, resolveActiveProject, resolveActiveProjectBuild } from '../../project_utilities/project';
 import { BuildConfig } from '../../project_utilities/build_selector';
-import { getNonce } from "../../utilities/getNonce";
 import { RunnerConfig } from '../../project_utilities/runner_selector';
 import { WorkspaceConfig } from '../../setup_utilities/types';
 import { TwisterConfig } from "../../project_utilities/twister_selector";
 import { getLaunchTargetDisplayName } from '../../utilities/utils';
+import { generateWebviewHtml, initWebviewView } from '../webviewHelper';
 
 export class ActiveProjectView implements vscode.WebviewViewProvider {
-  private view: vscode.WebviewView | undefined;
+  public view: vscode.WebviewView | undefined;
 
   launchActions = [
     {
@@ -158,58 +157,24 @@ export class ActiveProjectView implements vscode.WebviewViewProvider {
 
   setHtml(body: string) {
     if (this.view !== undefined) {
-      const fileUri = (fp: string) => {
-        const fragments = fp.split('/');
-
-        return vscode.Uri.file(
-          path.join(this.extensionPath, ...fragments)
-        );
-      };
-
-      const assetUri = (fp: string) => {
-        if (this.view) {
-          return this.view.webview.asWebviewUri(fileUri(fp));
-        }
-      };
-
-      const nonce = getNonce();
-
-      this.view.webview.html = `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Document</title>
-      <link rel="stylesheet" href="${assetUri('node_modules/@vscode/codicons/dist/codicon.css')}"  id="vscode-codicon-stylesheet">
-      <link rel="stylesheet" href="${assetUri('src/panels/view.css')}">
-      <script nonce="${nonce}" src="${assetUri('node_modules/@vscode-elements/elements/dist/bundled.js')}"  type="module"></script>
-      <script nonce="${nonce}" src="${assetUri('src/panels/active_project_view/ActiveProjectViewHandler.js')}"  type="module"></script>
-    </head>
-    <body>
-    <vscode-tree id="basic-example" ></vscode-tree>
-    ${body}
-    </body>
-    </html>`;
+      this.view.webview.html = generateWebviewHtml(this.view, this.extensionPath, body, {
+        handlerJsPath: 'src/panels/active_project_view/ActiveProjectViewHandler.js',
+        treeElementHtml: '<vscode-tree id="basic-example" ></vscode-tree>',
+        includeCSP: false,
+      });
     }
   };
 
   resolveWebviewView(webviewView: vscode.WebviewView, context: vscode.WebviewViewResolveContext, token: vscode.CancellationToken): void | Thenable<void> {
-    webviewView.webview.options = {
-      enableScripts: true,
-      enableCommandUris: true,
-    };
+    initWebviewView(
+      this, webviewView,
+      () => this.updateWebView(this.wsConfig),
+      (message) => this.handleMessage(message),
+      () => { this.setHtml(""); this.updateWebView(this.wsConfig); }
+    );
+  }
 
-    this.view = webviewView;
-    
-    // Refresh webview when it becomes visible to ensure content is loaded
-    webviewView.onDidChangeVisibility(() => {
-      if (webviewView.visible) {
-        this.updateWebView(this.wsConfig);
-      }
-    });
-    
-    webviewView.webview.onDidReceiveMessage(message => {
+  private handleMessage(message: any) {
       switch (message.command) {
         case "vsCommand": {
           vscode.commands.executeCommand(message.value.vsCommand);
@@ -235,9 +200,6 @@ export class ActiveProjectView implements vscode.WebviewViewProvider {
           console.log("unknown command");
           console.log(message);
       }
-    });
-    this.setHtml("");
-    this.updateWebView(this.wsConfig);
   }
 }
 

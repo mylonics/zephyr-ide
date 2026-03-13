@@ -19,15 +19,15 @@ import * as vscode from 'vscode';
 import * as fs from 'fs-extra';
 import path from 'upath';
 import { WorkspaceConfig, GlobalConfig } from '../../setup_utilities/types';
-import { getNonce } from "../../utilities/getNonce";
 import { setSetupState, setGlobalState, clearSetupState } from '../../setup_utilities/state-management';
 import { output } from '../../utilities/utils';
 import { notifyError, notifyWarningWithActions, outputInfo } from '../../utilities/output';
 import { getToolsDir } from '../../setup_utilities/workspace-config';
 import { westConfig } from '../../setup_utilities/workspace-setup';
+import { generateWebviewHtml, initWebviewView } from '../webviewHelper';
 
 export class WestWorkspaceView implements vscode.WebviewViewProvider {
-  private view: vscode.WebviewView | undefined;
+  public view: vscode.WebviewView | undefined;
 
   constructor(
     public extensionPath: string,
@@ -156,39 +156,11 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
 
   setHtml(body: string) {
     if (this.view !== undefined) {
-      const fileUri = (fp: string) => {
-        const fragments = fp.split('/');
-        return vscode.Uri.file(
-          path.join(this.extensionPath, ...fragments)
-        );
-      };
-
-      const assetUri = (fp: string) => {
-        if (this.view) {
-          return this.view.webview.asWebviewUri(fileUri(fp));
-        }
-      };
-
-      const nonce = getNonce();
-
-      this.view.webview.html = `
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>West Workspaces</title>
-          <link rel="stylesheet" href="${assetUri('node_modules/@vscode/codicons/dist/codicon.css')}"  id="vscode-codicon-stylesheet">
-          <link rel="stylesheet" href="${assetUri('src/panels/view.css')}">
-          <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${this.view.webview.cspSource}; font-src ${this.view.webview.cspSource}; img-src ${this.view.webview.cspSource} https:; script-src 'nonce-${nonce}';">
-          <script nonce="${nonce}" src="${assetUri('node_modules/@vscode-elements/elements/dist/bundled.js')}"  type="module"></script>
-          <script nonce="${nonce}" src="${assetUri('src/panels/west_workspace_view/WestWorkspaceViewHandler.js')}"  type="module"></script>
-        </head>
-        <body>
-        <vscode-tree id="workspace-tree"></vscode-tree>
-        ${body}
-        </body>
-        </html>`;
+      this.view.webview.html = generateWebviewHtml(this.view, this.extensionPath, body, {
+        handlerJsPath: 'src/panels/west_workspace_view/WestWorkspaceViewHandler.js',
+        treeElementHtml: '<vscode-tree id="workspace-tree"></vscode-tree>',
+        includeCSP: true,
+      });
     }
   }
 
@@ -197,21 +169,15 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
     context: vscode.WebviewViewResolveContext,
     token: vscode.CancellationToken
   ): void | Thenable<void> {
-    webviewView.webview.options = {
-      enableScripts: true,
-      enableCommandUris: true,
-    };
+    initWebviewView(
+      this, webviewView,
+      () => this.updateWebView(this.wsConfig, this.globalConfig),
+      (message) => this.handleMessage(message),
+      () => { this.setHtml(""); this.updateWebView(this.wsConfig, this.globalConfig); }
+    );
+  }
 
-    this.view = webviewView;
-    
-    // Refresh webview when it becomes visible to ensure content is loaded
-    webviewView.onDidChangeVisibility(() => {
-      if (webviewView.visible) {
-        this.updateWebView(this.wsConfig, this.globalConfig);
-      }
-    });
-    
-    webviewView.webview.onDidReceiveMessage(async (message) => {
+  private async handleMessage(message: any) {
       console.log('WestWorkspaceView received message:', message);
 
       if (message.actionId) {
@@ -260,10 +226,6 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
             console.log('Unknown command:', message.command);
         }
       }
-    });
-
-    this.setHtml("");
-    this.updateWebView(this.wsConfig, this.globalConfig);
   }
 
   private async handleActivate(installPath: string) {

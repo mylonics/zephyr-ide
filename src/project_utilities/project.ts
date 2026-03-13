@@ -343,23 +343,27 @@ export async function removeConfigFile(context: vscode.ExtensionContext, wsConfi
   vscode.window.showInformationMessage(`Successfully Removed Config Files`);
 }
 
-export async function askUserForProject(wsConfig: WorkspaceConfig) {
-  const pickOptions: vscode.QuickPickOptions = {
+/**
+ * Generic helper to show a QuickPick from an object's keys.
+ * Returns the selected key or undefined if the user cancelled.
+ */
+async function askUserForSelection(dict: Record<string, any>, placeholder: string): Promise<string | undefined> {
+  const keys = Object.keys(dict);
+  if (keys.length === 0) {
+    return undefined;
+  }
+  return await vscode.window.showQuickPick(keys, {
     ignoreFocusOut: true,
-    placeHolder: "Select Project",
-  };
+    placeHolder: placeholder,
+  });
+}
+
+export async function askUserForProject(wsConfig: WorkspaceConfig) {
   if (Object.keys(wsConfig.projects).length === 0) {
     notifyError("Project", "First Run `Add Project` or `Create Project`");
     return;
   }
-
-  let projectList: string[] = [];
-  for (let key in wsConfig.projects) {
-    projectList.push(key);
-  }
-
-  let selectedProject = await vscode.window.showQuickPick(projectList, pickOptions);
-  return selectedProject;
+  return await askUserForSelection(wsConfig.projects, "Select Project");
 }
 
 export async function setActiveProject(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, selectedProject?: string) {
@@ -377,37 +381,11 @@ export async function setActiveProject(context: vscode.ExtensionContext, wsConfi
 }
 
 export async function askUserForBuild(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName: string) {
-  const pickOptions: vscode.QuickPickOptions = {
-    ignoreFocusOut: true,
-    placeHolder: "Select Build",
-  };
-
-  let buildConfigs = wsConfig.projects[projectName].buildConfigs;
-
-  let buildList: string[] = [];
-  for (let key in buildConfigs) {
-    buildList.push(key);
-  }
-
-  let selectedBuild = await vscode.window.showQuickPick(buildList, pickOptions);
-  return selectedBuild;
+  return await askUserForSelection(wsConfig.projects[projectName].buildConfigs, "Select Build");
 }
 
 export async function askUserForTest(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName: string) {
-  const pickOptions: vscode.QuickPickOptions = {
-    ignoreFocusOut: true,
-    placeHolder: "Select Test",
-  };
-
-  let twisterConfigs = wsConfig.projects[projectName].twisterConfigs;
-
-  let testList: string[] = [];
-  for (let key in twisterConfigs) {
-    testList.push(key);
-  }
-
-  let selectedTest = await vscode.window.showQuickPick(testList, pickOptions);
-  return selectedTest;
+  return await askUserForSelection(wsConfig.projects[projectName].twisterConfigs, "Select Test");
 }
 
 export async function setActiveBuild(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName?: string, selectedBuild?: string) {
@@ -732,20 +710,7 @@ export async function setActive(wsConfig: WorkspaceConfig, project: string, buil
 }
 
 export async function askUserForRunner(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName: string, buildName: string) {
-  const pickOptions: vscode.QuickPickOptions = {
-    ignoreFocusOut: true,
-    placeHolder: "Select Runner",
-  };
-
-  let buildConfig = wsConfig.projects[projectName].buildConfigs[buildName];
-
-  let runnerList: string[] = [];
-  for (let key in buildConfig.runnerConfigs) {
-    runnerList.push(key);
-  }
-
-  let selectedRunner = await vscode.window.showQuickPick(runnerList, pickOptions);
-  return selectedRunner;
+  return await askUserForSelection(wsConfig.projects[projectName].buildConfigs[buildName].runnerConfigs, "Select Runner");
 }
 
 
@@ -832,34 +797,35 @@ export async function getActiveBuild(wsConfig: WorkspaceConfig) {
   return resolved.build;
 }
 
-export async function selectDebugLaunchConfiguration(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
-  let activeBuild = await getActiveBuild(wsConfig);
-  let newConfig = await selectLaunchConfiguration(wsConfig);
+/**
+ * Generic helper to select a launch configuration and assign it to the given
+ * target property pair on the active build.
+ */
+async function selectLaunchConfigForTarget(
+  context: vscode.ExtensionContext,
+  wsConfig: WorkspaceConfig,
+  targetNameKey: 'launchTarget' | 'buildDebugTarget' | 'attachTarget',
+  targetFolderKey: 'launchTargetFolder' | 'buildDebugTargetFolder' | 'attachTargetFolder'
+) {
+  const activeBuild = await getActiveBuild(wsConfig);
+  const newConfig = await selectLaunchConfiguration(wsConfig);
   if (activeBuild && newConfig) {
-    activeBuild.launchTarget = newConfig.name;
-    activeBuild.launchTargetFolder = newConfig.workspaceFolder;
+    activeBuild[targetNameKey] = newConfig.name;
+    activeBuild[targetFolderKey] = newConfig.workspaceFolder;
     await setWorkspaceState(context, wsConfig);
   }
+}
+
+export async function selectDebugLaunchConfiguration(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
+  await selectLaunchConfigForTarget(context, wsConfig, 'launchTarget', 'launchTargetFolder');
 }
 
 export async function selectBuildDebugLaunchConfiguration(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
-  let activeBuild = await getActiveBuild(wsConfig);
-  let newConfig = await selectLaunchConfiguration(wsConfig);
-  if (activeBuild && newConfig) {
-    activeBuild.buildDebugTarget = newConfig.name;
-    activeBuild.buildDebugTargetFolder = newConfig.workspaceFolder;
-    await setWorkspaceState(context, wsConfig);
-  }
+  await selectLaunchConfigForTarget(context, wsConfig, 'buildDebugTarget', 'buildDebugTargetFolder');
 }
 
 export async function selectDebugAttachLaunchConfiguration(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
-  let activeBuild = await getActiveBuild(wsConfig);
-  let newConfig = await selectLaunchConfiguration(wsConfig);
-  if (activeBuild && newConfig) {
-    activeBuild.attachTarget = newConfig.name;
-    activeBuild.attachTargetFolder = newConfig.workspaceFolder;
-    await setWorkspaceState(context, wsConfig);
-  }
+  await selectLaunchConfigForTarget(context, wsConfig, 'attachTarget', 'attachTargetFolder');
 }
 
 
