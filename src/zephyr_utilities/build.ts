@@ -370,13 +370,13 @@ export async function getBuildInfo(wsConfig: WorkspaceConfig,
           dtsFile = dtsFiles[file];
           break;
         } else {
-          if (!(dtsFiles[file] in otherDtsFiles)) {
+          if (!otherDtsFiles.includes(dtsFiles[file])) {
             otherDtsFiles.push(dtsFiles[file]);
           }
         }
       }
       for (let file in userDtsFiles) {
-        if (!(userDtsFiles[file] in otherDtsFiles)) {
+        if (!otherDtsFiles.includes(userDtsFiles[file])) {
           otherDtsFiles.push(userDtsFiles[file]);
         }
       }

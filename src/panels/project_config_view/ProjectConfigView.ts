@@ -630,10 +630,12 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
         case "modifyBuildArgs": {
           modifyBuildArguments(this.context, this.wsConfig, message.value.project, message.value.build).finally(() => { vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
           setActive(this.wsConfig, message.value.project, message.value.build, message.value.runner);
+          break;
         }
         case "modifyTestArgs": {
           vscode.commands.executeCommand("zephyr-ide.reconfigure-active-test");
           setActive(this.wsConfig, message.value.project, message.value.build, message.value.runner);
+          break;
         }
         case "addFile": {
           switch (message.value.cmd) {
