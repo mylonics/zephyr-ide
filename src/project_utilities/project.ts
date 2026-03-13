@@ -766,15 +766,10 @@ export async function setActiveRunner(context: vscode.ExtensionContext, wsConfig
       notifyError("Runner Config", "Set Active Build before trying to Set Active Runner");
       return;
     }
-    return;
   }
 
   let activeBuild = wsConfig.projects[wsConfig.activeProject].buildConfigs[activeBuildName];
 
-  let runnerList: string[] = [];
-  for (let key in activeBuild.runnerConfigs) {
-    runnerList.push(key);
-  }
   let selectedRunner = await askUserForRunner(context, wsConfig, wsConfig.activeProject, activeBuildName);
 
   if (selectedRunner === undefined) {

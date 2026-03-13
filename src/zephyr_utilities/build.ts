@@ -97,7 +97,7 @@ export enum MenuConfig {
 export async function buildByName(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, pristine: boolean, projectName: string, buildName: string, isMenuConfig = MenuConfig.None) {
   let project = wsConfig.projects[projectName];
   let buildconfig = project.buildConfigs[buildName];
-  if (project && build) {
+  if (project && buildconfig) {
     if (isMenuConfig !== MenuConfig.None) {
       buildMenuConfig(context, wsConfig, isMenuConfig, project, buildconfig);
     } else {
