@@ -71,7 +71,7 @@ function projectLoader(config: WorkspaceConfig, projects: any) {
 export async function getVariable(config: WorkspaceConfig, variable_name: string, project_name?: string, build_name?: string) {
   const zephyrIdeSettingFilePath = path.join(config.rootPath, ".vscode", "zephyr-ide.json");
   try {
-    var object = await JSON.parse(fs.readFileSync(zephyrIdeSettingFilePath, 'utf8'));
+    var object = JSON.parse(fs.readFileSync(zephyrIdeSettingFilePath, 'utf8'));
     if (project_name) {
       let projects = object.projects;
       if (build_name) {
@@ -91,14 +91,14 @@ export async function loadProjectsFromFile(config: WorkspaceConfig) {
   const zephyrIdeSettingFilePath = path.join(config.rootPath, ".vscode", "zephyr-ide.json");
   try {
     if (!fs.pathExistsSync(zephyrIdeSettingFilePath)) {
-      await fs.outputFile(zephyrIdeSettingFilePath, JSON.stringify({}, null, 2), { flag: 'w+' }, function (err: any) {
+      await fs.outputFile(zephyrIdeSettingFilePath, JSON.stringify({ projects: {} }, null, 2), { flag: 'w+' }, function (err: any) {
         if (err) { throw err; }
         outputInfo('Workspace Config', 'Created zephyr-ide file');
       }
       );
     } else {
-      var object = await JSON.parse(fs.readFileSync(zephyrIdeSettingFilePath, 'utf8'));
-      let projects = object.projects;
+      const object = JSON.parse(fs.readFileSync(zephyrIdeSettingFilePath, 'utf8'));
+      const projects = object.projects ?? {};
       projectLoader(config, projects);
     }
   } catch (error) {
