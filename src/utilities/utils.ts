@@ -318,21 +318,11 @@ export async function getLaunchConfigurations(wsConfig: WorkspaceConfig) {
   }
 
   const allConfigurations: any[] = [];
-  const inspect = vscode.workspace.getConfiguration("launch").inspect<any[]>("configurations");
 
-  // Collect workspace-level (.code-workspace) then global (user settings) configs — no folder context.
-  // Workspace-level takes precedence: process it first and skip any global entry with the same name.
-  const seenNames = new Set<string>();
-  for (const cfg of [...(inspect?.workspaceValue ?? []), ...(inspect?.globalValue ?? [])]) {
-    if (cfg.name && !seenNames.has(cfg.name)) {
-      seenNames.add(cfg.name);
-      allConfigurations.push({ ...cfg });
-    }
-  }
-
-  // Collect per-folder configs (.vscode/launch.json), tagged with the folder name.
-  // workspaceFolderValue ensures workspace-level entries are not re-read here.
-  // Deduplicate within each folder using folder+name as key.
+  // Step 1: Collect per-folder configs (.vscode/launch.json), tagged with the folder name.
+  // Process these first so that in a single-folder workspace (where WorkspaceFolder-scoped
+  // settings also appear in workspaceValue) folder entries always win over workspace entries.
+  const folderLevelNames = new Set<string>();
   const seenFolderConfigs = new Set<string>();
   for (const folder of folders) {
     const folderConfigs = vscode.workspace.getConfiguration("launch", folder.uri)
@@ -341,8 +331,21 @@ export async function getLaunchConfigurations(wsConfig: WorkspaceConfig) {
       const key = `${folder.name}\0${cfg.name}`;
       if (cfg.name && !seenFolderConfigs.has(key)) {
         seenFolderConfigs.add(key);
+        folderLevelNames.add(cfg.name);
         allConfigurations.push({ ...cfg, workspaceFolder: folder.name });
       }
+    }
+  }
+
+  // Step 2: Collect workspace-level (.code-workspace) then global (user settings) configs.
+  // Skip any entry whose name was already collected from a folder scope — this prevents
+  // duplicates in a single-folder workspace where both scopes read the same settings file.
+  const inspect = vscode.workspace.getConfiguration("launch").inspect<any[]>("configurations");
+  const seenNonFolderNames = new Set<string>();
+  for (const cfg of [...(inspect?.workspaceValue ?? []), ...(inspect?.globalValue ?? [])]) {
+    if (cfg.name && !seenNonFolderNames.has(cfg.name) && !folderLevelNames.has(cfg.name)) {
+      seenNonFolderNames.add(cfg.name);
+      allConfigurations.push({ ...cfg });
     }
   }
 
