@@ -22,11 +22,11 @@ import { WorkspaceConfig } from "../setup_utilities/types";
 
 suite("Launch Configuration Test Suite", () => {
     
-    test("getLaunchConfigurations should return workspace-level configurations when available", async () => {
-        // This test verifies that the function scans all workspace folders
-        // and returns a deduplicated list of launch configurations
+    test("getLaunchConfigurations should return configurations and handle workspace-level configs", async () => {
+        // This test verifies that the function reads both workspace-level configs
+        // (from .code-workspace) and per-folder configs (from .vscode/launch.json),
+        // using inspect() to avoid duplicates between the two scopes.
         
-        // Create a mock workspace config
         const wsConfig: WorkspaceConfig = {
             rootPath: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || "",
             projects: {},
@@ -35,16 +35,36 @@ suite("Launch Configuration Test Suite", () => {
             automaticProjectSelction: false,
         };
         
-        // Call the function - it should work without errors
         const configurations = await getLaunchConfigurations(wsConfig);
         
         // The function should return an array or undefined
         assert.ok(Array.isArray(configurations) || configurations === undefined);
+
+        // Verify that workspace-level configs (no workspaceFolder property) and
+        // folder-level configs (with workspaceFolder property) are both allowed.
+        if (Array.isArray(configurations)) {
+            for (const cfg of configurations) {
+                assert.ok(typeof cfg.name === "string" && cfg.name.length > 0,
+                    "Every returned configuration must have a non-empty name");
+            }
+
+            // Names must be unique across the returned list
+            const names = configurations.map((c: any) => c.name);
+            const uniqueNames = new Set(names);
+            // Allow same name from different folders, but workspace-level entries
+            // (no workspaceFolder) must not be duplicated.
+            const workspaceLevelNames = configurations
+                .filter((c: any) => !c.workspaceFolder)
+                .map((c: any) => c.name);
+            const uniqueWorkspaceLevelNames = new Set(workspaceLevelNames);
+            assert.strictEqual(workspaceLevelNames.length, uniqueWorkspaceLevelNames.size,
+                "Workspace-level configurations must not be duplicated");
+        }
     });
     
     test("getLaunchConfigurations should handle empty workspace gracefully", async () => {
         // Create a mock workspace config with empty rootPath
-        // The function now scans all workspace folders regardless of rootPath
+        // The function scans workspace folders regardless of rootPath
         const wsConfig: WorkspaceConfig = {
             rootPath: "",
             projects: {},
