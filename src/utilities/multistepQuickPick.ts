@@ -257,6 +257,16 @@ export async function showQuickPickMany<T extends QuickPickItem, P extends Quick
   }
 }
 
+/** No-op validation: accepts all input values. */
+export async function noOpValidate(_name: string): Promise<string | undefined> {
+  return undefined;
+}
+
+/** Map an array of strings to an array of QuickPickItems. */
+export function mapToQuickPickItems(labels: string[]): QuickPickItem[] {
+  return labels.map(label => ({ label }));
+}
+
 export async function showInputBox<P extends InputBoxParameters>({ title, step, totalSteps, ignoreFocusOut, placeholder, prompt, value, dispose = true }: P) {
 
   const disposables: Disposable[] = [];
