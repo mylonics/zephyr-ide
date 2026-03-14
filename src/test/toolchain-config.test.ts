@@ -21,6 +21,11 @@ import { getToolchainDir, getToolsDir, migrateToolsDirectory } from "../setup_ut
 import * as path from "path";
 import * as os from "os";
 
+/** Normalize path separators to forward slashes (VS Code convention) */
+function normalizePath(p: string): string {
+  return p.replace(/\\/g, "/");
+}
+
 suite("Toolchain Configuration Test Suite", () => {
 
     async function resetAllSettings(config: vscode.WorkspaceConfiguration) {
@@ -34,7 +39,7 @@ suite("Toolchain Configuration Test Suite", () => {
         await resetAllSettings(config);
         
         const result = getToolchainDir();
-        const expectedPath = path.join(os.homedir(), ".zephyr_ide", "toolchains");
+        const expectedPath = normalizePath(path.join(os.homedir(), ".zephyr_ide", "toolchains"));
         
         assert.strictEqual(result, expectedPath);
     });
@@ -61,7 +66,7 @@ suite("Toolchain Configuration Test Suite", () => {
         await config.update("zephyr-ide.tools_directory", customToolsPath, vscode.ConfigurationTarget.Global);
         
         const result = getToolchainDir();
-        const expectedPath = path.join(customToolsPath, "toolchains");
+        const expectedPath = normalizePath(path.join(customToolsPath, "toolchains"));
         
         assert.strictEqual(result, expectedPath);
         
@@ -76,7 +81,7 @@ suite("Toolchain Configuration Test Suite", () => {
         await config.update("zephyr-ide.global_directory", customGlobalPath, vscode.ConfigurationTarget.Global);
 
         const result = getToolchainDir();
-        const expectedPath = path.join(customGlobalPath, "toolchains");
+        const expectedPath = normalizePath(path.join(customGlobalPath, "toolchains"));
 
         assert.strictEqual(result, expectedPath);
 
@@ -122,7 +127,7 @@ suite("Toolchain Configuration Test Suite", () => {
         await config.update("zephyr-ide.toolchain_directory", "", vscode.ConfigurationTarget.Global);
         
         const result = getToolchainDir();
-        const expectedPath = path.join(os.homedir(), ".zephyr_ide", "toolchains");
+        const expectedPath = normalizePath(path.join(os.homedir(), ".zephyr_ide", "toolchains"));
         
         // Empty string is falsy, so should return default
         assert.strictEqual(result, expectedPath);

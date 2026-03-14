@@ -129,7 +129,8 @@ export async function runnerSelector(boardfolder: string) {
     return;
   }
 
-  async function validate(name: string) {
+  /** No-op: all input values are accepted */
+  async function validate(_name: string) {
     return undefined;
   }
 

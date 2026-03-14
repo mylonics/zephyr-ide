@@ -136,12 +136,11 @@ export function loadHostToolsManifest(): HostToolsManifest {
 }
 
 /**
- * Get the package manager for the current platform
+ * Resolve a package manager from a platform name string
  */
-export function getPackageManagerForPlatform(): { name: string; config: PackageManager } | null {
+function getPackageManagerFromPlatformName(platformName: string | undefined): { name: string; config: PackageManager } | null {
   const manifest = loadHostToolsManifest();
-  const platformName = getPlatformName();
-  
+
   let platformKey: string;
   switch (platformName) {
     case "linux":
@@ -164,7 +163,7 @@ export function getPackageManagerForPlatform(): { name: string; config: PackageM
 
   const managerName = platformConfig.manager;
   const managerConfig = manifest.package_managers[managerName];
-  
+
   if (!managerConfig) {
     return null;
   }
@@ -173,40 +172,17 @@ export function getPackageManagerForPlatform(): { name: string; config: PackageM
 }
 
 /**
+ * Get the package manager for the current platform
+ */
+export function getPackageManagerForPlatform(): { name: string; config: PackageManager } | null {
+  return getPackageManagerFromPlatformName(getPlatformName());
+}
+
+/**
  * Get the package manager for the current platform (async version with remote detection)
  */
 export async function getPackageManagerForPlatformAsync(): Promise<{ name: string; config: PackageManager } | null> {
-  const manifest = loadHostToolsManifest();
-  const platformName = await getPlatformNameAsync();
-  
-  let platformKey: string;
-  switch (platformName) {
-    case "linux":
-      platformKey = "linux";
-      break;
-    case "macos":
-      platformKey = "mac";
-      break;
-    case "windows":
-      platformKey = "windows";
-      break;
-    default:
-      return null;
-  }
-
-  const platformConfig = manifest.platforms[platformKey];
-  if (!platformConfig) {
-    return null;
-  }
-
-  const managerName = platformConfig.manager;
-  const managerConfig = manifest.package_managers[managerName];
-  
-  if (!managerConfig) {
-    return null;
-  }
-
-  return { name: managerName, config: managerConfig };
+  return getPackageManagerFromPlatformName(await getPlatformNameAsync());
 }
 
 /**

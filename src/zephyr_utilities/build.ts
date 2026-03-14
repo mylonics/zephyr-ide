@@ -165,24 +165,16 @@ export async function build(
     cmd = `west build -b ${build.board + (build.revision ? '@' + build.revision : "")} "${projectFolder}" -p --build-dir "${buildFolder}" ${extraWestBuildArgs} -- -DBOARD_ROOT='${boardRoot}' ${extraWestBuildCMakeArgs} `;
 
     if (primaryConfFiles.length) {
-      let confFileString = "";
-      primaryConfFiles.map(x => (confFileString = confFileString + x + ";"));
-      cmd = cmd + ` -DCONF_FILE='${confFileString}' `;
+      cmd += ` -DCONF_FILE='${primaryConfFiles.join(";")}' `;
     }
     if (secondaryConfFiles.length) {
-      let confFileString = "";
-      secondaryConfFiles.map(x => (confFileString = confFileString + x + ";"));
-      cmd = cmd + ` -DEXTRA_CONF_FILE='${confFileString}' `;
+      cmd += ` -DEXTRA_CONF_FILE='${secondaryConfFiles.join(";")}' `;
     }
     if (overlayFiles.length) {
-      let overlayFileString = "";
-      overlayFiles.map(x => (overlayFileString = overlayFileString + x + ";"));
-      cmd = cmd + ` -DDTC_OVERLAY_FILE='${overlayFileString}' `;
+      cmd += ` -DDTC_OVERLAY_FILE='${overlayFiles.join(";")}' `;
     }
     if (extraOverlayFiles.length) {
-      let overlayFileString = "";
-      extraOverlayFiles.map(x => (overlayFileString = overlayFileString + x + ";"));
-      cmd = cmd + ` -DEXTRA_DTC_OVERLAY_FILE='${overlayFileString}' `;
+      cmd += ` -DEXTRA_DTC_OVERLAY_FILE='${extraOverlayFiles.join(";")}' `;
     }
   }
 
@@ -335,7 +327,7 @@ export async function runDtshShell(
 
   let cmd = `dtsh "${path.join(wsConfig.rootPath, project.rel_path, build.name, 'zephyr', 'zephyr.dts')}" `;
 
-  let taskName = "Zephyr IDE DTSH Sehll: " + project.name + " " + build.name;
+  let taskName = "Zephyr IDE DTSH Shell: " + project.name + " " + build.name;
 
   outputInfo(`DTSH Shell: ${project.name}/${build.name}`, `Running DTSH Shell ${build.name} from project: ${project.name} (cmd: ${cmd})`, true);
   const setupState = await getSetupState(context, wsConfig);

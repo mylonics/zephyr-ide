@@ -114,12 +114,13 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
     twisterConfig.tests.push(v.label);
   }
 
-  let platfroms = ["native_sim", "qemu", "hardware"];
+  let platforms = ["native_sim", "qemu", "hardware"];
 
-  const platformsQpItems: QuickPickItem[] = platfroms.map(label => ({ label }));
+  const platformsQpItems: QuickPickItem[] = platforms.map(label => ({ label }));
   platformsQpItems.push({ label: "", kind: vscode.QuickPickItemKind.Separator });
 
-  async function validate(name: string) {
+  /** No-op: all input values are accepted */
+  async function validate(_name: string) {
     return undefined;
   }
 
@@ -219,7 +220,8 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
 }
 
 export async function reconfigureTest(config: TwisterConfig) {
-  async function validate(name: string) {
+  /** No-op: all input values are accepted */
+  async function validate(_name: string) {
     return undefined;
   }
 

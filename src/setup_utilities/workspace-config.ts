@@ -71,7 +71,7 @@ function projectLoader(config: WorkspaceConfig, projects: any) {
 export async function getVariable(config: WorkspaceConfig, variable_name: string, project_name?: string, build_name?: string) {
   const zephyrIdeSettingFilePath = path.join(config.rootPath, ".vscode", "zephyr-ide.json");
   try {
-    var object = JSON.parse(fs.readFileSync(zephyrIdeSettingFilePath, 'utf8'));
+    const object = JSON.parse(fs.readFileSync(zephyrIdeSettingFilePath, 'utf8'));
     if (project_name) {
       let projects = object.projects;
       if (build_name) {
@@ -81,7 +81,7 @@ export async function getVariable(config: WorkspaceConfig, variable_name: string
     }
     return object[variable_name];
   } catch (error) {
-    console.error('Failed to get custom var, ${variable_name}');
+    console.error(`Failed to get custom var, ${variable_name}`);
     console.error(error);
     return "";
   }
@@ -117,13 +117,12 @@ export async function setWorkspaceSettings(force = false) {
   const configuration = await vscode.workspace.getConfiguration();
   const target = vscode.ConfigurationTarget.Workspace;
 
-  if (getPlatformName() === "windows") {
+  const platform = getPlatformName();
+  if (platform === "windows") {
     setDefaultTerminal(configuration, target, "windows", force);
-  }
-  if (getPlatformName() === "linux") {
+  } else if (platform === "linux") {
     setDefaultTerminal(configuration, target, "linux", force);
-  }
-  if (getPlatformName() === "macos") {
+  } else if (platform === "macos") {
     setDefaultTerminal(configuration, target, "osx", force);
   }
   if (force || !configuration.inspect("C_Cpp.default.compileCommands")?.workspaceValue) {
