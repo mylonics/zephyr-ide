@@ -814,28 +814,3 @@ export async function selectBuildDebugLaunchConfiguration(context: vscode.Extens
 export async function selectDebugAttachLaunchConfiguration(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
   await selectLaunchConfigForTarget(context, wsConfig, 'attachTarget', 'attachTargetFolder');
 }
-
-
-//export function getTestsFromProject(wsConfig: WorkspaceConfig, projectName: string) {
-//  let projectPath = path.join(wsConfig.rootPath, wsConfig.projects[projectName].rel_path);
-//  let testcasePath = path.join(projectPath, "testcase.yaml");
-//  let samplePath = path.join(projectPath, "sample.yaml");
-//
-//  let filePath: string | undefined;
-//  if (fs.existsSync(testcasePath)) {
-//    filePath = testcasePath;
-//  } else if (fs.existsSync(samplePath)) {
-//    filePath = samplePath;
-//  }
-//
-//  let tests: string[] = []
-//  if (filePath) {
-//    let yamlFile: any = yaml.load(fs.readFileSync(filePath, 'utf-8'));
-//    if (yamlFile && yamlFile.tests) {
-//      for (var prop in yamlFile.tests) {
-//        tests.push(prop);
-//      }
-//    }
-//  }
-//  return tests;
-//}

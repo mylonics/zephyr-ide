@@ -17,6 +17,7 @@ limitations under the License.
 
 import { QuickPickItem } from 'vscode';
 import { MultiStepInput, noOpValidate, mapToQuickPickItems } from "../utilities/multistepQuickPick";
+import { outputError } from "../utilities/output";
 
 import path from "upath";
 import * as fs from 'fs';
@@ -64,7 +65,7 @@ export async function runnerSelector(boardfolder: string) {
       ignoreFocusOut: true,
       activeItem: typeof state.runner !== 'string' ? state.runner : undefined
     }).catch((error) => {
-      console.error(error);
+      outputError("Runner Selector", String(error));
       return undefined;
     });
     let pick = await pickPromise;
@@ -73,9 +74,6 @@ export async function runnerSelector(boardfolder: string) {
     }
 
     state.runner = pick.label;
-    if (state.runner === undefined) {
-      return;
-    }
     return (input: MultiStepInput) => inputRunnerName(input, state);
   }
 
@@ -93,7 +91,7 @@ export async function runnerSelector(boardfolder: string) {
       prompt: 'Choose a name for this Runner Configuration',
       validate: noOpValidate
     }).catch((error) => {
-      console.error(error);
+      outputError("Runner Selector", String(error));
       return undefined;
     });
 
@@ -118,7 +116,7 @@ export async function runnerSelector(boardfolder: string) {
       ignoreFocusOut: true,
       validate: noOpValidate
     }).catch((error) => {
-      console.error(error);
+      outputError("Runner Selector", String(error));
       return undefined;
     });
     state.args = await inputPromise;

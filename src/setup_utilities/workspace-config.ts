@@ -21,7 +21,7 @@ import * as fs from "fs-extra";
 import * as path from "upath";
 import * as yaml from 'js-yaml';
 import { getPlatformName } from "../utilities/utils";
-import { outputInfo, outputWarning } from "../utilities/output";
+import { outputInfo, outputWarning, outputError } from "../utilities/output";
 import { WorkspaceConfig, SetupState } from "./types";
 import { resolveActiveProjectBuild } from "../project_utilities/project";
 
@@ -81,8 +81,7 @@ export async function getVariable(config: WorkspaceConfig, variable_name: string
     }
     return object[variable_name];
   } catch (error) {
-    console.error(`Failed to get custom var, ${variable_name}`);
-    console.error(error);
+    outputError("Workspace Config", `Failed to get custom var, ${variable_name}: ${String(error)}`);
     return "";
   }
 }
@@ -99,8 +98,7 @@ export async function loadProjectsFromFile(config: WorkspaceConfig) {
       projectLoader(config, projects);
     }
   } catch (error) {
-    console.error("Failed to load .vscode/zephyr-ide.json");
-    console.error(error);
+    outputError("Workspace Config", `Failed to load .vscode/zephyr-ide.json: ${String(error)}`);
   }
 }
 
@@ -145,7 +143,7 @@ export async function generateGitIgnore(context: vscode.ExtensionContext, wsConf
         outputWarning("Workspace Config", `Source gitignore file not found at: ${srcPath} (extensionPath: ${extensionPath}). The extension may not be installed correctly.`);
       }
     } catch (error) {
-      console.error(`Failed to copy gitignore from ${srcPath} to ${desPath}:`, error);
+      outputError("Workspace Config", `Failed to copy gitignore from ${srcPath} to ${desPath}: ${String(error)}`);
     }
   }
 }
@@ -168,7 +166,7 @@ export async function generateExtensionsRecommendations(context: vscode.Extensio
         outputWarning("Workspace Config", `Source extensions.json file not found at: ${srcPath} (extensionPath: ${extensionPath}). The extension may not be installed correctly.`);
       }
     } catch (error) {
-      console.error(`Failed to copy extensions.json from ${srcPath} to ${desPath}:`, error);
+      outputError("Workspace Config", `Failed to copy extensions.json from ${srcPath} to ${desPath}: ${String(error)}`);
     }
   }
 }
@@ -195,7 +193,7 @@ export function getToolsDir() {
       fs.ensureDirSync(toolsdir);
     }
   } catch (e) {
-    console.error("Failed to ensure tools directory exists:", toolsdir, e);
+    outputError("Workspace Config", `Failed to ensure tools directory exists: ${toolsdir}: ${String(e)}`);
   }
   return toolsdir;
 }
@@ -237,7 +235,7 @@ export function getToolchainDir() {
       fs.ensureDirSync(defaultDir);
     }
   } catch (e) {
-    console.error(`Failed to create default toolchain directory "${defaultDir}":`, e);
+    outputError("Workspace Config", `Failed to create default toolchain directory "${defaultDir}": ${String(e)}`);
   }
 
   return defaultDir;

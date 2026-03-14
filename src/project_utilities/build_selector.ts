@@ -24,7 +24,7 @@ import { RunnerConfigDictionary, RunnerStateDictionary } from './runner_selector
 import { ConfigFiles } from './config_selector';
 import { SetupState } from '../setup_utilities/types';
 import { executeShellCommandInPythonEnv, output } from "../utilities/utils";
-import { notifyError, outputCommandFailure, outputWarning } from "../utilities/output";
+import { notifyError, outputCommandFailure, outputWarning, outputError } from "../utilities/output";
 import { isVersionNumberGreaterEqual, isVersionNumberGreater } from '../setup_utilities/modules';
 
 
@@ -184,7 +184,7 @@ export async function pickBoard(setupState: SetupState, rootPath: string) {
     activeItem: undefined,
     dispose: false,
   }).catch((error) => {
-    console.error(error);
+    outputError("Build Selector", String(error));
     return undefined;
   });
   let pick = (await pickPromise as QuickPickItem);
@@ -230,7 +230,7 @@ export async function pickBoard(setupState: SetupState, rootPath: string) {
     items: boardQpItems,
     activeItem: undefined
   }).catch((error) => {
-    console.error(error);
+    outputError("Build Selector", String(error));
     return undefined;
   });
   pick = (await pickPromise as QuickPickItem);
@@ -273,7 +273,7 @@ export async function pickBoard(setupState: SetupState, rootPath: string) {
       items: revisionQPItems,
       activeItem: revisionQPItems[revisionIndex]
     }).catch((error) => {
-      console.error(error);
+      outputError("Build Selector", String(error));
       return undefined;
     });
     let pick = (await pickPromise as QuickPickItem);
@@ -325,7 +325,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       prompt: 'Choose a name for the Build',
       validate: noOpValidate
     }).catch((error) => {
-      console.error(error);
+      outputError("Build Selector", String(error));
       return undefined;
     });
     let name = await inputPromise;
@@ -350,7 +350,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       items: buildOptimizationsQpItems,
       activeItem: typeof state.debugOptimization !== 'string' ? state.debugOptimization : undefined
     }).catch((error) => {
-      console.error(error);
+      outputError("Build Selector", String(error));
       return undefined;
     });
     let pick = await pickPromise;
@@ -369,7 +369,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       placeholder: '--sysbuild',
       validate: noOpValidate
     }).catch((error) => {
-      console.error(error);
+      outputError("Build Selector", String(error));
       return undefined;
     });
     let westBuildArgs = await westArgsInputPromise;
@@ -406,7 +406,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       prompt: 'Modify CMake Arguments',
       validate: noOpValidate
     }).catch((error) => {
-      console.error(error);
+      outputError("Build Selector", String(error));
       return undefined;
     });
     let cmakeBuildArgs = await cmakeArgsInputPromise;
