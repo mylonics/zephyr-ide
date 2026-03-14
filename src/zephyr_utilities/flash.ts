@@ -16,12 +16,11 @@ limitations under the License.
 */
 
 import * as vscode from "vscode";
-import path from "upath";
 
 import { executeTaskHelperInPythonEnv } from "../utilities/utils";
 import { notifyError, outputInfo } from "../utilities/output";
 
-import { ProjectConfig, resolveActiveProjectBuildRunner } from "../project_utilities/project";
+import { ProjectConfig, resolveActiveProjectBuildRunner, getBuildFolder } from "../project_utilities/project";
 
 import { WorkspaceConfig } from '../setup_utilities/types';
 import { BuildConfig } from "../project_utilities/build_selector";
@@ -56,7 +55,7 @@ export async function flashActive(context: vscode.ExtensionContext, wsConfig: Wo
 
 export async function flash(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, project: ProjectConfig, build: BuildConfig, runner: RunnerConfig) {
   // Tasks
-  let cmd = `west flash --build-dir "${path.join(wsConfig.rootPath, project.rel_path, build.name)}"`;
+  let cmd = `west flash --build-dir "${getBuildFolder(wsConfig, project, build)}"`;
 
   if (runner.runner !== "default") {
     cmd += ` -r ${runner.runner}`;

@@ -18,13 +18,12 @@ limitations under the License.
 import * as vscode from "vscode";
 import * as path from 'upath';
 import * as fs from 'fs-extra';
-import * as yaml from 'js-yaml';
 
-import { executeTaskHelperInPythonEnv, executeShellCommandInPythonEnv } from "../utilities/utils";
+import { executeTaskHelperInPythonEnv, executeShellCommandInPythonEnv, loadYamlFile } from "../utilities/utils";
 import { notifyError, outputInfo } from "../utilities/output";
 
 import { WorkspaceConfig } from '../setup_utilities/types';
-import { addBuild, ProjectConfig, getResolvedBuildName, resolveActiveProject, resolveActiveProjectBuild } from "../project_utilities/project";
+import { addBuild, ProjectConfig, getResolvedBuildName, resolveActiveProject, resolveActiveProjectBuild, getProjectFolder, getBuildFolder } from "../project_utilities/project";
 import { BuildConfig } from "../project_utilities/build_selector";
 import { updateDtsContext } from "../setup_utilities/dts_interface";
 import { getSetupState, updateBuildCMakeInfo, clearBuildCMakeInfo } from "../setup_utilities/workspace-config";
@@ -39,6 +38,12 @@ export interface BuildInfo {
   otherKconfigFiles: string[];
 }
 
+/** Returns true when the build folder exists and contains at least one file */
+function isBuildFolderPopulated(buildFolder: string): boolean {
+  if (!fs.existsSync(buildFolder)) { return false; }
+  return fs.readdirSync(buildFolder).length > 0;
+}
+
 export async function regenerateCompileCommands(wsConfig: WorkspaceConfig) {
   let compileCommandData = [];
 
@@ -46,7 +51,7 @@ export async function regenerateCompileCommands(wsConfig: WorkspaceConfig) {
     let project = wsConfig.projects[projectName];
     for (let buildName in project.buildConfigs) {
       let build = project.buildConfigs[buildName];
-      let basepath = path.join(wsConfig.rootPath, project.rel_path, build.name);
+      let basepath = getBuildFolder(wsConfig, project, build);
       let basefile = path.join(basepath, "compile_commands.json");
       let extfile = path.join(basepath, project.name, "compile_commands.json");
       if (fs.existsSync(basefile)) {
@@ -140,8 +145,8 @@ export async function build(
     extraWestBuildCMakeArgs = build.westBuildCMakeArgs;
   }
 
-  let projectFolder = path.join(wsConfig.rootPath, project.rel_path);
-  let buildFolder = path.join(wsConfig.rootPath, project.rel_path, build.name);
+  let projectFolder = getProjectFolder(wsConfig, project);
+  let buildFolder = getBuildFolder(wsConfig, project, build);
 
   let cmd = `west build "${projectFolder}" --build-dir "${buildFolder}" ${extraWestBuildArgs} `;
 
@@ -213,13 +218,9 @@ export async function buildMenuConfig(
     build = build ?? resolved.build;
   }
 
-  let projectFolder = path.join(wsConfig.rootPath, project.rel_path);
-  let buildFolder = path.join(wsConfig.rootPath, project.rel_path, build.name);
-  let buildFsDir;
-  if (fs.existsSync(buildFolder)) {
-    buildFsDir = fs.readdirSync(buildFolder);
-  }
-  if (buildFsDir === undefined || buildFsDir.length === 0) {
+  let projectFolder = getProjectFolder(wsConfig, project);
+  let buildFolder = getBuildFolder(wsConfig, project, build);
+  if (!isBuildFolderPopulated(buildFolder)) {
     notifyError("Menu Config", `Run a Build or Build Pristine before running Menu/GUI Config.`);
     return;
   }
@@ -254,13 +255,9 @@ async function resolveRamRomReportParams(
     build = build ?? resolved.build;
   }
 
-  let projectFolder = path.join(wsConfig.rootPath, project.rel_path);
-  let buildFolder = path.join(wsConfig.rootPath, project.rel_path, build.name);
-  let buildFsDir;
-  if (fs.existsSync(buildFolder)) {
-    buildFsDir = fs.readdirSync(buildFolder);
-  }
-  if (buildFsDir === undefined || buildFsDir.length === 0) {
+  let projectFolder = getProjectFolder(wsConfig, project);
+  let buildFolder = getBuildFolder(wsConfig, project, build);
+  if (!isBuildFolderPopulated(buildFolder)) {
     notifyError("RAM/ROM Report", `Run a Build or Build Pristine before running ${reportType} Report.`);
     return undefined;
   }
@@ -329,7 +326,7 @@ export async function runDtshShell(
     build = build ?? resolved.build;
   }
 
-  let cmd = `dtsh "${path.join(wsConfig.rootPath, project.rel_path, build.name, 'zephyr', 'zephyr.dts')}" `;
+  let cmd = `dtsh "${path.join(getBuildFolder(wsConfig, project, build), 'zephyr', 'zephyr.dts')}" `;
 
   let taskName = "Zephyr IDE DTSH Shell: " + project.name + " " + build.name;
 
@@ -342,51 +339,48 @@ export async function clean(wsConfig: WorkspaceConfig, projectName: string | und
   const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Clean", projectName });
   if (!resolved) { return; }
 
-  await fs.remove(path.join(wsConfig.rootPath, resolved.project.rel_path, resolved.buildName));
+  await fs.remove(getBuildFolder(wsConfig, resolved.project, resolved.build));
   vscode.window.showInformationMessage(`Cleaning ${resolved.project.rel_path}`);
 }
 
 export async function getBuildInfo(wsConfig: WorkspaceConfig,
   project: ProjectConfig,
   build: BuildConfig) {
-  let buildInfoFilePath = path.join(wsConfig.rootPath, project.rel_path, build.name, "build_info.yml");
-  if (fs.existsSync(buildInfoFilePath)) {
-    let rawData: any = yaml.load(fs.readFileSync(buildInfoFilePath, 'utf-8'));
+  const buildInfoFilePath = path.join(getBuildFolder(wsConfig, project, build), "build_info.yml");
+  const rawData: any = loadYamlFile(buildInfoFilePath);
 
-    if (rawData && rawData.cmake && rawData.cmake.devicetree && rawData.cmake.kconfig) {
-      let dtsFiles = rawData.cmake.devicetree["files"];
-      let userDtsFiles = rawData.cmake.devicetree["user-files"];
+  if (rawData && rawData.cmake && rawData.cmake.devicetree && rawData.cmake.kconfig) {
+    let dtsFiles = rawData.cmake.devicetree["files"];
+    let userDtsFiles = rawData.cmake.devicetree["user-files"];
 
-      let dtsFile = "";
+    let dtsFile = "";
 
-      let otherDtsFiles: string[] = [];
+    let otherDtsFiles: string[] = [];
 
-      for (const file of dtsFiles) {
-        if (path.extname(file) === ".dts") {
-          dtsFile = file;
-          break;
-        } else {
-          if (!otherDtsFiles.includes(file)) {
-            otherDtsFiles.push(file);
-          }
-        }
-      }
-      for (const file of userDtsFiles) {
+    for (const file of dtsFiles) {
+      if (path.extname(file) === ".dts") {
+        dtsFile = file;
+        break;
+      } else {
         if (!otherDtsFiles.includes(file)) {
           otherDtsFiles.push(file);
         }
       }
-
-
-      let info: BuildInfo = {
-        bindingsDirs: rawData.cmake.devicetree["bindings-dirs"],
-        dtsFile: dtsFile,
-        otherDtsFiles: otherDtsFiles,
-        includeDirs: rawData.cmake.devicetree["include-dirs"],
-        kconfigFiles: rawData.cmake.kconfig["files"],
-        otherKconfigFiles: rawData.cmake.kconfig["user-files"],
-      };
-      return info;
     }
+    for (const file of userDtsFiles) {
+      if (!otherDtsFiles.includes(file)) {
+        otherDtsFiles.push(file);
+      }
+    }
+
+    let info: BuildInfo = {
+      bindingsDirs: rawData.cmake.devicetree["bindings-dirs"],
+      dtsFile: dtsFile,
+      otherDtsFiles: otherDtsFiles,
+      includeDirs: rawData.cmake.devicetree["include-dirs"],
+      kconfigFiles: rawData.cmake.kconfig["files"],
+      otherKconfigFiles: rawData.cmake.kconfig["user-files"],
+    };
+    return info;
   }
 }

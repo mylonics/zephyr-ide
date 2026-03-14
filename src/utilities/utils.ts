@@ -22,6 +22,7 @@ import * as util from "util";
 import * as cp from "child_process";
 import * as fs from "fs";
 import * as os from "os";
+import * as yaml from 'js-yaml';
 
 import { SetupState, WorkspaceConfig } from "../setup_utilities/types";
 import { pathdivider } from "../setup_utilities/tools-validation";
@@ -71,6 +72,17 @@ export function logDual(message: string): void {
     outputChannel.appendLine(message);
   }
   console.log(message);
+}
+
+/**
+ * Load and parse a YAML file if it exists.
+ * Returns the parsed document, or undefined if the file does not exist.
+ */
+export function loadYamlFile(filePath: string): any | undefined {
+  if (fs.existsSync(filePath)) {
+    return yaml.load(fs.readFileSync(filePath, 'utf-8'));
+  }
+  return undefined;
 }
 
 // Platform

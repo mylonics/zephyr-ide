@@ -50,6 +50,16 @@ export interface ProjectState {
   twisterStates: TwisterStateDictionary;
 }
 
+/** Get the absolute folder path for a project */
+export function getProjectFolder(wsConfig: WorkspaceConfig, project: ProjectConfig): string {
+  return path.join(wsConfig.rootPath, project.rel_path);
+}
+
+/** Get the absolute build output folder path for a project/build pair */
+export function getBuildFolder(wsConfig: WorkspaceConfig, project: ProjectConfig, build: BuildConfig): string {
+  return path.join(wsConfig.rootPath, project.rel_path, build.name);
+}
+
 /** Get active build name from an already-resolved project */
 export function getResolvedBuildName(wsConfig: WorkspaceConfig, resolved: ResolvedProject): string | undefined {
   return wsConfig.projectStates[resolved.projectName].activeBuildConfig;

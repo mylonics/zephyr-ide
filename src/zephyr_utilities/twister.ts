@@ -22,7 +22,7 @@ import { executeTaskHelperInPythonEnv } from "../utilities/utils";
 import { notifyError, outputInfo } from "../utilities/output";
 
 import { WorkspaceConfig } from '../setup_utilities/types';
-import { addTest, ProjectConfig, getResolvedTestName, resolveActiveProject } from "../project_utilities/project";
+import { addTest, ProjectConfig, getResolvedTestName, resolveActiveProject, getProjectFolder } from "../project_utilities/project";
 import { TwisterConfig } from "../project_utilities/twister_selector";
 import { getSetupState } from "../setup_utilities/workspace-config";
 
@@ -63,7 +63,7 @@ export async function runTest(
   testConfig: TwisterConfig
 ) {
 
-  let projectFolder = path.join(wsConfig.rootPath, project.rel_path);
+  let projectFolder = getProjectFolder(wsConfig, project);
 
   let cmd: string;
 
@@ -108,7 +108,7 @@ export async function deleteTestDirs(
   wsConfig: WorkspaceConfig,
   project: ProjectConfig
 ) {
-  const projectDir = path.join(wsConfig.rootPath, project.rel_path);
+  const projectDir = getProjectFolder(wsConfig, project);
 
   const files = await fs.readdir(projectDir);
   for (const file of files) {

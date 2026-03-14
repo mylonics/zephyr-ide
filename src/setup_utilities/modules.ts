@@ -16,11 +16,10 @@ limitations under the License.
 */
 
 import * as vscode from "vscode";
-import * as yaml from 'js-yaml';
 import * as fs from "fs-extra";
 import path from "upath";
 
-import { executeShellCommandInPythonEnv } from "../utilities/utils";
+import { executeShellCommandInPythonEnv, loadYamlFile } from "../utilities/utils";
 import { outputInfo, outputError, notifyError, outputCommandFailure } from "../utilities/output";
 import { SetupState } from "./types";
 
@@ -154,10 +153,8 @@ export function isVersionNumberGreater(version: ZephyrVersionNumber, major: numb
 }
 
 export function getModuleYamlFile(moduleAbsPath: string): any {
-  let filePath = path.join(moduleAbsPath, "zephyr", "module.yml");
-  if (fs.existsSync(filePath)) {
-    return yaml.load(fs.readFileSync(filePath, 'utf-8'));
-  }
+  const filePath = path.join(moduleAbsPath, "zephyr", "module.yml");
+  return loadYamlFile(filePath);
 }
 
 export async function getDtsIncludes(setupState: SetupState) {
@@ -257,9 +254,9 @@ function getSampleRecursive(
 
   const tentativePath = path.join(realDir, "sample.yaml");
   try {
-    if (fs.existsSync(tentativePath)) {
-      const yamlFile: any = yaml.load(fs.readFileSync(tentativePath, 'utf-8'));
-      if (yamlFile && yamlFile.sample && yamlFile.sample.name) {
+    const yamlFile: any = loadYamlFile(tentativePath);
+    if (yamlFile) {
+      if (yamlFile.sample && yamlFile.sample.name) {
         const description = yamlFile.sample.description ? yamlFile.sample.description : "";
         sampleList.push([moduleName, yamlFile.sample.name, description, realDir]);
       }
