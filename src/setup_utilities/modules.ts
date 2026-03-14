@@ -125,13 +125,23 @@ export async function getModuleVersion(modulePath: string): Promise<ZephyrVersio
 
   if (fs.existsSync(filePath)) {
     const file = fs.readFileSync(filePath, 'utf8');
-    let lines = file.split(/\r?\n/);
+    const majorMatch = file.match(/VERSION_MAJOR\s*=\s*(\d+)/);
+    const minorMatch = file.match(/VERSION_MINOR\s*=\s*(\d+)/);
+    const patchMatch = file.match(/PATCHLEVEL\s*=\s*(\d+)/);
+    const tweakMatch = file.match(/VERSION_TWEAK\s*=\s*(\d+)/);
+    const extraMatch = file.match(/EXTRAVERSION\s*=\s*(\S*)/);
+
+    if (!majorMatch || !minorMatch || !patchMatch) {
+      outputInfo("Modules", `Could not parse VERSION file at: ${filePath}`);
+      return undefined;
+    }
+
     let versionNumber: ZephyrVersionNumber = {
-      major: +lines[0].split("=")[1],
-      minor: +lines[1].split("=")[1],
-      patch: +lines[2].split("=")[1],
-      tweak: +lines[3].split("=")[1],
-      extra: +lines[4].split("=")[1],
+      major: parseInt(majorMatch[1]),
+      minor: parseInt(minorMatch[1]),
+      patch: parseInt(patchMatch[1]),
+      tweak: tweakMatch ? parseInt(tweakMatch[1]) : 0,
+      extra: extraMatch && extraMatch[1].trim() !== "" ? parseInt(extraMatch[1].trim()) : 0,
     };
     outputInfo("Modules", `Version: ${versionNumber.major}.${versionNumber.minor}.${versionNumber.patch}`);
     return versionNumber;

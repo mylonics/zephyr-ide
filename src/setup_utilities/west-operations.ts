@@ -58,7 +58,7 @@ export async function getPythonCommand(configOverride?: string | null): Promise<
     // First, try to get the Python interpreter configured in VS Code settings
     // If configOverride is provided, use it instead of reading from VS Code settings
     const configuredPython = configOverride !== undefined
-      ? (configOverride ?? undefined)
+      ? configOverride
       : vscode.workspace.getConfiguration().get<string>("python.defaultInterpreterPath");
     
     if (configuredPython && configuredPython.trim()) {
@@ -136,7 +136,7 @@ export async function westInit(context: vscode.ExtensionContext, wsConfig: Works
 
   // Delete .west if it already exists 
   if ((await fs.pathExists(westPath))) {
-    await fs.rmSync(westPath, { recursive: true, force: true });
+    fs.rmSync(westPath, { recursive: true, force: true });
   }
 
   const configuration = vscode.workspace.getConfiguration();
@@ -362,7 +362,7 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
       if (westEnvironmentSetup === "Reinitialize") {
         // Delete python env if it already exists 
         if ((await fs.pathExists(pythonenv))) {
-          await fs.rmSync(pythonenv, { recursive: true, force: true });
+          fs.rmSync(pythonenv, { recursive: true, force: true });
         }
 
         // Then create the virtualenv
