@@ -62,12 +62,12 @@ export function getBuildFolder(wsConfig: WorkspaceConfig, project: ProjectConfig
 
 /** Get active build name from an already-resolved project */
 export function getResolvedBuildName(wsConfig: WorkspaceConfig, resolved: ResolvedProject): string | undefined {
-  return wsConfig.projectStates[resolved.projectName].activeBuildConfig;
+  return wsConfig.projectStates[resolved.projectName]?.activeBuildConfig;
 }
 
 /** Get active runner name from an already-resolved project+build */
 export function getResolvedRunnerName(wsConfig: WorkspaceConfig, resolved: ResolvedProjectBuild): string | undefined {
-  return wsConfig.projectStates[resolved.projectName].buildStates[resolved.buildName]?.activeRunner;
+  return wsConfig.projectStates[resolved.projectName]?.buildStates[resolved.buildName]?.activeRunner;
 }
 
 /** Get active runner config from an already-resolved project+build */
@@ -78,7 +78,7 @@ export function getResolvedRunnerConfig(wsConfig: WorkspaceConfig, resolved: Res
 
 /** Get active test name from an already-resolved project */
 export function getResolvedTestName(wsConfig: WorkspaceConfig, resolved: ResolvedProject): string | undefined {
-  return wsConfig.projectStates[resolved.projectName].activeTwisterConfig;
+  return wsConfig.projectStates[resolved.projectName]?.activeTwisterConfig;
 }
 
 /** Get active test config from an already-resolved project */
@@ -466,7 +466,7 @@ export async function removeProject(context: vscode.ExtensionContext, wsConfig: 
 }
 
 export async function changeProjectNameInCMakeFile(projectPath: string, newProjectName: string) {
-  let projectCmakePath = projectPath + "/CMakeLists.txt";
+  let projectCmakePath = path.join(projectPath, "CMakeLists.txt");
 
   if (fs.existsSync(projectCmakePath)) {
     const projectCMakeFile = fs.readFileSync(projectCmakePath, 'utf8');
@@ -554,7 +554,7 @@ export async function addBuildToProject(wsConfig: WorkspaceConfig, context: vsco
     vscode.window.showInformationMessage(`Creating Build Configuration: ${result.name}`);
     wsConfig.projects[projectName].buildConfigs[result.name] = result;
     wsConfig.projectStates[projectName].buildStates[result.name] = { runnerStates: {}, viewOpen: true };
-    setActiveBuild(context, wsConfig, projectName, result.name);
+    await setActiveBuild(context, wsConfig, projectName, result.name);
 
     await setWorkspaceState(context, wsConfig);
     return true;
@@ -635,7 +635,7 @@ export async function addTest(wsConfig: WorkspaceConfig, context: vscode.Extensi
     wsConfig.projects[projectName].twisterConfigs[result.name] = result;
     wsConfig.projectStates[projectName].twisterStates[result.name] = { viewOpen: true };
 
-    setActiveTest(context, wsConfig, projectName, result.name);
+    await setActiveTest(context, wsConfig, projectName, result.name);
     await setWorkspaceState(context, wsConfig);
   }
 }

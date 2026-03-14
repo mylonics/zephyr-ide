@@ -608,7 +608,7 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "zephyr-ide.save-projects-to-file",
       async () => {
-        setWorkspaceState(context, wsConfig);
+        await setWorkspaceState(context, wsConfig);
       }
     )
   );
@@ -618,7 +618,7 @@ export async function activate(context: vscode.ExtensionContext) {
       "zephyr-ide.disable-automatic-project-target",
       async () => {
         wsConfig.automaticProjectSelction = false;
-        setWorkspaceState(context, wsConfig);
+        await setWorkspaceState(context, wsConfig);
       }
     )
   );
@@ -628,7 +628,7 @@ export async function activate(context: vscode.ExtensionContext) {
       "zephyr-ide.enable-automatic-project-target",
       async () => {
         wsConfig.automaticProjectSelction = true;
-        setWorkspaceState(context, wsConfig);
+        await setWorkspaceState(context, wsConfig);
       }
     )
   );

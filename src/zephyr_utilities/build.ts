@@ -20,7 +20,7 @@ import * as path from 'upath';
 import * as fs from 'fs-extra';
 
 import { executeTaskHelperInPythonEnv, executeShellCommandInPythonEnv, loadYamlFile } from "../utilities/utils";
-import { notifyError, outputInfo } from "../utilities/output";
+import { notifyError, outputInfo, outputWarning } from "../utilities/output";
 
 import { WorkspaceConfig } from '../setup_utilities/types';
 import { addBuild, ProjectConfig, getResolvedBuildName, resolveActiveProject, resolveActiveProjectBuild, getProjectFolder, getBuildFolder } from "../project_utilities/project";
@@ -56,10 +56,20 @@ export async function regenerateCompileCommands(wsConfig: WorkspaceConfig) {
       let extfile = path.join(basepath, project.name, "compile_commands.json");
       if (fs.existsSync(basefile)) {
         let rawdata = await fs.readFile(basefile, 'utf8');
-        compileCommandData.push(...JSON.parse(rawdata));
+        const parsed = JSON.parse(rawdata);
+        if (Array.isArray(parsed)) {
+          compileCommandData.push(...parsed);
+        } else {
+          outputWarning("Build", `compile_commands.json is not an array: ${basefile}`);
+        }
       } else if (fs.existsSync(extfile)) {
         let rawdata = await fs.readFile(extfile, 'utf8');
-        compileCommandData.push(...JSON.parse(rawdata));
+        const parsed = JSON.parse(rawdata);
+        if (Array.isArray(parsed)) {
+          compileCommandData.push(...parsed);
+        } else {
+          outputWarning("Build", `compile_commands.json is not an array: ${extfile}`);
+        }
       }
     }
   }
@@ -106,7 +116,7 @@ export async function buildByName(context: vscode.ExtensionContext, wsConfig: Wo
     return;
   }
   let buildconfig = project.buildConfigs[buildName];
-  if (project && buildconfig) {
+  if (buildconfig) {
     if (isMenuConfig !== MenuConfig.None) {
       await buildMenuConfig(context, wsConfig, isMenuConfig, project, buildconfig);
     } else {
