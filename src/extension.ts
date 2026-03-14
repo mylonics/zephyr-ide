@@ -587,7 +587,7 @@ export async function activate(context: vscode.ExtensionContext) {
       }
       wsConfig.projects = {};
       wsConfig.activeProject = undefined;
-      setWorkspaceState(context, wsConfig);
+      await setWorkspaceState(context, wsConfig);
       vscode.commands.executeCommand("zephyr-ide.update-web-view");
       extensionSetupView.updateWebView(wsConfig, globalConfig);
     })
@@ -1284,7 +1284,7 @@ export async function activate(context: vscode.ExtensionContext) {
       async () => {
         if (wsConfig.activeSetupState) {
           wsConfig.activeSetupState.westUpdated = true;
-          saveSetupState(context, wsConfig, globalConfig);
+          await saveSetupState(context, wsConfig, globalConfig);
         }
         extensionSetupView.updateWebView(wsConfig, globalConfig);
       }

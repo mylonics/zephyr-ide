@@ -91,11 +91,8 @@ export async function loadProjectsFromFile(config: WorkspaceConfig) {
   const zephyrIdeSettingFilePath = path.join(config.rootPath, ".vscode", "zephyr-ide.json");
   try {
     if (!fs.pathExistsSync(zephyrIdeSettingFilePath)) {
-      await fs.outputFile(zephyrIdeSettingFilePath, JSON.stringify({ projects: {} }, null, 2), { flag: 'w+' }, function (err: any) {
-        if (err) { throw err; }
-        outputInfo('Workspace Config', 'Created zephyr-ide file');
-      }
-      );
+      await fs.outputFile(zephyrIdeSettingFilePath, JSON.stringify({ projects: {} }, null, 2), { flag: 'w+' });
+      outputInfo('Workspace Config', 'Created zephyr-ide file');
     } else {
       const object = JSON.parse(fs.readFileSync(zephyrIdeSettingFilePath, 'utf8'));
       const projects = object.projects ?? {};

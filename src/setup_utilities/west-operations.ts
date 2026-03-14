@@ -132,7 +132,7 @@ export async function westInit(context: vscode.ExtensionContext, wsConfig: Works
   let westPath = path.join(setupState.setupPath, ".west");
 
   setupState.westUpdated = false;
-  saveSetupState(context, wsConfig, globalConfig);
+  await saveSetupState(context, wsConfig, globalConfig);
 
   // Delete .west if it already exists 
   if ((await fs.pathExists(westPath))) {
@@ -172,7 +172,7 @@ export async function westInit(context: vscode.ExtensionContext, wsConfig: Works
     if (solo) {
       vscode.window.showInformationMessage(`Successfully Completed West Init`);
     }
-    saveSetupState(context, wsConfig, globalConfig);
+    await saveSetupState(context, wsConfig, globalConfig);
   }
 
   configuration.update('git.enabled', undefined, target, false);
@@ -194,7 +194,7 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
   setupState.westUpdated = false;
   setupState.zephyrDir = "";
   setupState.zephyrVersion = undefined;
-  saveSetupState(context, wsConfig, globalConfig);
+  await saveSetupState(context, wsConfig, globalConfig);
 
   // Read config option from settings.json, but allow test override
   const configuration = vscode.workspace.getConfiguration('zephyr-ide');
@@ -258,7 +258,7 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
     }
 
     reloadEnvironmentVariables(context, setupState);
-    saveSetupState(context, wsConfig, globalConfig);
+    await saveSetupState(context, wsConfig, globalConfig);
     if (solo) {
       vscode.window.showInformationMessage(`Successfully Completed West Update`);
     }
@@ -290,7 +290,7 @@ export async function installPythonRequirements(context: vscode.ExtensionContext
   }
 
   setupState.packagesInstalled = false;
-  saveSetupState(context, wsConfig, globalConfig);
+  await saveSetupState(context, wsConfig, globalConfig);
 
   // Install requirements from Zephyr's requirements.txt plus additional packages needed by Zephyr IDE
   // For Zephyr >= 3.8.0, several packages (patool, semver, tqdm) are in requirements.txt
@@ -314,7 +314,7 @@ export async function installPythonRequirements(context: vscode.ExtensionContext
     notifyError("Python Requirements", "Python Requirement Installation Failed. Check the Zephyr IDE output for details.", { command: cmd });
   } else {
     setupState.packagesInstalled = true;
-    saveSetupState(context, wsConfig, globalConfig);
+    await saveSetupState(context, wsConfig, globalConfig);
     if (solo) {
       vscode.window.showInformationMessage(`Successfully Installed Python Requirements`);
     }
@@ -357,7 +357,7 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
       }
       currentSetupState.pythonEnvironmentSetup = false;
       currentSetupState.env = {};
-      saveSetupState(context, wsConfig, globalConfig);
+      await saveSetupState(context, wsConfig, globalConfig);
 
       if (westEnvironmentSetup === "Reinitialize") {
         // Delete python env if it already exists 
@@ -405,7 +405,7 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
 
       // Setup flag complete
       currentSetupState.pythonEnvironmentSetup = true;
-      saveSetupState(context, wsConfig, globalConfig);
+      await saveSetupState(context, wsConfig, globalConfig);
 
       progress.report({ increment: 100 });
       vscode.window.showInformationMessage(`Zephyr IDE: West Python Environment Setup!`);
@@ -468,7 +468,7 @@ export async function westUpdateWithRequirements(context: vscode.ExtensionContex
       vscode.window.showInformationMessage("Successfully completed West Update with Python requirements installation");
     }
   }
-  saveSetupState(context, wsConfig, globalConfig);
+  await saveSetupState(context, wsConfig, globalConfig);
 
   if (!globalConfig.sdkInstalled) {
     return await vscode.commands.executeCommand("zephyr-ide.install-sdk");
@@ -489,7 +489,7 @@ export async function postWorkspaceSetup(context: vscode.ExtensionContext, wsCon
     }
   }
 
-  saveSetupState(context, wsConfig, globalConfig);
+  await saveSetupState(context, wsConfig, globalConfig);
 
   return westUpdateWithRequirements(context, wsConfig, globalConfig, {
     solo: true,

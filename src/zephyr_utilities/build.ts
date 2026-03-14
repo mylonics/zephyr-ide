@@ -59,7 +59,7 @@ export async function regenerateCompileCommands(wsConfig: WorkspaceConfig) {
     }
   }
   let data = JSON.stringify(compileCommandData);
-  fs.outputFile(path.join(wsConfig.rootPath, '.vscode', 'compile_commands.json'), data);
+  await fs.outputFile(path.join(wsConfig.rootPath, '.vscode', 'compile_commands.json'), data);
 }
 
 export async function buildHelper(
@@ -96,12 +96,16 @@ export enum MenuConfig {
 
 export async function buildByName(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, pristine: boolean, projectName: string, buildName: string, isMenuConfig = MenuConfig.None) {
   let project = wsConfig.projects[projectName];
+  if (!project) {
+    notifyError("Build", "Invalid project or build");
+    return;
+  }
   let buildconfig = project.buildConfigs[buildName];
   if (project && buildconfig) {
     if (isMenuConfig !== MenuConfig.None) {
-      buildMenuConfig(context, wsConfig, isMenuConfig, project, buildconfig);
+      await buildMenuConfig(context, wsConfig, isMenuConfig, project, buildconfig);
     } else {
-      build(context, wsConfig, project, buildconfig, pristine);
+      await build(context, wsConfig, project, buildconfig, pristine);
     }
   } else {
     notifyError("Build", "Invalid project or build");
@@ -357,19 +361,19 @@ export async function getBuildInfo(wsConfig: WorkspaceConfig,
 
       let otherDtsFiles: string[] = [];
 
-      for (let file in dtsFiles) {
-        if (path.extname(dtsFiles[file]) === ".dts") {
-          dtsFile = dtsFiles[file];
+      for (const file of dtsFiles) {
+        if (path.extname(file) === ".dts") {
+          dtsFile = file;
           break;
         } else {
-          if (!otherDtsFiles.includes(dtsFiles[file])) {
-            otherDtsFiles.push(dtsFiles[file]);
+          if (!otherDtsFiles.includes(file)) {
+            otherDtsFiles.push(file);
           }
         }
       }
-      for (let file in userDtsFiles) {
-        if (!otherDtsFiles.includes(userDtsFiles[file])) {
-          otherDtsFiles.push(userDtsFiles[file]);
+      for (const file of userDtsFiles) {
+        if (!otherDtsFiles.includes(file)) {
+          otherDtsFiles.push(file);
         }
       }
 

@@ -30,7 +30,15 @@ import { getSetupState } from "../setup_utilities/workspace-config";
 
 export async function flashByName(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName: string, buildName: string, runnerName: string) {
   let project = wsConfig.projects[projectName];
+  if (!project) {
+    notifyError("Flash", "Invalid project or build");
+    return;
+  }
   let buildConfig = project.buildConfigs[buildName];
+  if (!buildConfig) {
+    notifyError("Flash", "Invalid project or build");
+    return;
+  }
   let runnerConfig = buildConfig.runnerConfigs[runnerName];
   if (project && buildConfig && runnerConfig) {
     await flash(context, wsConfig, project, buildConfig, runnerConfig);
@@ -43,7 +51,7 @@ export async function flashActive(context: vscode.ExtensionContext, wsConfig: Wo
   const resolved = resolveActiveProjectBuildRunner(wsConfig, { caller: "Flash" });
   if (!resolved) { return; }
 
-  flash(context, wsConfig, resolved.project, resolved.build, resolved.runner);
+  await flash(context, wsConfig, resolved.project, resolved.build, resolved.runner);
 }
 
 export async function flash(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, project: ProjectConfig, build: BuildConfig, runner: RunnerConfig) {
