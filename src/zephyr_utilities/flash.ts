@@ -39,7 +39,7 @@ export async function flashByName(context: vscode.ExtensionContext, wsConfig: Wo
     return;
   }
   let runnerConfig = buildConfig.runnerConfigs[runnerName];
-  if (project && buildConfig && runnerConfig) {
+  if (runnerConfig) {
     await flash(context, wsConfig, project, buildConfig, runnerConfig);
   } else {
     notifyError("Flash", "Invalid project or build");

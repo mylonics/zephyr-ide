@@ -44,8 +44,20 @@ function isBuildFolderPopulated(buildFolder: string): boolean {
   return fs.readdirSync(buildFolder).length > 0;
 }
 
+/** Reads and parses a compile_commands.json file, pushing entries into the accumulator. */
+async function readCompileCommandsFile(filePath: string, accumulator: any[]): Promise<void> {
+  if (!fs.existsSync(filePath)) { return; }
+  const rawdata = await fs.readFile(filePath, 'utf8');
+  const parsed = JSON.parse(rawdata);
+  if (Array.isArray(parsed)) {
+    accumulator.push(...parsed);
+  } else {
+    outputWarning("Build", `compile_commands.json is not an array: ${filePath}`);
+  }
+}
+
 export async function regenerateCompileCommands(wsConfig: WorkspaceConfig) {
-  let compileCommandData = [];
+  let compileCommandData: any[] = [];
 
   for (let projectName in wsConfig.projects) {
     let project = wsConfig.projects[projectName];
@@ -55,21 +67,9 @@ export async function regenerateCompileCommands(wsConfig: WorkspaceConfig) {
       let basefile = path.join(basepath, "compile_commands.json");
       let extfile = path.join(basepath, project.name, "compile_commands.json");
       if (fs.existsSync(basefile)) {
-        let rawdata = await fs.readFile(basefile, 'utf8');
-        const parsed = JSON.parse(rawdata);
-        if (Array.isArray(parsed)) {
-          compileCommandData.push(...parsed);
-        } else {
-          outputWarning("Build", `compile_commands.json is not an array: ${basefile}`);
-        }
+        await readCompileCommandsFile(basefile, compileCommandData);
       } else if (fs.existsSync(extfile)) {
-        let rawdata = await fs.readFile(extfile, 'utf8');
-        const parsed = JSON.parse(rawdata);
-        if (Array.isArray(parsed)) {
-          compileCommandData.push(...parsed);
-        } else {
-          outputWarning("Build", `compile_commands.json is not an array: ${extfile}`);
-        }
+        await readCompileCommandsFile(extfile, compileCommandData);
       }
     }
   }
@@ -135,29 +135,22 @@ export async function build(
   pristine: boolean
 ) {
 
-  let primaryConfFiles = project.confFiles.config.concat(build.confFiles.config);
-  primaryConfFiles = primaryConfFiles.map(x => (path.join(wsConfig.rootPath, x)));
-  let secondaryConfFiles = project.confFiles.extraConfig.concat(build.confFiles.extraConfig);
-  secondaryConfFiles = secondaryConfFiles.map(x => (path.join(wsConfig.rootPath, x)));
+  let primaryConfFiles = project.confFiles.config.concat(build.confFiles.config)
+    .map(x => path.join(wsConfig.rootPath, x));
+  let secondaryConfFiles = project.confFiles.extraConfig.concat(build.confFiles.extraConfig)
+    .map(x => path.join(wsConfig.rootPath, x));
+  let overlayFiles = project.confFiles.overlay.concat(build.confFiles.overlay)
+    .map(x => path.join(wsConfig.rootPath, x));
+  let extraOverlayFiles = project.confFiles.extraOverlay.concat(build.confFiles.extraOverlay)
+    .map(x => path.join(wsConfig.rootPath, x));
 
-  let overlayFiles = project.confFiles.overlay.concat(build.confFiles.overlay);
-  overlayFiles = overlayFiles.map(x => (path.join(wsConfig.rootPath, x)));
-  let extraOverlayFiles = project.confFiles.extraOverlay.concat(build.confFiles.extraOverlay);
-  extraOverlayFiles = extraOverlayFiles.map(x => (path.join(wsConfig.rootPath, x)));
-
-  let extraWestBuildArgs = "";
-  if (build.westBuildArgs !== undefined) {
-    extraWestBuildArgs = build.westBuildArgs;
-  }
-
-  let extraWestBuildCMakeArgs = "";
-  if (build.westBuildCMakeArgs !== undefined) {
-    extraWestBuildCMakeArgs = build.westBuildCMakeArgs;
-  }
+  const extraWestBuildArgs = build.westBuildArgs ?? "";
+  const extraWestBuildCMakeArgs = build.westBuildCMakeArgs ?? "";
 
   let projectFolder = getProjectFolder(wsConfig, project);
   let buildFolder = getBuildFolder(wsConfig, project, build);
 
+  const setupState = await getSetupState(context, wsConfig);
   let cmd = `west build "${projectFolder}" --build-dir "${buildFolder}" ${extraWestBuildArgs} `;
 
   const buildFolderExists = fs.existsSync(buildFolder);
@@ -172,16 +165,16 @@ export async function build(
     // Clear cached CMake info on pristine build
     clearBuildCMakeInfo(wsConfig, project.name, build.name);
 
-    let boardRoot;
+    let boardRoot: string | undefined;
     if (build.relBoardDir) {
       boardRoot = path.dirname(path.join(wsConfig.rootPath, build.relBoardDir));
-    } else {
-      const setupState = await getSetupState(context, wsConfig);
-      if (setupState) {
-        boardRoot = setupState.zephyrDir;
-      }
+    } else if (setupState) {
+      boardRoot = setupState.zephyrDir;
     }
-    cmd = `west build -b ${build.board + (build.revision ? '@' + build.revision : "")} "${projectFolder}" -p --build-dir "${buildFolder}" ${extraWestBuildArgs} -- -DBOARD_ROOT='${boardRoot}' ${extraWestBuildCMakeArgs} `;
+    const boardRootArg = boardRoot ? `-DBOARD_ROOT='${boardRoot}'` : "";
+    const cmakeArgs = [boardRootArg, extraWestBuildCMakeArgs].filter(s => s.trim().length > 0).join(' ');
+    const cmakeSection = cmakeArgs ? ` -- ${cmakeArgs}` : '';
+    cmd = `west build -b ${build.board + (build.revision ? '@' + build.revision : "")} "${projectFolder}" -p --build-dir "${buildFolder}" ${extraWestBuildArgs}${cmakeSection} `;
 
     if (primaryConfFiles.length) {
       cmd += ` -DCONF_FILE='${primaryConfFiles.join(";")}' `;
@@ -201,7 +194,6 @@ export async function build(
   let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
 
   outputInfo(`Build: ${project.name}/${build.name}`, `Building ${build.name} from project: ${project.name} (cmd: ${cmd})`, true);
-  const setupState = await getSetupState(context, wsConfig);
   let ret = await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState?.setupPath);
 
   // Update cached CMake info after build completes

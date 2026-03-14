@@ -239,7 +239,6 @@ export async function getRootPath(first = false) {
     };
     const roots: vscode.QuickPickItem[] = rootPaths.map(x => ({ label: x.name, description: x.uri.fsPath }));
 
-    console.log(rootPaths);
     let selectedRoot = await vscode.window.showQuickPick(roots, pickOptions);
     if (selectedRoot && selectedRoot.description) {
       return vscode.Uri.file(selectedRoot.description);

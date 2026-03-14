@@ -30,6 +30,14 @@ export interface ConfigFiles {
   extraOverlay: string[];
 }
 
+/** Returns the key of the ConfigFiles array corresponding to the given selector flags. */
+export function getConfFileKey(isKConfig: boolean, isPrimary: boolean): keyof ConfigFiles {
+  if (isKConfig) {
+    return isPrimary ? "config" : "extraConfig";
+  }
+  return isPrimary ? "overlay" : "extraOverlay";
+}
+
 export async function configSelector(wsConfig: WorkspaceConfig, isKConfigSelector: boolean, isProjectSelctor: boolean, isPrimary: boolean | undefined = undefined) {
   let additionalTitleString = "to Build";
   if (isProjectSelctor) {
@@ -86,19 +94,8 @@ export async function configSelector(wsConfig: WorkspaceConfig, isKConfigSelecto
     });
 
     if (confFiles) {
-      if (isKConfigSelector) {
-        if (isPrimary) {
-          state.config = state.config.concat(confFiles.map(x => (path.relative(wsConfig.rootPath, x.fsPath))));
-        } else {
-          state.extraConfig = state.extraConfig.concat(confFiles.map(x => (path.relative(wsConfig.rootPath, x.fsPath))));
-        }
-      } else {
-        if (isPrimary) {
-          state.overlay = state.overlay.concat(confFiles.map(x => (path.relative(wsConfig.rootPath, x.fsPath))));
-        } else {
-          state.extraOverlay = state.extraOverlay.concat(confFiles.map(x => (path.relative(wsConfig.rootPath, x.fsPath))));
-        }
-      }
+      const key = getConfFileKey(isKConfigSelector, isPrimary);
+      state[key] = state[key].concat(confFiles.map(x => (path.relative(wsConfig.rootPath, x.fsPath))));
     } else {
       vscode.window.showInformationMessage(`Failed to select files`);
       return;
@@ -190,21 +187,8 @@ export async function configRemover(confFiles: ConfigFiles, isKConfigSelector: b
   }
 
   async function chooseFiles(input: MultiStepInput, state: ConfigFiles, isPrimary: boolean) {
-
-    let items: QuickPickItem[];
-    if (isKConfigSelector) {
-      if (isPrimary) {
-        items = mapToQuickPickItems(state.config);
-      } else {
-        items = mapToQuickPickItems(state.extraConfig);
-      }
-    } else {
-      if (isPrimary) {
-        items = mapToQuickPickItems(state.overlay);
-      } else {
-        items = mapToQuickPickItems(state.extraOverlay);
-      }
-    }
+    const key = getConfFileKey(isKConfigSelector, isPrimary);
+    const items = mapToQuickPickItems(state[key]);
 
     let temp = await vscode.window.showQuickPick(items, {
       ignoreFocusOut: true,
@@ -216,27 +200,7 @@ export async function configRemover(confFiles: ConfigFiles, isKConfigSelector: b
     }
     let selectedFiles = temp.map(x => (x.label));
 
-    if (isKConfigSelector) {
-      if (isPrimary) {
-        confFiles.config = confFiles.config.filter(function (el) {
-          return !selectedFiles.includes(el);
-        });
-      } else {
-        confFiles.extraConfig = confFiles.extraConfig.filter(function (el) {
-          return !selectedFiles.includes(el);
-        });
-      }
-    } else {
-      if (isPrimary) {
-        confFiles.overlay = confFiles.overlay.filter(function (el) {
-          return !selectedFiles.includes(el);
-        });
-      } else {
-        confFiles.extraOverlay = confFiles.extraOverlay.filter(function (el) {
-          return !selectedFiles.includes(el);
-        });
-      }
-    }
+    confFiles[key] = confFiles[key].filter(el => !selectedFiles.includes(el));
     return;
   }
 
