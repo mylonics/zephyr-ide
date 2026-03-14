@@ -303,9 +303,6 @@ async function handleExternalInstallation(
 
 
   if (needsSetup) {
-    console.log("ExternalPath: " + JSON.stringify(externalPath));
-    console.log("Active Setup State: " + JSON.stringify(wsConfig.activeSetupState));
-
     const extWestSelection = await westSelector(context, wsConfig);
     if (!extWestSelection || extWestSelection.failed) {
       notifyError("External Installation", "External installation configuration cancelled or failed.");
@@ -951,10 +948,10 @@ export async function westConfig(
         }
         chosenPath = folderUris[0].fsPath;
         needsSetup = true;
-      } else if (chosenPath === "global-install") {
-        chosenPath = getToolsDir();
-        needsSetup = !(globalConfig.setupStateDictionary && globalConfig.setupStateDictionary[chosenPath]);
       } else {
+        if (chosenPath === "global-install") {
+          chosenPath = getToolsDir();
+        }
         needsSetup = !(globalConfig.setupStateDictionary && globalConfig.setupStateDictionary[chosenPath]);
       }
 

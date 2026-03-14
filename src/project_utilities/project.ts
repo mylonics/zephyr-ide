@@ -24,7 +24,7 @@ import { buildSelector, BuildConfig, BuildConfigDictionary, BuildStateDictionary
 import { WorkspaceConfig } from "../setup_utilities/types";
 import { setWorkspaceState } from "../setup_utilities/state-management";
 import { runnerSelector, RunnerConfig } from "./runner_selector";
-import { configSelector, configRemover, ConfigFiles } from "./config_selector";
+import { configSelector, configRemover, ConfigFiles, getConfFileKey } from "./config_selector";
 import { setDtsContext } from "../setup_utilities/dts_interface";
 import { getSamples } from "../setup_utilities/modules";
 import { getSetupState } from "../setup_utilities/workspace-config";
@@ -328,27 +328,8 @@ export async function removeConfigFile(context: vscode.ExtensionContext, wsConfi
     confFiles = wsConfig.projects[projectName].buildConfigs[buildName].confFiles;
   }
 
-  if (isKConfig) {
-    if (isPrimary) {
-      confFiles.config = confFiles.config.filter(function (el) {
-        return !fileNames.includes(el);
-      });
-    } else {
-      confFiles.extraConfig = confFiles.extraConfig.filter(function (el) {
-        return !fileNames.includes(el);
-      });
-    }
-  } else {
-    if (isPrimary) {
-      confFiles.overlay = confFiles.overlay.filter(function (el) {
-        return !fileNames.includes(el);
-      });
-    } else {
-      confFiles.extraOverlay = confFiles.extraOverlay.filter(function (el) {
-        return !fileNames.includes(el);
-      });
-    }
-  }
+  const key = getConfFileKey(isKConfig, isPrimary);
+  confFiles[key] = confFiles[key].filter(el => !fileNames.includes(el));
   await setWorkspaceState(context, wsConfig);
   vscode.window.showInformationMessage(`Successfully Removed Config Files`);
 }
@@ -500,9 +481,7 @@ export async function addProject(wsConfig: WorkspaceConfig, context: vscode.Exte
         return document.getText();
       });
 
-      if (contents.includes("project(")) {
-
-      } else {
+      if (!contents.includes("project(")) {
         vscode.window.showInformationMessage(`Failed to Load Project ${projectPath}, Does your project folder have a correct CMake File?`);
         return;
       }

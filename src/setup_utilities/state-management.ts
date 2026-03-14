@@ -57,13 +57,18 @@ export async function setGlobalState(context: vscode.ExtensionContext, globalCon
   await context.globalState.update("zephyr-ide.state", globalConfig);
 }
 
+/** Remove entries from setupStateDictionary whose paths no longer exist on disk. */
+function cleanupNonexistentPaths(setupStateDictionary: Record<string, SetupState>): void {
+  for (const existingPath in setupStateDictionary) {
+    if (!fs.pathExistsSync(existingPath)) {
+      delete setupStateDictionary[existingPath];
+    }
+  }
+}
+
 export async function loadExternalSetupState(context: vscode.ExtensionContext, globalConfig: GlobalConfig, path: string): Promise<SetupState | undefined> {
   if (globalConfig.setupStateDictionary) {
-    for (let prexistingPath in globalConfig.setupStateDictionary) {
-      if (!fs.pathExistsSync(prexistingPath)) {
-        delete globalConfig.setupStateDictionary[prexistingPath];
-      }
-    }
+    cleanupNonexistentPaths(globalConfig.setupStateDictionary);
 
     if (path in globalConfig.setupStateDictionary) {
       return globalConfig.setupStateDictionary[path];
@@ -89,11 +94,7 @@ export async function setExternalSetupState(context: vscode.ExtensionContext, gl
   globalConfig.setupStateDictionary[path] = setupState;
 
   //delete folders that don't exist
-  for (const existingPath in globalConfig.setupStateDictionary) {
-    if (!fs.pathExistsSync(existingPath)) {
-      delete globalConfig.setupStateDictionary[existingPath];
-    }
-  }
+  cleanupNonexistentPaths(globalConfig.setupStateDictionary);
   await setGlobalState(context, globalConfig);
 }
 
