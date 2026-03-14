@@ -16,7 +16,7 @@ import { QuickPickItem, ExtensionContext } from 'vscode';
 import * as vscode from "vscode";
 import * as path from "upath";
 import * as fs from "fs-extra";
-import { showQuickPick, showInputBox, showQuickPickMany } from "../utilities/multistepQuickPick";
+import { showQuickPick, showInputBox, showQuickPickMany, noOpValidate, mapToQuickPickItems } from "../utilities/multistepQuickPick";
 import { notifyError } from "../utilities/output";
 import { SetupState } from '../setup_utilities/types';
 import { pickBoard, BoardConfig } from './build_selector';
@@ -83,7 +83,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
   let testQpItems: QuickPickItem[] = [];
   testQpItems.push({ label: "All", picked: true });
   testQpItems.push({ label: "", kind: vscode.QuickPickItemKind.Separator });
-  testQpItems = testQpItems.concat(tests.map(label => ({ label })));
+  testQpItems = testQpItems.concat(mapToQuickPickItems(tests));
 
   const testPick = await showQuickPickMany({
     title,
@@ -116,13 +116,8 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
 
   let platforms = ["native_sim", "qemu", "hardware"];
 
-  const platformsQpItems: QuickPickItem[] = platforms.map(label => ({ label }));
+  const platformsQpItems: QuickPickItem[] = mapToQuickPickItems(platforms);
   platformsQpItems.push({ label: "", kind: vscode.QuickPickItemKind.Separator });
-
-  /** No-op: all input values are accepted */
-  async function validate(_name: string) {
-    return undefined;
-  }
 
   const platformPick = await showQuickPick({
     title,
@@ -157,7 +152,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
       totalSteps: totalSteps,
       prompt: "Input a COM Port",
       value: "",
-      validate: validate,
+      validate: noOpValidate,
       placeholder: "COM1"
     });
 
@@ -168,7 +163,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
       totalSteps: totalSteps,
       prompt: "Input a COM Port Baudrate",
       value: "",
-      validate: validate,
+      validate: noOpValidate,
       placeholder: "115200"
     });
     twisterConfig.serialBaud = comPortBaudPick;
@@ -181,7 +176,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
     prompt: "Additional Twister Arguments",
     value: "",
     placeholder: '--sysbuild',
-    validate: validate,
+    validate: noOpValidate,
   });
   if (twisterArgsBox === undefined) {
     return;
@@ -209,7 +204,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
     totalSteps: totalSteps,
     prompt: "Enter a name for this Test Configuration",
     value: default_name,
-    validate: validate,
+    validate: noOpValidate,
   });
   if (nameInputBox === undefined) {
     return;
@@ -220,11 +215,6 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
 }
 
 export async function reconfigureTest(config: TwisterConfig) {
-  /** No-op: all input values are accepted */
-  async function validate(_name: string) {
-    return undefined;
-  }
-
   let title = "Reconfigure Test";
   if (config.boardConfig) {
     const comPortPick = await showInputBox({
@@ -233,7 +223,7 @@ export async function reconfigureTest(config: TwisterConfig) {
       totalSteps: 3,
       prompt: "Input a COM Port",
       value: config.serialPort ? config.serialPort : "",
-      validate: validate,
+      validate: noOpValidate,
       placeholder: "COM1"
     });
 
@@ -244,7 +234,7 @@ export async function reconfigureTest(config: TwisterConfig) {
       totalSteps: 3,
       prompt: "Input a COM Port Baudrate",
       value: config.serialBaud ? config.serialBaud : "",
-      validate: validate,
+      validate: noOpValidate,
       placeholder: "115200"
     });
 
@@ -257,7 +247,7 @@ export async function reconfigureTest(config: TwisterConfig) {
     totalSteps: 3,
     prompt: "Additional Twister Arguments",
     value: config.args ? config.args : "",
-    validate: validate
+    validate: noOpValidate
   });
   config.args = argsPick;
 }

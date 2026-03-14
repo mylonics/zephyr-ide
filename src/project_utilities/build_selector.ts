@@ -19,7 +19,7 @@ import { QuickPickItem, ExtensionContext } from 'vscode';
 import * as vscode from "vscode";
 import * as path from "upath";
 import * as fs from "fs-extra";
-import { MultiStepInput, showQuickPick, showInputBox } from "../utilities/multistepQuickPick";
+import { MultiStepInput, showQuickPick, showInputBox, noOpValidate, mapToQuickPickItems } from "../utilities/multistepQuickPick";
 import { RunnerConfigDictionary, RunnerStateDictionary } from './runner_selector';
 import { ConfigFiles } from './config_selector';
 import { SetupState } from '../setup_utilities/types';
@@ -176,7 +176,7 @@ export async function pickBoard(setupState: SetupState, rootPath: string) {
   console.log("Boards dir: " + boardDirectories);
 
   boardDirectories.push("Select Other Folder");
-  const boardDirectoriesQpItems: QuickPickItem[] = boardDirectories.map(label => ({ label }));
+  const boardDirectoriesQpItems: QuickPickItem[] = mapToQuickPickItems(boardDirectories);
 
   const title = "Board Picker";
 
@@ -329,7 +329,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       ignoreFocusOut: true,
       value: path.join("build", state.board + (state.revision ? "_" + state.revision : "")),
       prompt: 'Choose a name for the Build',
-      validate: validate
+      validate: noOpValidate
     }).catch((error) => {
       console.error(error);
       return undefined;
@@ -345,7 +345,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
 
   async function setBuildOptimization(input: MultiStepInput, state: Partial<BuildConfig>) {
     const buildOptimizations = ["Debug", "Speed", "Size", "No Optimizations", "Don't set. Will be configured in included KConfig file"];
-    const buildOptimizationsQpItems: QuickPickItem[] = buildOptimizations.map(label => ({ label }));
+    const buildOptimizationsQpItems: QuickPickItem[] = mapToQuickPickItems(buildOptimizations);
 
     const pickPromise = input.showQuickPick({
       title,
@@ -373,7 +373,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       value: "",
       prompt: 'Additional Build Arguments',
       placeholder: '--sysbuild',
-      validate: validate
+      validate: noOpValidate
     }).catch((error) => {
       console.error(error);
       return undefined;
@@ -410,7 +410,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       ignoreFocusOut: true,
       value: cmakeArg,
       prompt: 'Modify CMake Arguments',
-      validate: validate
+      validate: noOpValidate
     }).catch((error) => {
       console.error(error);
       return undefined;
@@ -431,11 +431,6 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
     };
 
     return;
-  }
-
-  /** No-op: all input values are accepted */
-  async function validate(_name: string) {
-    return undefined;
   }
 
   async function collectInputs() {

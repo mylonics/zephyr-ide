@@ -17,7 +17,7 @@ limitations under the License.
 
 import { QuickPickItem } from 'vscode';
 import * as vscode from "vscode";
-import { MultiStepInput } from "../utilities/multistepQuickPick";
+import { MultiStepInput, mapToQuickPickItems } from "../utilities/multistepQuickPick";
 import path from 'upath';
 
 import { WorkspaceConfig } from "../setup_utilities/types";
@@ -194,15 +194,15 @@ export async function configRemover(confFiles: ConfigFiles, isKConfigSelector: b
     let items: QuickPickItem[];
     if (isKConfigSelector) {
       if (isPrimary) {
-        items = state.config.map(label => ({ label }));
+        items = mapToQuickPickItems(state.config);
       } else {
-        items = state.extraConfig.map(label => ({ label }));
+        items = mapToQuickPickItems(state.extraConfig);
       }
     } else {
       if (isPrimary) {
-        items = state.overlay.map(label => ({ label }));
+        items = mapToQuickPickItems(state.overlay);
       } else {
-        items = state.extraOverlay.map(label => ({ label }));
+        items = mapToQuickPickItems(state.extraOverlay);
       }
     }
 
