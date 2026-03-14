@@ -33,7 +33,7 @@ export async function checkIfToolsAvailable(
   solo = true
 ): Promise<boolean> {
   globalConfig.toolsAvailable = false;
-  saveSetupState(context, wsConfig, globalConfig);
+  await saveSetupState(context, wsConfig, globalConfig);
   showOutput();
 
   outputInfo("Tools Check",
@@ -64,7 +64,7 @@ export async function checkIfToolsAvailable(
 
     outputInfo("Tools Check", "All required tools are available");
     globalConfig.toolsAvailable = true;
-    saveSetupState(context, wsConfig, globalConfig);
+    await saveSetupState(context, wsConfig, globalConfig);
     
     if (solo) {
       vscode.window.showInformationMessage("Zephyr IDE: Build Tools are available");

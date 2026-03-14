@@ -360,9 +360,9 @@ setOutputChannel(output);
 
 export function closeTerminals(names: string[]) {
   const terminals = vscode.window.terminals;
-  for (let t in terminals) {
-    if (terminals[t].name in names) {
-      terminals[t].dispose();
+  for (const terminal of terminals) {
+    if (names.includes(terminal.name)) {
+      terminal.dispose();
     }
   }
 }

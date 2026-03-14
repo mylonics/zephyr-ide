@@ -89,12 +89,12 @@ export async function setExternalSetupState(context: vscode.ExtensionContext, gl
   globalConfig.setupStateDictionary[path] = setupState;
 
   //delete folders that don't exist
-  for (path in globalConfig.setupStateDictionary) {
-    if (!fs.pathExistsSync(path)) {
-      delete globalConfig.setupStateDictionary[path];
+  for (const existingPath in globalConfig.setupStateDictionary) {
+    if (!fs.pathExistsSync(existingPath)) {
+      delete globalConfig.setupStateDictionary[existingPath];
     }
   }
-  setGlobalState(context, globalConfig);
+  await setGlobalState(context, globalConfig);
 }
 
 export async function loadWorkspaceState(context: vscode.ExtensionContext): Promise<WorkspaceConfig> {
@@ -114,9 +114,7 @@ export async function loadWorkspaceState(context: vscode.ExtensionContext): Prom
 
 export async function setWorkspaceState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
   if (wsConfig.initialSetupComplete) {
-    fs.outputFile(path.join(wsConfig.rootPath, ".vscode", "zephyr-ide.json"), JSON.stringify({ projects: wsConfig.projects }, null, 2), { flag: 'w+' }, function (err: any) {
-      if (err) { throw err; }
-    });
+    await fs.outputFile(path.join(wsConfig.rootPath, ".vscode", "zephyr-ide.json"), JSON.stringify({ projects: wsConfig.projects }, null, 2), { flag: 'w+' });
   }
   await context.workspaceState.update("zephyr.env", wsConfig);
 }
@@ -125,7 +123,7 @@ export async function clearWorkspaceState(context: vscode.ExtensionContext, wsCo
   wsConfig.automaticProjectSelction = true;
   wsConfig.initialSetupComplete = false;
   wsConfig.activeSetupState = undefined;
-  setWorkspaceState(context, wsConfig);
+  await setWorkspaceState(context, wsConfig);
 }
 
 export async function clearSetupState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, ext_path: string = "") {
@@ -151,9 +149,9 @@ export async function setSetupState(context: vscode.ExtensionContext, wsConfig: 
   reloadEnvironmentVariables(context, wsConfig.activeSetupState);
 }
 
-export function saveSetupState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
+export async function saveSetupState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
   if (wsConfig.activeSetupState) {
-    setExternalSetupState(context, globalConfig, wsConfig.activeSetupState.setupPath, wsConfig.activeSetupState);
+    await setExternalSetupState(context, globalConfig, wsConfig.activeSetupState.setupPath, wsConfig.activeSetupState);
   }
-  setGlobalState(context, globalConfig);
+  await setGlobalState(context, globalConfig);
 }
