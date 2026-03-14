@@ -24,6 +24,7 @@ import { TwisterConfig } from '../../project_utilities/twister_selector';
 import { generateWebviewHtml, initWebviewView } from '../webviewHelper';
 import { handleSharedProjectCommand } from '../projectCommandHandler';
 import { testHelper } from '../../zephyr_utilities/twister';
+import { outputError } from '../../utilities/output';
 
 export function getUseGuiConfig(): boolean | undefined {
   const configuration = vscode.workspace.getConfiguration();
@@ -292,7 +293,7 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
       });
     }
     catch (e: any) {
-      console.log(e.Message);
+      outputError("ProjectTreeView", e.message ?? String(e));
     }
   }
 
@@ -316,7 +317,6 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
   }
 
   private handleMessage(message: any) {
-      console.log(message);
       if (message.treeData) {
         this.treeData = message.treeData;
         this.saveTreeDataOpenState();
@@ -343,8 +343,7 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
           break;
         }
         default:
-          console.log("unknown command");
-          console.log(message);
+          break;
       }
   }
 }

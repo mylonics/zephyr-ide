@@ -523,7 +523,6 @@ export async function activate(context: vscode.ExtensionContext) {
           );
         }
         extensionSetupView.updateWebView(wsConfig, globalConfig);
-        console.log(res);
         return res;
       }
     )

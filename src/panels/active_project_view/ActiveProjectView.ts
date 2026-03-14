@@ -197,8 +197,7 @@ export class ActiveProjectView implements vscode.WebviewViewProvider {
           break;
         }
         default:
-          console.log("unknown command");
-          console.log(message);
+          break;
       }
   }
 }

@@ -64,7 +64,6 @@ export class ExtensionSetupView implements vscode.WebviewViewProvider {
       this, webviewView,
       () => this.updateWebView(this.wsConfig, this.globalConfig),
       (message) => {
-        console.log(message);
         vscode.commands.executeCommand(message.command);
       },
       () => { this.setHtml(""); this.updateWebView(this.wsConfig, this.globalConfig); }
