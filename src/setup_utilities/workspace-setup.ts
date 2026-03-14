@@ -524,13 +524,12 @@ async function handleReconfigureInstallation(context: vscode.ExtensionContext, w
   }
 
   // Run post-setup process to apply the reconfiguration
-  postWorkspaceSetup(context, wsConfig, globalConfig, installPath, westSelection).then(
-    result => {
-      if (result) {
-        vscode.window.showInformationMessage(`Installation "${path.basename(installPath)}" has been reconfigured successfully.`);
-      }
-    }
-  );
+  const result = await postWorkspaceSetup(context, wsConfig, globalConfig, installPath, westSelection);
+  if (result) {
+    vscode.window.showInformationMessage(`Installation "${path.basename(installPath)}" has been reconfigured successfully.`);
+  } else {
+    notifyError("Manage Installations", `Failed to reconfigure installation "${path.basename(installPath)}".`);
+  }
 }
 
 async function handleDeleteInstallation(context: vscode.ExtensionContext, globalConfig: GlobalConfig, installPath: string, installName: string) {
