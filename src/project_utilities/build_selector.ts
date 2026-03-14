@@ -168,7 +168,6 @@ export async function pickBoard(setupState: SetupState, rootPath: string) {
   if (setupState.zephyrDir) {
     boardDirectories.push('Zephyr Directory Only');
   }
-  console.log("Boards dir: " + boardDirectories);
 
   boardDirectories.push("Select Other Folder");
   const boardDirectoriesQpItems: QuickPickItem[] = mapToQuickPickItems(boardDirectories);

@@ -115,7 +115,6 @@ export async function updateDtsContext(wsConfig: WorkspaceConfig,
         bindingType: "Zephyr",
         zephyrBindings: buildInfo.bindingsDirs,
       };
-      console.log(context);
       await api.requestContext(context);
     }
   }

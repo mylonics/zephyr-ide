@@ -20,7 +20,7 @@ import * as vscode from "vscode";
 import * as path from "upath";
 import * as fs from "fs-extra";
 import { MultiStepInput, showQuickPickMany } from "../utilities/multistepQuickPick";
-import { notifyError } from "../utilities/output";
+import { notifyError, outputInfo } from "../utilities/output";
 import { WorkspaceConfig } from './types';
 import * as yaml from 'js-yaml';
 
@@ -85,8 +85,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
 
   async function pickWestYml(input: MultiStepInput, state: Partial<WestLocation>) {
     if (!wsConfig.activeSetupState) {
-      console.log("No active setup state found");
-      console.log("Workspace configuration:", JSON.stringify(wsConfig, null, 2));
+      outputInfo("West Selector", "No active setup state found");
       return;
     }
     type westOptionDict = { [name: string]: string };

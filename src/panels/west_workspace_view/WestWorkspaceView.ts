@@ -178,8 +178,6 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
   }
 
   private async handleMessage(message: any) {
-      console.log('WestWorkspaceView received message:', message);
-
       if (message.actionId) {
         // Handle action button clicks
         switch (message.actionId) {
@@ -193,7 +191,7 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
             await this.handleDelete(message.value.installPath);
             break;
           default:
-            console.log('Unknown actionId:', message.actionId);
+            break;
         }
       } else if (message.command) {
         // Handle sub-item clicks and other commands
@@ -223,7 +221,7 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
             vscode.commands.executeCommand('zephyr-ide.workspace-setup-picker');
             break;
           default:
-            console.log('Unknown command:', message.command);
+            break;
         }
       }
   }

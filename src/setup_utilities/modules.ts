@@ -133,7 +133,7 @@ export async function getModuleVersion(modulePath: string): Promise<ZephyrVersio
       tweak: +lines[3].split("=")[1],
       extra: +lines[4].split("=")[1],
     };
-    console.log(versionNumber);
+    outputInfo("Modules", `Version: ${versionNumber.major}.${versionNumber.minor}.${versionNumber.patch}`);
     return versionNumber;
   }
 }

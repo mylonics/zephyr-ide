@@ -197,7 +197,7 @@ export async function checkPackageManagerAvailable(): Promise<boolean> {
   try {
     const result = await executeShellCommand(manager.config.check_command, "", true);
     // Command succeeded if stdout is not undefined (even if empty)
-    return result.stdout !== null && result.stdout !== undefined;
+    return result.stdout !== undefined;
   } catch (error) {
     return false;
   }
@@ -320,8 +320,7 @@ export async function checkPackageAvailable(pkg: PlatformPackage): Promise<Packa
   try {
     const result = await executeShellCommand(pkg.check_command, "", false);
     // Command succeeded if stdout is not undefined (even if empty)
-    // Note: We also check stderr is not a rejection indicator
-    const available = result.stdout !== null && result.stdout !== undefined;
+    const available = result.stdout !== undefined;
     
     // Special handling for Python packages - check version
     if (available && pkg.name.toLowerCase().includes("python")) {
