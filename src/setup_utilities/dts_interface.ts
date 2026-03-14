@@ -94,7 +94,7 @@ export async function updateAllDtsContexts(wsConfig: WorkspaceConfig) {
       let project = wsConfig.projects[projectName];
       for (let buildName in project.buildConfigs) {
         let build = project.buildConfigs[buildName];
-        updateDtsContext(wsConfig, project, build);
+        await updateDtsContext(wsConfig, project, build);
       }
     }
   }
@@ -128,7 +128,4 @@ export async function printContexts() {
     console.log(contexts);
   }
 }
-
-
-
 

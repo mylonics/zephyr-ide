@@ -121,7 +121,7 @@ export async function getManifestRepository(setupState: SetupState): Promise<str
   return undefined;
 }
 
-export async function getModuleVersion(modulePath: string): Promise<any> {
+export async function getModuleVersion(modulePath: string): Promise<ZephyrVersionNumber | undefined> {
   let filePath = path.join(modulePath, "VERSION");
 
   if (fs.existsSync(filePath)) {
@@ -139,38 +139,21 @@ export async function getModuleVersion(modulePath: string): Promise<any> {
   }
 }
 
-export function isVersionNumberGreaterEqual(version: ZephyrVersionNumber, major: number, minor: number, patch: number) {
-  if (version.major > major) {
-    return true;
-  } else if (version.major === major) {
-    if (version.minor > minor) {
-      return true;
-    } else if (version.minor === minor) {
+function compareVersion(version: ZephyrVersionNumber, major: number, minor: number, patch: number): number {
+  if (version.major !== major) { return version.major - major; }
+  if (version.minor !== minor) { return version.minor - minor; }
+  return version.patch - patch;
+}
 
-      if (version.patch >= patch) {
-        return true;
-      }
-    }
-  }
-  return false;
+export function isVersionNumberGreaterEqual(version: ZephyrVersionNumber, major: number, minor: number, patch: number) {
+  return compareVersion(version, major, minor, patch) >= 0;
 }
 
 export function isVersionNumberGreater(version: ZephyrVersionNumber, major: number, minor: number, patch: number) {
-  if (version.major > major) {
-    return true;
-  } else if (version.major === major) {
-    if (version.minor > minor) {
-      return true;
-    } else if (version.minor === minor) {
-      if (version.patch > patch) {
-        return true;
-      }
-    }
-  }
-  return false;
+  return compareVersion(version, major, minor, patch) > 0;
 }
 
-export async function getModuleYamlFile(moduleAbsPath: string): Promise<any> {
+export function getModuleYamlFile(moduleAbsPath: string): any {
   let filePath = path.join(moduleAbsPath, "zephyr", "module.yml");
   if (fs.existsSync(filePath)) {
     return yaml.load(fs.readFileSync(filePath, 'utf-8'));

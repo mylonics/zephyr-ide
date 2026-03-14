@@ -436,9 +436,6 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
       this.projectConfigState.twisterOpenState = this.treeData[3].open !== undefined ? this.treeData[3].open : this.projectConfigState.twisterOpenState;
     }
 
-    this.projectConfigState.buildKConfigOpenState = (this.treeData[2] !== undefined && this.treeData[2].open !== undefined) ? this.treeData[2].open : this.projectConfigState.runnerOpenState;
-    this.projectConfigState.buildOverlayOpenState = (this.treeData[2] !== undefined && this.treeData[2].open !== undefined) ? this.treeData[2].open : this.projectConfigState.runnerOpenState;
-
     if (activeProject) {
       this.treeData[0] = this.generateProjectString(undefined, activeProject, this.projectConfigState.projectOpenState, this.projectConfigState.projectKConfigOpenState, this.projectConfigState.projectOverlayOpenState);
       if (activeBuild) {
@@ -487,110 +484,110 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
   }
 
   private async handleMessage(message: any) {
-      console.log(message);
-      if (message.treeData) {
-        this.treeData = message.treeData;
-        this.setProjectConfigState();
-      }
+    console.log(message);
+    if (message.treeData) {
+      this.treeData = message.treeData;
+      this.setProjectConfigState();
+    }
 
-      // Try shared handler first (covers: deleteProject, addBuild, deleteBuild, addRunner, deleteRunner, build, buildPristine, menuConfig, guiConfig, flash, setActive)
-      if (message.command && handleSharedProjectCommand(this.context, this.wsConfig, message.command, message.value, true)) {
-        return;
-      }
+    // Try shared handler first (covers: deleteProject, addBuild, deleteBuild, addRunner, deleteRunner, build, buildPristine, menuConfig, guiConfig, flash, setActive)
+    if (message.command && handleSharedProjectCommand(this.context, this.wsConfig, message.command, message.value, true)) {
+      return;
+    }
 
-      // Handle view-specific commands
-      switch (message.command) {
-        case "openBoardDtc": {
-          let build = this.wsConfig.projects[message.value.project].buildConfigs[message.value.build];
+    // Handle view-specific commands
+    switch (message.command) {
+      case "openBoardDtc": {
+        let build = this.wsConfig.projects[message.value.project].buildConfigs[message.value.build];
 
 
-          let boardPath: string | undefined = undefined;
-          if (path.isAbsolute(build.relBoardSubDir)) {
-            boardPath = build.relBoardSubDir;
+        let boardPath: string | undefined = undefined;
+        if (path.isAbsolute(build.relBoardSubDir)) {
+          boardPath = build.relBoardSubDir;
+        } else {
+          if (build.relBoardDir) {
+            //Custom Folder
+            boardPath = path.join(this.wsConfig.rootPath, build.relBoardDir, build.relBoardSubDir);
           } else {
-            if (build.relBoardDir) {
-              //Custom Folder
-              boardPath = path.join(this.wsConfig.rootPath, build.relBoardDir, build.relBoardSubDir);
-            } else {
-              const setupState = await getSetupState(this.context, this.wsConfig);
-              if (setupState) {
-                //Default zephyr folder
-                boardPath = path.join(setupState.zephyrDir, 'boards', build.relBoardSubDir);
-              }
+            const setupState = await getSetupState(this.context, this.wsConfig);
+            if (setupState) {
+              //Default zephyr folder
+              boardPath = path.join(setupState.zephyrDir, 'boards', build.relBoardSubDir);
             }
           }
-
-          if (boardPath) {
-            let filePath = vscode.Uri.file(path.join(boardPath, build.board + ".dts"));
-
-            vscode.workspace.openTextDocument(filePath).then(document => vscode.window.showTextDocument(document));
-            setActive(this.wsConfig, message.value.project, message.value.build, message.value.runner);
-          }
-          break;
         }
-        case "openMain": {
-          let project = this.wsConfig.projects[message.value.project];
-          let filePath = vscode.Uri.file(path.join(this.wsConfig.rootPath, project.rel_path, "src", "main.c"));
 
-          vscode.workspace.openTextDocument(filePath).then(
-            document => vscode.window.showTextDocument(document));
-          filePath = vscode.Uri.file(path.join(this.wsConfig.rootPath, project.rel_path, "src", "main.cpp"));
-          vscode.workspace.openTextDocument(filePath).then(
-            document => vscode.window.showTextDocument(document));
+        if (boardPath) {
+          let filePath = vscode.Uri.file(path.join(boardPath, build.board + ".dts"));
 
+          vscode.workspace.openTextDocument(filePath).then(document => vscode.window.showTextDocument(document));
           setActive(this.wsConfig, message.value.project, message.value.build, message.value.runner);
-          break;
         }
-        case "openCmakeFile": {
-          let project = this.wsConfig.projects[message.value.project];
-          let filePath = vscode.Uri.file(path.join(this.wsConfig.rootPath, project.rel_path, "CMakeLists.txt"));
-
-          vscode.workspace.openTextDocument(filePath).then(
-            document => vscode.window.showTextDocument(document));
-          setActive(this.wsConfig, message.value.project, message.value.build, message.value.runner);
-          break;
-        }
-        case "modifyBuildArgs": {
-          modifyBuildArguments(this.context, this.wsConfig, message.value.project, message.value.build).finally(() => { vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
-          setActive(this.wsConfig, message.value.project, message.value.build, message.value.runner);
-          break;
-        }
-        case "modifyTestArgs": {
-          vscode.commands.executeCommand("zephyr-ide.reconfigure-active-test");
-          setActive(this.wsConfig, message.value.project, message.value.build, message.value.runner);
-          break;
-        }
-        case "addFile": {
-          switch (message.value.cmd) {
-            case "addOverlayFile": {
-              addConfigFiles(this.context, this.wsConfig, false, !message.value.build, message.value.project, message.value.build).finally(() => { vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
-              break;
-            }
-            case "addKConfigFile": {
-              addConfigFiles(this.context, this.wsConfig, true, !message.value.build, message.value.project, message.value.build).finally(() => { vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
-              break;
-            }
-          }
-          break;
-        }
-        case "deleteFile": {
-          switch (message.value.cmd) {
-            case "removeOverlayFile": {
-              removeConfigFile(this.context, this.wsConfig, false, !message.value.build, message.value.project, !message.value.isExtra, [message.value.filename], message.value.build).finally(() => { vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
-              break;
-            }
-            case "removeKConfigFile": {
-              removeConfigFile(this.context, this.wsConfig, true, !message.value.build, message.value.project, !message.value.isExtra, [message.value.filename], message.value.build).finally(() => { vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
-              break;
-            }
-          }
-          break;
-        }
-
-        default:
-          console.log("unknown command");
-          console.log(message);
+        break;
       }
+      case "openMain": {
+        let project = this.wsConfig.projects[message.value.project];
+        let filePath = vscode.Uri.file(path.join(this.wsConfig.rootPath, project.rel_path, "src", "main.c"));
+
+        vscode.workspace.openTextDocument(filePath).then(
+          document => vscode.window.showTextDocument(document));
+        filePath = vscode.Uri.file(path.join(this.wsConfig.rootPath, project.rel_path, "src", "main.cpp"));
+        vscode.workspace.openTextDocument(filePath).then(
+          document => vscode.window.showTextDocument(document));
+
+        setActive(this.wsConfig, message.value.project, message.value.build, message.value.runner);
+        break;
+      }
+      case "openCmakeFile": {
+        let project = this.wsConfig.projects[message.value.project];
+        let filePath = vscode.Uri.file(path.join(this.wsConfig.rootPath, project.rel_path, "CMakeLists.txt"));
+
+        vscode.workspace.openTextDocument(filePath).then(
+          document => vscode.window.showTextDocument(document));
+        setActive(this.wsConfig, message.value.project, message.value.build, message.value.runner);
+        break;
+      }
+      case "modifyBuildArgs": {
+        modifyBuildArguments(this.context, this.wsConfig, message.value.project, message.value.build).finally(() => { vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
+        setActive(this.wsConfig, message.value.project, message.value.build, message.value.runner);
+        break;
+      }
+      case "modifyTestArgs": {
+        vscode.commands.executeCommand("zephyr-ide.reconfigure-active-test");
+        setActive(this.wsConfig, message.value.project, message.value.build, message.value.runner);
+        break;
+      }
+      case "addFile": {
+        switch (message.value.cmd) {
+          case "addOverlayFile": {
+            addConfigFiles(this.context, this.wsConfig, false, !message.value.build, message.value.project, message.value.build).finally(() => { vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
+            break;
+          }
+          case "addKConfigFile": {
+            addConfigFiles(this.context, this.wsConfig, true, !message.value.build, message.value.project, message.value.build).finally(() => { vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
+            break;
+          }
+        }
+        break;
+      }
+      case "deleteFile": {
+        switch (message.value.cmd) {
+          case "removeOverlayFile": {
+            removeConfigFile(this.context, this.wsConfig, false, !message.value.build, message.value.project, !message.value.isExtra, [message.value.filename], message.value.build).finally(() => { vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
+            break;
+          }
+          case "removeKConfigFile": {
+            removeConfigFile(this.context, this.wsConfig, true, !message.value.build, message.value.project, !message.value.isExtra, [message.value.filename], message.value.build).finally(() => { vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
+            break;
+          }
+        }
+        break;
+      }
+
+      default:
+        console.log("unknown command");
+        console.log(message);
+    }
   }
 }
 

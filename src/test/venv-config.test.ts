@@ -20,6 +20,11 @@ import * as vscode from "vscode";
 import { getVenvPath } from "../setup_utilities/workspace-config";
 import * as path from "path";
 
+/** Normalize path separators to forward slashes (VS Code convention) */
+function normalizePath(p: string): string {
+  return p.replace(/\\/g, "/");
+}
+
 suite("Venv Configuration Test Suite", () => {
     
     test("Returns default .venv path when no configuration is set", async () => {
@@ -30,7 +35,7 @@ suite("Venv Configuration Test Suite", () => {
         const setupPath = "/test/setup/path";
         const result = getVenvPath(setupPath);
         
-        assert.strictEqual(result, path.join(setupPath, ".venv"));
+        assert.strictEqual(result, normalizePath(path.join(setupPath, ".venv")));
     });
 
     test("Returns configured venv path when setting is provided", async () => {
@@ -74,7 +79,7 @@ suite("Venv Configuration Test Suite", () => {
         const result = getVenvPath(setupPath);
         
         // Empty string is falsy, so should return default
-        assert.strictEqual(result, path.join(setupPath, ".venv"));
+        assert.strictEqual(result, normalizePath(path.join(setupPath, ".venv")));
         
         // Clean up - reset to default
         await config.update("zephyr-ide.venv-folder", undefined, vscode.ConfigurationTarget.Global);

@@ -84,7 +84,7 @@ async function discoverWestConfiguration(baseDir: string): Promise<WestDiscovery
       const files = fs.readdirSync(dir);
       for (const file of files) {
         const fullPath = path.join(dir, file);
-        if (fs.statSync(fullPath).isDirectory() && depth < 3) {
+        if (fs.statSync(fullPath).isDirectory()) {
           searchForWestYml(fullPath, depth + 1);
         } else if (file === "west.yml") {
           westYmlFiles.push(path.dirname(fullPath));
@@ -388,7 +388,7 @@ async function getExistingInstallationPicks(wsConfig: WorkspaceConfig, globalCon
       const setupState = globalConfig.setupStateDictionary[installPath];
       let description = "";
 
-      // Add helpful descriptionsconst
+      // Add helpful descriptions
       let versionStr = setupState.zephyrVersion
         ? setupState.zephyrVersion.major +
         "." +
@@ -474,7 +474,7 @@ export async function manageWorkspaces(context: vscode.ExtensionContext, wsConfi
 
     actionOptions.push({
       label: "$(tools) West Update",
-      description: "Reinitialze this installation",
+      description: "Reinitialize this installation",
       detail: "reinitialize"
     });
   }

@@ -380,11 +380,11 @@ export async function setActiveProject(context: vscode.ExtensionContext, wsConfi
   setDtsContext(wsConfig);
 }
 
-export async function askUserForBuild(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName: string) {
+export async function askUserForBuild(wsConfig: WorkspaceConfig, projectName: string) {
   return await askUserForSelection(wsConfig.projects[projectName].buildConfigs, "Select Build");
 }
 
-export async function askUserForTest(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName: string) {
+export async function askUserForTest(wsConfig: WorkspaceConfig, projectName: string) {
   return await askUserForSelection(wsConfig.projects[projectName].twisterConfigs, "Select Test");
 }
 
@@ -398,7 +398,7 @@ export async function setActiveBuild(context: vscode.ExtensionContext, wsConfig:
   }
 
   if (selectedBuild === undefined) {
-    selectedBuild = await askUserForBuild(context, wsConfig, wsConfig.activeProject);
+    selectedBuild = await askUserForBuild(wsConfig, wsConfig.activeProject);
     if (selectedBuild === undefined) {
       return;
     }
@@ -415,13 +415,13 @@ export async function setActiveTest(context: vscode.ExtensionContext, wsConfig: 
   if (wsConfig.activeProject === undefined) {
     setActiveProject(context, wsConfig);
     if (wsConfig.activeProject === undefined) {
-      notifyError("Test Config", "Set Active Project before trying to Set Active Build");
+      notifyError("Test Config", "Set Active Project before trying to Set Active Test");
       return;
     }
   }
 
   if (selectedTest === undefined) {
-    selectedTest = await askUserForTest(context, wsConfig, wsConfig.activeProject);
+    selectedTest = await askUserForTest(wsConfig, wsConfig.activeProject);
     if (selectedTest === undefined) {
       return;
     }
@@ -568,7 +568,7 @@ export async function removeBuild(context: vscode.ExtensionContext, wsConfig: Wo
     }
   }
   if (buildName === undefined) {
-    buildName = await askUserForBuild(context, wsConfig, projectName);
+    buildName = await askUserForBuild(wsConfig, projectName);
     if (buildName === undefined) {
       return;
     }
@@ -638,7 +638,7 @@ export async function removeTest(context: vscode.ExtensionContext, wsConfig: Wor
     }
   }
   if (testName === undefined) {
-    testName = await askUserForTest(context, wsConfig, projectName);
+    testName = await askUserForTest(wsConfig, projectName);
     if (testName === undefined) {
       return;
     }
@@ -666,13 +666,13 @@ export async function removeRunner(context: vscode.ExtensionContext, wsConfig: W
     }
   }
   if (buildName === undefined) {
-    buildName = await askUserForBuild(context, wsConfig, projectName);
+    buildName = await askUserForBuild(wsConfig, projectName);
     if (buildName === undefined) {
       return;
     }
   }
   if (runnerName === undefined) {
-    runnerName = await askUserForRunner(context, wsConfig, projectName, buildName);
+    runnerName = await askUserForRunner(wsConfig, projectName, buildName);
     if (runnerName === undefined) {
       return;
     }
@@ -709,7 +709,7 @@ export async function setActive(wsConfig: WorkspaceConfig, project: string, buil
   }
 }
 
-export async function askUserForRunner(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName: string, buildName: string) {
+export async function askUserForRunner(wsConfig: WorkspaceConfig, projectName: string, buildName: string) {
   return await askUserForSelection(wsConfig.projects[projectName].buildConfigs[buildName].runnerConfigs, "Select Runner");
 }
 
@@ -718,7 +718,7 @@ export async function setActiveRunner(context: vscode.ExtensionContext, wsConfig
   if (wsConfig.activeProject === undefined) {
     setActiveProject(context, wsConfig);
     if (wsConfig.activeProject === undefined) {
-      notifyError("Runner Config", "Set Active Project before trying to Set Active Build");
+      notifyError("Runner Config", "Set Active Project before trying to Set Active Runner");
       return;
     }
   }
@@ -733,9 +733,7 @@ export async function setActiveRunner(context: vscode.ExtensionContext, wsConfig
     }
   }
 
-  let activeBuild = wsConfig.projects[wsConfig.activeProject].buildConfigs[activeBuildName];
-
-  let selectedRunner = await askUserForRunner(context, wsConfig, wsConfig.activeProject, activeBuildName);
+  let selectedRunner = await askUserForRunner(wsConfig, wsConfig.activeProject, activeBuildName);
 
   if (selectedRunner === undefined) {
     return;
@@ -743,7 +741,7 @@ export async function setActiveRunner(context: vscode.ExtensionContext, wsConfig
 
   wsConfig.projectStates[wsConfig.activeProject].buildStates[activeBuildName].activeRunner = selectedRunner;
   await setWorkspaceState(context, wsConfig);
-  vscode.window.showInformationMessage(`Successfully Set ${selectedRunner} as Active Runner for ${activeBuild.name} of ${wsConfig.activeProject}`);
+  vscode.window.showInformationMessage(`Successfully Set ${selectedRunner} as Active Runner for ${activeBuildName} of ${wsConfig.activeProject}`);
 }
 
 export async function addRunnerToBuild(wsConfig: WorkspaceConfig, context: vscode.ExtensionContext, projectName: string, buildName: string) {

@@ -85,8 +85,6 @@ export async function configSelector(wsConfig: WorkspaceConfig, isKConfigSelecto
       filters: fileExt
     });
 
-    let temp: any;
-
     if (confFiles) {
       if (isKConfigSelector) {
         if (isPrimary) {
