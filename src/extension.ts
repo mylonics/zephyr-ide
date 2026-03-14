@@ -1168,7 +1168,7 @@ export async function activate(context: vscode.ExtensionContext) {
       try {
         vscode.commands.executeCommand("zephyr-ide.update-web-view");
       } catch (e) {
-        console.error(`Zephyr IDE: webview refresh at ${delay}ms failed`, e);
+        outputError("Extension", `Zephyr IDE: webview refresh at ${delay}ms failed: ${String(e)}`);
       }
     }, delay);
   });

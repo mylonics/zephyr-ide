@@ -17,7 +17,7 @@ import * as vscode from "vscode";
 import * as path from "upath";
 import * as fs from "fs-extra";
 import { showQuickPick, showInputBox, showQuickPickMany, noOpValidate, mapToQuickPickItems } from "../utilities/multistepQuickPick";
-import { notifyError } from "../utilities/output";
+import { notifyError, outputError } from "../utilities/output";
 import { loadYamlFile } from "../utilities/utils";
 import { SetupState } from '../setup_utilities/types';
 import { pickBoard, BoardConfig } from './build_selector';
@@ -94,7 +94,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
     activeItem: undefined,
     canSelectMany: false
   }).catch((error) => {
-    console.error(error);
+    outputError("Twister Selector", String(error));
     return undefined;
   });
   if (testPick === undefined) {
@@ -127,7 +127,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
     items: platformsQpItems,
     activeItem: undefined
   }).catch((error) => {
-    console.error(error);
+    outputError("Twister Selector", String(error));
     return undefined;
   });
   if (platformPick === undefined) {

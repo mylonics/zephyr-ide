@@ -26,7 +26,7 @@ import {
 } from "../../setup_utilities/west_sdk";
 import { saveSetupState } from "../../setup_utilities/state-management";
 import { parseWestConfigManifestPath } from "../../setup_utilities/west-config-parser";
-import { notifyError, notifyWarning } from "../../utilities/output";
+import { notifyError, notifyWarning, outputError } from "../../utilities/output";
 import { HostToolsSubPage } from "./HostToolsSubPage";
 import { SDKSubPage } from "./SDKSubPage";
 import { WorkspaceSubPage } from "./WorkspaceSubPage";
@@ -323,7 +323,7 @@ export class SetupPanel {
                 try {
                     this.updateContent(this.currentWsConfig, this.currentGlobalConfig);
                 } catch (updateError) {
-                    console.error("Failed to refresh panel after SDK installation:", updateError);
+                    outputError("Setup Panel", `Failed to refresh panel after SDK installation: ${String(updateError)}`);
                     // Don't show error to user as SDK installation was successful
                 }
             }
@@ -655,7 +655,7 @@ export class SetupPanel {
                 content: content
             });
         } catch (error) {
-            console.error("Error loading west.yml:", error);
+            outputError("Setup Panel", `Error loading west.yml: ${String(error)}`);
             this._panel.webview.postMessage({
                 command: "westYmlContent",
                 content: `# Error loading west.yml\n# ${error}`

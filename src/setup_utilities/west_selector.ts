@@ -20,7 +20,7 @@ import * as vscode from "vscode";
 import * as path from "upath";
 import * as fs from "fs-extra";
 import { MultiStepInput, showQuickPickMany } from "../utilities/multistepQuickPick";
-import { notifyError, outputInfo } from "../utilities/output";
+import { notifyError, outputInfo, outputError } from "../utilities/output";
 import { WorkspaceConfig } from './types';
 import * as yaml from 'js-yaml';
 
@@ -78,7 +78,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
         validate: async () => undefined
       });
     } catch (error) {
-      console.error('Error getting additional arguments:', error);
+      outputError("West Selector", `Error getting additional arguments: ${String(error)}`);
       state.additionalArgs = "";
     }
   }
@@ -222,7 +222,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
             return;
           }
         } catch (error) {
-          console.error('Error getting version:', error);
+          outputError("West Selector", `Error getting version: ${String(error)}`);
           state.failed = true;
           return;
         }
@@ -272,8 +272,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
       await MultiStepInput.run(input => pickWestYml(input, state));
       return state as WestLocation;
     } catch (error) {
-      console.error('Error in west selector:', error);
-      console.error(state);
+      outputError("West Selector", `Error in west selector: ${String(error)}`);
       return { ...defaultState, failed: true };
     }
   }

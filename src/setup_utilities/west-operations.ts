@@ -322,7 +322,7 @@ export async function installPythonRequirements(context: vscode.ExtensionContext
   return reqRes;
 }
 
-export async function setupWestEnvironment(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, useExisiting = false) {
+export async function setupWestEnvironment(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, useExisting = false) {
   const setupState = await getSetupState(context, wsConfig);
   if (!setupState) {
     return;
@@ -330,8 +330,8 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
   let pythonenv = getVenvPath(setupState.setupPath);
   let env_exists = await fs.pathExists(pythonenv);
 
-  let westEnvironmentSetup: string | undefined = useExisiting ? 'UseExisiting' : 'Reinitialize';
-  if ((setupState.pythonEnvironmentSetup || env_exists) && !useExisiting) {
+  let westEnvironmentSetup: string | undefined = useExisting ? 'Use Existing' : 'Reinitialize';
+  if ((setupState.pythonEnvironmentSetup || env_exists) && !useExisting) {
     if (env_exists) {
       westEnvironmentSetup = await notifyWarningWithActions('West Environment', 'Zephyr IDE: Python Env already exists', ['Use Existing', 'Reinitialize', 'Cancel']);
     } else {

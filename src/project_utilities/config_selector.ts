@@ -18,6 +18,7 @@ limitations under the License.
 import { QuickPickItem } from 'vscode';
 import * as vscode from "vscode";
 import { MultiStepInput, mapToQuickPickItems } from "../utilities/multistepQuickPick";
+import { outputError } from "../utilities/output";
 import path from 'upath';
 
 import { WorkspaceConfig } from "../setup_utilities/types";
@@ -74,7 +75,7 @@ export async function configSelector(wsConfig: WorkspaceConfig, isKConfigSelecto
       activeItem: undefined,
       ignoreFocusOut: true
     }).catch((error) => {
-      console.error(error);
+      outputError("Config Selector", String(error));
       return undefined;
     });
     let pick = await pickPromise;
@@ -114,7 +115,7 @@ export async function configSelector(wsConfig: WorkspaceConfig, isKConfigSelecto
       activeItem: undefined,
       ignoreFocusOut: true
     }).catch((error) => {
-      console.error(error);
+      outputError("Config Selector", String(error));
       return undefined;
     });
     let pick = await pickPromise;
@@ -175,7 +176,7 @@ export async function configRemover(confFiles: ConfigFiles, isKConfigSelector: b
       ignoreFocusOut: true,
       activeItem: undefined,
     }).catch((error) => {
-      console.error(error);
+      outputError("Config Selector", String(error));
       return undefined;
     });
     let pick = await pickPromise;

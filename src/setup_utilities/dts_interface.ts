@@ -26,6 +26,7 @@ import { getDtsIncludes } from "./modules";
 import {
   resolveActiveProjectBuild, ProjectConfig
 } from "../project_utilities/project";
+import { outputInfo } from "../utilities/output";
 
 import { getBuildInfo } from "../zephyr_utilities/build";
 import { BuildConfig } from "../project_utilities/build_selector";
@@ -124,7 +125,7 @@ export async function printContexts() {
 
   if (api) {
     let contexts = await api.getContexts();
-    console.log(contexts);
+    outputInfo("DTS Interface", JSON.stringify(contexts));
   }
 }
 
