@@ -225,9 +225,6 @@ export function getWorkspaceConfig(): WorkspaceConfig {
 
 export async function activate(context: vscode.ExtensionContext) {
   context.environmentVariableCollection.persistent = false;
-  context.environmentVariableCollection.description =
-    "Zephyr IDE adds python path";
-  context.environmentVariableCollection.replace("ZFUN", "REALLY FUN1");
 
   // Migrate deprecated tools_directory setting to global_directory
   await migrateToolsDirectory();
@@ -760,7 +757,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.run-test", async () => {
-      testHelper(context, wsConfig);
+      await testHelper(context, wsConfig);
     })
   );
 
@@ -1175,32 +1172,32 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.start-menu-config", async () => {
-      buildMenuConfig(context, wsConfig, MenuConfig.MenuConfig);
+      await buildMenuConfig(context, wsConfig, MenuConfig.MenuConfig);
     }
     )
   );
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.start-gui-config", async () => {
-      buildMenuConfig(context, wsConfig, MenuConfig.GuiConfig);
+      await buildMenuConfig(context, wsConfig, MenuConfig.GuiConfig);
     })
   );
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.start-dtsh-shell", async () => {
-      runDtshShell(context, wsConfig);
+      await runDtshShell(context, wsConfig);
     })
   );
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.run-ram-report", async () => {
-      buildRamRomReport(context, wsConfig, true);
+      await buildRamRomReport(context, wsConfig, true);
     })
   );
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.run-rom-report", async () => {
-      buildRamRomReport(context, wsConfig, false);
+      await buildRamRomReport(context, wsConfig, false);
     })
   );
 
@@ -1218,7 +1215,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.modify-build-arguments", async () => {
-      project.modifyBuildArguments(context, wsConfig);
+      await project.modifyBuildArguments(context, wsConfig);
     }
     )
   );
@@ -1262,7 +1259,7 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "zephyr-ide.reset-zephyr-install-selection",
       async () => {
-        clearSetupState(context, wsConfig, globalConfig);
+        await clearSetupState(context, wsConfig, globalConfig);
         extensionSetupView.updateWebView(wsConfig, globalConfig);
       }
     )

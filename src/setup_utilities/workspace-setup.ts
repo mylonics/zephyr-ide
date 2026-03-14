@@ -138,7 +138,7 @@ async function clearWorkspaceSetupContextFlags(context: vscode.ExtensionContext,
     wsConfig.activeSetupState.pythonEnvironmentSetup = false;
     wsConfig.activeSetupState.westUpdated = false;
   }
-  setWorkspaceState(context, wsConfig);
+  await setWorkspaceState(context, wsConfig);
 }
 
 export async function workspaceSetupFromGit(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {

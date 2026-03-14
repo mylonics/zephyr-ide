@@ -312,10 +312,9 @@ export async function removeConfigFiles(context: vscode.ExtensionContext, wsConf
         wsConfig.projects[projectName].buildConfigs[buildName].confFiles = result;
       }
     }
+    await setWorkspaceState(context, wsConfig);
+    vscode.window.showInformationMessage(`Successfully Removed Config Files`);
   }
-
-  await setWorkspaceState(context, wsConfig);
-  vscode.window.showInformationMessage(`Successfully Removed Config Files`);
 }
 
 export async function removeConfigFile(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, isKConfig: boolean, isToProject: boolean, projectName: string, isPrimary: boolean, fileNames: string[], buildName?: string) {
@@ -381,7 +380,7 @@ export async function askUserForTest(wsConfig: WorkspaceConfig, projectName: str
 
 export async function setActiveBuild(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName?: string, selectedBuild?: string) {
   if (wsConfig.activeProject === undefined) {
-    setActiveProject(context, wsConfig);
+    await setActiveProject(context, wsConfig);
     if (wsConfig.activeProject === undefined) {
       notifyError("Build Config", "Set Active Project before trying to Set Active Build");
       return;
@@ -438,6 +437,7 @@ export async function removeProject(context: vscode.ExtensionContext, wsConfig: 
       return;
     }
     delete wsConfig.projects[projectName];
+    delete wsConfig.projectStates[projectName];
     if (wsConfig.activeProject === projectName) {
       wsConfig.activeProject = undefined;
     }
@@ -494,6 +494,13 @@ export async function addProject(wsConfig: WorkspaceConfig, context: vscode.Exte
     return;
   }
   let projectName = path.basename(projectPath);
+  if (wsConfig.projects[projectName]) {
+    const selection = await vscode.window.showWarningMessage(`Project with name: ${projectName} already exists!`, 'Overwrite', 'Cancel');
+    if (selection !== 'Overwrite') {
+      notifyError("Project", `Failed to add project`);
+      return;
+    }
+  }
   wsConfig.projects[projectName] = {
     rel_path: path.relative(wsConfig.rootPath, projectPath),
     name: projectName,
@@ -569,6 +576,7 @@ export async function removeBuild(context: vscode.ExtensionContext, wsConfig: Wo
       return;
     }
     delete wsConfig.projects[projectName].buildConfigs[buildName];
+    delete wsConfig.projectStates[projectName].buildStates[buildName];
     if (wsConfig.projectStates[projectName].activeBuildConfig === buildName) {
       wsConfig.projectStates[projectName].activeBuildConfig = undefined;
     }
@@ -639,6 +647,7 @@ export async function removeTest(context: vscode.ExtensionContext, wsConfig: Wor
       return;
     }
     delete wsConfig.projects[projectName].twisterConfigs[testName];
+    delete wsConfig.projectStates[projectName].twisterStates[testName];
     if (wsConfig.projectStates[projectName].activeTwisterConfig === testName) {
       wsConfig.projectStates[projectName].activeTwisterConfig = undefined;
     }
@@ -674,6 +683,7 @@ export async function removeRunner(context: vscode.ExtensionContext, wsConfig: W
       return;
     }
     delete build.runnerConfigs[runnerName];
+    delete wsConfig.projectStates[projectName].buildStates[buildName].runnerStates[runnerName];
     if (wsConfig.projectStates[projectName].buildStates[buildName].activeRunner === runnerName) {
       wsConfig.projectStates[projectName].buildStates[buildName].activeRunner = undefined;
     }
@@ -705,7 +715,7 @@ export async function askUserForRunner(wsConfig: WorkspaceConfig, projectName: s
 
 export async function setActiveRunner(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
   if (wsConfig.activeProject === undefined) {
-    setActiveProject(context, wsConfig);
+    await setActiveProject(context, wsConfig);
     if (wsConfig.activeProject === undefined) {
       notifyError("Runner Config", "Set Active Project before trying to Set Active Runner");
       return;
@@ -714,7 +724,7 @@ export async function setActiveRunner(context: vscode.ExtensionContext, wsConfig
   let activeBuildName = wsConfig.projectStates[wsConfig.activeProject].activeBuildConfig;
 
   if (activeBuildName === undefined) {
-    setActiveBuild(context, wsConfig);
+    await setActiveBuild(context, wsConfig);
     activeBuildName = wsConfig.projectStates[wsConfig.activeProject].activeBuildConfig;
     if (activeBuildName === undefined) {
       notifyError("Runner Config", "Set Active Build before trying to Set Active Runner");
