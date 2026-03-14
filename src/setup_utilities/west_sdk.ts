@@ -539,7 +539,7 @@ export async function installSDKInteractive(wsConfig: WorkspaceConfig, globalCon
                     );
                 } else {
                     notifyError("SDK Install",
-                        `Failed to install SDK: ${result}`
+                        `Failed to install SDK`
                     );
                 }
                 return result;
