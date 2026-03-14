@@ -18,6 +18,7 @@ import * as path from "upath";
 import * as fs from "fs-extra";
 import { showQuickPick, showInputBox, showQuickPickMany, noOpValidate, mapToQuickPickItems } from "../utilities/multistepQuickPick";
 import { notifyError } from "../utilities/output";
+import { loadYamlFile } from "../utilities/utils";
 import { SetupState } from '../setup_utilities/types';
 import { pickBoard, BoardConfig } from './build_selector';
 
@@ -32,8 +33,6 @@ export interface TwisterConfig {
   boardConfig?: BoardConfig;
 }
 
-import * as yaml from 'js-yaml';
-
 export function getTestsFromProject(projectPath: string) {
   let testcasePath = path.join(projectPath, "testcase.yaml");
   let samplePath = path.join(projectPath, "sample.yaml");
@@ -47,7 +46,7 @@ export function getTestsFromProject(projectPath: string) {
 
   let tests: string[] = [];
   if (filePath) {
-    let yamlFile: any = yaml.load(fs.readFileSync(filePath, 'utf-8'));
+    const yamlFile: any = loadYamlFile(filePath);
     if (yamlFile && yamlFile.tests) {
       for (var prop in yamlFile.tests) {
         tests.push(prop);
