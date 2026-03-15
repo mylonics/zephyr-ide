@@ -575,6 +575,8 @@ export async function addBuildToProject(wsConfig: WorkspaceConfig, context: vsco
     void vscode.window.showInformationMessage(`Creating Build Configuration: ${result.name}`);
     wsConfig.projects[projectName].buildConfigs[result.name] = result;
     wsConfig.projectStates[projectName].buildStates[result.name] = { runnerStates: {}, viewOpen: true };
+    // Ensure setActiveBuild operates on the correct project, not wsConfig.activeProject
+    wsConfig.activeProject = projectName;
     await setActiveBuild(context, wsConfig, result.name);
 
     await setWorkspaceState(context, wsConfig);
@@ -667,6 +669,8 @@ export async function addTest(wsConfig: WorkspaceConfig, context: vscode.Extensi
     wsConfig.projects[projectName].twisterConfigs[result.name] = result;
     wsConfig.projectStates[projectName].twisterStates[result.name] = { viewOpen: true };
 
+    // Ensure setActiveTest operates on the correct project, not wsConfig.activeProject
+    wsConfig.activeProject = projectName;
     await setActiveTest(context, wsConfig, result.name);
     await setWorkspaceState(context, wsConfig);
   }
