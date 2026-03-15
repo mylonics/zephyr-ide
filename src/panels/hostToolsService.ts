@@ -316,7 +316,7 @@ export class HostToolsService {
   async openManagerInstallUrl(): Promise<void> {
     const manager = await getPackageManagerForPlatformAsync();
     if (manager && manager.config.install_url) {
-      vscode.env.openExternal(vscode.Uri.parse(manager.config.install_url));
+      void vscode.env.openExternal(vscode.Uri.parse(manager.config.install_url));
     }
   }
 }

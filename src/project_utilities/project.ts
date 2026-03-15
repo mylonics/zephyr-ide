@@ -513,9 +513,8 @@ export async function addProject(wsConfig: WorkspaceConfig, context: vscode.Exte
     projectPath = open[0].fsPath;
     const projectCmakePath = projectPath + "/CMakeLists.txt";
     if (fs.pathExistsSync(projectCmakePath)) {
-      const contents = await vscode.workspace.openTextDocument(projectCmakePath).then(document => {
-        return document.getText();
-      });
+      const document = await vscode.workspace.openTextDocument(projectCmakePath);
+      const contents = document.getText();
 
       if (!contents.includes("project(")) {
         void vscode.window.showInformationMessage(`Failed to Load Project ${projectPath}, Does your project folder have a correct CMake File?`);
