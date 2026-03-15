@@ -1,0 +1,8 @@
+# Astro build output
+dist/
+
+# Node modules
+node_modules/
+
+# Astro cache
+.astro/
