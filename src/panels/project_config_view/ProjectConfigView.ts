@@ -26,7 +26,7 @@ import { WorkspaceConfig } from '../../setup_utilities/types';
 import { TwisterConfig } from '../../project_utilities/twister_selector';
 import { getSetupState } from '../../setup_utilities/workspace-config';
 import { generateWebviewHtml, initWebviewView } from '../webviewHelper';
-import { handleSharedProjectCommand } from '../projectCommandHandler';
+import { handleSharedProjectCommand, FILE_ADD_ACTION, FILE_DELETE_ACTION } from '../projectCommandHandler';
 import { outputInfo } from '../../utilities/output';
 
 export class ProjectConfigState {
@@ -52,16 +52,8 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
     leaf: 'folder-library',
     open: 'folder-library',
   };
-  fileActions = [{
-    icon: "add",
-    actionId: "addFile",
-    tooltip: "Add File",
-  }];
-  fileItemActions = [{
-    icon: "trash",
-    actionId: "deleteFile",
-    tooltip: "Delete File",
-  }];
+  fileActions = FILE_ADD_ACTION;
+  fileItemActions = FILE_DELETE_ACTION;
   constructor(public extensionPath: string, private context: vscode.ExtensionContext, private wsConfig: WorkspaceConfig) {
     this.projectConfigState = this.context.workspaceState.get("zephyr-ide.project-config-view-state") ?? new ProjectConfigState;
   }
@@ -223,143 +215,131 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
   }
 
 
-  generateBuildString(buildData: any | undefined, projectName: string, build: BuildConfig, open: boolean | undefined, kConfigOpen: boolean | undefined, overlayOpen: boolean | undefined): any {
-    if (buildData === undefined) {
-      buildData = {};
-      buildData['icons'] = {
-        branch: 'project',
-        leaf: 'project',
-        open: 'project',
-      };
-      buildData['label'] = build.name;
-      buildData['value'] = { project: projectName, build: build.name };
-      buildData['open'] = open === undefined ? true : open;
-      buildData['subItems'] = [
-        {
-          icons: {
-            branch: 'circuit-board',
-            leaf: 'circuit-board',
-            open: 'circuit-board',
-          },
-          value: { cmd: "openBoardDtc", project: projectName, build: build.name },
-          label: 'Board',
-          description: build.board + (build.revision ? '@' + build.revision : "")
+  generateBuildString(projectName: string, build: BuildConfig, open: boolean | undefined, kConfigOpen: boolean | undefined, overlayOpen: boolean | undefined): any {
+    const buildData: any = {};
+    buildData['icons'] = {
+      branch: 'project',
+      leaf: 'project',
+      open: 'project',
+    };
+    buildData['label'] = build.name;
+    buildData['value'] = { project: projectName, build: build.name };
+    buildData['open'] = open === undefined ? true : open;
+    buildData['subItems'] = [
+      {
+        icons: {
+          branch: 'circuit-board',
+          leaf: 'circuit-board',
+          open: 'circuit-board',
         },
-        {
-          icons: {
-            branch: 'file-submodule',
-            leaf: 'file-submodule',
-            open: 'file-submodule',
-          },
-          value: { cmd: "openBoardDir", project: projectName, build: build.name },
-          label: 'Board Dir',
-          description: build.relBoardSubDir,
+        value: { cmd: "openBoardDtc", project: projectName, build: build.name },
+        label: 'Board',
+        description: build.board + (build.revision ? '@' + build.revision : "")
+      },
+      {
+        icons: {
+          branch: 'file-submodule',
+          leaf: 'file-submodule',
+          open: 'file-submodule',
         },
-        {
-          icons: {
-            branch: 'settings',
-            leaf: 'settings',
-            open: 'settings',
-          },
-          actions: this.fileActions,
-          label: "KConfig",
-          value: { project: projectName, build: build.name, cmd: "addKConfigFile" },
-          open: true,
-          subItems: []
-        }, {
-          icons: {
-            branch: 'circuit-board',
-            leaf: 'circuit-board',
-            open: 'circuit-board',
-          },
-          actions: this.fileActions,
-          label: "DTC Overlay",
-          value: { project: projectName, build: build.name, cmd: "addOverlayFile" },
-          open: true,
-          subItems: []
-        }, {
-          icons: {
-            branch: 'circuit-board',
-            leaf: 'circuit-board',
-            open: 'circuit-board',
-          },
-          label: "West Args",
-          value: { project: projectName, build: build.name, cmd: "modifyBuildArgs" },
-          description: build.westBuildArgs,
-        }, {
-          icons: {
-            branch: 'circuit-board',
-            leaf: 'circuit-board',
-            open: 'circuit-board',
-          },
-          label: "CMake Args",
-          value: { project: projectName, build: build.name, cmd: "modifyBuildArgs" },
-          description: build.westBuildCMakeArgs,
+        value: { cmd: "openBoardDir", project: projectName, build: build.name },
+        label: 'Board Dir',
+        description: build.relBoardSubDir,
+      },
+      {
+        icons: {
+          branch: 'settings',
+          leaf: 'settings',
+          open: 'settings',
         },
-      ];
-    }
+        actions: this.fileActions,
+        label: "KConfig",
+        value: { project: projectName, build: build.name, cmd: "addKConfigFile" },
+        open: true,
+        subItems: []
+      }, {
+        icons: {
+          branch: 'circuit-board',
+          leaf: 'circuit-board',
+          open: 'circuit-board',
+        },
+        actions: this.fileActions,
+        label: "DTC Overlay",
+        value: { project: projectName, build: build.name, cmd: "addOverlayFile" },
+        open: true,
+        subItems: []
+      }, {
+        icons: {
+          branch: 'circuit-board',
+          leaf: 'circuit-board',
+          open: 'circuit-board',
+        },
+        label: "West Args",
+        value: { project: projectName, build: build.name, cmd: "modifyBuildArgs" },
+        description: build.westBuildArgs,
+      }, {
+        icons: {
+          branch: 'circuit-board',
+          leaf: 'circuit-board',
+          open: 'circuit-board',
+        },
+        label: "CMake Args",
+        value: { project: projectName, build: build.name, cmd: "modifyBuildArgs" },
+        description: build.westBuildCMakeArgs,
+      },
+    ];
     this.generateConfigFileEntry(buildData.subItems[2], projectName, build.name, build.confFiles, kConfigOpen);
     this.generateOverlayFileEntry(buildData.subItems[3], projectName, build.name, build.confFiles, overlayOpen);
-
-    //if statements may be removed in the future once everyone has upgraded.
-    if (build.westBuildArgs) {
-      buildData.subItems[4].description = build.westBuildArgs;
-    }
-    if (build.westBuildCMakeArgs) {
-      buildData.subItems[5].description = build.westBuildCMakeArgs;
-    }
 
     return buildData;
   }
 
-  generateProjectString(projectData: any | undefined, project: ProjectConfig, open: boolean | undefined, kConfigOpen: boolean | undefined, overlayOpen: boolean | undefined): any {
-    if (projectData === undefined) {
-      projectData = {};
-      projectData['icons'] = {
-        branch: 'folder',
-        leaf: 'file',
-        open: 'folder-opened',
-      };
-      projectData['label'] = project.name;
-      projectData['value'] = { project: project.name };
-      projectData['open'] = open === undefined ? true : open;
-      projectData['subItems'] = [
-        {
-          icons: this.path_icons,
-          label: 'main',
-          description: project.rel_path,
-          value: { cmd: "openMain", project: project.name },
+  generateProjectString(project: ProjectConfig, open: boolean | undefined, kConfigOpen: boolean | undefined, overlayOpen: boolean | undefined): any {
+    const projectData: any = {};
+    projectData['icons'] = {
+      branch: 'folder',
+      leaf: 'file',
+      open: 'folder-opened',
+    };
+    projectData['label'] = project.name;
+    projectData['value'] = { project: project.name };
+    projectData['open'] = open === undefined ? true : open;
+    projectData['subItems'] = [
+      {
+        icons: this.path_icons,
+        label: 'main',
+        description: project.rel_path,
+        value: { cmd: "openMain", project: project.name },
+      },
+      {
+        icons: this.path_icons,
+        label: 'CMake File',
+        value: { cmd: "openCmakeFile", project: project.name },
+      },
+      {
+        icons: {
+          branch: 'settings',
+          leaf: 'settings',
+          open: 'settings',
         },
-        {
-          icons: this.path_icons,
-          label: 'CMake File',
-          value: { cmd: "openCmakeFile", project: project.name },
+        actions: this.fileActions,
+        label: "KConfig",
+        value: { project: project.name, build: undefined, cmd: "addKConfigFile" },
+        open: true,
+        subItems: []
+      }, {
+        icons: {
+          branch: 'circuit-board',
+          leaf: 'circuit-board',
+          open: 'circuit-board',
         },
-        {
-          icons: {
-            branch: 'settings',
-            leaf: 'settings',
-            open: 'settings',
-          },
-          actions: this.fileActions,
-          label: "KConfig",
-          value: { project: project.name, build: undefined, cmd: "addKConfigFile" },
-          open: true,
-          subItems: []
-        }, {
-          icons: {
-            branch: 'circuit-board',
-            leaf: 'circuit-board',
-            open: 'circuit-board',
-          },
-          actions: this.fileActions,
-          label: "DTC Overlay",
-          value: { project: project.name, build: undefined, cmd: "addOverlayFile" },
-          open: true,
-          subItems: []
-        },
-      ];
-    }
+        actions: this.fileActions,
+        label: "DTC Overlay",
+        value: { project: project.name, build: undefined, cmd: "addOverlayFile" },
+        open: true,
+        subItems: []
+      },
+    ];
     this.generateConfigFileEntry(projectData.subItems[2], project.name, undefined, project.confFiles, kConfigOpen);
     this.generateOverlayFileEntry(projectData.subItems[3], project.name, undefined, project.confFiles, overlayOpen);
 
@@ -428,9 +408,9 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
     }
 
     if (activeProject) {
-      this.treeData[0] = this.generateProjectString(undefined, activeProject, this.projectConfigState.projectOpenState, this.projectConfigState.projectKConfigOpenState, this.projectConfigState.projectOverlayOpenState);
+      this.treeData[0] = this.generateProjectString(activeProject, this.projectConfigState.projectOpenState, this.projectConfigState.projectKConfigOpenState, this.projectConfigState.projectOverlayOpenState);
       if (activeBuild) {
-        this.treeData[1] = this.generateBuildString(undefined, activeProject.name, activeBuild, this.projectConfigState.buildOpenState, this.projectConfigState.buildKConfigOpenState, this.projectConfigState.buildOverlayOpenState);
+        this.treeData[1] = this.generateBuildString(activeProject.name, activeBuild, this.projectConfigState.buildOpenState, this.projectConfigState.buildKConfigOpenState, this.projectConfigState.buildOverlayOpenState);
         if (activeRunner) {
           this.treeData[2] = this.generateRunnerString(activeProject.name, activeBuild?.name, activeRunner, this.projectConfigState.runnerOpenState);
         } else {
