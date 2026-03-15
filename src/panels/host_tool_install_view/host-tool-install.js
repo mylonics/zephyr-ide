@@ -22,7 +22,7 @@ const vscode = acquireVsCodeApi();
 
 let currentStatus = null;
 let installationInProgress = false;
-let installationState = {
+const installationState = {
     total: 0,
     current: 0,
     packageStates: {} // Store state for each package

@@ -62,10 +62,10 @@ export function loadYamlFile(filePath: string): any | undefined {
 }
 
 // Platform
-let platform: NodeJS.Platform = os.platform();
+const platform: NodeJS.Platform = os.platform();
 
 // Arch
-let arch: string = os.arch();
+const arch: string = os.arch();
 
 // Cache for remote platform detection
 let remotePlatformCache: string | undefined = undefined;
@@ -356,7 +356,7 @@ async function executeTask(task: vscode.Task) {
   const taskType = (task.definition as any).type;
   const taskCommand = (task.definition as any).command;
   const taskDone = new Promise<number | undefined>(resolve => {
-    let disposable = vscode.tasks.onDidEndTaskProcess(e => {
+    const disposable = vscode.tasks.onDidEndTaskProcess(e => {
       const def = e.execution.task.definition as any;
       if (def.type === taskType && def.command === taskCommand) {
         disposable.dispose();
@@ -437,7 +437,7 @@ export async function executeShellCommandInPythonEnv(cmd: string, cwd: string, s
 };
 
 export async function executeShellCommand(cmd: string, cwd: string, display_error = true, env?: NodeJS.ProcessEnv): Promise<ShellCommandResult> {
-  let exec = util.promisify(cp.exec);
+  const exec = util.promisify(cp.exec);
   const effectiveEnv = env ?? process.env;
   const execOptions: cp.ExecOptions = {
     cwd: cwd,

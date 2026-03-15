@@ -66,10 +66,10 @@ export async function configSelector(wsConfig: WorkspaceConfig, isKConfigSelecto
     link = "https://docs.zephyrproject.org/latest/build/kconfig/setting.html#initial-conf";
   }
 
-  let title = 'Add ' + fileType + ' Files ' + additionalTitleString;
+  const title = 'Add ' + fileType + ' Files ' + additionalTitleString;
 
   async function chooseIfPrimary(input: MultiStepInput, state: ConfigFiles) {
-    let confFileOption: QuickPickItem[] = [];
+    const confFileOption: QuickPickItem[] = [];
     confFileOption.push({ label: "Add extra " + fileType + " File (Recommended)" });
     confFileOption.push({ label: "Override West's Automatic " + fileType + " File (see " + link + ")" });
 
@@ -85,11 +85,11 @@ export async function configSelector(wsConfig: WorkspaceConfig, isKConfigSelecto
       outputError("Config Selector", String(error));
       return undefined;
     });
-    let pick = await pickPromise;
+    const pick = await pickPromise;
     if (!pick) {
       return;
     };
-    let isPrimary = pick.label !== confFileOption[0].label;
+    const isPrimary = pick.label !== confFileOption[0].label;
     return (input: MultiStepInput) => chooseFiles(input, state, isPrimary);
   }
 
@@ -109,7 +109,7 @@ export async function configSelector(wsConfig: WorkspaceConfig, isKConfigSelecto
       return;
     }
 
-    let addMoreOption: QuickPickItem[] = [];
+    const addMoreOption: QuickPickItem[] = [];
     addMoreOption.push({ label: "Add More" });
     addMoreOption.push({ label: "Finished" });
 
@@ -125,7 +125,7 @@ export async function configSelector(wsConfig: WorkspaceConfig, isKConfigSelecto
       outputError("Config Selector", String(error));
       return undefined;
     });
-    let pick = await pickPromise;
+    const pick = await pickPromise;
     if (!pick) {
       return;
     };
@@ -167,10 +167,10 @@ export async function configRemover(confFiles: ConfigFiles, isKConfigSelector: b
     fileType = "KConfig";
   }
 
-  let title = 'Remove ' + fileType + ' Files ' + additionalTitleString;
+  const title = 'Remove ' + fileType + ' Files ' + additionalTitleString;
 
   async function selectTypeToRemove(input: MultiStepInput, state: ConfigFiles) {
-    let confFileOption: QuickPickItem[] = [];
+    const confFileOption: QuickPickItem[] = [];
     confFileOption.push({ label: "Remove extra " + fileType + " File" });
     confFileOption.push({ label: "Overriden " + fileType + " File" });
 
@@ -186,11 +186,11 @@ export async function configRemover(confFiles: ConfigFiles, isKConfigSelector: b
       outputError("Config Selector", String(error));
       return undefined;
     });
-    let pick = await pickPromise;
+    const pick = await pickPromise;
     if (!pick) {
       return;
     };
-    let isPrimary = pick.label !== confFileOption[0].label;
+    const isPrimary = pick.label !== confFileOption[0].label;
     return (input: MultiStepInput) => chooseFiles(input, state, isPrimary);
   }
 
@@ -198,7 +198,7 @@ export async function configRemover(confFiles: ConfigFiles, isKConfigSelector: b
     const key = getConfFileKey(isKConfigSelector, isPrimary);
     const items = mapToQuickPickItems(state[key]);
 
-    let temp = await vscode.window.showQuickPick(items, {
+    const temp = await vscode.window.showQuickPick(items, {
       ignoreFocusOut: true,
       placeHolder: "Select files to remove",
       canPickMany: true,
@@ -206,7 +206,7 @@ export async function configRemover(confFiles: ConfigFiles, isKConfigSelector: b
     if (!temp) {
       return;
     }
-    let selectedFiles = temp.map(x => (x.label));
+    const selectedFiles = temp.map(x => (x.label));
 
     confFiles[key] = confFiles[key].filter(el => !selectedFiles.includes(el));
     return;

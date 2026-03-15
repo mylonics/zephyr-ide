@@ -116,10 +116,10 @@ async function getBoardlistWest(setupState: SetupState, folder: vscode.Uri | und
     return;
   }
 
-  let allBoardData = res.stdout.split(/\r?\n/);
-  let outputData: { name: string, subdir: string, revisions?: string[], revision_default?: string }[] = [];
+  const allBoardData = res.stdout.split(/\r?\n/);
+  const outputData: { name: string, subdir: string, revisions?: string[], revision_default?: string }[] = [];
   for (let i = 0; i < allBoardData.length; i++) {
-    let boardData = allBoardData[i].replaceAll("'", "").split(";");
+    const boardData = allBoardData[i].replaceAll("'", "").split(";");
     try {
       if (boardData.length > 1) {
 
@@ -160,7 +160,7 @@ export async function pickBoard(setupState: SetupState, rootPath: string) {
   let boardDirectories: string[] = [];
 
   // Look in root
-  let boardDir = path.join(rootPath, `boards`);
+  const boardDir = path.join(rootPath, `boards`);
   if (fs.pathExistsSync(boardDir)) {
     boardDirectories = boardDirectories.concat(boardDir);
   }
@@ -238,7 +238,7 @@ export async function pickBoard(setupState: SetupState, rootPath: string) {
     return;
   };
 
-  let pick_data = (pick as BoardItem);
+  const pick_data = (pick as BoardItem);
 
   let relBoardSubDir: string = "";
   if (pick_data.description) {
@@ -250,12 +250,12 @@ export async function pickBoard(setupState: SetupState, rootPath: string) {
   }
 
 
-  let board = pick_data.label;
+  const board = pick_data.label;
   let revision: string | undefined;
   if (pick_data.revisions) {
-    let revisionQPItems: QuickPickItem[] = [];
+    const revisionQPItems: QuickPickItem[] = [];
     let revisionIndex = 0;
-    for (let revision of pick_data.revisions) {
+    for (const revision of pick_data.revisions) {
       let description = "";
       if (revision === pick_data.revision_default) {
         revisionIndex = revisionQPItems.length;
@@ -264,7 +264,7 @@ export async function pickBoard(setupState: SetupState, rootPath: string) {
       revisionQPItems.push({ label: revision, description: description });
     }
 
-    let pickPromise = showQuickPick({
+    const pickPromise = showQuickPick({
       title,
       step: 3,
       totalSteps: 3,
@@ -276,7 +276,7 @@ export async function pickBoard(setupState: SetupState, rootPath: string) {
       outputError("Build Selector", String(error));
       return undefined;
     });
-    let pick = (await pickPromise as QuickPickItem);
+    const pick = (await pickPromise as QuickPickItem);
     if (!pick) {
       return;
     };
@@ -285,7 +285,7 @@ export async function pickBoard(setupState: SetupState, rootPath: string) {
 
 
 
-  let boardConfig = {
+  const boardConfig = {
     board: board,
     relBoardDir: relBoardDir,
     relBoardSubDir: relBoardSubDir,
@@ -298,7 +298,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
   const title = 'Add Build Configuration';
 
   async function pickBoardStep(input: MultiStepInput, state: Partial<BuildConfig>) {
-    let boardData = await pickBoard(setupState, rootPath);
+    const boardData = await pickBoard(setupState, rootPath);
     if (boardData) {
       state.relBoardDir = boardData.relBoardDir;
       state.relBoardSubDir = boardData.relBoardSubDir;
@@ -328,7 +328,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       outputError("Build Selector", String(error));
       return undefined;
     });
-    let name = await inputPromise;
+    const name = await inputPromise;
     if (!name) {
       return;
     };
@@ -353,11 +353,11 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       outputError("Build Selector", String(error));
       return undefined;
     });
-    let pick = await pickPromise;
+    const pick = await pickPromise;
     if (!pick) {
       return;
     };
-    let debugOptimization = pick.label;
+    const debugOptimization = pick.label;
 
     const westArgsInputPromise = input.showInputBox({
       title,
@@ -372,7 +372,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       outputError("Build Selector", String(error));
       return undefined;
     });
-    let westBuildArgs = await westArgsInputPromise;
+    const westBuildArgs = await westArgsInputPromise;
     if (westBuildArgs === undefined) {
       return;
     };
@@ -409,7 +409,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       outputError("Build Selector", String(error));
       return undefined;
     });
-    let cmakeBuildArgs = await cmakeArgsInputPromise;
+    const cmakeBuildArgs = await cmakeArgsInputPromise;
     if (cmakeBuildArgs === undefined) {
       return;
     };

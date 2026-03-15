@@ -66,7 +66,7 @@ export async function initializeDtsExt(state: SetupState, wsConfig: WorkspaceCon
     }
     dtsIncludePaths.push(path.join(state.zephyrDir, "include"));
 
-    let settings: IntegrationSettings = {
+    const settings: IntegrationSettings = {
       cwd: state.setupPath,
       defaultBindingType: "Zephyr",
       defaultZephyrBindings: [path.join(dtsDir, "bindings")],
@@ -109,10 +109,10 @@ export async function updateDtsContext(wsConfig: WorkspaceConfig,
   project: ProjectConfig,
   build: BuildConfig) {
   if (api) {
-    let buildInfo = await getBuildInfo(wsConfig, project, build);
+    const buildInfo = await getBuildInfo(wsConfig, project, build);
 
     if (buildInfo) {
-      let context: Context = {
+      const context: Context = {
         ctxName: project.name + "-" + build.name,
         includePaths: buildInfo.includeDirs,
         dtsFile: buildInfo.dtsFile,
@@ -128,7 +128,7 @@ export async function updateDtsContext(wsConfig: WorkspaceConfig,
 export async function printContexts() {
 
   if (api) {
-    let contexts = await api.getContexts();
+    const contexts = await api.getContexts();
     outputInfo("DTS Interface", JSON.stringify(contexts));
   }
 }
