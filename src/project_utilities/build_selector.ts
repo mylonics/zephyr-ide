@@ -155,6 +155,12 @@ async function getBoardlistWest(setupState: SetupState, folder: vscode.Uri | und
   return outputData;
 }
 
+/** Shared error handler for QuickPick/InputBox promises in the build selector. */
+function handleSelectorError(error: unknown): undefined {
+  outputError("Build Selector", String(error));
+  return undefined;
+}
+
 export async function pickBoard(setupState: SetupState, rootPath: string) {
   // Looks for board directories
   let boardDirectories: string[] = [];
@@ -183,10 +189,7 @@ export async function pickBoard(setupState: SetupState, rootPath: string) {
     items: boardDirectoriesQpItems,
     activeItem: undefined,
     dispose: false,
-  }).catch((error) => {
-    outputError("Build Selector", String(error));
-    return undefined;
-  });
+  }).catch(handleSelectorError);
   let pick = (await pickPromise as QuickPickItem);
   if (!pick) {
     return;
@@ -229,10 +232,7 @@ export async function pickBoard(setupState: SetupState, rootPath: string) {
     ignoreFocusOut: true,
     items: boardQpItems,
     activeItem: undefined
-  }).catch((error) => {
-    outputError("Build Selector", String(error));
-    return undefined;
-  });
+  }).catch(handleSelectorError);
   pick = (await pickPromise as QuickPickItem);
   if (!pick) {
     return;
@@ -272,10 +272,7 @@ export async function pickBoard(setupState: SetupState, rootPath: string) {
       ignoreFocusOut: true,
       items: revisionQPItems,
       activeItem: revisionQPItems[revisionIndex]
-    }).catch((error) => {
-      outputError("Build Selector", String(error));
-      return undefined;
-    });
+    }).catch(handleSelectorError);
     const pick = (await pickPromise as QuickPickItem);
     if (!pick) {
       return;
@@ -324,10 +321,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       value: path.join("build", state.board + (state.revision ? "_" + state.revision : "")),
       prompt: 'Choose a name for the Build',
       validate: noOpValidate
-    }).catch((error) => {
-      outputError("Build Selector", String(error));
-      return undefined;
-    });
+    }).catch(handleSelectorError);
     const name = await inputPromise;
     if (!name) {
       return;
@@ -349,10 +343,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       ignoreFocusOut: true,
       items: buildOptimizationsQpItems,
       activeItem: typeof state.debugOptimization !== 'string' ? state.debugOptimization : undefined
-    }).catch((error) => {
-      outputError("Build Selector", String(error));
-      return undefined;
-    });
+    }).catch(handleSelectorError);
     const pick = await pickPromise;
     if (!pick) {
       return;
@@ -368,10 +359,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       prompt: 'Additional Build Arguments',
       placeholder: '--sysbuild',
       validate: noOpValidate
-    }).catch((error) => {
-      outputError("Build Selector", String(error));
-      return undefined;
-    });
+    }).catch(handleSelectorError);
     const westBuildArgs = await westArgsInputPromise;
     if (westBuildArgs === undefined) {
       return;
@@ -405,10 +393,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       value: cmakeArg,
       prompt: 'Modify CMake Arguments',
       validate: noOpValidate
-    }).catch((error) => {
-      outputError("Build Selector", String(error));
-      return undefined;
-    });
+    }).catch(handleSelectorError);
     const cmakeBuildArgs = await cmakeArgsInputPromise;
     if (cmakeBuildArgs === undefined) {
       return;

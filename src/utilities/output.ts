@@ -260,7 +260,7 @@ export function notifyWarningWithActions(
   actions: string[],
 ): Promise<string | undefined> {
   outputChannel?.appendLine(formatLine(task, `⚠ WARNING: ${message}`));
-  return vscode.window.showWarningMessage(message, ...actions);
+  return Promise.resolve(vscode.window.showWarningMessage(message, ...actions));
 }
 
 /**
