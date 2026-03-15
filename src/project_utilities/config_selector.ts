@@ -105,7 +105,7 @@ export async function configSelector(wsConfig: WorkspaceConfig, isKConfigSelecto
       const key = getConfFileKey(isKConfigSelector, isPrimary);
       state[key] = state[key].concat(confFiles.map(x => (path.relative(wsConfig.rootPath, x.fsPath))));
     } else {
-      vscode.window.showInformationMessage(`Failed to select files`);
+      void vscode.window.showInformationMessage(`Failed to select files`);
       return;
     }
 

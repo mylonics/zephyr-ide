@@ -477,7 +477,7 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
   private async handleMessage(message: any) {
     if (message.treeData) {
       this.treeData = message.treeData;
-      this.setProjectConfigState();
+      void this.setProjectConfigState();
     }
 
     // Try shared handler first (covers: deleteProject, addBuild, deleteBuild, addRunner, deleteRunner, build, buildPristine, menuConfig, guiConfig, flash, setActive)
@@ -514,11 +514,13 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
         if (boardPath) {
           const filePath = vscode.Uri.file(path.join(boardPath, build.board + ".dts"));
 
-          vscode.workspace.openTextDocument(filePath).then(
-            document => vscode.window.showTextDocument(document),
-            () => { outputInfo("Project Config", `Board DTS file not found: ${filePath.fsPath}`); }
-          );
-          setActive(this.context, this.wsConfig, message.value.project, message.value.build, message.value.runner);
+          try {
+            const document = await vscode.workspace.openTextDocument(filePath);
+            await vscode.window.showTextDocument(document);
+          } catch {
+            outputInfo("Project Config", `Board DTS file not found: ${filePath.fsPath}`);
+          }
+          void setActive(this.context, this.wsConfig, message.value.project, message.value.build, message.value.runner);
         }
         break;
       }
@@ -526,39 +528,43 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
         const project = this.wsConfig.projects[message.value.project];
         const mainCPath = vscode.Uri.file(path.join(this.wsConfig.rootPath, project.rel_path, "src", "main.c"));
 
-        vscode.workspace.openTextDocument(mainCPath).then(
-          document => vscode.window.showTextDocument(document),
-          () => {
+        try {
+          const document = await vscode.workspace.openTextDocument(mainCPath);
+          await vscode.window.showTextDocument(document);
+        } catch {
+          try {
             const mainCppPath = vscode.Uri.file(path.join(this.wsConfig.rootPath, project.rel_path, "src", "main.cpp"));
-            vscode.workspace.openTextDocument(mainCppPath).then(
-              document => vscode.window.showTextDocument(document),
-              () => { outputInfo("Project Config", `Neither main.c nor main.cpp found in ${project.rel_path}/src`); }
-            );
+            const document = await vscode.workspace.openTextDocument(mainCppPath);
+            await vscode.window.showTextDocument(document);
+          } catch {
+            outputInfo("Project Config", `Neither main.c nor main.cpp found in ${project.rel_path}/src`);
           }
-        );
+        }
 
-        setActive(this.context, this.wsConfig, message.value.project, message.value.build, message.value.runner);
+        void setActive(this.context, this.wsConfig, message.value.project, message.value.build, message.value.runner);
         break;
       }
       case "openCmakeFile": {
         const project = this.wsConfig.projects[message.value.project];
         const filePath = vscode.Uri.file(path.join(this.wsConfig.rootPath, project.rel_path, "CMakeLists.txt"));
 
-        vscode.workspace.openTextDocument(filePath).then(
-          document => vscode.window.showTextDocument(document),
-          () => { outputInfo("Project Config", `CMakeLists.txt not found in ${project.rel_path}`); }
-        );
-        setActive(this.context, this.wsConfig, message.value.project, message.value.build, message.value.runner);
+        try {
+          const document = await vscode.workspace.openTextDocument(filePath);
+          await vscode.window.showTextDocument(document);
+        } catch {
+          outputInfo("Project Config", `CMakeLists.txt not found in ${project.rel_path}`);
+        }
+        void setActive(this.context, this.wsConfig, message.value.project, message.value.build, message.value.runner);
         break;
       }
       case "modifyBuildArgs": {
         void modifyBuildArguments(this.context, this.wsConfig, message.value.project, message.value.build).finally(() => { void vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
-        setActive(this.context, this.wsConfig, message.value.project, message.value.build, message.value.runner);
+        void setActive(this.context, this.wsConfig, message.value.project, message.value.build, message.value.runner);
         break;
       }
       case "modifyTestArgs": {
         void vscode.commands.executeCommand("zephyr-ide.reconfigure-active-test");
-        setActive(this.context, this.wsConfig, message.value.project, message.value.build, message.value.runner);
+        void setActive(this.context, this.wsConfig, message.value.project, message.value.build, message.value.runner);
         break;
       }
       case "addFile": {

@@ -170,7 +170,7 @@ export async function westInit(context: vscode.ExtensionContext, wsConfig: Works
         outputInfo("West Init", `Repaired .west/config manifest section (setupPath: ${setupState.setupPath})`);
       }
       if (solo) {
-        vscode.window.showInformationMessage(`Successfully Completed West Init`);
+        void vscode.window.showInformationMessage(`Successfully Completed West Init`);
       }
       await saveSetupState(context, wsConfig, globalConfig);
     }
@@ -236,7 +236,7 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
     reloadEnvironmentVariables(context, setupState);
     await saveSetupState(context, wsConfig, globalConfig);
     if (solo) {
-      vscode.window.showInformationMessage(`Successfully Completed West Update`);
+      void vscode.window.showInformationMessage(`Successfully Completed West Update`);
     }
   }
   return westUpdateRes;
@@ -292,7 +292,7 @@ export async function installPythonRequirements(context: vscode.ExtensionContext
     setupState.packagesInstalled = true;
     await saveSetupState(context, wsConfig, globalConfig);
     if (solo) {
-      vscode.window.showInformationMessage(`Successfully Installed Python Requirements`);
+      void vscode.window.showInformationMessage(`Successfully Installed Python Requirements`);
     }
   }
   return reqRes;
@@ -387,7 +387,7 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
       await saveSetupState(context, wsConfig, globalConfig);
 
       progress.report({ increment: 100 });
-      vscode.window.showInformationMessage(`Zephyr IDE: West Python Environment Setup!`);
+      void vscode.window.showInformationMessage(`Zephyr IDE: West Python Environment Setup!`);
     }
   );
 }
@@ -440,11 +440,11 @@ export async function westUpdateWithRequirements(context: vscode.ExtensionContex
       // Set context flag for complete workspace setup
       await vscode.commands.executeCommand("setContext", "zephyr-ide.workspaceSetupComplete", true);
       outputInfo("Workspace Setup", "Workspace setup completed successfully");
-      vscode.window.showInformationMessage(`Workspace setup completed successfully at: ${setupPath}`);
+      void vscode.window.showInformationMessage(`Workspace setup completed successfully at: ${setupPath}`);
       // Refresh the west workspace panel to show the new workspace
-      vscode.commands.executeCommand('zephyr-ide.update-web-view');
+      void vscode.commands.executeCommand('zephyr-ide.update-web-view');
     } else {
-      vscode.window.showInformationMessage("Successfully completed West Update with Python requirements installation");
+      void vscode.window.showInformationMessage("Successfully completed West Update with Python requirements installation");
     }
   }
   await saveSetupState(context, wsConfig, globalConfig);

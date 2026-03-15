@@ -317,8 +317,8 @@ async function handleExternalInstallation(
     }
     return !!(await postWorkspaceSetup(context, wsConfig, globalConfig, externalPath, extWestSelection));
   } else {
-    vscode.window.showInformationMessage(`Workspace linked to external Zephyr installation at: ${externalPath}`);
-    vscode.commands.executeCommand('zephyr-ide.update-web-view');
+    void vscode.window.showInformationMessage(`Workspace linked to external Zephyr installation at: ${externalPath}`);
+    void vscode.commands.executeCommand('zephyr-ide.update-web-view');
   }
 
   return true;
@@ -378,7 +378,7 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
 
 async function getExistingInstallationPicks(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
   if (!globalConfig.setupStateDictionary) {
-    vscode.window.showInformationMessage(
+    void vscode.window.showInformationMessage(
       "No existing Zephyr installations found."
     );
     return;
@@ -415,7 +415,7 @@ async function getExistingInstallationPicks(wsConfig: WorkspaceConfig, globalCon
   }
 
   if (installOptions.length === 0) {
-    vscode.window.showInformationMessage(
+    void vscode.window.showInformationMessage(
       "No valid existing Zephyr installations found."
     );
     return;
@@ -526,7 +526,7 @@ async function handleReconfigureInstallation(context: vscode.ExtensionContext, w
   // Run post-setup process to apply the reconfiguration
   const result = await postWorkspaceSetup(context, wsConfig, globalConfig, installPath, westSelection);
   if (result) {
-    vscode.window.showInformationMessage(`Installation "${path.basename(installPath)}" has been reconfigured successfully.`);
+    void vscode.window.showInformationMessage(`Installation "${path.basename(installPath)}" has been reconfigured successfully.`);
   } else {
     notifyError("Manage Installations", `Failed to reconfigure installation "${path.basename(installPath)}".`);
   }
@@ -551,7 +551,7 @@ async function handleDeleteInstallation(context: vscode.ExtensionContext, global
     // Save updated global config
     await setGlobalState(context, globalConfig);
 
-    vscode.window.showInformationMessage(`Installation "${installName}" has been removed from the registry.`);
+    void vscode.window.showInformationMessage(`Installation "${installName}" has been removed from the registry.`);
     outputInfo("Manage Installations", `Removed installation from registry: ${installPath}`);
   }
 }
@@ -724,8 +724,8 @@ export async function showCreateWorkspaceMenu(context: vscode.ExtensionContext, 
       await postWorkspaceSetup(context, wsConfig, globalConfig, chosenPath, westSelection);
     } else {
       // Installation already configured, just activate it
-      vscode.window.showInformationMessage(`Workspace activated: ${path.basename(chosenPath)}`);
-      vscode.commands.executeCommand('zephyr-ide.update-web-view');
+      void vscode.window.showInformationMessage(`Workspace activated: ${path.basename(chosenPath)}`);
+      void vscode.commands.executeCommand('zephyr-ide.update-web-view');
     }
   } catch (error) {
     notifyError("Create Workspace", `Failed to create/select workspace: ${error}`);
@@ -1019,7 +1019,7 @@ export async function selectExistingWestWorkspace(
   wsConfig.initialSetupComplete = true;
   await setWorkspaceState(context, wsConfig);
 
-  vscode.window.showInformationMessage(
+  void vscode.window.showInformationMessage(
     `Workspace linked to existing Zephyr installation at: ${installPath}`
   );
 

@@ -72,7 +72,7 @@ export async function checkIfToolsAvailable(
     await saveSetupState(context, wsConfig, globalConfig);
     
     if (solo) {
-      vscode.window.showInformationMessage("Zephyr IDE: Build Tools are available");
+      void vscode.window.showInformationMessage("Zephyr IDE: Build Tools are available");
     }
 
     return true;

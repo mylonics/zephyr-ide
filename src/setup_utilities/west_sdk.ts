@@ -345,7 +345,7 @@ async function selectSDKVersion(setupState: SetupState): Promise<string | null |
             );
             return null; // auto-detect failed
         }
-        vscode.window.showInformationMessage(
+        void vscode.window.showInformationMessage(
             `Auto-detected SDK version: ${detectedVersion}`
         );
         return detectedVersion;
@@ -540,7 +540,7 @@ export async function installSDKInteractive(wsConfig: WorkspaceConfig, globalCon
                     if (context) {
                         await setGlobalState(context, globalConfig);
                     }
-                    vscode.window.showInformationMessage(
+                    void vscode.window.showInformationMessage(
                         "Zephyr SDK installed successfully!"
                     );
                 } else {

@@ -202,7 +202,7 @@ export async function pickBoard(setupState: SetupState, rootPath: string) {
     if (boarddir) {
       relBoardDir = path.relative(rootPath, boarddir[0].fsPath);
     } else {
-      vscode.window.showInformationMessage(`Failed to select board directory`);
+      void vscode.window.showInformationMessage(`Failed to select board directory`);
       return;
     }
   } else if (pick.label === 'Zephyr Directory Only') {

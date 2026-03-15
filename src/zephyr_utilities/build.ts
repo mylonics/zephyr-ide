@@ -351,7 +351,7 @@ export async function clean(wsConfig: WorkspaceConfig, projectName: string | und
   if (!resolved) { return; }
 
   await fs.remove(getBuildFolder(wsConfig, resolved.project, resolved.build));
-  vscode.window.showInformationMessage(`Cleaning ${resolved.project.rel_path}`);
+  void vscode.window.showInformationMessage(`Cleaning ${resolved.project.rel_path}`);
 }
 
 export async function getBuildInfo(wsConfig: WorkspaceConfig,
