@@ -111,7 +111,7 @@ export async function deleteTestDirs(
     }
   }
 
-  vscode.window.showInformationMessage(`Deleted ${project.name} test directories`);
+  void vscode.window.showInformationMessage(`Deleted ${project.name} test directories`);
 }
 
 

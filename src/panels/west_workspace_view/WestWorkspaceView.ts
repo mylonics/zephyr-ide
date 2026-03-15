@@ -239,7 +239,7 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
 
       if (confirm === 'Switch') {
         await setSetupState(this.context, this.wsConfig, this.globalConfig, installPath);
-        vscode.window.showInformationMessage(`Active workspace set to: ${installName}`);
+        void vscode.window.showInformationMessage(`Active workspace set to: ${installName}`);
         void vscode.commands.executeCommand('zephyr-ide.update-web-view');
       }
     } catch (error) {
@@ -257,7 +257,7 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
 
       if (confirm === 'Deselect') {
         await clearSetupState(this.context, this.wsConfig);
-        vscode.window.showInformationMessage('Active workspace deselected');
+        void vscode.window.showInformationMessage('Active workspace deselected');
         void vscode.commands.executeCommand('zephyr-ide.update-web-view');
       }
     } catch (error) {
@@ -285,7 +285,7 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
         // Save updated global config
         await setGlobalState(this.context, this.globalConfig);
 
-        vscode.window.showInformationMessage(`Installation "${installName}" has been removed from the registry.`);
+        void vscode.window.showInformationMessage(`Installation "${installName}" has been removed from the registry.`);
         outputInfo('West Workspace', `Removed installation from registry: ${installPath}`);
         void vscode.commands.executeCommand('zephyr-ide.update-web-view');
       }

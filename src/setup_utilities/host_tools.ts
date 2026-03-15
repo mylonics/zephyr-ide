@@ -452,7 +452,7 @@ export async function installAllMissingPackages(): Promise<boolean> {
   
   if (allSuccess) {
     outputInfo("Host Tools", "All missing packages installed successfully");
-    vscode.window.showInformationMessage(
+    void vscode.window.showInformationMessage(
       "Host tools installed successfully. You may need to restart VS Code for changes to take effect."
     );
   } else {

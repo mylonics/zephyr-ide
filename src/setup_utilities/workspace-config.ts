@@ -205,7 +205,7 @@ export async function migrateToolsDirectory(): Promise<void> {
   if (toolsDir && !globalDir) {
     await configuration.update("zephyr-ide.global_directory", toolsDir, vscode.ConfigurationTarget.Global);
     await configuration.update("zephyr-ide.tools_directory", undefined, vscode.ConfigurationTarget.Global);
-    vscode.window.showInformationMessage(
+    void vscode.window.showInformationMessage(
       `Zephyr IDE: 'zephyr-ide.tools_directory' has been automatically migrated to 'zephyr-ide.global_directory' (${toolsDir}).`
     );
   }
@@ -602,7 +602,7 @@ async function checkAndWarnMissingEnvironment(context: vscode.ExtensionContext):
     if (result === "Don't Show Again") {
       // Save the preference to not show again
       await configuration.update("zephyr-ide.suppress-workspace-warning", true, vscode.ConfigurationTarget.Workspace);
-      vscode.window.showInformationMessage("Workspace warning suppressed for this workspace.");
+      void vscode.window.showInformationMessage("Workspace warning suppressed for this workspace.");
     } else if (result === "Setup Workspace") {
       // Open the setup wizard panel for workspace configuration
       await vscode.commands.executeCommand("zephyr-ide.setupWorkspace");

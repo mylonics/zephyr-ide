@@ -621,7 +621,7 @@ export class SetupPanel {
             const encoder = new TextEncoder();
             await vscode.workspace.fs.writeFile(westYmlPath, encoder.encode(content));
 
-            vscode.window.showInformationMessage(`west.yml saved successfully to: ${westYmlFilePath}`);
+            void vscode.window.showInformationMessage(`west.yml saved successfully to: ${westYmlFilePath}`);
 
             // Run west update
             await vscode.commands.executeCommand("zephyr-ide.west-update");

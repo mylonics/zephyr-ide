@@ -145,7 +145,7 @@ export class HostToolsService {
             'Package manager was installed but is not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect.'
           );
         } else {
-          vscode.window.showInformationMessage('Package manager installed successfully.');
+          void vscode.window.showInformationMessage('Package manager installed successfully.');
         }
       } else {
         notifyError(this.config.errorLabel, 'Failed to install package manager. Check output for details.');
@@ -198,7 +198,7 @@ export class HostToolsService {
             `${packageName} was installed but is not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect.`
           );
         } else {
-          vscode.window.showInformationMessage(`${packageName} installed successfully.`);
+          void vscode.window.showInformationMessage(`${packageName} installed successfully.`);
         }
       } else {
         notifyError(this.config.errorLabel, `Failed to install ${packageName}. Check output for details.`);
@@ -219,7 +219,7 @@ export class HostToolsService {
   async installAllMissingPackages(packageNames: string[]): Promise<void> {
     try {
       if (packageNames.length === 0) {
-        vscode.window.showInformationMessage('All packages are already installed');
+        void vscode.window.showInformationMessage('All packages are already installed');
         return;
       }
 
@@ -276,7 +276,7 @@ export class HostToolsService {
           'Some packages were installed but are not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect.'
         );
       } else if (!hasErrors) {
-        vscode.window.showInformationMessage('All missing packages installed successfully.');
+        void vscode.window.showInformationMessage('All missing packages installed successfully.');
       } else {
         notifyWarning(this.config.errorLabel, 'Some host tools failed to install. Check the output for details.');
       }
@@ -306,7 +306,7 @@ export class HostToolsService {
     globalConfig.toolsAvailable = true;
     await saveSetupState(context, wsConfig, globalConfig);
 
-    vscode.window.showInformationMessage(this.config.markCompleteMessage);
+    void vscode.window.showInformationMessage(this.config.markCompleteMessage);
 
     if (this.config.onMarkComplete) {
       this.config.onMarkComplete();

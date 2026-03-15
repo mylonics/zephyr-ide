@@ -126,7 +126,7 @@ const SHOW_OUTPUT = "Show Output";
 export function outputInfo(task: string, message: string, notify = false): void {
   outputChannel?.appendLine(formatLine(task, message));
   if (notify) {
-    vscode.window.showInformationMessage(message);
+    void vscode.window.showInformationMessage(message);
   }
 }
 
@@ -254,7 +254,7 @@ export function notifyWarning(
  *
  * @returns The label of the button the user clicked, or `undefined`.
  */
-export async function notifyWarningWithActions(
+export function notifyWarningWithActions(
   task: string,
   message: string,
   actions: string[],

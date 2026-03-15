@@ -318,7 +318,7 @@ export async function addConfigFiles(context: vscode.ExtensionContext, wsConfig:
       }
     }
     await setWorkspaceState(context, wsConfig);
-    vscode.window.showInformationMessage(`Successfully Added Config Files`);
+    void vscode.window.showInformationMessage(`Successfully Added Config Files`);
   }
 
 }
@@ -349,7 +349,7 @@ export async function removeConfigFiles(context: vscode.ExtensionContext, wsConf
       }
     }
     await setWorkspaceState(context, wsConfig);
-    vscode.window.showInformationMessage(`Successfully Removed Config Files`);
+    void vscode.window.showInformationMessage(`Successfully Removed Config Files`);
   }
 }
 
@@ -366,7 +366,7 @@ export async function removeConfigFile(context: vscode.ExtensionContext, wsConfi
   const key = getConfFileKey(isKConfig, isPrimary);
   confFiles[key] = confFiles[key].filter(el => !fileNames.includes(el));
   await setWorkspaceState(context, wsConfig);
-  vscode.window.showInformationMessage(`Successfully Removed Config Files`);
+  void vscode.window.showInformationMessage(`Successfully Removed Config Files`);
 }
 
 /**
@@ -402,7 +402,7 @@ export async function setActiveProject(context: vscode.ExtensionContext, wsConfi
 
   wsConfig.activeProject = selectedProject;
   await setWorkspaceState(context, wsConfig);
-  vscode.window.showInformationMessage(`Successfully Set ${selectedProject} as Active Project`);
+  void vscode.window.showInformationMessage(`Successfully Set ${selectedProject} as Active Project`);
   void setDtsContext(wsConfig);
 }
 
@@ -434,7 +434,7 @@ export async function setActiveBuild(context: vscode.ExtensionContext, wsConfig:
   wsConfig.projectStates[wsConfig.activeProject].activeBuildConfig = buildConfigs[selectedBuild].name;
   await setWorkspaceState(context, wsConfig);
   void setDtsContext(wsConfig);
-  vscode.window.showInformationMessage(`Successfully Set ${selectedBuild} as Active Build of ${wsConfig.activeProject}`);
+  void vscode.window.showInformationMessage(`Successfully Set ${selectedBuild} as Active Build of ${wsConfig.activeProject}`);
 }
 
 export async function setActiveTest(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, selectedTest?: string) {
@@ -457,7 +457,7 @@ export async function setActiveTest(context: vscode.ExtensionContext, wsConfig: 
   wsConfig.projectStates[wsConfig.activeProject].activeTwisterConfig = twisterConfigs[selectedTest].name;
   await setWorkspaceState(context, wsConfig);
   void setDtsContext(wsConfig);
-  vscode.window.showInformationMessage(`Successfully Set ${selectedTest} as Active Test of ${wsConfig.activeProject}`);
+  void vscode.window.showInformationMessage(`Successfully Set ${selectedTest} as Active Test of ${wsConfig.activeProject}`);
 }
 
 export async function removeProject(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName?: string) {
@@ -518,11 +518,11 @@ export async function addProject(wsConfig: WorkspaceConfig, context: vscode.Exte
       });
 
       if (!contents.includes("project(")) {
-        vscode.window.showInformationMessage(`Failed to Load Project ${projectPath}, Does your project folder have a correct CMake File?`);
+        void vscode.window.showInformationMessage(`Failed to Load Project ${projectPath}, Does your project folder have a correct CMake File?`);
         return;
       }
     } else {
-      vscode.window.showInformationMessage(`Failed to Load Project ${projectPath}, Does your project folder have a CMakeLists.txt File?`);
+      void vscode.window.showInformationMessage(`Failed to Load Project ${projectPath}, Does your project folder have a CMakeLists.txt File?`);
       return;
     }
   }
@@ -553,7 +553,7 @@ export async function addProject(wsConfig: WorkspaceConfig, context: vscode.Exte
   await setActiveProject(context, wsConfig, projectName);
   await setWorkspaceState(context, wsConfig);
 
-  vscode.window.showInformationMessage(`Successfully loaded Project ${projectPath}`);
+  void vscode.window.showInformationMessage(`Successfully loaded Project ${projectPath}`);
   return true;
 }
 
@@ -573,7 +573,7 @@ export async function addBuildToProject(wsConfig: WorkspaceConfig, context: vsco
       }
     }
 
-    vscode.window.showInformationMessage(`Creating Build Configuration: ${result.name}`);
+    void vscode.window.showInformationMessage(`Creating Build Configuration: ${result.name}`);
     wsConfig.projects[projectName].buildConfigs[result.name] = result;
     wsConfig.projectStates[projectName].buildStates[result.name] = { runnerStates: {}, viewOpen: true };
     await setActiveBuild(context, wsConfig, result.name);
@@ -657,7 +657,7 @@ export async function addTest(wsConfig: WorkspaceConfig, context: vscode.Extensi
       }
     }
 
-    vscode.window.showInformationMessage(`Creating Twister Configuration: ${result.name}`);
+    void vscode.window.showInformationMessage(`Creating Twister Configuration: ${result.name}`);
 
     //Remove the following upgrade code eventually
     if (wsConfig.projects[projectName].twisterConfigs === undefined) {
@@ -759,7 +759,7 @@ export async function setActiveRunner(context: vscode.ExtensionContext, wsConfig
 
   wsConfig.projectStates[wsConfig.activeProject].buildStates[activeBuildName].activeRunner = selectedRunner;
   await setWorkspaceState(context, wsConfig);
-  vscode.window.showInformationMessage(`Successfully Set ${selectedRunner} as Active Runner for ${activeBuildName} of ${wsConfig.activeProject}`);
+  void vscode.window.showInformationMessage(`Successfully Set ${selectedRunner} as Active Runner for ${activeBuildName} of ${wsConfig.activeProject}`);
 }
 
 export async function addRunnerToBuild(wsConfig: WorkspaceConfig, context: vscode.ExtensionContext, projectName: string, buildName: string) {
@@ -779,7 +779,7 @@ export async function addRunnerToBuild(wsConfig: WorkspaceConfig, context: vscod
         return;
       }
     }
-    vscode.window.showInformationMessage(`Creating Runner Configuration: ${result.name}`);
+    void vscode.window.showInformationMessage(`Creating Runner Configuration: ${result.name}`);
     build.runnerConfigs[result.name] = result;
     wsConfig.projectStates[projectName].buildStates[buildName].activeRunner = result.name;
     await setWorkspaceState(context, wsConfig);
