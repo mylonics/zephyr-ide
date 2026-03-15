@@ -36,7 +36,7 @@ export async function testHelper(context: vscode.ExtensionContext, wsConfig: Wor
   if (setupState.westUpdated) {
     const resolved = resolveActiveProject(wsConfig, { caller: "Twister Test", projectName });
     if (!resolved) { return; }
-    let project = resolved.project;
+    const project = resolved.project;
 
     if (testName === undefined) {
       testName = getResolvedTestName(wsConfig, resolved);
@@ -63,14 +63,14 @@ export async function runTest(
   testConfig: TwisterConfig
 ) {
 
-  let projectFolder = getProjectFolder(wsConfig, project);
+  const projectFolder = getProjectFolder(wsConfig, project);
 
   let cmd: string;
 
 
   let testString = `-T "${projectFolder}" `;
   if (testConfig.tests.length > 0 && testConfig.tests[0] !== "All") {
-    for (let test of testConfig.tests) {
+    for (const test of testConfig.tests) {
       testString += "-s " + test + " ";
     }
   }
@@ -86,10 +86,10 @@ export async function runTest(
   }
 
 
-  let taskName = "Zephyr IDE Test: " + project.name + " " + testConfig.name;
+  const taskName = "Zephyr IDE Test: " + project.name + " " + testConfig.name;
 
   outputInfo(`Twister: ${project.name}/${testConfig.name}`, `Running ${testConfig.name} Test from project: ${project.name} (cmd: ${cmd})`, true);
-  let ret = await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState.setupPath);
+  const ret = await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState.setupPath);
   return ret;
 }
 

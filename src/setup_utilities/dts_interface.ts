@@ -95,10 +95,10 @@ export async function setDtsContext(wsConfig: WorkspaceConfig, project?: Project
 
 export async function updateAllDtsContexts(wsConfig: WorkspaceConfig) {
   if (api) {
-    for (let projectName in wsConfig.projects) {
-      let project = wsConfig.projects[projectName];
-      for (let buildName in project.buildConfigs) {
-        let build = project.buildConfigs[buildName];
+    for (const projectName in wsConfig.projects) {
+      const project = wsConfig.projects[projectName];
+      for (const buildName in project.buildConfigs) {
+        const build = project.buildConfigs[buildName];
         await updateDtsContext(wsConfig, project, build);
       }
     }

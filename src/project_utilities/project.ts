@@ -403,7 +403,7 @@ export async function setActiveProject(context: vscode.ExtensionContext, wsConfi
   wsConfig.activeProject = selectedProject;
   await setWorkspaceState(context, wsConfig);
   vscode.window.showInformationMessage(`Successfully Set ${selectedProject} as Active Project`);
-  setDtsContext(wsConfig);
+  void setDtsContext(wsConfig);
 }
 
 export async function askUserForBuild(wsConfig: WorkspaceConfig, projectName: string) {
@@ -433,7 +433,7 @@ export async function setActiveBuild(context: vscode.ExtensionContext, wsConfig:
   const buildConfigs = wsConfig.projects[wsConfig.activeProject].buildConfigs;
   wsConfig.projectStates[wsConfig.activeProject].activeBuildConfig = buildConfigs[selectedBuild].name;
   await setWorkspaceState(context, wsConfig);
-  setDtsContext(wsConfig);
+  void setDtsContext(wsConfig);
   vscode.window.showInformationMessage(`Successfully Set ${selectedBuild} as Active Build of ${wsConfig.activeProject}`);
 }
 
@@ -456,7 +456,7 @@ export async function setActiveTest(context: vscode.ExtensionContext, wsConfig: 
   const twisterConfigs = wsConfig.projects[wsConfig.activeProject].twisterConfigs;
   wsConfig.projectStates[wsConfig.activeProject].activeTwisterConfig = twisterConfigs[selectedTest].name;
   await setWorkspaceState(context, wsConfig);
-  setDtsContext(wsConfig);
+  void setDtsContext(wsConfig);
   vscode.window.showInformationMessage(`Successfully Set ${selectedTest} as Active Test of ${wsConfig.activeProject}`);
 }
 
@@ -550,7 +550,7 @@ export async function addProject(wsConfig: WorkspaceConfig, context: vscode.Exte
     },
   };
   wsConfig.projectStates[projectName] = { buildStates: {}, viewOpen: true, twisterStates: {} };
-  setActiveProject(context, wsConfig, projectName);
+  await setActiveProject(context, wsConfig, projectName);
   await setWorkspaceState(context, wsConfig);
 
   vscode.window.showInformationMessage(`Successfully loaded Project ${projectPath}`);

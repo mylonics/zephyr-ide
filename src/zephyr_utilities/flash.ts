@@ -28,17 +28,17 @@ import { RunnerConfig } from "../project_utilities/runner_selector";
 import { getSetupStateOrNotify } from "../setup_utilities/workspace-config";
 
 export async function flashByName(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName: string, buildName: string, runnerName: string) {
-  let project = wsConfig.projects[projectName];
+  const project = wsConfig.projects[projectName];
   if (!project) {
     notifyError("Flash", `Project not found: "${projectName}"`);
     return;
   }
-  let buildConfig = project.buildConfigs[buildName];
+  const buildConfig = project.buildConfigs[buildName];
   if (!buildConfig) {
     notifyError("Flash", `Build configuration not found: "${buildName}" in project "${projectName}"`);
     return;
   }
-  let runnerConfig = buildConfig.runnerConfigs[runnerName];
+  const runnerConfig = buildConfig.runnerConfigs[runnerName];
   if (runnerConfig) {
     await flash(context, wsConfig, project, buildConfig, runnerConfig);
   } else {
@@ -62,7 +62,7 @@ export async function flash(context: vscode.ExtensionContext, wsConfig: Workspac
   }
   cmd += ` ${runner.args ?? ""}`;
 
-  let taskName = "Zephyr IDE Flash: " + project.name + " " + build.name;
+  const taskName = "Zephyr IDE Flash: " + project.name + " " + build.name;
 
   outputInfo(`Flash: ${project.name}/${build.name}`, `Flashing ${build.name} from project: ${project.name} (cmd: ${cmd})`, true);
   const setupState = await getSetupStateOrNotify(context, wsConfig, "Flash");

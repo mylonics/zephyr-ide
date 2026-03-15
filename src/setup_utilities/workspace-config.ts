@@ -32,7 +32,7 @@ function projectLoader(config: WorkspaceConfig, projects: any) {
     config.projectStates = {};
   }
 
-  for (let key in projects) {
+  for (const key in projects) {
     config.projects[key] = projects[key];
 
     //generate project States if they don't exist
@@ -43,7 +43,7 @@ function projectLoader(config: WorkspaceConfig, projects: any) {
       }
     }
 
-    for (let build_key in projects[key].buildConfigs) {
+    for (const build_key in projects[key].buildConfigs) {
       if (config.projectStates[key].buildStates[build_key] === undefined) {
         config.projectStates[key].buildStates[build_key] = { runnerStates: {} };
         if (config.projectStates[key].activeBuildConfig === undefined) {
@@ -56,7 +56,7 @@ function projectLoader(config: WorkspaceConfig, projects: any) {
         config.projects[key].buildConfigs[build_key].runnerConfigs = projects[key].buildConfigs[build_key].runners;
       }
 
-      for (let runner_key in projects[key].buildConfigs[build_key].runnerConfigs) {
+      for (const runner_key in projects[key].buildConfigs[build_key].runnerConfigs) {
         if (config.projectStates[key].buildStates[build_key].runnerStates[runner_key] === undefined) {
           config.projectStates[key].buildStates[build_key].runnerStates[runner_key] = {};
           if (config.projectStates[key].buildStates[build_key].activeRunner === undefined) {
@@ -73,11 +73,11 @@ export async function getVariable(config: WorkspaceConfig, variable_name: string
   try {
     const object = JSON.parse(fs.readFileSync(zephyrIdeSettingFilePath, 'utf8'));
     if (project_name) {
-      let projects = object.projects;
+      const projects = object.projects;
       if (build_name) {
-        return projects[project_name]["buildConfigs"][build_name]["vars"][variable_name];
+        return projects?.[project_name]?.buildConfigs?.[build_name]?.vars?.[variable_name] ?? "";
       }
-      return projects[project_name]["vars"][variable_name];
+      return projects?.[project_name]?.vars?.[variable_name] ?? "";
     }
     return object[variable_name];
   } catch (error) {

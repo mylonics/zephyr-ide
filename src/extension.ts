@@ -363,7 +363,7 @@ export async function activate(context: vscode.ExtensionContext) {
       if (wsConfig.activeProject) {
         const resolved = refreshStatusBar(true);
         if (resolved) {
-          setDtsContext(wsConfig, resolved.project, resolved.build);
+          void setDtsContext(wsConfig, resolved.project, resolved.build);
         }
       }
     })
@@ -443,8 +443,7 @@ export async function activate(context: vscode.ExtensionContext) {
         for (const key in wsConfig.projects) {
           if (filePath.includes(wsConfig.projects[key].rel_path)) {
             if (wsConfig.activeProject !== key) {
-              setActiveProject(context, wsConfig, key);
-              refreshStatusBar(true);
+              void setActiveProject(context, wsConfig, key).then(() => refreshStatusBar(true));
             }
             void vscode.commands.executeCommand("zephyr-ide.update-web-view");
           }
@@ -1104,7 +1103,7 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.reint-dts", async () => {
       const setupState = await getSetupState(context, wsConfig);
       if (setupState) {
-        initializeDtsExt(setupState, wsConfig);
+        await initializeDtsExt(setupState, wsConfig);
       } else {
         notifyError("DTS Init",
           "First Initialize Zephyr IDE Workspace Folder"
@@ -1115,7 +1114,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.set-workspace-settings", async () => {
-      setWorkspaceSettings(true);
+      await setWorkspaceSettings(true);
     }
     )
   );

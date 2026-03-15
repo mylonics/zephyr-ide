@@ -187,7 +187,7 @@ export async function getPythonVenvBinaryFolder(setupState: SetupState) {
 }
 
 export async function getRootPathFs(first = false) {
-  let rootPath = await getRootPath(first);
+  const rootPath = await getRootPath(first);
   if (rootPath && rootPath.fsPath) {
     return rootPath.fsPath;
   }
@@ -195,7 +195,7 @@ export async function getRootPathFs(first = false) {
 }
 
 export async function getRootPath(first = false) {
-  let rootPaths = vscode.workspace.workspaceFolders;
+  const rootPaths = vscode.workspace.workspaceFolders;
   if (rootPaths === undefined) {
     return;
   } else if (rootPaths.length > 1) {
@@ -209,7 +209,7 @@ export async function getRootPath(first = false) {
     };
     const roots: vscode.QuickPickItem[] = rootPaths.map(x => ({ label: x.name, description: x.uri.fsPath }));
 
-    let selectedRoot = await vscode.window.showQuickPick(roots, pickOptions);
+    const selectedRoot = await vscode.window.showQuickPick(roots, pickOptions);
     if (selectedRoot && selectedRoot.description) {
       return vscode.Uri.file(selectedRoot.description);
     }
@@ -219,7 +219,7 @@ export async function getRootPath(first = false) {
 }
 
 export async function getLaunchConfigurationByName(wsConfig: WorkspaceConfig, configName: string, folderName?: string) {
-  let configurations = await getLaunchConfigurations(wsConfig);
+  const configurations = await getLaunchConfigurations(wsConfig);
   if (!configurations) {
     return;
   }
@@ -270,7 +270,7 @@ export function getWorkspaceFolderForConfig(config: any): vscode.WorkspaceFolder
 }
 
 export async function selectLaunchConfiguration(wsConfig: WorkspaceConfig): Promise<{ name: string; workspaceFolder?: string } | undefined> {
-  let configurations = await getLaunchConfigurations(wsConfig);
+  const configurations = await getLaunchConfigurations(wsConfig);
   if (!configurations) {
     return;
   }
@@ -280,12 +280,12 @@ export async function selectLaunchConfiguration(wsConfig: WorkspaceConfig): Prom
     placeHolder: "Select Launch Configuration",
   };
   const isMultiRoot = (vscode.workspace.workspaceFolders?.length ?? 0) > 1;
-  let items: vscode.QuickPickItem[] = configurations.map(x => ({
+  const items: vscode.QuickPickItem[] = configurations.map(x => ({
     label: x.name,
     description: isMultiRoot ? x.workspaceFolder : undefined,
   }));
 
-  let selected = await vscode.window.showQuickPick(items, pickOptions);
+  const selected = await vscode.window.showQuickPick(items, pickOptions);
   if (!selected) {
     return undefined;
   }
@@ -334,7 +334,7 @@ export async function getLaunchConfigurations(wsConfig: WorkspaceConfig) {
 }
 
 
-export let output = vscode.window.createOutputChannel("Zephyr IDE");
+export const output = vscode.window.createOutputChannel("Zephyr IDE");
 
 // Initialize output channel for dual logging
 setOutputChannel(output);
@@ -394,15 +394,15 @@ export async function executeTaskHelperInPythonEnv(setupState: SetupState | unde
 
 export async function executeTaskHelper(taskName: string, cmd: string, cwd: string | undefined, env?: { [key: string]: string }) {
   outputCommand(taskName, cmd);
-  let options: vscode.ShellExecutionOptions = {
+  const options: vscode.ShellExecutionOptions = {
     cwd: cwd,
     ...(env && { env }),
   };
 
-  let exec = new vscode.ShellExecution(cmd, options);
+  const exec = new vscode.ShellExecution(cmd, options);
 
   // Task
-  let task = new vscode.Task(
+  const task = new vscode.Task(
     { type: "zephyr-ide:" + taskName, command: taskName },
     vscode.TaskScope.Workspace,
     taskName,
@@ -410,7 +410,7 @@ export async function executeTaskHelper(taskName: string, cmd: string, cwd: stri
     exec
   );
 
-  let res = await executeTask(task);
+  const res = await executeTask(task);
   return (res !== undefined && res === 0);
 }
 
@@ -494,7 +494,7 @@ export async function executeShellCommand(cmd: string, cwd: string, display_erro
     }
   }
 
-  let res = await exec(cmd, execOptions).then(
+  const res = await exec(cmd, execOptions).then(
 
     value => {
       return { stdout: value.stdout as string, stderr: value.stderr as string, cmd, cwd, env: effectiveEnv, exitCode: 0 };

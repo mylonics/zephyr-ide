@@ -154,7 +154,7 @@ export async function setSetupState(context: vscode.ExtensionContext, wsConfig: 
   wsConfig.activeSetupState = await loadExternalSetupState(context, globalConfig, ext_path);
 
   if (wsConfig.activeSetupState) {
-    initializeDtsExt(wsConfig.activeSetupState, wsConfig);
+    void initializeDtsExt(wsConfig.activeSetupState, wsConfig);
   }
 
   await setWorkspaceState(context, wsConfig);
