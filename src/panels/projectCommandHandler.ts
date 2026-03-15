@@ -22,6 +22,12 @@ import { flashByName } from '../zephyr_utilities/flash';
 import { WorkspaceConfig } from '../setup_utilities/types';
 import { outputError, outputWarning } from '../utilities/output';
 
+/** Shared action button for adding a file (used by ProjectTreeView and ProjectConfigView). */
+export const FILE_ADD_ACTION = [{ icon: "add", actionId: "addFile", tooltip: "Add File" }];
+
+/** Shared action button for deleting a file (used by ProjectTreeView and ProjectConfigView). */
+export const FILE_DELETE_ACTION = [{ icon: "trash", actionId: "deleteFile", tooltip: "Delete File" }];
+
 /** Simple mutex to prevent concurrent command execution against shared wsConfig. */
 let commandRunning = false;
 

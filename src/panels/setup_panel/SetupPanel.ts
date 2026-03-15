@@ -223,30 +223,30 @@ export class SetupPanel {
         switch (page) {
             case "hosttools":
                 subPageContent = HostToolsSubPage.getHtml(this.currentGlobalConfig);
-                // Send sub-page content first
+                // Send sub-page content first, then trigger async status check.
+                // checkStatus involves real async I/O and will always post its result
+                // after the webview has had time to render the sub-page HTML.
                 this._panel.webview.postMessage({
                     command: "showSubPage",
                     content: subPageContent,
                     page: page
                 });
-                // Then automatically check host tools status
-                setTimeout(() => this._hostToolsService.checkStatus(), 100);
+                void this._hostToolsService.checkStatus();
                 return;
             case "sdk":
                 subPageContent = SDKSubPage.getHtml(this.currentGlobalConfig, this.hasValidSetupState());
                 break;
             case "workspace":
                 subPageContent = WorkspaceSubPage.getHtml(this.currentWsConfig);
-                // Send sub-page content first
+                // Send sub-page content first, then load west.yml asynchronously.
+                // The async file read will always complete after the webview has rendered.
                 this._panel.webview.postMessage({
                     command: "showSubPage",
                     content: subPageContent,
                     page: page
                 });
-                // Then load west.yml content if workspace is initialized
-                // Small delay ensures webview has rendered before loading content
                 if (this.currentWsConfig.initialSetupComplete) {
-                    setTimeout(() => this.loadWestYmlContent(), 100);
+                    void this.loadWestYmlContent();
                 }
                 return;
             case "overview":

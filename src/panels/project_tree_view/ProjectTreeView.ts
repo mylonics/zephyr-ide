@@ -22,7 +22,7 @@ import { RunnerConfig } from '../../project_utilities/runner_selector';
 import { WorkspaceConfig } from '../../setup_utilities/types';
 import { TwisterConfig } from '../../project_utilities/twister_selector';
 import { generateWebviewHtml, initWebviewView } from '../webviewHelper';
-import { handleSharedProjectCommand } from '../projectCommandHandler';
+import { handleSharedProjectCommand, FILE_ADD_ACTION, FILE_DELETE_ACTION } from '../projectCommandHandler';
 import { testHelper } from '../../zephyr_utilities/twister';
 import { outputError } from '../../utilities/output';
 
@@ -107,16 +107,8 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
       tooltip: "Delete Test",
     },
   ];
-  fileActions = [{
-    icon: "add",
-    actionId: "addFile",
-    tooltip: "Add File",
-  }];
-  fileItemActions = [{
-    icon: "trash",
-    actionId: "deleteFile",
-    tooltip: "Delete File",
-  }];
+  fileActions = FILE_ADD_ACTION;
+  fileItemActions = FILE_DELETE_ACTION;
   runnerActions = [
     {
       icon: "arrow-circle-up",
