@@ -142,7 +142,6 @@ export async function westInit(context: vscode.ExtensionContext, wsConfig: Works
   const target = vscode.ConfigurationTarget.Workspace;
 
   await configuration.update('git.enabled', false, target, false);
-  await configuration.update('git.path', '', target, false);
   await configuration.update('git.autofetch', false, target, false);
   await configuration.update('git.autorefresh', false, target, false);
 
@@ -177,7 +176,6 @@ export async function westInit(context: vscode.ExtensionContext, wsConfig: Works
     }
   } finally {
     await configuration.update('git.enabled', undefined, target, false);
-    await configuration.update('git.path', undefined, target, false);
     await configuration.update('git.autofetch', undefined, target, false);
     await configuration.update('git.autorefresh', undefined, target, false);
   }
