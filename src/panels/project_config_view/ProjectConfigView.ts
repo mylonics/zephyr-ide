@@ -17,7 +17,7 @@ limitations under the License.
 
 import * as vscode from 'vscode';
 import path from 'upath';
-import { ProjectConfig, addConfigFiles, setActive, modifyBuildArguments, removeConfigFile, setActiveProject, getResolvedRunnerConfig, getResolvedTestConfig, resolveActiveProject, resolveActiveProjectBuild } from '../../project_utilities/project';
+import { ProjectConfig, addConfigFiles, setActive, modifyBuildArguments, removeConfigFile, getResolvedRunnerConfig, getResolvedTestConfig, resolveActiveProject, resolveActiveProjectBuild } from '../../project_utilities/project';
 import { BuildConfig } from '../../project_utilities/build_selector';
 import { RunnerConfig } from '../../project_utilities/runner_selector';
 import { ConfigFiles } from '../../project_utilities/config_selector';
@@ -27,6 +27,7 @@ import { TwisterConfig } from '../../project_utilities/twister_selector';
 import { getSetupState } from '../../setup_utilities/workspace-config';
 import { generateWebviewHtml, initWebviewView } from '../webviewHelper';
 import { handleSharedProjectCommand } from '../projectCommandHandler';
+import { outputInfo } from '../../utilities/output';
 
 export class ProjectConfigState {
   projectOpenState: boolean = true;
@@ -69,72 +70,62 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
     await this.context.workspaceState.update("zephyr-ide.project-config-view-state", this.projectConfigState);
   }
 
-  generateOverlayFileEntry(entry: any, projectName: string, buildName: string | undefined, confFiles: ConfigFiles, open: boolean | undefined) {
+  /** Shared helper to generate file entry sub-items for config or overlay files. */
+  private generateFileEntries(
+    entry: any,
+    projectName: string,
+    buildName: string | undefined,
+    files: string[],
+    extraFiles: string[],
+    cmd: string,
+    label: string,
+    extraLabel: string,
+    open: boolean | undefined
+  ) {
     entry.subItems = [];
     entry.open = open === undefined ? true : open;
-    for (let index = 0; index < confFiles.overlay.length; index++) {
+    const fileIcon = { branch: 'file', leaf: 'file', open: 'file' };
+    for (const filename of files) {
       entry.subItems.push({
-        icons: {
-          branch: 'file',
-          leaf: 'file',
-          open: 'file',
-        }, label: 'dtc',
-        value: { project: projectName, build: buildName, cmd: "removeOverlayFile", isExtra: false, filename: confFiles.overlay[index] },
+        icons: fileIcon, label,
+        value: { project: projectName, build: buildName, cmd, isExtra: false, filename },
         actions: this.fileItemActions,
-        description: confFiles.overlay[index]
+        description: filename
       });
     }
-    for (let index = 0; index < confFiles.extraOverlay.length; index++) {
+    for (const filename of extraFiles) {
       entry.subItems.push({
-        icons: {
-          branch: 'file',
-          leaf: 'file',
-          open: 'file',
-        }, label: 'Extra dtc',
-        value: { project: projectName, build: buildName, cmd: "removeOverlayFile", isExtra: true, filename: confFiles.extraOverlay[index] },
+        icons: fileIcon, label: extraLabel,
+        value: { project: projectName, build: buildName, cmd, isExtra: true, filename },
         actions: this.fileItemActions,
-        description: confFiles.extraOverlay[index]
+        description: filename
       });
-    }
-    return { entry };
-  }
-
-  generateConfigFileEntry(entry: any, projectName: string, buildName: string | undefined, confFiles: ConfigFiles, open: boolean | undefined) {
-    entry.subItems = [];
-    entry.open = open === undefined ? true : open;
-    if (confFiles !== undefined) {
-
-      for (let index = 0; index < confFiles.config.length; index++) {
-        entry.subItems.push({
-          icons: {
-            branch: 'file',
-            leaf: 'file',
-            open: 'file',
-          }, label: 'Conf',
-          value: { project: projectName, build: buildName, cmd: "removeKConfigFile", isExtra: false, filename: confFiles.config[index] },
-          actions: this.fileItemActions,
-          description: confFiles.config[index]
-        });
-      }
-      for (let index = 0; index < confFiles.extraConfig.length; index++) {
-        entry.subItems.push({
-          icons: {
-            branch: 'file',
-            leaf: 'file',
-            open: 'file',
-          }, label: 'Extra Conf',
-          value: { project: projectName, build: buildName, cmd: "removeKConfigFile", isExtra: true, filename: confFiles.extraConfig[index] },
-          actions: this.fileItemActions,
-          description: confFiles.extraConfig[index]
-        });
-      }
-
     }
     return entry;
   }
 
+  generateOverlayFileEntry(entry: any, projectName: string, buildName: string | undefined, confFiles: ConfigFiles, open: boolean | undefined) {
+    if (confFiles === undefined) {
+      entry.subItems = [];
+      entry.open = open === undefined ? true : open;
+      return entry;
+    }
+    return this.generateFileEntries(entry, projectName, buildName,
+      confFiles.overlay, confFiles.extraOverlay, "removeOverlayFile", "dtc", "Extra dtc", open);
+  }
+
+  generateConfigFileEntry(entry: any, projectName: string, buildName: string | undefined, confFiles: ConfigFiles, open: boolean | undefined) {
+    if (confFiles === undefined) {
+      entry.subItems = [];
+      entry.open = open === undefined ? true : open;
+      return entry;
+    }
+    return this.generateFileEntries(entry, projectName, buildName,
+      confFiles.config, confFiles.extraConfig, "removeKConfigFile", "Conf", "Extra Conf", open);
+  }
+
   generateRunnerString(projectName: string, buildName: string, runner: RunnerConfig, open: boolean | undefined): any {
-    let entry = {
+    const entry = {
       icons: {
         branch: 'chip',
         leaf: 'chip',
@@ -166,7 +157,7 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
 
 
   generateTwisterString(projectName: string, test: TwisterConfig, open: boolean | undefined): any {
-    let entry = {
+    const entry = {
       icons: {
         branch: 'beaker',
         leaf: 'beaker',
@@ -188,7 +179,7 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
             branch: 'file-code',
             leaf: 'file-code',
             open: 'file-code',
-          }, label: 'Tests', description: test.tests
+          }, label: 'Tests', description: test.tests.join(', ')
         },
         {
           icons: {
@@ -377,7 +368,7 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
 
   updateWebView(wsConfig: WorkspaceConfig) {
     if (Object.keys(wsConfig.projects).length === 0) {
-      let bodyString = '<vscode-label side-aligned="end">No Projects Registered In Workspace</vscode-label>';
+      const bodyString = '<vscode-label side-aligned="end">No Projects Registered In Workspace</vscode-label>';
       this.setHtml(bodyString);
       this.needToClearHtml = true;
       return;
@@ -386,7 +377,7 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
     }
 
     if (wsConfig.activeProject === undefined) {
-      setActiveProject(this.context, wsConfig, Object.keys(wsConfig.projects)[0]);
+      wsConfig.activeProject = Object.keys(wsConfig.projects)[0];
     }
     let activeProject;
     let activeBuild;
@@ -497,7 +488,11 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
     // Handle view-specific commands
     switch (message.command) {
       case "openBoardDtc": {
-        let build = this.wsConfig.projects[message.value.project].buildConfigs[message.value.build];
+        const project = this.wsConfig.projects[message.value.project];
+        if (!project || !project.buildConfigs[message.value.build]) {
+          return;
+        }
+        const build = project.buildConfigs[message.value.build];
 
 
         let boardPath: string | undefined = undefined;
@@ -517,63 +512,63 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
         }
 
         if (boardPath) {
-          let filePath = vscode.Uri.file(path.join(boardPath, build.board + ".dts"));
+          const filePath = vscode.Uri.file(path.join(boardPath, build.board + ".dts"));
 
           vscode.workspace.openTextDocument(filePath).then(
             document => vscode.window.showTextDocument(document),
-            () => { /* file may not exist for this board */ }
+            () => { outputInfo("Project Config", `Board DTS file not found: ${filePath.fsPath}`); }
           );
-          setActive(this.wsConfig, message.value.project, message.value.build, message.value.runner);
+          setActive(this.context, this.wsConfig, message.value.project, message.value.build, message.value.runner);
         }
         break;
       }
       case "openMain": {
-        let project = this.wsConfig.projects[message.value.project];
-        let mainCPath = vscode.Uri.file(path.join(this.wsConfig.rootPath, project.rel_path, "src", "main.c"));
+        const project = this.wsConfig.projects[message.value.project];
+        const mainCPath = vscode.Uri.file(path.join(this.wsConfig.rootPath, project.rel_path, "src", "main.c"));
 
         vscode.workspace.openTextDocument(mainCPath).then(
           document => vscode.window.showTextDocument(document),
           () => {
-            let mainCppPath = vscode.Uri.file(path.join(this.wsConfig.rootPath, project.rel_path, "src", "main.cpp"));
+            const mainCppPath = vscode.Uri.file(path.join(this.wsConfig.rootPath, project.rel_path, "src", "main.cpp"));
             vscode.workspace.openTextDocument(mainCppPath).then(
               document => vscode.window.showTextDocument(document),
-              () => { /* neither main.c nor main.cpp found */ }
+              () => { outputInfo("Project Config", `Neither main.c nor main.cpp found in ${project.rel_path}/src`); }
             );
           }
         );
 
-        setActive(this.wsConfig, message.value.project, message.value.build, message.value.runner);
+        setActive(this.context, this.wsConfig, message.value.project, message.value.build, message.value.runner);
         break;
       }
       case "openCmakeFile": {
-        let project = this.wsConfig.projects[message.value.project];
-        let filePath = vscode.Uri.file(path.join(this.wsConfig.rootPath, project.rel_path, "CMakeLists.txt"));
+        const project = this.wsConfig.projects[message.value.project];
+        const filePath = vscode.Uri.file(path.join(this.wsConfig.rootPath, project.rel_path, "CMakeLists.txt"));
 
         vscode.workspace.openTextDocument(filePath).then(
           document => vscode.window.showTextDocument(document),
-          () => { /* CMakeLists.txt not found */ }
+          () => { outputInfo("Project Config", `CMakeLists.txt not found in ${project.rel_path}`); }
         );
-        setActive(this.wsConfig, message.value.project, message.value.build, message.value.runner);
+        setActive(this.context, this.wsConfig, message.value.project, message.value.build, message.value.runner);
         break;
       }
       case "modifyBuildArgs": {
-        modifyBuildArguments(this.context, this.wsConfig, message.value.project, message.value.build).finally(() => { vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
-        setActive(this.wsConfig, message.value.project, message.value.build, message.value.runner);
+        void modifyBuildArguments(this.context, this.wsConfig, message.value.project, message.value.build).finally(() => { void vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
+        setActive(this.context, this.wsConfig, message.value.project, message.value.build, message.value.runner);
         break;
       }
       case "modifyTestArgs": {
-        vscode.commands.executeCommand("zephyr-ide.reconfigure-active-test");
-        setActive(this.wsConfig, message.value.project, message.value.build, message.value.runner);
+        void vscode.commands.executeCommand("zephyr-ide.reconfigure-active-test");
+        setActive(this.context, this.wsConfig, message.value.project, message.value.build, message.value.runner);
         break;
       }
       case "addFile": {
         switch (message.value.cmd) {
           case "addOverlayFile": {
-            addConfigFiles(this.context, this.wsConfig, false, !message.value.build, message.value.project, message.value.build).finally(() => { vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
+            void addConfigFiles(this.context, this.wsConfig, false, !message.value.build, message.value.project, message.value.build).finally(() => { void vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
             break;
           }
           case "addKConfigFile": {
-            addConfigFiles(this.context, this.wsConfig, true, !message.value.build, message.value.project, message.value.build).finally(() => { vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
+            void addConfigFiles(this.context, this.wsConfig, true, !message.value.build, message.value.project, message.value.build).finally(() => { void vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
             break;
           }
         }
@@ -582,11 +577,11 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
       case "deleteFile": {
         switch (message.value.cmd) {
           case "removeOverlayFile": {
-            removeConfigFile(this.context, this.wsConfig, false, !message.value.build, message.value.project, !message.value.isExtra, [message.value.filename], message.value.build).finally(() => { vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
+            void removeConfigFile(this.context, this.wsConfig, false, !message.value.build, message.value.project, !message.value.isExtra, [message.value.filename], message.value.build).finally(() => { void vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
             break;
           }
           case "removeKConfigFile": {
-            removeConfigFile(this.context, this.wsConfig, true, !message.value.build, message.value.project, !message.value.isExtra, [message.value.filename], message.value.build).finally(() => { vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
+            void removeConfigFile(this.context, this.wsConfig, true, !message.value.build, message.value.project, !message.value.isExtra, [message.value.filename], message.value.build).finally(() => { void vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
             break;
           }
         }

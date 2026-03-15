@@ -93,13 +93,20 @@ export function initWebviewView(
 
   provider.view = webviewView;
 
-  webviewView.onDidChangeVisibility(() => {
+  // Track disposables so listeners are cleaned up when the view is disposed
+  const visibilityDisposable = webviewView.onDidChangeVisibility(() => {
     if (webviewView.visible) {
       onVisibilityChange();
     }
   });
 
-  webviewView.webview.onDidReceiveMessage(onMessage);
+  const messageDisposable = webviewView.webview.onDidReceiveMessage(onMessage);
+
+  webviewView.onDidDispose(() => {
+    visibilityDisposable.dispose();
+    messageDisposable.dispose();
+    provider.view = undefined;
+  });
 
   initialRender();
 }

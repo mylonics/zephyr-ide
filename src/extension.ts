@@ -32,12 +32,11 @@ import {
   getLaunchConfigurations,
   getWorkspaceFolderForConfig,
   output,
-  outputLine,
   executeShellCommand,
   executeShellCommandInPythonEnv,
   reloadEnvironmentVariables,
 } from "./utilities/utils";
-import { notifyError, outputInfo, outputError, outputCommandFailure, getDebugOutput, clearDebugOutput } from "./utilities/output";
+import { notifyError, outputInfo, outputError, outputLine, outputCommandFailure, getDebugOutput, clearDebugOutput } from "./utilities/output";
 import * as project from "./project_utilities/project";
 import {
   buildHelper,
@@ -126,6 +125,67 @@ async function markWorkspaceSetupComplete(
   if (SetupPanel.currentPanel) {
     SetupPanel.currentPanel.updateContent(wsConfig, globalConfig);
   }
+}
+
+/** Register a webview view provider with retained context. */
+function registerWebviewView(
+  context: vscode.ExtensionContext,
+  viewId: string,
+  provider: vscode.WebviewViewProvider
+) {
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(viewId, provider,
+      { webviewOptions: { retainContextWhenHidden: true } })
+  );
+}
+
+/** Register a command that fires update-web-view after its action completes. */
+function registerCommandWithRefresh(
+  context: vscode.ExtensionContext,
+  commandId: string,
+  action: () => Promise<any>
+) {
+  context.subscriptions.push(
+    vscode.commands.registerCommand(commandId, async () => {
+      const result = await action();
+      void vscode.commands.executeCommand("zephyr-ide.update-web-view");
+      return result;
+    })
+  );
+}
+
+/** Create a left-aligned status bar item, register it, and show it. */
+function createStatusBarButton(
+  context: vscode.ExtensionContext,
+  command: string,
+  text: string,
+  tooltip: string
+): vscode.StatusBarItem {
+  const item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+  item.command = command;
+  item.text = text;
+  item.tooltip = tooltip;
+  item.show();
+  context.subscriptions.push(item);
+  return item;
+}
+
+/** Register a workspace-setup command that calls markWorkspaceSetupComplete on success. */
+function registerWorkspaceSetupCommand(
+  context: vscode.ExtensionContext,
+  commandId: string,
+  setupFn: (ctx: vscode.ExtensionContext, ws: WorkspaceConfig, gc: GlobalConfig, ...extra: any[]) => Promise<any>,
+  ...extraArgs: any[]
+) {
+  context.subscriptions.push(
+    vscode.commands.registerCommand(commandId, async () => {
+      const success = await setupFn(context, wsConfig, globalConfig, ...extraArgs);
+      if (success) {
+        await markWorkspaceSetupComplete(context, wsConfig, globalConfig);
+      }
+      return success;
+    })
+  );
 }
 
 /**
@@ -253,56 +313,57 @@ export async function activate(context: vscode.ExtensionContext) {
 
   reloadEnvironmentVariables(context, wsConfig.activeSetupState);
 
-  let activeProjectView = new ActiveProjectView(
+  const activeProjectView = new ActiveProjectView(
     context.extensionPath,
     context,
     wsConfig
   );
-  let projectTreeView = new ProjectTreeView(
+  const projectTreeView = new ProjectTreeView(
     context.extensionPath,
     context,
     wsConfig
   );
-  let projectConfigView = new ProjectConfigView(
+  const projectConfigView = new ProjectConfigView(
     context.extensionPath,
     context,
     wsConfig
   );
-  let extensionSetupView = new ExtensionSetupView(
+  const extensionSetupView = new ExtensionSetupView(
     context.extensionPath,
     context,
     wsConfig,
     globalConfig
   );
-  let westWorkspaceView = new WestWorkspaceView(
+  const westWorkspaceView = new WestWorkspaceView(
     context.extensionPath,
     context,
     wsConfig,
     globalConfig
   );
+
+  /** Update status bar buttons to reflect the currently active project/build/runner. */
+  function refreshStatusBar(updateProject = false) {
+    if (updateProject && wsConfig.activeProject) {
+      activeProjectDisplay.text = `$(folder) ${wsConfig.activeProject}`;
+    }
+    const resolved = resolveActiveProjectBuild(wsConfig);
+    if (resolved) {
+      activeBuildDisplay.text = `$(project) ${resolved.buildName}`;
+      const activeRunner = getResolvedRunnerName(wsConfig, resolved);
+      activeRunnerDisplay.text = activeRunner ? `$(chip) ${activeRunner}` : ``;
+    } else {
+      activeBuildDisplay.text = ``;
+      activeRunnerDisplay.text = ``;
+    }
+    return resolved;
+  }
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.update-status", () => {
       if (wsConfig.activeProject) {
-        activeProjectDisplay.text = `$(folder) ${wsConfig.activeProject}`;
-        const resolved = resolveActiveProjectBuild(wsConfig);
-
+        const resolved = refreshStatusBar(true);
         if (resolved) {
-          setDtsContext(
-            wsConfig,
-            resolved.project,
-            resolved.build
-          );
-          activeBuildDisplay.text = `$(project) ${resolved.build.name}`;
-          let activeRunner = getResolvedRunnerName(wsConfig, resolved);
-          if (activeRunner) {
-            activeRunnerDisplay.text = `$(chip) ${activeRunner}`;
-          } else {
-            activeRunnerDisplay.text = ``;
-          }
-        } else {
-          activeBuildDisplay.text = ``;
-          activeRunnerDisplay.text = ``;
+          void setDtsContext(wsConfig, resolved.project, resolved.build);
         }
       }
     })
@@ -346,159 +407,45 @@ export async function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider(
-      "zephyrIdeActiveProject",
-      activeProjectView,
-      { webviewOptions: { retainContextWhenHidden: true } }
-    )
-  );
+  registerWebviewView(context, "zephyrIdeActiveProject", activeProjectView);
+  registerWebviewView(context, "zephyrIdeProjects", projectTreeView);
+  registerWebviewView(context, "zephyrIdeProjectStatus", projectConfigView);
+  registerWebviewView(context, "zephyrIdeExtensionSetup", extensionSetupView);
+  registerWebviewView(context, "zephyrIdeWestWorkspaces", westWorkspaceView);
 
-  context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider(
-      "zephyrIdeProjects",
-      projectTreeView,
-      { webviewOptions: { retainContextWhenHidden: true } }
-    )
-  );
+  registerCommandWithRefresh(context, "zephyr-ide.set-active-runner",
+    () => project.setActiveRunner(context, wsConfig));
 
-  context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider(
-      "zephyrIdeProjectStatus",
-      projectConfigView,
-      { webviewOptions: { retainContextWhenHidden: true } }
-    )
-  );
+  activeProjectDisplay = createStatusBarButton(context,
+    "zephyr-ide.set-active-project", `$(folder) ${wsConfig.activeProject}`, "Zephyr IDE Active Project");
 
-  context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider(
-      "zephyrIdeExtensionSetup",
-      extensionSetupView,
-      { webviewOptions: { retainContextWhenHidden: true } }
-    )
-  );
-
-  context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider(
-      "zephyrIdeWestWorkspaces",
-      westWorkspaceView,
-      { webviewOptions: { retainContextWhenHidden: true } }
-    )
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "zephyr-ide.set-active-runner",
-      async () => {
-        await project.setActiveRunner(context, wsConfig);
-        vscode.commands.executeCommand("zephyr-ide.update-web-view");
-      }
-    )
-  );
-
-  activeProjectDisplay = vscode.window.createStatusBarItem(
-    vscode.StatusBarAlignment.Left,
-    100
-  );
-  activeProjectDisplay.command = "zephyr-ide.set-active-project";
-  activeProjectDisplay.text = `$(folder) ${wsConfig.activeProject}`;
-  activeProjectDisplay.tooltip = "Zephyr IDE Active Project";
-  activeProjectDisplay.show();
-  context.subscriptions.push(activeProjectDisplay);
-
-  activeBuildDisplay = vscode.window.createStatusBarItem(
-    vscode.StatusBarAlignment.Left,
-    100
-  );
-  activeBuildDisplay.command = "zephyr-ide.set-active-build";
+  activeBuildDisplay = createStatusBarButton(context,
+    "zephyr-ide.set-active-build", ``, "Zephyr IDE Active Build");
+  activeRunnerDisplay = createStatusBarButton(context,
+    "zephyr-ide.set-active-runner", ``, "Zephyr IDE Active Runner");
   {
-    const resolved = resolveActiveProjectBuild(wsConfig);
-    if (resolved) {
-      activeBuildDisplay.text = `$(project) ${resolved.buildName}`;
-    }
+    refreshStatusBar();
   }
-  activeBuildDisplay.tooltip = "Zephyr IDE Active Build";
-  activeBuildDisplay.show();
-  context.subscriptions.push(activeBuildDisplay);
 
-  activeRunnerDisplay = vscode.window.createStatusBarItem(
-    vscode.StatusBarAlignment.Left,
-    100
-  );
-  activeRunnerDisplay.command = "zephyr-ide.set-active-runner";
-
-  {
-    const resolved = resolveActiveProjectBuild(wsConfig);
-    if (resolved) {
-      let activeRunner = getResolvedRunnerName(wsConfig, resolved);
-      if (activeRunner) {
-        activeRunnerDisplay.text = `$(chip) ${activeRunner}`;
-      }
-    }
-  }
-  activeRunnerDisplay.tooltip = "Zephyr IDE Active Runner";
-  activeRunnerDisplay.show();
-  context.subscriptions.push(activeRunnerDisplay);
-
-  let activeBuildPristineButton = vscode.window.createStatusBarItem(
-    vscode.StatusBarAlignment.Left,
-    100
-  );
-  activeBuildPristineButton.command = "zephyr-ide.build-pristine";
-  activeBuildPristineButton.text = `$(debug-rerun)`;
-  activeBuildPristineButton.tooltip = "Zephyr IDE Build Pristine";
-  activeBuildPristineButton.show();
-  context.subscriptions.push(activeBuildPristineButton);
-
-  let activeBuildButton = vscode.window.createStatusBarItem(
-    vscode.StatusBarAlignment.Left,
-    100
-  );
-  activeBuildButton.command = "zephyr-ide.build";
-  activeBuildButton.text = `$(play)`;
-  activeBuildButton.tooltip = "Zephyr IDE Build";
-  activeBuildButton.show();
-  context.subscriptions.push(activeBuildButton);
-
-  let activeFlashButton = vscode.window.createStatusBarItem(
-    vscode.StatusBarAlignment.Left,
-    100
-  );
-  activeFlashButton.command = "zephyr-ide.flash";
-  activeFlashButton.text = `$(arrow-circle-up)`;
-  activeFlashButton.tooltip = "Zephyr IDE Flash";
-  activeFlashButton.show();
-  context.subscriptions.push(activeFlashButton);
-
-  let activeDebugButton = vscode.window.createStatusBarItem(
-    vscode.StatusBarAlignment.Left,
-    100
-  );
-  activeDebugButton.command = "zephyr-ide.debug";
-  activeDebugButton.text = `$(debug-alt)`;
-  activeDebugButton.tooltip = "Zephyr IDE Debug";
-  activeDebugButton.show();
-  context.subscriptions.push(activeDebugButton);
+  createStatusBarButton(context, "zephyr-ide.build-pristine", `$(debug-rerun)`, "Zephyr IDE Build Pristine");
+  createStatusBarButton(context, "zephyr-ide.build", `$(play)`, "Zephyr IDE Build");
+  createStatusBarButton(context, "zephyr-ide.flash", `$(arrow-circle-up)`, "Zephyr IDE Flash");
+  createStatusBarButton(context, "zephyr-ide.debug", `$(debug-alt)`, "Zephyr IDE Debug");
 
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor((handleChange) => {
-      if (wsConfig.automaticProjectSelction && handleChange) {
-        let filePath = path.relative(
+      if (wsConfig.automaticProjectSelection && handleChange) {
+        const filePath = path.relative(
           wsConfig.rootPath,
           handleChange.document.uri.fsPath
         );
 
-        for (let key in wsConfig.projects) {
+        for (const key in wsConfig.projects) {
           if (filePath.includes(wsConfig.projects[key].rel_path)) {
             if (wsConfig.activeProject !== key) {
-              setActiveProject(context, wsConfig, key);
-              activeProjectDisplay.text = `$(folder) ${key}`;
-              const resolved = resolveActiveProjectBuild(wsConfig);
-              activeBuildDisplay.text = resolved ? `$(project) ${resolved.buildName}` : ``;
-              let activeRunner = resolved ? getResolvedRunnerName(wsConfig, resolved) : undefined;
-              activeRunnerDisplay.text = activeRunner ? `$(chip) ${activeRunner}` : ``;
+              void setActiveProject(context, wsConfig, key).then(() => refreshStatusBar(true));
             }
-            vscode.commands.executeCommand("zephyr-ide.update-web-view");
+            void vscode.commands.executeCommand("zephyr-ide.update-web-view");
           }
         }
       }
@@ -510,10 +457,10 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "zephyr-ide.check-build-dependencies",
       async () => {
-        let res = await checkIfToolsAvailable(context, wsConfig, globalConfig);
+        const res = await checkIfToolsAvailable(context, wsConfig, globalConfig);
 
         if (res) {
-          vscode.commands.executeCommand(
+          void vscode.commands.executeCommand(
             "setContext",
             "buildDependenciesAvailable",
             true
@@ -584,7 +531,7 @@ export async function activate(context: vscode.ExtensionContext) {
       wsConfig.projects = {};
       wsConfig.activeProject = undefined;
       await setWorkspaceState(context, wsConfig);
-      vscode.commands.executeCommand("zephyr-ide.update-web-view");
+      void vscode.commands.executeCommand("zephyr-ide.update-web-view");
       extensionSetupView.updateWebView(wsConfig, globalConfig);
     })
   );
@@ -594,7 +541,7 @@ export async function activate(context: vscode.ExtensionContext) {
       "zephyr-ide.load-projects-from-file",
       async () => {
         await loadProjectsFromFile(wsConfig);
-        vscode.commands.executeCommand("zephyr-ide.update-web-view");
+        void vscode.commands.executeCommand("zephyr-ide.update-web-view");
         extensionSetupView.updateWebView(wsConfig, globalConfig);
       }
     )
@@ -613,7 +560,7 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "zephyr-ide.disable-automatic-project-target",
       async () => {
-        wsConfig.automaticProjectSelction = false;
+        wsConfig.automaticProjectSelection = false;
         await setWorkspaceState(context, wsConfig);
       }
     )
@@ -623,7 +570,7 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "zephyr-ide.enable-automatic-project-target",
       async () => {
-        wsConfig.automaticProjectSelction = true;
+        wsConfig.automaticProjectSelection = true;
         await setWorkspaceState(context, wsConfig);
       }
     )
@@ -632,11 +579,11 @@ export async function activate(context: vscode.ExtensionContext) {
   // Project Setup Commands
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.create-project", async () => {
-      let projectPath = await project.createNewProjectFromSample(context, wsConfig);
+      const projectPath = await project.createNewProjectFromSample(context, wsConfig);
       if (projectPath !== undefined) {
-        let result = await project.addProject(wsConfig, context, projectPath);
+        const result = await project.addProject(wsConfig, context, projectPath);
         extensionSetupView.updateWebView(wsConfig, globalConfig);
-        vscode.commands.executeCommand("zephyr-ide.update-web-view");
+        void vscode.commands.executeCommand("zephyr-ide.update-web-view");
         return result;
       }
     })
@@ -644,9 +591,9 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.add-project", async () => {
-      let result = await project.addProject(wsConfig, context, undefined);
+      const result = await project.addProject(wsConfig, context, undefined);
       extensionSetupView.updateWebView(wsConfig, globalConfig);
-      vscode.commands.executeCommand("zephyr-ide.update-web-view");
+      void vscode.commands.executeCommand("zephyr-ide.update-web-view");
       return result;
     })
   );
@@ -654,66 +601,35 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.remove-project", async () => {
       await project.removeProject(context, wsConfig);
-      vscode.commands.executeCommand("zephyr-ide.update-web-view");
+      void vscode.commands.executeCommand("zephyr-ide.update-web-view");
     })
   );
 
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "zephyr-ide.add-project-config-files",
-      async () => {
-        await project.addConfigFiles(context, wsConfig, true, true);
-        vscode.commands.executeCommand("zephyr-ide.update-web-view");
-      }
-    )
-  );
+  // Config/overlay file commands (data-driven to eliminate duplication)
+  const configFileCommands: Array<{cmd: string; fn: typeof project.addConfigFiles; isConfig: boolean; isProject: boolean}> = [
+    { cmd: "add-project-config-files",    fn: project.addConfigFiles,    isConfig: true,  isProject: true },
+    { cmd: "remove-project-config-files", fn: project.removeConfigFiles, isConfig: true,  isProject: true },
+    { cmd: "add-project-overlay-files",   fn: project.addConfigFiles,    isConfig: false, isProject: true },
+    { cmd: "remove-project-overlay-files",fn: project.removeConfigFiles, isConfig: false, isProject: true },
+    { cmd: "add-build-config-files",      fn: project.addConfigFiles,    isConfig: true,  isProject: false },
+    { cmd: "remove-build-config-files",   fn: project.removeConfigFiles, isConfig: true,  isProject: false },
+    { cmd: "add-build-overlay-files",     fn: project.addConfigFiles,    isConfig: false, isProject: false },
+    { cmd: "remove-build-overlay-files",  fn: project.removeConfigFiles, isConfig: false, isProject: false },
+  ];
+  for (const { cmd, fn, isConfig, isProject } of configFileCommands) {
+    registerCommandWithRefresh(context, `zephyr-ide.${cmd}`,
+      () => fn(context, wsConfig, isConfig, isProject));
+  }
 
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "zephyr-ide.remove-project-config-files",
-      async () => {
-        await project.removeConfigFiles(context, wsConfig, true, true);
-        vscode.commands.executeCommand("zephyr-ide.update-web-view");
-      }
-    )
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "zephyr-ide.add-project-overlay-files",
-      async () => {
-        await project.addConfigFiles(context, wsConfig, false, true);
-        vscode.commands.executeCommand("zephyr-ide.update-web-view");
-      }
-    )
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "zephyr-ide.remove-project-overlay-files",
-      async () => {
-        await project.removeConfigFiles(context, wsConfig, false, true);
-        vscode.commands.executeCommand("zephyr-ide.update-web-view");
-      }
-    )
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "zephyr-ide.set-active-project",
-      async () => {
-        await project.setActiveProject(context, wsConfig);
-        vscode.commands.executeCommand("zephyr-ide.update-web-view");
-      }
-    )
-  );
+  registerCommandWithRefresh(context, "zephyr-ide.set-active-project",
+    () => project.setActiveProject(context, wsConfig));
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.add-build", async () => {
       const setupState = await getSetupState(context, wsConfig);
       if (setupState && setupState.westUpdated) {
-        let result = await project.addBuild(wsConfig, context);
-        vscode.commands.executeCommand("zephyr-ide.update-web-view");
+        const result = await project.addBuild(wsConfig, context);
+        void vscode.commands.executeCommand("zephyr-ide.update-web-view");
         return result;
       } else {
         notifyError("Build Config", "Run `Zephyr IDE: West Update` first.");
@@ -722,38 +638,26 @@ export async function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  context.subscriptions.push(
-    vscode.commands.registerCommand("zephyr-ide.remove-build", async () => {
-      await project.removeBuild(context, wsConfig);
-      vscode.commands.executeCommand("zephyr-ide.update-web-view");
-    })
-  );
+  registerCommandWithRefresh(context, "zephyr-ide.remove-build",
+    () => project.removeBuild(context, wsConfig));
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.add-test", async () => {
       const setupState = await getSetupState(context, wsConfig);
       if (setupState && setupState.westUpdated) {
         await project.addTest(wsConfig, context);
-        vscode.commands.executeCommand("zephyr-ide.update-web-view");
+        void vscode.commands.executeCommand("zephyr-ide.update-web-view");
       } else {
         notifyError("Test Config", "Run `Zephyr IDE: West Update` first.");
       }
     })
   );
 
-  context.subscriptions.push(
-    vscode.commands.registerCommand("zephyr-ide.remove-test", async () => {
-      await project.removeTest(context, wsConfig);
-      vscode.commands.executeCommand("zephyr-ide.update-web-view");
-    })
-  );
+  registerCommandWithRefresh(context, "zephyr-ide.remove-test",
+    () => project.removeTest(context, wsConfig));
 
-  context.subscriptions.push(
-    vscode.commands.registerCommand("zephyr-ide.set-active-test", async () => {
-      await project.setActiveTest(context, wsConfig);
-      vscode.commands.executeCommand("zephyr-ide.update-web-view");
-    })
-  );
+  registerCommandWithRefresh(context, "zephyr-ide.set-active-test",
+    () => project.setActiveTest(context, wsConfig));
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.run-test", async () => {
@@ -770,121 +674,43 @@ export async function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "zephyr-ide.reconfigure-active-test",
-      async () => {
-        const resolved = resolveActiveProject(wsConfig, { caller: "Reconfigure Test" });
-        if (resolved) {
-          let activeTest = project.getResolvedTestConfig(
-            wsConfig,
-            resolved
-          );
-          if (activeTest) {
-            await reconfigureTest(activeTest);
-            await setWorkspaceState(context, wsConfig);
-          }
-        }
-        vscode.commands.executeCommand("zephyr-ide.update-web-view");
+  registerCommandWithRefresh(context, "zephyr-ide.reconfigure-active-test", async () => {
+    const resolved = resolveActiveProject(wsConfig, { caller: "Reconfigure Test" });
+    if (resolved) {
+      const activeTest = project.getResolvedTestConfig(wsConfig, resolved);
+      if (activeTest) {
+        await reconfigureTest(activeTest);
+        await setWorkspaceState(context, wsConfig);
       }
-    )
-  );
+    }
+  });
 
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "zephyr-ide.add-build-config-files",
-      async () => {
-        await project.addConfigFiles(context, wsConfig, true, false);
-        vscode.commands.executeCommand("zephyr-ide.update-web-view");
-      }
-    )
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "zephyr-ide.remove-build-config-files",
-      async () => {
-        await project.removeConfigFiles(context, wsConfig, true, false);
-        vscode.commands.executeCommand("zephyr-ide.update-web-view");
-      }
-    )
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "zephyr-ide.add-build-overlay-files",
-      async () => {
-        await project.addConfigFiles(context, wsConfig, false, false);
-        vscode.commands.executeCommand("zephyr-ide.update-web-view");
-      }
-    )
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "zephyr-ide.remove-build-overlay-files",
-      async () => {
-        await project.removeConfigFiles(context, wsConfig, false, false);
-        vscode.commands.executeCommand("zephyr-ide.update-web-view");
-      }
-    )
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand("zephyr-ide.set-active-build", async () => {
-      await project.setActiveBuild(context, wsConfig);
-      vscode.commands.executeCommand("zephyr-ide.update-web-view");
-    })
-  );
+  registerCommandWithRefresh(context, "zephyr-ide.set-active-build",
+    () => project.setActiveBuild(context, wsConfig));
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.add-runner", async () => {
       const setupState = await getSetupState(context, wsConfig);
       if (setupState && setupState.westUpdated) {
         await project.addRunner(wsConfig, context);
-        vscode.commands.executeCommand("zephyr-ide.update-web-view");
+        void vscode.commands.executeCommand("zephyr-ide.update-web-view");
       } else {
         notifyError("Runner Config", "Run `Zephyr IDE: West Update` first.");
       }
     })
   );
 
-  context.subscriptions.push(
-    vscode.commands.registerCommand("zephyr-ide.remove-runner", async () => {
-      await project.removeRunner(context, wsConfig);
-      vscode.commands.executeCommand("zephyr-ide.update-web-view");
-    })
-  );
+  registerCommandWithRefresh(context, "zephyr-ide.remove-runner",
+    () => project.removeRunner(context, wsConfig));
 
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "zephyr-ide.change-debug-launch-for-build",
-      async () => {
-        await project.selectDebugLaunchConfiguration(context, wsConfig);
-        vscode.commands.executeCommand("zephyr-ide.update-web-view");
-      }
-    )
-  );
+  registerCommandWithRefresh(context, "zephyr-ide.change-debug-launch-for-build",
+    () => project.selectDebugLaunchConfiguration(context, wsConfig));
 
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "zephyr-ide.change-build-debug-launch-for-build",
-      async () => {
-        await project.selectBuildDebugLaunchConfiguration(context, wsConfig);
-        vscode.commands.executeCommand("zephyr-ide.update-web-view");
-      }
-    )
-  );
+  registerCommandWithRefresh(context, "zephyr-ide.change-build-debug-launch-for-build",
+    () => project.selectBuildDebugLaunchConfiguration(context, wsConfig));
 
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "zephyr-ide.change-debug-attach-launch-for-build",
-      async () => {
-        await project.selectDebugAttachLaunchConfiguration(context, wsConfig);
-        vscode.commands.executeCommand("zephyr-ide.update-web-view");
-      }
-    )
-  );
+  registerCommandWithRefresh(context, "zephyr-ide.change-debug-attach-launch-for-build",
+    () => project.selectDebugAttachLaunchConfiguration(context, wsConfig));
 
   //Debugger Helper commands
   context.subscriptions.push(
@@ -932,21 +758,7 @@ export async function activate(context: vscode.ExtensionContext) {
         const setupState = await getSetupState(context, wsConfig);
         if (!setupState) { return; }
 
-        if (resolved.build.relBoardDir) {
-          //Custom Folder
-          return path.join(
-            wsConfig.rootPath,
-            resolved.build.relBoardDir,
-            resolved.build.relBoardSubDir
-          );
-        } else {
-          //Default zephyr folder
-          return path.join(
-            setupState.zephyrDir,
-            "boards",
-            resolved.build.relBoardSubDir
-          );
-        }
+        return project.resolveBoardPath(wsConfig, resolved.build, setupState);
       }
     )
   );
@@ -972,7 +784,7 @@ export async function activate(context: vscode.ExtensionContext) {
       async () => {
         await project.setActiveProject(context, wsConfig);
         await project.setActiveBuild(context, wsConfig);
-        vscode.commands.executeCommand("zephyr-ide.update-web-view");
+        void vscode.commands.executeCommand("zephyr-ide.update-web-view");
 
         const resolved = resolveActiveProjectBuild(wsConfig);
         if (!resolved) { return; }
@@ -1047,7 +859,7 @@ export async function activate(context: vscode.ExtensionContext) {
       "zephyr-ide.get-active-build-variable",
       async (var_name) => {
         if (wsConfig.activeProject) {
-          let activeBuildConfig =
+          const activeBuildConfig =
             wsConfig.projectStates[wsConfig.activeProject]?.activeBuildConfig;
           return getVariable(
             wsConfig,
@@ -1114,7 +926,7 @@ export async function activate(context: vscode.ExtensionContext) {
       provideTerminalProfile(
         token: vscode.CancellationToken
       ): vscode.ProviderResult<vscode.TerminalProfile> {
-        let opts: vscode.TerminalOptions = {
+        const opts: vscode.TerminalOptions = {
           name: "Zephyr IDE Terminal",
         };
         return new vscode.TerminalProfile(opts);
@@ -1141,7 +953,7 @@ export async function activate(context: vscode.ExtensionContext) {
       if (SetupPanel.currentPanel) {
         SetupPanel.currentPanel.updateContent(wsConfig, globalConfig);
       }
-      vscode.commands.executeCommand("zephyr-ide.update-status");
+      void vscode.commands.executeCommand("zephyr-ide.update-status");
     })
   );
 
@@ -1163,7 +975,7 @@ export async function activate(context: vscode.ExtensionContext) {
   refreshAttempts.forEach((delay) => {
     setTimeout(() => {
       try {
-        vscode.commands.executeCommand("zephyr-ide.update-web-view");
+        void vscode.commands.executeCommand("zephyr-ide.update-web-view");
       } catch (e) {
         outputError("Extension", `Zephyr IDE: webview refresh at ${delay}ms failed: ${String(e)}`);
       }
@@ -1223,7 +1035,7 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.debug-internal-shell", async () => {
       output.clear();
-      let temp = await executeShellCommand("Get-ChildItem Env: | Format-Table -AutoSize", wsConfig.rootPath, false);
+      const temp = await executeShellCommand("Get-ChildItem Env: | Format-Table -AutoSize", wsConfig.rootPath, false);
       if (temp.stdout) {
         outputLine(temp.stdout);
       }
@@ -1259,7 +1071,7 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "zephyr-ide.reset-zephyr-install-selection",
       async () => {
-        await clearSetupState(context, wsConfig, globalConfig);
+        await clearSetupState(context, wsConfig);
         extensionSetupView.updateWebView(wsConfig, globalConfig);
       }
     )
@@ -1291,7 +1103,7 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.reint-dts", async () => {
       const setupState = await getSetupState(context, wsConfig);
       if (setupState) {
-        initializeDtsExt(setupState, wsConfig);
+        await initializeDtsExt(setupState, wsConfig);
       } else {
         notifyError("DTS Init",
           "First Initialize Zephyr IDE Workspace Folder"
@@ -1302,7 +1114,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.set-workspace-settings", async () => {
-      setWorkspaceSettings(true);
+      await setWorkspaceSettings(true);
     }
     )
   );
@@ -1354,7 +1166,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.install-sdk", async () => {
-      let ret = await installSDKInteractive(wsConfig, globalConfig, context);
+      const ret = await installSDKInteractive(wsConfig, globalConfig, context);
       return ret;
     })
   );
@@ -1405,70 +1217,14 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.workspace-setup-picker", async () => {
       await showWorkspaceSetupPicker(context, wsConfig, globalConfig);
-    }
-    )
+    })
   );
 
-  context.subscriptions.push(
-    vscode.commands.registerCommand("zephyr-ide.workspace-setup-from-git", async () => {
-      const success = await workspaceSetupFromGit(
-        context,
-        wsConfig,
-        globalConfig
-      );
-      if (success) {
-        await markWorkspaceSetupComplete(context, wsConfig, globalConfig);
-      }
-      return success;
-    }
-    )
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand("zephyr-ide.workspace-setup-from-west-git", async () => {
-      const success = await workspaceSetupFromWestGit(
-        context,
-        wsConfig,
-        globalConfig
-      );
-      if (success) {
-        await markWorkspaceSetupComplete(context, wsConfig, globalConfig);
-      }
-      return success;
-    }
-    )
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand("zephyr-ide.workspace-setup-from-current-directory", async () => {
-      const success = await workspaceSetupFromCurrentDirectory(
-        context,
-        wsConfig,
-        globalConfig,
-        true
-      );
-      if (success) {
-        await markWorkspaceSetupComplete(context, wsConfig, globalConfig);
-      }
-      return success;
-    }
-    )
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand("zephyr-ide.workspace-setup-standard", async () => {
-      const success = await workspaceSetupStandard(
-        context,
-        wsConfig,
-        globalConfig
-      );
-      if (success) {
-        await markWorkspaceSetupComplete(context, wsConfig, globalConfig);
-      }
-      return success;
-    }
-    )
-  );
+  registerWorkspaceSetupCommand(context, "zephyr-ide.workspace-setup-from-git", workspaceSetupFromGit);
+  registerWorkspaceSetupCommand(context, "zephyr-ide.workspace-setup-from-west-git", workspaceSetupFromWestGit);
+  registerWorkspaceSetupCommand(context, "zephyr-ide.workspace-setup-from-current-directory",
+    (ctx, ws, gc) => workspaceSetupFromCurrentDirectory(ctx, ws, gc, true));
+  registerWorkspaceSetupCommand(context, "zephyr-ide.workspace-setup-standard", workspaceSetupStandard);
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.west-config", async () => {
@@ -1502,8 +1258,8 @@ export async function activate(context: vscode.ExtensionContext) {
       printContexts();
 
       const configuration = await vscode.workspace.getConfiguration();
-      let platform_name = "osx";
-      let force_bash = true;
+      const platform_name = "osx";
+      const force_bash = true;
       outputLine(
         configuration.get(
           "terminal.integrated.defaultProfile." + platform_name
@@ -1517,7 +1273,7 @@ export async function activate(context: vscode.ExtensionContext) {
           : "default set to something else"
       );
 
-      let default_terminal =
+      const default_terminal =
         configuration.get(
           "terminal.integrated.defaultProfile." + platform_name
         ) === "zsh" || force_bash

@@ -130,10 +130,13 @@ export async function runnerSelector(boardfolder: string) {
   async function collectInputs() {
     const state = {} as Partial<RunnerConfig>;
     await MultiStepInput.run(input => pickRunner(input, state));
-    return state as RunnerConfig;
+    return state;
   }
 
   const state = await collectInputs();
-  return state;
+  if (!state.name) {
+    return undefined;
+  }
+  return state as RunnerConfig;
 }
 

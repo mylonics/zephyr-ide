@@ -30,7 +30,7 @@ export class ExtensionSetupView implements vscode.WebviewViewProvider {
       // Simplified view showing only the most commonly needed commands
       // Other commands (West Config, Setup West Environment, West Init) 
       // remain available via Command Palette and Setup Panel
-      let data = [{
+      const data = [{
         icons: {
           leaf: 'folder-opened',
         },
@@ -64,7 +64,10 @@ export class ExtensionSetupView implements vscode.WebviewViewProvider {
       this, webviewView,
       () => this.updateWebView(this.wsConfig, this.globalConfig),
       (message) => {
-        vscode.commands.executeCommand(message.command);
+        // Only allow known zephyr-ide commands from the webview
+        if (typeof message.command === 'string' && message.command.startsWith('zephyr-ide.')) {
+          void vscode.commands.executeCommand(message.command);
+        }
       },
       () => { this.setHtml(""); this.updateWebView(this.wsConfig, this.globalConfig); }
     );

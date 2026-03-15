@@ -28,6 +28,17 @@ let installationState = {
     packageStates: {} // Store state for each package
 };
 
+/** Escape HTML-special characters to prevent XSS in webview. */
+function escapeHtml(str) {
+    if (!str) { return ''; }
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 // Handle messages from the extension
 window.addEventListener('message', event => {
     const message = event.data;
@@ -232,7 +243,7 @@ function disableAllButtons(disable) {
 function displayError(error) {
     document.getElementById('manager-status').innerHTML = `
         <div style="padding: 20px; text-align: center; color: var(--vscode-errorForeground);">
-            Error: ${error}
+            Error: ${escapeHtml(error)}
         </div>
     `;
     document.getElementById('packages-status').innerHTML = '';
@@ -244,7 +255,7 @@ function displayStatus(data) {
         <div class="manager-status-box ${data.managerAvailable ? 'manager-available' : 'manager-unavailable'}">
             <div class="manager-info">
                 <div>
-                    <div class="manager-name">${data.managerName}</div>
+                    <div class="manager-name">${escapeHtml(data.managerName)}</div>
                     <div style="font-size: 12px; color: var(--vscode-descriptionForeground);">
                         Package Manager
                     </div>
@@ -257,14 +268,14 @@ function displayStatus(data) {
                 <div style="margin-top: 10px;">
                     ${data.managerInstallUrl ? `
                         <p style="margin-bottom: 10px; font-size: 12px;">
-                            The ${data.managerName} package manager is required but not installed.
+                            The ${escapeHtml(data.managerName)} package manager is required but not installed.
                         </p>
                         <button class="button button-primary" onclick="openManagerInstallUrl()">
-                            📥 Install ${data.managerName}
+                            📥 Install ${escapeHtml(data.managerName)}
                         </button>
                     ` : `
                         <button class="button button-primary" onclick="installPackageManager()">
-                            📥 Install ${data.managerName}
+                            📥 Install ${escapeHtml(data.managerName)}
                         </button>
                     `}
                 </div>
@@ -343,17 +354,17 @@ function displayStatus(data) {
         }
         
         packagesHtml += `
-            <div class="package-item ${itemClass}" data-package-name="${pkg.name}">
+            <div class="package-item ${itemClass}" data-package-name="${escapeHtml(pkg.name)}">
                 <div class="package-info">
-                    <div class="package-name">${pkg.name}</div>
-                    <div class="package-package">${pkg.package}</div>
+                    <div class="package-name">${escapeHtml(pkg.name)}</div>
+                    <div class="package-package">${escapeHtml(pkg.package)}</div>
                 </div>
                 <div class="package-actions">
                     <span class="status-badge ${statusClass}">
                         ${statusText}
                     </span>
                     ${showInstallButton ? `
-                        <button class="button button-small" onclick="installPackage('${pkg.name}')">
+                        <button class="button button-small" onclick="installPackage('${escapeHtml(pkg.name)}')">
                             Install
                         </button>
                     ` : ''}

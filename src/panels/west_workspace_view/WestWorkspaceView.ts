@@ -18,7 +18,7 @@ limitations under the License.
 import * as vscode from 'vscode';
 import * as fs from 'fs-extra';
 import path from 'upath';
-import { WorkspaceConfig, GlobalConfig } from '../../setup_utilities/types';
+import { WorkspaceConfig, GlobalConfig, formatZephyrVersion } from '../../setup_utilities/types';
 import { setSetupState, setGlobalState, clearSetupState } from '../../setup_utilities/state-management';
 import { output } from '../../utilities/utils';
 import { notifyError, notifyWarningWithActions, outputInfo } from '../../utilities/output';
@@ -49,7 +49,7 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
       if (globalConfig.setupStateDictionary && globalConfig.setupStateDictionary[globalPath]) {
         const globalSetupState = globalConfig.setupStateDictionary[globalPath];
         if (globalSetupState.zephyrVersion) {
-          const versionStr = `${globalSetupState.zephyrVersion.major}.${globalSetupState.zephyrVersion.minor}.${globalSetupState.zephyrVersion.patch}`;
+          const versionStr = formatZephyrVersion(globalSetupState.zephyrVersion);
           globalDescription = `Zephyr ${versionStr}`;
         }
       }
@@ -100,7 +100,7 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
             label = `$(error) ${label}`;
             description = 'Path no longer exists';
           } else if (setupState.zephyrVersion) {
-            const versionStr = `${setupState.zephyrVersion.major}.${setupState.zephyrVersion.minor}.${setupState.zephyrVersion.patch}`;
+            const versionStr = formatZephyrVersion(setupState.zephyrVersion);
             description = `Zephyr ${versionStr}`;
           } else {
             description = 'West workspace';
@@ -208,17 +208,17 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
                 showUseExternalInstallation: false
               });
             } else {
-              vscode.commands.executeCommand(message.command);
+              void vscode.commands.executeCommand(message.command);
             }
             break;
           case 'zephyr-ide.setup-west-environment':
           case 'zephyr-ide.west-init':
           case 'zephyr-ide.west-update':
             // Execute the VS Code commands directly
-            vscode.commands.executeCommand(message.command);
+            void vscode.commands.executeCommand(message.command);
             break;
           case 'zephyr-ide.workspace-setup-picker':
-            vscode.commands.executeCommand('zephyr-ide.workspace-setup-picker');
+            void vscode.commands.executeCommand('zephyr-ide.workspace-setup-picker');
             break;
           default:
             break;
@@ -240,7 +240,7 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
       if (confirm === 'Switch') {
         await setSetupState(this.context, this.wsConfig, this.globalConfig, installPath);
         vscode.window.showInformationMessage(`Active workspace set to: ${installName}`);
-        vscode.commands.executeCommand('zephyr-ide.update-web-view');
+        void vscode.commands.executeCommand('zephyr-ide.update-web-view');
       }
     } catch (error) {
       notifyError('West Workspace', `Failed to switch workspace: ${error}`);
@@ -256,9 +256,9 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
       );
 
       if (confirm === 'Deselect') {
-        await clearSetupState(this.context, this.wsConfig, this.globalConfig);
+        await clearSetupState(this.context, this.wsConfig);
         vscode.window.showInformationMessage('Active workspace deselected');
-        vscode.commands.executeCommand('zephyr-ide.update-web-view');
+        void vscode.commands.executeCommand('zephyr-ide.update-web-view');
       }
     } catch (error) {
       notifyError('West Workspace', `Failed to deselect workspace: ${error}`);
@@ -287,7 +287,7 @@ export class WestWorkspaceView implements vscode.WebviewViewProvider {
 
         vscode.window.showInformationMessage(`Installation "${installName}" has been removed from the registry.`);
         outputInfo('West Workspace', `Removed installation from registry: ${installPath}`);
-        vscode.commands.executeCommand('zephyr-ide.update-web-view');
+        void vscode.commands.executeCommand('zephyr-ide.update-web-view');
       }
     } catch (error) {
       notifyError('West Workspace', `Failed to delete workspace: ${error}`);

@@ -25,24 +25,24 @@ import { ProjectConfig, resolveActiveProjectBuildRunner, getBuildFolder } from "
 import { WorkspaceConfig } from '../setup_utilities/types';
 import { BuildConfig } from "../project_utilities/build_selector";
 import { RunnerConfig } from "../project_utilities/runner_selector";
-import { getSetupState } from "../setup_utilities/workspace-config";
+import { getSetupStateOrNotify } from "../setup_utilities/workspace-config";
 
 export async function flashByName(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName: string, buildName: string, runnerName: string) {
-  let project = wsConfig.projects[projectName];
+  const project = wsConfig.projects[projectName];
   if (!project) {
-    notifyError("Flash", "Invalid project or build");
+    notifyError("Flash", `Project not found: "${projectName}"`);
     return;
   }
-  let buildConfig = project.buildConfigs[buildName];
+  const buildConfig = project.buildConfigs[buildName];
   if (!buildConfig) {
-    notifyError("Flash", "Invalid project or build");
+    notifyError("Flash", `Build configuration not found: "${buildName}" in project "${projectName}"`);
     return;
   }
-  let runnerConfig = buildConfig.runnerConfigs[runnerName];
+  const runnerConfig = buildConfig.runnerConfigs[runnerName];
   if (runnerConfig) {
     await flash(context, wsConfig, project, buildConfig, runnerConfig);
   } else {
-    notifyError("Flash", "Invalid project or build");
+    notifyError("Flash", `Runner not found: "${runnerName}" in build "${buildName}"`);
   }
 }
 
@@ -60,11 +60,14 @@ export async function flash(context: vscode.ExtensionContext, wsConfig: Workspac
   if (runner.runner !== "default") {
     cmd += ` -r ${runner.runner}`;
   }
-  cmd += ` ${runner.args}`;
+  cmd += ` ${runner.args ?? ""}`;
 
-  let taskName = "Zephyr IDE Flash: " + project.name + " " + build.name;
+  const taskName = "Zephyr IDE Flash: " + project.name + " " + build.name;
 
   outputInfo(`Flash: ${project.name}/${build.name}`, `Flashing ${build.name} from project: ${project.name} (cmd: ${cmd})`, true);
-  const setupState = await getSetupState(context, wsConfig);
-  await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState?.setupPath);
+  const setupState = await getSetupStateOrNotify(context, wsConfig, "Flash");
+  if (!setupState) {
+    return;
+  }
+  await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState.setupPath);
 }

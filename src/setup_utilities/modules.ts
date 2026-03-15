@@ -21,7 +21,8 @@ import path from "upath";
 
 import { executeShellCommandInPythonEnv, loadYamlFile } from "../utilities/utils";
 import { outputInfo, outputError, notifyError, outputCommandFailure } from "../utilities/output";
-import { SetupState } from "./types";
+import { SetupState, formatZephyrVersion } from "./types";
+import { parseWestConfigManifest } from "./west-config-parser";
 
 
 export interface ZephyrVersionNumber {
@@ -37,19 +38,15 @@ export interface ZephyrVersionNumber {
  */
 async function executeWestList(setupState: SetupState): Promise<string[]> {
   // Verify .west/config and manifest file exist before invoking west.
-  // This uses Node's fs module directly — no shell subprocess needed.
-  const westConfigPath = path.join(setupState.setupPath, ".west", "config");
-  if (!fs.existsSync(westConfigPath)) {
-    outputError("West List", `.west/config not found at: ${westConfigPath}. West is not initialized.`);
+  // Uses the shared west-config-parser to avoid duplicating INI parsing logic.
+  const manifest = parseWestConfigManifest(setupState.setupPath);
+  if (!manifest || !manifest.path) {
+    outputError("West List", `.west/config not found or manifest section missing at: ${setupState.setupPath}. West is not initialized.`);
     return [];
   }
 
-  const configContent = fs.readFileSync(westConfigPath, 'utf-8');
-  const pathMatch = configContent.match(/^path\s*=\s*(.+)$/m);
-  const fileMatch = configContent.match(/^file\s*=\s*(.+)$/m);
-  const manifestPath = pathMatch ? pathMatch[1].trim() : "west-manifest";
-  const manifestFile = fileMatch ? fileMatch[1].trim() : "west.yml";
-  const fullManifestPath = path.join(setupState.setupPath, manifestPath, manifestFile);
+  const manifestFile = manifest.file ?? "west.yml";
+  const fullManifestPath = path.join(setupState.setupPath, manifest.path, manifestFile);
 
   if (!fs.existsSync(fullManifestPath)) {
     outputError("West List", `Manifest file not found at: ${fullManifestPath}. West list will fail.`);
@@ -101,26 +98,7 @@ export async function getModuleList(setupState: SetupState) {
   return outputList;
 }
 
-export async function getManifestRepository(setupState: SetupState): Promise<string[] | undefined> {
-  const modules = await executeWestList(setupState);
-
-  if (modules.length === 0) {
-    return undefined;
-  }
-
-  for (const line of modules) {
-    if (!line.trim()) {
-      continue;
-    }
-    let data = line.split('|').map(s => s.trim());
-    if (data[0] === "manifest") {
-      return data;
-    }
-  }
-  return undefined;
-}
-
-export async function getModuleVersion(modulePath: string): Promise<ZephyrVersionNumber | undefined> {
+export function getModuleVersion(modulePath: string): ZephyrVersionNumber | undefined {
   let filePath = path.join(modulePath, "VERSION");
 
   if (fs.existsSync(filePath)) {
@@ -141,9 +119,9 @@ export async function getModuleVersion(modulePath: string): Promise<ZephyrVersio
       minor: parseInt(minorMatch[1]),
       patch: parseInt(patchMatch[1]),
       tweak: tweakMatch ? parseInt(tweakMatch[1]) : 0,
-      extra: extraMatch && extraMatch[1].trim() !== "" ? parseInt(extraMatch[1].trim()) : 0,
+      extra: extraMatch && extraMatch[1].trim() !== "" ? (Number.isNaN(parseInt(extraMatch[1].trim())) ? 0 : parseInt(extraMatch[1].trim())) : 0,
     };
-    outputInfo("Modules", `Version: ${versionNumber.major}.${versionNumber.minor}.${versionNumber.patch}`);
+    outputInfo("Modules", `Version: ${formatZephyrVersion(versionNumber)}`);
     return versionNumber;
   }
 }
@@ -180,37 +158,65 @@ export async function getDtsIncludes(setupState: SetupState) {
 }
 
 export async function getModulePathAndVersion(setupState: SetupState, moduleName: string) {
-  const modules = await getModuleList(setupState);
-  for (const module of modules) {
-    if (module[0] === moduleName) {
-      return { path: module[1], version: module[2] };
+  const westOutput = await executeWestList(setupState);
+  
+  if (westOutput.length === 0) {
+    notifyError("West Modules", "Failed to run west list command. Check the Zephyr IDE output for details.");
+    return;
+  }
+
+  let manifestEntry: string[] | undefined;
+
+  for (const line of westOutput) {
+    if (!line.trim()) {
+      continue;
+    }
+    const data = line.split('|').map(s => s.trim());
+    if (data[0] === moduleName) {
+      return { path: data[1], version: data[2] };
+    }
+    if (data[0] === "manifest") {
+      manifestEntry = data;
     }
   }
 
   // Check if the requested module is the manifest repository
-  if (moduleName === "zephyr") {
-    const manifestRepo = await getManifestRepository(setupState);
-    if (manifestRepo && manifestRepo[1] && isZephyrRepository(manifestRepo[1])) {
-      return { path: manifestRepo[1], version: manifestRepo[2] };
-    }
+  if (moduleName === "zephyr" && manifestEntry && manifestEntry[1] && isZephyrRepository(manifestEntry[1])) {
+    return { path: manifestEntry[1], version: manifestEntry[2] };
   }
 
   return;
 }
 
 export async function getModuleSampleFolders(setupState: SetupState) {
-  const modules = await getModuleList(setupState);
+  const westOutput = await executeWestList(setupState);
   const samplefolders: [string, string][] = [];
+
+  if (westOutput.length === 0) {
+    return samplefolders;
+  }
+
+  const modules: string[][] = [];
+  let manifestEntry: string[] | undefined;
+
+  for (const line of westOutput) {
+    if (!line.trim()) {
+      continue;
+    }
+    const data = line.split('|').map(s => s.trim());
+    if (data[0] === "manifest") {
+      manifestEntry = data;
+    } else if (data[0] !== "") {
+      modules.push(data);
+    }
+  }
 
   // Add zephyr samples if zephyrDir is set
   if (setupState.zephyrDir) {
     samplefolders.push(["zephyr", path.join(setupState.zephyrDir, 'samples')]);
-  } else {
+  } else if (manifestEntry && manifestEntry[1] && isZephyrRepository(manifestEntry[1])) {
     // Check if zephyr is the manifest repository
-    const manifestRepo = await getManifestRepository(setupState);
-    if (manifestRepo && manifestRepo[1] && isZephyrRepository(manifestRepo[1])) {
-      samplefolders.push(["zephyr", path.join(manifestRepo[1], 'samples')]);
-    }
+    samplefolders.push(["zephyr", path.join(manifestEntry[1], 'samples')]);
   }
 
   for (const module of modules) {
@@ -298,19 +304,15 @@ function getSampleRecursive(
     const childPath = path.join(realDir, name);
     let stat: fs.Stats;
     try {
-      stat = fs.lstatSync(childPath);
+      stat = fs.statSync(childPath);
     } catch (e) {
       if (logErrors) {
-        outputInfo("West Modules", `lstat failed for ${childPath}: ${(e as Error).message}`);
+        outputInfo("West Modules", `stat failed for ${childPath}: ${(e as Error).message}`);
       }
       continue;
     }
-    // Follow directories (but not symlink loops)
+    // Follow directories (cycle protection is handled by the visited set via realpathSync)
     if (stat.isDirectory()) {
-      // Avoid descending into symlinked directories that could create cycles
-      if (stat.isSymbolicLink()) {
-        continue;
-      }
       getSampleRecursive(childPath, moduleName, sampleList, visited, logErrors, depth + 1, maxDepth);
     }
   }

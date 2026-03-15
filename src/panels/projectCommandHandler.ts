@@ -20,6 +20,10 @@ import { addBuildToProject, addRunnerToBuild, removeBuild, removeProject, remove
 import { buildByName, MenuConfig } from '../zephyr_utilities/build';
 import { flashByName } from '../zephyr_utilities/flash';
 import { WorkspaceConfig } from '../setup_utilities/types';
+import { outputError, outputWarning } from '../utilities/output';
+
+/** Simple mutex to prevent concurrent command execution against shared wsConfig. */
+let commandRunning = false;
 
 /**
  * Handle common project command messages shared between ProjectTreeView and ProjectConfigView.
@@ -34,72 +38,92 @@ export function handleSharedProjectCommand(
   value: any,
   updateWebView: boolean
 ): boolean {
+  // Validate that value is a non-null object before accessing properties
+  if (!value || typeof value !== 'object') {
+    if (command !== 'setActive') {
+      outputError("Project Command", `Invalid message data for command: ${command}`);
+    }
+    return false;
+  }
+
   const updateCmd = () => {
     if (updateWebView) {
       vscode.commands.executeCommand("zephyr-ide.update-web-view");
     }
   };
 
+  /** Run an async operation with error logging, mutual exclusion, and webview refresh on completion. */
+  const runAsync = (label: string, fn: () => Promise<any>, afterFn?: () => void) => {
+    if (commandRunning) {
+      outputWarning(label, `${label}: another command is already running, please wait.`);
+      return;
+    }
+    commandRunning = true;
+    fn()
+      .catch(err => outputError(label, `${label} failed: ${err}`))
+      .finally(() => { commandRunning = false; afterFn?.(); updateCmd(); });
+  };
+
+  /** Run a build-like async operation: set active immediately, refresh webview on completion. */
+  const runBuildAsync = (label: string, fn: () => Promise<any>, ...activeArgs: [string, string?, string?]) => {
+    if (commandRunning) {
+      outputWarning(label, `${label}: another command is already running, please wait.`);
+      return;
+    }
+    commandRunning = true;
+    setActive(context, wsConfig, ...activeArgs);
+    fn()
+      .catch(err => outputError(label, `${label} failed: ${err}`))
+      .finally(() => { commandRunning = false; updateCmd(); });
+  };
+
   switch (command) {
     case "deleteProject": {
-      removeProject(context, wsConfig, value.project).finally(updateCmd);
+      runAsync("Delete Project", () => removeProject(context, wsConfig, value.project));
       return true;
     }
     case "addBuild": {
-      addBuildToProject(wsConfig, context, value.project).finally(() => {
-        setActive(wsConfig, value.project);
-        updateCmd();
-      });
+      runAsync("Add Build", () => addBuildToProject(wsConfig, context, value.project),
+        () => setActive(context, wsConfig, value.project));
       return true;
     }
     case "deleteBuild": {
-      removeBuild(context, wsConfig, value.project, value.build).finally(() => {
-        setActive(wsConfig, value.project);
-        updateCmd();
-      });
+      runAsync("Delete Build", () => removeBuild(context, wsConfig, value.project, value.build),
+        () => setActive(context, wsConfig, value.project));
       return true;
     }
     case "addRunner": {
-      addRunnerToBuild(wsConfig, context, value.project, value.build).finally(() => {
-        setActive(wsConfig, value.project, value.build);
-        updateCmd();
-      });
+      runAsync("Add Runner", () => addRunnerToBuild(wsConfig, context, value.project, value.build),
+        () => setActive(context, wsConfig, value.project, value.build));
       return true;
     }
     case "deleteRunner": {
-      removeRunner(context, wsConfig, value.project, value.build, value.runner).finally(() => {
-        setActive(wsConfig, value.project, value.build);
-        updateCmd();
-      });
+      runAsync("Delete Runner", () => removeRunner(context, wsConfig, value.project, value.build, value.runner),
+        () => setActive(context, wsConfig, value.project, value.build));
       return true;
     }
     case "build": {
-      buildByName(context, wsConfig, false, value.project, value.build);
-      setActive(wsConfig, value.project, value.build);
+      runBuildAsync("Build", () => buildByName(context, wsConfig, false, value.project, value.build), value.project, value.build);
       return true;
     }
     case "buildPristine": {
-      buildByName(context, wsConfig, true, value.project, value.build);
-      setActive(wsConfig, value.project, value.build);
+      runBuildAsync("Build Pristine", () => buildByName(context, wsConfig, true, value.project, value.build), value.project, value.build);
       return true;
     }
     case "menuConfig": {
-      buildByName(context, wsConfig, true, value.project, value.build, MenuConfig.MenuConfig);
-      setActive(wsConfig, value.project, value.build);
+      runBuildAsync("Menu Config", () => buildByName(context, wsConfig, true, value.project, value.build, MenuConfig.MenuConfig), value.project, value.build);
       return true;
     }
     case "guiConfig": {
-      buildByName(context, wsConfig, true, value.project, value.build, MenuConfig.GuiConfig);
-      setActive(wsConfig, value.project, value.build);
+      runBuildAsync("GUI Config", () => buildByName(context, wsConfig, true, value.project, value.build, MenuConfig.GuiConfig), value.project, value.build);
       return true;
     }
     case "flash": {
-      flashByName(context, wsConfig, value.project, value.build, value.runner);
-      setActive(wsConfig, value.project, value.build, value.runner);
+      runBuildAsync("Flash", () => flashByName(context, wsConfig, value.project, value.build, value.runner), value.project, value.build, value.runner);
       return true;
     }
     case "setActive": {
-      setActive(wsConfig, value.project, value.build, value.runner, value.test);
+      setActive(context, wsConfig, value.project, value.build, value.runner, value.test);
       return true;
     }
     default:

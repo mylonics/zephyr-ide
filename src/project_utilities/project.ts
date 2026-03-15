@@ -24,7 +24,7 @@ import { buildSelector, BuildConfig, BuildConfigDictionary, BuildStateDictionary
 import { WorkspaceConfig } from "../setup_utilities/types";
 import { setWorkspaceState } from "../setup_utilities/state-management";
 import { runnerSelector, RunnerConfig } from "./runner_selector";
-import { configSelector, configRemover, ConfigFiles, getConfFileKey } from "./config_selector";
+import { configSelector, configRemover, ConfigFiles, getConfFileKey, mergeConfigFiles } from "./config_selector";
 import { setDtsContext } from "../setup_utilities/dts_interface";
 import { getSamples } from "../setup_utilities/modules";
 import { getSetupState } from "../setup_utilities/workspace-config";
@@ -58,6 +58,45 @@ export function getProjectFolder(wsConfig: WorkspaceConfig, project: ProjectConf
 /** Get the absolute build output folder path for a project/build pair */
 export function getBuildFolder(wsConfig: WorkspaceConfig, project: ProjectConfig, build: BuildConfig): string {
   return path.join(wsConfig.rootPath, project.rel_path, build.name);
+}
+
+/**
+ * Resolve the board root directory for a build configuration.
+ * Used by build, twister, and runner logic to find board definitions.
+ */
+export function resolveBoardRoot(wsConfig: WorkspaceConfig, build: { relBoardDir?: string }, setupState?: { zephyrDir: string }): string | undefined {
+  if (build.relBoardDir) {
+    return path.dirname(path.join(wsConfig.rootPath, build.relBoardDir));
+  } else if (setupState) {
+    return setupState.zephyrDir;
+  }
+  return undefined;
+}
+
+/**
+ * Resolve the full board path (including relBoardSubDir) for a build configuration.
+ * Handles absolute paths, custom board dirs, and default Zephyr board dirs.
+ */
+export function resolveBoardPath(wsConfig: WorkspaceConfig, build: { relBoardDir?: string; relBoardSubDir: string }, setupState?: { zephyrDir: string }): string | undefined {
+  if (path.isAbsolute(build.relBoardSubDir)) {
+    return build.relBoardSubDir;
+  }
+  if (build.relBoardDir) {
+    return path.join(wsConfig.rootPath, build.relBoardDir, build.relBoardSubDir);
+  }
+  if (setupState) {
+    return path.join(setupState.zephyrDir, 'boards', build.relBoardSubDir);
+  }
+  return undefined;
+}
+
+/**
+ * Resolve the board root directory and return it as a CMake -D argument string.
+ * Returns empty string if no board root can be resolved.
+ */
+export function resolveBoardRootArg(wsConfig: WorkspaceConfig, build: { relBoardDir?: string }, setupState?: { zephyrDir: string }): string {
+  const boardRoot = resolveBoardRoot(wsConfig, build, setupState);
+  return boardRoot ? `-DBOARD_ROOT='${boardRoot}'` : "";
 }
 
 /** Get active build name from an already-resolved project */
@@ -220,12 +259,12 @@ export async function createNewProjectFromSample(context: vscode.ExtensionContex
 
   const setupState = await getSetupState(context, wsConfig);
   if (!setupState) {
-    loadingQuickPick.hide();
+    loadingQuickPick.dispose();
     return;
   }
   const samplesDir = await getSamples(setupState);
 
-  loadingQuickPick.hide();
+  loadingQuickPick.dispose();
 
   // Show sample selection QuickPick as usual
   const projectList: vscode.QuickPickItem[] = samplesDir.map(x => ({ label: x[1], detail: "(" + x[0] + ") " + x[3], description: x[2] }));
@@ -234,14 +273,18 @@ export async function createNewProjectFromSample(context: vscode.ExtensionContex
     matchOnDescription: true,
     placeHolder: "Select Sample Project",
   };
-  let selectedSample = await vscode.window.showQuickPick(projectList, pickOptions);
+  const selectedSample = await vscode.window.showQuickPick(projectList, pickOptions);
   if (selectedSample && selectedSample.detail && selectedSample.label) {
-    let selectedSamplePath = selectedSample.detail.split(") ")[1];
+    const detailParts = selectedSample.detail.split(") ");
+    const selectedSamplePath = detailParts.length > 1 ? detailParts.slice(1).join(") ") : detailParts[0];
+    if (!selectedSamplePath) {
+      return;
+    }
     const projectDest = await vscode.window.showInputBox({ title: "Choose Project Destination", value: path.basename(selectedSamplePath) });
     if (projectDest) {
       const destinationPath = path.join(wsConfig.rootPath, projectDest);
       fs.cpSync(selectedSamplePath, destinationPath, { recursive: true });
-      let newProjectName = path.basename(projectDest);
+      const newProjectName = path.basename(projectDest);
       if (selectedSample.label !== newProjectName) {
         changeProjectNameInCMakeFile(destinationPath, newProjectName);
       }
@@ -263,20 +306,13 @@ export async function addConfigFiles(context: vscode.ExtensionContext, wsConfig:
     buildName = resolvedBuild.buildName;
   }
 
-  let result = await configSelector(wsConfig, isKConfig, isToProject, isPrimary);
+  const result = await configSelector(wsConfig, isKConfig, isToProject, isPrimary);
   if (result) {
     if (isToProject) {
-      project.confFiles.config = project.confFiles.config.concat(result.config);
-      project.confFiles.extraConfig = project.confFiles.extraConfig.concat(result.extraConfig);
-      project.confFiles.overlay = project.confFiles.overlay.concat(result.overlay);
-      project.confFiles.extraOverlay = project.confFiles.extraOverlay.concat(result.extraOverlay);
+      mergeConfigFiles(project.confFiles, result);
     } else {
       if (buildName) {
-        let buildConf = project.buildConfigs[buildName].confFiles;
-        buildConf.config = buildConf.config.concat(result.config);
-        buildConf.extraConfig = buildConf.extraConfig.concat(result.extraConfig);
-        buildConf.overlay = buildConf.overlay.concat(result.overlay);
-        buildConf.extraOverlay = buildConf.extraOverlay.concat(result.extraOverlay);
+        mergeConfigFiles(project.buildConfigs[buildName].confFiles, result);
       } else {
         return;
       }
@@ -302,7 +338,7 @@ export async function removeConfigFiles(context: vscode.ExtensionContext, wsConf
       confFiles = resolvedBuild.build.confFiles;
     }
   }
-  let result = await configRemover(confFiles, isKConfig, isToProject, isPrimary);
+  const result = await configRemover(confFiles, isKConfig, isToProject, isPrimary);
 
   if (result) {
     if (isToProject) {
@@ -367,7 +403,7 @@ export async function setActiveProject(context: vscode.ExtensionContext, wsConfi
   wsConfig.activeProject = selectedProject;
   await setWorkspaceState(context, wsConfig);
   vscode.window.showInformationMessage(`Successfully Set ${selectedProject} as Active Project`);
-  setDtsContext(wsConfig);
+  void setDtsContext(wsConfig);
 }
 
 export async function askUserForBuild(wsConfig: WorkspaceConfig, projectName: string) {
@@ -378,7 +414,7 @@ export async function askUserForTest(wsConfig: WorkspaceConfig, projectName: str
   return await askUserForSelection(wsConfig.projects[projectName].twisterConfigs, "Select Test");
 }
 
-export async function setActiveBuild(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName?: string, selectedBuild?: string) {
+export async function setActiveBuild(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, selectedBuild?: string) {
   if (wsConfig.activeProject === undefined) {
     await setActiveProject(context, wsConfig);
     if (wsConfig.activeProject === undefined) {
@@ -394,16 +430,16 @@ export async function setActiveBuild(context: vscode.ExtensionContext, wsConfig:
     }
   }
 
-  let buildConfigs = wsConfig.projects[wsConfig.activeProject].buildConfigs;
+  const buildConfigs = wsConfig.projects[wsConfig.activeProject].buildConfigs;
   wsConfig.projectStates[wsConfig.activeProject].activeBuildConfig = buildConfigs[selectedBuild].name;
   await setWorkspaceState(context, wsConfig);
-  setDtsContext(wsConfig);
+  void setDtsContext(wsConfig);
   vscode.window.showInformationMessage(`Successfully Set ${selectedBuild} as Active Build of ${wsConfig.activeProject}`);
 }
 
-export async function setActiveTest(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName?: string, selectedTest?: string) {
+export async function setActiveTest(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, selectedTest?: string) {
   if (wsConfig.activeProject === undefined) {
-    setActiveProject(context, wsConfig);
+    await setActiveProject(context, wsConfig);
     if (wsConfig.activeProject === undefined) {
       notifyError("Test Config", "Set Active Project before trying to Set Active Test");
       return;
@@ -417,10 +453,10 @@ export async function setActiveTest(context: vscode.ExtensionContext, wsConfig: 
     }
   }
 
-  let twisterConfigs = wsConfig.projects[wsConfig.activeProject].twisterConfigs;
+  const twisterConfigs = wsConfig.projects[wsConfig.activeProject].twisterConfigs;
   wsConfig.projectStates[wsConfig.activeProject].activeTwisterConfig = twisterConfigs[selectedTest].name;
   await setWorkspaceState(context, wsConfig);
-  setDtsContext(wsConfig);
+  void setDtsContext(wsConfig);
   vscode.window.showInformationMessage(`Successfully Set ${selectedTest} as Active Test of ${wsConfig.activeProject}`);
 }
 
@@ -447,11 +483,11 @@ export async function removeProject(context: vscode.ExtensionContext, wsConfig: 
 }
 
 export async function changeProjectNameInCMakeFile(projectPath: string, newProjectName: string) {
-  let projectCmakePath = path.join(projectPath, "CMakeLists.txt");
+  const projectCmakePath = path.join(projectPath, "CMakeLists.txt");
 
   if (fs.existsSync(projectCmakePath)) {
     const projectCMakeFile = fs.readFileSync(projectCmakePath, 'utf8');
-    let newProjectCMakeFile = projectCMakeFile.replace(/project\([^)]*\)/i, "project(" + newProjectName + ")");
+    const newProjectCMakeFile = projectCMakeFile.replace(/project\([^)]*\)/i, "project(" + newProjectName + ")");
     fs.writeFileSync(projectCmakePath, newProjectCMakeFile);
     return true;
   }
@@ -468,16 +504,16 @@ export async function addProject(wsConfig: WorkspaceConfig, context: vscode.Exte
     };
 
     // Open file picker for destination directory
-    let open = await vscode.window.showOpenDialog(dialogOptions);
+    const open = await vscode.window.showOpenDialog(dialogOptions);
     if (open === undefined) {
       notifyError("Project", 'Failed to provide a valid target folder.');
       return null;
     }
 
     projectPath = open[0].fsPath;
-    let projectCmakePath = projectPath + "/CMakeLists.txt";
+    const projectCmakePath = projectPath + "/CMakeLists.txt";
     if (fs.pathExistsSync(projectCmakePath)) {
-      let contents = await vscode.workspace.openTextDocument(projectCmakePath).then(document => {
+      const contents = await vscode.workspace.openTextDocument(projectCmakePath).then(document => {
         return document.getText();
       });
 
@@ -493,7 +529,7 @@ export async function addProject(wsConfig: WorkspaceConfig, context: vscode.Exte
   if (projectPath === undefined) {
     return;
   }
-  let projectName = path.basename(projectPath);
+  const projectName = path.basename(projectPath);
   if (wsConfig.projects[projectName]) {
     const selection = await vscode.window.showWarningMessage(`Project with name: ${projectName} already exists!`, 'Overwrite', 'Cancel');
     if (selection !== 'Overwrite') {
@@ -514,7 +550,7 @@ export async function addProject(wsConfig: WorkspaceConfig, context: vscode.Exte
     },
   };
   wsConfig.projectStates[projectName] = { buildStates: {}, viewOpen: true, twisterStates: {} };
-  setActiveProject(context, wsConfig, projectName);
+  await setActiveProject(context, wsConfig, projectName);
   await setWorkspaceState(context, wsConfig);
 
   vscode.window.showInformationMessage(`Successfully loaded Project ${projectPath}`);
@@ -526,7 +562,7 @@ export async function addBuildToProject(wsConfig: WorkspaceConfig, context: vsco
   if (!setupState) {
     return;
   }
-  let result = await buildSelector(context, setupState, wsConfig.rootPath);
+  const result = await buildSelector(context, setupState, wsConfig.rootPath);
   if (result && result.name !== undefined) {
     result.runnerConfigs = {};
     if (wsConfig.projects[projectName].buildConfigs[result.name]) {
@@ -540,7 +576,7 @@ export async function addBuildToProject(wsConfig: WorkspaceConfig, context: vsco
     vscode.window.showInformationMessage(`Creating Build Configuration: ${result.name}`);
     wsConfig.projects[projectName].buildConfigs[result.name] = result;
     wsConfig.projectStates[projectName].buildStates[result.name] = { runnerStates: {}, viewOpen: true };
-    await setActiveBuild(context, wsConfig, projectName, result.name);
+    await setActiveBuild(context, wsConfig, result.name);
 
     await setWorkspaceState(context, wsConfig);
     return true;
@@ -556,33 +592,43 @@ export async function addBuild(wsConfig: WorkspaceConfig, context: vscode.Extens
   return await addBuildToProject(wsConfig, context, wsConfig.activeProject);
 }
 
+/**
+ * Generic helper to confirm removal of a named item, delete it from config and state
+ * dictionaries, clear the active selection if it matches, and persist state.
+ */
+async function confirmAndRemoveItem(
+  context: vscode.ExtensionContext,
+  wsConfig: WorkspaceConfig,
+  itemName: string,
+  configDict: Record<string, any>,
+  stateDict: Record<string, any>,
+  activeRef: { value: string | undefined },
+): Promise<boolean | undefined> {
+  if (!(itemName in configDict)) { return; }
+  const selection = await vscode.window.showWarningMessage(
+    'Are you sure you want to remove ' + itemName + '?', 'Yes', 'Cancel');
+  if (selection !== 'Yes') { return; }
+  delete configDict[itemName];
+  delete stateDict[itemName];
+  if (activeRef.value === itemName) { activeRef.value = undefined; }
+  await setWorkspaceState(context, wsConfig);
+  return true;
+}
+
 export async function removeBuild(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName?: string, buildName?: string) {
   if (projectName === undefined) {
     projectName = await askUserForProject(wsConfig);
-    if (projectName === undefined) {
-      return;
-    }
+    if (projectName === undefined) { return; }
   }
   if (buildName === undefined) {
     buildName = await askUserForBuild(wsConfig, projectName);
-    if (buildName === undefined) {
-      return;
-    }
+    if (buildName === undefined) { return; }
   }
-  if (buildName in wsConfig.projects[projectName].buildConfigs) {
-
-    const selection = await vscode.window.showWarningMessage('Are you sure you want to remove ' + buildName + '?', 'Yes', 'Cancel');
-    if (selection !== 'Yes') {
-      return;
-    }
-    delete wsConfig.projects[projectName].buildConfigs[buildName];
-    delete wsConfig.projectStates[projectName].buildStates[buildName];
-    if (wsConfig.projectStates[projectName].activeBuildConfig === buildName) {
-      wsConfig.projectStates[projectName].activeBuildConfig = undefined;
-    }
-    await setWorkspaceState(context, wsConfig);
-    return true;
-  }
+  const ps = wsConfig.projectStates[projectName];
+  return confirmAndRemoveItem(context, wsConfig, buildName,
+    wsConfig.projects[projectName].buildConfigs, ps.buildStates,
+    { get value() { return ps.activeBuildConfig; }, set value(v) { ps.activeBuildConfig = v; } },
+  );
 }
 
 
@@ -601,7 +647,7 @@ export async function addTest(wsConfig: WorkspaceConfig, context: vscode.Extensi
     return;
   }
 
-  let result = await twisterSelector(wsConfig.projects[projectName].rel_path, context, setupState, wsConfig.rootPath);
+  const result = await twisterSelector(wsConfig.projects[projectName].rel_path, context, setupState, wsConfig.rootPath);
   if (result && result.name !== undefined) {
     if (wsConfig.projects[projectName].twisterConfigs[result.name]) {
       const selection = await vscode.window.showWarningMessage('Twister Configuration with name: ' + result.name + ' already exists!', 'Overwrite', 'Cancel');
@@ -622,7 +668,7 @@ export async function addTest(wsConfig: WorkspaceConfig, context: vscode.Extensi
     wsConfig.projects[projectName].twisterConfigs[result.name] = result;
     wsConfig.projectStates[projectName].twisterStates[result.name] = { viewOpen: true };
 
-    await setActiveTest(context, wsConfig, projectName, result.name);
+    await setActiveTest(context, wsConfig, result.name);
     await setWorkspaceState(context, wsConfig);
   }
 }
@@ -630,69 +676,41 @@ export async function addTest(wsConfig: WorkspaceConfig, context: vscode.Extensi
 export async function removeTest(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName?: string, testName?: string) {
   if (projectName === undefined) {
     projectName = await askUserForProject(wsConfig);
-    if (projectName === undefined) {
-      return;
-    }
+    if (projectName === undefined) { return; }
   }
   if (testName === undefined) {
     testName = await askUserForTest(wsConfig, projectName);
-    if (testName === undefined) {
-      return;
-    }
+    if (testName === undefined) { return; }
   }
-  if (testName in wsConfig.projects[projectName].twisterConfigs) {
-
-    const selection = await vscode.window.showWarningMessage('Are you sure you want to remove ' + testName + '?', 'Yes', 'Cancel');
-    if (selection !== 'Yes') {
-      return;
-    }
-    delete wsConfig.projects[projectName].twisterConfigs[testName];
-    delete wsConfig.projectStates[projectName].twisterStates[testName];
-    if (wsConfig.projectStates[projectName].activeTwisterConfig === testName) {
-      wsConfig.projectStates[projectName].activeTwisterConfig = undefined;
-    }
-    await setWorkspaceState(context, wsConfig);
-    return true;
-  }
+  const ps = wsConfig.projectStates[projectName];
+  return confirmAndRemoveItem(context, wsConfig, testName,
+    wsConfig.projects[projectName].twisterConfigs, ps.twisterStates,
+    { get value() { return ps.activeTwisterConfig; }, set value(v) { ps.activeTwisterConfig = v; } },
+  );
 }
 
 export async function removeRunner(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName?: string, buildName?: string, runnerName?: string) {
   if (projectName === undefined) {
     projectName = await askUserForProject(wsConfig);
-    if (projectName === undefined) {
-      return;
-    }
+    if (projectName === undefined) { return; }
   }
   if (buildName === undefined) {
     buildName = await askUserForBuild(wsConfig, projectName);
-    if (buildName === undefined) {
-      return;
-    }
+    if (buildName === undefined) { return; }
   }
   if (runnerName === undefined) {
     runnerName = await askUserForRunner(wsConfig, projectName, buildName);
-    if (runnerName === undefined) {
-      return;
-    }
+    if (runnerName === undefined) { return; }
   }
-  let build = wsConfig.projects[projectName].buildConfigs[buildName];
-
-  if (runnerName in build.runnerConfigs) {
-    const selection = await vscode.window.showWarningMessage('Are you sure you want to remove ' + runnerName + '?', 'Yes', 'Cancel');
-    if (selection !== 'Yes') {
-      return;
-    }
-    delete build.runnerConfigs[runnerName];
-    delete wsConfig.projectStates[projectName].buildStates[buildName].runnerStates[runnerName];
-    if (wsConfig.projectStates[projectName].buildStates[buildName].activeRunner === runnerName) {
-      wsConfig.projectStates[projectName].buildStates[buildName].activeRunner = undefined;
-    }
-    await setWorkspaceState(context, wsConfig);
-    return true;
-  }
+  const build = wsConfig.projects[projectName].buildConfigs[buildName];
+  const bs = wsConfig.projectStates[projectName].buildStates[buildName];
+  return confirmAndRemoveItem(context, wsConfig, runnerName,
+    build.runnerConfigs, bs.runnerStates,
+    { get value() { return bs.activeRunner; }, set value(v) { bs.activeRunner = v; } },
+  );
 }
 
-export async function setActive(wsConfig: WorkspaceConfig, project: string, build?: string, runner?: string, test?: string) {
+export async function setActive(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, project: string, build?: string, runner?: string, test?: string) {
   if (project) {
     wsConfig.activeProject = project;
     if (build) {
@@ -704,7 +722,8 @@ export async function setActive(wsConfig: WorkspaceConfig, project: string, buil
     if (test) {
       wsConfig.projectStates[wsConfig.activeProject].activeTwisterConfig = test;
     }
-    vscode.commands.executeCommand("zephyr-ide.update-web-view");
+    await setWorkspaceState(context, wsConfig);
+    void vscode.commands.executeCommand("zephyr-ide.update-web-view");
   }
 }
 
@@ -732,7 +751,7 @@ export async function setActiveRunner(context: vscode.ExtensionContext, wsConfig
     }
   }
 
-  let selectedRunner = await askUserForRunner(wsConfig, wsConfig.activeProject, activeBuildName);
+  const selectedRunner = await askUserForRunner(wsConfig, wsConfig.activeProject, activeBuildName);
 
   if (selectedRunner === undefined) {
     return;
@@ -744,22 +763,12 @@ export async function setActiveRunner(context: vscode.ExtensionContext, wsConfig
 }
 
 export async function addRunnerToBuild(wsConfig: WorkspaceConfig, context: vscode.ExtensionContext, projectName: string, buildName: string) {
-  let build = wsConfig.projects[projectName].buildConfigs[buildName];
+  const build = wsConfig.projects[projectName].buildConfigs[buildName];
 
+  const boardPath = resolveBoardPath(wsConfig, build, await getSetupState(context, wsConfig) ?? undefined);
   let result;
-  if (path.isAbsolute(build.relBoardSubDir)) {
-    result = await runnerSelector(build.relBoardSubDir);
-  } else {
-    if (build.relBoardDir) {
-      //Custom Folder
-      result = await runnerSelector(path.join(wsConfig.rootPath, build.relBoardDir, build.relBoardSubDir));
-    } else {
-      const setupState = await getSetupState(context, wsConfig);
-      if (setupState) {
-        //Default zephyr folder
-        result = await runnerSelector(path.join(setupState.zephyrDir, 'boards', build.relBoardSubDir));
-      }
-    }
+  if (boardPath) {
+    result = await runnerSelector(boardPath);
   }
 
   if (result && result.name !== undefined) {

@@ -25,41 +25,16 @@ import * as os from "os";
 import * as yaml from 'js-yaml';
 
 import { SetupState, WorkspaceConfig } from "../setup_utilities/types";
-import { pathdivider } from "../setup_utilities/tools-validation";
 import { getToolchainDir } from "../setup_utilities/workspace-config";
-import { initOutputChannel, getOutputChannel, outputCommand, outputError, outputInfo, outputRaw, outputLine, ShellCommandResult } from "./output";
-
-// Re-export everything from the new output module so existing
-// `import { … } from "../utilities/utils"` statements keep working.
-export {
-  initOutputChannel,
-  getOutputChannel,
-  outputInfo,
-  outputWarning,
-  outputError,
-  outputCommand,
-  outputRaw,
-  outputLine,
-  outputFileNotFound,
-  outputCommandFailure,
-  showOutput,
-  notifyError,
-  notifyWarning,
-  notifyWarningWithActions,
-  notifyInfo,
-} from "./output";
+import { initOutputChannel, getOutputChannel, outputCommand, outputError, outputInfo, outputLine, type ShellCommandResult } from "./output";
 export type { ShellCommandResult } from "./output";
-
-// Output channel for logging
-let outputChannel: vscode.OutputChannel | undefined;
 
 /**
  * Set the output channel for dual logging
  * This should be called once during extension activation
  */
 export function setOutputChannel(channel: vscode.OutputChannel): void {
-  outputChannel = channel;
-  // Also wire up the new centralised output module
+  // Wire up the centralised output module
   initOutputChannel(channel);
 }
 
@@ -68,8 +43,9 @@ export function setOutputChannel(channel: vscode.OutputChannel): void {
  * Useful for messages that need to appear in both Extension Host output and test console
  */
 export function logDual(message: string): void {
-  if (outputChannel) {
-    outputChannel.appendLine(message);
+  const channel = getOutputChannel();
+  if (channel) {
+    channel.appendLine(message);
   }
   console.log(message);
 }
@@ -144,22 +120,11 @@ async function detectRemotePlatform(): Promise<string | undefined> {
   return undefined;
 }
 
-export function getPlatformName() {
-  // For remote environments, we need to detect asynchronously
-  // This synchronous function will return the cached value if available
-  if (remotePlatformCache !== undefined) {
-    switch (remotePlatformCache) {
-      case "darwin":
-        return "macos";
-      case "linux":
-        return "linux";
-      case "win32":
-        return "windows";
-    }
-  }
-
-  // Fall back to local platform
-  switch (platform) {
+/**
+ * Map a Node.js process.platform string to a user-friendly platform name.
+ */
+function mapPlatformString(platformStr: string): string | undefined {
+  switch (platformStr) {
     case "darwin":
       return "macos";
     case "linux":
@@ -167,7 +132,17 @@ export function getPlatformName() {
     case "win32":
       return "windows";
   }
-  return;
+  return undefined;
+}
+
+export function getPlatformName() {
+  // For remote environments, use the cached value if available
+  if (remotePlatformCache !== undefined) {
+    return mapPlatformString(remotePlatformCache);
+  }
+
+  // Fall back to local platform
+  return mapPlatformString(platform);
 }
 
 /**
@@ -176,13 +151,9 @@ export function getPlatformName() {
 export async function getPlatformNameAsync(): Promise<string | undefined> {
   const remotePlatform = await detectRemotePlatform();
   if (remotePlatform !== undefined) {
-    switch (remotePlatform) {
-      case "darwin":
-        return "macos";
-      case "linux":
-        return "linux";
-      case "win32":
-        return "windows";
+    const mapped = mapPlatformString(remotePlatform);
+    if (mapped) {
+      return mapped;
     }
   }
 
@@ -204,28 +175,27 @@ export function isMacOS() {
   return platform === "darwin";
 }
 
-export function getPythonVenvBinaryFolder(setupState: SetupState) {
+export async function getPythonVenvBinaryFolder(setupState: SetupState) {
   if (setupState.env["VIRTUAL_ENV"]) {
-    switch (platform) {
-      case "win32":
-        return path.join(setupState.env["VIRTUAL_ENV"], `Scripts`);
-      default:
-        return path.join(setupState.env["VIRTUAL_ENV"], `bin`);
+    const platformName = await getPlatformNameAsync();
+    if (platformName === "windows") {
+      return path.join(setupState.env["VIRTUAL_ENV"], `Scripts`);
     }
+    return path.join(setupState.env["VIRTUAL_ENV"], `bin`);
   }
   return '';
 }
 
 export async function getRootPathFs(first = false) {
-  let rootPath = await getRootPath(first);
+  const rootPath = await getRootPath(first);
   if (rootPath && rootPath.fsPath) {
     return rootPath.fsPath;
   }
-  return "";
+  return undefined;
 }
 
 export async function getRootPath(first = false) {
-  let rootPaths = vscode.workspace.workspaceFolders;
+  const rootPaths = vscode.workspace.workspaceFolders;
   if (rootPaths === undefined) {
     return;
   } else if (rootPaths.length > 1) {
@@ -239,7 +209,7 @@ export async function getRootPath(first = false) {
     };
     const roots: vscode.QuickPickItem[] = rootPaths.map(x => ({ label: x.name, description: x.uri.fsPath }));
 
-    let selectedRoot = await vscode.window.showQuickPick(roots, pickOptions);
+    const selectedRoot = await vscode.window.showQuickPick(roots, pickOptions);
     if (selectedRoot && selectedRoot.description) {
       return vscode.Uri.file(selectedRoot.description);
     }
@@ -249,14 +219,14 @@ export async function getRootPath(first = false) {
 }
 
 export async function getLaunchConfigurationByName(wsConfig: WorkspaceConfig, configName: string, folderName?: string) {
-  let configurations = await getLaunchConfigurations(wsConfig);
+  const configurations = await getLaunchConfigurations(wsConfig);
   if (!configurations) {
     return;
   }
 
   // When a folder is specified, try an exact name+folder match first
   if (folderName) {
-    for (var config of configurations) {
+    for (const config of configurations) {
       if (config.name === configName && config.workspaceFolder === folderName) {
         return config;
       }
@@ -264,7 +234,7 @@ export async function getLaunchConfigurationByName(wsConfig: WorkspaceConfig, co
   }
 
   // Fall back to name-only match (backward compatibility)
-  for (var config of configurations) {
+  for (const config of configurations) {
     if (config.name === configName) {
       return config;
     }
@@ -300,7 +270,7 @@ export function getWorkspaceFolderForConfig(config: any): vscode.WorkspaceFolder
 }
 
 export async function selectLaunchConfiguration(wsConfig: WorkspaceConfig): Promise<{ name: string; workspaceFolder?: string } | undefined> {
-  let configurations = await getLaunchConfigurations(wsConfig);
+  const configurations = await getLaunchConfigurations(wsConfig);
   if (!configurations) {
     return;
   }
@@ -310,12 +280,12 @@ export async function selectLaunchConfiguration(wsConfig: WorkspaceConfig): Prom
     placeHolder: "Select Launch Configuration",
   };
   const isMultiRoot = (vscode.workspace.workspaceFolders?.length ?? 0) > 1;
-  let items: vscode.QuickPickItem[] = configurations.map(x => ({
+  const items: vscode.QuickPickItem[] = configurations.map(x => ({
     label: x.name,
     description: isMultiRoot ? x.workspaceFolder : undefined,
   }));
 
-  let selected = await vscode.window.showQuickPick(items, pickOptions);
+  const selected = await vscode.window.showQuickPick(items, pickOptions);
   if (!selected) {
     return undefined;
   }
@@ -364,7 +334,7 @@ export async function getLaunchConfigurations(wsConfig: WorkspaceConfig) {
 }
 
 
-export let output = vscode.window.createOutputChannel("Zephyr IDE");
+export const output = vscode.window.createOutputChannel("Zephyr IDE");
 
 // Initialize output channel for dual logging
 setOutputChannel(output);
@@ -381,9 +351,14 @@ export function closeTerminals(names: string[]) {
 async function executeTask(task: vscode.Task) {
   // Register the listener BEFORE executing the task to avoid a race condition
   // where the task completes before the listener is set up.
+  // Match by task definition (type + command) rather than name to avoid
+  // conflicts when multiple tasks share the same display name.
+  const taskType = (task.definition as any).type;
+  const taskCommand = (task.definition as any).command;
   const taskDone = new Promise<number | undefined>(resolve => {
     let disposable = vscode.tasks.onDidEndTaskProcess(e => {
-      if (e.execution.task.name === task.name) {
+      const def = e.execution.task.definition as any;
+      if (def.type === taskType && def.command === taskCommand) {
         disposable.dispose();
         resolve(e.exitCode);
       }
@@ -404,7 +379,7 @@ export async function executeTaskHelperInPythonEnv(setupState: SetupState | unde
     // to PATH in the task's own environment — mirroring what
     // executeShellCommandInPythonEnv already does for child_process calls.
     const env: { [key: string]: string } = {};
-    const venvBin = getPythonVenvBinaryFolder(setupState);
+    const venvBin = await getPythonVenvBinaryFolder(setupState);
     if (venvBin) {
       env["PATH"] = venvBin + ":" + (process.env["PATH"] || "");
     }
@@ -419,15 +394,15 @@ export async function executeTaskHelperInPythonEnv(setupState: SetupState | unde
 
 export async function executeTaskHelper(taskName: string, cmd: string, cwd: string | undefined, env?: { [key: string]: string }) {
   outputCommand(taskName, cmd);
-  let options: vscode.ShellExecutionOptions = {
+  const options: vscode.ShellExecutionOptions = {
     cwd: cwd,
     ...(env && { env }),
   };
 
-  let exec = new vscode.ShellExecution(cmd, options);
+  const exec = new vscode.ShellExecution(cmd, options);
 
   // Task
-  let task = new vscode.Task(
+  const task = new vscode.Task(
     { type: "zephyr-ide:" + taskName, command: taskName },
     vscode.TaskScope.Workspace,
     taskName,
@@ -435,7 +410,7 @@ export async function executeTaskHelper(taskName: string, cmd: string, cwd: stri
     exec
   );
 
-  let res = await executeTask(task);
+  const res = await executeTask(task);
   return (res !== undefined && res === 0);
 }
 
@@ -519,7 +494,7 @@ export async function executeShellCommand(cmd: string, cwd: string, display_erro
     }
   }
 
-  let res = await exec(cmd, execOptions).then(
+  const res = await exec(cmd, execOptions).then(
 
     value => {
       return { stdout: value.stdout as string, stderr: value.stderr as string, cmd, cwd, env: effectiveEnv, exitCode: 0 };

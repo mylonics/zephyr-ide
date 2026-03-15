@@ -19,14 +19,13 @@ import * as vscode from "vscode";
 import * as os from "os";
 import * as fs from "fs-extra";
 import * as path from "upath";
-import { output, executeTaskHelperInPythonEnv, executeTaskHelper, reloadEnvironmentVariables, getPlatformName, getPlatformNameAsync } from "../utilities/utils";
+import { output, executeTaskHelperInPythonEnv, executeTaskHelper, reloadEnvironmentVariables, getPythonVenvBinaryFolder, getPlatformNameAsync } from "../utilities/utils";
 import { outputInfo, outputWarning, notifyError, notifyWarningWithActions } from "../utilities/output";
 import { getModulePathAndVersion, getModuleVersion, isVersionNumberGreaterEqual } from "./modules";
 import { westSelector, WestLocation } from "./west_selector";
-import { WorkspaceConfig, GlobalConfig, SetupState } from "./types";
+import { WorkspaceConfig, GlobalConfig, SetupState, formatZephyrVersion } from "./types";
 import { saveSetupState, setSetupState, setWorkspaceState } from "./state-management";
-import { pathdivider } from "./tools-validation";
-import { getSetupState, getVenvPath } from "./workspace-config";
+import { getSetupState, getSetupStateOrNotify, getVenvPath } from "./workspace-config";
 import { ensureWestConfigManifest } from "./west-config-parser";
 
 // Test-only override for narrow update
@@ -142,48 +141,52 @@ export async function westInit(context: vscode.ExtensionContext, wsConfig: Works
   const configuration = vscode.workspace.getConfiguration();
   const target = vscode.ConfigurationTarget.Workspace;
 
-  configuration.update('git.enabled', false, target, false);
-  configuration.update('git.path', false, target, false);
-  configuration.update('git.autofetch', false, target, false);
-  configuration.update('git.autorefresh', false, target, false);
+  await configuration.update('git.enabled', false, target, false);
+  await configuration.update('git.autofetch', false, target, false);
+  await configuration.update('git.autorefresh', false, target, false);
 
-  let cmd;
-  if (westSelection.gitRepo) {
-    cmd = `west init -m ${westSelection.gitRepo} ${westSelection.additionalArgs}`;
-  } else if (westSelection.path === undefined) {
-    cmd = `west init ${westSelection.additionalArgs}`;
-  } else {
-    cmd = `west init -l "${westSelection.path}" ${westSelection.additionalArgs}`;
-  }
-
-  setupState.zephyrDir = "";
-  let westInitRes = await executeTaskHelperInPythonEnv(setupState, "Zephyr IDE: West Init", cmd, setupState.setupPath);
-
-  if (!westInitRes) {
-    notifyError("West Init", "West Init Failed. Check the Zephyr IDE output for details.", { command: cmd });
-  } else {
-    // Validate .west/config manifest section after init to prevent
-    // "manifest file not found: None" errors during subsequent west commands.
-    // west init -l can sometimes leave manifest.file or manifest.path empty/None.
-    const manifestPath = westSelection.path ? path.basename(westSelection.path) : undefined;
-    if (ensureWestConfigManifest(setupState.setupPath, { manifestPath })) {
-      outputInfo("West Init", `Repaired .west/config manifest section (setupPath: ${setupState.setupPath})`);
+  let westInitRes: boolean | undefined;
+  try {
+    let cmd;
+    if (westSelection.gitRepo) {
+      cmd = `west init -m ${westSelection.gitRepo} ${westSelection.additionalArgs}`;
+    } else if (westSelection.path === undefined) {
+      cmd = `west init ${westSelection.additionalArgs}`;
+    } else {
+      cmd = `west init -l "${westSelection.path}" ${westSelection.additionalArgs}`;
     }
-    if (solo) {
-      vscode.window.showInformationMessage(`Successfully Completed West Init`);
-    }
-    await saveSetupState(context, wsConfig, globalConfig);
-  }
 
-  configuration.update('git.enabled', undefined, target, false);
-  configuration.update('git.path', undefined, target, false);
-  configuration.update('git.autofetch', undefined, target, false);
-  configuration.update('git.autorefresh', undefined, target, false);
+    setupState.zephyrDir = "";
+    westInitRes = await executeTaskHelperInPythonEnv(setupState, "Zephyr IDE: West Init", cmd, setupState.setupPath);
+
+    if (!westInitRes) {
+      notifyError("West Init", "West Init Failed. Check the Zephyr IDE output for details.", { command: cmd });
+    } else {
+      // Validate .west/config manifest section after init to prevent
+      // "manifest file not found: None" errors during subsequent west commands.
+      // west init -l can sometimes leave manifest.file or manifest.path empty/None.
+      const manifestPath = westSelection.path ? path.basename(westSelection.path) : undefined;
+      if (ensureWestConfigManifest(setupState.setupPath, { manifestPath })) {
+        outputInfo("West Init", `Repaired .west/config manifest section (setupPath: ${setupState.setupPath})`);
+      }
+      if (solo) {
+        vscode.window.showInformationMessage(`Successfully Completed West Init`);
+      }
+      await saveSetupState(context, wsConfig, globalConfig);
+    }
+  } finally {
+    await configuration.update('git.enabled', undefined, target, false);
+    await configuration.update('git.autofetch', undefined, target, false);
+    await configuration.update('git.autorefresh', undefined, target, false);
+  }
   return westInitRes;
 }
 
 export async function westUpdate(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, solo = true) {
-  const setupState = await getSetupState(context, wsConfig);
+  const setupState = await getSetupStateOrNotify(context, wsConfig, "West Update");
+  if (!setupState) {
+    return;
+  }
 
   // Safety check: ensure .west/config has valid manifest entries before running west update.
   // This prevents "manifest file not found: None" errors if the config was corrupted.
@@ -217,41 +220,14 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
     } else {
       outputWarning("West Update", `Could not find zephyr module via 'west list' in setupPath: ${setupState.setupPath}. Trying fallback VERSION file lookup...`);
       // Fallback: check for zephyr/VERSION file in setupPath
-      const zephyrVersionFile = path.join(setupState.setupPath, "zephyr", "VERSION");
-      if (fs.existsSync(zephyrVersionFile)) {
-        try {
-          const versionContent = fs.readFileSync(zephyrVersionFile, "utf8");
-          // Parse version info
-          const majorMatch = versionContent.match(/VERSION_MAJOR\s*=\s*(\d+)/);
-          const minorMatch = versionContent.match(/VERSION_MINOR\s*=\s*(\d+)/);
-          const patchMatch = versionContent.match(/PATCHLEVEL\s*=\s*(\d+)/);
-          const tweakMatch = versionContent.match(/VERSION_TWEAK\s*=\s*(\d+)/);
-          const extraMatch = versionContent.match(/EXTRAVERSION\s*=\s*(.*)/);
-          let version = "";
-          if (majorMatch && minorMatch && patchMatch) {
-            version = `${majorMatch[1]}.${minorMatch[1]}.${patchMatch[1]}`;
-            if (tweakMatch && tweakMatch[1] !== "0") {
-              version += `.${tweakMatch[1]}`;
-            }
-            if (extraMatch && extraMatch[1].trim()) {
-              version += `-${extraMatch[1].trim()}`;
-            }
-            setupState.zephyrDir = path.join(setupState.setupPath, "zephyr");
-            // Parse version string into ZephyrVersionNumber type
-            setupState.zephyrVersion = {
-              major: majorMatch ? parseInt(majorMatch[1]) : 0,
-              minor: minorMatch ? parseInt(minorMatch[1]) : 0,
-              patch: patchMatch ? parseInt(patchMatch[1]) : 0,
-              tweak: tweakMatch ? parseInt(tweakMatch[1]) : 0,
-              extra: extraMatch && extraMatch[1].trim() !== "" ? parseInt(extraMatch[1].trim()) : 0
-            };
-            outputInfo("West Update", `Zephyr version detected from VERSION file: ${version}`);
-          } else {
-            notifyError("West Update", "West Update succeeded, but Zephyr VERSION file could not be parsed.");
-          }
-        } catch (err) {
-          notifyError("West Update", "West Update succeeded, but error reading Zephyr VERSION file.");
-        }
+      const zephyrFallbackDir = path.join(setupState.setupPath, "zephyr");
+      const fallbackVersion = await getModuleVersion(zephyrFallbackDir);
+      if (fallbackVersion) {
+        setupState.zephyrDir = zephyrFallbackDir;
+        setupState.zephyrVersion = fallbackVersion;
+        outputInfo("West Update", `Zephyr version detected from VERSION file: ${formatZephyrVersion(fallbackVersion)}`);
+      } else if (fs.existsSync(path.join(zephyrFallbackDir, "VERSION"))) {
+        notifyError("West Update", "West Update succeeded, but Zephyr VERSION file could not be parsed.");
       } else {
         notifyError("West Update", "West Update succeeded, but Zephyr module information could not be found.");
       }
@@ -360,6 +336,9 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
       await saveSetupState(context, wsConfig, globalConfig);
 
       if (westEnvironmentSetup === "Reinitialize") {
+        // Recompute pythonenv from currentSetupState to avoid stale path
+        pythonenv = getVenvPath(currentSetupState.setupPath);
+
         // Delete python env if it already exists 
         if ((await fs.pathExists(pythonenv))) {
           fs.rmSync(pythonenv, { recursive: true, force: true });
@@ -382,12 +361,12 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
 
       currentSetupState.env["VIRTUAL_ENV"] = pythonenv;
 
-      // Add env/bin to path
-      const platformName = await getPlatformNameAsync();
-      if (platformName === "windows") {
-        currentSetupState.env["PATH"] = path.join(pythonenv, 'Scripts') + ';';
-      } else {
-        currentSetupState.env["PATH"] = path.join(pythonenv, 'bin') + ':';
+      // Add venv binary folder to PATH
+      const venvBin = await getPythonVenvBinaryFolder(currentSetupState);
+      if (venvBin) {
+        const platformName = await getPlatformNameAsync();
+        const separator = platformName === "windows" ? ';' : ':';
+        currentSetupState.env["PATH"] = venvBin + separator;
       }
 
       reloadEnvironmentVariables(context, currentSetupState);

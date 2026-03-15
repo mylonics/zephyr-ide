@@ -94,14 +94,15 @@ export function parseWestConfigManifestPath(setupPath: string): string | null {
         const manifest = parseWestManifestConfigFromIni(configContent);
 
         if (manifest.path) {
-            const westYmlPath = path.join(setupPath, manifest.path, "west.yml");
+            const manifestFileName = manifest.file ?? "west.yml";
+            const westYmlPath = path.join(setupPath, manifest.path, manifestFileName);
             
             // Verify the file exists
             if (fs.existsSync(westYmlPath)) {
                 return westYmlPath;
             }
             
-            outputWarning("West Config", `west.yml not found at expected location: ${westYmlPath} (manifest.path = "${manifest.path}", setupPath: ${setupPath}). Verify the manifest path in .west/config is correct.`);
+            outputWarning("West Config", `${manifestFileName} not found at expected location: ${westYmlPath} (manifest.path = "${manifest.path}", setupPath: ${setupPath}). Verify the manifest path in .west/config is correct.`);
         } else {
             outputWarning("West Config", `manifest.path key not found in ${westConfigPath}. The [manifest] section may be missing or malformed.`);
         }
@@ -122,7 +123,12 @@ export function parseWestConfigManifest(setupPath: string): WestManifestConfig |
             return null;
         }
         const configContent = fs.readFileSync(westConfigPath, "utf8");
-        return parseWestManifestConfigFromIni(configContent);
+        const result = parseWestManifestConfigFromIni(configContent);
+        // Normalize: if file is not set, default to west.yml
+        if (result.path && !result.file) {
+            result.file = "west.yml";
+        }
+        return result;
     } catch {
         return null;
     }

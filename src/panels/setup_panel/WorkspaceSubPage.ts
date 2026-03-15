@@ -15,7 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { WorkspaceConfig } from "../../setup_utilities/types";
+import { WorkspaceConfig, formatZephyrVersion } from "../../setup_utilities/types";
 import * as path from "upath";
 import * as fs from "fs";
 import { parseWestConfigManifestPath } from "../../setup_utilities/west-config-parser";
@@ -100,7 +100,7 @@ export class WorkspaceSubPage {
         const westYmlPath = this.getWestYmlPath(wsConfig);
         const venvPath = this.getVenvPath(wsConfig);
         const zephyrVersion = wsConfig.activeSetupState?.zephyrVersion
-            ? `${wsConfig.activeSetupState.zephyrVersion.major}.${wsConfig.activeSetupState.zephyrVersion.minor}.${wsConfig.activeSetupState.zephyrVersion.patch}`
+            ? formatZephyrVersion(wsConfig.activeSetupState.zephyrVersion)
             : "Not available";
 
         return `

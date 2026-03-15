@@ -68,7 +68,12 @@ function cleanupNonexistentPaths(setupStateDictionary: Record<string, SetupState
 
 export async function loadExternalSetupState(context: vscode.ExtensionContext, globalConfig: GlobalConfig, path: string): Promise<SetupState | undefined> {
   if (globalConfig.setupStateDictionary) {
+    const sizeBefore = Object.keys(globalConfig.setupStateDictionary).length;
     cleanupNonexistentPaths(globalConfig.setupStateDictionary);
+    // Persist cleaned-up dictionary so stale entries don't reappear after reload
+    if (Object.keys(globalConfig.setupStateDictionary).length < sizeBefore) {
+      await setGlobalState(context, globalConfig);
+    }
 
     if (path in globalConfig.setupStateDictionary) {
       return globalConfig.setupStateDictionary[path];
@@ -100,12 +105,18 @@ export async function setExternalSetupState(context: vscode.ExtensionContext, gl
 
 export async function loadWorkspaceState(context: vscode.ExtensionContext): Promise<WorkspaceConfig> {
   let config: WorkspaceConfig = await context.workspaceState.get("zephyr.env") ?? {
-    rootPath: await getRootPathFs(true),
+    rootPath: await getRootPathFs(true) ?? "",
     projects: {},
-    automaticProjectSelction: true,
+    automaticProjectSelection: true,
     initialSetupComplete: false,
     projectStates: {}
   };
+
+  // Migrate old typo key → new key
+  if ((config as any).automaticProjectSelction !== undefined && config.automaticProjectSelection === undefined) {
+    config.automaticProjectSelection = (config as any).automaticProjectSelction;
+    delete (config as any).automaticProjectSelction;
+  }
 
   if (config.initialSetupComplete) {
     await loadProjectsFromFile(config);
@@ -115,19 +126,19 @@ export async function loadWorkspaceState(context: vscode.ExtensionContext): Prom
 
 export async function setWorkspaceState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
   if (wsConfig.initialSetupComplete) {
-    await fs.outputFile(path.join(wsConfig.rootPath, ".vscode", "zephyr-ide.json"), JSON.stringify({ projects: wsConfig.projects }, null, 2), { flag: 'w+' });
+    await fs.outputFile(path.join(wsConfig.rootPath, ".vscode", "zephyr-ide.json"), JSON.stringify({ projects: wsConfig.projects }, null, 2));
   }
   await context.workspaceState.update("zephyr.env", wsConfig);
 }
 
 export async function clearWorkspaceState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
-  wsConfig.automaticProjectSelction = true;
+  wsConfig.automaticProjectSelection = true;
   wsConfig.initialSetupComplete = false;
   wsConfig.activeSetupState = undefined;
   await setWorkspaceState(context, wsConfig);
 }
 
-export async function clearSetupState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, ext_path: string = "") {
+export async function clearSetupState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
   wsConfig.activeSetupState = undefined;
 
   await setWorkspaceState(context, wsConfig);
@@ -136,14 +147,14 @@ export async function clearSetupState(context: vscode.ExtensionContext, wsConfig
 
 export async function setSetupState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, ext_path: string = "") {
 
-  generateGitIgnore(context, wsConfig); // Try to generate a .gitignore each time this is run
-  generateExtensionsRecommendations(context, wsConfig); // Try to generate a extensions.json each time this is run
-  setWorkspaceSettings();
+  await generateGitIgnore(context, wsConfig); // Try to generate a .gitignore each time this is run
+  await generateExtensionsRecommendations(context, wsConfig); // Try to generate a extensions.json each time this is run
+  await setWorkspaceSettings();
 
   wsConfig.activeSetupState = await loadExternalSetupState(context, globalConfig, ext_path);
 
   if (wsConfig.activeSetupState) {
-    initializeDtsExt(wsConfig.activeSetupState, wsConfig);
+    void initializeDtsExt(wsConfig.activeSetupState, wsConfig);
   }
 
   await setWorkspaceState(context, wsConfig);

@@ -72,7 +72,7 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
         tooltip: "Gui Config",
       };
     }
-    let buildActions = [
+    const buildActions = [
       {
         icon: "play",
         actionId: "build",
@@ -133,11 +133,15 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
   }
 
   generateRunnerString(projectName: string, buildName: string, runner: RunnerConfig): any {
-    if (this.wsConfig.projectStates[projectName].buildStates[buildName].runnerStates[runner.name] === undefined) {
-      this.wsConfig.projectStates[projectName].buildStates[buildName].runnerStates[runner.name] = { viewOpen: true };
+    const buildStates = this.wsConfig.projectStates[projectName]?.buildStates;
+    if (!buildStates?.[buildName]) {
+      return { label: runner.name, subItems: [] };
     }
-    let viewOpen = this.wsConfig.projectStates[projectName].buildStates[buildName].runnerStates[runner.name].viewOpen;
-    let entry = {
+    if (buildStates[buildName].runnerStates[runner.name] === undefined) {
+      buildStates[buildName].runnerStates[runner.name] = { viewOpen: true };
+    }
+    const viewOpen = buildStates[buildName].runnerStates[runner.name].viewOpen;
+    const entry = {
       icons: {
         branch: 'chip',
         leaf: 'chip',
@@ -154,8 +158,9 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
   }
 
   generateBuildString(projectName: string, build: BuildConfig): any {
-    let viewOpen = this.wsConfig.projectStates[projectName].buildStates[build.name].viewOpen;
-    let buildData: any = {};
+    const buildState = this.wsConfig.projectStates[projectName]?.buildStates?.[build.name];
+    const viewOpen = buildState?.viewOpen;
+    const buildData: any = {};
     buildData['icons'] = {
       branch: 'project',
       leaf: 'project',
@@ -168,10 +173,10 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
     buildData['description'] = build.board + (build.revision ? '@' + build.revision : "");
     buildData['subItems'] = [];
 
-    let runnerNames = [];
+    const runnerNames = [];
 
     //Add runners
-    for (let key in build.runnerConfigs) {
+    for (const key in build.runnerConfigs) {
       runnerNames.push(key);
       buildData.subItems.push(this.generateRunnerString(projectName, build.name, build.runnerConfigs[key]));
     }
@@ -195,8 +200,12 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
 
 
   generateTestString(projectName: string, test: TwisterConfig): any {
-    let viewOpen = this.wsConfig.projectStates[projectName].twisterStates[test.name].viewOpen;
-    let buildData: any = {};
+    const twisterStates = this.wsConfig.projectStates[projectName]?.twisterStates;
+    if (twisterStates && twisterStates[test.name] === undefined) {
+      twisterStates[test.name] = { viewOpen: true };
+    }
+    const viewOpen = twisterStates?.[test.name]?.viewOpen;
+    const buildData: any = {};
     buildData['icons'] = {
       branch: 'beaker',
       leaf: 'beaker',
@@ -214,9 +223,10 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
 
 
   generateProjectString(project: ProjectConfig): any {
-    let viewOpen = this.wsConfig.projectStates[project.name].viewOpen;
+    const projectState = this.wsConfig.projectStates[project.name];
+    const viewOpen = projectState?.viewOpen;
 
-    let projectData: any = {};
+    const projectData: any = {};
     projectData['icons'] = {
       branch: 'folder',
       leaf: 'folder',
@@ -233,11 +243,11 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
     }
 
     // Always render children so arrows are visible; interaction is restricted in the webview handler
-    for (let key in project.buildConfigs) {
+    for (const key in project.buildConfigs) {
       projectData.subItems.push(this.generateBuildString(project.name, project.buildConfigs[key]));
     }
 
-    for (let key in project.twisterConfigs) {
+    for (const key in project.twisterConfigs) {
       projectData.subItems.push(this.generateTestString(project.name, project.twisterConfigs[key]));
     }
 
@@ -258,7 +268,7 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
 
   updateWebView(wsConfig: WorkspaceConfig) {
     if (Object.keys(wsConfig.projects).length === 0) {
-      let bodyString = '<vscode-label side-aligned="end">No Projects Registered In Workspace</vscode-label>';
+      const bodyString = '<vscode-label side-aligned="end">No Projects Registered In Workspace</vscode-label>';
       this.setHtml(bodyString);
       this.needToClearHtml = true;
       return;
@@ -266,10 +276,10 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
       this.setHtml("");
     }
 
-    let projectNames = [];
+    const projectNames = [];
     this.treeData = [];
 
-    for (let key in wsConfig.projects) {
+    for (const key in wsConfig.projects) {
       projectNames.push(key);
       this.treeData.push(this.generateProjectString(wsConfig.projects[key]));
     }
@@ -330,16 +340,16 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
       // Handle tree-specific commands
       switch (message.command) {
         case "addTest": {
-          addTest(this.wsConfig, this.context, message.value.project).finally(() => { setActive(this.wsConfig, message.value.project); });
+          addTest(this.wsConfig, this.context, message.value.project).finally(() => { setActive(this.context, this.wsConfig, message.value.project); });
           break;
         }
         case "deleteTest": {
-          removeTest(this.context, this.wsConfig, message.value.project, message.value.test).finally(() => { setActive(this.wsConfig, message.value.project); });
+          removeTest(this.context, this.wsConfig, message.value.project, message.value.test).finally(() => { setActive(this.context, this.wsConfig, message.value.project); });
           break;
         }
         case "test": {
           testHelper(this.context, this.wsConfig, message.value.project, message.value.test);
-          setActive(this.wsConfig, message.value.project, undefined, undefined, message.value.test);
+          setActive(this.context, this.wsConfig, message.value.project, undefined, undefined, message.value.test);
           break;
         }
         default:

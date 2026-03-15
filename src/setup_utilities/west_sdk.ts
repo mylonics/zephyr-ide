@@ -21,6 +21,7 @@ import * as fs from "fs-extra";
 
 import { WorkspaceConfig, GlobalConfig, SetupState } from "./types";
 import { getToolsDir, getToolchainDir } from "./workspace-config";
+import { setGlobalState } from "./state-management";
 import { executeShellCommandInPythonEnv, executeTaskHelperInPythonEnv } from "../utilities/utils";
 import { outputInfo, outputWarning, outputError, notifyError, outputCommandFailure } from "../utilities/output";
 import { sdkVersions, toolchainTargets } from "../defines";
@@ -444,7 +445,9 @@ export async function installSDK(
             command += ` ${toolchainArgs}`;
         }
 
-        outputInfo("SDK Install", `Installing SDK using: ${command}`);
+        // Redact the personal access token before logging to prevent credential leaks
+        const logCommand = ghToken ? command.replace(ghToken, '***') : command;
+        outputInfo("SDK Install", `Installing SDK using: ${logCommand}`);
         outputInfo("SDK Install", `  cwd: ${setupState.setupPath}`);
         outputInfo("SDK Install", `  toolchains dir: ${toolchainsDir}`);
 
@@ -534,6 +537,9 @@ export async function installSDKInteractive(wsConfig: WorkspaceConfig, globalCon
                 outputInfo("SDK Install", `SDK install task completed with result: ${result}`);
                 if (result) {
                     globalConfig.sdkInstalled = true;
+                    if (context) {
+                        await setGlobalState(context, globalConfig);
+                    }
                     vscode.window.showInformationMessage(
                         "Zephyr SDK installed successfully!"
                     );

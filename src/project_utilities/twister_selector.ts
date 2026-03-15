@@ -48,7 +48,7 @@ export function getTestsFromProject(projectPath: string) {
   if (filePath) {
     const yamlFile: any = loadYamlFile(filePath);
     if (yamlFile && yamlFile.tests) {
-      for (var prop in yamlFile.tests) {
+      for (const prop of Object.keys(yamlFile.tests)) {
         tests.push(prop);
       }
     }
@@ -92,7 +92,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
     ignoreFocusOut: false,
     items: testQpItems,
     activeItem: undefined,
-    canSelectMany: false
+    canSelectMany: true
   }).catch((error) => {
     outputError("Twister Selector", String(error));
     return undefined;
@@ -215,38 +215,48 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
 
 export async function reconfigureTest(config: TwisterConfig) {
   let title = "Reconfigure Test";
-  if (config.boardConfig) {
+  const hasBoardConfig = !!config.boardConfig;
+  const totalSteps = hasBoardConfig ? 3 : 1;
+  let currentStep = 1;
+
+  if (hasBoardConfig) {
     const comPortPick = await showInputBox({
       title,
-      step: 1,
-      totalSteps: 3,
+      step: currentStep++,
+      totalSteps,
       prompt: "Input a COM Port",
       value: config.serialPort ? config.serialPort : "",
       validate: noOpValidate,
       placeholder: "COM1"
     });
 
-    config.serialPort = comPortPick;
+    if (comPortPick !== undefined) {
+      config.serialPort = comPortPick;
+    }
     const comPortBaudPick = await showInputBox({
       title,
-      step: 2,
-      totalSteps: 3,
+      step: currentStep++,
+      totalSteps,
       prompt: "Input a COM Port Baudrate",
       value: config.serialBaud ? config.serialBaud : "",
       validate: noOpValidate,
       placeholder: "115200"
     });
 
-    config.serialBaud = comPortBaudPick;
+    if (comPortBaudPick !== undefined) {
+      config.serialBaud = comPortBaudPick;
+    }
   }
 
   const argsPick = await showInputBox({
     title,
-    step: 3,
-    totalSteps: 3,
+    step: currentStep,
+    totalSteps,
     prompt: "Additional Twister Arguments",
     value: config.args ? config.args : "",
     validate: noOpValidate
   });
-  config.args = argsPick;
+  if (argsPick !== undefined) {
+    config.args = argsPick;
+  }
 }

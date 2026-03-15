@@ -326,7 +326,8 @@ export class UIMockInterface {
         return uris;
     }
 
-    private processQuickPickSelection(mockQuickPick: any): void {
+    private processQuickPickSelection(mockQuickPick: any, retryCount = 0): void {
+        const maxRetries = 30; // 30 seconds max wait
         if (mockQuickPick.items && mockQuickPick.items.length > 0) {
             const interaction = this.getNextInteraction('quickpick');
 
@@ -358,8 +359,12 @@ export class UIMockInterface {
                 this.triggerQuickPickCallbacks(mockQuickPick, selectedItem);
             }
         } else {
-            // Retry if items not populated yet
-            setTimeout(() => this.processQuickPickSelection(mockQuickPick), 1000);
+            // Retry if items not populated yet, with max retry limit
+            if (retryCount >= maxRetries) {
+                console.log(`   → QuickPick: Giving up after ${maxRetries} retries — items never populated. Selecting nothing.`);
+                return;
+            }
+            setTimeout(() => this.processQuickPickSelection(mockQuickPick, retryCount + 1), 1000);
         }
     }
 

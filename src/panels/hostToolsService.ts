@@ -20,6 +20,7 @@ import {
   getPackageManagerForPlatformAsync,
   checkPackageManagerAvailable,
   checkAllPackages,
+  checkPackageAvailable,
   installPackageManager as installPkgMgr,
   installPackage,
   getPlatformPackages,
@@ -242,9 +243,8 @@ export class HostToolsService {
           const success = await installPackage(pkg);
           installedCount++;
 
-          const updatedStatus = await checkAllPackages();
-          const installedPkg = updatedStatus.find(p => p.name === packageName);
-          const pendingRestart = success && installedPkg && !installedPkg.available;
+          const installedPkg = await checkPackageAvailable(pkg);
+          const pendingRestart = success && !installedPkg.available;
 
           this.post(this.config.commands.packageInstalled, {
             packageName: pkg.name,
@@ -261,7 +261,10 @@ export class HostToolsService {
       }
 
       const packageStatuses = await checkAllPackages();
-      const needsRestart = packageStatuses.some(p => !p.available);
+      const justInstalledNames = new Set(packageNames);
+      const needsRestart = packageStatuses
+        .filter(p => justInstalledNames.has(p.name))
+        .some(p => !p.available);
 
       this.post(this.config.commands.installAllComplete, {
         needsRestart,
