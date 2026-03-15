@@ -67,6 +67,7 @@ export class SetupPanel {
             column || vscode.ViewColumn.One,
             {
                 enableScripts: true,
+                retainContextWhenHidden: true,
                 localResourceRoots: [vscode.Uri.file(extensionPath)],
             }
         );
@@ -294,24 +295,34 @@ export class SetupPanel {
     // Workspace Management Methods
 
     // Utility Methods
-    private async openHostToolsPanel() {
+
+    /**
+     * Execute a VS Code command with proper error handling.
+     * @param command The command ID to execute
+     * @param label Label for error notifications
+     * @param disposeAfter If true, dispose the panel after the command completes
+     */
+    private async executeVSCommand(command: string, label: string, disposeAfter = false) {
         try {
-            vscode.commands.executeCommand("zephyr-ide.install-host-tools");
+            await vscode.commands.executeCommand(command);
+            if (disposeAfter) {
+                this._panel.dispose();
+            }
         } catch (error) {
-            notifyError("Setup Panel", `Failed to open host tools panel: ${error}`);
+            notifyError(label, `Failed: ${error}`);
         }
+    }
+
+    private async openHostToolsPanel() {
+        await this.executeVSCommand("zephyr-ide.install-host-tools", "Setup Panel");
     }
 
     private async openFolder() {
-        try {
-            vscode.commands.executeCommand("vscode.openFolder");
-        } catch (error) {
-            notifyError("Setup Panel", `Failed to open folder: ${error}`);
-        }
+        await this.executeVSCommand("vscode.openFolder", "Setup Panel");
     }
 
     private async reinitializeWorkspace() {
-        vscode.commands.executeCommand("zephyr-ide.reset-workspace");
+        await this.executeVSCommand("zephyr-ide.reset-workspace", "Setup Panel");
     }
 
     // SDK and West Management Methods
@@ -333,118 +344,47 @@ export class SetupPanel {
     }
 
     private async setupWestEnvironment() {
-        try {
-            vscode.commands.executeCommand("zephyr-ide.setup-west-environment");
-        } catch (error) {
-            notifyError("West Environment",
-                `Failed to setup west environment: ${error}`
-            );
-        }
+        await this.executeVSCommand("zephyr-ide.setup-west-environment", "West Environment");
     }
 
     private async westInit() {
-        try {
-            vscode.commands.executeCommand("zephyr-ide.west-init");
-        } catch (error) {
-            notifyError("West Init", `Failed to run west init: ${error}`);
-        }
+        await this.executeVSCommand("zephyr-ide.west-init", "West Init");
     }
 
     private async westUpdate() {
-        try {
-            vscode.commands.executeCommand("zephyr-ide.west-update");
-        } catch (error) {
-            notifyError("West Update", `Failed to run west update: ${error}`);
-        }
+        await this.executeVSCommand("zephyr-ide.west-update", "West Update");
     }
 
     private async manageWorkspace() {
-        try {
-            vscode.commands.executeCommand("zephyr-ide.manage-workspaces");
-        } catch (error) {
-            notifyError("Setup Panel",
-                `Failed to open workspace manager: ${error}`
-            );
-        }
+        await this.executeVSCommand("zephyr-ide.manage-workspaces", "Setup Panel");
     }
 
     private async selectExistingWestWorkspace() {
-        try {
-            vscode.commands.executeCommand("zephyr-ide.select-existing-west-workspace");
-        } catch (error) {
-            notifyError("Setup Panel",
-                `Failed to select existing west workspace: ${error}`
-            );
-        }
+        await this.executeVSCommand("zephyr-ide.select-existing-west-workspace", "Setup Panel");
     }
 
     private async workspaceSetupFromGit() {
-        try {
-            vscode.commands.executeCommand("zephyr-ide.workspace-setup-from-git");
-            this._panel.dispose();
-        } catch (error) {
-            notifyError("Setup Panel",
-                `Failed to setup workspace from Git: ${error}`
-            );
-        }
+        await this.executeVSCommand("zephyr-ide.workspace-setup-from-git", "Setup Panel", true);
     }
 
     private async workspaceSetupFromWestGit() {
-        try {
-            vscode.commands.executeCommand(
-                "zephyr-ide.workspace-setup-from-west-git"
-            );
-            this._panel.dispose();
-        } catch (error) {
-            notifyError("Setup Panel",
-                `Failed to setup workspace from West Git: ${error}`
-            );
-        }
+        await this.executeVSCommand("zephyr-ide.workspace-setup-from-west-git", "Setup Panel", true);
     }
 
     private async workspaceSetupStandard() {
-        try {
-            vscode.commands.executeCommand("zephyr-ide.workspace-setup-standard");
-            this._panel.dispose();
-        } catch (error) {
-            notifyError("Setup Panel",
-                `Failed to setup standard workspace: ${error}`
-            );
-        }
+        await this.executeVSCommand("zephyr-ide.workspace-setup-standard", "Setup Panel", true);
     }
 
     private async workspaceSetupFromCurrentDirectory() {
-        try {
-            vscode.commands.executeCommand(
-                "zephyr-ide.workspace-setup-from-current-directory"
-            );
-            this._panel.dispose();
-        } catch (error) {
-            notifyError("Setup Panel",
-                `Failed to setup workspace from current directory: ${error}`
-            );
-        }
+        await this.executeVSCommand("zephyr-ide.workspace-setup-from-current-directory", "Setup Panel", true);
     }
 
     private async workspaceSetupPicker() {
-        try {
-            vscode.commands.executeCommand("zephyr-ide.workspace-setup-picker");
-            this._panel.dispose();
-        } catch (error) {
-            notifyError("Setup Panel",
-                `Failed to open workspace setup picker: ${error}`
-            );
-        }
+        await this.executeVSCommand("zephyr-ide.workspace-setup-picker", "Setup Panel", true);
     }
 
     private async westConfig() {
-        try {
-            vscode.commands.executeCommand("zephyr-ide.west-config");
-        } catch (error) {
-            notifyError("West Config",
-                `Failed to open west config: ${error}`
-            );
-        }
+        await this.executeVSCommand("zephyr-ide.west-config", "West Config");
     }
 
     private async listSDKs() {

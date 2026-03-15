@@ -736,11 +736,5 @@ function updateHostToolsPackageStatus(packageName, state) {
     }
 }
 
-// Message Listener
-window.addEventListener('message', event => {
-    const message = event.data;
-
-    if (message.command === 'sdkListResult') {
-        displaySDKList(message.data);
-    }
-});
+// Message Listener for SDK list (handled by main listener above)
+// Removed duplicate sdkListResult handler to prevent displaySDKList firing twice

@@ -51,10 +51,10 @@ WorkspaceSetupFromWestGit
 import * as vscode from "vscode";
 import * as fs from "fs-extra";
 import * as path from "upath";
-import { output, executeTaskHelper, validateGitUrl } from "../utilities/utils";
+import { executeTaskHelper, validateGitUrl } from "../utilities/utils";
 import { outputInfo, outputError, notifyError, showOutput } from "../utilities/output";
 import { westSelector, WestLocation } from "./west_selector";
-import { WorkspaceConfig, GlobalConfig } from "./types";
+import { WorkspaceConfig, GlobalConfig, formatZephyrVersion } from "./types";
 import { setSetupState, loadExternalSetupState, setWorkspaceState, setGlobalState } from "./state-management";
 import { postWorkspaceSetup, } from "./west-operations";
 import { getToolsDir } from "./workspace-config";
@@ -84,7 +84,14 @@ async function discoverWestConfiguration(baseDir: string): Promise<WestDiscovery
       const files = fs.readdirSync(dir);
       for (const file of files) {
         const fullPath = path.join(dir, file);
-        if (fs.statSync(fullPath).isDirectory()) {
+        let stat;
+        try {
+          stat = fs.statSync(fullPath);
+        } catch {
+          // Skip entries that can't be stat'd (e.g. broken symlinks)
+          continue;
+        }
+        if (stat.isDirectory()) {
           searchForWestYml(fullPath, depth + 1);
         } else if (file === "west.yml") {
           westYmlFiles.push(path.dirname(fullPath));
@@ -178,8 +185,8 @@ export async function workspaceSetupFromGit(context: vscode.ExtensionContext, ws
     "Workspace type selected: Zephyr IDE Workspace from Git"
   );
 
-  let cmd = `git clone ${gitUrl} .`;
-  let gitCloneRes = await executeTaskHelper("Zephyr IDE: Git Clone", cmd, currentDir);
+  const cmd = `git clone ${gitUrl} .`;
+  const gitCloneRes = await executeTaskHelper("Zephyr IDE: Git Clone", cmd, currentDir);
 
   if (!gitCloneRes) {
     notifyError("Git Clone", "Git clone failed. Check the Zephyr IDE output for details.", { command: cmd });
@@ -243,7 +250,7 @@ export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext
   }
 
   // Initialize west with the provided git URL and additional arguments
-  let westSelection: WestLocation = {
+  const westSelection: WestLocation = {
     path: undefined,
     failed: false,
     gitRepo: gitUrl,
@@ -386,12 +393,8 @@ async function getExistingInstallationPicks(wsConfig: WorkspaceConfig, globalCon
       let description = "";
 
       // Add helpful descriptions
-      let versionStr = setupState.zephyrVersion
-        ? setupState.zephyrVersion.major +
-        "." +
-        setupState.zephyrVersion.minor +
-        "." +
-        setupState.zephyrVersion.patch
+      const versionStr = setupState.zephyrVersion
+        ? formatZephyrVersion(setupState.zephyrVersion)
         : "installation";
       if (installPath === getToolsDir()) {
         description = `Global Zephyr ${versionStr}`;
@@ -1005,9 +1008,15 @@ export async function selectExistingWestWorkspace(
     return false;
   }
 
-  // Set it as the active setup state for this workspace
-  wsConfig.activeSetupState = setupState;
-  wsConfig.initialSetupComplete = true; // Mark workspace as initialized
+  // Use setSetupState to properly initialize environment variables, DTS, gitignore, etc.
+  await setSetupState(context, wsConfig, globalConfig, installPath);
+
+  if (!wsConfig.activeSetupState) {
+    notifyError("Workspace Link", `Failed to initialize workspace from: ${installPath}`);
+    return false;
+  }
+
+  wsConfig.initialSetupComplete = true;
   await setWorkspaceState(context, wsConfig);
 
   vscode.window.showInformationMessage(

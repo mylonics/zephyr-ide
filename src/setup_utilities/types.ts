@@ -18,6 +18,11 @@ limitations under the License.
 import { ProjectConfig, ProjectState } from "../project_utilities/project";
 import { ZephyrVersionNumber } from "./modules";
 
+/** Format a ZephyrVersionNumber as "major.minor.patch" */
+export function formatZephyrVersion(v: ZephyrVersionNumber): string {
+  return `${v.major}.${v.minor}.${v.patch}`;
+}
+
 export type ProjectConfigDictionary = { [name: string]: ProjectConfig };
 export type ProjectStateDictionary = { [name: string]: ProjectState };
 
@@ -33,14 +38,6 @@ export interface SetupState {
 
 export type SetupStateDictionary = { [name: string]: SetupState };
 
-export interface ToolChainEntry {
-  version: string,
-  basePath: string,
-  targetsInstalled: string[];
-}
-
-export type ToolChainDictionary = { [name: string]: ToolChainEntry };
-
 export interface GlobalConfig {
   toolsAvailable?: boolean,
   sdkInstalled?: boolean,
@@ -52,7 +49,7 @@ export interface WorkspaceConfig {
   projects: ProjectConfigDictionary,
   activeProject?: string,
   initialSetupComplete: boolean,
-  automaticProjectSelction: boolean,
+  automaticProjectSelection: boolean,
   activeSetupState?: SetupState,
   projectStates: ProjectStateDictionary,
 }

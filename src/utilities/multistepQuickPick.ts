@@ -6,8 +6,6 @@ class InputFlowAction {
   static resume = new InputFlowAction();
 }
 
-type InputStep = (input: MultiStepInput) => Thenable<InputStep | void>;
-
 interface QuickPickParameters<T extends QuickPickItem> {
   title: string;
   step: number;
@@ -34,12 +32,7 @@ interface InputBoxParameters {
   dispose?: boolean;
 }
 
-function shouldResume() {
-  // Could show a notification with the option to resume.
-  return new Promise<boolean>((resolve, reject) => {
-    reject();
-  });
-}
+type InputStep = (input: MultiStepInput) => Thenable<InputStep | void>;
 
 
 export class MultiStepInput {
@@ -109,10 +102,7 @@ export class MultiStepInput {
           }),
           input.onDidChangeSelection(items => resolve(items[0])),
           input.onDidHide(() => {
-            (async () => {
-              reject(shouldResume && await shouldResume() ? InputFlowAction.resume : InputFlowAction.cancel);
-            })()
-              .catch(reject);
+            reject(InputFlowAction.cancel);
           })
         );
         if (this.current) {
@@ -170,10 +160,7 @@ export class MultiStepInput {
             }
           }),
           input.onDidHide(() => {
-            (async () => {
-              reject(shouldResume && await shouldResume() ? InputFlowAction.resume : InputFlowAction.cancel);
-            })()
-              .catch(reject);
+            reject(InputFlowAction.cancel);
           })
         );
         if (this.current) {
@@ -188,7 +175,7 @@ export class MultiStepInput {
   }
 }
 
-export async function showQuickPick<T extends QuickPickItem, P extends QuickPickParameters<T>, O>({ title, step, totalSteps, items, activeItem, ignoreFocusOut, placeholder, dispose = true }: P) {
+export async function showQuickPick<T extends QuickPickItem, P extends QuickPickParameters<T>>({ title, step, totalSteps, items, activeItem, ignoreFocusOut, placeholder, dispose = true }: P) {
 
   const disposables: Disposable[] = [];
   try {
@@ -210,10 +197,12 @@ export async function showQuickPick<T extends QuickPickItem, P extends QuickPick
           input.enabled = false;
           input.busy = true;
           resolve(selected);
-          disposables.forEach(d => d.dispose());
           if (dispose) {
             input.dispose();
           }
+        }),
+        input.onDidHide(() => {
+          reject(new Error('Quick pick dismissed'));
         }));
       input.show();
     });
@@ -223,7 +212,7 @@ export async function showQuickPick<T extends QuickPickItem, P extends QuickPick
 
 }
 
-export async function showQuickPickMany<T extends QuickPickItem, P extends QuickPickParameters<T>, O>({ title, step, totalSteps, items, activeItem, ignoreFocusOut, placeholder, dispose = true }: P) {
+export async function showQuickPickMany<T extends QuickPickItem, P extends QuickPickParameters<T>>({ title, step, totalSteps, items, activeItem, ignoreFocusOut, placeholder, dispose = true }: P) {
 
   const disposables: Disposable[] = [];
   try {
@@ -245,10 +234,12 @@ export async function showQuickPickMany<T extends QuickPickItem, P extends Quick
           input.enabled = false;
           input.busy = true;
           resolve(selected);
-          disposables.forEach(d => d.dispose());
           if (dispose) {
             input.dispose();
           }
+        }),
+        input.onDidHide(() => {
+          reject(new Error('Quick pick dismissed'));
         }));
       input.show();
     });
@@ -287,10 +278,12 @@ export async function showInputBox<P extends InputBoxParameters>({ title, step, 
           input.enabled = false;
           input.busy = true;
           resolve(input.value);
-          disposables.forEach(d => d.dispose());
           if (dispose) {
             input.dispose();
           }
+        }),
+        input.onDidHide(() => {
+          reject(new Error('Input box dismissed'));
         }));
       input.show();
     });

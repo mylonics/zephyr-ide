@@ -17,6 +17,7 @@ limitations under the License.
 
 
 import * as vscode from "vscode";
+import * as fs from "fs";
 import { IntegrationSettings, Context } from "devicetree-language-server-types";
 import { IDeviceTreeAPI } from "devicetree-language-server-vscode-types";
 
@@ -31,15 +32,16 @@ import { outputInfo } from "../utilities/output";
 import { getBuildInfo } from "../zephyr_utilities/build";
 import { BuildConfig } from "../project_utilities/build_selector";
 
-const ext = vscode.extensions.getExtension<IDeviceTreeAPI>(
-  "KyleMicallefBonnici.dts-lsp"
-);
-
 let api: IDeviceTreeAPI | undefined = undefined;
 
 async function activateDtsExtension() {
-  if (ext && (api === undefined)) {
-    api = ext.isActive ? ext.exports : await ext.activate();
+  if (api === undefined) {
+    const ext = vscode.extensions.getExtension<IDeviceTreeAPI>(
+      "KyleMicallefBonnici.dts-lsp"
+    );
+    if (ext) {
+      api = ext.isActive ? ext.exports : await ext.activate();
+    }
   }
 }
 
@@ -48,25 +50,27 @@ export async function initializeDtsExt(state: SetupState, wsConfig: WorkspaceCon
   if (api) {
     const dtsIncludeArray = await getDtsIncludes(state);
 
+    const dtsDir = path.join(state.zephyrDir, "dts");
+    const dtsIncludePaths: string[] = [dtsDir];
+
+    // Discover architecture subdirectories dynamically instead of hardcoding
+    try {
+      const entries = fs.readdirSync(dtsDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.isDirectory() && entry.name !== "bindings") {
+          dtsIncludePaths.push(path.join(dtsDir, entry.name));
+        }
+      }
+    } catch {
+      // Fall back to just the dts root if we can't read the directory
+    }
+    dtsIncludePaths.push(path.join(state.zephyrDir, "include"));
+
     let settings: IntegrationSettings = {
       cwd: state.setupPath,
       defaultBindingType: "Zephyr",
-      defaultZephyrBindings: [path.join(state.zephyrDir, "dts/bindings")],
-      defaultIncludePaths: [
-        path.join(state.zephyrDir, "dts"),
-        path.join(state.zephyrDir, "dts/arc"),
-        path.join(state.zephyrDir, "dts/arm"),
-        path.join(state.zephyrDir, "dts/arm64/"),
-        path.join(state.zephyrDir, "dts/riscv"),
-        path.join(state.zephyrDir, "dts/common"),
-        path.join(state.zephyrDir, "dts/nios2"),
-        path.join(state.zephyrDir, "dts/posix"),
-        path.join(state.zephyrDir, "dts/riscv"),
-        path.join(state.zephyrDir, "dts/sparc"),
-        path.join(state.zephyrDir, "dts/x86"),
-        path.join(state.zephyrDir, "dts/xtensa"),
-        path.join(state.zephyrDir, "include"),
-      ],
+      defaultZephyrBindings: [path.join(dtsDir, "bindings")],
+      defaultIncludePaths: dtsIncludePaths,
       autoChangeContext: true,
       allowAdhocContexts: true,
     };

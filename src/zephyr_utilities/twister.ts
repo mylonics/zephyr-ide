@@ -21,8 +21,8 @@ import * as path from 'upath';
 import { executeTaskHelperInPythonEnv } from "../utilities/utils";
 import { notifyError, outputInfo } from "../utilities/output";
 
-import { WorkspaceConfig } from '../setup_utilities/types';
-import { addTest, ProjectConfig, getResolvedTestName, resolveActiveProject, getProjectFolder } from "../project_utilities/project";
+import { WorkspaceConfig, SetupState } from '../setup_utilities/types';
+import { addTest, ProjectConfig, getResolvedTestName, resolveActiveProject, getProjectFolder, resolveBoardRootArg } from "../project_utilities/project";
 import { TwisterConfig } from "../project_utilities/twister_selector";
 import { getSetupState } from "../setup_utilities/workspace-config";
 
@@ -50,14 +50,14 @@ export async function testHelper(context: vscode.ExtensionContext, wsConfig: Wor
         return;
       }
     }
-    return await runTest(context, wsConfig, project, project.twisterConfigs[testName]);
+    return await runTest(setupState, wsConfig, project, project.twisterConfigs[testName]);
   } else {
     notifyError("Twister Test", "Run `Zephyr IDE: West Update` command first.");
   }
 }
 
 export async function runTest(
-  context: vscode.ExtensionContext,
+  setupState: SetupState,
   wsConfig: WorkspaceConfig,
   project: ProjectConfig,
   testConfig: TwisterConfig
@@ -69,28 +69,18 @@ export async function runTest(
 
 
   let testString = `-T "${projectFolder}" `;
-  if (testConfig.tests[0] !== "All") {
-    testString += "-s ";
+  if (testConfig.tests.length > 0 && testConfig.tests[0] !== "All") {
     for (let test of testConfig.tests) {
-      testString += test + " ";
+      testString += "-s " + test + " ";
     }
   }
 
   testString += `--outdir "${path.join(projectFolder, "twister-out")}"  ${testConfig.args ? testConfig.args : ""}`;
 
   if (testConfig.boardConfig) {
-    let boardRoot;
-
-    if (testConfig.boardConfig.relBoardDir) {
-      boardRoot = path.dirname(path.join(wsConfig.rootPath, testConfig.boardConfig.relBoardDir));
-    } else {
-      const setupState = await getSetupState(context, wsConfig);
-      if (setupState) {
-        boardRoot = setupState.zephyrDir;
-      }
-    }
-
-    cmd = `west twister --device-testing  ${testConfig.serialPort ? "--device-serial " + testConfig.serialPort : ""} ${testConfig.serialBaud ? "--device-serial-baud " + testConfig.serialBaud : ""} -p ${testConfig.boardConfig.board} ${testString} -- -DBOARD_ROOT='${boardRoot}' `;
+    const boardRootArg = resolveBoardRootArg(wsConfig, testConfig.boardConfig, setupState);
+    const boardRootCmakeArg = boardRootArg ? `-- ${boardRootArg}` : "";
+    cmd = `west twister --device-testing  ${testConfig.serialPort ? "--device-serial " + testConfig.serialPort : ""} ${testConfig.serialBaud ? "--device-serial-baud " + testConfig.serialBaud : ""} -p ${testConfig.boardConfig.board} ${testString} ${boardRootCmakeArg} `;
   } else {
     cmd = `west twister -p ${testConfig.platform} ${testString} `;
   }
@@ -99,8 +89,7 @@ export async function runTest(
   let taskName = "Zephyr IDE Test: " + project.name + " " + testConfig.name;
 
   outputInfo(`Twister: ${project.name}/${testConfig.name}`, `Running ${testConfig.name} Test from project: ${project.name} (cmd: ${cmd})`, true);
-  const setupState = await getSetupState(context, wsConfig);
-  let ret = await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState?.setupPath);
+  let ret = await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState.setupPath);
   return ret;
 }
 
@@ -110,11 +99,15 @@ export async function deleteTestDirs(
 ) {
   const projectDir = getProjectFolder(wsConfig, project);
 
+  if (!await fs.pathExists(projectDir)) {
+    return;
+  }
+
   const files = await fs.readdir(projectDir);
   for (const file of files) {
-    const match = file.match(/twister.*/);
+    const match = file.match(/^twister-out($|[\-_])/);
     if (match !== null) {
-      await fs.rm(path.join(projectDir, match[0]), { recursive: true, force: true });
+      await fs.rm(path.join(projectDir, file), { recursive: true, force: true });
     }
   }
 

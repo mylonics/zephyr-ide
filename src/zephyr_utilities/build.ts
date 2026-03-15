@@ -23,10 +23,10 @@ import { executeTaskHelperInPythonEnv, executeShellCommandInPythonEnv, loadYamlF
 import { notifyError, outputInfo, outputWarning } from "../utilities/output";
 
 import { WorkspaceConfig } from '../setup_utilities/types';
-import { addBuild, ProjectConfig, getResolvedBuildName, resolveActiveProject, resolveActiveProjectBuild, getProjectFolder, getBuildFolder } from "../project_utilities/project";
+import { addBuild, ProjectConfig, getResolvedBuildName, resolveActiveProject, resolveActiveProjectBuild, getProjectFolder, getBuildFolder, resolveBoardRootArg } from "../project_utilities/project";
 import { BuildConfig } from "../project_utilities/build_selector";
 import { updateDtsContext } from "../setup_utilities/dts_interface";
-import { getSetupState, updateBuildCMakeInfo, clearBuildCMakeInfo } from "../setup_utilities/workspace-config";
+import { getSetupState, getSetupStateOrNotify, updateBuildCMakeInfo, clearBuildCMakeInfo } from "../setup_utilities/workspace-config";
 
 
 export interface BuildInfo {
@@ -48,24 +48,28 @@ function isBuildFolderPopulated(buildFolder: string): boolean {
 async function readCompileCommandsFile(filePath: string, accumulator: any[]): Promise<void> {
   if (!fs.existsSync(filePath)) { return; }
   const rawdata = await fs.readFile(filePath, 'utf8');
-  const parsed = JSON.parse(rawdata);
-  if (Array.isArray(parsed)) {
-    accumulator.push(...parsed);
-  } else {
-    outputWarning("Build", `compile_commands.json is not an array: ${filePath}`);
+  try {
+    const parsed = JSON.parse(rawdata);
+    if (Array.isArray(parsed)) {
+      accumulator.push(...parsed);
+    } else {
+      outputWarning("Build", `compile_commands.json is not an array: ${filePath}`);
+    }
+  } catch (e) {
+    outputWarning("Build", `Failed to parse compile_commands.json at ${filePath}: ${e}`);
   }
 }
 
 export async function regenerateCompileCommands(wsConfig: WorkspaceConfig) {
-  let compileCommandData: any[] = [];
+  const compileCommandData: any[] = [];
 
-  for (let projectName in wsConfig.projects) {
-    let project = wsConfig.projects[projectName];
-    for (let buildName in project.buildConfigs) {
-      let build = project.buildConfigs[buildName];
-      let basepath = getBuildFolder(wsConfig, project, build);
-      let basefile = path.join(basepath, "compile_commands.json");
-      let extfile = path.join(basepath, project.name, "compile_commands.json");
+  for (const projectName in wsConfig.projects) {
+    const project = wsConfig.projects[projectName];
+    for (const buildName in project.buildConfigs) {
+      const build = project.buildConfigs[buildName];
+      const basepath = getBuildFolder(wsConfig, project, build);
+      const basefile = path.join(basepath, "compile_commands.json");
+      const extfile = path.join(basepath, project.name, "compile_commands.json");
       if (fs.existsSync(basefile)) {
         await readCompileCommandsFile(basefile, compileCommandData);
       } else if (fs.existsSync(extfile)) {
@@ -73,7 +77,7 @@ export async function regenerateCompileCommands(wsConfig: WorkspaceConfig) {
       }
     }
   }
-  let data = JSON.stringify(compileCommandData);
+  const data = JSON.stringify(compileCommandData);
   await fs.outputFile(path.join(wsConfig.rootPath, '.vscode', 'compile_commands.json'), data);
 }
 
@@ -110,12 +114,12 @@ export enum MenuConfig {
 }
 
 export async function buildByName(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, pristine: boolean, projectName: string, buildName: string, isMenuConfig = MenuConfig.None) {
-  let project = wsConfig.projects[projectName];
+  const project = wsConfig.projects[projectName];
   if (!project) {
     notifyError("Build", "Invalid project or build");
     return;
   }
-  let buildconfig = project.buildConfigs[buildName];
+  const buildconfig = project.buildConfigs[buildName];
   if (buildconfig) {
     if (isMenuConfig !== MenuConfig.None) {
       await buildMenuConfig(context, wsConfig, isMenuConfig, project, buildconfig);
@@ -135,22 +139,25 @@ export async function build(
   pristine: boolean
 ) {
 
-  let primaryConfFiles = project.confFiles.config.concat(build.confFiles.config)
+  const primaryConfFiles = project.confFiles.config.concat(build.confFiles.config)
     .map(x => path.join(wsConfig.rootPath, x));
-  let secondaryConfFiles = project.confFiles.extraConfig.concat(build.confFiles.extraConfig)
+  const secondaryConfFiles = project.confFiles.extraConfig.concat(build.confFiles.extraConfig)
     .map(x => path.join(wsConfig.rootPath, x));
-  let overlayFiles = project.confFiles.overlay.concat(build.confFiles.overlay)
+  const overlayFiles = project.confFiles.overlay.concat(build.confFiles.overlay)
     .map(x => path.join(wsConfig.rootPath, x));
-  let extraOverlayFiles = project.confFiles.extraOverlay.concat(build.confFiles.extraOverlay)
+  const extraOverlayFiles = project.confFiles.extraOverlay.concat(build.confFiles.extraOverlay)
     .map(x => path.join(wsConfig.rootPath, x));
 
   const extraWestBuildArgs = build.westBuildArgs ?? "";
   const extraWestBuildCMakeArgs = build.westBuildCMakeArgs ?? "";
 
-  let projectFolder = getProjectFolder(wsConfig, project);
-  let buildFolder = getBuildFolder(wsConfig, project, build);
+  const projectFolder = getProjectFolder(wsConfig, project);
+  const buildFolder = getBuildFolder(wsConfig, project, build);
 
-  const setupState = await getSetupState(context, wsConfig);
+  const setupState = await getSetupStateOrNotify(context, wsConfig, "Build");
+  if (!setupState) {
+    return;
+  }
   let cmd = `west build "${projectFolder}" --build-dir "${buildFolder}" ${extraWestBuildArgs} `;
 
   const buildFolderExists = fs.existsSync(buildFolder);
@@ -165,42 +172,39 @@ export async function build(
     // Clear cached CMake info on pristine build
     clearBuildCMakeInfo(wsConfig, project.name, build.name);
 
-    let boardRoot: string | undefined;
-    if (build.relBoardDir) {
-      boardRoot = path.dirname(path.join(wsConfig.rootPath, build.relBoardDir));
-    } else if (setupState) {
-      boardRoot = setupState.zephyrDir;
-    }
-    const boardRootArg = boardRoot ? `-DBOARD_ROOT='${boardRoot}'` : "";
-    const cmakeArgs = [boardRootArg, extraWestBuildCMakeArgs].filter(s => s.trim().length > 0).join(' ');
-    const cmakeSection = cmakeArgs ? ` -- ${cmakeArgs}` : '';
-    cmd = `west build -b ${build.board + (build.revision ? '@' + build.revision : "")} "${projectFolder}" -p --build-dir "${buildFolder}" ${extraWestBuildArgs}${cmakeSection} `;
+    const boardRootArg = resolveBoardRootArg(wsConfig, build, setupState);
 
+    // Collect all CMake -D flags
+    const cmakeDefs: string[] = [boardRootArg, extraWestBuildCMakeArgs].filter(s => s.trim().length > 0);
     if (primaryConfFiles.length) {
-      cmd += ` -DCONF_FILE='${primaryConfFiles.join(";")}' `;
+      cmakeDefs.push(`-DCONF_FILE='${primaryConfFiles.join(";")}'`);
     }
     if (secondaryConfFiles.length) {
-      cmd += ` -DEXTRA_CONF_FILE='${secondaryConfFiles.join(";")}' `;
+      cmakeDefs.push(`-DEXTRA_CONF_FILE='${secondaryConfFiles.join(";")}'`);
     }
     if (overlayFiles.length) {
-      cmd += ` -DDTC_OVERLAY_FILE='${overlayFiles.join(";")}' `;
+      cmakeDefs.push(`-DDTC_OVERLAY_FILE='${overlayFiles.join(";")}'`);
     }
     if (extraOverlayFiles.length) {
-      cmd += ` -DEXTRA_DTC_OVERLAY_FILE='${extraOverlayFiles.join(";")}' `;
+      cmakeDefs.push(`-DEXTRA_DTC_OVERLAY_FILE='${extraOverlayFiles.join(";")}'`);
     }
+
+    const cmakeSection = cmakeDefs.length > 0 ? ` -- ${cmakeDefs.join(' ')}` : '';
+    cmd = `west build -b ${build.board + (build.revision ? '@' + build.revision : "")} "${projectFolder}" -p --build-dir "${buildFolder}" ${extraWestBuildArgs}${cmakeSection} `;
   }
 
 
-  let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
+  const taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
 
   outputInfo(`Build: ${project.name}/${build.name}`, `Building ${build.name} from project: ${project.name} (cmd: ${cmd})`, true);
-  let ret = await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState?.setupPath);
+  const ret = await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState.setupPath);
 
-  // Update cached CMake info after build completes
-  updateBuildCMakeInfo(wsConfig, project.name, build.name);
-
-  regenerateCompileCommands(wsConfig);
-  updateDtsContext(wsConfig, project, build);
+  // Only update caches on successful build
+  if (ret) {
+    updateBuildCMakeInfo(wsConfig, project.name, build.name);
+    await regenerateCompileCommands(wsConfig);
+    await updateDtsContext(wsConfig, project, build);
+  }
   return ret;
 }
 
@@ -220,21 +224,24 @@ export async function buildMenuConfig(
     build = build ?? resolved.build;
   }
 
-  let projectFolder = getProjectFolder(wsConfig, project);
-  let buildFolder = getBuildFolder(wsConfig, project, build);
+  const projectFolder = getProjectFolder(wsConfig, project);
+  const buildFolder = getBuildFolder(wsConfig, project, build);
   if (!isBuildFolderPopulated(buildFolder)) {
     notifyError("Menu Config", `Run a Build or Build Pristine before running Menu/GUI Config.`);
     return;
   }
 
-  let cmd = `west build -t ${config === MenuConfig.MenuConfig ? "menuconfig" : "guiconfig"} "${projectFolder}" --build-dir "${buildFolder}" `;
-  let taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
+  const cmd = `west build -t ${config === MenuConfig.MenuConfig ? "menuconfig" : "guiconfig"} "${projectFolder}" --build-dir "${buildFolder}" `;
+  const taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
 
   outputInfo(`MenuConfig: ${project.name}/${build.name}`, `Running MenuConfig ${build.name} from project: ${project.name} (cmd: ${cmd})`, true);
-  const setupState = await getSetupState(context, wsConfig);
-  await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState?.setupPath);
-  regenerateCompileCommands(wsConfig);
-  updateDtsContext(wsConfig, project, build);
+  const setupState = await getSetupStateOrNotify(context, wsConfig, "Menu Config");
+  if (!setupState) {
+    return;
+  }
+  await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState.setupPath);
+  await regenerateCompileCommands(wsConfig);
+  await updateDtsContext(wsConfig, project, build);
 }
 
 /**
@@ -257,17 +264,16 @@ async function resolveRamRomReportParams(
     build = build ?? resolved.build;
   }
 
-  let projectFolder = getProjectFolder(wsConfig, project);
-  let buildFolder = getBuildFolder(wsConfig, project, build);
+  const projectFolder = getProjectFolder(wsConfig, project);
+  const buildFolder = getBuildFolder(wsConfig, project, build);
   if (!isBuildFolderPopulated(buildFolder)) {
     notifyError("RAM/ROM Report", `Run a Build or Build Pristine before running ${reportType} Report.`);
     return undefined;
   }
 
   const cmd = `west build -t ${isRamReport ? "ram_report" : "rom_report"} "${projectFolder}" --build-dir "${buildFolder}"`;
-  const setupState = await getSetupState(context, wsConfig);
+  const setupState = await getSetupStateOrNotify(context, wsConfig, "RAM/ROM Report");
   if (!setupState) {
-    notifyError("RAM/ROM Report", `No setup state available for ${reportType} Report.`);
     return undefined;
   }
 
@@ -284,10 +290,10 @@ export async function buildRamRomReport(
   const params = await resolveRamRomReportParams(context, wsConfig, isRamReport, project, build);
   if (!params) { return; }
 
-  let taskName = "Zephyr IDE Build: " + params.project.name + " " + params.build.name;
+  const taskName = "Zephyr IDE Build: " + params.project.name + " " + params.build.name;
   outputInfo(`${isRamReport ? "RAM" : "ROM"} Report: ${params.project.name}/${params.build.name}`, `Running ${isRamReport ? "RAM" : "ROM"} Report ${params.build.name} from project: ${params.project.name} (cmd: ${params.cmd})`, true);
-  await executeTaskHelperInPythonEnv(params.setupState, taskName, params.cmd, params.setupState?.setupPath);
-  regenerateCompileCommands(wsConfig);
+  await executeTaskHelperInPythonEnv(params.setupState, taskName, params.cmd, params.setupState.setupPath);
+  await regenerateCompileCommands(wsConfig);
 }
 
 /**
@@ -307,8 +313,8 @@ export async function buildRamRomReportHeadless(
 
   const result = await executeShellCommandInPythonEnv(params.cmd, params.setupState.setupPath, params.setupState, true);
   const combined = [result.stdout, result.stderr].filter(Boolean).join('\n');
-  if (result.stdout) {
-    return { success: true, output: combined };
+  if (result.exitCode === 0) {
+    return { success: true, output: combined || `${reportType} Report: completed successfully` };
   } else {
     return { success: false, output: combined || `${reportType} Report: No output` };
   }
@@ -328,13 +334,16 @@ export async function runDtshShell(
     build = build ?? resolved.build;
   }
 
-  let cmd = `dtsh "${path.join(getBuildFolder(wsConfig, project, build), 'zephyr', 'zephyr.dts')}" `;
+  const cmd = `dtsh "${path.join(getBuildFolder(wsConfig, project, build), 'zephyr', 'zephyr.dts')}" `;
 
-  let taskName = "Zephyr IDE DTSH Shell: " + project.name + " " + build.name;
+  const taskName = "Zephyr IDE DTSH Shell: " + project.name + " " + build.name;
 
   outputInfo(`DTSH Shell: ${project.name}/${build.name}`, `Running DTSH Shell ${build.name} from project: ${project.name} (cmd: ${cmd})`, true);
-  const setupState = await getSetupState(context, wsConfig);
-  await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState?.setupPath);
+  const setupState = await getSetupStateOrNotify(context, wsConfig, "DTSH Shell");
+  if (!setupState) {
+    return;
+  }
+  await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState.setupPath);
 }
 
 export async function clean(wsConfig: WorkspaceConfig, projectName: string | undefined) {
@@ -352,12 +361,12 @@ export async function getBuildInfo(wsConfig: WorkspaceConfig,
   const rawData: any = loadYamlFile(buildInfoFilePath);
 
   if (rawData && rawData.cmake && rawData.cmake.devicetree && rawData.cmake.kconfig) {
-    let dtsFiles = rawData.cmake.devicetree["files"];
-    let userDtsFiles = rawData.cmake.devicetree["user-files"];
+    const dtsFiles = rawData.cmake.devicetree["files"] ?? [];
+    const userDtsFiles = rawData.cmake.devicetree["user-files"] ?? [];
 
     let dtsFile = "";
 
-    let otherDtsFiles: string[] = [];
+    const otherDtsFiles: string[] = [];
 
     for (const file of dtsFiles) {
       if (path.extname(file) === ".dts") {
@@ -375,13 +384,13 @@ export async function getBuildInfo(wsConfig: WorkspaceConfig,
       }
     }
 
-    let info: BuildInfo = {
-      bindingsDirs: rawData.cmake.devicetree["bindings-dirs"],
+    const info: BuildInfo = {
+      bindingsDirs: rawData.cmake.devicetree["bindings-dirs"] ?? [],
       dtsFile: dtsFile,
       otherDtsFiles: otherDtsFiles,
-      includeDirs: rawData.cmake.devicetree["include-dirs"],
-      kconfigFiles: rawData.cmake.kconfig["files"],
-      otherKconfigFiles: rawData.cmake.kconfig["user-files"],
+      includeDirs: rawData.cmake.devicetree["include-dirs"] ?? [],
+      kconfigFiles: rawData.cmake.kconfig["files"] ?? [],
+      otherKconfigFiles: rawData.cmake.kconfig["user-files"] ?? [],
     };
     return info;
   }

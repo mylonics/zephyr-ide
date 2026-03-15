@@ -20,8 +20,13 @@ import { outputInfo, outputError, notifyError, showOutput } from "../utilities/o
 import { WorkspaceConfig, GlobalConfig } from "./types";
 import { saveSetupState } from "./state-management";
 import { checkAllPackages } from "./host_tools";
+import { getPlatformNameAsync } from "../utilities/utils";
 
-export let pathdivider = process.platform === "win32" ? ";" : ":";
+/** Get the platform-appropriate PATH separator, aware of remote environments. */
+export async function getPathDivider(): Promise<string> {
+  const platform = await getPlatformNameAsync();
+  return platform === "windows" ? ";" : ":";
+}
 
 /**
  * Check if all required tools are available using the new host tools system

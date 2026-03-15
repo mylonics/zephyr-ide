@@ -16,7 +16,7 @@ limitations under the License.
 */
 
 import * as vscode from "vscode";
-import { executeTaskHelper, getPlatformArch, getPlatformName, getPlatformNameAsync, executeShellCommand, logDual } from "../utilities/utils";
+import { executeTaskHelper, getPlatformArch, getPlatformNameAsync, executeShellCommand, logDual } from "../utilities/utils";
 import { outputInfo, outputWarning, outputError, notifyWarning } from "../utilities/output";
 import manifestData from "./host-tools-manifest.json";
 
@@ -169,13 +169,6 @@ function getPackageManagerFromPlatformName(platformName: string | undefined): { 
   }
 
   return { name: managerName, config: managerConfig };
-}
-
-/**
- * Get the package manager for the current platform
- */
-export function getPackageManagerForPlatform(): { name: string; config: PackageManager } | null {
-  return getPackageManagerFromPlatformName(getPlatformName());
 }
 
 /**
@@ -361,18 +354,11 @@ export async function checkPackageAvailable(pkg: PlatformPackage): Promise<Packa
 }
 
 /**
- * Check all platform packages
+ * Check all platform packages (runs checks in parallel)
  */
 export async function checkAllPackages(): Promise<PackageStatus[]> {
   const packages = await getPlatformPackages();
-  const statuses: PackageStatus[] = [];
-  
-  for (const pkg of packages) {
-    const status = await checkPackageAvailable(pkg);
-    statuses.push(status);
-  }
-  
-  return statuses;
+  return Promise.all(packages.map(pkg => checkPackageAvailable(pkg)));
 }
 
 /**
@@ -595,51 +581,15 @@ export async function installHostPackagesHeadless(): Promise<boolean> {
 export async function installHostToolsHeadless(): Promise<boolean> {
   outputInfo("Host Tools", "Starting headless host tools installation...");
   
-  // First check if package manager is available
-  const pmAvailable = await checkPackageManagerAvailable();
-  if (!pmAvailable) {
-    outputInfo("Host Tools", "Package manager not available, attempting to install...");
-    const pmSuccess = await installPackageManager();
-    if (!pmSuccess) {
-      outputWarning("Host Tools", "Failed to install package manager");
-      return false;
-    }
-    outputInfo("Host Tools", "Package manager installed successfully - restart may be needed for PATH updates");
-    // Return false to indicate VS Code may need restart for package manager to be in PATH
+  // Ensure package manager is available first
+  const pmReady = await installPackageManagerHeadless();
+  if (!pmReady) {
+    outputWarning("Host Tools", "Package manager not available after install attempt — restart may be needed");
     return false;
   }
   
-  outputInfo("Host Tools", "Package manager is available");
-  
-  // Check if all packages are already available
-  const statuses = await checkAllPackages();
-  const allAvailable = statuses.every(s => s.available);
-  
-  if (allAvailable) {
-    outputInfo("Host Tools", "All packages are already available on PATH");
-    return true;
-  }
-  
-  // Install missing packages
-  const installSuccess = await installAllMissingPackages();
-  if (!installSuccess) {
-    outputWarning("Host Tools", "Some packages failed to install");
-    return false;
-  }
-  
-  // Verify all packages are now available on PATH
-  const finalStatuses = await checkAllPackages();
-  const finalAllAvailable = finalStatuses.every(s => s.available);
-  
-  if (finalAllAvailable) {
-    outputInfo("Host Tools", "All packages are now available on PATH");
-    return true;
-  } else {
-    const unavailable = finalStatuses.filter(s => !s.available).map(s => s.name);
-    outputWarning("Host Tools", `Packages installed but not yet available on PATH${unavailable.length > 0 ? ': ' + unavailable.join(', ') : ''}`);
-    outputInfo("Host Tools", "A restart may be needed for PATH updates to take effect");
-    return false;
-  }
+  // Delegate to installHostPackagesHeadless which handles check → install → verify
+  return installHostPackagesHeadless();
 }
 
 /**

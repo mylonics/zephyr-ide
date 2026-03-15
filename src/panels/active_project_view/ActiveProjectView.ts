@@ -90,7 +90,7 @@ export class ActiveProjectView implements vscode.WebviewViewProvider {
       const buildDebugDisplay = getLaunchTargetDisplayName(activeBuild?.buildDebugTarget ?? "", activeBuild?.buildDebugTargetFolder, "Zephyr IDE: Debug");
       const attachDisplay = getLaunchTargetDisplayName(activeBuild?.attachTarget ?? "", activeBuild?.attachTargetFolder, "Zephyr IDE: Attach");
 
-      let data = [{
+      const data = [{
         icons: {
           leaf: 'project',
         },
@@ -177,23 +177,25 @@ export class ActiveProjectView implements vscode.WebviewViewProvider {
   private handleMessage(message: any) {
       switch (message.command) {
         case "vsCommand": {
-          vscode.commands.executeCommand(message.value.vsCommand);
+          void vscode.commands.executeCommand(message.value.vsCommand);
           break;
         }
         case "changeLaunchTarget": {
-          vscode.commands.executeCommand(message.value.launchChangeCmd);
+          if (message.value?.launchChangeCmd) {
+            void vscode.commands.executeCommand(message.value.launchChangeCmd);
+          }
           break;
         }
         case "startGuiConfig": {
-          vscode.commands.executeCommand("zephyr-ide.start-gui-config");
+          void vscode.commands.executeCommand("zephyr-ide.start-gui-config");
           break;
         }
         case "startMenuConfig": {
-          vscode.commands.executeCommand("zephyr-ide.start-menu-config");
+          void vscode.commands.executeCommand("zephyr-ide.start-menu-config");
           break;
         }
         case "deleteActiveTestDir": {
-          vscode.commands.executeCommand("zephyr-ide.remove-test-dirs");
+          void vscode.commands.executeCommand("zephyr-ide.remove-test-dirs");
           break;
         }
         default:

@@ -39,6 +39,13 @@ export function getConfFileKey(isKConfig: boolean, isPrimary: boolean): keyof Co
   return isPrimary ? "overlay" : "extraOverlay";
 }
 
+/** Merge all fields from `source` into `target` by concatenating arrays. */
+export function mergeConfigFiles(target: ConfigFiles, source: ConfigFiles): void {
+  for (const key of ["config", "extraConfig", "overlay", "extraOverlay"] as (keyof ConfigFiles)[]) {
+    target[key] = target[key].concat(source[key]);
+  }
+}
+
 export async function configSelector(wsConfig: WorkspaceConfig, isKConfigSelector: boolean, isProjectSelctor: boolean, isPrimary: boolean | undefined = undefined) {
   let additionalTitleString = "to Build";
   if (isProjectSelctor) {

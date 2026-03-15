@@ -86,6 +86,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
   async function pickWestYml(input: MultiStepInput, state: Partial<WestLocation>) {
     if (!wsConfig.activeSetupState) {
       outputInfo("West Selector", "No active setup state found");
+      state.failed = true;
       return;
     }
     type westOptionDict = { [name: string]: string };
@@ -108,14 +109,13 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
       westOptionQpItems.push({ label: key });
     }
 
-    const pickPromise = await input.showQuickPick({
+    const pickPromise = input.showQuickPick({
       title,
       step: 1,
       totalSteps: 3,
       placeholder: 'Select Zephyr workspace template',
       ignoreFocusOut: true,
       items: westOptionQpItems,
-      activeItem: typeof state.path !== 'string' ? state.path : undefined,
     }).catch((error) => {
       return;
     });
@@ -128,7 +128,6 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
 
     // All remaining options are template-based
     const westFile = westOptions[pick.label];
-    const copyTemplate = true;
 
     if (!westFile) {
       notifyError("West Selector", `Failed to select workspace template`);
@@ -136,10 +135,10 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
       return;
     }
 
-    if (copyTemplate) {
+    {
       let desiredHals;
       if (westFile === "minimal_west.yml" || westFile === "minimal_ble_west.yml") {
-        const pickPromise = await showQuickPickMany({
+        const pickPromise = showQuickPickMany({
           title,
           step: 2,
           totalSteps: 3,
@@ -181,14 +180,13 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
         ...versionList.map(version => ({ label: version }))
       ];
 
-      const pickPromise = await input.showQuickPick({
+      const pickPromise = input.showQuickPick({
         title,
         step: 3,
         totalSteps: 3,
         ignoreFocusOut: true,
         placeholder: versionSelectionString,
         items: versionQP,
-        activeItem: typeof state.path !== 'string' ? state.path : undefined
       }).catch((error) => {
         return;
       });
@@ -258,9 +256,6 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
 
       state.failed = false;
       state.path = westDirPath;
-    } else {
-      state.failed = false;
-      state.path = westFile.toString();
     }
     await getAdditionalArguments(input, state);
     return;

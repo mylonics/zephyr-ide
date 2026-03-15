@@ -19,10 +19,16 @@ import * as vscode from 'vscode';
 import * as assert from 'assert';
 
 /**
- * Check if build tests should be skipped based on environment variables
+ * Check if build tests should be skipped based on environment variables.
+ * Returns true when SKIP_BUILD_TESTS is set OR when running in CI.
  */
 export function shouldSkipBuildTests(): boolean {
     return process.env.SKIP_BUILD_TESTS === 'true' || process.env.CI === 'true';
+}
+
+/** Normalize path separators to forward slashes for cross-platform comparison. */
+export function normalizePath(p: string): string {
+    return p.replace(/\\/g, "/");
 }
 
 /**

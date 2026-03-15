@@ -20,8 +20,8 @@ import * as os from "os";
 import * as fs from "fs-extra";
 import * as path from "upath";
 import * as yaml from 'js-yaml';
-import { getPlatformName } from "../utilities/utils";
-import { outputInfo, outputWarning, outputError } from "../utilities/output";
+import { getPlatformNameAsync } from "../utilities/utils";
+import { outputInfo, outputWarning, outputError, notifyError } from "../utilities/output";
 import { WorkspaceConfig, SetupState } from "./types";
 import { resolveActiveProjectBuild } from "../project_utilities/project";
 
@@ -109,10 +109,10 @@ export function setDefaultTerminal(configuration: vscode.WorkspaceConfiguration,
 }
 
 export async function setWorkspaceSettings(force = false) {
-  const configuration = await vscode.workspace.getConfiguration();
+  const configuration = vscode.workspace.getConfiguration();
   const target = vscode.ConfigurationTarget.Workspace;
 
-  const platform = getPlatformName();
+  const platform = await getPlatformNameAsync();
   if (platform === "windows") {
     setDefaultTerminal(configuration, target, "windows", force);
   } else if (platform === "linux") {
@@ -128,47 +128,42 @@ export async function setWorkspaceSettings(force = false) {
   }
 }
 
-export async function generateGitIgnore(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
-  let desPath = path.join(wsConfig.rootPath, ".gitignore");
-  let exists = await fs.pathExists(desPath);
-  if (!exists) {
-    const extensionPath = context.extensionPath;
-    let srcPath = path.join(extensionPath, "resources", "git_ignores", "gitignore_workspace_install");
-
-    try {
-      // Check if source file exists
-      if (await fs.pathExists(srcPath)) {
-        await fs.copy(srcPath, desPath);
-      } else {
-        outputWarning("Workspace Config", `Source gitignore file not found at: ${srcPath} (extensionPath: ${extensionPath}). The extension may not be installed correctly.`);
-      }
-    } catch (error) {
-      outputError("Workspace Config", `Failed to copy gitignore from ${srcPath} to ${desPath}: ${String(error)}`);
+/**
+ * Copy a resource file to the workspace if the destination doesn't already exist.
+ * Ensures the destination directory exists before copying.
+ */
+async function copyResourceIfMissing(
+  context: vscode.ExtensionContext,
+  srcRelPath: string,
+  desPath: string,
+  label: string
+) {
+  if (await fs.pathExists(desPath)) { return; }
+  const srcPath = path.join(context.extensionPath, ...srcRelPath.split('/'));
+  try {
+    await fs.ensureDir(path.dirname(desPath));
+    if (await fs.pathExists(srcPath)) {
+      await fs.copy(srcPath, desPath);
+    } else {
+      outputWarning("Workspace Config", `Source ${label} file not found at: ${srcPath} (extensionPath: ${context.extensionPath}). The extension may not be installed correctly.`);
     }
+  } catch (error) {
+    outputError("Workspace Config", `Failed to copy ${label} from ${srcPath} to ${desPath}: ${String(error)}`);
   }
 }
 
+export async function generateGitIgnore(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
+  await copyResourceIfMissing(context,
+    "resources/git_ignores/gitignore_workspace_install",
+    path.join(wsConfig.rootPath, ".gitignore"),
+    "gitignore");
+}
+
 export async function generateExtensionsRecommendations(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
-  let desPath = path.join(wsConfig.rootPath, ".vscode", "extensions.json");
-  let exists = await fs.pathExists(desPath);
-  if (!exists) {
-    const extensionPath = context.extensionPath;
-    let srcPath = path.join(extensionPath, "resources", "recommendations", "extensions.json");
-
-    try {
-      // Ensure the .vscode directory exists
-      await fs.ensureDir(path.dirname(desPath));
-
-      // Check if source file exists
-      if (await fs.pathExists(srcPath)) {
-        await fs.copy(srcPath, desPath);
-      } else {
-        outputWarning("Workspace Config", `Source extensions.json file not found at: ${srcPath} (extensionPath: ${extensionPath}). The extension may not be installed correctly.`);
-      }
-    } catch (error) {
-      outputError("Workspace Config", `Failed to copy extensions.json from ${srcPath} to ${desPath}: ${String(error)}`);
-    }
-  }
+  await copyResourceIfMissing(context,
+    "resources/recommendations/extensions.json",
+    path.join(wsConfig.rootPath, ".vscode", "extensions.json"),
+    "extensions.json");
 }
 
 let toolsfoldername = ".zephyr_ide";
@@ -411,22 +406,25 @@ function ensureBuildCMakeInfoCached(wsConfig: WorkspaceConfig, projectName: stri
     return;
   }
 
-  // Only read from disk if any value is missing
-  if (buildState.gdbPath && buildState.elfName && buildState.toolchainPath) {
+  // Only read from disk if any value is missing.
+  // Use empty string "" as sentinel to indicate "checked but not found" so
+  // we don't re-read from disk on every call for builds that lack a value
+  // (e.g., non-ARM builds without CMAKE_GDB).
+  if (buildState.gdbPath !== undefined && buildState.elfName !== undefined && buildState.toolchainPath !== undefined) {
     return;
   }
 
   const buildDir = path.join(wsConfig.rootPath, project.rel_path, build.name);
   const info = readCMakeCacheInfo(buildDir);
 
-  if (info.gdbPath && !buildState.gdbPath) {
-    buildState.gdbPath = info.gdbPath;
+  if (buildState.gdbPath === undefined) {
+    buildState.gdbPath = info.gdbPath || "";
   }
-  if (info.elfName && !buildState.elfName) {
-    buildState.elfName = info.elfName;
+  if (buildState.elfName === undefined) {
+    buildState.elfName = info.elfName || "";
   }
-  if (info.toolchainPath && !buildState.toolchainPath) {
-    buildState.toolchainPath = info.toolchainPath;
+  if (buildState.toolchainPath === undefined) {
+    buildState.toolchainPath = info.toolchainPath || "";
   }
 }
 
@@ -446,7 +444,8 @@ export function getZephyrElfPath(wsConfig: WorkspaceConfig): string | undefined 
   ensureBuildCMakeInfoCached(wsConfig, projectName, buildName);
 
   const buildState = wsConfig.projectStates[projectName]?.buildStates[buildName];
-  let elfName = buildState?.elfName ?? "zephyr.elf";
+  // Empty string is a sentinel meaning "checked but not found"; fall back to default
+  let elfName = buildState?.elfName || "zephyr.elf";
 
   // For sysbuild, elfName may be an absolute path; use it directly
   if (path.isAbsolute(elfName)) {
@@ -482,7 +481,8 @@ export function getGdbPath(wsConfig: WorkspaceConfig): string | undefined {
   ensureBuildCMakeInfoCached(wsConfig, resolved.projectName, resolved.buildName);
 
   const buildState = wsConfig.projectStates[resolved.projectName]?.buildStates[resolved.buildName];
-  return buildState?.gdbPath;
+  // Empty string is a sentinel meaning "checked but not found"
+  return buildState?.gdbPath || undefined;
 }
 
 /**
@@ -620,7 +620,7 @@ async function checkAndWarnMissingEnvironment(context: vscode.ExtensionContext):
  * @param wsConfig - Workspace configuration
  * @returns SetupState if available, undefined otherwise
  */
-export async function getSetupState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig): Promise<SetupState> {
+export async function getSetupState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig): Promise<SetupState | undefined> {
   // If activeSetupState exists, return it
   if (wsConfig.activeSetupState) {
     return wsConfig.activeSetupState;
@@ -630,14 +630,23 @@ export async function getSetupState(context: vscode.ExtensionContext, wsConfig: 
   await checkAndWarnMissingEnvironment(context);
 
   // Try to get setup state from environment variables
-  // Fall back to an empty default state if no environment is configured
-  return getEnvironmentSetupState() ?? {
-    pythonEnvironmentSetup: false,
-    westUpdated: false,
-    packagesInstalled: false,
-    zephyrDir: "",
-    zephyrVersion: undefined,
-    env: {},
-    setupPath: ".",
-  };
+  return getEnvironmentSetupState() ?? undefined;
+}
+
+/**
+ * Get setup state or show an error notification.
+ * Convenience wrapper that eliminates the repeated null-check + notifyError
+ * boilerplate at call sites.
+ *
+ * @param context - VS Code extension context
+ * @param wsConfig - Workspace configuration
+ * @param caller - Short task label for the error notification (e.g. "Build", "Flash")
+ * @returns SetupState if available, undefined otherwise (after notifying the user)
+ */
+export async function getSetupStateOrNotify(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, caller: string): Promise<SetupState | undefined> {
+  const state = await getSetupState(context, wsConfig);
+  if (!state) {
+    notifyError(caller, "No setup state available. Please set up your workspace first.");
+  }
+  return state;
 }

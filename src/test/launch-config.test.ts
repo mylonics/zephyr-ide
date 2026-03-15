@@ -28,7 +28,7 @@ suite("Launch Configuration Test Suite", () => {
             projects: {},
             projectStates: {},
             initialSetupComplete: false,
-            automaticProjectSelction: false,
+            automaticProjectSelection: false,
         };
     }
 

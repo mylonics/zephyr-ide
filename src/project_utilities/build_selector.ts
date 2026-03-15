@@ -415,7 +415,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
     };
 
     state.westBuildCMakeArgs = cmakeBuildArgs;
-
+    state.debugOptimization = debugOptimization;
 
     state.confFiles = {
       config: [],
@@ -424,16 +424,24 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       extraOverlay: []
     };
 
+    // Initialize launch/debug targets to safe defaults
+    state.launchTarget = state.launchTarget ?? "Zephyr IDE: Debug";
+    state.buildDebugTarget = state.buildDebugTarget ?? "Zephyr IDE: Debug";
+    state.attachTarget = state.attachTarget ?? "Zephyr IDE: Attach";
+
     return;
   }
 
   async function collectInputs() {
     const state = {} as Partial<BuildConfig>;
     await MultiStepInput.run(input => pickBoardStep(input, state));
-    return state as BuildConfig;
+    return state;
   }
 
   const state = await collectInputs();
-  return state;
+  if (!state.name) {
+    return undefined;
+  }
+  return state as BuildConfig;
 }
 

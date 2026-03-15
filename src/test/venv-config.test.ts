@@ -19,11 +19,7 @@ import * as assert from "assert";
 import * as vscode from "vscode";
 import { getVenvPath } from "../setup_utilities/workspace-config";
 import * as path from "path";
-
-/** Normalize path separators to forward slashes (VS Code convention) */
-function normalizePath(p: string): string {
-  return p.replace(/\\/g, "/");
-}
+import { normalizePath } from "./test-runner";
 
 suite("Venv Configuration Test Suite", () => {
     
