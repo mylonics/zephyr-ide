@@ -3,7 +3,7 @@
 const vscode = acquireVsCodeApi();
 
 // State tracking for host tools installation
-let hostToolsInstallationState = {
+const hostToolsInstallationState = {
     inProgress: false,
     packageStates: {} // Store state for each package (installing, pending-restart, etc.)
 };

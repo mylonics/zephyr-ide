@@ -114,7 +114,7 @@ class UnusedCodeDetector {
 
     resolveImport(fromFile, importPath) {
         const fromDir = path.dirname(fromFile);
-        let resolved = path.resolve(fromDir, importPath);
+        const resolved = path.resolve(fromDir, importPath);
         
         // Try different extensions
         const extensions = ['.ts', '.js', '/index.ts', '/index.js'];
@@ -290,7 +290,7 @@ class UnusedCodeDetector {
         let hasUnusedExports = false;
         
         for (const [file, exports] of this.fileExports) {
-            if (unusedFiles.includes(file)) continue; // Skip files that are entirely unused
+            if (unusedFiles.includes(file)) {continue;} // Skip files that are entirely unused
             
             const usedExportsInFile = this.usedExports.get(file) || new Set();
             const unusedExports = exports.filter(exp => 
@@ -319,7 +319,7 @@ class UnusedCodeDetector {
         const totalUnusedExports = Array.from(this.fileExports.values())
             .reduce((total, exports) => {
                 const file = Array.from(this.fileExports.keys())[Array.from(this.fileExports.values()).indexOf(exports)];
-                if (unusedFiles.includes(file)) return total;
+                if (unusedFiles.includes(file)) {return total;}
                 
                 const usedExportsInFile = this.usedExports.get(file) || new Set();
                 const unusedCount = exports.filter(exp => 
