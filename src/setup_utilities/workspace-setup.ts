@@ -732,6 +732,11 @@ export async function showCreateWorkspaceMenu(context: vscode.ExtensionContext, 
   }
 }
 
+/** A QuickPickItem extended with an `id` field for internal option tracking. */
+interface SetupOptionItem extends vscode.QuickPickItem {
+  id: 'use-west-folder' | 'use-west-yml' | 'create-new-west-yml' | 'use-external-installation';
+}
+
 export interface WestConfigOptions {
   showUseWestFolder: boolean;
   showUseWestYml: boolean;
@@ -788,7 +793,7 @@ export async function westConfig(
   const westDiscovery = await discoverWestConfiguration(baseDir);
 
   // Build list of available options based on discovery and configuration
-  const setupOptions: vscode.QuickPickItem[] = [];
+  const setupOptions: SetupOptionItem[] = [];
 
   // Option 1: Use .west folder (if it exists and option is enabled)
   if (westDiscovery.hasWestFolder && configOptions.showUseWestFolder) {
@@ -796,7 +801,7 @@ export async function westConfig(
       label: "$(folder) Use .west folder (Recommended)",
       description: "Found existing .west folder in current directory",
       id: "use-west-folder",
-    } as any);
+    });
   }
 
   // Option 2: Use west.yml file (if files found and option is enabled)
@@ -810,7 +815,7 @@ export async function westConfig(
       label: "$(file-code) Use west.yml file",
       description: `Found ${fileCount} west.yml file(s) in ${subDirStr}`,
       id: "use-west-yml",
-    } as any);
+    });
   }
 
   // Option 3: Create new west.yml from template (if option is enabled)
@@ -819,7 +824,7 @@ export async function westConfig(
       label: "$(new-file) Create new west.yml",
       description: "Create west.yml from template using west selector",
       id: "create-new-west-yml",
-    } as any);
+    });
   }
 
   // Option 4: Use external Zephyr installation (if available and option is enabled)
@@ -828,7 +833,7 @@ export async function westConfig(
       label: "$(link) Use external Zephyr installation",
       description: "Use an existing Zephyr installation from another workspace",
       id: "use-external-installation",
-    } as any);
+    });
   }
 
   // If no options are available, show error
@@ -849,7 +854,7 @@ export async function westConfig(
     return { cancelled: true, option: null };
   }
 
-  const optionId = (selectedOption as any).id;
+  const optionId = selectedOption.id;
   outputInfo("West Configuration", `User selected: ${optionId}`);
 
   // Handle the selected option
