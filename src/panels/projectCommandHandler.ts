@@ -48,7 +48,7 @@ export function handleSharedProjectCommand(
 
   const updateCmd = () => {
     if (updateWebView) {
-      vscode.commands.executeCommand("zephyr-ide.update-web-view");
+      void vscode.commands.executeCommand("zephyr-ide.update-web-view");
     }
   };
 
@@ -59,7 +59,7 @@ export function handleSharedProjectCommand(
       return;
     }
     commandRunning = true;
-    fn()
+    void fn()
       .catch(err => outputError(label, `${label} failed: ${err}`))
       .finally(() => { commandRunning = false; afterFn?.(); updateCmd(); });
   };
@@ -71,8 +71,8 @@ export function handleSharedProjectCommand(
       return;
     }
     commandRunning = true;
-    setActive(context, wsConfig, ...activeArgs);
-    fn()
+    void setActive(context, wsConfig, ...activeArgs);
+    void fn()
       .catch(err => outputError(label, `${label} failed: ${err}`))
       .finally(() => { commandRunning = false; updateCmd(); });
   };
@@ -84,22 +84,22 @@ export function handleSharedProjectCommand(
     }
     case "addBuild": {
       runAsync("Add Build", () => addBuildToProject(wsConfig, context, value.project),
-        () => setActive(context, wsConfig, value.project));
+        () => void setActive(context, wsConfig, value.project));
       return true;
     }
     case "deleteBuild": {
       runAsync("Delete Build", () => removeBuild(context, wsConfig, value.project, value.build),
-        () => setActive(context, wsConfig, value.project));
+        () => void setActive(context, wsConfig, value.project));
       return true;
     }
     case "addRunner": {
       runAsync("Add Runner", () => addRunnerToBuild(wsConfig, context, value.project, value.build),
-        () => setActive(context, wsConfig, value.project, value.build));
+        () => void setActive(context, wsConfig, value.project, value.build));
       return true;
     }
     case "deleteRunner": {
       runAsync("Delete Runner", () => removeRunner(context, wsConfig, value.project, value.build, value.runner),
-        () => setActive(context, wsConfig, value.project, value.build));
+        () => void setActive(context, wsConfig, value.project, value.build));
       return true;
     }
     case "build": {
@@ -123,7 +123,7 @@ export function handleSharedProjectCommand(
       return true;
     }
     case "setActive": {
-      setActive(context, wsConfig, value.project, value.build, value.runner, value.test);
+      void setActive(context, wsConfig, value.project, value.build, value.runner, value.test);
       return true;
     }
     default:

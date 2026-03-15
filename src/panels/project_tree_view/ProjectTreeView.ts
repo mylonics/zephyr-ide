@@ -340,16 +340,16 @@ export class ProjectTreeView implements vscode.WebviewViewProvider {
       // Handle tree-specific commands
       switch (message.command) {
         case "addTest": {
-          addTest(this.wsConfig, this.context, message.value.project).finally(() => { setActive(this.context, this.wsConfig, message.value.project); });
+          void addTest(this.wsConfig, this.context, message.value.project).finally(() => { void setActive(this.context, this.wsConfig, message.value.project); });
           break;
         }
         case "deleteTest": {
-          removeTest(this.context, this.wsConfig, message.value.project, message.value.test).finally(() => { setActive(this.context, this.wsConfig, message.value.project); });
+          void removeTest(this.context, this.wsConfig, message.value.project, message.value.test).finally(() => { void setActive(this.context, this.wsConfig, message.value.project); });
           break;
         }
         case "test": {
-          testHelper(this.context, this.wsConfig, message.value.project, message.value.test);
-          setActive(this.context, this.wsConfig, message.value.project, undefined, undefined, message.value.test);
+          void testHelper(this.context, this.wsConfig, message.value.project, message.value.test);
+          void setActive(this.context, this.wsConfig, message.value.project, undefined, undefined, message.value.test);
           break;
         }
         default:

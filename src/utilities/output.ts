@@ -138,7 +138,7 @@ export function outputInfo(task: string, message: string, notify = false): void 
 export function outputWarning(task: string, message: string, notify = false): void {
   outputChannel?.appendLine(formatLine(task, `⚠ WARNING: ${message}`));
   if (notify) {
-    vscode.window.showWarningMessage(message, SHOW_OUTPUT).then(selection => {
+    void vscode.window.showWarningMessage(message, SHOW_OUTPUT).then(selection => {
       if (selection === SHOW_OUTPUT) {
         showOutput();
       }
@@ -178,7 +178,7 @@ export function outputError(
     }
   }
   if (options?.notify) {
-    vscode.window.showErrorMessage(message, SHOW_OUTPUT).then(selection => {
+    void vscode.window.showErrorMessage(message, SHOW_OUTPUT).then(selection => {
       if (selection === SHOW_OUTPUT) {
         showOutput();
       }
@@ -327,7 +327,7 @@ export function outputFileNotFound(
 
   if (options.notify) {
     const SHOW = "Show Output";
-    vscode.window.showErrorMessage(
+    void vscode.window.showErrorMessage(
       `${what} not found: ${options.expectedPath}`,
       SHOW,
     ).then(sel => {
@@ -425,7 +425,7 @@ export function outputCommandFailure(
   }
 
   if (notify) {
-    vscode.window.showErrorMessage(
+    void vscode.window.showErrorMessage(
       `${task}: command failed — ${result.cmd}`,
       SHOW_OUTPUT,
     ).then(sel => {

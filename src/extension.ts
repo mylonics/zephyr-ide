@@ -443,7 +443,9 @@ export async function activate(context: vscode.ExtensionContext) {
         for (const key in wsConfig.projects) {
           if (filePath.includes(wsConfig.projects[key].rel_path)) {
             if (wsConfig.activeProject !== key) {
-              void setActiveProject(context, wsConfig, key).then(() => refreshStatusBar(true));
+              void setActiveProject(context, wsConfig, key)
+                .then(() => refreshStatusBar(true))
+                .catch(err => outputError("Extension", `Failed to set active project: ${err}`));
             }
             void vscode.commands.executeCommand("zephyr-ide.update-web-view");
           }
