@@ -166,18 +166,18 @@ export async function generateExtensionsRecommendations(context: vscode.Extensio
     "extensions.json");
 }
 
-let toolsfoldername = ".zephyr_ide";
+const toolsfoldername = ".zephyr_ide";
 
 export function getToolsDir() {
   let toolsdir = path.join(os.homedir(), toolsfoldername);
 
   const configuration = vscode.workspace.getConfiguration();
   // Prefer the new global_directory setting; fall back to deprecated tools_directory
-  let globalDir: string | undefined = configuration.get("zephyr-ide.global_directory");
+  const globalDir: string | undefined = configuration.get("zephyr-ide.global_directory");
   if (globalDir) {
     toolsdir = globalDir;
   } else {
-    let toolsDirFromFile: string | undefined = configuration.get("zephyr-ide.tools_directory");
+    const toolsDirFromFile: string | undefined = configuration.get("zephyr-ide.tools_directory");
     if (toolsDirFromFile) {
       toolsdir = toolsDirFromFile;
     }
@@ -215,7 +215,7 @@ export function getToolchainDir() {
   const configuration = vscode.workspace.getConfiguration();
 
   // First check if direct toolchain directory is configured
-  let toolchainDir: string | undefined = configuration.get("zephyr-ide.toolchain_directory");
+  const toolchainDir: string | undefined = configuration.get("zephyr-ide.toolchain_directory");
   if (toolchainDir && toolchainDir.trim()) {
     // Return configured path without creating it - user is responsible for ensuring it exists
     return toolchainDir;
@@ -445,7 +445,7 @@ export function getZephyrElfPath(wsConfig: WorkspaceConfig): string | undefined 
 
   const buildState = wsConfig.projectStates[projectName]?.buildStates[buildName];
   // Empty string is a sentinel meaning "checked but not found"; fall back to default
-  let elfName = buildState?.elfName || "zephyr.elf";
+  const elfName = buildState?.elfName || "zephyr.elf";
 
   // For sysbuild, elfName may be an absolute path; use it directly
   if (path.isAbsolute(elfName)) {
@@ -532,7 +532,7 @@ export function getArmGdbPath(wsConfig: WorkspaceConfig): string | undefined {
  */
 export function getVenvPath(setupPath: string): string {
   const configuration = vscode.workspace.getConfiguration();
-  let venvPath: string | undefined = configuration.get("zephyr-ide.venv-folder");
+  const venvPath: string | undefined = configuration.get("zephyr-ide.venv-folder");
 
   // Use configured path if it's a non-empty string
   if (venvPath && venvPath.trim()) {

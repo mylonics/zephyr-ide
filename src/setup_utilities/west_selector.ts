@@ -91,7 +91,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
     }
     type westOptionDict = { [name: string]: string };
     // Looks for board directories
-    let westOptions: westOptionDict = {};
+    const westOptions: westOptionDict = {};
 
     westOptions["Full Zephyr"] = "default_west.yml";
     westOptions["Minimal Zephyr (Select Desired HALs)"] = "minimal_west.yml";
@@ -105,7 +105,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
     }
 
     const westOptionQpItems: QuickPickItem[] = [];
-    for (let key in westOptions) {
+    for (const key in westOptions) {
       westOptionQpItems.push({ label: key });
     }
 
@@ -120,7 +120,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
       return;
     });
 
-    let pick = await pickPromise;
+    const pick = await pickPromise;
     if (!pick) {
       state.failed = true;
       return;
@@ -153,10 +153,10 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
       }
 
       const extensionPath = context.extensionPath;
-      let srcPath = path.join(extensionPath, "resources", "west_templates", westFile);
-      let westDirPath = path.join(wsConfig.activeSetupState.setupPath, "west-manifest");
-      let desPath = path.join(westDirPath, "west.yml");
-      let exists = await fs.pathExists(westDirPath);
+      const srcPath = path.join(extensionPath, "resources", "west_templates", westFile);
+      const westDirPath = path.join(wsConfig.activeSetupState.setupPath, "west-manifest");
+      const desPath = path.join(westDirPath, "west.yml");
+      const exists = await fs.pathExists(westDirPath);
       if (!exists) {
         await fs.mkdirp(westDirPath);
       }
@@ -191,7 +191,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
         return;
       });
 
-      let pick = await pickPromise;
+      const pick = await pickPromise;
       if (!pick) {
         state.failed = true;
         return;

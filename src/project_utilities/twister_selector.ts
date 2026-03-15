@@ -34,8 +34,8 @@ export interface TwisterConfig {
 }
 
 export function getTestsFromProject(projectPath: string) {
-  let testcasePath = path.join(projectPath, "testcase.yaml");
-  let samplePath = path.join(projectPath, "sample.yaml");
+  const testcasePath = path.join(projectPath, "testcase.yaml");
+  const samplePath = path.join(projectPath, "sample.yaml");
 
   let filePath: string | undefined;
   if (fs.existsSync(testcasePath)) {
@@ -44,7 +44,7 @@ export function getTestsFromProject(projectPath: string) {
     filePath = samplePath;
   }
 
-  let tests: string[] = [];
+  const tests: string[] = [];
   if (filePath) {
     const yamlFile: any = loadYamlFile(filePath);
     if (yamlFile && yamlFile.tests) {
@@ -67,11 +67,11 @@ export type TwisterStateDictionary = { [name: string]: TwisterState };
 export async function twisterSelector(projectFolder: string, context: ExtensionContext, setupState: SetupState, rootPath: string) {
   const title = 'Add Twister Configuration';
 
-  let twisterConfig: Partial<TwisterConfig> = {};
+  const twisterConfig: Partial<TwisterConfig> = {};
   twisterConfig.tests = [];
 
   //check if project contain sample.yaml or testcase.yaml
-  let projectPath = path.join(rootPath, projectFolder);
+  const projectPath = path.join(rootPath, projectFolder);
   const tests = getTestsFromProject(projectPath);
 
   if (tests.length === 0) {
@@ -105,7 +105,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
     return;
   }
 
-  for (let v of testPick) {
+  for (const v of testPick) {
     if (v.label === 'All') {
       twisterConfig.tests = ['All'];
       break;
@@ -113,7 +113,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
     twisterConfig.tests.push(v.label);
   }
 
-  let platforms = ["native_sim", "qemu", "hardware"];
+  const platforms = ["native_sim", "qemu", "hardware"];
 
   const platformsQpItems: QuickPickItem[] = mapToQuickPickItems(platforms);
   platformsQpItems.push({ label: "", kind: vscode.QuickPickItemKind.Separator });
@@ -214,7 +214,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
 }
 
 export async function reconfigureTest(config: TwisterConfig) {
-  let title = "Reconfigure Test";
+  const title = "Reconfigure Test";
   const hasBoardConfig = !!config.boardConfig;
   const totalSteps = hasBoardConfig ? 3 : 1;
   let currentStep = 1;

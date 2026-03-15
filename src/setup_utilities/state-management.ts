@@ -81,7 +81,7 @@ export async function loadExternalSetupState(context: vscode.ExtensionContext, g
   }
 
   if (fs.pathExistsSync(path)) {
-    let setupState = generateSetupState(path);
+    const setupState = generateSetupState(path);
     if (globalConfig.setupStateDictionary === undefined) {
       globalConfig.setupStateDictionary = {};
     }
@@ -104,7 +104,7 @@ export async function setExternalSetupState(context: vscode.ExtensionContext, gl
 }
 
 export async function loadWorkspaceState(context: vscode.ExtensionContext): Promise<WorkspaceConfig> {
-  let config: WorkspaceConfig = await context.workspaceState.get("zephyr.env") ?? {
+  const config: WorkspaceConfig = await context.workspaceState.get("zephyr.env") ?? {
     rootPath: await getRootPathFs(true) ?? "",
     projects: {},
     automaticProjectSelection: true,

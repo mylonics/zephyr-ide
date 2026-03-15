@@ -38,9 +38,9 @@ export type RunnerStateDictionary = { [name: string]: RunnerState };
 
 export async function runnerSelector(boardfolder: string) {
   const title = 'Add Runner';
-  let runners = ["default"];
+  const runners = ["default"];
 
-  let boardcmakePath = path.join(boardfolder, 'board.cmake');
+  const boardcmakePath = path.join(boardfolder, 'board.cmake');
   if (fs.existsSync(boardcmakePath)) {
     const boardCMakeFile = fs.readFileSync(boardcmakePath, 'utf8');
     boardCMakeFile.split(/\r?\n/).forEach(line => {
@@ -68,7 +68,7 @@ export async function runnerSelector(boardfolder: string) {
       outputError("Runner Selector", String(error));
       return undefined;
     });
-    let pick = await pickPromise;
+    const pick = await pickPromise;
     if (!pick) {
       return;
     }
@@ -82,7 +82,7 @@ export async function runnerSelector(boardfolder: string) {
       return;
     }
 
-    let inputNamePromise = input.showInputBox({
+    const inputNamePromise = input.showInputBox({
       title,
       step: 2,
       totalSteps: 3,
@@ -107,7 +107,7 @@ export async function runnerSelector(boardfolder: string) {
       return;
     }
 
-    let inputPromise = input.showInputBox({
+    const inputPromise = input.showInputBox({
       title,
       step: 3,
       totalSteps: 3,

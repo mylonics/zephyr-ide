@@ -57,8 +57,8 @@ async function executeWestList(setupState: SetupState): Promise<string[]> {
   // On Windows, use PowerShell instead of the default cmd.exe to avoid
   // quoting / environment issues that cause west to fail with
   // "manifest file not found: None".
-  let cmd = `west list -f "{name}|{abspath}|{revision}|{url}"`;
-  let res = await executeShellCommandInPythonEnv(cmd, setupState.setupPath, setupState, false);
+  const cmd = `west list -f "{name}|{abspath}|{revision}|{url}"`;
+  const res = await executeShellCommandInPythonEnv(cmd, setupState.setupPath, setupState, false);
 
   if (!res.stdout) {
     outputCommandFailure("West List", res);
@@ -90,7 +90,7 @@ export async function getModuleList(setupState: SetupState) {
     if (!line.trim()) {
       continue;
     }
-    let data = line.split('|').map(s => s.trim());
+    const data = line.split('|').map(s => s.trim());
     if (data[0] !== "manifest" && data[0] !== "") {
       outputList.push(data);
     }
@@ -99,7 +99,7 @@ export async function getModuleList(setupState: SetupState) {
 }
 
 export function getModuleVersion(modulePath: string): ZephyrVersionNumber | undefined {
-  let filePath = path.join(modulePath, "VERSION");
+  const filePath = path.join(modulePath, "VERSION");
 
   if (fs.existsSync(filePath)) {
     const file = fs.readFileSync(filePath, 'utf8');
@@ -114,7 +114,7 @@ export function getModuleVersion(modulePath: string): ZephyrVersionNumber | unde
       return undefined;
     }
 
-    let versionNumber: ZephyrVersionNumber = {
+    const versionNumber: ZephyrVersionNumber = {
       major: parseInt(majorMatch[1]),
       minor: parseInt(minorMatch[1]),
       patch: parseInt(patchMatch[1]),
@@ -149,7 +149,7 @@ export async function getDtsIncludes(setupState: SetupState) {
   const modules = await getModuleList(setupState);
   const dtsIncludeArray: string[] = [];
   for (const module of modules) {
-    let yamlFile = await getModuleYamlFile(module[1]);
+    const yamlFile = await getModuleYamlFile(module[1]);
     if (yamlFile && yamlFile.build && yamlFile.build.settings && yamlFile.build.settings.dts_root) {
       dtsIncludeArray.push(path.join(module[1], yamlFile.build.settings.dts_root, "dts"));
     }
@@ -220,10 +220,10 @@ export async function getModuleSampleFolders(setupState: SetupState) {
   }
 
   for (const module of modules) {
-    let yamlFile = await getModuleYamlFile(module[1]);
+    const yamlFile = await getModuleYamlFile(module[1]);
     if (yamlFile && yamlFile.samples) {
       for (const samplePath of yamlFile.samples) {
-        let sampleFolder: [string, string] = [module[0], path.join(module[1], samplePath)];
+        const sampleFolder: [string, string] = [module[0], path.join(module[1], samplePath)];
         samplefolders.push(sampleFolder);
       }
     }
@@ -319,8 +319,8 @@ function getSampleRecursive(
 }
 
 export async function getSamples(setupState: SetupState) {
-  let samplefolders = await getModuleSampleFolders(setupState);
-  let sampleList: [string, string, string, string][] = [];
+  const samplefolders = await getModuleSampleFolders(setupState);
+  const sampleList: [string, string, string, string][] = [];
   const visited = new Set<string>();
   const maxDepth = 3;
   for (const folder of samplefolders) {
