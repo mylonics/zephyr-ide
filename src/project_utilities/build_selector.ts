@@ -54,6 +54,7 @@ export interface BuildConfig {
   attachTarget: string;
   attachTargetFolder?: string;
   revision?: string;
+  vars?: { [key: string]: string };
 }
 
 // Config for the extension

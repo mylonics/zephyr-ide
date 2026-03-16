@@ -39,6 +39,7 @@ export interface ProjectConfig {
   buildConfigs: BuildConfigDictionary;
   confFiles: ConfigFiles;
   twisterConfigs: TwisterConfigDictionary;
+  vars?: { [key: string]: string };
 }
 
 // Project specific state
@@ -244,6 +245,52 @@ export async function modifyBuildArguments(context: vscode.ExtensionContext, wsC
   }
 
   await setWorkspaceState(context, wsConfig);
+}
+
+export async function modifyProjectVariables(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName?: string) {
+  const resolved = resolveActiveProject(wsConfig, { caller: "Project", projectName });
+  if (!resolved) { return; }
+  const { project } = resolved;
+
+  const currentVarsStr = JSON.stringify(project.vars ?? {}, null, 2);
+  const newVarsStr = await vscode.window.showInputBox({
+    title: "Modify Project Variables",
+    value: currentVarsStr,
+    prompt: "Enter project variables as a JSON object e.g. {\"MY_VAR\": \"value\"}",
+    ignoreFocusOut: true,
+  });
+
+  if (newVarsStr !== undefined) {
+    try {
+      project.vars = JSON.parse(newVarsStr);
+      await setWorkspaceState(context, wsConfig);
+    } catch (err) {
+      vscode.window.showErrorMessage(`Invalid JSON format: ${(err as Error).message}. Project variables not updated.`);
+    }
+  }
+}
+
+export async function modifyBuildVariables(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName?: string, buildName?: string) {
+  const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Project", projectName, buildName });
+  if (!resolved) { return; }
+  const { build } = resolved;
+
+  const currentVarsStr = JSON.stringify(build.vars ?? {}, null, 2);
+  const newVarsStr = await vscode.window.showInputBox({
+    title: "Modify Build Variables",
+    value: currentVarsStr,
+    prompt: "Enter build variables as a JSON object e.g. {\"MY_VAR\": \"value\"}",
+    ignoreFocusOut: true,
+  });
+
+  if (newVarsStr !== undefined) {
+    try {
+      build.vars = JSON.parse(newVarsStr);
+      await setWorkspaceState(context, wsConfig);
+    } catch (err) {
+      vscode.window.showErrorMessage(`Invalid JSON format: ${(err as Error).message}. Build variables not updated.`);
+    }
+  }
 }
 
 
