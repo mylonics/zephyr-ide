@@ -22,6 +22,7 @@ import { getRootPathFs, reloadEnvironmentVariables } from "../utilities/utils";
 import { initializeDtsExt } from "./dts_interface";
 import { GlobalConfig, WorkspaceConfig, SetupState, generateSetupState } from "./types";
 import { loadProjectsFromFile, setWorkspaceSettings, generateGitIgnore, generateExtensionsRecommendations } from "./workspace-config";
+import { parseWestConfigManifest } from "./west-config-parser";
 
 export async function loadGlobalState(context: vscode.ExtensionContext): Promise<GlobalConfig> {
   // Load raw config as any to handle deprecated fields
@@ -154,7 +155,14 @@ export async function setSetupState(context: vscode.ExtensionContext, wsConfig: 
   wsConfig.activeSetupState = await loadExternalSetupState(context, globalConfig, ext_path);
 
   if (wsConfig.activeSetupState) {
-    void initializeDtsExt(wsConfig.activeSetupState, wsConfig);
+    // Only initialize DTS extension if the Python environment is ready and west is
+    // already set up (.west/config exists with a valid manifest section). During
+    // initial workspace creation the venv and west init have not yet been run, so
+    // calling initializeDtsExt would trigger west list errors.
+    const manifest = parseWestConfigManifest(wsConfig.activeSetupState.setupPath);
+    if (wsConfig.activeSetupState.pythonEnvironmentSetup && manifest && manifest.path) {
+      void initializeDtsExt(wsConfig.activeSetupState, wsConfig);
+    }
   }
 
   await setWorkspaceState(context, wsConfig);

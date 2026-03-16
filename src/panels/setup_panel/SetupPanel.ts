@@ -27,6 +27,7 @@ import {
 import { saveSetupState } from "../../setup_utilities/state-management";
 import { parseWestConfigManifestPath } from "../../setup_utilities/west-config-parser";
 import { notifyError, notifyWarning, outputError } from "../../utilities/output";
+import { onSetupProgress, getActiveSetupProgress } from "../../setup_utilities/setup-progress";
 import { HostToolsSubPage } from "./HostToolsSubPage";
 import { SDKSubPage } from "./SDKSubPage";
 import { WorkspaceSubPage } from "./WorkspaceSubPage";
@@ -112,12 +113,37 @@ export class SetupPanel {
             null,
             this._disposables
         );
+
+        // Subscribe to workspace setup progress events and forward to webview
+        this._disposables.push(
+            onSetupProgress((event) => {
+                this._panel.webview.postMessage({
+                    command: 'workspaceSetupProgress',
+                    data: event,
+                });
+            })
+        );
+
+        // If a setup operation is already in progress (panel opened mid-setup),
+        // replay the latest snapshot so the webview updates internal state.
+        // The webview will NOT force-navigate; it will apply the state when the
+        // user navigates to the workspace page.
+        const activeProgress = getActiveSetupProgress();
+        if (activeProgress) {
+            // Delay slightly so the webview script has loaded and is listening.
+            setTimeout(() => {
+                this._panel.webview.postMessage({
+                    command: 'workspaceSetupProgress',
+                    data: activeProgress,
+                });
+            }, 100);
+        }
     }
 
-    public updateContent(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
+    public updateContent(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, autoNavigateTo?: string) {
         this.currentWsConfig = wsConfig;
         this.currentGlobalConfig = globalConfig;
-        this._panel.webview.html = this.getHtmlForWebview(wsConfig, globalConfig);
+        this._panel.webview.html = this.getHtmlForWebview(wsConfig, globalConfig, autoNavigateTo);
     }
 
     /**
@@ -125,7 +151,7 @@ export class SetupPanel {
      * SDK installation is allowed as long as at least one workspace exists in setupStateDictionary.
      */
     private hasValidSetupState(): boolean {
-        return this.currentGlobalConfig?.setupStateDictionary !== undefined && 
+        return this.currentGlobalConfig?.setupStateDictionary !== undefined &&
             Object.keys(this.currentGlobalConfig.setupStateDictionary).length > 0;
     }
 
@@ -364,23 +390,23 @@ export class SetupPanel {
     }
 
     private async workspaceSetupFromGit() {
-        await this.executeVSCommand("zephyr-ide.workspace-setup-from-git", "Setup Panel", true);
+        await this.executeVSCommand("zephyr-ide.workspace-setup-from-git", "Setup Panel");
     }
 
     private async workspaceSetupFromWestGit() {
-        await this.executeVSCommand("zephyr-ide.workspace-setup-from-west-git", "Setup Panel", true);
+        await this.executeVSCommand("zephyr-ide.workspace-setup-from-west-git", "Setup Panel");
     }
 
     private async workspaceSetupStandard() {
-        await this.executeVSCommand("zephyr-ide.workspace-setup-standard", "Setup Panel", true);
+        await this.executeVSCommand("zephyr-ide.workspace-setup-standard", "Setup Panel");
     }
 
     private async workspaceSetupFromCurrentDirectory() {
-        await this.executeVSCommand("zephyr-ide.workspace-setup-from-current-directory", "Setup Panel", true);
+        await this.executeVSCommand("zephyr-ide.workspace-setup-from-current-directory", "Setup Panel");
     }
 
     private async workspaceSetupPicker() {
-        await this.executeVSCommand("zephyr-ide.workspace-setup-picker", "Setup Panel", true);
+        await this.executeVSCommand("zephyr-ide.workspace-setup-picker", "Setup Panel");
     }
 
     private async westConfig() {
@@ -430,7 +456,8 @@ export class SetupPanel {
     // HTML Generation Methods
     private getHtmlForWebview(
         wsConfig: WorkspaceConfig,
-        globalConfig: GlobalConfig
+        globalConfig: GlobalConfig,
+        autoNavigateTo?: string
     ): string {
         const folderOpen = wsConfig.rootPath !== "";
         // Workspace is only considered initialized if both flags are true AND there's an active setup state
@@ -444,7 +471,7 @@ export class SetupPanel {
             <title>Zephyr IDE Setup & Configuration</title>
             ${this.getStylesheetLinks()}
         </head>
-        <body>
+        <body${autoNavigateTo ? ` data-auto-navigate="${autoNavigateTo}"` : ''}>
             <div class="panel-container">
                 <div class="overview-container" id="overviewContainer">
                     ${this.generateOverviewSection(wsConfig, globalConfig, folderOpen, workspaceInitialized, this.hasValidSetupState())}

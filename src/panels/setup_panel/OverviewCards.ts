@@ -39,7 +39,7 @@ export class SDKCard {
     static getHtml(globalConfig: GlobalConfig, hasValidSetupState: boolean): string {
         let status: string;
         let statusClass: string;
-        
+
         if (!hasValidSetupState) {
             status = "⚠ Workspace Required";
             statusClass = "status-warning";
@@ -75,7 +75,7 @@ export class WorkspaceCard {
                 <span class="overview-icon">🗂️</span>
                 <h3>Workspace</h3>
             </div>
-            <div class="status ${statusClass}">${status}</div>
+            <div id="workspaceCardStatus" class="status ${statusClass}">${status}</div>
             <p class="overview-description">Configure west workspace, initialize repositories, and manage Zephyr project dependencies.</p>
             <div class="card-arrow">→</div>
         </div>`;

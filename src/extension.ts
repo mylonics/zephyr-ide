@@ -123,7 +123,7 @@ async function markWorkspaceSetupComplete(
   await setWorkspaceState(context, wsConfig);
   // Update setup panel if it's open
   if (SetupPanel.currentPanel) {
-    SetupPanel.currentPanel.updateContent(wsConfig, globalConfig);
+    SetupPanel.currentPanel.updateContent(wsConfig, globalConfig, "workspace");
   }
 }
 

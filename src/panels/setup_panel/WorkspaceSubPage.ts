@@ -22,26 +22,29 @@ import { parseWestConfigManifestPath } from "../../setup_utilities/west-config-p
 import { getVenvPath } from "../../setup_utilities/workspace-config";
 
 export class WorkspaceSubPage {
+    /**
+     * Returns the workspace sub-page state name for the current config.
+     * The workspace page has three mutually exclusive visual states:
+     *   - "setup-required" — no workspace configured yet (or no folder open)
+     *   - "ready"          — workspace is fully set up
+     *   - "initializing"   — a setup operation is in progress (set by JS only)
+     */
+    private static resolveState(wsConfig: WorkspaceConfig): string {
+        const folderOpen = wsConfig.rootPath !== "";
+        const workspaceInitialized = (wsConfig.initialSetupComplete || false)
+            && (wsConfig.activeSetupState !== undefined);
+
+        if (folderOpen && workspaceInitialized) {
+            return "ready";
+        }
+        return "setup-required";
+    }
+
     static getHtml(wsConfig: WorkspaceConfig): string {
         const folderOpen = wsConfig.rootPath !== "";
-        // Workspace is only considered initialized if both flags are true AND there's an active setup state
-        const workspaceInitialized = (wsConfig.initialSetupComplete || false) && (wsConfig.activeSetupState !== undefined);
-
-        let statusClass = "status-info";
-        let statusIcon = "📁";
-        let statusText = "No Folder Opened";
-
-        if (folderOpen) {
-            if (workspaceInitialized) {
-                statusClass = "status-success";
-                statusIcon = "✓";
-                statusText = "Workspace Ready";
-            } else {
-                statusClass = "status-warning";
-                statusIcon = "⚙";
-                statusText = "Setup Required";
-            }
-        }
+        const workspaceInitialized = (wsConfig.initialSetupComplete || false)
+            && (wsConfig.activeSetupState !== undefined);
+        const state = this.resolveState(wsConfig);
 
         return `
         <div class="sub-page-content">
@@ -53,25 +56,61 @@ export class WorkspaceSubPage {
                 <h2>Workspace Setup</h2>
             </div>
             
-            <div class="sub-page-body">
-                <div class="status-banner ${statusClass}">
-                    <span class="status-icon">${statusIcon}</span>
-                    <span class="status-text">${statusText}</span>
-                </div>
-                
-                ${this.getWorkspaceContent(folderOpen, workspaceInitialized, wsConfig)}
+            <div class="sub-page-body" data-workspace-state="${state}">
+                ${this.getInitializingContainer()}
+                ${this.getReadyContainer(folderOpen, workspaceInitialized, wsConfig)}
+                ${this.getSetupRequiredContainer(folderOpen)}
             </div>
         </div>`;
     }
 
-    private static getWorkspaceContent(folderOpen: boolean, workspaceInitialized: boolean, wsConfig: WorkspaceConfig): string {
-        if (!folderOpen) {
-            return this.getNoFolderContent();
-        } else if (workspaceInitialized) {
-            return this.getInitializedContent(wsConfig);
-        } else {
-            return this.getSetupOptionsContent();
-        }
+    /** Initializing state — shown while a setup operation is running. */
+    private static getInitializingContainer(): string {
+        return `
+            <div class="ws-state ws-state-initializing">
+                <div class="status-banner status-info">
+                    <div class="loading-spinner"></div>
+                    <span class="status-text">Initializing workspace\u2026</span>
+                </div>
+                <p class="description">Follow the prompts in the VS Code dialog to configure your workspace.</p>
+                <div id="setupProgressContainer"></div>
+            </div>`;
+    }
+
+    /** Ready state — workspace is configured and operational. */
+    private static getReadyContainer(folderOpen: boolean, workspaceInitialized: boolean, wsConfig: WorkspaceConfig): string {
+        const content = (folderOpen && workspaceInitialized)
+            ? this.getInitializedContent(wsConfig)
+            : '';
+        return `
+            <div class="ws-state ws-state-ready">
+                <div class="status-banner status-success">
+                    <span class="codicon codicon-check"></span>
+                    <span class="status-text">Workspace Ready</span>
+                </div>
+                ${content}
+            </div>`;
+    }
+
+    /** Setup-required state — no workspace configured (or no folder open). */
+    private static getSetupRequiredContainer(folderOpen: boolean): string {
+        const content = folderOpen
+            ? this.getSetupOptionsContent()
+            : this.getNoFolderContent();
+        const bannerClass = folderOpen ? 'status-warning' : 'status-info';
+        const bannerIcon = folderOpen
+            ? '<span class="codicon codicon-gear"></span>'
+            : '<span class="codicon codicon-folder"></span>';
+        const bannerText = folderOpen ? 'Setup Required' : 'No Folder Opened';
+
+        return `
+            <div class="ws-state ws-state-setup-required">
+                <div class="status-banner ${bannerClass}">
+                    ${bannerIcon}
+                    <span class="status-text">${bannerText}</span>
+                </div>
+                ${content}
+            </div>`;
     }
 
     private static getNoFolderContent(): string {

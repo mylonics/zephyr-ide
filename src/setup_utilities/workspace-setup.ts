@@ -57,7 +57,8 @@ import { westSelector, WestLocation } from "./west_selector";
 import { WorkspaceConfig, GlobalConfig, formatZephyrVersion } from "./types";
 import { setSetupState, loadExternalSetupState, setWorkspaceState, setGlobalState } from "./state-management";
 import { postWorkspaceSetup, } from "./west-operations";
-import { getToolsDir } from "./workspace-config";
+import { getToolsDir, loadProjectsFromFile } from "./workspace-config";
+import { SetupProgressTracker } from "./setup-progress";
 
 interface WestDiscoveryResult {
   hasWestFolder: boolean;
@@ -175,6 +176,15 @@ export async function workspaceSetupFromGit(context: vscode.ExtensionContext, ws
   showOutput();
   outputInfo("Git Clone", `Cloning Zephyr IDE workspace from: ${gitUrl}`);
 
+  // Start progress tracking for the git clone flow
+  const progress = new SetupProgressTracker("Workspace Setup from Git", [
+    { id: 'git-clone', label: 'Cloning repository' },
+    { id: 'python-env', label: 'Setting up Python environment' },
+    { id: 'west-init', label: 'Initializing West workspace' },
+    { id: 'west-update', label: 'Running West update' },
+    { id: 'python-req', label: 'Installing Python requirements' },
+  ]);
+
   // Set context flag for workspace type selected
   await vscode.commands.executeCommand(
     "setContext",
@@ -185,18 +195,23 @@ export async function workspaceSetupFromGit(context: vscode.ExtensionContext, ws
     "Workspace type selected: Zephyr IDE Workspace from Git"
   );
 
+  progress.startStep('git-clone', gitUrl);
   const cmd = `git clone ${gitUrl} .`;
   const gitCloneRes = await executeTaskHelper("Zephyr IDE: Git Clone", cmd, currentDir);
 
   if (!gitCloneRes) {
+    progress.failStep('git-clone', 'Git clone failed');
     notifyError("Git Clone", "Git clone failed. Check the Zephyr IDE output for details.", { command: cmd });
     return false;
   }
 
+  progress.completeStep('git-clone');
   outputInfo("Git Clone", `Git clone completed successfully`);
 
   // After successful clone, run workspaceSetupFromCurrentDirectory
-  return await workspaceSetupFromCurrentDirectory(context, wsConfig, globalConfig, true);
+  // Note: progress tracker steps for the remaining operations are passed through
+  // to postWorkspaceSetup via workspaceSetupFromCurrentDirectory
+  return await workspaceSetupFromCurrentDirectory(context, wsConfig, globalConfig, true, undefined, progress);
 }
 
 export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
@@ -257,13 +272,22 @@ export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext
     additionalArgs: additionalArgs || "",
   };
 
+  // Start progress tracking for the west git flow
+  const progress = new SetupProgressTracker("Workspace Setup from West Git", [
+    { id: 'python-env', label: 'Setting up Python environment' },
+    { id: 'west-init', label: 'Initializing West workspace' },
+    { id: 'west-update', label: 'Running West update' },
+    { id: 'python-req', label: 'Installing Python requirements' },
+  ]);
+
   // Run post-setup process
   return await postWorkspaceSetup(
     context,
     wsConfig,
     globalConfig,
     currentDir,
-    westSelection
+    westSelection,
+    progress
   );
 }
 
@@ -324,7 +348,7 @@ async function handleExternalInstallation(
   return true;
 }
 
-export async function workspaceSetupFromCurrentDirectory(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, giveExternalInstallOption: boolean, installDir?: string) {
+export async function workspaceSetupFromCurrentDirectory(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, giveExternalInstallOption: boolean, installDir?: string, progressTracker?: SetupProgressTracker) {
   // Clear all context flags at start
   await clearWorkspaceSetupContextFlags(context, wsConfig);
 
@@ -343,8 +367,11 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
     `Setting up current directory as Zephyr IDE workspace: ${installDir}`
   );
 
-  // Load projects from file
-  await vscode.commands.executeCommand("zephyr-ide.load-projects-from-file");
+  // TODO: Decouple from internal command handler behavior. Called directly
+  // instead of via "zephyr-ide.load-projects-from-file" to avoid triggering
+  // update-web-view, which would rerender the overview page and wipe out the
+  // initializing state.
+  await loadProjectsFromFile(wsConfig);
 
   wsConfig.initialSetupComplete = true;
 
@@ -373,7 +400,7 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
 
   // Handle local workspace setup
   await setSetupState(context, wsConfig, globalConfig, installDir);
-  return await postWorkspaceSetup(context, wsConfig, globalConfig, installDir, westConfigResult.westSelection);
+  return await postWorkspaceSetup(context, wsConfig, globalConfig, installDir, westConfigResult.westSelection, progressTracker);
 }
 
 async function getExistingInstallationPicks(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
