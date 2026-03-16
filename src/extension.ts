@@ -123,15 +123,7 @@ async function markWorkspaceSetupComplete(
   await setWorkspaceState(context, wsConfig);
   // Update setup panel if it's open
   if (SetupPanel.currentPanel) {
-    SetupPanel.currentPanel.updateContent(wsConfig, globalConfig);
-    // updateContent replaces all HTML (showing the overview page).
-    // Navigate back to the workspace page so the user sees the
-    // updated "Workspace Ready" state instead of being dumped to overview.
-    setTimeout(() => {
-      if (SetupPanel.currentPanel) {
-        SetupPanel.currentPanel.navigateToWorkspace();
-      }
-    }, 100);
+    SetupPanel.currentPanel.updateContent(wsConfig, globalConfig, "workspace");
   }
 }
 
@@ -187,10 +179,6 @@ function registerWorkspaceSetupCommand(
 ) {
   context.subscriptions.push(
     vscode.commands.registerCommand(commandId, async () => {
-      // If the setup panel is open, navigate to workspace page and show initializing UI
-      if (SetupPanel.currentPanel) {
-        SetupPanel.currentPanel.showWorkspaceSetupInitializing();
-      }
       const success = await setupFn(context, wsConfig, globalConfig, ...extraArgs);
       if (success) {
         await markWorkspaceSetupComplete(context, wsConfig, globalConfig);
@@ -1230,10 +1218,6 @@ export async function activate(context: vscode.ExtensionContext) {
   // New workspace setup commands
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.workspace-setup-picker", async () => {
-      // Show initializing state if the setup panel is open
-      if (SetupPanel.currentPanel) {
-        SetupPanel.currentPanel.showWorkspaceSetupInitializing();
-      }
       await showWorkspaceSetupPicker(context, wsConfig, globalConfig);
     })
   );
@@ -1253,10 +1237,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.select-existing-west-workspace", async () => {
-      // If the setup panel is open, navigate to workspace page and show initializing UI
-      if (SetupPanel.currentPanel) {
-        SetupPanel.currentPanel.showWorkspaceSetupInitializing();
-      }
       await selectExistingWestWorkspace(context, wsConfig, globalConfig);
       // Refresh the setup panel if it's open
       if (SetupPanel.currentPanel) {

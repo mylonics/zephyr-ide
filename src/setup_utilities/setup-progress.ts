@@ -1,5 +1,5 @@
 /*
-Copyright 2024 mylonics 
+Copyright 2025 mylonics 
 Author Rijesh Augustine
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -35,6 +35,18 @@ const _onProgress = new vscode.EventEmitter<SetupProgressEvent>();
 
 /** Subscribe to workspace setup progress events. */
 export const onSetupProgress: vscode.Event<SetupProgressEvent> = _onProgress.event;
+
+/**
+ * The most recent progress event while a setup operation is in progress,
+ * or `undefined` when no operation is running. Allows late subscribers
+ * (e.g. a panel opened mid-setup) to catch up to current progress.
+ */
+let _activeProgressEvent: SetupProgressEvent | undefined;
+
+/** Returns the current in-flight progress snapshot, if any. */
+export function getActiveSetupProgress(): SetupProgressEvent | undefined {
+  return _activeProgressEvent;
+}
 
 /**
  * Tracks and emits progress for multi-step workspace setup operations.
@@ -113,15 +125,20 @@ export class SetupProgressTracker {
   }
 
   private emit(type: SetupProgressEvent['type'], message?: string) {
-    _onProgress.fire({
+    const event: SetupProgressEvent = {
       type,
       operationLabel: this.label,
       steps: this.steps.map(s => ({ ...s })),
       message,
-    });
-  }
-}
+    };
 
-export function disposeSetupProgress() {
-  _onProgress.dispose();
+    // Track active progress so late subscribers can catch up.
+    if (type === 'complete' || type === 'failed') {
+      _activeProgressEvent = undefined;
+    } else {
+      _activeProgressEvent = event;
+    }
+
+    _onProgress.fire(event);
+  }
 }

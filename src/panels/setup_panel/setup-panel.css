@@ -144,6 +144,7 @@ h1 {
 .status {
     display: inline-flex;
     align-items: center;
+    gap: 6px;
     padding: 6px 12px;
     border-radius: 4px;
     font-size: 11px;
@@ -1290,4 +1291,25 @@ h1 {
 @keyframes fadeIn {
     from { opacity: 0; }
     to   { opacity: 1; }
+}
+
+/* ===== Workspace Sub-Page State Containers ===== */
+/* Only the container matching [data-workspace-state] is visible.
+   All three exist in the DOM so switching is a single attribute change. */
+
+.ws-state {
+    display: none;
+}
+
+[data-workspace-state="initializing"] > .ws-state-initializing {
+    display: block;
+    animation: fadeIn 0.2s ease-in;
+}
+
+[data-workspace-state="ready"] > .ws-state-ready {
+    display: block;
+}
+
+[data-workspace-state="setup-required"] > .ws-state-setup-required {
+    display: block;
 }

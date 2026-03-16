@@ -272,13 +272,22 @@ export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext
     additionalArgs: additionalArgs || "",
   };
 
+  // Start progress tracking for the west git flow
+  const progress = new SetupProgressTracker("Workspace Setup from West Git", [
+    { id: 'python-env', label: 'Setting up Python environment' },
+    { id: 'west-init', label: 'Initializing West workspace' },
+    { id: 'west-update', label: 'Running West update' },
+    { id: 'python-req', label: 'Installing Python requirements' },
+  ]);
+
   // Run post-setup process
   return await postWorkspaceSetup(
     context,
     wsConfig,
     globalConfig,
     currentDir,
-    westSelection
+    westSelection,
+    progress
   );
 }
 
@@ -358,8 +367,10 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
     `Setting up current directory as Zephyr IDE workspace: ${installDir}`
   );
 
-  // Load projects from file (call directly to avoid triggering update-web-view
-  // which would rerender the overview page and wipe out the initializing state)
+  // TODO: Decouple from internal command handler behavior. Called directly
+  // instead of via "zephyr-ide.load-projects-from-file" to avoid triggering
+  // update-web-view, which would rerender the overview page and wipe out the
+  // initializing state.
   await loadProjectsFromFile(wsConfig);
 
   wsConfig.initialSetupComplete = true;
