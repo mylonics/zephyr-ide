@@ -1,0 +1,70 @@
+---
+title: Zephyr IDE
+description: Professional VS Code extension for Zephyr RTOS development. Automated SDK installation, west integration, project management, debugging tools, and build automation for embedded systems development.
+template: splash
+hero:
+  tagline: Professional VS Code extension for Zephyr RTOS development
+  image:
+    file: ../../assets/logo.png
+  actions:
+    - text: Get Started
+      link: /getting-started/installation/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/mylonics/zephyr-ide
+      icon: github
+      variant: secondary
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+## Features
+
+<CardGrid>
+  <Card title="Host Tools" icon="laptop">
+    Installs host tools required for Zephyr development automatically on supported platforms.
+  </Card>
+  <Card title="West Integration" icon="setting">
+    Sets up west environment, installs Zephyr SDK using West SDK commands, and provides west.yml templates.
+  </Card>
+  <Card title="Project Management" icon="list-format">
+    Multiple projects and builds per workspace with per-project KConfig and overlay files.
+  </Card>
+  <Card title="Debugging" icon="magnifier">
+    Bind builds to launch/debug configurations with functions to set up custom debug setups.
+  </Card>
+  <Card title="Testing" icon="approve-check">
+    Twister testing support with integrated test panel.
+  </Card>
+  <Card title="Cross-Platform" icon="puzzle">
+    Cross-platform support for all Zephyr-supported platforms (Linux, macOS, Windows).
+  </Card>
+</CardGrid>
+
+## Quick Links
+
+<CardGrid>
+  <LinkCard title="Getting Started" href="/getting-started/installation/" description="Install and set up Zephyr IDE" />
+  <LinkCard title="User Guide" href="/user-guide/project-setup/" description="Learn how to use Zephyr IDE" />
+  <LinkCard title="Commands Reference" href="/reference/commands/" description="Complete command reference" />
+  <LinkCard title="Configuration Settings" href="/reference/configuration/" description="Available settings" />
+</CardGrid>
+
+## Requirements
+
+This extension can automatically install host tools required for Zephyr development on supported platforms. The automated installation follows the methods described in the [Zephyr Getting Started Guide](https://docs.zephyrproject.org/latest/develop/getting_started/index.html#install-dependencies) and installs tools such as **cmake**, **python3**, and **devicetree compiler**.
+
+For installation on unsupported platforms, install the required packages from the getting started guide using your platform's package manager and consider making an issue or pull request for that specific platform at the zephyr-ide repository.
+
+## Video Tutorials
+
+[![Getting Started with Zephyr IDE](https://mylonics.com/assets/images/zephyr-ide/getting_started_thumbnail.png)](https://www.youtube.com/watch?v=Asfolnh9kqM&t "Getting Started with Zephyr IDE")
+
+[![STM32 Board Setup And Debugging with Zephyr IDE](https://mylonics.com/assets/images/zephyr-ide/board_setup_thumbnail.png)](https://www.youtube.com/watch?v=TXcTzyswBMQ)
+
+## Getting Help
+
+- **Issues**: [GitHub Issues](https://github.com/mylonics/zephyr-ide/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/mylonics/zephyr-ide/discussions)
+- **Sample Project**: [Zephyr IDE Sample Project](https://github.com/mylonics/zephyr-ide-sample-project)

@@ -1,24 +1,25 @@
 # Zephyr IDE Documentation
 
-This directory contains the source files for the Zephyr IDE documentation, built using [MkDocs](https://www.mkdocs.org/) with the [Cinder](https://sourcefoundry.org/cinder/) theme.
+This directory contains the source files for the Zephyr IDE documentation, built using [Astro Starlight](https://starlight.astro.build/).
 
 ## Viewing the Documentation
 
-The documentation is published at: https://mylonics.github.io/zephyr-ide/
+The documentation is published at: https://zephyr-ide.mylonics.com/
 
 ## Building the Documentation Locally
 
 ### Prerequisites
 
-- Python 3.x
-- pip
+- Node.js 18+
+- npm
 
 ### Installation
 
 Install the required dependencies:
 
 ```bash
-pip install -r requirements-docs.txt
+cd docs
+npm install
 ```
 
 ### Build the Documentation
@@ -26,41 +27,41 @@ pip install -r requirements-docs.txt
 To build the static site:
 
 ```bash
-mkdocs build
+npm run build
 ```
 
-The generated HTML files will be in the `site/` directory.
+The generated HTML files will be in the `dist/` directory.
 
 ### Serve the Documentation Locally
 
 To preview the documentation with live reloading:
 
 ```bash
-mkdocs serve
+npm run dev
 ```
 
-Then open your browser to http://127.0.0.1:8000/zephyr-ide/
+Then open your browser to http://localhost:4321/
 
 ## Documentation Structure
 
-The documentation is organized into the following sections:
+The documentation source files are in `src/content/docs/` and organized into the following sections:
 
-- **Getting Started** - Installation and initial setup
+- **Getting Started** (`src/content/docs/getting-started/`) - Installation and initial setup
   - Installation
   - Setup Panel
   - Host Tools
   - Workspace Configuration
   - SDK Installation
-  - Externally Managed Environments
+  - External Environments
 
-- **User Guide** - How to use Zephyr IDE
-  - Setting Up Projects
+- **User Guide** (`src/content/docs/user-guide/`) - How to use Zephyr IDE
+  - Project Setup
   - Building and Debugging
   - Testing with Twister
   - Sharing Your Code
   - Other Features
 
-- **Reference** - Detailed reference information
+- **Reference** (`src/content/docs/reference/`) - Detailed reference information
   - Commands
   - Configuration Settings
   - Launch Configuration Helpers
@@ -68,24 +69,24 @@ The documentation is organized into the following sections:
   - Known Issues
 
 - **Changelog** - Release notes and version history
-
 - **Developer Guide** - Contributing to Zephyr IDE
 
 ## Contributing to the Documentation
 
-The documentation source files are in Markdown format and located in the `docs/` directory. To contribute:
+The documentation source files are in Markdown/MDX format located in `src/content/docs/`. To contribute:
 
-1. Edit the relevant `.md` files in the `docs/` directory
-2. Preview your changes with `mkdocs serve`
+1. Edit the relevant `.md` or `.mdx` files in `src/content/docs/`
+2. Preview your changes with `npm run dev`
 3. Submit a pull request
 
 ### Adding New Pages
 
 To add a new page:
 
-1. Create a new `.md` file in the appropriate subdirectory under `docs/`
-2. Add the page to the navigation in `mkdocs.yml`
-3. Build and preview to verify
+1. Create a new `.md` file in the appropriate subdirectory under `src/content/docs/`
+2. Add a `title` and optional `description` to the frontmatter
+3. Add the page to the sidebar in `astro.config.mjs`
+4. Build and preview to verify
 
 ## Deployment
 
@@ -93,21 +94,13 @@ Documentation is automatically built and deployed to GitHub Pages when changes a
 
 ## Theme
 
-This documentation uses the Cinder theme with GitHub color scheme. The theme provides:
+This documentation uses [Astro Starlight](https://starlight.astro.build/) which provides:
 
-- Clean, modern design
+- Clean, modern documentation design
+- Built-in dark/light mode toggle
+- Full-text search (powered by Pagefind)
 - Responsive layout
 - Syntax highlighting for code blocks
-- Search functionality
+- Automatic table of contents
+- Previous/Next page navigation
 
-## Markdown Extensions
-
-The following Markdown extensions are enabled:
-
-- Table of contents with permalinks
-- Admonitions (notes, warnings, tips)
-- Code highlighting
-- Definition lists
-- Footnotes
-- Tables
-- PyMdown Extensions (superfences, details, tabbed, etc.)

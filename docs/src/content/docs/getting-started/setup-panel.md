@@ -1,10 +1,7 @@
 ---
-title: Zephyr IDE Setup Panel - Configure Your Development Environment
+title: Setup Panel
 description: Learn how to use the Zephyr IDE Setup Panel to configure host tools, manage Zephyr SDK, and set up west workspace for efficient Zephyr RTOS development.
-keywords: Zephyr IDE setup, setup panel, host tools, Zephyr SDK, west workspace, development environment configuration
 ---
-
-# Setup Panel
 
 When you first open a workspace in VS Code with Zephyr IDE installed, you can access the Setup Panel through:
 
