@@ -27,6 +27,7 @@ import {
 import { saveSetupState } from "../../setup_utilities/state-management";
 import { parseWestConfigManifestPath } from "../../setup_utilities/west-config-parser";
 import { notifyError, notifyWarning, outputError } from "../../utilities/output";
+import { onSetupProgress } from "../../setup_utilities/setup-progress";
 import { HostToolsSubPage } from "./HostToolsSubPage";
 import { SDKSubPage } from "./SDKSubPage";
 import { WorkspaceSubPage } from "./WorkspaceSubPage";
@@ -111,6 +112,16 @@ export class SetupPanel {
             },
             null,
             this._disposables
+        );
+
+        // Subscribe to workspace setup progress events and forward to webview
+        this._disposables.push(
+            onSetupProgress((event) => {
+                this._panel.webview.postMessage({
+                    command: 'workspaceSetupProgress',
+                    data: event,
+                });
+            })
         );
     }
 
@@ -279,6 +290,18 @@ export class SetupPanel {
         this.navigateToPage("workspace");
     }
 
+    /**
+     * Show the workspace initializing UI in the panel.
+     * Called when workspace setup is triggered from the VS Code command palette
+     * so the panel reflects the in-progress state.
+     * Does NOT navigate — the JS handler navigates if needed, and the
+     * showSubPage intercept ensures no "Workspace Ready" flash.
+     */
+    public showWorkspaceSetupInitializing() {
+        this._panel.reveal();
+        this._panel.webview.postMessage({ command: 'showWorkspaceInitializing' });
+    }
+
     public dispose() {
         SetupPanel.currentPanel = undefined;
 
@@ -364,23 +387,23 @@ export class SetupPanel {
     }
 
     private async workspaceSetupFromGit() {
-        await this.executeVSCommand("zephyr-ide.workspace-setup-from-git", "Setup Panel", true);
+        await this.executeVSCommand("zephyr-ide.workspace-setup-from-git", "Setup Panel");
     }
 
     private async workspaceSetupFromWestGit() {
-        await this.executeVSCommand("zephyr-ide.workspace-setup-from-west-git", "Setup Panel", true);
+        await this.executeVSCommand("zephyr-ide.workspace-setup-from-west-git", "Setup Panel");
     }
 
     private async workspaceSetupStandard() {
-        await this.executeVSCommand("zephyr-ide.workspace-setup-standard", "Setup Panel", true);
+        await this.executeVSCommand("zephyr-ide.workspace-setup-standard", "Setup Panel");
     }
 
     private async workspaceSetupFromCurrentDirectory() {
-        await this.executeVSCommand("zephyr-ide.workspace-setup-from-current-directory", "Setup Panel", true);
+        await this.executeVSCommand("zephyr-ide.workspace-setup-from-current-directory", "Setup Panel");
     }
 
     private async workspaceSetupPicker() {
-        await this.executeVSCommand("zephyr-ide.workspace-setup-picker", "Setup Panel", true);
+        await this.executeVSCommand("zephyr-ide.workspace-setup-picker", "Setup Panel");
     }
 
     private async westConfig() {

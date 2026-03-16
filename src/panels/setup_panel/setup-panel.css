@@ -1123,3 +1123,171 @@ h1 {
 .external-link:visited {
     color: var(--vscode-textLink-foreground);
 }
+
+/* ===== Workspace Setup Progress Panel ===== */
+
+.setup-progress-panel {
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 6px;
+    margin-bottom: 20px;
+    overflow: hidden;
+    background-color: var(--vscode-input-background);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.setup-progress-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.setup-progress-header.status-info {
+    background-color: var(--vscode-terminal-ansiBlue);
+    color: var(--vscode-editor-background);
+}
+
+.setup-progress-header.status-success {
+    background-color: var(--vscode-terminal-ansiGreen);
+    color: var(--vscode-editor-background);
+}
+
+.setup-progress-header.status-error {
+    background-color: var(--vscode-terminal-ansiRed);
+    color: var(--vscode-editor-background);
+}
+
+.setup-progress-title {
+    flex: 1;
+}
+
+.setup-progress-dismiss {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    opacity: 0.8;
+}
+
+.setup-progress-dismiss:hover {
+    opacity: 1;
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.setup-progress-body {
+    padding: 10px 16px 14px;
+}
+
+.setup-progress-message {
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+    margin: 8px 0 0;
+    line-height: 1.4;
+}
+
+.setup-progress-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.setup-step-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    transition: border-color 0.3s, background-color 0.3s;
+}
+
+.setup-step-item.in-progress {
+    border-color: var(--vscode-progressBar-background);
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.setup-step-item.completed {
+    opacity: 0.8;
+}
+
+.setup-step-item.failed {
+    border-color: var(--vscode-inputValidation-errorBorder);
+}
+
+.setup-step-item.skipped {
+    opacity: 0.5;
+}
+
+.setup-step-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.setup-step-icon.pending {
+    color: var(--vscode-descriptionForeground);
+    border: 2px solid var(--vscode-descriptionForeground);
+    font-size: 9px;
+}
+
+.setup-step-icon.in-progress {
+    color: var(--vscode-progressBar-background);
+}
+
+.setup-step-icon.completed {
+    color: var(--vscode-terminal-ansiGreen);
+}
+
+.setup-step-icon.failed {
+    color: var(--vscode-terminal-ansiRed);
+}
+
+.setup-step-icon.skipped {
+    color: var(--vscode-descriptionForeground);
+}
+
+.setup-step-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    flex: 1;
+}
+
+.setup-step-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--vscode-foreground);
+}
+
+.setup-step-item.skipped .setup-step-label {
+    text-decoration: line-through;
+    color: var(--vscode-descriptionForeground);
+}
+
+.setup-step-detail {
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+    line-height: 1.4;
+}
+
+/* Initializing state shown after a setup button is clicked */
+.setup-initializing {
+    animation: fadeIn 0.2s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}

@@ -58,6 +58,12 @@ window.addEventListener('message', event => {
         case 'westYmlContent':
             loadWestYmlContent(message.content);
             break;
+        case 'workspaceSetupProgress':
+            handleWorkspaceSetupProgress(message.data);
+            break;
+        case 'showWorkspaceInitializing':
+            showWorkspaceInitializing();
+            break;
     }
 });
 
@@ -98,6 +104,13 @@ function showSubPage(content, page) {
         }
         
         subPageContainer.classList.add('visible');
+
+        // If a workspace setup is in progress and we just rendered the workspace
+        // page, immediately replace the content with the initializing state
+        // so the user never sees a flash of the "Workspace Ready" page.
+        if (page === 'workspace' && _workspaceSetupActive) {
+            showWorkspaceInitializing();
+        }
     }
 }
 
@@ -213,6 +226,7 @@ function manageWorkspace() {
 }
 
 function selectExistingWestWorkspace() {
+    showWorkspaceInitializing();
     vscode.postMessage({
         command: 'selectExistingWestWorkspace'
     });
@@ -295,25 +309,78 @@ function displaySDKList(sdkData) {
 }
 
 // Workspace Setup Functions - Now direct handlers
+
+/**
+ * Replace the workspace options content with an initializing indicator.
+ * Called immediately when any setup button is clicked so the user sees
+ * instant feedback instead of the page appearing to hang.
+ */
+function showWorkspaceInitializing() {
+    const subPageContainer = document.getElementById('subPageContainer');
+    if (!subPageContainer) {
+        return;
+    }
+
+    // Mark setup as active so progress events are not blocked.
+    _workspaceSetupActive = true;
+
+    // If the workspace sub-page isn't visible yet, navigate to it and retry.
+    // When triggered from the extension side, navigateToPage has already
+    // queued a showSubPage message, so this branch only fires for webview
+    // button clicks where the page is already visible.
+    if (!subPageContainer.classList.contains('visible')) {
+        navigateToSubPage('workspace');
+        setTimeout(function() { showWorkspaceInitializing(); }, 350);
+        return;
+    }
+
+    const subPageBody = subPageContainer.querySelector('.sub-page-body');
+    if (!subPageBody) {
+        return;
+    }
+
+    // Replace the status banner and all content below it with a single initializing message.
+    // Keep the setupProgressContainer if it already exists (progress events will populate it).
+    const progressContainer = document.getElementById('setupProgressContainer');
+    subPageBody.innerHTML = '';
+    if (progressContainer) {
+        subPageBody.appendChild(progressContainer);
+    }
+
+    const initDiv = document.createElement('div');
+    initDiv.className = 'setup-initializing';
+    initDiv.innerHTML = '' +
+        '<div class="status-banner status-info">' +
+            '<div class="loading-spinner"></div>' +
+            '<span class="status-text">Initializing workspace\u2026</span>' +
+        '</div>' +
+        '<p class="description">Follow the prompts in the VS Code dialog to configure your workspace.</p>';
+    subPageBody.appendChild(initDiv);
+}
+
 function workspaceSetupFromGit() {
+    showWorkspaceInitializing();
     vscode.postMessage({
         command: 'workspaceSetupFromGit'
     });
 }
 
 function workspaceSetupFromWestGit() {
+    showWorkspaceInitializing();
     vscode.postMessage({
         command: 'workspaceSetupFromWestGit'
     });
 }
 
 function workspaceSetupStandard() {
+    showWorkspaceInitializing();
     vscode.postMessage({
         command: 'workspaceSetupStandard'
     });
 }
 
 function workspaceSetupFromCurrentDirectory() {
+    showWorkspaceInitializing();
     vscode.postMessage({
         command: 'workspaceSetupFromCurrentDirectory'
     });
@@ -736,5 +803,170 @@ function updateHostToolsPackageStatus(packageName, state) {
     }
 }
 
+// Workspace Setup Progress Functions
+
+/** True while a workspace setup operation is actively in progress. */
+let _workspaceSetupActive = false;
+
+/** Timer handle used to auto-dismiss the completed progress banner. */
+let _setupProgressDismissTimer = null;
+
+/**
+ * Handles workspace setup progress events by rendering a progress panel
+ * at the top of the workspace setup sub-page. If the workspace sub-page
+ * is not currently visible, the progress panel navigates to it first.
+ * @param {object} data - The progress event data
+ * @param {string} data.type - Event type: 'start', 'step-update', 'complete', or 'failed'
+ * @param {string} data.operationLabel - Label for the operation
+ * @param {Array} data.steps - Step objects: { id, label, status, detail? }
+ * @param {string} [data.message] - Optional message
+ */
+function handleWorkspaceSetupProgress(data) {
+    // A 'start' event means a new setup operation has begun.
+    if (data.type === 'start') {
+        _workspaceSetupActive = true;
+    }
+
+    // Don't show progress on the "Workspace Ready" page unless a setup
+    // operation has been explicitly started (via showWorkspaceInitializing
+    // or a 'start' progress event).
+    if (!_workspaceSetupActive) {
+        return;
+    }
+
+    // Navigate to the workspace sub-page if not already showing it
+    const subPageContainer = document.getElementById('subPageContainer');
+    if (!subPageContainer || !subPageContainer.classList.contains('visible')) {
+        // Request the workspace sub-page from the extension
+        navigateToSubPage('workspace');
+        // Retry after navigation animation completes
+        setTimeout(function() { handleWorkspaceSetupProgress(data); }, 350);
+        return;
+    }
+
+    // Find or create the progress container inside sub-page-body
+    const subPageBody = subPageContainer.querySelector('.sub-page-body');
+    if (!subPageBody) {
+        return;
+    }
+
+    let container = document.getElementById('setupProgressContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'setupProgressContainer';
+        // Insert as first child of sub-page-body, before the status-banner
+        subPageBody.insertBefore(container, subPageBody.firstChild);
+    }
+
+    // Clear any pending dismiss timer
+    if (_setupProgressDismissTimer) {
+        clearTimeout(_setupProgressDismissTimer);
+        _setupProgressDismissTimer = null;
+    }
+
+    // On complete or failure, mark setup as no longer active and auto-dismiss
+    if (data.type === 'complete' || data.type === 'failed') {
+        _workspaceSetupActive = false;
+    }
+    if (data.type === 'complete') {
+        _setupProgressDismissTimer = setTimeout(function() {
+            dismissSetupProgress();
+        }, 8000);
+    }
+
+    // Determine header style based on event type
+    let bannerClass, bannerIcon, bannerText;
+    switch (data.type) {
+        case 'complete':
+            bannerClass = 'status-success';
+            bannerIcon = '✓';
+            bannerText = 'Setup Complete';
+            break;
+        case 'failed':
+            bannerClass = 'status-error';
+            bannerIcon = '✗';
+            bannerText = 'Setup Failed';
+            break;
+        default:
+            bannerClass = 'status-info';
+            bannerIcon = '';
+            bannerText = 'Setting Up Workspace...';
+            break;
+    }
+
+    function getStepIcon(status) {
+        switch (status) {
+            case 'completed':
+                return '<span class="setup-step-icon completed">✓</span>';
+            case 'in-progress':
+                return '<span class="setup-step-icon in-progress"><span class="codicon codicon-sync codicon-modifier-spin"></span></span>';
+            case 'failed':
+                return '<span class="setup-step-icon failed">✗</span>';
+            case 'skipped':
+                return '<span class="setup-step-icon skipped">–</span>';
+            default:
+                return '<span class="setup-step-icon pending">○</span>';
+        }
+    }
+
+    const stepsHtml = data.steps.map(function(step) {
+        const detail = step.detail
+            ? '<span class="setup-step-detail">' + escapeHtml(step.detail) + '</span>'
+            : '';
+        return '' +
+            '<div class="setup-step-item ' + step.status + '">' +
+                getStepIcon(step.status) +
+                '<div class="setup-step-content">' +
+                    '<span class="setup-step-label">' + escapeHtml(step.label) + '</span>' +
+                    detail +
+                '</div>' +
+            '</div>';
+    }).join('');
+
+    const bannerSpinner = (data.type === 'start' || data.type === 'step-update')
+        ? '<div class="loading-spinner"></div>'
+        : '';
+
+    const messageHtml = data.message
+        ? '<p class="setup-progress-message">' + escapeHtml(data.message) + '</p>'
+        : '';
+
+    // Show a dismiss button when complete or failed
+    const dismissBtn = (data.type === 'complete' || data.type === 'failed')
+        ? '<button class="setup-progress-dismiss" onclick="dismissSetupProgress()" title="Dismiss">' +
+            '<span class="codicon codicon-close"></span>' +
+          '</button>'
+        : '';
+
+    const html = '' +
+        '<div class="setup-progress-panel">' +
+            '<div class="setup-progress-header ' + bannerClass + '">' +
+                bannerSpinner +
+                '<span class="status-icon">' + bannerIcon + '</span>' +
+                '<span class="setup-progress-title">' + escapeHtml(data.operationLabel) + ' — ' + bannerText + '</span>' +
+                dismissBtn +
+            '</div>' +
+            '<div class="setup-progress-body">' +
+                '<div class="setup-progress-steps">' +
+                    stepsHtml +
+                '</div>' +
+                messageHtml +
+            '</div>' +
+        '</div>';
+
+    container.innerHTML = html;
+}
+
+/** Dismiss / hide the progress panel. */
+function dismissSetupProgress() {
+    const container = document.getElementById('setupProgressContainer');
+    if (container) {
+        container.remove();
+    }
+    if (_setupProgressDismissTimer) {
+        clearTimeout(_setupProgressDismissTimer);
+        _setupProgressDismissTimer = null;
+    }
+}
 // Message Listener for SDK list (handled by main listener above)
 // Removed duplicate sdkListResult handler to prevent displaySDKList firing twice

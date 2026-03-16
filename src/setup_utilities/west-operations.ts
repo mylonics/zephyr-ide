@@ -27,6 +27,7 @@ import { WorkspaceConfig, GlobalConfig, SetupState, formatZephyrVersion } from "
 import { saveSetupState, setSetupState, setWorkspaceState } from "./state-management";
 import { getSetupState, getSetupStateOrNotify, getVenvPath } from "./workspace-config";
 import { ensureWestConfigManifest } from "./west-config-parser";
+import { SetupProgressTracker } from "./setup-progress";
 
 // Test-only override for narrow update
 let forceNarrowUpdateForTest = false;
@@ -396,7 +397,7 @@ export async function westUpdateWithRequirements(context: vscode.ExtensionContex
   solo?: boolean;
   isWorkspaceSetup?: boolean;
   setupPath?: string;
-} = {}) {
+} = {}, progressTracker?: SetupProgressTracker) {
   const { solo = true, isWorkspaceSetup = false, setupPath } = options;
 
   // Add setup-specific output messages
@@ -405,11 +406,14 @@ export async function westUpdateWithRequirements(context: vscode.ExtensionContex
   }
 
   // Run west update first
+  progressTracker?.startStep('west-update');
   const westUpdateResult = await westUpdate(context, wsConfig, globalConfig, false);
   if (!westUpdateResult) {
+    progressTracker?.failStep('west-update', 'West update failed');
     notifyError("Workspace Setup", "West update failed. Check the Zephyr IDE output for details.");
     return false;
   }
+  progressTracker?.completeStep('west-update');
 
   // Set context flag for west update completion (during workspace setup)
   if (isWorkspaceSetup) {
@@ -423,11 +427,14 @@ export async function westUpdateWithRequirements(context: vscode.ExtensionContex
   }
 
   // Then install Python requirements
+  progressTracker?.startStep('python-req');
   const pythonReqResult = await installPythonRequirements(context, wsConfig, globalConfig, false);
   if (!pythonReqResult) {
+    progressTracker?.failStep('python-req', 'Installation failed');
     notifyError("Workspace Setup", "Python requirements installation failed. Check the Zephyr IDE output for details.");
     return false;
   }
+  progressTracker?.completeStep('python-req');
 
   // Set context flag for python requirements installation completion (during workspace setup)
   if (isWorkspaceSetup) {
@@ -449,23 +456,40 @@ export async function westUpdateWithRequirements(context: vscode.ExtensionContex
   }
   await saveSetupState(context, wsConfig, globalConfig);
 
+  progressTracker?.complete('Workspace setup completed successfully!');
+
   if (!globalConfig.sdkInstalled) {
     return await vscode.commands.executeCommand("zephyr-ide.install-sdk");
   }
   return true;
 }
 
-export async function postWorkspaceSetup(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, setupPath: string, westSelection: WestLocation | undefined) {
+export async function postWorkspaceSetup(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, setupPath: string, westSelection: WestLocation | undefined, progressTracker?: SetupProgressTracker) {
+  // Create progress tracker if not provided
+  const progress = progressTracker || new SetupProgressTracker("Workspace Setup", [
+    { id: 'python-env', label: 'Setting up Python environment' },
+    { id: 'west-init', label: 'Initializing West workspace' },
+    { id: 'west-update', label: 'Running West update' },
+    { id: 'python-req', label: 'Installing Python requirements' },
+  ]);
+
   // Setup west environment before initialization
+  progress.startStep('python-env');
   const venvPath = getVenvPath(setupPath);
   await setupWestEnvironment(context, wsConfig, globalConfig, fs.pathExistsSync(venvPath));
+  progress.completeStep('python-env');
 
   if (westSelection && !westSelection.failed) {
+    progress.startStep('west-init');
     const westInitResult = await westInit(context, wsConfig, globalConfig, false, westSelection);
     if (!westInitResult) {
+      progress.failStep('west-init', 'West init failed');
       notifyError("Workspace Setup", "Failed to initialize west with git repository.");
       return false;
     }
+    progress.completeStep('west-init');
+  } else {
+    progress.skipStep('west-init');
   }
 
   await saveSetupState(context, wsConfig, globalConfig);
@@ -474,5 +498,5 @@ export async function postWorkspaceSetup(context: vscode.ExtensionContext, wsCon
     solo: true,
     isWorkspaceSetup: true,
     setupPath: setupPath
-  });
+  }, progress);
 }
