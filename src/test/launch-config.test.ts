@@ -16,8 +16,11 @@ limitations under the License.
 */
 
 import * as assert from "assert";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 import * as vscode from "vscode";
-import { getLaunchConfigurations } from "../utilities/utils";
+import { getLaunchConfigurations, readLaunchConfigsFromWorkspaceFile } from "../utilities/utils";
 import { WorkspaceConfig } from "../setup_utilities/types";
 
 suite("Launch Configuration Test Suite", () => {
@@ -128,5 +131,97 @@ suite("Launch Configuration Test Suite", () => {
         } else {
             assert.strictEqual(result, undefined, "result must be an array or undefined");
         }
+    });
+
+    // ── readLaunchConfigsFromWorkspaceFile unit tests ────────────────────────
+
+    suite("readLaunchConfigsFromWorkspaceFile", () => {
+
+        test("returns launch configurations from a valid .code-workspace file", () => {
+            const tmpFile = path.join(os.tmpdir(), `test-${Date.now()}.code-workspace`);
+            const configs = [
+                { name: "Debug FW", type: "cortex-debug", request: "launch" },
+                { name: "Attach FW", type: "cortex-debug", request: "attach" },
+            ];
+            const workspaceData = {
+                folders: [{ path: "." }],
+                launch: { configurations: configs },
+            };
+            fs.writeFileSync(tmpFile, JSON.stringify(workspaceData), "utf8");
+
+            try {
+                const result = readLaunchConfigsFromWorkspaceFile(tmpFile);
+                assert.strictEqual(result.length, 2, "must return both configurations");
+                assert.strictEqual(result[0].name, "Debug FW");
+                assert.strictEqual(result[1].name, "Attach FW");
+            } finally {
+                fs.unlinkSync(tmpFile);
+            }
+        });
+
+        test("returns empty array when file has no launch section", () => {
+            const tmpFile = path.join(os.tmpdir(), `test-${Date.now()}.code-workspace`);
+            const workspaceData = { folders: [{ path: "." }] };
+            fs.writeFileSync(tmpFile, JSON.stringify(workspaceData), "utf8");
+
+            try {
+                const result = readLaunchConfigsFromWorkspaceFile(tmpFile);
+                assert.deepStrictEqual(result, [], "must return empty array");
+            } finally {
+                fs.unlinkSync(tmpFile);
+            }
+        });
+
+        test("returns empty array when launch.configurations is absent", () => {
+            const tmpFile = path.join(os.tmpdir(), `test-${Date.now()}.code-workspace`);
+            const workspaceData = { folders: [{ path: "." }], launch: {} };
+            fs.writeFileSync(tmpFile, JSON.stringify(workspaceData), "utf8");
+
+            try {
+                const result = readLaunchConfigsFromWorkspaceFile(tmpFile);
+                assert.deepStrictEqual(result, [], "must return empty array");
+            } finally {
+                fs.unlinkSync(tmpFile);
+            }
+        });
+
+        test("returns empty array for a non-existent file path", () => {
+            const result = readLaunchConfigsFromWorkspaceFile("/nonexistent/path/file.code-workspace");
+            assert.deepStrictEqual(result, [], "must return empty array for missing file");
+        });
+
+        test("returns empty array for a file with invalid JSON", () => {
+            const tmpFile = path.join(os.tmpdir(), `test-${Date.now()}.code-workspace`);
+            fs.writeFileSync(tmpFile, "{ not valid json }", "utf8");
+
+            try {
+                const result = readLaunchConfigsFromWorkspaceFile(tmpFile);
+                assert.deepStrictEqual(result, [], "must return empty array for invalid JSON");
+            } finally {
+                fs.unlinkSync(tmpFile);
+            }
+        });
+
+        test("preserves all configuration properties", () => {
+            const tmpFile = path.join(os.tmpdir(), `test-${Date.now()}.code-workspace`);
+            const configs = [{
+                name: "Debug Nemo FW",
+                type: "cortex-debug",
+                request: "launch",
+                servertype: "jlink",
+                device: "${input:GetJlinkDevice}",
+            }];
+            fs.writeFileSync(tmpFile, JSON.stringify({ folders: [], launch: { configurations: configs } }), "utf8");
+
+            try {
+                const result = readLaunchConfigsFromWorkspaceFile(tmpFile);
+                assert.strictEqual(result.length, 1);
+                assert.strictEqual(result[0].name, "Debug Nemo FW");
+                assert.strictEqual(result[0].servertype, "jlink");
+                assert.strictEqual(result[0].device, "${input:GetJlinkDevice}");
+            } finally {
+                fs.unlinkSync(tmpFile);
+            }
+        });
     });
 });

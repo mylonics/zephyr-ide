@@ -292,6 +292,30 @@ export async function selectLaunchConfiguration(wsConfig: WorkspaceConfig): Prom
   return { name: selected.label, workspaceFolder: selected.description };
 }
 
+/**
+ * Read launch configurations directly from a .code-workspace file.
+ *
+ * The `launch` section in a `.code-workspace` file is a top-level property
+ * (not nested inside `settings`), so the VS Code configuration API may not
+ * expose it reliably via `workspaceValue` in all versions or workspace types.
+ * Reading the file directly guarantees the configs are always surfaced.
+ *
+ * Returns an empty array when the file cannot be read, parsed, or contains
+ * no launch configurations.
+ */
+export function readLaunchConfigsFromWorkspaceFile(filePath: string): any[] {
+  try {
+    const content = fs.readFileSync(filePath, 'utf8');
+    const workspaceData = JSON.parse(content);
+    return Array.isArray(workspaceData?.launch?.configurations)
+      ? workspaceData.launch.configurations
+      : [];
+  } catch (e) {
+    outputError("Launch Config", `Failed to read launch configs from workspace file "${filePath}": ${String(e)}`);
+    return [];
+  }
+}
+
 export async function getLaunchConfigurations(wsConfig: WorkspaceConfig) {
   const folders = vscode.workspace.workspaceFolders;
   if (!folders || folders.length === 0) {
@@ -327,6 +351,21 @@ export async function getLaunchConfigurations(wsConfig: WorkspaceConfig) {
     if (cfg.name && !seenNonFolderNames.has(cfg.name) && !folderLevelNames.has(cfg.name)) {
       seenNonFolderNames.add(cfg.name);
       allConfigurations.push({ ...cfg });
+    }
+  }
+
+  // Step 3: Directly read the .code-workspace file to ensure launch configurations
+  // defined there are always surfaced. The VS Code configuration API (workspaceValue)
+  // may not expose the top-level `launch` section of a .code-workspace file reliably
+  // in all VS Code versions and workspace configurations.
+  const workspaceFile = vscode.workspace.workspaceFile;
+  if (workspaceFile && workspaceFile.scheme === 'file') {
+    const wsFileLaunchConfigs = readLaunchConfigsFromWorkspaceFile(workspaceFile.fsPath);
+    for (const cfg of wsFileLaunchConfigs) {
+      if (cfg.name && !seenNonFolderNames.has(cfg.name) && !folderLevelNames.has(cfg.name)) {
+        seenNonFolderNames.add(cfg.name);
+        allConfigurations.push({ ...cfg });
+      }
     }
   }
 
