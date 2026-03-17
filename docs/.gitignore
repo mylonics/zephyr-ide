@@ -6,3 +6,6 @@ node_modules/
 
 # Astro cache
 .astro/
+
+# Shared styles (cloned during CI from mylonics/mylonics-styles)
+mylonics-styles/
