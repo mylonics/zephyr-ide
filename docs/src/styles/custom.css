@@ -4,3 +4,23 @@
  *
  * Add any Zephyr IDE–specific adjustments here.
  */
+
+/* ── K2D font for Zephyr IDE branding ────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=K2D:wght@600&display=swap');
+
+/* Mylonics gray — adapts for dark/light theme */
+:root {
+  --ml-brand-gray: #adb5bd; /* ml-gray-400 — visible on dark backgrounds */
+}
+
+:root[data-theme='light'] {
+  --ml-brand-gray: #555555; /* ml-gray-600 — visible on light backgrounds */
+}
+
+/* Zephyr IDE brand text — K2D font with Mylonics gray */
+.site-title span,
+.hero h1 {
+  font-family: 'K2D', sans-serif;
+  font-weight: 600;
+  color: var(--ml-brand-gray);
+}
