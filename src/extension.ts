@@ -28,9 +28,6 @@ import { SetupPanel } from "./panels/setup_panel/SetupPanel";
 import { HostToolInstallView } from "./panels/host_tool_install_view/HostToolInstallView";
 
 import {
-  getLaunchConfigurationByName,
-  getLaunchConfigurations,
-  getWorkspaceFolderForConfig,
   output,
   executeShellCommand,
   executeShellCommandInPythonEnv,
@@ -189,8 +186,8 @@ function registerWorkspaceSetupCommand(
 }
 
 /**
- * Start a debug session by resolving the launch configuration from the active build.
- * Consolidates the shared logic of zephyr-ide.debug, zephyr-ide.debug-attach, and zephyr-ide.build-debug.
+ * Start a debug session by passing the launch configuration name to VS Code.
+ * VS Code resolves variables and settings from launch.json automatically.
  */
 async function startDebugSession(
   context: vscode.ExtensionContext,
@@ -203,71 +200,39 @@ async function startDebugSession(
     'build-debug': 'Zephyr IDE: Debug',
   };
 
-  let debugTarget = defaults[mode];
-  let debugTargetFolder: string | undefined;
+  const resolved = resolveActiveProjectBuild(wsConfig);
+  const activeBuild = resolved?.build;
+
+  const targetKeys: Record<string, { name: 'buildDebugTarget' | 'launchTarget' | 'attachTarget'; folder: 'buildDebugTargetFolder' | 'launchTargetFolder' | 'attachTargetFolder' }> = {
+    'build-debug': { name: 'buildDebugTarget', folder: 'buildDebugTargetFolder' },
+    'debug':       { name: 'launchTarget',     folder: 'launchTargetFolder' },
+    'attach':      { name: 'attachTarget',     folder: 'attachTargetFolder' },
+  };
+
+  const keys = targetKeys[mode];
+  const debugTarget = activeBuild?.[keys.name] || defaults[mode];
+  const debugTargetFolder = activeBuild?.[keys.folder];
 
   if (mode === 'build-debug') {
-    const resolved = resolveActiveProjectBuild(wsConfig);
-    if (resolved?.build?.buildDebugTarget) {
-      debugTarget = resolved.build.buildDebugTarget;
-      debugTargetFolder = resolved.build.buildDebugTargetFolder;
-    }
-
-    const debugConfig = await getLaunchConfigurationByName(wsConfig, debugTarget, debugTargetFolder);
-    if (debugConfig && resolved) {
-      const res = await build(context, wsConfig, resolved.project, resolved.build, false);
-      if (res) {
-        const folder = getWorkspaceFolderForConfig(debugConfig);
-        const started = await vscode.debug.startDebugging(folder, debugConfig);
-        if (!started) {
-          notifyError("Debug", `Failed to start debug session: "${debugTarget}"` +
-            `\nType: ${debugConfig.type || 'unknown'}` +
-            `\nWorkspace folder: ${folder?.name || '(default)'}` +
-            `\nRequest: ${debugConfig.request || 'unknown'}` +
-            `\nCheck the Debug Console and Output panel for more details.`);
-        }
-      }
-    } else if (!debugConfig) {
-      const allConfigs = await getLaunchConfigurations(wsConfig);
-      const available = allConfigs?.map((c: any) => c.name).join(', ') || 'none';
-      notifyError("Debug", `Launch configuration not found: "${debugTarget}"` +
-        (debugTargetFolder ? ` in folder "${debugTargetFolder}"` : '') +
-        `\nAvailable configurations: ${available}`);
-    } else {
+    if (!resolved) {
       notifyError("Debug", "No active project or build configuration found");
+      return;
     }
-    return;
+    const res = await build(context, wsConfig, resolved.project, resolved.build, false);
+    if (!res) {
+      return;
+    }
   }
 
-  // debug or attach mode
-  const activeBuild = await project.getActiveBuild(wsConfig);
-
-  if (mode === 'debug' && activeBuild?.launchTarget) {
-    debugTarget = activeBuild.launchTarget;
-    debugTargetFolder = activeBuild.launchTargetFolder;
-  } else if (mode === 'attach' && activeBuild?.attachTarget) {
-    debugTarget = activeBuild.attachTarget;
-    debugTargetFolder = activeBuild.attachTargetFolder;
-  }
-
-  const sessionLabel = mode === 'attach' ? 'attach session' : 'debug session';
-  const debugConfig = await getLaunchConfigurationByName(wsConfig, debugTarget, debugTargetFolder);
-  if (debugConfig) {
-    const folder = getWorkspaceFolderForConfig(debugConfig);
-    const started = await vscode.debug.startDebugging(folder, debugConfig);
-    if (!started) {
-      notifyError("Debug", `Failed to start ${sessionLabel}: "${debugTarget}"` +
-        `\nType: ${debugConfig.type || 'unknown'}` +
-        `\nWorkspace folder: ${folder?.name || '(default)'}` +
-        `\nRequest: ${debugConfig.request || 'unknown'}` +
-        `\nCheck the Debug Console and Output panel for more details.`);
-    }
-  } else {
-    const allConfigs = await getLaunchConfigurations(wsConfig);
-    const available = allConfigs?.map((c: any) => c.name).join(', ') || 'none';
-    notifyError("Debug", `Launch configuration not found: "${debugTarget}"` +
-      (debugTargetFolder ? ` in folder "${debugTargetFolder}"` : '') +
-      `\nAvailable configurations: ${available}`);
+  const folder = debugTargetFolder
+    ? vscode.workspace.workspaceFolders?.find(f => f.name === debugTargetFolder)
+    : undefined;
+  const started = await vscode.debug.startDebugging(folder, debugTarget);
+  if (!started) {
+    const sessionLabel = mode === 'attach' ? 'attach session' : 'debug session';
+    notifyError("Debug", `Failed to start ${sessionLabel}: "${debugTarget}"` +
+      `\nWorkspace folder: ${folder?.name || '(default)'}` +
+      `\nCheck the Debug Console and Output panel for more details.`);
   }
 }
 
