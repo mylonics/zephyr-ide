@@ -19,11 +19,6 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Setup Mylonics Styles
-        uses: mylonics/mylonics-styles@main
-        with:
-          path: docs/mylonics-styles
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
