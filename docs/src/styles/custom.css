@@ -1,19 +1,6 @@
-/* Import Roboto and Roboto Mono from Google Fonts — matches the previous MkDocs Material look */
-@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,500;0,700;1,400&family=Roboto+Mono:wght@400;500&display=swap');
-
-:root {
-  --sl-font: 'Roboto', ui-sans-serif, system-ui, sans-serif;
-  --sl-font-mono: 'Roboto Mono', ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Consolas, 'DejaVu Sans Mono', monospace;
-  /* Slightly improve body font weight for readability */
-  --sl-text-body-font-weight: 400;
-}
-
-/* Improve heading legibility — Roboto regular renders better at heading sizes */
-.sl-markdown-content h1,
-.sl-markdown-content h2,
-.sl-markdown-content h3,
-.sl-markdown-content h4,
-.sl-markdown-content h5,
-.sl-markdown-content h6 {
-  font-weight: 500;
-}
+/*
+ * Zephyr IDE — Project-specific Starlight CSS overrides.
+ * Base styles (fonts, colors, brand) come from mylonics-styles/starlight/custom.css.
+ *
+ * Add any Zephyr IDE–specific adjustments here.
+ */

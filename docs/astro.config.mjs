@@ -1,6 +1,11 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 
+// Shared Mylonics styles — cloned into docs/mylonics-styles during CI.
+// For local dev, clone manually:
+//   git clone https://github.com/mylonics/mylonics-styles.git docs/mylonics-styles
+import { mylonicsStarlightDefaults } from './mylonics-styles/starlight/config-helpers';
+
 // https://astro.build/config
 export default defineConfig({
   site: 'https://zephyr-ide.mylonics.com',
@@ -13,9 +18,20 @@ export default defineConfig({
         src: './src/assets/logo.png',
       },
       favicon: '/favicon.ico',
-      social: {
+      ...mylonicsStarlightDefaults('Zephyr IDE', {
         github: 'https://github.com/mylonics/zephyr-ide',
-      },
+        extraCss: ['./src/styles/custom.css'],
+        headOptions: {
+          ogImage:
+            'https://raw.githubusercontent.com/mylonics/zephyr-ide/main/media/logo.png',
+          keywords: [
+            'VS Code extension',
+            'west tool',
+            'Zephyr SDK',
+            'debugging',
+          ],
+        },
+      }),
       sidebar: [
         {
           label: 'Getting Started',
@@ -66,17 +82,6 @@ export default defineConfig({
         { label: 'Changelog', slug: 'changelog' },
         { label: 'Developer Guide', slug: 'developer-guide' },
       ],
-      head: [
-        {
-          tag: 'meta',
-          attrs: {
-            name: 'keywords',
-            content:
-              'Zephyr RTOS, VS Code extension, embedded development, Zephyr IDE, west tool, IoT development, firmware development, Zephyr SDK, debugging, embedded systems',
-          },
-        },
-      ],
-      customCss: ['./src/styles/custom.css'],
     }),
   ],
 });
