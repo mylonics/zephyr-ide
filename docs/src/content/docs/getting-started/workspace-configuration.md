@@ -9,15 +9,15 @@ Click the Workspace card to configure your west workspace. You have several opti
 
 ## Workspace Setup Methods
 
-### 1. Import from Git (Zephyr IDE workspace)
+### 1. Zephyr IDE Workspace from Git
 
 Clone a repository that contains a pre-configured Zephyr IDE workspace setup. This is useful when working with a team project that already has Zephyr IDE configured.
 
-### 2. Import from Git (West workspace)
+### 2. West Workspace from Git
 
 Clone a west-based Zephyr repository from Git. This allows you to start with an existing west project.
 
-### 3. New Standard Workspace
+### 3. Standard Workspace
 
 Create a fresh workspace in the current folder with:
 
@@ -26,9 +26,14 @@ Create a fresh workspace in the current folder with:
 - Zephyr repository initialization
 - Optional: Choose between minimal or full Zephyr installation (minimal is recommended for faster setup)
 
-### 4. Initialize Current Directory
+### 4. Open Current Directory
 
-Use the current folder as a west workspace if it already contains a west configuration. This is useful when you've manually set up west or are working with an existing project.
+Use the current folder as a west workspace. When selected, you can choose how to configure it:
+
+- **Use .west folder** - Use an existing `.west` configuration in the directory (recommended if already initialized)
+- **Use west.yml file** - Use an existing `west.yml` manifest file
+- **Create new west.yml** - Create a new manifest file for a fresh workspace
+- **Use external Zephyr installation** - Link to an externally managed Zephyr installation
 
 ## Workspace Setup Process
 

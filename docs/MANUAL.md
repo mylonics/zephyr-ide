@@ -50,17 +50,21 @@ Click the Host Tools card to access the Host Tools sub-page. This page helps you
 
 Click the Workspace card to configure your west workspace. You have several options:
 
-1. Import from Git (Zephyr IDE workspace) - Clone a repository that contains a pre-configured Zephyr IDE workspace setup
+1. Zephyr IDE Workspace from Git - Clone a repository that contains a pre-configured Zephyr IDE workspace setup
 
-2. Import from Git (West workspace) - Clone a west-based Zephyr repository from Git
+2. West Workspace from Git - Clone a west-based Zephyr repository from Git
 
-3. New Standard Workspace - Create a fresh workspace in the current folder with:
+3. Standard Workspace - Create a fresh workspace in the current folder with:
    - Python virtual environment setup
    - West installation
    - Zephyr repository initialization
    - Optional: Choose between minimal or full Zephyr installation (minimal is recommended for faster setup)
 
-4. Initialize Current Directory - Use the current folder as a west workspace if it already contains a west configuration
+4. Open Current Directory - Use the current folder as a west workspace. Sub-options:
+   - Use .west folder (Recommended) - Use an existing `.west` configuration
+   - Use west.yml file - Use an existing `west.yml` manifest
+   - Create new west.yml - Create a new manifest for a fresh workspace
+   - Use external Zephyr installation - Link to an externally managed Zephyr installation
 
 Workspace Setup Process:
 
@@ -197,17 +201,20 @@ To debug, launch configurations need to be setup. By default, Zephyr IDE provide
 ![Setting Up Launch Configuration](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/setting_up_debug.gif)
 
 The IDE provides commands that help a user develop launch configurations. These include the following:
-- "zephyr-ide.get-active-project-name"
-- "zephyr-ide.get-active-project-path"
-- "zephyr-ide.get-active-build-path"
-- "zephyr-ide.get-active-build-board-path"
-- "zephyr-ide.select-active-build-path"
-- "zephyr-ide.get-gdb-path"
-- "zephyr-ide.get-toolchain-path"
-- "zephyr-ide.get-zephyr-ide-json-variable"
-- "zephyr-ide.get-active-project-variable"
-- "zephyr-ide.get-active-build-variable"
-- "zephyr-ide.get-active-board-name"
+- `zephyr-ide.get-active-project-name`
+- `zephyr-ide.get-active-project-path`
+- `zephyr-ide.get-active-build-path`
+- `zephyr-ide.get-active-build-board-path`
+- `zephyr-ide.select-active-build-path`
+- `zephyr-ide.get-gdb-path`
+- `zephyr-ide.get-arm-gdb-path`
+- `zephyr-ide.get-toolchain-path`
+- `zephyr-ide.get-zephyr-elf`
+- `zephyr-ide.get-zephyr-elf-dir`
+- `zephyr-ide.get-zephyr-ide-json-variable`
+- `zephyr-ide.get-active-project-variable`
+- `zephyr-ide.get-active-build-variable`
+- `zephyr-ide.get-active-board-name`
 
 The Debug Select Configuration allows a user to select what project/build to debug for and uses "zephyr-ide.select-active-build-path", the other two default configurations use the "zephyr-ide.get-active-build-path" to debug the current active project as shown in the taskbar or active project panel.
 
