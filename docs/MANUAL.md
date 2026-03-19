@@ -4,14 +4,7 @@
 
 To get started, install the extension from [Visual Studio Code marketplace](https://marketplace.visualstudio.com/items?itemName=mylonics.zephyr-ide) or [Open VSX Registry](https://open-vsx.org/extension/mylonics/zephyr-ide)
 
-## Version 2.0.0 Updates
-This major release includes workspace setup capabilities:
-- Redesigned setup panel with improved user guidance and interactive setup process
-- Automated host tools installation for required build dependencies
-- Workspace setup methods with configuration options
-- West SDK integration using West tooling for SDK management
-- Improved error handling and setup instructions throughout the extension
-
+> **Note:** The full online documentation is available at https://zephyr-ide.mylonics.com/. This file is provided as an offline/local reference.
 
 ## Getting Started
 
@@ -34,7 +27,7 @@ The Setup Panel presents three configuration cards:
 2. Zephyr SDK Management - Install and manage Zephyr SDK for different architectures
 3. Workspace - Configure west workspace and Zephyr project dependencies
 
-### Host Tools Setup
+### Host Tools
 
 ![Host Tools Installation](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/host_tool_install.png)
 
@@ -57,17 +50,21 @@ Click the Host Tools card to access the Host Tools sub-page. This page helps you
 
 Click the Workspace card to configure your west workspace. You have several options:
 
-1. Import from Git (Zephyr IDE workspace) - Clone a repository that contains a pre-configured Zephyr IDE workspace setup
+1. Zephyr IDE Workspace from Git - Clone a repository that contains a pre-configured Zephyr IDE workspace setup
 
-2. Import from Git (West workspace) - Clone a west-based Zephyr repository from Git
+2. West Workspace from Git - Clone a west-based Zephyr repository from Git
 
-3. New Standard Workspace - Create a fresh workspace in the current folder with:
+3. Standard Workspace - Create a fresh workspace in the current folder with:
    - Python virtual environment setup
    - West installation
    - Zephyr repository initialization
    - Optional: Choose between minimal or full Zephyr installation (minimal is recommended for faster setup)
 
-4. Initialize Current Directory - Use the current folder as a west workspace if it already contains a west configuration
+4. Open Current Directory - Use the current folder as a west workspace. Sub-options:
+   - Use .west folder (Recommended) - Use an existing `.west` configuration
+   - Use west.yml file - Use an existing `west.yml` manifest
+   - Create new west.yml - Create a new manifest for a fresh workspace
+   - Use external Zephyr installation - Link to an externally managed Zephyr installation
 
 Workspace Setup Process:
 
@@ -204,19 +201,23 @@ To debug, launch configurations need to be setup. By default, Zephyr IDE provide
 ![Setting Up Launch Configuration](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/setting_up_debug.gif)
 
 The IDE provides commands that help a user develop launch configurations. These include the following:
-- "zephyr-ide.get-active-project-name"
-- "zephyr-ide.get-active-project-path"
-- "zephyr-ide.get-active-build-path"
-- "zephyr-ide.get-active-build-board-path"
-- "zephyr-ide.select-active-build-path"
-- "zephyr-ide.get-gdb-path"
-- "zephyr-ide.get-toolchain-path"
-- "zephyr-ide.get-zephyr-ide-json-variable"
-- "zephyr-ide.get-active-project-variable"
-- "zephyr-ide.get-active-build-variable"
-- "zephyr-ide.get-active-board-name"
+- `zephyr-ide.get-active-project-name`
+- `zephyr-ide.get-active-project-path`
+- `zephyr-ide.get-active-build-path`
+- `zephyr-ide.get-active-build-board-path`
+- `zephyr-ide.select-active-build-path`
+- `zephyr-ide.get-gdb-path`
+- `zephyr-ide.get-arm-gdb-path`
+- `zephyr-ide.get-toolchain-path`
+- `zephyr-ide.get-zephyr-dir`
+- `zephyr-ide.get-zephyr-elf`
+- `zephyr-ide.get-zephyr-elf-dir`
+- `zephyr-ide.get-zephyr-ide-json-variable`
+- `zephyr-ide.get-active-project-variable`
+- `zephyr-ide.get-active-build-variable`
+- `zephyr-ide.get-active-board-name`
 
-The Debug Select Configuration allows a user to select what project/build to debug for and uses "zephyr-ide.select-active-build-path", the other two default configurations use the "zephyr-ide.get-active-build-path" to debug the current active project as shown in the taskbar or active project panel.
+The Debug Select Configuration allows a user to select what project/build to debug for and uses `zephyr-ide.select-active-build-path`, the other two default configurations use `zephyr-ide.get-active-build-path` to debug the current active project as shown in the taskbar or active project panel.
 
 ![Zephyr IDE Debug Commands](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/setting_up_debug2.gif)
 
@@ -275,7 +276,7 @@ You can also use a code-workspace.json file to help manage projects across diffe
 
 You can have a look at this [sample directory](https://github.com/mylonics/zephyr-ide-sample-project) to also help with getting started with sharing projects.
 
-## Other Features
+## Advanced Features
 The Zephyr Menu Config or GUI Config may be run from the active project panel. In the project config panel, by default, a Menu Config option is available. This can be changed to GUI Config by adding `"zephyr-ide.use_gui_config": true` to settings.json. Each debug target may be bound to a custom launch configuration (by default they use "Zephyr IDE: Debug" and "Zephyr IDE: Attach").
 
 ![Demonstrating MenuConfig](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/demonstrating_menu_config_debug_binding.gif)
@@ -318,6 +319,7 @@ Zephyr IDE provides the following commands accessible via the command palette (C
 - `Zephyr IDE: Setup West Environment` - Setup West environment
 - `Zephyr IDE: West Init` - Initialize West workspace
 - `Zephyr IDE: West Update` - Update West workspace
+- `Zephyr IDE: West List` - List west workspace modules
 - `Zephyr IDE: West Config` - Configure West settings
 - `Zephyr IDE: Reset Workspace` - Reset workspace configuration
 - `Zephyr IDE: Open Setup Panel` - Open the setup panel interface
@@ -403,6 +405,7 @@ Zephyr IDE provides the following commands accessible via the command palette (C
 - `Zephyr IDE: Reload Web Views` - Reload web view panels
 - `Zephyr IDE: Debug Internal Shell` - Debug internal shell
 - `Zephyr IDE: Shell Test` - Test shell functionality
+- `Zephyr IDE: Print Python Interpreter Path` - Print the Python interpreter path for the active workspace
 
 ## Configuration Settings
 
@@ -417,6 +420,11 @@ The following settings are available in VS Code settings (File > Preferences > S
 - **Type**: String or null
 - **Default**: null
 - **Deprecated**: Use `zephyr-ide.global_directory` instead. The extension automatically migrates this setting on startup.
+
+### `zephyr-ide.toolchain_directory`
+- **Type**: String or null
+- **Default**: null
+- **Description**: Manually specify the directory containing Zephyr SDK installations. If not specified, defaults to the `toolchains` subdirectory within the global directory.
 
 ### `zephyr-ide.use_gui_config`
 - **Type**: Boolean
@@ -447,8 +455,12 @@ The following commands can be used in launch.json configurations to dynamically 
 - `zephyr-ide.get-active-build-path` - Get active build path
 - `zephyr-ide.get-active-build-board-path` - Get active build board path
 - `zephyr-ide.select-active-build-path` - Select active build path (prompts user)
-- `zephyr-ide.get-gdb-path` - Get GDB path from toolchain
+- `zephyr-ide.get-gdb-path` - Get GDB path (CMAKE_GDB) for the active build
+- `zephyr-ide.get-arm-gdb-path` - Get ARM GDB path (without Python support) for the active build
 - `zephyr-ide.get-toolchain-path` - Get toolchain path
+- `zephyr-ide.get-zephyr-dir` - Get the Zephyr source directory path
+- `zephyr-ide.get-zephyr-elf` - Get the full path to the Zephyr kernel ELF file for the active build
+- `zephyr-ide.get-zephyr-elf-dir` - Get the directory containing the Zephyr kernel ELF file
 - `zephyr-ide.get-zephyr-ide-json-variable` - Get variable from zephyr-ide.json
 - `zephyr-ide.get-active-project-variable` - Get custom variable from active project
 - `zephyr-ide.get-active-build-variable` - Get custom variable from active build

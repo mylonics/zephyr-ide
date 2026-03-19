@@ -1,5 +1,5 @@
 ---
-title: Building and Debugging
+title: Building & Debugging
 description: Build, flash, and debug Zephyr RTOS projects with cortex-debug integration. Set up launch configurations, use helper commands, and debug with ST-Link, Black Magic Probe, and OpenOCD.
 ---
 
@@ -27,6 +27,7 @@ The IDE provides commands that help a user develop launch configurations. These 
 - `zephyr-ide.get-gdb-path`
 - `zephyr-ide.get-arm-gdb-path`
 - `zephyr-ide.get-toolchain-path`
+- `zephyr-ide.get-zephyr-dir`
 - `zephyr-ide.get-zephyr-elf`
 - `zephyr-ide.get-zephyr-elf-dir`
 - `zephyr-ide.get-zephyr-ide-json-variable`

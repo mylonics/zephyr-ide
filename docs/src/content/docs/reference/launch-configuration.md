@@ -1,5 +1,5 @@
 ---
-title: Launch Configuration Helpers
+title: Launch Helpers
 description: Use Zephyr IDE helper commands in launch.json for dynamic project and build information. Get active project paths, GDB paths, toolchain paths, and custom variables.
 ---
 

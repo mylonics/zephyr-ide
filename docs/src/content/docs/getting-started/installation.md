@@ -1,19 +1,9 @@
 ---
 title: Installation
-description: Install the Zephyr IDE VS Code extension from Visual Studio Code marketplace or Open VSX Registry. Learn about version 2.0.0 features including automated host tools installation and workspace setup.
+description: Install the Zephyr IDE VS Code extension from Visual Studio Code marketplace or Open VSX Registry.
 ---
 
 To get started, install the extension from [Visual Studio Code marketplace](https://marketplace.visualstudio.com/items?itemName=mylonics.zephyr-ide) or [Open VSX Registry](https://open-vsx.org/extension/mylonics/zephyr-ide)
-
-## Version 2.0.0 Updates
-
-This major release includes workspace setup capabilities:
-
-- Redesigned setup panel with improved user guidance and interactive setup process
-- Automated host tools installation for required build dependencies
-- Workspace setup methods with configuration options
-- West SDK integration using West tooling for SDK management
-- Improved error handling and setup instructions throughout the extension
 
 ## Next Steps
 

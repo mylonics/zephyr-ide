@@ -1,5 +1,5 @@
 ---
-title: Commands Reference
+title: Commands
 description: Complete reference of all Zephyr IDE VS Code commands for workspace setup, project management, building, debugging, and testing. Access via command palette (Ctrl+Shift+P).
 ---
 
@@ -15,6 +15,7 @@ Zephyr IDE provides the following commands accessible via the command palette (C
 - `Zephyr IDE: Setup West Environment` - Setup West environment
 - `Zephyr IDE: West Init` - Initialize West workspace
 - `Zephyr IDE: West Update` - Update West workspace
+- `Zephyr IDE: West List` - List west workspace modules
 - `Zephyr IDE: West Config` - Configure West settings
 - `Zephyr IDE: Reset Workspace` - Reset workspace configuration
 - `Zephyr IDE: Open Setup Panel` - Open the setup panel interface
@@ -106,11 +107,28 @@ Zephyr IDE provides the following commands accessible via the command palette (C
 
 ## Utility Commands
 
-- `Zephyr IDE: Get GDB Path` - Get the GDB path (CMAKE_GDB) for the active build
-- `Zephyr IDE: Get ARM GDB Path` - Get the ARM GDB path (without Python support) for the active build
-- `Zephyr IDE: Get Zephyr ELF Path` - Get the full path to the kernel ELF file for the active build
-- `Zephyr IDE: Get Zephyr ELF Directory` - Get the directory containing the kernel ELF file for the active build
 - `Zephyr IDE: Show View Container` - Show Zephyr IDE view container
 - `Zephyr IDE: Reload Web Views` - Reload web view panels
 - `Zephyr IDE: Debug Internal Shell` - Debug internal shell
 - `Zephyr IDE: Shell Test` - Test shell functionality
+- `Zephyr IDE: Print Python Interpreter Path` - Print the Python interpreter path for the active workspace
+
+## Launch Configuration Helpers
+
+The following commands are used in `launch.json` to dynamically retrieve project and build information. See [Launch Configuration Helpers](launch-configuration.md) for detailed usage.
+
+- `Zephyr IDE: Get Active Project Name` - Get the name of the currently active project
+- `Zephyr IDE: Get Active Project Path` - Get the file system path to the currently active project
+- `Zephyr IDE: Get Active Build Path` - Get the build directory path for the active build configuration
+- `Zephyr IDE: Get Active Build Board Path` - Get the board directory path for the active build
+- `Zephyr IDE: Get Active Board Name` - Get the board name for the active build configuration
+- `Zephyr IDE: Select Active Build Path` - Prompt the user to select a build configuration and return its path
+- `Zephyr IDE: Get GDB Path` - Get the GDB path (CMAKE_GDB) for the active build
+- `Zephyr IDE: Get ARM GDB Path` - Get the ARM GDB path (without Python support) for the active build
+- `Zephyr IDE: Get Toolchain Path` - Get the toolchain directory path for the active build
+- `Zephyr IDE: Get Zephyr Directory` - Get the Zephyr source directory path
+- `Zephyr IDE: Get Zephyr ELF Path` - Get the full path to the kernel ELF file for the active build
+- `Zephyr IDE: Get Zephyr ELF Directory` - Get the directory containing the kernel ELF file for the active build
+- `Zephyr IDE: Get Zephyr IDE JSON Variable` - Get a variable value from the zephyr-ide.json file
+- `Zephyr IDE: Get Active Project Variable` - Get a custom variable from the active project's `vars` section
+- `Zephyr IDE: Get Active Build Variable` - Get a custom variable from the active build's `vars` section
