@@ -107,10 +107,6 @@ Zephyr IDE provides the following commands accessible via the command palette (C
 
 ## Utility Commands
 
-- `Zephyr IDE: Get GDB Path` - Get the GDB path (CMAKE_GDB) for the active build
-- `Zephyr IDE: Get ARM GDB Path` - Get the ARM GDB path (without Python support) for the active build
-- `Zephyr IDE: Get Zephyr ELF Path` - Get the full path to the kernel ELF file for the active build
-- `Zephyr IDE: Get Zephyr ELF Directory` - Get the directory containing the kernel ELF file for the active build
 - `Zephyr IDE: Show View Container` - Show Zephyr IDE view container
 - `Zephyr IDE: Reload Web Views` - Reload web view panels
 - `Zephyr IDE: Debug Internal Shell` - Debug internal shell
@@ -127,8 +123,12 @@ The following commands are used in `launch.json` to dynamically retrieve project
 - `Zephyr IDE: Get Active Build Board Path` - Get the board directory path for the active build
 - `Zephyr IDE: Get Active Board Name` - Get the board name for the active build configuration
 - `Zephyr IDE: Select Active Build Path` - Prompt the user to select a build configuration and return its path
+- `Zephyr IDE: Get GDB Path` - Get the GDB path (CMAKE_GDB) for the active build
+- `Zephyr IDE: Get ARM GDB Path` - Get the ARM GDB path (without Python support) for the active build
 - `Zephyr IDE: Get Toolchain Path` - Get the toolchain directory path for the active build
 - `Zephyr IDE: Get Zephyr Directory` - Get the Zephyr source directory path
+- `Zephyr IDE: Get Zephyr ELF Path` - Get the full path to the kernel ELF file for the active build
+- `Zephyr IDE: Get Zephyr ELF Directory` - Get the directory containing the kernel ELF file for the active build
 - `Zephyr IDE: Get Zephyr IDE JSON Variable` - Get a variable value from the zephyr-ide.json file
 - `Zephyr IDE: Get Active Project Variable` - Get a custom variable from the active project's `vars` section
 - `Zephyr IDE: Get Active Build Variable` - Get a custom variable from the active build's `vars` section

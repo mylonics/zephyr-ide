@@ -209,6 +209,7 @@ The IDE provides commands that help a user develop launch configurations. These 
 - `zephyr-ide.get-gdb-path`
 - `zephyr-ide.get-arm-gdb-path`
 - `zephyr-ide.get-toolchain-path`
+- `zephyr-ide.get-zephyr-dir`
 - `zephyr-ide.get-zephyr-elf`
 - `zephyr-ide.get-zephyr-elf-dir`
 - `zephyr-ide.get-zephyr-ide-json-variable`
@@ -216,7 +217,7 @@ The IDE provides commands that help a user develop launch configurations. These 
 - `zephyr-ide.get-active-build-variable`
 - `zephyr-ide.get-active-board-name`
 
-The Debug Select Configuration allows a user to select what project/build to debug for and uses "zephyr-ide.select-active-build-path", the other two default configurations use the "zephyr-ide.get-active-build-path" to debug the current active project as shown in the taskbar or active project panel.
+The Debug Select Configuration allows a user to select what project/build to debug for and uses `zephyr-ide.select-active-build-path`, the other two default configurations use `zephyr-ide.get-active-build-path` to debug the current active project as shown in the taskbar or active project panel.
 
 ![Zephyr IDE Debug Commands](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/setting_up_debug2.gif)
 
@@ -457,6 +458,7 @@ The following commands can be used in launch.json configurations to dynamically 
 - `zephyr-ide.get-gdb-path` - Get GDB path (CMAKE_GDB) for the active build
 - `zephyr-ide.get-arm-gdb-path` - Get ARM GDB path (without Python support) for the active build
 - `zephyr-ide.get-toolchain-path` - Get toolchain path
+- `zephyr-ide.get-zephyr-dir` - Get the Zephyr source directory path
 - `zephyr-ide.get-zephyr-elf` - Get the full path to the Zephyr kernel ELF file for the active build
 - `zephyr-ide.get-zephyr-elf-dir` - Get the directory containing the Zephyr kernel ELF file
 - `zephyr-ide.get-zephyr-ide-json-variable` - Get variable from zephyr-ide.json
