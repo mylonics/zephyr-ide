@@ -1,5 +1,5 @@
 ---
-title: Commands Reference
+title: Commands
 description: Complete reference of all Zephyr IDE VS Code commands for workspace setup, project management, building, debugging, and testing. Access via command palette (Ctrl+Shift+P).
 ---
 

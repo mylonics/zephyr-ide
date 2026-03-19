@@ -1,5 +1,5 @@
 ---
-title: Building and Debugging
+title: Building & Debugging
 description: Build, flash, and debug Zephyr RTOS projects with cortex-debug integration. Set up launch configurations, use helper commands, and debug with ST-Link, Black Magic Probe, and OpenOCD.
 ---
 

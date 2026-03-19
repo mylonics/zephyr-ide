@@ -1,5 +1,5 @@
 ---
-title: Configuration Settings
+title: Configuration
 description: Complete guide to Zephyr IDE VS Code settings including tools directory, GUI config, west narrow update, and workspace warning suppression.
 ---
 

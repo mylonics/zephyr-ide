@@ -1,5 +1,5 @@
 ---
-title: Host Tools Setup
+title: Host Tools
 description: Automated host tools installation for Zephyr RTOS development. Install CMake, Python3, devicetree compiler, and gcc on supported platforms with one click.
 ---
 

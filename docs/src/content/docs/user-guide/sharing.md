@@ -1,5 +1,5 @@
 ---
-title: Sharing Your Code
+title: Sharing Code
 description: Learn best practices for sharing Zephyr IDE projects with version control. Configure team workspaces, manage build configurations, and collaborate effectively.
 ---
 

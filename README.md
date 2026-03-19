@@ -80,6 +80,6 @@ See [CHANGELOG](CHANGELOG.md) for release notes
 
 ## Development and Debugging
 
-See the [Zephyr IDE for VS Code Developer's Guide](docs/developer-guide.md) for development and debugging instructions.
+See the [Zephyr IDE for VS Code Developer's Guide](https://zephyr-ide.mylonics.com/developer-guide/) for development and debugging instructions.
 
 ---

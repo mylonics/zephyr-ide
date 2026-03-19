@@ -27,7 +27,7 @@ The Setup Panel presents three configuration cards:
 2. Zephyr SDK Management - Install and manage Zephyr SDK for different architectures
 3. Workspace - Configure west workspace and Zephyr project dependencies
 
-### Host Tools Setup
+### Host Tools
 
 ![Host Tools Installation](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/host_tool_install.png)
 
@@ -275,7 +275,7 @@ You can also use a code-workspace.json file to help manage projects across diffe
 
 You can have a look at this [sample directory](https://github.com/mylonics/zephyr-ide-sample-project) to also help with getting started with sharing projects.
 
-## Other Features
+## Advanced Features
 The Zephyr Menu Config or GUI Config may be run from the active project panel. In the project config panel, by default, a Menu Config option is available. This can be changed to GUI Config by adding `"zephyr-ide.use_gui_config": true` to settings.json. Each debug target may be bound to a custom launch configuration (by default they use "Zephyr IDE: Debug" and "Zephyr IDE: Attach").
 
 ![Demonstrating MenuConfig](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/demonstrating_menu_config_debug_binding.gif)
@@ -318,6 +318,7 @@ Zephyr IDE provides the following commands accessible via the command palette (C
 - `Zephyr IDE: Setup West Environment` - Setup West environment
 - `Zephyr IDE: West Init` - Initialize West workspace
 - `Zephyr IDE: West Update` - Update West workspace
+- `Zephyr IDE: West List` - List west workspace modules
 - `Zephyr IDE: West Config` - Configure West settings
 - `Zephyr IDE: Reset Workspace` - Reset workspace configuration
 - `Zephyr IDE: Open Setup Panel` - Open the setup panel interface
@@ -403,6 +404,7 @@ Zephyr IDE provides the following commands accessible via the command palette (C
 - `Zephyr IDE: Reload Web Views` - Reload web view panels
 - `Zephyr IDE: Debug Internal Shell` - Debug internal shell
 - `Zephyr IDE: Shell Test` - Test shell functionality
+- `Zephyr IDE: Print Python Interpreter Path` - Print the Python interpreter path for the active workspace
 
 ## Configuration Settings
 
@@ -417,6 +419,11 @@ The following settings are available in VS Code settings (File > Preferences > S
 - **Type**: String or null
 - **Default**: null
 - **Deprecated**: Use `zephyr-ide.global_directory` instead. The extension automatically migrates this setting on startup.
+
+### `zephyr-ide.toolchain_directory`
+- **Type**: String or null
+- **Default**: null
+- **Description**: Manually specify the directory containing Zephyr SDK installations. If not specified, defaults to the `toolchains` subdirectory within the global directory.
 
 ### `zephyr-ide.use_gui_config`
 - **Type**: Boolean
