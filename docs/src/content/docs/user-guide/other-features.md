@@ -1,5 +1,5 @@
 ---
-title: Other Features
+title: Advanced Features
 description: Explore advanced features including MenuConfig/GuiConfig, build customization with west and cmake arguments, West Terminal, and analysis tools like ROM/RAM reports and DTSh shell.
 ---
 

@@ -4,14 +4,7 @@
 
 To get started, install the extension from [Visual Studio Code marketplace](https://marketplace.visualstudio.com/items?itemName=mylonics.zephyr-ide) or [Open VSX Registry](https://open-vsx.org/extension/mylonics/zephyr-ide)
 
-## Version 2.0.0 Updates
-This major release includes workspace setup capabilities:
-- Redesigned setup panel with improved user guidance and interactive setup process
-- Automated host tools installation for required build dependencies
-- Workspace setup methods with configuration options
-- West SDK integration using West tooling for SDK management
-- Improved error handling and setup instructions throughout the extension
-
+> **Note:** The full online documentation is available at https://zephyr-ide.mylonics.com/. This file is provided as an offline/local reference.
 
 ## Getting Started
 
@@ -447,8 +440,11 @@ The following commands can be used in launch.json configurations to dynamically 
 - `zephyr-ide.get-active-build-path` - Get active build path
 - `zephyr-ide.get-active-build-board-path` - Get active build board path
 - `zephyr-ide.select-active-build-path` - Select active build path (prompts user)
-- `zephyr-ide.get-gdb-path` - Get GDB path from toolchain
+- `zephyr-ide.get-gdb-path` - Get GDB path (CMAKE_GDB) for the active build
+- `zephyr-ide.get-arm-gdb-path` - Get ARM GDB path (without Python support) for the active build
 - `zephyr-ide.get-toolchain-path` - Get toolchain path
+- `zephyr-ide.get-zephyr-elf` - Get the full path to the Zephyr kernel ELF file for the active build
+- `zephyr-ide.get-zephyr-elf-dir` - Get the directory containing the Zephyr kernel ELF file
 - `zephyr-ide.get-zephyr-ide-json-variable` - Get variable from zephyr-ide.json
 - `zephyr-ide.get-active-project-variable` - Get custom variable from active project
 - `zephyr-ide.get-active-build-variable` - Get custom variable from active build

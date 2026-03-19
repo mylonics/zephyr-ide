@@ -46,12 +46,12 @@ Suitable for:
 - Shared development environments
 - Pre-installed Zephyr setups
 
-See the externally managed environments section in the [User Manual](docs/MANUAL.md#using-externally-managed-environments) for detailed information.
+See the [External Environments](https://zephyr-ide.mylonics.com/getting-started/external-environments/) section of the User Manual for detailed information.
 
 
 ## Getting Started
 
-The [User Manual](https://mylonics.github.io/zephyr-ide/) is available online, or you can read it locally at [docs/MANUAL.md](docs/MANUAL.md).
+The [User Manual](https://zephyr-ide.mylonics.com/) is available online, or you can read it locally at [docs/MANUAL.md](docs/MANUAL.md).
 
 You can also watch our video tutorials:
 
@@ -59,7 +59,8 @@ You can also watch our video tutorials:
 
 [![STM32 Board Setup And Debugging with Zephyr IDE](https://mylonics.com/assets/images/zephyr-ide/board_setup_thumbnail.png)](https://www.youtube.com/watch?v=TXcTzyswBMQ)
 
-You can have a look at this [sample directory](https://github.com/mylonics/zephyr-ide-sample-project) to also help with getting started and sharing project. 
+You can have a look at this [sample directory](https://github.com/mylonics/zephyr-ide-sample-project) to also help with getting started and sharing project.
+
 ## Requirements
 
 This extension can automatically install host tools required for Zephyr development on supported platforms. The automated installation follows the methods described in the [Zephyr Getting Started Guide](https://docs.zephyrproject.org/latest/develop/getting_started/index.html#install-dependencies) and installs tools such as **cmake**, **python3**, and **devicetree compiler**.
