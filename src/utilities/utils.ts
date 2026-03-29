@@ -218,29 +218,6 @@ export async function getRootPath(first = false) {
   }
 }
 
-export async function getLaunchConfigurationByName(wsConfig: WorkspaceConfig, configName: string, folderName?: string) {
-  const configurations = await getLaunchConfigurations(wsConfig);
-  if (!configurations) {
-    return;
-  }
-
-  // When a folder is specified, try an exact name+folder match first
-  if (folderName) {
-    for (const config of configurations) {
-      if (config.name === configName && config.workspaceFolder === folderName) {
-        return config;
-      }
-    }
-  }
-
-  // Fall back to name-only match (backward compatibility)
-  for (const config of configurations) {
-    if (config.name === configName) {
-      return config;
-    }
-  }
-}
-
 /**
  * Format a launch target name for display.  In multi-root workspaces the
  * originating workspace folder is appended so the user can distinguish
@@ -253,20 +230,6 @@ export function getLaunchTargetDisplayName(targetName: string, targetFolder: str
     return label;
   }
   return `${label} (${targetFolder})`;
-}
-
-/**
- * Resolve the VS Code WorkspaceFolder object for a launch configuration
- * that carries a `workspaceFolder` name property (set by getLaunchConfigurations).
- * Returns undefined when the folder cannot be matched.
- */
-export function getWorkspaceFolderForConfig(config: any): vscode.WorkspaceFolder | undefined {
-  if (!config?.workspaceFolder) {
-    return undefined;
-  }
-  return vscode.workspace.workspaceFolders?.find(
-    folder => folder.name === config.workspaceFolder
-  );
 }
 
 export async function selectLaunchConfiguration(wsConfig: WorkspaceConfig): Promise<{ name: string; workspaceFolder?: string } | undefined> {
