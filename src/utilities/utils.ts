@@ -218,6 +218,29 @@ export async function getRootPath(first = false) {
   }
 }
 
+export async function getLaunchConfigurationByName(wsConfig: WorkspaceConfig, configName: string, folderName?: string) {
+  const configurations = await getLaunchConfigurations(wsConfig);
+  if (!configurations) {
+    return;
+  }
+
+  // When a folder is specified, try an exact name+folder match first
+  if (folderName) {
+    for (const config of configurations) {
+      if (config.name === configName && config.workspaceFolder === folderName) {
+        return config;
+      }
+    }
+  }
+
+  // Fall back to name-only match (backward compatibility)
+  for (const config of configurations) {
+    if (config.name === configName) {
+      return config;
+    }
+  }
+}
+
 /**
  * Format a launch target name for display.  In multi-root workspaces the
  * originating workspace folder is appended so the user can distinguish
