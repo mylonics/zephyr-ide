@@ -255,20 +255,6 @@ export function getLaunchTargetDisplayName(targetName: string, targetFolder: str
   return `${label} (${targetFolder})`;
 }
 
-/**
- * Resolve the VS Code WorkspaceFolder object for a launch configuration
- * that carries a `workspaceFolder` name property (set by getLaunchConfigurations).
- * Returns undefined when the folder cannot be matched.
- */
-export function getWorkspaceFolderForConfig(config: any): vscode.WorkspaceFolder | undefined {
-  if (!config?.workspaceFolder) {
-    return undefined;
-  }
-  return vscode.workspace.workspaceFolders?.find(
-    folder => folder.name === config.workspaceFolder
-  );
-}
-
 export async function selectLaunchConfiguration(wsConfig: WorkspaceConfig): Promise<{ name: string; workspaceFolder?: string } | undefined> {
   const configurations = await getLaunchConfigurations(wsConfig);
   if (!configurations) {

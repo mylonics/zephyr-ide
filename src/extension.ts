@@ -32,6 +32,7 @@ import {
   executeShellCommand,
   executeShellCommandInPythonEnv,
   reloadEnvironmentVariables,
+  getLaunchConfigurationByName,
 } from "./utilities/utils";
 import { notifyError, outputInfo, outputError, outputLine, outputCommandFailure, getDebugOutput, clearDebugOutput } from "./utilities/output";
 import * as project from "./project_utilities/project";
@@ -188,6 +189,11 @@ function registerWorkspaceSetupCommand(
 /**
  * Start a debug session by passing the launch configuration name to VS Code.
  * VS Code resolves variables and settings from launch.json automatically.
+ *
+ * When a workspace folder is passed to startDebugging, VS Code only searches
+ * that folder's .vscode/launch.json.  Configs defined at workspace level
+ * (e.g. in a .code-workspace file) are NOT found that way, so we look up the
+ * config first and only pass a folder when the config actually lives there.
  */
 async function startDebugSession(
   context: vscode.ExtensionContext,
@@ -224,9 +230,18 @@ async function startDebugSession(
     }
   }
 
-  const folder = debugTargetFolder
-    ? vscode.workspace.workspaceFolders?.find(f => f.name === debugTargetFolder)
+  // Determine the correct folder to pass to startDebugging.
+  // When a name (string) is passed, VS Code searches only the given folder's
+  // .vscode/launch.json.  If the config lives at workspace level (e.g. in a
+  // .code-workspace file) there is no per-folder launch.json and VS Code
+  // fails with "launch.json does not exist for passed workspace folder".
+  // Look up the config to see where it actually lives.
+  const config = await getLaunchConfigurationByName(wsConfig, debugTarget, debugTargetFolder);
+  const resolvedFolderName = config?.workspaceFolder;
+  const folder = resolvedFolderName
+    ? vscode.workspace.workspaceFolders?.find(f => f.name === resolvedFolderName)
     : undefined;
+
   const started = await vscode.debug.startDebugging(folder, debugTarget);
   if (!started) {
     const sessionLabel = mode === 'attach' ? 'attach session' : 'debug session';
