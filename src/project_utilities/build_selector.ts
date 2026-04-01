@@ -43,8 +43,8 @@ export interface BuildConfig {
   relBoardDir: string;
   relBoardSubDir: string;
   debugOptimization: string;
-  westBuildArgs: string;
-  westBuildCMakeArgs: string;
+  westBuildArgs: string | string[];
+  westBuildCMakeArgs: string | string[];
   runnerConfigs: RunnerConfigDictionary;
   confFiles: ConfigFiles;
   launchTarget: string;
@@ -54,6 +54,14 @@ export interface BuildConfig {
   attachTarget: string;
   attachTargetFolder?: string;
   revision?: string;
+}
+
+/** Normalizes a build argument field that may be a string or an array of strings
+ *  into a single space-separated string suitable for use in a shell command. */
+export function normalizeArgs(args: string | string[] | undefined): string {
+  if (!args) { return ""; }
+  if (Array.isArray(args)) { return args.join(' '); }
+  return args;
 }
 
 // Config for the extension

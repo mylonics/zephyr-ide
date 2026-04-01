@@ -18,7 +18,7 @@ limitations under the License.
 import * as vscode from 'vscode';
 import path from 'upath';
 import { ProjectConfig, addConfigFiles, setActive, modifyBuildArguments, removeConfigFile, getResolvedRunnerConfig, getResolvedTestConfig, resolveActiveProject, resolveActiveProjectBuild } from '../../project_utilities/project';
-import { BuildConfig } from '../../project_utilities/build_selector';
+import { BuildConfig, normalizeArgs } from '../../project_utilities/build_selector';
 import { RunnerConfig } from '../../project_utilities/runner_selector';
 import { ConfigFiles } from '../../project_utilities/config_selector';
 
@@ -276,7 +276,7 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
         },
         label: "West Args",
         value: { project: projectName, build: build.name, cmd: "modifyBuildArgs" },
-        description: build.westBuildArgs,
+        description: normalizeArgs(build.westBuildArgs),
       }, {
         icons: {
           branch: 'circuit-board',
@@ -285,7 +285,7 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
         },
         label: "CMake Args",
         value: { project: projectName, build: build.name, cmd: "modifyBuildArgs" },
-        description: build.westBuildCMakeArgs,
+        description: normalizeArgs(build.westBuildCMakeArgs),
       },
     ];
     this.generateConfigFileEntry(buildData.subItems[2], projectName, build.name, build.confFiles, kConfigOpen);
