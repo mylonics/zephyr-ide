@@ -187,13 +187,14 @@ function registerWorkspaceSetupCommand(
 }
 
 /**
- * Start a debug session by passing the launch configuration name to VS Code.
- * VS Code resolves variables and settings from launch.json automatically.
+ * Start a debug session for the given mode (debug, attach, or build-debug).
  *
- * When a workspace folder is passed to startDebugging, VS Code only searches
- * that folder's .vscode/launch.json.  Configs defined at workspace level
- * (e.g. in a .code-workspace file) are NOT found that way, so we look up the
- * config first and only pass a folder when the config actually lives there.
+ * Folder-level configs (from .vscode/launch.json) are launched with their
+ * owning folder so VS Code resolves variables and inputs from that file.
+ *
+ * Workspace-level configs (from .code-workspace) are launched without a
+ * folder so VS Code searches workspace-level settings and resolves
+ * ${input:…} variables natively.
  */
 async function startDebugSession(
   context: vscode.ExtensionContext,
@@ -230,12 +231,7 @@ async function startDebugSession(
     }
   }
 
-  // Determine the correct folder to pass to startDebugging.
-  // When a name (string) is passed, VS Code searches only the given folder's
-  // .vscode/launch.json.  If the config lives at workspace level (e.g. in a
-  // .code-workspace file) there is no per-folder launch.json and VS Code
-  // fails with "launch.json does not exist for passed workspace folder".
-  // Look up the config to see where it actually lives.
+  // Pass the folder for folder-level configs, undefined for workspace-level.
   const config = await getLaunchConfigurationByName(wsConfig, debugTarget, debugTargetFolder);
   const resolvedFolderName = config?.workspaceFolder;
   const folder = resolvedFolderName
