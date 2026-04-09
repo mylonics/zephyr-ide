@@ -242,6 +242,131 @@ export async function getLaunchConfigurationByName(wsConfig: WorkspaceConfig, co
 }
 
 /**
+ * Resolve `${input:...}` variable references in a debug configuration.
+ *
+ * VS Code only resolves input variables for configs it looks up by name from a
+ * settings source (launch.json / .code-workspace).  Configs passed as inline
+ * `DebugConfiguration` objects to `startDebugging` bypass that resolution.
+ * This function fills that gap by collecting the `inputs` array from all
+ * launch scopes (folder, workspace, global) and resolving each reference.
+ *
+ * Supports `command`, `promptString`, and `pickString` input types.
+ *
+ * Returns `undefined` if a referenced input is missing or the user cancels a
+ * prompt.
+ */
+export async function resolveConfigInputs(
+  config: vscode.DebugConfiguration
+): Promise<vscode.DebugConfiguration | undefined> {
+  // Collect all ${input:...} ids referenced in the config.
+  const inputRefs = new Set<string>();
+  (function walk(obj: any) {
+    if (typeof obj === 'string') {
+      for (const m of obj.matchAll(/\$\{input:([^}]+)\}/g)) {
+        inputRefs.add(m[1]);
+      }
+    } else if (Array.isArray(obj)) {
+      obj.forEach(walk);
+    } else if (obj && typeof obj === 'object') {
+      Object.values(obj).forEach(walk);
+    }
+  })(config);
+
+  if (inputRefs.size === 0) {
+    return config;
+  }
+
+  // Gather input definitions from folder, workspace, and global scopes.
+  const allInputs: any[] = [];
+  for (const folder of vscode.workspace.workspaceFolders ?? []) {
+    allInputs.push(
+      ...(vscode.workspace.getConfiguration("launch", folder.uri)
+        .inspect<any[]>("inputs")?.workspaceFolderValue ?? [])
+    );
+  }
+  const inspect = vscode.workspace.getConfiguration("launch").inspect<any[]>("inputs");
+  allInputs.push(...(inspect?.workspaceValue ?? []), ...(inspect?.globalValue ?? []));
+
+  const inputById = new Map<string, any>(
+    allInputs.filter(i => i?.id).map(i => [i.id, i])
+  );
+
+  // Resolve each referenced input to a concrete value.
+  const resolved = new Map<string, string>();
+  for (const id of inputRefs) {
+    const def = inputById.get(id);
+    if (!def) {
+      vscode.window.showErrorMessage(
+        `Undefined input variable '${id}' in launch configuration.`
+      );
+      return undefined;
+    }
+
+    let value: string | undefined;
+    switch (def.type) {
+      case 'command':
+        value = await vscode.commands.executeCommand<string>(def.command, def.args);
+        break;
+      case 'promptString':
+        value = await vscode.window.showInputBox({
+          prompt: def.description,
+          value: def.default,
+          password: def.password,
+        });
+        break;
+      case 'pickString': {
+        const rawOptions: any[] = def.options ?? [];
+        const items: vscode.QuickPickItem[] = rawOptions.map((opt: any) =>
+          typeof opt === 'string'
+            ? { label: opt }
+            : { label: opt.label ?? opt.value, description: opt.label ? opt.value : undefined }
+        );
+        const picked = await vscode.window.showQuickPick(items, {
+          placeHolder: def.description,
+        });
+        if (picked) {
+          const match = rawOptions.find((opt: any) =>
+            typeof opt === 'string'
+              ? opt === picked.label
+              : (opt.label ?? opt.value) === picked.label
+          );
+          value = typeof match === 'string' ? match : match?.value;
+        }
+        break;
+      }
+    }
+
+    if (value === undefined) {
+      return undefined; // user cancelled or command returned nothing
+    }
+    resolved.set(id, value);
+  }
+
+  // Substitute resolved values into all string properties.
+  function substitute(obj: any): any {
+    if (typeof obj === 'string') {
+      return obj.replace(
+        /\$\{input:([^}]+)\}/g,
+        (_match, id) => resolved.get(id) ?? _match
+      );
+    }
+    if (Array.isArray(obj)) {
+      return obj.map(substitute);
+    }
+    if (obj && typeof obj === 'object') {
+      const out: any = {};
+      for (const [k, v] of Object.entries(obj)) {
+        out[k] = substitute(v);
+      }
+      return out;
+    }
+    return obj;
+  }
+
+  return substitute(config);
+}
+
+/**
  * Format a launch target name for display.  In multi-root workspaces the
  * originating workspace folder is appended so the user can distinguish
  * identically-named configurations from different folders.

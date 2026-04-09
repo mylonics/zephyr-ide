@@ -33,6 +33,7 @@ import {
   executeShellCommandInPythonEnv,
   reloadEnvironmentVariables,
   getLaunchConfigurationByName,
+  resolveConfigInputs,
 } from "./utilities/utils";
 import { notifyError, outputInfo, outputError, outputLine, outputCommandFailure, getDebugOutput, clearDebugOutput } from "./utilities/output";
 import * as project from "./project_utilities/project";
@@ -244,11 +245,17 @@ async function startDebugSession(
 
   // When the config lives at workspace level (.code-workspace) rather than in
   // a folder's launch.json, pass the full config object so VS Code doesn't
-  // attempt a folder-scoped name lookup that would fail.
+  // attempt a folder-scoped name lookup that would fail.  We also need to
+  // resolve ${input:...} variables ourselves since VS Code only does that for
+  // configs it looks up by name from a settings source.
   let nameOrConfig: string | vscode.DebugConfiguration = debugTarget;
   if (config && !resolvedFolderName) {
     const { workspaceFolder: _wf, ...debugConfig } = config;
-    nameOrConfig = debugConfig as vscode.DebugConfiguration;
+    const resolved = await resolveConfigInputs(debugConfig as vscode.DebugConfiguration);
+    if (!resolved) {
+      return; // user cancelled an input prompt or an input was undefined
+    }
+    nameOrConfig = resolved;
   }
 
   const started = await vscode.debug.startDebugging(folder, nameOrConfig);
