@@ -17,7 +17,7 @@ limitations under the License.
 
 import * as assert from "assert";
 import * as vscode from "vscode";
-import { getLaunchConfigurations } from "../utilities/utils";
+import { getLaunchConfigurations, resolveConfigInputs } from "../utilities/utils";
 import { WorkspaceConfig } from "../setup_utilities/types";
 
 suite("Launch Configuration Test Suite", () => {
@@ -127,6 +127,186 @@ suite("Launch Configuration Test Suite", () => {
             }
         } else {
             assert.strictEqual(result, undefined, "result must be an array or undefined");
+        }
+    });
+});
+
+suite("resolveConfigInputs Test Suite", () => {
+
+    test("returns config unchanged when no input references exist", async () => {
+        const config: vscode.DebugConfiguration = {
+            type: "cppdbg",
+            name: "Plain Config",
+            request: "launch",
+            program: "/path/to/app",
+        };
+
+        const result = await resolveConfigInputs(config);
+        assert.deepStrictEqual(result, config);
+    });
+
+    test("resolves command-type input variables", async () => {
+        // Register a temporary command that returns a known value.
+        const cmdId = "zephyr-ide-test.resolveInputCmd";
+        const disposable = vscode.commands.registerCommand(cmdId, (args: any) => {
+            return `resolved-${args}`;
+        });
+
+        const folder = vscode.workspace.workspaceFolders?.[0];
+        if (!folder) {
+            disposable.dispose();
+            return;
+        }
+
+        // Write an input definition to the folder-level launch config.
+        const launchCfg = vscode.workspace.getConfiguration("launch", folder.uri);
+        await launchCfg.update("inputs", [
+            { id: "TestCmd", type: "command", command: cmdId, args: "myarg" },
+        ], vscode.ConfigurationTarget.WorkspaceFolder);
+
+        try {
+            const config: vscode.DebugConfiguration = {
+                type: "cortex-debug",
+                name: "Test Debug",
+                request: "launch",
+                device: "${input:TestCmd}",
+            };
+
+            const result = await resolveConfigInputs(config);
+            assert.ok(result, "result must not be undefined");
+            assert.strictEqual(result!.device, "resolved-myarg");
+            // Other fields remain untouched
+            assert.strictEqual(result!.name, "Test Debug");
+            assert.strictEqual(result!.type, "cortex-debug");
+        } finally {
+            disposable.dispose();
+            await launchCfg.update("inputs", undefined, vscode.ConfigurationTarget.WorkspaceFolder);
+        }
+    });
+
+    test("returns undefined for an undefined input variable", async () => {
+        const config: vscode.DebugConfiguration = {
+            type: "cppdbg",
+            name: "Missing Input",
+            request: "launch",
+            device: "${input:NoSuchInput}",
+        };
+
+        // Clear any inputs that might exist.
+        const folder = vscode.workspace.workspaceFolders?.[0];
+        if (!folder) { return; }
+        const launchCfg = vscode.workspace.getConfiguration("launch", folder.uri);
+        const savedInputs = launchCfg.inspect<any[]>("inputs")?.workspaceFolderValue;
+        await launchCfg.update("inputs", [], vscode.ConfigurationTarget.WorkspaceFolder);
+
+        try {
+            const result = await resolveConfigInputs(config);
+            assert.strictEqual(result, undefined, "must return undefined for missing input");
+        } finally {
+            await launchCfg.update("inputs", savedInputs, vscode.ConfigurationTarget.WorkspaceFolder);
+        }
+    });
+
+    test("resolves multiple input references in a single config", async () => {
+        const cmdId1 = "zephyr-ide-test.multiInput1";
+        const cmdId2 = "zephyr-ide-test.multiInput2";
+        const d1 = vscode.commands.registerCommand(cmdId1, () => "device-A");
+        const d2 = vscode.commands.registerCommand(cmdId2, () => "file-B");
+
+        const folder = vscode.workspace.workspaceFolders?.[0];
+        if (!folder) {
+            d1.dispose(); d2.dispose();
+            return;
+        }
+
+        const launchCfg = vscode.workspace.getConfiguration("launch", folder.uri);
+        await launchCfg.update("inputs", [
+            { id: "DevInput", type: "command", command: cmdId1 },
+            { id: "FileInput", type: "command", command: cmdId2 },
+        ], vscode.ConfigurationTarget.WorkspaceFolder);
+
+        try {
+            const config: vscode.DebugConfiguration = {
+                type: "cortex-debug",
+                name: "Multi",
+                request: "launch",
+                device: "${input:DevInput}",
+                svdFile: "/boards/${input:FileInput}",
+            };
+
+            const result = await resolveConfigInputs(config);
+            assert.ok(result, "result must not be undefined");
+            assert.strictEqual(result!.device, "device-A");
+            assert.strictEqual(result!.svdFile, "/boards/file-B");
+        } finally {
+            d1.dispose(); d2.dispose();
+            await launchCfg.update("inputs", undefined, vscode.ConfigurationTarget.WorkspaceFolder);
+        }
+    });
+
+    test("resolves input references inside nested objects and arrays", async () => {
+        const cmdId = "zephyr-ide-test.nestedInput";
+        const disposable = vscode.commands.registerCommand(cmdId, () => "nestedVal");
+
+        const folder = vscode.workspace.workspaceFolders?.[0];
+        if (!folder) {
+            disposable.dispose();
+            return;
+        }
+
+        const launchCfg = vscode.workspace.getConfiguration("launch", folder.uri);
+        await launchCfg.update("inputs", [
+            { id: "Nested", type: "command", command: cmdId },
+        ], vscode.ConfigurationTarget.WorkspaceFolder);
+
+        try {
+            const config: vscode.DebugConfiguration = {
+                type: "cortex-debug",
+                name: "Nested Test",
+                request: "launch",
+                serverArgs: ["-device", "${input:Nested}", "-speed", "4000"],
+                nested: { inner: "${input:Nested}" },
+            };
+
+            const result = await resolveConfigInputs(config);
+            assert.ok(result, "result must not be undefined");
+            assert.deepStrictEqual(result!.serverArgs, ["-device", "nestedVal", "-speed", "4000"]);
+            assert.strictEqual(result!.nested.inner, "nestedVal");
+        } finally {
+            disposable.dispose();
+            await launchCfg.update("inputs", undefined, vscode.ConfigurationTarget.WorkspaceFolder);
+        }
+    });
+
+    test("input embedded mid-string is substituted inline", async () => {
+        const cmdId = "zephyr-ide-test.midString";
+        const disposable = vscode.commands.registerCommand(cmdId, () => "chip123");
+
+        const folder = vscode.workspace.workspaceFolders?.[0];
+        if (!folder) {
+            disposable.dispose();
+            return;
+        }
+
+        const launchCfg = vscode.workspace.getConfiguration("launch", folder.uri);
+        await launchCfg.update("inputs", [
+            { id: "ChipId", type: "command", command: cmdId },
+        ], vscode.ConfigurationTarget.WorkspaceFolder);
+
+        try {
+            const config: vscode.DebugConfiguration = {
+                type: "cortex-debug",
+                name: "Mid-string",
+                request: "launch",
+                svdFile: "/boards/${input:ChipId}/debug.svd",
+            };
+
+            const result = await resolveConfigInputs(config);
+            assert.ok(result, "result must not be undefined");
+            assert.strictEqual(result!.svdFile, "/boards/chip123/debug.svd");
+        } finally {
+            disposable.dispose();
+            await launchCfg.update("inputs", undefined, vscode.ConfigurationTarget.WorkspaceFolder);
         }
     });
 });
