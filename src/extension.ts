@@ -242,7 +242,16 @@ async function startDebugSession(
     ? vscode.workspace.workspaceFolders?.find(f => f.name === resolvedFolderName)
     : undefined;
 
-  const started = await vscode.debug.startDebugging(folder, debugTarget);
+  // When the config lives at workspace level (.code-workspace) rather than in
+  // a folder's launch.json, pass the full config object so VS Code doesn't
+  // attempt a folder-scoped name lookup that would fail.
+  let nameOrConfig: string | vscode.DebugConfiguration = debugTarget;
+  if (config && !resolvedFolderName) {
+    const { workspaceFolder: _wf, ...debugConfig } = config;
+    nameOrConfig = debugConfig as vscode.DebugConfiguration;
+  }
+
+  const started = await vscode.debug.startDebugging(folder, nameOrConfig);
   if (!started) {
     const sessionLabel = mode === 'attach' ? 'attach session' : 'debug session';
     notifyError("Debug", `Failed to start ${sessionLabel}: "${debugTarget}"` +
