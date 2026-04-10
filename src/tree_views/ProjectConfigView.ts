@@ -23,6 +23,7 @@ import { ConfigFiles } from '../project_utilities/config_selector';
 import { WorkspaceConfig } from '../setup_utilities/types';
 import { getSetupState } from '../setup_utilities/workspace-config';
 import { outputInfo } from '../utilities/output';
+import { sanitizeTreeId } from '../utilities/utils';
 
 export class ConfigItem extends vscode.TreeItem {
   children: ConfigItem[] = [];
@@ -89,13 +90,13 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
     const items: ConfigItem[] = [];
     for (const filename of files) {
       const item = new ConfigItem(label, 'file', false, 'configFile', filename);
-      item.id = `config-file-${level}-${type}.${filename.replace(/[/\\]/g, '.')}`;
+      item.id = `config-file-${level}-${type}.${sanitizeTreeId(filename)}`;
       item.data = { project: projectName, build: buildName, fileCmd: removeCmd, isExtra: false, filename };
       items.push(item);
     }
     for (const filename of extraFiles) {
       const item = new ConfigItem(extraLabel, 'file', false, 'configFile', filename);
-      item.id = `config-file-${level}-${type}-extra.${filename.replace(/[/\\]/g, '.')}`;
+      item.id = `config-file-${level}-${type}-extra.${sanitizeTreeId(filename)}`;
       item.data = { project: projectName, build: buildName, fileCmd: removeCmd, isExtra: true, filename };
       items.push(item);
     }
