@@ -33,6 +33,9 @@ import {
   executeShellCommandInPythonEnv,
   reloadEnvironmentVariables,
   getLaunchConfigurationByName,
+  getPlatformName,
+  getPlatformArch,
+  isWSL,
   resolveConfigInputs,
 } from "./utilities/utils";
 import { notifyError, outputInfo, outputError, outputLine, outputCommandFailure, getDebugOutput, clearDebugOutput } from "./utilities/output";
@@ -281,6 +284,12 @@ export function getWorkspaceConfig(): WorkspaceConfig {
 
 export async function activate(context: vscode.ExtensionContext) {
   context.environmentVariableCollection.persistent = false;
+
+  // Log detected platform information early, before any output clears
+  const platformName = getPlatformName() ?? "unknown";
+  const platformArch = getPlatformArch();
+  const remoteName = vscode.env.remoteName;
+  outputInfo("Startup", `Platform: ${platformName} (${platformArch})${remoteName ? `, remote: ${remoteName}` : ""}${isWSL() ? " [WSL]" : ""}`);
 
   // Migrate deprecated tools_directory setting to global_directory
   await migrateToolsDirectory();

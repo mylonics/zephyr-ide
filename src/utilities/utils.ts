@@ -175,6 +175,10 @@ export function isMacOS() {
   return platform === "darwin";
 }
 
+export function isWSL() {
+  return vscode.env.remoteName === "wsl";
+}
+
 export async function getPythonVenvBinaryFolder(setupState: SetupState) {
   if (setupState.env["VIRTUAL_ENV"]) {
     const platformName = await getPlatformNameAsync();
@@ -483,11 +487,11 @@ async function executeTask(task: vscode.Task) {
 }
 
 export async function executeTaskHelperInPythonEnv(setupState: SetupState | undefined, taskName: string, cmd: string, cwd: string | undefined) {
-  if (setupState && isMacOS()) {
-    // On macOS, VS Code's environmentVariableCollection doesn't reliably
-    // propagate to task shells.  Instead of rewriting the command string
-    // (which corrupts URLs via path.join), prepend the venv bin directory
-    // to PATH in the task's own environment — mirroring what
+  if (setupState && (isMacOS() || isWSL())) {
+    // On macOS and WSL, VS Code's environmentVariableCollection doesn't
+    // reliably propagate to task shells.  Instead of rewriting the command
+    // string (which corrupts URLs via path.join), prepend the venv bin
+    // directory to PATH in the task's own environment — mirroring what
     // executeShellCommandInPythonEnv already does for child_process calls.
     const env: { [key: string]: string } = {};
     const venvBin = await getPythonVenvBinaryFolder(setupState);
