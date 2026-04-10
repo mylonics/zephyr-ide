@@ -1,6 +1,6 @@
-# Zephyr IDE User Manual
+# IDE for Zephyr User Manual
 
-<img src="https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/zephyr-ide_branding.png" alt="Zephyr IDE for Visual Studio Code" width="50%"/>
+<img src="https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/zephyr-ide_branding.png" alt="IDE for Zephyr - Visual Studio Code Extension" width="50%"/>
 
 To get started, install the extension from [Visual Studio Code marketplace](https://marketplace.visualstudio.com/items?itemName=mylonics.zephyr-ide) or [Open VSX Registry](https://open-vsx.org/extension/mylonics/zephyr-ide)
 
@@ -8,10 +8,10 @@ To get started, install the extension from [Visual Studio Code marketplace](http
 
 ## Getting Started
 
-### Opening the Zephyr IDE Setup Panel
+### Opening the IDE for Zephyr Setup Panel
 
-When you first open a workspace in VS Code with Zephyr IDE installed, you can access the Setup Panel through:
-- The Zephyr IDE sidebar activity bar icon
+When you first open a workspace in VS Code with IDE for Zephyr installed, you can access the Setup Panel through:
+- The IDE for Zephyr sidebar activity bar icon
 - Command Palette: `Zephyr IDE: Setup Workspace`
 - The Extension Setup View panel
 
@@ -50,7 +50,7 @@ Click the Host Tools card to access the Host Tools sub-page. This page helps you
 
 Click the Workspace card to configure your west workspace. You have several options:
 
-1. Zephyr IDE Workspace from Git - Clone a repository that contains a pre-configured Zephyr IDE workspace setup
+1. IDE for Zephyr Workspace from Git - Clone a repository that contains a pre-configured IDE for Zephyr workspace setup
 
 2. West Workspace from Git - Clone a west-based Zephyr repository from Git
 
@@ -114,13 +114,13 @@ Note: SDK installation is a one-time process per computer and can be shared acro
 
 ## Using Externally Managed Environments
 
-Zephyr IDE automatically detects and works with externally managed Zephyr environments.
+IDE for Zephyr automatically detects and works with externally managed Zephyr environments.
 
-If you already have Zephyr installed outside of Zephyr IDE (e.g., through Docker, a DevContainer, manual installation, or another workspace manager), the extension will automatically detect and use your existing installation through environment variables.
+If you already have Zephyr installed outside of IDE for Zephyr (e.g., through Docker, a DevContainer, manual installation, or another workspace manager), the extension will automatically detect and use your existing installation through environment variables.
 
 ### How It Works
 
-When Zephyr IDE starts and no workspace is actively configured:
+When IDE for Zephyr starts and no workspace is actively configured:
 
 1. Automatic Detection: The extension checks for the `ZEPHYR_BASE` environment variable
 2. Environment Warning: If neither `ZEPHYR_BASE` nor `ZEPHYR_SDK_INSTALL_DIR` is set, a warning appears with three options:
@@ -150,7 +150,7 @@ To use an externally managed environment:
    code /path/to/your/project
    ```
 
-3. Verify: All Zephyr IDE commands will use your environment-based setup
+3. Verify: All IDE for Zephyr commands will use your environment-based setup
 
 ### Suppressing the Environment Warning
 
@@ -196,7 +196,7 @@ The project may now be built. This can be done with the Active Project Panel or 
 
 ![Taskbar Buttons](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/taskbar_buttons.gif)
 
-To debug, launch configurations need to be setup. By default, Zephyr IDE provides 4 examples using cortex-debug. The examples use cortex debug and have a blackmagic probe and st-link configuration. There is a Debug and Attach configuration for each. The OpenOCD examples are configured for stlink and nrf52. A fifth example is also available called the Debug Select Configuration.
+To debug, launch configurations need to be setup. By default, IDE for Zephyr provides 4 examples using cortex-debug. The examples use cortex debug and have a blackmagic probe and st-link configuration. There is a Debug and Attach configuration for each. The OpenOCD examples are configured for stlink and nrf52. A fifth example is also available called the Debug Select Configuration.
 
 ![Setting Up Launch Configuration](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/setting_up_debug.gif)
 
@@ -219,7 +219,7 @@ The IDE provides commands that help a user develop launch configurations. These 
 
 The Debug Select Configuration allows a user to select what project/build to debug for and uses `zephyr-ide.select-active-build-path`, the other two default configurations use `zephyr-ide.get-active-build-path` to debug the current active project as shown in the taskbar or active project panel.
 
-![Zephyr IDE Debug Commands](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/setting_up_debug2.gif)
+![IDE for Zephyr Debug Commands](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/setting_up_debug2.gif)
 
 If there is a variable you want associated with a project/build that needs to be available for your launch configuration, you can use the `zephyr-ide.get-active-project-variable` or `zephyr-ide.get-active-build-variable`. In you `zephyr-ide.json` file, create a `vars` variable in your project or the buildConfig and define a custom variable. Then in launch.json you can access the variable using the input command. 
 
@@ -265,7 +265,7 @@ launch.json
 ## Twister Tests
 The extension also supports testing with twister. Look for the beaker icon to get started. Test configurations are handled similarly to build configurations.
 
-![Zephyr IDE Twister Testing](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/adding_twister_test.gif)
+![IDE for Zephyr Twister Testing](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/adding_twister_test.gif)
 
 ## Sharing your Code
 In general, you should commit everything in your workspace folder except for build directories, .venv, .vscode/compile_commands.json and external. A .gitignore is automatically generated that should exclude the relevant files. Settings.json and launch.json may be committed on a case-by-case basis depending on user discretion.
@@ -296,7 +296,7 @@ You can also run the following commands:
  - DTSh Shell - Zephyr IDE: Start DTSh Shell
 
 ## Extension Pack
-The Zephyr IDE Extension also integrates with a handful of extensions and is released as an [extension pack](https://marketplace.visualstudio.com/items?itemName=mylonics.zephyr-ide-extension-pack). With the extension pack, C++ and DeviceTree intellisense is available. A Kconfig GUI is also available.
+The IDE for Zephyr Extension also integrates with a handful of extensions and is released as an [extension pack](https://marketplace.visualstudio.com/items?itemName=mylonics.zephyr-ide-extension-pack). With the extension pack, C++ and DeviceTree intellisense is available. A Kconfig GUI is also available.
 - Cortex-Debug - ARM Cortex-M GDB Debugger support for VSCode
 - C/C++ - C/C++ IntelliSense, debugging, and code browsing.
 - Serial Monitor - Send and receive text from serial ports.
@@ -308,7 +308,7 @@ The Zephyr IDE Extension also integrates with a handful of extensions and is rel
 
 ## Available Commands
 
-Zephyr IDE provides the following commands accessible via the command palette (Ctrl+Shift+P or Cmd+Shift+P):
+IDE for Zephyr provides the following commands accessible via the command palette (Ctrl+Shift+P or Cmd+Shift+P):
 
 ### Setup and Workspace Management
 - `Zephyr IDE: Workspace Setup` - Open workspace setup picker
@@ -401,7 +401,7 @@ Zephyr IDE provides the following commands accessible via the command palette (C
 - `Zephyr IDE: Disable Automatic Active Project Targeting` - Disable automatic project targeting
 
 ### Utility Commands
-- `Zephyr IDE: Show View Container` - Show Zephyr IDE view container
+- `Zephyr IDE: Show View Container` - Show IDE for Zephyr view container
 - `Zephyr IDE: Reload Web Views` - Reload web view panels
 - `Zephyr IDE: Debug Internal Shell` - Debug internal shell
 - `Zephyr IDE: Shell Test` - Test shell functionality

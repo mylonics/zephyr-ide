@@ -1,6 +1,6 @@
-# Zephyr IDE Documentation
+# IDE for Zephyr Documentation
 
-This directory contains the source files for the Zephyr IDE documentation, built using [Astro Starlight](https://starlight.astro.build/).
+This directory contains the source files for the IDE for Zephyr documentation, built using [Astro Starlight](https://starlight.astro.build/).
 
 ## Viewing the Documentation
 
@@ -54,7 +54,7 @@ The documentation source files are in `src/content/docs/` and organized into the
   - SDK Installation
   - External Environments
 
-- **User Guide** (`src/content/docs/user-guide/`) - How to use Zephyr IDE
+- **User Guide** (`src/content/docs/user-guide/`) - How to use IDE for Zephyr
   - Project Setup
   - Building and Debugging
   - Testing with Twister
@@ -69,7 +69,7 @@ The documentation source files are in `src/content/docs/` and organized into the
   - Known Issues
 
 - **Changelog** - Release notes and version history
-- **Developer Guide** - Contributing to Zephyr IDE
+- **Developer Guide** - Contributing to IDE for Zephyr
 
 ## Contributing to the Documentation
 

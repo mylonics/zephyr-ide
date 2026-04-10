@@ -1,11 +1,11 @@
 /*
- * Zephyr IDE — Project-specific Starlight CSS overrides.
+ * IDE for Zephyr — Project-specific Starlight CSS overrides.
  * Base styles (fonts, colors, brand) come from mylonics-styles/starlight/custom.css.
  *
- * Add any Zephyr IDE–specific adjustments here.
+ * Add any IDE for Zephyr–specific adjustments here.
  */
 
-/* ── K2D font for Zephyr IDE branding ────────────────────────────────── */
+/* ── K2D font for IDE for Zephyr branding ────────────────────────────────── */
 @import url('https://fonts.googleapis.com/css2?family=K2D:wght@600&display=swap');
 
 /* Mylonics gray — adapts for dark/light theme */
@@ -17,7 +17,7 @@
   --ml-brand-gray: #555555; /* ml-gray-600 — visible on light backgrounds */
 }
 
-/* Zephyr IDE brand text — K2D font with Mylonics gray */
+/* IDE for Zephyr brand text — K2D font with Mylonics gray */
 .site-title span,
 .hero h1 {
   font-family: 'K2D', sans-serif;

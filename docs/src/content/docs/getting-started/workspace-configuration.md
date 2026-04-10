@@ -9,9 +9,9 @@ Click the Workspace card to configure your west workspace. You have several opti
 
 ## Workspace Setup Methods
 
-### 1. Zephyr IDE Workspace from Git
+### 1. IDE for Zephyr Workspace from Git
 
-Clone a repository that contains a pre-configured Zephyr IDE workspace setup. This is useful when working with a team project that already has Zephyr IDE configured.
+Clone a repository that contains a pre-configured IDE for Zephyr workspace setup. This is useful when working with a team project that already has IDE for Zephyr configured.
 
 ### 2. West Workspace from Git
 

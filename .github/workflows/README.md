@@ -1,6 +1,6 @@
-# GitHub Workflows for Zephyr IDE
+# GitHub Workflows for IDE for Zephyr
 
-This directory contains automated workflows for building, testing, and releasing the Zephyr IDE VS Code extension.
+This directory contains automated workflows for building, testing, and releasing the IDE for Zephyr VS Code extension.
 
 ## Release Workflows
 
