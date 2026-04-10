@@ -251,11 +251,11 @@ async function startDebugSession(
   let nameOrConfig: string | vscode.DebugConfiguration = debugTarget;
   if (config && !resolvedFolderName) {
     const { workspaceFolder: _wf, ...debugConfig } = config;
-    const resolved = await resolveConfigInputs(debugConfig as vscode.DebugConfiguration);
-    if (!resolved) {
+    const resolvedConfig = await resolveConfigInputs(debugConfig as vscode.DebugConfiguration);
+    if (!resolvedConfig) {
       return; // user cancelled an input prompt or an input was undefined
     }
-    nameOrConfig = resolved;
+    nameOrConfig = resolvedConfig;
   }
 
   const started = await vscode.debug.startDebugging(folder, nameOrConfig);

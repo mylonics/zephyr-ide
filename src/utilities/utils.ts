@@ -247,8 +247,12 @@ export async function getLaunchConfigurationByName(wsConfig: WorkspaceConfig, co
  * VS Code only resolves input variables for configs it looks up by name from a
  * settings source (launch.json / .code-workspace).  Configs passed as inline
  * `DebugConfiguration` objects to `startDebugging` bypass that resolution.
- * This function fills that gap by collecting the `inputs` array from all
- * launch scopes (folder, workspace, global) and resolving each reference.
+ * This function fills that gap by collecting the `inputs` array from the
+ * appropriate launch scope and resolving each reference.  When a
+ * `scopeFolderUri` is provided the folder's inputs take priority, followed
+ * by workspace-level inputs and finally global inputs — mirroring VS Code's
+ * own resolution order.  When no folder is given (workspace-level config)
+ * only workspace and global inputs are consulted.
  *
  * Supports `command`, `promptString`, and `pickString` input types.
  *
@@ -256,7 +260,8 @@ export async function getLaunchConfigurationByName(wsConfig: WorkspaceConfig, co
  * prompt.
  */
 export async function resolveConfigInputs(
-  config: vscode.DebugConfiguration
+  config: vscode.DebugConfiguration,
+  scopeFolderUri?: vscode.Uri
 ): Promise<vscode.DebugConfiguration | undefined> {
   // Collect all ${input:...} ids referenced in the config.
   const inputRefs = new Set<string>();
@@ -276,20 +281,25 @@ export async function resolveConfigInputs(
     return config;
   }
 
-  // Gather input definitions from folder, workspace, and global scopes.
+  // Gather input definitions scoped the same way VS Code does:
+  // folder-level first (only if a scope folder is given), then workspace, then global.
   const allInputs: any[] = [];
-  for (const folder of vscode.workspace.workspaceFolders ?? []) {
+  if (scopeFolderUri) {
     allInputs.push(
-      ...(vscode.workspace.getConfiguration("launch", folder.uri)
+      ...(vscode.workspace.getConfiguration("launch", scopeFolderUri)
         .inspect<any[]>("inputs")?.workspaceFolderValue ?? [])
     );
   }
   const inspect = vscode.workspace.getConfiguration("launch").inspect<any[]>("inputs");
   allInputs.push(...(inspect?.workspaceValue ?? []), ...(inspect?.globalValue ?? []));
 
-  const inputById = new Map<string, any>(
-    allInputs.filter(i => i?.id).map(i => [i.id, i])
-  );
+  // First-wins: higher-priority scopes (folder) shadow lower ones (workspace/global).
+  const inputById = new Map<string, any>();
+  for (const i of allInputs) {
+    if (i?.id && !inputById.has(i.id)) {
+      inputById.set(i.id, i);
+    }
+  }
 
   // Resolve each referenced input to a concrete value.
   const resolved = new Map<string, string>();
@@ -321,8 +331,13 @@ export async function resolveConfigInputs(
             ? { label: opt }
             : { label: opt.label ?? opt.value, description: opt.label ? opt.value : undefined }
         );
+        // Pre-select the default option if specified
+        const defaultItem = def.default
+          ? items.find(item => item.label === def.default || item.description === def.default)
+          : undefined;
         const picked = await vscode.window.showQuickPick(items, {
           placeHolder: def.description,
+          ...(defaultItem ? { activeItems: [defaultItem] } : {}),
         });
         if (picked) {
           const match = rawOptions.find((opt: any) =>
@@ -334,6 +349,11 @@ export async function resolveConfigInputs(
         }
         break;
       }
+      default:
+        vscode.window.showWarningMessage(
+          `Unsupported input type '${def.type}' for input '${id}' in launch configuration.`
+        );
+        return undefined;
     }
 
     if (value === undefined) {
