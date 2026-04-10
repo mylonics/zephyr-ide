@@ -610,6 +610,22 @@ h1 {
     padding: 10px;
 }
 
+.status-area .status-available {
+    color: var(--vscode-terminal-ansiGreen);
+}
+
+.status-area .status-missing {
+    color: var(--vscode-terminal-ansiRed);
+}
+
+.status-area .status-installing {
+    color: var(--vscode-terminal-ansiBlue);
+}
+
+.status-area .status-pending-restart {
+    color: var(--vscode-terminal-ansiYellow);
+}
+
 .packages-table {
     width: 100%;
     border-collapse: collapse;

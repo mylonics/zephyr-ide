@@ -171,7 +171,13 @@ h2 {
     gap: 10px;
 }
 
-.button-group {\n    display: flex;\n    gap: 10px;\n    flex-wrap: wrap;\n}\n\n.progress-message {
+.button-group {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.progress-message {
     text-align: center;
     padding: 15px;
     font-size: 14px;
