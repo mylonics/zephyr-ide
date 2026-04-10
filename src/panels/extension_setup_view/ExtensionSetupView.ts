@@ -34,7 +34,7 @@ export class ExtensionSetupView implements vscode.WebviewViewProvider {
         icons: {
           leaf: 'folder-opened',
         },
-        label: "IDE for Zephyr Configuration",
+        label: "Zephyr IDE Configuration",
         value: { command: "zephyr-ide.open-setup-panel" },
       }, {
         icons: {

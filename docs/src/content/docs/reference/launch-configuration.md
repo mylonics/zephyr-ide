@@ -72,7 +72,7 @@ Here's an example of using these commands in a launch.json file:
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "IDE for Zephyr: Debug",
+      "name": "Zephyr IDE: Debug",
       "type": "cortex-debug",
       "request": "launch",
       "cwd": "${workspaceFolder}",

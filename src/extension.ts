@@ -201,9 +201,9 @@ async function startDebugSession(
   mode: 'debug' | 'attach' | 'build-debug'
 ) {
   const defaults: Record<string, string> = {
-    'debug': 'IDE for Zephyr: Debug',
-    'attach': 'IDE for Zephyr: Attach',
-    'build-debug': 'IDE for Zephyr: Debug',
+    'debug': 'Zephyr IDE: Debug',
+    'attach': 'Zephyr IDE: Attach',
+    'build-debug': 'Zephyr IDE: Debug',
   };
 
   const resolved = resolveActiveProjectBuild(wsConfig);
@@ -397,20 +397,20 @@ export async function activate(context: vscode.ExtensionContext) {
     () => project.setActiveRunner(context, wsConfig));
 
   activeProjectDisplay = createStatusBarButton(context,
-    "zephyr-ide.set-active-project", `$(folder) ${wsConfig.activeProject}`, "IDE for Zephyr Active Project");
+    "zephyr-ide.set-active-project", `$(folder) ${wsConfig.activeProject}`, "Zephyr IDE Active Project");
 
   activeBuildDisplay = createStatusBarButton(context,
-    "zephyr-ide.set-active-build", ``, "IDE for Zephyr Active Build");
+    "zephyr-ide.set-active-build", ``, "Zephyr IDE Active Build");
   activeRunnerDisplay = createStatusBarButton(context,
-    "zephyr-ide.set-active-runner", ``, "IDE for Zephyr Active Runner");
+    "zephyr-ide.set-active-runner", ``, "Zephyr IDE Active Runner");
   {
     refreshStatusBar();
   }
 
-  createStatusBarButton(context, "zephyr-ide.build-pristine", `$(debug-rerun)`, "IDE for Zephyr Build Pristine");
-  createStatusBarButton(context, "zephyr-ide.build", `$(play)`, "IDE for Zephyr Build");
-  createStatusBarButton(context, "zephyr-ide.flash", `$(arrow-circle-up)`, "IDE for Zephyr Flash");
-  createStatusBarButton(context, "zephyr-ide.debug", `$(debug-alt)`, "IDE for Zephyr Debug");
+  createStatusBarButton(context, "zephyr-ide.build-pristine", `$(debug-rerun)`, "Zephyr IDE Build Pristine");
+  createStatusBarButton(context, "zephyr-ide.build", `$(play)`, "Zephyr IDE Build");
+  createStatusBarButton(context, "zephyr-ide.flash", `$(arrow-circle-up)`, "Zephyr IDE Flash");
+  createStatusBarButton(context, "zephyr-ide.debug", `$(debug-alt)`, "Zephyr IDE Debug");
 
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor((handleChange) => {
@@ -476,7 +476,7 @@ export async function activate(context: vscode.ExtensionContext) {
         extensionSetupView.updateWebView(wsConfig, globalConfig);
       } else {
         notifyError("West Init",
-          "Run `IDE for Zephyr: Setup West Environment` first."
+          "Run `Zephyr IDE: Setup West Environment` first."
         );
       }
     })
@@ -614,7 +614,7 @@ export async function activate(context: vscode.ExtensionContext) {
         void vscode.commands.executeCommand("zephyr-ide.update-web-view");
         return result;
       } else {
-        notifyError("Build Config", "Run `IDE for Zephyr: West Update` first.");
+        notifyError("Build Config", "Run `Zephyr IDE: West Update` first.");
       }
       return false;
     })
@@ -630,7 +630,7 @@ export async function activate(context: vscode.ExtensionContext) {
         await project.addTest(wsConfig, context);
         void vscode.commands.executeCommand("zephyr-ide.update-web-view");
       } else {
-        notifyError("Test Config", "Run `IDE for Zephyr: West Update` first.");
+        notifyError("Test Config", "Run `Zephyr IDE: West Update` first.");
       }
     })
   );
@@ -677,7 +677,7 @@ export async function activate(context: vscode.ExtensionContext) {
         await project.addRunner(wsConfig, context);
         void vscode.commands.executeCommand("zephyr-ide.update-web-view");
       } else {
-        notifyError("Runner Config", "Run `IDE for Zephyr: West Update` first.");
+        notifyError("Runner Config", "Run `Zephyr IDE: West Update` first.");
       }
     })
   );
@@ -874,7 +874,7 @@ export async function activate(context: vscode.ExtensionContext) {
       if (setupState && setupState.westUpdated) {
         await flashActive(context, wsConfig);
       } else {
-        notifyError("Flash", "Run `IDE for Zephyr: West Update` first.");
+        notifyError("Flash", "Run `Zephyr IDE: West Update` first.");
       }
     })
   );
@@ -909,7 +909,7 @@ export async function activate(context: vscode.ExtensionContext) {
         token: vscode.CancellationToken
       ): vscode.ProviderResult<vscode.TerminalProfile> {
         const opts: vscode.TerminalOptions = {
-          name: "IDE for Zephyr Terminal",
+          name: "Zephyr IDE Terminal",
         };
         return new vscode.TerminalProfile(opts);
       },
@@ -959,7 +959,7 @@ export async function activate(context: vscode.ExtensionContext) {
       try {
         void vscode.commands.executeCommand("zephyr-ide.update-web-view");
       } catch (e) {
-        outputError("Extension", `IDE for Zephyr: webview refresh at ${delay}ms failed: ${String(e)}`);
+        outputError("Extension", `Zephyr IDE: webview refresh at ${delay}ms failed: ${String(e)}`);
       }
     }, delay);
   });
@@ -1088,7 +1088,7 @@ export async function activate(context: vscode.ExtensionContext) {
         await initializeDtsExt(setupState, wsConfig);
       } else {
         notifyError("DTS Init",
-          "First Initialize IDE for Zephyr Workspace Folder"
+          "First Initialize Zephyr IDE Workspace Folder"
         );
       }
     })
@@ -1230,7 +1230,7 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand('zephyr-ide.update-with-narrow', async () => {
       setForceNarrowUpdateForTest(true);
-      void vscode.window.showInformationMessage('IDE for Zephyr: Forced useNarrowUpdate for westUpdate (test only, variable override).');
+      void vscode.window.showInformationMessage('Zephyr IDE: Forced useNarrowUpdate for westUpdate (test only, variable override).');
     })
   );
 
@@ -1260,7 +1260,7 @@ export async function activate(context: vscode.ExtensionContext) {
           "terminal.integrated.defaultProfile." + platform_name
         ) === "zsh" || force_bash
           ? "bash"
-          : "IDE for Zephyr Terminal";
+          : "Zephyr IDE Terminal";
       outputLine("Setting terminal to: " + default_terminal);
       //configuration.update('terminal.integrated.defaultProfile.' + platform_name, default_terminal, target, false);
       outputLine(

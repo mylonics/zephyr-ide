@@ -469,7 +469,7 @@ export async function installSDK(
         } else {
             success = await executeTaskHelperInPythonEnv(
                 setupState,
-                "IDE for Zephyr: SDK Install",
+                "Zephyr IDE: SDK Install",
                 command,
                 setupState.setupPath
             );

@@ -31,7 +31,7 @@ They require network access, Zephyr SDK downloads, and take 15+ minutes each.
 |---|------|------------|----------|
 | 1 | `workspace-standard.test.ts` | `Standard Workspace Test Suite` | Dependencies → West setup → SDK install → Create project → Add build → Build |
 | 2 | `workspace-west-git.test.ts` | `West Git Workspace Test Suite` | West git clone → SDK install → Add project → Custom board build |
-| 3 | `workspace-zephyr-ide-git.test.ts` | `Workspace Zephyr IDE Git Test Suite` | IDE for Zephyr git clone → SDK install → Build existing project |
+| 3 | `workspace-zephyr-ide-git.test.ts` | `Workspace Zephyr IDE Git Test Suite` | Zephyr IDE git clone → SDK install → Build existing project |
 | 4 | `workspace-local-west.test.ts` | `Workspace Local West Test Suite` | Git clone → Detect west.yml → Local west workspace → Build |
 | 5 | `workspace-external-zephyr.test.ts` | `Workspace External Zephyr Test Suite` | Git clone (no west) → External Zephyr install → Global install → Build |
 | 6 | `combined-installation.test.ts` | `Combined Installation Test Suite` | Install package manager → Install host packages → Standard workspace workflow (single process) |

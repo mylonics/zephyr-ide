@@ -85,7 +85,7 @@ Then in launch.json you can access the variable using the input command:
   ],
   "configurations": [    
     {
-      "name": "IDE for Zephyr: Debug",
+      "name": "Zephyr IDE: Debug",
       "BMPGDBSerialPort": "${input:getCustomBuildVariable}"
     }
   ]

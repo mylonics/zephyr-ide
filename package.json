@@ -39,7 +39,7 @@
     ],
     "configuration": {
       "type": "object",
-      "title": "IDE for Zephyr",
+      "title": "Zephyr IDE",
       "properties": {
         "zephyr-ide.global_directory": {
           "type": [
@@ -100,7 +100,7 @@
     "viewsWelcome": [
       {
         "view": "welcome",
-        "contents": "In order to use the IDE for Zephyr extension it needs to be fully Initialized.\n[Initialize Extension](command:zephyr-ide.setup-workspace-init)\n Elements of this process may be run individually as well\n This is a 5 step process that can be run by git features, you can open a folder containing a git repository or clone from a URL.\n[Open Folder](command:vscode.openFolder)\n[Clone Repository](command:git.clone)\nTo learn more about how to use git and source control in VS Code [read our docs](https://aka.ms/vscode-scm).",
+        "contents": "In order to use the Zephyr IDE Extension it needs to be fully Initialized.\n[Initialize Extension](command:zephyr-ide.setup-workspace-init)\n Elements of this process may be run individually as well\n This is a 5 step process that can be run by git features, you can open a folder containing a git repository or clone from a URL.\n[Open Folder](command:vscode.openFolder)\n[Clone Repository](command:git.clone)\nTo learn more about how to use git and source control in VS Code [read our docs](https://aka.ms/vscode-scm).",
         "when": "config.git.enabled && git.state == initialized && workbenchState == empty"
       }
     ],
@@ -108,7 +108,7 @@
       "activitybar": [
         {
           "id": "zephyr-ide-main",
-          "title": "IDE for Zephyr",
+          "title": "Zephyr IDE",
           "icon": "media/icon.svg"
         }
       ]
@@ -159,37 +159,37 @@
       "zephyr-ide-main": [
         {
           "id": "zephyrIdeExtensionSetup",
-          "name": "IDE for Zephyr and Workspace Setup",
+          "name": "Zephyr IDE and Workspace Setup",
           "icon": "media/logo_small.jpg",
-          "contextualTitle": "IDE for Zephyr",
+          "contextualTitle": "Zephyr IDE",
           "type": "webview"
         },
         {
           "id": "zephyrIdeWestWorkspaces",
           "name": "West Workspaces",
           "icon": "media/logo_small.jpg",
-          "contextualTitle": "IDE for Zephyr West Workspaces",
+          "contextualTitle": "Zephyr IDE West Workspaces",
           "type": "webview"
         },
         {
           "id": "zephyrIdeProjects",
           "name": "Projects",
           "icon": "media/logo_small.jpg",
-          "contextualTitle": "IDE for Zephyr Projects",
+          "contextualTitle": "Zephyr IDE Projects",
           "type": "webview"
         },
         {
           "id": "zephyrIdeProjectStatus",
           "name": "Project Config",
           "icon": "media/logo_small.jpg",
-          "contextualTitle": "IDE for Zephyr Projects",
+          "contextualTitle": "Zephyr IDE Projects",
           "type": "webview"
         },
         {
           "id": "zephyrIdeActiveProject",
           "name": "Active Project",
           "icon": "media/logo_small.jpg",
-          "contextualTitle": "IDE for Zephyr Active Project",
+          "contextualTitle": "Zephyr IDE Active Project",
           "type": "webview"
         }
       ]
@@ -197,369 +197,369 @@
     "commands": [
       {
         "command": "zephyr-ide.show-container",
-        "title": "IDE for Zephyr: Show View Container"
+        "title": "Zephyr IDE: Show View Container"
       },
       {
         "command": "zephyr-ide.print-workspace",
-        "title": "IDE for Zephyr: Print Workspace Structure"
+        "title": "Zephyr IDE: Print Workspace Structure"
       },
       {
         "command": "zephyr-ide.print-python-path",
-        "title": "IDE for Zephyr: Print Python Interpreter Path"
+        "title": "Zephyr IDE: Print Python Interpreter Path"
       },
       {
         "command": "zephyr-ide.check-build-dependencies",
-        "title": "IDE for Zephyr: Setup Check Build Dependencies Available"
+        "title": "Zephyr IDE: Setup Check Build Dependencies Available"
       },
       {
         "command": "zephyr-ide.setup-west-environment",
-        "title": "IDE for Zephyr: Setup West Environment"
+        "title": "Zephyr IDE: Setup West Environment"
       },
       {
         "command": "zephyr-ide.install-sdk",
-        "title": "IDE for Zephyr: Install SDK"
+        "title": "Zephyr IDE: Install SDK"
       },
       {
         "command": "zephyr-ide.west-init",
-        "title": "IDE for Zephyr: West Init"
+        "title": "Zephyr IDE: West Init"
       },
       {
         "command": "zephyr-ide.west-update",
-        "title": "IDE for Zephyr: West Update"
+        "title": "Zephyr IDE: West Update"
       },
       {
         "command": "zephyr-ide.create-new-west-workspace",
-        "title": "IDE for Zephyr: Create New West Workspace",
+        "title": "Zephyr IDE: Create New West Workspace",
         "icon": "$(add)"
       },
       {
         "command": "zephyr-ide.refresh-west-workspaces",
-        "title": "IDE for Zephyr: Refresh West Workspaces",
+        "title": "Zephyr IDE: Refresh West Workspaces",
         "icon": "$(refresh)"
       },
       {
         "command": "zephyr-ide.reset-workspace",
-        "title": "IDE for Zephyr: Reset Workspace"
+        "title": "Zephyr IDE: Reset Workspace"
       },
       {
         "command": "zephyr-ide.clear-projects",
-        "title": "IDE for Zephyr: Clear Projects"
+        "title": "Zephyr IDE: Clear Projects"
       },
       {
         "command": "zephyr-ide.load-projects-from-file",
-        "title": "IDE for Zephyr: Load Projects From File",
+        "title": "Zephyr IDE: Load Projects From File",
         "icon": "$(refresh)"
       },
       {
         "command": "zephyr-ide.save-projects-to-file",
-        "title": "IDE for Zephyr: Save Projects To File",
+        "title": "Zephyr IDE: Save Projects To File",
         "icon": "$(save)"
       },
       {
         "command": "zephyr-ide.disable-automatic-project-target",
-        "title": "IDE for Zephyr: Disable Automatic Active Project Targeting"
+        "title": "Zephyr IDE: Disable Automatic Active Project Targeting"
       },
       {
         "command": "zephyr-ide.enable-automatic-project-target",
-        "title": "IDE for Zephyr: Enable Automatic Active Project Targeting"
+        "title": "Zephyr IDE: Enable Automatic Active Project Targeting"
       },
       {
         "command": "zephyr-ide.create-project",
-        "title": "IDE for Zephyr: Create Project From Template",
+        "title": "Zephyr IDE: Create Project From Template",
         "icon": "$(new-folder)"
       },
       {
         "command": "zephyr-ide.add-project",
-        "title": "IDE for Zephyr: Add Project",
+        "title": "Zephyr IDE: Add Project",
         "icon": "$(add)"
       },
       {
         "command": "zephyr-ide.remove-project",
-        "title": "IDE for Zephyr: Remove Project"
+        "title": "Zephyr IDE: Remove Project"
       },
       {
         "command": "zephyr-ide.add-project-config-files",
-        "title": "IDE for Zephyr: Add Project KConfig Files"
+        "title": "Zephyr IDE: Add Project KConfig Files"
       },
       {
         "command": "zephyr-ide.remove-project-config-files",
-        "title": "IDE for Zephyr: Remove Project KConfig Files"
+        "title": "Zephyr IDE: Remove Project KConfig Files"
       },
       {
         "command": "zephyr-ide.add-project-overlay-files",
-        "title": "IDE for Zephyr: Add Project Overlay Files"
+        "title": "Zephyr IDE: Add Project Overlay Files"
       },
       {
         "command": "zephyr-ide.remove-project-overlay-files",
-        "title": "IDE for Zephyr: Remove Project Overlay Files"
+        "title": "Zephyr IDE: Remove Project Overlay Files"
       },
       {
         "command": "zephyr-ide.set-active-project",
-        "title": "IDE for Zephyr: Set Active Project"
+        "title": "Zephyr IDE: Set Active Project"
       },
       {
         "command": "zephyr-ide.add-build",
-        "title": "IDE for Zephyr: Add Build Configuration"
+        "title": "Zephyr IDE: Add Build Configuration"
       },
       {
         "command": "zephyr-ide.remove-build",
-        "title": "IDE for Zephyr: Remove Build"
+        "title": "Zephyr IDE: Remove Build"
       },
       {
         "command": "zephyr-ide.add-build-config-files",
-        "title": "IDE for Zephyr: Add Build KConfig Files"
+        "title": "Zephyr IDE: Add Build KConfig Files"
       },
       {
         "command": "zephyr-ide.remove-build-config-files",
-        "title": "IDE for Zephyr: Remove Build KConfig Files"
+        "title": "Zephyr IDE: Remove Build KConfig Files"
       },
       {
         "command": "zephyr-ide.add-build-overlay-files",
-        "title": "IDE for Zephyr: Add Build Overlay Files"
+        "title": "Zephyr IDE: Add Build Overlay Files"
       },
       {
         "command": "zephyr-ide.remove-build-overlay-files",
-        "title": "IDE for Zephyr: Remove Build Overlay Files"
+        "title": "Zephyr IDE: Remove Build Overlay Files"
       },
       {
         "command": "zephyr-ide.set-active-build",
-        "title": "IDE for Zephyr: Set Active Build"
+        "title": "Zephyr IDE: Set Active Build"
       },
       {
         "command": "zephyr-ide.add-runner",
-        "title": "IDE for Zephyr: Add Runner"
+        "title": "Zephyr IDE: Add Runner"
       },
       {
         "command": "zephyr-ide.remove-runner",
-        "title": "IDE for Zephyr: Remove Runner"
+        "title": "Zephyr IDE: Remove Runner"
       },
       {
         "command": "zephyr-ide.set-active-runner",
-        "title": "IDE for Zephyr: Set Active Runner"
+        "title": "Zephyr IDE: Set Active Runner"
       },
       {
         "command": "zephyr-ide.change-debug-launch-for-build",
-        "title": "IDE for Zephyr: Change Debug Launch Configuration For Build"
+        "title": "Zephyr IDE: Change Debug Launch Configuration For Build"
       },
       {
         "command": "zephyr-ide.change-build-debug-launch-for-build",
-        "title": "IDE for Zephyr: Change Build and Debug Launch Configuration For Build"
+        "title": "Zephyr IDE: Change Build and Debug Launch Configuration For Build"
       },
       {
         "command": "zephyr-ide.change-debug-attach-launch-for-build",
-        "title": "IDE for Zephyr: Change Debug Attach Launch Configuration For Build"
+        "title": "Zephyr IDE: Change Debug Attach Launch Configuration For Build"
       },
       {
         "command": "zephyr-ide.build-pristine",
-        "title": "IDE for Zephyr: Build Pristine"
+        "title": "Zephyr IDE: Build Pristine"
       },
       {
         "command": "zephyr-ide.build",
-        "title": "IDE for Zephyr: Build"
+        "title": "Zephyr IDE: Build"
       },
       {
         "command": "zephyr-ide.flash",
-        "title": "IDE for Zephyr: Flash"
+        "title": "Zephyr IDE: Flash"
       },
       {
         "command": "zephyr-ide.debug",
-        "title": "IDE for Zephyr: Debug"
+        "title": "Zephyr IDE: Debug"
       },
       {
         "command": "zephyr-ide.debug-attach",
-        "title": "IDE for Zephyr: Debug Attach"
+        "title": "Zephyr IDE: Debug Attach"
       },
       {
         "command": "zephyr-ide.build-debug",
-        "title": "IDE for Zephyr: Build and Debug"
+        "title": "Zephyr IDE: Build and Debug"
       },
       {
         "command": "zephyr-ide.clean",
-        "title": "IDE for Zephyr: Clean"
+        "title": "Zephyr IDE: Clean"
       },
       {
         "command": "zephyr-ide.start-menu-config",
-        "title": "IDE for Zephyr: Start Menu Config"
+        "title": "Zephyr IDE: Start Menu Config"
       },
       {
         "command": "zephyr-ide.start-gui-config",
-        "title": "IDE for Zephyr: Start GUI Config"
+        "title": "Zephyr IDE: Start GUI Config"
       },
       {
         "command": "zephyr-ide.run-ram-report",
-        "title": "IDE for Zephyr: Run RAM Report"
+        "title": "Zephyr IDE: Run RAM Report"
       },
       {
         "command": "zephyr-ide.run-rom-report",
-        "title": "IDE for Zephyr: Run ROM Report"
+        "title": "Zephyr IDE: Run ROM Report"
       },
       {
         "command": "zephyr-ide.start-dtsh-shell",
-        "title": "IDE for Zephyr: Start DTSh Shell"
+        "title": "Zephyr IDE: Start DTSh Shell"
       },
       {
         "command": "zephyr-ide.modify-build-arguments",
-        "title": "IDE for Zephyr: Modify Build Arguments"
+        "title": "Zephyr IDE: Modify Build Arguments"
       },
       {
         "command": "zephyr-ide.debug-internal-shell",
-        "title": "IDE for Zephyr: Debug Internal Shell"
+        "title": "Zephyr IDE: Debug Internal Shell"
       },
       {
         "command": "zephyr-ide.west-list",
-        "title": "IDE for Zephyr: West List"
+        "title": "Zephyr IDE: West List"
       },
       {
         "command": "zephyr-ide.update-web-view",
-        "title": "IDE for Zephyr: Reload Web Views"
+        "title": "Zephyr IDE: Reload Web Views"
       },
       {
         "command": "zephyr-ide.reset-zephyr-install-selection",
-        "title": "IDE for Zephyr: Reset Zephyr Install Selection"
+        "title": "Zephyr IDE: Reset Zephyr Install Selection"
       },
       {
         "command": "zephyr-ide.manage-workspaces",
-        "title": "IDE for Zephyr: Manage Workspace Installations"
+        "title": "Zephyr IDE: Manage Workspace Installations"
       },
       {
         "command": "zephyr-ide.mark-west-as-ready",
-        "title": "IDE for Zephyr: Mark West as Ready"
+        "title": "Zephyr IDE: Mark West as Ready"
       },
       {
         "command": "zephyr-ide.shell_test",
-        "title": "IDE for Zephyr: Shell Test"
+        "title": "Zephyr IDE: Shell Test"
       },
       {
         "command": "zephyr-ide.reint-dts",
-        "title": "IDE for Zephyr: Reinitialize DTS Language Server"
+        "title": "Zephyr IDE: Reinitialize DTS Language Server"
       },
       {
         "command": "zephyr-ide.add-test",
-        "title": "IDE for Zephyr: Add Twister Test to Project"
+        "title": "Zephyr IDE: Add Twister Test to Project"
       },
       {
         "command": "zephyr-ide.remove-test",
-        "title": "IDE for Zephyr: Remove Twister Test from Project"
+        "title": "Zephyr IDE: Remove Twister Test from Project"
       },
       {
         "command": "zephyr-ide.set-active-test",
-        "title": "IDE for Zephyr: Set Active Test"
+        "title": "Zephyr IDE: Set Active Test"
       },
       {
         "command": "zephyr-ide.run-test",
-        "title": "IDE for Zephyr: Run Test"
+        "title": "Zephyr IDE: Run Test"
       },
       {
         "command": "zephyr-ide.remove-test-dirs",
-        "title": "IDE for Zephyr: Delete Test Output Directories"
+        "title": "Zephyr IDE: Delete Test Output Directories"
       },
       {
         "command": "zephyr-ide.reconfigure-active-test",
-        "title": "IDE for Zephyr: Reconfigure Active Test"
+        "title": "Zephyr IDE: Reconfigure Active Test"
       },
       {
         "command": "zephyr-ide.set-workspace-settings",
-        "title": "IDE for Zephyr: Set Workspace Settings"
+        "title": "Zephyr IDE: Set Workspace Settings"
       },
       {
         "command": "zephyr-ide.install-host-tools",
-        "title": "IDE for Zephyr: Install Host Tools"
+        "title": "Zephyr IDE: Install Host Tools"
       },
       {
         "command": "zephyr-ide.open-setup-panel",
-        "title": "IDE for Zephyr: Open Setup Panel"
+        "title": "Zephyr IDE: Open Setup Panel"
       },
       {
         "command": "zephyr-ide.open-host-tools-panel",
-        "title": "IDE for Zephyr: Host Tools Installation"
+        "title": "Zephyr IDE: Host Tools Installation"
       },
       {
         "command": "zephyr-ide.workspace-setup-picker",
-        "title": "IDE for Zephyr: Workspace Setup"
+        "title": "Zephyr IDE: Workspace Setup"
       },
       {
         "command": "zephyr-ide.workspace-setup-from-git",
-        "title": "IDE for Zephyr: Setup Workspace from Git"
+        "title": "Zephyr IDE: Setup Workspace from Git"
       },
       {
         "command": "zephyr-ide.workspace-setup-from-west-git",
-        "title": "IDE for Zephyr: Setup West Workspace from Git"
+        "title": "Zephyr IDE: Setup West Workspace from Git"
       },
       {
         "command": "zephyr-ide.workspace-setup-from-current-directory",
-        "title": "IDE for Zephyr: Setup Workspace from Current Directory"
+        "title": "Zephyr IDE: Setup Workspace from Current Directory"
       },
       {
         "command": "zephyr-ide.workspace-setup-standard",
-        "title": "IDE for Zephyr: Setup Standard Workspace"
+        "title": "Zephyr IDE: Setup Standard Workspace"
       },
       {
         "command": "zephyr-ide.west-config",
-        "title": "IDE for Zephyr: West Config"
+        "title": "Zephyr IDE: West Config"
       },
       {
         "command": "zephyr-ide.select-existing-west-workspace",
-        "title": "IDE for Zephyr: Select Existing West Workspace"
+        "title": "Zephyr IDE: Select Existing West Workspace"
       },
       {
         "command": "zephyr-ide.get-active-project-name",
-        "title": "IDE for Zephyr: Get Active Project Name"
+        "title": "Zephyr IDE: Get Active Project Name"
       },
       {
         "command": "zephyr-ide.get-active-project-path",
-        "title": "IDE for Zephyr: Get Active Project Path"
+        "title": "Zephyr IDE: Get Active Project Path"
       },
       {
         "command": "zephyr-ide.get-active-build-path",
-        "title": "IDE for Zephyr: Get Active Build Path"
+        "title": "Zephyr IDE: Get Active Build Path"
       },
       {
         "command": "zephyr-ide.get-active-build-board-path",
-        "title": "IDE for Zephyr: Get Active Build Board Path"
+        "title": "Zephyr IDE: Get Active Build Board Path"
       },
       {
         "command": "zephyr-ide.get-active-board-name",
-        "title": "IDE for Zephyr: Get Active Board Name"
+        "title": "Zephyr IDE: Get Active Board Name"
       },
       {
         "command": "zephyr-ide.select-active-build-path",
-        "title": "IDE for Zephyr: Select Active Build Path"
+        "title": "Zephyr IDE: Select Active Build Path"
       },
       {
         "command": "zephyr-ide.get-arm-gdb-path",
-        "title": "IDE for Zephyr: Get ARM GDB Path"
+        "title": "Zephyr IDE: Get ARM GDB Path"
       },
       {
         "command": "zephyr-ide.get-gdb-path",
-        "title": "IDE for Zephyr: Get GDB Path"
+        "title": "Zephyr IDE: Get GDB Path"
       },
       {
         "command": "zephyr-ide.get-zephyr-dir",
-        "title": "IDE for Zephyr: Get Zephyr Directory"
+        "title": "Zephyr IDE: Get Zephyr Directory"
       },
       {
         "command": "zephyr-ide.get-zephyr-elf",
-        "title": "IDE for Zephyr: Get Zephyr ELF Path"
+        "title": "Zephyr IDE: Get Zephyr ELF Path"
       },
       {
         "command": "zephyr-ide.get-zephyr-elf-dir",
-        "title": "IDE for Zephyr: Get Zephyr ELF Directory"
+        "title": "Zephyr IDE: Get Zephyr ELF Directory"
       },
       {
         "command": "zephyr-ide.get-toolchain-path",
-        "title": "IDE for Zephyr: Get Toolchain Path"
+        "title": "Zephyr IDE: Get Toolchain Path"
       },
       {
         "command": "zephyr-ide.get-zephyr-ide-json-variable",
-        "title": "IDE for Zephyr: Get Zephyr IDE JSON Variable"
+        "title": "Zephyr IDE: Get Zephyr IDE JSON Variable"
       },
       {
         "command": "zephyr-ide.get-active-project-variable",
-        "title": "IDE for Zephyr: Get Active Project Variable"
+        "title": "Zephyr IDE: Get Active Project Variable"
       },
       {
         "command": "zephyr-ide.get-active-build-variable",
-        "title": "IDE for Zephyr: Get Active Build Variable"
+        "title": "Zephyr IDE: Get Active Build Variable"
       }
     ],
     "terminal": {
@@ -567,17 +567,17 @@
         {
           "id": "zephyr-ide.terminal-profile",
           "icon": "terminal",
-          "title": "IDE for Zephyr Terminal"
+          "title": "Zephyr IDE Terminal"
         }
       ]
     },
     "debuggers": [
       {
         "type": "zephyr-ide",
-        "label": "IDE for Zephyr",
+        "label": "Zephyr IDE",
         "initialConfigurations": [
           {
-            "name": "IDE for Zephyr: Debug",
+            "name": "Zephyr IDE: Debug",
             "cwd": "${workspaceFolder}",
             "gdbPath": "${command:zephyr-ide.get-gdb-path}",
             "executable": "${command:zephyr-ide.get-zephyr-elf}",
@@ -592,7 +592,7 @@
             ]
           },
           {
-            "name": "IDE for Zephyr: Attach",
+            "name": "Zephyr IDE: Attach",
             "cwd": "${workspaceFolder}",
             "gdbPath": "${command:zephyr-ide.get-gdb-path}",
             "executable": "${command:zephyr-ide.get-zephyr-elf}",
@@ -609,10 +609,10 @@
         ],
         "configurationSnippets": [
           {
-            "label": "IDE for Zephyr: Debug BMP",
+            "label": "Zephyr IDE: Debug BMP",
             "description": "Basic Cortex Debug example with blackmagic probe",
             "body": {
-              "name": "IDE for Zephyr: Debug",
+              "name": "Zephyr IDE: Debug",
               "cwd": "^\"\\${workspaceFolder}\"",
               "gdbPath": "^\"\\${command:zephyr-ide.get-gdb-path}\"",
               "executable": "^\"\\${command:zephyr-ide.get-zephyr-elf}\"",
@@ -628,10 +628,10 @@
             }
           },
           {
-            "label": "IDE for Zephyr: Attach BMP",
+            "label": "Zephyr IDE: Attach BMP",
             "description": "Basic Cortex Debug attach example with blackmagic probe",
             "body": {
-              "name": "IDE for Zephyr: Attach",
+              "name": "Zephyr IDE: Attach",
               "cwd": "^\"\\${workspaceFolder}\"",
               "gdbPath": "^\"\\${command:zephyr-ide.get-gdb-path}\"",
               "executable": "^\"\\${command:zephyr-ide.get-zephyr-elf}\"",
@@ -647,10 +647,10 @@
             }
           },
           {
-            "label": "IDE for Zephyr: Debug Select BMP",
+            "label": "Zephyr IDE: Debug Select BMP",
             "description": "An example where a user will select a build each time the configuration is run",
             "body": {
-              "name": "IDE for Zephyr: Debug Select",
+              "name": "Zephyr IDE: Debug Select",
               "cwd": "^\"\\${workspaceFolder}\"",
               "gdbPath": "^\"\\${command:zephyr-ide.get-gdb-path}\"",
               "executable": "^\"\\${command:zephyr-ide.get-zephyr-elf}\"",
@@ -666,10 +666,10 @@
             }
           },
           {
-            "label": "IDE for Zephyr: Debug openOCD",
+            "label": "Zephyr IDE: Debug openOCD",
             "description": "Basic Cortex Debug example with OpenOCD, st-link, and nrf52",
             "body": {
-              "name": "IDE for Zephyr: Debug",
+              "name": "Zephyr IDE: Debug",
               "cwd": "^\"\\${workspaceFolder}\"",
               "gdbPath": "^\"\\${command:zephyr-ide.get-gdb-path}\"",
               "executable": "^\"\\${command:zephyr-ide.get-zephyr-elf}\"",
@@ -699,10 +699,10 @@
             }
           },
           {
-            "label": "IDE for Zephyr: Debug Attach openOCD",
+            "label": "Zephyr IDE: Debug Attach openOCD",
             "description": "Basic Cortex Debug Attach example with OpenOCD, st-link, and nrf52",
             "body": {
-              "name": "IDE for Zephyr: Debug Attach",
+              "name": "Zephyr IDE: Debug Attach",
               "cwd": "^\"\\${workspaceFolder}\"",
               "gdbPath": "^\"\\${command:zephyr-ide.get-gdb-path}\"",
               "executable": "^\"\\${command:zephyr-ide.get-zephyr-elf}\"",

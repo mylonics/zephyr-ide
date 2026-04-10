@@ -174,7 +174,7 @@ export async function workspaceSetupFromGit(context: vscode.ExtensionContext, ws
   }
 
   showOutput();
-  outputInfo("Git Clone", `Cloning IDE for Zephyr workspace from: ${gitUrl}`);
+  outputInfo("Git Clone", `Cloning Zephyr IDE workspace from: ${gitUrl}`);
 
   // Start progress tracking for the git clone flow
   const progress = new SetupProgressTracker("Workspace Setup from Git", [
@@ -192,16 +192,16 @@ export async function workspaceSetupFromGit(context: vscode.ExtensionContext, ws
     true
   );
   outputInfo("Git Clone",
-    "Workspace type selected: IDE for Zephyr Workspace from Git"
+    "Workspace type selected: Zephyr IDE Workspace from Git"
   );
 
   progress.startStep('git-clone', gitUrl);
   const cmd = `git clone ${gitUrl} .`;
-  const gitCloneRes = await executeTaskHelper("IDE for Zephyr: Git Clone", cmd, currentDir);
+  const gitCloneRes = await executeTaskHelper("Zephyr IDE: Git Clone", cmd, currentDir);
 
   if (!gitCloneRes) {
     progress.failStep('git-clone', 'Git clone failed');
-    notifyError("Git Clone", "Git clone failed. Check the IDE for Zephyr output for details.", { command: cmd });
+    notifyError("Git Clone", "Git clone failed. Check the Zephyr IDE output for details.", { command: cmd });
     return false;
   }
 
@@ -364,7 +364,7 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
 
   showOutput();
   outputInfo("Directory Setup",
-    `Setting up current directory as IDE for Zephyr workspace: ${installDir}`
+    `Setting up current directory as Zephyr IDE workspace: ${installDir}`
   );
 
   // TODO: Decouple from internal command handler behavior. Called directly
@@ -588,9 +588,9 @@ async function handleDeleteInstallation(context: vscode.ExtensionContext, global
 export async function showWorkspaceSetupPicker(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
   const setupOptions = [
     {
-      label: "$(repo-clone) IDE for Zephyr Workspace from Git",
+      label: "$(repo-clone) Zephyr IDE Workspace from Git",
       description:
-        "Clone and import an IDE for Zephyr workspace from a Git repository",
+        "Clone and import a Zephyr IDE workspace from a Git repository",
       id: "zephyr-ide-git",
     },
     {
@@ -600,7 +600,7 @@ export async function showWorkspaceSetupPicker(context: vscode.ExtensionContext,
     },
     {
       label: "$(folder-opened) Open Current Directory",
-      description: "Initialize current directory as IDE for Zephyr workspace",
+      description: "Initialize current directory as Zephyr IDE workspace",
       id: "current-directory",
     },
     {

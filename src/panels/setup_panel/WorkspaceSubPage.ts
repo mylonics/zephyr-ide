@@ -239,7 +239,7 @@ export class WorkspaceSubPage {
             <div class="workspace-options-grid">
                 ${this.generateWorkspaceOptionCard(
             "🌐",
-            "Import IDE for Zephyr Workspace from Git",
+            "Import Zephyr IDE Workspace from Git",
             "Clone a complete workspace or repo with projects as subdirectories using Git.",
             "Team collaboration and shared environments",
             "workspaceSetupFromGit()"

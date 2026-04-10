@@ -86,9 +86,9 @@ export class ActiveProjectView implements vscode.WebviewViewProvider {
 
 
       // Resolve display names for launch targets (shows workspace folder in multi-root)
-      const debugDisplay = getLaunchTargetDisplayName(activeBuild?.launchTarget ?? "", activeBuild?.launchTargetFolder, "IDE for Zephyr: Debug");
-      const buildDebugDisplay = getLaunchTargetDisplayName(activeBuild?.buildDebugTarget ?? "", activeBuild?.buildDebugTargetFolder, "IDE for Zephyr: Debug");
-      const attachDisplay = getLaunchTargetDisplayName(activeBuild?.attachTarget ?? "", activeBuild?.attachTargetFolder, "IDE for Zephyr: Attach");
+      const debugDisplay = getLaunchTargetDisplayName(activeBuild?.launchTarget ?? "", activeBuild?.launchTargetFolder, "Zephyr IDE: Debug");
+      const buildDebugDisplay = getLaunchTargetDisplayName(activeBuild?.buildDebugTarget ?? "", activeBuild?.buildDebugTargetFolder, "Zephyr IDE: Debug");
+      const attachDisplay = getLaunchTargetDisplayName(activeBuild?.attachTarget ?? "", activeBuild?.attachTargetFolder, "Zephyr IDE: Attach");
 
       const data = [{
         icons: {

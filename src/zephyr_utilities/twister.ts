@@ -52,7 +52,7 @@ export async function testHelper(context: vscode.ExtensionContext, wsConfig: Wor
     }
     return await runTest(setupState, wsConfig, project, project.twisterConfigs[testName]);
   } else {
-    notifyError("Twister Test", "Run `IDE for Zephyr: West Update` command first.");
+    notifyError("Twister Test", "Run `Zephyr IDE: West Update` command first.");
   }
 }
 
@@ -86,7 +86,7 @@ export async function runTest(
   }
 
 
-  const taskName = "IDE for Zephyr Test: " + project.name + " " + testConfig.name;
+  const taskName = "Zephyr IDE Test: " + project.name + " " + testConfig.name;
 
   outputInfo(`Twister: ${project.name}/${testConfig.name}`, `Running ${testConfig.name} Test from project: ${project.name} (cmd: ${cmd})`, true);
   const ret = await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState.setupPath);

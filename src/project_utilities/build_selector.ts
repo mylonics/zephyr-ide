@@ -112,7 +112,7 @@ async function getBoardlistWest(setupState: SetupState, folder: vscode.Uri | und
       ];
     }
 
-    notifyError("Board Selection", "Failed to run west boards command. Check the IDE for Zephyr output for details.");
+    notifyError("Board Selection", "Failed to run west boards command. Check the Zephyr IDE output for details.");
     return;
   }
 
@@ -410,9 +410,9 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
     };
 
     // Initialize launch/debug targets to safe defaults
-    state.launchTarget = state.launchTarget ?? "IDE for Zephyr: Debug";
-    state.buildDebugTarget = state.buildDebugTarget ?? "IDE for Zephyr: Debug";
-    state.attachTarget = state.attachTarget ?? "IDE for Zephyr: Attach";
+    state.launchTarget = state.launchTarget ?? "Zephyr IDE: Debug";
+    state.buildDebugTarget = state.buildDebugTarget ?? "Zephyr IDE: Debug";
+    state.attachTarget = state.attachTarget ?? "Zephyr IDE: Attach";
 
     return;
   }

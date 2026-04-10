@@ -29,7 +29,7 @@ Test configurations work similarly to build configurations:
 You can run tests using:
 
 - The beaker icon in the sidebar
-- Command Palette: `IDE for Zephyr: Run Test`
+- Command Palette: `Zephyr IDE: Run Test`
 - The Active Project Panel
 
 ## Next Steps

@@ -34,7 +34,7 @@ You can install the extension pack from:
 - [Visual Studio Code Marketplace](https://marketplace.visualstudio.com/items?itemName=mylonics.zephyr-ide-extension-pack)
 - [Open VSX Registry](https://open-vsx.org/extension/mylonics/zephyr-ide-extension-pack)
 
-Or search for "IDE for Zephyr Extension Pack" in the VS Code Extensions view.
+Or search for "Zephyr IDE Extension Pack" in the VS Code Extensions view.
 
 ## Benefits
 
