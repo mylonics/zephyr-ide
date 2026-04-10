@@ -63,14 +63,14 @@ export class HostToolInstallView {
 
         <div id="actions-section" class="manager-section">
           <div class="button-group">
-            <button id="refresh-btn" class="button" onclick="refreshHostToolsStatus()">
-              <span class="codicon codicon-refresh"></span>
+            <vscode-button id="refresh-btn" appearance="secondary" onclick="hostToolsClient.refreshStatus()">
+              <vscode-icon slot="start-icon" name="refresh"></vscode-icon>
               Refresh Status
-            </button>
-            <button id="install-all-btn" class="button button-primary" onclick="installAllMissingTools()" disabled>
-              <span class="codicon codicon-cloud-download"></span>
+            </vscode-button>
+            <vscode-button id="install-all-btn" onclick="hostToolsClient.installAllMissing()" disabled>
+              <vscode-icon slot="start-icon" name="cloud-download"></vscode-icon>
               Install All Missing Packages
-            </button>
+            </vscode-button>
           </div>
         </div>
       </div>
@@ -100,7 +100,6 @@ export class HostToolInstallView {
       {
         enableScripts: true,
         localResourceRoots: [vscode.Uri.file(extensionPath)],
-        retainContextWhenHidden: true,
       }
     );
 
@@ -149,25 +148,25 @@ export class HostToolInstallView {
 
   private async handleWebviewMessage(message: any) {
     switch (message.command) {
-      case "checkStatus":
+      case "hostToolsCheckStatus":
         await this._service.checkStatus();
         break;
-      case "installPackageManager":
+      case "hostToolsInstallPackageManager":
         await this._service.installPackageManager();
         break;
-      case "installPackage":
+      case "hostToolsInstallPackage":
         await this._service.installSinglePackage(message.packageName);
         break;
-      case "installAllMissing":
+      case "hostToolsInstallAllMissing":
         await this._service.installAllMissing();
         break;
-      case "installAllMissingPackages":
+      case "hostToolsInstallAllMissingPackages":
         await this._service.installAllMissingPackages(message.packageNames);
         break;
       case "markComplete":
         await this._service.markComplete(this._context, this.currentWsConfig, this.currentGlobalConfig);
         break;
-      case "openManagerInstallUrl":
+      case "hostToolsOpenManagerInstallUrl":
         await this._service.openManagerInstallUrl();
         break;
     }
@@ -200,8 +199,8 @@ export class HostToolInstallView {
     const jsUri = this._panel.webview.asWebviewUri(
       vscode.Uri.joinPath(
         vscode.Uri.file(this._extensionPath),
-        "src",
-        "panels",
+        "dist",
+        "webview",
         "host_tool_install_view",
         "host-tool-install.js"
       )
@@ -218,40 +217,13 @@ export class HostToolInstallView {
     <body>
         <div class="container">
             <h1>🔧 Host Tools Installation</h1>
-            
-            <div class="info-box">
-                <p>
-                    This panel helps you install and manage development tools required for Zephyr RTOS development.
-                    The tools will be installed using your platform's package manager.
-                </p>
-                <p style="margin-top: 10px; font-style: italic; color: var(--vscode-descriptionForeground);">
-                    <strong>Note:</strong> VS Code may need to be restarted after installation for tools to be available in the PATH.
-                </p>
-            </div>
-
-            <div id="package-manager-section" class="section">
-                <h2>Package Manager Status</h2>
-                <div id="manager-status" class="status-area">
-                    <div class="loading">Checking package manager...</div>
-                </div>
-            </div>
-
-            <div id="packages-section" class="section">
-                <h2>Required Development Tools</h2>
-                <div id="packages-status" class="status-area">
-                    <div class="loading">Checking packages...</div>
-                </div>
-            </div>
-
-            <div id="actions-section" class="section">
+            ${HostToolInstallView.getContentHtml()}
+            <div class="manager-section">
                 <div class="button-group">
-                    <button id="refresh-btn" class="button" onclick="refreshStatus()">🔄 Refresh Status</button>
-                    <button id="install-all-btn" class="button button-primary" onclick="installAllMissing()" disabled>
-                        📦 Install All Missing Packages
-                    </button>
-                    <button id="mark-complete-btn" class="button button-secondary" onclick="markComplete()">
-                        ✓ Skip & Mark as Complete
-                    </button>
+                    <vscode-button id="mark-complete-btn" appearance="secondary" onclick="markComplete()">
+                        <vscode-icon slot="start-icon" name="check"></vscode-icon>
+                        Skip &amp; Mark as Complete
+                    </vscode-button>
                 </div>
             </div>
         </div>

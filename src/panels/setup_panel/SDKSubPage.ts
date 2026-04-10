@@ -41,10 +41,10 @@ export class SDKSubPage {
         return `
         <div class="sub-page-content">
             <div class="sub-page-header">
-                <button class="back-button" onclick="navigateToOverview()">
-                    <span class="codicon codicon-chevron-left"></span>
+                <vscode-button appearance="secondary" onclick="navigateToOverview()">
+                    <vscode-icon slot="start-icon" name="chevron-left"></vscode-icon>
                     Back to Overview
-                </button>
+                </vscode-button>
                 <h2>Zephyr SDK Management</h2>
             </div>
             
@@ -74,14 +74,14 @@ export class SDKSubPage {
                 <div class="action-section">
                     <h3>SDK Management</h3>
                     <div class="button-group">
-                        <button class="button button-primary" onclick="installSDK()" ${!hasValidSetupState ? 'disabled' : ''}>
-                            <span class="codicon codicon-cloud-download"></span>
+                        <vscode-button onclick="sendCommand('installSDK')" ${!hasValidSetupState ? 'disabled' : ''}>
+                            <vscode-icon slot="start-icon" name="cloud-download"></vscode-icon>
                             Install / Update SDK
-                        </button>
-                        <button class="button button-secondary" onclick="listSDKs()" ${!hasValidSetupState ? 'disabled' : ''}>
-                            <span class="codicon codicon-list-unordered"></span>
+                        </vscode-button>
+                        <vscode-button appearance="secondary" onclick="listSDKs()" ${!hasValidSetupState ? 'disabled' : ''}>
+                            <vscode-icon slot="start-icon" name="list-unordered"></vscode-icon>
                             List Available SDKs
-                        </button>
+                        </vscode-button>
                     </div>
                 </div>
                 

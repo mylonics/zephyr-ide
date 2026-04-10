@@ -1,0 +1,21 @@
+{
+	"compilerOptions": {
+		"module": "ESNext",
+		"target": "ES2022",
+		"lib": [
+			"ES2022",
+			"DOM"
+		],
+		"moduleResolution": "bundler",
+		"strict": true,
+		"sourceMap": true,
+		"noEmit": true,
+		"esModuleInterop": true,
+		"resolveJsonModule": true
+	},
+	"include": [
+		"src/panels/webview_shared/**/*.ts",
+		"src/panels/host_tool_install_view/host-tool-install.ts",
+		"src/panels/setup_panel/setup-panel.ts"
+	]
+}

@@ -49,10 +49,10 @@ export class WorkspaceSubPage {
         return `
         <div class="sub-page-content">
             <div class="sub-page-header">
-                <button class="back-button" onclick="navigateToOverview()">
-                    <span class="codicon codicon-chevron-left"></span>
+                <vscode-button appearance="secondary" onclick="navigateToOverview()">
+                    <vscode-icon slot="start-icon" name="chevron-left"></vscode-icon>
                     Back to Overview
-                </button>
+                </vscode-button>
                 <h2>Workspace Setup</h2>
             </div>
             
@@ -69,7 +69,7 @@ export class WorkspaceSubPage {
         return `
             <div class="ws-state ws-state-initializing">
                 <div class="status-banner status-info">
-                    <div class="loading-spinner"></div>
+                    <vscode-progress-ring></vscode-progress-ring>
                     <span class="status-text">Initializing workspace\u2026</span>
                 </div>
                 <p class="description">Follow the prompts in the VS Code dialog to configure your workspace.</p>
@@ -125,10 +125,10 @@ export class WorkspaceSubPage {
             </div>
             
             <div class="button-group">
-                <button class="button button-primary" onclick="openFolder()">
-                    <span class="codicon codicon-folder-opened"></span>
+                <vscode-button onclick="sendCommand('openFolder')">
+                    <vscode-icon slot="start-icon" name="folder-opened"></vscode-icon>
                     Open Folder
-                </button>
+                </vscode-button>
             </div>
         </div>`;
     }
@@ -161,21 +161,21 @@ export class WorkspaceSubPage {
             <div class="west-yml-editor">
                 <div class="editor-header">
                     <label for="westYmlEditor">west.yml</label>
-                    <button class="button button-small button-secondary" onclick="openWestYml()">
-                        <span class="codicon codicon-go-to-file"></span>
+                    <vscode-button appearance="secondary" onclick="openWestYml()">
+                        <vscode-icon slot="start-icon" name="go-to-file"></vscode-icon>
                         Open in Editor
-                    </button>
+                    </vscode-button>
                 </div>
                 <textarea id="westYmlEditor" class="west-yml-textarea" rows="15" placeholder="Loading west.yml..."></textarea>
                 <div class="editor-actions">
-                    <button class="button button-primary" onclick="saveAndUpdateWestYml()">
-                        <span class="codicon codicon-save"></span>
+                    <vscode-button onclick="saveAndUpdateWestYml()">
+                        <vscode-icon slot="start-icon" name="save"></vscode-icon>
                         Save and West Update
-                    </button>
-                    <button class="button button-secondary" onclick="westUpdate()">
-                        <span class="codicon codicon-sync"></span>
+                    </vscode-button>
+                    <vscode-button appearance="secondary" onclick="sendCommand('westUpdate')">
+                        <vscode-icon slot="start-icon" name="sync"></vscode-icon>
                         West Update
-                    </button>
+                    </vscode-button>
                 </div>
             </div>
         </div>
@@ -183,14 +183,14 @@ export class WorkspaceSubPage {
         <div class="action-section">
             <h3>Workspace Management</h3>
             <div class="button-group">
-                <button class="button button-secondary" onclick="manageWorkspace()">
-                    <span class="codicon codicon-folder-library"></span>
+                <vscode-button appearance="secondary" onclick="sendCommand('manageWorkspace')">
+                    <vscode-icon slot="start-icon" name="folder-library"></vscode-icon>
                     Manage West Workspaces
-                </button>
-                <button class="button button-secondary" onclick="reinitializeWorkspace()">
-                    <span class="codicon codicon-refresh"></span>
+                </vscode-button>
+                <vscode-button appearance="secondary" onclick="sendCommand('reinitializeWorkspace')">
+                    <vscode-icon slot="start-icon" name="refresh"></vscode-icon>
                     Reinitialize VS Code Workspace
-                </button>
+                </vscode-button>
             </div>
         </div>
         
@@ -198,18 +198,18 @@ export class WorkspaceSubPage {
             <h3>Advanced Commands</h3>
             <p class="description">Low-level commands for advanced workspace management and troubleshooting.</p>
             <div class="button-group">
-                <button class="button button-secondary" onclick="westConfig()">
-                    <span class="codicon codicon-settings"></span>
+                <vscode-button appearance="secondary" onclick="sendCommand('westConfig')">
+                    <vscode-icon slot="start-icon" name="settings"></vscode-icon>
                     West Config
-                </button>
-                <button class="button button-secondary" onclick="setupWestEnvironment()">
-                    <span class="codicon codicon-folder-opened"></span>
+                </vscode-button>
+                <vscode-button appearance="secondary" onclick="sendCommand('setupWestEnvironment')">
+                    <vscode-icon slot="start-icon" name="folder-opened"></vscode-icon>
                     Setup West Environment
-                </button>
-                <button class="button button-secondary" onclick="westInit()">
-                    <span class="codicon codicon-repo-create"></span>
+                </vscode-button>
+                <vscode-button appearance="secondary" onclick="sendCommand('westInit')">
+                    <vscode-icon slot="start-icon" name="repo-create"></vscode-icon>
                     West Init
-                </button>
+                </vscode-button>
             </div>
         </div>`;
     }
@@ -242,28 +242,28 @@ export class WorkspaceSubPage {
             "Import Zephyr IDE Workspace from Git",
             "Clone a complete workspace or repo with projects as subdirectories using Git.",
             "Team collaboration and shared environments",
-            "workspaceSetupFromGit()"
+            "sendWorkspaceSetup('workspaceSetupFromGit')"
         )}
                 ${this.generateWorkspaceOptionCard(
             "⚙️",
             "Import West Workspace from Git",
             "Clone a west manifest repo (contains west.yml) using West Init.",
             "Upstream Zephyr projects and community examples",
-            "workspaceSetupFromWestGit()"
+            "sendWorkspaceSetup('workspaceSetupFromWestGit')"
         )}
                 ${this.generateWorkspaceOptionCard(
             "📦",
             "New Standard Workspace",
             "Create a self-contained workspace with Zephyr installed locally.",
             "Individual projects or specific Zephyr versions",
-            "workspaceSetupStandard()"
+            "sendWorkspaceSetup('workspaceSetupStandard')"
         )}
                 ${this.generateWorkspaceOptionCard(
             "📁",
             "Initialize Current Directory",
             "Set up the current directory for Zephyr development, preserving existing files.",
             "Existing projects or external Zephyr installations",
-            "workspaceSetupFromCurrentDirectory()"
+            "sendWorkspaceSetup('workspaceSetupFromCurrentDirectory')"
         )}
             </div>
         </div>
