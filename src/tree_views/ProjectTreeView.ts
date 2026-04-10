@@ -76,7 +76,7 @@ export class ProjectTreeView implements vscode.TreeDataProvider<ProjectTreeItem>
     }
 
     const item = new ProjectTreeItem(runner.name, 'chip', false, 'runnerItem');
-    item.id = `runner:${projectName}/${buildName}/${runner.name}`;
+    item.id = `runner:${projectName}.${buildName}.${runner.name}`;
     item.data = { project: projectName, build: buildName, runner: runner.name };
     item.command = { command: 'zephyr-ide.tree-view.select', title: 'Select', arguments: [item] };
     return item;
@@ -91,7 +91,7 @@ export class ProjectTreeView implements vscode.TreeDataProvider<ProjectTreeItem>
 
     const item = new ProjectTreeItem(build.name, 'project', true, 'buildItem',
       build.board + (build.revision ? '@' + build.revision : ""));
-    item.id = `build:${projectName}/${build.name}`;
+    item.id = `build:${projectName}.${build.name}`;
     item.data = { project: projectName, build: build.name };
     item.collapsibleState = (viewOpen !== undefined ? viewOpen : true)
       ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
@@ -110,7 +110,7 @@ export class ProjectTreeView implements vscode.TreeDataProvider<ProjectTreeItem>
 
     if (item.children.length === 0) {
       const placeholder = new ProjectTreeItem('Add Runner', 'add', false, 'addRunnerPlaceholder', 'Add Runner');
-      placeholder.id = `placeholder:addRunner:${projectName}/${build.name}`;
+      placeholder.id = `placeholder:addRunner:${projectName}.${build.name}`;
       placeholder.data = { project: projectName, build: build.name, cmd: "addRunner" };
       placeholder.command = { command: 'zephyr-ide.tree-view.add-runner', title: 'Add Runner', arguments: [placeholder] };
       placeholder.parent = item;
@@ -127,7 +127,7 @@ export class ProjectTreeView implements vscode.TreeDataProvider<ProjectTreeItem>
     }
 
     const item = new ProjectTreeItem(test.name, 'beaker', false, 'testItem', test.platform);
-    item.id = `test:${projectName}/${test.name}`;
+    item.id = `test:${projectName}.${test.name}`;
     item.data = { project: projectName, test: test.name };
     item.command = { command: 'zephyr-ide.tree-view.select', title: 'Select', arguments: [item] };
     return item;
