@@ -16,61 +16,39 @@ limitations under the License.
 */
 
 import * as vscode from 'vscode';
-import { WorkspaceConfig, GlobalConfig } from '../../setup_utilities/types';
-import { generateWebviewHtml, initWebviewView } from '../webviewHelper';
+import { WorkspaceConfig, GlobalConfig } from '../setup_utilities/types';
 
+class SetupItem extends vscode.TreeItem {
+  constructor(label: string, icon: string, commandId: string) {
+    super(label, vscode.TreeItemCollapsibleState.None);
+    this.iconPath = new vscode.ThemeIcon(icon);
+    this.command = { command: commandId, title: label };
+  }
+}
 
-export class ExtensionSetupView implements vscode.WebviewViewProvider {
-  public view: vscode.WebviewView | undefined;
+export class ExtensionSetupView implements vscode.TreeDataProvider<SetupItem> {
+  private _onDidChangeTreeData = new vscode.EventEmitter<SetupItem | undefined | void>();
+  readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
   constructor(public extensionPath: string, private context: vscode.ExtensionContext, private wsConfig: WorkspaceConfig, private globalConfig: GlobalConfig) { }
 
   updateWebView(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
-    if (this.view) {
-      // Simplified view showing only the most commonly needed commands
-      // Other commands (West Config, Setup West Environment, West Init) 
-      // remain available via Command Palette and Setup Panel
-      const data = [{
-        icons: {
-          leaf: 'folder-opened',
-        },
-        label: "Zephyr IDE Configuration",
-        value: { command: "zephyr-ide.open-setup-panel" },
-      }, {
-        icons: {
-          leaf: 'sync',
-        },
-        label: "West Update",
-        value: { command: "zephyr-ide.west-update" },
-      }];
-
-      this.view.webview.postMessage(data);
-    }
+    this._onDidChangeTreeData.fire();
   }
 
-  setHtml(body: string) {
-    if (this.view !== undefined) {
-      this.view.webview.html = generateWebviewHtml(this.view, this.extensionPath, body, {
-        handlerJsPath: 'src/panels/extension_setup_view/ExtensionSetupViewHandler.js',
-        treeElementHtml: '<vscode-tree id="setup-tree"></vscode-tree>',
-        includeCSP: true,
-      });
-    }
-  };
+  getTreeItem(element: SetupItem): vscode.TreeItem {
+    return element;
+  }
 
+  getParent(): undefined {
+    return undefined;
+  }
 
-  resolveWebviewView(webviewView: vscode.WebviewView, context: vscode.WebviewViewResolveContext, token: vscode.CancellationToken): void | Thenable<void> {
-    initWebviewView(
-      this, webviewView,
-      () => this.updateWebView(this.wsConfig, this.globalConfig),
-      (message) => {
-        // Only allow known zephyr-ide commands from the webview
-        if (typeof message.command === 'string' && message.command.startsWith('zephyr-ide.')) {
-          void vscode.commands.executeCommand(message.command);
-        }
-      },
-      () => { this.setHtml(""); this.updateWebView(this.wsConfig, this.globalConfig); }
-    );
+  getChildren(): SetupItem[] {
+    return [
+      new SetupItem("Zephyr IDE Configuration", "folder-opened", "zephyr-ide.open-setup-panel"),
+      new SetupItem("West Update", "sync", "zephyr-ide.west-update"),
+    ];
   }
 }
 

@@ -17,190 +17,105 @@ limitations under the License.
 
 import * as vscode from 'vscode';
 
-import { ProjectConfig, getResolvedRunnerConfig, getResolvedTestConfig, resolveActiveProject, resolveActiveProjectBuild } from '../../project_utilities/project';
-import { BuildConfig } from '../../project_utilities/build_selector';
-import { RunnerConfig } from '../../project_utilities/runner_selector';
-import { WorkspaceConfig } from '../../setup_utilities/types';
-import { TwisterConfig } from "../../project_utilities/twister_selector";
-import { getLaunchTargetDisplayName } from '../../utilities/utils';
-import { generateWebviewHtml, initWebviewView } from '../webviewHelper';
+import { ProjectConfig, getResolvedRunnerConfig, getResolvedTestConfig, resolveActiveProject, resolveActiveProjectBuild } from '../project_utilities/project';
+import { BuildConfig } from '../project_utilities/build_selector';
+import { RunnerConfig } from '../project_utilities/runner_selector';
+import { WorkspaceConfig } from '../setup_utilities/types';
+import { TwisterConfig } from "../project_utilities/twister_selector";
+import { getLaunchTargetDisplayName } from '../utilities/utils';
 
-export class ActiveProjectView implements vscode.WebviewViewProvider {
-  public view: vscode.WebviewView | undefined;
+export type ActiveProjectItemContext =
+  | 'activeProject.buildPristine'
+  | 'activeProject.build'
+  | 'activeProject.flash'
+  | 'activeProject.debug'
+  | 'activeProject.buildDebug'
+  | 'activeProject.debugAttach'
+  | 'activeProject.twisterRun';
 
-  launchActions = [
-    {
-      icon: "arrow-swap",
-      actionId: "changeLaunchTarget",
-      tooltip: "Change Launch Target",
-    },
-  ];
-
-  buildActions = [
-    {
-      icon: "preview",
-      actionId: "startGuiConfig",
-      tooltip: "GuiConfig",
-    }, {
-      icon: "settings",
-      actionId: "startMenuConfig",
-      tooltip: "MenuConfig",
-    },
-  ];
-
-  testActions = [
-    {
-      icon: "clear-all",
-      actionId: "deleteActiveTestDir",
-      tooltip: "Clean Test Dirs",
-    },
-  ];
-
-  constructor(public extensionPath: string, private context: vscode.ExtensionContext, private wsConfig: WorkspaceConfig) {
-
+class ActiveProjectItem extends vscode.TreeItem {
+  constructor(
+    label: string,
+    icon: string,
+    description: string,
+    public readonly contextId: ActiveProjectItemContext,
+    commandId: string,
+    public readonly launchChangeCmd?: string,
+  ) {
+    super(label, vscode.TreeItemCollapsibleState.None);
+    this.iconPath = new vscode.ThemeIcon(icon);
+    this.description = description;
+    this.contextValue = contextId;
+    this.command = { command: commandId, title: label };
   }
+}
+
+export class ActiveProjectView implements vscode.TreeDataProvider<ActiveProjectItem> {
+  private _onDidChangeTreeData = new vscode.EventEmitter<ActiveProjectItem | undefined | void>();
+  readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
+  public title: string = "Active Project: None";
+
+  constructor(public extensionPath: string, private context: vscode.ExtensionContext, private wsConfig: WorkspaceConfig) { }
 
   updateWebView(wsConfig: WorkspaceConfig) {
-    if (this.view) {
-      let activeProject: ProjectConfig | undefined;
-      let activeBuild: BuildConfig | undefined;
-      let activeRunner: RunnerConfig | undefined;
-      let activeTwister: TwisterConfig | undefined;
-      const resolvedProject = resolveActiveProject(wsConfig);
-      if (resolvedProject) {
-        activeProject = resolvedProject.project;
-        const resolved = resolveActiveProjectBuild(wsConfig);
-        activeBuild = resolved?.build;
-        if (resolved) {
-          activeRunner = getResolvedRunnerConfig(wsConfig, resolved);
-          this.view.title = activeProject.name + ": " + resolved.build.name;
-        } else {
-          this.view.title = activeProject.name;
-        }
-        activeTwister = getResolvedTestConfig(wsConfig, resolvedProject);
+    this._onDidChangeTreeData.fire();
+  }
+
+  getTreeItem(element: ActiveProjectItem): vscode.TreeItem {
+    return element;
+  }
+
+  getParent(): undefined {
+    return undefined;
+  }
+
+  getChildren(): ActiveProjectItem[] {
+    let activeProject: ProjectConfig | undefined;
+    let activeBuild: BuildConfig | undefined;
+    let activeRunner: RunnerConfig | undefined;
+    let activeTwister: TwisterConfig | undefined;
+    const resolvedProject = resolveActiveProject(this.wsConfig);
+    if (resolvedProject) {
+      activeProject = resolvedProject.project;
+      const resolved = resolveActiveProjectBuild(this.wsConfig);
+      activeBuild = resolved?.build;
+      if (resolved) {
+        activeRunner = getResolvedRunnerConfig(this.wsConfig, resolved);
+        this.title = activeProject.name + ": " + resolved.build.name;
       } else {
-        this.view.title = "Active Project: None";
-        this.view.webview.postMessage([{}]);
-        return;
+        this.title = activeProject.name;
       }
-
-
-      // Resolve display names for launch targets (shows workspace folder in multi-root)
-      const debugDisplay = getLaunchTargetDisplayName(activeBuild?.launchTarget ?? "", activeBuild?.launchTargetFolder, "Zephyr IDE: Debug");
-      const buildDebugDisplay = getLaunchTargetDisplayName(activeBuild?.buildDebugTarget ?? "", activeBuild?.buildDebugTargetFolder, "Zephyr IDE: Debug");
-      const attachDisplay = getLaunchTargetDisplayName(activeBuild?.attachTarget ?? "", activeBuild?.attachTargetFolder, "Zephyr IDE: Attach");
-
-      const data = [{
-        icons: {
-          leaf: 'project',
-        },
-        actions: this.buildActions,
-        label: "Build Pristine",
-        description: activeBuild ? activeBuild.name : "Not Available",
-        value: { command: "vsCommand", vsCommand: "zephyr-ide.build-pristine" },
-      }, {
-        icons: {
-          leaf: 'project',
-        },
-        actions: this.buildActions,
-        label: "Build",
-        description: activeBuild ? activeBuild.name : "Not Available",
-        value: { command: "vsCommand", vsCommand: "zephyr-ide.build" },
-      }, {
-        icons: {
-          leaf: 'chip',
-        },
-        label: "Flash",
-        description: activeRunner ? activeRunner.name : "Not Available",
-        value: { command: "vsCommand", vsCommand: "zephyr-ide.flash" },
-      }, {
-        icons: {
-          leaf: 'debug-alt',
-        },
-        actions: this.launchActions,
-        label: "Debug",
-        value: { command: "vsCommand", vsCommand: "zephyr-ide.debug", "launchChangeCmd": "zephyr-ide.change-debug-launch-for-build", },
-        description: debugDisplay,
-      }, {
-        icons: {
-          leaf: 'debug-all',
-        },
-        actions: this.launchActions,
-        label: "Build and Debug",
-        value: { command: "vsCommand", vsCommand: "zephyr-ide.build-debug", "launchChangeCmd": "zephyr-ide.change-build-debug-launch-for-build", },
-        description: buildDebugDisplay,
-      }, {
-        icons: {
-          leaf: 'debug-console',
-        },
-        actions: this.launchActions,
-        label: "Debug Attach",
-        value: { command: "vsCommand", vsCommand: "zephyr-ide.debug-attach", "launchChangeCmd": "zephyr-ide.change-debug-attach-launch-for-build" },
-        description: attachDisplay,
-      }];
-
-      if (activeProject.twisterConfigs && Object.keys(activeProject.twisterConfigs).length) {
-        data.push({
-          icons: {
-            leaf: 'beaker',
-          },
-          actions: this.testActions,
-          label: "Twister Run",
-          value: { command: "vsCommand", vsCommand: "zephyr-ide.run-test" },
-          description: activeTwister ? activeTwister.name : "",
-        });
-      }
-
-      this.view.webview.postMessage(data);
+      activeTwister = getResolvedTestConfig(this.wsConfig, resolvedProject);
+    } else {
+      this.title = "Active Project: None";
+      return [];
     }
-  }
 
-  setHtml(body: string) {
-    if (this.view !== undefined) {
-      this.view.webview.html = generateWebviewHtml(this.view, this.extensionPath, body, {
-        handlerJsPath: 'src/panels/active_project_view/ActiveProjectViewHandler.js',
-        treeElementHtml: '<vscode-tree id="basic-example" ></vscode-tree>',
-        includeCSP: false,
-      });
+    const debugDisplay = getLaunchTargetDisplayName(activeBuild?.launchTarget ?? "", activeBuild?.launchTargetFolder, "Zephyr IDE: Debug");
+    const buildDebugDisplay = getLaunchTargetDisplayName(activeBuild?.buildDebugTarget ?? "", activeBuild?.buildDebugTargetFolder, "Zephyr IDE: Debug");
+    const attachDisplay = getLaunchTargetDisplayName(activeBuild?.attachTarget ?? "", activeBuild?.attachTargetFolder, "Zephyr IDE: Attach");
+
+    const items: ActiveProjectItem[] = [
+      new ActiveProjectItem("Build Pristine", "project", activeBuild ? activeBuild.name : "Not Available",
+        'activeProject.buildPristine', "zephyr-ide.build-pristine"),
+      new ActiveProjectItem("Build", "project", activeBuild ? activeBuild.name : "Not Available",
+        'activeProject.build', "zephyr-ide.build"),
+      new ActiveProjectItem("Flash", "chip", activeRunner ? activeRunner.name : "Not Available",
+        'activeProject.flash', "zephyr-ide.flash"),
+      new ActiveProjectItem("Debug", "debug-alt", debugDisplay,
+        'activeProject.debug', "zephyr-ide.debug", "zephyr-ide.change-debug-launch-for-build"),
+      new ActiveProjectItem("Build and Debug", "debug-all", buildDebugDisplay,
+        'activeProject.buildDebug', "zephyr-ide.build-debug", "zephyr-ide.change-build-debug-launch-for-build"),
+      new ActiveProjectItem("Debug Attach", "debug-console", attachDisplay,
+        'activeProject.debugAttach', "zephyr-ide.debug-attach", "zephyr-ide.change-debug-attach-launch-for-build"),
+    ];
+
+    if (activeProject.twisterConfigs && Object.keys(activeProject.twisterConfigs).length) {
+      items.push(new ActiveProjectItem("Twister Run", "beaker", activeTwister ? activeTwister.name : "",
+        'activeProject.twisterRun', "zephyr-ide.run-test"));
     }
-  };
 
-  resolveWebviewView(webviewView: vscode.WebviewView, context: vscode.WebviewViewResolveContext, token: vscode.CancellationToken): void | Thenable<void> {
-    initWebviewView(
-      this, webviewView,
-      () => this.updateWebView(this.wsConfig),
-      (message) => this.handleMessage(message),
-      () => { this.setHtml(""); this.updateWebView(this.wsConfig); }
-    );
-  }
-
-  private handleMessage(message: any) {
-      switch (message.command) {
-        case "vsCommand": {
-          void vscode.commands.executeCommand(message.value.vsCommand);
-          break;
-        }
-        case "changeLaunchTarget": {
-          if (message.value?.launchChangeCmd) {
-            void vscode.commands.executeCommand(message.value.launchChangeCmd);
-          }
-          break;
-        }
-        case "startGuiConfig": {
-          void vscode.commands.executeCommand("zephyr-ide.start-gui-config");
-          break;
-        }
-        case "startMenuConfig": {
-          void vscode.commands.executeCommand("zephyr-ide.start-menu-config");
-          break;
-        }
-        case "deleteActiveTestDir": {
-          void vscode.commands.executeCommand("zephyr-ide.remove-test-dirs");
-          break;
-        }
-        default:
-          break;
-      }
+    return items;
   }
 }
 

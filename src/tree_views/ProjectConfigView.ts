@@ -17,17 +17,36 @@ limitations under the License.
 
 import * as vscode from 'vscode';
 import path from 'upath';
-import { ProjectConfig, addConfigFiles, setActive, modifyBuildArguments, removeConfigFile, getResolvedRunnerConfig, getResolvedTestConfig, resolveActiveProject, resolveActiveProjectBuild } from '../../project_utilities/project';
-import { BuildConfig } from '../../project_utilities/build_selector';
-import { RunnerConfig } from '../../project_utilities/runner_selector';
-import { ConfigFiles } from '../../project_utilities/config_selector';
+import { addConfigFiles, setActive, modifyBuildArguments, removeConfigFile, getResolvedRunnerConfig, getResolvedTestConfig, resolveActiveProject, resolveActiveProjectBuild } from '../project_utilities/project';
+import { ConfigFiles } from '../project_utilities/config_selector';
 
-import { WorkspaceConfig } from '../../setup_utilities/types';
-import { TwisterConfig } from '../../project_utilities/twister_selector';
-import { getSetupState } from '../../setup_utilities/workspace-config';
-import { generateWebviewHtml, initWebviewView } from '../webviewHelper';
-import { handleSharedProjectCommand, FILE_ADD_ACTION, FILE_DELETE_ACTION } from '../projectCommandHandler';
-import { outputInfo } from '../../utilities/output';
+import { WorkspaceConfig } from '../setup_utilities/types';
+import { getSetupState } from '../setup_utilities/workspace-config';
+import { outputInfo } from '../utilities/output';
+
+export class ConfigItem extends vscode.TreeItem {
+  children: ConfigItem[] = [];
+  parent: ConfigItem | undefined;
+  /** Data payload for command handlers */
+  data: { project?: string; build?: string; runner?: string; test?: string; isExtra?: boolean; filename?: string; fileCmd?: string } = {};
+
+  constructor(
+    label: string,
+    icon: string,
+    collapsible: boolean,
+    contextValue?: string,
+    description?: string,
+  ) {
+    super(label, collapsible ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
+    this.iconPath = new vscode.ThemeIcon(icon);
+    if (contextValue) {
+      this.contextValue = contextValue;
+    }
+    if (description) {
+      this.description = description;
+    }
+  }
+}
 
 export class ProjectConfigState {
   projectOpenState: boolean = true;
@@ -40,20 +59,14 @@ export class ProjectConfigState {
   buildOverlayOpenState: boolean = true;
 }
 
-export class ProjectConfigView implements vscode.WebviewViewProvider {
-  public view: vscode.WebviewView | undefined;
-  private needToClearHtml: boolean = false;
-  private treeData: any = [];
+export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
+  private _onDidChangeTreeData = new vscode.EventEmitter<ConfigItem | undefined | void>();
+  readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
+  private rootItems: ConfigItem[] = [];
   private projectConfigState: ProjectConfigState;
+  public treeView: vscode.TreeView<ConfigItem> | undefined;
 
-  path_icons = {
-    branch: 'folder-library',
-    leaf: 'folder-library',
-    open: 'folder-library',
-  };
-  fileActions = FILE_ADD_ACTION;
-  fileItemActions = FILE_DELETE_ACTION;
   constructor(public extensionPath: string, private context: vscode.ExtensionContext, private wsConfig: WorkspaceConfig) {
     this.projectConfigState = this.context.workspaceState.get("zephyr-ide.project-config-view-state") ?? new ProjectConfigState;
   }
@@ -62,521 +75,364 @@ export class ProjectConfigView implements vscode.WebviewViewProvider {
     await this.context.workspaceState.update("zephyr-ide.project-config-view-state", this.projectConfigState);
   }
 
-  /** Shared helper to generate file entry sub-items for config or overlay files. */
-  private generateFileEntries(
-    entry: any,
+  private makeFileChildren(
     projectName: string,
     buildName: string | undefined,
     files: string[],
     extraFiles: string[],
-    cmd: string,
+    removeCmd: string,
     label: string,
     extraLabel: string,
-    open: boolean | undefined
-  ) {
-    entry.subItems = [];
-    entry.open = open === undefined ? true : open;
-    const fileIcon = { branch: 'file', leaf: 'file', open: 'file' };
+  ): ConfigItem[] {
+    const level = buildName ? 'build' : 'project';
+    const type = removeCmd === 'removeKConfigFile' ? 'kconfig' : 'overlay';
+    const items: ConfigItem[] = [];
     for (const filename of files) {
-      entry.subItems.push({
-        icons: fileIcon, label,
-        value: { project: projectName, build: buildName, cmd, isExtra: false, filename },
-        actions: this.fileItemActions,
-        description: filename
-      });
+      const item = new ConfigItem(label, 'file', false, 'configFile', filename);
+      item.id = `config-file-${level}-${type}/${filename}`;
+      item.data = { project: projectName, build: buildName, fileCmd: removeCmd, isExtra: false, filename };
+      items.push(item);
     }
     for (const filename of extraFiles) {
-      entry.subItems.push({
-        icons: fileIcon, label: extraLabel,
-        value: { project: projectName, build: buildName, cmd, isExtra: true, filename },
-        actions: this.fileItemActions,
-        description: filename
-      });
+      const item = new ConfigItem(extraLabel, 'file', false, 'configFile', filename);
+      item.id = `config-file-${level}-${type}-extra/${filename}`;
+      item.data = { project: projectName, build: buildName, fileCmd: removeCmd, isExtra: true, filename };
+      items.push(item);
     }
-    return entry;
+    return items;
   }
 
-  generateOverlayFileEntry(entry: any, projectName: string, buildName: string | undefined, confFiles: ConfigFiles, open: boolean | undefined) {
-    if (confFiles === undefined) {
-      entry.subItems = [];
-      entry.open = open === undefined ? true : open;
-      return entry;
+  private makeConfigGroup(projectName: string, buildName: string | undefined, confFiles: ConfigFiles | undefined, isKConfig: boolean): ConfigItem {
+    const label = isKConfig ? "KConfig" : "DTC Overlay";
+    const icon = isKConfig ? "settings" : "circuit-board";
+    const level = buildName ? 'build' : 'project';
+    const type = isKConfig ? 'kconfig' : 'overlay';
+    const contextValue = isKConfig
+      ? (buildName ? 'configFileGroup.kconfig.build' : 'configFileGroup.kconfig.project')
+      : (buildName ? 'configFileGroup.overlay.build' : 'configFileGroup.overlay.project');
+
+    const group = new ConfigItem(label, icon, true, contextValue);
+    group.id = `config-${level}-${type}`;
+    group.data = { project: projectName, build: buildName };
+
+    if (confFiles) {
+      if (isKConfig) {
+        group.children = this.makeFileChildren(projectName, buildName, confFiles.config, confFiles.extraConfig, "removeKConfigFile", "Conf", "Extra Conf");
+      } else {
+        group.children = this.makeFileChildren(projectName, buildName, confFiles.overlay, confFiles.extraOverlay, "removeOverlayFile", "dtc", "Extra dtc");
+      }
+      for (const child of group.children) {
+        child.parent = group;
+      }
     }
-    return this.generateFileEntries(entry, projectName, buildName,
-      confFiles.overlay, confFiles.extraOverlay, "removeOverlayFile", "dtc", "Extra dtc", open);
+    // If no children, not collapsible
+    if (group.children.length === 0) {
+      group.collapsibleState = vscode.TreeItemCollapsibleState.None;
+    }
+    return group;
   }
 
-  generateConfigFileEntry(entry: any, projectName: string, buildName: string | undefined, confFiles: ConfigFiles, open: boolean | undefined) {
-    if (confFiles === undefined) {
-      entry.subItems = [];
-      entry.open = open === undefined ? true : open;
-      return entry;
+  /** Build the full tree structure from workspace config. */
+  private buildTree(): ConfigItem[] {
+    if (Object.keys(this.wsConfig.projects).length === 0) {
+      return [];
     }
-    return this.generateFileEntries(entry, projectName, buildName,
-      confFiles.config, confFiles.extraConfig, "removeKConfigFile", "Conf", "Extra Conf", open);
-  }
 
-  generateRunnerString(projectName: string, buildName: string, runner: RunnerConfig, open: boolean | undefined): any {
-    const entry = {
-      icons: {
-        branch: 'chip',
-        leaf: 'chip',
-        open: 'chip',
-      },
-      label: runner.name,
-      value: { project: projectName, build: buildName, runner: runner.name },
-      open: open === undefined ? true : open,
-      subItems: [
-        {
-          icons: {
-            branch: 'tools',
-            leaf: 'tools',
-            open: 'tools',
-          }, label: 'Runner', description: runner.runner
-        },
-        {
-          icons: {
-            branch: 'file-code',
-            leaf: 'file-code',
-            open: 'file-code',
-          }, label: 'Args', description: runner.args
+    if (this.wsConfig.activeProject === undefined) {
+      this.wsConfig.activeProject = Object.keys(this.wsConfig.projects)[0];
+    }
+
+    const resolvedProject = resolveActiveProject(this.wsConfig);
+    if (!resolvedProject) {
+      return [];
+    }
+
+    const activeProject = resolvedProject.project;
+    const resolved = resolveActiveProjectBuild(this.wsConfig);
+    const activeBuild = resolved?.build;
+    const activeRunner = resolved ? getResolvedRunnerConfig(this.wsConfig, resolved) : undefined;
+    const activeTest = getResolvedTestConfig(this.wsConfig, resolvedProject);
+
+    const items: ConfigItem[] = [];
+
+    // Project group
+    const projectItem = new ConfigItem(activeProject.name, 'folder', true, 'configProject');
+    projectItem.id = 'config-project';
+    projectItem.data = { project: activeProject.name };
+    projectItem.collapsibleState = this.projectConfigState.projectOpenState
+      ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
+
+    const mainItem = new ConfigItem('main', 'folder-library', false, 'configClickable');
+    mainItem.id = 'config-project/main';
+    mainItem.description = activeProject.rel_path;
+    mainItem.data = { project: activeProject.name };
+    mainItem.command = { command: 'zephyr-ide.config-view.open-main', title: 'Open main', arguments: [mainItem] };
+
+    const cmakeItem = new ConfigItem('CMake File', 'folder-library', false, 'configClickable');
+    cmakeItem.id = 'config-project/cmake';
+    cmakeItem.data = { project: activeProject.name };
+    cmakeItem.command = { command: 'zephyr-ide.config-view.open-cmake', title: 'Open CMakeLists', arguments: [cmakeItem] };
+
+    const projKConfig = this.makeConfigGroup(activeProject.name, undefined, activeProject.confFiles, true);
+    if (projKConfig.children.length > 0) {
+      projKConfig.collapsibleState = this.projectConfigState.projectKConfigOpenState
+        ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
+    }
+
+    const projOverlay = this.makeConfigGroup(activeProject.name, undefined, activeProject.confFiles, false);
+    if (projOverlay.children.length > 0) {
+      projOverlay.collapsibleState = this.projectConfigState.projectOverlayOpenState
+        ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
+    }
+
+    projectItem.children = [mainItem, cmakeItem, projKConfig, projOverlay];
+    for (const child of projectItem.children) {
+      child.parent = projectItem;
+    }
+    items.push(projectItem);
+
+    // Build group
+    if (activeBuild) {
+      const buildItem = new ConfigItem(activeBuild.name, 'project', true, 'configBuild');
+      buildItem.id = 'config-build';
+      buildItem.data = { project: activeProject.name, build: activeBuild.name };
+      buildItem.collapsibleState = this.projectConfigState.buildOpenState
+        ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
+
+      const boardItem = new ConfigItem('Board', 'circuit-board', false, 'configClickable');
+      boardItem.id = 'config-build/board';
+      boardItem.description = activeBuild.board + (activeBuild.revision ? '@' + activeBuild.revision : "");
+      boardItem.data = { project: activeProject.name, build: activeBuild.name };
+      boardItem.command = { command: 'zephyr-ide.config-view.open-board-dtc', title: 'Open Board DTS', arguments: [boardItem] };
+
+      const boardDirItem = new ConfigItem('Board Dir', 'file-submodule', false, undefined, activeBuild.relBoardSubDir);
+      boardDirItem.id = 'config-build/boarddir';
+
+      const buildKConfig = this.makeConfigGroup(activeProject.name, activeBuild.name, activeBuild.confFiles, true);
+      if (buildKConfig.children.length > 0) {
+        buildKConfig.collapsibleState = this.projectConfigState.buildKConfigOpenState
+          ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
+      }
+
+      const buildOverlay = this.makeConfigGroup(activeProject.name, activeBuild.name, activeBuild.confFiles, false);
+      if (buildOverlay.children.length > 0) {
+        buildOverlay.collapsibleState = this.projectConfigState.buildOverlayOpenState
+          ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
+      }
+
+      const westArgsItem = new ConfigItem('West Args', 'circuit-board', false, 'configClickable', activeBuild.westBuildArgs);
+      westArgsItem.id = 'config-build/westargs';
+      westArgsItem.data = { project: activeProject.name, build: activeBuild.name };
+      westArgsItem.command = { command: 'zephyr-ide.config-view.modify-build-args', title: 'Modify Build Args', arguments: [westArgsItem] };
+
+      const cmakeArgsItem = new ConfigItem('CMake Args', 'circuit-board', false, 'configClickable', activeBuild.westBuildCMakeArgs);
+      cmakeArgsItem.id = 'config-build/cmakeargs';
+      cmakeArgsItem.data = { project: activeProject.name, build: activeBuild.name };
+      cmakeArgsItem.command = { command: 'zephyr-ide.config-view.modify-build-args', title: 'Modify Build Args', arguments: [cmakeArgsItem] };
+
+      buildItem.children = [boardItem, boardDirItem, buildKConfig, buildOverlay, westArgsItem, cmakeArgsItem];
+      for (const child of buildItem.children) {
+        child.parent = buildItem;
+      }
+      items.push(buildItem);
+
+      // Runner group
+      if (activeRunner) {
+        const runnerItem = new ConfigItem(activeRunner.name, 'chip', true, 'configRunner');
+        runnerItem.id = 'config-runner';
+        runnerItem.data = { project: activeProject.name, build: activeBuild.name, runner: activeRunner.name };
+        runnerItem.collapsibleState = this.projectConfigState.runnerOpenState
+          ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
+
+        const runnerNameItem = new ConfigItem('Runner', 'tools', false, undefined, activeRunner.runner);
+        runnerNameItem.id = 'config-runner/name';
+        const runnerArgsItem = new ConfigItem('Args', 'file-code', false, undefined, activeRunner.args);
+        runnerArgsItem.id = 'config-runner/args';
+        runnerItem.children = [runnerNameItem, runnerArgsItem];
+        for (const child of runnerItem.children) {
+          child.parent = runnerItem;
         }
-      ]
-    };
-
-    return entry;
-  }
-
-
-  generateTwisterString(projectName: string, test: TwisterConfig, open: boolean | undefined): any {
-    const entry = {
-      icons: {
-        branch: 'beaker',
-        leaf: 'beaker',
-        open: 'beaker',
-      },
-      label: test.name,
-      value: { project: projectName, test: test.name },
-      open: open === undefined ? true : open,
-      subItems: [
-        {
-          icons: {
-            branch: 'tools',
-            leaf: 'tools',
-            open: 'tools',
-          }, label: 'platform', description: test.platform
-        },
-        {
-          icons: {
-            branch: 'file-code',
-            leaf: 'file-code',
-            open: 'file-code',
-          }, label: 'Tests', description: test.tests.join(', ')
-        },
-        {
-          icons: {
-            branch: 'file-code',
-            leaf: 'file-code',
-            open: 'file-code',
-          }, label: 'Args', description: test.args,
-          value: { project: projectName, test: test.name, cmd: "modifyTestArgs" },
-        }
-      ]
-    };
-    if (test.boardConfig) {
-      entry.subItems.push({
-        icons: {
-          branch: 'circuit-board',
-          leaf: 'circuit-board',
-          open: 'circuit-board',
-        }, label: 'Board', description: test.boardConfig.board + (test.boardConfig.revision ? '@' + test.boardConfig.revision : "")
-      });
-
-      entry.subItems.push({
-        icons: {
-          branch: 'symbol-string',
-          leaf: 'symbol-string',
-          open: 'symbol-string',
-        }, label: 'Port', description: test.serialPort ? test.serialPort : "",
-        value: { project: projectName, test: test.name, cmd: "modifyTestArgs" },
-      });
-      entry.subItems.push({
-        icons: {
-          branch: 'pulse',
-          leaf: 'pulse',
-          open: 'pulse',
-        }, label: 'Baud', description: test.serialBaud ? test.serialBaud : "",
-        value: { project: projectName, test: test.name, cmd: "modifyTestArgs" },
-      });
-
+        items.push(runnerItem);
+      }
     }
 
-    return entry;
-  }
+    // Twister group
+    if (activeTest) {
+      const twisterItem = new ConfigItem(activeTest.name, 'beaker', true, 'configTwister');
+      twisterItem.id = 'config-twister';
+      twisterItem.data = { project: activeProject.name, test: activeTest.name };
+      twisterItem.collapsibleState = this.projectConfigState.twisterOpenState
+        ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
 
+      const platformItem = new ConfigItem('platform', 'tools', false, undefined, activeTest.platform);
+      platformItem.id = 'config-twister/platform';
+      const testsItem = new ConfigItem('Tests', 'file-code', false, undefined, activeTest.tests.join(', '));
+      testsItem.id = 'config-twister/tests';
+      twisterItem.children = [platformItem, testsItem];
 
-  generateBuildString(projectName: string, build: BuildConfig, open: boolean | undefined, kConfigOpen: boolean | undefined, overlayOpen: boolean | undefined): any {
-    const buildData: any = {};
-    buildData['icons'] = {
-      branch: 'project',
-      leaf: 'project',
-      open: 'project',
-    };
-    buildData['label'] = build.name;
-    buildData['value'] = { project: projectName, build: build.name };
-    buildData['open'] = open === undefined ? true : open;
-    buildData['subItems'] = [
-      {
-        icons: {
-          branch: 'circuit-board',
-          leaf: 'circuit-board',
-          open: 'circuit-board',
-        },
-        value: { cmd: "openBoardDtc", project: projectName, build: build.name },
-        label: 'Board',
-        description: build.board + (build.revision ? '@' + build.revision : "")
-      },
-      {
-        icons: {
-          branch: 'file-submodule',
-          leaf: 'file-submodule',
-          open: 'file-submodule',
-        },
-        value: { cmd: "openBoardDir", project: projectName, build: build.name },
-        label: 'Board Dir',
-        description: build.relBoardSubDir,
-      },
-      {
-        icons: {
-          branch: 'settings',
-          leaf: 'settings',
-          open: 'settings',
-        },
-        actions: this.fileActions,
-        label: "KConfig",
-        value: { project: projectName, build: build.name, cmd: "addKConfigFile" },
-        open: true,
-        subItems: []
-      }, {
-        icons: {
-          branch: 'circuit-board',
-          leaf: 'circuit-board',
-          open: 'circuit-board',
-        },
-        actions: this.fileActions,
-        label: "DTC Overlay",
-        value: { project: projectName, build: build.name, cmd: "addOverlayFile" },
-        open: true,
-        subItems: []
-      }, {
-        icons: {
-          branch: 'circuit-board',
-          leaf: 'circuit-board',
-          open: 'circuit-board',
-        },
-        label: "West Args",
-        value: { project: projectName, build: build.name, cmd: "modifyBuildArgs" },
-        description: build.westBuildArgs,
-      }, {
-        icons: {
-          branch: 'circuit-board',
-          leaf: 'circuit-board',
-          open: 'circuit-board',
-        },
-        label: "CMake Args",
-        value: { project: projectName, build: build.name, cmd: "modifyBuildArgs" },
-        description: build.westBuildCMakeArgs,
-      },
-    ];
-    this.generateConfigFileEntry(buildData.subItems[2], projectName, build.name, build.confFiles, kConfigOpen);
-    this.generateOverlayFileEntry(buildData.subItems[3], projectName, build.name, build.confFiles, overlayOpen);
+      const argsItem = new ConfigItem('Args', 'file-code', false, 'configClickable', activeTest.args);
+      argsItem.id = 'config-twister/args';
+      argsItem.data = { project: activeProject.name, test: activeTest.name };
+      argsItem.command = { command: 'zephyr-ide.config-view.modify-test-args', title: 'Modify Test Args', arguments: [argsItem] };
+      twisterItem.children.push(argsItem);
 
-    return buildData;
-  }
+      if (activeTest.boardConfig) {
+        const boardItem = new ConfigItem('Board', 'circuit-board', false, undefined,
+          activeTest.boardConfig.board + (activeTest.boardConfig.revision ? '@' + activeTest.boardConfig.revision : ""));
+        boardItem.id = 'config-twister/board';
+        twisterItem.children.push(boardItem);
 
-  generateProjectString(project: ProjectConfig, open: boolean | undefined, kConfigOpen: boolean | undefined, overlayOpen: boolean | undefined): any {
-    const projectData: any = {};
-    projectData['icons'] = {
-      branch: 'folder',
-      leaf: 'file',
-      open: 'folder-opened',
-    };
-    projectData['label'] = project.name;
-    projectData['value'] = { project: project.name };
-    projectData['open'] = open === undefined ? true : open;
-    projectData['subItems'] = [
-      {
-        icons: this.path_icons,
-        label: 'main',
-        description: project.rel_path,
-        value: { cmd: "openMain", project: project.name },
-      },
-      {
-        icons: this.path_icons,
-        label: 'CMake File',
-        value: { cmd: "openCmakeFile", project: project.name },
-      },
-      {
-        icons: {
-          branch: 'settings',
-          leaf: 'settings',
-          open: 'settings',
-        },
-        actions: this.fileActions,
-        label: "KConfig",
-        value: { project: project.name, build: undefined, cmd: "addKConfigFile" },
-        open: true,
-        subItems: []
-      }, {
-        icons: {
-          branch: 'circuit-board',
-          leaf: 'circuit-board',
-          open: 'circuit-board',
-        },
-        actions: this.fileActions,
-        label: "DTC Overlay",
-        value: { project: project.name, build: undefined, cmd: "addOverlayFile" },
-        open: true,
-        subItems: []
-      },
-    ];
-    this.generateConfigFileEntry(projectData.subItems[2], project.name, undefined, project.confFiles, kConfigOpen);
-    this.generateOverlayFileEntry(projectData.subItems[3], project.name, undefined, project.confFiles, overlayOpen);
+        const portItem = new ConfigItem('Port', 'symbol-string', false, 'configClickable', activeTest.serialPort ?? "");
+        portItem.id = 'config-twister/port';
+        portItem.data = { project: activeProject.name, test: activeTest.name };
+        portItem.command = { command: 'zephyr-ide.config-view.modify-test-args', title: 'Modify Test Args', arguments: [portItem] };
+        twisterItem.children.push(portItem);
 
-    return projectData;
+        const baudItem = new ConfigItem('Baud', 'pulse', false, 'configClickable', activeTest.serialBaud ?? "");
+        baudItem.id = 'config-twister/baud';
+        baudItem.data = { project: activeProject.name, test: activeTest.name };
+        baudItem.command = { command: 'zephyr-ide.config-view.modify-test-args', title: 'Modify Test Args', arguments: [baudItem] };
+        twisterItem.children.push(baudItem);
+      }
+
+      for (const child of twisterItem.children) {
+        child.parent = twisterItem;
+      }
+      items.push(twisterItem);
+    }
+
+    return items;
   }
 
   updateWebView(wsConfig: WorkspaceConfig) {
-    if (Object.keys(wsConfig.projects).length === 0) {
-      const bodyString = '<vscode-label side-aligned="end">No Projects Registered In Workspace</vscode-label>';
-      this.setHtml(bodyString);
-      this.needToClearHtml = true;
+    this.rootItems = this.buildTree();
+    this._onDidChangeTreeData.fire();
+  }
+
+  getTreeItem(element: ConfigItem): vscode.TreeItem {
+    return element;
+  }
+
+  getChildren(element?: ConfigItem): ConfigItem[] {
+    if (!element) {
+      return this.rootItems;
+    }
+    return element.children;
+  }
+
+  getParent(element: ConfigItem): ConfigItem | undefined {
+    return element.parent;
+  }
+
+  /** Track expand/collapse changes from the TreeView events */
+  handleExpand(element: ConfigItem) {
+    this.updateStateFromElement(element, true);
+  }
+
+  handleCollapse(element: ConfigItem) {
+    this.updateStateFromElement(element, false);
+  }
+
+  private updateStateFromElement(element: ConfigItem, open: boolean) {
+    switch (element.contextValue) {
+      case 'configProject': this.projectConfigState.projectOpenState = open; break;
+      case 'configBuild': this.projectConfigState.buildOpenState = open; break;
+      case 'configRunner': this.projectConfigState.runnerOpenState = open; break;
+      case 'configTwister': this.projectConfigState.twisterOpenState = open; break;
+      case 'configFileGroup.kconfig.project': this.projectConfigState.projectKConfigOpenState = open; break;
+      case 'configFileGroup.overlay.project': this.projectConfigState.projectOverlayOpenState = open; break;
+      case 'configFileGroup.kconfig.build': this.projectConfigState.buildKConfigOpenState = open; break;
+      case 'configFileGroup.overlay.build': this.projectConfigState.buildOverlayOpenState = open; break;
+    }
+    void this.setProjectConfigState();
+  }
+
+  // Command handlers (called from registered commands in extension.ts)
+
+  async handleOpenBoardDtc(item: ConfigItem) {
+    const project = this.wsConfig.projects[item.data.project!];
+    if (!project || !item.data.build || !project.buildConfigs[item.data.build]) {
       return;
-    } else if (this.needToClearHtml) {
-      this.setHtml("");
     }
+    const build = project.buildConfigs[item.data.build];
 
-    if (wsConfig.activeProject === undefined) {
-      wsConfig.activeProject = Object.keys(wsConfig.projects)[0];
-    }
-    let activeProject;
-    let activeBuild;
-    let activeRunner;
-    let activeTest;
-
-    const resolvedProject = resolveActiveProject(wsConfig);
-    if (resolvedProject) {
-      activeProject = resolvedProject.project;
-
-      const resolved = resolveActiveProjectBuild(wsConfig);
-      activeBuild = resolved?.build;
-
-      if (resolved) {
-        activeRunner = getResolvedRunnerConfig(wsConfig, resolved);
-      }
-
-      activeTest = getResolvedTestConfig(wsConfig, resolvedProject);
-    }
-
-
-    if (this.treeData[0] !== undefined) {
-      this.projectConfigState.projectOpenState = (this.treeData[0].open !== undefined) ? this.treeData[0].open : this.projectConfigState.projectOpenState;
-      if (this.treeData[0].subItems !== undefined) {
-        if (this.treeData[0].subItems.length >= 4) {
-          this.projectConfigState.projectKConfigOpenState = this.treeData[0].subItems[2].open !== undefined ? this.treeData[0].subItems[2].open : this.projectConfigState.projectKConfigOpenState;
-          this.projectConfigState.projectOverlayOpenState = this.treeData[0].subItems[3].open !== undefined ? this.treeData[0].subItems[3].open : this.projectConfigState.projectOverlayOpenState;
-        }
-      }
-    }
-
-    if (this.treeData[1] !== undefined) {
-      this.projectConfigState.buildOpenState = this.treeData[1].open !== undefined ? this.treeData[1].open : this.projectConfigState.buildOpenState;
-      if (this.treeData[1].subItems !== undefined) {
-        if (this.treeData[1].subItems.length >= 4) {
-          this.projectConfigState.buildKConfigOpenState = this.treeData[1].subItems[2].open !== undefined ? this.treeData[1].subItems[2].open : this.projectConfigState.buildKConfigOpenState;
-          this.projectConfigState.buildOverlayOpenState = this.treeData[1].subItems[3].open !== undefined ? this.treeData[1].subItems[3].open : this.projectConfigState.buildOverlayOpenState;
-        }
-      }
-    }
-
-    if (this.treeData[2] !== undefined) {
-      this.projectConfigState.runnerOpenState = this.treeData[2].open !== undefined ? this.treeData[2].open : this.projectConfigState.runnerOpenState;
-    }
-
-    if (this.treeData[3] !== undefined) {
-      this.projectConfigState.twisterOpenState = this.treeData[3].open !== undefined ? this.treeData[3].open : this.projectConfigState.twisterOpenState;
-    }
-
-    if (activeProject) {
-      this.treeData[0] = this.generateProjectString(activeProject, this.projectConfigState.projectOpenState, this.projectConfigState.projectKConfigOpenState, this.projectConfigState.projectOverlayOpenState);
-      if (activeBuild) {
-        this.treeData[1] = this.generateBuildString(activeProject.name, activeBuild, this.projectConfigState.buildOpenState, this.projectConfigState.buildKConfigOpenState, this.projectConfigState.buildOverlayOpenState);
-        if (activeRunner) {
-          this.treeData[2] = this.generateRunnerString(activeProject.name, activeBuild?.name, activeRunner, this.projectConfigState.runnerOpenState);
-        } else {
-          this.treeData[2] = {};
-        }
-      } else {
-        this.treeData[1] = {};
-        this.treeData[2] = {};
-      }
-      if (activeTest) {
-        this.treeData[3] = this.generateTwisterString(activeProject.name, activeTest, this.projectConfigState.twisterOpenState);
-      } else {
-        this.treeData[3] = {};
-      }
+    let boardPath: string | undefined = undefined;
+    if (path.isAbsolute(build.relBoardSubDir)) {
+      boardPath = build.relBoardSubDir;
     } else {
-      this.treeData = [];
+      if (build.relBoardDir) {
+        boardPath = path.join(this.wsConfig.rootPath, build.relBoardDir, build.relBoardSubDir);
+      } else {
+        const setupState = await getSetupState(this.context, this.wsConfig);
+        if (setupState) {
+          boardPath = path.join(setupState.zephyrDir, 'boards', build.relBoardSubDir);
+        }
+      }
     }
 
-
-    if (this.view) {
-      this.view.webview.postMessage(this.treeData);
+    if (boardPath) {
+      const filePath = vscode.Uri.file(path.join(boardPath, build.board + ".dts"));
+      try {
+        const document = await vscode.workspace.openTextDocument(filePath);
+        await vscode.window.showTextDocument(document);
+      } catch {
+        outputInfo("Project Config", `Board DTS file not found: ${filePath.fsPath}`);
+      }
+      void setActive(this.context, this.wsConfig, item.data.project!, item.data.build);
     }
   }
 
-  setHtml(body: string) {
-    if (this.view !== undefined) {
-      this.view.webview.html = generateWebviewHtml(this.view, this.extensionPath, body, {
-        handlerJsPath: 'src/panels/project_config_view/ProjectConfigViewHandler.js',
-        treeElementHtml: '<vscode-tree id="project-config-tree" indent-guides arrows></vscode-tree>',
-        includeCSP: false,
-      });
-    }
-  };
+  async handleOpenMain(item: ConfigItem) {
+    const project = this.wsConfig.projects[item.data.project!];
+    const mainCPath = vscode.Uri.file(path.join(this.wsConfig.rootPath, project.rel_path, "src", "main.c"));
 
-  resolveWebviewView(webviewView: vscode.WebviewView, context: vscode.WebviewViewResolveContext, token: vscode.CancellationToken): void | Thenable<void> {
-    initWebviewView(
-      this, webviewView,
-      () => this.updateWebView(this.wsConfig),
-      (message) => this.handleMessage(message),
-      () => { this.setHtml(""); this.updateWebView(this.wsConfig); }
-    );
+    try {
+      const document = await vscode.workspace.openTextDocument(mainCPath);
+      await vscode.window.showTextDocument(document);
+    } catch {
+      try {
+        const mainCppPath = vscode.Uri.file(path.join(this.wsConfig.rootPath, project.rel_path, "src", "main.cpp"));
+        const document = await vscode.workspace.openTextDocument(mainCppPath);
+        await vscode.window.showTextDocument(document);
+      } catch {
+        outputInfo("Project Config", `Neither main.c nor main.cpp found in ${project.rel_path}/src`);
+      }
+    }
+    void setActive(this.context, this.wsConfig, item.data.project!);
   }
 
-  private async handleMessage(message: any) {
-    if (message.treeData) {
-      this.treeData = message.treeData;
-      void this.setProjectConfigState();
+  async handleOpenCmake(item: ConfigItem) {
+    const project = this.wsConfig.projects[item.data.project!];
+    const filePath = vscode.Uri.file(path.join(this.wsConfig.rootPath, project.rel_path, "CMakeLists.txt"));
+
+    try {
+      const document = await vscode.workspace.openTextDocument(filePath);
+      await vscode.window.showTextDocument(document);
+    } catch {
+      outputInfo("Project Config", `CMakeLists.txt not found in ${project.rel_path}`);
     }
+    void setActive(this.context, this.wsConfig, item.data.project!);
+  }
 
-    // Try shared handler first (covers: deleteProject, addBuild, deleteBuild, addRunner, deleteRunner, build, buildPristine, menuConfig, guiConfig, flash, setActive)
-    if (message.command && handleSharedProjectCommand(this.context, this.wsConfig, message.command, message.value, true)) {
-      return;
-    }
+  handleModifyBuildArgs(item: ConfigItem) {
+    void modifyBuildArguments(this.context, this.wsConfig, item.data.project!, item.data.build!).finally(() => { void vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
+    void setActive(this.context, this.wsConfig, item.data.project!, item.data.build!);
+  }
 
-    // Handle view-specific commands
-    switch (message.command) {
-      case "openBoardDtc": {
-        const project = this.wsConfig.projects[message.value.project];
-        if (!project || !project.buildConfigs[message.value.build]) {
-          return;
-        }
-        const build = project.buildConfigs[message.value.build];
+  handleModifyTestArgs(item: ConfigItem) {
+    void vscode.commands.executeCommand("zephyr-ide.reconfigure-active-test");
+    void setActive(this.context, this.wsConfig, item.data.project!);
+  }
 
+  handleAddFile(item: ConfigItem) {
+    const isKConfig = item.contextValue?.includes('kconfig') ?? false;
+    const isProjectLevel = !item.data.build;
+    void addConfigFiles(this.context, this.wsConfig, isKConfig, isProjectLevel, item.data.project!, item.data.build).finally(() => { void vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
+  }
 
-        let boardPath: string | undefined = undefined;
-        if (path.isAbsolute(build.relBoardSubDir)) {
-          boardPath = build.relBoardSubDir;
-        } else {
-          if (build.relBoardDir) {
-            //Custom Folder
-            boardPath = path.join(this.wsConfig.rootPath, build.relBoardDir, build.relBoardSubDir);
-          } else {
-            const setupState = await getSetupState(this.context, this.wsConfig);
-            if (setupState) {
-              //Default zephyr folder
-              boardPath = path.join(setupState.zephyrDir, 'boards', build.relBoardSubDir);
-            }
-          }
-        }
-
-        if (boardPath) {
-          const filePath = vscode.Uri.file(path.join(boardPath, build.board + ".dts"));
-
-          try {
-            const document = await vscode.workspace.openTextDocument(filePath);
-            await vscode.window.showTextDocument(document);
-          } catch {
-            outputInfo("Project Config", `Board DTS file not found: ${filePath.fsPath}`);
-          }
-          void setActive(this.context, this.wsConfig, message.value.project, message.value.build, message.value.runner);
-        }
-        break;
-      }
-      case "openMain": {
-        const project = this.wsConfig.projects[message.value.project];
-        const mainCPath = vscode.Uri.file(path.join(this.wsConfig.rootPath, project.rel_path, "src", "main.c"));
-
-        try {
-          const document = await vscode.workspace.openTextDocument(mainCPath);
-          await vscode.window.showTextDocument(document);
-        } catch {
-          try {
-            const mainCppPath = vscode.Uri.file(path.join(this.wsConfig.rootPath, project.rel_path, "src", "main.cpp"));
-            const document = await vscode.workspace.openTextDocument(mainCppPath);
-            await vscode.window.showTextDocument(document);
-          } catch {
-            outputInfo("Project Config", `Neither main.c nor main.cpp found in ${project.rel_path}/src`);
-          }
-        }
-
-        void setActive(this.context, this.wsConfig, message.value.project, message.value.build, message.value.runner);
-        break;
-      }
-      case "openCmakeFile": {
-        const project = this.wsConfig.projects[message.value.project];
-        const filePath = vscode.Uri.file(path.join(this.wsConfig.rootPath, project.rel_path, "CMakeLists.txt"));
-
-        try {
-          const document = await vscode.workspace.openTextDocument(filePath);
-          await vscode.window.showTextDocument(document);
-        } catch {
-          outputInfo("Project Config", `CMakeLists.txt not found in ${project.rel_path}`);
-        }
-        void setActive(this.context, this.wsConfig, message.value.project, message.value.build, message.value.runner);
-        break;
-      }
-      case "modifyBuildArgs": {
-        void modifyBuildArguments(this.context, this.wsConfig, message.value.project, message.value.build).finally(() => { void vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
-        void setActive(this.context, this.wsConfig, message.value.project, message.value.build, message.value.runner);
-        break;
-      }
-      case "modifyTestArgs": {
-        void vscode.commands.executeCommand("zephyr-ide.reconfigure-active-test");
-        void setActive(this.context, this.wsConfig, message.value.project, message.value.build, message.value.runner);
-        break;
-      }
-      case "addFile": {
-        switch (message.value.cmd) {
-          case "addOverlayFile": {
-            void addConfigFiles(this.context, this.wsConfig, false, !message.value.build, message.value.project, message.value.build).finally(() => { void vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
-            break;
-          }
-          case "addKConfigFile": {
-            void addConfigFiles(this.context, this.wsConfig, true, !message.value.build, message.value.project, message.value.build).finally(() => { void vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
-            break;
-          }
-        }
-        break;
-      }
-      case "deleteFile": {
-        switch (message.value.cmd) {
-          case "removeOverlayFile": {
-            void removeConfigFile(this.context, this.wsConfig, false, !message.value.build, message.value.project, !message.value.isExtra, [message.value.filename], message.value.build).finally(() => { void vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
-            break;
-          }
-          case "removeKConfigFile": {
-            void removeConfigFile(this.context, this.wsConfig, true, !message.value.build, message.value.project, !message.value.isExtra, [message.value.filename], message.value.build).finally(() => { void vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
-            break;
-          }
-        }
-        break;
-      }
-
-      default:
-        break;
-    }
+  handleDeleteFile(item: ConfigItem) {
+    const isKConfig = item.data.fileCmd === "removeKConfigFile";
+    const isProjectLevel = !item.data.build;
+    void removeConfigFile(this.context, this.wsConfig, isKConfig, isProjectLevel, item.data.project!, !item.data.isExtra, [item.data.filename!], item.data.build).finally(() => { void vscode.commands.executeCommand("zephyr-ide.update-web-view"); });
   }
 }
-

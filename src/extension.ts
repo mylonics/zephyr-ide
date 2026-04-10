@@ -19,11 +19,11 @@ import * as vscode from "vscode";
 import path from "upath";
 import * as fs from "fs";
 
-import { ActiveProjectView } from "./panels/active_project_view/ActiveProjectView";
-import { ProjectTreeView } from "./panels/project_tree_view/ProjectTreeView";
-import { ExtensionSetupView } from "./panels/extension_setup_view/ExtensionSetupView";
-import { WestWorkspaceView } from "./panels/west_workspace_view/WestWorkspaceView";
-import { ProjectConfigView } from "./panels/project_config_view/ProjectConfigView";
+import { ActiveProjectView } from "./tree_views/ActiveProjectView";
+import { ProjectTreeView, getUseGuiConfig } from "./tree_views/ProjectTreeView";
+import { ExtensionSetupView } from "./tree_views/ExtensionSetupView";
+import { WestWorkspaceView } from "./tree_views/WestWorkspaceView";
+import { ProjectConfigView } from "./tree_views/ProjectConfigView";
 import { SetupPanel } from "./panels/setup_panel/SetupPanel";
 import { HostToolInstallView } from "./panels/host_tool_install_view/HostToolInstallView";
 
@@ -141,6 +141,26 @@ function registerWebviewView(
   );
 }
 
+/** Register a native TreeDataProvider view and wire up expand/collapse handlers if present. */
+function registerTreeView<T>(
+  context: vscode.ExtensionContext,
+  viewId: string,
+  provider: vscode.TreeDataProvider<T> & { treeView?: vscode.TreeView<T>; handleExpand?(e: T): void; handleCollapse?(e: T): void },
+): vscode.TreeView<T> {
+  const tv = vscode.window.createTreeView(viewId, { treeDataProvider: provider });
+  context.subscriptions.push(tv);
+  if ('treeView' in provider) {
+    provider.treeView = tv;
+  }
+  if (provider.handleExpand) {
+    context.subscriptions.push(tv.onDidExpandElement(e => provider.handleExpand!(e.element)));
+  }
+  if (provider.handleCollapse) {
+    context.subscriptions.push(tv.onDidCollapseElement(e => provider.handleCollapse!(e.element)));
+  }
+  return tv;
+}
+
 /** Register a command that fires update-web-view after its action completes. */
 function registerCommandWithRefresh(
   context: vscode.ExtensionContext,
@@ -215,8 +235,8 @@ async function startDebugSession(
 
   const targetKeys: Record<string, { name: 'buildDebugTarget' | 'launchTarget' | 'attachTarget'; folder: 'buildDebugTargetFolder' | 'launchTargetFolder' | 'attachTargetFolder' }> = {
     'build-debug': { name: 'buildDebugTarget', folder: 'buildDebugTargetFolder' },
-    'debug':       { name: 'launchTarget',     folder: 'launchTargetFolder' },
-    'attach':      { name: 'attachTarget',     folder: 'attachTargetFolder' },
+    'debug': { name: 'launchTarget', folder: 'launchTargetFolder' },
+    'attach': { name: 'attachTarget', folder: 'attachTargetFolder' },
   };
 
   const keys = targetKeys[mode];
@@ -412,11 +432,115 @@ export async function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  registerWebviewView(context, "zephyrIdeActiveProject", activeProjectView);
-  registerWebviewView(context, "zephyrIdeProjects", projectTreeView);
-  registerWebviewView(context, "zephyrIdeProjectStatus", projectConfigView);
-  registerWebviewView(context, "zephyrIdeExtensionSetup", extensionSetupView);
-  registerWebviewView(context, "zephyrIdeWestWorkspaces", westWorkspaceView);
+  // -- Register native TreeViews --
+  const activeProjectTreeView = registerTreeView(context, "zephyrIdeActiveProject", activeProjectView);
+  registerTreeView(context, "zephyrIdeProjects", projectTreeView);
+  registerTreeView(context, "zephyrIdeProjectStatus", projectConfigView);
+  registerTreeView(context, "zephyrIdeExtensionSetup", extensionSetupView);
+  registerTreeView(context, "zephyrIdeWestWorkspaces", westWorkspaceView);
+
+  // -- ActiveProjectView inline action commands --
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.active-view.gui-config", (item: any) => {
+      void buildMenuConfig(context, wsConfig, MenuConfig.GuiConfig);
+    }),
+    vscode.commands.registerCommand("zephyr-ide.active-view.menu-config", (item: any) => {
+      void buildMenuConfig(context, wsConfig, MenuConfig.MenuConfig);
+    }),
+    vscode.commands.registerCommand("zephyr-ide.active-view.change-launch-target", (item: any) => {
+      if (item?.launchChangeCmd) {
+        void vscode.commands.executeCommand(item.launchChangeCmd);
+      }
+    }),
+    vscode.commands.registerCommand("zephyr-ide.active-view.clean-test-dirs", () => {
+      const resolved = resolveActiveProject(wsConfig, { caller: "Clean Test Dirs" });
+      if (resolved) {
+        deleteTestDirs(wsConfig, resolved.project);
+      }
+    }),
+  );
+
+  // -- WestWorkspaceView inline action commands --
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.west-workspace.activate", (item: any) => {
+      westWorkspaceView.handleActivate(item);
+    }),
+    vscode.commands.registerCommand("zephyr-ide.west-workspace.deselect", () => {
+      westWorkspaceView.handleDeselect();
+    }),
+    vscode.commands.registerCommand("zephyr-ide.west-workspace.delete", (item: any) => {
+      westWorkspaceView.handleDelete(item);
+    }),
+  );
+
+  // -- ProjectConfigView inline action + click commands --
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.config-view.open-board-dtc", (item: any) => {
+      projectConfigView.handleOpenBoardDtc(item);
+    }),
+    vscode.commands.registerCommand("zephyr-ide.config-view.open-main", (item: any) => {
+      projectConfigView.handleOpenMain(item);
+    }),
+    vscode.commands.registerCommand("zephyr-ide.config-view.open-cmake", (item: any) => {
+      projectConfigView.handleOpenCmake(item);
+    }),
+    vscode.commands.registerCommand("zephyr-ide.config-view.modify-build-args", (item: any) => {
+      projectConfigView.handleModifyBuildArgs(item);
+    }),
+    vscode.commands.registerCommand("zephyr-ide.config-view.modify-test-args", (item: any) => {
+      projectConfigView.handleModifyTestArgs(item);
+    }),
+    vscode.commands.registerCommand("zephyr-ide.config-view.add-file", (item: any) => {
+      projectConfigView.handleAddFile(item);
+    }),
+    vscode.commands.registerCommand("zephyr-ide.config-view.delete-file", (item: any) => {
+      projectConfigView.handleDeleteFile(item);
+    }),
+  );
+
+  // -- ProjectTreeView inline action commands --
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.tree-view.select", (item: any) => {
+      projectTreeView.handleSelect(item);
+    }),
+    vscode.commands.registerCommand("zephyr-ide.tree-view.add-build", (item: any) => {
+      projectTreeView.handleSharedCommand("addBuild", item);
+    }),
+    vscode.commands.registerCommand("zephyr-ide.tree-view.add-test", (item: any) => {
+      projectTreeView.handleAddTest(item);
+    }),
+    vscode.commands.registerCommand("zephyr-ide.tree-view.delete-project", (item: any) => {
+      projectTreeView.handleSharedCommand("deleteProject", item);
+    }),
+    vscode.commands.registerCommand("zephyr-ide.tree-view.build", (item: any) => {
+      projectTreeView.handleSharedCommand("build", item);
+    }),
+    vscode.commands.registerCommand("zephyr-ide.tree-view.build-pristine", (item: any) => {
+      projectTreeView.handleSharedCommand("buildPristine", item);
+    }),
+    vscode.commands.registerCommand("zephyr-ide.tree-view.config", (item: any) => {
+      const useGui = getUseGuiConfig();
+      projectTreeView.handleSharedCommand(useGui ? "guiConfig" : "menuConfig", item);
+    }),
+    vscode.commands.registerCommand("zephyr-ide.tree-view.add-runner", (item: any) => {
+      projectTreeView.handleSharedCommand("addRunner", item);
+    }),
+    vscode.commands.registerCommand("zephyr-ide.tree-view.delete-build", (item: any) => {
+      projectTreeView.handleSharedCommand("deleteBuild", item);
+    }),
+    vscode.commands.registerCommand("zephyr-ide.tree-view.flash", (item: any) => {
+      projectTreeView.handleSharedCommand("flash", item);
+    }),
+    vscode.commands.registerCommand("zephyr-ide.tree-view.delete-runner", (item: any) => {
+      projectTreeView.handleSharedCommand("deleteRunner", item);
+    }),
+    vscode.commands.registerCommand("zephyr-ide.tree-view.test", (item: any) => {
+      projectTreeView.handleTest(item);
+    }),
+    vscode.commands.registerCommand("zephyr-ide.tree-view.delete-test", (item: any) => {
+      projectTreeView.handleDeleteTest(item);
+    }),
+  );
 
   registerCommandWithRefresh(context, "zephyr-ide.set-active-runner",
     () => project.setActiveRunner(context, wsConfig));
@@ -613,15 +737,15 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   // Config/overlay file commands (data-driven to eliminate duplication)
-  const configFileCommands: Array<{cmd: string; fn: typeof project.addConfigFiles; isConfig: boolean; isProject: boolean}> = [
-    { cmd: "add-project-config-files",    fn: project.addConfigFiles,    isConfig: true,  isProject: true },
-    { cmd: "remove-project-config-files", fn: project.removeConfigFiles, isConfig: true,  isProject: true },
-    { cmd: "add-project-overlay-files",   fn: project.addConfigFiles,    isConfig: false, isProject: true },
-    { cmd: "remove-project-overlay-files",fn: project.removeConfigFiles, isConfig: false, isProject: true },
-    { cmd: "add-build-config-files",      fn: project.addConfigFiles,    isConfig: true,  isProject: false },
-    { cmd: "remove-build-config-files",   fn: project.removeConfigFiles, isConfig: true,  isProject: false },
-    { cmd: "add-build-overlay-files",     fn: project.addConfigFiles,    isConfig: false, isProject: false },
-    { cmd: "remove-build-overlay-files",  fn: project.removeConfigFiles, isConfig: false, isProject: false },
+  const configFileCommands: Array<{ cmd: string; fn: typeof project.addConfigFiles; isConfig: boolean; isProject: boolean }> = [
+    { cmd: "add-project-config-files", fn: project.addConfigFiles, isConfig: true, isProject: true },
+    { cmd: "remove-project-config-files", fn: project.removeConfigFiles, isConfig: true, isProject: true },
+    { cmd: "add-project-overlay-files", fn: project.addConfigFiles, isConfig: false, isProject: true },
+    { cmd: "remove-project-overlay-files", fn: project.removeConfigFiles, isConfig: false, isProject: true },
+    { cmd: "add-build-config-files", fn: project.addConfigFiles, isConfig: true, isProject: false },
+    { cmd: "remove-build-config-files", fn: project.removeConfigFiles, isConfig: true, isProject: false },
+    { cmd: "add-build-overlay-files", fn: project.addConfigFiles, isConfig: false, isProject: false },
+    { cmd: "remove-build-overlay-files", fn: project.removeConfigFiles, isConfig: false, isProject: false },
   ];
   for (const { cmd, fn, isConfig, isProject } of configFileCommands) {
     registerCommandWithRefresh(context, `zephyr-ide.${cmd}`,
@@ -952,6 +1076,7 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.update-web-view", async () => {
       activeProjectView.updateWebView(wsConfig);
+      activeProjectTreeView.title = activeProjectView.title;
       projectTreeView.updateWebView(wsConfig);
       projectConfigView.updateWebView(wsConfig);
       // Ensure the setup panel stays in sync as well
@@ -976,18 +1101,10 @@ export async function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  // Kick an initial refresh shortly after activation so views render even if no command ran yet
-  // Use multiple retry attempts to ensure webviews are loaded even if resolveWebviewView is delayed
-  const refreshAttempts = [500, 1000, 2000, 3000];
-  refreshAttempts.forEach((delay) => {
-    setTimeout(() => {
-      try {
-        void vscode.commands.executeCommand("zephyr-ide.update-web-view");
-      } catch (e) {
-        outputError("Extension", `Zephyr IDE: webview refresh at ${delay}ms failed: ${String(e)}`);
-      }
-    }, delay);
-  });
+  // Kick an initial refresh shortly after activation so views populate
+  setTimeout(() => {
+    void vscode.commands.executeCommand("zephyr-ide.update-web-view");
+  }, 500);
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.start-menu-config", async () => {
