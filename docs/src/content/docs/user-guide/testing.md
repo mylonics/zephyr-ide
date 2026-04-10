@@ -1,6 +1,6 @@
 ---
-title: Testing with Twister
-description: Run automated tests with Twister test framework integration. Configure test parameters, run multiple test configurations, and view results in the IDE for Zephyr test panel.
+title: Testing Zephyr Projects with Twister
+description: Run Zephyr Twister tests directly from VS Code. Configure test parameters, execute multiple test suites, and view results in the integrated test panel with IDE for Zephyr.
 ---
 
 The extension supports testing with twister. Look for the beaker icon to get started. Test configurations are handled similarly to build configurations.
