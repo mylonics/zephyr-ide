@@ -1,6 +1,6 @@
 ---
 title: External Environments
-description: Integrate IDE for Zephyr with externally managed environments. Works with Docker, DevContainer, manual installations, and existing Zephyr setups via ZEPHYR_BASE detection.
+description: Use IDE for Zephyr with Docker, DevContainers, CI/CD, or pre-installed Zephyr setups. Automatic ZEPHYR_BASE detection for externally managed embedded development environments.
 ---
 
 IDE for Zephyr automatically detects and works with externally managed Zephyr environments.

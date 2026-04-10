@@ -1,6 +1,6 @@
 ---
 title: Workspace Configuration
-description: Set up your Zephyr workspace with west integration. Import from Git, create standard workspace, or initialize current directory for Zephyr RTOS development.
+description: Set up a Zephyr west workspace in VS Code — clone from Git, create a standard workspace, use west.yml templates, or connect to an existing Zephyr installation with IDE for Zephyr.
 ---
 
 ![Unconfigured Workspace Panel](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/unconfigured_workspace_panel.png)

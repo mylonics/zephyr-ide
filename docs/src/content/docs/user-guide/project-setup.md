@@ -1,6 +1,6 @@
 ---
 title: Project Setup
-description: Learn how to set up Zephyr projects with multiple builds and configurations. Add existing projects, create from templates, and manage build configurations with IDE for Zephyr.
+description: Create and manage Zephyr RTOS projects in VS Code — add existing projects, create from templates, configure multiple builds per project, and manage board selections with IDE for Zephyr.
 ---
 
 To set up a project, the project panel provides the ability to add a preexisting project or to copy a sample project as a starting point.

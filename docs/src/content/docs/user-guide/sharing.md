@@ -1,6 +1,6 @@
 ---
-title: Sharing Code
-description: Learn best practices for sharing IDE for Zephyr projects with version control. Configure team workspaces, manage build configurations, and collaborate effectively.
+title: Sharing Zephyr Projects
+description: Best practices for sharing Zephyr RTOS projects with Git and version control. Manage team workspaces, commit configurations, and collaborate on embedded firmware projects with IDE for Zephyr.
 ---
 
 In general, you should commit everything in your workspace folder except for build directories, .venv, .vscode/compile_commands.json and external. A .gitignore is automatically generated that should exclude the relevant files.

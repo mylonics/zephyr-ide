@@ -1,19 +1,27 @@
 {
   "name": "zephyr-ide",
   "displayName": "IDE for Zephyr",
-  "description": "A VS Code extension that streamlines setup, build, flashing, and debugging of Zephyr Projects",
+  "description": "Streamline Zephyr RTOS development in VS Code — automated SDK installation, west workspace management, project building, flashing, and debugging for ARM, RISC-V, and more",
   "version": "2.4.0",
   "license": "Apache-2.0",
   "publisher": "mylonics",
   "icon": "media/logo.png",
   "keywords": [
     "zephyr",
-    "ide",
-    "vscode",
-    "extension",
-    "development environment",
-    "zephyr project",
-    "rtos"
+    "rtos",
+    "embedded",
+    "firmware",
+    "arm",
+    "risc-v",
+    "stm32",
+    "nrf",
+    "esp32",
+    "iot",
+    "west",
+    "sdk",
+    "devicetree",
+    "kconfig",
+    "cortex-debug"
   ],
   "engines": {
     "vscode": "^1.75.0"
@@ -22,7 +30,10 @@
     "type": "git",
     "url": "https://github.com/mylonics/zephyr-ide.git"
   },
+  "homepage": "https://zephyr-ide.mylonics.com",
   "categories": [
+    "Programming Languages",
+    "Debuggers",
     "Other"
   ],
   "activationEvents": [

@@ -1,6 +1,6 @@
 ---
 title: Known Issues
-description: Known issues with IDE for Zephyr including dev container WSL issues and workarounds. Learn how to report bugs and get help with Zephyr RTOS development.
+description: Known issues and workarounds for IDE for Zephyr, including dev container WSL path issues. How to report bugs and get help with the Zephyr RTOS VS Code extension.
 ---
 
 ## Dev containers with WSL and Windows folders

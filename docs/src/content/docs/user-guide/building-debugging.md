@@ -1,6 +1,6 @@
 ---
-title: Building & Debugging
-description: Build, flash, and debug Zephyr RTOS projects with cortex-debug integration. Set up launch configurations, use helper commands, and debug with ST-Link, Black Magic Probe, and OpenOCD.
+title: Building & Debugging Zephyr Projects
+description: Build, flash, and debug Zephyr RTOS firmware with Cortex-Debug, ST-Link, J-Link, Black Magic Probe, and OpenOCD integration in VS Code. One-click build and debug workflow.
 ---
 
 The project may now be built. This can be done with the Active Project Panel or Taskbar buttons. There are options to build pristine, build, flash and debug. The taskbar also displays the active project.
