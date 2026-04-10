@@ -89,13 +89,13 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
     const items: ConfigItem[] = [];
     for (const filename of files) {
       const item = new ConfigItem(label, 'file', false, 'configFile', filename);
-      item.id = `config-file-${level}-${type}/${filename}`;
+      item.id = `config-file-${level}-${type}.${filename.replace(/\//g, '.')}`;
       item.data = { project: projectName, build: buildName, fileCmd: removeCmd, isExtra: false, filename };
       items.push(item);
     }
     for (const filename of extraFiles) {
       const item = new ConfigItem(extraLabel, 'file', false, 'configFile', filename);
-      item.id = `config-file-${level}-${type}-extra/${filename}`;
+      item.id = `config-file-${level}-${type}-extra.${filename.replace(/\//g, '.')}`;
       item.data = { project: projectName, build: buildName, fileCmd: removeCmd, isExtra: true, filename };
       items.push(item);
     }
@@ -163,13 +163,13 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
       ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
 
     const mainItem = new ConfigItem('main', 'folder-library', false, 'configClickable');
-    mainItem.id = 'config-project/main';
+    mainItem.id = 'config-project.main';
     mainItem.description = activeProject.rel_path;
     mainItem.data = { project: activeProject.name };
     mainItem.command = { command: 'zephyr-ide.config-view.open-main', title: 'Open main', arguments: [mainItem] };
 
     const cmakeItem = new ConfigItem('CMake File', 'folder-library', false, 'configClickable');
-    cmakeItem.id = 'config-project/cmake';
+    cmakeItem.id = 'config-project.cmake';
     cmakeItem.data = { project: activeProject.name };
     cmakeItem.command = { command: 'zephyr-ide.config-view.open-cmake', title: 'Open CMakeLists', arguments: [cmakeItem] };
 
@@ -200,13 +200,13 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
         ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
 
       const boardItem = new ConfigItem('Board', 'circuit-board', false, 'configClickable');
-      boardItem.id = 'config-build/board';
+      boardItem.id = 'config-build.board';
       boardItem.description = activeBuild.board + (activeBuild.revision ? '@' + activeBuild.revision : "");
       boardItem.data = { project: activeProject.name, build: activeBuild.name };
       boardItem.command = { command: 'zephyr-ide.config-view.open-board-dtc', title: 'Open Board DTS', arguments: [boardItem] };
 
       const boardDirItem = new ConfigItem('Board Dir', 'file-submodule', false, undefined, activeBuild.relBoardSubDir);
-      boardDirItem.id = 'config-build/boarddir';
+      boardDirItem.id = 'config-build.boarddir';
 
       const buildKConfig = this.makeConfigGroup(activeProject.name, activeBuild.name, activeBuild.confFiles, true);
       if (buildKConfig.children.length > 0) {
@@ -221,12 +221,12 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
       }
 
       const westArgsItem = new ConfigItem('West Args', 'circuit-board', false, 'configClickable', activeBuild.westBuildArgs);
-      westArgsItem.id = 'config-build/westargs';
+      westArgsItem.id = 'config-build.westargs';
       westArgsItem.data = { project: activeProject.name, build: activeBuild.name };
       westArgsItem.command = { command: 'zephyr-ide.config-view.modify-build-args', title: 'Modify Build Args', arguments: [westArgsItem] };
 
       const cmakeArgsItem = new ConfigItem('CMake Args', 'circuit-board', false, 'configClickable', activeBuild.westBuildCMakeArgs);
-      cmakeArgsItem.id = 'config-build/cmakeargs';
+      cmakeArgsItem.id = 'config-build.cmakeargs';
       cmakeArgsItem.data = { project: activeProject.name, build: activeBuild.name };
       cmakeArgsItem.command = { command: 'zephyr-ide.config-view.modify-build-args', title: 'Modify Build Args', arguments: [cmakeArgsItem] };
 
@@ -245,9 +245,9 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
           ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
 
         const runnerNameItem = new ConfigItem('Runner', 'tools', false, undefined, activeRunner.runner);
-        runnerNameItem.id = 'config-runner/name';
+        runnerNameItem.id = 'config-runner.name';
         const runnerArgsItem = new ConfigItem('Args', 'file-code', false, undefined, activeRunner.args);
-        runnerArgsItem.id = 'config-runner/args';
+        runnerArgsItem.id = 'config-runner.args';
         runnerItem.children = [runnerNameItem, runnerArgsItem];
         for (const child of runnerItem.children) {
           child.parent = runnerItem;
@@ -265,13 +265,13 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
         ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
 
       const platformItem = new ConfigItem('platform', 'tools', false, undefined, activeTest.platform);
-      platformItem.id = 'config-twister/platform';
+      platformItem.id = 'config-twister.platform';
       const testsItem = new ConfigItem('Tests', 'file-code', false, undefined, activeTest.tests.join(', '));
-      testsItem.id = 'config-twister/tests';
+      testsItem.id = 'config-twister.tests';
       twisterItem.children = [platformItem, testsItem];
 
       const argsItem = new ConfigItem('Args', 'file-code', false, 'configClickable', activeTest.args);
-      argsItem.id = 'config-twister/args';
+      argsItem.id = 'config-twister.args';
       argsItem.data = { project: activeProject.name, test: activeTest.name };
       argsItem.command = { command: 'zephyr-ide.config-view.modify-test-args', title: 'Modify Test Args', arguments: [argsItem] };
       twisterItem.children.push(argsItem);
@@ -279,17 +279,17 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
       if (activeTest.boardConfig) {
         const boardItem = new ConfigItem('Board', 'circuit-board', false, undefined,
           activeTest.boardConfig.board + (activeTest.boardConfig.revision ? '@' + activeTest.boardConfig.revision : ""));
-        boardItem.id = 'config-twister/board';
+        boardItem.id = 'config-twister.board';
         twisterItem.children.push(boardItem);
 
         const portItem = new ConfigItem('Port', 'symbol-string', false, 'configClickable', activeTest.serialPort ?? "");
-        portItem.id = 'config-twister/port';
+        portItem.id = 'config-twister.port';
         portItem.data = { project: activeProject.name, test: activeTest.name };
         portItem.command = { command: 'zephyr-ide.config-view.modify-test-args', title: 'Modify Test Args', arguments: [portItem] };
         twisterItem.children.push(portItem);
 
         const baudItem = new ConfigItem('Baud', 'pulse', false, 'configClickable', activeTest.serialBaud ?? "");
-        baudItem.id = 'config-twister/baud';
+        baudItem.id = 'config-twister.baud';
         baudItem.data = { project: activeProject.name, test: activeTest.name };
         baudItem.command = { command: 'zephyr-ide.config-view.modify-test-args', title: 'Modify Test Args', arguments: [baudItem] };
         twisterItem.children.push(baudItem);

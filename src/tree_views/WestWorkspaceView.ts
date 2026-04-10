@@ -38,7 +38,7 @@ class WestWorkspaceItem extends vscode.TreeItem {
     public readonly contextId: WestWorkspaceItemContext,
   ) {
     super(label, vscode.TreeItemCollapsibleState.None);
-    this.id = `west:${installPath}`;
+    this.id = `west.${installPath.replace(/\//g, '.')}`;
     this.iconPath = new vscode.ThemeIcon(icon);
     this.description = description;
     this.tooltip = tooltip;
