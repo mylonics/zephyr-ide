@@ -331,13 +331,19 @@ export async function resolveConfigInputs(
             ? { label: opt }
             : { label: opt.label ?? opt.value, description: opt.label ? opt.value : undefined }
         );
-        // Pre-select the default option if specified
-        const defaultItem = def.default
-          ? items.find(item => item.label === def.default || item.description === def.default)
-          : undefined;
-        const picked = await vscode.window.showQuickPick(items, {
-          placeHolder: def.description,
-          ...(defaultItem ? { activeItems: [defaultItem] } : {}),
+        const picked = await new Promise<vscode.QuickPickItem | undefined>(resolve => {
+          const qp = vscode.window.createQuickPick();
+          qp.items = items;
+          qp.placeholder = def.description;
+          if (def.default) {
+            const defaultItem = items.find(item => item.label === def.default || item.description === def.default);
+            if (defaultItem) {
+              qp.activeItems = [defaultItem];
+            }
+          }
+          qp.onDidAccept(() => { resolve(qp.activeItems[0]); qp.dispose(); });
+          qp.onDidHide(() => { resolve(undefined); qp.dispose(); });
+          qp.show();
         });
         if (picked) {
           const match = rawOptions.find((opt: any) =>
