@@ -1,6 +1,6 @@
 {
   "name": "zephyr-ide",
-  "displayName": "Zephyr IDE",
+  "displayName": "IDE for Zephyr",
   "description": "A VS Code extension that streamlines setup, build, flashing, and debugging of Zephyr Projects",
   "version": "2.3.10",
   "license": "Apache-2.0",

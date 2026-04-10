@@ -1,6 +1,6 @@
 ---
 title: Installation
-description: Install the Zephyr IDE VS Code extension from Visual Studio Code marketplace or Open VSX Registry.
+description: Install the IDE for Zephyr VS Code extension from Visual Studio Code marketplace or Open VSX Registry.
 ---
 
 To get started, install the extension from [Visual Studio Code marketplace](https://marketplace.visualstudio.com/items?itemName=mylonics.zephyr-ide) or [Open VSX Registry](https://open-vsx.org/extension/mylonics/zephyr-ide)
@@ -16,4 +16,4 @@ After installation, you'll want to:
 
 You can also watch our video tutorials to get started quickly:
 
-[![Getting Started with Zephyr IDE](https://mylonics.com/assets/images/zephyr-ide/getting_started_thumbnail.png)](https://www.youtube.com/watch?v=Asfolnh9kqM&t "Getting Started with Zephyr IDE")
+[![Getting Started with IDE for Zephyr](https://mylonics.com/assets/images/zephyr-ide/getting_started_thumbnail.png)](https://www.youtube.com/watch?v=Asfolnh9kqM&t "Getting Started with IDE for Zephyr")

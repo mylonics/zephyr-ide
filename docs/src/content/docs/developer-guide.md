@@ -1,9 +1,9 @@
 ---
 title: Developer Guide
-description: Learn how to contribute to Zephyr IDE. Development setup, build instructions, testing, and guidelines for extending the VS Code extension for Zephyr RTOS.
+description: Learn how to contribute to IDE for Zephyr. Development setup, build instructions, testing, and guidelines for extending the VS Code extension for Zephyr RTOS.
 ---
 
-This guide covers the development setup for the Zephyr IDE VS Code extension.
+This guide covers the development setup for the IDE for Zephyr VS Code extension.
 
 ## Related Documentation
 
@@ -57,7 +57,7 @@ It is recommended that you run `npm install [-g]` again after switching git chec
 * Run the extension and start debugging:
     - Select 'Run'->'Start Debugging (F5)' from the top menu bar, or
     - Use the Run and Debug view, and click the green 'Start Debugging (F5)' button next to the configuration 'Run Extension (zephyr-ide)'
-* A separate VS Code instance will launch to allow you to start debugging the Zephyr IDE extension.
+* A separate VS Code instance will launch to allow you to start debugging the IDE for Zephyr extension.
 
 ---
 ## Publishing
