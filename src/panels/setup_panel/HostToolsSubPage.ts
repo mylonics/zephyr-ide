@@ -29,10 +29,10 @@ export class HostToolsSubPage {
         return `
         <div class="sub-page-content">
             <div class="sub-page-header">
-                <button class="back-button" onclick="navigateToOverview()">
-                    <span class="codicon codicon-chevron-left"></span>
+                <vscode-button appearance="secondary" onclick="navigateToOverview()">
+                    <vscode-icon slot="start-icon" name="chevron-left"></vscode-icon>
                     Back to Overview
-                </button>
+                </vscode-button>
                 <h2>Host Tools</h2>
             </div>
             
@@ -52,10 +52,10 @@ export class HostToolsSubPage {
                 <div class="action-section">
                     <h3>Quick Actions</h3>
                     <div class="button-group">
-                        <button class="button button-secondary" onclick="markToolsComplete()">
-                            <span class="codicon codicon-check"></span>
+                        <vscode-button appearance="secondary" onclick="markToolsComplete()">
+                            <vscode-icon slot="start-icon" name="check"></vscode-icon>
                             Mark Tools as Installed
-                        </button>
+                        </vscode-button>
                     </div>
                     <p class="help-text">
                         If you've already installed all required tools manually, you can mark them as complete to skip this step.

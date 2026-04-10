@@ -17,6 +17,9 @@
 		// "noUnusedParameters": true,  /* Report errors on unused parameters. */
 	},
 	"exclude": [
-		"docs"
+		"docs",
+		"src/panels/webview_shared",
+		"src/panels/host_tool_install_view/host-tool-install.ts",
+		"src/panels/setup_panel/setup-panel.ts"
 	]
 }

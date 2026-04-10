@@ -155,81 +155,64 @@ export class SetupPanel {
             Object.keys(this.currentGlobalConfig.setupStateDictionary).length > 0;
     }
 
+    // Command passthrough map: webview message command → VS Code command ID
+    private readonly commandPassthroughMap: Record<string, string> = {
+        openHostToolsPanel: "zephyr-ide.install-host-tools",
+        openFolder: "vscode.openFolder",
+        reinitializeWorkspace: "zephyr-ide.reset-workspace",
+        setupWestEnvironment: "zephyr-ide.setup-west-environment",
+        westInit: "zephyr-ide.west-init",
+        westUpdate: "zephyr-ide.west-update",
+        manageWorkspace: "zephyr-ide.manage-workspaces",
+        selectExistingWestWorkspace: "zephyr-ide.select-existing-west-workspace",
+        workspaceSetupFromGit: "zephyr-ide.workspace-setup-from-git",
+        workspaceSetupFromWestGit: "zephyr-ide.workspace-setup-from-west-git",
+        workspaceSetupStandard: "zephyr-ide.workspace-setup-standard",
+        workspaceSetupFromCurrentDirectory: "zephyr-ide.workspace-setup-from-current-directory",
+        workspaceSetupPicker: "zephyr-ide.workspace-setup-picker",
+        westConfig: "zephyr-ide.west-config",
+    };
+
     // Message Handler
     private handleWebviewMessage(message: any) {
+        // VS Code command passthroughs
+        const vsCommand = this.commandPassthroughMap[message.command];
+        if (vsCommand) {
+            this.executeVSCommand(vsCommand, "Setup Panel");
+            return;
+        }
+
+        // Host tools commands (unified names)
         switch (message.command) {
             case "navigateToPage":
                 this.navigateToPage(message.page);
                 return;
-            case "openHostToolsPanel":
-                this.openHostToolsPanel();
-                return;
             case "markToolsComplete":
                 this._hostToolsService.markComplete(this._context, this.currentWsConfig, this.currentGlobalConfig);
                 return;
-            case "checkHostToolsStatus":
+            case "hostToolsCheckStatus":
                 this._hostToolsService.checkStatus();
                 return;
-            case "installPackageManager":
+            case "hostToolsInstallPackageManager":
                 this._hostToolsService.installPackageManager();
                 return;
-            case "installPackage":
+            case "hostToolsInstallPackage":
                 this._hostToolsService.installSinglePackage(message.packageName);
                 return;
-            case "installAllMissingTools":
+            case "hostToolsInstallAllMissing":
                 this._hostToolsService.installAllMissing();
                 return;
-            case "installAllMissingToolsPackages":
+            case "hostToolsInstallAllMissingPackages":
                 this._hostToolsService.installAllMissingPackages(message.packageNames);
                 return;
-            case "openWingetLink":
+            case "hostToolsOpenManagerInstallUrl":
                 this._hostToolsService.openManagerInstallUrl();
-                return;
-            case "openFolder":
-                this.openFolder();
-                return;
-            case "reinitializeWorkspace":
-                this.reinitializeWorkspace();
                 return;
             case "installSDK":
                 this.installSDK();
                 return;
-            case "setupWestEnvironment":
-                this.setupWestEnvironment();
-                return;
-            case "westInit":
-                this.westInit();
-                return;
-            case "westUpdate":
-                this.westUpdate();
-                return;
-            case "manageWorkspace":
-                this.manageWorkspace();
-                return;
-            case "selectExistingWestWorkspace":
-                this.selectExistingWestWorkspace();
-                return;
             case "listSDKs":
                 this.listSDKs();
-                return;
-
-            case "workspaceSetupFromGit":
-                this.workspaceSetupFromGit();
-                return;
-            case "workspaceSetupFromWestGit":
-                this.workspaceSetupFromWestGit();
-                return;
-            case "workspaceSetupStandard":
-                this.workspaceSetupStandard();
-                return;
-            case "workspaceSetupFromCurrentDirectory":
-                this.workspaceSetupFromCurrentDirectory();
-                return;
-            case "workspaceSetupPicker":
-                this.workspaceSetupPicker();
-                return;
-            case "westConfig":
-                this.westConfig();
                 return;
             case "openWestYml":
                 this.openWestYml();
@@ -339,18 +322,6 @@ export class SetupPanel {
         }
     }
 
-    private async openHostToolsPanel() {
-        await this.executeVSCommand("zephyr-ide.install-host-tools", "Setup Panel");
-    }
-
-    private async openFolder() {
-        await this.executeVSCommand("vscode.openFolder", "Setup Panel");
-    }
-
-    private async reinitializeWorkspace() {
-        await this.executeVSCommand("zephyr-ide.reset-workspace", "Setup Panel");
-    }
-
     // SDK and West Management Methods
     private async installSDK() {
         try {
@@ -367,50 +338,6 @@ export class SetupPanel {
         } catch (error) {
             notifyError("SDK Install", `Failed to install west SDK: ${error}`);
         }
-    }
-
-    private async setupWestEnvironment() {
-        await this.executeVSCommand("zephyr-ide.setup-west-environment", "West Environment");
-    }
-
-    private async westInit() {
-        await this.executeVSCommand("zephyr-ide.west-init", "West Init");
-    }
-
-    private async westUpdate() {
-        await this.executeVSCommand("zephyr-ide.west-update", "West Update");
-    }
-
-    private async manageWorkspace() {
-        await this.executeVSCommand("zephyr-ide.manage-workspaces", "Setup Panel");
-    }
-
-    private async selectExistingWestWorkspace() {
-        await this.executeVSCommand("zephyr-ide.select-existing-west-workspace", "Setup Panel");
-    }
-
-    private async workspaceSetupFromGit() {
-        await this.executeVSCommand("zephyr-ide.workspace-setup-from-git", "Setup Panel");
-    }
-
-    private async workspaceSetupFromWestGit() {
-        await this.executeVSCommand("zephyr-ide.workspace-setup-from-west-git", "Setup Panel");
-    }
-
-    private async workspaceSetupStandard() {
-        await this.executeVSCommand("zephyr-ide.workspace-setup-standard", "Setup Panel");
-    }
-
-    private async workspaceSetupFromCurrentDirectory() {
-        await this.executeVSCommand("zephyr-ide.workspace-setup-from-current-directory", "Setup Panel");
-    }
-
-    private async workspaceSetupPicker() {
-        await this.executeVSCommand("zephyr-ide.workspace-setup-picker", "Setup Panel");
-    }
-
-    private async westConfig() {
-        await this.executeVSCommand("zephyr-ide.west-config", "West Config");
     }
 
     private async listSDKs() {
@@ -518,8 +445,8 @@ export class SetupPanel {
         const jsUri = this._panel.webview.asWebviewUri(
             vscode.Uri.joinPath(
                 vscode.Uri.file(this._extensionPath),
-                "src",
-                "panels",
+                "dist",
+                "webview",
                 "setup_panel",
                 "setup-panel.js"
             )

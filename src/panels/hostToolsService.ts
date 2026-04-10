@@ -30,24 +30,19 @@ import { saveSetupState } from '../setup_utilities/state-management';
 import { notifyError, notifyWarning } from '../utilities/output';
 
 /**
- * Maps the webview command names used for host tools messages.
- * HostToolInstallView uses short names; SetupPanel prefixes with "hostTools".
+ * Command names used for host tools messages between extension and webview.
+ * Both HostToolInstallView and SetupPanel use the same command names.
  */
-export interface HostToolsCommandNames {
-  updateStatus: string;
-  packageInstalling: string;
-  packageInstalled: string;
-  startInstallAll: string;
-  installAllStarted: string;
-  installAllComplete: string;
-  /** Optional: sent before installPackageManager starts. Omit to skip. */
-  installProgress?: string;
-  /** Optional: sent after installPackageManager finishes. Omit to skip. */
-  installComplete?: string;
-}
+export const HOST_TOOLS_COMMANDS = {
+  updateStatus: 'hostToolsUpdateStatus',
+  packageInstalling: 'hostToolsPackageInstalling',
+  packageInstalled: 'hostToolsPackageInstalled',
+  startInstallAll: 'hostToolsStartInstallAll',
+  installAllStarted: 'hostToolsInstallAllStarted',
+  installAllComplete: 'hostToolsInstallAllComplete',
+} as const;
 
 export interface HostToolsServiceConfig {
-  commands: HostToolsCommandNames;
   /** Label used in error/warning notifications (e.g. "Host Tools" or "Setup Panel") */
   errorLabel: string;
   /** Whether to re-check status after batch installing all packages */
@@ -60,16 +55,6 @@ export interface HostToolsServiceConfig {
 
 /** Pre-built config for HostToolInstallView */
 export const HOST_TOOL_INSTALL_VIEW_CONFIG: HostToolsServiceConfig = {
-  commands: {
-    updateStatus: 'updateStatus',
-    packageInstalling: 'packageInstalling',
-    packageInstalled: 'packageInstalled',
-    startInstallAll: 'startInstallAll',
-    installAllStarted: 'installAllStarted',
-    installAllComplete: 'installAllComplete',
-    installProgress: 'installProgress',
-    installComplete: 'installComplete',
-  },
   errorLabel: 'Host Tools',
   recheckAfterBatchInstall: false,
   markCompleteMessage: 'Host tools marked as installed. You can proceed with workspace setup.',
@@ -77,14 +62,6 @@ export const HOST_TOOL_INSTALL_VIEW_CONFIG: HostToolsServiceConfig = {
 
 /** Pre-built config for SetupPanel */
 export const SETUP_PANEL_CONFIG: HostToolsServiceConfig = {
-  commands: {
-    updateStatus: 'updateHostToolsStatus',
-    packageInstalling: 'hostToolsPackageInstalling',
-    packageInstalled: 'hostToolsPackageInstalled',
-    startInstallAll: 'hostToolsStartInstallAll',
-    installAllStarted: 'hostToolsInstallAllStarted',
-    installAllComplete: 'hostToolsInstallAllComplete',
-  },
   errorLabel: 'Setup Panel',
   recheckAfterBatchInstall: true,
   markCompleteMessage: 'Host tools marked as available.',
@@ -107,14 +84,14 @@ export class HostToolsService {
     try {
       const manager = await getPackageManagerForPlatformAsync();
       if (!manager) {
-        this.post(this.config.commands.updateStatus, { error: 'Unsupported platform' });
+        this.post(HOST_TOOLS_COMMANDS.updateStatus, { error: 'Unsupported platform' });
         return;
       }
 
       const managerAvailable = await checkPackageManagerAvailable();
       const packageStatuses = await checkAllPackages();
 
-      this.post(this.config.commands.updateStatus, {
+      this.post(HOST_TOOLS_COMMANDS.updateStatus, {
         data: {
           managerName: manager.name,
           managerAvailable,
@@ -123,16 +100,12 @@ export class HostToolsService {
         },
       });
     } catch (error) {
-      this.post(this.config.commands.updateStatus, { error: String(error) });
+      this.post(HOST_TOOLS_COMMANDS.updateStatus, { error: String(error) });
     }
   }
 
   async installPackageManager(): Promise<void> {
     try {
-      if (this.config.commands.installProgress) {
-        this.post(this.config.commands.installProgress, { message: 'Installing package manager...' });
-      }
-
       const success = await installPkgMgr();
 
       if (success) {
@@ -150,15 +123,8 @@ export class HostToolsService {
       } else {
         notifyError(this.config.errorLabel, 'Failed to install package manager. Check output for details.');
       }
-
-      if (this.config.commands.installComplete) {
-        this.post(this.config.commands.installComplete);
-      }
     } catch (error) {
       notifyError(this.config.errorLabel, `Package manager installation error: ${error}`);
-      if (this.config.commands.installComplete) {
-        this.post(this.config.commands.installComplete);
-      }
     }
   }
 
@@ -172,7 +138,7 @@ export class HostToolsService {
         return;
       }
 
-      this.post(this.config.commands.packageInstalling, {
+      this.post(HOST_TOOLS_COMMANDS.packageInstalling, {
         packageName,
         current: 1,
         total: 1,
@@ -184,7 +150,7 @@ export class HostToolsService {
       const installedPkg = packageStatuses.find(p => p.name === packageName);
       const pendingRestart = success && installedPkg && !installedPkg.available;
 
-      this.post(this.config.commands.packageInstalled, {
+      this.post(HOST_TOOLS_COMMANDS.packageInstalled, {
         packageName,
         success,
         pendingRestart,
@@ -210,7 +176,7 @@ export class HostToolsService {
 
   async installAllMissing(): Promise<void> {
     try {
-      this.post(this.config.commands.startInstallAll);
+      this.post(HOST_TOOLS_COMMANDS.startInstallAll);
     } catch (error) {
       notifyError(this.config.errorLabel, `Install all error: ${error}`);
     }
@@ -226,7 +192,7 @@ export class HostToolsService {
       const totalCount = packageNames.length;
       const packages = await getPlatformPackages();
 
-      this.post(this.config.commands.installAllStarted, { total: totalCount });
+      this.post(HOST_TOOLS_COMMANDS.installAllStarted, { total: totalCount });
 
       let installedCount = 0;
       let hasErrors = false;
@@ -234,7 +200,7 @@ export class HostToolsService {
       for (const packageName of packageNames) {
         const pkg = packages.find(p => p.name === packageName);
         if (pkg) {
-          this.post(this.config.commands.packageInstalling, {
+          this.post(HOST_TOOLS_COMMANDS.packageInstalling, {
             packageName: pkg.name,
             current: installedCount + 1,
             total: totalCount,
@@ -246,7 +212,7 @@ export class HostToolsService {
           const installedPkg = await checkPackageAvailable(pkg);
           const pendingRestart = success && !installedPkg.available;
 
-          this.post(this.config.commands.packageInstalled, {
+          this.post(HOST_TOOLS_COMMANDS.packageInstalled, {
             packageName: pkg.name,
             success,
             pendingRestart,
@@ -266,7 +232,7 @@ export class HostToolsService {
         .filter(p => justInstalledNames.has(p.name))
         .some(p => !p.available);
 
-      this.post(this.config.commands.installAllComplete, {
+      this.post(HOST_TOOLS_COMMANDS.installAllComplete, {
         needsRestart,
         hasErrors,
       });
@@ -286,7 +252,7 @@ export class HostToolsService {
       }
     } catch (error) {
       notifyError(this.config.errorLabel, `Batch installation error: ${error}`);
-      this.post(this.config.commands.installAllComplete, {
+      this.post(HOST_TOOLS_COMMANDS.installAllComplete, {
         needsRestart: false,
         hasErrors: true,
       });

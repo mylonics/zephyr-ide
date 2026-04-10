@@ -171,61 +171,7 @@ h2 {
     gap: 10px;
 }
 
-.button-group {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-}
-
-.button {
-    padding: 10px 20px;
-    border: none;
-    border-radius: 4px;
-    font-size: 13px;
-    cursor: pointer;
-    background-color: var(--vscode-button-secondaryBackground);
-    color: var(--vscode-button-secondaryForeground);
-    transition: background-color 0.2s;
-}
-
-.button:hover:not(:disabled) {
-    background-color: var(--vscode-button-secondaryHoverBackground);
-}
-
-.button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.button-primary {
-    background-color: var(--vscode-button-background);
-    color: var(--vscode-button-foreground);
-}
-
-.button-primary:hover:not(:disabled) {
-    background-color: var(--vscode-button-hoverBackground);
-}
-
-.button-secondary {
-    background-color: var(--vscode-button-secondaryBackground);
-    color: var(--vscode-button-secondaryForeground);
-}
-
-.button-small {
-    padding: 6px 12px;
-    font-size: 12px;
-}
-
-.button-danger {
-    background-color: rgba(255, 0, 0, 0.2);
-    color: var(--vscode-errorForeground);
-}
-
-.button-danger:hover:not(:disabled) {
-    background-color: rgba(255, 0, 0, 0.3);
-}
-
-.progress-message {
+.button-group {\n    display: flex;\n    gap: 10px;\n    flex-wrap: wrap;\n}\n\n.progress-message {
     text-align: center;
     padding: 15px;
     font-size: 14px;
