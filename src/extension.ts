@@ -1076,6 +1076,7 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.update-web-view", async () => {
       activeProjectView.updateWebView(wsConfig);
+      await activeProjectView.getChildren();
       activeProjectTreeView.title = activeProjectView.title;
       projectTreeView.updateWebView(wsConfig);
       projectConfigView.updateWebView(wsConfig);
