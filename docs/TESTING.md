@@ -1,6 +1,6 @@
-# Zephyr IDE Testing Guide
+# IDE for Zephyr Testing Guide
 
-This document describes the testing setup for the Zephyr IDE VS Code extension.
+This document describes the testing setup for the IDE for Zephyr VS Code extension.
 
 ## Test Overview
 
@@ -8,7 +8,7 @@ This document describes the testing setup for the Zephyr IDE VS Code extension.
 |-----------|------|-------------|----------|
 | **Standard Workspace** | `workspace-standard.test.ts` | Complete standard workspace workflow | Fresh workspace setup → SDK install → project creation → build |
 | **West Git Workspace** | `workspace-west-git.test.ts` | Git-based workspace using west manifest | West manifest repo → SDK install → project from git → custom board build |
-| **Zephyr IDE Git Workspace** | `workspace-zephyr-ide-git.test.ts` | Zephyr IDE specific git workflow | Zephyr IDE sample project → SDK install → build existing project |
+| **IDE for Zephyr Git Workspace** | `workspace-zephyr-ide-git.test.ts` | IDE for Zephyr specific git workflow | IDE for Zephyr sample project → SDK install → build existing project |
 | **Local West Workspace** | `workspace-local-west.test.ts` | Git repo with detected west.yml files | Git repo with west.yml → choose local west → build |
 | **External Zephyr Workspace** | `workspace-external-zephyr.test.ts` | Out-of-tree with existing Zephyr | Git repo without west.yml → use existing Zephyr → global install → build |
 
@@ -18,7 +18,7 @@ The testing infrastructure consists of:
 
 - **Standard Workspace Tests**: `src/test/workspace-standard.test.ts` - Complete standard workspace workflow (dependencies → setup → project → build)
 - **West Git Workspace Tests**: `src/test/workspace-west-git.test.ts` - Git-based workspace workflow using west manifest repositories
-- **Zephyr IDE Git Workspace Tests**: `src/test/workspace-zephyr-ide-git.test.ts` - Zephyr IDE specific git workspace setup workflow
+- **IDE for Zephyr Git Workspace Tests**: `src/test/workspace-zephyr-ide-git.test.ts` - IDE for Zephyr specific git workspace setup workflow
 - **Local West Workspace Tests**: `src/test/workspace-local-west.test.ts` - Workspace setup from git with detected west.yml files
 - **External Zephyr Workspace Tests**: `src/test/workspace-external-zephyr.test.ts` - Out-of-tree workspace setup with existing Zephyr installation
 - **UI Mock Interface**: `src/test/ui-mock-interface.ts` - Clean interface for mocking VS Code UI interactions
@@ -32,7 +32,7 @@ The testing infrastructure consists of:
 ## Test Workflows
 
 ### Standard Workspace Test (`workspace-standard.test.ts`)
-The standard workspace test validates the complete Zephyr IDE workflow:
+The standard workspace test validates the complete IDE for Zephyr workflow:
 
 1. **Check Dependencies**: Validates build dependencies
 2. **Setup Workspace**: Creates standard workspace with west configuration (minimal manifest, STM32 toolchain, v4.3.0)
@@ -50,10 +50,10 @@ The west git workspace test validates git-based workflow using west manifest rep
 4. **Configure Build**: Sets up build with custom board (custom_plank) from boards folder
 5. **Execute Build**: Runs the build process with custom board
 
-### Zephyr IDE Git Workspace Test (`workspace-zephyr-ide-git.test.ts`)
-The Zephyr IDE git workspace test validates Zephyr IDE specific git workflow:
+### IDE for Zephyr Git Workspace Test (`workspace-zephyr-ide-git.test.ts`)
+The IDE for Zephyr git workspace test validates IDE for Zephyr specific git workflow:
 
-1. **Setup Workspace**: Setup workspace from Zephyr IDE Git repository
+1. **Setup Workspace**: Setup workspace from IDE for Zephyr Git repository
 2. **Install SDK**: Installs SDK automatically
 3. **Execute Build**: Runs build on existing project structure
 
@@ -101,7 +101,7 @@ node scripts/run-integration-tests.js help
 # Run individual workspace tests (recommended for development)
 node scripts/run-integration-tests.js standard           # Standard workspace workflow
 node scripts/run-integration-tests.js west-git          # West git workspace workflow
-node scripts/run-integration-tests.js zephyr-ide-git    # Zephyr IDE git workspace workflow  
+node scripts/run-integration-tests.js zephyr-ide-git    # IDE for Zephyr git workspace workflow  
 node scripts/run-integration-tests.js local-west        # Local west workspace workflow
 node scripts/run-integration-tests.js external-zephyr   # External zephyr workspace workflow
 node scripts/run-integration-tests.js all               # All tests
@@ -131,7 +131,7 @@ npx vscode-test src/test/workspace-external-zephyr.test.ts
 The CI pipeline runs on Ubuntu with separate job steps:
 - Standard workspace workflow test
 - West git workspace workflow test
-- Zephyr IDE git workspace workflow test
+- IDE for Zephyr git workspace workflow test
 - Local west workspace workflow test
 - External zephyr workspace workflow test
 
@@ -219,7 +219,7 @@ test('West Git Workflow Feature', async function() {
 
 ### Other Workspace Tests
 
-- **Zephyr IDE Git Tests**: Add to `src/test/workspace-zephyr-ide-git.test.ts` for Zephyr IDE specific git workflows
+- **IDE for Zephyr Git Tests**: Add to `src/test/workspace-zephyr-ide-git.test.ts` for IDE for Zephyr specific git workflows
 - **Local West Tests**: Add to `src/test/workspace-local-west.test.ts` for local west.yml detection workflows  
 - **External Zephyr Tests**: Add to `src/test/workspace-external-zephyr.test.ts` for existing Zephyr installation workflows
 
@@ -270,8 +270,8 @@ Current test coverage includes:
 - ✅ Custom board build configuration (custom_plank)
 - ✅ Build execution with custom board
 
-### Zephyr IDE Git Workspace Test (`workspace-zephyr-ide-git.test.ts`)
-- ✅ Zephyr IDE git workspace setup
+### IDE for Zephyr Git Workspace Test (`workspace-zephyr-ide-git.test.ts`)
+- ✅ IDE for Zephyr git workspace setup
 - ✅ SDK installation (automatic version, ARM toolchain)
 - ✅ Build execution on existing project
 
@@ -309,7 +309,7 @@ node scripts/run-integration-tests.js standard
 # West git workspace (requires git connectivity)
 node scripts/run-integration-tests.js west-git
 
-# Zephyr IDE git workspace (Zephyr IDE specific workflow)
+# IDE for Zephyr git workspace (IDE for Zephyr specific workflow)
 node scripts/run-integration-tests.js zephyr-ide-git
 
 # Local west workspace (git repo with west.yml detection)

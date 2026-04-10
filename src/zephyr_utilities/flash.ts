@@ -62,7 +62,7 @@ export async function flash(context: vscode.ExtensionContext, wsConfig: Workspac
   }
   cmd += ` ${runner.args ?? ""}`;
 
-  const taskName = "Zephyr IDE Flash: " + project.name + " " + build.name;
+  const taskName = "IDE for Zephyr Flash: " + project.name + " " + build.name;
 
   outputInfo(`Flash: ${project.name}/${build.name}`, `Flashing ${build.name} from project: ${project.name} (cmd: ${cmd})`, true);
   const setupState = await getSetupStateOrNotify(context, wsConfig, "Flash");

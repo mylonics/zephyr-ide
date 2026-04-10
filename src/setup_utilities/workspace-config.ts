@@ -104,7 +104,7 @@ export async function loadProjectsFromFile(config: WorkspaceConfig) {
 
 export function setDefaultTerminal(configuration: vscode.WorkspaceConfiguration, target: vscode.ConfigurationTarget, platform_name: string, force: boolean) {
   if (force || !configuration.inspect('terminal.integrated.defaultProfile.' + platform_name)?.workspaceValue) {
-    configuration.update('terminal.integrated.defaultProfile.' + platform_name, "Zephyr IDE Terminal", target, false);
+    configuration.update('terminal.integrated.defaultProfile.' + platform_name, "IDE for Zephyr Terminal", target, false);
   }
 }
 
@@ -206,7 +206,7 @@ export async function migrateToolsDirectory(): Promise<void> {
     await configuration.update("zephyr-ide.global_directory", toolsDir, vscode.ConfigurationTarget.Global);
     await configuration.update("zephyr-ide.tools_directory", undefined, vscode.ConfigurationTarget.Global);
     void vscode.window.showInformationMessage(
-      `Zephyr IDE: 'zephyr-ide.tools_directory' has been automatically migrated to 'zephyr-ide.global_directory' (${toolsDir}).`
+      `IDE for Zephyr: 'zephyr-ide.tools_directory' has been automatically migrated to 'zephyr-ide.global_directory' (${toolsDir}).`
     );
   }
 }

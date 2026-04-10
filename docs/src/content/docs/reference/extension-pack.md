@@ -1,9 +1,9 @@
 ---
 title: Extension Pack
-description: Install the Zephyr IDE Extension Pack with Cortex-Debug, C/C++ IntelliSense, Serial Monitor, Devicetree LSP, and CMake support for comprehensive Zephyr development.
+description: Install the IDE for Zephyr Extension Pack with Cortex-Debug, C/C++ IntelliSense, Serial Monitor, Devicetree LSP, and CMake support for comprehensive Zephyr development.
 ---
 
-The Zephyr IDE Extension also integrates with a handful of extensions and is released as an [extension pack](https://marketplace.visualstudio.com/items?itemName=mylonics.zephyr-ide-extension-pack). With the extension pack, C++ and DeviceTree intellisense is available. A Kconfig GUI is also available.
+The IDE for Zephyr Extension also integrates with a handful of extensions and is released as an [extension pack](https://marketplace.visualstudio.com/items?itemName=mylonics.zephyr-ide-extension-pack). With the extension pack, C++ and DeviceTree intellisense is available. A Kconfig GUI is also available.
 
 ## Included Extensions
 
@@ -34,7 +34,7 @@ You can install the extension pack from:
 - [Visual Studio Code Marketplace](https://marketplace.visualstudio.com/items?itemName=mylonics.zephyr-ide-extension-pack)
 - [Open VSX Registry](https://open-vsx.org/extension/mylonics/zephyr-ide-extension-pack)
 
-Or search for "Zephyr IDE Extension Pack" in the VS Code Extensions view.
+Or search for "IDE for Zephyr Extension Pack" in the VS Code Extensions view.
 
 ## Benefits
 

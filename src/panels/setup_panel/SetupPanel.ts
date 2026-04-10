@@ -64,7 +64,7 @@ export class SetupPanel {
 
         const panel = vscode.window.createWebviewPanel(
             "zephyrIDESetup",
-            "Zephyr IDE Setup Panel",
+            "IDE for Zephyr Setup Panel",
             column || vscode.ViewColumn.One,
             {
                 enableScripts: true,
@@ -468,7 +468,7 @@ export class SetupPanel {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Zephyr IDE Setup & Configuration</title>
+            <title>IDE for Zephyr Setup & Configuration</title>
             ${this.getStylesheetLinks()}
         </head>
         <body${autoNavigateTo ? ` data-auto-navigate="${autoNavigateTo}"` : ''}>
@@ -537,7 +537,7 @@ export class SetupPanel {
         return `
         <div class="overview-section">
             <div class="walkthrough-header">
-                <h1 class="walkthrough-title">Zephyr IDE Setup & Configuration</h1>
+                <h1 class="walkthrough-title">IDE for Zephyr Setup & Configuration</h1>
                 <p class="walkthrough-subtitle">Configure your development environment</p>
             </div>
             
@@ -559,7 +559,7 @@ export class SetupPanel {
                     <p class="help-text">Click any card above to configure that component.</p>
                     
                     <h3 style="margin-top: 24px;">Documentation & Help</h3>
-                    <p>Learn more about using Zephyr IDE:</p>
+                    <p>Learn more about using IDE for Zephyr:</p>
                     <ul class="help-links">
                         <li><a href="https://github.com/mylonics/zephyr-ide/blob/main/README.md" class="external-link">📖 Extension Documentation</a></li>
                         <li><a href="https://docs.zephyrproject.org/latest/develop/getting_started/index.html" class="external-link">🚀 Zephyr Getting Started Guide</a></li>

@@ -1,14 +1,14 @@
-# Zephyr IDE for VS Code
+# IDE for Zephyr (VS Code Extension)
 
-<img src="https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/zephyr-ide_branding.png" alt="Zephyr IDE for Visual Studio Code" width="50%"/>
+<img src="https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/zephyr-ide_branding.png" alt="IDE for Zephyr - Visual Studio Code Extension" width="50%"/>
 
-The Zephyr IDE for VS Code extension provides tools to assist in your Zephyr project development workflow. This extension helps you build Zephyr projects and share them with your team.
+The IDE for Zephyr extension for VS Code provides tools to assist in your Zephyr project development workflow. This extension helps you build Zephyr projects and share them with your team.
 
 An [extension pack](https://marketplace.visualstudio.com/items?itemName=mylonics.zephyr-ide-extension-pack) is available that bundles in additional tools.
 
 You can read a little bit more about the motivation behind the project [here](https://mylonics.com/blog/zephyr-ide-for-vscode/).
 
-![Zephyr IDE Setup Panel](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/setup_panel.png)
+![IDE for Zephyr Setup Panel](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/setup_panel.png)
 
 ## Features
   - Installs host tools required for Zephyr development
@@ -33,7 +33,7 @@ You can read a little bit more about the motivation behind the project [here](ht
 
 ## Externally Managed Environments
 
-Zephyr IDE automatically detects and works with externally managed Zephyr environments:
+IDE for Zephyr automatically detects and works with externally managed Zephyr environments:
 
 - Automatic detection via `ZEPHYR_BASE` environment variable
 - No setup required when using Docker, DevContainers, or pre-configured environments
@@ -55,9 +55,9 @@ The [User Manual](https://zephyr-ide.mylonics.com/) is available online, or you 
 
 You can also watch our video tutorials:
 
-[![Getting Started with Zephyr IDE](https://mylonics.com/assets/images/zephyr-ide/getting_started_thumbnail.png)](https://www.youtube.com/watch?v=Asfolnh9kqM&t "Getting Started with Zephyr IDE")
+[![Getting Started with IDE for Zephyr](https://mylonics.com/assets/images/zephyr-ide/getting_started_thumbnail.png)](https://www.youtube.com/watch?v=Asfolnh9kqM&t "Getting Started with IDE for Zephyr")
 
-[![STM32 Board Setup And Debugging with Zephyr IDE](https://mylonics.com/assets/images/zephyr-ide/board_setup_thumbnail.png)](https://www.youtube.com/watch?v=TXcTzyswBMQ)
+[![STM32 Board Setup And Debugging with IDE for Zephyr](https://mylonics.com/assets/images/zephyr-ide/board_setup_thumbnail.png)](https://www.youtube.com/watch?v=TXcTzyswBMQ)
 
 You can have a look at this [sample directory](https://github.com/mylonics/zephyr-ide-sample-project) to also help with getting started and sharing project.
 
@@ -70,7 +70,7 @@ For installation on unsupported platforms, install the required packages from th
 
 ## Testing
 
-This extension includes integration tests that validate the Zephyr IDE workflow. For more details, see [docs/TESTING.md](docs/TESTING.md).
+This extension includes integration tests that validate the IDE for Zephyr workflow. For more details, see [docs/TESTING.md](docs/TESTING.md).
 
 ## Known Issues
 - **Dev containers with WSL and Windows folders**: When using dev containers in a WSL environment, ensure your workspace folder is located within the Ubuntu file system (e.g., `/home/username/project`) rather than in mounted Windows directories (e.g., `/mnt/c/Users/...`). This is an issue inherent with the west boards command.
@@ -80,6 +80,6 @@ See [CHANGELOG](CHANGELOG.md) for release notes
 
 ## Development and Debugging
 
-See the [Zephyr IDE for VS Code Developer's Guide](https://zephyr-ide.mylonics.com/developer-guide/) for development and debugging instructions.
+See the [IDE for Zephyr Developer's Guide](https://zephyr-ide.mylonics.com/developer-guide/) for development and debugging instructions.
 
 ---

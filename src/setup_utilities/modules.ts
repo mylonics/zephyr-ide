@@ -82,7 +82,7 @@ export async function getModuleList(setupState: SetupState) {
   const modules = await executeWestList(setupState);
 
   if (modules.length === 0) {
-    notifyError("West Modules", "Failed to run west list command. Check the Zephyr IDE output for details.");
+    notifyError("West Modules", "Failed to run west list command. Check the IDE for Zephyr output for details.");
     return outputList;
   }
 
@@ -161,7 +161,7 @@ export async function getModulePathAndVersion(setupState: SetupState, moduleName
   const westOutput = await executeWestList(setupState);
   
   if (westOutput.length === 0) {
-    notifyError("West Modules", "Failed to run west list command. Check the Zephyr IDE output for details.");
+    notifyError("West Modules", "Failed to run west list command. Check the IDE for Zephyr output for details.");
     return;
   }
 

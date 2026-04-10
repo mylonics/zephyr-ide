@@ -320,7 +320,7 @@ export async function getLaunchConfigurations(wsConfig: WorkspaceConfig) {
 }
 
 
-export const output = vscode.window.createOutputChannel("Zephyr IDE");
+export const output = vscode.window.createOutputChannel("IDE for Zephyr");
 
 // Initialize output channel for dual logging
 setOutputChannel(output);
@@ -516,7 +516,7 @@ export function reloadEnvironmentVariables(context: vscode.ExtensionContext, set
   if (process.env.ZEPHYR_SDK_INSTALL_DIR) {
     context.environmentVariableCollection.description = "Using user-defined `ZEPHYR_SDK_INSTALL_DIR`";
   } else {
-    context.environmentVariableCollection.description = "Zephyr IDE adds `ZEPHYR_SDK_INSTALL_DIR`";
+    context.environmentVariableCollection.description = "IDE for Zephyr adds `ZEPHYR_SDK_INSTALL_DIR`";
     context.environmentVariableCollection.replace("ZEPHYR_SDK_INSTALL_DIR", getToolchainDir(), { applyAtProcessCreation: true, applyAtShellIntegration: true });
   }
 

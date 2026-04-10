@@ -60,7 +60,7 @@ export function generateWebviewHtml(
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Zephyr IDE</title>
+      <title>IDE for Zephyr</title>
       <link rel="stylesheet" href="${assetUri('node_modules/@vscode/codicons/dist/codicon.css')}"  id="vscode-codicon-stylesheet">
       <link rel="stylesheet" href="${assetUri('src/panels/view.css')}">
       ${cspMeta}

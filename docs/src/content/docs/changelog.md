@@ -1,6 +1,6 @@
 ---
 title: Changelog
-description: Release history and change notes for Zephyr IDE VS Code extension.
+description: Release history and change notes for IDE for Zephyr VS Code extension.
 ---
 
 All notable changes to this project are documented in the [CHANGELOG.md](https://github.com/mylonics/zephyr-ide/blob/main/CHANGELOG.md) file.

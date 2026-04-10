@@ -103,7 +103,7 @@ export async function buildHelper(
     }
     return await build(context, wsConfig, project, project.buildConfigs[buildName], pristine);
   } else {
-    notifyError("Build", "Run `Zephyr IDE: West Update` command first.");
+    notifyError("Build", "Run `IDE for Zephyr: West Update` command first.");
   }
 }
 
@@ -194,7 +194,7 @@ export async function build(
   }
 
 
-  const taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
+  const taskName = "IDE for Zephyr Build: " + project.name + " " + build.name;
 
   outputInfo(`Build: ${project.name}/${build.name}`, `Building ${build.name} from project: ${project.name} (cmd: ${cmd})`, true);
   const ret = await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState.setupPath);
@@ -232,7 +232,7 @@ export async function buildMenuConfig(
   }
 
   const cmd = `west build -t ${config === MenuConfig.MenuConfig ? "menuconfig" : "guiconfig"} "${projectFolder}" --build-dir "${buildFolder}" `;
-  const taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
+  const taskName = "IDE for Zephyr Build: " + project.name + " " + build.name;
 
   outputInfo(`MenuConfig: ${project.name}/${build.name}`, `Running MenuConfig ${build.name} from project: ${project.name} (cmd: ${cmd})`, true);
   const setupState = await getSetupStateOrNotify(context, wsConfig, "Menu Config");
@@ -290,7 +290,7 @@ export async function buildRamRomReport(
   const params = await resolveRamRomReportParams(context, wsConfig, isRamReport, project, build);
   if (!params) { return; }
 
-  const taskName = "Zephyr IDE Build: " + params.project.name + " " + params.build.name;
+  const taskName = "IDE for Zephyr Build: " + params.project.name + " " + params.build.name;
   outputInfo(`${isRamReport ? "RAM" : "ROM"} Report: ${params.project.name}/${params.build.name}`, `Running ${isRamReport ? "RAM" : "ROM"} Report ${params.build.name} from project: ${params.project.name} (cmd: ${params.cmd})`, true);
   await executeTaskHelperInPythonEnv(params.setupState, taskName, params.cmd, params.setupState.setupPath);
   await regenerateCompileCommands(wsConfig);
@@ -336,7 +336,7 @@ export async function runDtshShell(
 
   const cmd = `dtsh "${path.join(getBuildFolder(wsConfig, project, build), 'zephyr', 'zephyr.dts')}" `;
 
-  const taskName = "Zephyr IDE DTSH Shell: " + project.name + " " + build.name;
+  const taskName = "IDE for Zephyr DTSH Shell: " + project.name + " " + build.name;
 
   outputInfo(`DTSH Shell: ${project.name}/${build.name}`, `Running DTSH Shell ${build.name} from project: ${project.name} (cmd: ${cmd})`, true);
   const setupState = await getSetupStateOrNotify(context, wsConfig, "DTSH Shell");

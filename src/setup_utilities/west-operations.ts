@@ -116,7 +116,7 @@ export async function westInit(context: vscode.ExtensionContext, wsConfig: Works
   const westInited = await checkWestInit(setupState);
 
   if (westInited) {
-    const selection = await notifyWarningWithActions('West Init', 'Zephyr IDE: West already initialized. Call West Update instead. If you would like to reinitialize the .west folder will be deleted', ['Reinitialize', 'Cancel']);
+    const selection = await notifyWarningWithActions('West Init', 'IDE for Zephyr: West already initialized. Call West Update instead. If you would like to reinitialize the .west folder will be deleted', ['Reinitialize', 'Cancel']);
     if (selection !== 'Reinitialize') {
       return true;
     }
@@ -158,10 +158,10 @@ export async function westInit(context: vscode.ExtensionContext, wsConfig: Works
     }
 
     setupState.zephyrDir = "";
-    westInitRes = await executeTaskHelperInPythonEnv(setupState, "Zephyr IDE: West Init", cmd, setupState.setupPath);
+    westInitRes = await executeTaskHelperInPythonEnv(setupState, "IDE for Zephyr: West Init", cmd, setupState.setupPath);
 
     if (!westInitRes) {
-      notifyError("West Init", "West Init Failed. Check the Zephyr IDE output for details.", { command: cmd });
+      notifyError("West Init", "West Init Failed. Check the IDE for Zephyr output for details.", { command: cmd });
     } else {
       // Validate .west/config manifest section after init to prevent
       // "manifest file not found: None" errors during subsequent west commands.
@@ -207,10 +207,10 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
     useNarrowUpdate = true;
   }
   const cmd = useNarrowUpdate ? 'west update --narrow' : 'west update';
-  const westUpdateRes = await executeTaskHelperInPythonEnv(setupState, "Zephyr IDE: West Update", cmd, setupState.setupPath);
+  const westUpdateRes = await executeTaskHelperInPythonEnv(setupState, "IDE for Zephyr: West Update", cmd, setupState.setupPath);
 
   if (!westUpdateRes) {
-    notifyError("West Update", "West Update Failed. Check the Zephyr IDE output for details.", { command: cmd });
+    notifyError("West Update", "West Update Failed. Check the IDE for Zephyr output for details.", { command: cmd });
   } else {
     setupState.westUpdated = true;
     const zephyrModuleInfo = await getModulePathAndVersion(setupState, "zephyr");
@@ -252,12 +252,12 @@ export async function installPythonRequirements(context: vscode.ExtensionContext
   const westInited = await checkWestInit(setupState);
 
   if (!westInited) {
-    notifyError('Python Requirements', 'Zephyr IDE: West is not initialized. Call West Init First');
+    notifyError('Python Requirements', 'IDE for Zephyr: West is not initialized. Call West Init First');
     return false;
   }
 
   if (!setupState.westUpdated) {
-    notifyError('Python Requirements', 'Zephyr IDE: Please call West Update First');
+    notifyError('Python Requirements', 'IDE for Zephyr: Please call West Update First');
     return false;
   }
 
@@ -285,10 +285,10 @@ export async function installPythonRequirements(context: vscode.ExtensionContext
   }
   
   const cmd = `pip install -r "${path.join(setupState.zephyrDir, "scripts", "requirements.txt")}" -U ${additionalPackages}`;
-  const reqRes = await executeTaskHelperInPythonEnv(setupState, "Zephyr IDE: Install Python Requirements", cmd, setupState.setupPath);
+  const reqRes = await executeTaskHelperInPythonEnv(setupState, "IDE for Zephyr: Install Python Requirements", cmd, setupState.setupPath);
 
   if (!reqRes) {
-    notifyError("Python Requirements", "Python Requirement Installation Failed. Check the Zephyr IDE output for details.", { command: cmd });
+    notifyError("Python Requirements", "Python Requirement Installation Failed. Check the IDE for Zephyr output for details.", { command: cmd });
   } else {
     setupState.packagesInstalled = true;
     await saveSetupState(context, wsConfig, globalConfig);
@@ -310,9 +310,9 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
   let westEnvironmentSetup: string | undefined = useExisting ? 'Use Existing' : 'Reinitialize';
   if ((setupState.pythonEnvironmentSetup || env_exists) && !useExisting) {
     if (env_exists) {
-      westEnvironmentSetup = await notifyWarningWithActions('West Environment', 'Zephyr IDE: Python Env already exists', ['Use Existing', 'Reinitialize', 'Cancel']);
+      westEnvironmentSetup = await notifyWarningWithActions('West Environment', 'IDE for Zephyr: Python Env already exists', ['Use Existing', 'Reinitialize', 'Cancel']);
     } else {
-      westEnvironmentSetup = await notifyWarningWithActions('West Environment', 'Zephyr IDE: Python Env already setup', ['Reinitialize', 'Cancel']);
+      westEnvironmentSetup = await notifyWarningWithActions('West Environment', 'IDE for Zephyr: Python Env already setup', ['Reinitialize', 'Cancel']);
     }
 
     if (westEnvironmentSetup !== 'Reinitialize' && westEnvironmentSetup !== 'Use Existing') {
@@ -348,9 +348,9 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
         // Then create the virtualenv
         const pythonCmd = await getPythonCommand();
         const cmd = `${pythonCmd} -m venv "${pythonenv}"`;
-        const res = await executeTaskHelper("Zephyr IDE West Environment Setup", cmd, currentSetupState.setupPath);
+        const res = await executeTaskHelper("IDE for Zephyr West Environment Setup", cmd, currentSetupState.setupPath);
         if (!res) {
-          notifyError("West Environment", "Unable to create Python Virtual Environment. Check the Zephyr IDE output for details.", { command: cmd });
+          notifyError("West Environment", "Unable to create Python Virtual Environment. Check the IDE for Zephyr output for details.", { command: cmd });
           return;
         } else {
           outputInfo("West Environment", "Python Virtual Environment created");
@@ -373,11 +373,11 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
       reloadEnvironmentVariables(context, currentSetupState);
 
       // Install `west`
-      const res = await executeTaskHelperInPythonEnv(currentSetupState, "Zephyr IDE West Environment Setup", `pip install west`, currentSetupState.setupPath);
+      const res = await executeTaskHelperInPythonEnv(currentSetupState, "IDE for Zephyr West Environment Setup", `pip install west`, currentSetupState.setupPath);
       if (res) {
         outputInfo("West Environment", "west installed");
       } else {
-        notifyError("West Environment", "Unable to install west. Check the Zephyr IDE output for details.");
+        notifyError("West Environment", "Unable to install west. Check the IDE for Zephyr output for details.");
         return;
       }
 
@@ -388,7 +388,7 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
       await saveSetupState(context, wsConfig, globalConfig);
 
       progress.report({ increment: 100 });
-      void vscode.window.showInformationMessage(`Zephyr IDE: West Python Environment Setup!`);
+      void vscode.window.showInformationMessage(`IDE for Zephyr: West Python Environment Setup!`);
     }
   );
 }
@@ -410,7 +410,7 @@ export async function westUpdateWithRequirements(context: vscode.ExtensionContex
   const westUpdateResult = await westUpdate(context, wsConfig, globalConfig, false);
   if (!westUpdateResult) {
     progressTracker?.failStep('west-update', 'West update failed');
-    notifyError("Workspace Setup", "West update failed. Check the Zephyr IDE output for details.");
+    notifyError("Workspace Setup", "West update failed. Check the IDE for Zephyr output for details.");
     return false;
   }
   progressTracker?.completeStep('west-update');
@@ -431,7 +431,7 @@ export async function westUpdateWithRequirements(context: vscode.ExtensionContex
   const pythonReqResult = await installPythonRequirements(context, wsConfig, globalConfig, false);
   if (!pythonReqResult) {
     progressTracker?.failStep('python-req', 'Installation failed');
-    notifyError("Workspace Setup", "Python requirements installation failed. Check the Zephyr IDE output for details.");
+    notifyError("Workspace Setup", "Python requirements installation failed. Check the IDE for Zephyr output for details.");
     return false;
   }
   progressTracker?.completeStep('python-req');

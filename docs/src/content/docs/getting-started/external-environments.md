@@ -1,15 +1,15 @@
 ---
 title: External Environments
-description: Integrate Zephyr IDE with externally managed environments. Works with Docker, DevContainer, manual installations, and existing Zephyr setups via ZEPHYR_BASE detection.
+description: Integrate IDE for Zephyr with externally managed environments. Works with Docker, DevContainer, manual installations, and existing Zephyr setups via ZEPHYR_BASE detection.
 ---
 
-Zephyr IDE automatically detects and works with externally managed Zephyr environments.
+IDE for Zephyr automatically detects and works with externally managed Zephyr environments.
 
-If you already have Zephyr installed outside of Zephyr IDE (e.g., through Docker, a DevContainer, manual installation, or another workspace manager), the extension will automatically detect and use your existing installation through environment variables.
+If you already have Zephyr installed outside of IDE for Zephyr (e.g., through Docker, a DevContainer, manual installation, or another workspace manager), the extension will automatically detect and use your existing installation through environment variables.
 
 ## How It Works
 
-When Zephyr IDE starts and no workspace is actively configured:
+When IDE for Zephyr starts and no workspace is actively configured:
 
 1. **Automatic Detection**: The extension checks for the `ZEPHYR_BASE` environment variable
 2. **Environment Warning**: If neither `ZEPHYR_BASE` nor `ZEPHYR_SDK_INSTALL_DIR` is set, a warning appears with three options:
@@ -39,7 +39,7 @@ To use an externally managed environment:
    code /path/to/your/project
    ```
 
-3. Verify: All Zephyr IDE commands will use your environment-based setup
+3. Verify: All IDE for Zephyr commands will use your environment-based setup
 
 ## Suppressing the Environment Warning
 

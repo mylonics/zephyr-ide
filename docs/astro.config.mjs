@@ -11,14 +11,14 @@ export default defineConfig({
   site: 'https://zephyr-ide.mylonics.com',
   integrations: [
     starlight({
-      title: 'Zephyr IDE',
+      title: 'IDE for Zephyr',
       description:
         'Professional VS Code extension for Zephyr RTOS development. Streamline setup, building, flashing, and debugging of Zephyr projects.',
       logo: {
         src: './src/assets/logo.png',
       },
       favicon: '/favicon.ico',
-      ...mylonicsStarlightDefaults('Zephyr IDE', {
+      ...mylonicsStarlightDefaults('IDE for Zephyr', {
         github: 'https://github.com/mylonics/zephyr-ide',
         extraCss: ['./src/styles/custom.css'],
         headOptions: {

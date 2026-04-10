@@ -22,9 +22,9 @@ npm run detect-unused
 ### VS Code Command
 
 1. Open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
-2. Search for "Zephyr IDE: Detect Unused Code"
+2. Search for "IDE for Zephyr: Detect Unused Code"
 3. Run the command
-4. View results in the Output panel (select "Zephyr IDE" from the dropdown)
+4. View results in the Output panel (select "IDE for Zephyr" from the dropdown)
 
 ## Understanding the Results
 
