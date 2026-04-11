@@ -99,14 +99,17 @@
 
 .input-group vscode-textfield {
     flex: 1;
+    min-height: 28px;
 }
 
 .setting-scope-select {
     min-width: 120px;
+    min-height: 28px;
 }
 
 .setting-reset-button,
 .setting-browse-button {
     min-width: 78px;
+    min-height: 28px;
     white-space: nowrap;
 }

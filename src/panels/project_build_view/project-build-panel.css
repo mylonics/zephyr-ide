@@ -105,11 +105,27 @@
 
 .editable {
   cursor: pointer;
-  border-bottom: 1px dashed var(--vscode-descriptionForeground);
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 2px 8px;
+  border: 1px dashed var(--vscode-input-border);
+  border-radius: var(--zephyr-webview-radius);
+  transition:
+    border-color var(--zephyr-webview-transition-fast),
+    background-color var(--zephyr-webview-transition-fast),
+    box-shadow var(--zephyr-webview-transition-fast);
 }
 
 .editable:hover {
+  border-color: var(--vscode-focusBorder);
+  background-color: var(--vscode-list-hoverBackground);
   color: var(--vscode-textLink-foreground);
+}
+
+.editable:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  box-shadow: var(--zephyr-webview-focus-ring);
 }
 
 .action-row,

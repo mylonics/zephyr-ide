@@ -110,6 +110,21 @@ function setupClickDelegation(): void {
 
     sendCommand(command, data);
   });
+
+  document.body.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") { return; }
+    const el = findCommandElement(e.target);
+    if (!el || el.getAttribute("data-keyboard-command") !== "true") { return; }
+    e.preventDefault();
+
+    const command = el.getAttribute("data-command");
+    if (!command) { return; }
+
+    const data = getDataAttributes(el);
+    delete data["command"];
+    delete data["keyboard-command"];
+    sendCommand(command, data);
+  });
 }
 
 // ---------------------------------------------------------------------------

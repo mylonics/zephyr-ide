@@ -534,11 +534,15 @@
     border-radius: var(--zephyr-webview-radius);
     resize: vertical;
     box-sizing: border-box;
+    transition:
+        border-color var(--zephyr-webview-transition-fast),
+        box-shadow var(--zephyr-webview-transition-fast);
 }
 
 .west-yml-textarea:focus {
     outline: 1px solid var(--vscode-focusBorder);
     border-color: var(--vscode-focusBorder);
+    box-shadow: var(--zephyr-webview-focus-ring);
 }
 
 .editor-actions {
