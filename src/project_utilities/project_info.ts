@@ -260,6 +260,21 @@ export function getBuildVariables(wsConfig: WorkspaceConfig, projectName: string
   return data?.projects?.[projectName]?.buildConfigs?.[buildName]?.vars ?? {};
 }
 
+/** Merge configured defaults into variable map, keeping explicit values */
+export function mergeVariableDefaults(
+  vars: Record<string, string>,
+  defaultKeys: string[],
+): Record<string, string> {
+  const merged: Record<string, string> = {};
+  for (const key of defaultKeys) {
+    merged[key] = "";
+  }
+  for (const [key, value] of Object.entries(vars)) {
+    merged[key] = value;
+  }
+  return merged;
+}
+
 /** Set a project-level custom variable */
 export async function setProjectVariable(
   context: vscode.ExtensionContext,

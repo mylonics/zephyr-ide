@@ -89,9 +89,6 @@ function buildVariablesTableHtml(
     <div class="variables-section">
       <div class="section-row-header">
         <span class="section-row-title">Variables</span>
-        <vscode-button appearance="icon" title="Add Variable" data-command="addVariable" data-level="build" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}">
-          <vscode-icon name="add" slot="start-icon"></vscode-icon>
-        </vscode-button>
       </div>
       <div class="variables-table">
         ${entries.length === 0 ? '<div class="file-list-empty">No variables defined</div>' : ""}
@@ -99,10 +96,10 @@ function buildVariablesTableHtml(
       .map(
         ([k, v]) => `
           <div class="variable-row">
-            <span class="variable-key">${escapeHtml(k)}</span>
-            <span class="variable-value">${escapeHtml(v)}</span>
-            <vscode-button appearance="icon" title="Edit" data-command="editVariable" data-level="build" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}" data-key="${escapeHtml(k)}">
-              <vscode-icon name="edit" slot="start-icon"></vscode-icon>
+            <input class="variable-key-input" type="text" value="${escapeHtml(k)}" aria-label="Variable name">
+            <input class="variable-value-input" type="text" value="${escapeHtml(v)}" aria-label="Variable value">
+            <vscode-button appearance="icon" title="Save" data-command="upsertVariable" data-level="build" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}" data-original-key="${escapeHtml(k)}">
+              <vscode-icon name="save" slot="start-icon"></vscode-icon>
             </vscode-button>
             <vscode-button appearance="icon" title="Remove" data-command="removeVariable" data-level="build" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}" data-key="${escapeHtml(k)}">
               <vscode-icon name="trash" slot="start-icon"></vscode-icon>
@@ -110,6 +107,13 @@ function buildVariablesTableHtml(
           </div>`,
       )
       .join("\n")}
+        <div class="variable-row variable-row-add">
+          <input class="variable-key-input" type="text" value="" placeholder="New variable name" aria-label="New variable name">
+          <input class="variable-value-input" type="text" value="" placeholder="New variable value" aria-label="New variable value">
+          <vscode-button appearance="icon" title="Add Variable" data-command="upsertVariable" data-level="build" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}" data-original-key="">
+            <vscode-icon name="add" slot="start-icon"></vscode-icon>
+          </vscode-button>
+        </div>
       </div>
     </div>`;
 }
