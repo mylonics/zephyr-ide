@@ -2,25 +2,10 @@
 @import url("../webview_shared/webview-base.css");
 
 .panel-container {
-  max-width: 980px;
-  margin: 0 auto;
-  padding: 20px 24px 28px;
+  padding-top: 18px;
 }
 
-/* Toolbar */
-.panel-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 0 16px;
-  border-bottom: 1px solid var(--vscode-panel-border);
-  margin-bottom: 16px;
-}
-
-.panel-toolbar h1 {
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0;
+.page-title {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -35,6 +20,8 @@
 .project-selector label {
   font-weight: 600;
   white-space: nowrap;
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
 }
 
 .project-selector select,
@@ -68,9 +55,14 @@
 /* Sections */
 .panel-section {
   border: 1px solid var(--vscode-panel-border);
-  border-radius: 6px;
+  border-radius: var(--zephyr-webview-radius);
   margin-bottom: 12px;
   background-color: var(--vscode-sideBar-background);
+  box-shadow: var(--zephyr-webview-surface-shadow);
+  transition:
+    border-color var(--zephyr-webview-transition-fast),
+    box-shadow var(--zephyr-webview-transition-fast),
+    background-color var(--zephyr-webview-transition-fast);
 }
 
 .section-header {
@@ -113,11 +105,27 @@
 
 .editable {
   cursor: pointer;
-  border-bottom: 1px dashed var(--vscode-descriptionForeground);
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 2px 8px;
+  border: 1px dashed var(--vscode-input-border);
+  border-radius: var(--zephyr-webview-radius);
+  transition:
+    border-color var(--zephyr-webview-transition-fast),
+    background-color var(--zephyr-webview-transition-fast),
+    box-shadow var(--zephyr-webview-transition-fast);
 }
 
 .editable:hover {
+  border-color: var(--vscode-focusBorder);
+  background-color: var(--vscode-list-hoverBackground);
   color: var(--vscode-textLink-foreground);
+}
+
+.editable:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  box-shadow: var(--zephyr-webview-focus-ring);
 }
 
 .action-row,
@@ -134,8 +142,9 @@
 .config-group {
   margin: 12px 0;
   border: 1px solid var(--vscode-panel-border);
-  border-radius: 6px;
+  border-radius: var(--zephyr-webview-radius);
   overflow: hidden;
+  box-shadow: var(--zephyr-webview-surface-shadow);
 }
 
 .config-group-header {
@@ -169,7 +178,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 2px 4px;
-  border-radius: 2px;
+  border-radius: var(--zephyr-webview-radius);
 }
 
 .file-list-item:hover {
@@ -232,7 +241,7 @@
 
 .variables-table {
   border: 1px solid var(--vscode-panel-border);
-  border-radius: 6px;
+  border-radius: var(--zephyr-webview-radius);
   overflow: hidden;
 }
 
@@ -276,8 +285,25 @@
 .launch-row {
   display: flex;
   align-items: center;
-  padding: 4px 0;
+  padding: 6px 8px;
   gap: 8px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--zephyr-webview-radius);
+  margin-bottom: 4px;
+  box-shadow: var(--zephyr-webview-surface-shadow);
+  transition:
+    border-color var(--zephyr-webview-transition-fast),
+    box-shadow var(--zephyr-webview-transition-fast),
+    background-color var(--zephyr-webview-transition-fast),
+    transform var(--zephyr-webview-transition-fast);
+}
+
+.launch-row:hover,
+.launch-row:focus-within {
+  border-color: var(--vscode-focusBorder);
+  background-color: var(--vscode-list-hoverBackground);
+  box-shadow: var(--zephyr-webview-surface-shadow-hover);
+  transform: translateY(-1px);
 }
 
 .launch-label {
@@ -303,12 +329,22 @@
   padding: 6px 8px;
   gap: 12px;
   border: 1px solid var(--vscode-panel-border);
-  border-radius: 6px;
+  border-radius: var(--zephyr-webview-radius);
   margin-bottom: 4px;
+  box-shadow: var(--zephyr-webview-surface-shadow);
+  transition:
+    border-color var(--zephyr-webview-transition-fast),
+    box-shadow var(--zephyr-webview-transition-fast),
+    background-color var(--zephyr-webview-transition-fast),
+    transform var(--zephyr-webview-transition-fast);
 }
 
-.runner-row:hover {
+.runner-row:hover,
+.runner-row:focus-within {
+  border-color: var(--vscode-focusBorder);
   background-color: var(--vscode-list-hoverBackground);
+  box-shadow: var(--zephyr-webview-surface-shadow-hover);
+  transform: translateY(-1px);
 }
 
 .runner-name {

@@ -212,11 +212,11 @@ export function getBuildSectionHtml(
           </div>
           <div class="info-row">
             <span class="info-label">West Args</span>
-            <span class="info-value editable" data-command="modifyBuildArgs" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}" title="Click to edit">${escapeHtml(build.westBuildArgs || "(none)")}</span>
+            <span class="info-value editable" role="button" tabindex="0" data-keyboard-command="true" data-command="modifyBuildArgs" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}" title="Click or press Enter/Space to edit">${escapeHtml(build.westBuildArgs || "(none)")}</span>
           </div>
           <div class="info-row">
             <span class="info-label">CMake Args</span>
-            <span class="info-value editable" data-command="modifyBuildArgs" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}" title="Click to edit">${escapeHtml(build.westBuildCMakeArgs || "(none)")}</span>
+            <span class="info-value editable" role="button" tabindex="0" data-keyboard-command="true" data-command="modifyBuildArgs" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}" title="Click or press Enter/Space to edit">${escapeHtml(build.westBuildCMakeArgs || "(none)")}</span>
           </div>
 
           ${fileGroupHtml(

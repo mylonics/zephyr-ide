@@ -98,6 +98,9 @@ function findCommandElement(target: EventTarget | null): HTMLElement | null {
 }
 
 function setupClickDelegation(): void {
+  const eventController = new AbortController();
+  const listenerOptions = { signal: eventController.signal };
+
   document.body.addEventListener("click", (e) => {
     const el = findCommandElement(e.target);
     if (!el) { return; }
@@ -109,7 +112,27 @@ function setupClickDelegation(): void {
     delete data["command"]; // already extracted
 
     sendCommand(command, data);
-  });
+  }, listenerOptions);
+
+  const handleKeyboardCommand = (e: KeyboardEvent): void => {
+    const el = findCommandElement(e.target);
+    if (!el || el.getAttribute("data-keyboard-command") !== "true") { return; }
+
+    const isActivationKey = e.type === "keydown" && (e.key === "Enter" || e.key === " ");
+    if (!isActivationKey) { return; }
+    e.preventDefault();
+
+    const command = el.getAttribute("data-command");
+    if (!command) { return; }
+
+    const data = getDataAttributes(el);
+    delete data["command"];
+    delete data["keyboard-command"];
+    sendCommand(command, data);
+  };
+
+  document.body.addEventListener("keydown", handleKeyboardCommand, listenerOptions);
+  window.addEventListener("unload", () => eventController.abort(), { once: true });
 }
 
 // ---------------------------------------------------------------------------

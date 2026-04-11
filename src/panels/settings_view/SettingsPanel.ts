@@ -276,13 +276,17 @@ export class SettingsPanel {
               placeholder="Not set (using default)"
               data-action="string-change"
               data-key="${escapeHtml(def.key)}"></vscode-textfield>
-            <vscode-button appearance="secondary" data-action="browse" data-key="${escapeHtml(def.key)}" title="Browse for folder">📁</vscode-button>
+            <vscode-button class="setting-browse-button" appearance="secondary" data-action="browse" data-key="${escapeHtml(def.key)}" title="Browse for folder">
+              Browse
+            </vscode-button>
           </div>
-          <vscode-single-select id="target-${escapeHtml(def.key)}" data-action="scope-change" data-key="${escapeHtml(def.key)}">
+          <vscode-single-select class="setting-scope-select" id="target-${escapeHtml(def.key)}" data-action="scope-change" data-key="${escapeHtml(def.key)}">
             <vscode-option value="workspace">Workspace</vscode-option>
             <vscode-option value="user">User</vscode-option>
           </vscode-single-select>
-          <vscode-button appearance="secondary" id="reset-${escapeHtml(def.key)}" data-action="reset" data-key="${escapeHtml(def.key)}" title="Reset to default">↺ Reset</vscode-button>
+          <vscode-button class="setting-reset-button" appearance="secondary" id="reset-${escapeHtml(def.key)}" data-action="reset" data-key="${escapeHtml(def.key)}" title="Reset to default">
+            Reset
+          </vscode-button>
         </div>
       </div>`;
 
@@ -295,11 +299,13 @@ export class SettingsPanel {
         <div class="setting-description">${escapeHtml(def.description)}</div>
         <div class="setting-controls">
           <vscode-checkbox id="val-${escapeHtml(def.key)}" data-action="toggle-change" data-key="${escapeHtml(def.key)}"></vscode-checkbox>
-          <vscode-single-select id="target-${escapeHtml(def.key)}" data-action="scope-change" data-key="${escapeHtml(def.key)}">
+          <vscode-single-select class="setting-scope-select" id="target-${escapeHtml(def.key)}" data-action="scope-change" data-key="${escapeHtml(def.key)}">
             <vscode-option value="workspace">Workspace</vscode-option>
             <vscode-option value="user">User</vscode-option>
           </vscode-single-select>
-          <vscode-button appearance="secondary" id="reset-${escapeHtml(def.key)}" data-action="reset" data-key="${escapeHtml(def.key)}" title="Reset to default">↺ Reset</vscode-button>
+          <vscode-button class="setting-reset-button" appearance="secondary" id="reset-${escapeHtml(def.key)}" data-action="reset" data-key="${escapeHtml(def.key)}" title="Reset to default">
+            Reset
+          </vscode-button>
         </div>
       </div>`;
 
