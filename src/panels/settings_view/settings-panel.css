@@ -22,12 +22,19 @@
     background-color: var(--vscode-sideBar-background);
     border: 1px solid var(--vscode-panel-border);
     border-radius: var(--zephyr-webview-radius);
-    transition: border-color 0.15s ease, background-color 0.15s ease;
+    transition:
+        border-color var(--zephyr-webview-transition-fast),
+        background-color var(--zephyr-webview-transition-fast),
+        box-shadow var(--zephyr-webview-transition-fast),
+        transform var(--zephyr-webview-transition-fast);
+    box-shadow: var(--zephyr-webview-surface-shadow);
 }
 
 .setting-row:hover {
     border-color: var(--vscode-focusBorder);
     background-color: var(--vscode-list-hoverBackground);
+    box-shadow: var(--zephyr-webview-surface-shadow-hover);
+    transform: translateY(-1px);
 }
 
 .setting-header {

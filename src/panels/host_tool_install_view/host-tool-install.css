@@ -24,6 +24,7 @@ h2 {
     background-color: var(--vscode-editor-background);
     border: 1px solid var(--vscode-panel-border);
     border-radius: var(--zephyr-webview-radius);
+    box-shadow: var(--zephyr-webview-surface-shadow);
 }
 
 .status-area {
@@ -34,6 +35,7 @@ h2 {
     padding: 15px;
     border-radius: var(--zephyr-webview-radius);
     margin-bottom: 15px;
+    box-shadow: var(--zephyr-webview-surface-shadow);
 }
 
 .manager-available {
@@ -99,6 +101,17 @@ h2 {
     border: 1px solid var(--vscode-panel-border);
     border-radius: var(--zephyr-webview-radius);
     background-color: var(--vscode-input-background);
+    box-shadow: var(--zephyr-webview-surface-shadow);
+    transition:
+        border-color var(--zephyr-webview-transition-fast),
+        background-color var(--zephyr-webview-transition-fast),
+        box-shadow var(--zephyr-webview-transition-fast),
+        transform var(--zephyr-webview-transition-fast);
+}
+
+.package-item:hover {
+    box-shadow: var(--zephyr-webview-surface-shadow-hover);
+    transform: translateY(-1px);
 }
 
 .package-item.available {
@@ -157,6 +170,7 @@ h2 {
     background-color: var(--vscode-input-background);
     border-radius: var(--zephyr-webview-radius);
     border: 1px solid var(--vscode-panel-border);
+    box-shadow: var(--zephyr-webview-surface-shadow);
 }
 
 .summary-item {
