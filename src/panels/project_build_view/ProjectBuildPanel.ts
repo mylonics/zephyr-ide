@@ -49,7 +49,7 @@ import {
   selectDebugAttachLaunchConfiguration,
   getProjectFolder,
 } from "../../project_utilities/project";
-import { escapeHtml } from "../webview_shared/webviewTypes";
+import { escapeHtml, generateNonce } from "../webview_shared/webviewTypes";
 import { getProjectSectionHtml } from "./ProjectSection";
 import { getBuildSectionHtml } from "./BuildSection";
 import { getTestSectionHtml } from "./TestSection";
@@ -442,7 +442,7 @@ export class ProjectBuildPanel {
   }
 
   private getHtmlForWebview(): string {
-    const nonce = this.getNonce();
+    const nonce = generateNonce();
     const projectNames = Object.keys(this._wsConfig.projects ?? {});
     const selected = this._selectedProject;
 
@@ -597,14 +597,5 @@ export class ProjectBuildPanel {
       ),
     );
     return `<script nonce="${nonce}" src="${jsUri}"></script>`;
-  }
-
-  private getNonce(): string {
-    let text = "";
-    const possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    for (let i = 0; i < 32; i++) {
-      text += possible.charAt(Math.floor(Math.random() * possible.length));
-    }
-    return text;
   }
 }

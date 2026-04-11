@@ -16,6 +16,7 @@ limitations under the License.
 */
 
 import * as vscode from "vscode";
+import { generateNonce } from "../webview_shared/webviewTypes";
 
 interface SettingDefinition {
   key: string;
@@ -238,7 +239,7 @@ export class SettingsPanel {
   }
 
   private getHtmlForWebview(): string {
-    const nonce = this.getNonce();
+    const nonce = generateNonce();
     const cssUri = this._panel.webview.asWebviewUri(
       vscode.Uri.joinPath(
         vscode.Uri.file(this._extensionPath),
@@ -343,12 +344,4 @@ export class SettingsPanel {
     </html>`;
   }
 
-  private getNonce(): string {
-    let text = "";
-    const possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    for (let i = 0; i < 32; i++) {
-      text += possible.charAt(Math.floor(Math.random() * possible.length));
-    }
-    return text;
-  }
 }
