@@ -29,11 +29,14 @@ function fileRowHtml(
 ): string {
   const escaped = escapeHtml(file);
   const extraFlag = isExtra ? "true" : "false";
-  const checkedAttr = isExtra ? " checked" : "";
+  const toggleToExtraFlag = isExtra ? "false" : "true";
+  const modeLabel = isExtra ? "Extra" : "Override";
   return `<div class="file-list-item" data-file="${escaped}" data-group="${groupId}" data-toggle-cmd="${escapeHtml(toggleCmd)}">
-    <vscode-checkbox class="file-extra-checkbox"${checkedAttr} title="${isExtra ? "Extra file (appended)" : "Override file (replaces defaults)"}"></vscode-checkbox>
+    <vscode-button class="file-mode-button" appearance="secondary" title="${isExtra ? "Switch to override file" : "Switch to extra file"}" data-command="toggleFileExtra" data-file="${escaped}" data-group="${groupId}" data-toggle-cmd="${escapeHtml(toggleCmd)}" data-extra="${toggleToExtraFlag}">
+      ${modeLabel}
+    </vscode-button>
     <span class="file-name clickable" data-command="openFile" data-file="${escaped}" title="${escaped}">${escaped}</span>
-    <vscode-button appearance="icon" title="Remove" data-command="${removeCmd}" data-file="${escaped}" data-extra="${extraFlag}" data-group="${groupId}">
+    <vscode-button class="file-remove-button" appearance="icon" title="Remove" data-command="${removeCmd}" data-file="${escaped}" data-extra="${extraFlag}" data-group="${groupId}">
       <vscode-icon name="trash" slot="start-icon"></vscode-icon>
     </vscode-button>
   </div>`;
@@ -66,10 +69,10 @@ function fileTabContentHtml(
   return `
     <div class="config-tab-body">
       <div class="config-tab-header-row">
-        <span class="config-tab-col-extra">Extra</span>
+        <span class="config-tab-col-extra">Type</span>
         <span class="config-tab-col-file">File</span>
-        <vscode-button appearance="icon" title="Add File" data-command="${addCmd}" data-group="${groupId}">
-          <vscode-icon name="add" slot="start-icon"></vscode-icon>
+        <vscode-button class="config-tab-add-button" appearance="secondary" title="Add File" data-command="${addCmd}" data-group="${groupId}">
+          <vscode-icon name="add" slot="start-icon"></vscode-icon> Add File
         </vscode-button>
       </div>
       <vscode-scrollable class="config-file-scroll">

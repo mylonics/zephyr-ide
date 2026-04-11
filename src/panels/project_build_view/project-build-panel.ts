@@ -32,7 +32,6 @@ import '@vscode-elements/elements/dist/vscode-button-group/index.js';
 import '@vscode-elements/elements/dist/vscode-tabs/index.js';
 import '@vscode-elements/elements/dist/vscode-tab-header/index.js';
 import '@vscode-elements/elements/dist/vscode-tab-panel/index.js';
-import '@vscode-elements/elements/dist/vscode-checkbox/index.js';
 import '@vscode-elements/elements/dist/vscode-scrollable/index.js';
 
 import { getVsCodeApi } from "../webview_shared/webviewTypes";
@@ -62,25 +61,6 @@ function setupChangeHandlers(): void {
     }
   }, true); // capture phase
 
-  // vscode-checkbox fires 'vsc-change'
-  document.body.addEventListener("vsc-change", (e: Event) => {
-    const target = e.target;
-    if (!(target instanceof HTMLElement)) { return; }
-
-    // Handle extra-file checkbox toggles inside config file rows
-    if (target.matches(".file-extra-checkbox")) {
-      const row = target.closest(".file-list-item");
-      if (!row) { return; }
-      const data = getDataAttributes(row as HTMLElement);
-      const checked = (target as any).checked;
-      sendCommand("toggleFileExtra", {
-        file: data["file"] ?? "",
-        group: data["group"] ?? "",
-        extra: checked ? "true" : "false",
-        "toggle-cmd": data["toggle-cmd"] ?? "",
-      });
-    }
-  });
 }
 
 // ---------------------------------------------------------------------------
