@@ -30,9 +30,9 @@ function fileListHtml(files: string[], groupId: string, isExtra: boolean, remove
       const extraFlag = isExtra ? "true" : "false";
       return `<div class="file-list-item">
         <span class="file-name clickable" data-command="openFile" data-file="${escaped}" title="${escaped}">${escaped}</span>
-        <button class="icon-button" title="Remove" data-command="${removeCmd}" data-file="${escaped}" data-extra="${extraFlag}" data-group="${groupId}">
-          <i class="codicon codicon-trash"></i>
-        </button>
+        <vscode-button appearance="icon" title="Remove" data-command="${removeCmd}" data-file="${escaped}" data-extra="${extraFlag}" data-group="${groupId}">
+          <vscode-icon name="trash" slot="start-icon"></vscode-icon>
+        </vscode-button>
       </div>`;
     })
     .join("\n");
@@ -64,9 +64,9 @@ function fileGroupHtml(
     <div class="config-group">
       <div class="config-group-header">
         <span class="config-group-title">${title}</span>
-        <button class="icon-button" title="Add File" data-command="${addCmd}" data-group="${groupId}">
-          <i class="codicon codicon-add"></i>
-        </button>
+        <vscode-button appearance="icon" title="Add File" data-command="${addCmd}" data-group="${groupId}">
+          <vscode-icon name="add" slot="start-icon"></vscode-icon>
+        </vscode-button>
       </div>
       <div class="config-group-sub">
         <div class="config-sub-label">Override Files</div>
@@ -89,9 +89,9 @@ function buildVariablesTableHtml(
     <div class="variables-section">
       <div class="section-row-header">
         <span class="section-row-title">Variables</span>
-        <button class="icon-button" title="Add Variable" data-command="addVariable" data-level="build" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}">
-          <i class="codicon codicon-add"></i>
-        </button>
+        <vscode-button appearance="icon" title="Add Variable" data-command="addVariable" data-level="build" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}">
+          <vscode-icon name="add" slot="start-icon"></vscode-icon>
+        </vscode-button>
       </div>
       <div class="variables-table">
         ${entries.length === 0 ? '<div class="file-list-empty">No variables defined</div>' : ""}
@@ -101,12 +101,12 @@ function buildVariablesTableHtml(
           <div class="variable-row">
             <span class="variable-key">${escapeHtml(k)}</span>
             <span class="variable-value">${escapeHtml(v)}</span>
-            <button class="icon-button" title="Edit" data-command="editVariable" data-level="build" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}" data-key="${escapeHtml(k)}">
-              <i class="codicon codicon-edit"></i>
-            </button>
-            <button class="icon-button" title="Remove" data-command="removeVariable" data-level="build" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}" data-key="${escapeHtml(k)}">
-              <i class="codicon codicon-trash"></i>
-            </button>
+            <vscode-button appearance="icon" title="Edit" data-command="editVariable" data-level="build" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}" data-key="${escapeHtml(k)}">
+              <vscode-icon name="edit" slot="start-icon"></vscode-icon>
+            </vscode-button>
+            <vscode-button appearance="icon" title="Remove" data-command="removeVariable" data-level="build" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}" data-key="${escapeHtml(k)}">
+              <vscode-icon name="trash" slot="start-icon"></vscode-icon>
+            </vscode-button>
           </div>`,
       )
       .join("\n")}
@@ -140,22 +140,18 @@ function calculatedSectionHtml(
   }
 
   return `
-    <div class="collapsible-section">
-      <div class="collapsible-header" data-toggle="calculated">
-        <i class="codicon codicon-chevron-right toggle-icon"></i>
-        <h3>Calculated Configuration</h3>
-      </div>
-      <div class="collapsible-body" data-section="calculated" style="display:none;">
+    <vscode-collapsible title="Calculated Configuration">
+      <div slot="body">
         <div class="calculated-sub">
           <div class="config-sub-label">Composed KConfig Files (project + build)</div>
           ${readonlyFileListHtml(calculated.config.concat(calculated.extraConfig))}
           <div class="config-sub-label">Composed DTC Overlay Files (project + build)</div>
           ${readonlyFileListHtml(calculated.overlay.concat(calculated.extraOverlay))}
         </div>
-        <hr class="section-divider">
+        <vscode-divider></vscode-divider>
         ${buildOutputHtml}
       </div>
-    </div>`;
+    </vscode-collapsible>`;
 }
 
 function runnersHtml(
@@ -173,9 +169,9 @@ function runnersHtml(
       <span class="runner-name"><i class="codicon codicon-debug-alt"></i> ${escapeHtml(r.name)}</span>
       <span class="runner-detail">Runner: ${escapeHtml(r.config.runner)}</span>
       <span class="runner-detail">Args: ${escapeHtml(r.config.args || "(none)")}</span>
-      <button class="icon-button" title="Remove Runner" data-command="removeRunner" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}" data-runner="${escapeHtml(r.name)}">
-        <i class="codicon codicon-trash"></i>
-      </button>
+      <vscode-button appearance="icon" title="Remove Runner" data-command="removeRunner" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}" data-runner="${escapeHtml(r.name)}">
+        <vscode-icon name="trash" slot="start-icon"></vscode-icon>
+      </vscode-button>
     </div>`,
     )
     .join("\n");
@@ -191,17 +187,16 @@ export function getBuildSectionHtml(
   isActive: boolean,
 ): string {
   const activeClass = isActive ? " build-active" : "";
-  const activeBadge = isActive ? '<span class="badge badge-active">Active</span>' : "";
+  const activeBadge = isActive ? '<vscode-badge variant="counter">Active</vscode-badge>' : "";
 
   return `
     <div class="panel-section build-section${activeClass}">
-      <div class="collapsible-header build-header" data-toggle="build-${escapeHtml(buildName)}">
-        <i class="codicon codicon-chevron-down toggle-icon"></i>
-        <h3><i class="codicon codicon-tools"></i> Build: ${escapeHtml(buildName)}</h3>
-        <span class="build-board-badge">${escapeHtml(build.boardDisplayName)}</span>
-        ${activeBadge}
-      </div>
-      <div class="collapsible-body" data-section="build-${escapeHtml(buildName)}">
+      <vscode-collapsible title="Build: ${escapeHtml(buildName)}" open>
+        <div slot="decorations">
+          <vscode-badge>${escapeHtml(build.boardDisplayName)}</vscode-badge>
+          ${activeBadge}
+        </div>
+        <div slot="body">
         <div class="section-body">
           <div class="info-row">
             <span class="info-label">Board</span>
@@ -253,54 +248,64 @@ export function getBuildSectionHtml(
             <div class="launch-row">
               <span class="launch-label">Debug</span>
               <span class="launch-value">${escapeHtml(getLaunchTargetDisplayName(build.launchTarget, build.launchTargetFolder, "Zephyr IDE: Debug"))}</span>
-              <button class="icon-button" title="Change" data-command="changeLaunchTarget" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}" data-type="debug">
-                <i class="codicon codicon-edit"></i>
-              </button>
+              <vscode-button appearance="icon" title="Change" data-command="changeLaunchTarget" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}" data-type="debug">
+                <vscode-icon name="edit" slot="start-icon"></vscode-icon>
+              </vscode-button>
             </div>
             <div class="launch-row">
               <span class="launch-label">Build + Debug</span>
               <span class="launch-value">${escapeHtml(getLaunchTargetDisplayName(build.buildDebugTarget, build.buildDebugTargetFolder, "Zephyr IDE: Debug"))}</span>
-              <button class="icon-button" title="Change" data-command="changeLaunchTarget" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}" data-type="buildDebug">
-                <i class="codicon codicon-edit"></i>
-              </button>
+              <vscode-button appearance="icon" title="Change" data-command="changeLaunchTarget" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}" data-type="buildDebug">
+                <vscode-icon name="edit" slot="start-icon"></vscode-icon>
+              </vscode-button>
             </div>
             <div class="launch-row">
               <span class="launch-label">Attach</span>
               <span class="launch-value">${escapeHtml(getLaunchTargetDisplayName(build.attachTarget, build.attachTargetFolder, "Zephyr IDE: Attach"))}</span>
-              <button class="icon-button" title="Change" data-command="changeLaunchTarget" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}" data-type="attach">
-                <i class="codicon codicon-edit"></i>
-              </button>
+              <vscode-button appearance="icon" title="Change" data-command="changeLaunchTarget" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}" data-type="attach">
+                <vscode-icon name="edit" slot="start-icon"></vscode-icon>
+              </vscode-button>
             </div>
           </div>
 
           <div class="runners-section">
             <div class="section-row-header">
               <span class="section-row-title">Runners</span>
-              <button class="icon-button" title="Add Runner" data-command="addRunner" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}">
-                <i class="codicon codicon-add"></i>
-              </button>
+              <vscode-button appearance="icon" title="Add Runner" data-command="addRunner" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}">
+                <vscode-icon name="add" slot="start-icon"></vscode-icon>
+              </vscode-button>
             </div>
             ${runnersHtml(build.runners, projectName, buildName)}
           </div>
 
+          <vscode-divider></vscode-divider>
+
           <div class="build-actions">
-            <button class="action-button primary" data-command="build" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}">
-              <i class="codicon codicon-play"></i> Build
-            </button>
-            <button class="action-button" data-command="buildPristine" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}">
-              <i class="codicon codicon-debug-rerun"></i> Build Pristine
-            </button>
-            <button class="action-button" data-command="flash" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}">
-              <i class="codicon codicon-arrow-circle-up"></i> Flash
-            </button>
-            <button class="action-button" data-command="debug" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}">
-              <i class="codicon codicon-debug-alt"></i> Debug
-            </button>
-            <button class="action-button" data-command="buildDebug" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}">
-              <i class="codicon codicon-debug-start"></i> Build + Debug
-            </button>
+            <vscode-button-group>
+            <vscode-button data-command="build" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}">
+              <vscode-icon name="play" slot="start-icon"></vscode-icon>
+              Build
+            </vscode-button>
+            <vscode-button appearance="secondary" data-command="buildPristine" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}">
+              <vscode-icon name="debug-rerun" slot="start-icon"></vscode-icon>
+              Build Pristine
+            </vscode-button>
+            <vscode-button appearance="secondary" data-command="flash" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}">
+              <vscode-icon name="arrow-circle-up" slot="start-icon"></vscode-icon>
+              Flash
+            </vscode-button>
+            <vscode-button appearance="secondary" data-command="debug" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}">
+              <vscode-icon name="debug-alt" slot="start-icon"></vscode-icon>
+              Debug
+            </vscode-button>
+            <vscode-button appearance="secondary" data-command="buildDebug" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}">
+              <vscode-icon name="debug-start" slot="start-icon"></vscode-icon>
+              Build + Debug
+            </vscode-button>
+            </vscode-button-group>
           </div>
         </div>
-      </div>
+        </div>
+      </vscode-collapsible>
     </div>`;
 }

@@ -28,9 +28,9 @@ function fileListHtml(files: string[], groupId: string, isExtra: boolean, remove
       const extraFlag = isExtra ? "true" : "false";
       return `<div class="file-list-item">
         <span class="file-name clickable" data-command="openFile" data-file="${escaped}" title="${escaped}">${escaped}</span>
-        <button class="icon-button" title="Remove" data-command="${removeCmd}" data-file="${escaped}" data-extra="${extraFlag}" data-group="${groupId}">
-          <i class="codicon codicon-trash"></i>
-        </button>
+        <vscode-button appearance="icon" title="Remove" data-command="${removeCmd}" data-file="${escaped}" data-extra="${extraFlag}" data-group="${groupId}">
+          <vscode-icon name="trash" slot="start-icon"></vscode-icon>
+        </vscode-button>
       </div>`;
     })
     .join("\n");
@@ -48,9 +48,9 @@ function fileGroupHtml(
     <div class="config-group">
       <div class="config-group-header">
         <span class="config-group-title">${title}</span>
-        <button class="icon-button" title="Add File" data-command="${addCmd}" data-group="${groupId}">
-          <i class="codicon codicon-add"></i>
-        </button>
+        <vscode-button appearance="icon" title="Add File" data-command="${addCmd}" data-group="${groupId}">
+          <vscode-icon name="add" slot="start-icon"></vscode-icon>
+        </vscode-button>
       </div>
       <div class="config-group-sub">
         <div class="config-sub-label">Override Files</div>
@@ -73,9 +73,9 @@ function variablesTableHtml(
     <div class="variables-section">
       <div class="section-row-header">
         <span class="section-row-title">Variables</span>
-        <button class="icon-button" title="Add Variable" data-command="addVariable" data-level="${level}" data-project="${escapeHtml(projectName)}">
-          <i class="codicon codicon-add"></i>
-        </button>
+        <vscode-button appearance="icon" title="Add Variable" data-command="addVariable" data-level="${level}" data-project="${escapeHtml(projectName)}">
+          <vscode-icon name="add" slot="start-icon"></vscode-icon>
+        </vscode-button>
       </div>
       <div class="variables-table">
         ${entries.length === 0 ? '<div class="file-list-empty">No variables defined</div>' : ""}
@@ -85,12 +85,12 @@ function variablesTableHtml(
           <div class="variable-row">
             <span class="variable-key">${escapeHtml(k)}</span>
             <span class="variable-value">${escapeHtml(v)}</span>
-            <button class="icon-button" title="Edit" data-command="editVariable" data-level="${level}" data-project="${escapeHtml(projectName)}" data-key="${escapeHtml(k)}">
-              <i class="codicon codicon-edit"></i>
-            </button>
-            <button class="icon-button" title="Remove" data-command="removeVariable" data-level="${level}" data-project="${escapeHtml(projectName)}" data-key="${escapeHtml(k)}">
-              <i class="codicon codicon-trash"></i>
-            </button>
+            <vscode-button appearance="icon" title="Edit" data-command="editVariable" data-level="${level}" data-project="${escapeHtml(projectName)}" data-key="${escapeHtml(k)}">
+              <vscode-icon name="edit" slot="start-icon"></vscode-icon>
+            </vscode-button>
+            <vscode-button appearance="icon" title="Remove" data-command="removeVariable" data-level="${level}" data-project="${escapeHtml(projectName)}" data-key="${escapeHtml(k)}">
+              <vscode-icon name="trash" slot="start-icon"></vscode-icon>
+            </vscode-button>
           </div>`,
       )
       .join("\n")}
@@ -151,12 +151,14 @@ export function getProjectSectionHtml(
         ${variablesTableHtml(projectVars, "project", projectName)}
 
         <div class="action-row">
-          <button class="action-button" data-command="addBuild" data-project="${escapeHtml(projectName)}">
-            <i class="codicon codicon-add"></i> Add Build
-          </button>
-          <button class="action-button" data-command="addTest" data-project="${escapeHtml(projectName)}">
-            <i class="codicon codicon-beaker"></i> Add Test
-          </button>
+          <vscode-button appearance="secondary" data-command="addBuild" data-project="${escapeHtml(projectName)}">
+            <vscode-icon name="add" slot="start-icon"></vscode-icon>
+            Add Build
+          </vscode-button>
+          <vscode-button appearance="secondary" data-command="addTest" data-project="${escapeHtml(projectName)}">
+            <vscode-icon name="beaker" slot="start-icon"></vscode-icon>
+            Add Test
+          </vscode-button>
         </div>
       </div>
     </div>`;
