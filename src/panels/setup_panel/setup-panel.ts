@@ -61,7 +61,8 @@ function navigateToOverview(): void {
 }
 
 function handleKeyboardCommand(event: KeyboardEvent): void {
-  if (event.key !== 'Enter' && event.key !== ' ') {
+  const isSpaceKey = event.code === 'Space' || event.key === ' ' || event.key === 'Spacebar';
+  if (event.key !== 'Enter' && !isSpaceKey) {
     return;
   }
 
@@ -75,7 +76,7 @@ function handleKeyboardCommand(event: KeyboardEvent): void {
     return;
   }
 
-  if (event.key === ' ') {
+  if (isSpaceKey) {
     event.preventDefault();
   }
   actionElement.click();
