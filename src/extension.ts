@@ -26,6 +26,8 @@ import { WestWorkspaceView } from "./tree_views/WestWorkspaceView";
 import { ProjectConfigView } from "./tree_views/ProjectConfigView";
 import { SetupPanel } from "./panels/setup_panel/SetupPanel";
 import { HostToolInstallView } from "./panels/host_tool_install_view/HostToolInstallView";
+import { ProjectBuildPanel } from "./panels/project_build_view/ProjectBuildPanel";
+import { SettingsPanel } from "./panels/settings_view/SettingsPanel";
 
 import {
   output,
@@ -73,6 +75,7 @@ import {
   getArmGdbPath,
   getZephyrElfPath,
   getZephyrElfDir,
+  getAutomaticProjectSelection,
 } from "./setup_utilities/workspace-config";
 import { checkIfToolsAvailable } from "./setup_utilities/tools-validation";
 import {
@@ -503,6 +506,16 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.tree-view.select", (item: any) => {
       projectTreeView.handleSelect(item);
     }),
+    vscode.commands.registerCommand("zephyr-ide.tree-view.open-project-details", (item: any) => {
+      const projectName = item?.data?.project;
+      ProjectBuildPanel.createOrShow(
+        context.extensionPath,
+        context,
+        wsConfig,
+        globalConfig,
+        projectName,
+      );
+    }),
     vscode.commands.registerCommand("zephyr-ide.tree-view.add-build", (item: any) => {
       projectTreeView.handleSharedCommand("addBuild", item);
     }),
@@ -563,7 +576,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor((handleChange) => {
-      if (wsConfig.automaticProjectSelection && handleChange) {
+      if (getAutomaticProjectSelection() && handleChange) {
         const filePath = path.relative(
           wsConfig.rootPath,
           handleChange.document.uri.fsPath
@@ -691,8 +704,8 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "zephyr-ide.disable-automatic-project-target",
       async () => {
-        wsConfig.automaticProjectSelection = false;
-        await setWorkspaceState(context, wsConfig);
+        const configuration = vscode.workspace.getConfiguration();
+        await configuration.update("zephyr-ide.automaticProjectSelection", false, vscode.ConfigurationTarget.Workspace);
       }
     )
   );
@@ -701,8 +714,8 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "zephyr-ide.enable-automatic-project-target",
       async () => {
-        wsConfig.automaticProjectSelection = true;
-        await setWorkspaceState(context, wsConfig);
+        const configuration = vscode.workspace.getConfiguration();
+        await configuration.update("zephyr-ide.automaticProjectSelection", true, vscode.ConfigurationTarget.Workspace);
       }
     )
   );
@@ -1086,6 +1099,7 @@ export async function activate(context: vscode.ExtensionContext) {
       if (SetupPanel.currentPanel) {
         SetupPanel.currentPanel.updateContent(wsConfig, globalConfig);
       }
+      ProjectBuildPanel.updateAllPanels(wsConfig, globalConfig);
       void vscode.commands.executeCommand("zephyr-ide.update-status");
     })
   );
@@ -1327,6 +1341,18 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.open-project-build-panel", async () => {
+      ProjectBuildPanel.createOrShow(
+        context.extensionPath,
+        context,
+        wsConfig,
+        globalConfig,
+      );
+    }
+    )
+  );
+
+  context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.open-host-tools-panel", async () => {
       HostToolInstallView.createOrShow(
         context.extensionPath,
@@ -1336,6 +1362,12 @@ export async function activate(context: vscode.ExtensionContext) {
       );
     }
     )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.open-settings-panel", async () => {
+      SettingsPanel.createOrShow(context.extensionPath);
+    })
   );
 
   // New workspace setup commands

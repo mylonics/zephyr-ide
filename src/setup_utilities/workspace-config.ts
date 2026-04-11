@@ -544,6 +544,15 @@ export function getVenvPath(setupPath: string): string {
 }
 
 /**
+ * Read the automatic project selection setting.
+ * Falls back to true (the historical default) when unset.
+ */
+export function getAutomaticProjectSelection(): boolean {
+  const configuration = vscode.workspace.getConfiguration();
+  return configuration.get<boolean>("zephyr-ide.automaticProjectSelection", true);
+}
+
+/**
  * Create a SetupState from environment variables if they exist
  * This allows the extension to work with externally-managed Zephyr environments
  * @returns SetupState if ZEPHYR_BASE is set, undefined otherwise

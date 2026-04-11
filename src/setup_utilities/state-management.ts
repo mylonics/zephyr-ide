@@ -119,6 +119,17 @@ export async function loadWorkspaceState(context: vscode.ExtensionContext): Prom
     delete (config as any).automaticProjectSelction;
   }
 
+  // Migrate automaticProjectSelection from workspace state → VS Code setting
+  if (config.automaticProjectSelection !== undefined) {
+    const configuration = vscode.workspace.getConfiguration();
+    const inspected = configuration.inspect<boolean>("zephyr-ide.automaticProjectSelection");
+    // Only migrate if the VS Code setting has never been explicitly set at workspace level
+    if (inspected && inspected.workspaceValue === undefined && config.automaticProjectSelection !== true) {
+      await configuration.update("zephyr-ide.automaticProjectSelection", config.automaticProjectSelection, vscode.ConfigurationTarget.Workspace);
+    }
+    delete config.automaticProjectSelection;
+  }
+
   if (config.initialSetupComplete) {
     await loadProjectsFromFile(config);
   }
@@ -133,7 +144,6 @@ export async function setWorkspaceState(context: vscode.ExtensionContext, wsConf
 }
 
 export async function clearWorkspaceState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
-  wsConfig.automaticProjectSelection = true;
   wsConfig.initialSetupComplete = false;
   wsConfig.activeSetupState = undefined;
   await setWorkspaceState(context, wsConfig);

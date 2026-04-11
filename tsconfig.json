@@ -1,25 +1,24 @@
 {
-	"compilerOptions": {
-		"module": "Node16",
-		"target": "ES2022",
-		"outDir": "out",
-		"lib": [
-			"ES2022"
-		],
-		"sourceMap": true,
-		"rootDir": "src",
-		"strict": true,   /* enable all strict type-checking options */
-		"resolveJsonModule": true,
-		"esModuleInterop": true
-		/* Additional Checks */
-		// "noImplicitReturns": true, /* Report error when not all code paths in function return a value. */
-		// "noFallthroughCasesInSwitch": true, /* Report errors for fallthrough cases in switch statement. */
-		// "noUnusedParameters": true,  /* Report errors on unused parameters. */
-	},
-	"exclude": [
-		"docs",
-		"src/panels/webview_shared",
-		"src/panels/host_tool_install_view/host-tool-install.ts",
-		"src/panels/setup_panel/setup-panel.ts"
-	]
+  "compilerOptions": {
+    "module": "Node16",
+    "target": "ES2022",
+    "outDir": "out",
+    "lib": ["ES2022"],
+    "sourceMap": true,
+    "rootDir": "src",
+    "strict": true /* enable all strict type-checking options */,
+    "resolveJsonModule": true,
+    "esModuleInterop": true
+    /* Additional Checks */
+    // "noImplicitReturns": true, /* Report error when not all code paths in function return a value. */
+    // "noFallthroughCasesInSwitch": true, /* Report errors for fallthrough cases in switch statement. */
+    // "noUnusedParameters": true,  /* Report errors on unused parameters. */
+  },
+  "exclude": [
+    "docs",
+    "src/panels/webview_shared",
+    "src/panels/host_tool_install_view/host-tool-install.ts",
+    "src/panels/setup_panel/setup-panel.ts",
+    "src/panels/project_build_view/project-build-panel.ts"
+  ]
 }
