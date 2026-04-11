@@ -108,7 +108,7 @@ jobs:
         id: package
         run: |
           VSIX_NAME="zephyr-ide-${{ steps.version_info.outputs.version }}-${{ steps.version_info.outputs.commit_hash }}.vsix"
-          npx vsce package --out "$VSIX_NAME"
+          npx @vscode/vsce package --out "$VSIX_NAME"
           echo "vsix_name=${VSIX_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Upload VSIX Artifact

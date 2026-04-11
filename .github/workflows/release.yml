@@ -43,7 +43,7 @@ jobs:
         run: npm run esbuild
 
       - name: Package extension
-        run: npx vsce package
+        run: npx @vscode/vsce package
 
       # Capture version from package.json for later release creation
       - name: Extract Version
@@ -113,7 +113,7 @@ jobs:
       # Package a VSIX for attaching to the GitHub Release (Marketplace publish already done)
       - name: Package VSIX (for GitHub Release asset)
         if: github.ref == 'refs/heads/main'
-        run: npx vsce package --no-yarn
+        run: npx @vscode/vsce package --no-yarn
 
       - name: Create / Update GitHub Release
         if: github.ref == 'refs/heads/main'

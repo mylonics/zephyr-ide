@@ -52,7 +52,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Bump version and push changes
         run: |

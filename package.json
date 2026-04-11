@@ -24,7 +24,7 @@
     "cortex-debug"
   ],
   "engines": {
-    "vscode": "^1.75.0"
+    "vscode": "^1.115.0"
   },
   "repository": {
     "type": "git",
