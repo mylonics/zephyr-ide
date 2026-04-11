@@ -56,7 +56,7 @@
 
 /* Test section */
 .test-section {
-  border-left: 3px solid var(--vscode-panel-border);
+  border-top: 3px solid var(--vscode-panel-border);
 }
 
 /* Side-by-side project + build layout */
@@ -302,7 +302,7 @@
 
 /* Build section */
 .build-section {
-  border-left: 3px solid var(--vscode-panel-border);
+  border-top: 3px solid var(--vscode-panel-border);
 }
 
 .build-section .section-header {
@@ -312,13 +312,30 @@
 }
 
 .build-section.build-active {
-  border-left-color: var(--vscode-charts-green, #89d185);
+  border-top-color: var(--vscode-charts-green, #89d185);
 }
 
 .build-header {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.build-details-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.build-details-col {
+  min-width: 0;
+}
+
+@media (max-width: 1200px) {
+  .build-details-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* Section row headers (variables, runners, launch configs) */

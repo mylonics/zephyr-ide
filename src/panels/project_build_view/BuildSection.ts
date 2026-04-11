@@ -205,21 +205,23 @@ export function getBuildSectionHtml(
         <vscode-badge>${escapeHtml(build.boardDisplayName)}</vscode-badge>
       </div>
       <div class="section-body">
-        <div class="info-row">
-          <span class="info-label">Board</span>
-          <span class="info-value">${escapeHtml(build.boardDisplayName)}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">Board Directory</span>
-          <span class="info-value${build.resolvedBoardPath ? ' clickable' : ''}" ${build.resolvedBoardPath ? `data-command="openFolder" data-file="${escapeHtml(build.resolvedBoardPath)}"` : ''}>${escapeHtml(build.resolvedBoardPath ?? "Not resolved")}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">Debug Optimization</span>
-          <span class="info-value">${escapeHtml(build.debugOptimization)}</span>
-        </div>
-        ${tabbedBuildArgsHtml(build.westBuildArgs, build.westBuildCMakeArgs, projectName, buildName)}
+        <div class="build-details-grid">
+          <div class="build-details-col">
+            <div class="info-row">
+              <span class="info-label">Board</span>
+              <span class="info-value">${escapeHtml(build.boardDisplayName)}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Board Directory</span>
+              <span class="info-value${build.resolvedBoardPath ? ' clickable' : ''}" ${build.resolvedBoardPath ? `data-command="openFolder" data-file="${escapeHtml(build.resolvedBoardPath)}"` : ''}>${escapeHtml(build.resolvedBoardPath ?? "Not resolved")}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Debug Optimization</span>
+              <span class="info-value">${escapeHtml(build.debugOptimization)}</span>
+            </div>
+            ${tabbedBuildArgsHtml(build.westBuildArgs, build.westBuildCMakeArgs, projectName, buildName)}
 
-        ${tabbedConfigGroupHtml(
+            ${tabbedConfigGroupHtml(
     `build-${buildName}`,
     build.confFiles.config,
     build.confFiles.extraConfig,
@@ -233,43 +235,47 @@ export function getBuildSectionHtml(
     "toggleBuildOverlayFileExtra",
   )}
 
-        ${buildVariablesTableHtml(buildVars, projectName, buildName)}
+          </div>
+          <div class="build-details-col">
+            ${buildVariablesTableHtml(buildVars, projectName, buildName)}
 
-        <div class="launch-configs">
-          <div class="section-row-header">
-            <span class="section-row-title">Launch Configurations</span>
-          </div>
-          <div class="launch-row">
-            <span class="launch-label">Debug</span>
-            <span class="launch-value">${escapeHtml(getLaunchTargetDisplayName(build.launchTarget, build.launchTargetFolder, "Zephyr IDE: Debug"))}</span>
-            <vscode-button appearance="icon" title="Change" data-command="changeLaunchTarget" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}" data-type="debug">
-              <vscode-icon name="edit" slot="start-icon"></vscode-icon>
-            </vscode-button>
-          </div>
-          <div class="launch-row">
-            <span class="launch-label">Build + Debug</span>
-            <span class="launch-value">${escapeHtml(getLaunchTargetDisplayName(build.buildDebugTarget, build.buildDebugTargetFolder, "Zephyr IDE: Debug"))}</span>
-            <vscode-button appearance="icon" title="Change" data-command="changeLaunchTarget" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}" data-type="buildDebug">
-              <vscode-icon name="edit" slot="start-icon"></vscode-icon>
-            </vscode-button>
-          </div>
-          <div class="launch-row">
-            <span class="launch-label">Attach</span>
-            <span class="launch-value">${escapeHtml(getLaunchTargetDisplayName(build.attachTarget, build.attachTargetFolder, "Zephyr IDE: Attach"))}</span>
-            <vscode-button appearance="icon" title="Change" data-command="changeLaunchTarget" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}" data-type="attach">
-              <vscode-icon name="edit" slot="start-icon"></vscode-icon>
-            </vscode-button>
-          </div>
-        </div>
+            <div class="launch-configs">
+              <div class="section-row-header">
+                <span class="section-row-title">Launch Configurations</span>
+              </div>
+              <div class="launch-row">
+                <span class="launch-label">Debug</span>
+                <span class="launch-value">${escapeHtml(getLaunchTargetDisplayName(build.launchTarget, build.launchTargetFolder, "Zephyr IDE: Debug"))}</span>
+                <vscode-button appearance="icon" title="Change" data-command="changeLaunchTarget" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}" data-type="debug">
+                  <vscode-icon name="edit" slot="start-icon"></vscode-icon>
+                </vscode-button>
+              </div>
+              <div class="launch-row">
+                <span class="launch-label">Build + Debug</span>
+                <span class="launch-value">${escapeHtml(getLaunchTargetDisplayName(build.buildDebugTarget, build.buildDebugTargetFolder, "Zephyr IDE: Debug"))}</span>
+                <vscode-button appearance="icon" title="Change" data-command="changeLaunchTarget" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}" data-type="buildDebug">
+                  <vscode-icon name="edit" slot="start-icon"></vscode-icon>
+                </vscode-button>
+              </div>
+              <div class="launch-row">
+                <span class="launch-label">Attach</span>
+                <span class="launch-value">${escapeHtml(getLaunchTargetDisplayName(build.attachTarget, build.attachTargetFolder, "Zephyr IDE: Attach"))}</span>
+                <vscode-button appearance="icon" title="Change" data-command="changeLaunchTarget" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}" data-type="attach">
+                  <vscode-icon name="edit" slot="start-icon"></vscode-icon>
+                </vscode-button>
+              </div>
+            </div>
 
-        <div class="runners-section">
-          <div class="section-row-header">
-            <span class="section-row-title">Runners</span>
-            <vscode-button appearance="icon" title="Add Runner" data-command="addRunner" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}">
-              <vscode-icon name="add" slot="start-icon"></vscode-icon>
-            </vscode-button>
+            <div class="runners-section">
+              <div class="section-row-header">
+                <span class="section-row-title">Runners</span>
+                <vscode-button appearance="icon" title="Add Runner" data-command="addRunner" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}">
+                  <vscode-icon name="add" slot="start-icon"></vscode-icon>
+                </vscode-button>
+              </div>
+              ${runnersHtml(build.runners, projectName, buildName)}
+            </div>
           </div>
-          ${runnersHtml(build.runners, projectName, buildName)}
         </div>
 
         <vscode-divider></vscode-divider>
