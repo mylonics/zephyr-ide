@@ -15,6 +15,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import '@vscode-elements/elements/dist/vscode-button/index.js';
+import '@vscode-elements/elements/dist/vscode-icon/index.js';
+import '@vscode-elements/elements/dist/vscode-badge/index.js';
+import '@vscode-elements/elements/dist/vscode-single-select/index.js';
+import '@vscode-elements/elements/dist/vscode-option/index.js';
+import '@vscode-elements/elements/dist/vscode-collapsible/index.js';
+import '@vscode-elements/elements/dist/vscode-divider/index.js';
+import '@vscode-elements/elements/dist/vscode-table/index.js';
+import '@vscode-elements/elements/dist/vscode-table-header/index.js';
+import '@vscode-elements/elements/dist/vscode-table-header-cell/index.js';
+import '@vscode-elements/elements/dist/vscode-table-body/index.js';
+import '@vscode-elements/elements/dist/vscode-table-row/index.js';
+import '@vscode-elements/elements/dist/vscode-table-cell/index.js';
+import '@vscode-elements/elements/dist/vscode-button-group/index.js';
+
 import { getVsCodeApi } from "../webview_shared/webviewTypes";
 
 const vscode = getVsCodeApi();
@@ -28,10 +43,11 @@ function sendCommand(command: string, data: Record<string, string> = {}): void {
 // ---------------------------------------------------------------------------
 
 function setupProjectSelector(): void {
-  const select = document.getElementById("projectSelect") as HTMLSelectElement | null;
+  const select = document.getElementById("projectSelect") as HTMLElement | null;
   if (select) {
-    select.addEventListener("change", () => {
-      sendCommand("switchProject", { project: select.value });
+    select.addEventListener("vsc-change", (e: Event) => {
+      const value = (e.target as any).value;
+      sendCommand("switchProject", { project: value });
     });
   }
 }
@@ -41,10 +57,11 @@ function setupProjectSelector(): void {
 // ---------------------------------------------------------------------------
 
 function setupBuildTestSelector(): void {
-  const select = document.getElementById("buildTestSelect") as HTMLSelectElement | null;
+  const select = document.getElementById("buildTestSelect") as HTMLElement | null;
   if (select) {
-    select.addEventListener("change", () => {
-      sendCommand("switchBuildOrTest", { selection: select.value });
+    select.addEventListener("vsc-change", (e: Event) => {
+      const value = (e.target as any).value;
+      sendCommand("switchBuildOrTest", { selection: value });
     });
   }
 }
@@ -54,23 +71,7 @@ function setupBuildTestSelector(): void {
 // ---------------------------------------------------------------------------
 
 function setupCollapsibles(): void {
-  document.querySelectorAll<HTMLElement>("[data-toggle]").forEach((header) => {
-    header.addEventListener("click", () => {
-      const sectionId = header.getAttribute("data-toggle");
-      if (!sectionId) { return; }
-      const body = document.querySelector<HTMLElement>(`[data-section="${sectionId}"]`);
-      if (!body) { return; }
-
-      const isHidden = body.style.display === "none";
-      body.style.display = isHidden ? "block" : "none";
-
-      const icon = header.querySelector<HTMLElement>(".toggle-icon");
-      if (icon) {
-        icon.classList.toggle("codicon-chevron-right", !isHidden);
-        icon.classList.toggle("codicon-chevron-down", isHidden);
-      }
-    });
-  });
+  // vscode-collapsible handles its own open/close natively; no manual toggle needed.
 }
 
 // ---------------------------------------------------------------------------

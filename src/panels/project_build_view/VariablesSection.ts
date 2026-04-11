@@ -24,36 +24,31 @@ export function getVariablesReferenceSectionHtml(): string {
   const rows = commands
     .map(
       (c) => `
-      <tr>
-        <td><code>${escapeHtml(c.command)}</code></td>
-        <td>${escapeHtml(c.description)}</td>
-      </tr>`,
+      <vscode-table-row>
+        <vscode-table-cell><code>${escapeHtml(c.command)}</code></vscode-table-cell>
+        <vscode-table-cell>${escapeHtml(c.description)}</vscode-table-cell>
+      </vscode-table-row>`,
     )
     .join("\n");
 
   return `
     <div class="panel-section">
-      <div class="collapsible-header" data-toggle="variables-ref">
-        <i class="codicon codicon-chevron-right toggle-icon"></i>
-        <h3><i class="codicon codicon-symbol-variable"></i> Variable Reference</h3>
-      </div>
-      <div class="collapsible-body" data-section="variables-ref" style="display:none;">
+      <vscode-collapsible title="Variable Reference">
+        <div slot="body">
         <div class="section-body">
           <p class="help-text">
             Zephyr IDE exposes project and build information as VS Code command variables.
             Use them in <code>launch.json</code> and <code>tasks.json</code> with the <code>\${command:...}</code> syntax.
           </p>
-          <table class="variables-ref-table">
-            <thead>
-              <tr>
-                <th>Variable</th>
-                <th>Description</th>
-              </tr>
-            </thead>
-            <tbody>
+          <vscode-table zebra bordered-rows>
+            <vscode-table-header slot="header">
+              <vscode-table-header-cell>Variable</vscode-table-header-cell>
+              <vscode-table-header-cell>Description</vscode-table-header-cell>
+            </vscode-table-header>
+            <vscode-table-body slot="body">
               ${rows}
-            </tbody>
-          </table>
+            </vscode-table-body>
+          </vscode-table>
 
           <div class="help-example">
             <h4>Example: launch.json</h4>
@@ -99,6 +94,7 @@ export function getVariablesReferenceSectionHtml(): string {
             <code>vars</code> key. Edit them using the variable tables above, or directly in the JSON file.
           </p>
         </div>
-      </div>
+        </div>
+      </vscode-collapsible>
     </div>`;
 }

@@ -456,7 +456,7 @@ export class ProjectBuildPanel {
     const projectOptions = projectNames
       .map((name) => {
         const sel = name === selected ? " selected" : "";
-        return `<option value="${escapeHtml(name)}"${sel}>${escapeHtml(name)}</option>`;
+        return `<vscode-option value="${escapeHtml(name)}"${sel}>${escapeHtml(name)}</vscode-option>`;
       })
       .join("\n");
 
@@ -484,21 +484,21 @@ export class ProjectBuildPanel {
         const sel = val === currentSelection ? " selected" : "";
         const activeBuild = this._wsConfig.projectStates[selected]?.activeBuildConfig;
         const activeLabel = bName === activeBuild ? " (active)" : "";
-        options.push(`<option value="${escapeHtml(val)}"${sel}>Build: ${escapeHtml(bName)}${activeLabel}</option>`);
+        options.push(`<vscode-option value="${escapeHtml(val)}"${sel}>Build: ${escapeHtml(bName)}${activeLabel}</vscode-option>`);
       }
       for (const tName of testNames) {
         const val = `test:${tName}`;
         const sel = val === currentSelection ? " selected" : "";
-        options.push(`<option value="${escapeHtml(val)}"${sel}>Test: ${escapeHtml(tName)}</option>`);
+        options.push(`<vscode-option value="${escapeHtml(val)}"${sel}>Test: ${escapeHtml(tName)}</vscode-option>`);
       }
 
       if (options.length > 0) {
         selectorHtml = `
           <div class="build-test-selector">
             <label for="buildTestSelect">Build / Test:</label>
-            <select id="buildTestSelect">
+            <vscode-single-select id="buildTestSelect">
               ${options.join("\n")}
-            </select>
+            </vscode-single-select>
           </div>`;
       }
 
@@ -547,9 +547,9 @@ export class ProjectBuildPanel {
           <h1><i class="codicon codicon-project"></i> Project Details</h1>
           <div class="project-selector">
             <label for="projectSelect">Project:</label>
-            <select id="projectSelect">
+            <vscode-single-select id="projectSelect">
               ${projectOptions}
-            </select>
+            </vscode-single-select>
           </div>
         </div>
 
