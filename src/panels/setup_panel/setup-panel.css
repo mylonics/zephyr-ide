@@ -112,7 +112,8 @@
     box-shadow: var(--zephyr-webview-surface-shadow);
 }
 
-.overview-card:hover {
+.overview-card:hover,
+.overview-card:focus-visible {
     border-color: var(--vscode-focusBorder);
     background-color: var(--vscode-list-hoverBackground);
     box-shadow: var(--zephyr-webview-surface-shadow-hover);
@@ -163,7 +164,8 @@
     transition: opacity 0.2s, right 0.2s;
 }
 
-.overview-card:hover .card-arrow {
+.overview-card:hover .card-arrow,
+.overview-card:focus-visible .card-arrow {
     opacity: 1;
     right: 14px;
 }
@@ -303,7 +305,8 @@
     box-shadow: var(--zephyr-webview-surface-shadow);
 }
 
-.workspace-option-card:hover {
+.workspace-option-card:hover,
+.workspace-option-card:focus-visible {
     border-color: var(--vscode-focusBorder);
     background-color: var(--vscode-list-hoverBackground);
     box-shadow: var(--zephyr-webview-surface-shadow-hover);

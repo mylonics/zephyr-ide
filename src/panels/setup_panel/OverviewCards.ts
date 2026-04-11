@@ -23,7 +23,7 @@ export class HostToolsCard {
         const statusClass = globalConfig.toolsAvailable ? "status-success" : "status-warning";
 
         return `
-        <div class="overview-card" onclick="navigateToSubPage('hosttools')">
+        <div class="overview-card" onclick="navigateToSubPage('hosttools')" role="button" tabindex="0" data-keyboard-command="true" aria-label="Open Host Tools setup">
             <div class="overview-card-header">
                 <span class="overview-icon">🔧</span>
                 <h3>Host Tools</h3>
@@ -52,7 +52,7 @@ export class SDKCard {
         }
 
         return `
-        <div class="overview-card" onclick="navigateToSubPage('sdk')">
+        <div class="overview-card" onclick="navigateToSubPage('sdk')" role="button" tabindex="0" data-keyboard-command="true" aria-label="Open Zephyr SDK management">
             <div class="overview-card-header">
                 <span class="overview-icon">📦</span>
                 <h3>Zephyr SDK Management</h3>
@@ -70,7 +70,7 @@ export class WorkspaceCard {
         const statusClass = workspaceInitialized ? "status-success" : folderOpen ? "status-warning" : "status-info";
 
         return `
-        <div class="overview-card" onclick="navigateToSubPage('workspace')">
+        <div class="overview-card" onclick="navigateToSubPage('workspace')" role="button" tabindex="0" data-keyboard-command="true" aria-label="Open Workspace setup">
             <div class="overview-card-header">
                 <span class="overview-icon">🗂️</span>
                 <h3>Workspace</h3>
