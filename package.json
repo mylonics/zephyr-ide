@@ -1012,7 +1012,7 @@
     "compile": "tsc -p ./ && tsc -p ./tsconfig.webview.json",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run esbuild && npm run lint",
-    "lint": "eslint src --ext ts",
+    "lint": "eslint src",
     "test": "vscode-test",
     "detect-unused": "node scripts/detect-unused-code.js",
     "version": "npx auto-changelog -p && git add CHANGELOG.md"
@@ -1020,32 +1020,33 @@
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
     "@types/js-yaml": "^4.0.9",
-    "@types/mocha": "^10.0.6",
+    "@types/mocha": "^10.0.10",
     "@types/node": "^25.6.0",
-    "@types/node-7z": "^2.1.8",
+    "@types/node-7z": "^2.1.11",
     "@types/vscode": "^1.115.0",
-    "@typescript-eslint/eslint-plugin": "^7.4.0",
-    "@typescript-eslint/parser": "^7.4.0",
+    "@typescript-eslint/eslint-plugin": "^8.58.1",
+    "@typescript-eslint/parser": "^8.58.1",
     "@vscode/test-cli": "^0.0.12",
-    "@vscode/test-electron": "^2.3.9",
-    "esbuild": "^0.25.0",
-    "eslint": "^8.57.0",
-    "typescript": "^5.3.3"
+    "@vscode/test-electron": "^2.5.2",
+    "esbuild": "^0.28.0",
+    "eslint": "^10.2.0",
+    "typescript": "^6.0.2",
+    "typescript-eslint": "^8.58.1"
   },
   "dependencies": {
     "@vscode-elements/elements": "^2.5.1",
     "@vscode/codicons": "^0.0.45",
     "7zip-bin": "^5.2.0",
     "auto-changelog": "^2.5.0",
-    "compare-versions": "^6.1.0",
+    "compare-versions": "^6.1.1",
     "devicetree-language-server-vscode-types": "^0.0.1-alpha.38",
     "fs-extra": "^11.3.4",
     "js-yaml": "^4.1.1",
     "node-7z": "^3.0.0",
     "node-stream-zip": "^1.15.0",
     "replace-in-file": "^8.4.0",
-    "typed-rest-client": "^1.8.11",
-    "upath": "^2.0.1",
+    "typed-rest-client": "^2.3.0",
+    "upath": "^3.0.6",
     "vscode-languageclient": "^9.0.1"
   }
 }
