@@ -182,7 +182,7 @@ function selectExistingWestWorkspace(): void {
 function listSDKs(): void {
   const containerDiv = document.getElementById('sdkListContainer');
   if (containerDiv) {
-    containerDiv.innerHTML = '<div style="display: flex; align-items: center; gap: 8px; padding: 10px;"><vscode-progress-ring></vscode-progress-ring><span>Loading SDK information...</span></div>';
+    containerDiv.innerHTML = '<div class="sdk-loading"><vscode-progress-ring></vscode-progress-ring><span>Loading SDK information...</span></div>';
   }
   vscode.postMessage({ command: 'listSDKs' });
 }
@@ -206,7 +206,7 @@ function displaySDKList(sdkData: SDKListData): void {
 
   if (!sdkData.success) {
     containerDiv.innerHTML = `
-      <div style="padding: 15px; border: 1px solid var(--vscode-inputValidation-errorBorder); border-radius: 6px; background-color: var(--vscode-inputValidation-errorBackground); color: var(--vscode-inputValidation-errorForeground);">
+      <div class="sdk-error-box">
         <strong>Error:</strong> ${escapeHtml(sdkData.error || 'Failed to list SDKs')}
       </div>`;
     return;
@@ -214,7 +214,7 @@ function displaySDKList(sdkData: SDKListData): void {
 
   if (!sdkData.versions || sdkData.versions.length === 0) {
     containerDiv.innerHTML = `
-      <div style="padding: 15px; border: 1px solid var(--vscode-panel-border); border-radius: 6px; background-color: var(--vscode-editor-background); color: var(--vscode-descriptionForeground); text-align: center;">
+      <div class="sdk-empty-box">
         No SDK versions found. Try installing an SDK first.
       </div>`;
     return;

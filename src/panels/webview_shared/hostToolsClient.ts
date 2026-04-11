@@ -330,7 +330,7 @@ export class HostToolsClient {
     const managerStatus = document.getElementById('manager-status');
     if (managerStatus) {
       managerStatus.innerHTML = `
-        <div style="padding: 20px; text-align: center; color: var(--vscode-errorForeground);">
+        <div class="error-state">
           Error: ${escapeHtml(error)}
         </div>`;
     }
@@ -356,16 +356,16 @@ export class HostToolsClient {
         <div class="manager-info">
           <div>
             <div class="manager-name">${escapeHtml(data.managerName)}</div>
-            <div style="font-size: 12px; color: var(--vscode-descriptionForeground);">Package Manager</div>
+            <div class="manager-type-label">Package Manager</div>
           </div>
           <span class="status-badge ${data.managerAvailable ? 'status-available' : 'status-missing'}">
             ${data.managerAvailable ? '✓ Available' : '✗ Not Available'}
           </span>
         </div>
         ${!data.managerAvailable ? `
-          <div style="margin-top: 10px;">
+          <div class="manager-actions">
             ${data.managerInstallUrl
-              ? `<p style="margin-bottom: 10px; font-size: 12px;">The ${escapeHtml(data.managerName)} package manager is required but not installed.</p>
+              ? `<p>The ${escapeHtml(data.managerName)} package manager is required but not installed.</p>
                  <vscode-button onclick="hostToolsClient.openManagerInstallUrl()">Install ${escapeHtml(data.managerName)}</vscode-button>`
               : `<vscode-button onclick="hostToolsClient.installPackageManager()">Install ${escapeHtml(data.managerName)}</vscode-button>`
             }
@@ -398,7 +398,7 @@ export class HostToolsClient {
           <div class="package-actions">
             <span class="status-badge ${info.statusClass}">${info.statusText}</span>
             ${info.showInstallButton
-              ? `<vscode-button appearance="secondary" onclick="hostToolsClient.installPackage('${escapeHtml(pkg.name)}')" style="padding: 2px 8px; min-height: 0;">Install</vscode-button>`
+              ? `<vscode-button class="install-inline-btn" appearance="secondary" onclick="hostToolsClient.installPackage('${escapeHtml(pkg.name)}')">Install</vscode-button>`
               : ''}
           </div>
         </div>`;
@@ -419,10 +419,10 @@ export class HostToolsClient {
 
     if (managerStatus) {
       if (!data.managerAvailable) {
-        managerStatus.innerHTML = `
+          managerStatus.innerHTML = `
           <div class="warning">
             <strong>${escapeHtml(data.managerName)}</strong> is not installed or not in PATH.
-            <div style="margin-top: 10px;">
+            <div class="manager-actions">
               <vscode-button appearance="secondary" onclick="hostToolsClient.installPackageManager()">
                 Install ${escapeHtml(data.managerName)}
               </vscode-button>
@@ -452,7 +452,7 @@ export class HostToolsClient {
         <td><strong>${escapeHtml(pkg.name)}</strong></td>
         <td><span class="${info.statusClass}">${info.statusText}</span></td>
         <td>${info.showInstallButton
-          ? `<vscode-button appearance="secondary" onclick="hostToolsClient.installPackage('${escapeHtml(pkg.name)}')" style="padding: 2px 8px; min-height: 0;">Install</vscode-button>`
+          ? `<vscode-button class="install-inline-btn" appearance="secondary" onclick="hostToolsClient.installPackage('${escapeHtml(pkg.name)}')">Install</vscode-button>`
           : ''}</td>
       </tr>`;
     }

@@ -317,11 +317,16 @@ export class SettingsPanel {
     </head>
     <body>
         <div class="container">
-            <div class="header">
-                <h1>⚙️ Zephyr IDE Settings</h1>
-                <button class="open-vscode-settings-button" data-action="open-vscode-settings">
-                    Open in VS Code Settings
-                </button>
+            <div class="header page-header">
+                <div>
+                    <h1 class="page-title">Zephyr IDE Settings</h1>
+                    <p class="page-subtitle">Manage extension defaults and workspace overrides.</p>
+                </div>
+                <div class="page-actions">
+                    <button class="open-vscode-settings-button" data-action="open-vscode-settings">
+                        Open in VS Code Settings
+                    </button>
+                </div>
             </div>
 
             <div class="info-box">
@@ -329,12 +334,12 @@ export class SettingsPanel {
                 Use the scope selector to choose whether a setting applies to this workspace only or to all workspaces (User).</p>
             </div>
 
-            <h2>📁 Directory Settings</h2>
+            <h2>Directory Settings</h2>
             <div class="settings-group">
                 ${dirSettings.map(renderStringSetting).join("\n")}
             </div>
 
-            <h2>🔧 Behavior Settings</h2>
+            <h2>Behavior Settings</h2>
             <div class="settings-group">
                 ${boolSettings.map(renderBoolSetting).join("\n")}
             </div>

@@ -42,7 +42,7 @@ export class HostToolInstallView {
             This tool helps you install and manage development tools required for Zephyr RTOS development.
             The tools will be installed using your platform's package manager.
           </p>
-          <p style="margin-top: 10px; font-style: italic; color: var(--vscode-descriptionForeground);">
+          <p class="host-tools-note">
             <strong>Note:</strong> VS Code may need to be restarted after installation for tools to be available in the PATH.
           </p>
         </div>
@@ -216,7 +216,12 @@ export class HostToolInstallView {
     </head>
     <body>
         <div class="container">
-            <h1>🔧 Host Tools Installation</h1>
+            <div class="page-header">
+                <div>
+                    <h1 class="page-title">Host Tools Installation</h1>
+                    <p class="page-subtitle">Install and maintain local system dependencies for Zephyr development.</p>
+                </div>
+            </div>
             ${HostToolInstallView.getContentHtml()}
             <div class="manager-section">
                 <div class="button-group">
