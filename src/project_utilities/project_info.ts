@@ -27,6 +27,7 @@ import { RunnerConfig } from "./runner_selector";
 import { TwisterConfig } from "./twister_selector";
 import { getBuildInfo, BuildInfo } from "../zephyr_utilities/build";
 import { outputError } from "../utilities/output";
+import { normalizeBuildArgs } from "./build_args";
 
 // ---------------------------------------------------------------------------
 // Project info
@@ -90,8 +91,8 @@ export interface BuildDetails {
   relBoardSubDir: string;
   resolvedBoardPath: string | undefined;
   debugOptimization: string;
-  westBuildArgs: string;
-  westBuildCMakeArgs: string;
+  westBuildArgs: string[];
+  westBuildCMakeArgs: string[];
   confFiles: ConfigFiles;
   runners: { name: string; config: RunnerConfig }[];
   launchTarget: string;
@@ -131,8 +132,8 @@ export function getBuildDetails(wsConfig: WorkspaceConfig, projectName: string, 
     relBoardSubDir: build.relBoardSubDir,
     resolvedBoardPath: resolvedPath,
     debugOptimization: build.debugOptimization,
-    westBuildArgs: build.westBuildArgs,
-    westBuildCMakeArgs: build.westBuildCMakeArgs,
+    westBuildArgs: normalizeBuildArgs(build.westBuildArgs),
+    westBuildCMakeArgs: normalizeBuildArgs(build.westBuildCMakeArgs),
     confFiles: build.confFiles ?? { config: [], extraConfig: [], overlay: [], extraOverlay: [] },
     runners,
     launchTarget: build.launchTarget,

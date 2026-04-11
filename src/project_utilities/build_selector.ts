@@ -26,6 +26,7 @@ import { SetupState } from '../setup_utilities/types';
 import { executeShellCommandInPythonEnv, output } from "../utilities/utils";
 import { notifyError, outputCommandFailure, outputWarning, outputError } from "../utilities/output";
 import { isVersionNumberGreaterEqual, isVersionNumberGreater } from '../setup_utilities/modules';
+import { splitBuildArgs } from "./build_args";
 
 
 // Config for the extension
@@ -43,8 +44,8 @@ export interface BuildConfig {
   relBoardDir: string;
   relBoardSubDir: string;
   debugOptimization: string;
-  westBuildArgs: string;
-  westBuildCMakeArgs: string;
+  westBuildArgs: string[];
+  westBuildCMakeArgs: string[];
   runnerConfigs: RunnerConfigDictionary;
   confFiles: ConfigFiles;
   launchTarget: string;
@@ -365,7 +366,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       return;
     };
 
-    state.westBuildArgs = westBuildArgs;
+    state.westBuildArgs = splitBuildArgs(westBuildArgs);
 
     let cmakeArg = "";
     switch (debugOptimization) {
@@ -399,7 +400,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       return;
     };
 
-    state.westBuildCMakeArgs = cmakeBuildArgs;
+    state.westBuildCMakeArgs = splitBuildArgs(cmakeBuildArgs);
     state.debugOptimization = debugOptimization;
 
     state.confFiles = {
@@ -429,4 +430,3 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
   }
   return state as BuildConfig;
 }
-

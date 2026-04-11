@@ -56,6 +56,7 @@ import { getProjectSectionHtml } from "./ProjectSection";
 import { getBuildSectionHtml } from "./BuildSection";
 import { getTestSectionHtml } from "./TestSection";
 import { getVariablesReferenceSectionHtml } from "./VariablesSection";
+import { normalizeBuildArgs } from "../../project_utilities/build_args";
 
 export class ProjectBuildPanel {
   private static readonly PROJECT_VARIABLE_DEFAULTS_CONFIG_KEY = "zephyr-ide.project_variable_defaults";
@@ -290,6 +291,12 @@ export class ProjectBuildPanel {
           await modifyBuildArguments(ctx, ws, message.project, message.build);
           await this.refreshAfterChange();
           return;
+        case "upsertBuildArg":
+          await this.handleUpsertBuildArg(message);
+          return;
+        case "removeBuildArg":
+          await this.handleRemoveBuildArg(message);
+          return;
 
         // Test management
         case "addTest":
@@ -402,6 +409,70 @@ export class ProjectBuildPanel {
     } else if (message.level === "build" && this._selectedProject && message.build) {
       await removeBuildVariable(this._context, this._wsConfig, this._selectedProject, message.build, message.key);
     }
+    this.updateHtml();
+  }
+
+  private getBuildArgList(message: any): { projectName: string; buildName: string; args: string[] } | undefined {
+    const projectName = this._selectedProject;
+    const buildName = String(message.build ?? "");
+    if (!projectName || !buildName) {
+      return undefined;
+    }
+    const build = this._wsConfig.projects[projectName]?.buildConfigs?.[buildName];
+    if (!build) {
+      return undefined;
+    }
+    const args = message.kind === "cmake"
+      ? normalizeBuildArgs(build.westBuildCMakeArgs)
+      : normalizeBuildArgs(build.westBuildArgs);
+    return { projectName, buildName, args };
+  }
+
+  private async handleUpsertBuildArg(message: any) {
+    const buildArgs = this.getBuildArgList(message);
+    if (!buildArgs) {
+      return;
+    }
+
+    const newArgs = normalizeBuildArgs(String(message.value ?? ""));
+    const index = Number.parseInt(String(message.index ?? ""), 10);
+    if (Number.isFinite(index) && index >= 0 && index < buildArgs.args.length) {
+      buildArgs.args.splice(index, 1, ...newArgs);
+    } else {
+      buildArgs.args.push(...newArgs);
+    }
+
+    const build = this._wsConfig.projects[buildArgs.projectName].buildConfigs[buildArgs.buildName];
+    if (message.kind === "cmake") {
+      build.westBuildCMakeArgs = buildArgs.args;
+    } else {
+      build.westBuildArgs = buildArgs.args;
+    }
+
+    await setWorkspaceState(this._context, this._wsConfig);
+    this.updateHtml();
+  }
+
+  private async handleRemoveBuildArg(message: any) {
+    const buildArgs = this.getBuildArgList(message);
+    if (!buildArgs) {
+      return;
+    }
+
+    const index = Number.parseInt(String(message.index ?? ""), 10);
+    if (!Number.isFinite(index) || index < 0 || index >= buildArgs.args.length) {
+      return;
+    }
+
+    buildArgs.args.splice(index, 1);
+    const build = this._wsConfig.projects[buildArgs.projectName].buildConfigs[buildArgs.buildName];
+    if (message.kind === "cmake") {
+      build.westBuildCMakeArgs = buildArgs.args;
+    } else {
+      build.westBuildArgs = buildArgs.args;
+    }
+
+    await setWorkspaceState(this._context, this._wsConfig);
     this.updateHtml();
   }
 

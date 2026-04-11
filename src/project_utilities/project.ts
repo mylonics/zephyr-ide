@@ -28,6 +28,7 @@ import { configSelector, configRemover, ConfigFiles, getConfFileKey, mergeConfig
 import { setDtsContext } from "../setup_utilities/dts_interface";
 import { getSamples } from "../setup_utilities/modules";
 import { getSetupState } from "../setup_utilities/workspace-config";
+import { joinBuildArgs, normalizeBuildArgs } from "./build_args";
 
 import { TwisterConfig, TwisterConfigDictionary, twisterSelector, TwisterStateDictionary } from "./twister_selector";
 
@@ -231,16 +232,16 @@ export async function modifyBuildArguments(context: vscode.ExtensionContext, wsC
   if (!resolved) { return; }
   const { project, build } = resolved;
 
-  const newWestBuildArgs = await vscode.window.showInputBox({ title: "Modify West Build Arguments", value: build.westBuildArgs, prompt: "West Build arguments i.e --sysbuild", placeHolder: "--sysbuild" });
+  const newWestBuildArgs = await vscode.window.showInputBox({ title: "Modify West Build Arguments", value: joinBuildArgs(build.westBuildArgs), prompt: "West Build arguments i.e --sysbuild", placeHolder: "--sysbuild" });
 
   if (newWestBuildArgs !== undefined) {
-    build.westBuildArgs = newWestBuildArgs;
+    build.westBuildArgs = normalizeBuildArgs(newWestBuildArgs);
   }
 
-  const newCMakeBuildArgs = await vscode.window.showInputBox({ title: "Modify CMake Build Arguments", value: build.westBuildCMakeArgs, prompt: "CMake Build arguments i.e -DCMAKE_VERBOSE_MAKEFILE=ON", placeHolder: "-DCMAKE_VERBOSE_MAKEFILE=ON" });
+  const newCMakeBuildArgs = await vscode.window.showInputBox({ title: "Modify CMake Build Arguments", value: joinBuildArgs(build.westBuildCMakeArgs), prompt: "CMake Build arguments i.e -DCMAKE_VERBOSE_MAKEFILE=ON", placeHolder: "-DCMAKE_VERBOSE_MAKEFILE=ON" });
 
   if (newCMakeBuildArgs !== undefined) {
-    build.westBuildCMakeArgs = newCMakeBuildArgs;
+    build.westBuildCMakeArgs = normalizeBuildArgs(newCMakeBuildArgs);
   }
 
   await setWorkspaceState(context, wsConfig);

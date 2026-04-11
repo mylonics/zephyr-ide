@@ -118,6 +118,44 @@ function buildVariablesTableHtml(
     </div>`;
 }
 
+function buildArgsTableHtml(
+  title: string,
+  kind: "west" | "cmake",
+  args: string[],
+  projectName: string,
+  buildName: string,
+): string {
+  return `
+    <div class="build-args-section">
+      <div class="section-row-header">
+        <span class="section-row-title">${title}</span>
+      </div>
+      <div class="build-args-table">
+        ${args.length === 0 ? '<div class="file-list-empty">No arguments defined</div>' : ""}
+        ${args
+      .map(
+        (arg, index) => `
+          <div class="build-arg-row">
+            <input class="build-arg-input" type="text" value="${escapeHtml(arg)}" aria-label="${escapeHtml(title)} argument ${index + 1}">
+            <vscode-button appearance="icon" title="Save" data-command="upsertBuildArg" data-kind="${kind}" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}" data-index="${index}">
+              <vscode-icon name="save" slot="start-icon"></vscode-icon>
+            </vscode-button>
+            <vscode-button appearance="icon" title="Remove" data-command="removeBuildArg" data-kind="${kind}" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}" data-index="${index}">
+              <vscode-icon name="trash" slot="start-icon"></vscode-icon>
+            </vscode-button>
+          </div>`,
+      )
+      .join("\n")}
+        <div class="build-arg-row build-arg-row-add">
+          <input class="build-arg-input" type="text" value="" placeholder="Add argument (single or multiple args)" aria-label="New ${escapeHtml(title)} argument">
+          <vscode-button appearance="icon" title="Add Argument" data-command="upsertBuildArg" data-kind="${kind}" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}" data-index="">
+            <vscode-icon name="add" slot="start-icon"></vscode-icon>
+          </vscode-button>
+        </div>
+      </div>
+    </div>`;
+}
+
 function calculatedSectionHtml(
   calculated: CalculatedConfigFiles,
   buildInfo: BuildInfo | undefined,
@@ -214,14 +252,8 @@ export function getBuildSectionHtml(
             <span class="info-label">Debug Optimization</span>
             <span class="info-value">${escapeHtml(build.debugOptimization)}</span>
           </div>
-          <div class="info-row">
-            <span class="info-label">West Args</span>
-            <span class="info-value editable" role="button" tabindex="0" data-keyboard-command="true" data-command="modifyBuildArgs" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}" title="Click or press Enter/Space to edit">${escapeHtml(build.westBuildArgs || "(none)")}</span>
-          </div>
-          <div class="info-row">
-            <span class="info-label">CMake Args</span>
-            <span class="info-value editable" role="button" tabindex="0" data-keyboard-command="true" data-command="modifyBuildArgs" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}" title="Click or press Enter/Space to edit">${escapeHtml(build.westBuildCMakeArgs || "(none)")}</span>
-          </div>
+          ${buildArgsTableHtml("West Args", "west", build.westBuildArgs, projectName, buildName)}
+          ${buildArgsTableHtml("CMake Args", "cmake", build.westBuildCMakeArgs, projectName, buildName)}
 
           ${fileGroupHtml(
     "KConfig Files",

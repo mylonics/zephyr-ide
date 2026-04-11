@@ -97,9 +97,14 @@ function findCommandElement(target: EventTarget | null): HTMLElement | null {
   return el;
 }
 
-function isVariableInputTarget(target: HTMLElement | null): target is HTMLElement {
+function isVariableInputTarget(target: HTMLElement | null): boolean {
   if (!target) { return false; }
   return target.classList.contains("variable-key-input") || target.classList.contains("variable-value-input");
+}
+
+function isBuildArgInputTarget(target: HTMLElement | null): boolean {
+  if (!target) { return false; }
+  return target.classList.contains("build-arg-input");
 }
 
 function setupClickDelegation(): void {
@@ -122,6 +127,10 @@ function setupClickDelegation(): void {
       const valueInput = row?.querySelector(".variable-value-input") as HTMLInputElement | null;
       data.key = keyInput?.value ?? "";
       data.value = valueInput?.value ?? "";
+    } else if (command === "upsertBuildArg") {
+      const row = el.closest(".build-arg-row");
+      const argInput = row?.querySelector(".build-arg-input") as HTMLInputElement | null;
+      data.value = argInput?.value ?? "";
     }
 
     sendCommand(command, data);
@@ -130,11 +139,19 @@ function setupClickDelegation(): void {
   document.body.addEventListener("keydown", (e) => {
     if (e.key !== "Enter") { return; }
     const target = e.target as HTMLElement | null;
-    if (!isVariableInputTarget(target)) {
+    if (isVariableInputTarget(target)) {
+      const row = target?.closest(".variable-row");
+      const button = row?.querySelector('[data-command="upsertVariable"]') as HTMLElement | null;
+      if (!button) { return; }
+      e.preventDefault();
+      button.click();
       return;
     }
-    const row = target.closest(".variable-row");
-    const button = row?.querySelector('[data-command="upsertVariable"]') as HTMLElement | null;
+    if (!isBuildArgInputTarget(target)) {
+      return;
+    }
+    const row = target?.closest(".build-arg-row");
+    const button = row?.querySelector('[data-command="upsertBuildArg"]') as HTMLElement | null;
     if (!button) { return; }
     e.preventDefault();
     button.click();
