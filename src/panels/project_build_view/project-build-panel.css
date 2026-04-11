@@ -2,25 +2,10 @@
 @import url("../webview_shared/webview-base.css");
 
 .panel-container {
-  max-width: 980px;
-  margin: 0 auto;
-  padding: 20px 24px 28px;
+  padding-top: 18px;
 }
 
-/* Toolbar */
-.panel-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 0 16px;
-  border-bottom: 1px solid var(--vscode-panel-border);
-  margin-bottom: 16px;
-}
-
-.panel-toolbar h1 {
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0;
+.page-title {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -35,6 +20,8 @@
 .project-selector label {
   font-weight: 600;
   white-space: nowrap;
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
 }
 
 .project-selector select,
@@ -68,7 +55,7 @@
 /* Sections */
 .panel-section {
   border: 1px solid var(--vscode-panel-border);
-  border-radius: 6px;
+  border-radius: var(--zephyr-webview-radius);
   margin-bottom: 12px;
   background-color: var(--vscode-sideBar-background);
 }
@@ -134,7 +121,7 @@
 .config-group {
   margin: 12px 0;
   border: 1px solid var(--vscode-panel-border);
-  border-radius: 6px;
+  border-radius: var(--zephyr-webview-radius);
   overflow: hidden;
 }
 
@@ -232,7 +219,7 @@
 
 .variables-table {
   border: 1px solid var(--vscode-panel-border);
-  border-radius: 6px;
+  border-radius: var(--zephyr-webview-radius);
   overflow: hidden;
 }
 
@@ -303,7 +290,7 @@
   padding: 6px 8px;
   gap: 12px;
   border: 1px solid var(--vscode-panel-border);
-  border-radius: 6px;
+  border-radius: var(--zephyr-webview-radius);
   margin-bottom: 4px;
 }
 

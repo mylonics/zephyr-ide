@@ -463,9 +463,11 @@ export class SetupPanel {
     ): string {
         return `
         <div class="overview-section">
-            <div class="walkthrough-header">
-                <h1 class="walkthrough-title">Zephyr IDE Setup & Configuration</h1>
-                <p class="walkthrough-subtitle">Configure your development environment</p>
+            <div class="walkthrough-header page-header">
+                <div>
+                    <h1 class="walkthrough-title page-title">Zephyr IDE Setup & Configuration</h1>
+                    <p class="walkthrough-subtitle page-subtitle">Configure your development environment</p>
+                </div>
             </div>
             
             <div class="two-column-layout">

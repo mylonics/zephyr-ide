@@ -1,10 +1,6 @@
 /* Zephyr IDE Settings Panel Styles */
 @import url("../webview_shared/webview-base.css");
 
-body {
-    padding: 0;
-}
-
 .header {
     display: flex;
     justify-content: space-between;
@@ -25,7 +21,7 @@ body {
     margin-bottom: 8px;
     background-color: var(--vscode-sideBar-background);
     border: 1px solid var(--vscode-panel-border);
-    border-radius: 6px;
+    border-radius: var(--zephyr-webview-radius);
     transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 

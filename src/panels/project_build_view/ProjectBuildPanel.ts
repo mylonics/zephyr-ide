@@ -542,10 +542,13 @@ export class ProjectBuildPanel {
       ${this.getStylesheetLinks()}
     </head>
     <body>
-      <div class="panel-container">
-        <div class="panel-toolbar">
-          <h1><i class="codicon codicon-project"></i> Project Details</h1>
-          <div class="project-selector">
+      <div class="container panel-container">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title"><i class="codicon codicon-project"></i> Project Details</h1>
+            <p class="page-subtitle">Inspect configured projects, builds, tests, and derived variables.</p>
+          </div>
+          <div class="page-actions project-selector">
             <label for="projectSelect">Project:</label>
             <vscode-single-select id="projectSelect">
               ${projectOptions}
