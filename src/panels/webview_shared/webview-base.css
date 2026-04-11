@@ -113,7 +113,7 @@ code {
   border-left: 4px solid var(--vscode-textLink-foreground);
   padding: 12px 15px;
   margin-bottom: 20px;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
 .info-box p {
@@ -135,7 +135,7 @@ code {
   border-left: 4px solid var(--vscode-editorWarning-foreground, var(--vscode-terminal-ansiYellow));
   padding: 12px 15px;
   margin-bottom: 20px;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
 .warning-box p {
@@ -192,7 +192,7 @@ code {
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  border-radius: 4px;
+  border-radius: 6px;
   margin-bottom: 20px;
   font-size: 13px;
   font-weight: 600;
@@ -239,7 +239,7 @@ code {
 }
 
 /* ===================================================================
-   7.  BUTTONS
+   7.  BUTTONS & FORM ELEMENTS
    =================================================================== */
 
 .button-group {
@@ -249,34 +249,10 @@ code {
   margin-bottom: 12px;
 }
 
-/* Native button styled to match VS Code */
-.action-button {
-  background-color: var(--vscode-button-secondaryBackground);
-  color: var(--vscode-button-secondaryForeground);
-  border: none;
-  padding: 6px 12px;
-  border-radius: 2px;
-  cursor: pointer;
-  font-family: var(--vscode-font-family);
-  font-size: var(--vscode-font-size);
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.action-button:hover {
-  background-color: var(--vscode-button-secondaryHoverBackground);
-}
-
-.action-button.primary {
-  background-color: var(--vscode-button-background);
-  color: var(--vscode-button-foreground);
-}
-
-.action-button.primary:hover {
-  background-color: var(--vscode-button-hoverBackground);
-}
-
+/*
+ * Native form elements – keep font inheritance for any remaining
+ * <input>, <select>, or <textarea> not yet replaced by vscode-elements.
+ */
 input,
 select,
 textarea {
@@ -284,6 +260,10 @@ textarea {
   font-size: var(--vscode-font-size);
 }
 
+/*
+ * Native table styles – kept for any remaining HTML tables.
+ * Panels using <vscode-table> no longer need these.
+ */
 table {
   width: 100%;
   border-collapse: collapse;
@@ -300,24 +280,6 @@ td {
 th {
   font-weight: 600;
   color: var(--vscode-foreground);
-}
-
-/* Icon-only button (edit, delete, etc.) */
-.icon-button {
-  background: none;
-  border: none;
-  color: var(--vscode-foreground);
-  cursor: pointer;
-  padding: 2px 4px;
-  border-radius: 3px;
-  display: inline-flex;
-  align-items: center;
-  opacity: 0.7;
-}
-
-.icon-button:hover {
-  opacity: 1;
-  background-color: var(--vscode-toolbar-hoverBackground);
 }
 
 /* ===================================================================

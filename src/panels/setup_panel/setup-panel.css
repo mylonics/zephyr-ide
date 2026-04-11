@@ -1,4 +1,13 @@
+/*
+ * Setup Panel styles.
+ * Base styles (status, buttons, info-box, etc.) are inherited from webview-base.css.
+ * This file contains only setup-panel-specific layout and components.
+ */
 @import url("../webview_shared/webview-base.css");
+
+/* ===================================================================
+   1. Page-level layout & slide navigation
+   =================================================================== */
 
 .panel-container {
     position: relative;
@@ -43,130 +52,17 @@
     pointer-events: auto;
 }
 
-h1 {
-    font-size: 20px;
-    font-weight: 600;
-    margin: 0 0 20px 0;
-    color: var(--vscode-foreground);
-    border-bottom: 1px solid var(--vscode-panel-border);
-    padding-bottom: 15px;
-}
-
-.status {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    border-radius: 4px;
-    font-size: 11px;
-    font-weight: 500;
-    margin-bottom: 15px;
-}
-
-.status-success {
-    background-color: color-mix(in srgb, var(--vscode-terminal-ansiGreen) 20%, transparent);
-    color: var(--vscode-terminal-ansiGreen);
-}
-
-.status-warning {
-    background-color: color-mix(in srgb, var(--vscode-terminal-ansiYellow) 20%, transparent);
-    color: var(--vscode-terminal-ansiYellow);
-}
-
-.status-error {
-    background-color: color-mix(in srgb, var(--vscode-terminal-ansiRed) 20%, transparent);
-    color: var(--vscode-terminal-ansiRed);
-}
-
-.status-info {
-    background-color: color-mix(in srgb, var(--vscode-terminal-ansiBlue) 20%, transparent);
-    color: var(--vscode-terminal-ansiBlue);
-}
-
-/* button-group and hidden are provided by webview-base.css */
-
-.sdk-version-card {
-    border: 1px solid var(--vscode-panel-border);
-    border-radius: 4px;
-    padding: 15px;
-    margin-bottom: 12px;
-    background-color: var(--vscode-editor-background);
-}
-
-.sdk-version-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-}
-
-.sdk-version-title {
-    font-weight: 600;
-    font-size: 14px;
-}
-
-.sdk-path {
-    font-family: var(--vscode-editor-font-family);
-    font-size: 11px;
-    color: var(--vscode-descriptionForeground);
-    background-color: var(--vscode-textCodeBlock-background);
-    padding: 4px 8px;
-    border-radius: 3px;
-    margin-bottom: 12px;
-    word-break: break-all;
-}
-
-.toolchain-section {
-    margin-top: 12px;
-}
-
-.toolchain-section-title {
-    font-size: 12px;
-    font-weight: 600;
-    margin-bottom: 6px;
-    color: var(--vscode-foreground);
-}
-
-.toolchain-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-}
-
-.toolchain-tag {
-    background-color: var(--vscode-badge-background);
-    color: var(--vscode-badge-foreground);
-    padding: 2px 6px;
-    border-radius: 3px;
-    font-size: 11px;
-    font-family: var(--vscode-editor-font-family);
-}
-
-.toolchain-tag.available {
-    background-color: var(--vscode-button-secondaryBackground);
-    color: var(--vscode-button-secondaryForeground);
-    opacity: 0.7;
-}
-
-/* Overview Section Styles */
-.overview-section {
-    margin-bottom: 30px;
-    padding: 24px;
-    background-color: var(--vscode-editor-background);
-    border-radius: 6px;
-    border: 1px solid var(--vscode-panel-border);
-}
-
-.section-description {
-    margin: 0 0 15px 0;
-    font-size: 13px;
-    color: var(--vscode-descriptionForeground);
-}
+/* ===================================================================
+   2. Overview section (walkthrough landing page)
+   =================================================================== */
 
 .overview-section {
     max-width: 1080px;
     margin: 0 auto;
     padding: 28px 28px 32px;
+    background-color: var(--vscode-editor-background);
+    border-radius: 6px;
+    border: 1px solid var(--vscode-panel-border);
 }
 
 .walkthrough-header {
@@ -195,60 +91,12 @@ h1 {
     grid-template-areas: "cards description";
 }
 
+/* ===================================================================
+   3. Overview cards (Host Tools, Workspace, SDK)
+   =================================================================== */
+
 .overview-cards {
     grid-area: cards;
-}
-
-.walkthrough-description {
-    grid-area: description;
-}
-
-.walkthrough-description {
-    padding: 20px 24px;
-    background-color: var(--vscode-sideBar-background);
-    border-left: 3px solid var(--vscode-textLink-foreground);
-    border-radius: 6px;
-}
-
-.walkthrough-description p {
-    margin: 0 0 12px 0;
-    font-size: 13px;
-    line-height: 1.6;
-    color: var(--vscode-foreground);
-}
-
-.walkthrough-description p:last-child {
-    margin-bottom: 0;
-}
-
-.setup-requirements {
-    margin: 16px 0;
-    padding-left: 24px;
-    list-style-type: none;
-}
-
-.setup-requirements li {
-    margin: 8px 0;
-    font-size: 13px;
-    line-height: 1.6;
-    position: relative;
-    color: var(--vscode-foreground);
-}
-
-.setup-requirements li:before {
-    content: "→";
-    position: absolute;
-    left: -20px;
-    color: var(--vscode-textLink-foreground);
-    font-weight: bold;
-}
-
-.help-text {
-    font-style: italic;
-    opacity: 0.9;
-}
-
-.overview-cards {
     display: flex;
     flex-direction: column;
     gap: 18px;
@@ -256,10 +104,10 @@ h1 {
 
 .overview-card {
     border: 1px solid var(--vscode-panel-border);
-    border-radius: 4px;
+    border-radius: 6px;
     padding: 18px;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: border-color 0.2s, background-color 0.2s;
     background-color: var(--vscode-input-background);
     position: relative;
 }
@@ -310,7 +158,7 @@ h1 {
     font-size: 20px;
     color: var(--vscode-descriptionForeground);
     opacity: 0.5;
-    transition: all 0.2s;
+    transition: opacity 0.2s, right 0.2s;
 }
 
 .overview-card:hover .card-arrow {
@@ -318,7 +166,59 @@ h1 {
     right: 14px;
 }
 
-/* Sub-page Styles */
+/* ===================================================================
+   4. Walkthrough sidebar description
+   =================================================================== */
+
+.walkthrough-description {
+    grid-area: description;
+    padding: 20px 24px;
+    background-color: var(--vscode-sideBar-background);
+    border-left: 3px solid var(--vscode-textLink-foreground);
+    border-radius: 6px;
+}
+
+.walkthrough-description p {
+    margin: 0 0 12px 0;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--vscode-foreground);
+}
+
+.walkthrough-description p:last-child {
+    margin-bottom: 0;
+}
+
+.walkthrough-docs-heading {
+    margin-top: 24px;
+}
+
+.setup-requirements {
+    margin: 16px 0;
+    padding-left: 24px;
+    list-style-type: none;
+}
+
+.setup-requirements li {
+    margin: 8px 0;
+    font-size: 13px;
+    line-height: 1.6;
+    position: relative;
+    color: var(--vscode-foreground);
+}
+
+.setup-requirements li:before {
+    content: "→";
+    position: absolute;
+    left: -20px;
+    color: var(--vscode-textLink-foreground);
+    font-weight: bold;
+}
+
+/* ===================================================================
+   5. Sub-page layout
+   =================================================================== */
+
 .sub-page-content {
     padding: 20px 24px 28px;
     max-width: 980px;
@@ -337,84 +237,18 @@ h1 {
     font-weight: 600;
 }
 
-.status-banner {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
-    border-radius: 4px;
-    margin-bottom: 20px;
-    font-size: 13px;
-    font-weight: 600;
-}
-
-.status-banner.status-success {
-    background-color: color-mix(in srgb, var(--vscode-terminal-ansiGreen) 15%, var(--vscode-editor-background));
-    color: var(--vscode-terminal-ansiGreen);
-}
-
-.status-banner.status-warning {
-    background-color: color-mix(in srgb, var(--vscode-terminal-ansiYellow) 15%, var(--vscode-editor-background));
-    color: var(--vscode-terminal-ansiYellow);
-}
-
-.status-banner.status-error {
-    background-color: color-mix(in srgb, var(--vscode-terminal-ansiRed) 15%, var(--vscode-editor-background));
-    color: var(--vscode-terminal-ansiRed);
-}
-
-.status-banner.status-info {
-    background-color: color-mix(in srgb, var(--vscode-terminal-ansiBlue) 15%, var(--vscode-editor-background));
-    color: var(--vscode-terminal-ansiBlue);
-}
-
-.status-icon {
+/* Setup-panel-specific overrides for status badges (extra margin) */
+.sub-page-body .status-banner .status-icon {
     font-size: 18px;
 }
 
-.status-text {
+.sub-page-body .status-banner .status-text {
     flex: 1;
 }
 
-.description {
-    font-size: 13px;
-    line-height: 1.6;
-    color: var(--vscode-descriptionForeground);
-    margin-bottom: 20px;
-}
-
-.section-container {
-    margin-bottom: 20px;
-    padding: 16px;
-    background-color: var(--vscode-sideBar-background);
-    border: 1px solid var(--vscode-panel-border);
-    border-radius: 6px;
-}
-
-.section-container.centered {
-    text-align: center;
-}
-
-.section-container h3 {
-    margin: 0 0 15px 0;
-    font-size: 15px;
-    font-weight: 600;
-}
-
-.tools-list {
-    list-style: none;
-    padding: 0;
-    margin: 15px 0;
-}
-
-.tools-list li {
-    padding: 8px 0;
-    border-bottom: 1px solid var(--vscode-panel-border);
-}
-
-.tools-list li:last-child {
-    border-bottom: none;
-}
+/* ===================================================================
+   6. Action sections
+   =================================================================== */
 
 .action-section {
     margin-bottom: 30px;
@@ -426,64 +260,9 @@ h1 {
     font-weight: 600;
 }
 
-.button-group {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-bottom: 15px;
-}
-
-.help-text {
-    font-size: 12px;
-    color: var(--vscode-descriptionForeground);
-    line-height: 1.5;
-    margin: 10px 0 0 0;
-}
-
-.empty-state {
-    padding: 40px 20px;
-}
-
-.empty-state-icon {
-    font-size: 48px;
-    margin-bottom: 15px;
-}
-
-.empty-state h3 {
-    margin: 0 0 10px 0;
-    font-size: 16px;
-    font-weight: 600;
-}
-
-.empty-state p {
-    margin: 0 0 20px 0;
-    color: var(--vscode-descriptionForeground);
-}
-
-.info-box {
-    background-color: var(--vscode-textBlockQuote-background);
-    border-left: 4px solid var(--vscode-textLink-foreground);
-    padding: 12px 15px;
-    border-radius: 4px;
-}
-
-.info-box p {
-    margin: 8px 0;
-    font-size: 13px;
-    line-height: 1.5;
-}
-
-.warning-box {
-    background-color: var(--vscode-textBlockQuote-background);
-    border-left: 4px solid var(--vscode-editorWarning-foreground, var(--vscode-terminal-ansiYellow));
-    padding: 12px 15px;
-    border-radius: 4px;
-    margin-bottom: 15px;
-}
-
-.warning-box p {
-    margin: 8px 0;
-}
+/* ===================================================================
+   7. Workspace option cards (setup-required state)
+   =================================================================== */
 
 .workspace-options-grid {
     display: grid;
@@ -497,7 +276,7 @@ h1 {
     border-radius: 6px;
     padding: 18px;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: border-color 0.2s, background-color 0.2s;
     background-color: var(--vscode-editor-background);
 }
 
@@ -538,11 +317,105 @@ h1 {
     opacity: 0.8;
 }
 
+/* ===================================================================
+   8. SDK management
+   =================================================================== */
+
 .sdk-list-container {
     margin-top: 20px;
 }
 
-/* Host Tools Manager Styles */
+.sdk-version-card {
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 6px;
+    padding: 15px;
+    margin-bottom: 12px;
+    background-color: var(--vscode-editor-background);
+}
+
+.sdk-version-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.sdk-version-title {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.sdk-path {
+    font-family: var(--vscode-editor-font-family);
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+    background-color: var(--vscode-textCodeBlock-background);
+    padding: 4px 8px;
+    border-radius: 4px;
+    margin-bottom: 12px;
+    word-break: break-all;
+}
+
+.toolchain-section {
+    margin-top: 12px;
+}
+
+.toolchain-section-title {
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--vscode-foreground);
+}
+
+.toolchain-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.toolchain-tag {
+    background-color: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-family: var(--vscode-editor-font-family);
+}
+
+.toolchain-tag.available {
+    background-color: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+    opacity: 0.7;
+}
+
+.sdk-loading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px;
+}
+
+.sdk-error-box {
+    padding: 15px;
+    border: 1px solid var(--vscode-inputValidation-errorBorder);
+    border-radius: 6px;
+    background-color: var(--vscode-inputValidation-errorBackground);
+    color: var(--vscode-inputValidation-errorForeground);
+}
+
+.sdk-empty-box {
+    padding: 15px;
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 6px;
+    background-color: var(--vscode-editor-background);
+    color: var(--vscode-descriptionForeground);
+    text-align: center;
+}
+
+/* ===================================================================
+   9. Host Tools manager (embedded in setup panel)
+   =================================================================== */
+
 .host-tools-manager {
     margin-top: 15px;
 }
@@ -570,41 +443,15 @@ h1 {
     padding: 20px;
 }
 
-.status-area .success {
-    color: var(--vscode-terminal-ansiGreen);
-    padding: 10px;
-}
+.status-area .success { color: var(--vscode-terminal-ansiGreen); padding: 10px; }
+.status-area .error   { color: var(--vscode-terminal-ansiRed);   padding: 10px; }
+.status-area .warning { color: var(--vscode-terminal-ansiYellow); padding: 10px; }
+.status-area .info    { color: var(--vscode-terminal-ansiBlue);  padding: 10px; }
 
-.status-area .error {
-    color: var(--vscode-terminal-ansiRed);
-    padding: 10px;
-}
-
-.status-area .warning {
-    color: var(--vscode-terminal-ansiYellow);
-    padding: 10px;
-}
-
-.status-area .info {
-    color: var(--vscode-terminal-ansiBlue);
-    padding: 10px;
-}
-
-.status-area .status-available {
-    color: var(--vscode-terminal-ansiGreen);
-}
-
-.status-area .status-missing {
-    color: var(--vscode-terminal-ansiRed);
-}
-
-.status-area .status-installing {
-    color: var(--vscode-terminal-ansiBlue);
-}
-
-.status-area .status-pending-restart {
-    color: var(--vscode-terminal-ansiYellow);
-}
+.status-area .status-available       { color: var(--vscode-terminal-ansiGreen); }
+.status-area .status-missing         { color: var(--vscode-terminal-ansiRed); }
+.status-area .status-installing      { color: var(--vscode-terminal-ansiBlue); }
+.status-area .status-pending-restart { color: var(--vscode-terminal-ansiYellow); }
 
 .packages-table {
     width: 100%;
@@ -629,14 +476,10 @@ h1 {
     border-bottom: none;
 }
 
-.progress-message {
-    text-align: center;
-    padding: 15px;
-    font-style: italic;
-    color: var(--vscode-descriptionForeground);
-}
+/* ===================================================================
+   10. West.yml editor
+   =================================================================== */
 
-/* West.yml Editor Styles */
 .west-yml-editor {
     margin-top: 10px;
 }
@@ -663,7 +506,7 @@ h1 {
     background-color: var(--vscode-editor-background);
     color: var(--vscode-editor-foreground);
     border: 1px solid var(--vscode-input-border);
-    border-radius: 4px;
+    border-radius: 6px;
     resize: vertical;
     box-sizing: border-box;
 }
@@ -679,7 +522,10 @@ h1 {
     gap: 10px;
 }
 
-/* Help Links Styles */
+/* ===================================================================
+   11. Help links
+   =================================================================== */
+
 .help-links {
     list-style: none;
     padding: 0;
@@ -707,7 +553,9 @@ h1 {
     color: var(--vscode-textLink-foreground);
 }
 
-/* ===== Workspace Setup Progress Panel ===== */
+/* ===================================================================
+   12. Workspace setup progress panel
+   =================================================================== */
 
 .setup-progress-panel {
     border: 1px solid var(--vscode-panel-border);
@@ -794,17 +642,9 @@ h1 {
     background-color: var(--vscode-list-hoverBackground);
 }
 
-.setup-step-item.completed {
-    opacity: 0.8;
-}
-
-.setup-step-item.failed {
-    border-color: var(--vscode-inputValidation-errorBorder);
-}
-
-.setup-step-item.skipped {
-    opacity: 0.5;
-}
+.setup-step-item.completed { opacity: 0.8; }
+.setup-step-item.failed    { border-color: var(--vscode-inputValidation-errorBorder); }
+.setup-step-item.skipped   { opacity: 0.5; }
 
 .setup-step-icon {
     display: flex;
@@ -818,27 +658,11 @@ h1 {
     flex-shrink: 0;
 }
 
-.setup-step-icon.pending {
-    color: var(--vscode-descriptionForeground);
-    border: 2px solid var(--vscode-descriptionForeground);
-    font-size: 9px;
-}
-
-.setup-step-icon.in-progress {
-    color: var(--vscode-progressBar-background);
-}
-
-.setup-step-icon.completed {
-    color: var(--vscode-terminal-ansiGreen);
-}
-
-.setup-step-icon.failed {
-    color: var(--vscode-terminal-ansiRed);
-}
-
-.setup-step-icon.skipped {
-    color: var(--vscode-descriptionForeground);
-}
+.setup-step-icon.pending    { color: var(--vscode-descriptionForeground); border: 2px solid var(--vscode-descriptionForeground); font-size: 9px; }
+.setup-step-icon.in-progress { color: var(--vscode-progressBar-background); }
+.setup-step-icon.completed   { color: var(--vscode-terminal-ansiGreen); }
+.setup-step-icon.failed      { color: var(--vscode-terminal-ansiRed); }
+.setup-step-icon.skipped     { color: var(--vscode-descriptionForeground); }
 
 .setup-step-content {
     display: flex;
@@ -864,19 +688,10 @@ h1 {
     line-height: 1.4;
 }
 
-/* Initializing state shown after a setup button is clicked */
-.setup-initializing {
-    animation: fadeIn 0.2s ease-in;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to   { opacity: 1; }
-}
-
-/* ===== Workspace Sub-Page State Containers ===== */
-/* Only the container matching [data-workspace-state] is visible.
-   All three exist in the DOM so switching is a single attribute change. */
+/* ===================================================================
+   13. Workspace sub-page state containers
+   =================================================================== */
+/* Only the container matching [data-workspace-state] is visible. */
 
 .ws-state {
     display: none;
@@ -893,32 +708,4 @@ h1 {
 
 [data-workspace-state="setup-required"] > .ws-state-setup-required {
     display: block;
-}
-
-.sdk-loading {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px;
-}
-
-.sdk-error-box {
-    padding: 15px;
-    border: 1px solid var(--vscode-inputValidation-errorBorder);
-    border-radius: 6px;
-    background-color: var(--vscode-inputValidation-errorBackground);
-    color: var(--vscode-inputValidation-errorForeground);
-}
-
-.sdk-empty-box {
-    padding: 15px;
-    border: 1px solid var(--vscode-panel-border);
-    border-radius: 6px;
-    background-color: var(--vscode-editor-background);
-    color: var(--vscode-descriptionForeground);
-    text-align: center;
-}
-
-.walkthrough-docs-heading {
-    margin-top: 24px;
 }
