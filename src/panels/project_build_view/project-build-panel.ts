@@ -118,9 +118,8 @@ function setupClickDelegation(): void {
     const el = findCommandElement(e.target);
     if (!el || el.getAttribute("data-keyboard-command") !== "true") { return; }
 
-    const isEnter = e.key === "Enter" && e.type === "keydown";
-    const isSpace = e.key === " " && e.type === "keyup";
-    if (!isEnter && !isSpace) { return; }
+    const isActivationKey = e.type === "keydown" && (e.key === "Enter" || e.key === " ");
+    if (!isActivationKey) { return; }
     e.preventDefault();
 
     const command = el.getAttribute("data-command");
@@ -133,7 +132,6 @@ function setupClickDelegation(): void {
   };
 
   document.body.addEventListener("keydown", handleKeyboardCommand, listenerOptions);
-  document.body.addEventListener("keyup", handleKeyboardCommand, listenerOptions);
   window.addEventListener("unload", () => eventController.abort(), { once: true });
 }
 
