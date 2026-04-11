@@ -19,6 +19,7 @@ import * as vscode from 'vscode';
 import * as path from 'upath';
 import { addConfigFiles, setActive, modifyBuildArguments, removeConfigFile, getResolvedRunnerConfig, getResolvedTestConfig, resolveActiveProject, resolveActiveProjectBuild } from '../project_utilities/project';
 import { ConfigFiles } from '../project_utilities/config_selector';
+import { joinBuildArgs } from '../project_utilities/build_args';
 
 import { WorkspaceConfig } from '../setup_utilities/types';
 import { getSetupState } from '../setup_utilities/workspace-config';
@@ -221,12 +222,12 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
           ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
       }
 
-      const westArgsItem = new ConfigItem('West Args', 'circuit-board', false, 'configClickable', activeBuild.westBuildArgs);
+      const westArgsItem = new ConfigItem('West Args', 'circuit-board', false, 'configClickable', joinBuildArgs(activeBuild.westBuildArgs));
       westArgsItem.id = 'config-build.westargs';
       westArgsItem.data = { project: activeProject.name, build: activeBuild.name };
       westArgsItem.command = { command: 'zephyr-ide.config-view.modify-build-args', title: 'Modify Build Args', arguments: [westArgsItem] };
 
-      const cmakeArgsItem = new ConfigItem('CMake Args', 'circuit-board', false, 'configClickable', activeBuild.westBuildCMakeArgs);
+      const cmakeArgsItem = new ConfigItem('CMake Args', 'circuit-board', false, 'configClickable', joinBuildArgs(activeBuild.westBuildCMakeArgs));
       cmakeArgsItem.id = 'config-build.cmakeargs';
       cmakeArgsItem.data = { project: activeProject.name, build: activeBuild.name };
       cmakeArgsItem.command = { command: 'zephyr-ide.config-view.modify-build-args', title: 'Modify Build Args', arguments: [cmakeArgsItem] };

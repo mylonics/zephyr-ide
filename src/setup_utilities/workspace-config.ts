@@ -24,9 +24,23 @@ import { getPlatformNameAsync } from "../utilities/utils";
 import { outputInfo, outputWarning, outputError, notifyError } from "../utilities/output";
 import { WorkspaceConfig, SetupState } from "./types";
 import { resolveActiveProjectBuild } from "../project_utilities/project";
+import { normalizeBuildArgs } from "../project_utilities/build_args";
 
-function projectLoader(config: WorkspaceConfig, projects: any) {
+function argsMatchNormalized(value: any, normalized: string[]): boolean {
+  if (!Array.isArray(value) || value.length !== normalized.length) {
+    return false;
+  }
+  for (let i = 0; i < value.length; i++) {
+    if (String(value[i]).trim() !== normalized[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function projectLoader(config: WorkspaceConfig, projects: any): boolean {
   config.projects = {};
+  let requiresSave = false;
 
   if (config.projectStates === undefined) {
     config.projectStates = {};
@@ -54,7 +68,20 @@ function projectLoader(config: WorkspaceConfig, projects: any) {
       //Remove after upgrade
       if (projects[key].buildConfigs[build_key].runnerConfigs === undefined) {
         config.projects[key].buildConfigs[build_key].runnerConfigs = projects[key].buildConfigs[build_key].runners;
+        requiresSave = true;
       }
+
+      const buildConfig = config.projects[key].buildConfigs[build_key];
+      const westBuildArgsRaw = buildConfig.westBuildArgs;
+      const westBuildCMakeArgsRaw = buildConfig.westBuildCMakeArgs;
+      const normalizedWestBuildArgs = normalizeBuildArgs(buildConfig.westBuildArgs);
+      const normalizedWestBuildCMakeArgs = normalizeBuildArgs(buildConfig.westBuildCMakeArgs);
+      if (!argsMatchNormalized(westBuildArgsRaw, normalizedWestBuildArgs)
+        || !argsMatchNormalized(westBuildCMakeArgsRaw, normalizedWestBuildCMakeArgs)) {
+        requiresSave = true;
+      }
+      buildConfig.westBuildArgs = normalizedWestBuildArgs;
+      buildConfig.westBuildCMakeArgs = normalizedWestBuildCMakeArgs;
 
       for (const runner_key in projects[key].buildConfigs[build_key].runnerConfigs) {
         if (config.projectStates[key].buildStates[build_key].runnerStates[runner_key] === undefined) {
@@ -66,6 +93,7 @@ function projectLoader(config: WorkspaceConfig, projects: any) {
       }
     }
   }
+  return requiresSave;
 }
 
 export async function getVariable(config: WorkspaceConfig, variable_name: string, project_name?: string, build_name?: string) {
@@ -95,7 +123,11 @@ export async function loadProjectsFromFile(config: WorkspaceConfig) {
     } else {
       const object = JSON.parse(fs.readFileSync(zephyrIdeSettingFilePath, 'utf8'));
       const projects = object.projects ?? {};
-      projectLoader(config, projects);
+      const migrated = projectLoader(config, projects);
+      if (migrated) {
+        object.projects = config.projects;
+        await fs.outputFile(zephyrIdeSettingFilePath, JSON.stringify(object, null, 2));
+      }
     }
   } catch (error) {
     outputError("Workspace Config", `Failed to load .vscode/zephyr-ide.json: ${String(error)}`);

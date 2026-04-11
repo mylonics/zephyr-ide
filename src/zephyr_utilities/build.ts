@@ -25,6 +25,7 @@ import { notifyError, outputInfo, outputWarning } from "../utilities/output";
 import { WorkspaceConfig } from '../setup_utilities/types';
 import { addBuild, ProjectConfig, getResolvedBuildName, resolveActiveProject, resolveActiveProjectBuild, getProjectFolder, getBuildFolder, resolveBoardRootArg } from "../project_utilities/project";
 import { BuildConfig } from "../project_utilities/build_selector";
+import { joinBuildArgsForShell, normalizeBuildArgs, quoteBuildArgForShell } from "../project_utilities/build_args";
 import { updateDtsContext } from "../setup_utilities/dts_interface";
 import { getSetupState, getSetupStateOrNotify, updateBuildCMakeInfo, clearBuildCMakeInfo } from "../setup_utilities/workspace-config";
 
@@ -148,8 +149,8 @@ export async function build(
   const extraOverlayFiles = project.confFiles.extraOverlay.concat(build.confFiles.extraOverlay)
     .map(x => path.join(wsConfig.rootPath, x));
 
-  const extraWestBuildArgs = build.westBuildArgs ?? "";
-  const extraWestBuildCMakeArgs = build.westBuildCMakeArgs ?? "";
+  const extraWestBuildArgs = joinBuildArgsForShell(build.westBuildArgs);
+  const extraWestBuildCMakeArgs = normalizeBuildArgs(build.westBuildCMakeArgs).map((arg) => quoteBuildArgForShell(arg));
 
   const projectFolder = getProjectFolder(wsConfig, project);
   const buildFolder = getBuildFolder(wsConfig, project, build);
@@ -175,7 +176,7 @@ export async function build(
     const boardRootArg = resolveBoardRootArg(wsConfig, build, setupState);
 
     // Collect all CMake -D flags
-    const cmakeDefs: string[] = [boardRootArg, extraWestBuildCMakeArgs].filter(s => s.trim().length > 0);
+    const cmakeDefs: string[] = [boardRootArg, ...extraWestBuildCMakeArgs].filter(s => s.trim().length > 0);
     if (primaryConfFiles.length) {
       cmakeDefs.push(`-DCONF_FILE='${primaryConfFiles.join(";")}'`);
     }
