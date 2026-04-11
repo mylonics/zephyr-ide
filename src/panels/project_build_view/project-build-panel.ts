@@ -111,10 +111,13 @@ function setupClickDelegation(): void {
     sendCommand(command, data);
   });
 
-  document.body.addEventListener("keydown", (e) => {
-    if (e.key !== "Enter" && e.key !== " ") { return; }
+  const handleKeyboardCommand = (e: KeyboardEvent): void => {
     const el = findCommandElement(e.target);
     if (!el || el.getAttribute("data-keyboard-command") !== "true") { return; }
+
+    const isEnter = e.key === "Enter" && e.type === "keydown";
+    const isSpace = e.key === " " && e.type === "keyup";
+    if (!isEnter && !isSpace) { return; }
     e.preventDefault();
 
     const command = el.getAttribute("data-command");
@@ -124,7 +127,10 @@ function setupClickDelegation(): void {
     delete data["command"];
     delete data["keyboard-command"];
     sendCommand(command, data);
-  });
+  };
+
+  document.body.addEventListener("keydown", handleKeyboardCommand);
+  document.body.addEventListener("keyup", handleKeyboardCommand);
 }
 
 // ---------------------------------------------------------------------------
