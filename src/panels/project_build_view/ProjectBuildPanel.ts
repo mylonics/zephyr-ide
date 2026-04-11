@@ -49,7 +49,8 @@ import {
   selectDebugAttachLaunchConfiguration,
   getProjectFolder,
 } from "../../project_utilities/project";
-import { escapeHtml, generateNonce } from "../webview_shared/webviewTypes";
+import { escapeHtml } from "../webview_shared/webviewTypes";
+import { generateNonce } from "../webview_shared/nonce";
 import { getProjectSectionHtml } from "./ProjectSection";
 import { getBuildSectionHtml } from "./BuildSection";
 import { getTestSectionHtml } from "./TestSection";
@@ -417,6 +418,11 @@ export class ProjectBuildPanel {
     await vscode.commands.executeCommand("zephyr-ide.update-web-view");
   }
 
+  /**
+   * Resolve a file path coming from the webview.
+   * Relative paths are resolved against the selected project folder when available,
+   * otherwise against the workspace root.
+   */
   private resolvePathForOpen(filePath: string): string {
     if (path.isAbsolute(filePath)) {
       return filePath;

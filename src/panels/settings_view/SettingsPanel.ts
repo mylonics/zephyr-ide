@@ -16,7 +16,7 @@ limitations under the License.
 */
 
 import * as vscode from "vscode";
-import { generateNonce } from "../webview_shared/webviewTypes";
+import { generateNonce } from "../webview_shared/nonce";
 
 interface SettingDefinition {
   key: string;
