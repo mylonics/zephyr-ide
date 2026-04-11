@@ -30,6 +30,7 @@ import {
   getResolvedBuildOutputFiles,
   getProjectVariables,
   getBuildVariables,
+  mergeVariableDefaults,
   setProjectVariable,
   setBuildVariable,
   removeProjectVariable,
@@ -333,11 +334,8 @@ export class ProjectBuildPanel {
           return;
 
         // Variables
-        case "addVariable":
-          await this.handleAddVariable(message);
-          return;
-        case "editVariable":
-          await this.handleEditVariable(message);
+        case "upsertVariable":
+          await this.handleUpsertVariable(message);
           return;
         case "removeVariable":
           await this.handleRemoveVariable(message);
@@ -371,36 +369,26 @@ export class ProjectBuildPanel {
     await this.refreshAfterChange();
   }
 
-  private async handleAddVariable(message: any) {
-    const key = await vscode.window.showInputBox({ title: "Variable Name", prompt: "Enter variable name" });
-    if (!key) { return; }
-    const value = await vscode.window.showInputBox({ title: "Variable Value", prompt: `Enter value for "${key}"` });
-    if (value === undefined) { return; }
+  private async handleUpsertVariable(message: any) {
+    const key = String(message.key ?? "").trim();
+    const value = String(message.value ?? "");
+    const originalKey = String(message.originalKey ?? "").trim();
+
+    if (!key) {
+      notifyError("Project Build Panel", "Variable name cannot be empty.");
+      return;
+    }
 
     if (message.level === "project" && this._selectedProject) {
+      if (originalKey && originalKey !== key) {
+        await removeProjectVariable(this._context, this._wsConfig, this._selectedProject, originalKey);
+      }
       await setProjectVariable(this._context, this._wsConfig, this._selectedProject, key, value);
     } else if (message.level === "build" && this._selectedProject && message.build) {
+      if (originalKey && originalKey !== key) {
+        await removeBuildVariable(this._context, this._wsConfig, this._selectedProject, message.build, originalKey);
+      }
       await setBuildVariable(this._context, this._wsConfig, this._selectedProject, message.build, key, value);
-    }
-    this.updateHtml();
-  }
-
-  private async handleEditVariable(message: any) {
-    const currentValue = message.level === "project"
-      ? getProjectVariables(this._wsConfig, this._selectedProject ?? "")[message.key] ?? ""
-      : getBuildVariables(this._wsConfig, this._selectedProject ?? "", message.build ?? "")[message.key] ?? "";
-
-    const value = await vscode.window.showInputBox({
-      title: `Edit Variable: ${message.key}`,
-      prompt: `Enter new value for "${message.key}"`,
-      value: currentValue,
-    });
-    if (value === undefined) { return; }
-
-    if (message.level === "project" && this._selectedProject) {
-      await setProjectVariable(this._context, this._wsConfig, this._selectedProject, message.key, value);
-    } else if (message.level === "build" && this._selectedProject && message.build) {
-      await setBuildVariable(this._context, this._wsConfig, this._selectedProject, message.build, message.key, value);
     }
     this.updateHtml();
   }
@@ -416,6 +404,17 @@ export class ProjectBuildPanel {
 
   private async refreshAfterChange() {
     await vscode.commands.executeCommand("zephyr-ide.update-web-view");
+  }
+
+  private getDefaultVariableKeys(level: "project" | "build"): string[] {
+    const configKey = level === "project"
+      ? "zephyr-ide.project_variable_defaults"
+      : "zephyr-ide.build_variable_defaults";
+    const defaults = vscode.workspace.getConfiguration().get<string[]>(configKey) ?? [];
+    const keys = defaults
+      .map((key) => String(key).trim())
+      .filter((key) => key.length > 0);
+    return Array.from(new Set(keys));
   }
 
   /**
@@ -468,7 +467,10 @@ export class ProjectBuildPanel {
     if (selected && this._wsConfig.projects[selected]) {
       const projectInfo = getProjectInfo(this._wsConfig, selected);
       if (projectInfo) {
-        const projectVars = getProjectVariables(this._wsConfig, selected);
+        const projectVars = mergeVariableDefaults(
+          getProjectVariables(this._wsConfig, selected),
+          this.getDefaultVariableKeys("project"),
+        );
         projectHtml = getProjectSectionHtml(projectInfo, selected, projectVars);
       }
 
@@ -507,7 +509,10 @@ export class ProjectBuildPanel {
         const buildName = currentSelection.slice(6);
         const buildDetails = getBuildDetails(this._wsConfig, selected, buildName);
         if (buildDetails) {
-          const buildVars = getBuildVariables(this._wsConfig, selected, buildName);
+          const buildVars = mergeVariableDefaults(
+            getBuildVariables(this._wsConfig, selected, buildName),
+            this.getDefaultVariableKeys("build"),
+          );
           const calculated = getCalculatedConfigFiles(project, project.buildConfigs[buildName]);
           const activeBuild = this._wsConfig.projectStates[selected]?.activeBuildConfig;
           const isActive = buildName === activeBuild;

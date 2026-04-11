@@ -277,6 +277,37 @@
   white-space: nowrap;
 }
 
+.variable-key-input,
+.variable-value-input {
+  min-width: 0;
+  height: 26px;
+  padding: 2px 6px;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: var(--zephyr-webview-radius);
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.92em;
+}
+
+.variable-key-input {
+  flex: 0 0 180px;
+}
+
+.variable-value-input {
+  flex: 1;
+}
+
+.variable-key-input:focus-visible,
+.variable-value-input:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  box-shadow: var(--zephyr-webview-focus-ring);
+}
+
+.variable-row-add {
+  border-bottom: none;
+}
+
 /* Launch configs */
 .launch-configs {
   margin: 8px 0;

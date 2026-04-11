@@ -111,7 +111,28 @@ function setupClickDelegation(): void {
     const data = getDataAttributes(el);
     delete data["command"]; // already extracted
 
+    if (command === "upsertVariable") {
+      const row = el.closest(".variable-row");
+      const keyInput = row?.querySelector(".variable-key-input") as HTMLInputElement | null;
+      const valueInput = row?.querySelector(".variable-value-input") as HTMLInputElement | null;
+      data.key = keyInput?.value ?? "";
+      data.value = valueInput?.value ?? "";
+    }
+
     sendCommand(command, data);
+  }, listenerOptions);
+
+  document.body.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") { return; }
+    const target = e.target as HTMLElement | null;
+    if (!target || !target.classList.contains("variable-key-input") && !target.classList.contains("variable-value-input")) {
+      return;
+    }
+    const row = target.closest(".variable-row");
+    const button = row?.querySelector('[data-command="upsertVariable"]') as HTMLElement | null;
+    if (!button) { return; }
+    e.preventDefault();
+    button.click();
   }, listenerOptions);
 
   const handleKeyboardCommand = (e: KeyboardEvent): void => {
