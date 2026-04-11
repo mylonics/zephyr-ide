@@ -2,8 +2,9 @@
 @import url("../webview_shared/webview-base.css");
 
 .panel-container {
-  max-width: 900px;
-  padding: 16px 24px;
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 20px 24px 28px;
 }
 
 /* Toolbar */
@@ -79,9 +80,9 @@
 /* Sections */
 .panel-section {
   border: 1px solid var(--vscode-panel-border);
-  border-radius: 4px;
+  border-radius: 6px;
   margin-bottom: 12px;
-  background-color: var(--vscode-editor-background);
+  background-color: var(--vscode-sideBar-background);
 }
 
 .section-header {
@@ -145,7 +146,7 @@
 .config-group {
   margin: 12px 0;
   border: 1px solid var(--vscode-panel-border);
-  border-radius: 4px;
+  border-radius: 6px;
   overflow: hidden;
 }
 
@@ -290,7 +291,7 @@
 
 .variables-table {
   border: 1px solid var(--vscode-panel-border);
-  border-radius: 4px;
+  border-radius: 6px;
   overflow: hidden;
 }
 
@@ -361,7 +362,7 @@
   padding: 6px 8px;
   gap: 12px;
   border: 1px solid var(--vscode-panel-border);
-  border-radius: 4px;
+  border-radius: 6px;
   margin-bottom: 4px;
 }
 

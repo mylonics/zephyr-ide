@@ -26,7 +26,7 @@ export class SDKSubPage {
             description = "A west workspace is required before installing the Zephyr SDK.";
             warningSection = `
                 <div class="warning-box">
-                    <p style="margin: 0;">
+                    <p class="no-margin">
                         <strong>⚠ Workspace Setup Required</strong><br>
                         Please set up a west workspace first before managing the SDK. 
                         Go back to the overview and configure the Workspace card.
@@ -59,7 +59,7 @@ export class SDKSubPage {
                 ${warningSection}
                 
                 <div class="info-box">
-                    <p style="margin: 0;">
+                    <p class="no-margin">
                         <strong>Note:</strong> SDK installation uses the <code>west sdk</code> command and requires a west workspace.
                     </p>
                 </div>

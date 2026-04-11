@@ -2,12 +2,24 @@
 @import url("../webview_shared/webview-base.css");
 
 body {
-    padding: 20px;
+    padding: 0;
 }
 
 h2 {
     font-size: 18px;
     margin-bottom: 15px;
+}
+
+.host-tools-manager {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.host-tools-note {
+    margin-top: 10px;
+    font-style: italic;
+    color: var(--vscode-descriptionForeground);
 }
 
 .section {
@@ -19,7 +31,7 @@ h2 {
 }
 
 .status-area {
-    margin-top: 15px;
+    margin-top: 12px;
 }
 
 .manager-status-box {
@@ -89,7 +101,7 @@ h2 {
     justify-content: space-between;
     padding: 12px 15px;
     border: 1px solid var(--vscode-panel-border);
-    border-radius: 4px;
+    border-radius: 6px;
     background-color: var(--vscode-input-background);
 }
 
@@ -148,6 +160,7 @@ h2 {
     margin-bottom: 15px;
     background-color: var(--vscode-input-background);
     border-radius: 4px;
+    border: 1px solid var(--vscode-panel-border);
 }
 
 .summary-item {

@@ -485,7 +485,7 @@ export class SetupPanel {
                     </ul>
                     <p class="help-text">Click any card above to configure that component.</p>
                     
-                    <h3 style="margin-top: 24px;">Documentation & Help</h3>
+                    <h3 class="walkthrough-docs-heading">Documentation & Help</h3>
                     <p>Learn more about using Zephyr IDE:</p>
                     <ul class="help-links">
                         <li><a href="https://github.com/mylonics/zephyr-ide/blob/main/README.md" class="external-link">📖 Extension Documentation</a></li>

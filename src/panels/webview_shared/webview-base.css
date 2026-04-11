@@ -14,10 +14,16 @@
    1.  BODY RESET
    =================================================================== */
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 body {
   font-family: var(--vscode-font-family);
   font-size: var(--vscode-font-size);
-  line-height: 1.4;
+  line-height: 1.5;
   color: var(--vscode-foreground);
   background-color: var(--vscode-editor-background);
   padding: 0;
@@ -31,9 +37,38 @@ body {
    =================================================================== */
 
 .container {
-  max-width: 900px;
+  max-width: 980px;
   margin: 0 auto;
-  padding: 16px 24px;
+  padding: 20px 24px 28px;
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.page-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.page-subtitle {
+  margin: 6px 0 0;
+  color: var(--vscode-descriptionForeground);
+  font-size: 13px;
+}
+
+.page-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 /* ===================================================================
@@ -190,9 +225,9 @@ code {
 .section-container {
   margin-bottom: 20px;
   padding: 16px;
-  background-color: var(--vscode-editor-background);
+  background-color: var(--vscode-sideBar-background);
   border: 1px solid var(--vscode-panel-border);
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
 .section-container.centered {
@@ -240,6 +275,31 @@ code {
 
 .action-button.primary:hover {
   background-color: var(--vscode-button-hoverBackground);
+}
+
+input,
+select,
+textarea {
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 8px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  vertical-align: top;
+}
+
+th {
+  font-weight: 600;
+  color: var(--vscode-foreground);
 }
 
 /* Icon-only button (edit, delete, etc.) */
@@ -295,6 +355,34 @@ code {
   color: var(--vscode-descriptionForeground);
   line-height: 1.5;
   margin: 8px 0 0 0;
+}
+
+.no-margin {
+  margin: 0;
+}
+
+.manager-type-label {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.manager-actions {
+  margin-top: 10px;
+}
+
+.manager-actions p {
+  margin: 0 0 10px;
+  font-size: 12px;
+}
+
+.install-inline-btn {
+  min-height: 0;
+}
+
+.error-state {
+  padding: 16px;
+  text-align: center;
+  color: var(--vscode-errorForeground);
 }
 
 /* ===================================================================
