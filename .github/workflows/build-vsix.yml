@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
     inputs:
       branch:
-        description: 'Branch to build VSIX from'
+        description: "Branch to build VSIX from"
         required: true
         type: string
-        default: 'main'
+        default: "main"
 
 permissions:
   contents: read
@@ -48,7 +48,7 @@ jobs:
           echo "Package version: ${VERSION}-${SAFE_BRANCH}-${COMMIT_HASH}"
 
       - name: Package Extension
-        run: npx vsce package --out zephyr-ide-${{ steps.version_info.outputs.version }}-${{ steps.version_info.outputs.safe_branch }}-${{ steps.version_info.outputs.commit_hash }}.vsix
+        run: npx @vscode/vsce package --out zephyr-ide-${{ steps.version_info.outputs.version }}-${{ steps.version_info.outputs.safe_branch }}-${{ steps.version_info.outputs.commit_hash }}.vsix
 
       - name: Upload VSIX Artifact
         uses: actions/upload-artifact@v4

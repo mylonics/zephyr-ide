@@ -39,7 +39,7 @@ jobs:
           echo "Package version: ${VERSION}-${COMMIT_HASH}"
 
       - name: Package Extension
-        run: npx vsce package --out zephyr-ide-${{ steps.version_info.outputs.version }}-${{ steps.version_info.outputs.commit_hash }}.vsix
+        run: npx @vscode/vsce package --out zephyr-ide-${{ steps.version_info.outputs.version }}-${{ steps.version_info.outputs.commit_hash }}.vsix
 
       - name: Upload VSIX Artifact
         uses: actions/upload-artifact@v4

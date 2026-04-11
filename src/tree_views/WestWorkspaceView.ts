@@ -17,7 +17,7 @@ limitations under the License.
 
 import * as vscode from 'vscode';
 import * as fs from 'fs-extra';
-import path from 'upath';
+import * as path from 'upath';
 import { WorkspaceConfig, GlobalConfig, formatZephyrVersion } from '../setup_utilities/types';
 import { setSetupState, setGlobalState, clearSetupState } from '../setup_utilities/state-management';
 import { notifyError, notifyWarningWithActions, outputInfo } from '../utilities/output';

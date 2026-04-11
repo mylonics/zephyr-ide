@@ -19,7 +19,7 @@ import { QuickPickItem } from 'vscode';
 import * as vscode from "vscode";
 import { MultiStepInput, mapToQuickPickItems } from "../utilities/multistepQuickPick";
 import { outputError } from "../utilities/output";
-import path from 'upath';
+import * as path from 'upath';
 
 import { WorkspaceConfig } from "../setup_utilities/types";
 

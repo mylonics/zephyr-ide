@@ -19,7 +19,7 @@ import { QuickPickItem } from 'vscode';
 import { MultiStepInput, noOpValidate, mapToQuickPickItems } from "../utilities/multistepQuickPick";
 import { outputError } from "../utilities/output";
 
-import path from "upath";
+import * as path from "upath";
 import * as fs from 'fs';
 
 // Config for the extension
