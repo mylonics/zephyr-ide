@@ -98,7 +98,7 @@ export class ProjectTreeView implements vscode.TreeDataProvider<ProjectTreeItem>
       ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
 
     if (isActiveBuild) {
-      item.iconPath = new vscode.ThemeIcon('project', new vscode.ThemeColor('charts.green'));
+      item.iconPath = new vscode.ThemeIcon('project', new vscode.ThemeColor('statusBar.background'));
     } else {
       item.command = { command: 'zephyr-ide.tree-view.select', title: 'Select', arguments: [item] };
     }
@@ -147,7 +147,7 @@ export class ProjectTreeView implements vscode.TreeDataProvider<ProjectTreeItem>
       ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
 
     if (isActive) {
-      item.iconPath = new vscode.ThemeIcon('folder-opened', new vscode.ThemeColor('charts.green'));
+      item.iconPath = new vscode.ThemeIcon('folder-opened', new vscode.ThemeColor('statusBar.background'));
     } else {
       item.command = { command: 'zephyr-ide.tree-view.select', title: 'Select', arguments: [item] };
     }

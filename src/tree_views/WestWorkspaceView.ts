@@ -40,7 +40,9 @@ class WestWorkspaceItem extends vscode.TreeItem {
   ) {
     super(label, vscode.TreeItemCollapsibleState.None);
     this.id = `west.${sanitizeTreeId(installPath)}`;
-    this.iconPath = new vscode.ThemeIcon(icon);
+    this.iconPath = contextId === 'westWorkspace.active'
+      ? new vscode.ThemeIcon(icon, new vscode.ThemeColor('statusBar.background'))
+      : new vscode.ThemeIcon(icon);
     this.description = description;
     this.tooltip = tooltip;
     this.contextValue = contextId;
@@ -130,7 +132,7 @@ export class WestWorkspaceView implements vscode.TreeDataProvider<WestWorkspaceI
           icon = 'folder-opened';
         } else {
           contextId = 'westWorkspace.inactive';
-          icon = 'folder';
+          icon = 'symbol-folder';
         }
 
         items.push(new WestWorkspaceItem(

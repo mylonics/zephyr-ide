@@ -157,7 +157,7 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
     const items: ConfigItem[] = [];
 
     // Project group
-    const projectItem = new ConfigItem(activeProject.name, 'folder', true, 'configProject');
+    const projectItem = new ConfigItem(activeProject.name, 'symbol-folder', true, 'configProject');
     projectItem.id = 'config-project';
     projectItem.data = { project: activeProject.name };
     projectItem.collapsibleState = this.projectConfigState.projectOpenState
