@@ -1,13 +1,5 @@
 /* Project Build Panel Styles - Uses VS Code CSS custom properties for theming */
-
-body {
-  color: var(--vscode-foreground);
-  background-color: var(--vscode-editor-background);
-  font-family: var(--vscode-font-family);
-  font-size: var(--vscode-font-size);
-  padding: 0;
-  margin: 0;
-}
+@import url("../webview_shared/webview-base.css");
 
 .panel-container {
   max-width: 900px;
@@ -25,7 +17,7 @@ body {
 }
 
 .panel-toolbar h1 {
-  font-size: 1.4em;
+  font-size: 20px;
   font-weight: 600;
   margin: 0;
   display: flex;
@@ -100,7 +92,7 @@ body {
 
 .section-header h2 {
   margin: 0;
-  font-size: 1.1em;
+  font-size: 14px;
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -130,22 +122,6 @@ body {
   word-break: break-all;
 }
 
-.text-muted {
-  color: var(--vscode-descriptionForeground);
-  font-style: italic;
-}
-
-/* Clickable elements */
-.clickable {
-  cursor: pointer;
-  color: var(--vscode-textLink-foreground);
-}
-
-.clickable:hover {
-  color: var(--vscode-textLink-activeForeground);
-  text-decoration: underline;
-}
-
 .editable {
   cursor: pointer;
   border-bottom: 1px dashed var(--vscode-descriptionForeground);
@@ -153,51 +129,6 @@ body {
 
 .editable:hover {
   color: var(--vscode-textLink-foreground);
-}
-
-/* Buttons */
-.icon-button {
-  background: none;
-  border: none;
-  color: var(--vscode-foreground);
-  cursor: pointer;
-  padding: 2px 4px;
-  border-radius: 3px;
-  display: inline-flex;
-  align-items: center;
-  opacity: 0.7;
-}
-
-.icon-button:hover {
-  opacity: 1;
-  background-color: var(--vscode-toolbar-hoverBackground);
-}
-
-.action-button {
-  background-color: var(--vscode-button-secondaryBackground);
-  color: var(--vscode-button-secondaryForeground);
-  border: none;
-  padding: 6px 12px;
-  border-radius: 2px;
-  cursor: pointer;
-  font-family: var(--vscode-font-family);
-  font-size: var(--vscode-font-size);
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.action-button:hover {
-  background-color: var(--vscode-button-secondaryHoverBackground);
-}
-
-.action-button.primary {
-  background-color: var(--vscode-button-background);
-  color: var(--vscode-button-foreground);
-}
-
-.action-button.primary:hover {
-  background-color: var(--vscode-button-hoverBackground);
 }
 
 .action-row,
@@ -214,7 +145,7 @@ body {
 .config-group {
   margin: 12px 0;
   border: 1px solid var(--vscode-panel-border);
-  border-radius: 3px;
+  border-radius: 4px;
   overflow: hidden;
 }
 
@@ -289,7 +220,7 @@ body {
 
 .collapsible-header h3 {
   margin: 0;
-  font-size: 1.0em;
+  font-size: 13px;
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -359,7 +290,7 @@ body {
 
 .variables-table {
   border: 1px solid var(--vscode-panel-border);
-  border-radius: 3px;
+  border-radius: 4px;
   overflow: hidden;
 }
 
@@ -430,7 +361,7 @@ body {
   padding: 6px 8px;
   gap: 12px;
   border: 1px solid var(--vscode-panel-border);
-  border-radius: 3px;
+  border-radius: 4px;
   margin-bottom: 4px;
 }
 
@@ -516,18 +447,6 @@ body {
 }
 
 /* Help sections */
-.help-text {
-  color: var(--vscode-descriptionForeground);
-  line-height: 1.5;
-}
-
-.help-text code {
-  font-family: var(--vscode-editor-font-family, monospace);
-  background-color: var(--vscode-textCodeBlock-background);
-  padding: 1px 4px;
-  border-radius: 2px;
-}
-
 .help-example {
   margin: 16px 0;
 }

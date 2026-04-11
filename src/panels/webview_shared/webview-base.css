@@ -1,0 +1,351 @@
+/*
+ * Shared base styles for all Zephyr IDE webview panels.
+ *
+ * Every panel CSS file should import this file first so that body resets,
+ * typography, color tokens, buttons, info-boxes, sections, and status
+ * indicators all look identical across panels.
+ *
+ * VS Code injects its own CSS custom properties (--vscode-*) into every
+ * webview. All colors, fonts, and sizes below reference those variables
+ * so that the panels automatically respect the active color theme.
+ */
+
+/* ===================================================================
+   1.  BODY RESET
+   =================================================================== */
+
+body {
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  line-height: 1.4;
+  color: var(--vscode-foreground);
+  background-color: var(--vscode-editor-background);
+  padding: 0;
+  margin: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* ===================================================================
+   2.  CONTAINER
+   =================================================================== */
+
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 16px 24px;
+}
+
+/* ===================================================================
+   3.  TYPOGRAPHY
+   =================================================================== */
+
+h1 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0 0 20px 0;
+  color: var(--vscode-foreground);
+}
+
+h2 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 20px 0 10px 0;
+  color: var(--vscode-foreground);
+}
+
+h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 10px 0;
+  color: var(--vscode-foreground);
+}
+
+code {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.92em;
+  background-color: var(--vscode-textCodeBlock-background);
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+/* ===================================================================
+   4.  INFO / WARNING / ERROR BOXES
+   =================================================================== */
+
+.info-box {
+  background-color: var(--vscode-textBlockQuote-background);
+  border-left: 4px solid var(--vscode-textLink-foreground);
+  padding: 12px 15px;
+  margin-bottom: 20px;
+  border-radius: 4px;
+}
+
+.info-box p {
+  margin: 8px 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.info-box p:first-child {
+  margin-top: 0;
+}
+
+.info-box p:last-child {
+  margin-bottom: 0;
+}
+
+.warning-box {
+  background-color: var(--vscode-textBlockQuote-background);
+  border-left: 4px solid var(--vscode-editorWarning-foreground, var(--vscode-terminal-ansiYellow));
+  padding: 12px 15px;
+  margin-bottom: 20px;
+  border-radius: 4px;
+}
+
+.warning-box p {
+  margin: 8px 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.warning-box p:first-child {
+  margin-top: 0;
+}
+
+.warning-box p:last-child {
+  margin-bottom: 0;
+}
+
+/* ===================================================================
+   5.  STATUS BADGES & BANNERS
+   =================================================================== */
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.status-success {
+  background-color: color-mix(in srgb, var(--vscode-terminal-ansiGreen) 20%, transparent);
+  color: var(--vscode-terminal-ansiGreen);
+}
+
+.status-warning {
+  background-color: color-mix(in srgb, var(--vscode-terminal-ansiYellow) 20%, transparent);
+  color: var(--vscode-terminal-ansiYellow);
+}
+
+.status-error {
+  background-color: color-mix(in srgb, var(--vscode-terminal-ansiRed) 20%, transparent);
+  color: var(--vscode-terminal-ansiRed);
+}
+
+.status-info {
+  background-color: color-mix(in srgb, var(--vscode-terminal-ansiBlue) 20%, transparent);
+  color: var(--vscode-terminal-ansiBlue);
+}
+
+/* Banner variant (full-width, bolder) */
+.status-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.status-banner.status-success {
+  background-color: color-mix(in srgb, var(--vscode-terminal-ansiGreen) 15%, var(--vscode-editor-background));
+  color: var(--vscode-terminal-ansiGreen);
+}
+
+.status-banner.status-warning {
+  background-color: color-mix(in srgb, var(--vscode-terminal-ansiYellow) 15%, var(--vscode-editor-background));
+  color: var(--vscode-terminal-ansiYellow);
+}
+
+.status-banner.status-error {
+  background-color: color-mix(in srgb, var(--vscode-terminal-ansiRed) 15%, var(--vscode-editor-background));
+  color: var(--vscode-terminal-ansiRed);
+}
+
+.status-banner.status-info {
+  background-color: color-mix(in srgb, var(--vscode-terminal-ansiBlue) 15%, var(--vscode-editor-background));
+  color: var(--vscode-terminal-ansiBlue);
+}
+
+/* ===================================================================
+   6.  SECTIONS
+   =================================================================== */
+
+.section-container {
+  margin-bottom: 20px;
+  padding: 16px;
+  background-color: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 4px;
+}
+
+.section-container.centered {
+  text-align: center;
+}
+
+.section-container h3 {
+  margin: 0 0 12px 0;
+}
+
+/* ===================================================================
+   7.  BUTTONS
+   =================================================================== */
+
+.button-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+/* Native button styled to match VS Code */
+.action-button {
+  background-color: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  border: none;
+  padding: 6px 12px;
+  border-radius: 2px;
+  cursor: pointer;
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.action-button:hover {
+  background-color: var(--vscode-button-secondaryHoverBackground);
+}
+
+.action-button.primary {
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.action-button.primary:hover {
+  background-color: var(--vscode-button-hoverBackground);
+}
+
+/* Icon-only button (edit, delete, etc.) */
+.icon-button {
+  background: none;
+  border: none;
+  color: var(--vscode-foreground);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  display: inline-flex;
+  align-items: center;
+  opacity: 0.7;
+}
+
+.icon-button:hover {
+  opacity: 1;
+  background-color: var(--vscode-toolbar-hoverBackground);
+}
+
+/* ===================================================================
+   8.  LINKS
+   =================================================================== */
+
+.clickable {
+  cursor: pointer;
+  color: var(--vscode-textLink-foreground);
+}
+
+.clickable:hover {
+  color: var(--vscode-textLink-activeForeground);
+  text-decoration: underline;
+}
+
+/* ===================================================================
+   9.  TEXT HELPERS
+   =================================================================== */
+
+.text-muted {
+  color: var(--vscode-descriptionForeground);
+  font-style: italic;
+}
+
+.description {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--vscode-descriptionForeground);
+  margin-bottom: 20px;
+}
+
+.help-text {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  line-height: 1.5;
+  margin: 8px 0 0 0;
+}
+
+/* ===================================================================
+   10. LOADING / EMPTY STATE
+   =================================================================== */
+
+.loading {
+  text-align: center;
+  padding: 20px;
+  font-style: italic;
+  color: var(--vscode-descriptionForeground);
+}
+
+.empty-state {
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.empty-state-icon {
+  font-size: 48px;
+  margin-bottom: 15px;
+}
+
+.empty-state h3 {
+  margin: 0 0 10px 0;
+}
+
+.empty-state p {
+  margin: 0 0 20px 0;
+  color: var(--vscode-descriptionForeground);
+}
+
+/* ===================================================================
+   11. ANIMATION UTILITIES
+   =================================================================== */
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.codicon-modifier-spin {
+  animation: spin 1s linear infinite;
+  display: inline-block;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.hidden {
+  display: none;
+}

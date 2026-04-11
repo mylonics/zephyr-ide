@@ -1,44 +1,13 @@
 /* Host Tool Install View Styles */
+@import url("../webview_shared/webview-base.css");
 
 body {
-    font-family: var(--vscode-font-family);
-    color: var(--vscode-foreground);
-    background-color: var(--vscode-editor-background);
     padding: 20px;
-    margin: 0;
-}
-
-.container {
-    max-width: 900px;
-    margin: 0 auto;
-}
-
-h1 {
-    font-size: 24px;
-    font-weight: 600;
-    margin-bottom: 20px;
-    color: var(--vscode-foreground);
 }
 
 h2 {
     font-size: 18px;
-    font-weight: 600;
     margin-bottom: 15px;
-    color: var(--vscode-foreground);
-}
-
-.info-box {
-    background-color: var(--vscode-textBlockQuote-background);
-    border-left: 4px solid var(--vscode-textLink-foreground);
-    padding: 15px;
-    margin-bottom: 25px;
-    border-radius: 4px;
-}
-
-.info-box p {
-    margin: 0;
-    font-size: 13px;
-    line-height: 1.5;
 }
 
 .section {
@@ -46,34 +15,27 @@ h2 {
     padding: 20px;
     background-color: var(--vscode-editor-background);
     border: 1px solid var(--vscode-panel-border);
-    border-radius: 6px;
+    border-radius: 4px;
 }
 
 .status-area {
     margin-top: 15px;
 }
 
-.loading {
-    text-align: center;
-    padding: 20px;
-    font-style: italic;
-    color: var(--vscode-descriptionForeground);
-}
-
 .manager-status-box {
     padding: 15px;
-    border-radius: 6px;
+    border-radius: 4px;
     margin-bottom: 15px;
 }
 
 .manager-available {
-    background-color: rgba(0, 255, 0, 0.1);
-    border: 1px solid rgba(0, 255, 0, 0.3);
+    background-color: color-mix(in srgb, var(--vscode-terminal-ansiGreen) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--vscode-terminal-ansiGreen) 30%, transparent);
 }
 
 .manager-unavailable {
-    background-color: rgba(255, 0, 0, 0.1);
-    border: 1px solid rgba(255, 0, 0, 0.3);
+    background-color: color-mix(in srgb, var(--vscode-terminal-ansiRed) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--vscode-terminal-ansiRed) 30%, transparent);
 }
 
 .manager-info {
@@ -96,23 +58,23 @@ h2 {
 }
 
 .status-available {
-    background-color: rgba(0, 200, 0, 0.2);
-    color: #00ff00;
+    background-color: color-mix(in srgb, var(--vscode-terminal-ansiGreen) 20%, transparent);
+    color: var(--vscode-terminal-ansiGreen);
 }
 
 .status-missing {
-    background-color: rgba(255, 100, 0, 0.2);
-    color: #ff6400;
+    background-color: color-mix(in srgb, var(--vscode-editorWarning-foreground, var(--vscode-terminal-ansiYellow)) 20%, transparent);
+    color: var(--vscode-editorWarning-foreground, var(--vscode-terminal-ansiYellow));
 }
 
 .status-installing {
-    background-color: rgba(0, 150, 255, 0.2);
-    color: #0096ff;
+    background-color: color-mix(in srgb, var(--vscode-terminal-ansiBlue) 20%, transparent);
+    color: var(--vscode-terminal-ansiBlue);
 }
 
 .status-pending-restart {
-    background-color: rgba(255, 165, 0, 0.2);
-    color: #ffa500;
+    background-color: color-mix(in srgb, var(--vscode-terminal-ansiYellow) 20%, transparent);
+    color: var(--vscode-terminal-ansiYellow);
 }
 
 .package-list {
@@ -127,26 +89,26 @@ h2 {
     justify-content: space-between;
     padding: 12px 15px;
     border: 1px solid var(--vscode-panel-border);
-    border-radius: 6px;
+    border-radius: 4px;
     background-color: var(--vscode-input-background);
 }
 
 .package-item.available {
-    border-left: 3px solid rgba(0, 200, 0, 0.5);
+    border-left: 3px solid color-mix(in srgb, var(--vscode-terminal-ansiGreen) 50%, transparent);
 }
 
 .package-item.missing {
-    border-left: 3px solid rgba(255, 100, 0, 0.5);
+    border-left: 3px solid color-mix(in srgb, var(--vscode-editorWarning-foreground, var(--vscode-terminal-ansiYellow)) 50%, transparent);
 }
 
 .package-item.installing {
-    border-left: 3px solid rgba(0, 150, 255, 0.5);
-    background-color: rgba(0, 150, 255, 0.05);
+    border-left: 3px solid color-mix(in srgb, var(--vscode-terminal-ansiBlue) 50%, transparent);
+    background-color: color-mix(in srgb, var(--vscode-terminal-ansiBlue) 5%, var(--vscode-input-background));
 }
 
 .package-item.pending-restart {
-    border-left: 3px solid rgba(255, 165, 0, 0.5);
-    background-color: rgba(255, 165, 0, 0.05);
+    border-left: 3px solid color-mix(in srgb, var(--vscode-terminal-ansiYellow) 50%, transparent);
+    background-color: color-mix(in srgb, var(--vscode-terminal-ansiYellow) 5%, var(--vscode-input-background));
 }
 
 .package-info {
@@ -171,12 +133,6 @@ h2 {
     gap: 10px;
 }
 
-.button-group {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-}
-
 .progress-message {
     text-align: center;
     padding: 15px;
@@ -191,7 +147,7 @@ h2 {
     padding: 15px;
     margin-bottom: 15px;
     background-color: var(--vscode-input-background);
-    border-radius: 6px;
+    border-radius: 4px;
 }
 
 .summary-item {
@@ -205,25 +161,14 @@ h2 {
 }
 
 .summary-count.available {
-    color: #00ff00;
+    color: var(--vscode-terminal-ansiGreen);
 }
 
 .summary-count.missing {
-    color: #ff6400;
+    color: var(--vscode-editorWarning-foreground, var(--vscode-terminal-ansiYellow));
 }
 
 .summary-label {
     font-size: 12px;
     color: var(--vscode-descriptionForeground);
-}
-
-/* Animation for spinning icons */
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-.codicon-modifier-spin {
-    animation: spin 1s linear infinite;
-    display: inline-block;
 }

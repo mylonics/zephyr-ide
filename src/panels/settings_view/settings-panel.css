@@ -1,16 +1,8 @@
 /* Zephyr IDE Settings Panel Styles */
+@import url("../webview_shared/webview-base.css");
 
 body {
-    font-family: var(--vscode-font-family);
-    color: var(--vscode-foreground);
-    background-color: var(--vscode-editor-background);
     padding: 20px;
-    margin: 0;
-}
-
-.container {
-    max-width: 900px;
-    margin: 0 auto;
 }
 
 .header {
@@ -22,32 +14,8 @@ body {
     padding-bottom: 15px;
 }
 
-h1 {
-    font-size: 24px;
-    font-weight: 600;
+.header h1 {
     margin: 0;
-    color: var(--vscode-foreground);
-}
-
-h2 {
-    font-size: 16px;
-    font-weight: 600;
-    margin: 25px 0 10px 0;
-    color: var(--vscode-foreground);
-}
-
-.info-box {
-    background-color: var(--vscode-textBlockQuote-background);
-    border-left: 4px solid var(--vscode-textLink-foreground);
-    padding: 12px 15px;
-    margin-bottom: 20px;
-    border-radius: 4px;
-}
-
-.info-box p {
-    margin: 0;
-    font-size: 13px;
-    line-height: 1.5;
 }
 
 .settings-group {
@@ -59,7 +27,7 @@ h2 {
     margin-bottom: 8px;
     background-color: var(--vscode-editor-background);
     border: 1px solid var(--vscode-panel-border);
-    border-radius: 6px;
+    border-radius: 4px;
 }
 
 .setting-row:hover {
@@ -92,7 +60,7 @@ h2 {
     text-transform: uppercase;
     padding: 2px 8px;
     border-radius: 10px;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.3px;
 }
 
 .scope-default {
@@ -101,13 +69,13 @@ h2 {
 }
 
 .scope-user {
-    background-color: var(--vscode-terminal-ansiBlue);
-    color: var(--vscode-editor-background);
+    background-color: color-mix(in srgb, var(--vscode-terminal-ansiBlue) 25%, var(--vscode-editor-background));
+    color: var(--vscode-terminal-ansiBlue);
 }
 
 .scope-workspace {
-    background-color: var(--vscode-terminal-ansiGreen);
-    color: var(--vscode-editor-background);
+    background-color: color-mix(in srgb, var(--vscode-terminal-ansiGreen) 25%, var(--vscode-editor-background));
+    color: var(--vscode-terminal-ansiGreen);
 }
 
 .setting-controls {
@@ -131,7 +99,7 @@ h2 {
     border: 1px solid var(--vscode-input-border);
     background-color: var(--vscode-input-background);
     color: var(--vscode-input-foreground);
-    border-radius: 4px;
+    border-radius: 2px;
     font-size: 13px;
     font-family: var(--vscode-editor-font-family);
     outline: none;
@@ -150,7 +118,7 @@ h2 {
     border: 1px solid var(--vscode-button-secondaryBackground);
     background-color: var(--vscode-button-secondaryBackground);
     color: var(--vscode-button-secondaryForeground);
-    border-radius: 4px;
+    border-radius: 2px;
     cursor: pointer;
     font-size: 14px;
 }
@@ -164,7 +132,7 @@ h2 {
     border: 1px solid var(--vscode-dropdown-border);
     background-color: var(--vscode-dropdown-background);
     color: var(--vscode-dropdown-foreground);
-    border-radius: 4px;
+    border-radius: 2px;
     font-size: 12px;
     cursor: pointer;
     outline: none;
@@ -179,7 +147,7 @@ h2 {
     border: 1px solid var(--vscode-button-secondaryBackground);
     background-color: transparent;
     color: var(--vscode-descriptionForeground);
-    border-radius: 4px;
+    border-radius: 2px;
     cursor: pointer;
     font-size: 12px;
     white-space: nowrap;
@@ -195,7 +163,7 @@ h2 {
     border: none;
     background-color: var(--vscode-button-secondaryBackground);
     color: var(--vscode-button-secondaryForeground);
-    border-radius: 4px;
+    border-radius: 2px;
     cursor: pointer;
     font-size: 12px;
     white-space: nowrap;
