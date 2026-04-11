@@ -294,7 +294,7 @@ export class WorkspaceSubPage {
         onClick: string
     ): string {
         return `
-        <div class="workspace-option-card" onclick="${onClick}">
+        <div class="workspace-option-card" onclick="${onClick}" role="button" tabindex="0" data-keyboard-command="true" aria-label="${title}">
             <div class="option-header">
                 <span class="option-icon">${icon}</span>
                 <h4>${title}</h4>

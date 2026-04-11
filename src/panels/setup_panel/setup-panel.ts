@@ -60,6 +60,27 @@ function navigateToOverview(): void {
   vscode.postMessage({ command: 'navigateToPage', page: 'overview' });
 }
 
+function handleKeyboardCommand(event: KeyboardEvent): void {
+  if (event.key !== 'Enter' && event.key !== ' ') {
+    return;
+  }
+
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+
+  const actionElement = target.closest('[data-keyboard-command="true"]');
+  if (!(actionElement instanceof HTMLElement)) {
+    return;
+  }
+
+  event.preventDefault();
+  actionElement.click();
+}
+
+document.body.addEventListener('keydown', handleKeyboardCommand);
+
 // Auto-navigate if the extension requested it
 (function autoNavigate() {
   const page = document.body.getAttribute('data-auto-navigate');
