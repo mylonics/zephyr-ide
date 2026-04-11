@@ -41,7 +41,8 @@ body {
 }
 
 :focus-visible {
-  outline: none;
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
   box-shadow: var(--zephyr-webview-focus-ring);
 }
 
@@ -419,10 +420,21 @@ th {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    transition: none !important;
-    animation: none !important;
+  .codicon-modifier-spin {
+    animation: none;
+  }
+
+  .overview-container,
+  .sub-page-container,
+  .overview-card,
+  .workspace-option-card,
+  .setting-row,
+  .package-item,
+  .runner-row,
+  .panel-section,
+  .section-container,
+  .config-group {
+    transition: none;
+    transform: none;
   }
 }
