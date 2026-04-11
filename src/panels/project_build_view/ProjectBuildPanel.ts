@@ -47,6 +47,7 @@ import {
   selectDebugLaunchConfiguration,
   selectBuildDebugLaunchConfiguration,
   selectDebugAttachLaunchConfiguration,
+  getProjectFolder,
 } from "../../project_utilities/project";
 import { escapeHtml } from "../webview_shared/webviewTypes";
 import { getProjectSectionHtml } from "./ProjectSection";
@@ -226,7 +227,8 @@ export class ProjectBuildPanel {
 
         case "openFile":
           if (message.file) {
-            const doc = await vscode.workspace.openTextDocument(message.file);
+            const resolvedPath = this.resolvePathForOpen(message.file);
+            const doc = await vscode.workspace.openTextDocument(resolvedPath);
             await vscode.window.showTextDocument(doc);
           }
           return;
@@ -415,6 +417,22 @@ export class ProjectBuildPanel {
     await vscode.commands.executeCommand("zephyr-ide.update-web-view");
   }
 
+  private resolvePathForOpen(filePath: string): string {
+    if (path.isAbsolute(filePath)) {
+      return filePath;
+    }
+
+    const selectedProject = this._selectedProject
+      ? this._wsConfig.projects[this._selectedProject]
+      : undefined;
+
+    if (selectedProject) {
+      return path.join(getProjectFolder(this._wsConfig, selectedProject), filePath);
+    }
+
+    return path.join(this._wsConfig.rootPath, filePath);
+  }
+
   // ---------------------------------------------------------------------------
   // HTML generation
   // ---------------------------------------------------------------------------
@@ -424,6 +442,7 @@ export class ProjectBuildPanel {
   }
 
   private getHtmlForWebview(): string {
+    const nonce = this.getNonce();
     const projectNames = Object.keys(this._wsConfig.projects ?? {});
     const selected = this._selectedProject;
 
@@ -512,6 +531,7 @@ export class ProjectBuildPanel {
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${this._panel.webview.cspSource}; font-src ${this._panel.webview.cspSource}; img-src ${this._panel.webview.cspSource} data:; script-src 'nonce-${nonce}';">
       <title>Zephyr IDE: Project Details</title>
       ${this.getStylesheetLinks()}
     </head>
@@ -535,7 +555,7 @@ export class ProjectBuildPanel {
         </div>
         ${variablesRefHtml}
       </div>
-      ${this.getScriptTags()}
+      ${this.getScriptTags(nonce)}
     </body>
     </html>`;
   }
@@ -566,7 +586,7 @@ export class ProjectBuildPanel {
     `;
   }
 
-  private getScriptTags(): string {
+  private getScriptTags(nonce: string): string {
     const jsUri = this._panel.webview.asWebviewUri(
       vscode.Uri.joinPath(
         vscode.Uri.file(this._extensionPath),
@@ -576,6 +596,15 @@ export class ProjectBuildPanel {
         "project-build-panel.js",
       ),
     );
-    return `<script src="${jsUri}"></script>`;
+    return `<script nonce="${nonce}" src="${jsUri}"></script>`;
+  }
+
+  private getNonce(): string {
+    let text = "";
+    const possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    for (let i = 0; i < 32; i++) {
+      text += possible.charAt(Math.floor(Math.random() * possible.length));
+    }
+    return text;
   }
 }

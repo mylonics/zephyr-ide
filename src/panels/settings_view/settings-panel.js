@@ -133,3 +133,44 @@ function onFolderSelected(key, folderPath) {
 function openVsCodeSettings() {
   vscode.postMessage({ command: 'openVsCodeSettings' });
 }
+
+function setupEventHandlers() {
+  document.body.addEventListener('change', (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) { return; }
+
+    const action = target.getAttribute('data-action');
+    const key = target.getAttribute('data-key');
+
+    if (!action || !key) { return; }
+
+    if (action === 'toggle-change' && target instanceof HTMLInputElement) {
+      onToggleChanged(key, target.checked);
+    } else if (action === 'string-change' && target instanceof HTMLInputElement) {
+      onStringChanged(key, target.value);
+    } else if (action === 'scope-change') {
+      onScopeChanged(key);
+    }
+  });
+
+  document.body.addEventListener('click', (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) { return; }
+
+    const actionElement = target.closest('[data-action]');
+    if (!(actionElement instanceof HTMLElement)) { return; }
+
+    const action = actionElement.getAttribute('data-action');
+    const key = actionElement.getAttribute('data-key');
+
+    if (action === 'open-vscode-settings') {
+      openVsCodeSettings();
+    } else if (action === 'browse' && key) {
+      onBrowse(key);
+    } else if (action === 'reset' && key) {
+      onReset(key);
+    }
+  });
+}
+
+setupEventHandlers();

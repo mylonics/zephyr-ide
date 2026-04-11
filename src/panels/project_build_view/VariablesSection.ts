@@ -35,7 +35,7 @@ export function getVariablesReferenceSectionHtml(): string {
     <div class="panel-section">
       <div class="collapsible-header" data-toggle="variables-ref">
         <i class="codicon codicon-chevron-right toggle-icon"></i>
-        <h2><i class="codicon codicon-symbol-variable"></i> Variable Reference</h2>
+        <h3><i class="codicon codicon-symbol-variable"></i> Variable Reference</h3>
       </div>
       <div class="collapsible-body" data-section="variables-ref" style="display:none;">
         <div class="section-body">

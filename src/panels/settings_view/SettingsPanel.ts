@@ -238,6 +238,7 @@ export class SettingsPanel {
   }
 
   private getHtmlForWebview(): string {
+    const nonce = this.getNonce();
     const cssUri = this._panel.webview.asWebviewUri(
       vscode.Uri.joinPath(
         vscode.Uri.file(this._extensionPath),
@@ -272,14 +273,15 @@ export class SettingsPanel {
           <div class="input-group">
             <input type="text" class="setting-input" id="val-${escapeHtml(def.key)}"
               placeholder="Not set (using default)"
-              onchange="onStringChanged('${escapeHtml(def.key)}', this.value)">
-            <button class="browse-button" onclick="onBrowse('${escapeHtml(def.key)}')" title="Browse for folder">📁</button>
+              data-action="string-change"
+              data-key="${escapeHtml(def.key)}">
+            <button class="browse-button" data-action="browse" data-key="${escapeHtml(def.key)}" title="Browse for folder">📁</button>
           </div>
-          <select class="scope-select" id="target-${escapeHtml(def.key)}" onchange="onScopeChanged('${escapeHtml(def.key)}')">
+          <select class="scope-select" id="target-${escapeHtml(def.key)}" data-action="scope-change" data-key="${escapeHtml(def.key)}">
             <option value="workspace">Workspace</option>
             <option value="user">User</option>
           </select>
-          <button class="reset-button" id="reset-${escapeHtml(def.key)}" onclick="onReset('${escapeHtml(def.key)}')" title="Reset to default">↺ Reset</button>
+          <button class="reset-button" id="reset-${escapeHtml(def.key)}" data-action="reset" data-key="${escapeHtml(def.key)}" title="Reset to default">↺ Reset</button>
         </div>
       </div>`;
 
@@ -292,14 +294,14 @@ export class SettingsPanel {
         <div class="setting-description">${escapeHtml(def.description)}</div>
         <div class="setting-controls">
           <label class="toggle-switch">
-            <input type="checkbox" id="val-${escapeHtml(def.key)}" onchange="onToggleChanged('${escapeHtml(def.key)}', this.checked)">
+            <input type="checkbox" id="val-${escapeHtml(def.key)}" data-action="toggle-change" data-key="${escapeHtml(def.key)}">
             <span class="toggle-slider"></span>
           </label>
-          <select class="scope-select" id="target-${escapeHtml(def.key)}" onchange="onScopeChanged('${escapeHtml(def.key)}')">
+          <select class="scope-select" id="target-${escapeHtml(def.key)}" data-action="scope-change" data-key="${escapeHtml(def.key)}">
             <option value="workspace">Workspace</option>
             <option value="user">User</option>
           </select>
-          <button class="reset-button" id="reset-${escapeHtml(def.key)}" onclick="onReset('${escapeHtml(def.key)}')" title="Reset to default">↺ Reset</button>
+          <button class="reset-button" id="reset-${escapeHtml(def.key)}" data-action="reset" data-key="${escapeHtml(def.key)}" title="Reset to default">↺ Reset</button>
         </div>
       </div>`;
 
@@ -308,6 +310,7 @@ export class SettingsPanel {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${this._panel.webview.cspSource}; img-src ${this._panel.webview.cspSource} data:; script-src 'nonce-${nonce}';">
         <title>Zephyr IDE Settings</title>
         <link rel="stylesheet" type="text/css" href="${cssUri}">
     </head>
@@ -315,7 +318,7 @@ export class SettingsPanel {
         <div class="container">
             <div class="header">
                 <h1>⚙️ Zephyr IDE Settings</h1>
-                <button class="open-vscode-settings-button" onclick="openVsCodeSettings()">
+                <button class="open-vscode-settings-button" data-action="open-vscode-settings">
                     Open in VS Code Settings
                 </button>
             </div>
@@ -335,8 +338,17 @@ export class SettingsPanel {
                 ${boolSettings.map(renderBoolSetting).join("\n")}
             </div>
         </div>
-        <script src="${jsUri}"></script>
+        <script nonce="${nonce}" src="${jsUri}"></script>
     </body>
     </html>`;
+  }
+
+  private getNonce(): string {
+    let text = "";
+    const possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    for (let i = 0; i < 32; i++) {
+      text += possible.charAt(Math.floor(Math.random() * possible.length));
+    }
+    return text;
   }
 }

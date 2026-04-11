@@ -143,7 +143,7 @@ function calculatedSectionHtml(
     <div class="collapsible-section">
       <div class="collapsible-header" data-toggle="calculated">
         <i class="codicon codicon-chevron-right toggle-icon"></i>
-        <span>Calculated Configuration</span>
+        <h3>Calculated Configuration</h3>
       </div>
       <div class="collapsible-body" data-section="calculated" style="display:none;">
         <div class="calculated-sub">
