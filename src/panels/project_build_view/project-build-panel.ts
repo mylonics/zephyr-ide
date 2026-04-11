@@ -97,12 +97,12 @@ function findCommandElement(target: EventTarget | null): HTMLElement | null {
   return el;
 }
 
-function isVariableInputTarget(target: HTMLElement | null): boolean {
+function hasVariableInputClass(target: HTMLElement | null): boolean {
   if (!target) { return false; }
   return target.classList.contains("variable-key-input") || target.classList.contains("variable-value-input");
 }
 
-function isBuildArgInputTarget(target: HTMLElement | null): boolean {
+function hasBuildArgInputClass(target: HTMLElement | null): boolean {
   if (!target) { return false; }
   return target.classList.contains("build-arg-input");
 }
@@ -139,7 +139,7 @@ function setupClickDelegation(): void {
   document.body.addEventListener("keydown", (e) => {
     if (e.key !== "Enter") { return; }
     const target = e.target as HTMLElement | null;
-    if (isVariableInputTarget(target)) {
+    if (hasVariableInputClass(target)) {
       const row = target?.closest(".variable-row");
       const button = row?.querySelector('[data-command="upsertVariable"]') as HTMLElement | null;
       if (!button) { return; }
@@ -147,7 +147,7 @@ function setupClickDelegation(): void {
       button.click();
       return;
     }
-    if (!isBuildArgInputTarget(target)) {
+    if (!hasBuildArgInputClass(target)) {
       return;
     }
     const row = target?.closest(".build-arg-row");

@@ -26,6 +26,18 @@ import { WorkspaceConfig, SetupState } from "./types";
 import { resolveActiveProjectBuild } from "../project_utilities/project";
 import { normalizeBuildArgs } from "../project_utilities/build_args";
 
+function argsMatchNormalized(value: any, normalized: string[]): boolean {
+  if (!Array.isArray(value) || value.length !== normalized.length) {
+    return false;
+  }
+  for (let i = 0; i < value.length; i++) {
+    if (String(value[i]).trim() !== normalized[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function projectLoader(config: WorkspaceConfig, projects: any): boolean {
   config.projects = {};
   let requiresSave = false;
@@ -60,9 +72,12 @@ function projectLoader(config: WorkspaceConfig, projects: any): boolean {
       }
 
       const buildConfig = config.projects[key].buildConfigs[build_key];
+      const westBuildArgsRaw = buildConfig.westBuildArgs;
+      const westBuildCMakeArgsRaw = buildConfig.westBuildCMakeArgs;
       const normalizedWestBuildArgs = normalizeBuildArgs(buildConfig.westBuildArgs);
       const normalizedWestBuildCMakeArgs = normalizeBuildArgs(buildConfig.westBuildCMakeArgs);
-      if (!Array.isArray(buildConfig.westBuildArgs) || !Array.isArray(buildConfig.westBuildCMakeArgs)) {
+      if (!argsMatchNormalized(westBuildArgsRaw, normalizedWestBuildArgs)
+        || !argsMatchNormalized(westBuildCMakeArgsRaw, normalizedWestBuildCMakeArgs)) {
         requiresSave = true;
       }
       buildConfig.westBuildArgs = normalizedWestBuildArgs;

@@ -147,7 +147,7 @@ function buildArgsTableHtml(
       )
       .join("\n")}
         <div class="build-arg-row build-arg-row-add">
-          <input class="build-arg-input" type="text" value="" placeholder="Add argument (single or multiple args)" aria-label="New ${escapeHtml(title)} argument">
+          <input class="build-arg-input" type="text" value="" placeholder="Add one or more arguments" aria-label="New ${escapeHtml(title)} argument">
           <vscode-button appearance="icon" title="Add Argument" data-command="upsertBuildArg" data-kind="${kind}" data-project="${escapeHtml(projectName)}" data-build="${escapeHtml(buildName)}" data-index="">
             <vscode-icon name="add" slot="start-icon"></vscode-icon>
           </vscode-button>
