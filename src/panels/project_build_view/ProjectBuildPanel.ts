@@ -58,6 +58,9 @@ import { getTestSectionHtml } from "./TestSection";
 import { getVariablesReferenceSectionHtml } from "./VariablesSection";
 
 export class ProjectBuildPanel {
+  private static readonly PROJECT_VARIABLE_DEFAULTS_CONFIG_KEY = "zephyr-ide.project_variable_defaults";
+  private static readonly BUILD_VARIABLE_DEFAULTS_CONFIG_KEY = "zephyr-ide.build_variable_defaults";
+
   /** All open panels, keyed by project name (or "__default__" when no project specified) */
   private static _panels: Map<string, ProjectBuildPanel> = new Map();
 
@@ -408,8 +411,8 @@ export class ProjectBuildPanel {
 
   private getDefaultVariableKeys(level: "project" | "build"): string[] {
     const configKey = level === "project"
-      ? "zephyr-ide.project_variable_defaults"
-      : "zephyr-ide.build_variable_defaults";
+      ? ProjectBuildPanel.PROJECT_VARIABLE_DEFAULTS_CONFIG_KEY
+      : ProjectBuildPanel.BUILD_VARIABLE_DEFAULTS_CONFIG_KEY;
     const defaults = vscode.workspace.getConfiguration().get<string[]>(configKey) ?? [];
     const keys = defaults
       .map((key) => String(key).trim())

@@ -97,6 +97,11 @@ function findCommandElement(target: EventTarget | null): HTMLElement | null {
   return el;
 }
 
+function isVariableInputTarget(target: HTMLElement | null): target is HTMLElement {
+  if (!target) { return false; }
+  return target.classList.contains("variable-key-input") || target.classList.contains("variable-value-input");
+}
+
 function setupClickDelegation(): void {
   const eventController = new AbortController();
   const listenerOptions = { signal: eventController.signal };
@@ -125,7 +130,7 @@ function setupClickDelegation(): void {
   document.body.addEventListener("keydown", (e) => {
     if (e.key !== "Enter") { return; }
     const target = e.target as HTMLElement | null;
-    if (!target || (!target.classList.contains("variable-key-input") && !target.classList.contains("variable-value-input"))) {
+    if (!isVariableInputTarget(target)) {
       return;
     }
     const row = target.closest(".variable-row");
