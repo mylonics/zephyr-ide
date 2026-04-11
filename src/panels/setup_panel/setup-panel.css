@@ -63,6 +63,7 @@
     background-color: var(--vscode-editor-background);
     border-radius: var(--zephyr-webview-radius);
     border: 1px solid var(--vscode-panel-border);
+    box-shadow: var(--zephyr-webview-surface-shadow);
 }
 
 .walkthrough-header {
@@ -101,14 +102,21 @@
     border-radius: var(--zephyr-webview-radius);
     padding: 18px;
     cursor: pointer;
-    transition: border-color 0.2s, background-color 0.2s;
+    transition:
+        border-color var(--zephyr-webview-transition-fast),
+        background-color var(--zephyr-webview-transition-fast),
+        box-shadow var(--zephyr-webview-transition-fast),
+        transform var(--zephyr-webview-transition-fast);
     background-color: var(--vscode-input-background);
     position: relative;
+    box-shadow: var(--zephyr-webview-surface-shadow);
 }
 
 .overview-card:hover {
     border-color: var(--vscode-focusBorder);
     background-color: var(--vscode-list-hoverBackground);
+    box-shadow: var(--zephyr-webview-surface-shadow-hover);
+    transform: translateY(-1px);
 }
 
 .overview-card-header {
@@ -270,13 +278,20 @@
     border-radius: var(--zephyr-webview-radius);
     padding: 18px;
     cursor: pointer;
-    transition: border-color 0.2s, background-color 0.2s;
+    transition:
+        border-color var(--zephyr-webview-transition-fast),
+        background-color var(--zephyr-webview-transition-fast),
+        box-shadow var(--zephyr-webview-transition-fast),
+        transform var(--zephyr-webview-transition-fast);
     background-color: var(--vscode-editor-background);
+    box-shadow: var(--zephyr-webview-surface-shadow);
 }
 
 .workspace-option-card:hover {
     border-color: var(--vscode-focusBorder);
     background-color: var(--vscode-list-hoverBackground);
+    box-shadow: var(--zephyr-webview-surface-shadow-hover);
+    transform: translateY(-1px);
 }
 
 .option-header {
