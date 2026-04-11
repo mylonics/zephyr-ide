@@ -231,12 +231,28 @@
     margin-bottom: 30px;
     padding-bottom: 15px;
     border-bottom: 1px solid var(--vscode-panel-border);
+    align-items: center;
 }
 
 .sub-page-header h2 {
     margin: 0;
     font-size: 20px;
     font-weight: 600;
+}
+
+.sub-page-title-group {
+    min-width: 0;
+}
+
+.sub-page-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.sub-page-back-button {
+    white-space: nowrap;
 }
 
 /* Setup-panel-specific overrides for status badges (extra margin) */

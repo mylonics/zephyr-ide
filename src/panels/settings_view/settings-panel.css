@@ -86,16 +86,27 @@
     align-items: center;
     gap: 10px;
     flex-wrap: wrap;
+    row-gap: 8px;
 }
 
 .input-group {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 8px;
     flex: 1;
     min-width: 200px;
 }
 
 .input-group vscode-textfield {
     flex: 1;
+}
+
+.setting-scope-select {
+    min-width: 120px;
+}
+
+.setting-reset-button,
+.setting-browse-button {
+    min-width: 78px;
+    white-space: nowrap;
 }

@@ -48,12 +48,16 @@ export class WorkspaceSubPage {
 
         return `
         <div class="sub-page-content">
-            <div class="sub-page-header">
-                <vscode-button appearance="secondary" onclick="navigateToOverview()">
-                    <vscode-icon slot="start-icon" name="chevron-left"></vscode-icon>
-                    Back to Overview
-                </vscode-button>
-                <h2>Workspace Setup</h2>
+            <div class="sub-page-header page-header">
+                <div class="sub-page-title-group">
+                    <h2 class="page-title">Workspace Setup</h2>
+                </div>
+                <div class="sub-page-actions">
+                    <vscode-button class="sub-page-back-button" appearance="secondary" onclick="navigateToOverview()">
+                        <vscode-icon slot="start-icon" name="chevron-left"></vscode-icon>
+                        Back to Overview
+                    </vscode-button>
+                </div>
             </div>
             
             <div class="sub-page-body" data-workspace-state="${state}">
