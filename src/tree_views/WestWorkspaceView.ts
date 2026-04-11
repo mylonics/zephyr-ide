@@ -22,6 +22,7 @@ import { WorkspaceConfig, GlobalConfig, formatZephyrVersion } from '../setup_uti
 import { setSetupState, setGlobalState, clearSetupState } from '../setup_utilities/state-management';
 import { notifyError, notifyWarningWithActions, outputInfo } from '../utilities/output';
 import { getToolsDir } from '../setup_utilities/workspace-config';
+import { sanitizeTreeId } from '../utilities/utils';
 
 export type WestWorkspaceItemContext =
   | 'westWorkspace.active'
@@ -38,8 +39,10 @@ class WestWorkspaceItem extends vscode.TreeItem {
     public readonly contextId: WestWorkspaceItemContext,
   ) {
     super(label, vscode.TreeItemCollapsibleState.None);
-    this.id = `west.${installPath.replace(/\//g, '.')}`;
-    this.iconPath = new vscode.ThemeIcon(icon);
+    this.id = `west.${sanitizeTreeId(installPath)}`;
+    this.iconPath = contextId === 'westWorkspace.active'
+      ? new vscode.ThemeIcon(icon, new vscode.ThemeColor('statusBar.background'))
+      : new vscode.ThemeIcon(icon);
     this.description = description;
     this.tooltip = tooltip;
     this.contextValue = contextId;
@@ -129,7 +132,7 @@ export class WestWorkspaceView implements vscode.TreeDataProvider<WestWorkspaceI
           icon = 'folder-opened';
         } else {
           contextId = 'westWorkspace.inactive';
-          icon = 'folder';
+          icon = 'symbol-folder';
         }
 
         items.push(new WestWorkspaceItem(

@@ -51,6 +51,27 @@ export function logDual(message: string): void {
 }
 
 /**
+ * Encode a dynamic string for use in a VS Code TreeItem `id`.
+ *
+ * VS Code's internal tree-handle construction splits on `/`, so any
+ * forward- or back-slash inside an ID segment creates phantom
+ * parent/child relationships and incorrect indentation.
+ *
+ * Uses underscore-based escaping instead of percent-encoding to avoid
+ * any chance of VS Code decoding `%2F` back to `/` internally.
+ * The escape character `_` is doubled first to keep the mapping
+ * collision-free, then `/`, `\`, and `:` are replaced with two-char
+ * sequences that can never appear in another encoded segment.
+ */
+export function sanitizeTreeId(segment: string): string {
+  return segment
+    .replace(/_/g, '__')
+    .replace(/\//g, '_s')
+    .replace(/\\/g, '_b')
+    .replace(/:/g, '_c');
+}
+
+/**
  * Load and parse a YAML file if it exists.
  * Returns the parsed document, or undefined if the file does not exist.
  */

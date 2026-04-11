@@ -24,6 +24,7 @@ import { TwisterConfig } from '../project_utilities/twister_selector';
 import { handleSharedProjectCommand } from './projectCommandHandler';
 import { testHelper } from '../zephyr_utilities/twister';
 import { outputError } from '../utilities/output';
+import { sanitizeTreeId } from '../utilities/utils';
 
 export function getUseGuiConfig(): boolean | undefined {
   const configuration = vscode.workspace.getConfiguration();
@@ -76,7 +77,7 @@ export class ProjectTreeView implements vscode.TreeDataProvider<ProjectTreeItem>
     }
 
     const item = new ProjectTreeItem(runner.name, 'chip', false, 'runnerItem');
-    item.id = `runner:${projectName}/${buildName}/${runner.name}`;
+    item.id = `runner:${sanitizeTreeId(projectName)}:${sanitizeTreeId(buildName)}:${sanitizeTreeId(runner.name)}`;
     item.data = { project: projectName, build: buildName, runner: runner.name };
     item.command = { command: 'zephyr-ide.tree-view.select', title: 'Select', arguments: [item] };
     return item;
@@ -91,13 +92,13 @@ export class ProjectTreeView implements vscode.TreeDataProvider<ProjectTreeItem>
 
     const item = new ProjectTreeItem(build.name, 'project', true, 'buildItem',
       build.board + (build.revision ? '@' + build.revision : ""));
-    item.id = `build:${projectName}/${build.name}`;
+    item.id = `build:${sanitizeTreeId(projectName)}:${sanitizeTreeId(build.name)}`;
     item.data = { project: projectName, build: build.name };
     item.collapsibleState = (viewOpen !== undefined ? viewOpen : true)
       ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
 
     if (isActiveBuild) {
-      item.iconPath = new vscode.ThemeIcon('project', new vscode.ThemeColor('charts.green'));
+      item.iconPath = new vscode.ThemeIcon('project', new vscode.ThemeColor('statusBar.background'));
     } else {
       item.command = { command: 'zephyr-ide.tree-view.select', title: 'Select', arguments: [item] };
     }
@@ -110,7 +111,7 @@ export class ProjectTreeView implements vscode.TreeDataProvider<ProjectTreeItem>
 
     if (item.children.length === 0) {
       const placeholder = new ProjectTreeItem('Add Runner', 'add', false, 'addRunnerPlaceholder', 'Add Runner');
-      placeholder.id = `placeholder:addRunner:${projectName}/${build.name}`;
+      placeholder.id = `placeholder:addRunner:${sanitizeTreeId(projectName)}:${sanitizeTreeId(build.name)}`;
       placeholder.data = { project: projectName, build: build.name, cmd: "addRunner" };
       placeholder.command = { command: 'zephyr-ide.tree-view.add-runner', title: 'Add Runner', arguments: [placeholder] };
       placeholder.parent = item;
@@ -127,7 +128,7 @@ export class ProjectTreeView implements vscode.TreeDataProvider<ProjectTreeItem>
     }
 
     const item = new ProjectTreeItem(test.name, 'beaker', false, 'testItem', test.platform);
-    item.id = `test:${projectName}/${test.name}`;
+    item.id = `test:${sanitizeTreeId(projectName)}:${sanitizeTreeId(test.name)}`;
     item.data = { project: projectName, test: test.name };
     item.command = { command: 'zephyr-ide.tree-view.select', title: 'Select', arguments: [item] };
     return item;
@@ -140,13 +141,13 @@ export class ProjectTreeView implements vscode.TreeDataProvider<ProjectTreeItem>
     const isActive = this.wsConfig.activeProject === project.name;
 
     const item = new ProjectTreeItem(project.name, 'folder', true, 'projectItem');
-    item.id = `project:${project.name}`;
+    item.id = `project:${sanitizeTreeId(project.name)}`;
     item.data = { project: project.name };
     item.collapsibleState = (viewOpen !== undefined ? viewOpen : true)
       ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
 
     if (isActive) {
-      item.iconPath = new vscode.ThemeIcon('folder-opened', new vscode.ThemeColor('charts.green'));
+      item.iconPath = new vscode.ThemeIcon('folder-opened', new vscode.ThemeColor('statusBar.background'));
     } else {
       item.command = { command: 'zephyr-ide.tree-view.select', title: 'Select', arguments: [item] };
     }
@@ -165,7 +166,7 @@ export class ProjectTreeView implements vscode.TreeDataProvider<ProjectTreeItem>
 
     if (item.children.length === 0) {
       const placeholder = new ProjectTreeItem('Add Build', 'add', false, 'addBuildPlaceholder', 'Add Build');
-      placeholder.id = `placeholder:addBuild:${project.name}`;
+      placeholder.id = `placeholder:addBuild:${sanitizeTreeId(project.name)}`;
       placeholder.data = { project: project.name, cmd: "addBuild" };
       placeholder.command = { command: 'zephyr-ide.tree-view.add-build', title: 'Add Build', arguments: [placeholder] };
       placeholder.parent = item;
