@@ -178,7 +178,6 @@ h1 {
     font-weight: 600;
     margin: 0 0 12px 0;
     color: var(--vscode-foreground);
-    letter-spacing: -0.3px;
 }
 
 .walkthrough-subtitle {
@@ -266,10 +265,8 @@ h1 {
 }
 
 .overview-card:hover {
-    border-color: var(--vscode-inputOption-hoverBackground);
+    border-color: var(--vscode-focusBorder);
     background-color: var(--vscode-list-hoverBackground);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .overview-card-header {
@@ -505,7 +502,7 @@ h1 {
 }
 
 .workspace-option-card:hover {
-    border-color: var(--vscode-inputOption-hoverBackground);
+    border-color: var(--vscode-focusBorder);
     background-color: var(--vscode-list-hoverBackground);
 }
 
@@ -660,7 +657,7 @@ h1 {
 .west-yml-textarea {
     width: 100%;
     min-height: 300px;
-    font-family: 'Consolas', 'Courier New', monospace;
+    font-family: var(--vscode-editor-font-family, monospace);
     font-size: 12px;
     padding: 10px;
     background-color: var(--vscode-editor-background);
@@ -718,7 +715,6 @@ h1 {
     margin-bottom: 20px;
     overflow: hidden;
     background-color: var(--vscode-input-background);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .setup-progress-header {
@@ -763,7 +759,7 @@ h1 {
 
 .setup-progress-dismiss:hover {
     opacity: 1;
-    background-color: rgba(255, 255, 255, 0.15);
+    background-color: var(--vscode-toolbar-hoverBackground);
 }
 
 .setup-progress-body {
