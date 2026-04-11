@@ -29,12 +29,19 @@
   min-width: 180px;
 }
 
+/* Page header selectors row */
+.page-header-selectors {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
 /* Build / test selector toolbar */
 .build-test-selector {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 0;
 }
 
 .build-test-selector label {
@@ -50,6 +57,50 @@
 /* Test section */
 .test-section {
   border-left: 3px solid var(--vscode-panel-border);
+}
+
+/* Side-by-side project + build layout */
+.project-build-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.project-build-col {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .project-build-row {
+    flex-direction: column;
+  }
+}
+
+/* Build placeholder (when no build selected) */
+.build-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+}
+
+.build-placeholder-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: var(--vscode-descriptionForeground);
+  text-align: center;
+  padding: 32px 16px;
+}
+
+.build-placeholder-content i {
+  font-size: 2em;
+}
+
+.build-placeholder-content p {
+  margin: 0;
 }
 
 /* Sections */
@@ -138,7 +189,7 @@
   border-top: 1px solid var(--vscode-panel-border);
 }
 
-/* Config file groups */
+/* Config file groups (tabbed) */
 .config-group {
   margin: 12px 0;
   border: 1px solid var(--vscode-panel-border);
@@ -147,38 +198,47 @@
   box-shadow: var(--zephyr-webview-surface-shadow);
 }
 
-.config-group-header {
+.config-tab-body {
+  padding: 0;
+}
+
+.config-tab-header-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 6px 12px;
+  padding: 4px 12px;
+  gap: 8px;
+  border-bottom: 1px solid var(--vscode-panel-border);
   background-color: var(--vscode-sideBar-background);
+  font-size: 0.85em;
   font-weight: 500;
-}
-
-.config-group-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.config-group-sub {
-  padding: 4px 12px 8px;
-}
-
-.config-sub-label {
-  font-size: 0.9em;
   color: var(--vscode-descriptionForeground);
-  margin: 6px 0 2px;
-  font-weight: 500;
+}
+
+.config-tab-col-extra {
+  flex: 0 0 50px;
+  text-align: center;
+}
+
+.config-tab-col-file {
+  flex: 1;
+}
+
+.config-file-scroll {
+  max-height: 200px;
 }
 
 .file-list-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 2px 4px;
+  padding: 2px 12px;
+  gap: 8px;
   border-radius: var(--zephyr-webview-radius);
+}
+
+.file-list-item .file-extra-checkbox {
+  flex: 0 0 50px;
+  display: flex;
+  justify-content: center;
 }
 
 .file-list-item:hover {
@@ -209,6 +269,12 @@
 /* Build section */
 .build-section {
   border-left: 3px solid var(--vscode-panel-border);
+}
+
+.build-section .section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .build-section.build-active {

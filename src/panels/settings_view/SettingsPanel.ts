@@ -153,14 +153,19 @@ export class SettingsPanel {
       const inspected = configuration.inspect(def.key);
       let currentValue = configuration.get(def.key);
       let scope: "default" | "user" | "workspace" = "default";
+      let userValue: boolean | string | null | undefined = undefined;
+      let workspaceValue: boolean | string | null | undefined = undefined;
 
       if (inspected) {
-        if (inspected.workspaceValue !== undefined) {
+        userValue = inspected.globalValue as typeof userValue;
+        workspaceValue = inspected.workspaceValue as typeof workspaceValue;
+
+        if (workspaceValue !== undefined) {
           scope = "workspace";
-          currentValue = inspected.workspaceValue;
-        } else if (inspected.globalValue !== undefined) {
+          currentValue = workspaceValue;
+        } else if (userValue !== undefined) {
           scope = "user";
-          currentValue = inspected.globalValue;
+          currentValue = userValue;
         }
       }
 
@@ -172,6 +177,10 @@ export class SettingsPanel {
         defaultValue: def.defaultValue,
         currentValue: currentValue ?? def.defaultValue,
         scope,
+        userValue: userValue ?? null,
+        workspaceValue: workspaceValue ?? null,
+        hasUserValue: userValue !== undefined,
+        hasWorkspaceValue: workspaceValue !== undefined,
       };
     });
 
@@ -270,6 +279,11 @@ export class SettingsPanel {
           <div class="setting-scope-badge" id="scope-${escapeHtml(def.key)}">default</div>
         </div>
         <div class="setting-description">${escapeHtml(def.description)}</div>
+        <div class="setting-override-warning" id="override-warning-${escapeHtml(def.key)}" style="display:none">
+          <span class="codicon codicon-warning"></span>
+          <span class="override-warning-text"></span>
+        </div>
+        <div class="setting-override-info" id="override-info-${escapeHtml(def.key)}" style="display:none"></div>
         <div class="setting-controls">
           <div class="input-group">
             <vscode-textfield id="val-${escapeHtml(def.key)}"
@@ -297,6 +311,11 @@ export class SettingsPanel {
           <div class="setting-scope-badge" id="scope-${escapeHtml(def.key)}">default</div>
         </div>
         <div class="setting-description">${escapeHtml(def.description)}</div>
+        <div class="setting-override-warning" id="override-warning-${escapeHtml(def.key)}" style="display:none">
+          <span class="codicon codicon-warning"></span>
+          <span class="override-warning-text"></span>
+        </div>
+        <div class="setting-override-info" id="override-info-${escapeHtml(def.key)}" style="display:none"></div>
         <div class="setting-controls">
           <vscode-checkbox id="val-${escapeHtml(def.key)}" data-action="toggle-change" data-key="${escapeHtml(def.key)}"></vscode-checkbox>
           <vscode-single-select class="setting-scope-select" id="target-${escapeHtml(def.key)}" data-action="scope-change" data-key="${escapeHtml(def.key)}">

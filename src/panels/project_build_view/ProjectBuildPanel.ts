@@ -53,7 +53,7 @@ import {
 import { escapeHtml } from "../webview_shared/webviewTypes";
 import { generateNonce } from "../webview_shared/nonce";
 import { getProjectSectionHtml } from "./ProjectSection";
-import { getBuildSectionHtml } from "./BuildSection";
+import { getBuildSectionHtml, getCalculatedSectionHtml } from "./BuildSection";
 import { getTestSectionHtml } from "./TestSection";
 import { getVariablesReferenceSectionHtml } from "./VariablesSection";
 import { normalizeBuildArgs } from "../../project_utilities/build_args";
@@ -262,6 +262,11 @@ export class ProjectBuildPanel {
           await this.handleRemoveConfigFile(message, false, true);
           return;
 
+        // Toggle file between override and extra
+        case "toggleFileExtra":
+          await this.handleToggleFileExtra(message);
+          return;
+
         // Build config files
         case "addBuildConfigFile":
           await addConfigFiles(ctx, ws, true, false, this._selectedProject, message.build);
@@ -377,6 +382,67 @@ export class ProjectBuildPanel {
       isProject ? undefined : message.build,
     );
     await this.refreshAfterChange();
+  }
+
+  private async handleToggleFileExtra(message: any) {
+    if (!this._selectedProject || !message.file) {
+      return;
+    }
+    const toggleCmd = String(message["toggle-cmd"] ?? "");
+    const toExtra = message.extra === "true";
+    const file = String(message.file);
+
+    // Determine isKConfig, isProject from the toggle command name
+    let isKConfig: boolean;
+    let isProject: boolean;
+    switch (toggleCmd) {
+      case "toggleProjectConfigFileExtra":
+        isKConfig = true; isProject = true; break;
+      case "toggleProjectOverlayFileExtra":
+        isKConfig = false; isProject = true; break;
+      case "toggleBuildConfigFileExtra":
+        isKConfig = true; isProject = false; break;
+      case "toggleBuildOverlayFileExtra":
+        isKConfig = false; isProject = false; break;
+      default:
+        return;
+    }
+
+    const project = this._wsConfig.projects[this._selectedProject];
+    if (!project) { return; }
+
+    let confFiles;
+    if (isProject) {
+      confFiles = project.confFiles;
+    } else {
+      const buildName = this.getSelectedBuildName();
+      if (!buildName || !project.buildConfigs[buildName]) { return; }
+      confFiles = project.buildConfigs[buildName].confFiles;
+    }
+
+    // Remove from current list, add to target list
+    const fromKey = isKConfig
+      ? (toExtra ? "config" : "extraConfig")
+      : (toExtra ? "overlay" : "extraOverlay");
+    const toKey = isKConfig
+      ? (toExtra ? "extraConfig" : "config")
+      : (toExtra ? "extraOverlay" : "overlay");
+
+    confFiles[fromKey] = confFiles[fromKey].filter((f: string) => f !== file);
+    if (!confFiles[toKey].includes(file)) {
+      confFiles[toKey].push(file);
+    }
+
+    await setWorkspaceState(this._context, this._wsConfig);
+    this.updateHtml();
+  }
+
+  private getSelectedBuildName(): string | undefined {
+    const sel = this._selectedBuildOrTest;
+    if (sel && sel.startsWith("build:")) {
+      return sel.slice(6);
+    }
+    return undefined;
   }
 
   private async handleUpsertVariable(message: any) {
@@ -536,6 +602,7 @@ export class ProjectBuildPanel {
     // Project section
     let projectHtml = "";
     let buildOrTestHtml = "";
+    let calculatedHtml = "";
     let selectorHtml = "";
 
     if (selected && this._wsConfig.projects[selected]) {
@@ -590,7 +657,16 @@ export class ProjectBuildPanel {
           const calculated = getCalculatedConfigFiles(project, project.buildConfigs[buildName]);
           const activeBuild = this._wsConfig.projectStates[selected]?.activeBuildConfig;
           const isActive = buildName === activeBuild;
-          buildOrTestHtml = getBuildSectionHtml(buildDetails, selected, buildName, buildVars, calculated, undefined, isActive);
+          buildOrTestHtml = getBuildSectionHtml(buildDetails, selected, buildName, buildVars, isActive);
+          calculatedHtml = `
+            <div class="panel-section">
+              <div class="section-header">
+                <h2><i class="codicon codicon-settings-gear"></i> Calculated Configuration</h2>
+              </div>
+              <div class="section-body">
+                ${getCalculatedSectionHtml(calculated, undefined)}
+              </div>
+            </div>`;
         }
       } else if (currentSelection.startsWith("test:")) {
         const testName = currentSelection.slice(5);
@@ -598,6 +674,29 @@ export class ProjectBuildPanel {
         if (testDetails) {
           buildOrTestHtml = getTestSectionHtml(testDetails, selected);
         }
+      }
+
+      // Show placeholder if no build/test selected
+      if (!buildOrTestHtml && buildNames.length === 0 && testNames.length === 0) {
+        buildOrTestHtml = `
+          <div class="panel-section build-placeholder">
+            <div class="build-placeholder-content">
+              <i class="codicon codicon-add"></i>
+              <p>No builds configured.</p>
+              <vscode-button appearance="secondary" data-command="addBuild" data-project="${escapeHtml(selected)}">
+                <vscode-icon name="add" slot="start-icon"></vscode-icon>
+                Create Build
+              </vscode-button>
+            </div>
+          </div>`;
+      } else if (!buildOrTestHtml) {
+        buildOrTestHtml = `
+          <div class="panel-section build-placeholder">
+            <div class="build-placeholder-content">
+              <i class="codicon codicon-arrow-left"></i>
+              <p>Select a build or test to view details.</p>
+            </div>
+          </div>`;
       }
     }
 
@@ -627,19 +726,24 @@ export class ProjectBuildPanel {
             <h1 class="page-title"><i class="codicon codicon-project"></i> Project Details</h1>
             <p class="page-subtitle">Inspect configured projects, builds, tests, and derived variables.</p>
           </div>
-          <div class="page-actions project-selector">
-            <label for="projectSelect">Project:</label>
-            <vscode-single-select id="projectSelect">
-              ${projectOptions}
-            </vscode-single-select>
+          <div class="page-header-selectors">
+            <div class="page-actions project-selector">
+              <label for="projectSelect">Project:</label>
+              <vscode-single-select id="projectSelect">
+                ${projectOptions}
+              </vscode-single-select>
+            </div>
+            ${selectorHtml}
           </div>
         </div>
 
         ${noProjectHtml}
         <div id="projectContent">
-          ${projectHtml}
-          ${selectorHtml}
-          ${buildOrTestHtml}
+          <div class="project-build-row">
+            <div class="project-build-col">${projectHtml}</div>
+            <div class="project-build-col">${buildOrTestHtml}</div>
+          </div>
+          ${calculatedHtml}
         </div>
         ${variablesRefHtml}
       </div>

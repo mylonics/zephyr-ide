@@ -17,51 +17,7 @@ limitations under the License.
 
 import { ProjectInfo } from "../../project_utilities/project_info";
 import { escapeHtml } from "../webview_shared/webviewTypes";
-
-function fileListHtml(files: string[], groupId: string, isExtra: boolean, removeCmd: string): string {
-  if (files.length === 0) {
-    return `<div class="file-list-empty">None</div>`;
-  }
-  return files
-    .map((f) => {
-      const escaped = escapeHtml(f);
-      const extraFlag = isExtra ? "true" : "false";
-      return `<div class="file-list-item">
-        <span class="file-name clickable" data-command="openFile" data-file="${escaped}" title="${escaped}">${escaped}</span>
-        <vscode-button appearance="icon" title="Remove" data-command="${removeCmd}" data-file="${escaped}" data-extra="${extraFlag}" data-group="${groupId}">
-          <vscode-icon name="trash" slot="start-icon"></vscode-icon>
-        </vscode-button>
-      </div>`;
-    })
-    .join("\n");
-}
-
-function fileGroupHtml(
-  title: string,
-  groupId: string,
-  primaryFiles: string[],
-  extraFiles: string[],
-  addCmd: string,
-  removeCmd: string,
-): string {
-  return `
-    <div class="config-group">
-      <div class="config-group-header">
-        <span class="config-group-title">${title}</span>
-        <vscode-button appearance="icon" title="Add File" data-command="${addCmd}" data-group="${groupId}">
-          <vscode-icon name="add" slot="start-icon"></vscode-icon>
-        </vscode-button>
-      </div>
-      <div class="config-group-sub">
-        <div class="config-sub-label">Override Files</div>
-        ${fileListHtml(primaryFiles, groupId, false, removeCmd)}
-      </div>
-      <div class="config-group-sub">
-        <div class="config-sub-label">Extra Files</div>
-        ${fileListHtml(extraFiles, groupId, true, removeCmd)}
-      </div>
-    </div>`;
-}
+import { tabbedConfigGroupHtml } from "./configFileGroup";
 
 function variablesTableHtml(
   vars: Record<string, string>,
@@ -134,22 +90,18 @@ export function getProjectSectionHtml(
           <span class="info-value">${cmakeFile}</span>
         </div>
 
-        ${fileGroupHtml(
-    "KConfig Files",
-    "kconfig-project",
+        ${tabbedConfigGroupHtml(
+    "project",
     projectInfo.confFiles.config,
     projectInfo.confFiles.extraConfig,
     "addProjectConfigFile",
     "removeProjectConfigFile",
-  )}
-
-        ${fileGroupHtml(
-    "DTC Overlay Files",
-    "overlay-project",
+    "toggleProjectConfigFileExtra",
     projectInfo.confFiles.overlay,
     projectInfo.confFiles.extraOverlay,
     "addProjectOverlayFile",
     "removeProjectOverlayFile",
+    "toggleProjectOverlayFileExtra",
   )}
 
         ${variablesTableHtml(projectVars, "project", projectName)}

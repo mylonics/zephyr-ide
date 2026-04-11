@@ -114,3 +114,73 @@
     min-height: 28px;
     white-space: nowrap;
 }
+
+/* Override warning (shown when user scope is selected but workspace overrides) */
+.setting-override-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 8px 10px;
+    margin-bottom: 10px;
+    border-radius: var(--zephyr-webview-radius);
+    background-color: color-mix(in srgb, var(--vscode-editorWarning-foreground) 12%, var(--vscode-editor-background));
+    border: 1px solid color-mix(in srgb, var(--vscode-editorWarning-foreground) 40%, transparent);
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--vscode-editorWarning-foreground);
+}
+
+.setting-override-warning .codicon-warning::before {
+    content: "\ea6c";
+    font-family: codicon;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.override-warning-text {
+    color: var(--vscode-foreground);
+}
+
+/* Override info (shown when both user and workspace values exist) */
+.setting-override-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    margin-bottom: 10px;
+    border-radius: var(--zephyr-webview-radius);
+    background-color: color-mix(in srgb, var(--vscode-terminal-ansiBlue) 8%, var(--vscode-editor-background));
+    border: 1px solid color-mix(in srgb, var(--vscode-terminal-ansiBlue) 25%, transparent);
+    font-size: 11px;
+    line-height: 1.4;
+    flex-wrap: wrap;
+}
+
+.override-info-label {
+    font-weight: 600;
+    color: var(--vscode-descriptionForeground);
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.3px;
+}
+
+.override-info-value {
+    color: var(--vscode-foreground);
+    font-family: var(--vscode-editor-font-family), monospace;
+}
+
+.override-info-sep {
+    color: var(--vscode-panel-border);
+    margin: 0 4px;
+}
+
+.override-info-note {
+    color: var(--vscode-descriptionForeground);
+    font-style: italic;
+    margin-left: 4px;
+}
+
+/* Highlight overridden setting row */
+.setting-row-overridden {
+    border-color: color-mix(in srgb, var(--vscode-editorWarning-foreground) 40%, transparent);
+}

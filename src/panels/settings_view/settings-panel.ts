@@ -20,6 +20,10 @@ interface SettingState {
   defaultValue: boolean | string | null;
   currentValue: boolean | string | null;
   scope: 'default' | 'user' | 'workspace';
+  userValue: boolean | string | null;
+  workspaceValue: boolean | string | null;
+  hasUserValue: boolean;
+  hasWorkspaceValue: boolean;
 }
 
 // Current settings state received from the extension
@@ -38,6 +42,53 @@ window.addEventListener('message', (event: MessageEvent) => {
       break;
   }
 });
+
+function formatValue(value: boolean | string | null): string {
+  if (value === null || value === undefined) { return '(not set)'; }
+  if (typeof value === 'boolean') { return value ? 'true' : 'false'; }
+  return `"${value}"`;
+}
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function updateOverrideWarning(setting: SettingState, targetScope: string): void {
+  const warningEl = document.getElementById('override-warning-' + setting.key);
+  const infoEl = document.getElementById('override-info-' + setting.key);
+  const row = document.querySelector(`.setting-row[data-key="${setting.key}"]`);
+  if (!warningEl || !infoEl || !row) { return; }
+
+  const warningText = warningEl.querySelector('.override-warning-text');
+
+  // Show warning when targeting user scope and workspace value exists
+  if (targetScope === 'user' && setting.hasWorkspaceValue) {
+    warningEl.style.display = '';
+    if (warningText) {
+      warningText.textContent = `A workspace setting (${formatValue(setting.workspaceValue)}) overrides this user value. Changes to the user setting will not take effect in this workspace.`;
+    }
+    row.classList.add('setting-row-overridden');
+  } else {
+    warningEl.style.display = 'none';
+    row.classList.remove('setting-row-overridden');
+  }
+
+  // Show info about both values when both exist
+  if (setting.hasUserValue && setting.hasWorkspaceValue) {
+    infoEl.style.display = '';
+    infoEl.innerHTML =
+      `<span class="override-info-label">User:</span> <span class="override-info-value">${escapeHtml(formatValue(setting.userValue))}</span>` +
+      `<span class="override-info-sep">|</span>` +
+      `<span class="override-info-label">Workspace:</span> <span class="override-info-value">${escapeHtml(formatValue(setting.workspaceValue))}</span>` +
+      `<span class="override-info-note">(workspace wins)</span>`;
+  } else {
+    infoEl.style.display = 'none';
+  }
+}
 
 function renderSettings(settings: SettingState[]): void {
   for (const setting of settings) {
@@ -72,6 +123,10 @@ function renderSettings(settings: SettingState[]): void {
     if (resetEl) {
       resetEl.style.display = setting.scope === 'default' ? 'none' : '';
     }
+
+    // Update override warnings based on current target scope
+    const currentTargetScope = targetEl ? (targetEl as any).value : 'workspace';
+    updateOverrideWarning(setting, currentTargetScope);
   }
 }
 
@@ -109,6 +164,12 @@ function onScopeChanged(key: string): void {
   const type = row.getAttribute('data-type');
   const scope = (targetEl as any).value;
 
+  // Update override warnings immediately when scope selector changes
+  const setting = currentSettings.find((s) => s.key === key);
+  if (setting) {
+    updateOverrideWarning(setting, scope);
+  }
+
   let value: boolean | string | null;
   if (type === 'boolean') {
     value = (valEl as any).checked;
@@ -118,7 +179,6 @@ function onScopeChanged(key: string): void {
   }
 
   // Only send update if the setting has been explicitly set (not default)
-  const setting = currentSettings.find((s) => s.key === key);
   if (setting && setting.scope !== 'default') {
     vscode.postMessage({
       command: 'updateSetting',

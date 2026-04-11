@@ -29,6 +29,11 @@ import '@vscode-elements/elements/dist/vscode-table-body/index.js';
 import '@vscode-elements/elements/dist/vscode-table-row/index.js';
 import '@vscode-elements/elements/dist/vscode-table-cell/index.js';
 import '@vscode-elements/elements/dist/vscode-button-group/index.js';
+import '@vscode-elements/elements/dist/vscode-tabs/index.js';
+import '@vscode-elements/elements/dist/vscode-tab-header/index.js';
+import '@vscode-elements/elements/dist/vscode-tab-panel/index.js';
+import '@vscode-elements/elements/dist/vscode-checkbox/index.js';
+import '@vscode-elements/elements/dist/vscode-scrollable/index.js';
 
 import { getVsCodeApi } from "../webview_shared/webviewTypes";
 
@@ -39,39 +44,43 @@ function sendCommand(command: string, data: Record<string, string> = {}): void {
 }
 
 // ---------------------------------------------------------------------------
-// Project selector
+// Delegated change handlers (vscode-elements fire 'vsc-change')
 // ---------------------------------------------------------------------------
 
-function setupProjectSelector(): void {
-  const select = document.getElementById("projectSelect") as HTMLElement | null;
-  if (select) {
-    select.addEventListener("vsc-change", (e: Event) => {
-      const value = (e.target as any).value;
-      sendCommand("switchProject", { project: value });
-    });
-  }
-}
+function setupChangeHandlers(): void {
+  // vscode-single-select fires non-bubbling 'change' events on the host element.
+  // Use capture phase to intercept them at document level.
+  document.addEventListener("change", (e: Event) => {
+    const target = e.target;
+    if (!(target instanceof HTMLElement)) { return; }
 
-// ---------------------------------------------------------------------------
-// Build / test selector
-// ---------------------------------------------------------------------------
+    const id = target.id;
+    if (id === "projectSelect") {
+      sendCommand("switchProject", { project: (target as any).value });
+    } else if (id === "buildTestSelect") {
+      sendCommand("switchBuildOrTest", { selection: (target as any).value });
+    }
+  }, true); // capture phase
 
-function setupBuildTestSelector(): void {
-  const select = document.getElementById("buildTestSelect") as HTMLElement | null;
-  if (select) {
-    select.addEventListener("vsc-change", (e: Event) => {
-      const value = (e.target as any).value;
-      sendCommand("switchBuildOrTest", { selection: value });
-    });
-  }
-}
+  // vscode-checkbox fires 'vsc-change'
+  document.body.addEventListener("vsc-change", (e: Event) => {
+    const target = e.target;
+    if (!(target instanceof HTMLElement)) { return; }
 
-// ---------------------------------------------------------------------------
-// Collapsible sections
-// ---------------------------------------------------------------------------
-
-function setupCollapsibles(): void {
-  // vscode-collapsible handles its own open/close natively; no manual toggle needed.
+    // Handle extra-file checkbox toggles inside config file rows
+    if (target.matches(".file-extra-checkbox")) {
+      const row = target.closest(".file-list-item");
+      if (!row) { return; }
+      const data = getDataAttributes(row as HTMLElement);
+      const checked = (target as any).checked;
+      sendCommand("toggleFileExtra", {
+        file: data["file"] ?? "",
+        group: data["group"] ?? "",
+        extra: checked ? "true" : "false",
+        "toggle-cmd": data["toggle-cmd"] ?? "",
+      });
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -183,9 +192,7 @@ function setupClickDelegation(): void {
 // ---------------------------------------------------------------------------
 
 function init(): void {
-  setupProjectSelector();
-  setupBuildTestSelector();
-  setupCollapsibles();
+  setupChangeHandlers();
   setupClickDelegation();
 }
 
