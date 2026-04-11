@@ -1,0 +1,439 @@
+/*
+Copyright 2024 mylonics 
+Author Rijesh Augustine
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+import * as vscode from "vscode";
+import * as fs from "fs-extra";
+import * as path from "upath";
+
+import { WorkspaceConfig } from "../setup_utilities/types";
+import { ProjectConfig, getProjectFolder, getBuildFolder, resolveBoardPath } from "./project";
+import { BuildConfig } from "./build_selector";
+import { ConfigFiles, mergeConfigFiles } from "./config_selector";
+import { RunnerConfig } from "./runner_selector";
+import { TwisterConfig } from "./twister_selector";
+import { getBuildInfo, BuildInfo } from "../zephyr_utilities/build";
+import { outputError } from "../utilities/output";
+
+// ---------------------------------------------------------------------------
+// Project info
+// ---------------------------------------------------------------------------
+
+export interface ProjectInfo {
+  name: string;
+  relPath: string;
+  absPath: string;
+  mainSourceFile: string | undefined;
+  cmakeFile: string | undefined;
+  confFiles: ConfigFiles;
+  buildNames: string[];
+  testNames: string[];
+}
+
+/** Find the main source file (src/main.c or src/main.cpp) in a project folder */
+export function findMainSourceFile(projectAbsPath: string): string | undefined {
+  const candidates = ["src/main.c", "src/main.cpp"];
+  for (const candidate of candidates) {
+    const full = path.join(projectAbsPath, candidate);
+    if (fs.existsSync(full)) {
+      return full;
+    }
+  }
+  return undefined;
+}
+
+/** Get comprehensive project information */
+export function getProjectInfo(wsConfig: WorkspaceConfig, projectName: string): ProjectInfo | undefined {
+  const project = wsConfig.projects[projectName];
+  if (!project) {
+    return undefined;
+  }
+
+  const absPath = getProjectFolder(wsConfig, project);
+  const cmakePath = path.join(absPath, "CMakeLists.txt");
+
+  return {
+    name: project.name,
+    relPath: project.rel_path,
+    absPath,
+    mainSourceFile: findMainSourceFile(absPath),
+    cmakeFile: fs.existsSync(cmakePath) ? cmakePath : undefined,
+    confFiles: project.confFiles ?? { config: [], extraConfig: [], overlay: [], extraOverlay: [] },
+    buildNames: Object.keys(project.buildConfigs ?? {}),
+    testNames: Object.keys(project.twisterConfigs ?? {}),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Build info
+// ---------------------------------------------------------------------------
+
+export interface BuildDetails {
+  name: string;
+  board: string;
+  revision: string | undefined;
+  boardDisplayName: string;
+  relBoardDir: string;
+  relBoardSubDir: string;
+  resolvedBoardPath: string | undefined;
+  debugOptimization: string;
+  westBuildArgs: string;
+  westBuildCMakeArgs: string;
+  confFiles: ConfigFiles;
+  runners: { name: string; config: RunnerConfig }[];
+  launchTarget: string;
+  launchTargetFolder: string | undefined;
+  buildDebugTarget: string;
+  buildDebugTargetFolder: string | undefined;
+  attachTarget: string;
+  attachTargetFolder: string | undefined;
+}
+
+/** Get comprehensive build details */
+export function getBuildDetails(wsConfig: WorkspaceConfig, projectName: string, buildName: string): BuildDetails | undefined {
+  const project = wsConfig.projects[projectName];
+  if (!project) {
+    return undefined;
+  }
+  const build = project.buildConfigs[buildName];
+  if (!build) {
+    return undefined;
+  }
+
+  const resolvedPath = resolveBoardPath(wsConfig, build, wsConfig.activeSetupState);
+
+  const runners: { name: string; config: RunnerConfig }[] = [];
+  for (const [rName, rConfig] of Object.entries(build.runnerConfigs ?? {})) {
+    runners.push({ name: rName, config: rConfig });
+  }
+
+  const boardDisplay = build.revision ? `${build.board}@${build.revision}` : build.board;
+
+  return {
+    name: build.name,
+    board: build.board,
+    revision: build.revision,
+    boardDisplayName: boardDisplay,
+    relBoardDir: build.relBoardDir ?? "",
+    relBoardSubDir: build.relBoardSubDir,
+    resolvedBoardPath: resolvedPath,
+    debugOptimization: build.debugOptimization,
+    westBuildArgs: build.westBuildArgs,
+    westBuildCMakeArgs: build.westBuildCMakeArgs,
+    confFiles: build.confFiles ?? { config: [], extraConfig: [], overlay: [], extraOverlay: [] },
+    runners,
+    launchTarget: build.launchTarget,
+    launchTargetFolder: build.launchTargetFolder,
+    buildDebugTarget: build.buildDebugTarget,
+    buildDebugTargetFolder: build.buildDebugTargetFolder,
+    attachTarget: build.attachTarget,
+    attachTargetFolder: build.attachTargetFolder,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Test info
+// ---------------------------------------------------------------------------
+
+export interface TestDetails {
+  name: string;
+  platform: string;
+  tests: string[];
+  args: string;
+  serialPort: string | undefined;
+  serialBaud: string | undefined;
+  board: string | undefined;
+}
+
+/** Get test configuration details */
+export function getTestDetails(wsConfig: WorkspaceConfig, projectName: string, testName: string): TestDetails | undefined {
+  const project = wsConfig.projects[projectName];
+  if (!project) {
+    return undefined;
+  }
+  const test = project.twisterConfigs[testName];
+  if (!test) {
+    return undefined;
+  }
+
+  return {
+    name: test.name,
+    platform: test.platform,
+    tests: test.tests,
+    args: test.args,
+    serialPort: test.serialPort,
+    serialBaud: test.serialBaud,
+    board: test.boardConfig?.board,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Calculated / merged config files
+// ---------------------------------------------------------------------------
+
+export interface CalculatedConfigFiles {
+  /** Merged project + build primary configs */
+  config: string[];
+  /** Merged project + build extra configs */
+  extraConfig: string[];
+  /** Merged project + build primary overlays */
+  overlay: string[];
+  /** Merged project + build extra overlays */
+  extraOverlay: string[];
+}
+
+/** Get the combined config files from project + build level (what actually gets passed to west build) */
+export function getCalculatedConfigFiles(project: ProjectConfig, build: BuildConfig): CalculatedConfigFiles {
+  const merged: ConfigFiles = {
+    config: [],
+    extraConfig: [],
+    overlay: [],
+    extraOverlay: [],
+  };
+  mergeConfigFiles(merged, project.confFiles);
+  mergeConfigFiles(merged, build.confFiles);
+  return merged;
+}
+
+/** Get resolved build output files from build_info.yml (requires a completed build) */
+export async function getResolvedBuildOutputFiles(
+  wsConfig: WorkspaceConfig,
+  projectName: string,
+  buildName: string,
+): Promise<BuildInfo | undefined> {
+  const project = wsConfig.projects[projectName];
+  if (!project) {
+    return undefined;
+  }
+  const build = project.buildConfigs[buildName];
+  if (!build) {
+    return undefined;
+  }
+
+  const buildFolder = getBuildFolder(wsConfig, project, build);
+  const buildInfoPath = path.join(buildFolder, "build_info.yml");
+  if (!fs.existsSync(buildInfoPath)) {
+    return undefined;
+  }
+
+  return getBuildInfo(wsConfig, project, build);
+}
+
+// ---------------------------------------------------------------------------
+// Project / build variables (from .vscode/zephyr-ide.json)
+// ---------------------------------------------------------------------------
+
+function readZephyrIdeJson(wsConfig: WorkspaceConfig): any {
+  const filePath = path.join(wsConfig.rootPath, ".vscode", "zephyr-ide.json");
+  try {
+    if (fs.existsSync(filePath)) {
+      return JSON.parse(fs.readFileSync(filePath, "utf8"));
+    }
+  } catch (error) {
+    outputError("Project Info", `Failed to read zephyr-ide.json: ${String(error)}`);
+  }
+  return undefined;
+}
+
+/** Get project-level custom variables */
+export function getProjectVariables(wsConfig: WorkspaceConfig, projectName: string): Record<string, string> {
+  const data = readZephyrIdeJson(wsConfig);
+  return data?.projects?.[projectName]?.vars ?? {};
+}
+
+/** Get build-level custom variables */
+export function getBuildVariables(wsConfig: WorkspaceConfig, projectName: string, buildName: string): Record<string, string> {
+  const data = readZephyrIdeJson(wsConfig);
+  return data?.projects?.[projectName]?.buildConfigs?.[buildName]?.vars ?? {};
+}
+
+/** Set a project-level custom variable */
+export async function setProjectVariable(
+  context: vscode.ExtensionContext,
+  wsConfig: WorkspaceConfig,
+  projectName: string,
+  key: string,
+  value: string,
+): Promise<void> {
+  const filePath = path.join(wsConfig.rootPath, ".vscode", "zephyr-ide.json");
+  try {
+    const data = fs.existsSync(filePath)
+      ? JSON.parse(fs.readFileSync(filePath, "utf8"))
+      : { projects: {} };
+
+    if (!data.projects) { data.projects = {}; }
+    if (!data.projects[projectName]) { data.projects[projectName] = {}; }
+    if (!data.projects[projectName].vars) { data.projects[projectName].vars = {}; }
+    data.projects[projectName].vars[key] = value;
+
+    await fs.outputFile(filePath, JSON.stringify(data, null, 2));
+  } catch (error) {
+    outputError("Project Info", `Failed to set project variable: ${String(error)}`);
+  }
+}
+
+/** Set a build-level custom variable */
+export async function setBuildVariable(
+  context: vscode.ExtensionContext,
+  wsConfig: WorkspaceConfig,
+  projectName: string,
+  buildName: string,
+  key: string,
+  value: string,
+): Promise<void> {
+  const filePath = path.join(wsConfig.rootPath, ".vscode", "zephyr-ide.json");
+  try {
+    const data = fs.existsSync(filePath)
+      ? JSON.parse(fs.readFileSync(filePath, "utf8"))
+      : { projects: {} };
+
+    if (!data.projects) { data.projects = {}; }
+    if (!data.projects[projectName]) { data.projects[projectName] = {}; }
+    if (!data.projects[projectName].buildConfigs) { data.projects[projectName].buildConfigs = {}; }
+    if (!data.projects[projectName].buildConfigs[buildName]) { data.projects[projectName].buildConfigs[buildName] = {}; }
+    if (!data.projects[projectName].buildConfigs[buildName].vars) { data.projects[projectName].buildConfigs[buildName].vars = {}; }
+    data.projects[projectName].buildConfigs[buildName].vars[key] = value;
+
+    await fs.outputFile(filePath, JSON.stringify(data, null, 2));
+  } catch (error) {
+    outputError("Project Info", `Failed to set build variable: ${String(error)}`);
+  }
+}
+
+/** Remove a project-level custom variable */
+export async function removeProjectVariable(
+  context: vscode.ExtensionContext,
+  wsConfig: WorkspaceConfig,
+  projectName: string,
+  key: string,
+): Promise<void> {
+  const filePath = path.join(wsConfig.rootPath, ".vscode", "zephyr-ide.json");
+  try {
+    const data = fs.existsSync(filePath)
+      ? JSON.parse(fs.readFileSync(filePath, "utf8"))
+      : { projects: {} };
+
+    if (data.projects?.[projectName]?.vars) {
+      delete data.projects[projectName].vars[key];
+      await fs.outputFile(filePath, JSON.stringify(data, null, 2));
+    }
+  } catch (error) {
+    outputError("Project Info", `Failed to remove project variable: ${String(error)}`);
+  }
+}
+
+/** Remove a build-level custom variable */
+export async function removeBuildVariable(
+  context: vscode.ExtensionContext,
+  wsConfig: WorkspaceConfig,
+  projectName: string,
+  buildName: string,
+  key: string,
+): Promise<void> {
+  const filePath = path.join(wsConfig.rootPath, ".vscode", "zephyr-ide.json");
+  try {
+    const data = fs.existsSync(filePath)
+      ? JSON.parse(fs.readFileSync(filePath, "utf8"))
+      : { projects: {} };
+
+    if (data.projects?.[projectName]?.buildConfigs?.[buildName]?.vars) {
+      delete data.projects[projectName].buildConfigs[buildName].vars[key];
+      await fs.outputFile(filePath, JSON.stringify(data, null, 2));
+    }
+  } catch (error) {
+    outputError("Project Info", `Failed to remove build variable: ${String(error)}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Available variable commands reference
+// ---------------------------------------------------------------------------
+
+export interface VariableCommandInfo {
+  command: string;
+  description: string;
+  example: string;
+}
+
+export function getAvailableVariableCommands(): VariableCommandInfo[] {
+  return [
+    {
+      command: "${command:zephyr-ide.get-active-project-name}",
+      description: "Active project name",
+      example: "my_project",
+    },
+    {
+      command: "${command:zephyr-ide.get-active-project-path}",
+      description: "Absolute path to active project folder",
+      example: "/workspace/my_project",
+    },
+    {
+      command: "${command:zephyr-ide.get-active-build-path}",
+      description: "Absolute path to active build output directory",
+      example: "/workspace/my_project/build_debug",
+    },
+    {
+      command: "${command:zephyr-ide.get-active-build-board-path}",
+      description: "Absolute board path for active build",
+      example: "/zephyr/boards/arm/nucleo_f401re",
+    },
+    {
+      command: "${command:zephyr-ide.get-gdb-path}",
+      description: "Path to GDB executable (from CMakeCache)",
+      example: "/sdk/arm-zephyr-eabi/bin/arm-zephyr-eabi-gdb",
+    },
+    {
+      command: "${command:zephyr-ide.get-arm-gdb-path}",
+      description: "Path to ARM GDB without Python support",
+      example: "/sdk/arm-zephyr-eabi/bin/arm-zephyr-eabi-gdb",
+    },
+    {
+      command: "${command:zephyr-ide.get-zephyr-elf}",
+      description: "Full path to the built Zephyr ELF file",
+      example: "/workspace/my_project/build/zephyr/zephyr.elf",
+    },
+    {
+      command: "${command:zephyr-ide.get-zephyr-elf-dir}",
+      description: "Directory containing the Zephyr ELF file",
+      example: "/workspace/my_project/build/zephyr",
+    },
+    {
+      command: "${command:zephyr-ide.get-toolchain-path}",
+      description: "Path to the toolchain directory",
+      example: "/sdk/zephyr-sdk-0.16.3",
+    },
+    {
+      command: "${command:zephyr-ide.get-zephyr-dir}",
+      description: "Zephyr installation directory",
+      example: "/workspace/zephyr",
+    },
+    {
+      command: "${command:zephyr-ide.get-zephyr-ide-json-variable}",
+      description: "Read a workspace-level custom variable from zephyr-ide.json",
+      example: 'Use with inputs: { "command": "zephyr-ide.get-zephyr-ide-json-variable", "args": "my_var" }',
+    },
+    {
+      command: "${command:zephyr-ide.get-active-project-variable}",
+      description: "Read a project-level custom variable",
+      example: 'Use with inputs: { "command": "zephyr-ide.get-active-project-variable", "args": "my_var" }',
+    },
+    {
+      command: "${command:zephyr-ide.get-active-build-variable}",
+      description: "Read a build-level custom variable",
+      example: 'Use with inputs: { "command": "zephyr-ide.get-active-build-variable", "args": "bmp_port" }',
+    },
+  ];
+}

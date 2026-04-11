@@ -49,7 +49,8 @@ export interface WorkspaceConfig {
   projects: ProjectConfigDictionary,
   activeProject?: string,
   initialSetupComplete: boolean,
-  automaticProjectSelection: boolean,
+  /** @deprecated Migrated to VS Code setting zephyr-ide.automaticProjectSelection */
+  automaticProjectSelection?: boolean,
   activeSetupState?: SetupState,
   projectStates: ProjectStateDictionary,
 }

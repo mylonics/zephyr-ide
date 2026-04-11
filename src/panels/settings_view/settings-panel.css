@@ -1,0 +1,260 @@
+/* Zephyr IDE Settings Panel Styles */
+
+body {
+    font-family: var(--vscode-font-family);
+    color: var(--vscode-foreground);
+    background-color: var(--vscode-editor-background);
+    padding: 20px;
+    margin: 0;
+}
+
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--vscode-panel-border);
+    padding-bottom: 15px;
+}
+
+h1 {
+    font-size: 24px;
+    font-weight: 600;
+    margin: 0;
+    color: var(--vscode-foreground);
+}
+
+h2 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 25px 0 10px 0;
+    color: var(--vscode-foreground);
+}
+
+.info-box {
+    background-color: var(--vscode-textBlockQuote-background);
+    border-left: 4px solid var(--vscode-textLink-foreground);
+    padding: 12px 15px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+}
+
+.info-box p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.settings-group {
+    margin-bottom: 10px;
+}
+
+.setting-row {
+    padding: 14px 16px;
+    margin-bottom: 8px;
+    background-color: var(--vscode-editor-background);
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 6px;
+}
+
+.setting-row:hover {
+    border-color: var(--vscode-focusBorder);
+}
+
+.setting-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
+}
+
+.setting-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--vscode-foreground);
+}
+
+.setting-description {
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+    margin-bottom: 10px;
+    line-height: 1.4;
+}
+
+.setting-scope-badge {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 10px;
+    letter-spacing: 0.5px;
+}
+
+.scope-default {
+    background-color: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
+}
+
+.scope-user {
+    background-color: var(--vscode-terminal-ansiBlue);
+    color: var(--vscode-editor-background);
+}
+
+.scope-workspace {
+    background-color: var(--vscode-terminal-ansiGreen);
+    color: var(--vscode-editor-background);
+}
+
+.setting-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.input-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+    min-width: 200px;
+}
+
+.setting-input {
+    flex: 1;
+    padding: 5px 10px;
+    border: 1px solid var(--vscode-input-border);
+    background-color: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: var(--vscode-editor-font-family);
+    outline: none;
+}
+
+.setting-input:focus {
+    border-color: var(--vscode-focusBorder);
+}
+
+.setting-input::placeholder {
+    color: var(--vscode-input-placeholderForeground);
+}
+
+.browse-button {
+    padding: 5px 8px;
+    border: 1px solid var(--vscode-button-secondaryBackground);
+    background-color: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.browse-button:hover {
+    background-color: var(--vscode-button-secondaryHoverBackground);
+}
+
+.scope-select {
+    padding: 5px 8px;
+    border: 1px solid var(--vscode-dropdown-border);
+    background-color: var(--vscode-dropdown-background);
+    color: var(--vscode-dropdown-foreground);
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    outline: none;
+}
+
+.scope-select:focus {
+    border-color: var(--vscode-focusBorder);
+}
+
+.reset-button {
+    padding: 4px 10px;
+    border: 1px solid var(--vscode-button-secondaryBackground);
+    background-color: transparent;
+    color: var(--vscode-descriptionForeground);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.reset-button:hover {
+    background-color: var(--vscode-button-secondaryHoverBackground);
+    color: var(--vscode-foreground);
+}
+
+.open-vscode-settings-button {
+    padding: 6px 14px;
+    border: none;
+    background-color: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.open-vscode-settings-button:hover {
+    background-color: var(--vscode-button-secondaryHoverBackground);
+}
+
+/* Toggle Switch for Booleans */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 22px;
+    flex-shrink: 0;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--vscode-input-background);
+    border: 1px solid var(--vscode-input-border);
+    border-radius: 22px;
+    transition: background-color 0.2s;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 2px;
+    bottom: 2px;
+    background-color: var(--vscode-foreground);
+    border-radius: 50%;
+    transition: transform 0.2s;
+}
+
+input:checked + .toggle-slider {
+    background-color: var(--vscode-button-background);
+    border-color: var(--vscode-button-background);
+}
+
+input:checked + .toggle-slider:before {
+    transform: translateX(18px);
+    background-color: var(--vscode-button-foreground);
+}
+
+input:focus + .toggle-slider {
+    border-color: var(--vscode-focusBorder);
+}
