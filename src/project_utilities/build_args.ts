@@ -38,19 +38,83 @@ export function splitBuildArgs(value: string): string[] {
   }
 
   const parts: string[] = [];
-  const tokenRegex = /[^\s"']+|"([^"\\]*(?:\\.[^"\\]*)*)"|'([^'\\]*(?:\\.[^'\\]*)*)'/g;
-  let match: RegExpExecArray | null;
-  while ((match = tokenRegex.exec(input)) !== null) {
-    const token = (match[1] ?? match[2] ?? match[0]).trim();
-    if (token.length > 0) {
-      parts.push(token);
+  let current = "";
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  let tokenStarted = false;
+
+  for (let i = 0; i < input.length; i++) {
+    const char = input[i];
+
+    if (char === "\\") {
+      const next = input[i + 1];
+      if (next !== undefined) {
+        current += next;
+        tokenStarted = true;
+        i++;
+      } else {
+        current += char;
+        tokenStarted = true;
+      }
+      continue;
     }
+
+    if (char === "'" && !inDoubleQuote) {
+      inSingleQuote = !inSingleQuote;
+      tokenStarted = true;
+      continue;
+    }
+
+    if (char === "\"" && !inSingleQuote) {
+      inDoubleQuote = !inDoubleQuote;
+      tokenStarted = true;
+      continue;
+    }
+
+    if (!inSingleQuote && !inDoubleQuote && /\s/.test(char)) {
+      if (tokenStarted) {
+        parts.push(current);
+        current = "";
+        tokenStarted = false;
+      }
+      continue;
+    }
+
+    current += char;
+    tokenStarted = true;
+  }
+
+  if (tokenStarted) {
+    parts.push(current);
   }
 
   return parts;
 }
 
-/** Join argument list for display/CLI usage. */
-export function joinBuildArgs(value: BuildArgValue): string {
+/** Quote an argument for shell command construction when needed. */
+export function quoteBuildArgForShell(arg: string): string {
+  if (arg.length === 0) {
+    return "\"\"";
+  }
+  if (/^[A-Za-z0-9_@%+=:,./-]+$/.test(arg)) {
+    return arg;
+  }
+  return `"${arg.replace(/(["\\$`])/g, "\\$1")}"`;
+}
+
+/** Join argument list safely for shell command usage. */
+export function joinBuildArgsForShell(value: BuildArgValue): string {
+  return normalizeBuildArgs(value)
+    .map((entry) => quoteBuildArgForShell(entry))
+    .join(" ");
+}
+
+/** Join argument list for display usage. */
+export function joinBuildArgsForDisplay(value: BuildArgValue): string {
   return normalizeBuildArgs(value).join(" ");
+}
+
+/** @deprecated Use joinBuildArgsForDisplay() or joinBuildArgsForShell(). */
+export function joinBuildArgs(value: BuildArgValue): string {
+  return joinBuildArgsForDisplay(value);
 }

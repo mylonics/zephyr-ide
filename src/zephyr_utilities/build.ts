@@ -25,7 +25,7 @@ import { notifyError, outputInfo, outputWarning } from "../utilities/output";
 import { WorkspaceConfig } from '../setup_utilities/types';
 import { addBuild, ProjectConfig, getResolvedBuildName, resolveActiveProject, resolveActiveProjectBuild, getProjectFolder, getBuildFolder, resolveBoardRootArg } from "../project_utilities/project";
 import { BuildConfig } from "../project_utilities/build_selector";
-import { joinBuildArgs, normalizeBuildArgs } from "../project_utilities/build_args";
+import { joinBuildArgsForShell, normalizeBuildArgs, quoteBuildArgForShell } from "../project_utilities/build_args";
 import { updateDtsContext } from "../setup_utilities/dts_interface";
 import { getSetupState, getSetupStateOrNotify, updateBuildCMakeInfo, clearBuildCMakeInfo } from "../setup_utilities/workspace-config";
 
@@ -149,8 +149,8 @@ export async function build(
   const extraOverlayFiles = project.confFiles.extraOverlay.concat(build.confFiles.extraOverlay)
     .map(x => path.join(wsConfig.rootPath, x));
 
-  const extraWestBuildArgs = joinBuildArgs(build.westBuildArgs);
-  const extraWestBuildCMakeArgs = normalizeBuildArgs(build.westBuildCMakeArgs);
+  const extraWestBuildArgs = joinBuildArgsForShell(build.westBuildArgs);
+  const extraWestBuildCMakeArgs = normalizeBuildArgs(build.westBuildCMakeArgs).map((arg) => quoteBuildArgForShell(arg));
 
   const projectFolder = getProjectFolder(wsConfig, project);
   const buildFolder = getBuildFolder(wsConfig, project, build);

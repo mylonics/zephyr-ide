@@ -22,12 +22,17 @@ import * as path from "upath";
 
 import { loadProjectsFromFile } from "../setup_utilities/workspace-config";
 import { WorkspaceConfig } from "../setup_utilities/types";
-import { normalizeBuildArgs } from "../project_utilities/build_args";
+import { joinBuildArgsForShell, normalizeBuildArgs } from "../project_utilities/build_args";
 
 suite("Build Args Migration Test Suite", () => {
   test("normalizeBuildArgs splits shell-like string into argument list", () => {
     const args = normalizeBuildArgs(`--sysbuild -DCFG="value with spaces" '-DOTHER=quoted value'`);
     assert.deepStrictEqual(args, ["--sysbuild", "-DCFG=value with spaces", "-DOTHER=quoted value"]);
+  });
+
+  test("joinBuildArgsForShell preserves args with spaces as single shell tokens", () => {
+    const cmdArgs = joinBuildArgsForShell(["--sysbuild", "-DCFG=value with spaces", "-DOTHER=quoted value"]);
+    assert.strictEqual(cmdArgs, '--sysbuild "-DCFG=value with spaces" "-DOTHER=quoted value"');
   });
 
   test("loadProjectsFromFile migrates legacy build arg strings to arrays", async () => {
