@@ -57,11 +57,18 @@ export function logDual(message: string): void {
  * forward- or back-slash inside an ID segment creates phantom
  * parent/child relationships and incorrect indentation.
  *
- * `encodeURIComponent` is collision-free (`/` → `%2F`, `\` → `%5C`)
- * and keeps most alphanumeric characters readable.
+ * Uses underscore-based escaping instead of percent-encoding to avoid
+ * any chance of VS Code decoding `%2F` back to `/` internally.
+ * The escape character `_` is doubled first to keep the mapping
+ * collision-free, then `/`, `\`, and `:` are replaced with two-char
+ * sequences that can never appear in another encoded segment.
  */
 export function sanitizeTreeId(segment: string): string {
-  return encodeURIComponent(segment);
+  return segment
+    .replace(/_/g, '__')
+    .replace(/\//g, '_s')
+    .replace(/\\/g, '_b')
+    .replace(/:/g, '_c');
 }
 
 /**
