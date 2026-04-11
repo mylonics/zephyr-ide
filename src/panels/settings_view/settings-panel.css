@@ -37,6 +37,13 @@
     transform: translateY(-1px);
 }
 
+.setting-row:focus-within {
+    border-color: var(--vscode-focusBorder);
+    background-color: var(--vscode-list-hoverBackground);
+    box-shadow: var(--zephyr-webview-surface-shadow-hover);
+    transform: translateY(-1px);
+}
+
 .setting-header {
     display: flex;
     align-items: center;

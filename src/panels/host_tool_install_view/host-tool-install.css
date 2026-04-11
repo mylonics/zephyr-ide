@@ -110,6 +110,15 @@ h2 {
 }
 
 .package-item:hover {
+    border-color: var(--vscode-focusBorder);
+    background-color: var(--vscode-list-hoverBackground);
+    box-shadow: var(--zephyr-webview-surface-shadow-hover);
+    transform: translateY(-1px);
+}
+
+.package-item:focus-within {
+    border-color: var(--vscode-focusBorder);
+    background-color: var(--vscode-list-hoverBackground);
     box-shadow: var(--zephyr-webview-surface-shadow-hover);
     transform: translateY(-1px);
 }

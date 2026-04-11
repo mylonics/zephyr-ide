@@ -178,7 +178,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 2px 4px;
-  border-radius: 2px;
+  border-radius: var(--zephyr-webview-radius);
 }
 
 .file-list-item:hover {
@@ -285,8 +285,25 @@
 .launch-row {
   display: flex;
   align-items: center;
-  padding: 4px 0;
+  padding: 6px 8px;
   gap: 8px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--zephyr-webview-radius);
+  margin-bottom: 4px;
+  box-shadow: var(--zephyr-webview-surface-shadow);
+  transition:
+    border-color var(--zephyr-webview-transition-fast),
+    box-shadow var(--zephyr-webview-transition-fast),
+    background-color var(--zephyr-webview-transition-fast),
+    transform var(--zephyr-webview-transition-fast);
+}
+
+.launch-row:hover,
+.launch-row:focus-within {
+  border-color: var(--vscode-focusBorder);
+  background-color: var(--vscode-list-hoverBackground);
+  box-shadow: var(--zephyr-webview-surface-shadow-hover);
+  transform: translateY(-1px);
 }
 
 .launch-label {
@@ -323,6 +340,14 @@
 }
 
 .runner-row:hover {
+  border-color: var(--vscode-focusBorder);
+  background-color: var(--vscode-list-hoverBackground);
+  box-shadow: var(--zephyr-webview-surface-shadow-hover);
+  transform: translateY(-1px);
+}
+
+.runner-row:focus-within {
+  border-color: var(--vscode-focusBorder);
   background-color: var(--vscode-list-hoverBackground);
   box-shadow: var(--zephyr-webview-surface-shadow-hover);
   transform: translateY(-1px);
