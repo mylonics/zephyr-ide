@@ -197,7 +197,7 @@ body {
     bottom: 0;
     background-color: var(--vscode-input-background);
     border: 1px solid var(--vscode-input-border);
-    border-radius: 999px;
+    border-radius: 50%;
     transition: background-color 0.2s;
 }
 
