@@ -30,13 +30,7 @@
     box-shadow: var(--zephyr-webview-surface-shadow);
 }
 
-.setting-row:hover {
-    border-color: var(--vscode-focusBorder);
-    background-color: var(--vscode-list-hoverBackground);
-    box-shadow: var(--zephyr-webview-surface-shadow-hover);
-    transform: translateY(-1px);
-}
-
+.setting-row:hover,
 .setting-row:focus-within {
     border-color: var(--vscode-focusBorder);
     background-color: var(--vscode-list-hoverBackground);

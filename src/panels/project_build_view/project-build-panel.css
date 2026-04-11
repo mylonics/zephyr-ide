@@ -339,13 +339,7 @@
     transform var(--zephyr-webview-transition-fast);
 }
 
-.runner-row:hover {
-  border-color: var(--vscode-focusBorder);
-  background-color: var(--vscode-list-hoverBackground);
-  box-shadow: var(--zephyr-webview-surface-shadow-hover);
-  transform: translateY(-1px);
-}
-
+.runner-row:hover,
 .runner-row:focus-within {
   border-color: var(--vscode-focusBorder);
   background-color: var(--vscode-list-hoverBackground);

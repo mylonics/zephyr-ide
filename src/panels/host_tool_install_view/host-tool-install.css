@@ -109,13 +109,7 @@ h2 {
         transform var(--zephyr-webview-transition-fast);
 }
 
-.package-item:hover {
-    border-color: var(--vscode-focusBorder);
-    background-color: var(--vscode-list-hoverBackground);
-    box-shadow: var(--zephyr-webview-surface-shadow-hover);
-    transform: translateY(-1px);
-}
-
+.package-item:hover,
 .package-item:focus-within {
     border-color: var(--vscode-focusBorder);
     background-color: var(--vscode-list-hoverBackground);
