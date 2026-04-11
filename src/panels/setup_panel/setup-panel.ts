@@ -75,7 +75,9 @@ function handleKeyboardCommand(event: KeyboardEvent): void {
     return;
   }
 
-  event.preventDefault();
+  if (event.key === ' ') {
+    event.preventDefault();
+  }
   actionElement.click();
 }
 
