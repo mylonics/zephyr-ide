@@ -375,7 +375,7 @@ export class ProjectBuildPanel {
     const originalKey = String(message.originalKey ?? "").trim();
 
     if (!key) {
-      notifyError("Project Build Panel", "Variable name cannot be empty.");
+      notifyError("Project Build Panel", "Please enter a variable name to continue.");
       return;
     }
 

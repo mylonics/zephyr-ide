@@ -125,7 +125,7 @@ function setupClickDelegation(): void {
   document.body.addEventListener("keydown", (e) => {
     if (e.key !== "Enter") { return; }
     const target = e.target as HTMLElement | null;
-    if (!target || !target.classList.contains("variable-key-input") && !target.classList.contains("variable-value-input")) {
+    if (!target || (!target.classList.contains("variable-key-input") && !target.classList.contains("variable-value-input"))) {
       return;
     }
     const row = target.closest(".variable-row");
