@@ -253,8 +253,8 @@ export class SettingsPanel {
     const jsUri = this._panel.webview.asWebviewUri(
       vscode.Uri.joinPath(
         vscode.Uri.file(this._extensionPath),
-        "src",
-        "panels",
+        "dist",
+        "webview",
         "settings_view",
         "settings-panel.js"
       )
@@ -266,43 +266,40 @@ export class SettingsPanel {
     const renderStringSetting = (def: SettingDefinition) => `
       <div class="setting-row" data-key="${escapeHtml(def.key)}" data-type="string">
         <div class="setting-header">
-          <div class="setting-label">${escapeHtml(def.label)}</div>
+          <vscode-label class="setting-label">${escapeHtml(def.label)}</vscode-label>
           <div class="setting-scope-badge" id="scope-${escapeHtml(def.key)}">default</div>
         </div>
         <div class="setting-description">${escapeHtml(def.description)}</div>
         <div class="setting-controls">
           <div class="input-group">
-            <input type="text" class="setting-input" id="val-${escapeHtml(def.key)}"
+            <vscode-textfield id="val-${escapeHtml(def.key)}"
               placeholder="Not set (using default)"
               data-action="string-change"
-              data-key="${escapeHtml(def.key)}">
-            <button class="browse-button" data-action="browse" data-key="${escapeHtml(def.key)}" title="Browse for folder">📁</button>
+              data-key="${escapeHtml(def.key)}"></vscode-textfield>
+            <vscode-button appearance="secondary" data-action="browse" data-key="${escapeHtml(def.key)}" title="Browse for folder">📁</vscode-button>
           </div>
-          <select class="scope-select" id="target-${escapeHtml(def.key)}" data-action="scope-change" data-key="${escapeHtml(def.key)}">
-            <option value="workspace">Workspace</option>
-            <option value="user">User</option>
-          </select>
-          <button class="reset-button" id="reset-${escapeHtml(def.key)}" data-action="reset" data-key="${escapeHtml(def.key)}" title="Reset to default">↺ Reset</button>
+          <vscode-single-select id="target-${escapeHtml(def.key)}" data-action="scope-change" data-key="${escapeHtml(def.key)}">
+            <vscode-option value="workspace">Workspace</vscode-option>
+            <vscode-option value="user">User</vscode-option>
+          </vscode-single-select>
+          <vscode-button appearance="secondary" id="reset-${escapeHtml(def.key)}" data-action="reset" data-key="${escapeHtml(def.key)}" title="Reset to default">↺ Reset</vscode-button>
         </div>
       </div>`;
 
     const renderBoolSetting = (def: SettingDefinition) => `
       <div class="setting-row" data-key="${escapeHtml(def.key)}" data-type="boolean">
         <div class="setting-header">
-          <div class="setting-label">${escapeHtml(def.label)}</div>
+          <vscode-label class="setting-label">${escapeHtml(def.label)}</vscode-label>
           <div class="setting-scope-badge" id="scope-${escapeHtml(def.key)}">default</div>
         </div>
         <div class="setting-description">${escapeHtml(def.description)}</div>
         <div class="setting-controls">
-          <label class="toggle-switch">
-            <input type="checkbox" id="val-${escapeHtml(def.key)}" data-action="toggle-change" data-key="${escapeHtml(def.key)}">
-            <span class="toggle-slider"></span>
-          </label>
-          <select class="scope-select" id="target-${escapeHtml(def.key)}" data-action="scope-change" data-key="${escapeHtml(def.key)}">
-            <option value="workspace">Workspace</option>
-            <option value="user">User</option>
-          </select>
-          <button class="reset-button" id="reset-${escapeHtml(def.key)}" data-action="reset" data-key="${escapeHtml(def.key)}" title="Reset to default">↺ Reset</button>
+          <vscode-checkbox id="val-${escapeHtml(def.key)}" data-action="toggle-change" data-key="${escapeHtml(def.key)}"></vscode-checkbox>
+          <vscode-single-select id="target-${escapeHtml(def.key)}" data-action="scope-change" data-key="${escapeHtml(def.key)}">
+            <vscode-option value="workspace">Workspace</vscode-option>
+            <vscode-option value="user">User</vscode-option>
+          </vscode-single-select>
+          <vscode-button appearance="secondary" id="reset-${escapeHtml(def.key)}" data-action="reset" data-key="${escapeHtml(def.key)}" title="Reset to default">↺ Reset</vscode-button>
         </div>
       </div>`;
 
@@ -311,7 +308,7 @@ export class SettingsPanel {
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${this._panel.webview.cspSource}; img-src ${this._panel.webview.cspSource} data:; script-src 'nonce-${nonce}';">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${this._panel.webview.cspSource}; font-src ${this._panel.webview.cspSource}; img-src ${this._panel.webview.cspSource} data:; script-src 'nonce-${nonce}';">
         <title>Zephyr IDE Settings</title>
         <link rel="stylesheet" type="text/css" href="${cssUri}">
     </head>
@@ -323,9 +320,9 @@ export class SettingsPanel {
                     <p class="page-subtitle">Manage extension defaults and workspace overrides.</p>
                 </div>
                 <div class="page-actions">
-                    <button class="open-vscode-settings-button" data-action="open-vscode-settings">
+                    <vscode-button appearance="secondary" data-action="open-vscode-settings">
                         Open in VS Code Settings
-                    </button>
+                    </vscode-button>
                 </div>
             </div>
 
@@ -336,12 +333,14 @@ export class SettingsPanel {
 
             <h2>Directory Settings</h2>
             <div class="settings-group">
-                ${dirSettings.map(renderStringSetting).join("\n")}
+                ${dirSettings.map(renderStringSetting).join("\n<vscode-divider></vscode-divider>\n")}
             </div>
+
+            <vscode-divider></vscode-divider>
 
             <h2>Behavior Settings</h2>
             <div class="settings-group">
-                ${boolSettings.map(renderBoolSetting).join("\n")}
+                ${boolSettings.map(renderBoolSetting).join("\n<vscode-divider></vscode-divider>\n")}
             </div>
         </div>
         <script nonce="${nonce}" src="${jsUri}"></script>
