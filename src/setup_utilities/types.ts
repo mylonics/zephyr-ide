@@ -41,6 +41,7 @@ export type SetupStateDictionary = { [name: string]: SetupState };
 export interface GlobalConfig {
   toolsAvailable?: boolean,
   sdkInstalled?: boolean,
+  sdkVersion?: string,
   setupStateDictionary?: SetupStateDictionary
 }
 

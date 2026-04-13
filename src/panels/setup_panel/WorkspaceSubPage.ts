@@ -187,10 +187,6 @@ export class WorkspaceSubPage {
         <div class="action-section">
             <h3>Workspace Management</h3>
             <div class="button-group">
-                <vscode-button appearance="secondary" onclick="sendCommand('manageWorkspace')">
-                    <vscode-icon slot="start-icon" name="folder-library"></vscode-icon>
-                    Manage West Workspaces
-                </vscode-button>
                 <vscode-button appearance="secondary" onclick="sendCommand('reinitializeWorkspace')">
                     <vscode-icon slot="start-icon" name="refresh"></vscode-icon>
                     Reinitialize VS Code Workspace
@@ -205,10 +201,6 @@ export class WorkspaceSubPage {
                 <vscode-button appearance="secondary" onclick="sendCommand('westConfig')">
                     <vscode-icon slot="start-icon" name="settings"></vscode-icon>
                     West Config
-                </vscode-button>
-                <vscode-button appearance="secondary" onclick="sendCommand('setupWestEnvironment')">
-                    <vscode-icon slot="start-icon" name="folder-opened"></vscode-icon>
-                    Setup West Environment
                 </vscode-button>
                 <vscode-button appearance="secondary" onclick="sendCommand('westInit')">
                     <vscode-icon slot="start-icon" name="repo-create"></vscode-icon>

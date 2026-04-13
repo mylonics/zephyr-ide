@@ -114,6 +114,12 @@ window.addEventListener('message', event => {
     case 'sdkListResult':
       displaySDKList(message.data);
       break;
+    case 'sdkListLoading':
+      showSDKListLoading();
+      break;
+    case 'sdkInstallProgress':
+      handleSDKInstallProgress(message.data);
+      break;
     case 'westYmlContent':
       loadWestYmlContent(message.content);
       break;
@@ -194,6 +200,38 @@ function scrollToSection(sectionId: string): void {
 function markToolsComplete(): void { sendCommand('markToolsComplete'); }
 function openWestYml(): void { sendCommand('openWestYml'); }
 
+// ---------------------------------------------------------------------------
+// Workspace list actions (overview page)
+// ---------------------------------------------------------------------------
+
+function reconfigureWorkspace(installPath: string): void {
+  vscode.postMessage({ command: 'reconfigureWorkspace', path: installPath });
+}
+
+function updateWorkspace(installPath: string): void {
+  vscode.postMessage({ command: 'updateWorkspace', path: installPath });
+}
+
+function deleteWorkspace(installPath: string, installName: string): void {
+  vscode.postMessage({ command: 'deleteWorkspace', path: installPath, name: installName });
+}
+
+// ---------------------------------------------------------------------------
+// Project list actions (overview page)
+// ---------------------------------------------------------------------------
+
+function setActiveProject(_projectName: string): void {
+  vscode.postMessage({ command: 'setActiveProject' });
+}
+
+function removeProject(_projectName: string): void {
+  vscode.postMessage({ command: 'removeProject' });
+}
+
+function openProjectBuildPanel(): void {
+  sendCommand('openProjectBuildPanel');
+}
+
 function selectExistingWestWorkspace(): void {
   setWorkspaceState('initializing');
   sendCommand('selectExistingWestWorkspace');
@@ -208,7 +246,30 @@ function listSDKs(): void {
   if (containerDiv) {
     containerDiv.innerHTML = '<div class="sdk-loading"><vscode-progress-ring></vscode-progress-ring><span>Loading SDK information...</span></div>';
   }
+  setSDKButtonsDisabled(true);
   vscode.postMessage({ command: 'listSDKs' });
+}
+
+/** Start SDK installation with button loading state. */
+function installSDK(): void {
+  setSDKButtonsDisabled(true);
+  vscode.postMessage({ command: 'installSDK' });
+}
+
+/** Enable or disable the SDK action buttons. */
+function setSDKButtonsDisabled(disabled: boolean): void {
+  const installBtn = document.getElementById('sdkInstallBtn');
+  const listBtn = document.getElementById('sdkListBtn');
+  if (installBtn) { (installBtn as any).disabled = disabled; }
+  if (listBtn) { (listBtn as any).disabled = disabled; }
+}
+
+/** Show a loading spinner in the SDK list container (used when auto-fetching). */
+function showSDKListLoading(): void {
+  const containerDiv = document.getElementById('sdkListContainer');
+  if (containerDiv) {
+    containerDiv.innerHTML = '<div class="sdk-loading"><vscode-progress-ring></vscode-progress-ring><span>Loading SDK information...</span></div>';
+  }
 }
 
 interface SDKVersion {
@@ -228,10 +289,18 @@ function displaySDKList(sdkData: SDKListData): void {
   const containerDiv = document.getElementById('sdkListContainer');
   if (!containerDiv) { return; }
 
+  setSDKButtonsDisabled(false);
+
   if (!sdkData.success) {
     containerDiv.innerHTML = `
       <div class="sdk-error-box">
         <strong>Error:</strong> ${escapeHtml(sdkData.error || 'Failed to list SDKs')}
+        <div style="margin-top: 10px;">
+          <vscode-button appearance="secondary" onclick="listSDKs()">
+            <vscode-icon slot="start-icon" name="refresh"></vscode-icon>
+            Retry
+          </vscode-button>
+        </div>
       </div>`;
     return;
   }
@@ -272,6 +341,101 @@ function displaySDKList(sdkData: SDKListData): void {
       </div>`;
   }
   containerDiv.innerHTML = html;
+}
+
+// ---------------------------------------------------------------------------
+// SDK install progress
+// ---------------------------------------------------------------------------
+
+function handleSDKInstallProgress(data: SetupProgressData): void {
+  const container = document.getElementById('sdkProgressContainer');
+  if (!container) { return; }
+
+  // Re-enable buttons when complete or failed
+  if (data.type === 'complete' || data.type === 'failed') {
+    setSDKButtonsDisabled(false);
+  }
+
+  let bannerClass: string, bannerIcon: string, bannerText: string;
+  switch (data.type) {
+    case 'complete':
+      bannerClass = 'status-success';
+      bannerIcon = '<span class="codicon codicon-check"></span>';
+      bannerText = 'Installation Complete';
+      break;
+    case 'failed':
+      bannerClass = 'status-error';
+      bannerIcon = '<span class="codicon codicon-error"></span>';
+      bannerText = 'Installation Failed';
+      break;
+    default:
+      bannerClass = 'status-info';
+      bannerIcon = '';
+      bannerText = 'Installing SDK...';
+      break;
+  }
+
+  function getStepIcon(status: string): string {
+    switch (status) {
+      case 'completed':
+        return '<span class="setup-step-icon completed"><span class="codicon codicon-check"></span></span>';
+      case 'in-progress':
+        return '<span class="setup-step-icon in-progress"><span class="codicon codicon-sync codicon-modifier-spin"></span></span>';
+      case 'failed':
+        return '<span class="setup-step-icon failed"><span class="codicon codicon-error"></span></span>';
+      case 'skipped':
+        return '<span class="setup-step-icon skipped"><span class="codicon codicon-dash"></span></span>';
+      default:
+        return '<span class="setup-step-icon pending"><span class="codicon codicon-circle-outline"></span></span>';
+    }
+  }
+
+  const stepsHtml = data.steps.map(step => {
+    const detail = step.detail ? `<span class="setup-step-detail">${escapeHtml(step.detail)}</span>` : '';
+    return `<div class="setup-step-item ${step.status}">
+      ${getStepIcon(step.status)}
+      <div class="setup-step-content">
+        <span class="setup-step-label">${escapeHtml(step.label)}</span>
+        ${detail}
+      </div>
+    </div>`;
+  }).join('');
+
+  const bannerSpinner = (data.type === 'start' || data.type === 'step-update')
+    ? '<vscode-progress-ring></vscode-progress-ring>'
+    : '';
+
+  const messageHtml = data.message
+    ? `<p class="setup-progress-message">${escapeHtml(data.message)}</p>`
+    : '';
+
+  const dismissBtn = (data.type === 'complete' || data.type === 'failed')
+    ? '<button class="setup-progress-dismiss" onclick="dismissSDKProgress()" title="Dismiss"><span class="codicon codicon-close"></span></button>'
+    : '';
+
+  const retryBtn = data.type === 'failed'
+    ? '<div style="margin-top: 8px;"><vscode-button appearance="secondary" onclick="installSDK()"><vscode-icon slot="start-icon" name="refresh"></vscode-icon>Retry Installation</vscode-button></div>'
+    : '';
+
+  container.innerHTML = `
+    <div class="setup-progress-panel">
+      <div class="setup-progress-header ${bannerClass}">
+        ${bannerSpinner}
+        <span class="status-icon">${bannerIcon}</span>
+        <span class="setup-progress-title">${escapeHtml(data.operationLabel)} \u2014 ${bannerText}</span>
+        ${dismissBtn}
+      </div>
+      <div class="setup-progress-body">
+        <div class="setup-progress-steps">${stepsHtml}</div>
+        ${messageHtml}
+        ${retryBtn}
+      </div>
+    </div>`;
+}
+
+function dismissSDKProgress(): void {
+  const container = document.getElementById('sdkProgressContainer');
+  if (container) { container.innerHTML = ''; }
 }
 
 // ---------------------------------------------------------------------------
@@ -558,9 +722,17 @@ w.scrollToSection = scrollToSection;
 w.markToolsComplete = markToolsComplete;
 w.selectExistingWestWorkspace = selectExistingWestWorkspace;
 w.listSDKs = listSDKs;
+w.installSDK = installSDK;
 w.openWestYml = openWestYml;
 w.saveAndUpdateWestYml = saveAndUpdateWestYml;
 w.hostToolsClient = hostToolsClient;
 w.copyToClipboardFromData = copyToClipboardFromData;
 w.copyToClipboard = copyToClipboard;
 w.dismissSetupProgress = dismissSetupProgress;
+w.dismissSDKProgress = dismissSDKProgress;
+w.reconfigureWorkspace = reconfigureWorkspace;
+w.updateWorkspace = updateWorkspace;
+w.deleteWorkspace = deleteWorkspace;
+w.setActiveProject = setActiveProject;
+w.removeProject = removeProject;
+w.openProjectBuildPanel = openProjectBuildPanel;

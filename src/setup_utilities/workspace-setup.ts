@@ -530,7 +530,7 @@ export async function manageWorkspaces(context: vscode.ExtensionContext, wsConfi
   }
 }
 
-async function handleReconfigureInstallation(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, installPath: string) {
+export async function handleReconfigureInstallation(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, installPath: string) {
   // Set the setup state to the selected installation
   await setSetupState(context, wsConfig, globalConfig, installPath);
 

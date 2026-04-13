@@ -69,10 +69,12 @@ export function getActiveSetupProgress(): SetupProgressEvent | undefined {
 export class SetupProgressTracker {
   private steps: SetupProgressStep[];
   private label: string;
+  private customEmitter?: vscode.EventEmitter<SetupProgressEvent>;
 
-  constructor(label: string, stepDefs: { id: string; label: string }[]) {
+  constructor(label: string, stepDefs: { id: string; label: string }[], customEmitter?: vscode.EventEmitter<SetupProgressEvent>) {
     this.label = label;
     this.steps = stepDefs.map(s => ({ ...s, status: 'pending' as const }));
+    this.customEmitter = customEmitter;
     this.emit('start');
   }
 
@@ -132,13 +134,18 @@ export class SetupProgressTracker {
       message,
     };
 
-    // Track active progress so late subscribers can catch up.
-    if (type === 'complete' || type === 'failed') {
-      _activeProgressEvent = undefined;
+    if (this.customEmitter) {
+      // SDK and other custom progress emitters bypass the global active tracker
+      this.customEmitter.fire(event);
     } else {
-      _activeProgressEvent = event;
-    }
+      // Track active progress so late subscribers can catch up.
+      if (type === 'complete' || type === 'failed') {
+        _activeProgressEvent = undefined;
+      } else {
+        _activeProgressEvent = event;
+      }
 
-    _onProgress.fire(event);
+      _onProgress.fire(event);
+    }
   }
 }

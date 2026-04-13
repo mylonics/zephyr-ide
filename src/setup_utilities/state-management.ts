@@ -44,6 +44,7 @@ export async function loadGlobalState(context: vscode.ExtensionContext): Promise
     setupStateDictionary: rawConfig.setupStateDictionary ?? {},
     toolsAvailable: rawConfig.toolsAvailable,
     sdkInstalled: rawConfig.sdkInstalled,
+    sdkVersion: rawConfig.sdkVersion,
   };
   
   // Save migrated config if changes were made

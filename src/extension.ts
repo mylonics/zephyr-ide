@@ -1350,6 +1350,32 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.open-setup-panel-workspace", async () => {
+      const panel = SetupPanel.createOrShow(
+        context.extensionPath,
+        context,
+        wsConfig,
+        globalConfig
+      );
+      panel.navigateToWorkspace();
+    }
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.open-setup-panel-sdk", async () => {
+      const panel = SetupPanel.createOrShow(
+        context.extensionPath,
+        context,
+        wsConfig,
+        globalConfig
+      );
+      panel.navigateToSDK();
+    }
+    )
+  );
+
+  context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.open-project-build-panel", async () => {
       ProjectBuildPanel.createOrShow(
         context.extensionPath,

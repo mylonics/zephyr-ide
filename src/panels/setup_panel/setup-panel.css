@@ -120,11 +120,45 @@
     transform: translateY(-1px);
 }
 
+.overview-card-locked {
+    opacity: 0.6;
+}
+
 .overview-card-header {
     display: flex;
     align-items: center;
     gap: 10px;
     margin-bottom: 12px;
+}
+
+/* Step badge - numbered or checkmark indicator */
+.step-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.step-badge-active {
+    background-color: var(--vscode-textLink-foreground);
+    color: var(--vscode-editor-background);
+}
+
+.step-badge-complete {
+    background-color: var(--vscode-terminal-ansiGreen);
+    color: var(--vscode-editor-background);
+}
+
+.step-badge-locked {
+    background-color: var(--vscode-descriptionForeground);
+    color: var(--vscode-editor-background);
+    opacity: 0.6;
 }
 
 .overview-icon {
@@ -244,6 +278,35 @@
 
 .sub-page-title-group {
     min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.header-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 10px;
+    border-radius: 10px;
+    white-space: nowrap;
+}
+
+.header-status-badge.status-success {
+    background-color: color-mix(in srgb, var(--vscode-terminal-ansiGreen) 15%, transparent);
+    color: var(--vscode-terminal-ansiGreen);
+}
+
+.header-status-badge.status-warning {
+    background-color: color-mix(in srgb, var(--vscode-terminal-ansiYellow) 15%, transparent);
+    color: var(--vscode-terminal-ansiYellow);
+}
+
+.header-status-badge.status-error {
+    background-color: color-mix(in srgb, var(--vscode-terminal-ansiRed) 15%, transparent);
+    color: var(--vscode-terminal-ansiRed);
 }
 
 .sub-page-actions {
@@ -429,6 +492,22 @@
     border-radius: var(--zephyr-webview-radius);
     background-color: var(--vscode-inputValidation-errorBackground);
     color: var(--vscode-inputValidation-errorForeground);
+}
+
+.error-box {
+    padding: 15px;
+    border: 1px solid var(--vscode-inputValidation-errorBorder);
+    border-radius: var(--zephyr-webview-radius);
+    background-color: var(--vscode-inputValidation-errorBackground);
+    color: var(--vscode-inputValidation-errorForeground);
+    margin-bottom: 16px;
+}
+
+.sdk-description {
+    margin: 0 0 16px 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--vscode-descriptionForeground);
 }
 
 .sdk-empty-box {
@@ -740,4 +819,274 @@
 
 [data-workspace-state="setup-required"] > .ws-state-setup-required {
     display: block;
+}
+
+/* ===================================================================
+   14. Quick Actions section (overview page)
+   =================================================================== */
+
+.quick-actions-section {
+    margin-top: 32px;
+}
+
+.quick-actions-section h3 {
+    margin: 0 0 16px 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--vscode-foreground);
+}
+
+.quick-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 12px;
+}
+
+.quick-action-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: var(--zephyr-webview-radius);
+    background-color: var(--vscode-input-background);
+    cursor: pointer;
+    transition:
+        border-color var(--zephyr-webview-transition-fast),
+        background-color var(--zephyr-webview-transition-fast),
+        box-shadow var(--zephyr-webview-transition-fast);
+}
+
+.quick-action-item:hover,
+.quick-action-item:focus-visible {
+    border-color: var(--vscode-focusBorder);
+    background-color: var(--vscode-list-hoverBackground);
+    box-shadow: var(--zephyr-webview-surface-shadow-hover);
+}
+
+.quick-action-item > .codicon {
+    font-size: 18px;
+    margin-top: 2px;
+    color: var(--vscode-textLink-foreground);
+    flex-shrink: 0;
+}
+
+.quick-action-content {
+    min-width: 0;
+}
+
+.quick-action-content strong {
+    display: block;
+    font-size: 13px;
+    margin-bottom: 2px;
+    color: var(--vscode-foreground);
+}
+
+.quick-action-content p {
+    margin: 4px 0 0 0;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--vscode-descriptionForeground);
+}
+
+.quick-action-status {
+    font-size: 11px;
+    font-weight: 500;
+}
+
+/* ------------------------------------------------------------------ */
+/* West Workspace List                                                */
+/* ------------------------------------------------------------------ */
+
+.workspace-list-section {
+    margin-top: 0;
+}
+
+.workspace-list-section h3 {
+    margin: 0 0 12px 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--vscode-foreground);
+}
+
+.workspace-list-empty {
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+    margin: 0;
+    padding: 14px 16px;
+    border: 1px dashed var(--vscode-panel-border);
+    border-radius: var(--zephyr-webview-radius);
+}
+
+.workspace-list-container {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.workspace-list-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: var(--zephyr-webview-radius);
+    background-color: var(--vscode-input-background);
+    transition: border-color var(--zephyr-webview-transition-fast),
+                background-color var(--zephyr-webview-transition-fast);
+}
+
+.workspace-list-row:hover {
+    border-color: var(--vscode-focusBorder);
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.workspace-list-row.active {
+    border-color: var(--vscode-textLink-foreground);
+}
+
+.workspace-list-info {
+    min-width: 0;
+    flex: 1;
+}
+
+.workspace-list-name {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 2px;
+}
+
+.workspace-list-name > .codicon {
+    font-size: 14px;
+    color: var(--vscode-textLink-foreground);
+    flex-shrink: 0;
+}
+
+.workspace-list-name strong {
+    font-size: 13px;
+    color: var(--vscode-foreground);
+}
+
+.workspace-active-badge {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background-color: var(--vscode-textLink-foreground);
+    color: var(--vscode-editor-background);
+}
+
+.workspace-list-detail {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+}
+
+.workspace-list-path {
+    opacity: 0.7;
+    word-break: break-all;
+}
+
+.workspace-list-statuses {
+    display: flex;
+    gap: 4px;
+}
+
+.workspace-status-icon {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 0 4px;
+    border-radius: 3px;
+    background-color: var(--vscode-input-background);
+    border: 1px solid var(--vscode-panel-border);
+}
+
+.workspace-status-icon.status-success {
+    color: var(--vscode-terminal-ansiGreen);
+    border-color: var(--vscode-terminal-ansiGreen);
+}
+
+.workspace-list-actions {
+    display: flex;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* Overview Lists Row (side-by-side workspaces + projects)            */
+/* ------------------------------------------------------------------ */
+
+.overview-lists-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-top: 32px;
+}
+
+@media (max-width: 700px) {
+    .overview-lists-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+.workspace-list-section,
+.project-list-section {
+    min-width: 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* Scroll container for overview lists                                */
+/* ------------------------------------------------------------------ */
+
+.overview-scroll-container {
+    max-height: 240px;
+    overflow-y: auto;
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: var(--zephyr-webview-radius);
+    padding: 6px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Project List                                                       */
+/* ------------------------------------------------------------------ */
+
+.project-list-section h3 {
+    margin: 0 0 12px 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--vscode-foreground);
+}
+
+.project-list-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: var(--zephyr-webview-radius);
+    background-color: var(--vscode-input-background);
+    transition: border-color var(--zephyr-webview-transition-fast),
+                background-color var(--zephyr-webview-transition-fast);
+}
+
+.project-list-row:hover {
+    border-color: var(--vscode-focusBorder);
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.project-list-row.active {
+    border-color: var(--vscode-textLink-foreground);
+}
+
+.project-build-count {
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
 }

@@ -620,6 +620,14 @@
         "title": "Zephyr IDE: Open Setup Panel"
       },
       {
+        "command": "zephyr-ide.open-setup-panel-workspace",
+        "title": "Zephyr IDE: Open Workspace Setup"
+      },
+      {
+        "command": "zephyr-ide.open-setup-panel-sdk",
+        "title": "Zephyr IDE: Open SDK Management"
+      },
+      {
         "command": "zephyr-ide.open-project-build-panel",
         "title": "Zephyr IDE: Project/Build Details"
       },

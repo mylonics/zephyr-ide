@@ -19,10 +19,13 @@ import * as vscode from 'vscode';
 import { WorkspaceConfig, GlobalConfig } from '../setup_utilities/types';
 
 class SetupItem extends vscode.TreeItem {
-  constructor(label: string, icon: string, commandId: string) {
+  constructor(label: string, icon: string, commandId: string, status?: string) {
     super(label, vscode.TreeItemCollapsibleState.None);
     this.iconPath = new vscode.ThemeIcon(icon);
     this.command = { command: commandId, title: label };
+    if (status) {
+      this.description = status;
+    }
   }
 }
 
@@ -33,6 +36,8 @@ export class ExtensionSetupView implements vscode.TreeDataProvider<SetupItem> {
   constructor(public extensionPath: string, private context: vscode.ExtensionContext, private wsConfig: WorkspaceConfig, private globalConfig: GlobalConfig) { }
 
   updateWebView(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
+    this.wsConfig = wsConfig;
+    this.globalConfig = globalConfig;
     this._onDidChangeTreeData.fire();
   }
 
@@ -45,10 +50,20 @@ export class ExtensionSetupView implements vscode.TreeDataProvider<SetupItem> {
   }
 
   getChildren(): SetupItem[] {
+    const toolsStatus = this.globalConfig.toolsAvailable ? "Ready" : "Setup Required";
+    const sdkStatus = this.globalConfig.sdkInstalled
+      ? (this.globalConfig.sdkVersion ? `v${this.globalConfig.sdkVersion}` : "Installed")
+      : "Not Installed";
+    const workspaceStatus = (this.wsConfig.initialSetupComplete && this.wsConfig.activeSetupState) ? "Initialized" : "Setup Required";
+    const westUpdatedStatus = this.wsConfig.activeSetupState?.westUpdated ? "Updated" : "Not Updated";
+    const pythonEnvStatus = this.wsConfig.activeSetupState?.pythonEnvironmentSetup ? "Ready" : "Not Configured";
+
     return [
-      new SetupItem("Zephyr IDE Configuration", "folder-opened", "zephyr-ide.open-setup-panel"),
-      new SetupItem("West Update", "sync", "zephyr-ide.west-update"),
-      new SetupItem("Settings", "gear", "zephyr-ide.open-settings-panel"),
+      new SetupItem("Zephyr IDE Setup", "preview", "zephyr-ide.open-setup-panel"),
+      new SetupItem("Host Tools", "package", "zephyr-ide.open-host-tools-panel", toolsStatus),
+      new SetupItem("Zephyr SDK", "desktop-download", "zephyr-ide.open-setup-panel-sdk", sdkStatus),
+      new SetupItem("Workspace Setup", "folder-opened", "zephyr-ide.open-setup-panel-workspace", workspaceStatus),
+      new SetupItem("West Update", "sync", "zephyr-ide.west-update", westUpdatedStatus),
     ];
   }
 }

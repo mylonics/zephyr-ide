@@ -21,10 +21,12 @@ export class HostToolsCard {
     static getHtml(globalConfig: GlobalConfig): string {
         const status = globalConfig.toolsAvailable ? "✓ Ready" : "⚠ Setup Required";
         const statusClass = globalConfig.toolsAvailable ? "status-success" : "status-warning";
+        const stepBadgeClass = globalConfig.toolsAvailable ? "step-badge-complete" : "step-badge-active";
 
         return `
         <div class="overview-card" onclick="navigateToSubPage('hosttools')" role="button" tabindex="0" data-keyboard-command="true" aria-label="Open Host Tools setup">
             <div class="overview-card-header">
+                <span class="step-badge ${stepBadgeClass}">${globalConfig.toolsAvailable ? '✓' : '1'}</span>
                 <span class="overview-icon">🔧</span>
                 <h3>Host Tools</h3>
             </div>
@@ -51,9 +53,14 @@ export class SDKCard {
             statusClass = "status-warning";
         }
 
+        const isComplete = globalConfig.sdkInstalled;
+        const isLocked = !hasValidSetupState;
+        const stepBadgeClass = isComplete ? "step-badge-complete" : isLocked ? "step-badge-locked" : "step-badge-active";
+
         return `
-        <div class="overview-card" onclick="navigateToSubPage('sdk')" role="button" tabindex="0" data-keyboard-command="true" aria-label="Open Zephyr SDK management">
+        <div class="overview-card${isLocked ? ' overview-card-locked' : ''}" onclick="navigateToSubPage('sdk')" role="button" tabindex="0" data-keyboard-command="true" aria-label="Open Zephyr SDK management">
             <div class="overview-card-header">
+                <span class="step-badge ${stepBadgeClass}">${isComplete ? '✓' : '3'}</span>
                 <span class="overview-icon">📦</span>
                 <h3>Zephyr SDK Management</h3>
             </div>
@@ -68,10 +75,12 @@ export class WorkspaceCard {
     static getHtml(wsConfig: WorkspaceConfig, folderOpen: boolean, workspaceInitialized: boolean): string {
         const status = workspaceInitialized ? "✓ Initialized" : folderOpen ? "⚙ Setup Required" : "📁 No Folder";
         const statusClass = workspaceInitialized ? "status-success" : folderOpen ? "status-warning" : "status-info";
+        const stepBadgeClass = workspaceInitialized ? "step-badge-complete" : "step-badge-active";
 
         return `
         <div class="overview-card" onclick="navigateToSubPage('workspace')" role="button" tabindex="0" data-keyboard-command="true" aria-label="Open Workspace setup">
             <div class="overview-card-header">
+                <span class="step-badge ${stepBadgeClass}">${workspaceInitialized ? '✓' : '2'}</span>
                 <span class="overview-icon">🗂️</span>
                 <h3>Workspace</h3>
             </div>

@@ -18,13 +18,16 @@ limitations under the License.
 import * as vscode from "vscode";
 import * as path from "upath";
 import * as fs from "fs";
-import { WorkspaceConfig, GlobalConfig } from "../../setup_utilities/types";
+import { WorkspaceConfig, GlobalConfig, formatZephyrVersion } from "../../setup_utilities/types";
 import {
     getWestSDKContext,
     listAvailableSDKs,
     ParsedSDKList,
+    onSDKProgress,
 } from "../../setup_utilities/west_sdk";
-import { saveSetupState } from "../../setup_utilities/state-management";
+import { saveSetupState, setGlobalState } from "../../setup_utilities/state-management";
+import { getToolsDir } from "../../setup_utilities/workspace-config";
+import { handleReconfigureInstallation } from "../../setup_utilities/workspace-setup";
 import { parseWestConfigManifestPath } from "../../setup_utilities/west-config-parser";
 import { notifyError, notifyWarning, outputError } from "../../utilities/output";
 import { onSetupProgress, getActiveSetupProgress } from "../../setup_utilities/setup-progress";
@@ -45,6 +48,11 @@ export class SetupPanel {
     // Store configs as instance variables to access them in methods
     private currentWsConfig?: WorkspaceConfig;
     private currentGlobalConfig?: GlobalConfig;
+
+    /** Cached SDK list fetched in the background. */
+    private _cachedSDKList?: ParsedSDKList;
+    /** True while a background SDK list fetch is in flight. */
+    private _sdkListFetching = false;
 
     public static createOrShow(
         extensionPath: string,
@@ -124,6 +132,16 @@ export class SetupPanel {
             })
         );
 
+        // Subscribe to SDK install progress events and forward to webview
+        this._disposables.push(
+            onSDKProgress((event) => {
+                this._panel.webview.postMessage({
+                    command: 'sdkInstallProgress',
+                    data: event,
+                });
+            })
+        );
+
         // If a setup operation is already in progress (panel opened mid-setup),
         // replay the latest snapshot so the webview updates internal state.
         // The webview will NOT force-navigate; it will apply the state when the
@@ -138,12 +156,18 @@ export class SetupPanel {
                 });
             }, 100);
         }
+
+        // Pre-fetch SDK list in the background so it's ready when the user opens the SDK page.
+        void this.fetchSDKListInBackground();
     }
 
     public updateContent(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, autoNavigateTo?: string) {
         this.currentWsConfig = wsConfig;
         this.currentGlobalConfig = globalConfig;
         this._panel.webview.html = this.getHtmlForWebview(wsConfig, globalConfig, autoNavigateTo);
+
+        // Refresh SDK cache when config changes (e.g. workspace just set up)
+        void this.fetchSDKListInBackground();
     }
 
     /**
@@ -171,6 +195,8 @@ export class SetupPanel {
         workspaceSetupFromCurrentDirectory: "zephyr-ide.workspace-setup-from-current-directory",
         workspaceSetupPicker: "zephyr-ide.workspace-setup-picker",
         westConfig: "zephyr-ide.west-config",
+        openSettingsPanel: "zephyr-ide.open-settings-panel",
+        openProjectBuildPanel: "zephyr-ide.open-project-build-panel",
     };
 
     // Message Handler
@@ -220,6 +246,21 @@ export class SetupPanel {
             case "saveAndUpdateWestYml":
                 this.saveAndUpdateWestYml(message.content);
                 return;
+            case "deleteWorkspace":
+                this.deleteWorkspace(message.path, message.name);
+                return;
+            case "reconfigureWorkspace":
+                this.reconfigureWorkspace(message.path);
+                return;
+            case "updateWorkspace":
+                this.updateWorkspace(message.path);
+                return;
+            case "setActiveProject":
+                this.executeVSCommand("zephyr-ide.set-active-project", "Set Active Project");
+                return;
+            case "removeProject":
+                this.executeVSCommand("zephyr-ide.remove-project", "Remove Project");
+                return;
         }
     }
 
@@ -244,7 +285,26 @@ export class SetupPanel {
                 return;
             case "sdk":
                 subPageContent = SDKSubPage.getHtml(this.currentGlobalConfig, this.hasValidSetupState());
-                break;
+                // Send sub-page content first, then push cached SDK list if available,
+                // otherwise trigger a fresh fetch.
+                this._panel.webview.postMessage({
+                    command: "showSubPage",
+                    content: subPageContent,
+                    page: page
+                });
+                if (this._cachedSDKList) {
+                    this._panel.webview.postMessage({
+                        command: "sdkListResult",
+                        data: this._cachedSDKList,
+                    });
+                } else if (this.hasValidSetupState()) {
+                    // Show loading indicator and fetch
+                    this._panel.webview.postMessage({
+                        command: "sdkListLoading",
+                    });
+                    void this.listSDKs();
+                }
+                return;
             case "workspace":
                 subPageContent = WorkspaceSubPage.getHtml(this.currentWsConfig);
                 // Send sub-page content first, then load west.yml asynchronously.
@@ -322,6 +382,54 @@ export class SetupPanel {
         }
     }
 
+    // Workspace List Management Methods
+
+    private async deleteWorkspace(installPath: string, installName: string) {
+        if (!this.currentGlobalConfig || !this._context) {
+            return;
+        }
+
+        const confirm = await vscode.window.showWarningMessage(
+            `Are you sure you want to remove "${installName}" from the installation registry?\n\nPath: ${installPath}\n\nNote: This will only remove it from the registry, not delete the files.`,
+            "Remove from Registry",
+            "Cancel"
+        );
+
+        if (confirm !== "Remove from Registry") {
+            return;
+        }
+
+        if (this.currentGlobalConfig.setupStateDictionary) {
+            delete this.currentGlobalConfig.setupStateDictionary[installPath];
+            await setGlobalState(this._context, this.currentGlobalConfig);
+
+            // Refresh the panel to update the workspace list
+            if (this.currentWsConfig) {
+                this.updateContent(this.currentWsConfig, this.currentGlobalConfig);
+            }
+        }
+    }
+
+    private async reconfigureWorkspace(installPath: string) {
+        try {
+            if (!this.currentWsConfig || !this.currentGlobalConfig) {
+                return;
+            }
+            await handleReconfigureInstallation(this._context, this.currentWsConfig, this.currentGlobalConfig, installPath);
+            this.updateContent(this.currentWsConfig, this.currentGlobalConfig);
+        } catch (error) {
+            notifyError("Reconfigure", `Failed: ${error}`);
+        }
+    }
+
+    private async updateWorkspace(installPath: string) {
+        try {
+            await vscode.commands.executeCommand("zephyr-ide.west-update");
+        } catch (error) {
+            notifyError("West Update", `Failed: ${error}`);
+        }
+    }
+
     // SDK and West Management Methods
     private async installSDK() {
         try {
@@ -329,7 +437,11 @@ export class SetupPanel {
             // Refresh the panel after SDK installation to update status
             if (this.currentWsConfig && this.currentGlobalConfig) {
                 try {
+                    // Invalidate cache so the next list fetch picks up new toolchains
+                    this._cachedSDKList = undefined;
                     this.updateContent(this.currentWsConfig, this.currentGlobalConfig);
+                    // Auto-refresh SDK list so the user sees newly installed toolchains
+                    await this.listSDKs();
                 } catch (updateError) {
                     outputError("Setup Panel", `Failed to refresh panel after SDK installation: ${String(updateError)}`);
                     // Don't show error to user as SDK installation was successful
@@ -337,6 +449,37 @@ export class SetupPanel {
             }
         } catch (error) {
             notifyError("SDK Install", `Failed to install west SDK: ${error}`);
+        }
+    }
+
+    /**
+     * Fetch the SDK list in the background and cache it.
+     * Does nothing if no valid setup state exists or a fetch is already in flight.
+     */
+    private async fetchSDKListInBackground() {
+        if (this._sdkListFetching || !this.hasValidSetupState()) {
+            return;
+        }
+        if (!this.currentWsConfig || !this.currentGlobalConfig) {
+            return;
+        }
+
+        this._sdkListFetching = true;
+        try {
+            const setupState = await getWestSDKContext(
+                this.currentWsConfig,
+                this.currentGlobalConfig,
+                this._context
+            );
+            if (!setupState) {
+                return;
+            }
+            const sdkList = await listAvailableSDKs(setupState);
+            this._cachedSDKList = sdkList;
+        } catch {
+            // Silently ignore background fetch failures — user can still manually refresh
+        } finally {
+            this._sdkListFetching = false;
         }
     }
 
@@ -360,6 +503,9 @@ export class SetupPanel {
             }
 
             const sdkList = await listAvailableSDKs(setupState);
+
+            // Update the cache
+            this._cachedSDKList = sdkList;
 
             // Send the parsed SDK list back to the webview
             this._panel.webview.postMessage({
@@ -461,6 +607,8 @@ export class SetupPanel {
         workspaceInitialized: boolean,
         hasValidSetupState: boolean
     ): string {
+        const westUpdated = wsConfig.activeSetupState?.westUpdated ?? false;
+
         return `
         <div class="overview-section">
             <div class="walkthrough-header page-header">
@@ -495,6 +643,177 @@ export class SetupPanel {
                         <li><a href="https://docs.zephyrproject.org/latest/develop/west/index.html" class="external-link">🔧 West Tool Documentation</a></li>
                         <li><a href="https://github.com/mylonics/zephyr-ide/issues" class="external-link">💬 Report Issues or Get Help</a></li>
                     </ul>
+                </div>
+            </div>
+
+            <div class="overview-lists-row">
+                ${this.generateWorkspaceListSection(wsConfig, globalConfig)}
+                ${this.generateProjectListSection(wsConfig)}
+            </div>
+
+            <div class="quick-actions-section">
+                <h3>Quick Actions</h3>
+                <div class="quick-actions-grid">
+                    <div class="quick-action-item" onclick="sendCommand('westUpdate')" role="button" tabindex="0">
+                        <span class="codicon codicon-sync"></span>
+                        <div class="quick-action-content">
+                            <strong>West Update</strong>
+                            <span class="quick-action-status ${westUpdated ? 'status-success' : 'status-warning'}">${westUpdated ? 'Updated' : 'Not Updated'}</span>
+                            <p>Fetch and update Zephyr modules and dependencies defined in the west manifest.</p>
+                        </div>
+                    </div>
+                    <div class="quick-action-item" onclick="sendCommand('openSettingsPanel')" role="button" tabindex="0">
+                        <span class="codicon codicon-gear"></span>
+                        <div class="quick-action-content">
+                            <strong>Settings</strong>
+                            <p>Configure global directory, toolchain paths, virtual environment, and extension behavior.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    private generateWorkspaceListSection(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig): string {
+        const dict = globalConfig.setupStateDictionary;
+        if (!dict || Object.keys(dict).length === 0) {
+            return `
+            <div class="workspace-list-section">
+                <h3>West Workspaces</h3>
+                <p class="workspace-list-empty">No west workspaces registered. Use the Workspace card above to set one up.</p>
+            </div>`;
+        }
+
+        const toolsDir = getToolsDir();
+        const activeSetupPath = wsConfig.activeSetupState?.setupPath;
+
+        let rows = '';
+        for (const installPath of Object.keys(dict)) {
+            const setupState = dict[installPath];
+            const isActive = installPath === activeSetupPath;
+            const baseName = path.basename(installPath);
+
+            let description = 'West installation';
+            const versionStr = setupState.zephyrVersion
+                ? formatZephyrVersion(setupState.zephyrVersion)
+                : 'installation';
+            if (installPath === toolsDir) {
+                description = `Global Zephyr ${versionStr}`;
+            } else if (installPath === wsConfig.rootPath) {
+                description = `Current Zephyr ${versionStr}`;
+            } else if (setupState.zephyrVersion) {
+                description = `Zephyr ${versionStr}`;
+            }
+
+            const activeIndicator = isActive
+                ? '<span class="workspace-active-badge">Active</span>'
+                : '';
+
+            const statusIcons: string[] = [];
+            if (setupState.pythonEnvironmentSetup) {
+                statusIcons.push('<span class="workspace-status-icon status-success" title="Python environment ready">venv</span>');
+            }
+            if (setupState.westUpdated) {
+                statusIcons.push('<span class="workspace-status-icon status-success" title="West updated">west</span>');
+            }
+
+            // Escape the install path for use in onclick attributes
+            const escapedPath = installPath.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
+            rows += `
+            <div class="workspace-list-row${isActive ? ' active' : ''}">
+                <div class="workspace-list-info">
+                    <div class="workspace-list-name">
+                        <span class="codicon codicon-root-folder"></span>
+                        <strong>${baseName}</strong>
+                        ${activeIndicator}
+                    </div>
+                    <div class="workspace-list-detail">
+                        <span class="workspace-list-description">${description}</span>
+                        <span class="workspace-list-path">${installPath}</span>
+                        ${statusIcons.length > 0 ? `<span class="workspace-list-statuses">${statusIcons.join(' ')}</span>` : ''}
+                    </div>
+                </div>
+                <div class="workspace-list-actions">
+                    <vscode-button appearance="icon" title="Reconfigure" onclick="reconfigureWorkspace('${escapedPath}')">
+                        <vscode-icon name="settings-gear"></vscode-icon>
+                    </vscode-button>
+                    <vscode-button appearance="icon" title="West Update" onclick="updateWorkspace('${escapedPath}')">
+                        <vscode-icon name="sync"></vscode-icon>
+                    </vscode-button>
+                    <vscode-button appearance="icon" title="Remove from registry" onclick="deleteWorkspace('${escapedPath}', '${baseName}')">
+                        <vscode-icon name="trash"></vscode-icon>
+                    </vscode-button>
+                </div>
+            </div>`;
+        }
+
+        return `
+        <div class="workspace-list-section">
+            <h3>West Workspaces</h3>
+            <div class="overview-scroll-container">
+                <div class="workspace-list-container">
+                    ${rows}
+                </div>
+            </div>
+        </div>`;
+    }
+
+    private generateProjectListSection(wsConfig: WorkspaceConfig): string {
+        const projects = wsConfig.projects;
+        const projectNames = Object.keys(projects);
+
+        if (projectNames.length === 0) {
+            return `
+            <div class="project-list-section">
+                <h3>Projects</h3>
+                <p class="workspace-list-empty">No projects configured. Use the Project Build panel to create one.</p>
+            </div>`;
+        }
+
+        const activeProject = wsConfig.activeProject;
+
+        let rows = '';
+        for (const name of projectNames) {
+            const project = projects[name];
+            const isActive = name === activeProject;
+            const buildCount = Object.keys(project.buildConfigs).length;
+
+            const activeIndicator = isActive
+                ? '<span class="workspace-active-badge">Active</span>'
+                : '';
+
+            const buildLabel = buildCount > 0 ? `${buildCount} build${buildCount > 1 ? 's' : ''}` : '';
+
+            const escapedName = name.replace(/'/g, "\\'");
+
+            rows += `
+            <div class="project-list-row${isActive ? ' active' : ''}" onclick="openProjectBuildPanel()" role="button" tabindex="0" style="cursor:pointer">
+                <div class="workspace-list-info">
+                    <div class="workspace-list-name">
+                        <span class="codicon codicon-symbol-folder"></span>
+                        <strong>${name}</strong>
+                        ${activeIndicator}
+                        ${buildLabel ? `<span class="project-build-count">${buildLabel}</span>` : ''}
+                    </div>
+                </div>
+                <div class="workspace-list-actions">
+                    <vscode-button appearance="icon" title="Set as active project" onclick="event.stopPropagation(); setActiveProject('${escapedName}')">
+                        <vscode-icon name="check"></vscode-icon>
+                    </vscode-button>
+                    <vscode-button appearance="icon" title="Remove project" onclick="event.stopPropagation(); removeProject('${escapedName}')">
+                        <vscode-icon name="trash"></vscode-icon>
+                    </vscode-button>
+                </div>
+            </div>`;
+        }
+
+        return `
+        <div class="project-list-section">
+            <h3>Projects</h3>
+            <div class="overview-scroll-container">
+                <div class="workspace-list-container">
+                    ${rows}
                 </div>
             </div>
         </div>`;
