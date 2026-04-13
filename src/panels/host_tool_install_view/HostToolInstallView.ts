@@ -196,6 +196,17 @@ export class HostToolInstallView {
       )
     );
 
+    const codiconUri = this._panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(
+        vscode.Uri.file(this._extensionPath),
+        "node_modules",
+        "@vscode",
+        "codicons",
+        "dist",
+        "codicon.css"
+      )
+    );
+
     const jsUri = this._panel.webview.asWebviewUri(
       vscode.Uri.joinPath(
         vscode.Uri.file(this._extensionPath),
@@ -213,6 +224,7 @@ export class HostToolInstallView {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Host Tools Installation</title>
         <link rel="stylesheet" type="text/css" href="${cssUri}">
+        <link rel="stylesheet" type="text/css" href="${codiconUri}" id="vscode-codicon-stylesheet">
     </head>
     <body>
         <div class="container">

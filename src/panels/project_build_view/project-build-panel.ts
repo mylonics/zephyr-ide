@@ -120,6 +120,12 @@ function setupClickDelegation(): void {
       const row = el.closest(".build-arg-row");
       const argInput = row?.querySelector(".build-arg-input") as HTMLInputElement | null;
       data.value = argInput?.value ?? "";
+    } else if (command === "updateRunner") {
+      const row = el.closest(".runner-row");
+      const runnerInput = row?.querySelector(".runner-runner-input") as HTMLInputElement | null;
+      const argsInput = row?.querySelector(".runner-args-input") as HTMLInputElement | null;
+      data["runner-type"] = runnerInput?.value ?? "";
+      data["runner-args"] = argsInput?.value ?? "";
     }
 
     sendCommand(command, data);
@@ -136,14 +142,22 @@ function setupClickDelegation(): void {
       button.click();
       return;
     }
-    if (!hasBuildArgInputClass(target)) {
+    if (hasBuildArgInputClass(target)) {
+      const row = target?.closest(".build-arg-row");
+      const button = row?.querySelector('[data-command="upsertBuildArg"]') as HTMLElement | null;
+      if (!button) { return; }
+      e.preventDefault();
+      button.click();
       return;
     }
-    const row = target?.closest(".build-arg-row");
-    const button = row?.querySelector('[data-command="upsertBuildArg"]') as HTMLElement | null;
-    if (!button) { return; }
-    e.preventDefault();
-    button.click();
+    if (target?.classList.contains("runner-input")) {
+      const row = target?.closest(".runner-row");
+      const button = row?.querySelector('[data-command="updateRunner"]') as HTMLElement | null;
+      if (!button) { return; }
+      e.preventDefault();
+      button.click();
+      return;
+    }
   }, listenerOptions);
 
   const handleKeyboardCommand = (e: KeyboardEvent): void => {
@@ -168,18 +182,127 @@ function setupClickDelegation(): void {
 }
 
 // ---------------------------------------------------------------------------
+// Tab state preservation
+// ---------------------------------------------------------------------------
+
+type TabState = Record<string, number>;
+
+function captureTabState(): TabState {
+  const state: TabState = {};
+  document.querySelectorAll<HTMLElement>("vscode-tabs[data-tab-id]").forEach((tabs) => {
+    const id = tabs.getAttribute("data-tab-id");
+    if (id) {
+      state[id] = (tabs as any).selectedIndex ?? 0;
+    }
+  });
+  return state;
+}
+
+function restoreTabState(state: TabState): void {
+  document.querySelectorAll<HTMLElement>("vscode-tabs[data-tab-id]").forEach((tabs) => {
+    const id = tabs.getAttribute("data-tab-id");
+    if (id && state[id] !== undefined) {
+      (tabs as any).selectedIndex = state[id];
+    }
+  });
+}
+
+function saveTabStateToPersistent(): void {
+  const tabState = captureTabState();
+  const existing = vscode.getState() ?? {};
+  vscode.setState({ ...existing, tabState });
+}
+
+function restoreTabStateFromPersistent(): void {
+  const saved = vscode.getState() as Record<string, unknown> | undefined;
+  if (saved?.tabState) {
+    restoreTabState(saved.tabState as TabState);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// DOM content update (in-place, preserving tab state)
+// ---------------------------------------------------------------------------
+
+function applyContentUpdate(message: any): void {
+  const tabState = captureTabState();
+
+  const projectCol = document.getElementById("projectCol");
+  const buildTestCol = document.getElementById("buildTestCol");
+  const calculatedArea = document.getElementById("calculatedArea");
+  const noProjectArea = document.getElementById("noProjectArea");
+  const selectorContainer = document.getElementById("buildTestSelectorContainer");
+  const headerActions = document.getElementById("headerActions");
+
+  if (projectCol && message.projectHtml !== undefined) {
+    projectCol.innerHTML = message.projectHtml;
+  }
+  if (buildTestCol && message.buildOrTestHtml !== undefined) {
+    buildTestCol.innerHTML = message.buildOrTestHtml;
+  }
+  if (calculatedArea && message.calculatedHtml !== undefined) {
+    calculatedArea.innerHTML = message.calculatedHtml;
+  }
+  if (noProjectArea && message.noProjectHtml !== undefined) {
+    noProjectArea.innerHTML = message.noProjectHtml;
+  }
+  if (selectorContainer && message.selectorHtml !== undefined) {
+    selectorContainer.innerHTML = message.selectorHtml;
+  }
+
+  // Update header action button disabled states
+  if (headerActions) {
+    const buttons = headerActions.querySelectorAll<HTMLElement>("vscode-button");
+    buttons.forEach((btn) => {
+      if (message.hasBuildSelected) {
+        btn.removeAttribute("disabled");
+      } else {
+        btn.setAttribute("disabled", "");
+      }
+    });
+  }
+
+  // Update project selector options
+  const projectSelect = document.getElementById("projectSelect");
+  if (projectSelect && message.projectOptionsHtml !== undefined) {
+    (projectSelect as HTMLElement).innerHTML = message.projectOptionsHtml;
+  }
+
+  // Restore tab state after a microtask to let custom elements render
+  requestAnimationFrame(() => {
+    restoreTabState(tabState);
+    saveTabStateToPersistent();
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Initialize
 // ---------------------------------------------------------------------------
 
 function init(): void {
   setupChangeHandlers();
   setupClickDelegation();
+
+  // Monitor tab changes to persist state
+  document.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement | null;
+    if (target?.tagName?.toLowerCase() === "vscode-tab-header") {
+      // Delay slightly so the tab selection updates first
+      requestAnimationFrame(() => saveTabStateToPersistent());
+    }
+  });
+
+  // Restore tabs from persisted state on initial load
+  requestAnimationFrame(() => restoreTabStateFromPersistent());
 }
 
 // Handle messages from extension
 window.addEventListener("message", (event) => {
   const message = event.data;
   switch (message.command) {
+    case "updateContent":
+      applyContentUpdate(message);
+      break;
     case "refresh":
       // Full content replacement handled by extension re-setting HTML
       break;

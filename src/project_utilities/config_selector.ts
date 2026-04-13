@@ -46,111 +46,36 @@ export function mergeConfigFiles(target: ConfigFiles, source: ConfigFiles): void
   }
 }
 
-export async function configSelector(wsConfig: WorkspaceConfig, isKConfigSelector: boolean, isProjectSelctor: boolean, isPrimary: boolean | undefined = undefined) {
-  let additionalTitleString = "to Build";
-  if (isProjectSelctor) {
-    additionalTitleString = "to Project";
-  }
-
-  let fileType = "Devicetree Overlay";
-  let fileExt: any = {
+export async function configSelector(wsConfig: WorkspaceConfig, isKConfigSelector: boolean): Promise<ConfigFiles> {
+  let fileExt: Record<string, string[]> = {
     'dtc': ['overlay']
   };
-  let link = "https://docs.zephyrproject.org/latest/build/dts/howtos.html";
 
   if (isKConfigSelector) {
-    fileType = "KConfig";
     fileExt = {
       'KConfig': ['conf', '*']
     };
-    link = "https://docs.zephyrproject.org/latest/build/kconfig/setting.html#initial-conf";
   }
 
-  const title = 'Add ' + fileType + ' Files ' + additionalTitleString;
+  const state: ConfigFiles = {
+    config: [],
+    extraConfig: [],
+    overlay: [],
+    extraOverlay: [],
+  };
 
-  async function chooseIfPrimary(input: MultiStepInput, state: ConfigFiles) {
-    const confFileOption: QuickPickItem[] = [];
-    confFileOption.push({ label: "Add extra " + fileType + " File (Recommended)" });
-    confFileOption.push({ label: "Override West's Automatic " + fileType + " File (see " + link + ")" });
+  const confFiles = await vscode.window.showOpenDialog({
+    canSelectFiles: true,
+    canSelectFolders: false,
+    canSelectMany: true,
+    filters: fileExt
+  });
 
-    const pickPromise = input.showQuickPick({
-      title,
-      step: 1,
-      totalSteps: 2,
-      placeholder: 'Select type of file to add',
-      items: confFileOption,
-      activeItem: undefined,
-      ignoreFocusOut: true
-    }).catch((error) => {
-      outputError("Config Selector", String(error));
-      return undefined;
-    });
-    const pick = await pickPromise;
-    if (!pick) {
-      return;
-    };
-    const isPrimary = pick.label !== confFileOption[0].label;
-    return (input: MultiStepInput) => chooseFiles(input, state, isPrimary);
+  if (confFiles) {
+    const key = getConfFileKey(isKConfigSelector, false);
+    state[key] = confFiles.map(x => (path.relative(wsConfig.rootPath, x.fsPath)));
   }
 
-  async function chooseFiles(input: MultiStepInput, state: ConfigFiles, isPrimary: boolean) {
-    const confFiles = await vscode.window.showOpenDialog({
-      canSelectFiles: true,
-      canSelectFolders: false,
-      canSelectMany: true,
-      filters: fileExt
-    });
-
-    if (confFiles) {
-      const key = getConfFileKey(isKConfigSelector, isPrimary);
-      state[key] = state[key].concat(confFiles.map(x => (path.relative(wsConfig.rootPath, x.fsPath))));
-    } else {
-      void vscode.window.showInformationMessage(`Failed to select files`);
-      return;
-    }
-
-    const addMoreOption: QuickPickItem[] = [];
-    addMoreOption.push({ label: "Add More" });
-    addMoreOption.push({ label: "Finished" });
-
-    const pickPromise = input.showQuickPick({
-      title,
-      step: 3,
-      totalSteps: 3,
-      placeholder: 'Add more files?',
-      items: addMoreOption,
-      activeItem: undefined,
-      ignoreFocusOut: true
-    }).catch((error) => {
-      outputError("Config Selector", String(error));
-      return undefined;
-    });
-    const pick = await pickPromise;
-    if (!pick) {
-      return;
-    };
-    if (pick.label === addMoreOption[0].label) {
-      return (input: MultiStepInput) => chooseFiles(input, state, isPrimary);
-    }
-    return;
-  }
-
-  async function collectInputs() {
-    const state = {
-      config: [],
-      extraConfig: [],
-      overlay: [],
-      extraOverlay: [],
-    };
-    if (isPrimary === undefined) {
-      await MultiStepInput.run(input => chooseIfPrimary(input, state));
-    } else {
-      await MultiStepInput.run(input => chooseFiles(input, state, isPrimary));
-    }
-    return state as ConfigFiles;
-  }
-
-  const state = await collectInputs();
   return state;
 }
 

@@ -50,6 +50,7 @@ import {
   selectDebugAttachLaunchConfiguration,
   getProjectFolder,
 } from "../../project_utilities/project";
+import { getConfFileKey } from "../../project_utilities/config_selector";
 import { escapeHtml } from "../webview_shared/webviewTypes";
 import { generateNonce } from "../webview_shared/nonce";
 import { getProjectSectionHtml } from "./ProjectSection";
@@ -74,6 +75,7 @@ export class ProjectBuildPanel {
   private _globalConfig: GlobalConfig;
   private _selectedProject: string | undefined;
   private _selectedBuildOrTest: string | undefined; // "build:<name>" or "test:<name>"
+  private _htmlInitialized = false;
 
   /** For backward-compat: returns the first open panel, if any */
   public static get currentPanel(): ProjectBuildPanel | undefined {
@@ -284,10 +286,17 @@ export class ProjectBuildPanel {
           return;
 
         // Build management
-        case "addBuild":
-          await addBuildToProject(ws, ctx, message.project);
+        case "addBuild": {
+          const projectName = message.project;
+          const existingBuilds = new Set(Object.keys(ws.projects[projectName]?.buildConfigs ?? {}));
+          await addBuildToProject(ws, ctx, projectName);
+          const newBuild = Object.keys(ws.projects[projectName]?.buildConfigs ?? {}).find(b => !existingBuilds.has(b));
+          if (newBuild) {
+            this._selectedBuildOrTest = `build:${newBuild}`;
+          }
           await this.refreshAfterChange();
           return;
+        }
         case "removeBuild":
           await removeBuild(ctx, ws, message.project, message.build);
           await this.refreshAfterChange();
@@ -304,10 +313,17 @@ export class ProjectBuildPanel {
           return;
 
         // Test management
-        case "addTest":
-          await addTest(ws, ctx, message.project);
+        case "addTest": {
+          const projectName = message.project;
+          const existingTests = new Set(Object.keys(ws.projects[projectName]?.twisterConfigs ?? {}));
+          await addTest(ws, ctx, projectName);
+          const newTest = Object.keys(ws.projects[projectName]?.twisterConfigs ?? {}).find(t => !existingTests.has(t));
+          if (newTest) {
+            this._selectedBuildOrTest = `test:${newTest}`;
+          }
           await this.refreshAfterChange();
           return;
+        }
 
         // Runner management
         case "addRunner":
@@ -317,6 +333,9 @@ export class ProjectBuildPanel {
         case "removeRunner":
           await removeRunner(ctx, ws, message.project, message.build, message.runner);
           await this.refreshAfterChange();
+          return;
+        case "updateRunner":
+          await this.handleUpdateRunner(message);
           return;
 
         // Build actions
@@ -379,7 +398,7 @@ export class ProjectBuildPanel {
       this._selectedProject,
       isPrimary,
       [message.file],
-      isProject ? undefined : message.build,
+      isProject ? undefined : (message.build || this.getSelectedBuildName()),
     );
     await this.refreshAfterChange();
   }
@@ -421,12 +440,9 @@ export class ProjectBuildPanel {
     }
 
     // Remove from current list, add to target list
-    const fromKey = isKConfig
-      ? (toExtra ? "config" : "extraConfig")
-      : (toExtra ? "overlay" : "extraOverlay");
-    const toKey = isKConfig
-      ? (toExtra ? "extraConfig" : "config")
-      : (toExtra ? "extraOverlay" : "overlay");
+    // toExtra=true means moving from primary→extra; isPrimary is the inverse of "is extra"
+    const fromKey = getConfFileKey(isKConfig, toExtra);
+    const toKey = getConfFileKey(isKConfig, !toExtra);
 
     confFiles[fromKey] = confFiles[fromKey].filter((f: string) => f !== file);
     if (!confFiles[toKey].includes(file)) {
@@ -542,6 +558,27 @@ export class ProjectBuildPanel {
     this.updateHtml();
   }
 
+  private async handleUpdateRunner(message: any) {
+    const projectName = this._selectedProject;
+    const buildName = String(message.build ?? "");
+    const runnerName = String(message.runner ?? "");
+    if (!projectName || !buildName || !runnerName) {
+      return;
+    }
+    const runner = this._wsConfig.projects[projectName]?.buildConfigs?.[buildName]?.runnerConfigs?.[runnerName];
+    if (!runner) {
+      return;
+    }
+    if (message["runner-type"] !== undefined) {
+      runner.runner = String(message["runner-type"]);
+    }
+    if (message["runner-args"] !== undefined) {
+      runner.args = String(message["runner-args"]);
+    }
+    await setWorkspaceState(this._context, this._wsConfig);
+    await this.refreshAfterChange();
+  }
+
   private async refreshAfterChange() {
     await vscode.commands.executeCommand("zephyr-ide.update-web-view");
   }
@@ -583,16 +620,33 @@ export class ProjectBuildPanel {
   // ---------------------------------------------------------------------------
 
   private updateHtml() {
-    this._panel.webview.html = this.getHtmlForWebview();
+    const content = this.generateDynamicContent();
+    if (!this._htmlInitialized) {
+      this._panel.webview.html = this.getHtmlShell(content);
+      this._htmlInitialized = true;
+    } else {
+      void this._panel.webview.postMessage({
+        command: "updateContent",
+        ...content,
+      });
+    }
   }
 
-  private getHtmlForWebview(): string {
-    const nonce = generateNonce();
+  /** Generate only the dynamic parts of the page. */
+  private generateDynamicContent(): {
+    projectOptionsHtml: string;
+    selectorHtml: string;
+    projectHtml: string;
+    buildOrTestHtml: string;
+    calculatedHtml: string;
+    noProjectHtml: string;
+    hasBuildSelected: boolean;
+  } {
     const projectNames = Object.keys(this._wsConfig.projects ?? {});
     const selected = this._selectedProject;
 
     // Project selector
-    const projectOptions = projectNames
+    const projectOptionsHtml = projectNames
       .map((name) => {
         const sel = name === selected ? " selected" : "";
         return `<vscode-option value="${escapeHtml(name)}"${sel}>${escapeHtml(name)}</vscode-option>`;
@@ -683,8 +737,7 @@ export class ProjectBuildPanel {
             <div class="build-placeholder-content">
               <i class="codicon codicon-add"></i>
               <p>No builds configured.</p>
-              <vscode-button appearance="secondary" data-command="addBuild" data-project="${escapeHtml(selected)}">
-                <vscode-icon name="add" slot="start-icon"></vscode-icon>
+              <vscode-button appearance="secondary" icon="add" data-command="addBuild" data-project="${escapeHtml(selected)}">
                 Create Build
               </vscode-button>
             </div>
@@ -700,8 +753,6 @@ export class ProjectBuildPanel {
       }
     }
 
-    const variablesRefHtml = getVariablesReferenceSectionHtml();
-
     const noProjectHtml =
       projectNames.length === 0
         ? `<div class="no-project-notice">
@@ -710,12 +761,31 @@ export class ProjectBuildPanel {
           </div>`
         : "";
 
+    const hasBuildSelected = !!(selected && this._selectedBuildOrTest?.startsWith("build:"));
+
+    return {
+      projectOptionsHtml,
+      selectorHtml,
+      projectHtml,
+      buildOrTestHtml,
+      calculatedHtml,
+      noProjectHtml,
+      hasBuildSelected,
+    };
+  }
+
+  private getHtmlShell(content: ReturnType<ProjectBuildPanel["generateDynamicContent"]>): string {
+    const nonce = generateNonce();
+    const disabledAttr = content.hasBuildSelected ? "" : " disabled";
+
+    const variablesRefHtml = getVariablesReferenceSectionHtml();
+
     return `<!DOCTYPE html>
     <html lang="en">
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${this._panel.webview.cspSource}; font-src ${this._panel.webview.cspSource}; img-src ${this._panel.webview.cspSource} data:; script-src 'nonce-${nonce}';">
+      <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${this._panel.webview.cspSource} 'unsafe-inline'; font-src ${this._panel.webview.cspSource}; img-src ${this._panel.webview.cspSource} data:; script-src 'nonce-${nonce}';">
       <title>Zephyr IDE: Project Details</title>
       ${this.getStylesheetLinks()}
     </head>
@@ -730,20 +800,39 @@ export class ProjectBuildPanel {
             <div class="page-actions project-selector">
               <label for="projectSelect">Project:</label>
               <vscode-single-select id="projectSelect">
-                ${projectOptions}
+                ${content.projectOptionsHtml}
               </vscode-single-select>
             </div>
-            ${selectorHtml}
+            <div id="buildTestSelectorContainer">${content.selectorHtml}</div>
           </div>
         </div>
+        <div id="headerActions" class="page-header-actions">
+          <vscode-button-group>
+            <vscode-button icon="play" data-command="build"${disabledAttr}>
+              Build
+            </vscode-button>
+            <vscode-button appearance="secondary" icon="debug-rerun" data-command="buildPristine"${disabledAttr}>
+              Build Pristine
+            </vscode-button>
+            <vscode-button appearance="secondary" icon="arrow-circle-up" data-command="flash"${disabledAttr}>
+              Flash
+            </vscode-button>
+            <vscode-button appearance="secondary" icon="debug-alt" data-command="debug"${disabledAttr}>
+              Debug
+            </vscode-button>
+            <vscode-button appearance="secondary" icon="debug-start" data-command="buildDebug"${disabledAttr}>
+              Build + Debug
+            </vscode-button>
+          </vscode-button-group>
+        </div>
 
-        ${noProjectHtml}
+        <div id="noProjectArea">${content.noProjectHtml}</div>
         <div id="projectContent">
           <div class="project-build-row">
-            <div class="project-build-col">${projectHtml}</div>
-            <div class="project-build-col">${buildOrTestHtml}</div>
+            <div class="project-build-col" id="projectCol">${content.projectHtml}</div>
+            <div class="project-build-col" id="buildTestCol">${content.buildOrTestHtml}</div>
           </div>
-          ${calculatedHtml}
+          <div id="calculatedArea">${content.calculatedHtml}</div>
         </div>
         ${variablesRefHtml}
       </div>
@@ -774,7 +863,7 @@ export class ProjectBuildPanel {
     );
     return `
       <link rel="stylesheet" type="text/css" href="${cssUri}">
-      <link rel="stylesheet" type="text/css" href="${codiconUri}">
+      <link rel="stylesheet" type="text/css" href="${codiconUri}" id="vscode-codicon-stylesheet">
     `;
   }
 

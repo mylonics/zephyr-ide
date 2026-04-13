@@ -295,7 +295,7 @@ export async function createNewProjectFromSample(context: vscode.ExtensionContex
 }
 
 
-export async function addConfigFiles(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, isKConfig: boolean, isToProject: boolean, projectName?: string, buildName?: string, isPrimary?: boolean) {
+export async function addConfigFiles(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, isKConfig: boolean, isToProject: boolean, projectName?: string, buildName?: string) {
   const resolvedProject = resolveActiveProject(wsConfig, { caller: "Project", projectName });
   if (!resolvedProject) { return; }
   const { project } = resolvedProject;
@@ -307,7 +307,7 @@ export async function addConfigFiles(context: vscode.ExtensionContext, wsConfig:
     buildName = resolvedBuild.buildName;
   }
 
-  const result = await configSelector(wsConfig, isKConfig, isToProject, isPrimary);
+  const result = await configSelector(wsConfig, isKConfig);
   if (result) {
     if (isToProject) {
       mergeConfigFiles(project.confFiles, result);

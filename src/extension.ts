@@ -499,6 +499,15 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.config-view.delete-file", (item: any) => {
       projectConfigView.handleDeleteFile(item);
     }),
+    vscode.commands.registerCommand("zephyr-ide.config-view.open-project-details", () => {
+      ProjectBuildPanel.createOrShow(
+        context.extensionPath,
+        context,
+        wsConfig,
+        globalConfig,
+        wsConfig.activeProject,
+      );
+    }),
   );
 
   // -- ProjectTreeView inline action commands --

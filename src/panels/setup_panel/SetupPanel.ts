@@ -437,7 +437,7 @@ export class SetupPanel {
 
         return `
             <link rel="stylesheet" type="text/css" href="${cssUri}">
-            <link rel="stylesheet" type="text/css" href="${codiconUri}">
+            <link rel="stylesheet" type="text/css" href="${codiconUri}" id="vscode-codicon-stylesheet">
         `;
     }
 

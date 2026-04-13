@@ -36,8 +36,7 @@ function fileRowHtml(
       ${modeLabel}
     </vscode-button>
     <span class="file-name clickable" data-command="openFile" data-file="${escaped}" title="${escaped}">${escaped}</span>
-    <vscode-button class="file-remove-button" appearance="icon" title="Remove" data-command="${removeCmd}" data-file="${escaped}" data-extra="${extraFlag}" data-group="${groupId}">
-      <vscode-icon name="trash" slot="start-icon"></vscode-icon>
+    <vscode-button class="file-remove-button" appearance="icon" icon="trash" title="Remove" data-command="${removeCmd}" data-file="${escaped}" data-extra="${extraFlag}" data-group="${groupId}">
     </vscode-button>
   </div>`;
 }
@@ -52,6 +51,7 @@ function fileTabContentHtml(
   addCmd: string,
   removeCmd: string,
   toggleCmd: string,
+  addLabel: string,
 ): string {
   const allRows: string[] = [];
 
@@ -71,8 +71,8 @@ function fileTabContentHtml(
       <div class="config-tab-header-row">
         <span class="config-tab-col-extra">Type</span>
         <span class="config-tab-col-file">File</span>
-        <vscode-button class="config-tab-add-button" appearance="secondary" title="Add File" data-command="${addCmd}" data-group="${groupId}">
-          <vscode-icon name="add" slot="start-icon"></vscode-icon> Add File
+        <vscode-button class="config-tab-add-button" appearance="secondary" icon="add" title="${addLabel}" data-command="${addCmd}" data-group="${groupId}">
+          ${addLabel}
         </vscode-button>
       </div>
       <vscode-scrollable class="config-file-scroll">
@@ -104,14 +104,14 @@ export function tabbedConfigGroupHtml(
 
   return `
     <div class="config-group">
-      <vscode-tabs>
+      <vscode-tabs data-tab-id="config-${idPrefix}">
         <vscode-tab-header slot="header">KConfig Files</vscode-tab-header>
         <vscode-tab-panel>
-          ${fileTabContentHtml(kconfigGroupId, kconfigPrimary, kconfigExtra, kconfigAddCmd, kconfigRemoveCmd, kconfigToggleCmd)}
+          ${fileTabContentHtml(kconfigGroupId, kconfigPrimary, kconfigExtra, kconfigAddCmd, kconfigRemoveCmd, kconfigToggleCmd, "Add KConfig")}
         </vscode-tab-panel>
         <vscode-tab-header slot="header">DTC Overlay Files</vscode-tab-header>
         <vscode-tab-panel>
-          ${fileTabContentHtml(overlayGroupId, overlayPrimary, overlayExtra, overlayAddCmd, overlayRemoveCmd, overlayToggleCmd)}
+          ${fileTabContentHtml(overlayGroupId, overlayPrimary, overlayExtra, overlayAddCmd, overlayRemoveCmd, overlayToggleCmd, "Add Overlay")}
         </vscode-tab-panel>
       </vscode-tabs>
     </div>`;

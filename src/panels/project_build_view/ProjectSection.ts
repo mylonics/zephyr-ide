@@ -38,11 +38,9 @@ function variablesTableHtml(
           <div class="variable-row">
             <input class="variable-key-input" type="text" value="${escapeHtml(k)}" aria-label="Variable name">
             <input class="variable-value-input" type="text" value="${escapeHtml(v)}" aria-label="Variable value">
-            <vscode-button appearance="icon" title="Save" data-command="upsertVariable" data-level="${level}" data-project="${escapeHtml(projectName)}" data-original-key="${escapeHtml(k)}">
-              <vscode-icon name="save" slot="start-icon"></vscode-icon>
+            <vscode-button appearance="icon" icon="save" title="Save" data-command="upsertVariable" data-level="${level}" data-project="${escapeHtml(projectName)}" data-original-key="${escapeHtml(k)}">
             </vscode-button>
-            <vscode-button appearance="icon" title="Remove" data-command="removeVariable" data-level="${level}" data-project="${escapeHtml(projectName)}" data-key="${escapeHtml(k)}">
-              <vscode-icon name="trash" slot="start-icon"></vscode-icon>
+            <vscode-button appearance="icon" icon="trash" title="Remove" data-command="removeVariable" data-level="${level}" data-project="${escapeHtml(projectName)}" data-key="${escapeHtml(k)}">
             </vscode-button>
           </div>`,
       )
@@ -50,8 +48,7 @@ function variablesTableHtml(
         <div class="variable-row variable-row-add">
           <input class="variable-key-input" type="text" value="" placeholder="New variable name" aria-label="New variable name">
           <input class="variable-value-input" type="text" value="" placeholder="New variable value" aria-label="New variable value">
-          <vscode-button appearance="icon" title="Add Variable" data-command="upsertVariable" data-level="${level}" data-project="${escapeHtml(projectName)}" data-original-key="">
-            <vscode-icon name="add" slot="start-icon"></vscode-icon>
+          <vscode-button appearance="icon" icon="add" title="Add Variable" data-command="upsertVariable" data-level="${level}" data-project="${escapeHtml(projectName)}" data-original-key="">
           </vscode-button>
         </div>
       </div>
@@ -107,12 +104,10 @@ export function getProjectSectionHtml(
         ${variablesTableHtml(projectVars, "project", projectName)}
 
         <div class="action-row">
-          <vscode-button appearance="secondary" data-command="addBuild" data-project="${escapeHtml(projectName)}">
-            <vscode-icon name="add" slot="start-icon"></vscode-icon>
+          <vscode-button appearance="secondary" icon="add" data-command="addBuild" data-project="${escapeHtml(projectName)}">
             Add Build
           </vscode-button>
-          <vscode-button appearance="secondary" data-command="addTest" data-project="${escapeHtml(projectName)}">
-            <vscode-icon name="beaker" slot="start-icon"></vscode-icon>
+          <vscode-button appearance="secondary" icon="beaker" data-command="addTest" data-project="${escapeHtml(projectName)}">
             Add Test
           </vscode-button>
         </div>

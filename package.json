@@ -184,6 +184,11 @@
           "when": "view == zephyrIdeWestWorkspaces"
         },
         {
+          "command": "zephyr-ide.config-view.open-project-details",
+          "group": "navigation",
+          "when": "view == zephyrIdeProjectStatus"
+        },
+        {
           "command": "zephyr-ide.disable-automatic-project-target",
           "when": "view == zephyrIdeActiveProject"
         },
