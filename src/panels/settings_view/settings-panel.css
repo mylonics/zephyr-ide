@@ -1,17 +1,6 @@
 /* Zephyr IDE Settings Panel Styles */
 @import url("../webview_shared/webview-base.css");
 
-.header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 18px;
-}
-
-.header h1 {
-    margin: 0;
-}
-
 .settings-group {
     margin-bottom: 18px;
 }
@@ -183,4 +172,23 @@
 /* Highlight overridden setting row */
 .setting-row-overridden {
     border-color: color-mix(in srgb, var(--vscode-editorWarning-foreground) 40%, transparent);
+}
+
+/* ===================================================================
+   Responsive breakpoints
+   =================================================================== */
+
+@media (max-width: 600px) {
+    .setting-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .input-group {
+        min-width: 0;
+    }
+
+    .setting-scope-select {
+        min-width: 0;
+    }
 }

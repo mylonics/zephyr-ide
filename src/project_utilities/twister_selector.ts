@@ -149,7 +149,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
       title,
       step: 3,
       totalSteps: totalSteps,
-      prompt: "Input a COM Port",
+      prompt: "Enter serial port (e.g., COM1)",
       value: "",
       validate: noOpValidate,
       placeholder: "COM1"
@@ -160,7 +160,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
       title,
       step: 4,
       totalSteps: totalSteps,
-      prompt: "Input a COM Port Baudrate",
+      prompt: "Enter baud rate (e.g., 115200)",
       value: "",
       validate: noOpValidate,
       placeholder: "115200"
@@ -201,7 +201,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
     title,
     step: totalSteps,
     totalSteps: totalSteps,
-    prompt: "Enter a name for this Test Configuration",
+    prompt: "Enter test configuration name",
     value: default_name,
     validate: noOpValidate,
   });
@@ -224,7 +224,7 @@ export async function reconfigureTest(config: TwisterConfig) {
       title,
       step: currentStep++,
       totalSteps,
-      prompt: "Input a COM Port",
+      prompt: "Enter serial port (e.g., COM1)",
       value: config.serialPort ? config.serialPort : "",
       validate: noOpValidate,
       placeholder: "COM1"
@@ -237,7 +237,7 @@ export async function reconfigureTest(config: TwisterConfig) {
       title,
       step: currentStep++,
       totalSteps,
-      prompt: "Input a COM Port Baudrate",
+      prompt: "Enter baud rate (e.g., 115200)",
       value: config.serialBaud ? config.serialBaud : "",
       validate: noOpValidate,
       placeholder: "115200"

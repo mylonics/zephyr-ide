@@ -320,7 +320,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       totalSteps: 7,
       ignoreFocusOut: true,
       value: path.join("build", state.board + (state.revision ? "_" + state.revision : "")),
-      prompt: 'Choose a name for the Build',
+      prompt: 'Enter build configuration name',
       validate: noOpValidate
     }).catch(handleSelectorError);
     const name = await inputPromise;

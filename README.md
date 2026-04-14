@@ -47,7 +47,7 @@ IDE for Zephyr automatically detects and works with externally managed Zephyr en
 - Automatic detection via `ZEPHYR_BASE` environment variable
 - No setup required when using Docker, DevContainers, or pre-configured environments
 - Full support for build, flash, and debug operations
-- Configurable warning suppression via `zephyr-ide.suppress-workspace-warning`
+- Configurable warning suppression via `zephyr-ide.suppressWorkspaceWarning`
 
 Ideal for Docker/container workflows, CI/CD pipelines, shared development environments, and pre-installed Zephyr setups.
 

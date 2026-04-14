@@ -105,7 +105,7 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
   }
 
   private makeConfigGroup(projectName: string, buildName: string | undefined, confFiles: ConfigFiles | undefined, isKConfig: boolean): ConfigItem {
-    const label = isKConfig ? "KConfig" : "DTC Overlay";
+    const label = isKConfig ? "Kconfig" : "Devicetree Overlay";
     const icon = isKConfig ? "settings" : "circuit-board";
     const level = buildName ? 'build' : 'project';
     const type = isKConfig ? 'kconfig' : 'overlay';
@@ -119,9 +119,9 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
 
     if (confFiles) {
       if (isKConfig) {
-        group.children = this.makeFileChildren(projectName, buildName, confFiles.config, confFiles.extraConfig, "removeKConfigFile", "Conf", "Extra Conf");
+        group.children = this.makeFileChildren(projectName, buildName, confFiles.config, confFiles.extraConfig, "removeKConfigFile", "Config", "Extra Config");
       } else {
-        group.children = this.makeFileChildren(projectName, buildName, confFiles.overlay, confFiles.extraOverlay, "removeOverlayFile", "dtc", "Extra dtc");
+        group.children = this.makeFileChildren(projectName, buildName, confFiles.overlay, confFiles.extraOverlay, "removeOverlayFile", "Overlay", "Extra Overlay");
       }
       for (const child of group.children) {
         child.parent = group;

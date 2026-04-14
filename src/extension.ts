@@ -28,6 +28,8 @@ import { SetupPanel } from "./panels/setup_panel/SetupPanel";
 import { HostToolInstallView } from "./panels/host_tool_install_view/HostToolInstallView";
 import { ProjectBuildPanel } from "./panels/project_build_view/ProjectBuildPanel";
 import { SettingsPanel } from "./panels/settings_view/SettingsPanel";
+import { SDKPanel } from "./panels/sdk_panel/SDKPanel";
+import { WorkspacePanel } from "./panels/workspace_panel/WorkspacePanel";
 
 import {
   output,
@@ -68,7 +70,7 @@ import {
   loadProjectsFromFile,
   getToolchainDir,
   getToolchainPath,
-  migrateToolsDirectory,
+  migrateSettingKeys,
   setWorkspaceSettings,
   getSetupState,
   getGdbPath,
@@ -128,8 +130,10 @@ async function markWorkspaceSetupComplete(
   await setWorkspaceState(context, wsConfig);
   // Update setup panel if it's open
   if (SetupPanel.currentPanel) {
-    SetupPanel.currentPanel.updateContent(wsConfig, globalConfig, "workspace");
+    SetupPanel.currentPanel.updateContent(wsConfig, globalConfig);
   }
+  // Update workspace panel if open
+  WorkspacePanel.updateAllPanels(wsConfig, globalConfig);
 }
 
 /** Register a webview view provider with retained context. */
@@ -314,8 +318,8 @@ export async function activate(context: vscode.ExtensionContext) {
   const remoteName = vscode.env.remoteName;
   outputInfo("Startup", `Platform: ${platformName} (${platformArch})${remoteName ? `, remote: ${remoteName}` : ""}${isWSL() ? " [WSL]" : ""}`);
 
-  // Migrate deprecated tools_directory setting to global_directory
-  await migrateToolsDirectory();
+  // Migrate deprecated setting keys to camelCase equivalents
+  await migrateSettingKeys();
 
   wsConfig = await loadWorkspaceState(context);
   globalConfig = await loadGlobalState(context);
@@ -568,12 +572,12 @@ export async function activate(context: vscode.ExtensionContext) {
     () => project.setActiveRunner(context, wsConfig));
 
   activeProjectDisplay = createStatusBarButton(context,
-    "zephyr-ide.set-active-project", `$(folder) ${wsConfig.activeProject}`, "Zephyr IDE Active Project");
+    "zephyr-ide.set-active-project", `$(folder) ${wsConfig.activeProject}`, "Zephyr IDE Select Active Project");
 
   activeBuildDisplay = createStatusBarButton(context,
-    "zephyr-ide.set-active-build", ``, "Zephyr IDE Active Build");
+    "zephyr-ide.set-active-build", ``, "Select Active Build");
   activeRunnerDisplay = createStatusBarButton(context,
-    "zephyr-ide.set-active-runner", ``, "Zephyr IDE Active Runner");
+    "zephyr-ide.set-active-runner", ``, "Select Active Runner");
   {
     refreshStatusBar();
   }
@@ -631,7 +635,7 @@ export async function activate(context: vscode.ExtensionContext) {
         await setupWestEnvironment(context, wsConfig, globalConfig);
         extensionSetupView.updateWebView(wsConfig, globalConfig);
       } else {
-        notifyError("West Environment", "Open Folder or Setup Workspace Before Continuing");
+        notifyError("West Environment", "Open a folder or set up a workspace first");
       }
     }
     )
@@ -674,7 +678,7 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.clear-projects", async () => {
       const selection = await vscode.window.showWarningMessage(
-        "Are you sure you want to Clear All Projects?",
+        "Are you sure you want to clear all projects?",
         "Yes",
         "Cancel"
       );
@@ -1109,6 +1113,8 @@ export async function activate(context: vscode.ExtensionContext) {
         SetupPanel.currentPanel.updateContent(wsConfig, globalConfig);
       }
       ProjectBuildPanel.updateAllPanels(wsConfig, globalConfig);
+      SDKPanel.updateAllPanels(wsConfig, globalConfig);
+      WorkspacePanel.updateAllPanels(wsConfig, globalConfig);
       void vscode.commands.executeCommand("zephyr-ide.update-status");
     })
   );
@@ -1269,19 +1275,13 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.install-host-tools", async () => {
-      // Open the Setup Panel and navigate to host tools page
-      const panel = SetupPanel.createOrShow(
+      // Open the standalone Host Tools panel
+      HostToolInstallView.createOrShow(
         context.extensionPath,
         context,
         wsConfig,
         globalConfig
       );
-      // Navigate to host tools page after a short delay to ensure panel is ready
-      setTimeout(() => {
-        if (SetupPanel.currentPanel) {
-          SetupPanel.currentPanel.navigateToHostTools();
-        }
-      }, 100);
     }
     )
   );
@@ -1351,26 +1351,24 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.open-setup-panel-workspace", async () => {
-      const panel = SetupPanel.createOrShow(
+      WorkspacePanel.createOrShow(
         context.extensionPath,
         context,
         wsConfig,
         globalConfig
       );
-      panel.navigateToWorkspace();
     }
     )
   );
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.open-setup-panel-sdk", async () => {
-      const panel = SetupPanel.createOrShow(
+      SDKPanel.createOrShow(
         context.extensionPath,
         context,
         wsConfig,
         globalConfig
       );
-      panel.navigateToSDK();
     }
     )
   );
@@ -1397,6 +1395,28 @@ export async function activate(context: vscode.ExtensionContext) {
       );
     }
     )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.open-sdk-panel", async () => {
+      SDKPanel.createOrShow(
+        context.extensionPath,
+        context,
+        wsConfig,
+        globalConfig
+      );
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.open-workspace-panel", async () => {
+      WorkspacePanel.createOrShow(
+        context.extensionPath,
+        context,
+        wsConfig,
+        globalConfig
+      );
+    })
   );
 
   context.subscriptions.push(

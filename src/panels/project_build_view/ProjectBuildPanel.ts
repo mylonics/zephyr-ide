@@ -60,8 +60,8 @@ import { getVariablesReferenceSectionHtml } from "./VariablesSection";
 import { normalizeBuildArgs } from "../../project_utilities/build_args";
 
 export class ProjectBuildPanel {
-  private static readonly PROJECT_VARIABLE_DEFAULTS_CONFIG_KEY = "zephyr-ide.project_variable_defaults";
-  private static readonly BUILD_VARIABLE_DEFAULTS_CONFIG_KEY = "zephyr-ide.build_variable_defaults";
+  private static readonly PROJECT_VARIABLE_DEFAULTS_CONFIG_KEY = "zephyr-ide.projectVariableDefaults";
+  private static readonly BUILD_VARIABLE_DEFAULTS_CONFIG_KEY = "zephyr-ide.buildVariableDefaults";
 
   /** All open panels, keyed by project name (or "__default__" when no project specified) */
   private static _panels: Map<string, ProjectBuildPanel> = new Map();

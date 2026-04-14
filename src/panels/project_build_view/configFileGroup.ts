@@ -83,7 +83,7 @@ function fileTabContentHtml(
 }
 
 /**
- * Renders a tabbed config file group with KConfig and DTC Overlay tabs.
+ * Renders a tabbed config file group with Kconfig and Devicetree Overlay tabs.
  * Each tab shows a unified list of files with an Extra checkbox column.
  */
 export function tabbedConfigGroupHtml(
@@ -105,11 +105,11 @@ export function tabbedConfigGroupHtml(
   return `
     <div class="config-group">
       <vscode-tabs data-tab-id="config-${idPrefix}">
-        <vscode-tab-header slot="header">KConfig Files</vscode-tab-header>
+        <vscode-tab-header slot="header">Kconfig Files</vscode-tab-header>
         <vscode-tab-panel>
-          ${fileTabContentHtml(kconfigGroupId, kconfigPrimary, kconfigExtra, kconfigAddCmd, kconfigRemoveCmd, kconfigToggleCmd, "Add KConfig")}
+          ${fileTabContentHtml(kconfigGroupId, kconfigPrimary, kconfigExtra, kconfigAddCmd, kconfigRemoveCmd, kconfigToggleCmd, "Add Kconfig")}
         </vscode-tab-panel>
-        <vscode-tab-header slot="header">DTC Overlay Files</vscode-tab-header>
+        <vscode-tab-header slot="header">Devicetree Overlay Files</vscode-tab-header>
         <vscode-tab-panel>
           ${fileTabContentHtml(overlayGroupId, overlayPrimary, overlayExtra, overlayAddCmd, overlayRemoveCmd, overlayToggleCmd, "Add Overlay")}
         </vscode-tab-panel>

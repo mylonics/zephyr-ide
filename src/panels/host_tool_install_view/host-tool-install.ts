@@ -38,7 +38,13 @@ window.addEventListener('message', event => {
 function markComplete(): void {
   vscode.postMessage({ command: 'markComplete' });
 }
+
+function sendCommand(cmd: string): void {
+  vscode.postMessage({ command: cmd });
+}
+
 (window as any).markComplete = markComplete;
+(window as any).sendCommand = sendCommand;
 
 // Initial status check on load
 hostToolsClient.refreshStatus();

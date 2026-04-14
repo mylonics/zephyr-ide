@@ -26,7 +26,7 @@ suite("Venv Configuration Test Suite", () => {
     test("Returns default .venv path when no configuration is set", async () => {
         // Reset configuration to default (null)
         const config = vscode.workspace.getConfiguration();
-        await config.update("zephyr-ide.venv-folder", undefined, vscode.ConfigurationTarget.Global);
+        await config.update("zephyr-ide.venvFolder", undefined, vscode.ConfigurationTarget.Global);
         
         const setupPath = "/test/setup/path";
         const result = getVenvPath(setupPath);
@@ -39,7 +39,7 @@ suite("Venv Configuration Test Suite", () => {
         
         // Set custom venv path
         const config = vscode.workspace.getConfiguration();
-        await config.update("zephyr-ide.venv-folder", customVenvPath, vscode.ConfigurationTarget.Global);
+        await config.update("zephyr-ide.venvFolder", customVenvPath, vscode.ConfigurationTarget.Global);
         
         const setupPath = "/test/setup/path";
         const result = getVenvPath(setupPath);
@@ -47,7 +47,7 @@ suite("Venv Configuration Test Suite", () => {
         assert.strictEqual(result, customVenvPath);
         
         // Clean up - reset to default
-        await config.update("zephyr-ide.venv-folder", undefined, vscode.ConfigurationTarget.Global);
+        await config.update("zephyr-ide.venvFolder", undefined, vscode.ConfigurationTarget.Global);
     });
 
     test("Returns configured venv path with spaces", async () => {
@@ -55,7 +55,7 @@ suite("Venv Configuration Test Suite", () => {
         
         // Set custom venv path with spaces
         const config = vscode.workspace.getConfiguration();
-        await config.update("zephyr-ide.venv-folder", customVenvPath, vscode.ConfigurationTarget.Global);
+        await config.update("zephyr-ide.venvFolder", customVenvPath, vscode.ConfigurationTarget.Global);
         
         const setupPath = "/test/setup/path";
         const result = getVenvPath(setupPath);
@@ -63,13 +63,13 @@ suite("Venv Configuration Test Suite", () => {
         assert.strictEqual(result, customVenvPath);
         
         // Clean up - reset to default
-        await config.update("zephyr-ide.venv-folder", undefined, vscode.ConfigurationTarget.Global);
+        await config.update("zephyr-ide.venvFolder", undefined, vscode.ConfigurationTarget.Global);
     });
 
     test("Returns default .venv path when configuration is empty string", async () => {
         // Set empty string
         const config = vscode.workspace.getConfiguration();
-        await config.update("zephyr-ide.venv-folder", "", vscode.ConfigurationTarget.Global);
+        await config.update("zephyr-ide.venvFolder", "", vscode.ConfigurationTarget.Global);
         
         const setupPath = "/test/setup/path";
         const result = getVenvPath(setupPath);
@@ -78,6 +78,6 @@ suite("Venv Configuration Test Suite", () => {
         assert.strictEqual(result, normalizePath(path.join(setupPath, ".venv")));
         
         // Clean up - reset to default
-        await config.update("zephyr-ide.venv-folder", undefined, vscode.ConfigurationTarget.Global);
+        await config.update("zephyr-ide.venvFolder", undefined, vscode.ConfigurationTarget.Global);
     });
 });

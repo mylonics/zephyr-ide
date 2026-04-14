@@ -28,28 +28,28 @@ interface SettingDefinition {
 
 const SETTINGS: SettingDefinition[] = [
   {
-    key: "zephyr-ide.global_directory",
+    key: "zephyr-ide.globalDirectory",
     label: "Global Directory",
     description: "Global directory for west workspace installation and Zephyr tools. The toolchains subdirectory is used for SDK installations unless overridden.",
     type: "string",
     defaultValue: null,
   },
   {
-    key: "zephyr-ide.toolchain_directory",
+    key: "zephyr-ide.toolchainDirectory",
     label: "Toolchain Directory",
     description: "Directory containing Zephyr SDK installations. If not specified, defaults to the toolchains subdirectory within the global directory.",
     type: "string",
     defaultValue: null,
   },
   {
-    key: "zephyr-ide.venv-folder",
+    key: "zephyr-ide.venvFolder",
     label: "Virtual Environment Folder",
     description: "Python virtual environment folder path. If not specified, defaults to .venv in the workspace setup path.",
     type: "string",
     defaultValue: null,
   },
   {
-    key: "zephyr-ide.use_gui_config",
+    key: "zephyr-ide.useGuiConfig",
     label: "Use GUI Config",
     description: "Display GUI config instead of menu config in Project Tree View.",
     type: "boolean",
@@ -63,7 +63,7 @@ const SETTINGS: SettingDefinition[] = [
     defaultValue: false,
   },
   {
-    key: "zephyr-ide.suppress-workspace-warning",
+    key: "zephyr-ide.suppressWorkspaceWarning",
     label: "Suppress Workspace Warning",
     description: "Suppress the warning about missing workspace environment variables (ZEPHYR_BASE, ZEPHYR_SDK_INSTALL_DIR).",
     type: "boolean",
@@ -107,7 +107,7 @@ export class SettingsPanel {
 
     const panel = vscode.window.createWebviewPanel(
       "zephyrIDESettings",
-      "Zephyr IDE Settings",
+      "Zephyr IDE: Settings",
       column || vscode.ViewColumn.One,
       {
         enableScripts: true,
@@ -232,6 +232,10 @@ export class SettingsPanel {
         }
         break;
       }
+      case "openSetupPanel": {
+        await vscode.commands.executeCommand("zephyr-ide.open-setup-panel");
+        break;
+      }
     }
   }
 
@@ -339,7 +343,12 @@ export class SettingsPanel {
     </head>
     <body>
         <div class="container">
-            <div class="header page-header">
+            <div class="breadcrumb">
+                <a class="breadcrumb-link" data-action="open-setup-panel">← Setup & Configuration</a>
+                <span class="breadcrumb-separator">/</span>
+                <span class="breadcrumb-current">Settings</span>
+            </div>
+            <div class="page-header">
                 <div>
                     <h1 class="page-title">Zephyr IDE Settings</h1>
                     <p class="page-subtitle">Manage extension defaults and workspace overrides.</p>

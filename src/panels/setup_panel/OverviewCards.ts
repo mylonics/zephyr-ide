@@ -19,18 +19,23 @@ import { GlobalConfig, WorkspaceConfig } from "../../setup_utilities/types";
 
 export class HostToolsCard {
     static getHtml(globalConfig: GlobalConfig): string {
-        const status = globalConfig.toolsAvailable ? "✓ Ready" : "⚠ Setup Required";
-        const statusClass = globalConfig.toolsAvailable ? "status-success" : "status-warning";
-        const stepBadgeClass = globalConfig.toolsAvailable ? "step-badge-complete" : "step-badge-active";
+        const isReady = globalConfig.toolsAvailable ?? false;
+
+        if (isReady) {
+            return `
+            <span class="setup-status-pill status-success" onclick="sendCommand('openHostToolsPanel')" role="button" tabindex="0" title="Host tools are installed and ready">
+                <span class="codicon codicon-check"></span> Host Tools
+            </span>`;
+        }
 
         return `
-        <div class="overview-card" onclick="navigateToSubPage('hosttools')" role="button" tabindex="0" data-keyboard-command="true" aria-label="Open Host Tools setup">
+        <div class="overview-card" onclick="sendCommand('openHostToolsPanel')" role="button" tabindex="0" data-keyboard-command="true" aria-label="Open Host Tools setup">
             <div class="overview-card-header">
-                <span class="step-badge ${stepBadgeClass}">${globalConfig.toolsAvailable ? '✓' : '1'}</span>
+                <span class="step-badge step-badge-active">1</span>
                 <span class="overview-icon">🔧</span>
                 <h3>Host Tools</h3>
             </div>
-            <div class="status ${statusClass}">${status}</div>
+            <div class="status status-warning">⚠ Setup Required</div>
             <p class="overview-description">Install and verify build tools, compilers, and utilities required for Zephyr development.</p>
             <div class="card-arrow">→</div>
         </div>`;
@@ -39,28 +44,32 @@ export class HostToolsCard {
 
 export class SDKCard {
     static getHtml(globalConfig: GlobalConfig, hasValidSetupState: boolean): string {
+        const isComplete = globalConfig.sdkInstalled ?? false;
+        const isLocked = !hasValidSetupState;
+
+        if (isComplete) {
+            return `
+            <span class="setup-status-pill status-success" onclick="sendCommand('openSDKPanel')" role="button" tabindex="0" title="Zephyr SDK is installed">
+                <span class="codicon codicon-check"></span> Zephyr SDK
+            </span>`;
+        }
+
         let status: string;
         let statusClass: string;
-
-        if (!hasValidSetupState) {
+        if (isLocked) {
             status = "⚠ Workspace Required";
             statusClass = "status-warning";
-        } else if (globalConfig.sdkInstalled) {
-            status = "✓ Installed";
-            statusClass = "status-success";
         } else {
             status = "⚙ Setup Required";
             statusClass = "status-warning";
         }
 
-        const isComplete = globalConfig.sdkInstalled;
-        const isLocked = !hasValidSetupState;
-        const stepBadgeClass = isComplete ? "step-badge-complete" : isLocked ? "step-badge-locked" : "step-badge-active";
+        const stepBadgeClass = isLocked ? "step-badge-locked" : "step-badge-active";
 
         return `
-        <div class="overview-card${isLocked ? ' overview-card-locked' : ''}" onclick="navigateToSubPage('sdk')" role="button" tabindex="0" data-keyboard-command="true" aria-label="Open Zephyr SDK management">
+        <div class="overview-card${isLocked ? ' overview-card-locked' : ''}" ${isLocked ? '' : 'onclick="sendCommand(\'openSDKPanel\')"'} role="button" tabindex="${isLocked ? '-1' : '0'}" ${isLocked ? 'aria-disabled="true"' : ''} data-keyboard-command="true" aria-label="Open Zephyr SDK management">
             <div class="overview-card-header">
-                <span class="step-badge ${stepBadgeClass}">${isComplete ? '✓' : '3'}</span>
+                <span class="step-badge ${stepBadgeClass}">2</span>
                 <span class="overview-icon">📦</span>
                 <h3>Zephyr SDK Management</h3>
             </div>
@@ -72,21 +81,32 @@ export class SDKCard {
 }
 
 export class WorkspaceCard {
-    static getHtml(wsConfig: WorkspaceConfig, folderOpen: boolean, workspaceInitialized: boolean): string {
-        const status = workspaceInitialized ? "✓ Initialized" : folderOpen ? "⚙ Setup Required" : "📁 No Folder";
-        const statusClass = workspaceInitialized ? "status-success" : folderOpen ? "status-warning" : "status-info";
-        const stepBadgeClass = workspaceInitialized ? "step-badge-complete" : "step-badge-active";
+    static getSectionHeaderHtml(wsConfig: WorkspaceConfig, folderOpen: boolean, workspaceInitialized: boolean, hasWorkspaces: boolean): string {
+        let status: string;
+        let statusClass: string;
+
+        if (workspaceInitialized) {
+            status = "✓ Initialized";
+            statusClass = "status-success";
+        } else if (folderOpen) {
+            status = "⚙ Setup Required";
+            statusClass = "status-warning";
+        } else {
+            status = "📁 No Folder";
+            statusClass = "status-info";
+        }
+
+        const manageButton = hasWorkspaces
+            ? `<vscode-button appearance="secondary" onclick="sendCommand('openWorkspacePanel')">Manage</vscode-button>`
+            : '';
 
         return `
-        <div class="overview-card" onclick="navigateToSubPage('workspace')" role="button" tabindex="0" data-keyboard-command="true" aria-label="Open Workspace setup">
-            <div class="overview-card-header">
-                <span class="step-badge ${stepBadgeClass}">${workspaceInitialized ? '✓' : '2'}</span>
-                <span class="overview-icon">🗂️</span>
-                <h3>Workspace</h3>
+        <div class="section-header-row">
+            <h3>West Workspaces</h3>
+            <div class="section-header-actions">
+                <span class="status ${statusClass}">${status}</span>
+                ${manageButton}
             </div>
-            <div id="workspaceCardStatus" class="status ${statusClass}">${status}</div>
-            <p class="overview-description">Configure west workspace, initialize repositories, and manage Zephyr project dependencies.</p>
-            <div class="card-arrow">→</div>
         </div>`;
     }
 }

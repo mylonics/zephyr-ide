@@ -87,7 +87,7 @@ export class ActiveProjectView implements vscode.TreeDataProvider<ActiveProjectI
       }
       activeTwister = getResolvedTestConfig(this.wsConfig, resolvedProject);
     } else {
-      this.title = "Active Project: None";
+      this.title = "No Active Project";
       return [];
     }
 
@@ -96,11 +96,11 @@ export class ActiveProjectView implements vscode.TreeDataProvider<ActiveProjectI
     const attachDisplay = getLaunchTargetDisplayName(activeBuild?.attachTarget ?? "", activeBuild?.attachTargetFolder, "Zephyr IDE: Attach");
 
     const items: ActiveProjectItem[] = [
-      new ActiveProjectItem("Build Pristine", "project", activeBuild ? activeBuild.name : "Not Available",
+      new ActiveProjectItem("Build Pristine", "project", activeBuild ? activeBuild.name : "None",
         'activeProject.buildPristine', "zephyr-ide.build-pristine"),
-      new ActiveProjectItem("Build", "project", activeBuild ? activeBuild.name : "Not Available",
+      new ActiveProjectItem("Build", "project", activeBuild ? activeBuild.name : "None",
         'activeProject.build', "zephyr-ide.build"),
-      new ActiveProjectItem("Flash", "chip", activeRunner ? activeRunner.name : "Not Available",
+      new ActiveProjectItem("Flash", "chip", activeRunner ? activeRunner.name : "None",
         'activeProject.flash', "zephyr-ide.flash"),
       new ActiveProjectItem("Debug", "debug-alt", debugDisplay,
         'activeProject.debug', "zephyr-ide.debug", "zephyr-ide.change-debug-launch-for-build"),
@@ -111,7 +111,7 @@ export class ActiveProjectView implements vscode.TreeDataProvider<ActiveProjectI
     ];
 
     if (activeProject.twisterConfigs && Object.keys(activeProject.twisterConfigs).length) {
-      items.push(new ActiveProjectItem("Twister Run", "beaker", activeTwister ? activeTwister.name : "",
+      items.push(new ActiveProjectItem("Run Tests", "beaker", activeTwister ? activeTwister.name : "",
         'activeProject.twisterRun', "zephyr-ide.run-test"));
     }
 

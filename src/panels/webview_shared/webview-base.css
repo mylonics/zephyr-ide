@@ -28,6 +28,14 @@
   box-sizing: border-box;
 }
 
+/* VS Code sets height:100% on the webview iframe's <html> element which can
+   prevent body content from overflowing and scrolling.  Override it so the
+   document height grows with content. */
+html {
+  height: auto !important;
+  min-height: 100%;
+}
+
 body {
   font-family: var(--vscode-font-family);
   font-size: var(--vscode-font-size);
@@ -397,7 +405,216 @@ th {
 }
 
 /* ===================================================================
-   11. ANIMATION UTILITIES
+   11. HEADER STATUS BADGES & ACTIONS
+   =================================================================== */
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.header-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.header-status-badge.status-success {
+  background-color: color-mix(in srgb, var(--vscode-terminal-ansiGreen) 15%, transparent);
+  color: var(--vscode-terminal-ansiGreen);
+}
+
+.header-status-badge.status-warning {
+  background-color: color-mix(in srgb, var(--vscode-terminal-ansiYellow) 15%, transparent);
+  color: var(--vscode-terminal-ansiYellow);
+}
+
+.header-status-badge.status-error {
+  background-color: color-mix(in srgb, var(--vscode-terminal-ansiRed) 15%, transparent);
+  color: var(--vscode-terminal-ansiRed);
+}
+
+/* ===================================================================
+   12. SETUP PROGRESS PANEL (shared by workspace & SDK panels)
+   =================================================================== */
+
+.setup-progress-panel {
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--zephyr-webview-radius);
+  margin-bottom: 20px;
+  overflow: hidden;
+  background-color: var(--vscode-input-background);
+}
+
+.setup-progress-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.setup-progress-header.status-info {
+  background-color: var(--vscode-terminal-ansiBlue);
+  color: var(--vscode-editor-background);
+}
+
+.setup-progress-header.status-success {
+  background-color: var(--vscode-terminal-ansiGreen);
+  color: var(--vscode-editor-background);
+}
+
+.setup-progress-header.status-error {
+  background-color: var(--vscode-terminal-ansiRed);
+  color: var(--vscode-editor-background);
+}
+
+.setup-progress-title {
+  flex: 1;
+}
+
+.setup-progress-dismiss {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  opacity: 0.8;
+}
+
+.setup-progress-dismiss:hover {
+  opacity: 1;
+  background-color: var(--vscode-toolbar-hoverBackground);
+}
+
+.setup-progress-body {
+  padding: 10px 16px 14px;
+}
+
+.setup-progress-message {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  margin: 8px 0 0;
+  line-height: 1.4;
+}
+
+.setup-progress-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.setup-step-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: var(--zephyr-webview-radius);
+  border: 1px solid transparent;
+  transition: border-color 0.3s, background-color 0.3s;
+}
+
+.setup-step-item.in-progress {
+  border-color: var(--vscode-progressBar-background);
+  background-color: var(--vscode-list-hoverBackground);
+}
+
+.setup-step-item.completed { opacity: 0.8; }
+.setup-step-item.failed    { border-color: var(--vscode-inputValidation-errorBorder); }
+.setup-step-item.skipped   { opacity: 0.5; }
+
+.setup-step-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.setup-step-icon.pending    { color: var(--vscode-descriptionForeground); border: 2px solid var(--vscode-descriptionForeground); font-size: 9px; }
+.setup-step-icon.in-progress { color: var(--vscode-progressBar-background); }
+.setup-step-icon.completed   { color: var(--vscode-terminal-ansiGreen); }
+.setup-step-icon.failed      { color: var(--vscode-terminal-ansiRed); }
+.setup-step-icon.skipped     { color: var(--vscode-descriptionForeground); }
+
+.setup-step-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+}
+
+.setup-step-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+}
+
+.setup-step-item.skipped .setup-step-label {
+  text-decoration: line-through;
+  color: var(--vscode-descriptionForeground);
+}
+
+.setup-step-detail {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  line-height: 1.4;
+}
+
+/* ===================================================================
+   13. BREADCRUMB NAVIGATION
+   =================================================================== */
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.breadcrumb-link {
+  color: var(--vscode-textLink-foreground);
+  text-decoration: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.breadcrumb-link:hover {
+  color: var(--vscode-textLink-activeForeground);
+  text-decoration: underline;
+}
+
+.breadcrumb-separator {
+  color: var(--vscode-descriptionForeground);
+  opacity: 0.6;
+}
+
+.breadcrumb-current {
+  color: var(--vscode-foreground);
+  font-weight: 500;
+}
+
+/* ===================================================================
+   14. ANIMATION UTILITIES
    =================================================================== */
 
 @keyframes spin {
@@ -433,8 +650,16 @@ th {
   .runner-row,
   .panel-section,
   .section-container,
-  .config-group {
+  .config-group,
+  .quick-action-item,
+  .project-list-row,
+  .workspace-list-row,
+  .setup-step-item {
     transition: none;
     transform: none;
+  }
+
+  .card-arrow {
+    transition: none;
   }
 }

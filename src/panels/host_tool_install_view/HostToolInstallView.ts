@@ -95,7 +95,7 @@ export class HostToolInstallView {
 
     const panel = vscode.window.createWebviewPanel(
       "zephyrIDEHostTools",
-      "Host Tools Installation",
+      "Zephyr IDE: Host Tools",
       column || vscode.ViewColumn.One,
       {
         enableScripts: true,
@@ -169,6 +169,9 @@ export class HostToolInstallView {
       case "hostToolsOpenManagerInstallUrl":
         await this._service.openManagerInstallUrl();
         break;
+      case "openSetupPanel":
+        vscode.commands.executeCommand("zephyr-ide.open-setup-panel");
+        break;
     }
   }
 
@@ -228,6 +231,11 @@ export class HostToolInstallView {
     </head>
     <body>
         <div class="container">
+            <div class="breadcrumb">
+                <a class="breadcrumb-link" onclick="sendCommand('openSetupPanel')">← Setup & Configuration</a>
+                <span class="breadcrumb-separator">/</span>
+                <span class="breadcrumb-current">Host Tools</span>
+            </div>
             <div class="page-header">
                 <div>
                     <h1 class="page-title">Host Tools Installation</h1>

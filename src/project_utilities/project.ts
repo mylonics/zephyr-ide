@@ -232,13 +232,13 @@ export async function modifyBuildArguments(context: vscode.ExtensionContext, wsC
   if (!resolved) { return; }
   const { project, build } = resolved;
 
-  const newWestBuildArgs = await vscode.window.showInputBox({ title: "Modify West Build Arguments", value: joinBuildArgs(build.westBuildArgs), prompt: "West Build arguments i.e --sysbuild", placeHolder: "--sysbuild" });
+  const newWestBuildArgs = await vscode.window.showInputBox({ title: "Modify West Build Arguments", value: joinBuildArgs(build.westBuildArgs), prompt: "West build arguments (e.g., --sysbuild)", placeHolder: "--sysbuild" });
 
   if (newWestBuildArgs !== undefined) {
     build.westBuildArgs = normalizeBuildArgs(newWestBuildArgs);
   }
 
-  const newCMakeBuildArgs = await vscode.window.showInputBox({ title: "Modify CMake Build Arguments", value: joinBuildArgs(build.westBuildCMakeArgs), prompt: "CMake Build arguments i.e -DCMAKE_VERBOSE_MAKEFILE=ON", placeHolder: "-DCMAKE_VERBOSE_MAKEFILE=ON" });
+  const newCMakeBuildArgs = await vscode.window.showInputBox({ title: "Modify CMake Build Arguments", value: joinBuildArgs(build.westBuildCMakeArgs), prompt: "CMake arguments (e.g., -DCMAKE_VERBOSE_MAKEFILE=ON)", placeHolder: "-DCMAKE_VERBOSE_MAKEFILE=ON" });
 
   if (newCMakeBuildArgs !== undefined) {
     build.westBuildCMakeArgs = normalizeBuildArgs(newCMakeBuildArgs);
@@ -319,7 +319,7 @@ export async function addConfigFiles(context: vscode.ExtensionContext, wsConfig:
       }
     }
     await setWorkspaceState(context, wsConfig);
-    void vscode.window.showInformationMessage(`Successfully Added Config Files`);
+    void vscode.window.showInformationMessage(`Config files added`);
   }
 
 }
@@ -350,7 +350,7 @@ export async function removeConfigFiles(context: vscode.ExtensionContext, wsConf
       }
     }
     await setWorkspaceState(context, wsConfig);
-    void vscode.window.showInformationMessage(`Successfully Removed Config Files`);
+    void vscode.window.showInformationMessage(`Config files removed`);
   }
 }
 
@@ -367,7 +367,7 @@ export async function removeConfigFile(context: vscode.ExtensionContext, wsConfi
   const key = getConfFileKey(isKConfig, isPrimary);
   confFiles[key] = confFiles[key].filter(el => !fileNames.includes(el));
   await setWorkspaceState(context, wsConfig);
-  void vscode.window.showInformationMessage(`Successfully Removed Config Files`);
+  void vscode.window.showInformationMessage(`Config files removed`);
 }
 
 /**
@@ -387,7 +387,7 @@ async function askUserForSelection(dict: Record<string, any>, placeholder: strin
 
 export async function askUserForProject(wsConfig: WorkspaceConfig) {
   if (Object.keys(wsConfig.projects).length === 0) {
-    notifyError("Project", "First Run `Add Project` or `Create Project`");
+    notifyError("Project", "Add or create a project first");
     return;
   }
   return await askUserForSelection(wsConfig.projects, "Select Project");
@@ -403,7 +403,7 @@ export async function setActiveProject(context: vscode.ExtensionContext, wsConfi
 
   wsConfig.activeProject = selectedProject;
   await setWorkspaceState(context, wsConfig);
-  void vscode.window.showInformationMessage(`Successfully Set ${selectedProject} as Active Project`);
+  void vscode.window.showInformationMessage(`Active project set to "${selectedProject}"`);
   void setDtsContext(wsConfig);
 }
 
@@ -435,7 +435,7 @@ export async function setActiveBuild(context: vscode.ExtensionContext, wsConfig:
   wsConfig.projectStates[wsConfig.activeProject].activeBuildConfig = buildConfigs[selectedBuild].name;
   await setWorkspaceState(context, wsConfig);
   void setDtsContext(wsConfig);
-  void vscode.window.showInformationMessage(`Successfully Set ${selectedBuild} as Active Build of ${wsConfig.activeProject}`);
+  void vscode.window.showInformationMessage(`Active build set to "${selectedBuild}"`);
 }
 
 export async function setActiveTest(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, selectedTest?: string) {
@@ -501,7 +501,7 @@ export async function addProject(wsConfig: WorkspaceConfig, context: vscode.Exte
       canSelectFiles: false,
       canSelectFolders: true,
       canSelectMany: false,
-      title: "Select project folder."
+      title: "Select Project Folder"
     };
 
     // Open file picker for destination directory
@@ -531,7 +531,7 @@ export async function addProject(wsConfig: WorkspaceConfig, context: vscode.Exte
   }
   const projectName = path.basename(projectPath);
   if (wsConfig.projects[projectName]) {
-    const selection = await vscode.window.showWarningMessage(`Project with name: ${projectName} already exists!`, 'Overwrite', 'Cancel');
+    const selection = await vscode.window.showWarningMessage(`A project named "${projectName}" already exists`, 'Overwrite', 'Cancel');
     if (selection !== 'Overwrite') {
       notifyError("Project", `Failed to add project`);
       return;
@@ -566,7 +566,7 @@ export async function addBuildToProject(wsConfig: WorkspaceConfig, context: vsco
   if (result && result.name !== undefined) {
     result.runnerConfigs = {};
     if (wsConfig.projects[projectName].buildConfigs[result.name]) {
-      const selection = await vscode.window.showWarningMessage('Build Configuration with name: ' + result.name + ' already exists!', 'Overwrite', 'Cancel');
+      const selection = await vscode.window.showWarningMessage('A build configuration named "' + result.name + '" already exists', 'Overwrite', 'Cancel');
       if (selection !== 'Overwrite') {
         notifyError("Build Config", `Failed to add build configuration`);
         return;
@@ -652,7 +652,7 @@ export async function addTest(wsConfig: WorkspaceConfig, context: vscode.Extensi
   const result = await twisterSelector(wsConfig.projects[projectName].rel_path, context, setupState, wsConfig.rootPath);
   if (result && result.name !== undefined) {
     if (wsConfig.projects[projectName].twisterConfigs[result.name]) {
-      const selection = await vscode.window.showWarningMessage('Twister Configuration with name: ' + result.name + ' already exists!', 'Overwrite', 'Cancel');
+      const selection = await vscode.window.showWarningMessage('A test configuration named "' + result.name + '" already exists', 'Overwrite', 'Cancel');
       if (selection !== 'Overwrite') {
         notifyError("Test Config", `Failed to add twister configuration`);
         return;
@@ -777,7 +777,7 @@ export async function addRunnerToBuild(wsConfig: WorkspaceConfig, context: vscod
 
   if (result && result.name !== undefined) {
     if (build.runnerConfigs[result.name]) {
-      const selection = await vscode.window.showWarningMessage('Runner Configuration with name: ' + result.name + ' already exists!', 'Overwrite', 'Cancel');
+      const selection = await vscode.window.showWarningMessage('A runner named "' + result.name + '" already exists', 'Overwrite', 'Cancel');
       if (selection !== 'Overwrite') {
         notifyError("Runner Config", `Failed to add runner configuration`);
         return;

@@ -59,10 +59,10 @@ export class ExtensionSetupView implements vscode.TreeDataProvider<SetupItem> {
     const pythonEnvStatus = this.wsConfig.activeSetupState?.pythonEnvironmentSetup ? "Ready" : "Not Configured";
 
     return [
-      new SetupItem("Zephyr IDE Setup", "preview", "zephyr-ide.open-setup-panel"),
+      new SetupItem("Overview", "preview", "zephyr-ide.open-setup-panel"),
       new SetupItem("Host Tools", "package", "zephyr-ide.open-host-tools-panel", toolsStatus),
-      new SetupItem("Zephyr SDK", "desktop-download", "zephyr-ide.open-setup-panel-sdk", sdkStatus),
-      new SetupItem("Workspace Setup", "folder-opened", "zephyr-ide.open-setup-panel-workspace", workspaceStatus),
+      new SetupItem("Zephyr SDK", "desktop-download", "zephyr-ide.open-sdk-panel", sdkStatus),
+      new SetupItem("Workspace Setup", "folder-opened", "zephyr-ide.open-workspace-panel", workspaceStatus),
       new SetupItem("West Update", "sync", "zephyr-ide.west-update", westUpdatedStatus),
     ];
   }

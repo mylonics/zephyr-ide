@@ -247,6 +247,8 @@ function setupEventHandlers(): void {
 
     if (action === 'open-vscode-settings') {
       openVsCodeSettings();
+    } else if (action === 'open-setup-panel') {
+      vscode.postMessage({ command: 'openSetupPanel' });
     } else if (action === 'browse' && key) {
       onBrowse(key);
     } else if (action === 'reset' && key) {

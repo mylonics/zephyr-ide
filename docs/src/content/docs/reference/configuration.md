@@ -5,7 +5,7 @@ description: All IDE for Zephyr VS Code settings — global directory, toolchain
 
 The following settings are available in VS Code settings (File > Preferences > Settings):
 
-## `zephyr-ide.global_directory`
+## `zephyr-ide.globalDirectory`
 
 - **Type**: String or null
 - **Default**: null
@@ -17,9 +17,9 @@ This setting replaces the deprecated `zephyr-ide.tools_directory`. It controls t
 
 - **Type**: String or null
 - **Default**: null
-- **Deprecated**: Use `zephyr-ide.global_directory` instead. The extension automatically migrates this setting on startup.
+- **Deprecated**: Use `zephyr-ide.globalDirectory` instead. The extension automatically migrates this setting on startup.
 
-## `zephyr-ide.toolchain_directory`
+## `zephyr-ide.toolchainDirectory`
 
 - **Type**: String or null
 - **Default**: null
@@ -30,17 +30,17 @@ This setting allows you to use a custom location for SDK installations. The dire
 **Example:**
 ```json
 {
-  "zephyr-ide.toolchain_directory": "/opt/zephyr-sdks"
+  "zephyr-ide.toolchainDirectory": "/opt/zephyr-sdks"
 }
 ```
 
 With this configuration, the extension will look for SDKs in `/opt/zephyr-sdks/zephyr-sdk-0.17.0`, `/opt/zephyr-sdks/zephyr-sdk-0.17.3`, etc.
 
-## `zephyr-ide.use_gui_config`
+## `zephyr-ide.useGuiConfig`
 
 - **Type**: Boolean
 - **Default**: false
-- **Description**: Display GUI config instead of menu config in Project Tree View
+- **Description**: Use GUI configuration editor instead of terminal-based menuconfig in the Project Tree View.
 
 When enabled, the extension will use the graphical Kconfig interface instead of the text-based menu config when configuring projects.
 
@@ -48,19 +48,19 @@ When enabled, the extension will use the graphical Kconfig interface instead of 
 
 - **Type**: Boolean
 - **Default**: false
-- **Description**: If true, uses 'west update --narrow'. If false, uses 'west update' without --narrow.
+- **Description**: Use 'west update --narrow' to reduce disk usage and download time by fetching only required Git history.
 
 The `--narrow` flag tells west to only clone the most recent commit history, which can save disk space and download time. This is useful for CI/CD environments or when you don't need the full git history.
 
-## `zephyr-ide.suppress-workspace-warning`
+## `zephyr-ide.suppressWorkspaceWarning`
 
 - **Type**: Boolean
 - **Default**: false
-- **Description**: If true, suppresses the warning about missing workspace environment variables (ZEPHYR_BASE, ZEPHYR_SDK_INSTALL_DIR).
+- **Description**: Hide the notification about missing ZEPHYR_BASE and ZEPHYR_SDK_INSTALL_DIR environment variables. Enable this if you manage these variables externally.
 
 Use this setting when working with externally managed environments to prevent the extension from showing warnings about missing workspace configuration.
 
-## `zephyr-ide.venv-folder`
+## `zephyr-ide.venvFolder`
 
 - **Type**: String or null
 - **Default**: null

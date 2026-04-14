@@ -52,24 +52,15 @@
       "type": "object",
       "title": "Zephyr IDE",
       "properties": {
-        "zephyr-ide.global_directory": {
+        "zephyr-ide.globalDirectory": {
           "type": [
             "string",
             "null"
           ],
           "default": null,
-          "description": "Manually specify a global directory for west workspace installation and Zephyr tools. The toolchains subdirectory within this folder is used by default for SDK installations unless overridden by 'zephyr-ide.toolchain_directory'."
+          "description": "Manually specify a global directory for west workspace installation and Zephyr tools. The toolchains subdirectory within this folder is used by default for SDK installations unless overridden by 'zephyr-ide.toolchainDirectory'."
         },
-        "zephyr-ide.tools_directory": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null,
-          "deprecationMessage": "Deprecated: Use 'zephyr-ide.global_directory' instead. The extension will automatically migrate this setting on startup.",
-          "description": "Deprecated. Use 'zephyr-ide.global_directory' instead."
-        },
-        "zephyr-ide.toolchain_directory": {
+        "zephyr-ide.toolchainDirectory": {
           "type": [
             "string",
             "null"
@@ -77,28 +68,28 @@
           "default": null,
           "description": "Manually specify the directory containing Zephyr SDK installations (e.g., containing zephyr-sdk-0.17.0, zephyr-sdk-0.17.3 subdirectories). If not specified, defaults to toolchains subdirectory within the tools directory."
         },
-        "zephyr-ide.use_gui_config": {
+        "zephyr-ide.useGuiConfig": {
           "type": [
             "boolean"
           ],
           "default": false,
-          "description": "Display gui config instead of menu config in Project Tree View"
+          "description": "Use GUI configuration editor instead of terminal-based menuconfig in the Project Tree View."
         },
         "zephyr-ide.westNarrowUpdate": {
           "type": [
             "boolean"
           ],
           "default": false,
-          "description": "If true, uses 'west update --narrow'. If false, uses 'west update' without --narrow."
+          "description": "Use 'west update --narrow' to reduce disk usage and download time by fetching only required Git history."
         },
-        "zephyr-ide.suppress-workspace-warning": {
+        "zephyr-ide.suppressWorkspaceWarning": {
           "type": [
             "boolean"
           ],
           "default": false,
-          "description": "If true, suppresses the warning about missing workspace environment variables (ZEPHYR_BASE, ZEPHYR_SDK_INSTALL_DIR)."
+          "description": "Hide the notification about missing ZEPHYR_BASE and ZEPHYR_SDK_INSTALL_DIR environment variables. Enable this if you manage these variables externally."
         },
-        "zephyr-ide.venv-folder": {
+        "zephyr-ide.venvFolder": {
           "type": [
             "string",
             "null"
@@ -113,7 +104,7 @@
           "default": true,
           "description": "Automatically switch the active project when the editor focus changes to a file belonging to a different project."
         },
-        "zephyr-ide.project_variable_defaults": {
+        "zephyr-ide.projectVariableDefaults": {
           "type": [
             "array"
           ],
@@ -123,7 +114,7 @@
           },
           "description": "Default project variable names to show in the Project Details panel. Missing values are shown as empty."
         },
-        "zephyr-ide.build_variable_defaults": {
+        "zephyr-ide.buildVariableDefaults": {
           "type": [
             "array"
           ],
@@ -132,6 +123,80 @@
             "type": "string"
           },
           "description": "Default build variable names to show in the Project Details panel. Missing values are shown as empty."
+        },
+        "zephyr-ide.global_directory": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "deprecationMessage": "Deprecated: Use 'zephyr-ide.globalDirectory' instead. Migrated automatically on startup.",
+          "description": "Deprecated. Use 'zephyr-ide.globalDirectory' instead."
+        },
+        "zephyr-ide.tools_directory": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "deprecationMessage": "Deprecated: Use 'zephyr-ide.globalDirectory' instead. Migrated automatically on startup.",
+          "description": "Deprecated. Use 'zephyr-ide.globalDirectory' instead."
+        },
+        "zephyr-ide.toolchain_directory": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "deprecationMessage": "Deprecated: Use 'zephyr-ide.toolchainDirectory' instead. Migrated automatically on startup.",
+          "description": "Deprecated. Use 'zephyr-ide.toolchainDirectory' instead."
+        },
+        "zephyr-ide.use_gui_config": {
+          "type": [
+            "boolean"
+          ],
+          "default": false,
+          "deprecationMessage": "Deprecated: Use 'zephyr-ide.useGuiConfig' instead. Migrated automatically on startup.",
+          "description": "Deprecated. Use 'zephyr-ide.useGuiConfig' instead."
+        },
+        "zephyr-ide.suppress-workspace-warning": {
+          "type": [
+            "boolean"
+          ],
+          "default": false,
+          "deprecationMessage": "Deprecated: Use 'zephyr-ide.suppressWorkspaceWarning' instead. Migrated automatically on startup.",
+          "description": "Deprecated. Use 'zephyr-ide.suppressWorkspaceWarning' instead."
+        },
+        "zephyr-ide.venv-folder": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "deprecationMessage": "Deprecated: Use 'zephyr-ide.venvFolder' instead. Migrated automatically on startup.",
+          "description": "Deprecated. Use 'zephyr-ide.venvFolder' instead."
+        },
+        "zephyr-ide.project_variable_defaults": {
+          "type": [
+            "array"
+          ],
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "deprecationMessage": "Deprecated: Use 'zephyr-ide.projectVariableDefaults' instead. Migrated automatically on startup.",
+          "description": "Deprecated. Use 'zephyr-ide.projectVariableDefaults' instead."
+        },
+        "zephyr-ide.build_variable_defaults": {
+          "type": [
+            "array"
+          ],
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "deprecationMessage": "Deprecated: Use 'zephyr-ide.buildVariableDefaults' instead. Migrated automatically on startup.",
+          "description": "Deprecated. Use 'zephyr-ide.buildVariableDefaults' instead."
         }
       }
     },
@@ -314,7 +379,7 @@
       "zephyr-ide-main": [
         {
           "id": "zephyrIdeExtensionSetup",
-          "name": "Zephyr IDE and Workspace Setup",
+          "name": "Overview",
           "icon": "media/logo_small.jpg",
           "contextualTitle": "Zephyr IDE"
         },
@@ -332,9 +397,9 @@
         },
         {
           "id": "zephyrIdeProjectStatus",
-          "name": "Project Config",
+          "name": "Project Details",
           "icon": "media/logo_small.jpg",
-          "contextualTitle": "Zephyr IDE Projects"
+          "contextualTitle": "Zephyr IDE Project Details"
         },
         {
           "id": "zephyrIdeActiveProject",
@@ -351,15 +416,15 @@
       },
       {
         "command": "zephyr-ide.print-workspace",
-        "title": "Zephyr IDE: Print Workspace Structure"
+        "title": "Zephyr IDE: Show Workspace Structure"
       },
       {
         "command": "zephyr-ide.print-python-path",
-        "title": "Zephyr IDE: Print Python Interpreter Path"
+        "title": "Zephyr IDE: Show Python Interpreter Path"
       },
       {
         "command": "zephyr-ide.check-build-dependencies",
-        "title": "Zephyr IDE: Setup Check Build Dependencies Available"
+        "title": "Zephyr IDE: Check Build Dependencies"
       },
       {
         "command": "zephyr-ide.setup-west-environment",
@@ -429,11 +494,11 @@
       },
       {
         "command": "zephyr-ide.add-project-config-files",
-        "title": "Zephyr IDE: Add Project KConfig Files"
+        "title": "Zephyr IDE: Add Project Kconfig Files"
       },
       {
         "command": "zephyr-ide.remove-project-config-files",
-        "title": "Zephyr IDE: Remove Project KConfig Files"
+        "title": "Zephyr IDE: Remove Project Kconfig Files"
       },
       {
         "command": "zephyr-ide.add-project-overlay-files",
@@ -457,11 +522,11 @@
       },
       {
         "command": "zephyr-ide.add-build-config-files",
-        "title": "Zephyr IDE: Add Build KConfig Files"
+        "title": "Zephyr IDE: Add Build Kconfig Files"
       },
       {
         "command": "zephyr-ide.remove-build-config-files",
-        "title": "Zephyr IDE: Remove Build KConfig Files"
+        "title": "Zephyr IDE: Remove Build Kconfig Files"
       },
       {
         "command": "zephyr-ide.add-build-overlay-files",
@@ -553,7 +618,7 @@
       },
       {
         "command": "zephyr-ide.debug-internal-shell",
-        "title": "Zephyr IDE: Debug Internal Shell"
+        "title": "Zephyr IDE: Open Debug Shell"
       },
       {
         "command": "zephyr-ide.west-list",
@@ -561,11 +626,11 @@
       },
       {
         "command": "zephyr-ide.update-web-view",
-        "title": "Zephyr IDE: Reload Web Views"
+        "title": "Zephyr IDE: Reload Panels"
       },
       {
         "command": "zephyr-ide.reset-zephyr-install-selection",
-        "title": "Zephyr IDE: Reset Zephyr Install Selection"
+        "title": "Zephyr IDE: Reset Active Installation"
       },
       {
         "command": "zephyr-ide.manage-workspaces",
@@ -573,7 +638,7 @@
       },
       {
         "command": "zephyr-ide.mark-west-as-ready",
-        "title": "Zephyr IDE: Mark West as Ready"
+        "title": "Zephyr IDE: Skip West Setup"
       },
       {
         "command": "zephyr-ide.shell_test",
@@ -617,11 +682,11 @@
       },
       {
         "command": "zephyr-ide.open-setup-panel",
-        "title": "Zephyr IDE: Open Setup Panel"
+        "title": "Zephyr IDE: Overview"
       },
       {
         "command": "zephyr-ide.open-setup-panel-workspace",
-        "title": "Zephyr IDE: Open Workspace Setup"
+        "title": "Zephyr IDE: Open Workspace Config"
       },
       {
         "command": "zephyr-ide.open-setup-panel-sdk",
@@ -629,7 +694,7 @@
       },
       {
         "command": "zephyr-ide.open-project-build-panel",
-        "title": "Zephyr IDE: Project/Build Details"
+        "title": "Zephyr IDE: Project Details"
       },
       {
         "command": "zephyr-ide.open-settings-panel",
@@ -637,7 +702,15 @@
       },
       {
         "command": "zephyr-ide.open-host-tools-panel",
-        "title": "Zephyr IDE: Host Tools Installation"
+        "title": "Zephyr IDE: Host Tools"
+      },
+      {
+        "command": "zephyr-ide.open-sdk-panel",
+        "title": "Zephyr IDE: SDK Management"
+      },
+      {
+        "command": "zephyr-ide.open-workspace-panel",
+        "title": "Zephyr IDE: Workspace Config"
       },
       {
         "command": "zephyr-ide.workspace-setup-picker",
@@ -1038,7 +1111,7 @@
   "scripts": {
     "vscode:prepublish": "npm run esbuild-base -- --minify && npm run esbuild-webview-base -- --minify",
     "esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node",
-    "esbuild-webview-base": "esbuild ./src/panels/host_tool_install_view/host-tool-install.ts ./src/panels/setup_panel/setup-panel.ts ./src/panels/project_build_view/project-build-panel.ts ./src/panels/settings_view/settings-panel.ts --bundle --outdir=dist/webview --outbase=src/panels --format=iife --platform=browser",
+    "esbuild-webview-base": "esbuild ./src/panels/host_tool_install_view/host-tool-install.ts ./src/panels/setup_panel/setup-panel.ts ./src/panels/project_build_view/project-build-panel.ts ./src/panels/settings_view/settings-panel.ts ./src/panels/sdk_panel/sdk-panel.ts ./src/panels/workspace_panel/workspace-panel.ts --bundle --outdir=dist/webview --outbase=src/panels --format=iife --platform=browser",
     "esbuild": "npm run esbuild-base -- --sourcemap && npm run esbuild-webview-base -- --sourcemap",
     "esbuild-watch": "npm run esbuild-base -- --sourcemap --watch",
     "test-compile": "tsc -p ./ && tsc -p ./tsconfig.webview.json",

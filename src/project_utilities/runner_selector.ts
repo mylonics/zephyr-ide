@@ -88,7 +88,7 @@ export async function runnerSelector(boardfolder: string) {
       totalSteps: 3,
       value: state.runner,
       ignoreFocusOut: true,
-      prompt: 'Choose a name for this Runner Configuration',
+      prompt: 'Enter runner configuration name',
       validate: noOpValidate
     }).catch((error) => {
       outputError("Runner Selector", String(error));

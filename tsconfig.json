@@ -22,6 +22,8 @@
     "src/panels/host_tool_install_view/host-tool-install.ts",
     "src/panels/setup_panel/setup-panel.ts",
     "src/panels/project_build_view/project-build-panel.ts",
-    "src/panels/settings_view/settings-panel.ts"
+    "src/panels/settings_view/settings-panel.ts",
+    "src/panels/sdk_panel/sdk-panel.ts",
+    "src/panels/workspace_panel/workspace-panel.ts"
   ]
 }

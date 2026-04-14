@@ -28,7 +28,8 @@ import { sanitizeTreeId } from '../utilities/utils';
 
 export function getUseGuiConfig(): boolean | undefined {
   const configuration = vscode.workspace.getConfiguration();
-  return configuration.get("zephyr-ide.use_gui_config");
+  return configuration.get("zephyr-ide.useGuiConfig")
+    ?? configuration.get("zephyr-ide.use_gui_config");
 }
 
 export type ProjectTreeItemContext =

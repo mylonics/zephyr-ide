@@ -131,9 +131,9 @@ function calculatedSectionHtml(
   if (buildInfo) {
     buildOutputHtml = `
       <div class="calculated-sub">
-        <div class="config-sub-label">Resolved KConfig Files (from build output)</div>
+        <div class="config-sub-label">Resolved Kconfig Files (from build output)</div>
         ${readonlyFileListHtml(buildInfo.kconfigFiles)}
-        <div class="config-sub-label">Resolved KConfig User Files</div>
+        <div class="config-sub-label">Resolved Kconfig User Files</div>
         ${readonlyFileListHtml(buildInfo.otherKconfigFiles)}
         <div class="config-sub-label">Resolved DTS File</div>
         ${buildInfo.dtsFile ? readonlyFileListHtml([buildInfo.dtsFile]) : '<div class="file-list-empty">None</div>'}
@@ -150,9 +150,9 @@ function calculatedSectionHtml(
 
   return `
     <div class="calculated-sub">
-      <div class="config-sub-label">Composed KConfig Files (project + build)</div>
+      <div class="config-sub-label">Composed Kconfig Files (project + build)</div>
       ${readonlyFileListHtml(calculated.config.concat(calculated.extraConfig))}
-      <div class="config-sub-label">Composed DTC Overlay Files (project + build)</div>
+      <div class="config-sub-label">Composed Devicetree Overlay Files (project + build)</div>
       ${readonlyFileListHtml(calculated.overlay.concat(calculated.extraOverlay))}
     </div>
     <vscode-divider></vscode-divider>

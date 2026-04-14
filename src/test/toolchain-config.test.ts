@@ -17,7 +17,7 @@ limitations under the License.
 
 import * as assert from "assert";
 import * as vscode from "vscode";
-import { getToolchainDir, getToolsDir, migrateToolsDirectory } from "../setup_utilities/workspace-config";
+import { getToolchainDir, getToolsDir, migrateSettingKeys } from "../setup_utilities/workspace-config";
 import * as path from "path";
 import * as os from "os";
 import { normalizePath } from "./test-runner";
@@ -25,6 +25,8 @@ import { normalizePath } from "./test-runner";
 suite("Toolchain Configuration Test Suite", () => {
 
     async function resetAllSettings(config: vscode.WorkspaceConfiguration) {
+        await config.update("zephyr-ide.toolchainDirectory", undefined, vscode.ConfigurationTarget.Global);
+        await config.update("zephyr-ide.globalDirectory", undefined, vscode.ConfigurationTarget.Global);
         await config.update("zephyr-ide.toolchain_directory", undefined, vscode.ConfigurationTarget.Global);
         await config.update("zephyr-ide.tools_directory", undefined, vscode.ConfigurationTarget.Global);
         await config.update("zephyr-ide.global_directory", undefined, vscode.ConfigurationTarget.Global);
@@ -40,12 +42,12 @@ suite("Toolchain Configuration Test Suite", () => {
         assert.strictEqual(result, expectedPath);
     });
 
-    test("Returns configured toolchain_directory when setting is provided", async () => {
+    test("Returns configured toolchainDirectory when setting is provided", async () => {
         const customToolchainPath = "/opt/zephyr-sdk";
         
         const config = vscode.workspace.getConfiguration();
         await resetAllSettings(config);
-        await config.update("zephyr-ide.toolchain_directory", customToolchainPath, vscode.ConfigurationTarget.Global);
+        await config.update("zephyr-ide.toolchainDirectory", customToolchainPath, vscode.ConfigurationTarget.Global);
         
         const result = getToolchainDir();
         
@@ -69,12 +71,12 @@ suite("Toolchain Configuration Test Suite", () => {
         await resetAllSettings(config);
     });
 
-    test("Returns toolchains subdirectory when only global_directory is configured", async () => {
+    test("Returns toolchains subdirectory when only globalDirectory is configured", async () => {
         const customGlobalPath = "/opt/zephyr-global";
 
         const config = vscode.workspace.getConfiguration();
         await resetAllSettings(config);
-        await config.update("zephyr-ide.global_directory", customGlobalPath, vscode.ConfigurationTarget.Global);
+        await config.update("zephyr-ide.globalDirectory", customGlobalPath, vscode.ConfigurationTarget.Global);
 
         const result = getToolchainDir();
         const expectedPath = normalizePath(path.join(customGlobalPath, "toolchains"));
@@ -84,13 +86,13 @@ suite("Toolchain Configuration Test Suite", () => {
         await resetAllSettings(config);
     });
 
-    test("global_directory takes precedence over tools_directory", async () => {
+    test("globalDirectory takes precedence over tools_directory", async () => {
         const customGlobalPath = "/opt/zephyr-global";
         const customToolsPath = "/opt/custom-tools";
 
         const config = vscode.workspace.getConfiguration();
         await resetAllSettings(config);
-        await config.update("zephyr-ide.global_directory", customGlobalPath, vscode.ConfigurationTarget.Global);
+        await config.update("zephyr-ide.globalDirectory", customGlobalPath, vscode.ConfigurationTarget.Global);
         await config.update("zephyr-ide.tools_directory", customToolsPath, vscode.ConfigurationTarget.Global);
 
         const result = getToolsDir();
@@ -100,27 +102,27 @@ suite("Toolchain Configuration Test Suite", () => {
         await resetAllSettings(config);
     });
 
-    test("Prioritizes toolchain_directory over tools_directory", async () => {
+    test("Prioritizes toolchainDirectory over tools_directory", async () => {
         const customToolchainPath = "/opt/zephyr-sdk";
         const customToolsPath = "/opt/custom-tools";
         
         const config = vscode.workspace.getConfiguration();
         await resetAllSettings(config);
-        await config.update("zephyr-ide.toolchain_directory", customToolchainPath, vscode.ConfigurationTarget.Global);
+        await config.update("zephyr-ide.toolchainDirectory", customToolchainPath, vscode.ConfigurationTarget.Global);
         await config.update("zephyr-ide.tools_directory", customToolsPath, vscode.ConfigurationTarget.Global);
         
         const result = getToolchainDir();
         
-        // Should return toolchain_directory, not tools_directory/toolchains
+        // Should return toolchainDirectory, not tools_directory/toolchains
         assert.strictEqual(result, customToolchainPath);
         
         await resetAllSettings(config);
     });
 
-    test("Returns default path when toolchain_directory is empty string", async () => {
+    test("Returns default path when toolchainDirectory is empty string", async () => {
         const config = vscode.workspace.getConfiguration();
         await resetAllSettings(config);
-        await config.update("zephyr-ide.toolchain_directory", "", vscode.ConfigurationTarget.Global);
+        await config.update("zephyr-ide.toolchainDirectory", "", vscode.ConfigurationTarget.Global);
         
         const result = getToolchainDir();
         const expectedPath = normalizePath(path.join(os.homedir(), ".zephyr_ide", "toolchains"));
@@ -131,12 +133,12 @@ suite("Toolchain Configuration Test Suite", () => {
         await resetAllSettings(config);
     });
 
-    test("Returns configured toolchain_directory with spaces", async () => {
+    test("Returns configured toolchainDirectory with spaces", async () => {
         const customToolchainPath = "/path with spaces/zephyr sdk";
         
         const config = vscode.workspace.getConfiguration();
         await resetAllSettings(config);
-        await config.update("zephyr-ide.toolchain_directory", customToolchainPath, vscode.ConfigurationTarget.Global);
+        await config.update("zephyr-ide.toolchainDirectory", customToolchainPath, vscode.ConfigurationTarget.Global);
         
         const result = getToolchainDir();
         
@@ -145,18 +147,18 @@ suite("Toolchain Configuration Test Suite", () => {
         await resetAllSettings(config);
     });
 
-    test("migrateToolsDirectory migrates tools_directory to global_directory", async () => {
+    test("migrateSettingKeys migrates tools_directory to globalDirectory", async () => {
         const customToolsPath = "/opt/custom-tools";
 
         const config = vscode.workspace.getConfiguration();
         await resetAllSettings(config);
         await config.update("zephyr-ide.tools_directory", customToolsPath, vscode.ConfigurationTarget.Global);
 
-        await migrateToolsDirectory();
+        await migrateSettingKeys();
 
         // Re-fetch configuration after migration to get updated values
         const updatedConfig = vscode.workspace.getConfiguration();
-        const migratedGlobalDir = updatedConfig.get<string>("zephyr-ide.global_directory");
+        const migratedGlobalDir = updatedConfig.get<string>("zephyr-ide.globalDirectory");
         const remainingToolsDir = updatedConfig.get<string>("zephyr-ide.tools_directory");
 
         assert.strictEqual(migratedGlobalDir, customToolsPath);
@@ -165,21 +167,21 @@ suite("Toolchain Configuration Test Suite", () => {
         await resetAllSettings(config);
     });
 
-    test("migrateToolsDirectory does not overwrite existing global_directory", async () => {
+    test("migrateSettingKeys does not overwrite existing globalDirectory", async () => {
         const existingGlobalPath = "/opt/existing-global";
         const customToolsPath = "/opt/custom-tools";
 
         const config = vscode.workspace.getConfiguration();
         await resetAllSettings(config);
-        await config.update("zephyr-ide.global_directory", existingGlobalPath, vscode.ConfigurationTarget.Global);
+        await config.update("zephyr-ide.globalDirectory", existingGlobalPath, vscode.ConfigurationTarget.Global);
         await config.update("zephyr-ide.tools_directory", customToolsPath, vscode.ConfigurationTarget.Global);
 
-        await migrateToolsDirectory();
+        await migrateSettingKeys();
 
         // Re-fetch configuration after migration to get updated values
         const updatedConfig = vscode.workspace.getConfiguration();
-        const globalDir = updatedConfig.get<string>("zephyr-ide.global_directory");
-        // Should NOT overwrite if global_directory was already set
+        const globalDir = updatedConfig.get<string>("zephyr-ide.globalDirectory");
+        // Should NOT overwrite if globalDirectory was already set
         assert.strictEqual(globalDir, existingGlobalPath);
 
         await resetAllSettings(config);
