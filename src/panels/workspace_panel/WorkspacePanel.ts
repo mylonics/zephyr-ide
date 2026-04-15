@@ -1,5 +1,5 @@
 /*
-Copyright 2024 mylonics 
+Copyright 2026 mylonics 
 Author Rijesh Augustine
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,13 +17,13 @@ limitations under the License.
 
 import * as vscode from "vscode";
 import * as path from "upath";
-import * as fs from "fs";
 import { WorkspaceConfig, GlobalConfig, formatZephyrVersion } from "../../setup_utilities/types";
 import { notifyError, outputError } from "../../utilities/output";
 import { onSetupProgress, getActiveSetupProgress } from "../../setup_utilities/setup-progress";
 import { parseWestConfigManifestPath } from "../../setup_utilities/west-config-parser";
 import { getVenvPath } from "../../setup_utilities/workspace-config";
 import { setSetupState, setWorkspaceState } from "../../setup_utilities/state-management";
+import type { WorkspacePanelData, ActivationBannerData, WorkspaceInfoData } from "./workspace-panel-data";
 
 export class WorkspacePanel {
   /** All open panels, keyed by workspace path (or "__default__" when not specified). */
@@ -130,17 +130,6 @@ export class WorkspacePanel {
         });
       }),
     );
-
-    // If a setup operation is already in progress, replay the latest snapshot
-    const activeProgress = getActiveSetupProgress();
-    if (activeProgress) {
-      setTimeout(() => {
-        this._panel.webview.postMessage({
-          command: 'workspaceSetupProgress',
-          data: activeProgress,
-        });
-      }, 100);
-    }
   }
 
   /** Resolve the setup state this panel should display. */
@@ -155,6 +144,8 @@ export class WorkspacePanel {
     }
     return undefined;
   }
+
+  private _htmlInitialized = false;
 
   public updateContent(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
     this.currentWsConfig = wsConfig;
@@ -176,7 +167,15 @@ export class WorkspacePanel {
       this._panel.title = "Workspace Setup";
     }
 
-    this._panel.webview.html = this.getHtmlForWebview(wsConfig);
+    if (!this._htmlInitialized) {
+      this._panel.webview.html = this.getHtmlForWebview();
+      this._htmlInitialized = true;
+    }
+
+    void this._panel.webview.postMessage({
+      command: "updateContent",
+      data: this.generatePanelData(wsConfig),
+    });
 
     // Load west.yml content asynchronously if workspace is initialized
     if (workspaceInitialized) {
@@ -224,6 +223,27 @@ export class WorkspacePanel {
     }
 
     switch (message.command) {
+      case "ready":
+        if (this.currentWsConfig && this.currentGlobalConfig) {
+          void this._panel.webview.postMessage({
+            command: "updateContent",
+            data: this.generatePanelData(this.currentWsConfig),
+          });
+          const target = this.getTargetSetupState();
+          const workspaceInitialized = (this.currentWsConfig.initialSetupComplete || false) && target !== undefined;
+          if (workspaceInitialized) {
+            void this.loadWestYmlContent();
+          }
+          // Replay active progress if any
+          const activeProgress = getActiveSetupProgress();
+          if (activeProgress) {
+            void this._panel.webview.postMessage({
+              command: 'workspaceSetupProgress',
+              data: activeProgress,
+            });
+          }
+        }
+        return;
       case "openWestYml":
         this.openWestYml();
         return;
@@ -344,45 +364,65 @@ export class WorkspacePanel {
   }
 
   // ---------------------------------------------------------------------------
-  // HTML Generation
+  // Data generation
   // ---------------------------------------------------------------------------
 
-  private getActivationBanner(): string {
-    if (!this._setupPath) {
-      return '';
-    }
-    const baseName = path.basename(this._setupPath);
-    const escapedPath = this._setupPath.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-    return `
-        <div class="activation-banner" role="alert">
-            <div class="activation-banner-content">
-                <span class="codicon codicon-info"></span>
-                <span>This workspace (<strong>${baseName}</strong>) is not currently active.</span>
-            </div>
-            <vscode-button onclick="activateWorkspace('${escapedPath}')">Activate This Workspace</vscode-button>
-        </div>`;
-  }
-
-  private getHtmlForWebview(wsConfig: WorkspaceConfig): string {
+  private generatePanelData(wsConfig: WorkspaceConfig): WorkspacePanelData {
     const folderOpen = wsConfig.rootPath !== "";
     const target = this.getTargetSetupState();
     const workspaceInitialized = (wsConfig.initialSetupComplete || false) && target !== undefined;
 
     const state = (folderOpen && workspaceInitialized) ? "ready" : "setup-required";
-
     const statusIcon = workspaceInitialized ? '✓' : '⚙';
     const statusLabel = workspaceInitialized ? 'Initialized' : 'Setup Required';
     const statusClass = workspaceInitialized ? 'status-success' : 'status-warning';
 
-    // Show activation banner if this panel is showing a workspace that is not
-    // currently active. This covers both: (a) another workspace is active, and
-    // (b) no workspace is active (deactivated) but this one can be activated.
     const isNonActive = this._setupPath !== undefined &&
       wsConfig.activeSetupState?.setupPath !== this._setupPath;
-    const activationBanner = isNonActive
-      ? this.getActivationBanner()
-      : '';
 
+    let activationBanner: ActivationBannerData | undefined;
+    if (isNonActive && this._setupPath) {
+      activationBanner = {
+        name: path.basename(this._setupPath),
+        path: this._setupPath,
+      };
+    }
+
+    let workspaceInfo: WorkspaceInfoData | undefined;
+    if (folderOpen && workspaceInitialized && target) {
+      const westYmlPath = this.getWestYmlPath() || "Not found";
+      const venvPathStr = target.setupPath ? getVenvPath(target.setupPath) : "Not found";
+      const zephyrVersion = target.setupState?.zephyrVersion
+        ? formatZephyrVersion(target.setupState.zephyrVersion)
+        : "Not available";
+
+      workspaceInfo = {
+        currentFolderPath: wsConfig.rootPath || "Not configured",
+        westWorkspacePath: target.setupPath || "Not configured",
+        westYmlPath,
+        venvPath: venvPathStr,
+        zephyrVersion,
+      };
+    }
+
+    return {
+      folderOpen,
+      workspaceInitialized,
+      state,
+      statusIcon,
+      statusLabel,
+      statusClass,
+      activationBanner,
+      workspaceInfo,
+      isNonActive,
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // HTML Shell
+  // ---------------------------------------------------------------------------
+
+  private getHtmlForWebview(): string {
     const cssUri = this._panel.webview.asWebviewUri(
       vscode.Uri.joinPath(vscode.Uri.file(this._extensionPath), "src", "panels", "workspace_panel", "workspace-panel.css"),
     );
@@ -403,230 +443,9 @@ export class WorkspacePanel {
             <link rel="stylesheet" type="text/css" href="${codiconUri}" id="vscode-codicon-stylesheet">
         </head>
         <body>
-            <div class="container">
-                <a class="breadcrumb-link" onclick="sendCommand('openSetupPanel')">← Overview</a>
-                <div class="page-header">
-                    <div style="display:flex;align-items:center;gap:12px;">
-                        <h1 class="page-title">Workspace Setup</h1>
-                        <span class="header-status-badge ${statusClass}">${statusIcon} ${statusLabel}</span>
-                    </div>
-                </div>
-
-                ${activationBanner}
-
-                <div class="ws-body" data-workspace-state="${state}">
-                    ${this.getInitializingContainer()}
-                    ${this.getReadyContainer(folderOpen, workspaceInitialized, wsConfig, isNonActive)}
-                    ${this.getSetupRequiredContainer(folderOpen)}
-                </div>
-            </div>
+            <workspace-app></workspace-app>
             <script src="${jsUri}"></script>
         </body>
         </html>`;
-  }
-
-  private getInitializingContainer(): string {
-    return `
-            <div class="ws-state ws-state-initializing">
-                <div class="status-banner status-info">
-                    <vscode-progress-ring></vscode-progress-ring>
-                    <span class="status-text">Initializing workspace\u2026</span>
-                </div>
-                <p class="description">Follow the prompts in the VS Code dialog to configure your workspace.</p>
-                <div id="setupProgressContainer"></div>
-            </div>`;
-  }
-
-  private getReadyContainer(folderOpen: boolean, workspaceInitialized: boolean, wsConfig: WorkspaceConfig, isNonActive: boolean): string {
-    const content = (folderOpen && workspaceInitialized)
-      ? this.getInitializedContent(wsConfig, isNonActive)
-      : '';
-    return `
-            <div class="ws-state ws-state-ready">
-                <div class="status-banner status-success">
-                    <span class="codicon codicon-check"></span>
-                    <span class="status-text">Workspace Ready</span>
-                </div>
-                ${content}
-            </div>`;
-  }
-
-  private getSetupRequiredContainer(folderOpen: boolean): string {
-    const content = folderOpen
-      ? this.getSetupOptionsContent()
-      : this.getNoFolderContent();
-    const bannerClass = folderOpen ? 'status-warning' : 'status-info';
-    const bannerIcon = folderOpen
-      ? '<span class="codicon codicon-gear"></span>'
-      : '<span class="codicon codicon-folder"></span>';
-    const bannerText = folderOpen ? 'Setup Required' : 'No Folder Opened';
-
-    return `
-            <div class="ws-state ws-state-setup-required">
-                <div class="status-banner ${bannerClass}">
-                    ${bannerIcon}
-                    <span class="status-text">${bannerText}</span>
-                </div>
-                ${content}
-            </div>`;
-  }
-
-  private getNoFolderContent(): string {
-    return `
-        <p class="description">Open a folder in VS Code to set up your Zephyr workspace.</p>
-        
-        <div class="section-container centered">
-            <div class="empty-state">
-                <div class="empty-state-icon">📁</div>
-                <h3>No Folder Open</h3>
-                <p>A workspace folder is required for Zephyr development.</p>
-            </div>
-            
-            <div class="button-group">
-                <vscode-button onclick="sendCommand('openFolder')">
-                    <vscode-icon slot="start-icon" name="folder-opened"></vscode-icon>
-                    Open Folder
-                </vscode-button>
-            </div>
-        </div>`;
-  }
-
-  private getInitializedContent(wsConfig: WorkspaceConfig, isNonActive: boolean): string {
-    const target = this.getTargetSetupState();
-    const activeSetupPath = target?.setupPath || "Not configured";
-    const currentFolderPath = wsConfig.rootPath || "Not configured";
-    const westYmlPath = this.getWestYmlPath() || "Not found";
-    const venvPathStr = target?.setupPath
-      ? getVenvPath(target.setupPath)
-      : "Not found";
-    const zephyrVersion = target?.setupState?.zephyrVersion
-      ? formatZephyrVersion(target.setupState.zephyrVersion)
-      : "Not available";
-
-    const disabledAttr = isNonActive ? 'disabled' : '';
-    const disabledNote = isNonActive
-      ? '<p class="description muted">Activate this workspace to use these commands.</p>'
-      : '';
-
-    return `
-        <p class="description">Workspace is configured and ready for development.</p>
-        
-        <div class="section-container">
-            <h3>Workspace Information</h3>
-            <div class="info-box">
-                <p><strong>Current Folder:</strong> <code>${currentFolderPath}</code></p>
-                <p><strong>West Workspace Path:</strong> <code>${activeSetupPath}</code></p>
-                <p><strong>West.yml Location:</strong> <code>${westYmlPath}</code></p>
-                <p><strong>Python .venv Location:</strong> <code>${venvPathStr}</code></p>
-                <p><strong>Zephyr Version:</strong> <code>${zephyrVersion}</code></p>
-            </div>
-        </div>
-        
-        <div class="section-container">
-            <h3>West Configuration</h3>
-            <div class="west-yml-editor">
-                <div class="editor-header">
-                    <label for="westYmlEditor">west.yml</label>
-                    <vscode-button appearance="secondary" onclick="openWestYml()">
-                        <vscode-icon slot="start-icon" name="go-to-file"></vscode-icon>
-                        Open in Editor
-                    </vscode-button>
-                </div>
-                <textarea id="westYmlEditor" class="west-yml-textarea" rows="15" placeholder="Loading west.yml..."></textarea>
-                <div class="editor-actions">
-                    <vscode-button onclick="saveAndUpdateWestYml()" ${disabledAttr}>
-                        <vscode-icon slot="start-icon" name="save"></vscode-icon>
-                        Save and West Update
-                    </vscode-button>
-                    <vscode-button appearance="secondary" onclick="sendCommand('westUpdate')" ${disabledAttr}>
-                        <vscode-icon slot="start-icon" name="sync"></vscode-icon>
-                        West Update
-                    </vscode-button>
-                </div>
-            </div>
-        </div>
-        
-        ${!isNonActive ? `<div class="action-section">
-            <h3>Workspace Management</h3>
-            <div class="button-group">
-                <vscode-button appearance="secondary" onclick="sendCommand('resetWorkspace')">
-                    <vscode-icon slot="start-icon" name="refresh"></vscode-icon>
-                    Reset VS Code Workspace
-                </vscode-button>
-            </div>
-        </div>` : ''}
-        
-        <div class="action-section">
-            <h3>Advanced Commands</h3>
-            <p class="description">Low-level commands for advanced workspace management and troubleshooting.</p>
-            ${disabledNote}
-            <div class="button-group">
-                <vscode-button appearance="secondary" onclick="sendCommand('westConfig')" ${disabledAttr}>
-                    <vscode-icon slot="start-icon" name="settings"></vscode-icon>
-                    West Config
-                </vscode-button>
-                <vscode-button appearance="secondary" onclick="sendCommand('westInit')" ${disabledAttr}>
-                    <vscode-icon slot="start-icon" name="repo-create"></vscode-icon>
-                    West Init
-                </vscode-button>
-            </div>
-        </div>`;
-  }
-
-  private getSetupOptionsContent(): string {
-    return `
-        <p class="description">Select how to configure your workspace. Each option organizes projects and manages dependencies differently.</p>
-        
-        <div class="section-container">
-            <h3>Initialize West Workspace</h3>
-            <div class="workspace-options-grid">
-                ${this.generateOptionCard(
-      "🌐",
-      "Import Zephyr IDE Workspace from Git",
-      "Clone a complete workspace or repo with projects as subdirectories using Git.",
-      "Team collaboration and shared environments",
-      "sendWorkspaceSetup('workspaceSetupFromGit')"
-    )}
-                ${this.generateOptionCard(
-      "⚙️",
-      "Import West Workspace from Git",
-      "Clone a west manifest repo (contains west.yml) using West Init.",
-      "Upstream Zephyr projects and community examples",
-      "sendWorkspaceSetup('workspaceSetupFromWestGit')"
-    )}
-                ${this.generateOptionCard(
-      "📦",
-      "New Standard Workspace",
-      "Create a self-contained workspace with Zephyr installed locally.",
-      "Individual projects or specific Zephyr versions",
-      "sendWorkspaceSetup('workspaceSetupStandard')"
-    )}
-                ${this.generateOptionCard(
-      "📁",
-      "Initialize Current Directory",
-      "Set up the current directory for Zephyr development, preserving existing files.",
-      "Existing projects or external Zephyr installations",
-      "sendWorkspaceSetup('workspaceSetupFromCurrentDirectory')"
-    )}
-            </div>
-        </div>`;
-  }
-
-  private generateOptionCard(
-    icon: string,
-    title: string,
-    description: string,
-    usage: string,
-    onClick: string,
-  ): string {
-    return `
-        <div class="workspace-option-card" onclick="${onClick}" role="button" tabindex="0" data-keyboard-command="true" aria-label="${title}">
-            <div class="option-header">
-                <span class="option-icon">${icon}</span>
-                <h4>${title}</h4>
-            </div>
-            <p class="option-description">${description}</p>
-            <p class="option-usage"><em>Best for: ${usage}</em></p>
-        </div>`;
   }
 }

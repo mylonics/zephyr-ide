@@ -1,5 +1,5 @@
 /*
-Copyright 2024 mylonics 
+Copyright 2025-2026 mylonics 
 Author Rijesh Augustine
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -141,13 +141,21 @@ export class HostToolInstallView {
   public updateContent(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
     this.currentWsConfig = wsConfig;
     this.currentGlobalConfig = globalConfig;
-    this._panel.webview.html = this.getHtmlForWebview();
-    // Automatically check status on load
-    this._service.checkStatus();
+
+    if (!this._htmlInitialized) {
+      this._panel.webview.html = this.getHtmlForWebview();
+      this._htmlInitialized = true;
+    }
   }
+
+  private _htmlInitialized = false;
 
   private async handleWebviewMessage(message: any) {
     switch (message.command) {
+      case "ready":
+        // Trigger initial status check when client is ready
+        await this._service.checkStatus();
+        return;
       case "hostToolsCheckStatus":
         await this._service.checkStatus();
         break;
@@ -230,28 +238,7 @@ export class HostToolInstallView {
         <link rel="stylesheet" type="text/css" href="${codiconUri}" id="vscode-codicon-stylesheet">
     </head>
     <body>
-        <div class="container">
-            <div class="breadcrumb">
-                <a class="breadcrumb-link" onclick="sendCommand('openSetupPanel')">← Setup & Configuration</a>
-                <span class="breadcrumb-separator">/</span>
-                <span class="breadcrumb-current">Host Tools</span>
-            </div>
-            <div class="page-header">
-                <div>
-                    <h1 class="page-title">Host Tools Installation</h1>
-                    <p class="page-subtitle">Install and maintain local system dependencies for Zephyr development.</p>
-                </div>
-            </div>
-            ${HostToolInstallView.getContentHtml()}
-            <div class="manager-section">
-                <div class="button-group">
-                    <vscode-button id="mark-complete-btn" appearance="secondary" onclick="markComplete()">
-                        <vscode-icon slot="start-icon" name="check"></vscode-icon>
-                        Skip &amp; Mark as Complete
-                    </vscode-button>
-                </div>
-            </div>
-        </div>
+        <host-tools-app></host-tools-app>
         <script src="${jsUri}"></script>
     </body>
     </html>`;

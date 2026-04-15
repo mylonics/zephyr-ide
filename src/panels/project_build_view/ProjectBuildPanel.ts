@@ -1,5 +1,5 @@
 /*
-Copyright 2024 mylonics 
+Copyright 2026 mylonics 
 Author Rijesh Augustine
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,6 +33,7 @@ import {
   setBuildVariable,
   removeProjectVariable,
   removeBuildVariable,
+  getAvailableVariableCommands,
 } from "../../project_utilities/project_info";
 import {
   addBuildToProject,
@@ -49,12 +50,14 @@ import {
   getProjectFolder,
 } from "../../project_utilities/project";
 import { ConfigFiles } from "../../project_utilities/config_selector";
-import { escapeHtml } from "../webview_shared/webviewTypes";
 import { generateNonce } from "../webview_shared/nonce";
-import { getProjectSectionHtml } from "./ProjectSection";
-import { getBuildSectionHtml } from "./BuildSection";
-import { getTestSectionHtml } from "./TestSection";
+import { getLaunchTargetDisplayName } from "../../utilities/utils";
 import { normalizeBuildArgs } from "../../project_utilities/build_args";
+
+import type {
+  ProjectBuildPanelData,
+  WebviewRunnerInfo,
+} from "./project-build-data";
 
 export class ProjectBuildPanel {
   private static readonly PROJECT_VARIABLE_DEFAULTS_CONFIG_KEY = "zephyr-ide.projectVariableDefaults";
@@ -373,6 +376,7 @@ export class ProjectBuildPanel {
           return;
 
         // Refresh calculated
+        case "ready":
         case "refreshCalculated":
           this.updateHtml();
           return;
@@ -613,155 +617,125 @@ export class ProjectBuildPanel {
   // ---------------------------------------------------------------------------
 
   private updateHtml() {
-    const content = this.generateDynamicContent();
+    const data = this.generatePanelData();
     if (!this._htmlInitialized) {
-      this._panel.webview.html = this.getHtmlShell(content);
+      this._panel.webview.html = this.getHtmlShell();
       this._htmlInitialized = true;
-    } else {
-      void this._panel.webview.postMessage({
-        command: "updateContent",
-        ...content,
-      });
     }
+    // Always send data — on first render the Lit app component will receive
+    // it as soon as it connects; on subsequent updates it triggers reactive
+    // rendering without any innerHTML replacement.
+    void this._panel.webview.postMessage({
+      command: "updateContent",
+      data,
+    });
   }
 
-  /** Generate only the dynamic parts of the page. */
-  private generateDynamicContent(): {
-    projectOptionsHtml: string;
-    selectorHtml: string;
-    projectHtml: string;
-    buildOrTestHtml: string;
-    noProjectHtml: string;
-    hasBuildSelected: boolean;
-  } {
+  /** Generate the full data payload for the webview. */
+  private generatePanelData(): ProjectBuildPanelData {
     const projectNames = Object.keys(this._wsConfig.projects ?? {});
     const selected = this._selectedProject;
 
-    // Project selector
-    const projectOptionsHtml = projectNames
-      .map((name) => {
-        const sel = name === selected ? " selected" : "";
-        return `<vscode-option value="${escapeHtml(name)}"${sel}>${escapeHtml(name)}</vscode-option>`;
-      })
-      .join("\n");
+    // Project selector options
+    const projectOptions = projectNames.map((name) => ({
+      name,
+      selected: name === selected,
+    }));
 
-    // Project section
-    let projectHtml = "";
-    let buildOrTestHtml = "";
-    let selectorHtml = "";
+    // Build/test selector options
+    const buildTestOptions: ProjectBuildPanelData["buildTestOptions"] = [];
+    let projectInfo: ProjectBuildPanelData["projectInfo"];
+    let projectVars: Record<string, string> = {};
+    let buildDetails: ProjectBuildPanelData["buildDetails"];
+    let buildVars: Record<string, string> = {};
+    let isBuildActive = false;
+    let testDetails: ProjectBuildPanelData["testDetails"];
 
     if (selected && this._wsConfig.projects[selected]) {
-      const projectInfo = getProjectInfo(this._wsConfig, selected);
-      if (projectInfo) {
-        const projectVars = mergeVariableDefaults(
+      const info = getProjectInfo(this._wsConfig, selected);
+      if (info) {
+        projectInfo = info;
+        projectVars = mergeVariableDefaults(
           getProjectVariables(this._wsConfig, selected),
           this.getDefaultVariableKeys("project"),
         );
-        projectHtml = getProjectSectionHtml(projectInfo, selected, projectVars);
       }
 
-      // Build the build/test selector options
       const project = this._wsConfig.projects[selected];
       const buildNames = Object.keys(project.buildConfigs ?? {});
       const testNames = Object.keys(project.twisterConfigs ?? {});
       const currentSelection = this._selectedBuildOrTest ?? "";
+      const activeBuild = this._wsConfig.projectStates[selected]?.activeBuildConfig;
 
-      const options: string[] = [];
       for (const bName of buildNames) {
         const val = `build:${bName}`;
-        const sel = val === currentSelection ? " selected" : "";
-        const activeBuild = this._wsConfig.projectStates[selected]?.activeBuildConfig;
         const activeLabel = bName === activeBuild ? " (active)" : "";
-        options.push(`<vscode-option value="${escapeHtml(val)}"${sel}>Build: ${escapeHtml(bName)}${activeLabel}</vscode-option>`);
+        buildTestOptions.push({
+          value: val,
+          label: `Build: ${bName}${activeLabel}`,
+          selected: val === currentSelection,
+        });
       }
       for (const tName of testNames) {
         const val = `test:${tName}`;
-        const sel = val === currentSelection ? " selected" : "";
-        options.push(`<vscode-option value="${escapeHtml(val)}"${sel}>Test: ${escapeHtml(tName)}</vscode-option>`);
-      }
-
-      if (options.length > 0) {
-        selectorHtml = `
-          <div class="build-test-selector">
-            <label for="buildTestSelect">Build / Test:</label>
-            <vscode-single-select id="buildTestSelect">
-              ${options.join("\n")}
-            </vscode-single-select>
-          </div>`;
+        buildTestOptions.push({
+          value: val,
+          label: `Test: ${tName}`,
+          selected: val === currentSelection,
+        });
       }
 
       // Render the selected build or test
       if (currentSelection.startsWith("build:")) {
         const buildName = currentSelection.slice(6);
-        const buildDetails = getBuildDetails(this._wsConfig, selected, buildName);
-        if (buildDetails) {
-          const buildVars = mergeVariableDefaults(
+        const details = getBuildDetails(this._wsConfig, selected, buildName);
+        if (details) {
+          const runners: WebviewRunnerInfo[] = details.runners.map((r) => ({
+            name: r.name,
+            runner: r.config.runner,
+            args: r.config.args,
+          }));
+
+          buildDetails = {
+            ...details,
+            runners,
+            debugDisplay: getLaunchTargetDisplayName(details.launchTarget, details.launchTargetFolder, "Zephyr IDE: Debug"),
+            buildDebugDisplay: getLaunchTargetDisplayName(details.buildDebugTarget, details.buildDebugTargetFolder, "Zephyr IDE: Debug"),
+            attachDisplay: getLaunchTargetDisplayName(details.attachTarget, details.attachTargetFolder, "Zephyr IDE: Attach"),
+          };
+
+          isBuildActive = buildName === activeBuild;
+
+          buildVars = mergeVariableDefaults(
             getBuildVariables(this._wsConfig, selected, buildName),
             this.getDefaultVariableKeys("build"),
           );
-          const activeBuild = this._wsConfig.projectStates[selected]?.activeBuildConfig;
-          const isActive = buildName === activeBuild;
-          buildOrTestHtml = getBuildSectionHtml(buildDetails, selected, buildName, buildVars, isActive);
         }
       } else if (currentSelection.startsWith("test:")) {
         const testName = currentSelection.slice(5);
-        const testDetails = getTestDetails(this._wsConfig, selected, testName);
-        if (testDetails) {
-          buildOrTestHtml = getTestSectionHtml(testDetails, selected);
+        const details = getTestDetails(this._wsConfig, selected, testName);
+        if (details) {
+          testDetails = details;
         }
-      }
-
-      // Show placeholder if no build/test selected
-      if (!buildOrTestHtml && buildNames.length === 0 && testNames.length === 0) {
-        buildOrTestHtml = `
-          <div class="build-placeholder">
-            <div class="build-placeholder-content">
-              <i class="codicon codicon-add"></i>
-              <p>No builds or tests configured yet.</p>
-              <div class="build-placeholder-actions">
-                <vscode-button icon="add" data-command="addBuild" data-project="${escapeHtml(selected)}">
-                  Add Build
-                </vscode-button>
-                <vscode-button appearance="secondary" icon="beaker" data-command="addTest" data-project="${escapeHtml(selected)}">
-                  Add Test
-                </vscode-button>
-              </div>
-            </div>
-          </div>`;
-      } else if (!buildOrTestHtml) {
-        buildOrTestHtml = `
-          <div class="build-placeholder">
-            <div class="build-placeholder-content">
-              <i class="codicon codicon-arrow-left"></i>
-              <p>Select a build or test to view details.</p>
-            </div>
-          </div>`;
       }
     }
 
-    const noProjectHtml =
-      projectNames.length === 0
-        ? `<div class="no-project-notice">
-            <i class="codicon codicon-info"></i>
-            <p>No projects configured. Use the command palette to add a project.</p>
-          </div>`
-        : "";
-
-    const hasBuildSelected = !!(selected && this._selectedBuildOrTest?.startsWith("build:"));
-
     return {
-      projectOptionsHtml,
-      selectorHtml,
-      projectHtml,
-      buildOrTestHtml,
-      noProjectHtml,
-      hasBuildSelected,
+      projectOptions,
+      buildTestOptions,
+      projectInfo,
+      projectVars,
+      buildDetails,
+      buildVars,
+      isBuildActive,
+      testDetails,
+      variableCommands: getAvailableVariableCommands(),
+      selectedProject: selected,
     };
   }
 
-  private getHtmlShell(content: ReturnType<ProjectBuildPanel["generateDynamicContent"]>): string {
+  private getHtmlShell(): string {
     const nonce = generateNonce();
-    const selectedProject = this._selectedProject ? escapeHtml(this._selectedProject) : "";
 
     return `<!DOCTYPE html>
     <html lang="en">
@@ -773,32 +747,7 @@ export class ProjectBuildPanel {
       ${this.getStylesheetLinks()}
     </head>
     <body>
-      <div class="container panel-container">
-        <div class="page-header">
-          <div>
-            <h1 class="page-title"><i class="codicon codicon-project"></i> Project Details</h1>
-          </div>
-          <div class="page-header-selectors">
-            <div class="page-actions project-selector">
-              <label for="projectSelect">Project:</label>
-              <vscode-single-select id="projectSelect">
-                ${content.projectOptionsHtml}
-              </vscode-single-select>
-            </div>
-            <div id="buildTestSelectorContainer">${content.selectorHtml}</div>
-          </div>
-        </div>
-
-        <div id="noProjectArea">${content.noProjectHtml}</div>
-        <div id="projectContent">
-          <div id="projectCol">${content.projectHtml}</div>
-          <div id="headerActions" class="project-actions-row">
-            ${selectedProject ? `<vscode-button appearance="secondary" icon="add" data-command="addBuild" data-project="${selectedProject}">Add Build</vscode-button>
-            <vscode-button appearance="secondary" icon="beaker" data-command="addTest" data-project="${selectedProject}">Add Test</vscode-button>` : ""}
-          </div>
-          <div id="buildTestCol">${content.buildOrTestHtml}</div>
-        </div>
-      </div>
+      <project-build-app></project-build-app>
       ${this.getScriptTags(nonce)}
     </body>
     </html>`;

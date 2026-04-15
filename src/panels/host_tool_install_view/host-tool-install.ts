@@ -1,5 +1,5 @@
 /*
-Copyright 2024 mylonics 
+Copyright 2026 mylonics 
 Author Rijesh Augustine
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,33 +18,4 @@ limitations under the License.
 import '@vscode-elements/elements/dist/vscode-button/index.js';
 import '@vscode-elements/elements/dist/vscode-icon/index.js';
 import '@vscode-elements/elements/dist/vscode-progress-ring/index.js';
-import { getVsCodeApi } from '../webview_shared/webviewTypes';
-import { HostToolsClient } from '../webview_shared/hostToolsClient';
-
-const vscode = getVsCodeApi();
-
-// Create the shared host tools client for the standalone panel.
-const hostToolsClient = new HostToolsClient(vscode, 'cards');
-
-// Expose on window for onclick handlers in HTML
-(window as any).hostToolsClient = hostToolsClient;
-
-// Route all messages from the extension to the shared client
-window.addEventListener('message', event => {
-  hostToolsClient.handleMessage(event.data);
-});
-
-// Also expose a markComplete function for the standalone view's button
-function markComplete(): void {
-  vscode.postMessage({ command: 'markComplete' });
-}
-
-function sendCommand(cmd: string): void {
-  vscode.postMessage({ command: cmd });
-}
-
-(window as any).markComplete = markComplete;
-(window as any).sendCommand = sendCommand;
-
-// Initial status check on load
-hostToolsClient.refreshStatus();
+import './components/host-tools-app';

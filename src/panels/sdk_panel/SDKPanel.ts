@@ -1,5 +1,5 @@
 /*
-Copyright 2024 mylonics 
+Copyright 2026 mylonics 
 Author Rijesh Augustine
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -84,6 +84,8 @@ export class SDKPanel {
     return SDKPanel.currentPanel;
   }
 
+  private _htmlInitialized = false;
+
   private constructor(
     panel: vscode.WebviewPanel,
     extensionPath: string,
@@ -122,7 +124,20 @@ export class SDKPanel {
   public updateContent(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
     this.currentWsConfig = wsConfig;
     this.currentGlobalConfig = globalConfig;
-    this._panel.webview.html = this.getHtmlForWebview(wsConfig, globalConfig);
+
+    if (!this._htmlInitialized) {
+      this._panel.webview.html = this.getHtmlForWebview();
+      this._htmlInitialized = true;
+    }
+
+    // Send init data to the Lit component
+    this._panel.webview.postMessage({
+      command: "updateContent",
+      data: {
+        hasSetupState: this.hasValidSetupState(),
+        sdkInstalled: globalConfig.sdkInstalled ?? false,
+      },
+    });
 
     // Push cached SDK list immediately if available, otherwise start fetching
     if (this._cachedSDKList) {
@@ -156,6 +171,11 @@ export class SDKPanel {
 
   private handleWebviewMessage(message: any) {
     switch (message.command) {
+      case "ready":
+        if (this.currentWsConfig && this.currentGlobalConfig) {
+          this.updateContent(this.currentWsConfig, this.currentGlobalConfig);
+        }
+        return;
       case "installSDK":
         this.installSDK();
         return;
@@ -257,21 +277,7 @@ export class SDKPanel {
   // HTML Generation
   // ---------------------------------------------------------------------------
 
-  private getHtmlForWebview(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig): string {
-    const hasSetupState = this.hasValidSetupState();
-    const statusIcon = globalConfig.sdkInstalled ? '✓' : hasSetupState ? '⚙' : '⚠';
-    const statusLabel = globalConfig.sdkInstalled ? 'Installed' : hasSetupState ? 'Not Installed' : 'Workspace Required';
-    const statusClass = globalConfig.sdkInstalled ? 'status-success' : hasSetupState ? 'status-warning' : 'status-error';
-
-    const warningSection = !hasSetupState ? `
-                <div class="error-box">
-                    <p class="no-margin">
-                        <strong>No West Workspace Found</strong><br>
-                        A west workspace must be set up before SDK toolchains can be installed or managed.
-                        Set up a workspace first using the Setup panel.
-                    </p>
-                </div>` : '';
-
+  private getHtmlForWebview(): string {
     const cssUri = this._panel.webview.asWebviewUri(
       vscode.Uri.joinPath(vscode.Uri.file(this._extensionPath), "src", "panels", "sdk_panel", "sdk-panel.css"),
     );
@@ -292,36 +298,7 @@ export class SDKPanel {
             <link rel="stylesheet" type="text/css" href="${codiconUri}" id="vscode-codicon-stylesheet">
         </head>
         <body>
-            <div class="container">
-                <div class="breadcrumb">
-                    <a class="breadcrumb-link" onclick="sendCommand('openSetupPanel')">← Setup & Configuration</a>
-                    <span class="breadcrumb-separator">/</span>
-                    <span class="breadcrumb-current">Zephyr SDK</span>
-                </div>
-                <div class="page-header">
-                    <div style="display:flex;align-items:center;gap:12px;">
-                        <h1 class="page-title">Zephyr SDK</h1>
-                        <span class="header-status-badge ${statusClass}">${statusIcon} ${statusLabel}</span>
-                    </div>
-                    <div class="header-actions">
-                        <vscode-button id="sdkInstallBtn" onclick="installSDK()" ${!hasSetupState ? 'disabled' : ''}>
-                            <vscode-icon slot="start-icon" name="cloud-download"></vscode-icon>
-                            Install / Update
-                        </vscode-button>
-                        <vscode-button id="sdkListBtn" appearance="secondary" onclick="listSDKs()" ${!hasSetupState ? 'disabled' : ''}>
-                            <vscode-icon slot="start-icon" name="refresh"></vscode-icon>
-                            Refresh
-                        </vscode-button>
-                    </div>
-                </div>
-
-                <p class="sdk-description">The Zephyr SDK provides GNU toolchains for cross-compiling to supported target architectures. Install or update toolchains below, then refresh to see what's available.</p>
-
-                ${warningSection}
-
-                <div id="sdkProgressContainer"></div>
-                <div id="sdkListContainer" class="sdk-list-container"></div>
-            </div>
+            <sdk-app></sdk-app>
             <script src="${jsUri}"></script>
         </body>
         </html>`;

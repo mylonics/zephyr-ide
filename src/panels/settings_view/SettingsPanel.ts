@@ -1,5 +1,5 @@
 /*
-Copyright 2024 mylonics 
+Copyright 2026 mylonics 
 Author Rijesh Augustine
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -78,16 +78,6 @@ const SETTINGS: SettingDefinition[] = [
   },
 ];
 
-function escapeHtml(str: string | null | undefined): string {
-  if (!str) { return ""; }
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
 export class SettingsPanel {
   public static currentPanel: SettingsPanel | undefined;
   private readonly _panel: vscode.WebviewPanel;
@@ -120,11 +110,13 @@ export class SettingsPanel {
     return SettingsPanel.currentPanel;
   }
 
+  private _htmlInitialized = false;
+
   private constructor(panel: vscode.WebviewPanel, extensionPath: string) {
     this._panel = panel;
     this._extensionPath = extensionPath;
 
-    this._panel.webview.html = this.getHtmlForWebview();
+    this.sendUpdate();
 
     this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
 
@@ -142,8 +134,13 @@ export class SettingsPanel {
         }
       })
     );
+  }
 
-    // Send initial setting values
+  private sendUpdate() {
+    if (!this._htmlInitialized) {
+      this._panel.webview.html = this.getHtmlForWebview();
+      this._htmlInitialized = true;
+    }
     this.refreshSettings();
   }
 
@@ -236,6 +233,10 @@ export class SettingsPanel {
         await vscode.commands.executeCommand("zephyr-ide.open-setup-panel");
         break;
       }
+      case "ready": {
+        this.refreshSettings();
+        break;
+      }
     }
   }
 
@@ -273,65 +274,6 @@ export class SettingsPanel {
       )
     );
 
-    const dirSettings = SETTINGS.filter(s => s.type === "string");
-    const boolSettings = SETTINGS.filter(s => s.type === "boolean");
-
-    const renderStringSetting = (def: SettingDefinition) => `
-      <div class="setting-row" data-key="${escapeHtml(def.key)}" data-type="string">
-        <div class="setting-header">
-          <vscode-label class="setting-label">${escapeHtml(def.label)}</vscode-label>
-          <div class="setting-scope-badge" id="scope-${escapeHtml(def.key)}">default</div>
-        </div>
-        <div class="setting-description">${escapeHtml(def.description)}</div>
-        <div class="setting-override-warning" id="override-warning-${escapeHtml(def.key)}" style="display:none">
-          <span class="codicon codicon-warning"></span>
-          <span class="override-warning-text"></span>
-        </div>
-        <div class="setting-override-info" id="override-info-${escapeHtml(def.key)}" style="display:none"></div>
-        <div class="setting-controls">
-          <div class="input-group">
-            <vscode-textfield id="val-${escapeHtml(def.key)}"
-              placeholder="Not set (using default)"
-              data-action="string-change"
-              data-key="${escapeHtml(def.key)}"></vscode-textfield>
-            <vscode-button class="setting-browse-button" appearance="secondary" data-action="browse" data-key="${escapeHtml(def.key)}" title="Browse for folder">
-              Browse
-            </vscode-button>
-          </div>
-          <vscode-single-select class="setting-scope-select" id="target-${escapeHtml(def.key)}" data-action="scope-change" data-key="${escapeHtml(def.key)}">
-            <vscode-option value="workspace">Workspace</vscode-option>
-            <vscode-option value="user">User</vscode-option>
-          </vscode-single-select>
-          <vscode-button class="setting-reset-button" appearance="secondary" id="reset-${escapeHtml(def.key)}" data-action="reset" data-key="${escapeHtml(def.key)}" title="Reset to default">
-            Reset
-          </vscode-button>
-        </div>
-      </div>`;
-
-    const renderBoolSetting = (def: SettingDefinition) => `
-      <div class="setting-row" data-key="${escapeHtml(def.key)}" data-type="boolean">
-        <div class="setting-header">
-          <vscode-label class="setting-label">${escapeHtml(def.label)}</vscode-label>
-          <div class="setting-scope-badge" id="scope-${escapeHtml(def.key)}">default</div>
-        </div>
-        <div class="setting-description">${escapeHtml(def.description)}</div>
-        <div class="setting-override-warning" id="override-warning-${escapeHtml(def.key)}" style="display:none">
-          <span class="codicon codicon-warning"></span>
-          <span class="override-warning-text"></span>
-        </div>
-        <div class="setting-override-info" id="override-info-${escapeHtml(def.key)}" style="display:none"></div>
-        <div class="setting-controls">
-          <vscode-checkbox id="val-${escapeHtml(def.key)}" data-action="toggle-change" data-key="${escapeHtml(def.key)}"></vscode-checkbox>
-          <vscode-single-select class="setting-scope-select" id="target-${escapeHtml(def.key)}" data-action="scope-change" data-key="${escapeHtml(def.key)}">
-            <vscode-option value="workspace">Workspace</vscode-option>
-            <vscode-option value="user">User</vscode-option>
-          </vscode-single-select>
-          <vscode-button class="setting-reset-button" appearance="secondary" id="reset-${escapeHtml(def.key)}" data-action="reset" data-key="${escapeHtml(def.key)}" title="Reset to default">
-            Reset
-          </vscode-button>
-        </div>
-      </div>`;
-
     return `<!DOCTYPE html>
     <html lang="en">
     <head>
@@ -342,41 +284,7 @@ export class SettingsPanel {
         <link rel="stylesheet" type="text/css" href="${cssUri}">
     </head>
     <body>
-        <div class="container">
-            <div class="breadcrumb">
-                <a class="breadcrumb-link" data-action="open-setup-panel">← Setup & Configuration</a>
-                <span class="breadcrumb-separator">/</span>
-                <span class="breadcrumb-current">Settings</span>
-            </div>
-            <div class="page-header">
-                <div>
-                    <h1 class="page-title">Zephyr IDE Settings</h1>
-                    <p class="page-subtitle">Manage extension defaults and workspace overrides.</p>
-                </div>
-                <div class="page-actions">
-                    <vscode-button appearance="secondary" data-action="open-vscode-settings">
-                        Open in VS Code Settings
-                    </vscode-button>
-                </div>
-            </div>
-
-            <div class="info-box">
-                <p>Configure Zephyr IDE extension settings. Changes are saved automatically.
-                Use the scope selector to choose whether a setting applies to this workspace only or to all workspaces (User).</p>
-            </div>
-
-            <h2>Directory Settings</h2>
-            <div class="settings-group">
-                ${dirSettings.map(renderStringSetting).join("\n<vscode-divider></vscode-divider>\n")}
-            </div>
-
-            <vscode-divider></vscode-divider>
-
-            <h2>Behavior Settings</h2>
-            <div class="settings-group">
-                ${boolSettings.map(renderBoolSetting).join("\n<vscode-divider></vscode-divider>\n")}
-            </div>
-        </div>
+        <settings-app></settings-app>
         <script nonce="${nonce}" src="${jsUri}"></script>
     </body>
     </html>`;
