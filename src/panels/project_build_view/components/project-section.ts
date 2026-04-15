@@ -54,57 +54,47 @@ export class ProjectSection extends ZephyrLitElement {
     const varCount = Object.keys(this.projectVars).length;
 
     return html`
-      <div class="project-summary-bar" aria-expanded=${this._expanded ? "true" : "false"} @click=${this._toggleExpand}>
-        <span class="project-summary-title">
-          <i class="codicon codicon-folder"></i>
-          ${info.name}
-        </span>
-        <span class="project-summary-meta">
-          <span class="meta-item clickable"
-            @click=${(e: Event) => { e.stopPropagation(); this._openFolder(info.absPath); }}
-            title=${info.absPath}>${info.relPath}</span>
-          <span class="meta-item">main: ${info.mainSourceFile
-        ? html`<span class="clickable" @click=${(e: Event) => { e.stopPropagation(); this._openFile(info.mainSourceFile!); }}>${info.mainSourceFile}</span>`
-        : html`<em>not found</em>`}</span>
-          <span class="meta-item">${kconfigCount} kconfig</span>
-          <span class="meta-item">${overlayCount} overlay</span>
-          <span class="meta-item">${varCount} var${varCount !== 1 ? "s" : ""}</span>
-        </span>
-        <span class="project-summary-expand codicon codicon-chevron-right"></span>
-      </div>
+      <div class="project-summary-card" aria-expanded=${this._expanded ? "true" : "false"}>
+        <div class="project-summary-header">
+          <span class="project-summary-title">
+            <i class="codicon codicon-folder"></i>
+            ${info.name}
+          </span>
+        </div>
+        <div class="project-summary-details">
+          <div class="project-detail-grid">
+            <span class="detail-label">Path</span>
+            <span class="detail-value clickable"
+              @click=${() => this._openFolder(info.absPath)}
+              title=${info.absPath}>${info.relPath}</span>
 
-      ${this._expanded
+            <span class="detail-label">Main Source</span>
+            <span class="detail-value">${info.mainSourceFile
+        ? html`<span class="clickable" @click=${() => this._openFile(info.mainSourceFile!)}>${info.mainSourceFile}</span>`
+        : html`<em>not found</em>`}</span>
+
+            ${info.cmakeFile
+        ? html`
+              <span class="detail-label">CMakeLists.txt</span>
+              <span class="detail-value clickable" @click=${() => this._openFile(info.cmakeFile!)}>${info.cmakeFile}</span>`
+        : nothing}
+
+            <span class="detail-label">Builds</span>
+            <span class="detail-value">${info.buildNames.length > 0 ? info.buildNames.join(", ") : html`<em>none</em>`}</span>
+
+            <span class="detail-label">Tests</span>
+            <span class="detail-value">${info.testNames.length > 0 ? info.testNames.join(", ") : html`<em>none</em>`}</span>
+          </div>
+          <div class="project-summary-badges">
+            <span class="summary-badge" title="Kconfig files"><i class="codicon codicon-settings-gear"></i> ${kconfigCount} kconfig</span>
+            <span class="summary-badge" title="Devicetree overlays"><i class="codicon codicon-file-code"></i> ${overlayCount} overlay</span>
+            <span class="summary-badge" title="Project variables"><i class="codicon codicon-symbol-variable"></i> ${varCount} var${varCount !== 1 ? "s" : ""}</span>
+          </div>
+        </div>
+
+        ${this._expanded
         ? html`
             <div class="project-detail-panel">
-              <div class="info-row">
-                <span class="info-label">Path</span>
-                <span class="info-value clickable" @click=${() => this._openFolder(info.absPath)}>${info.absPath}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Relative Path</span>
-                <span class="info-value">${info.relPath}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Main Source</span>
-                <span class="info-value">${info.mainSourceFile
-            ? html`<span class="clickable" @click=${() => this._openFile(info.mainSourceFile!)}>${info.mainSourceFile}</span>`
-            : html`<em>not found</em>`}</span>
-              </div>
-              ${info.cmakeFile
-            ? html`<div class="info-row">
-                    <span class="info-label">CMakeLists.txt</span>
-                    <span class="info-value clickable" @click=${() => this._openFile(info.cmakeFile!)}>${info.cmakeFile}</span>
-                  </div>`
-            : nothing}
-              <div class="info-row">
-                <span class="info-label">Builds</span>
-                <span class="info-value">${info.buildNames.length > 0 ? info.buildNames.join(", ") : html`<em>none</em>`}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Tests</span>
-                <span class="info-value">${info.testNames.length > 0 ? info.testNames.join(", ") : html`<em>none</em>`}</span>
-              </div>
-
               <config-file-group
                 idPrefix="project-${info.name}"
                 .kconfigFiles=${info.confFiles.config}
@@ -136,6 +126,12 @@ export class ProjectSection extends ZephyrLitElement {
             </div>
           `
         : nothing}
+
+        <div class="project-summary-toggle" @click=${this._toggleExpand}
+          title=${this._expanded ? "Collapse" : "Expand"}>
+          <span class="project-summary-expand codicon codicon-chevron-down"></span>
+        </div>
+      </div>
     `;
   }
 }

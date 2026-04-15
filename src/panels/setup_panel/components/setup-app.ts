@@ -88,8 +88,10 @@ export class SetupApp extends ZephyrLitElement {
     }
 
     const d = this._data;
+    const hasActiveWorkspace = d.activeWorkspace !== undefined;
     const environmentReady = d.toolsReady && d.sdkReady && d.workspaceInitialized;
-    const promoteWorkspaceList = !d.workspaceInitialized && d.hasWorkspaces && d.initialSetupComplete;
+    // Show workspace list when no workspace is active but known workspaces exist
+    const promoteWorkspaceList = !hasActiveWorkspace && d.hasWorkspaces;
 
     return html`
       <div class="panel-container" @keydown=${this._handleKeyboard}>
@@ -144,7 +146,9 @@ export class SetupApp extends ZephyrLitElement {
     const remaining = 3 - completedCount;
     const parts: string[] = [];
     if (!d.toolsReady) { parts.push("set up Host Tools"); }
-    if (!d.workspaceInitialized) { parts.push("select a Workspace"); }
+    if (!d.workspaceInitialized) {
+      parts.push(d.activeWorkspace ? "initialize Workspace" : "select a Workspace");
+    }
     if (!d.sdkReady) { parts.push("install SDK"); }
     if (parts.length > 0) {
       parts[0] = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
@@ -164,7 +168,10 @@ export class SetupApp extends ZephyrLitElement {
   private _renderSetupSteps(d: SetupPanelData, skipWorkspaceCard: boolean) {
     let stepNumber = 1;
     const hostToolsStep = d.toolsReady ? 0 : stepNumber++;
-    const workspaceStep = (d.workspaceInitialized || skipWorkspaceCard) ? 0 : stepNumber++;
+    // Skip workspace card when there's an active workspace (hero handles it)
+    // or when skipWorkspaceCard is set (workspace list promoted)
+    const skipWs = d.workspaceInitialized || d.activeWorkspace !== undefined || skipWorkspaceCard;
+    const workspaceStep = skipWs ? 0 : stepNumber++;
     const sdkStep = d.sdkReady ? 0 : stepNumber++;
 
     const pills: unknown[] = [];
@@ -180,7 +187,7 @@ export class SetupApp extends ZephyrLitElement {
     }
 
     // Workspace
-    if (!d.workspaceInitialized && !skipWorkspaceCard) {
+    if (!skipWs) {
       const command = d.folderOpen ? "openWorkspacePanel" : "openFolder";
       const title = d.folderOpen ? "West Workspace" : "Open Folder";
       const desc = d.folderOpen
@@ -243,13 +250,17 @@ export class SetupApp extends ZephyrLitElement {
   private _renderActiveWorkspaceHero(ws: ActiveWorkspaceData | undefined) {
     if (!ws) { return nothing; }
 
+    const statusBadge = ws.isInitialized
+      ? html`<span class="workspace-active-badge">Active</span>`
+      : html`<span class="workspace-active-badge status-warning">Setup Required</span>`;
+
     return html`
       <div class="active-workspace-hero" @click=${() => this._openWorkspacePanelForPath(ws.path)} role="button" tabindex="0" aria-label="Active workspace" style="cursor:pointer">
         <div class="hero-info">
           <div class="hero-title-row">
             <span class="codicon codicon-root-folder-opened"></span>
             <h2 class="hero-workspace-name">${ws.name}</h2>
-            <span class="workspace-active-badge">Active</span>
+            ${statusBadge}
           </div>
           ${ws.version ? html`<span class="hero-version">Zephyr ${ws.version}</span>` : nothing}
           <span class="hero-path">${ws.path}</span>
@@ -276,9 +287,11 @@ export class SetupApp extends ZephyrLitElement {
     let status: string, headerStatusClass: string;
     if (d.workspaceInitialized) {
       status = "✓ Initialized"; headerStatusClass = "status-success";
-    } else if (d.hasWorkspaces && d.initialSetupComplete) {
+    } else if (d.activeWorkspace) {
+      status = "⚙ Setup Required"; headerStatusClass = "status-warning";
+    } else if (d.hasWorkspaces) {
       status = "⚠ Activate Workspace"; headerStatusClass = "status-warning";
-    } else if (d.hasWorkspaces || d.folderOpen) {
+    } else if (d.folderOpen) {
       status = "⚙ Setup Workspace"; headerStatusClass = "status-warning";
     } else {
       status = "📁 No Folder"; headerStatusClass = "status-info";

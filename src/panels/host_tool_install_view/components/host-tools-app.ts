@@ -35,6 +35,7 @@ export class HostToolsApp extends ZephyrLitElement {
   disconnectedCallback() {
     super.disconnectedCallback();
     window.removeEventListener('message', this._onMessage);
+    delete (window as any).hostToolsClient;
   }
 
   private _onMessage = (e: MessageEvent) => {

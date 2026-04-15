@@ -30,6 +30,11 @@ export class VariablesTable extends ZephyrLitElement {
   @state() private _addValue = "";
   private _saveTimer: ReturnType<typeof setTimeout> | null = null;
 
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this._saveTimer) { clearTimeout(this._saveTimer); this._saveTimer = null; }
+  }
+
   private _upsert(originalKey: string, key: string, value: string) {
     if (!key.trim()) { return; }
     const msg: Record<string, string> = {

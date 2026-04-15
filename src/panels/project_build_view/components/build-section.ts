@@ -35,6 +35,11 @@ export class BuildSection extends ZephyrLitElement {
   @state() private _expandedSections: Record<string, boolean> = { config: true };
   @state() private _varsHelpVisible = false;
 
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this._saveTimer) { clearTimeout(this._saveTimer); this._saveTimer = null; }
+  }
+
   private _toggle(sectionId: string) {
     this._expandedSections = {
       ...this._expandedSections,
@@ -331,13 +336,13 @@ export class BuildSection extends ZephyrLitElement {
           html`
               <div class="variables-section">
                 <div class="section-row-header">
-                  <span class="section-row-title">West Build Args</span>
+                  <span class="section-row-title">West Build Arguments</span>
                 </div>
                 ${this._renderBuildArgs(b.westBuildArgs, "west")}
               </div>
               <div class="variables-section">
                 <div class="section-row-header">
-                  <span class="section-row-title">CMake Args</span>
+                  <span class="section-row-title">CMake Arguments</span>
                 </div>
                 ${this._renderBuildArgs(b.westBuildCMakeArgs, "cmake")}
               </div>

@@ -661,7 +661,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.reset-workspace", async () => {
-      await clearWorkspaceState(context, wsConfig);
+      await clearWorkspaceState(context, wsConfig, globalConfig);
       void vscode.commands.executeCommand("zephyr-ide.update-web-view");
     })
   );

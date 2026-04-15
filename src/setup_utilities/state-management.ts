@@ -144,9 +144,18 @@ export async function setWorkspaceState(context: vscode.ExtensionContext, wsConf
   await context.workspaceState.update("zephyr.env", wsConfig);
 }
 
-export async function clearWorkspaceState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
+export async function clearWorkspaceState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
   wsConfig.initialSetupComplete = false;
-  await clearSetupState(context, wsConfig);
+  if (wsConfig.activeSetupState) {
+    wsConfig.activeSetupState.packagesInstalled = false;
+    wsConfig.activeSetupState.pythonEnvironmentSetup = false;
+    wsConfig.activeSetupState.westUpdated = false;
+    // Persist the reset flags to the global dictionary so the state
+    // survives deactivation and reactivation.
+    await setExternalSetupState(context, globalConfig, wsConfig.activeSetupState.setupPath, wsConfig.activeSetupState);
+  }
+  await setWorkspaceState(context, wsConfig);
+  reloadEnvironmentVariables(context, wsConfig.activeSetupState);
 }
 
 export async function clearSetupState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {

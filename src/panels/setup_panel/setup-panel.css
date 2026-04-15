@@ -451,6 +451,10 @@
     color: var(--vscode-editor-background);
 }
 
+.workspace-active-badge.status-warning {
+    background-color: var(--vscode-editorWarning-foreground);
+}
+
 .workspace-list-detail {
     display: flex;
     align-items: center;

@@ -55,7 +55,7 @@ import { executeTaskHelper, validateGitUrl } from "../utilities/utils";
 import { outputInfo, outputError, notifyError, showOutput } from "../utilities/output";
 import { westSelector, WestLocation } from "./west_selector";
 import { WorkspaceConfig, GlobalConfig, formatZephyrVersion } from "./types";
-import { setSetupState, loadExternalSetupState, setWorkspaceState, setGlobalState } from "./state-management";
+import { setSetupState, loadExternalSetupState, setWorkspaceState, setGlobalState, setExternalSetupState } from "./state-management";
 import { postWorkspaceSetup, } from "./west-operations";
 import { getToolsDir, loadProjectsFromFile } from "./workspace-config";
 import { SetupProgressTracker } from "./setup-progress";
@@ -139,19 +139,20 @@ async function selectWestConfiguration(baseDir: string, westYmlFiles: string[]) 
   }
 }
 
-async function clearWorkspaceSetupContextFlags(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
+async function clearWorkspaceSetupContextFlags(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
   wsConfig.initialSetupComplete = false;
   if (wsConfig.activeSetupState) {
     wsConfig.activeSetupState.packagesInstalled = false;
     wsConfig.activeSetupState.pythonEnvironmentSetup = false;
     wsConfig.activeSetupState.westUpdated = false;
+    await setExternalSetupState(context, globalConfig, wsConfig.activeSetupState.setupPath, wsConfig.activeSetupState);
   }
   await setWorkspaceState(context, wsConfig);
 }
 
 export async function workspaceSetupFromGit(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
   // Clear all context flags at start
-  await clearWorkspaceSetupContextFlags(context, wsConfig);
+  await clearWorkspaceSetupContextFlags(context, wsConfig, globalConfig);
 
   const gitUrl = await vscode.window.showInputBox({
     prompt: "Enter the Git repository URL/clone string",
@@ -216,7 +217,7 @@ export async function workspaceSetupFromGit(context: vscode.ExtensionContext, ws
 
 export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
   // Clear all context flags at start
-  await clearWorkspaceSetupContextFlags(context, wsConfig);
+  await clearWorkspaceSetupContextFlags(context, wsConfig, globalConfig);
 
   const gitUrl = await vscode.window.showInputBox({
     prompt: "Enter the Git repository URL for the West workspace",
@@ -293,7 +294,7 @@ export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext
 
 export async function workspaceSetupStandard(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
   // Clear all context flags at start
-  await clearWorkspaceSetupContextFlags(context, wsConfig);
+  await clearWorkspaceSetupContextFlags(context, wsConfig, globalConfig);
 
   const currentDir = wsConfig.rootPath;
   if (!currentDir) {
@@ -350,10 +351,12 @@ async function handleExternalInstallation(
 
 export async function workspaceSetupFromCurrentDirectory(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, giveExternalInstallOption: boolean, installDir?: string, progressTracker?: SetupProgressTracker) {
   // Clear all context flags at start
-  await clearWorkspaceSetupContextFlags(context, wsConfig);
+  await clearWorkspaceSetupContextFlags(context, wsConfig, globalConfig);
 
   if (!installDir) {
-    installDir = wsConfig.rootPath;
+    // Prefer the currently active workspace path over rootPath so that
+    // re-initializing after a reset targets the same workspace directory.
+    installDir = wsConfig.activeSetupState?.setupPath || wsConfig.rootPath;
   }
   if (!installDir) {
     notifyError("Directory Setup",
@@ -393,9 +396,9 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
     return false;
   }
 
-  // Handle mark-as-setup: just set initialSetupComplete and return
+  // Handle mark-as-setup: create a setup state for the install directory and return
   if (westConfigResult.option === 'mark-as-setup') {
-    await setWorkspaceState(context, wsConfig);
+    await setSetupState(context, wsConfig, globalConfig, installDir);
     return true;
   }
 

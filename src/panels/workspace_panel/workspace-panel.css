@@ -71,6 +71,12 @@
     transform: translateY(-1px);
 }
 
+.workspace-option-card.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 .option-header {
     display: flex;
     align-items: center;

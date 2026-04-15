@@ -236,13 +236,13 @@ export function getBuildSectionHtml(
   const buildArgsBody = `
     <div class="variables-section">
       <div class="section-row-header">
-        <span class="section-row-title">West Build Args</span>
+        <span class="section-row-title">West Build Arguments</span>
       </div>
       <div class="build-args-tab-body">${buildArgRows(build.westBuildArgs, projectName, buildName, "west")}</div>
     </div>
     <div class="variables-section">
       <div class="section-row-header">
-        <span class="section-row-title">CMake Args</span>
+        <span class="section-row-title">CMake Arguments</span>
       </div>
       <div class="build-args-tab-body">${buildArgRows(build.westBuildCMakeArgs, projectName, buildName, "cmake")}</div>
     </div>`;

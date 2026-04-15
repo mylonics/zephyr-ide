@@ -303,6 +303,7 @@ export class SetupPanel {
         hasPythonEnv: !!activeState.pythonEnvironmentSetup,
         hasWestUpdated: !!activeState.westUpdated,
         hasSdk: !!globalConfig.sdkInstalled,
+        isInitialized: workspaceInitialized,
       };
     }
 

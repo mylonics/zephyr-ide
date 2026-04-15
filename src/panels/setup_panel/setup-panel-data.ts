@@ -41,6 +41,7 @@ export interface ActiveWorkspaceData {
   hasPythonEnv: boolean;
   hasWestUpdated: boolean;
   hasSdk: boolean;
+  isInitialized: boolean;
 }
 
 export interface WorkspaceListItem {

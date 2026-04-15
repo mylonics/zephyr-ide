@@ -270,7 +270,12 @@ export class WorkspacePanel {
     }
     try {
       await setSetupState(this._context, this.currentWsConfig, this.currentGlobalConfig, installPath);
-      this.currentWsConfig.initialSetupComplete = true;
+      // Only mark as initialized if the workspace's setup state indicates it
+      // has actually been set up (python env or west updated).
+      const s = this.currentWsConfig.activeSetupState;
+      if (s && (s.pythonEnvironmentSetup || s.westUpdated)) {
+        this.currentWsConfig.initialSetupComplete = true;
+      }
       await setWorkspaceState(this._context, this.currentWsConfig);
       await vscode.commands.executeCommand("zephyr-ide.update-web-view");
     } catch (error) {
@@ -370,7 +375,17 @@ export class WorkspacePanel {
   private generatePanelData(wsConfig: WorkspaceConfig): WorkspacePanelData {
     const folderOpen = wsConfig.rootPath !== "";
     const target = this.getTargetSetupState();
-    const workspaceInitialized = (wsConfig.initialSetupComplete || false) && target !== undefined;
+    // For non-active workspaces, check the target's setup flags to determine
+    // initialization. For the active workspace, use initialSetupComplete.
+    const isViewingNonActive = this._setupPath !== undefined &&
+      wsConfig.activeSetupState?.setupPath !== this._setupPath;
+    let workspaceInitialized: boolean;
+    if (isViewingNonActive && target) {
+      const s = target.setupState;
+      workspaceInitialized = !!(s.pythonEnvironmentSetup || s.westUpdated);
+    } else {
+      workspaceInitialized = (wsConfig.initialSetupComplete || false) && target !== undefined;
+    }
 
     const state = (folderOpen && workspaceInitialized) ? "ready" : "setup-required";
     const statusIcon = workspaceInitialized ? '✓' : '⚙';

@@ -46,6 +46,13 @@ export class WorkspaceApp extends ZephyrLitElement {
     switch (msg.command) {
       case 'updateContent':
         this._data = msg.data as WorkspacePanelData;
+        // Clear the local initializing override when no setup progress is active.
+        // Progress events manage their own lifecycle independently.
+        if (!this._progressData ||
+          this._progressData.type === 'complete' ||
+          this._progressData.type === 'failed') {
+          this._workspaceSetupActive = false;
+        }
         break;
       case 'westYmlContent':
         this._westYmlContent = msg.content ?? '';
@@ -61,11 +68,10 @@ export class WorkspaceApp extends ZephyrLitElement {
   private _handleProgress(data: SetupProgressData) {
     if (data.type === 'start' || data.type === 'step-update') {
       this._workspaceSetupActive = true;
-    }
-    if (data.type === 'complete' || data.type === 'failed') {
+    } else if (data.type === 'complete' || data.type === 'failed') {
       this._workspaceSetupActive = false;
-    }
-    if (!this._workspaceSetupActive && data.type !== 'complete' && data.type !== 'failed') {
+    } else if (!this._workspaceSetupActive) {
+      // Ignore unknown message types when no setup is active
       return;
     }
     this._progressData = data;
@@ -296,7 +302,7 @@ export class WorkspaceApp extends ZephyrLitElement {
           <div class="button-group">
             <vscode-button appearance="secondary" @click=${() => this._sendCommand('resetWorkspace')}>
               <vscode-icon slot="start-icon" name="refresh"></vscode-icon>
-              Reset VS Code Workspace
+              Reset West Workspace
             </vscode-button>
           </div>
         </div>` : nothing}
@@ -345,7 +351,7 @@ export class WorkspaceApp extends ZephyrLitElement {
           <span class="codicon codicon-${bannerIcon}"></span>
           <span class="status-text">${bannerText}</span>
         </div>
-        ${d.folderOpen ? this._renderSetupOptions() : this._renderNoFolder()}
+        ${d.folderOpen ? this._renderSetupOptions(d.isNonActive) : this._renderNoFolder()}
       </div>`;
   }
 
@@ -367,37 +373,39 @@ export class WorkspaceApp extends ZephyrLitElement {
       </div>`;
   }
 
-  private _renderSetupOptions() {
+  private _renderSetupOptions(disabled: boolean) {
     return html`
       <p class="description">Select how to configure your workspace. Each option organizes projects and manages dependencies differently.</p>
+      ${disabled ? html`<p class="description muted">Activate this workspace to set it up.</p>` : nothing}
       <div class="section-container">
         <h3>Initialize West Workspace</h3>
         <div class="workspace-options-grid">
           ${this._renderOptionCard('🌐', 'Import Zephyr IDE Workspace from Git',
       'Clone a complete workspace or repo with projects as subdirectories using Git.',
       'Team collaboration and shared environments',
-      'workspaceSetupFromGit')}
+      'workspaceSetupFromGit', disabled)}
           ${this._renderOptionCard('⚙️', 'Import West Workspace from Git',
         'Clone a west manifest repo (contains west.yml) using West Init.',
         'Upstream Zephyr projects and community examples',
-        'workspaceSetupFromWestGit')}
+        'workspaceSetupFromWestGit', disabled)}
           ${this._renderOptionCard('📦', 'New Standard Workspace',
           'Create a self-contained workspace with Zephyr installed locally.',
           'Individual projects or specific Zephyr versions',
-          'workspaceSetupStandard')}
+          'workspaceSetupStandard', disabled)}
           ${this._renderOptionCard('📁', 'Initialize Current Directory',
             'Set up the current directory for Zephyr development, preserving existing files.',
             'Existing projects or external Zephyr installations',
-            'workspaceSetupFromCurrentDirectory')}
+            'workspaceSetupFromCurrentDirectory', disabled)}
         </div>
       </div>`;
   }
 
-  private _renderOptionCard(icon: string, title: string, description: string, usage: string, command: string) {
+  private _renderOptionCard(icon: string, title: string, description: string, usage: string, command: string, disabled: boolean) {
     return html`
-      <div class="workspace-option-card"
-           @click=${() => this._sendWorkspaceSetup(command)}
-           role="button" tabindex="0" data-keyboard-command="true"
+      <div class="workspace-option-card${disabled ? ' disabled' : ''}"
+           @click=${disabled ? undefined : () => this._sendWorkspaceSetup(command)}
+           role="button" tabindex="${disabled ? '-1' : '0'}" data-keyboard-command="true"
+           ?aria-disabled=${disabled}
            aria-label="${title}">
         <div class="option-header">
           <span class="option-icon">${icon}</span>
