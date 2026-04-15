@@ -118,6 +118,7 @@ interface SetupProgressData {
 function handleWorkspaceSetupProgress(data: SetupProgressData): void {
   if (data.type === 'start' || data.type === 'step-update') {
     _workspaceSetupActive = true;
+    setWorkspaceState('initializing');
   }
 
   if (data.type === 'complete' || data.type === 'failed') {
@@ -128,8 +129,6 @@ function handleWorkspaceSetupProgress(data: SetupProgressData): void {
     return;
   }
 
-  setWorkspaceState('initializing');
-
   const container = document.getElementById('setupProgressContainer');
   if (!container) { return; }
 
@@ -139,7 +138,7 @@ function handleWorkspaceSetupProgress(data: SetupProgressData): void {
   }
 
   if (data.type === 'complete') {
-    _setupProgressDismissTimer = setTimeout(() => dismissSetupProgress(), 8000);
+    _setupProgressDismissTimer = setTimeout(() => dismissSetupProgress(), 2000);
   }
 
   let bannerClass: string, bannerIcon: string, bannerText: string;
@@ -221,6 +220,8 @@ function dismissSetupProgress(): void {
     clearTimeout(_setupProgressDismissTimer);
     _setupProgressDismissTimer = null;
   }
+  // Transition out of the initializing state once progress is dismissed
+  setWorkspaceState('ready');
 }
 
 // ---------------------------------------------------------------------------
@@ -268,6 +269,10 @@ window.addEventListener('message', event => {
   }
 });
 
+function activateWorkspace(installPath: string): void {
+  vscode.postMessage({ command: 'activateWorkspace', path: installPath });
+}
+
 // ---------------------------------------------------------------------------
 // Expose onclick handler functions on window
 // ---------------------------------------------------------------------------
@@ -278,3 +283,4 @@ w.sendWorkspaceSetup = sendWorkspaceSetup;
 w.openWestYml = openWestYml;
 w.saveAndUpdateWestYml = saveAndUpdateWestYml;
 w.dismissSetupProgress = dismissSetupProgress;
+w.activateWorkspace = activateWorkspace;

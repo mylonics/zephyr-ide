@@ -83,12 +83,20 @@ function setActiveProject(_projectName: string): void {
   vscode.postMessage({ command: 'setActiveProject' });
 }
 
-function removeProject(_projectName: string): void {
-  vscode.postMessage({ command: 'removeProject' });
+function removeProject(projectName: string): void {
+  vscode.postMessage({ command: 'removeProject', name: projectName });
 }
 
 function openProjectBuildPanel(): void {
   sendCommand('openProjectBuildPanel');
+}
+
+function openWorkspacePanelForPath(installPath: string): void {
+  vscode.postMessage({ command: 'openWorkspacePanelForPath', path: installPath });
+}
+
+function deactivateWorkspace(): void {
+  vscode.postMessage({ command: 'deactivateWorkspace' });
 }
 
 // ---------------------------------------------------------------------------
@@ -103,3 +111,5 @@ w.deleteWorkspace = deleteWorkspace;
 w.setActiveProject = setActiveProject;
 w.removeProject = removeProject;
 w.openProjectBuildPanel = openProjectBuildPanel;
+w.openWorkspacePanelForPath = openWorkspacePanelForPath;
+w.deactivateWorkspace = deactivateWorkspace;

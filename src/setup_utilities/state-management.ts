@@ -27,18 +27,18 @@ import { parseWestConfigManifest } from "./west-config-parser";
 export async function loadGlobalState(context: vscode.ExtensionContext): Promise<GlobalConfig> {
   // Load raw config as any to handle deprecated fields
   const rawConfig: any = await context.globalState.get("zephyr-ide.state") ?? {};
-  
+
   // Migrate old config: remove deprecated fields
   const deprecatedFields = ['armGdbPath', 'toolchains', 'setupState'];
   let needsSave = false;
-  
+
   for (const field of deprecatedFields) {
     if (field in rawConfig) {
       delete rawConfig[field];
       needsSave = true;
     }
   }
-  
+
   // Ensure required fields exist
   const globalConfig: GlobalConfig = {
     setupStateDictionary: rawConfig.setupStateDictionary ?? {},
@@ -46,12 +46,12 @@ export async function loadGlobalState(context: vscode.ExtensionContext): Promise
     sdkInstalled: rawConfig.sdkInstalled,
     sdkVersion: rawConfig.sdkVersion,
   };
-  
+
   // Save migrated config if changes were made
   if (needsSave) {
     await context.globalState.update("zephyr-ide.state", globalConfig);
   }
-  
+
   return globalConfig;
 }
 
@@ -146,8 +146,7 @@ export async function setWorkspaceState(context: vscode.ExtensionContext, wsConf
 
 export async function clearWorkspaceState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
   wsConfig.initialSetupComplete = false;
-  wsConfig.activeSetupState = undefined;
-  await setWorkspaceState(context, wsConfig);
+  await clearSetupState(context, wsConfig);
 }
 
 export async function clearSetupState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {

@@ -393,6 +393,12 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
     return false;
   }
 
+  // Handle mark-as-setup: just set initialSetupComplete and return
+  if (westConfigResult.option === 'mark-as-setup') {
+    await setWorkspaceState(context, wsConfig);
+    return true;
+  }
+
   // Handle external installation case
   if (westConfigResult.useExternalInstallation) {
     return await handleExternalInstallation(context, wsConfig, globalConfig, westConfigResult);
@@ -501,8 +507,8 @@ export async function manageWorkspaces(context: vscode.ExtensionContext, wsConfi
 
     actionOptions.push({
       label: "$(tools) West Update",
-      description: "Reinitialize this installation",
-      detail: "reinitialize"
+      description: "Run west update and reinstall requirements",
+      detail: "west-update"
     });
   }
 
@@ -523,7 +529,7 @@ export async function manageWorkspaces(context: vscode.ExtensionContext, wsConfi
 
   if (selectedAction.detail === "reconfigure") {
     await handleReconfigureInstallation(context, wsConfig, globalConfig, installPath);
-  } else if (selectedAction.detail === "reinitialize") {
+  } else if (selectedAction.detail === "west-update") {
     await postWorkspaceSetup(context, wsConfig, globalConfig, installPath, undefined);
   } else if (selectedAction.detail === "delete") {
     await handleDeleteInstallation(context, globalConfig, installPath, installName);
@@ -761,7 +767,7 @@ export async function showCreateWorkspaceMenu(context: vscode.ExtensionContext, 
 
 /** A QuickPickItem extended with an `id` field for internal option tracking. */
 interface SetupOptionItem extends vscode.QuickPickItem {
-  id: 'use-west-folder' | 'use-west-yml' | 'create-new-west-yml' | 'use-external-installation';
+  id: 'use-west-folder' | 'use-west-yml' | 'create-new-west-yml' | 'use-external-installation' | 'mark-as-setup';
 }
 
 export interface WestConfigOptions {
@@ -773,7 +779,7 @@ export interface WestConfigOptions {
 
 export interface WestConfigResult {
   cancelled: boolean;
-  option: 'use-west-folder' | 'use-west-yml' | 'create-new-west-yml' | 'use-external-installation' | null;
+  option: 'use-west-folder' | 'use-west-yml' | 'create-new-west-yml' | 'use-external-installation' | 'mark-as-setup' | null;
   selectedWestPath?: string;
   westSelection?: WestLocation;
   externalInstallPath?: string;
@@ -862,6 +868,13 @@ export async function westConfig(
       id: "use-external-installation",
     });
   }
+
+  // Option 5: Mark workspace as already set up
+  setupOptions.push({
+    label: "$(check) Mark workspace as already set up",
+    description: "Skip setup steps and mark the workspace as initialized",
+    id: "mark-as-setup",
+  });
 
   // If no options are available, show error
   if (setupOptions.length === 0) {
@@ -995,6 +1008,11 @@ export async function westConfig(
       result.useExternalInstallation = true;
       result.externalInstallNeedsSetup = needsSetup;
       outputInfo("West Configuration", `Selected external installation: ${chosenPath} (needsSetup=${needsSetup})`);
+      break;
+
+    case 'mark-as-setup':
+      result.option = 'mark-as-setup';
+      outputInfo("West Configuration", "Marking workspace as already set up");
       break;
 
     default:

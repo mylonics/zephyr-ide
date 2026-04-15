@@ -18,7 +18,7 @@ limitations under the License.
 import { GlobalConfig, WorkspaceConfig } from "../../setup_utilities/types";
 
 export class HostToolsCard {
-    static getHtml(globalConfig: GlobalConfig): string {
+    static getHtml(globalConfig: GlobalConfig, stepNumber: number): string {
         const isReady = globalConfig.toolsAvailable ?? false;
 
         if (isReady) {
@@ -31,7 +31,7 @@ export class HostToolsCard {
         return `
         <div class="overview-card" onclick="sendCommand('openHostToolsPanel')" role="button" tabindex="0" data-keyboard-command="true" aria-label="Open Host Tools setup">
             <div class="overview-card-header">
-                <span class="step-badge step-badge-active">1</span>
+                <span class="step-badge step-badge-active">${stepNumber}</span>
                 <span class="overview-icon">🔧</span>
                 <h3>Host Tools</h3>
             </div>
@@ -43,7 +43,7 @@ export class HostToolsCard {
 }
 
 export class SDKCard {
-    static getHtml(globalConfig: GlobalConfig, hasValidSetupState: boolean): string {
+    static getHtml(globalConfig: GlobalConfig, hasValidSetupState: boolean, stepNumber: number): string {
         const isComplete = globalConfig.sdkInstalled ?? false;
         const isLocked = !hasValidSetupState;
 
@@ -69,12 +69,35 @@ export class SDKCard {
         return `
         <div class="overview-card${isLocked ? ' overview-card-locked' : ''}" ${isLocked ? '' : 'onclick="sendCommand(\'openSDKPanel\')"'} role="button" tabindex="${isLocked ? '-1' : '0'}" ${isLocked ? 'aria-disabled="true"' : ''} data-keyboard-command="true" aria-label="Open Zephyr SDK management">
             <div class="overview-card-header">
-                <span class="step-badge ${stepBadgeClass}">2</span>
+                <span class="step-badge ${stepBadgeClass}">${stepNumber}</span>
                 <span class="overview-icon">📦</span>
                 <h3>Zephyr SDK Management</h3>
             </div>
             <div class="status ${statusClass}">${status}</div>
             <p class="overview-description">Install and manage Zephyr SDK for different architectures and toolchains. Requires west workspace.</p>
+            <div class="card-arrow">→</div>
+        </div>`;
+    }
+}
+
+export class WorkspaceSetupCard {
+    static getHtml(folderOpen: boolean, stepNumber: number): string {
+        const command = folderOpen ? 'openWorkspacePanel' : 'openFolder';
+        const title = folderOpen ? 'West Workspace' : 'Open Folder';
+        const description = folderOpen
+            ? 'Set up a west workspace to initialize your Zephyr development environment.'
+            : 'Open a folder to get started with Zephyr development.';
+        const statusText = folderOpen ? '⚙ Setup Required' : '📁 No Folder Open';
+
+        return `
+        <div class="overview-card" onclick="sendCommand('${command}')" role="button" tabindex="0" data-keyboard-command="true" aria-label="${title}">
+            <div class="overview-card-header">
+                <span class="step-badge step-badge-active">${stepNumber}</span>
+                <span class="overview-icon">📁</span>
+                <h3>${title}</h3>
+            </div>
+            <div class="status status-warning">${statusText}</div>
+            <p class="overview-description">${description}</p>
             <div class="card-arrow">→</div>
         </div>`;
     }
@@ -88,24 +111,22 @@ export class WorkspaceCard {
         if (workspaceInitialized) {
             status = "✓ Initialized";
             statusClass = "status-success";
-        } else if (folderOpen) {
-            status = "⚙ Setup Required";
+        } else if (hasWorkspaces && wsConfig.initialSetupComplete) {
+            status = "⚠ Activate Workspace";
+            statusClass = "status-warning";
+        } else if (hasWorkspaces || folderOpen) {
+            status = "⚙ Setup Workspace";
             statusClass = "status-warning";
         } else {
             status = "📁 No Folder";
             statusClass = "status-info";
         }
 
-        const manageButton = hasWorkspaces
-            ? `<vscode-button appearance="secondary" onclick="sendCommand('openWorkspacePanel')">Manage</vscode-button>`
-            : '';
-
         return `
         <div class="section-header-row">
             <h3>West Workspaces</h3>
             <div class="section-header-actions">
                 <span class="status ${statusClass}">${status}</span>
-                ${manageButton}
             </div>
         </div>`;
     }

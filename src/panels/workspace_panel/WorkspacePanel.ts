@@ -23,6 +23,7 @@ import { notifyError, outputError } from "../../utilities/output";
 import { onSetupProgress, getActiveSetupProgress } from "../../setup_utilities/setup-progress";
 import { parseWestConfigManifestPath } from "../../setup_utilities/west-config-parser";
 import { getVenvPath } from "../../setup_utilities/workspace-config";
+import { setSetupState, setWorkspaceState } from "../../setup_utilities/state-management";
 
 export class WorkspacePanel {
   /** All open panels, keyed by workspace path (or "__default__" when not specified). */
@@ -32,6 +33,7 @@ export class WorkspacePanel {
   private readonly _extensionPath: string;
   private readonly _context: vscode.ExtensionContext;
   private _disposables: vscode.Disposable[] = [];
+  private readonly _setupPath?: string;
 
   private currentWsConfig?: WorkspaceConfig;
   private currentGlobalConfig?: GlobalConfig;
@@ -54,8 +56,9 @@ export class WorkspacePanel {
     context: vscode.ExtensionContext,
     wsConfig: WorkspaceConfig,
     globalConfig: GlobalConfig,
+    setupPath?: string,
   ) {
-    const key = "__default__";
+    const key = setupPath || "__default__";
     const column = vscode.window.activeTextEditor
       ? vscode.window.activeTextEditor.viewColumn
       : undefined;
@@ -67,7 +70,10 @@ export class WorkspacePanel {
       return existing;
     }
 
-    const title = "Zephyr IDE: Workspace Config";
+    const baseName = setupPath ? path.basename(setupPath) : undefined;
+    const title = baseName
+      ? `Workspace: ${baseName}`
+      : "Zephyr IDE: Workspace Config";
 
     const panel = vscode.window.createWebviewPanel(
       "zephyrIDEWorkspace",
@@ -86,6 +92,7 @@ export class WorkspacePanel {
       context,
       wsConfig,
       globalConfig,
+      setupPath,
     );
     WorkspacePanel._panels.set(key, instance);
     return instance;
@@ -97,10 +104,12 @@ export class WorkspacePanel {
     context: vscode.ExtensionContext,
     wsConfig: WorkspaceConfig,
     globalConfig: GlobalConfig,
+    setupPath?: string,
   ) {
     this._panel = panel;
     this._extensionPath = extensionPath;
     this._context = context;
+    this._setupPath = setupPath;
 
     this.updateContent(wsConfig, globalConfig);
 
@@ -134,19 +143,32 @@ export class WorkspacePanel {
     }
   }
 
+  /** Resolve the setup state this panel should display. */
+  private getTargetSetupState(): { setupPath: string; setupState: any } | undefined {
+    // If a specific path was requested, look it up in the dictionary
+    if (this._setupPath && this.currentGlobalConfig?.setupStateDictionary?.[this._setupPath]) {
+      return { setupPath: this._setupPath, setupState: this.currentGlobalConfig.setupStateDictionary[this._setupPath] };
+    }
+    // Fall back to active workspace
+    if (this.currentWsConfig?.activeSetupState) {
+      return { setupPath: this.currentWsConfig.activeSetupState.setupPath, setupState: this.currentWsConfig.activeSetupState };
+    }
+    return undefined;
+  }
+
   public updateContent(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
     this.currentWsConfig = wsConfig;
     this.currentGlobalConfig = globalConfig;
 
-    const workspaceInitialized = (wsConfig.initialSetupComplete || false) &&
-      (wsConfig.activeSetupState !== undefined);
+    const target = this.getTargetSetupState();
+    const workspaceInitialized = (wsConfig.initialSetupComplete || false) && target !== undefined;
 
     // Update panel title
-    if (workspaceInitialized && wsConfig.activeSetupState) {
-      const version = wsConfig.activeSetupState.zephyrVersion
-        ? formatZephyrVersion(wsConfig.activeSetupState.zephyrVersion)
+    if (target) {
+      const version = target.setupState.zephyrVersion
+        ? formatZephyrVersion(target.setupState.zephyrVersion)
         : undefined;
-      const baseName = path.basename(wsConfig.activeSetupState.setupPath);
+      const baseName = path.basename(target.setupPath);
       this._panel.title = version
         ? `Workspace: ${baseName} (${version})`
         : `Workspace: ${baseName}`;
@@ -182,7 +204,7 @@ export class WorkspacePanel {
 
   private readonly commandPassthroughMap: Record<string, string> = {
     openFolder: "vscode.openFolder",
-    reinitializeWorkspace: "zephyr-ide.reset-workspace",
+    resetWorkspace: "zephyr-ide.reset-workspace",
     setupWestEnvironment: "zephyr-ide.setup-west-environment",
     westInit: "zephyr-ide.west-init",
     westUpdate: "zephyr-ide.west-update",
@@ -208,6 +230,9 @@ export class WorkspacePanel {
       case "saveAndUpdateWestYml":
         this.saveAndUpdateWestYml(message.content);
         return;
+      case "activateWorkspace":
+        this.activateWorkspace(message.path);
+        return;
     }
   }
 
@@ -219,22 +244,38 @@ export class WorkspacePanel {
     }
   }
 
+  private async activateWorkspace(installPath: string) {
+    if (!this.currentWsConfig || !this.currentGlobalConfig) {
+      return;
+    }
+    try {
+      await setSetupState(this._context, this.currentWsConfig, this.currentGlobalConfig, installPath);
+      this.currentWsConfig.initialSetupComplete = true;
+      await setWorkspaceState(this._context, this.currentWsConfig);
+      await vscode.commands.executeCommand("zephyr-ide.update-web-view");
+    } catch (error) {
+      notifyError("Activate Workspace", `Failed: ${error}`);
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // West.yml handling
   // ---------------------------------------------------------------------------
 
   private getWestYmlPath(): string | null {
-    if (!this.currentWsConfig?.activeSetupState?.setupPath) {
+    const target = this.getTargetSetupState();
+    if (!target) {
       return null;
     }
-    return parseWestConfigManifestPath(this.currentWsConfig.activeSetupState.setupPath);
+    return parseWestConfigManifestPath(target.setupPath);
   }
 
   private async openWestYml() {
     try {
       const westYmlFilePath = this.getWestYmlPath();
       if (!westYmlFilePath) {
-        const setupPath = this.currentWsConfig?.activeSetupState?.setupPath || "unknown";
+        const target = this.getTargetSetupState();
+        const setupPath = target?.setupPath || "unknown";
         notifyError("West Config",
           `west.yml file not found.\n\n` +
           `Checked location based on .west/config in: ${setupPath}\n\n` +
@@ -253,7 +294,8 @@ export class WorkspacePanel {
     try {
       const westYmlFilePath = this.getWestYmlPath();
       if (!westYmlFilePath) {
-        const setupPath = this.currentWsConfig?.activeSetupState?.setupPath || "unknown";
+        const target = this.getTargetSetupState();
+        const setupPath = target?.setupPath || "unknown";
         this._panel.webview.postMessage({
           command: "westYmlContent",
           content:
@@ -305,16 +347,41 @@ export class WorkspacePanel {
   // HTML Generation
   // ---------------------------------------------------------------------------
 
+  private getActivationBanner(): string {
+    if (!this._setupPath) {
+      return '';
+    }
+    const baseName = path.basename(this._setupPath);
+    const escapedPath = this._setupPath.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    return `
+        <div class="activation-banner" role="alert">
+            <div class="activation-banner-content">
+                <span class="codicon codicon-info"></span>
+                <span>This workspace (<strong>${baseName}</strong>) is not currently active.</span>
+            </div>
+            <vscode-button onclick="activateWorkspace('${escapedPath}')">Activate This Workspace</vscode-button>
+        </div>`;
+  }
+
   private getHtmlForWebview(wsConfig: WorkspaceConfig): string {
     const folderOpen = wsConfig.rootPath !== "";
-    const workspaceInitialized = (wsConfig.initialSetupComplete || false) &&
-      (wsConfig.activeSetupState !== undefined);
+    const target = this.getTargetSetupState();
+    const workspaceInitialized = (wsConfig.initialSetupComplete || false) && target !== undefined;
 
     const state = (folderOpen && workspaceInitialized) ? "ready" : "setup-required";
 
     const statusIcon = workspaceInitialized ? '✓' : '⚙';
     const statusLabel = workspaceInitialized ? 'Initialized' : 'Setup Required';
     const statusClass = workspaceInitialized ? 'status-success' : 'status-warning';
+
+    // Show activation banner if this panel is showing a workspace that is not
+    // currently active. This covers both: (a) another workspace is active, and
+    // (b) no workspace is active (deactivated) but this one can be activated.
+    const isNonActive = this._setupPath !== undefined &&
+      wsConfig.activeSetupState?.setupPath !== this._setupPath;
+    const activationBanner = isNonActive
+      ? this.getActivationBanner()
+      : '';
 
     const cssUri = this._panel.webview.asWebviewUri(
       vscode.Uri.joinPath(vscode.Uri.file(this._extensionPath), "src", "panels", "workspace_panel", "workspace-panel.css"),
@@ -337,11 +404,7 @@ export class WorkspacePanel {
         </head>
         <body>
             <div class="container">
-                <div class="breadcrumb">
-                    <a class="breadcrumb-link" onclick="sendCommand('openSetupPanel')">← Setup & Configuration</a>
-                    <span class="breadcrumb-separator">/</span>
-                    <span class="breadcrumb-current">Workspace</span>
-                </div>
+                <a class="breadcrumb-link" onclick="sendCommand('openSetupPanel')">← Overview</a>
                 <div class="page-header">
                     <div style="display:flex;align-items:center;gap:12px;">
                         <h1 class="page-title">Workspace Setup</h1>
@@ -349,9 +412,11 @@ export class WorkspacePanel {
                     </div>
                 </div>
 
+                ${activationBanner}
+
                 <div class="ws-body" data-workspace-state="${state}">
                     ${this.getInitializingContainer()}
-                    ${this.getReadyContainer(folderOpen, workspaceInitialized, wsConfig)}
+                    ${this.getReadyContainer(folderOpen, workspaceInitialized, wsConfig, isNonActive)}
                     ${this.getSetupRequiredContainer(folderOpen)}
                 </div>
             </div>
@@ -372,9 +437,9 @@ export class WorkspacePanel {
             </div>`;
   }
 
-  private getReadyContainer(folderOpen: boolean, workspaceInitialized: boolean, wsConfig: WorkspaceConfig): string {
+  private getReadyContainer(folderOpen: boolean, workspaceInitialized: boolean, wsConfig: WorkspaceConfig, isNonActive: boolean): string {
     const content = (folderOpen && workspaceInitialized)
-      ? this.getInitializedContent(wsConfig)
+      ? this.getInitializedContent(wsConfig, isNonActive)
       : '';
     return `
             <div class="ws-state ws-state-ready">
@@ -426,16 +491,22 @@ export class WorkspacePanel {
         </div>`;
   }
 
-  private getInitializedContent(wsConfig: WorkspaceConfig): string {
-    const activeSetupPath = wsConfig.activeSetupState?.setupPath || "Not configured";
+  private getInitializedContent(wsConfig: WorkspaceConfig, isNonActive: boolean): string {
+    const target = this.getTargetSetupState();
+    const activeSetupPath = target?.setupPath || "Not configured";
     const currentFolderPath = wsConfig.rootPath || "Not configured";
     const westYmlPath = this.getWestYmlPath() || "Not found";
-    const venvPathStr = wsConfig.activeSetupState?.setupPath
-      ? getVenvPath(wsConfig.activeSetupState.setupPath)
+    const venvPathStr = target?.setupPath
+      ? getVenvPath(target.setupPath)
       : "Not found";
-    const zephyrVersion = wsConfig.activeSetupState?.zephyrVersion
-      ? formatZephyrVersion(wsConfig.activeSetupState.zephyrVersion)
+    const zephyrVersion = target?.setupState?.zephyrVersion
+      ? formatZephyrVersion(target.setupState.zephyrVersion)
       : "Not available";
+
+    const disabledAttr = isNonActive ? 'disabled' : '';
+    const disabledNote = isNonActive
+      ? '<p class="description muted">Activate this workspace to use these commands.</p>'
+      : '';
 
     return `
         <p class="description">Workspace is configured and ready for development.</p>
@@ -463,11 +534,11 @@ export class WorkspacePanel {
                 </div>
                 <textarea id="westYmlEditor" class="west-yml-textarea" rows="15" placeholder="Loading west.yml..."></textarea>
                 <div class="editor-actions">
-                    <vscode-button onclick="saveAndUpdateWestYml()">
+                    <vscode-button onclick="saveAndUpdateWestYml()" ${disabledAttr}>
                         <vscode-icon slot="start-icon" name="save"></vscode-icon>
                         Save and West Update
                     </vscode-button>
-                    <vscode-button appearance="secondary" onclick="sendCommand('westUpdate')">
+                    <vscode-button appearance="secondary" onclick="sendCommand('westUpdate')" ${disabledAttr}>
                         <vscode-icon slot="start-icon" name="sync"></vscode-icon>
                         West Update
                     </vscode-button>
@@ -475,25 +546,26 @@ export class WorkspacePanel {
             </div>
         </div>
         
-        <div class="action-section">
+        ${!isNonActive ? `<div class="action-section">
             <h3>Workspace Management</h3>
             <div class="button-group">
-                <vscode-button appearance="secondary" onclick="sendCommand('reinitializeWorkspace')">
+                <vscode-button appearance="secondary" onclick="sendCommand('resetWorkspace')">
                     <vscode-icon slot="start-icon" name="refresh"></vscode-icon>
-                    Reinitialize VS Code Workspace
+                    Reset VS Code Workspace
                 </vscode-button>
             </div>
-        </div>
+        </div>` : ''}
         
         <div class="action-section">
             <h3>Advanced Commands</h3>
             <p class="description">Low-level commands for advanced workspace management and troubleshooting.</p>
+            ${disabledNote}
             <div class="button-group">
-                <vscode-button appearance="secondary" onclick="sendCommand('westConfig')">
+                <vscode-button appearance="secondary" onclick="sendCommand('westConfig')" ${disabledAttr}>
                     <vscode-icon slot="start-icon" name="settings"></vscode-icon>
                     West Config
                 </vscode-button>
-                <vscode-button appearance="secondary" onclick="sendCommand('westInit')">
+                <vscode-button appearance="secondary" onclick="sendCommand('westInit')" ${disabledAttr}>
                     <vscode-icon slot="start-icon" name="repo-create"></vscode-icon>
                     West Init
                 </vscode-button>

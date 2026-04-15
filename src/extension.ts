@@ -128,12 +128,7 @@ async function markWorkspaceSetupComplete(
 ) {
   wsConfig.initialSetupComplete = true;
   await setWorkspaceState(context, wsConfig);
-  // Update setup panel if it's open
-  if (SetupPanel.currentPanel) {
-    SetupPanel.currentPanel.updateContent(wsConfig, globalConfig);
-  }
-  // Update workspace panel if open
-  WorkspacePanel.updateAllPanels(wsConfig, globalConfig);
+  void vscode.commands.executeCommand("zephyr-ide.update-web-view");
 }
 
 /** Register a webview view provider with retained context. */
@@ -667,11 +662,7 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.reset-workspace", async () => {
       await clearWorkspaceState(context, wsConfig);
-      extensionSetupView.updateWebView(wsConfig, globalConfig);
-      // Also update setup panel if it's open
-      if (SetupPanel.currentPanel) {
-        SetupPanel.currentPanel.updateContent(wsConfig, globalConfig);
-      }
+      void vscode.commands.executeCommand("zephyr-ide.update-web-view");
     })
   );
 
@@ -1197,6 +1188,24 @@ export async function activate(context: vscode.ExtensionContext) {
       outputLine(JSON.stringify({ globalConfig }));
     }
     )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.debug-reset-host-tools", async () => {
+      globalConfig.toolsAvailable = false;
+      await saveSetupState(context, wsConfig, globalConfig);
+      void vscode.commands.executeCommand("zephyr-ide.update-web-view");
+      void vscode.window.showInformationMessage("Zephyr IDE Debug: Host tools marked as not ready");
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.debug-reset-sdk", async () => {
+      globalConfig.sdkInstalled = false;
+      await saveSetupState(context, wsConfig, globalConfig);
+      void vscode.commands.executeCommand("zephyr-ide.update-web-view");
+      void vscode.window.showInformationMessage("Zephyr IDE Debug: SDK marked as not installed");
+    })
   );
 
   context.subscriptions.push(

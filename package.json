@@ -379,7 +379,7 @@
       "zephyr-ide-main": [
         {
           "id": "zephyrIdeExtensionSetup",
-          "name": "Overview",
+          "name": "Extension Setup",
           "icon": "media/logo_small.jpg",
           "contextualTitle": "Zephyr IDE"
         },
@@ -621,6 +621,14 @@
         "title": "Zephyr IDE: Open Debug Shell"
       },
       {
+        "command": "zephyr-ide.debug-reset-host-tools",
+        "title": "Zephyr IDE: Extension Debug — Mark Host Tools Not Ready"
+      },
+      {
+        "command": "zephyr-ide.debug-reset-sdk",
+        "title": "Zephyr IDE: Extension Debug — Mark SDK Not Installed"
+      },
+      {
         "command": "zephyr-ide.west-list",
         "title": "Zephyr IDE: West List"
       },
@@ -827,7 +835,7 @@
       },
       {
         "command": "zephyr-ide.west-workspace.deselect",
-        "title": "Deselect Workspace",
+        "title": "Deactivate Workspace",
         "icon": "$(close)"
       },
       {
@@ -856,6 +864,10 @@
       {
         "command": "zephyr-ide.config-view.open-cmake",
         "title": "Open CMakeLists"
+      },
+      {
+        "command": "zephyr-ide.config-view.open-project-details",
+        "title": "Open Project Details"
       },
       {
         "command": "zephyr-ide.config-view.modify-build-args",

@@ -12,5 +12,25 @@
   "editor.formatOnSave": true,
   "git.enabled": false,
   "terminal.integrated.defaultProfile.windows": "PowerShell",
-  "C_Cpp.default.compileCommands": "${workspaceFolder}\\.vscode\\compile_commands.json"
+  "C_Cpp.default.compileCommands": "${workspaceFolder}\\.vscode\\compile_commands.json",
+  "workbench.colorCustomizations": {
+    "activityBar.activeBackground": "#e9e5e0",
+    "activityBar.background": "#e9e5e0",
+    "activityBar.foreground": "#15202b",
+    "activityBar.inactiveForeground": "#15202b99",
+    "activityBarBadge.background": "#7da292",
+    "activityBarBadge.foreground": "#15202b",
+    "commandCenter.border": "#15202b99",
+    "sash.hoverBorder": "#e9e5e0",
+    "statusBar.background": "#d3ccc3",
+    "statusBar.foreground": "#15202b",
+    "statusBarItem.hoverBackground": "#bdb3a6",
+    "statusBarItem.remoteBackground": "#d3ccc3",
+    "statusBarItem.remoteForeground": "#15202b",
+    "titleBar.activeBackground": "#d3ccc3",
+    "titleBar.activeForeground": "#15202b",
+    "titleBar.inactiveBackground": "#d3ccc399",
+    "titleBar.inactiveForeground": "#15202b99"
+  },
+  "peacock.color": "#d3ccc3"
 }

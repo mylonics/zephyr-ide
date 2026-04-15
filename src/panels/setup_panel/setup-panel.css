@@ -233,6 +233,7 @@
     flex-wrap: wrap;
     gap: 8px 20px;
     padding: 12px 16px;
+    margin-top: 32px;
     background-color: var(--vscode-sideBar-background);
     border-radius: var(--zephyr-webview-radius);
     border: 1px solid var(--vscode-panel-border);
@@ -315,7 +316,7 @@
 
 .quick-actions-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 12px;
 }
 
@@ -490,25 +491,103 @@
 }
 
 /* ===================================================================
-   9. Overview Lists Row (side-by-side workspaces + projects)
+   8b. Active Workspace Hero
    =================================================================== */
 
-.overview-lists-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 24px;
-    margin-top: 32px;
+.active-workspace-hero {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    margin-top: 24px;
+    padding: 18px 22px;
+    border: 2px solid var(--vscode-textLink-foreground);
+    border-radius: var(--zephyr-webview-radius);
+    background-color: var(--vscode-input-background);
+    box-shadow: var(--zephyr-webview-surface-shadow);
+}
+
+.hero-info {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.hero-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.hero-title-row > .codicon {
+    font-size: 20px;
+    color: var(--vscode-textLink-foreground);
+    flex-shrink: 0;
+}
+
+.hero-workspace-name {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--vscode-foreground);
+}
+
+.hero-version {
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+}
+
+.hero-path {
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+    opacity: 0.7;
+    word-break: break-all;
+}
+
+.hero-status-badges {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.hero-status-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background-color: var(--vscode-input-background);
+    border: 1px solid var(--vscode-panel-border);
+}
+
+.hero-status-badge.status-success {
+    color: var(--vscode-terminal-ansiGreen);
+    border-color: var(--vscode-terminal-ansiGreen);
+}
+
+.hero-actions {
+    flex-shrink: 0;
 }
 
 @media (max-width: 700px) {
-    .overview-lists-row {
-        grid-template-columns: 1fr;
+    .active-workspace-hero {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .hero-actions {
+        align-self: flex-start;
     }
 }
 
-.workspace-list-section,
-.project-list-section {
-    min-width: 0;
+/* ===================================================================
+   9. Overview Lists (full-width standalone sections)
+   =================================================================== */
+
+.project-list-section,
+.workspace-list-section {
+    margin-top: 32px;
 }
 
 /* ===================================================================

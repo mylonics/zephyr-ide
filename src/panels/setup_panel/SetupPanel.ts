@@ -18,11 +18,12 @@ limitations under the License.
 import * as vscode from "vscode";
 import * as path from "upath";
 import { WorkspaceConfig, GlobalConfig, formatZephyrVersion } from "../../setup_utilities/types";
-import { setGlobalState } from "../../setup_utilities/state-management";
+import { setGlobalState, clearSetupState } from "../../setup_utilities/state-management";
 import { getToolsDir } from "../../setup_utilities/workspace-config";
 import { handleReconfigureInstallation } from "../../setup_utilities/workspace-setup";
 import { notifyError, outputError } from "../../utilities/output";
-import { HostToolsCard, SDKCard, WorkspaceCard } from "./OverviewCards";
+import { HostToolsCard, SDKCard, WorkspaceCard, WorkspaceSetupCard } from "./OverviewCards";
+import { WorkspacePanel } from "../workspace_panel/WorkspacePanel";
 
 export class SetupPanel {
   public static currentPanel: SetupPanel | undefined;
@@ -145,7 +146,13 @@ export class SetupPanel {
         this.executeVSCommand("zephyr-ide.set-active-project", "Set Active Project");
         return;
       case "removeProject":
-        this.executeVSCommand("zephyr-ide.remove-project", "Remove Project");
+        this.removeProject(message.name);
+        return;
+      case "openWorkspacePanelForPath":
+        this.openWorkspacePanelForPath(message.path);
+        return;
+      case "deactivateWorkspace":
+        this.deactivateWorkspace();
         return;
     }
   }
@@ -205,6 +212,47 @@ export class SetupPanel {
     } catch (error) {
       notifyError("West Update", `Failed: ${error}`);
     }
+  }
+
+  private async removeProject(projectName: string) {
+    if (!this.currentWsConfig) {
+      return;
+    }
+    try {
+      const { removeProject } = await import("../../project_utilities/project.js");
+      const result = await removeProject(this._context, this.currentWsConfig, projectName);
+      if (result) {
+        await vscode.commands.executeCommand("zephyr-ide.update-web-view");
+      }
+    } catch (error) {
+      notifyError("Remove Project", `Failed: ${error}`);
+    }
+  }
+
+  private async deactivateWorkspace() {
+    if (!this.currentWsConfig || !this.currentGlobalConfig) {
+      return;
+    }
+    try {
+      await clearSetupState(this._context, this.currentWsConfig);
+      void vscode.window.showInformationMessage('Active workspace deactivated');
+      void vscode.commands.executeCommand('zephyr-ide.update-web-view');
+    } catch (error) {
+      notifyError('Deactivate Workspace', `Failed: ${error}`);
+    }
+  }
+
+  private openWorkspacePanelForPath(installPath: string) {
+    if (!this.currentWsConfig || !this.currentGlobalConfig) {
+      return;
+    }
+    WorkspacePanel.createOrShow(
+      this._extensionPath,
+      this._context,
+      this.currentWsConfig,
+      this.currentGlobalConfig,
+      installPath,
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -268,13 +316,16 @@ export class SetupPanel {
 
     const remaining = 3 - completedCount;
     const parts: string[] = [];
-    if (!toolsReady) { parts.push("Host Tools"); }
-    if (!workspaceInitialized) { parts.push("Workspace"); }
-    if (!sdkReady) { parts.push("SDK"); }
+    if (!toolsReady) { parts.push("set up Host Tools"); }
+    if (!workspaceInitialized) { parts.push("select a Workspace"); }
+    if (!sdkReady) { parts.push("install SDK"); }
+    if (parts.length > 0) {
+      parts[0] = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+    }
 
     return `<div class="status-banner status-warning">
               <span class="codicon codicon-warning"></span>
-              <span>${remaining} of 3 step${remaining > 1 ? 's' : ''} remaining — Set up ${parts.join(', ')} to start building.</span>
+              <span>${remaining} of 3 step${remaining > 1 ? 's' : ''} remaining — ${parts.join(', ')} to start building.</span>
             </div>`;
   }
 
@@ -285,8 +336,23 @@ export class SetupPanel {
     workspaceInitialized: boolean,
     hasValidSetupState: boolean
   ): string {
-    const westUpdated = wsConfig.activeSetupState?.westUpdated ?? false;
+    const toolsReady = globalConfig.toolsAvailable ?? false;
     const sdkReady = globalConfig.sdkInstalled ?? false;
+    const westUpdated = wsConfig.activeSetupState?.westUpdated ?? false;
+    const environmentReady = toolsReady && sdkReady && workspaceInitialized;
+
+    const dict = globalConfig.setupStateDictionary;
+    const hasWorkspaces = dict !== undefined && Object.keys(dict).length > 0;
+    // When deactivated (initialSetupComplete still true) and workspaces exist,
+    // promote the full list so the user can pick one to activate.
+    // When reset (initialSetupComplete false), show just the single workspace at
+    // the top since it needs to be set up, not just activated.
+    const promoteWorkspaceList = !workspaceInitialized && hasWorkspaces && wsConfig.initialSetupComplete;
+
+    // When any setup step is NOT ready, show setup cards prominently at top.
+    const setupCardsAtTop = !environmentReady
+      ? `<div class="setup-main-layout">${this.generateSetupSteps(globalConfig, hasValidSetupState, folderOpen, workspaceInitialized, promoteWorkspaceList)}</div>`
+      : '';
 
     return `
         <div class="overview-section">
@@ -298,26 +364,43 @@ export class SetupPanel {
             </div>
 
             ${this.generateReadinessBanner(globalConfig, workspaceInitialized, hasValidSetupState)}
-            
-            <div class="setup-main-layout">
-                ${this.generateSetupSteps(globalConfig, hasValidSetupState)}
-                
-                <div class="docs-links-row">
-                    <a href="https://github.com/mylonics/zephyr-ide/blob/main/README.md" class="external-link">📖 Documentation</a>
-                    <a href="https://docs.zephyrproject.org/latest/develop/getting_started/index.html" class="external-link">🚀 Getting Started</a>
-                    <a href="https://docs.zephyrproject.org/latest/develop/west/index.html" class="external-link">🔧 West Docs</a>
-                    <a href="https://github.com/mylonics/zephyr-ide/issues" class="external-link">💬 Get Help</a>
-                </div>
-            </div>
 
-            <div class="overview-lists-row">
-                ${this.generateWorkspaceListSection(wsConfig, globalConfig, folderOpen, workspaceInitialized)}
-                ${this.generateProjectListSection(wsConfig)}
-            </div>
+            ${setupCardsAtTop}
+
+            ${this.generateActiveWorkspaceHero(wsConfig, globalConfig)}
+
+            ${promoteWorkspaceList ? this.generateWorkspaceListSection(wsConfig, globalConfig, folderOpen, workspaceInitialized) : ''}
+
+            ${this.generateProjectListSection(wsConfig)}
 
             <div class="quick-actions-section">
                 <h3>Quick Actions</h3>
                 <div class="quick-actions-grid">
+                    <div class="quick-action-item" onclick="sendCommand('openHostToolsPanel')" role="button" tabindex="0" data-keyboard-command="true">
+                        <span class="codicon codicon-tools"></span>
+                        <div class="quick-action-content">
+                            <strong>Host Tools</strong>
+                            <span class="quick-action-status ${toolsReady ? 'status-success' : 'status-warning'}">${toolsReady ? 'Ready' : 'Setup Required'}</span>
+                            <p>Install and verify build tools, compilers, and utilities for Zephyr development.</p>
+                        </div>
+                    </div>
+                    ${sdkReady
+        ? `<div class="quick-action-item" onclick="sendCommand('openSDKPanel')" role="button" tabindex="0" data-keyboard-command="true">
+                            <span class="codicon codicon-package"></span>
+                            <div class="quick-action-content">
+                                <strong>Manage SDK &amp; Toolchains</strong>
+                                <span class="quick-action-status status-success">Installed</span>
+                                <p>View installed SDK toolchains and install additional target architectures.</p>
+                            </div>
+                        </div>`
+        : `<div class="quick-action-item" onclick="sendCommand('openSDKPanel')" role="button" tabindex="0" data-keyboard-command="true">
+                            <span class="codicon codicon-cloud-download"></span>
+                            <div class="quick-action-content">
+                                <strong>Install SDK</strong>
+                                <span class="quick-action-status status-warning">Setup Required</span>
+                                <p>Download and install Zephyr SDK toolchains for target architectures.</p>
+                            </div>
+                        </div>`}
                     <div class="quick-action-item" onclick="sendCommand('westUpdate')" role="button" tabindex="0" data-keyboard-command="true">
                         <span class="codicon codicon-sync"></span>
                         <div class="quick-action-content">
@@ -333,21 +416,6 @@ export class SetupPanel {
                             <p>Configure global directory, toolchain paths, virtual environment, and extension behavior.</p>
                         </div>
                     </div>
-                    ${sdkReady
-        ? `<div class="quick-action-item" onclick="sendCommand('openSDKPanel')" role="button" tabindex="0" data-keyboard-command="true">
-                            <span class="codicon codicon-package"></span>
-                            <div class="quick-action-content">
-                                <strong>Manage Toolchains</strong>
-                                <p>View installed SDK toolchains and install additional target architectures.</p>
-                            </div>
-                        </div>`
-        : `<div class="quick-action-item" onclick="sendCommand('openSDKPanel')" role="button" tabindex="0" data-keyboard-command="true">
-                            <span class="codicon codicon-cloud-download"></span>
-                            <div class="quick-action-content">
-                                <strong>Install SDK</strong>
-                                <p>Download and install Zephyr SDK toolchains for target architectures.</p>
-                            </div>
-                        </div>`}
                     <div class="quick-action-item" onclick="sendCommand('openProjectBuildPanel')" role="button" tabindex="0" data-keyboard-command="true">
                         <span class="codicon codicon-add"></span>
                         <div class="quick-action-content">
@@ -357,18 +425,40 @@ export class SetupPanel {
                     </div>
                 </div>
             </div>
+
+            ${promoteWorkspaceList ? '' : this.generateWorkspaceListSection(wsConfig, globalConfig, folderOpen, workspaceInitialized)}
+
+            <div class="docs-links-row">
+                <a href="https://zephyr-ide.mylonics.com" class="external-link">📖 Documentation</a>
+                <a href="https://docs.zephyrproject.org/latest/develop/getting_started/index.html" class="external-link">🚀 Getting Started</a>
+                <a href="https://docs.zephyrproject.org/latest/develop/west/index.html" class="external-link">🔧 West Docs</a>
+                <a href="https://github.com/mylonics/zephyr-ide/issues" class="external-link">💬 Get Help</a>
+            </div>
         </div>`;
   }
 
-  private generateSetupSteps(globalConfig: GlobalConfig, hasValidSetupState: boolean): string {
-    const hostToolsHtml = HostToolsCard.getHtml(globalConfig);
-    const sdkHtml = SDKCard.getHtml(globalConfig, hasValidSetupState);
-
+  private generateSetupSteps(
+    globalConfig: GlobalConfig,
+    hasValidSetupState: boolean,
+    folderOpen: boolean,
+    workspaceInitialized: boolean,
+    skipWorkspaceCard: boolean
+  ): string {
     const toolsReady = globalConfig.toolsAvailable ?? false;
     const sdkReady = globalConfig.sdkInstalled ?? false;
 
-    // If both are ready, render as inline pills only
-    if (toolsReady && sdkReady) {
+    // Assign step numbers dynamically to remaining (not-ready) items
+    let stepNumber = 1;
+    const hostToolsStep = toolsReady ? 0 : stepNumber++;
+    const workspaceStep = (workspaceInitialized || skipWorkspaceCard) ? 0 : stepNumber++;
+    const sdkStep = sdkReady ? 0 : stepNumber++;
+
+    const hostToolsHtml = HostToolsCard.getHtml(globalConfig, hostToolsStep);
+    const workspaceHtml = (workspaceInitialized || skipWorkspaceCard) ? '' : WorkspaceSetupCard.getHtml(folderOpen, workspaceStep);
+    const sdkHtml = SDKCard.getHtml(globalConfig, hasValidSetupState, sdkStep);
+
+    // If all are ready, render as inline pills only
+    if (toolsReady && workspaceInitialized && sdkReady) {
       return `<div class="setup-status-pills">${hostToolsHtml}${sdkHtml}</div>`;
     }
 
@@ -377,6 +467,7 @@ export class SetupPanel {
     const cards: string[] = [];
 
     if (toolsReady) { pills.push(hostToolsHtml); } else { cards.push(hostToolsHtml); }
+    if (!workspaceInitialized && !skipWorkspaceCard) { cards.push(workspaceHtml); }
     if (sdkReady) { pills.push(sdkHtml); } else { cards.push(sdkHtml); }
 
     let html = '';
@@ -387,6 +478,48 @@ export class SetupPanel {
       html += `<div class="overview-cards">${cards.join('')}</div>`;
     }
     return html;
+  }
+
+  private generateActiveWorkspaceHero(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig): string {
+    const activeState = wsConfig.activeSetupState;
+    if (!activeState) {
+      return '';
+    }
+
+    const baseName = path.basename(activeState.setupPath);
+    const versionStr = activeState.zephyrVersion
+      ? formatZephyrVersion(activeState.zephyrVersion)
+      : '';
+
+    const statusBadges: string[] = [];
+    if (activeState.pythonEnvironmentSetup) {
+      statusBadges.push('<span class="hero-status-badge status-success">venv</span>');
+    }
+    if (activeState.westUpdated) {
+      statusBadges.push('<span class="hero-status-badge status-success">west</span>');
+    }
+    if (globalConfig.sdkInstalled) {
+      statusBadges.push('<span class="hero-status-badge status-success">SDK</span>');
+    }
+
+    const escapedPath = activeState.setupPath.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
+    return `
+        <div class="active-workspace-hero" onclick="openWorkspacePanelForPath('${escapedPath}')" role="button" tabindex="0" aria-label="Active workspace" style="cursor:pointer">
+            <div class="hero-info">
+                <div class="hero-title-row">
+                    <span class="codicon codicon-root-folder-opened"></span>
+                    <h2 class="hero-workspace-name">${baseName}</h2>
+                    <span class="workspace-active-badge">Active</span>
+                </div>
+                ${versionStr ? `<span class="hero-version">Zephyr ${versionStr}</span>` : ''}
+                <span class="hero-path">${activeState.setupPath}</span>
+                ${statusBadges.length > 0 ? `<div class="hero-status-badges">${statusBadges.join(' ')}</div>` : ''}
+            </div>
+            <div class="hero-actions">
+                <vscode-button appearance="secondary" onclick="event.stopPropagation(); deactivateWorkspace()">Deactivate Workspace</vscode-button>
+            </div>
+        </div>`;
   }
 
   private generateWorkspaceListSection(
@@ -400,7 +533,10 @@ export class SetupPanel {
     const sectionHeader = WorkspaceCard.getSectionHeaderHtml(wsConfig, folderOpen, workspaceInitialized, hasWorkspaces);
 
     if (!hasWorkspaces) {
-      return `
+      // Only show the setup empty state when the folder has no west workspace
+      // (i.e. initialSetupComplete is false, meaning fresh or after Reset VS Code Workspace)
+      if (!wsConfig.initialSetupComplete) {
+        return `
             <div class="workspace-list-section">
                 ${sectionHeader}
                 <div class="empty-state">
@@ -410,23 +546,40 @@ export class SetupPanel {
                     <vscode-button onclick="sendCommand('openWorkspacePanel')">Set Up Workspace</vscode-button>
                 </div>
             </div>`;
+      }
+      return '';
     }
 
     const toolsDir = getToolsDir();
     const activeSetupPath = wsConfig.activeSetupState?.setupPath;
 
+    // Deduplicate paths that differ only by normalization (e.g. slash direction)
+    const allPaths = Object.keys(dict);
+    const seen = new Set<string>();
+    const uniquePaths: string[] = [];
+    for (const p of allPaths) {
+      const normalized = path.normalize(p);
+      if (!seen.has(normalized)) {
+        seen.add(normalized);
+        uniquePaths.push(p);
+      }
+    }
+
     let rows = '';
-    for (const installPath of Object.keys(dict)) {
+    for (const installPath of uniquePaths) {
       const setupState = dict[installPath];
       const isActive = installPath === activeSetupPath;
-      const baseName = path.basename(installPath);
+      const isGlobal = path.normalize(installPath) === path.normalize(toolsDir);
+
+      // Use "Global" for the global tools directory, otherwise basename
+      const baseName = isGlobal ? 'Global' : path.basename(installPath);
 
       let description = 'West installation';
       const versionStr = setupState.zephyrVersion
         ? formatZephyrVersion(setupState.zephyrVersion)
         : 'installation';
-      if (installPath === toolsDir) {
-        description = `Global Zephyr ${versionStr}`;
+      if (isGlobal) {
+        description = `Zephyr ${versionStr}`;
       } else if (installPath === wsConfig.rootPath) {
         description = `Current Zephyr ${versionStr}`;
       } else if (setupState.zephyrVersion) {
@@ -448,7 +601,7 @@ export class SetupPanel {
       const escapedPath = installPath.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
       rows += `
-            <div class="workspace-list-row${isActive ? ' active' : ''}">
+            <div class="workspace-list-row${isActive ? ' active' : ''}" onclick="openWorkspacePanelForPath('${escapedPath}')" role="button" tabindex="0" style="cursor:pointer">
                 <div class="workspace-list-info">
                     <div class="workspace-list-name">
                         <span class="codicon codicon-root-folder"></span>
@@ -462,13 +615,7 @@ export class SetupPanel {
                     </div>
                 </div>
                 <div class="workspace-list-actions">
-                    <vscode-button appearance="icon" title="Reconfigure" onclick="reconfigureWorkspace('${escapedPath}')">
-                        <vscode-icon name="settings-gear"></vscode-icon>
-                    </vscode-button>
-                    <vscode-button appearance="icon" title="West Update" onclick="updateWorkspace('${escapedPath}')">
-                        <vscode-icon name="sync"></vscode-icon>
-                    </vscode-button>
-                    <vscode-button appearance="icon" title="Remove from registry" onclick="deleteWorkspace('${escapedPath}', '${baseName}')">
+                    <vscode-button appearance="icon" title="Remove from registry" onclick="event.stopPropagation(); deleteWorkspace('${escapedPath}', '${baseName}')">
                         <vscode-icon name="trash"></vscode-icon>
                     </vscode-button>
                 </div>
@@ -530,9 +677,6 @@ export class SetupPanel {
                     </div>
                 </div>
                 <div class="workspace-list-actions">
-                    <vscode-button appearance="icon" title="Set as active project" onclick="event.stopPropagation(); setActiveProject('${escapedName}')">
-                        <vscode-icon name="check"></vscode-icon>
-                    </vscode-button>
                     <vscode-button appearance="icon" title="Remove project" onclick="event.stopPropagation(); removeProject('${escapedName}')">
                         <vscode-icon name="trash"></vscode-icon>
                     </vscode-button>
