@@ -18,6 +18,7 @@ limitations under the License.
 import { ProjectInfo } from "../../project_utilities/project_info";
 import { escapeHtml } from "../webview_shared/webviewTypes";
 import { tabbedConfigGroupHtml } from "./configFileGroup";
+import { variablesHelpHtml } from "./VariablesSection";
 
 function variablesTableHtml(
   vars: Record<string, string>,
@@ -29,7 +30,10 @@ function variablesTableHtml(
     <div class="variables-section">
       <div class="section-row-header">
         <span class="section-row-title">Variables</span>
+        <vscode-button appearance="icon" icon="question" title="Variable Reference" data-command="toggleVariablesHelp" data-target="variables-help-project">
+        </vscode-button>
       </div>
+      ${variablesHelpHtml("project")}
       <div class="variables-table">
         ${entries.length === 0 ? '<div class="file-list-empty">No variables defined</div>' : ""}
         ${entries

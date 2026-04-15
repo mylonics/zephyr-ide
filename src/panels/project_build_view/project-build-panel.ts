@@ -107,6 +107,18 @@ function setupClickDelegation(): void {
     const command = el.getAttribute("data-command");
     if (!command) { return; }
 
+    // Client-side toggle for variables help
+    if (command === "toggleVariablesHelp") {
+      const targetId = el.getAttribute("data-target");
+      if (targetId) {
+        const helpDiv = document.getElementById(targetId);
+        if (helpDiv) {
+          helpDiv.style.display = helpDiv.style.display === "none" ? "" : "none";
+        }
+      }
+      return;
+    }
+
     const data = getDataAttributes(el);
     delete data["command"]; // already extracted
 

@@ -15,10 +15,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { VariableCommandInfo, getAvailableVariableCommands } from "../../project_utilities/project_info";
+import { getAvailableVariableCommands } from "../../project_utilities/project_info";
 import { escapeHtml } from "../webview_shared/webviewTypes";
 
-export function getVariablesReferenceSectionHtml(): string {
+/**
+ * Returns inline help content for a variables section, toggled by a ? icon.
+ * @param id Unique id to pair the toggle button with the content div.
+ */
+export function variablesHelpHtml(id: string): string {
   const commands = getAvailableVariableCommands();
 
   const rows = commands
@@ -32,27 +36,24 @@ export function getVariablesReferenceSectionHtml(): string {
     .join("\n");
 
   return `
-    <div class="panel-section">
-      <vscode-collapsible title="Variable Reference">
-        <div slot="body">
-        <div class="section-body">
-          <p class="help-text">
-            Zephyr IDE exposes project and build information as VS Code command variables.
-            Use them in <code>launch.json</code> and <code>tasks.json</code> with the <code>\${command:...}</code> syntax.
-          </p>
-          <vscode-table zebra bordered-rows>
-            <vscode-table-header slot="header">
-              <vscode-table-header-cell>Variable</vscode-table-header-cell>
-              <vscode-table-header-cell>Description</vscode-table-header-cell>
-            </vscode-table-header>
-            <vscode-table-body slot="body">
-              ${rows}
-            </vscode-table-body>
-          </vscode-table>
+    <div class="variables-help-content" id="variables-help-${id}" style="display:none;">
+      <p class="help-text">
+        Zephyr IDE exposes project and build information as VS Code command variables.
+        Use them in <code>launch.json</code> and <code>tasks.json</code> with the <code>\${command:...}</code> syntax.
+      </p>
+      <vscode-table zebra bordered-rows>
+        <vscode-table-header slot="header">
+          <vscode-table-header-cell>Variable</vscode-table-header-cell>
+          <vscode-table-header-cell>Description</vscode-table-header-cell>
+        </vscode-table-header>
+        <vscode-table-body slot="body">
+          ${rows}
+        </vscode-table-body>
+      </vscode-table>
 
-          <div class="help-example">
-            <h4>Example: launch.json</h4>
-            <pre><code>{
+      <div class="help-example">
+        <h4>Example: launch.json</h4>
+        <pre><code>{
   "version": "0.2.0",
   "configurations": [
     {
@@ -64,11 +65,11 @@ export function getVariablesReferenceSectionHtml(): string {
     }
   ]
 }</code></pre>
-          </div>
+      </div>
 
-          <div class="help-example">
-            <h4>Example: Custom Variables in tasks.json</h4>
-            <pre><code>{
+      <div class="help-example">
+        <h4>Example: Custom Variables in tasks.json</h4>
+        <pre><code>{
   "version": "2.0.0",
   "inputs": [
     {
@@ -87,14 +88,11 @@ export function getVariablesReferenceSectionHtml(): string {
     }
   ]
 }</code></pre>
-          </div>
+      </div>
 
-          <p class="help-text">
-            Custom variables are stored in <code>.vscode/zephyr-ide.json</code> under the project or build
-            <code>vars</code> key. Edit them using the variable tables above, or directly in the JSON file.
-          </p>
-        </div>
-        </div>
-      </vscode-collapsible>
+      <p class="help-text">
+        Custom variables are stored in <code>.vscode/zephyr-ide.json</code> under the project or build
+        <code>vars</code> key. Edit them using the variable tables above, or directly in the JSON file.
+      </p>
     </div>`;
 }

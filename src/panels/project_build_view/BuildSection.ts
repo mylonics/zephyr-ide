@@ -15,25 +15,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import { BuildDetails, CalculatedConfigFiles } from "../../project_utilities/project_info";
-import { BuildInfo } from "../../zephyr_utilities/build";
+import { BuildDetails } from "../../project_utilities/project_info";
 import { escapeHtml } from "../webview_shared/webviewTypes";
 import { getLaunchTargetDisplayName } from "../../utilities/utils";
 import { tabbedConfigGroupHtml } from "./configFileGroup";
-
-function readonlyFileListHtml(files: string[]): string {
-  if (files.length === 0) {
-    return `<div class="file-list-empty">None</div>`;
-  }
-  return files
-    .map((f) => {
-      const escaped = escapeHtml(f);
-      return `<div class="file-list-item">
-        <span class="file-name clickable" data-command="openFile" data-file="${escaped}" title="${escaped}">${escaped}</span>
-      </div>`;
-    })
-    .join("\n");
-}
+import { variablesHelpHtml } from "./VariablesSection";
 
 function buildVariablesTableHtml(
   vars: Record<string, string>,
@@ -45,7 +31,10 @@ function buildVariablesTableHtml(
     <div class="variables-section">
       <div class="section-row-header">
         <span class="section-row-title">Variables</span>
+        <vscode-button appearance="icon" icon="question" title="Variable Reference" data-command="toggleVariablesHelp" data-target="variables-help-build-${escapeHtml(buildName)}">
+        </vscode-button>
       </div>
+      ${variablesHelpHtml(`build-${buildName}`)}
       <div class="variables-table">
         ${entries.length === 0 ? '<div class="file-list-empty">No variables defined</div>' : ""}
         ${entries
@@ -121,42 +110,6 @@ function tabbedBuildArgsHtml(
         </vscode-tab-panel>
       </vscode-tabs>
     </div>`;
-}
-
-function calculatedSectionHtml(
-  calculated: CalculatedConfigFiles,
-  buildInfo: BuildInfo | undefined,
-): string {
-  let buildOutputHtml: string;
-  if (buildInfo) {
-    buildOutputHtml = `
-      <div class="calculated-sub">
-        <div class="config-sub-label">Resolved Kconfig Files (from build output)</div>
-        ${readonlyFileListHtml(buildInfo.kconfigFiles)}
-        <div class="config-sub-label">Resolved Kconfig User Files</div>
-        ${readonlyFileListHtml(buildInfo.otherKconfigFiles)}
-        <div class="config-sub-label">Resolved DTS File</div>
-        ${buildInfo.dtsFile ? readonlyFileListHtml([buildInfo.dtsFile]) : '<div class="file-list-empty">None</div>'}
-        <div class="config-sub-label">Resolved DTS Overlay / Include Files</div>
-        ${readonlyFileListHtml(buildInfo.otherDtsFiles)}
-      </div>`;
-  } else {
-    buildOutputHtml = `
-      <div class="calculated-notice">
-        <i class="codicon codicon-info"></i>
-        Run a build to see resolved configuration files from build output.
-      </div>`;
-  }
-
-  return `
-    <div class="calculated-sub">
-      <div class="config-sub-label">Composed Kconfig Files (project + build)</div>
-      ${readonlyFileListHtml(calculated.config.concat(calculated.extraConfig))}
-      <div class="config-sub-label">Composed Devicetree Overlay Files (project + build)</div>
-      ${readonlyFileListHtml(calculated.overlay.concat(calculated.extraOverlay))}
-    </div>
-    <vscode-divider></vscode-divider>
-    ${buildOutputHtml}`;
 }
 
 function runnersHtml(
@@ -288,11 +241,4 @@ export function getBuildSectionHtml(
         </div>
       </div>
     </div>`;
-}
-
-export function getCalculatedSectionHtml(
-  calculated: CalculatedConfigFiles,
-  buildInfo: BuildInfo | undefined,
-): string {
-  return calculatedSectionHtml(calculated, buildInfo);
 }

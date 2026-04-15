@@ -26,8 +26,6 @@ import {
   getProjectInfo,
   getBuildDetails,
   getTestDetails,
-  getCalculatedConfigFiles,
-  getResolvedBuildOutputFiles,
   getProjectVariables,
   getBuildVariables,
   mergeVariableDefaults,
@@ -54,9 +52,8 @@ import { getConfFileKey } from "../../project_utilities/config_selector";
 import { escapeHtml } from "../webview_shared/webviewTypes";
 import { generateNonce } from "../webview_shared/nonce";
 import { getProjectSectionHtml } from "./ProjectSection";
-import { getBuildSectionHtml, getCalculatedSectionHtml } from "./BuildSection";
+import { getBuildSectionHtml } from "./BuildSection";
 import { getTestSectionHtml } from "./TestSection";
-import { getVariablesReferenceSectionHtml } from "./VariablesSection";
 import { normalizeBuildArgs } from "../../project_utilities/build_args";
 
 export class ProjectBuildPanel {
@@ -638,7 +635,6 @@ export class ProjectBuildPanel {
     selectorHtml: string;
     projectHtml: string;
     buildOrTestHtml: string;
-    calculatedHtml: string;
     noProjectHtml: string;
     hasBuildSelected: boolean;
   } {
@@ -656,7 +652,6 @@ export class ProjectBuildPanel {
     // Project section
     let projectHtml = "";
     let buildOrTestHtml = "";
-    let calculatedHtml = "";
     let selectorHtml = "";
 
     if (selected && this._wsConfig.projects[selected]) {
@@ -708,19 +703,9 @@ export class ProjectBuildPanel {
             getBuildVariables(this._wsConfig, selected, buildName),
             this.getDefaultVariableKeys("build"),
           );
-          const calculated = getCalculatedConfigFiles(project, project.buildConfigs[buildName]);
           const activeBuild = this._wsConfig.projectStates[selected]?.activeBuildConfig;
           const isActive = buildName === activeBuild;
           buildOrTestHtml = getBuildSectionHtml(buildDetails, selected, buildName, buildVars, isActive);
-          calculatedHtml = `
-            <div class="panel-section">
-              <div class="section-header">
-                <h2><i class="codicon codicon-settings-gear"></i> Calculated Configuration</h2>
-              </div>
-              <div class="section-body">
-                ${getCalculatedSectionHtml(calculated, undefined)}
-              </div>
-            </div>`;
         }
       } else if (currentSelection.startsWith("test:")) {
         const testName = currentSelection.slice(5);
@@ -768,7 +753,6 @@ export class ProjectBuildPanel {
       selectorHtml,
       projectHtml,
       buildOrTestHtml,
-      calculatedHtml,
       noProjectHtml,
       hasBuildSelected,
     };
@@ -777,8 +761,6 @@ export class ProjectBuildPanel {
   private getHtmlShell(content: ReturnType<ProjectBuildPanel["generateDynamicContent"]>): string {
     const nonce = generateNonce();
     const disabledAttr = content.hasBuildSelected ? "" : " disabled";
-
-    const variablesRefHtml = getVariablesReferenceSectionHtml();
 
     return `<!DOCTYPE html>
     <html lang="en">
@@ -832,9 +814,7 @@ export class ProjectBuildPanel {
             <div class="project-build-col" id="projectCol">${content.projectHtml}</div>
             <div class="project-build-col" id="buildTestCol">${content.buildOrTestHtml}</div>
           </div>
-          <div id="calculatedArea">${content.calculatedHtml}</div>
         </div>
-        ${variablesRefHtml}
       </div>
       ${this.getScriptTags(nonce)}
     </body>

@@ -867,7 +867,8 @@
       },
       {
         "command": "zephyr-ide.config-view.open-project-details",
-        "title": "Open Project Details"
+        "title": "Open Project Details",
+        "icon": "$(open-preview)"
       },
       {
         "command": "zephyr-ide.config-view.modify-build-args",
