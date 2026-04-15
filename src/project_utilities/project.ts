@@ -24,7 +24,7 @@ import { buildSelector, BuildConfig, BuildConfigDictionary, BuildStateDictionary
 import { WorkspaceConfig } from "../setup_utilities/types";
 import { setWorkspaceState } from "../setup_utilities/state-management";
 import { runnerSelector, RunnerConfig } from "./runner_selector";
-import { configSelector, configRemover, ConfigFiles, getConfFileKey, mergeConfigFiles } from "./config_selector";
+import { configSelector, configRemover, ConfigFiles, mergeConfigFiles } from "./config_selector";
 import { setDtsContext } from "../setup_utilities/dts_interface";
 import { getSamples } from "../setup_utilities/modules";
 import { getSetupState } from "../setup_utilities/workspace-config";
@@ -364,8 +364,9 @@ export async function removeConfigFile(context: vscode.ExtensionContext, wsConfi
     confFiles = wsConfig.projects[projectName].buildConfigs[buildName].confFiles;
   }
 
-  const key = getConfFileKey(isKConfig, isPrimary);
-  confFiles[key] = confFiles[key].filter(el => !fileNames.includes(el));
+  const key: keyof ConfigFiles = isKConfig ? "config" : "overlay";
+  const fileSet = new Set(fileNames);
+  confFiles[key] = confFiles[key].filter(el => !fileSet.has(el.path));
   await setWorkspaceState(context, wsConfig);
   void vscode.window.showInformationMessage(`Config files removed`);
 }
@@ -544,9 +545,7 @@ export async function addProject(wsConfig: WorkspaceConfig, context: vscode.Exte
     twisterConfigs: {},
     confFiles: {
       config: [],
-      extraConfig: [],
       overlay: [],
-      extraOverlay: [],
     },
   };
   wsConfig.projectStates[projectName] = { buildStates: {}, viewOpen: true, twisterStates: {} };

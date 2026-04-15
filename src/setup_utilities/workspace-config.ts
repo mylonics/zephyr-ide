@@ -25,6 +25,47 @@ import { outputInfo, outputWarning, outputError, notifyError } from "../utilitie
 import { WorkspaceConfig, SetupState } from "./types";
 import { resolveActiveProjectBuild } from "../project_utilities/project";
 import { normalizeBuildArgs } from "../project_utilities/build_args";
+import { ConfigFiles, ConfigFileEntry, emptyConfigFiles } from "../project_utilities/config_selector";
+
+/**
+ * Migrate a ConfigFiles value from the old 4-array format
+ * ({config: string[], extraConfig: string[], overlay: string[], extraOverlay: string[]})
+ * to the new 2-array-of-entries format
+ * ({config: ConfigFileEntry[], overlay: ConfigFileEntry[]}).
+ * Returns true if a migration was performed.
+ */
+function migrateConfigFiles(confFiles: any): boolean {
+  if (!confFiles) { return false; }
+
+  // Detect old format: has "extraConfig" or "extraOverlay" keys, or config[0] is a string
+  const needsMigration =
+    Array.isArray(confFiles.extraConfig) ||
+    Array.isArray(confFiles.extraOverlay) ||
+    (Array.isArray(confFiles.config) && confFiles.config.length > 0 && typeof confFiles.config[0] === "string") ||
+    (Array.isArray(confFiles.overlay) && confFiles.overlay.length > 0 && typeof confFiles.overlay[0] === "string");
+
+  if (!needsMigration) { return false; }
+
+  const oldConfig: string[] = Array.isArray(confFiles.config) ? confFiles.config.filter((x: any) => typeof x === "string") : [];
+  const oldExtraConfig: string[] = Array.isArray(confFiles.extraConfig) ? confFiles.extraConfig : [];
+  const oldOverlay: string[] = Array.isArray(confFiles.overlay) ? confFiles.overlay.filter((x: any) => typeof x === "string") : [];
+  const oldExtraOverlay: string[] = Array.isArray(confFiles.extraOverlay) ? confFiles.extraOverlay : [];
+
+  const newConfig: ConfigFileEntry[] = [
+    ...oldConfig.map(p => ({ path: p })),
+    ...oldExtraConfig.map(p => ({ path: p, extra: true as const })),
+  ];
+  const newOverlay: ConfigFileEntry[] = [
+    ...oldOverlay.map(p => ({ path: p })),
+    ...oldExtraOverlay.map(p => ({ path: p, extra: true as const })),
+  ];
+
+  confFiles.config = newConfig;
+  confFiles.overlay = newOverlay;
+  delete confFiles.extraConfig;
+  delete confFiles.extraOverlay;
+  return true;
+}
 
 function argsMatchNormalized(value: any, normalized: string[]): boolean {
   if (!Array.isArray(value) || value.length !== normalized.length) {
@@ -49,6 +90,11 @@ function projectLoader(config: WorkspaceConfig, projects: any): boolean {
   for (const key in projects) {
     config.projects[key] = projects[key];
 
+    // Migrate project-level confFiles from old 4-array format
+    if (config.projects[key].confFiles && migrateConfigFiles(config.projects[key].confFiles)) {
+      requiresSave = true;
+    }
+
     //generate project States if they don't exist
     if (config.projectStates[key] === undefined) {
       config.projectStates[key] = { buildStates: {}, twisterStates: {} };
@@ -68,6 +114,12 @@ function projectLoader(config: WorkspaceConfig, projects: any): boolean {
       //Remove after upgrade
       if (projects[key].buildConfigs[build_key].runnerConfigs === undefined) {
         config.projects[key].buildConfigs[build_key].runnerConfigs = projects[key].buildConfigs[build_key].runners;
+        requiresSave = true;
+      }
+
+      // Migrate build-level confFiles from old 4-array format
+      if (config.projects[key].buildConfigs[build_key].confFiles &&
+          migrateConfigFiles(config.projects[key].buildConfigs[build_key].confFiles)) {
         requiresSave = true;
       }
 

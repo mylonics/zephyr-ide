@@ -405,9 +405,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
 
     state.confFiles = {
       config: [],
-      extraConfig: [],
       overlay: [],
-      extraOverlay: []
     };
 
     // Initialize launch/debug targets to safe defaults

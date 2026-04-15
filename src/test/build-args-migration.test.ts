@@ -46,7 +46,7 @@ suite("Build Args Migration Test Suite", () => {
           app: {
             name: "app",
             rel_path: "app",
-            confFiles: { config: [], extraConfig: [], overlay: [], extraOverlay: [] },
+            confFiles: { config: [], overlay: [] },
             twisterConfigs: {},
             buildConfigs: {
               debug: {
@@ -60,7 +60,7 @@ suite("Build Args Migration Test Suite", () => {
                 runnerConfigs: {
                   default: { runner: "Default", name: "Default", args: "" },
                 },
-                confFiles: { config: [], extraConfig: [], overlay: [], extraOverlay: [] },
+                confFiles: { config: [], overlay: [] },
                 launchTarget: "Zephyr IDE: Debug",
                 buildDebugTarget: "Zephyr IDE: Debug",
                 attachTarget: "Zephyr IDE: Attach",

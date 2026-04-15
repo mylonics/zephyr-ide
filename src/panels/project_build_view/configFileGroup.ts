@@ -16,6 +16,7 @@ limitations under the License.
 */
 
 import { escapeHtml } from "../webview_shared/webviewTypes";
+import { ConfigFileEntry } from "../../project_utilities/config_selector";
 
 /**
  * Renders a single file row with an "Extra" checkbox, clickable filename, and remove button.
@@ -46,8 +47,7 @@ function fileRowHtml(
  */
 function fileTabContentHtml(
   groupId: string,
-  primaryFiles: string[],
-  extraFiles: string[],
+  files: ConfigFileEntry[],
   addCmd: string,
   removeCmd: string,
   toggleCmd: string,
@@ -55,11 +55,8 @@ function fileTabContentHtml(
 ): string {
   const allRows: string[] = [];
 
-  for (const f of primaryFiles) {
-    allRows.push(fileRowHtml(f, groupId, false, removeCmd, toggleCmd));
-  }
-  for (const f of extraFiles) {
-    allRows.push(fileRowHtml(f, groupId, true, removeCmd, toggleCmd));
+  for (const entry of files) {
+    allRows.push(fileRowHtml(entry.path, groupId, !!entry.extra, removeCmd, toggleCmd));
   }
 
   const emptyNotice = allRows.length === 0
@@ -88,13 +85,11 @@ function fileTabContentHtml(
  */
 export function tabbedConfigGroupHtml(
   idPrefix: string,
-  kconfigPrimary: string[],
-  kconfigExtra: string[],
+  kconfigFiles: ConfigFileEntry[],
   kconfigAddCmd: string,
   kconfigRemoveCmd: string,
   kconfigToggleCmd: string,
-  overlayPrimary: string[],
-  overlayExtra: string[],
+  overlayFiles: ConfigFileEntry[],
   overlayAddCmd: string,
   overlayRemoveCmd: string,
   overlayToggleCmd: string,
@@ -107,11 +102,11 @@ export function tabbedConfigGroupHtml(
       <vscode-tabs data-tab-id="config-${idPrefix}">
         <vscode-tab-header slot="header">Kconfig Files</vscode-tab-header>
         <vscode-tab-panel>
-          ${fileTabContentHtml(kconfigGroupId, kconfigPrimary, kconfigExtra, kconfigAddCmd, kconfigRemoveCmd, kconfigToggleCmd, "Add Kconfig")}
+          ${fileTabContentHtml(kconfigGroupId, kconfigFiles, kconfigAddCmd, kconfigRemoveCmd, kconfigToggleCmd, "Add Kconfig")}
         </vscode-tab-panel>
         <vscode-tab-header slot="header">Devicetree Overlay Files</vscode-tab-header>
         <vscode-tab-panel>
-          ${fileTabContentHtml(overlayGroupId, overlayPrimary, overlayExtra, overlayAddCmd, overlayRemoveCmd, overlayToggleCmd, "Add Overlay")}
+          ${fileTabContentHtml(overlayGroupId, overlayFiles, overlayAddCmd, overlayRemoveCmd, overlayToggleCmd, "Add Overlay")}
         </vscode-tab-panel>
       </vscode-tabs>
     </div>`;

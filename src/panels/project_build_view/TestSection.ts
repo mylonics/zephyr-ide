@@ -18,47 +18,42 @@ limitations under the License.
 import { TestDetails } from "../../project_utilities/project_info";
 import { escapeHtml } from "../webview_shared/webviewTypes";
 
-export function getTestSectionHtml(
-  test: TestDetails,
-  projectName: string,
-): string {
-  const testsHtml = test.tests.length > 0
-    ? test.tests.map((t) => `<div class="file-list-item"><span class="file-name">${escapeHtml(t)}</span></div>`).join("\n")
-    : '<div class="file-list-empty">No tests specified</div>';
+export function getTestSectionHtml(test: TestDetails, projectName: string): string {
+  const p = escapeHtml(projectName);
+  const t = escapeHtml(test.name);
 
-  return `
-    <div class="panel-section test-section">
-      <div class="section-header">
-        <h2><i class="codicon codicon-beaker"></i> Test: ${escapeHtml(test.name)}</h2>
+  return `<div class="test-card">
+    <div class="test-card-header">
+      <h2 class="test-card-title">
+        <i class="codicon codicon-beaker"></i>
+        ${t}
+      </h2>
+    </div>
+    <div class="test-card-body">
+      <div class="info-row">
+        <span class="info-label">Platform</span>
+        <span class="info-value">${escapeHtml(test.platform)}</span>
       </div>
-      <div class="section-body">
-        <div class="info-row">
-          <span class="info-label">Platform</span>
-          <span class="info-value">${escapeHtml(test.platform)}</span>
-        </div>
-        ${test.board ? `<div class="info-row">
-          <span class="info-label">Board</span>
-          <span class="info-value">${escapeHtml(test.board)}</span>
-        </div>` : ""}
-        <div class="info-row">
-          <span class="info-label">Args</span>
-          <span class="info-value">${escapeHtml(test.args || "(none)")}</span>
-        </div>
-        ${test.serialPort ? `<div class="info-row">
-          <span class="info-label">Serial Port</span>
-          <span class="info-value">${escapeHtml(test.serialPort)}</span>
-        </div>` : ""}
-        ${test.serialBaud ? `<div class="info-row">
-          <span class="info-label">Serial Baud</span>
-          <span class="info-value">${escapeHtml(test.serialBaud)}</span>
-        </div>` : ""}
-
-        <div class="section-row-header">
-          <span class="section-row-title">Tests</span>
-        </div>
-        <div class="variables-table">
-          ${testsHtml}
-        </div>
+      ${test.board ? `<div class="info-row">
+        <span class="info-label">Board</span>
+        <span class="info-value">${escapeHtml(test.board)}</span>
+      </div>` : ""}
+      <div class="info-row">
+        <span class="info-label">Tests</span>
+        <span class="info-value">${test.tests.length > 0 ? test.tests.map(escapeHtml).join(", ") : "<em>none</em>"}</span>
       </div>
-    </div>`;
+      ${test.args ? `<div class="info-row">
+        <span class="info-label">Arguments</span>
+        <span class="info-value" style="font-family: var(--vscode-editor-font-family, monospace); font-size: 0.92em;">${escapeHtml(test.args)}</span>
+      </div>` : ""}
+      ${test.serialPort ? `<div class="info-row">
+        <span class="info-label">Serial Port</span>
+        <span class="info-value">${escapeHtml(test.serialPort)}</span>
+      </div>` : ""}
+      ${test.serialBaud ? `<div class="info-row">
+        <span class="info-label">Serial Baud</span>
+        <span class="info-value">${escapeHtml(test.serialBaud)}</span>
+      </div>` : ""}
+    </div>
+  </div>`;
 }

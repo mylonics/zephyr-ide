@@ -25,6 +25,7 @@ import { notifyError, outputInfo, outputWarning } from "../utilities/output";
 import { WorkspaceConfig } from '../setup_utilities/types';
 import { addBuild, ProjectConfig, getResolvedBuildName, resolveActiveProject, resolveActiveProjectBuild, getProjectFolder, getBuildFolder, resolveBoardRootArg } from "../project_utilities/project";
 import { BuildConfig } from "../project_utilities/build_selector";
+import { primaryPaths, extraPaths } from "../project_utilities/config_selector";
 import { joinBuildArgsForShell, normalizeBuildArgs, quoteBuildArgForShell } from "../project_utilities/build_args";
 import { updateDtsContext } from "../setup_utilities/dts_interface";
 import { getSetupState, getSetupStateOrNotify, updateBuildCMakeInfo, clearBuildCMakeInfo } from "../setup_utilities/workspace-config";
@@ -140,13 +141,16 @@ export async function build(
   pristine: boolean
 ) {
 
-  const primaryConfFiles = project.confFiles.config.concat(build.confFiles.config)
+  const allKconfig = project.confFiles.config.concat(build.confFiles.config);
+  const allOverlay = project.confFiles.overlay.concat(build.confFiles.overlay);
+
+  const primaryConfFiles = primaryPaths(allKconfig)
     .map(x => path.join(wsConfig.rootPath, x));
-  const secondaryConfFiles = project.confFiles.extraConfig.concat(build.confFiles.extraConfig)
+  const secondaryConfFiles = extraPaths(allKconfig)
     .map(x => path.join(wsConfig.rootPath, x));
-  const overlayFiles = project.confFiles.overlay.concat(build.confFiles.overlay)
+  const overlayFiles = primaryPaths(allOverlay)
     .map(x => path.join(wsConfig.rootPath, x));
-  const extraOverlayFiles = project.confFiles.extraOverlay.concat(build.confFiles.extraOverlay)
+  const extraOverlayFiles = extraPaths(allOverlay)
     .map(x => path.join(wsConfig.rootPath, x));
 
   const extraWestBuildArgs = joinBuildArgsForShell(build.westBuildArgs);

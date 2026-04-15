@@ -18,7 +18,7 @@ limitations under the License.
 import * as vscode from 'vscode';
 import * as path from 'upath';
 import { addConfigFiles, setActive, modifyBuildArguments, removeConfigFile, getResolvedRunnerConfig, getResolvedTestConfig, resolveActiveProject, resolveActiveProjectBuild } from '../project_utilities/project';
-import { ConfigFiles } from '../project_utilities/config_selector';
+import { ConfigFiles, ConfigFileEntry } from '../project_utilities/config_selector';
 import { joinBuildArgs } from '../project_utilities/build_args';
 
 import { WorkspaceConfig } from '../setup_utilities/types';
@@ -80,25 +80,19 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
   private makeFileChildren(
     projectName: string,
     buildName: string | undefined,
-    files: string[],
-    extraFiles: string[],
+    entries: ConfigFileEntry[],
     removeCmd: string,
-    label: string,
-    extraLabel: string,
   ): ConfigItem[] {
     const level = buildName ? 'build' : 'project';
     const type = removeCmd === 'removeKConfigFile' ? 'kconfig' : 'overlay';
     const items: ConfigItem[] = [];
-    for (const filename of files) {
-      const item = new ConfigItem(label, 'file', false, 'configFile', filename);
-      item.id = `config-file-${level}-${type}.${sanitizeTreeId(filename)}`;
-      item.data = { project: projectName, build: buildName, fileCmd: removeCmd, isExtra: false, filename };
-      items.push(item);
-    }
-    for (const filename of extraFiles) {
-      const item = new ConfigItem(extraLabel, 'file', false, 'configFile', filename);
-      item.id = `config-file-${level}-${type}-extra.${sanitizeTreeId(filename)}`;
-      item.data = { project: projectName, build: buildName, fileCmd: removeCmd, isExtra: true, filename };
+    for (const entry of entries) {
+      const isExtra = !!entry.extra;
+      const label = isExtra ? (type === 'kconfig' ? "Extra Config" : "Extra Overlay") : (type === 'kconfig' ? "Config" : "Overlay");
+      const idSuffix = isExtra ? '-extra' : '';
+      const item = new ConfigItem(label, 'file', false, 'configFile', entry.path);
+      item.id = `config-file-${level}-${type}${idSuffix}.${sanitizeTreeId(entry.path)}`;
+      item.data = { project: projectName, build: buildName, fileCmd: removeCmd, isExtra, filename: entry.path };
       items.push(item);
     }
     return items;
@@ -119,9 +113,9 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
 
     if (confFiles) {
       if (isKConfig) {
-        group.children = this.makeFileChildren(projectName, buildName, confFiles.config, confFiles.extraConfig, "removeKConfigFile", "Config", "Extra Config");
+        group.children = this.makeFileChildren(projectName, buildName, confFiles.config, "removeKConfigFile");
       } else {
-        group.children = this.makeFileChildren(projectName, buildName, confFiles.overlay, confFiles.extraOverlay, "removeOverlayFile", "Overlay", "Extra Overlay");
+        group.children = this.makeFileChildren(projectName, buildName, confFiles.overlay, "removeOverlayFile");
       }
       for (const child of group.children) {
         child.parent = group;

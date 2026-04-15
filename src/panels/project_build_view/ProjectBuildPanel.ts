@@ -48,7 +48,7 @@ import {
   selectDebugAttachLaunchConfiguration,
   getProjectFolder,
 } from "../../project_utilities/project";
-import { getConfFileKey } from "../../project_utilities/config_selector";
+import { ConfigFiles } from "../../project_utilities/config_selector";
 import { escapeHtml } from "../webview_shared/webviewTypes";
 import { generateNonce } from "../webview_shared/nonce";
 import { getProjectSectionHtml } from "./ProjectSection";
@@ -405,7 +405,6 @@ export class ProjectBuildPanel {
       return;
     }
     const toggleCmd = String(message["toggle-cmd"] ?? "");
-    const toExtra = message.extra === "true";
     const file = String(message.file);
 
     // Determine isKConfig, isProject from the toggle command name
@@ -436,14 +435,11 @@ export class ProjectBuildPanel {
       confFiles = project.buildConfigs[buildName].confFiles;
     }
 
-    // Remove from current list, add to target list
-    // toExtra=true means moving from primary→extra; isPrimary is the inverse of "is extra"
-    const fromKey = getConfFileKey(isKConfig, toExtra);
-    const toKey = getConfFileKey(isKConfig, !toExtra);
-
-    confFiles[fromKey] = confFiles[fromKey].filter((f: string) => f !== file);
-    if (!confFiles[toKey].includes(file)) {
-      confFiles[toKey].push(file);
+    // Toggle the extra flag in-place (preserves list order)
+    const key: keyof ConfigFiles = isKConfig ? "config" : "overlay";
+    const entry = confFiles[key].find(e => e.path === file);
+    if (entry) {
+      entry.extra = !entry.extra || undefined;  // flip: true→undefined, undefined/false→true
     }
 
     await setWorkspaceState(this._context, this._wsConfig);
@@ -718,18 +714,23 @@ export class ProjectBuildPanel {
       // Show placeholder if no build/test selected
       if (!buildOrTestHtml && buildNames.length === 0 && testNames.length === 0) {
         buildOrTestHtml = `
-          <div class="panel-section build-placeholder">
+          <div class="build-placeholder">
             <div class="build-placeholder-content">
               <i class="codicon codicon-add"></i>
-              <p>No builds configured.</p>
-              <vscode-button appearance="secondary" icon="add" data-command="addBuild" data-project="${escapeHtml(selected)}">
-                Create Build
-              </vscode-button>
+              <p>No builds or tests configured yet.</p>
+              <div class="build-placeholder-actions">
+                <vscode-button icon="add" data-command="addBuild" data-project="${escapeHtml(selected)}">
+                  Add Build
+                </vscode-button>
+                <vscode-button appearance="secondary" icon="beaker" data-command="addTest" data-project="${escapeHtml(selected)}">
+                  Add Test
+                </vscode-button>
+              </div>
             </div>
           </div>`;
       } else if (!buildOrTestHtml) {
         buildOrTestHtml = `
-          <div class="panel-section build-placeholder">
+          <div class="build-placeholder">
             <div class="build-placeholder-content">
               <i class="codicon codicon-arrow-left"></i>
               <p>Select a build or test to view details.</p>
@@ -760,7 +761,7 @@ export class ProjectBuildPanel {
 
   private getHtmlShell(content: ReturnType<ProjectBuildPanel["generateDynamicContent"]>): string {
     const nonce = generateNonce();
-    const disabledAttr = content.hasBuildSelected ? "" : " disabled";
+    const selectedProject = this._selectedProject ? escapeHtml(this._selectedProject) : "";
 
     return `<!DOCTYPE html>
     <html lang="en">
@@ -776,7 +777,6 @@ export class ProjectBuildPanel {
         <div class="page-header">
           <div>
             <h1 class="page-title"><i class="codicon codicon-project"></i> Project Details</h1>
-            <p class="page-subtitle">Inspect configured projects, builds, tests, and derived variables.</p>
           </div>
           <div class="page-header-selectors">
             <div class="page-actions project-selector">
@@ -788,32 +788,15 @@ export class ProjectBuildPanel {
             <div id="buildTestSelectorContainer">${content.selectorHtml}</div>
           </div>
         </div>
-        <div id="headerActions" class="page-header-actions">
-          <vscode-button-group>
-            <vscode-button icon="play" data-command="build"${disabledAttr}>
-              Build
-            </vscode-button>
-            <vscode-button appearance="secondary" icon="debug-rerun" data-command="buildPristine"${disabledAttr}>
-              Build Pristine
-            </vscode-button>
-            <vscode-button appearance="secondary" icon="arrow-circle-up" data-command="flash"${disabledAttr}>
-              Flash
-            </vscode-button>
-            <vscode-button appearance="secondary" icon="debug-alt" data-command="debug"${disabledAttr}>
-              Debug
-            </vscode-button>
-            <vscode-button appearance="secondary" icon="debug-start" data-command="buildDebug"${disabledAttr}>
-              Build + Debug
-            </vscode-button>
-          </vscode-button-group>
-        </div>
 
         <div id="noProjectArea">${content.noProjectHtml}</div>
         <div id="projectContent">
-          <div class="project-build-row">
-            <div class="project-build-col" id="projectCol">${content.projectHtml}</div>
-            <div class="project-build-col" id="buildTestCol">${content.buildOrTestHtml}</div>
+          <div id="projectCol">${content.projectHtml}</div>
+          <div id="headerActions" class="project-actions-row">
+            ${selectedProject ? `<vscode-button appearance="secondary" icon="add" data-command="addBuild" data-project="${selectedProject}">Add Build</vscode-button>
+            <vscode-button appearance="secondary" icon="beaker" data-command="addTest" data-project="${selectedProject}">Add Test</vscode-button>` : ""}
           </div>
+          <div id="buildTestCol">${content.buildOrTestHtml}</div>
         </div>
       </div>
       ${this.getScriptTags(nonce)}

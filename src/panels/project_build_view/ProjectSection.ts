@@ -20,101 +20,125 @@ import { escapeHtml } from "../webview_shared/webviewTypes";
 import { tabbedConfigGroupHtml } from "./configFileGroup";
 import { variablesHelpHtml } from "./VariablesSection";
 
-function variablesTableHtml(
+// ---------------------------------------------------------------------------
+// Variables table (project-level)
+// ---------------------------------------------------------------------------
+
+function projectVariablesTableHtml(
   vars: Record<string, string>,
-  level: "project",
   projectName: string,
 ): string {
   const entries = Object.entries(vars);
-  return `
-    <div class="variables-section">
-      <div class="section-row-header">
-        <span class="section-row-title">Variables</span>
-        <vscode-button appearance="icon" icon="question" title="Variable Reference" data-command="toggleVariablesHelp" data-target="variables-help-project">
-        </vscode-button>
-      </div>
-      ${variablesHelpHtml("project")}
-      <div class="variables-table">
-        ${entries.length === 0 ? '<div class="file-list-empty">No variables defined</div>' : ""}
-        ${entries
-      .map(
-        ([k, v]) => `
-          <div class="variable-row">
-            <input class="variable-key-input" type="text" value="${escapeHtml(k)}" aria-label="Variable name">
-            <input class="variable-value-input" type="text" value="${escapeHtml(v)}" aria-label="Variable value">
-            <vscode-button appearance="icon" icon="save" title="Save" data-command="upsertVariable" data-level="${level}" data-project="${escapeHtml(projectName)}" data-original-key="${escapeHtml(k)}">
-            </vscode-button>
-            <vscode-button appearance="icon" icon="trash" title="Remove" data-command="removeVariable" data-level="${level}" data-project="${escapeHtml(projectName)}" data-key="${escapeHtml(k)}">
-            </vscode-button>
-          </div>`,
-      )
-      .join("\n")}
-        <div class="variable-row variable-row-add">
-          <input class="variable-key-input" type="text" value="" placeholder="New variable name" aria-label="New variable name">
-          <input class="variable-value-input" type="text" value="" placeholder="New variable value" aria-label="New variable value">
-          <vscode-button appearance="icon" icon="add" title="Add Variable" data-command="upsertVariable" data-level="${level}" data-project="${escapeHtml(projectName)}" data-original-key="">
-          </vscode-button>
-        </div>
-      </div>
+  const rows = entries.map(([k, v]) => {
+    return `<div class="variable-row">
+      <input class="variable-key-input" type="text" value="${escapeHtml(k)}"
+        data-command="upsertVariable" data-level="project" data-project="${escapeHtml(projectName)}"
+        data-original-key="${escapeHtml(k)}" data-field="key" />
+      <input class="variable-value-input" type="text" value="${escapeHtml(v)}"
+        data-command="upsertVariable" data-level="project" data-project="${escapeHtml(projectName)}"
+        data-original-key="${escapeHtml(k)}" data-field="value" />
+      <vscode-button appearance="icon" icon="trash" title="Remove"
+        data-command="removeVariable" data-level="project" data-project="${escapeHtml(projectName)}"
+        data-key="${escapeHtml(k)}">
+      </vscode-button>
     </div>`;
+  });
+  // Add row
+  rows.push(`<div class="variable-row variable-row-add">
+    <input class="variable-key-input" type="text" placeholder="name"
+      data-command="upsertVariable" data-level="project" data-project="${escapeHtml(projectName)}"
+      data-original-key="" data-field="key" />
+    <input class="variable-value-input" type="text" placeholder="value"
+      data-command="upsertVariable" data-level="project" data-project="${escapeHtml(projectName)}"
+      data-original-key="" data-field="value" />
+  </div>`);
+  return `<div class="variables-table">${rows.join("\n")}</div>`;
 }
 
+// ---------------------------------------------------------------------------
+// Main export
+// ---------------------------------------------------------------------------
+
 export function getProjectSectionHtml(
-  projectInfo: ProjectInfo,
+  info: ProjectInfo,
   projectName: string,
   projectVars: Record<string, string>,
 ): string {
-  const mainFile = projectInfo.mainSourceFile
-    ? `<span class="clickable" data-command="openFile" data-file="${escapeHtml(projectInfo.mainSourceFile)}">${escapeHtml(projectInfo.mainSourceFile)}</span>`
-    : `<span class="text-muted">Not found</span>`;
+  const p = escapeHtml(projectName);
 
-  const cmakeFile = projectInfo.cmakeFile
-    ? `<span class="clickable" data-command="openFile" data-file="${escapeHtml(projectInfo.cmakeFile)}">${escapeHtml(projectInfo.cmakeFile)}</span>`
-    : `<span class="text-muted">Not found</span>`;
+  const mainFile = info.mainSourceFile
+    ? `<span class="clickable" data-command="openFile" data-file="${escapeHtml(info.mainSourceFile)}">${escapeHtml(info.mainSourceFile)}</span>`
+    : "<em>not found</em>";
 
-  return `
-    <div class="panel-section">
-      <div class="section-header">
-        <h2><i class="codicon codicon-project"></i> Project: ${escapeHtml(projectInfo.name)}</h2>
+  const kconfigCount = info.confFiles.config.length;
+  const overlayCount = info.confFiles.overlay.length;
+  const varCount = Object.keys(projectVars).length;
+
+  // Summary bar (compact, click to expand)
+  const summaryBar = `<div class="project-summary-bar" aria-expanded="false" data-command="toggleProjectDetail">
+    <span class="project-summary-title">
+      <i class="codicon codicon-folder"></i>
+      ${p}
+    </span>
+    <span class="project-summary-meta">
+      <span class="meta-item clickable" data-command="openFolder" data-file="${escapeHtml(info.absPath)}" title="${escapeHtml(info.absPath)}">${escapeHtml(info.relPath)}</span>
+      <span class="meta-item">main: ${mainFile}</span>
+      <span class="meta-item">${kconfigCount} kconfig</span>
+      <span class="meta-item">${overlayCount} overlay</span>
+      <span class="meta-item">${varCount} var${varCount !== 1 ? "s" : ""}</span>
+    </span>
+    <span class="project-summary-expand codicon codicon-chevron-right"></span>
+  </div>`;
+
+  // Detail panel (hidden by default)
+  const configGroupHtml = tabbedConfigGroupHtml(
+    `project-${p}`,
+    info.confFiles.config,
+    "addProjectConfigFile", "removeProjectConfigFile", "toggleProjectConfigFileExtra",
+    info.confFiles.overlay,
+    "addProjectOverlayFile", "removeProjectOverlayFile", "toggleProjectOverlayFileExtra",
+  );
+
+  const varsSection = `
+    <div class="variables-section">
+      <div class="section-row-header">
+        <span class="section-row-title">Project Variables</span>
+        <vscode-button appearance="icon" icon="question" title="Variable help"
+          data-command="toggleHelp" data-target="variables-help-project-${p}">
+        </vscode-button>
       </div>
-      <div class="section-body">
-        <div class="info-row">
-          <span class="info-label">Location</span>
-          <span class="info-value clickable" data-command="openFolder" data-file="${escapeHtml(projectInfo.absPath)}">${escapeHtml(projectInfo.relPath)}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">Main Source</span>
-          <span class="info-value">${mainFile}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">CMake File</span>
-          <span class="info-value">${cmakeFile}</span>
-        </div>
-
-        ${tabbedConfigGroupHtml(
-    "project",
-    projectInfo.confFiles.config,
-    projectInfo.confFiles.extraConfig,
-    "addProjectConfigFile",
-    "removeProjectConfigFile",
-    "toggleProjectConfigFileExtra",
-    projectInfo.confFiles.overlay,
-    projectInfo.confFiles.extraOverlay,
-    "addProjectOverlayFile",
-    "removeProjectOverlayFile",
-    "toggleProjectOverlayFileExtra",
-  )}
-
-        ${variablesTableHtml(projectVars, "project", projectName)}
-
-        <div class="action-row">
-          <vscode-button appearance="secondary" icon="add" data-command="addBuild" data-project="${escapeHtml(projectName)}">
-            Add Build
-          </vscode-button>
-          <vscode-button appearance="secondary" icon="beaker" data-command="addTest" data-project="${escapeHtml(projectName)}">
-            Add Test
-          </vscode-button>
-        </div>
-      </div>
+      ${variablesHelpHtml(`project-${p}`)}
+      ${projectVariablesTableHtml(projectVars, projectName)}
     </div>`;
+
+  const detailPanel = `<div class="project-detail-panel" hidden>
+    <div class="info-row">
+      <span class="info-label">Path</span>
+      <span class="info-value clickable" data-command="openFolder" data-file="${escapeHtml(info.absPath)}">${escapeHtml(info.absPath)}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Relative Path</span>
+      <span class="info-value">${escapeHtml(info.relPath)}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Main Source</span>
+      <span class="info-value">${mainFile}</span>
+    </div>
+    ${info.cmakeFile ? `<div class="info-row">
+      <span class="info-label">CMakeLists.txt</span>
+      <span class="info-value clickable" data-command="openFile" data-file="${escapeHtml(info.cmakeFile)}">${escapeHtml(info.cmakeFile)}</span>
+    </div>` : ""}
+    <div class="info-row">
+      <span class="info-label">Builds</span>
+      <span class="info-value">${info.buildNames.length > 0 ? info.buildNames.map(escapeHtml).join(", ") : "<em>none</em>"}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Tests</span>
+      <span class="info-value">${info.testNames.length > 0 ? info.testNames.map(escapeHtml).join(", ") : "<em>none</em>"}</span>
+    </div>
+    ${configGroupHtml}
+    ${varsSection}
+  </div>`;
+
+  return summaryBar + detailPanel;
 }
