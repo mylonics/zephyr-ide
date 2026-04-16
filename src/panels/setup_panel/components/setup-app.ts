@@ -319,7 +319,10 @@ export class SetupApp extends ZephyrLitElement {
       <div class="workspace-list-section">
         <div class="section-header-row">
           <h3>West Workspaces</h3>
-          <div class="section-header-actions"><span class="status ${headerStatusClass}">${status}</span></div>
+          <div class="section-header-actions">
+            <span class="status ${headerStatusClass}">${status}</span>
+            <vscode-button appearance="secondary" @click=${() => this._cmd("openWorkspacePanel")}>New Workspace</vscode-button>
+          </div>
         </div>
         <div class="overview-scroll-container">
           <div class="workspace-list-container">
