@@ -17,6 +17,12 @@ limitations under the License.
 
 export type BuildArgValue = string | string[] | undefined;
 
+/** Represents a single CMake -D cache variable definition. */
+export interface CMakeDefEntry {
+  key: string;
+  value: string;
+}
+
 /** Convert build args to a normalized array representation. */
 export function normalizeBuildArgs(value: BuildArgValue): string[] {
   if (Array.isArray(value)) {
@@ -103,12 +109,15 @@ export function quoteBuildArgForShell(arg: string): string {
 }
 
 /**
- * Build a CMake -D flag with proper shell quoting.
- * The value is quoted as a single shell token only when it contains characters
- * that require it (spaces, semicolons, quotes, etc.).
+ * Build a CMake -D flag, always double-quoted.
+ * Backslashes in the value are normalized to forward slashes so that CMake
+ * receives valid paths on Windows without shell-escaping issues.
+ * The result is always wrapped in double quotes to prevent Windows drive
+ * letters (e.g. C:/) from being split by the shell or CMake's argument parser.
  */
 export function quoteCMakeDef(key: string, value: string): string {
-  return quoteBuildArgForShell(`-D${key}=${value}`);
+  const normalized = value.replace(/\\/g, '/');
+  return `"-D${key}=${normalized}"`;
 }
 
 /** Join argument list safely for shell command usage. */

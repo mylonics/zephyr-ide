@@ -157,7 +157,19 @@ export class HostToolsClient {
   constructor(
     private readonly vscode: WebviewApi,
     private readonly displayMode: PackageDisplayMode,
-  ) {}
+  ) {
+    document.addEventListener('click', (e: Event) => {
+      const target = (e.target as HTMLElement).closest<HTMLElement>('[data-action]');
+      if (!target) { return; }
+      const action = target.getAttribute('data-action');
+      const pkg = target.getAttribute('data-package') ?? '';
+      switch (action) {
+        case 'installPackage': this.installPackage(pkg); break;
+        case 'installPackageManager': this.installPackageManager(); break;
+        case 'openManagerInstallUrl': this.openManagerInstallUrl(); break;
+      }
+    });
+  }
 
   // -----------------------------------------------------------------------
   // Extension (outbound) commands
@@ -188,7 +200,7 @@ export class HostToolsClient {
   // -----------------------------------------------------------------------
 
   /** Route an incoming message. Returns true if this client handled it. */
-  handleMessage(message: any): boolean {
+  handleMessage(message: Record<string, any>): boolean {
     const cmd = message.command;
 
     if (cmd === INBOUND_COMMANDS.updateStatus) {
@@ -366,8 +378,8 @@ export class HostToolsClient {
           <div class="manager-actions">
             ${data.managerInstallUrl
               ? `<p>The ${escapeHtml(data.managerName)} package manager is required but not installed.</p>
-                 <vscode-button onclick="hostToolsClient.openManagerInstallUrl()">Install ${escapeHtml(data.managerName)}</vscode-button>`
-              : `<vscode-button onclick="hostToolsClient.installPackageManager()">Install ${escapeHtml(data.managerName)}</vscode-button>`
+                 <vscode-button data-action="openManagerInstallUrl">Install ${escapeHtml(data.managerName)}</vscode-button>`
+              : `<vscode-button data-action="installPackageManager">Install ${escapeHtml(data.managerName)}</vscode-button>`
             }
           </div>` : ''}
       </div>`;
@@ -398,7 +410,7 @@ export class HostToolsClient {
           <div class="package-actions">
             <span class="status-badge ${info.statusClass}">${info.statusText}</span>
             ${info.showInstallButton
-              ? `<vscode-button class="install-inline-btn" appearance="secondary" onclick="hostToolsClient.installPackage('${escapeHtml(pkg.name)}')">Install</vscode-button>`
+              ? `<vscode-button class="install-inline-btn" appearance="secondary" data-action="installPackage" data-package="${escapeHtml(pkg.name)}">Install</vscode-button>`
               : ''}
           </div>
         </div>`;
@@ -423,7 +435,7 @@ export class HostToolsClient {
           <div class="warning">
             <strong>${escapeHtml(data.managerName)}</strong> is not installed or not in PATH.
             <div class="manager-actions">
-              <vscode-button appearance="secondary" onclick="hostToolsClient.installPackageManager()">
+              <vscode-button appearance="secondary" data-action="installPackageManager">
                 Install ${escapeHtml(data.managerName)}
               </vscode-button>
             </div>
@@ -452,7 +464,7 @@ export class HostToolsClient {
         <td><strong>${escapeHtml(pkg.name)}</strong></td>
         <td><span class="${info.statusClass}">${info.statusText}</span></td>
         <td>${info.showInstallButton
-          ? `<vscode-button class="install-inline-btn" appearance="secondary" onclick="hostToolsClient.installPackage('${escapeHtml(pkg.name)}')">Install</vscode-button>`
+          ? `<vscode-button class="install-inline-btn" appearance="secondary" data-action="installPackage" data-package="${escapeHtml(pkg.name)}">Install</vscode-button>`
           : ''}</td>
       </tr>`;
     }
@@ -480,7 +492,7 @@ export class HostToolsClient {
 
   // ---- In-place row update (works for both cards and table modes) -----
 
-  private updatePackageStatus(packageName: string, newState: string): void {
+  private updatePackageStatus(packageName: string, newState: PackageState): void {
     if (this.displayMode === 'cards') {
       this.updatePackageCard(packageName, newState);
     } else {
@@ -488,7 +500,7 @@ export class HostToolsClient {
     }
   }
 
-  private updatePackageCard(packageName: string, state: string): void {
+  private updatePackageCard(packageName: string, state: PackageState): void {
     const packageItem = document.querySelector(`[data-package-name="${packageName}"]`) as HTMLElement | null;
     if (!packageItem) { return; }
 
@@ -528,7 +540,7 @@ export class HostToolsClient {
     }
   }
 
-  private updatePackageRow(packageName: string, state: string): void {
+  private updatePackageRow(packageName: string, state: PackageState): void {
     const row = document.querySelector(`tr[data-package-name="${packageName}"]`) as HTMLElement | null;
     if (!row) { return; }
 

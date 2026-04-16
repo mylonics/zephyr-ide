@@ -184,7 +184,7 @@ export class SettingsPanel {
     this._panel.webview.postMessage({ command: "updateSettings", settings });
   }
 
-  private async handleWebviewMessage(message: any) {
+  private async handleWebviewMessage(message: Record<string, any>) {
     switch (message.command) {
       case "updateSetting": {
         const { key, value, scope } = message;

@@ -27,7 +27,6 @@ export class HostToolsApp extends ZephyrLitElement {
   connectedCallback() {
     super.connectedCallback();
     this._client = new HostToolsClient(this.vscodeApi, 'cards');
-    (window as any).hostToolsClient = this._client;
     window.addEventListener('message', this._onMessage);
     this.postCommand('ready');
   }
@@ -35,7 +34,6 @@ export class HostToolsApp extends ZephyrLitElement {
   disconnectedCallback() {
     super.disconnectedCallback();
     window.removeEventListener('message', this._onMessage);
-    delete (window as any).hostToolsClient;
   }
 
   private _onMessage = (e: MessageEvent) => {

@@ -128,12 +128,6 @@ function projectLoader(config: WorkspaceConfig, projects: any): boolean {
         }
       }
 
-      //Remove after upgrade
-      if (projects[key].buildConfigs[build_key].runnerConfigs === undefined) {
-        config.projects[key].buildConfigs[build_key].runnerConfigs = projects[key].buildConfigs[build_key].runners;
-        requiresSave = true;
-      }
-
       // Migrate build-level confFiles from old 4-array format
       if (config.projects[key].buildConfigs[build_key].confFiles &&
           migrateConfigFiles(config.projects[key].buildConfigs[build_key].confFiles)) {

@@ -170,7 +170,7 @@ export class SDKPanel {
       Object.keys(this.currentGlobalConfig.setupStateDictionary).length > 0;
   }
 
-  private handleWebviewMessage(message: any) {
+  private handleWebviewMessage(message: Record<string, any>) {
     switch (message.command) {
       case "ready":
         if (this.currentWsConfig && this.currentGlobalConfig) {
@@ -295,7 +295,7 @@ export class SDKPanel {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${this._panel.webview.cspSource} 'unsafe-inline'; font-src ${this._panel.webview.cspSource}; img-src ${this._panel.webview.cspSource} data:; script-src 'nonce-${nonce}';">
+            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${this._panel.webview.cspSource}; font-src ${this._panel.webview.cspSource}; img-src ${this._panel.webview.cspSource} data:; script-src 'nonce-${nonce}';">
             <title>Zephyr SDK</title>
             <link rel="stylesheet" type="text/css" href="${cssUri}">
             <link rel="stylesheet" type="text/css" href="${codiconUri}" id="vscode-codicon-stylesheet">

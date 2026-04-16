@@ -18,8 +18,7 @@ limitations under the License.
 export interface WorkspacePanelData {
   folderOpen: boolean;
   workspaceInitialized: boolean;
-  /** "ready" | "setup-required" */
-  state: string;
+  state: 'ready' | 'setup-required';
   statusIcon: string;
   statusLabel: string;
   statusClass: string;
@@ -47,7 +46,7 @@ export interface WorkspaceInfoData {
 export interface SetupProgressStep {
   id: string;
   label: string;
-  status: string;
+  status: 'pending' | 'in-progress' | 'completed' | 'failed' | 'skipped';
   detail?: string;
 }
 

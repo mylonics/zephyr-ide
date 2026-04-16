@@ -212,7 +212,7 @@ export class ProjectBuildPanel {
   // Message handling
   // ---------------------------------------------------------------------------
 
-  private async handleMessage(message: any) {
+  private async handleMessage(message: Record<string, any>) {
     const cmd = message.command;
     const ws = this._wsConfig;
     const ctx = this._context;
@@ -386,7 +386,7 @@ export class ProjectBuildPanel {
     }
   }
 
-  private async handleRemoveConfigFile(message: any, isKConfig: boolean, isProject: boolean) {
+  private async handleRemoveConfigFile(message: Record<string, any>, isKConfig: boolean, isProject: boolean) {
     if (!this._selectedProject || !message.file) {
       return;
     }
@@ -404,7 +404,7 @@ export class ProjectBuildPanel {
     await this.refreshAfterChange();
   }
 
-  private async handleToggleFileExtra(message: any) {
+  private async handleToggleFileExtra(message: Record<string, any>) {
     if (!this._selectedProject || !message.file) {
       return;
     }
@@ -458,7 +458,7 @@ export class ProjectBuildPanel {
     return undefined;
   }
 
-  private async handleUpsertVariable(message: any) {
+  private async handleUpsertVariable(message: Record<string, any>) {
     const key = String(message.key ?? "").trim();
     const value = String(message.value ?? "");
     const originalKey = String(message.originalKey ?? "").trim();
@@ -482,7 +482,7 @@ export class ProjectBuildPanel {
     this.updateHtml();
   }
 
-  private async handleRemoveVariable(message: any) {
+  private async handleRemoveVariable(message: Record<string, any>) {
     if (message.level === "project" && this._selectedProject) {
       await removeProjectVariable(this._context, this._wsConfig, this._selectedProject, message.key);
     } else if (message.level === "build" && this._selectedProject && message.build) {
@@ -491,7 +491,7 @@ export class ProjectBuildPanel {
     this.updateHtml();
   }
 
-  private getBuildArgList(message: any): { projectName: string; buildName: string; args: string[] } | undefined {
+  private getBuildArgList(message: Record<string, any>): { projectName: string; buildName: string; args: string[] } | undefined {
     const projectName = this._selectedProject;
     const buildName = String(message.build ?? "");
     if (!projectName || !buildName) {
@@ -507,7 +507,7 @@ export class ProjectBuildPanel {
     return { projectName, buildName, args };
   }
 
-  private async handleUpsertBuildArg(message: any) {
+  private async handleUpsertBuildArg(message: Record<string, any>) {
     const buildArgs = this.getBuildArgList(message);
     if (!buildArgs) {
       return;
@@ -532,7 +532,7 @@ export class ProjectBuildPanel {
     this.updateHtml();
   }
 
-  private async handleRemoveBuildArg(message: any) {
+  private async handleRemoveBuildArg(message: Record<string, any>) {
     const buildArgs = this.getBuildArgList(message);
     if (!buildArgs) {
       return;
@@ -555,7 +555,7 @@ export class ProjectBuildPanel {
     this.updateHtml();
   }
 
-  private async handleUpdateRunner(message: any) {
+  private async handleUpdateRunner(message: Record<string, any>) {
     const projectName = this._selectedProject;
     const buildName = String(message.build ?? "");
     const runnerName = String(message.runner ?? "");
@@ -742,7 +742,7 @@ export class ProjectBuildPanel {
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${this._panel.webview.cspSource} 'unsafe-inline'; font-src ${this._panel.webview.cspSource}; img-src ${this._panel.webview.cspSource} data:; script-src 'nonce-${nonce}';">
+      <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${this._panel.webview.cspSource}; font-src ${this._panel.webview.cspSource}; img-src ${this._panel.webview.cspSource} data:; script-src 'nonce-${nonce}';">
       <title>Zephyr IDE: Project Details</title>
       ${this.getStylesheetLinks()}
     </head>
