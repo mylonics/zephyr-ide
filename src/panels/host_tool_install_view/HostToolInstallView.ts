@@ -18,6 +18,7 @@ limitations under the License.
 import * as vscode from "vscode";
 import { WorkspaceConfig, GlobalConfig } from "../../setup_utilities/types";
 import { HostToolsService, HOST_TOOL_INSTALL_VIEW_CONFIG } from "../hostToolsService";
+import { generateNonce } from "../webview_shared/nonce";
 
 export class HostToolInstallView {
   public static currentPanel: HostToolInstallView | undefined;
@@ -29,53 +30,6 @@ export class HostToolInstallView {
 
   private currentWsConfig?: WorkspaceConfig;
   private currentGlobalConfig?: GlobalConfig;
-
-  /**
-   * Get just the host tools manager content HTML (without full page wrapper)
-   * for embedding in other panels
-   */
-  public static getContentHtml(): string {
-    return `
-      <div class="host-tools-manager">
-        <div class="info-box">
-          <p>
-            This tool helps you install and manage development tools required for Zephyr RTOS development.
-            The tools will be installed using your platform's package manager.
-          </p>
-          <p class="host-tools-note">
-            <strong>Note:</strong> VS Code may need to be restarted after installation for tools to be available in the PATH.
-          </p>
-        </div>
-
-        <div id="package-manager-section" class="manager-section">
-          <h3>Package Manager Status</h3>
-          <div id="manager-status" class="status-area">
-            <div class="loading">Checking package manager...</div>
-          </div>
-        </div>
-
-        <div id="packages-section" class="manager-section">
-          <h3>Required Development Tools</h3>
-          <div id="packages-status" class="status-area">
-            <div class="loading">Checking packages...</div>
-          </div>
-        </div>
-
-        <div id="actions-section" class="manager-section">
-          <div class="button-group">
-            <vscode-button id="refresh-btn" appearance="secondary" onclick="hostToolsClient.refreshStatus()">
-              <vscode-icon slot="start-icon" name="refresh"></vscode-icon>
-              Refresh Status
-            </vscode-button>
-            <vscode-button id="install-all-btn" onclick="hostToolsClient.installAllMissing()" disabled>
-              <vscode-icon slot="start-icon" name="cloud-download"></vscode-icon>
-              Install All Missing Packages
-            </vscode-button>
-          </div>
-        </div>
-      </div>
-    `;
-  }
 
   public static createOrShow(
     extensionPath: string,
@@ -228,18 +182,21 @@ export class HostToolInstallView {
       )
     );
 
+    const nonce = generateNonce();
+
     return `<!DOCTYPE html>
     <html lang="en">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${this._panel.webview.cspSource} 'unsafe-inline'; font-src ${this._panel.webview.cspSource}; img-src ${this._panel.webview.cspSource} data:; script-src 'nonce-${nonce}' 'unsafe-inline';">
         <title>Host Tools Installation</title>
         <link rel="stylesheet" type="text/css" href="${cssUri}">
         <link rel="stylesheet" type="text/css" href="${codiconUri}" id="vscode-codicon-stylesheet">
     </head>
     <body>
         <host-tools-app></host-tools-app>
-        <script src="${jsUri}"></script>
+        <script nonce="${nonce}" src="${jsUri}"></script>
     </body>
     </html>`;
   }

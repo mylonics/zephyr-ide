@@ -18,7 +18,6 @@ limitations under the License.
 import { html, nothing } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { ZephyrLitElement } from "../../webview_shared/lit-base";
-import { escapeHtml } from "../../webview_shared/webviewTypes";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -204,7 +203,7 @@ export class SDKApp extends ZephyrLitElement {
         <div class="setup-progress-header ${bannerClass}">
           ${showSpinner ? html`<vscode-progress-ring></vscode-progress-ring>` : nothing}
           <span class="status-icon" .innerHTML=${bannerIcon}></span>
-          <span class="setup-progress-title">${escapeHtml(data.operationLabel)} — ${bannerText}</span>
+          <span class="setup-progress-title">${data.operationLabel} — ${bannerText}</span>
           ${showDismiss
         ? html`<button class="setup-progress-dismiss" @click=${() => this._dismissProgress()} title="Dismiss"><span class="codicon codicon-close"></span></button>`
         : nothing}
@@ -213,7 +212,7 @@ export class SDKApp extends ZephyrLitElement {
           <div class="setup-progress-steps">
             ${data.steps.map(step => this._renderStep(step))}
           </div>
-          ${data.message ? html`<p class="setup-progress-message">${escapeHtml(data.message)}</p>` : nothing}
+          ${data.message ? html`<p class="setup-progress-message">${data.message}</p>` : nothing}
           ${data.type === "failed"
         ? html`<div style="margin-top: 8px;"><vscode-button appearance="secondary" @click=${() => this._installSDK()}><vscode-icon slot="start-icon" name="refresh"></vscode-icon>Retry Installation</vscode-button></div>`
         : nothing}
@@ -227,8 +226,8 @@ export class SDKApp extends ZephyrLitElement {
       <div class="setup-step-item ${step.status}">
         ${this._stepIcon(step.status)}
         <div class="setup-step-content">
-          <span class="setup-step-label">${escapeHtml(step.label)}</span>
-          ${step.detail ? html`<span class="setup-step-detail">${escapeHtml(step.detail)}</span>` : nothing}
+          <span class="setup-step-label">${step.label}</span>
+          ${step.detail ? html`<span class="setup-step-detail">${step.detail}</span>` : nothing}
         </div>
       </div>
     `;
@@ -263,7 +262,7 @@ export class SDKApp extends ZephyrLitElement {
       return html`
         <div class="sdk-list-container">
           <div class="sdk-error-box">
-            <strong>Error:</strong> ${escapeHtml(data.error || "Failed to list SDKs")}
+            <strong>Error:</strong> ${data.error || "Failed to list SDKs"}
             <div style="margin-top: 10px;">
               <vscode-button appearance="secondary" @click=${() => this._listSDKs()}>
                 <vscode-icon slot="start-icon" name="refresh"></vscode-icon>
@@ -294,14 +293,14 @@ export class SDKApp extends ZephyrLitElement {
     return html`
       <div class="sdk-version-card">
         <div class="sdk-version-header">
-          <div class="sdk-version-title">Zephyr SDK ${escapeHtml(version.version)}</div>
+          <div class="sdk-version-title">Zephyr SDK ${version.version}</div>
         </div>
-        <div class="sdk-path">${escapeHtml(version.path)}</div>
+        <div class="sdk-path">${version.path}</div>
         ${version.installedToolchains && version.installedToolchains.length > 0
         ? html`<div class="toolchain-section">
               <div class="toolchain-section-title">Installed Toolchains (${version.installedToolchains.length}):</div>
               <div class="toolchain-list">
-                ${version.installedToolchains.map(tc => html`<span class="toolchain-tag">${escapeHtml(tc)}</span>`)}
+                ${version.installedToolchains.map(tc => html`<span class="toolchain-tag">${tc}</span>`)}
               </div>
             </div>`
         : nothing}
@@ -309,7 +308,7 @@ export class SDKApp extends ZephyrLitElement {
         ? html`<div class="toolchain-section">
               <div class="toolchain-section-title">Available Toolchains (${version.availableToolchains.length}):</div>
               <div class="toolchain-list">
-                ${version.availableToolchains.map(tc => html`<span class="toolchain-tag available">${escapeHtml(tc)}</span>`)}
+                ${version.availableToolchains.map(tc => html`<span class="toolchain-tag available">${tc}</span>`)}
               </div>
             </div>`
         : nothing}

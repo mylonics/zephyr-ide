@@ -19,6 +19,7 @@ import * as vscode from "vscode";
 import * as path from "upath";
 import { WorkspaceConfig, GlobalConfig, formatZephyrVersion } from "../../setup_utilities/types";
 import { notifyError, outputError } from "../../utilities/output";
+import { generateNonce } from "../webview_shared/nonce";
 import { onSetupProgress, getActiveSetupProgress } from "../../setup_utilities/setup-progress";
 import { parseWestConfigManifestPath } from "../../setup_utilities/west-config-parser";
 import { getVenvPath } from "../../setup_utilities/workspace-config";
@@ -438,6 +439,7 @@ export class WorkspacePanel {
   // ---------------------------------------------------------------------------
 
   private getHtmlForWebview(): string {
+    const nonce = generateNonce();
     const cssUri = this._panel.webview.asWebviewUri(
       vscode.Uri.joinPath(vscode.Uri.file(this._extensionPath), "src", "panels", "workspace_panel", "workspace-panel.css"),
     );
@@ -453,13 +455,14 @@ export class WorkspacePanel {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${this._panel.webview.cspSource} 'unsafe-inline'; font-src ${this._panel.webview.cspSource}; img-src ${this._panel.webview.cspSource} data:; script-src 'nonce-${nonce}';">
             <title>Workspace Setup</title>
             <link rel="stylesheet" type="text/css" href="${cssUri}">
             <link rel="stylesheet" type="text/css" href="${codiconUri}" id="vscode-codicon-stylesheet">
         </head>
         <body>
             <workspace-app></workspace-app>
-            <script src="${jsUri}"></script>
+            <script nonce="${nonce}" src="${jsUri}"></script>
         </body>
         </html>`;
   }

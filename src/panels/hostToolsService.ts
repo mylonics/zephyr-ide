@@ -60,13 +60,6 @@ export const HOST_TOOL_INSTALL_VIEW_CONFIG: HostToolsServiceConfig = {
   markCompleteMessage: 'Host tools marked as installed. You can proceed with workspace setup.',
 };
 
-/** Pre-built config for SetupPanel */
-export const SETUP_PANEL_CONFIG: HostToolsServiceConfig = {
-  errorLabel: 'Setup Panel',
-  recheckAfterBatchInstall: true,
-  markCompleteMessage: 'Host tools marked as available.',
-};
-
 /**
  * Shared host tools installation logic used by both HostToolInstallView and SetupPanel.
  */
@@ -74,7 +67,7 @@ export class HostToolsService {
   constructor(
     private readonly webview: vscode.Webview,
     private readonly config: HostToolsServiceConfig
-  ) {}
+  ) { }
 
   private post(command: string, data?: Record<string, any>) {
     this.webview.postMessage({ command, ...data });

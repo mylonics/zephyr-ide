@@ -313,13 +313,6 @@
   animation: slideDown 0.15s ease;
 }
 
-/* Suppress all animations during content updates to prevent flicker */
-body.no-animate,
-body.no-animate * {
-  animation: none !important;
-  transition: none !important;
-}
-
 .collapsible-section:not([aria-expanded="true"]) > .collapsible-body {
   display: none;
 }

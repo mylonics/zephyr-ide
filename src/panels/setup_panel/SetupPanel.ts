@@ -22,6 +22,7 @@ import { setGlobalState, clearSetupState } from "../../setup_utilities/state-man
 import { getToolsDir } from "../../setup_utilities/workspace-config";
 import { handleReconfigureInstallation } from "../../setup_utilities/workspace-setup";
 import { notifyError, outputError } from "../../utilities/output";
+import { generateNonce } from "../webview_shared/nonce";
 import { WorkspacePanel } from "../workspace_panel/WorkspacePanel";
 import type { SetupPanelData, ActiveWorkspaceData, WorkspaceListItem, ProjectListItem } from "./setup-panel-data";
 
@@ -380,6 +381,7 @@ export class SetupPanel {
   // ---------------------------------------------------------------------------
 
   private getHtmlForWebview(): string {
+    const nonce = generateNonce();
     const cssUri = this._panel.webview.asWebviewUri(
       vscode.Uri.joinPath(vscode.Uri.file(this._extensionPath), "src", "panels", "setup_panel", "setup-panel.css")
     );
@@ -395,13 +397,14 @@ export class SetupPanel {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${this._panel.webview.cspSource} 'unsafe-inline'; font-src ${this._panel.webview.cspSource}; img-src ${this._panel.webview.cspSource} data:; script-src 'nonce-${nonce}';">
             <title>Zephyr IDE Setup & Configuration</title>
             <link rel="stylesheet" type="text/css" href="${cssUri}">
             <link rel="stylesheet" type="text/css" href="${codiconUri}" id="vscode-codicon-stylesheet">
         </head>
         <body>
             <setup-app></setup-app>
-            <script src="${jsUri}"></script>
+            <script nonce="${nonce}" src="${jsUri}"></script>
         </body>
         </html>`;
   }
