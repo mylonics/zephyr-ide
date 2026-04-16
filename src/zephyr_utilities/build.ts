@@ -26,7 +26,7 @@ import { WorkspaceConfig } from '../setup_utilities/types';
 import { addBuild, ProjectConfig, getResolvedBuildName, resolveActiveProject, resolveActiveProjectBuild, getProjectFolder, getBuildFolder, resolveBoardRootArg, resolveBoardRoot } from "../project_utilities/project";
 import { BuildConfig } from "../project_utilities/build_selector";
 import { primaryPaths, extraPaths } from "../project_utilities/config_selector";
-import { joinBuildArgsForShell, normalizeBuildArgs, quoteBuildArgForShell, quoteCMakeDef, CMakeDefEntry } from "../project_utilities/build_args";
+import { joinBuildArgsForShell, normalizeBuildArgs, quoteBuildArgForShell, quoteCMakeDef } from "../project_utilities/build_args";
 import { updateDtsContext } from "../setup_utilities/dts_interface";
 import { getSetupState, getSetupStateOrNotify, updateBuildCMakeInfo, clearBuildCMakeInfo } from "../setup_utilities/workspace-config";
 import { setWorkspaceState } from "../setup_utilities/state-management";
@@ -148,61 +148,6 @@ export interface BuildCommandParams {
   extraOverlayFiles: string[];
   boardRootArg: string;
   isPristine: boolean;
-  cmakeInitFile?: string;
-}
-
-/**
- * Compute raw CMake definition entries (key-value pairs without shell quoting).
- * Used for writing cmake init files and for cache comparison.
- */
-export function computeRawCMakeDefs(params: {
-  boardRoot?: string;
-  westBuildCMakeArgs: string[];
-  primaryConfFiles: string[];
-  secondaryConfFiles: string[];
-  overlayFiles: string[];
-  extraOverlayFiles: string[];
-}): CMakeDefEntry[] {
-  const entries: CMakeDefEntry[] = [];
-
-  if (params.boardRoot) {
-    entries.push({ key: 'BOARD_ROOT', value: params.boardRoot.replace(/\\/g, '/') });
-  }
-
-  for (const arg of normalizeBuildArgs(params.westBuildCMakeArgs)) {
-    const match = arg.match(/^-D([A-Za-z_][A-Za-z0-9_]*)(?::([A-Za-z]+))?=(.*)$/);
-    if (match) {
-      entries.push({ key: match[1], value: match[3] });
-    }
-  }
-
-  if (params.primaryConfFiles.length) {
-    entries.push({ key: 'CONF_FILE', value: params.primaryConfFiles.map(p => p.replace(/\\/g, '/')).join(';') });
-  }
-  if (params.secondaryConfFiles.length) {
-    entries.push({ key: 'EXTRA_CONF_FILE', value: params.secondaryConfFiles.map(p => p.replace(/\\/g, '/')).join(';') });
-  }
-  if (params.overlayFiles.length) {
-    entries.push({ key: 'DTC_OVERLAY_FILE', value: params.overlayFiles.map(p => p.replace(/\\/g, '/')).join(';') });
-  }
-  if (params.extraOverlayFiles.length) {
-    entries.push({ key: 'EXTRA_DTC_OVERLAY_FILE', value: params.extraOverlayFiles.map(p => p.replace(/\\/g, '/')).join(';') });
-  }
-  return entries;
-}
-
-/**
- * Write CMake definitions to a cmake init script file.
- * Uses set() with CACHE and FORCE so values take effect during cmake configuration.
- * This avoids command-line path-parsing issues (e.g. Windows C:/ drive letters being
- * split by CMake's argument parser).
- */
-export function writeCMakeInitFile(filePath: string, entries: CMakeDefEntry[]): void {
-  const lines = entries.map(({ key, value }) => {
-    const escaped = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-    return `set(${key} "${escaped}" CACHE STRING "" FORCE)`;
-  });
-  fs.outputFileSync(filePath, lines.join('\n') + '\n');
 }
 
 /**
@@ -244,14 +189,6 @@ export function assembleBuildCommand(params: BuildCommandParams): string {
 
   const boardSpec = params.board + (params.revision ? '@' + params.revision : "");
 
-  // When a cmake init file is provided, use -C to pass all cmake defs via file
-  // instead of inline -D flags. This avoids Windows path-parsing issues where
-  // CMake splits drive letters (e.g. C:/) in -D values.
-  if (params.cmakeInitFile) {
-    const initPath = params.cmakeInitFile.replace(/\\/g, '/');
-    return `west build -b ${boardSpec} "${params.projectFolder}" -p --build-dir "${params.buildFolder}" ${extraWestBuildArgs} -- -C "${initPath}"`.trimEnd();
-  }
-
   const cmakeDefs = computeCMakeDefs(params);
 
   const cmakeSection = cmakeDefs.length > 0 ? ` -- ${cmakeDefs.join(' ')}` : '';
@@ -287,7 +224,6 @@ export async function build(
 
   let isPristine = pristine || !buildFolderExists || !cmakeCacheExists;
 
-  // Always compute cmake defs so we can compare against the cache
   const boardRoot = resolveBoardRoot(wsConfig, build, setupState);
   const boardRootArg = boardRoot ? quoteCMakeDef('BOARD_ROOT', boardRoot) : "";
   const resolvedPrimaryConf = primaryPaths(allKconfig).map(x => path.join(wsConfig.rootPath, x));
@@ -295,40 +231,8 @@ export async function build(
   const resolvedOverlay = primaryPaths(allOverlay).map(x => path.join(wsConfig.rootPath, x));
   const resolvedExtraOverlay = extraPaths(allOverlay).map(x => path.join(wsConfig.rootPath, x));
 
-  const currentCMakeDefEntries = computeRawCMakeDefs({
-    boardRoot: boardRoot ?? undefined,
-    westBuildCMakeArgs: build.westBuildCMakeArgs ?? [],
-    primaryConfFiles: resolvedPrimaryConf,
-    secondaryConfFiles: resolvedSecondaryConf,
-    overlayFiles: resolvedOverlay,
-    extraOverlayFiles: resolvedExtraOverlay,
-  });
-
-  // If cmake defs changed since last pristine build, force pristine
-  const buildState = wsConfig.projectStates[project.name]?.buildStates[build.name];
-  if (!isPristine && buildState?.cachedCMakeDefs) {
-    if (JSON.stringify(currentCMakeDefEntries) !== JSON.stringify(buildState.cachedCMakeDefs)) {
-      isPristine = true;
-      outputInfo(`Build: ${project.name}/${build.name}`, "CMake configuration changed, forcing pristine build");
-    }
-  }
-
-  if (isPristine) {
-    // Clear cached CMake info on pristine build
-    clearBuildCMakeInfo(wsConfig, project.name, build.name);
-  }
-
-  // Write cmake defs to an init file for pristine builds.
-  // This avoids command-line path-parsing issues where CMake splits Windows
-  // drive letters (e.g. C:/) in -D values passed on the command line.
-  let cmakeInitFile: string | undefined;
-  if (isPristine && currentCMakeDefEntries.length > 0) {
-    const safeName = `${project.name}_${build.name}`.replace(/[^a-zA-Z0-9_-]/g, '_');
-    cmakeInitFile = path.join(wsConfig.rootPath, '.vscode', `cmake-init-${safeName}.cmake`);
-    writeCMakeInitFile(cmakeInitFile, currentCMakeDefEntries);
-  }
-
-  const cmd = assembleBuildCommand({
+  // Always compute the pristine command so we can compare against the cache
+  const pristineCmd = assembleBuildCommand({
     board: build.board,
     revision: build.revision,
     projectFolder,
@@ -339,11 +243,38 @@ export async function build(
     secondaryConfFiles: resolvedSecondaryConf,
     overlayFiles: resolvedOverlay,
     extraOverlayFiles: resolvedExtraOverlay,
-    boardRootArg: isPristine ? boardRootArg : "",
-    isPristine,
-    cmakeInitFile,
+    boardRootArg,
+    isPristine: true,
   });
 
+  // If the pristine command changed since last build, force pristine
+  const buildState = wsConfig.projectStates[project.name]?.buildStates[build.name];
+  if (!isPristine && buildState?.cachedPristineCmd) {
+    if (pristineCmd !== buildState.cachedPristineCmd) {
+      isPristine = true;
+      outputInfo(`Build: ${project.name}/${build.name}`, "CMake configuration changed, forcing pristine build");
+    }
+  }
+
+  if (isPristine) {
+    // Clear cached CMake info on pristine build
+    clearBuildCMakeInfo(wsConfig, project.name, build.name);
+  }
+
+  const cmd = isPristine ? pristineCmd : assembleBuildCommand({
+    board: build.board,
+    revision: build.revision,
+    projectFolder,
+    buildFolder,
+    westBuildArgs: build.westBuildArgs,
+    westBuildCMakeArgs: build.westBuildCMakeArgs ?? [],
+    primaryConfFiles: resolvedPrimaryConf,
+    secondaryConfFiles: resolvedSecondaryConf,
+    overlayFiles: resolvedOverlay,
+    extraOverlayFiles: resolvedExtraOverlay,
+    boardRootArg: "",
+    isPristine: false,
+  });
 
   const taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
 
@@ -352,9 +283,8 @@ export async function build(
 
   // Only update caches on successful build
   if (ret) {
-    // Cache cmake defs on pristine build so future builds can detect config changes
-    if (isPristine && buildState) {
-      buildState.cachedCMakeDefs = currentCMakeDefEntries;
+    if (buildState) {
+      buildState.cachedPristineCmd = pristineCmd;
     }
     updateBuildCMakeInfo(wsConfig, project.name, build.name);
     await setWorkspaceState(context, wsConfig);

@@ -26,7 +26,7 @@ import { SetupState } from '../setup_utilities/types';
 import { executeShellCommandInPythonEnv, output } from "../utilities/utils";
 import { notifyError, outputCommandFailure, outputWarning, outputError } from "../utilities/output";
 import { isVersionNumberGreaterEqual, isVersionNumberGreater } from '../setup_utilities/modules';
-import { splitBuildArgs, CMakeDefEntry } from "./build_args";
+import { splitBuildArgs } from "./build_args";
 
 
 // Config for the extension
@@ -65,7 +65,7 @@ export interface BuildState {
   gdbPath?: string; // Cached GDB path from CMakeCache.txt (CMAKE_GDB)
   elfName?: string; // Cached kernel ELF name from CMakeCache.txt (BYPRODUCT_KERNEL_ELF_NAME)
   toolchainPath?: string; // Cached toolchain path from build_info.yml (toolchain.path)
-  cachedCMakeDefs?: CMakeDefEntry[]; // CMake defs from last pristine build, used to detect config changes
+  cachedPristineCmd?: string; // Pristine build command from last build, used to detect config changes
 }
 
 interface BoardItem extends QuickPickItem {
