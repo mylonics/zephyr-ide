@@ -102,6 +102,15 @@ export function quoteBuildArgForShell(arg: string): string {
   return `"${arg.replace(/(["\\$`])/g, "\\$1")}"`;
 }
 
+/**
+ * Build a CMake -D flag with proper shell quoting.
+ * The value is quoted as a single shell token only when it contains characters
+ * that require it (spaces, semicolons, quotes, etc.).
+ */
+export function quoteCMakeDef(key: string, value: string): string {
+  return quoteBuildArgForShell(`-D${key}=${value}`);
+}
+
 /** Join argument list safely for shell command usage. */
 export function joinBuildArgsForShell(value: BuildArgValue): string {
   return normalizeBuildArgs(value)

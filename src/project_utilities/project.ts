@@ -28,7 +28,7 @@ import { configSelector, configRemover, ConfigFiles, mergeConfigFiles } from "./
 import { setDtsContext } from "../setup_utilities/dts_interface";
 import { getSamples } from "../setup_utilities/modules";
 import { getSetupState } from "../setup_utilities/workspace-config";
-import { joinBuildArgs, normalizeBuildArgs } from "./build_args";
+import { joinBuildArgs, normalizeBuildArgs, quoteCMakeDef } from "./build_args";
 
 import { TwisterConfig, TwisterConfigDictionary, twisterSelector, TwisterStateDictionary } from "./twister_selector";
 
@@ -97,7 +97,7 @@ export function resolveBoardPath(wsConfig: WorkspaceConfig, build: { relBoardDir
  */
 export function resolveBoardRootArg(wsConfig: WorkspaceConfig, build: { relBoardDir?: string }, setupState?: { zephyrDir: string }): string {
   const boardRoot = resolveBoardRoot(wsConfig, build, setupState);
-  return boardRoot ? `-DBOARD_ROOT='${boardRoot}'` : "";
+  return boardRoot ? quoteCMakeDef('BOARD_ROOT', boardRoot) : "";
 }
 
 /** Get active build name from an already-resolved project */

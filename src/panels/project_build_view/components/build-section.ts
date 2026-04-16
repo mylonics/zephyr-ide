@@ -266,7 +266,6 @@ export class BuildSection extends ZephyrLitElement {
     const overlayCount = b.confFiles.overlay.length;
     const westArgCount = b.westBuildArgs.length;
     const cmakeArgCount = b.westBuildCMakeArgs.length;
-    const varEntries = Object.keys(this.buildVars).length;
 
     const boardDir = b.relBoardDir || b.relBoardSubDir || "";
 
@@ -349,23 +348,15 @@ export class BuildSection extends ZephyrLitElement {
             `,
         )}
 
-          ${this._collapsibleSection("launch", "Launch Configurations", "", this._renderLaunchConfigs())}
-
           ${this._collapsibleSection(
-          "runners",
-          "Runners",
-          `${b.runners.length} runner${b.runners.length !== 1 ? "s" : ""}`,
-          this._renderRunners(),
-        )}
-
-          ${this._collapsibleSection(
-          "vars",
-          "Variables",
-          `${varEntries} var${varEntries !== 1 ? "s" : ""}`,
+          "launch",
+          "Launch Configurations",
+          "",
           html`
-              <div class="variables-section">
+              ${this._renderLaunchConfigs()}
+              <div class="variables-section" style="margin-top:12px;">
                 <div class="section-row-header">
-                  <span class="section-row-title">Build Variables</span>
+                  <span class="section-row-title">Variables</span>
                   <vscode-button appearance="icon" icon="question" title="Variable help"
                     @click=${() => { this._varsHelpVisible = !this._varsHelpVisible; }}>
                   </vscode-button>
@@ -381,6 +372,13 @@ export class BuildSection extends ZephyrLitElement {
                 ></variables-table>
               </div>
             `,
+        )}
+
+          ${this._collapsibleSection(
+          "runners",
+          "Runners",
+          `${b.runners.length} runner${b.runners.length !== 1 ? "s" : ""}`,
+          this._renderRunners(),
         )}
         </div>
       </div>
