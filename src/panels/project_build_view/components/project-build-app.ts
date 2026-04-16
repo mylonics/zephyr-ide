@@ -48,12 +48,18 @@ export class ProjectBuildApp extends ZephyrLitElement {
   };
 
   private _onProjectChange(e: Event) {
-    const select = e.target as any;
+    const select = e.currentTarget as { value?: string } | null;
+    if (typeof select?.value !== "string") {
+      return;
+    }
     this.postCommand("switchProject", { project: select.value });
   }
 
   private _onBuildTestChange(e: Event) {
-    const select = e.target as any;
+    const select = e.currentTarget as { value?: string } | null;
+    if (typeof select?.value !== "string") {
+      return;
+    }
     this.postCommand("switchBuildOrTest", { selection: select.value });
   }
 
@@ -78,7 +84,7 @@ export class ProjectBuildApp extends ZephyrLitElement {
           <div class="page-header-selectors">
             <div class="project-selector">
               <label>Project:</label>
-              <vscode-single-select @change=${this._onProjectChange}>
+              <vscode-single-select @vsc-change=${this._onProjectChange}>
                 ${d.projectOptions.map(
       (opt) => html`<vscode-option value=${opt.name} ?selected=${opt.selected}>${opt.name}</vscode-option>`,
     )}
@@ -88,7 +94,7 @@ export class ProjectBuildApp extends ZephyrLitElement {
         ? html`
                   <div class="build-test-selector">
                     <label>Build / Test:</label>
-                    <vscode-single-select @change=${this._onBuildTestChange}>
+                    <vscode-single-select @vsc-change=${this._onBuildTestChange}>
                       ${d.buildTestOptions.map(
           (opt) => html`<vscode-option value=${opt.value} ?selected=${opt.selected}>${opt.label}</vscode-option>`,
         )}

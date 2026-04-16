@@ -37,27 +37,44 @@ import { ConfigFiles, ConfigFileEntry, emptyConfigFiles } from "../project_utili
 function migrateConfigFiles(confFiles: any): boolean {
   if (!confFiles) { return false; }
 
+  const hasStringEntry = (value: any): boolean =>
+    Array.isArray(value) && value.some((entry: any) => typeof entry === "string");
+  const toConfigEntries = (value: any, forceExtra = false): ConfigFileEntry[] => {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+    return value
+      .map((entry: any): ConfigFileEntry | undefined => {
+        if (typeof entry === "string") {
+          return forceExtra ? { path: entry, extra: true as const } : { path: entry };
+        }
+        if (entry && typeof entry === "object" && typeof entry.path === "string") {
+          if (forceExtra) {
+            return { path: entry.path, extra: true as const };
+          }
+          return entry.extra ? { path: entry.path, extra: true as const } : { path: entry.path };
+        }
+        return undefined;
+      })
+      .filter((entry): entry is ConfigFileEntry => !!entry);
+  };
+
   // Detect old format: has "extraConfig" or "extraOverlay" keys, or config[0] is a string
   const needsMigration =
     Array.isArray(confFiles.extraConfig) ||
     Array.isArray(confFiles.extraOverlay) ||
-    (Array.isArray(confFiles.config) && confFiles.config.length > 0 && typeof confFiles.config[0] === "string") ||
-    (Array.isArray(confFiles.overlay) && confFiles.overlay.length > 0 && typeof confFiles.overlay[0] === "string");
+    hasStringEntry(confFiles.config) ||
+    hasStringEntry(confFiles.overlay);
 
   if (!needsMigration) { return false; }
 
-  const oldConfig: string[] = Array.isArray(confFiles.config) ? confFiles.config.filter((x: any) => typeof x === "string") : [];
-  const oldExtraConfig: string[] = Array.isArray(confFiles.extraConfig) ? confFiles.extraConfig : [];
-  const oldOverlay: string[] = Array.isArray(confFiles.overlay) ? confFiles.overlay.filter((x: any) => typeof x === "string") : [];
-  const oldExtraOverlay: string[] = Array.isArray(confFiles.extraOverlay) ? confFiles.extraOverlay : [];
-
   const newConfig: ConfigFileEntry[] = [
-    ...oldConfig.map(p => ({ path: p })),
-    ...oldExtraConfig.map(p => ({ path: p, extra: true as const })),
+    ...toConfigEntries(confFiles.config),
+    ...toConfigEntries(confFiles.extraConfig, true),
   ];
   const newOverlay: ConfigFileEntry[] = [
-    ...oldOverlay.map(p => ({ path: p })),
-    ...oldExtraOverlay.map(p => ({ path: p, extra: true as const })),
+    ...toConfigEntries(confFiles.overlay),
+    ...toConfigEntries(confFiles.extraOverlay, true),
   ];
 
   confFiles.config = newConfig;
