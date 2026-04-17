@@ -59,7 +59,7 @@ export function extraPaths(entries: ConfigFileEntry[]): string[] {
   return entries.filter(e => e.extra).map(e => e.path);
 }
 
-export async function configSelector(wsConfig: WorkspaceConfig, isKConfigSelector: boolean): Promise<ConfigFiles> {
+export async function configSelector(wsConfig: WorkspaceConfig, isKConfigSelector: boolean): Promise<ConfigFiles | undefined> {
   let fileExt: Record<string, string[]> = {
     'dtc': ['overlay']
   };
@@ -70,8 +70,6 @@ export async function configSelector(wsConfig: WorkspaceConfig, isKConfigSelecto
     };
   }
 
-  const state: ConfigFiles = emptyConfigFiles();
-
   const confFiles = await vscode.window.showOpenDialog({
     canSelectFiles: true,
     canSelectFolders: false,
@@ -79,11 +77,30 @@ export async function configSelector(wsConfig: WorkspaceConfig, isKConfigSelecto
     filters: fileExt
   });
 
-  if (confFiles) {
-    const key: keyof ConfigFiles = isKConfigSelector ? "config" : "overlay";
-    state[key] = confFiles.map(x => ({ path: path.relative(wsConfig.rootPath, x.fsPath), extra: true }));
+  if (!confFiles || confFiles.length === 0) {
+    return undefined;
   }
 
+  const fileType = isKConfigSelector ? "KConfig" : "Devicetree Overlay";
+  type ConfigTypePick = QuickPickItem & { isExtra: boolean };
+  const confFileOption: ConfigTypePick[] = [
+    { label: `Overridden ${fileType} File`, isExtra: false },
+    { label: `Extra ${fileType} File`, isExtra: true },
+  ];
+
+  const pick = await vscode.window.showQuickPick(confFileOption, {
+    title: `Select ${fileType} Type`,
+    ignoreFocusOut: true,
+    placeHolder: "Choose how selected files should be applied",
+  });
+
+  if (!pick) {
+    return undefined;
+  }
+
+  const key: keyof ConfigFiles = isKConfigSelector ? "config" : "overlay";
+  const state: ConfigFiles = emptyConfigFiles();
+  state[key] = confFiles.map(x => ({ path: path.relative(wsConfig.rootPath, x.fsPath), extra: pick.isExtra }));
   return state;
 }
 
@@ -106,7 +123,7 @@ export async function configRemover(confFiles: ConfigFiles, isKConfigSelector: b
   async function selectTypeToRemove(input: MultiStepInput, state: ConfigFiles) {
     const confFileOption: QuickPickItem[] = [];
     confFileOption.push({ label: "Remove extra " + fileType + " File" });
-    confFileOption.push({ label: "Overriden " + fileType + " File" });
+    confFileOption.push({ label: "Overridden " + fileType + " File" });
 
     const pickPromise = input.showQuickPick({
       title,

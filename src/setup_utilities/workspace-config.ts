@@ -724,7 +724,7 @@ function checkZephyrEnvironmentVariables(): boolean {
 async function checkAndWarnMissingEnvironment(context: vscode.ExtensionContext): Promise<void> {
   const configuration = vscode.workspace.getConfiguration();
   const suppressWarning: boolean | undefined = configuration.get("zephyr-ide.suppressWorkspaceWarning")
-    || configuration.get("zephyr-ide.suppress-workspace-warning");
+    ?? configuration.get("zephyr-ide.suppress-workspace-warning");
 
   // Don't show warning if user has suppressed it
   if (suppressWarning) {

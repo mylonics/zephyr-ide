@@ -24,7 +24,6 @@
     "src/panels/settings_view/components/**/*.ts",
     "src/panels/sdk_panel/sdk-panel.ts",
     "src/panels/sdk_panel/components/**/*.ts",
-    "src/panels/setup_panel/setup-panel.ts",
     "src/panels/setup_panel/setup-panel-data.ts",
     "src/panels/setup_panel/components/**/*.ts",
     "src/panels/workspace_panel/workspace-panel.ts",
