@@ -1,5 +1,5 @@
 /*
-Copyright 2024 mylonics 
+Copyright 2025-2026 mylonics 
 Author Rijesh Augustine
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -55,7 +55,7 @@ import { executeTaskHelper, validateGitUrl } from "../utilities/utils";
 import { outputInfo, outputError, notifyError, showOutput } from "../utilities/output";
 import { westSelector, WestLocation } from "./west_selector";
 import { WorkspaceConfig, GlobalConfig, formatZephyrVersion } from "./types";
-import { setSetupState, loadExternalSetupState, setWorkspaceState, setGlobalState } from "./state-management";
+import { setSetupState, loadExternalSetupState, setWorkspaceState, setGlobalState, setExternalSetupState } from "./state-management";
 import { postWorkspaceSetup, } from "./west-operations";
 import { getToolsDir, loadProjectsFromFile } from "./workspace-config";
 import { SetupProgressTracker } from "./setup-progress";
@@ -139,19 +139,26 @@ async function selectWestConfiguration(baseDir: string, westYmlFiles: string[]) 
   }
 }
 
-async function clearWorkspaceSetupContextFlags(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
-  wsConfig.initialSetupComplete = false;
+/**
+ * Called at the start of each setup flow to reset readiness flags so a fresh
+ * run re-exercises the python-env / west-init / west-update steps. Does NOT
+ * touch the workspace `initialized` marker — that remains whatever it was
+ * until setup either succeeds (sets it true) or the user invokes an explicit
+ * Reset Workspace.
+ */
+async function clearWorkspaceSetupContextFlags(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
   if (wsConfig.activeSetupState) {
     wsConfig.activeSetupState.packagesInstalled = false;
     wsConfig.activeSetupState.pythonEnvironmentSetup = false;
     wsConfig.activeSetupState.westUpdated = false;
+    await setExternalSetupState(context, globalConfig, wsConfig.activeSetupState.setupPath, wsConfig.activeSetupState);
   }
   await setWorkspaceState(context, wsConfig);
 }
 
 export async function workspaceSetupFromGit(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
   // Clear all context flags at start
-  await clearWorkspaceSetupContextFlags(context, wsConfig);
+  await clearWorkspaceSetupContextFlags(context, wsConfig, globalConfig);
 
   const gitUrl = await vscode.window.showInputBox({
     prompt: "Enter the Git repository URL/clone string",
@@ -185,15 +192,7 @@ export async function workspaceSetupFromGit(context: vscode.ExtensionContext, ws
     { id: 'python-req', label: 'Installing Python requirements' },
   ]);
 
-  // Set context flag for workspace type selected
-  await vscode.commands.executeCommand(
-    "setContext",
-    "zephyr-ide.workspaceTypeSelected",
-    true
-  );
-  outputInfo("Git Clone",
-    "Workspace type selected: Zephyr IDE Workspace from Git"
-  );
+  outputInfo("Git Clone", "Workspace type selected: Zephyr IDE Workspace from Git");
 
   progress.startStep('git-clone', gitUrl);
   const cmd = `git clone ${gitUrl} .`;
@@ -214,9 +213,9 @@ export async function workspaceSetupFromGit(context: vscode.ExtensionContext, ws
   return await workspaceSetupFromCurrentDirectory(context, wsConfig, globalConfig, true, undefined, progress);
 }
 
-export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
+export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, installDir?: string) {
   // Clear all context flags at start
-  await clearWorkspaceSetupContextFlags(context, wsConfig);
+  await clearWorkspaceSetupContextFlags(context, wsConfig, globalConfig);
 
   const gitUrl = await vscode.window.showInputBox({
     prompt: "Enter the Git repository URL for the West workspace",
@@ -237,7 +236,7 @@ export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext
     ignoreFocusOut: true,
   });
 
-  const currentDir = wsConfig.rootPath;
+  const currentDir = installDir || wsConfig.rootPath;
   if (!currentDir) {
     notifyError("West Git Setup",
       "No workspace folder open. Please open a folder first."
@@ -247,13 +246,6 @@ export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext
 
   showOutput();
   outputInfo("West Git Setup", `Setting up West workspace from: ${gitUrl}`);
-
-  // Set context flag for workspace type selected
-  await vscode.commands.executeCommand(
-    "setContext",
-    "zephyr-ide.workspaceTypeSelected",
-    true
-  );
   outputInfo("West Git Setup", "Workspace type selected: West Workspace from Git");
 
   // Set up the workspace using current directory
@@ -291,11 +283,11 @@ export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext
   );
 }
 
-export async function workspaceSetupStandard(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
+export async function workspaceSetupStandard(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, installDir?: string) {
   // Clear all context flags at start
-  await clearWorkspaceSetupContextFlags(context, wsConfig);
+  await clearWorkspaceSetupContextFlags(context, wsConfig, globalConfig);
 
-  const currentDir = wsConfig.rootPath;
+  const currentDir = installDir || wsConfig.rootPath;
   if (!currentDir) {
     notifyError("Standard Setup",
       "No workspace folder open. Please open a folder first."
@@ -314,7 +306,7 @@ export async function workspaceSetupStandard(context: vscode.ExtensionContext, w
     return false;
   }
 
-  return await workspaceSetupFromCurrentDirectory(context, wsConfig, globalConfig, false);
+  return await workspaceSetupFromCurrentDirectory(context, wsConfig, globalConfig, false, currentDir);
 }
 
 /**
@@ -350,10 +342,12 @@ async function handleExternalInstallation(
 
 export async function workspaceSetupFromCurrentDirectory(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, giveExternalInstallOption: boolean, installDir?: string, progressTracker?: SetupProgressTracker) {
   // Clear all context flags at start
-  await clearWorkspaceSetupContextFlags(context, wsConfig);
+  await clearWorkspaceSetupContextFlags(context, wsConfig, globalConfig);
 
   if (!installDir) {
-    installDir = wsConfig.rootPath;
+    // Prefer the currently active workspace path over rootPath so that
+    // re-initializing after a reset targets the same workspace directory.
+    installDir = wsConfig.activeSetupState?.setupPath || wsConfig.rootPath;
   }
   if (!installDir) {
     notifyError("Directory Setup",
@@ -373,10 +367,6 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
   // initializing state.
   await loadProjectsFromFile(wsConfig);
 
-  wsConfig.initialSetupComplete = true;
-
-  // Set context flag for workspace type selected
-  await vscode.commands.executeCommand("setContext", "zephyr-ide.workspaceTypeSelected", true);
   outputInfo("Directory Setup", "Workspace type selected: Current Directory");
 
   // Use westConfig to handle configuration selection
@@ -387,10 +377,22 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
     showUseExternalInstallation: giveExternalInstallOption
   };
 
-  const westConfigResult = await westConfig(context, wsConfig, globalConfig, configOptions);
+  const westConfigResult = await westConfig(context, wsConfig, globalConfig, configOptions, installDir);
 
   if (westConfigResult.cancelled) {
     return false;
+  }
+
+  // Handle mark-as-setup: create a setup state for the install directory and return
+  if (westConfigResult.option === 'mark-as-setup') {
+    await setSetupState(context, wsConfig, globalConfig, installDir);
+    // User explicitly declared the workspace as already set up — record the
+    // initialized marker so future panel opens skip the Initial Setup page.
+    if (wsConfig.activeSetupState) {
+      wsConfig.activeSetupState.initialized = true;
+      await setExternalSetupState(context, globalConfig, wsConfig.activeSetupState.setupPath, wsConfig.activeSetupState);
+    }
+    return true;
   }
 
   // Handle external installation case
@@ -400,6 +402,16 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
 
   // Handle local workspace setup
   await setSetupState(context, wsConfig, globalConfig, installDir);
+
+  // If the user adopted an existing `.west/` folder, the workspace is already
+  // structurally initialized regardless of whether west-update later succeeds.
+  // Mark it now so transient readiness failures (e.g. network issues during
+  // `west update`) don't bounce the user back to the Initial Setup page.
+  if (westConfigResult.option === 'use-west-folder' && wsConfig.activeSetupState) {
+    wsConfig.activeSetupState.initialized = true;
+    await setExternalSetupState(context, globalConfig, wsConfig.activeSetupState.setupPath, wsConfig.activeSetupState);
+  }
+
   return await postWorkspaceSetup(context, wsConfig, globalConfig, installDir, westConfigResult.westSelection, progressTracker);
 }
 
@@ -425,7 +437,7 @@ async function getExistingInstallationPicks(wsConfig: WorkspaceConfig, globalCon
         : "installation";
       if (installPath === getToolsDir()) {
         description = `Global Zephyr ${versionStr}`;
-      } else if (installPath === wsConfig.rootPath) {
+      } else if (installPath === (wsConfig.activeSetupState?.setupPath || wsConfig.rootPath)) {
         description = `Current Zephyr ${versionStr}`;
       } else if (setupState.zephyrVersion) {
         description = `Zephyr ` + versionStr;
@@ -501,8 +513,8 @@ export async function manageWorkspaces(context: vscode.ExtensionContext, wsConfi
 
     actionOptions.push({
       label: "$(tools) West Update",
-      description: "Reinitialize this installation",
-      detail: "reinitialize"
+      description: "Run west update and reinstall requirements",
+      detail: "west-update"
     });
   }
 
@@ -523,14 +535,14 @@ export async function manageWorkspaces(context: vscode.ExtensionContext, wsConfi
 
   if (selectedAction.detail === "reconfigure") {
     await handleReconfigureInstallation(context, wsConfig, globalConfig, installPath);
-  } else if (selectedAction.detail === "reinitialize") {
+  } else if (selectedAction.detail === "west-update") {
     await postWorkspaceSetup(context, wsConfig, globalConfig, installPath, undefined);
   } else if (selectedAction.detail === "delete") {
     await handleDeleteInstallation(context, globalConfig, installPath, installName);
   }
 }
 
-async function handleReconfigureInstallation(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, installPath: string) {
+export async function handleReconfigureInstallation(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, installPath: string) {
   // Set the setup state to the selected installation
   await setSetupState(context, wsConfig, globalConfig, installPath);
 
@@ -648,6 +660,51 @@ export async function showWorkspaceSetupPicker(context: vscode.ExtensionContext,
 }
 
 /**
+ * Set up a Zephyr workspace in a user-selected external directory.
+ * Opens a folder picker, then runs westConfig() on the selected directory
+ * (showing .west, west.yml, create new west.yml, and mark-as-setup options).
+ */
+export async function workspaceSetupFromExternalDirectory(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
+  showOutput();
+
+  const folderUris = await vscode.window.showOpenDialog({
+    openLabel: "Select Folder for Zephyr Installation",
+    canSelectFiles: false,
+    canSelectFolders: true,
+    canSelectMany: false,
+  });
+  if (!folderUris || folderUris.length === 0) {
+    return false;
+  }
+
+  const chosenPath = folderUris[0].fsPath;
+  outputInfo("External Directory Setup", `Selected directory: ${chosenPath}`);
+
+  // Register and activate the chosen path
+  await setSetupState(context, wsConfig, globalConfig, chosenPath);
+
+  // Run westConfig on the selected directory (no external installation sub-option)
+  const configOptions: WestConfigOptions = {
+    showUseWestFolder: true,
+    showUseWestYml: true,
+    showCreateNewWestYml: true,
+    showUseExternalInstallation: false,
+  };
+
+  const westConfigResult = await westConfig(context, wsConfig, globalConfig, configOptions, chosenPath);
+
+  if (westConfigResult.cancelled) {
+    return false;
+  }
+
+  if (westConfigResult.option === 'mark-as-setup') {
+    return true;
+  }
+
+  return await postWorkspaceSetup(context, wsConfig, globalConfig, chosenPath, westConfigResult.westSelection);
+}
+
+/**
  * Show a simplified workspace creation menu for adding/selecting external workspaces.
  * Behavior:
  * - If current workspace is already registered: immediately open folder selector
@@ -761,7 +818,7 @@ export async function showCreateWorkspaceMenu(context: vscode.ExtensionContext, 
 
 /** A QuickPickItem extended with an `id` field for internal option tracking. */
 interface SetupOptionItem extends vscode.QuickPickItem {
-  id: 'use-west-folder' | 'use-west-yml' | 'create-new-west-yml' | 'use-external-installation';
+  id: 'use-west-folder' | 'use-west-yml' | 'create-new-west-yml' | 'use-external-installation' | 'mark-as-setup';
 }
 
 export interface WestConfigOptions {
@@ -773,7 +830,7 @@ export interface WestConfigOptions {
 
 export interface WestConfigResult {
   cancelled: boolean;
-  option: 'use-west-folder' | 'use-west-yml' | 'create-new-west-yml' | 'use-external-installation' | null;
+  option: 'use-west-folder' | 'use-west-yml' | 'create-new-west-yml' | 'use-external-installation' | 'mark-as-setup' | null;
   selectedWestPath?: string;
   westSelection?: WestLocation;
   externalInstallPath?: string;
@@ -795,7 +852,8 @@ export async function westConfig(
   context: vscode.ExtensionContext,
   wsConfig: WorkspaceConfig,
   globalConfig: GlobalConfig,
-  options?: WestConfigOptions
+  options?: WestConfigOptions,
+  baseDirOverride?: string
 ): Promise<WestConfigResult> {
   // Default options if not provided
   const configOptions: WestConfigOptions = options || {
@@ -805,7 +863,8 @@ export async function westConfig(
     showUseExternalInstallation: true
   };
 
-  const baseDir = wsConfig.rootPath;
+  // Prefer explicit override → active workspace dir → open VS Code folder.
+  const baseDir = baseDirOverride || wsConfig.activeSetupState?.setupPath || wsConfig.rootPath;
   if (!baseDir) {
     notifyError("West Configuration",
       "No workspace folder open. Please open a folder first."
@@ -862,6 +921,13 @@ export async function westConfig(
       id: "use-external-installation",
     });
   }
+
+  // Option 5: Mark workspace as already set up
+  setupOptions.push({
+    label: "$(check) Mark workspace as already set up",
+    description: "Skip setup steps and mark the workspace as initialized",
+    id: "mark-as-setup",
+  });
 
   // If no options are available, show error
   if (setupOptions.length === 0) {
@@ -997,6 +1063,11 @@ export async function westConfig(
       outputInfo("West Configuration", `Selected external installation: ${chosenPath} (needsSetup=${needsSetup})`);
       break;
 
+    case 'mark-as-setup':
+      result.option = 'mark-as-setup';
+      outputInfo("West Configuration", "Marking workspace as already set up");
+      break;
+
     default:
       notifyError("West Configuration", "Unknown west configuration option selected");
       return { cancelled: true, option: null };
@@ -1048,7 +1119,12 @@ export async function selectExistingWestWorkspace(
     return false;
   }
 
-  wsConfig.initialSetupComplete = true;
+  // The linked workspace was previously set up (it exists in the registry and
+  // on disk) — ensure the `initialized` marker is set on its SetupState.
+  if (wsConfig.activeSetupState && !wsConfig.activeSetupState.initialized) {
+    wsConfig.activeSetupState.initialized = true;
+    await setExternalSetupState(context, globalConfig, wsConfig.activeSetupState.setupPath, wsConfig.activeSetupState);
+  }
   await setWorkspaceState(context, wsConfig);
 
   void vscode.window.showInformationMessage(

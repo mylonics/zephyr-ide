@@ -50,7 +50,7 @@ If you prefer to work without setting `ZEPHYR_BASE` (e.g., using west commands d
 **Option 2**: Manually add to `.vscode/settings.json`:
 ```json
 {
-  "zephyr-ide.suppress-workspace-warning": true
+  "zephyr-ide.suppressWorkspaceWarning": true
 }
 ```
 

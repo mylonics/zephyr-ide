@@ -1,5 +1,5 @@
 /*
-Copyright 2024 mylonics 
+Copyright 2026 mylonics 
 Author Rijesh Augustine
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -41,7 +41,7 @@ class WestWorkspaceItem extends vscode.TreeItem {
     super(label, vscode.TreeItemCollapsibleState.None);
     this.id = `west.${sanitizeTreeId(installPath)}`;
     this.iconPath = contextId === 'westWorkspace.active'
-      ? new vscode.ThemeIcon(icon, new vscode.ThemeColor('statusBar.background'))
+      ? new vscode.ThemeIcon(icon, new vscode.ThemeColor('textLink.foreground'))
       : new vscode.ThemeIcon(icon);
     this.description = description;
     this.tooltip = tooltip;
@@ -173,17 +173,17 @@ export class WestWorkspaceView implements vscode.TreeDataProvider<WestWorkspaceI
     try {
       const confirm = await notifyWarningWithActions(
         'West Workspace',
-        'Deselect active workspace?',
-        ['Deselect', 'Cancel']
+        'Deactivate active workspace?',
+        ['Deactivate', 'Cancel']
       );
 
-      if (confirm === 'Deselect') {
+      if (confirm === 'Deactivate') {
         await clearSetupState(this.context, this.wsConfig);
-        void vscode.window.showInformationMessage('Active workspace deselected');
+        void vscode.window.showInformationMessage('Active workspace deactivated');
         void vscode.commands.executeCommand('zephyr-ide.update-web-view');
       }
     } catch (error) {
-      notifyError('West Workspace', `Failed to deselect workspace: ${error}`);
+      notifyError('West Workspace', `Failed to deactivate workspace: ${error}`);
     }
   }
 

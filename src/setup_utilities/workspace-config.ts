@@ -1,5 +1,5 @@
 /*
-Copyright 2024 mylonics 
+Copyright 2025-2026 mylonics 
 Author Rijesh Augustine
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,6 +25,64 @@ import { outputInfo, outputWarning, outputError, notifyError } from "../utilitie
 import { WorkspaceConfig, SetupState } from "./types";
 import { resolveActiveProjectBuild } from "../project_utilities/project";
 import { normalizeBuildArgs } from "../project_utilities/build_args";
+import { ConfigFiles, ConfigFileEntry, emptyConfigFiles } from "../project_utilities/config_selector";
+
+/**
+ * Migrate a ConfigFiles value from the old 4-array format
+ * ({config: string[], extraConfig: string[], overlay: string[], extraOverlay: string[]})
+ * to the new 2-array-of-entries format
+ * ({config: ConfigFileEntry[], overlay: ConfigFileEntry[]}).
+ * Returns true if a migration was performed.
+ */
+function migrateConfigFiles(confFiles: any): boolean {
+  if (!confFiles) { return false; }
+
+  const hasStringEntry = (value: any): boolean =>
+    Array.isArray(value) && value.some((entry: any) => typeof entry === "string");
+  const toConfigEntries = (value: any, forceExtra = false): ConfigFileEntry[] => {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+    return value
+      .map((entry: any): ConfigFileEntry | undefined => {
+        if (typeof entry === "string") {
+          return forceExtra ? { path: entry, extra: true as const } : { path: entry };
+        }
+        if (entry && typeof entry === "object" && typeof entry.path === "string") {
+          if (forceExtra) {
+            return { path: entry.path, extra: true as const };
+          }
+          return entry.extra ? { path: entry.path, extra: true as const } : { path: entry.path };
+        }
+        return undefined;
+      })
+      .filter((entry): entry is ConfigFileEntry => !!entry);
+  };
+
+  // Detect old format: has "extraConfig" or "extraOverlay" keys, or config[0] is a string
+  const needsMigration =
+    Array.isArray(confFiles.extraConfig) ||
+    Array.isArray(confFiles.extraOverlay) ||
+    hasStringEntry(confFiles.config) ||
+    hasStringEntry(confFiles.overlay);
+
+  if (!needsMigration) { return false; }
+
+  const newConfig: ConfigFileEntry[] = [
+    ...toConfigEntries(confFiles.config),
+    ...toConfigEntries(confFiles.extraConfig, true),
+  ];
+  const newOverlay: ConfigFileEntry[] = [
+    ...toConfigEntries(confFiles.overlay),
+    ...toConfigEntries(confFiles.extraOverlay, true),
+  ];
+
+  confFiles.config = newConfig;
+  confFiles.overlay = newOverlay;
+  delete confFiles.extraConfig;
+  delete confFiles.extraOverlay;
+  return true;
+}
 
 function argsMatchNormalized(value: any, normalized: string[]): boolean {
   if (!Array.isArray(value) || value.length !== normalized.length) {
@@ -49,6 +107,11 @@ function projectLoader(config: WorkspaceConfig, projects: any): boolean {
   for (const key in projects) {
     config.projects[key] = projects[key];
 
+    // Migrate project-level confFiles from old 4-array format
+    if (config.projects[key].confFiles && migrateConfigFiles(config.projects[key].confFiles)) {
+      requiresSave = true;
+    }
+
     //generate project States if they don't exist
     if (config.projectStates[key] === undefined) {
       config.projectStates[key] = { buildStates: {}, twisterStates: {} };
@@ -65,9 +128,9 @@ function projectLoader(config: WorkspaceConfig, projects: any): boolean {
         }
       }
 
-      //Remove after upgrade
-      if (projects[key].buildConfigs[build_key].runnerConfigs === undefined) {
-        config.projects[key].buildConfigs[build_key].runnerConfigs = projects[key].buildConfigs[build_key].runners;
+      // Migrate build-level confFiles from old 4-array format
+      if (config.projects[key].buildConfigs[build_key].confFiles &&
+          migrateConfigFiles(config.projects[key].buildConfigs[build_key].confFiles)) {
         requiresSave = true;
       }
 
@@ -204,8 +267,9 @@ export function getToolsDir() {
   let toolsdir = path.join(os.homedir(), toolsfoldername);
 
   const configuration = vscode.workspace.getConfiguration();
-  // Prefer the new global_directory setting; fall back to deprecated tools_directory
-  const globalDir: string | undefined = configuration.get("zephyr-ide.global_directory");
+  // Prefer new camelCase key, fall back to deprecated keys
+  const globalDir: string | undefined = configuration.get("zephyr-ide.globalDirectory")
+    || configuration.get("zephyr-ide.global_directory");
   if (globalDir) {
     toolsdir = globalDir;
   } else {
@@ -226,19 +290,52 @@ export function getToolsDir() {
 }
 
 /**
- * Automatically migrate the deprecated 'tools_directory' setting to 'global_directory'.
- * Called once on extension activation. No-op if already migrated or tools_directory is unset.
+ * Migrate deprecated setting keys to their camelCase equivalents.
+ * Called once on extension activation. For each pair, if the old value exists
+ * and the new key is unset, the value is copied to the new key and the old key is cleared.
  */
-export async function migrateToolsDirectory(): Promise<void> {
+export async function migrateSettingKeys(): Promise<void> {
   const configuration = vscode.workspace.getConfiguration();
-  const toolsDir: string | undefined = configuration.get("zephyr-ide.tools_directory");
-  const globalDir: string | undefined = configuration.get("zephyr-ide.global_directory");
 
-  if (toolsDir && !globalDir) {
-    await configuration.update("zephyr-ide.global_directory", toolsDir, vscode.ConfigurationTarget.Global);
-    await configuration.update("zephyr-ide.tools_directory", undefined, vscode.ConfigurationTarget.Global);
+  const migrations: { oldKey: string; newKey: string }[] = [
+    { oldKey: "zephyr-ide.tools_directory", newKey: "zephyr-ide.globalDirectory" },
+    { oldKey: "zephyr-ide.global_directory", newKey: "zephyr-ide.globalDirectory" },
+    { oldKey: "zephyr-ide.toolchain_directory", newKey: "zephyr-ide.toolchainDirectory" },
+    { oldKey: "zephyr-ide.use_gui_config", newKey: "zephyr-ide.useGuiConfig" },
+    { oldKey: "zephyr-ide.suppress-workspace-warning", newKey: "zephyr-ide.suppressWorkspaceWarning" },
+    { oldKey: "zephyr-ide.venv-folder", newKey: "zephyr-ide.venvFolder" },
+    { oldKey: "zephyr-ide.project_variable_defaults", newKey: "zephyr-ide.projectVariableDefaults" },
+    { oldKey: "zephyr-ide.build_variable_defaults", newKey: "zephyr-ide.buildVariableDefaults" },
+  ];
+
+  const migrated: string[] = [];
+
+  for (const { oldKey, newKey } of migrations) {
+    const inspect = configuration.inspect(oldKey);
+    const newInspect = configuration.inspect(newKey);
+
+    // Migrate global scope
+    if (inspect?.globalValue !== undefined && newInspect?.globalValue === undefined) {
+      await configuration.update(newKey, inspect.globalValue, vscode.ConfigurationTarget.Global);
+      await configuration.update(oldKey, undefined, vscode.ConfigurationTarget.Global);
+      if (!migrated.includes(oldKey)) {
+        migrated.push(oldKey);
+      }
+    }
+
+    // Migrate workspace scope
+    if (inspect?.workspaceValue !== undefined && newInspect?.workspaceValue === undefined) {
+      await configuration.update(newKey, inspect.workspaceValue, vscode.ConfigurationTarget.Workspace);
+      await configuration.update(oldKey, undefined, vscode.ConfigurationTarget.Workspace);
+      if (!migrated.includes(oldKey)) {
+        migrated.push(oldKey);
+      }
+    }
+  }
+
+  if (migrated.length > 0) {
     void vscode.window.showInformationMessage(
-      `Zephyr IDE: 'zephyr-ide.tools_directory' has been automatically migrated to 'zephyr-ide.global_directory' (${toolsDir}).`
+      `Zephyr IDE: Migrated ${migrated.length} setting(s) to camelCase keys.`
     );
   }
 }
@@ -247,7 +344,8 @@ export function getToolchainDir() {
   const configuration = vscode.workspace.getConfiguration();
 
   // First check if direct toolchain directory is configured
-  const toolchainDir: string | undefined = configuration.get("zephyr-ide.toolchain_directory");
+  const toolchainDir: string | undefined = configuration.get("zephyr-ide.toolchainDirectory")
+    || configuration.get("zephyr-ide.toolchain_directory");
   if (toolchainDir && toolchainDir.trim()) {
     // Return configured path without creating it - user is responsible for ensuring it exists
     return toolchainDir;
@@ -564,7 +662,8 @@ export function getArmGdbPath(wsConfig: WorkspaceConfig): string | undefined {
  */
 export function getVenvPath(setupPath: string): string {
   const configuration = vscode.workspace.getConfiguration();
-  const venvPath: string | undefined = configuration.get("zephyr-ide.venv-folder");
+  const venvPath: string | undefined = configuration.get("zephyr-ide.venvFolder")
+    || configuration.get("zephyr-ide.venv-folder");
 
   // Use configured path if it's a non-empty string
   if (venvPath && venvPath.trim()) {
@@ -624,7 +723,8 @@ function checkZephyrEnvironmentVariables(): boolean {
  */
 async function checkAndWarnMissingEnvironment(context: vscode.ExtensionContext): Promise<void> {
   const configuration = vscode.workspace.getConfiguration();
-  const suppressWarning: boolean | undefined = configuration.get("zephyr-ide.suppress-workspace-warning");
+  const suppressWarning: boolean | undefined = configuration.get("zephyr-ide.suppressWorkspaceWarning")
+    ?? configuration.get("zephyr-ide.suppress-workspace-warning");
 
   // Don't show warning if user has suppressed it
   if (suppressWarning) {
@@ -642,7 +742,7 @@ async function checkAndWarnMissingEnvironment(context: vscode.ExtensionContext):
 
     if (result === "Don't Show Again") {
       // Save the preference to not show again
-      await configuration.update("zephyr-ide.suppress-workspace-warning", true, vscode.ConfigurationTarget.Workspace);
+      await configuration.update("zephyr-ide.suppressWorkspaceWarning", true, vscode.ConfigurationTarget.Workspace);
       void vscode.window.showInformationMessage("Workspace warning suppressed for this workspace.");
     } else if (result === "Setup Workspace") {
       // Open the setup wizard panel for workspace configuration

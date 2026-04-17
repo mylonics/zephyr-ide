@@ -1,5 +1,5 @@
 /*
-Copyright 2024 mylonics 
+Copyright 2026 mylonics 
 Author Rijesh Augustine
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,7 +22,7 @@ import * as path from "upath";
 import { WorkspaceConfig } from "../setup_utilities/types";
 import { ProjectConfig, getProjectFolder, getBuildFolder, resolveBoardPath } from "./project";
 import { BuildConfig } from "./build_selector";
-import { ConfigFiles, mergeConfigFiles } from "./config_selector";
+import { ConfigFiles, mergeConfigFiles, emptyConfigFiles } from "./config_selector";
 import { RunnerConfig } from "./runner_selector";
 import { TwisterConfig } from "./twister_selector";
 import { getBuildInfo, BuildInfo } from "../zephyr_utilities/build";
@@ -72,7 +72,7 @@ export function getProjectInfo(wsConfig: WorkspaceConfig, projectName: string): 
     absPath,
     mainSourceFile: findMainSourceFile(absPath),
     cmakeFile: fs.existsSync(cmakePath) ? cmakePath : undefined,
-    confFiles: project.confFiles ?? { config: [], extraConfig: [], overlay: [], extraOverlay: [] },
+    confFiles: project.confFiles ?? emptyConfigFiles(),
     buildNames: Object.keys(project.buildConfigs ?? {}),
     testNames: Object.keys(project.twisterConfigs ?? {}),
   };
@@ -134,7 +134,7 @@ export function getBuildDetails(wsConfig: WorkspaceConfig, projectName: string, 
     debugOptimization: build.debugOptimization,
     westBuildArgs: normalizeBuildArgs(build.westBuildArgs),
     westBuildCMakeArgs: normalizeBuildArgs(build.westBuildCMakeArgs),
-    confFiles: build.confFiles ?? { config: [], extraConfig: [], overlay: [], extraOverlay: [] },
+    confFiles: build.confFiles ?? emptyConfigFiles(),
     runners,
     launchTarget: build.launchTarget,
     launchTargetFolder: build.launchTargetFolder,
@@ -185,25 +185,12 @@ export function getTestDetails(wsConfig: WorkspaceConfig, projectName: string, t
 // Calculated / merged config files
 // ---------------------------------------------------------------------------
 
-export interface CalculatedConfigFiles {
-  /** Merged project + build primary configs */
-  config: string[];
-  /** Merged project + build extra configs */
-  extraConfig: string[];
-  /** Merged project + build primary overlays */
-  overlay: string[];
-  /** Merged project + build extra overlays */
-  extraOverlay: string[];
-}
+/** Merged project + build config files (same shape as ConfigFiles). */
+export type CalculatedConfigFiles = ConfigFiles;
 
 /** Get the combined config files from project + build level (what actually gets passed to west build) */
 export function getCalculatedConfigFiles(project: ProjectConfig, build: BuildConfig): CalculatedConfigFiles {
-  const merged: ConfigFiles = {
-    config: [],
-    extraConfig: [],
-    overlay: [],
-    extraOverlay: [],
-  };
+  const merged: ConfigFiles = emptyConfigFiles();
   mergeConfigFiles(merged, project.confFiles);
   mergeConfigFiles(merged, build.confFiles);
   return merged;

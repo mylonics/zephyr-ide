@@ -1,5 +1,5 @@
 /*
-Copyright 2024 mylonics 
+Copyright 2026 mylonics 
 Author Rijesh Augustine
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,28 +28,28 @@ interface SettingDefinition {
 
 const SETTINGS: SettingDefinition[] = [
   {
-    key: "zephyr-ide.global_directory",
+    key: "zephyr-ide.globalDirectory",
     label: "Global Directory",
     description: "Global directory for west workspace installation and Zephyr tools. The toolchains subdirectory is used for SDK installations unless overridden.",
     type: "string",
     defaultValue: null,
   },
   {
-    key: "zephyr-ide.toolchain_directory",
+    key: "zephyr-ide.toolchainDirectory",
     label: "Toolchain Directory",
     description: "Directory containing Zephyr SDK installations. If not specified, defaults to the toolchains subdirectory within the global directory.",
     type: "string",
     defaultValue: null,
   },
   {
-    key: "zephyr-ide.venv-folder",
+    key: "zephyr-ide.venvFolder",
     label: "Virtual Environment Folder",
     description: "Python virtual environment folder path. If not specified, defaults to .venv in the workspace setup path.",
     type: "string",
     defaultValue: null,
   },
   {
-    key: "zephyr-ide.use_gui_config",
+    key: "zephyr-ide.useGuiConfig",
     label: "Use GUI Config",
     description: "Display GUI config instead of menu config in Project Tree View.",
     type: "boolean",
@@ -63,7 +63,7 @@ const SETTINGS: SettingDefinition[] = [
     defaultValue: false,
   },
   {
-    key: "zephyr-ide.suppress-workspace-warning",
+    key: "zephyr-ide.suppressWorkspaceWarning",
     label: "Suppress Workspace Warning",
     description: "Suppress the warning about missing workspace environment variables (ZEPHYR_BASE, ZEPHYR_SDK_INSTALL_DIR).",
     type: "boolean",
@@ -77,16 +77,6 @@ const SETTINGS: SettingDefinition[] = [
     defaultValue: true,
   },
 ];
-
-function escapeHtml(str: string | null | undefined): string {
-  if (!str) { return ""; }
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
 
 export class SettingsPanel {
   public static currentPanel: SettingsPanel | undefined;
@@ -107,7 +97,7 @@ export class SettingsPanel {
 
     const panel = vscode.window.createWebviewPanel(
       "zephyrIDESettings",
-      "Zephyr IDE Settings",
+      "Zephyr IDE: Settings",
       column || vscode.ViewColumn.One,
       {
         enableScripts: true,
@@ -120,11 +110,13 @@ export class SettingsPanel {
     return SettingsPanel.currentPanel;
   }
 
+  private _htmlInitialized = false;
+
   private constructor(panel: vscode.WebviewPanel, extensionPath: string) {
     this._panel = panel;
     this._extensionPath = extensionPath;
 
-    this._panel.webview.html = this.getHtmlForWebview();
+    this.sendUpdate();
 
     this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
 
@@ -142,8 +134,13 @@ export class SettingsPanel {
         }
       })
     );
+  }
 
-    // Send initial setting values
+  private sendUpdate() {
+    if (!this._htmlInitialized) {
+      this._panel.webview.html = this.getHtmlForWebview();
+      this._htmlInitialized = true;
+    }
     this.refreshSettings();
   }
 
@@ -153,14 +150,19 @@ export class SettingsPanel {
       const inspected = configuration.inspect(def.key);
       let currentValue = configuration.get(def.key);
       let scope: "default" | "user" | "workspace" = "default";
+      let userValue: boolean | string | null | undefined = undefined;
+      let workspaceValue: boolean | string | null | undefined = undefined;
 
       if (inspected) {
-        if (inspected.workspaceValue !== undefined) {
+        userValue = inspected.globalValue as typeof userValue;
+        workspaceValue = inspected.workspaceValue as typeof workspaceValue;
+
+        if (workspaceValue !== undefined) {
           scope = "workspace";
-          currentValue = inspected.workspaceValue;
-        } else if (inspected.globalValue !== undefined) {
+          currentValue = workspaceValue;
+        } else if (userValue !== undefined) {
           scope = "user";
-          currentValue = inspected.globalValue;
+          currentValue = userValue;
         }
       }
 
@@ -172,13 +174,17 @@ export class SettingsPanel {
         defaultValue: def.defaultValue,
         currentValue: currentValue ?? def.defaultValue,
         scope,
+        userValue: userValue ?? null,
+        workspaceValue: workspaceValue ?? null,
+        hasUserValue: userValue !== undefined,
+        hasWorkspaceValue: workspaceValue !== undefined,
       };
     });
 
     this._panel.webview.postMessage({ command: "updateSettings", settings });
   }
 
-  private async handleWebviewMessage(message: any) {
+  private async handleWebviewMessage(message: Record<string, any>) {
     switch (message.command) {
       case "updateSetting": {
         const { key, value, scope } = message;
@@ -223,6 +229,14 @@ export class SettingsPanel {
         }
         break;
       }
+      case "openSetupPanel": {
+        await vscode.commands.executeCommand("zephyr-ide.open-setup-panel");
+        break;
+      }
+      case "ready": {
+        this.refreshSettings();
+        break;
+      }
     }
   }
 
@@ -260,55 +274,6 @@ export class SettingsPanel {
       )
     );
 
-    const dirSettings = SETTINGS.filter(s => s.type === "string");
-    const boolSettings = SETTINGS.filter(s => s.type === "boolean");
-
-    const renderStringSetting = (def: SettingDefinition) => `
-      <div class="setting-row" data-key="${escapeHtml(def.key)}" data-type="string">
-        <div class="setting-header">
-          <vscode-label class="setting-label">${escapeHtml(def.label)}</vscode-label>
-          <div class="setting-scope-badge" id="scope-${escapeHtml(def.key)}">default</div>
-        </div>
-        <div class="setting-description">${escapeHtml(def.description)}</div>
-        <div class="setting-controls">
-          <div class="input-group">
-            <vscode-textfield id="val-${escapeHtml(def.key)}"
-              placeholder="Not set (using default)"
-              data-action="string-change"
-              data-key="${escapeHtml(def.key)}"></vscode-textfield>
-            <vscode-button class="setting-browse-button" appearance="secondary" data-action="browse" data-key="${escapeHtml(def.key)}" title="Browse for folder">
-              Browse
-            </vscode-button>
-          </div>
-          <vscode-single-select class="setting-scope-select" id="target-${escapeHtml(def.key)}" data-action="scope-change" data-key="${escapeHtml(def.key)}">
-            <vscode-option value="workspace">Workspace</vscode-option>
-            <vscode-option value="user">User</vscode-option>
-          </vscode-single-select>
-          <vscode-button class="setting-reset-button" appearance="secondary" id="reset-${escapeHtml(def.key)}" data-action="reset" data-key="${escapeHtml(def.key)}" title="Reset to default">
-            Reset
-          </vscode-button>
-        </div>
-      </div>`;
-
-    const renderBoolSetting = (def: SettingDefinition) => `
-      <div class="setting-row" data-key="${escapeHtml(def.key)}" data-type="boolean">
-        <div class="setting-header">
-          <vscode-label class="setting-label">${escapeHtml(def.label)}</vscode-label>
-          <div class="setting-scope-badge" id="scope-${escapeHtml(def.key)}">default</div>
-        </div>
-        <div class="setting-description">${escapeHtml(def.description)}</div>
-        <div class="setting-controls">
-          <vscode-checkbox id="val-${escapeHtml(def.key)}" data-action="toggle-change" data-key="${escapeHtml(def.key)}"></vscode-checkbox>
-          <vscode-single-select class="setting-scope-select" id="target-${escapeHtml(def.key)}" data-action="scope-change" data-key="${escapeHtml(def.key)}">
-            <vscode-option value="workspace">Workspace</vscode-option>
-            <vscode-option value="user">User</vscode-option>
-          </vscode-single-select>
-          <vscode-button class="setting-reset-button" appearance="secondary" id="reset-${escapeHtml(def.key)}" data-action="reset" data-key="${escapeHtml(def.key)}" title="Reset to default">
-            Reset
-          </vscode-button>
-        </div>
-      </div>`;
-
     return `<!DOCTYPE html>
     <html lang="en">
     <head>
@@ -319,36 +284,7 @@ export class SettingsPanel {
         <link rel="stylesheet" type="text/css" href="${cssUri}">
     </head>
     <body>
-        <div class="container">
-            <div class="header page-header">
-                <div>
-                    <h1 class="page-title">Zephyr IDE Settings</h1>
-                    <p class="page-subtitle">Manage extension defaults and workspace overrides.</p>
-                </div>
-                <div class="page-actions">
-                    <vscode-button appearance="secondary" data-action="open-vscode-settings">
-                        Open in VS Code Settings
-                    </vscode-button>
-                </div>
-            </div>
-
-            <div class="info-box">
-                <p>Configure Zephyr IDE extension settings. Changes are saved automatically.
-                Use the scope selector to choose whether a setting applies to this workspace only or to all workspaces (User).</p>
-            </div>
-
-            <h2>Directory Settings</h2>
-            <div class="settings-group">
-                ${dirSettings.map(renderStringSetting).join("\n<vscode-divider></vscode-divider>\n")}
-            </div>
-
-            <vscode-divider></vscode-divider>
-
-            <h2>Behavior Settings</h2>
-            <div class="settings-group">
-                ${boolSettings.map(renderBoolSetting).join("\n<vscode-divider></vscode-divider>\n")}
-            </div>
-        </div>
+        <settings-app></settings-app>
         <script nonce="${nonce}" src="${jsUri}"></script>
     </body>
     </html>`;

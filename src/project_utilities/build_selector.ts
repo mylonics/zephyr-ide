@@ -1,5 +1,5 @@
 /*
-Copyright 2024 mylonics 
+Copyright 2024-2026 mylonics 
 Author Rijesh Augustine
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -65,6 +65,7 @@ export interface BuildState {
   gdbPath?: string; // Cached GDB path from CMakeCache.txt (CMAKE_GDB)
   elfName?: string; // Cached kernel ELF name from CMakeCache.txt (BYPRODUCT_KERNEL_ELF_NAME)
   toolchainPath?: string; // Cached toolchain path from build_info.yml (toolchain.path)
+  cachedPristineCmd?: string; // Pristine build command from last build, used to detect config changes
 }
 
 interface BoardItem extends QuickPickItem {
@@ -320,7 +321,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       totalSteps: 7,
       ignoreFocusOut: true,
       value: path.join("build", state.board + (state.revision ? "_" + state.revision : "")),
-      prompt: 'Choose a name for the Build',
+      prompt: 'Enter build configuration name',
       validate: noOpValidate
     }).catch(handleSelectorError);
     const name = await inputPromise;
@@ -405,9 +406,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
 
     state.confFiles = {
       config: [],
-      extraConfig: [],
       overlay: [],
-      extraOverlay: []
     };
 
     // Initialize launch/debug targets to safe defaults

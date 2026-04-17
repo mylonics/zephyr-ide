@@ -1,5 +1,5 @@
 /*
-Copyright 2024 mylonics 
+Copyright 2025-2026 mylonics 
 Author Rijesh Augustine
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +18,7 @@ limitations under the License.
 import * as vscode from "vscode";
 import { WorkspaceConfig, GlobalConfig } from "../../setup_utilities/types";
 import { HostToolsService, HOST_TOOL_INSTALL_VIEW_CONFIG } from "../hostToolsService";
+import { generateNonce } from "../webview_shared/nonce";
 
 export class HostToolInstallView {
   public static currentPanel: HostToolInstallView | undefined;
@@ -29,53 +30,6 @@ export class HostToolInstallView {
 
   private currentWsConfig?: WorkspaceConfig;
   private currentGlobalConfig?: GlobalConfig;
-
-  /**
-   * Get just the host tools manager content HTML (without full page wrapper)
-   * for embedding in other panels
-   */
-  public static getContentHtml(): string {
-    return `
-      <div class="host-tools-manager">
-        <div class="info-box">
-          <p>
-            This tool helps you install and manage development tools required for Zephyr RTOS development.
-            The tools will be installed using your platform's package manager.
-          </p>
-          <p class="host-tools-note">
-            <strong>Note:</strong> VS Code may need to be restarted after installation for tools to be available in the PATH.
-          </p>
-        </div>
-
-        <div id="package-manager-section" class="manager-section">
-          <h3>Package Manager Status</h3>
-          <div id="manager-status" class="status-area">
-            <div class="loading">Checking package manager...</div>
-          </div>
-        </div>
-
-        <div id="packages-section" class="manager-section">
-          <h3>Required Development Tools</h3>
-          <div id="packages-status" class="status-area">
-            <div class="loading">Checking packages...</div>
-          </div>
-        </div>
-
-        <div id="actions-section" class="manager-section">
-          <div class="button-group">
-            <vscode-button id="refresh-btn" appearance="secondary" onclick="hostToolsClient.refreshStatus()">
-              <vscode-icon slot="start-icon" name="refresh"></vscode-icon>
-              Refresh Status
-            </vscode-button>
-            <vscode-button id="install-all-btn" onclick="hostToolsClient.installAllMissing()" disabled>
-              <vscode-icon slot="start-icon" name="cloud-download"></vscode-icon>
-              Install All Missing Packages
-            </vscode-button>
-          </div>
-        </div>
-      </div>
-    `;
-  }
 
   public static createOrShow(
     extensionPath: string,
@@ -95,7 +49,7 @@ export class HostToolInstallView {
 
     const panel = vscode.window.createWebviewPanel(
       "zephyrIDEHostTools",
-      "Host Tools Installation",
+      "Zephyr IDE: Host Tools",
       column || vscode.ViewColumn.One,
       {
         enableScripts: true,
@@ -141,13 +95,21 @@ export class HostToolInstallView {
   public updateContent(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
     this.currentWsConfig = wsConfig;
     this.currentGlobalConfig = globalConfig;
-    this._panel.webview.html = this.getHtmlForWebview();
-    // Automatically check status on load
-    this._service.checkStatus();
+
+    if (!this._htmlInitialized) {
+      this._panel.webview.html = this.getHtmlForWebview();
+      this._htmlInitialized = true;
+    }
   }
 
-  private async handleWebviewMessage(message: any) {
+  private _htmlInitialized = false;
+
+  private async handleWebviewMessage(message: Record<string, any>) {
     switch (message.command) {
+      case "ready":
+        // Trigger initial status check when client is ready
+        await this._service.checkStatus();
+        return;
       case "hostToolsCheckStatus":
         await this._service.checkStatus();
         break;
@@ -168,6 +130,9 @@ export class HostToolInstallView {
         break;
       case "hostToolsOpenManagerInstallUrl":
         await this._service.openManagerInstallUrl();
+        break;
+      case "openSetupPanel":
+        vscode.commands.executeCommand("zephyr-ide.open-setup-panel");
         break;
     }
   }
@@ -196,6 +161,17 @@ export class HostToolInstallView {
       )
     );
 
+    const codiconUri = this._panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(
+        vscode.Uri.file(this._extensionPath),
+        "node_modules",
+        "@vscode",
+        "codicons",
+        "dist",
+        "codicon.css"
+      )
+    );
+
     const jsUri = this._panel.webview.asWebviewUri(
       vscode.Uri.joinPath(
         vscode.Uri.file(this._extensionPath),
@@ -206,33 +182,21 @@ export class HostToolInstallView {
       )
     );
 
+    const nonce = generateNonce();
+
     return `<!DOCTYPE html>
     <html lang="en">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${this._panel.webview.cspSource}; font-src ${this._panel.webview.cspSource}; img-src ${this._panel.webview.cspSource} data:; script-src 'nonce-${nonce}';">
         <title>Host Tools Installation</title>
         <link rel="stylesheet" type="text/css" href="${cssUri}">
+        <link rel="stylesheet" type="text/css" href="${codiconUri}" id="vscode-codicon-stylesheet">
     </head>
     <body>
-        <div class="container">
-            <div class="page-header">
-                <div>
-                    <h1 class="page-title">Host Tools Installation</h1>
-                    <p class="page-subtitle">Install and maintain local system dependencies for Zephyr development.</p>
-                </div>
-            </div>
-            ${HostToolInstallView.getContentHtml()}
-            <div class="manager-section">
-                <div class="button-group">
-                    <vscode-button id="mark-complete-btn" appearance="secondary" onclick="markComplete()">
-                        <vscode-icon slot="start-icon" name="check"></vscode-icon>
-                        Skip &amp; Mark as Complete
-                    </vscode-button>
-                </div>
-            </div>
-        </div>
-        <script src="${jsUri}"></script>
+        <host-tools-app></host-tools-app>
+        <script nonce="${nonce}" src="${jsUri}"></script>
     </body>
     </html>`;
   }

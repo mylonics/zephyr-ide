@@ -198,3 +198,25 @@ h2 {
     font-size: 12px;
     color: var(--vscode-descriptionForeground);
 }
+
+/* ===================================================================
+   Responsive breakpoints
+   =================================================================== */
+
+@media (max-width: 600px) {
+    .summary-box {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .package-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .package-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+}

@@ -1,5 +1,5 @@
 /*
-Copyright 2025 mylonics 
+Copyright 2025-2026 mylonics 
 Author Rijesh Augustine
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,6 +25,11 @@ import { setGlobalState } from "./state-management";
 import { executeShellCommandInPythonEnv, executeTaskHelperInPythonEnv } from "../utilities/utils";
 import { outputInfo, outputWarning, outputError, notifyError, outputCommandFailure } from "../utilities/output";
 import { sdkVersions, toolchainTargets } from "../defines";
+import { SetupProgressTracker } from "./setup-progress";
+
+/** Event emitter for SDK install progress, mirroring the workspace setup progress pattern. */
+const _onSDKProgress = new vscode.EventEmitter<import("./setup-progress").SetupProgressEvent>();
+export const onSDKProgress: vscode.Event<import("./setup-progress").SetupProgressEvent> = _onSDKProgress.event;
 
 export interface WestSDKResult {
     success: boolean;
@@ -83,7 +88,11 @@ export async function getWestSDKContext(wsConfig: WorkspaceConfig, globalConfig:
     }
 
     // If no valid SDK installs found, try to inject SDK command manually
+    // Only consider candidates with a working Python venv so west is actually runnable
     for (const setupState of candidateStates) {
+        if (!setupState.pythonEnvironmentSetup || !setupState.env["PATH"]) {
+            continue;
+        }
         if (setupState.setupPath && await fs.pathExists(path.join(setupState.setupPath, ".west"))) {
             if (await injectWestSDKCommand(setupState, context)) {
                 return setupState;
@@ -99,6 +108,11 @@ export async function getWestSDKContext(wsConfig: WorkspaceConfig, globalConfig:
  */
 async function hasWestSDKCommand(setupState: SetupState): Promise<boolean> {
     if (!setupState.setupPath) {
+        return false;
+    }
+
+    // A working venv with west installed is required to run west commands
+    if (!setupState.pythonEnvironmentSetup || !setupState.env["PATH"]) {
         return false;
     }
 
@@ -325,6 +339,32 @@ async function detectSDKVersionFromWorkspace(setupState: SetupState): Promise<st
 }
 
 /**
+ * Detects the newest installed SDK version from the toolchains directory
+ * by scanning for zephyr-sdk-* folders and reading their sdk_version files.
+ */
+async function detectInstalledSDKVersion(): Promise<string | undefined> {
+    try {
+        const toolchainsDir = getToolchainDir();
+        if (!await fs.pathExists(toolchainsDir)) {
+            return undefined;
+        }
+        const entries = await fs.readdir(toolchainsDir);
+        const sdkDirs = entries.filter(e => e.startsWith("zephyr-sdk-"));
+        if (sdkDirs.length === 0) {
+            return undefined;
+        }
+        // Extract versions and sort descending to find the newest
+        const versions = sdkDirs
+            .map(d => d.replace("zephyr-sdk-", ""))
+            .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+        return versions[0];
+    } catch (error) {
+        outputError("SDK Install", `Error detecting installed SDK version: ${error}`);
+    }
+    return undefined;
+}
+
+/**
  * Prompts user to select SDK version
  */
 async function selectSDKVersion(setupState: SetupState): Promise<string | null | undefined> {
@@ -493,34 +533,53 @@ export async function installSDK(
  * Main SDK installation function that handles the complete user workflow
  */
 export async function installSDKInteractive(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, context?: vscode.ExtensionContext) {
+    const tracker = new SetupProgressTracker("SDK Installation", [
+        { id: 'resolve', label: 'Resolving west workspace' },
+        { id: 'version', label: 'Selecting SDK version' },
+        { id: 'toolchains', label: 'Selecting toolchains' },
+        { id: 'install', label: 'Downloading and installing SDK' },
+        { id: 'verify', label: 'Verifying installation' },
+    ], _onSDKProgress);
+
     try {
         outputInfo("SDK Install", "Starting interactive SDK installation...");
+
+        tracker.startStep('resolve');
         const setupState = await getWestSDKContext(wsConfig, globalConfig, context);
 
         if (!setupState) {
+            tracker.failStep('resolve', 'No valid west installation found');
             notifyError("SDK Install",
                 "No valid west installation found. Please set up a Zephyr workspace first."
             );
             return;
         }
         outputInfo("SDK Install", `Found west SDK context (setupPath: ${setupState.setupPath})`);
+        tracker.completeStep('resolve', `Using: ${setupState.setupPath}`);
 
         // Step 1: Select SDK version
+        tracker.startStep('version');
         const sdkVersion = await selectSDKVersion(setupState);
         outputInfo("SDK Install", `SDK version selection result: ${sdkVersion === null ? 'cancelled' : sdkVersion === undefined ? 'latest' : sdkVersion}`);
         if (sdkVersion === null) { // user cancelled or auto-detect failed
             outputInfo("SDK Install", "SDK version selection was cancelled or failed, aborting SDK install");
+            tracker.failStep('version', 'Selection cancelled');
             return;
         }
+        tracker.completeStep('version', sdkVersion ?? 'latest');
 
         // Step 2: Select toolchains
+        tracker.startStep('toolchains');
         const toolchains = await selectToolchains();
         outputInfo("SDK Install", `Toolchain selection result: ${toolchains ? toolchains.join(', ') : 'cancelled'}`);
         if (!toolchains) { // user cancelled
+            tracker.failStep('toolchains', 'Selection cancelled');
             return;
         }
+        tracker.completeStep('toolchains', toolchains.includes('all') ? 'All toolchains' : toolchains.join(', '));
 
         // Step 3: Install with progress
+        tracker.startStep('install', 'Running west sdk install...');
         return await vscode.window.withProgress(
             {
                 location: vscode.ProgressLocation.Notification,
@@ -536,14 +595,31 @@ export async function installSDKInteractive(wsConfig: WorkspaceConfig, globalCon
                 const result = await installSDK(setupState, sdkVersion, toolchains);
                 outputInfo("SDK Install", `SDK install task completed with result: ${result}`);
                 if (result) {
+                    tracker.completeStep('install');
+                    tracker.startStep('verify', 'Updating global state...');
+
                     globalConfig.sdkInstalled = true;
+                    if (sdkVersion) {
+                        globalConfig.sdkVersion = sdkVersion;
+                    } else {
+                        // "latest" was selected — detect version from installed SDK directory
+                        const detected = await detectInstalledSDKVersion();
+                        if (detected) {
+                            globalConfig.sdkVersion = detected;
+                        }
+                    }
                     if (context) {
                         await setGlobalState(context, globalConfig);
                     }
+
+                    tracker.completeStep('verify', `SDK ${globalConfig.sdkVersion || ''} ready`);
+                    tracker.complete('Zephyr SDK installed successfully!');
                     void vscode.window.showInformationMessage(
                         "Zephyr SDK installed successfully!"
                     );
                 } else {
+                    tracker.failStep('install', 'west sdk install command failed');
+                    tracker.fail('SDK installation failed. Check the Output panel for details.');
                     notifyError("SDK Install",
                         `Failed to install SDK`
                     );
@@ -553,6 +629,7 @@ export async function installSDKInteractive(wsConfig: WorkspaceConfig, globalCon
         );
     } catch (error) {
         outputError("SDK Install", `SDK installation threw an error: ${error}`);
+        tracker.fail(`Error: ${error}`);
         notifyError("SDK Install", `Failed to install SDK: ${error}`);
     }
 }

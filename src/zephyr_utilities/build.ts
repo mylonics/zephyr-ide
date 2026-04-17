@@ -1,5 +1,5 @@
 /*
-Copyright 2024 mylonics 
+Copyright 2024-2026 mylonics 
 Author Rijesh Augustine
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,11 +23,13 @@ import { executeTaskHelperInPythonEnv, executeShellCommandInPythonEnv, loadYamlF
 import { notifyError, outputInfo, outputWarning } from "../utilities/output";
 
 import { WorkspaceConfig } from '../setup_utilities/types';
-import { addBuild, ProjectConfig, getResolvedBuildName, resolveActiveProject, resolveActiveProjectBuild, getProjectFolder, getBuildFolder, resolveBoardRootArg } from "../project_utilities/project";
+import { addBuild, ProjectConfig, getResolvedBuildName, resolveActiveProject, resolveActiveProjectBuild, getProjectFolder, getBuildFolder, resolveBoardRootArg, resolveBoardRoot } from "../project_utilities/project";
 import { BuildConfig } from "../project_utilities/build_selector";
-import { joinBuildArgsForShell, normalizeBuildArgs, quoteBuildArgForShell } from "../project_utilities/build_args";
+import { primaryPaths, extraPaths } from "../project_utilities/config_selector";
+import { joinBuildArgsForShell, normalizeBuildArgs, quoteBuildArgForShell, quoteCMakeDef } from "../project_utilities/build_args";
 import { updateDtsContext } from "../setup_utilities/dts_interface";
 import { getSetupState, getSetupStateOrNotify, updateBuildCMakeInfo, clearBuildCMakeInfo } from "../setup_utilities/workspace-config";
+import { setWorkspaceState } from "../setup_utilities/state-management";
 
 
 export interface BuildInfo {
@@ -132,6 +134,67 @@ export async function buildByName(context: vscode.ExtensionContext, wsConfig: Wo
   }
 }
 
+/** Input parameters for pure build-command assembly. */
+export interface BuildCommandParams {
+  board: string;
+  revision?: string;
+  projectFolder: string;
+  buildFolder: string;
+  westBuildArgs: string[];
+  westBuildCMakeArgs: string[];
+  primaryConfFiles: string[];
+  secondaryConfFiles: string[];
+  overlayFiles: string[];
+  extraOverlayFiles: string[];
+  boardRootArg: string;
+  isPristine: boolean;
+}
+
+/**
+ * Pure function: compute the CMake -D definitions that would be passed after `--`
+ * in a pristine build. Used by assembleBuildCommand and for cache comparison.
+ */
+export function computeCMakeDefs(params: Pick<BuildCommandParams, 'boardRootArg' | 'westBuildCMakeArgs' | 'primaryConfFiles' | 'secondaryConfFiles' | 'overlayFiles' | 'extraOverlayFiles'>): string[] {
+  const extraWestBuildCMakeArgs = normalizeBuildArgs(params.westBuildCMakeArgs)
+    .map((arg) => quoteBuildArgForShell(arg));
+
+  const cmakeDefs: string[] = [params.boardRootArg, ...extraWestBuildCMakeArgs]
+    .filter(s => s.trim().length > 0);
+
+  if (params.primaryConfFiles.length) {
+    cmakeDefs.push(quoteCMakeDef('CONF_FILE', params.primaryConfFiles.join(";")));
+  }
+  if (params.secondaryConfFiles.length) {
+    cmakeDefs.push(quoteCMakeDef('EXTRA_CONF_FILE', params.secondaryConfFiles.join(";")));
+  }
+  if (params.overlayFiles.length) {
+    cmakeDefs.push(quoteCMakeDef('DTC_OVERLAY_FILE', params.overlayFiles.join(";")));
+  }
+  if (params.extraOverlayFiles.length) {
+    cmakeDefs.push(quoteCMakeDef('EXTRA_DTC_OVERLAY_FILE', params.extraOverlayFiles.join(";")));
+  }
+  return cmakeDefs;
+}
+
+/**
+ * Pure function: assemble a `west build` command string from resolved parameters.
+ * Extracted from build() to enable unit testing without VS Code or filesystem dependencies.
+ */
+export function assembleBuildCommand(params: BuildCommandParams): string {
+  const extraWestBuildArgs = joinBuildArgsForShell(params.westBuildArgs);
+
+  if (!params.isPristine) {
+    return `west build "${params.projectFolder}" --build-dir "${params.buildFolder}" ${extraWestBuildArgs}`.trimEnd();
+  }
+
+  const boardSpec = params.board + (params.revision ? '@' + params.revision : "");
+
+  const cmakeDefs = computeCMakeDefs(params);
+
+  const cmakeSection = cmakeDefs.length > 0 ? ` -- ${cmakeDefs.join(' ')}` : '';
+  return `west build -b ${boardSpec} "${params.projectFolder}" -p --build-dir "${params.buildFolder}" ${extraWestBuildArgs}${cmakeSection}`.trimEnd();
+}
+
 export async function build(
   context: vscode.ExtensionContext,
   wsConfig: WorkspaceConfig,
@@ -140,17 +203,8 @@ export async function build(
   pristine: boolean
 ) {
 
-  const primaryConfFiles = project.confFiles.config.concat(build.confFiles.config)
-    .map(x => path.join(wsConfig.rootPath, x));
-  const secondaryConfFiles = project.confFiles.extraConfig.concat(build.confFiles.extraConfig)
-    .map(x => path.join(wsConfig.rootPath, x));
-  const overlayFiles = project.confFiles.overlay.concat(build.confFiles.overlay)
-    .map(x => path.join(wsConfig.rootPath, x));
-  const extraOverlayFiles = project.confFiles.extraOverlay.concat(build.confFiles.extraOverlay)
-    .map(x => path.join(wsConfig.rootPath, x));
-
-  const extraWestBuildArgs = joinBuildArgsForShell(build.westBuildArgs);
-  const extraWestBuildCMakeArgs = normalizeBuildArgs(build.westBuildCMakeArgs).map((arg) => quoteBuildArgForShell(arg));
+  const allKconfig = project.confFiles.config.concat(build.confFiles.config);
+  const allOverlay = project.confFiles.overlay.concat(build.confFiles.overlay);
 
   const projectFolder = getProjectFolder(wsConfig, project);
   const buildFolder = getBuildFolder(wsConfig, project, build);
@@ -159,7 +213,6 @@ export async function build(
   if (!setupState) {
     return;
   }
-  let cmd = `west build "${projectFolder}" --build-dir "${buildFolder}" ${extraWestBuildArgs} `;
 
   const buildFolderExists = fs.existsSync(buildFolder);
 
@@ -169,31 +222,59 @@ export async function build(
     (fs.existsSync(path.join(buildFolder, 'CMakeCache.txt')) ||
      fs.existsSync(path.join(buildFolder, 'domains.yaml')));
 
-  if (pristine || !buildFolderExists || !cmakeCacheExists) {
-    // Clear cached CMake info on pristine build
-    clearBuildCMakeInfo(wsConfig, project.name, build.name);
+  let isPristine = pristine || !buildFolderExists || !cmakeCacheExists;
 
-    const boardRootArg = resolveBoardRootArg(wsConfig, build, setupState);
+  const boardRoot = resolveBoardRoot(wsConfig, build, setupState);
+  const boardRootArg = boardRoot ? quoteCMakeDef('BOARD_ROOT', boardRoot) : "";
+  const resolvedPrimaryConf = primaryPaths(allKconfig).map(x => path.join(wsConfig.rootPath, x));
+  const resolvedSecondaryConf = extraPaths(allKconfig).map(x => path.join(wsConfig.rootPath, x));
+  const resolvedOverlay = primaryPaths(allOverlay).map(x => path.join(wsConfig.rootPath, x));
+  const resolvedExtraOverlay = extraPaths(allOverlay).map(x => path.join(wsConfig.rootPath, x));
 
-    // Collect all CMake -D flags
-    const cmakeDefs: string[] = [boardRootArg, ...extraWestBuildCMakeArgs].filter(s => s.trim().length > 0);
-    if (primaryConfFiles.length) {
-      cmakeDefs.push(`-DCONF_FILE='${primaryConfFiles.join(";")}'`);
-    }
-    if (secondaryConfFiles.length) {
-      cmakeDefs.push(`-DEXTRA_CONF_FILE='${secondaryConfFiles.join(";")}'`);
-    }
-    if (overlayFiles.length) {
-      cmakeDefs.push(`-DDTC_OVERLAY_FILE='${overlayFiles.join(";")}'`);
-    }
-    if (extraOverlayFiles.length) {
-      cmakeDefs.push(`-DEXTRA_DTC_OVERLAY_FILE='${extraOverlayFiles.join(";")}'`);
-    }
+  // Always compute the pristine command so we can compare against the cache
+  const pristineCmd = assembleBuildCommand({
+    board: build.board,
+    revision: build.revision,
+    projectFolder,
+    buildFolder,
+    westBuildArgs: build.westBuildArgs,
+    westBuildCMakeArgs: build.westBuildCMakeArgs ?? [],
+    primaryConfFiles: resolvedPrimaryConf,
+    secondaryConfFiles: resolvedSecondaryConf,
+    overlayFiles: resolvedOverlay,
+    extraOverlayFiles: resolvedExtraOverlay,
+    boardRootArg,
+    isPristine: true,
+  });
 
-    const cmakeSection = cmakeDefs.length > 0 ? ` -- ${cmakeDefs.join(' ')}` : '';
-    cmd = `west build -b ${build.board + (build.revision ? '@' + build.revision : "")} "${projectFolder}" -p --build-dir "${buildFolder}" ${extraWestBuildArgs}${cmakeSection} `;
+  // If the pristine command changed since last build, force pristine
+  const buildState = wsConfig.projectStates[project.name]?.buildStates[build.name];
+  if (!isPristine && buildState?.cachedPristineCmd) {
+    if (pristineCmd !== buildState.cachedPristineCmd) {
+      isPristine = true;
+      outputInfo(`Build: ${project.name}/${build.name}`, "CMake configuration changed, forcing pristine build");
+    }
   }
 
+  if (isPristine) {
+    // Clear cached CMake info on pristine build
+    clearBuildCMakeInfo(wsConfig, project.name, build.name);
+  }
+
+  const cmd = isPristine ? pristineCmd : assembleBuildCommand({
+    board: build.board,
+    revision: build.revision,
+    projectFolder,
+    buildFolder,
+    westBuildArgs: build.westBuildArgs,
+    westBuildCMakeArgs: build.westBuildCMakeArgs ?? [],
+    primaryConfFiles: resolvedPrimaryConf,
+    secondaryConfFiles: resolvedSecondaryConf,
+    overlayFiles: resolvedOverlay,
+    extraOverlayFiles: resolvedExtraOverlay,
+    boardRootArg: "",
+    isPristine: false,
+  });
 
   const taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
 
@@ -202,7 +283,11 @@ export async function build(
 
   // Only update caches on successful build
   if (ret) {
+    if (buildState) {
+      buildState.cachedPristineCmd = pristineCmd;
+    }
     updateBuildCMakeInfo(wsConfig, project.name, build.name);
+    await setWorkspaceState(context, wsConfig);
     await regenerateCompileCommands(wsConfig);
     await updateDtsContext(wsConfig, project, build);
   }

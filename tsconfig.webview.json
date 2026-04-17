@@ -10,13 +10,25 @@
     "noEmit": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "experimentalDecorators": true,
+    "useDefineForClassFields": false
   },
   "include": [
     "src/panels/webview_shared/**/*.ts",
     "src/panels/host_tool_install_view/host-tool-install.ts",
     "src/panels/setup_panel/setup-panel.ts",
     "src/panels/project_build_view/project-build-panel.ts",
-    "src/panels/settings_view/settings-panel.ts"
+    "src/panels/project_build_view/components/**/*.ts",
+    "src/panels/settings_view/settings-panel.ts",
+    "src/panels/settings_view/components/**/*.ts",
+    "src/panels/sdk_panel/sdk-panel.ts",
+    "src/panels/sdk_panel/components/**/*.ts",
+    "src/panels/setup_panel/setup-panel-data.ts",
+    "src/panels/setup_panel/components/**/*.ts",
+    "src/panels/workspace_panel/workspace-panel.ts",
+    "src/panels/workspace_panel/workspace-panel-data.ts",
+    "src/panels/workspace_panel/components/**/*.ts",
+    "src/panels/host_tool_install_view/components/**/*.ts"
   ]
 }

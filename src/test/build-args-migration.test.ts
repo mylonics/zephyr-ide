@@ -1,5 +1,5 @@
 /*
-Copyright 2024 mylonics 
+Copyright 2026 mylonics 
 Author Rijesh Augustine
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -46,7 +46,7 @@ suite("Build Args Migration Test Suite", () => {
           app: {
             name: "app",
             rel_path: "app",
-            confFiles: { config: [], extraConfig: [], overlay: [], extraOverlay: [] },
+            confFiles: { config: [], overlay: [] },
             twisterConfigs: {},
             buildConfigs: {
               debug: {
@@ -60,7 +60,7 @@ suite("Build Args Migration Test Suite", () => {
                 runnerConfigs: {
                   default: { runner: "Default", name: "Default", args: "" },
                 },
-                confFiles: { config: [], extraConfig: [], overlay: [], extraOverlay: [] },
+                confFiles: { config: [], overlay: [] },
                 launchTarget: "Zephyr IDE: Debug",
                 buildDebugTarget: "Zephyr IDE: Debug",
                 attachTarget: "Zephyr IDE: Attach",
@@ -97,6 +97,93 @@ suite("Build Args Migration Test Suite", () => {
         migrated.projects.app.buildConfigs.debug.westBuildCMakeArgs,
         ["-DCMAKE_BUILD_TYPE=Debug", "-DCONFIG_LOG=y"],
       );
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  test("loadProjectsFromFile migration preserves existing config entry objects when extra arrays exist", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-config-files-"));
+    try {
+      const configDir = path.join(tmpRoot, ".vscode");
+      await fs.ensureDir(configDir);
+      const configPath = path.join(configDir, "zephyr-ide.json");
+      await fs.writeJson(configPath, {
+        projects: {
+          app: {
+            name: "app",
+            rel_path: "app",
+            confFiles: {
+              config: [{ path: "prj.conf" }],
+              extraConfig: ["debug.conf"],
+              overlay: [{ path: "board.overlay" }],
+              extraOverlay: ["debug.overlay"],
+            },
+            twisterConfigs: {},
+            buildConfigs: {
+              debug: {
+                name: "build/debug",
+                board: "native_sim",
+                relBoardDir: "",
+                relBoardSubDir: "native/native_sim",
+                debugOptimization: "Debug",
+                westBuildArgs: [],
+                westBuildCMakeArgs: [],
+                runnerConfigs: {
+                  default: { runner: "Default", name: "Default", args: "" },
+                },
+                confFiles: {
+                  config: [{ path: "build.conf" }],
+                  extraConfig: ["build_extra.conf"],
+                  overlay: [{ path: "build.overlay" }],
+                  extraOverlay: ["build_extra.overlay"],
+                },
+                launchTarget: "Zephyr IDE: Debug",
+                buildDebugTarget: "Zephyr IDE: Debug",
+                attachTarget: "Zephyr IDE: Attach",
+              },
+            },
+          },
+        },
+      }, { spaces: 2 });
+
+      const wsConfig: WorkspaceConfig = {
+        rootPath: tmpRoot,
+        projects: {},
+        initialSetupComplete: true,
+        projectStates: {},
+      };
+
+      await loadProjectsFromFile(wsConfig);
+
+      assert.deepStrictEqual(
+        wsConfig.projects.app.confFiles.config,
+        [{ path: "prj.conf" }, { path: "debug.conf", extra: true }],
+      );
+      assert.deepStrictEqual(
+        wsConfig.projects.app.confFiles.overlay,
+        [{ path: "board.overlay" }, { path: "debug.overlay", extra: true }],
+      );
+      assert.deepStrictEqual(
+        wsConfig.projects.app.buildConfigs.debug.confFiles.config,
+        [{ path: "build.conf" }, { path: "build_extra.conf", extra: true }],
+      );
+      assert.deepStrictEqual(
+        wsConfig.projects.app.buildConfigs.debug.confFiles.overlay,
+        [{ path: "build.overlay" }, { path: "build_extra.overlay", extra: true }],
+      );
+
+      const migrated = await fs.readJson(configPath);
+      assert.deepStrictEqual(
+        migrated.projects.app.confFiles.config,
+        [{ path: "prj.conf" }, { path: "debug.conf", extra: true }],
+      );
+      assert.deepStrictEqual(
+        migrated.projects.app.confFiles.overlay,
+        [{ path: "board.overlay" }, { path: "debug.overlay", extra: true }],
+      );
+      assert.strictEqual(migrated.projects.app.confFiles.extraConfig, undefined);
+      assert.strictEqual(migrated.projects.app.confFiles.extraOverlay, undefined);
     } finally {
       await fs.remove(tmpRoot);
     }

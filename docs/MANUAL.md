@@ -161,7 +161,7 @@ Option 1: Click "Don't Show Again" when the warning appears
 Option 2: Manually add to `.vscode/settings.json`:
 ```json
 {
-  "zephyr-ide.suppress-workspace-warning": true
+  "zephyr-ide.suppressWorkspaceWarning": true
 }
 ```
 
@@ -277,7 +277,7 @@ You can also use a code-workspace.json file to help manage projects across diffe
 You can have a look at this [sample directory](https://github.com/mylonics/zephyr-ide-sample-project) to also help with getting started with sharing projects.
 
 ## Advanced Features
-The Zephyr Menu Config or GUI Config may be run from the active project panel. In the project config panel, by default, a Menu Config option is available. This can be changed to GUI Config by adding `"zephyr-ide.use_gui_config": true` to settings.json. Each debug target may be bound to a custom launch configuration (by default they use "Zephyr IDE: Debug" and "Zephyr IDE: Attach").
+The Zephyr Menu Config or GUI Config may be run from the active project panel. In the project config panel, by default, a Menu Config option is available. This can be changed to GUI Config by adding `"zephyr-ide.useGuiConfig": true` to settings.json. Each debug target may be bound to a custom launch configuration (by default they use "Zephyr IDE: Debug" and "Zephyr IDE: Attach").
 
 ![Demonstrating MenuConfig](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/demonstrating_menu_config_debug_binding.gif)
 
@@ -411,7 +411,7 @@ IDE for Zephyr provides the following commands accessible via the command palett
 
 The following settings are available in VS Code settings (File > Preferences > Settings):
 
-### `zephyr-ide.global_directory`
+### `zephyr-ide.globalDirectory`
 - **Type**: String or null
 - **Default**: null
 - **Description**: Manually specify a global directory for west workspace installation and Zephyr tools. Replaces the deprecated `zephyr-ide.tools_directory`.
@@ -419,29 +419,29 @@ The following settings are available in VS Code settings (File > Preferences > S
 ### `zephyr-ide.tools_directory`
 - **Type**: String or null
 - **Default**: null
-- **Deprecated**: Use `zephyr-ide.global_directory` instead. The extension automatically migrates this setting on startup.
+- **Deprecated**: Use `zephyr-ide.globalDirectory` instead. The extension automatically migrates this setting on startup.
 
-### `zephyr-ide.toolchain_directory`
+### `zephyr-ide.toolchainDirectory`
 - **Type**: String or null
 - **Default**: null
 - **Description**: Manually specify the directory containing Zephyr SDK installations. If not specified, defaults to the `toolchains` subdirectory within the global directory.
 
-### `zephyr-ide.use_gui_config`
+### `zephyr-ide.useGuiConfig`
 - **Type**: Boolean
 - **Default**: false
-- **Description**: Display GUI config instead of menu config in Project Tree View
+- **Description**: Use GUI configuration editor instead of terminal-based menuconfig in the Project Tree View.
 
 ### `zephyr-ide.westNarrowUpdate`
 - **Type**: Boolean
 - **Default**: false
-- **Description**: If true, uses 'west update --narrow'. If false, uses 'west update' without --narrow.
+- **Description**: Use 'west update --narrow' to reduce disk usage and download time by fetching only required Git history.
 
-### `zephyr-ide.suppress-workspace-warning`
+### `zephyr-ide.suppressWorkspaceWarning`
 - **Type**: Boolean
 - **Default**: false
-- **Description**: If true, suppresses the warning about missing workspace environment variables (ZEPHYR_BASE, ZEPHYR_SDK_INSTALL_DIR).
+- **Description**: Hide the notification about missing ZEPHYR_BASE and ZEPHYR_SDK_INSTALL_DIR environment variables. Enable this if you manage these variables externally.
 
-### `zephyr-ide.venv-folder`
+### `zephyr-ide.venvFolder`
 - **Type**: String or null
 - **Default**: null
 - **Description**: Manually specify a Python virtual environment folder path. If not specified, defaults to .venv in the workspace setup path.

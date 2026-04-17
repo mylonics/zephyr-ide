@@ -1,0 +1,124 @@
+/*
+ * SDK Panel styles.
+ * Base styles (status, buttons, info-box, etc.) are inherited from webview-base.css.
+ */
+@import url("../webview_shared/webview-base.css");
+
+/* ===================================================================
+   SDK list
+   =================================================================== */
+
+.sdk-list-container {
+    margin-top: 20px;
+}
+
+.sdk-version-card {
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: var(--zephyr-webview-radius);
+    padding: 15px;
+    margin-bottom: 12px;
+    background-color: var(--vscode-editor-background);
+}
+
+.sdk-version-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.sdk-version-title {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.sdk-path {
+    font-family: var(--vscode-editor-font-family);
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+    background-color: var(--vscode-textCodeBlock-background);
+    padding: 4px 8px;
+    border-radius: 4px;
+    margin-bottom: 12px;
+    word-break: break-all;
+}
+
+.toolchain-section {
+    margin-top: 12px;
+}
+
+.toolchain-section-title {
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--vscode-foreground);
+}
+
+.toolchain-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.toolchain-tag {
+    background-color: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-family: var(--vscode-editor-font-family);
+}
+
+.toolchain-tag.available {
+    background-color: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+    opacity: 0.7;
+}
+
+.sdk-loading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px;
+}
+
+.sdk-error-box {
+    padding: 15px;
+    border: 1px solid var(--vscode-inputValidation-errorBorder);
+    border-radius: var(--zephyr-webview-radius);
+    background-color: var(--vscode-inputValidation-errorBackground);
+    color: var(--vscode-inputValidation-errorForeground);
+}
+
+.error-box {
+    padding: 15px;
+    border: 1px solid var(--vscode-inputValidation-errorBorder);
+    border-radius: var(--zephyr-webview-radius);
+    background-color: var(--vscode-inputValidation-errorBackground);
+    color: var(--vscode-inputValidation-errorForeground);
+    margin-bottom: 16px;
+}
+
+.sdk-description {
+    margin: 0 0 16px 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--vscode-descriptionForeground);
+}
+
+.sdk-empty-box {
+    padding: 15px;
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: var(--zephyr-webview-radius);
+    background-color: var(--vscode-editor-background);
+    color: var(--vscode-descriptionForeground);
+    text-align: center;
+}
+
+/* ===================================================================
+   Header status badge — styles inherited from webview-base.css
+   =================================================================== */
+
+/* ===================================================================
+   SDK install progress — styles inherited from webview-base.css
+   =================================================================== */

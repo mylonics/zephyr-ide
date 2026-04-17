@@ -1,14 +1,30 @@
 /* Project Build Panel Styles - Uses VS Code CSS custom properties for theming */
 @import url("../webview_shared/webview-base.css");
 
+/* ===================================================================
+   PANEL CONTAINER
+   =================================================================== */
+
 .panel-container {
   padding-top: 18px;
+  max-width: 820px;
 }
+
+/* ===================================================================
+   PAGE HEADER & SELECTORS
+   =================================================================== */
 
 .page-title {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.page-header-selectors {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 .project-selector {
@@ -29,12 +45,10 @@
   min-width: 180px;
 }
 
-/* Build / test selector toolbar */
 .build-test-selector {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 0;
 }
 
 .build-test-selector label {
@@ -47,44 +61,266 @@
   min-width: 180px;
 }
 
-/* Test section */
-.test-section {
-  border-left: 3px solid var(--vscode-panel-border);
-}
+/* ===================================================================
+   PROJECT SUMMARY CARD (compact, expandable)
+   =================================================================== */
 
-/* Sections */
-.panel-section {
+.project-summary-card {
   border: 1px solid var(--vscode-panel-border);
   border-radius: var(--zephyr-webview-radius);
-  margin-bottom: 12px;
   background-color: var(--vscode-sideBar-background);
   box-shadow: var(--zephyr-webview-surface-shadow);
+  margin-bottom: 12px;
   transition:
     border-color var(--zephyr-webview-transition-fast),
-    box-shadow var(--zephyr-webview-transition-fast),
-    background-color var(--zephyr-webview-transition-fast);
+    box-shadow var(--zephyr-webview-transition-fast);
 }
 
-.section-header {
+.project-summary-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+}
+
+.project-summary-title {
+  font-weight: 600;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.project-summary-details {
+  padding: 10px 16px;
+}
+
+.project-detail-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 14px;
+  font-size: 12px;
+  align-items: baseline;
+}
+
+.project-detail-grid .detail-label {
+  color: var(--vscode-descriptionForeground);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.project-detail-grid .detail-value {
+  color: var(--vscode-foreground);
+  word-break: break-all;
+}
+
+.project-summary-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.summary-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background-color: color-mix(in srgb, var(--vscode-badge-background) 30%, transparent);
+  color: var(--vscode-descriptionForeground);
+}
+
+.project-summary-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 0;
+  cursor: pointer;
+  border-top: 1px solid var(--vscode-panel-border);
+  transition: background-color var(--zephyr-webview-transition-fast);
+}
+
+.project-summary-toggle:hover {
+  background-color: var(--vscode-list-hoverBackground);
+}
+
+.project-summary-expand {
+  color: var(--vscode-descriptionForeground);
+  transition: transform var(--zephyr-webview-transition-fast);
+}
+
+.project-summary-card[aria-expanded="true"] .project-summary-expand {
+  transform: rotate(180deg);
+}
+
+/* Project detail panel (shown when expanded) */
+.project-detail-panel {
+  border-top: 1px solid var(--vscode-panel-border);
+  padding: 12px 16px;
+  animation: slideDown 0.15s ease;
+}
+
+.project-detail-panel[hidden] {
+  display: none;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===================================================================
+   BUILD SECTION (full-width card)
+   =================================================================== */
+
+.build-card {
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--zephyr-webview-radius);
+  background-color: var(--vscode-sideBar-background);
+  box-shadow: var(--zephyr-webview-surface-shadow);
+  margin-bottom: 12px;
+  transition:
+    border-color var(--zephyr-webview-transition-fast),
+    box-shadow var(--zephyr-webview-transition-fast);
+}
+
+.build-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   padding: 12px 16px;
   border-bottom: 1px solid var(--vscode-panel-border);
-  background-color: var(--vscode-sideBar-background);
+  flex-wrap: wrap;
 }
 
-.section-header h2 {
-  margin: 0;
+.build-card-title {
   font-size: 14px;
   font-weight: 600;
   display: flex;
   align-items: center;
   gap: 8px;
+  margin: 0;
 }
 
-.section-body {
-  padding: 12px 16px;
+.build-card-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-/* Info rows */
+.build-card-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.build-card-body {
+  padding: 0;
+}
+
+/* Build info strip */
+.build-info-strip {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  flex-wrap: wrap;
+  background-color: color-mix(in srgb, var(--vscode-sideBar-background) 50%, var(--vscode-editor-background));
+}
+
+.build-info-strip .info-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.build-info-strip .info-item-label {
+  font-weight: 500;
+}
+
+.build-info-strip .info-item-value {
+  color: var(--vscode-foreground);
+}
+
+.build-info-strip .clickable {
+  color: var(--vscode-textLink-foreground);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.build-info-strip .clickable:hover {
+  text-decoration: underline;
+}
+
+/* ===================================================================
+   COLLAPSIBLE SECTIONS (replace nested tabs)
+   =================================================================== */
+
+.collapsible-section {
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.collapsible-section:last-child {
+  border-bottom: none;
+}
+
+.collapsible-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 600;
+  font-size: 13px;
+  transition:
+    background-color var(--zephyr-webview-transition-fast);
+}
+
+.collapsible-header:hover {
+  background-color: var(--vscode-list-hoverBackground);
+}
+
+.collapsible-chevron {
+  font-size: 14px;
+  transition: transform var(--zephyr-webview-transition-fast);
+  color: var(--vscode-descriptionForeground);
+}
+
+.collapsible-section[aria-expanded="true"] > .collapsible-header > .collapsible-chevron {
+  transform: rotate(90deg);
+}
+
+.collapsible-header-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.collapsible-body {
+  padding: 8px 16px 12px;
+  animation: slideDown 0.15s ease;
+}
+
+.collapsible-section:not([aria-expanded="true"]) > .collapsible-body {
+  display: none;
+}
+
+/* ===================================================================
+   INFO ROWS (key-value)
+   =================================================================== */
+
 .info-row {
   display: flex;
   align-items: baseline;
@@ -94,91 +330,81 @@
 
 .info-label {
   color: var(--vscode-descriptionForeground);
-  min-width: 140px;
+  min-width: 130px;
   flex-shrink: 0;
   font-weight: 500;
+  font-size: 12px;
 }
 
 .info-value {
   word-break: break-all;
 }
 
-.editable {
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  min-height: 26px;
-  padding: 2px 8px;
-  border: 1px dashed var(--vscode-input-border);
-  border-radius: var(--zephyr-webview-radius);
-  transition:
-    border-color var(--zephyr-webview-transition-fast),
-    background-color var(--zephyr-webview-transition-fast),
-    box-shadow var(--zephyr-webview-transition-fast);
-}
+/* ===================================================================
+   CONFIG FILE GROUPS (tabbed: Kconfig | DTC)
+   =================================================================== */
 
-.editable:hover {
-  border-color: var(--vscode-focusBorder);
-  background-color: var(--vscode-list-hoverBackground);
-  color: var(--vscode-textLink-foreground);
-}
-
-.editable:focus-visible {
-  outline: 1px solid var(--vscode-focusBorder);
-  box-shadow: var(--zephyr-webview-focus-ring);
-}
-
-.action-row,
-.build-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--vscode-panel-border);
-}
-
-/* Config file groups */
 .config-group {
-  margin: 12px 0;
+  margin: 8px 0;
   border: 1px solid var(--vscode-panel-border);
   border-radius: var(--zephyr-webview-radius);
   overflow: hidden;
   box-shadow: var(--zephyr-webview-surface-shadow);
 }
 
-.config-group-header {
+.config-tab-body {
+  padding: 0;
+}
+
+.config-tab-header-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 6px 12px;
+  padding: 4px 12px;
+  gap: 8px;
+  border-bottom: 1px solid var(--vscode-panel-border);
   background-color: var(--vscode-sideBar-background);
+  font-size: 0.85em;
   font-weight: 500;
-}
-
-.config-group-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.config-group-sub {
-  padding: 4px 12px 8px;
-}
-
-.config-sub-label {
-  font-size: 0.9em;
   color: var(--vscode-descriptionForeground);
-  margin: 6px 0 2px;
-  font-weight: 500;
+}
+
+.config-tab-col-extra {
+  flex: 0 0 90px;
+  text-align: center;
+}
+
+.config-tab-col-file {
+  flex: 1;
+}
+
+.config-tab-add-button {
+  margin-left: auto;
+}
+
+.config-file-scroll {
+  max-height: 200px;
 }
 
 .file-list-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 2px 4px;
+  padding: 2px 12px;
+  gap: 8px;
   border-radius: var(--zephyr-webview-radius);
+}
+
+.file-list-item .file-mode-button {
+  flex: 0 0 90px;
+  display: flex;
+  justify-content: center;
+}
+
+.file-mode-button {
+  flex: 0 0 90px;
+}
+
+.file-remove-button {
+  margin-left: auto;
 }
 
 .file-list-item:hover {
@@ -201,42 +427,24 @@
   font-size: 0.92em;
 }
 
-/* Collapsible sections */
-.collapsible-body {
-  padding: 0;
+/* ===================================================================
+   VARIABLES TABLE
+   =================================================================== */
+
+.variables-section {
+  margin: 8px 0;
 }
 
-/* Build section */
-.build-section {
-  border-left: 3px solid var(--vscode-panel-border);
-}
-
-.build-section.build-active {
-  border-left-color: var(--vscode-charts-green, #89d185);
-}
-
-.build-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/* Section row headers (variables, runners, launch configs) */
 .section-row-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 12px 0 4px;
+  margin: 8px 0 4px;
 }
 
 .section-row-title {
   font-weight: 600;
   font-size: 0.95em;
-}
-
-/* Variables table */
-.variables-section {
-  margin: 8px 0;
 }
 
 .variables-table {
@@ -261,22 +469,6 @@
   background-color: var(--vscode-list-hoverBackground);
 }
 
-.variable-key {
-  font-family: var(--vscode-editor-font-family, monospace);
-  font-weight: 600;
-  min-width: 120px;
-  font-size: 0.92em;
-}
-
-.variable-value {
-  flex: 1;
-  font-family: var(--vscode-editor-font-family, monospace);
-  font-size: 0.92em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .variable-key-input,
 .variable-value-input {
   min-width: 0;
@@ -291,7 +483,7 @@
 }
 
 .variable-key-input {
-  flex: 0 0 180px;
+  flex: 0 0 160px;
 }
 
 .variable-value-input {
@@ -308,16 +500,14 @@
   border-bottom: none;
 }
 
-/* Build args table */
-.build-args-section {
-  margin: 8px 0;
+/* Dirty indicator for auto-save */
+.input-dirty {
+  border-color: var(--vscode-inputValidation-infoBorder, var(--vscode-focusBorder)) !important;
 }
 
-.build-args-table {
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: var(--zephyr-webview-radius);
-  overflow: hidden;
-}
+/* ===================================================================
+   BUILD ARGS
+   =================================================================== */
 
 .build-arg-row {
   display: flex;
@@ -357,74 +547,56 @@
   border-bottom: none;
 }
 
-/* Launch configs */
-.launch-configs {
-  margin: 8px 0;
+.build-args-tab-body {
+  padding: 0;
 }
+
+/* ===================================================================
+   LAUNCH CONFIGS
+   =================================================================== */
 
 .launch-row {
   display: flex;
   align-items: center;
-  padding: 6px 8px;
+  padding: 6px 0;
   gap: 8px;
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: var(--zephyr-webview-radius);
-  margin-bottom: 4px;
-  box-shadow: var(--zephyr-webview-surface-shadow);
-  transition:
-    border-color var(--zephyr-webview-transition-fast),
-    box-shadow var(--zephyr-webview-transition-fast),
-    background-color var(--zephyr-webview-transition-fast),
-    transform var(--zephyr-webview-transition-fast);
-}
-
-.launch-row:hover,
-.launch-row:focus-within {
-  border-color: var(--vscode-focusBorder);
-  background-color: var(--vscode-list-hoverBackground);
-  box-shadow: var(--zephyr-webview-surface-shadow-hover);
-  transform: translateY(-1px);
 }
 
 .launch-label {
   color: var(--vscode-descriptionForeground);
   min-width: 100px;
   font-weight: 500;
+  font-size: 12px;
 }
 
 .launch-value {
   flex: 1;
   font-family: var(--vscode-editor-font-family, monospace);
   font-size: 0.92em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* Runners */
-.runners-section {
-  margin: 8px 0;
-}
+/* ===================================================================
+   RUNNERS
+   =================================================================== */
 
 .runner-row {
   display: flex;
-  align-items: center;
-  padding: 6px 8px;
+  align-items: flex-start;
+  padding: 8px 0;
   gap: 12px;
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: var(--zephyr-webview-radius);
-  margin-bottom: 4px;
-  box-shadow: var(--zephyr-webview-surface-shadow);
-  transition:
-    border-color var(--zephyr-webview-transition-fast),
-    box-shadow var(--zephyr-webview-transition-fast),
-    background-color var(--zephyr-webview-transition-fast),
-    transform var(--zephyr-webview-transition-fast);
+  border-bottom: 1px solid var(--vscode-panel-border);
 }
 
-.runner-row:hover,
-.runner-row:focus-within {
-  border-color: var(--vscode-focusBorder);
+.runner-row:last-child {
+  border-bottom: none;
+}
+
+.runner-row:hover {
   background-color: var(--vscode-list-hoverBackground);
-  box-shadow: var(--zephyr-webview-surface-shadow-hover);
-  transform: translateY(-1px);
+  border-radius: var(--zephyr-webview-radius);
 }
 
 .runner-name {
@@ -432,26 +604,110 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  min-width: 100px;
+  min-width: 80px;
+  padding-top: 4px;
+  font-size: 12px;
 }
 
-.runner-detail {
-  font-size: 0.92em;
-  color: var(--vscode-descriptionForeground);
+.runner-fields {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-/* Calculated section */
-.calculated-sub {
-  padding: 8px 16px;
-}
-
-.calculated-notice {
-  padding: 12px 16px;
-  color: var(--vscode-descriptionForeground);
+.runner-field-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-style: italic;
+}
+
+.runner-field-label {
+  font-size: 0.85em;
+  color: var(--vscode-descriptionForeground);
+  min-width: 50px;
+}
+
+.runner-input {
+  flex: 1;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border, transparent);
+  padding: 3px 6px;
+  font-family: var(--vscode-editor-font-family);
+  font-size: var(--vscode-editor-font-size);
+  border-radius: 2px;
+}
+
+.runner-input:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
+.runner-actions {
+  display: flex;
+  gap: 2px;
+  padding-top: 2px;
+  align-items: center;
+}
+
+/* ===================================================================
+   ACTION ROWS
+   =================================================================== */
+
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--vscode-panel-border);
+}
+
+.project-actions-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+/* ===================================================================
+   BUILD PLACEHOLDER / EMPTY STATE
+   =================================================================== */
+
+.build-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--zephyr-webview-radius);
+  background-color: var(--vscode-sideBar-background);
+  margin-bottom: 12px;
+}
+
+.build-placeholder-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: var(--vscode-descriptionForeground);
+  text-align: center;
+  padding: 32px 16px;
+}
+
+.build-placeholder-content i {
+  font-size: 2.5em;
+  opacity: 0.5;
+}
+
+.build-placeholder-content p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.build-placeholder-actions {
+  display: flex;
+  gap: 8px;
 }
 
 /* No project notice */
@@ -460,17 +716,67 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 48px 16px;
+  padding: 64px 16px;
   color: var(--vscode-descriptionForeground);
   text-align: center;
-  gap: 12px;
+  gap: 16px;
 }
 
 .no-project-notice i {
-  font-size: 2em;
+  font-size: 3em;
+  opacity: 0.4;
 }
 
-/* Variables reference table - handled by vscode-table */
+.no-project-notice p {
+  margin: 0;
+  max-width: 400px;
+}
+
+/* ===================================================================
+   TEST SECTION
+   =================================================================== */
+
+.test-card {
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--zephyr-webview-radius);
+  background-color: var(--vscode-sideBar-background);
+  box-shadow: var(--zephyr-webview-surface-shadow);
+  margin-bottom: 12px;
+}
+
+.test-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.test-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.test-card-body {
+  padding: 12px 16px;
+}
+
+/* ===================================================================
+   VARIABLES HELP
+   =================================================================== */
+
+.variables-help-content {
+  margin: 8px 0;
+  padding: 12px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--zephyr-webview-radius);
+  background-color: var(--vscode-textCodeBlock-background);
+}
+
 .variables-ref-table code,
 vscode-table-cell code {
   font-family: var(--vscode-editor-font-family, monospace);
@@ -480,7 +786,6 @@ vscode-table-cell code {
   border-radius: 2px;
 }
 
-/* Help sections */
 .help-example {
   margin: 16px 0;
 }
@@ -499,4 +804,49 @@ vscode-table-cell code {
   font-family: var(--vscode-editor-font-family, monospace);
   font-size: 0.9em;
   line-height: 1.4;
+}
+
+/* ===================================================================
+   STATUS BADGE (build status)
+   =================================================================== */
+
+.build-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.build-status-badge.status-not-built {
+  background-color: color-mix(in srgb, var(--vscode-descriptionForeground) 15%, transparent);
+  color: var(--vscode-descriptionForeground);
+}
+
+.build-status-badge.status-built {
+  background-color: color-mix(in srgb, var(--vscode-terminal-ansiGreen) 15%, transparent);
+  color: var(--vscode-terminal-ansiGreen);
+}
+
+/* ===================================================================
+   RESPONSIVE
+   =================================================================== */
+
+@media (max-width: 600px) {
+  .build-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .build-card-actions {
+    margin-left: 0;
+  }
+
+  .build-info-strip {
+    flex-direction: column;
+    gap: 4px;
+  }
 }

@@ -1,5 +1,5 @@
 /*
-Copyright 2024 mylonics 
+Copyright 2024-2026 mylonics 
 Author Rijesh Augustine
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,6 +28,8 @@ import { SetupPanel } from "./panels/setup_panel/SetupPanel";
 import { HostToolInstallView } from "./panels/host_tool_install_view/HostToolInstallView";
 import { ProjectBuildPanel } from "./panels/project_build_view/ProjectBuildPanel";
 import { SettingsPanel } from "./panels/settings_view/SettingsPanel";
+import { SDKPanel } from "./panels/sdk_panel/SDKPanel";
+import { WorkspacePanel } from "./panels/workspace_panel/WorkspacePanel";
 
 import {
   output,
@@ -60,15 +62,18 @@ import {
   setWorkspaceState,
   loadWorkspaceState,
   clearWorkspaceState,
+  clearWorkspaceReadiness,
   saveSetupState,
   clearSetupState,
+  setExternalSetupState,
+  setGlobalState,
 } from "./setup_utilities/state-management";
 import {
   getVariable,
   loadProjectsFromFile,
   getToolchainDir,
   getToolchainPath,
-  migrateToolsDirectory,
+  migrateSettingKeys,
   setWorkspaceSettings,
   getSetupState,
   getGdbPath,
@@ -90,6 +95,7 @@ import {
   workspaceSetupFromGit,
   workspaceSetupFromWestGit,
   workspaceSetupFromCurrentDirectory,
+  workspaceSetupFromExternalDirectory,
   workspaceSetupStandard,
   manageWorkspaces,
   westConfig,
@@ -124,12 +130,14 @@ async function markWorkspaceSetupComplete(
   wsConfig: WorkspaceConfig,
   globalConfig: GlobalConfig
 ) {
-  wsConfig.initialSetupComplete = true;
-  await setWorkspaceState(context, wsConfig);
-  // Update setup panel if it's open
-  if (SetupPanel.currentPanel) {
-    SetupPanel.currentPanel.updateContent(wsConfig, globalConfig, "workspace");
+  // Mark the bound workspace as initialized at the registry level. The folder
+  // binding itself is represented by `activeSetupState` being set.
+  if (wsConfig.activeSetupState) {
+    wsConfig.activeSetupState.initialized = true;
+    await setExternalSetupState(context, globalConfig, wsConfig.activeSetupState.setupPath, wsConfig.activeSetupState);
   }
+  await setWorkspaceState(context, wsConfig);
+  void vscode.commands.executeCommand("zephyr-ide.update-web-view");
 }
 
 /** Register a webview view provider with retained context. */
@@ -314,8 +322,8 @@ export async function activate(context: vscode.ExtensionContext) {
   const remoteName = vscode.env.remoteName;
   outputInfo("Startup", `Platform: ${platformName} (${platformArch})${remoteName ? `, remote: ${remoteName}` : ""}${isWSL() ? " [WSL]" : ""}`);
 
-  // Migrate deprecated tools_directory setting to global_directory
-  await migrateToolsDirectory();
+  // Migrate deprecated setting keys to camelCase equivalents
+  await migrateSettingKeys();
 
   wsConfig = await loadWorkspaceState(context);
   globalConfig = await loadGlobalState(context);
@@ -419,7 +427,7 @@ export async function activate(context: vscode.ExtensionContext) {
       const cmd = `python -c "${pythonScript}"`;
 
       try {
-        const result = await executeShellCommandInPythonEnv(cmd, wsConfig.rootPath, wsConfig.activeSetupState, false);
+        const result = await executeShellCommandInPythonEnv(cmd, wsConfig.activeSetupState.setupPath, wsConfig.activeSetupState, false);
         if (result.stdout) {
           outputInfo("Python Path", result.stdout.trim());
           return { stdout: result.stdout, stderr: result.stderr };
@@ -499,6 +507,15 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.config-view.delete-file", (item: any) => {
       projectConfigView.handleDeleteFile(item);
     }),
+    vscode.commands.registerCommand("zephyr-ide.config-view.open-project-details", () => {
+      ProjectBuildPanel.createOrShow(
+        context.extensionPath,
+        context,
+        wsConfig,
+        globalConfig,
+        wsConfig.activeProject,
+      );
+    }),
   );
 
   // -- ProjectTreeView inline action commands --
@@ -559,12 +576,12 @@ export async function activate(context: vscode.ExtensionContext) {
     () => project.setActiveRunner(context, wsConfig));
 
   activeProjectDisplay = createStatusBarButton(context,
-    "zephyr-ide.set-active-project", `$(folder) ${wsConfig.activeProject}`, "Zephyr IDE Active Project");
+    "zephyr-ide.set-active-project", `$(folder) ${wsConfig.activeProject}`, "Zephyr IDE Select Active Project");
 
   activeBuildDisplay = createStatusBarButton(context,
-    "zephyr-ide.set-active-build", ``, "Zephyr IDE Active Build");
+    "zephyr-ide.set-active-build", ``, "Select Active Build");
   activeRunnerDisplay = createStatusBarButton(context,
-    "zephyr-ide.set-active-runner", ``, "Zephyr IDE Active Runner");
+    "zephyr-ide.set-active-runner", ``, "Select Active Runner");
   {
     refreshStatusBar();
   }
@@ -618,11 +635,11 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.setup-west-environment", async () => {
-      if (wsConfig.rootPath !== "" && wsConfig.activeSetupState) {
+      if (wsConfig.activeSetupState) {
         await setupWestEnvironment(context, wsConfig, globalConfig);
         extensionSetupView.updateWebView(wsConfig, globalConfig);
       } else {
-        notifyError("West Environment", "Open Folder or Setup Workspace Before Continuing");
+        notifyError("West Environment", "No active workspace. Set up a workspace first.");
       }
     }
     )
@@ -653,19 +670,74 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.reset-workspace", async () => {
-      await clearWorkspaceState(context, wsConfig);
-      extensionSetupView.updateWebView(wsConfig, globalConfig);
-      // Also update setup panel if it's open
-      if (SetupPanel.currentPanel) {
-        SetupPanel.currentPanel.updateContent(wsConfig, globalConfig);
+      const workspacePath = wsConfig.activeSetupState?.setupPath ?? "the active workspace";
+      const confirm = await vscode.window.showWarningMessage(
+        `Reset workspace at ${workspacePath}? This marks it as uninitialized. Files on disk (including .west/) are preserved.`,
+        "Reset"
+      );
+      if (confirm !== "Reset") { return; }
+      await clearWorkspaceState(context, wsConfig, globalConfig);
+      void vscode.commands.executeCommand("zephyr-ide.update-web-view");
+    })
+  );
+
+  // Deactivate: unbind the folder from its active workspace. Registry entry
+  // and readiness flags are preserved; the folder simply no longer points at
+  // any workspace, so the Initial Setup options re-appear.
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.deactivate-workspace", async () => {
+      const confirm = await vscode.window.showWarningMessage(
+        "Deactivate this workspace? The folder will no longer be bound to a Zephyr workspace. The workspace itself (including .west/) is kept.",
+        "Deactivate"
+      );
+      if (confirm !== "Deactivate") { return; }
+      await clearSetupState(context, wsConfig);
+      void vscode.commands.executeCommand("zephyr-ide.update-web-view");
+    })
+  );
+
+  // Re-run west setup: clear readiness flags only (python env, west update)
+  // without touching `initialized`. Then trigger the west setup flow again.
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.rerun-west-setup", async () => {
+      const confirm = await vscode.window.showWarningMessage(
+        "Re-run west setup? This clears the python environment and west-update state, then re-runs setup. The workspace stays initialized.",
+        "Re-run"
+      );
+      if (confirm !== "Re-run") { return; }
+      await clearWorkspaceReadiness(context, wsConfig, globalConfig);
+      await vscode.commands.executeCommand("zephyr-ide.setup-west-environment");
+      void vscode.commands.executeCommand("zephyr-ide.update-web-view");
+    })
+  );
+
+  // Unregister: remove the active workspace's entry from the global registry.
+  // Also unbinds the folder. Does NOT delete files on disk.
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.unregister-workspace", async () => {
+      const activePath = wsConfig.activeSetupState?.setupPath;
+      if (!activePath) {
+        void vscode.window.showInformationMessage("No active workspace to unregister.");
+        return;
       }
+      const confirm = await vscode.window.showWarningMessage(
+        `Unregister workspace at ${activePath}? It will be removed from Zephyr IDE's registry. Files on disk are not deleted.`,
+        "Unregister"
+      );
+      if (confirm !== "Unregister") { return; }
+      if (globalConfig.setupStateDictionary && globalConfig.setupStateDictionary[activePath]) {
+        delete globalConfig.setupStateDictionary[activePath];
+        await setGlobalState(context, globalConfig);
+      }
+      await clearSetupState(context, wsConfig);
+      void vscode.commands.executeCommand("zephyr-ide.update-web-view");
     })
   );
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.clear-projects", async () => {
       const selection = await vscode.window.showWarningMessage(
-        "Are you sure you want to Clear All Projects?",
+        "Are you sure you want to clear all projects?",
         "Yes",
         "Cancel"
       );
@@ -1100,6 +1172,8 @@ export async function activate(context: vscode.ExtensionContext) {
         SetupPanel.currentPanel.updateContent(wsConfig, globalConfig);
       }
       ProjectBuildPanel.updateAllPanels(wsConfig, globalConfig);
+      SDKPanel.updateAllPanels(wsConfig, globalConfig);
+      WorkspacePanel.updateAllPanels(wsConfig, globalConfig);
       void vscode.commands.executeCommand("zephyr-ide.update-status");
     })
   );
@@ -1185,6 +1259,24 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.debug-reset-host-tools", async () => {
+      globalConfig.toolsAvailable = false;
+      await saveSetupState(context, wsConfig, globalConfig);
+      void vscode.commands.executeCommand("zephyr-ide.update-web-view");
+      void vscode.window.showInformationMessage("Zephyr IDE Debug: Host tools marked as not ready");
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.debug-reset-sdk", async () => {
+      globalConfig.sdkInstalled = false;
+      await saveSetupState(context, wsConfig, globalConfig);
+      void vscode.commands.executeCommand("zephyr-ide.update-web-view");
+      void vscode.window.showInformationMessage("Zephyr IDE Debug: SDK marked as not installed");
+    })
+  );
+
+  context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.west-list", async () => {
       if (!wsConfig.activeSetupState) {
         notifyError("West List", "No active setup state. Please set up a workspace first.");
@@ -1260,19 +1352,13 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.install-host-tools", async () => {
-      // Open the Setup Panel and navigate to host tools page
-      const panel = SetupPanel.createOrShow(
+      // Open the standalone Host Tools panel
+      HostToolInstallView.createOrShow(
         context.extensionPath,
         context,
         wsConfig,
         globalConfig
       );
-      // Navigate to host tools page after a short delay to ensure panel is ready
-      setTimeout(() => {
-        if (SetupPanel.currentPanel) {
-          SetupPanel.currentPanel.navigateToHostTools();
-        }
-      }, 100);
     }
     )
   );
@@ -1341,6 +1427,30 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.open-setup-panel-workspace", async () => {
+      WorkspacePanel.createOrShow(
+        context.extensionPath,
+        context,
+        wsConfig,
+        globalConfig
+      );
+    }
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.open-setup-panel-sdk", async () => {
+      SDKPanel.createOrShow(
+        context.extensionPath,
+        context,
+        wsConfig,
+        globalConfig
+      );
+    }
+    )
+  );
+
+  context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.open-project-build-panel", async () => {
       ProjectBuildPanel.createOrShow(
         context.extensionPath,
@@ -1365,6 +1475,28 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.open-sdk-panel", async () => {
+      SDKPanel.createOrShow(
+        context.extensionPath,
+        context,
+        wsConfig,
+        globalConfig
+      );
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.open-workspace-panel", async () => {
+      WorkspacePanel.createOrShow(
+        context.extensionPath,
+        context,
+        wsConfig,
+        globalConfig
+      );
+    })
+  );
+
+  context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.open-settings-panel", async () => {
       SettingsPanel.createOrShow(context.extensionPath);
     })
@@ -1380,12 +1512,17 @@ export async function activate(context: vscode.ExtensionContext) {
   registerWorkspaceSetupCommand(context, "zephyr-ide.workspace-setup-from-git", workspaceSetupFromGit);
   registerWorkspaceSetupCommand(context, "zephyr-ide.workspace-setup-from-west-git", workspaceSetupFromWestGit);
   registerWorkspaceSetupCommand(context, "zephyr-ide.workspace-setup-from-current-directory",
-    (ctx, ws, gc) => workspaceSetupFromCurrentDirectory(ctx, ws, gc, true));
+    (ctx, ws, gc) => workspaceSetupFromCurrentDirectory(ctx, ws, gc, false));
+  registerWorkspaceSetupCommand(context, "zephyr-ide.workspace-setup-from-external-directory", workspaceSetupFromExternalDirectory);
   registerWorkspaceSetupCommand(context, "zephyr-ide.workspace-setup-standard", workspaceSetupStandard);
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.west-config", async () => {
-      await westConfig(context, wsConfig, globalConfig);
+      // Always analyse the active workspace directory, not the VS Code open folder.
+      // When rootPath !== setupPath (external workspace), westConfig must scan
+      // setupPath so it finds the real .west folder and west.yml files there.
+      const baseDir = wsConfig.activeSetupState?.setupPath || wsConfig.rootPath;
+      await westConfig(context, wsConfig, globalConfig, undefined, baseDir);
     }
     )
   );

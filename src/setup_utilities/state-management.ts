@@ -1,5 +1,5 @@
 /*
-Copyright 2024 mylonics 
+Copyright 2025-2026 mylonics 
 Author Rijesh Augustine
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,37 +20,53 @@ import * as fs from "fs-extra";
 import * as path from "upath";
 import { getRootPathFs, reloadEnvironmentVariables } from "../utilities/utils";
 import { initializeDtsExt } from "./dts_interface";
-import { GlobalConfig, WorkspaceConfig, SetupState, generateSetupState } from "./types";
+import { GlobalConfig, WorkspaceConfig, SetupState, generateSetupState, isActiveWorkspaceInitialized } from "./types";
 import { loadProjectsFromFile, setWorkspaceSettings, generateGitIgnore, generateExtensionsRecommendations } from "./workspace-config";
 import { parseWestConfigManifest } from "./west-config-parser";
 
 export async function loadGlobalState(context: vscode.ExtensionContext): Promise<GlobalConfig> {
   // Load raw config as any to handle deprecated fields
   const rawConfig: any = await context.globalState.get("zephyr-ide.state") ?? {};
-  
+
   // Migrate old config: remove deprecated fields
   const deprecatedFields = ['armGdbPath', 'toolchains', 'setupState'];
   let needsSave = false;
-  
+
   for (const field of deprecatedFields) {
     if (field in rawConfig) {
       delete rawConfig[field];
       needsSave = true;
     }
   }
-  
+
   // Ensure required fields exist
   const globalConfig: GlobalConfig = {
     setupStateDictionary: rawConfig.setupStateDictionary ?? {},
     toolsAvailable: rawConfig.toolsAvailable,
     sdkInstalled: rawConfig.sdkInstalled,
+    sdkVersion: rawConfig.sdkVersion,
   };
-  
+
+  // Migrate registry: for each registered workspace, if `.west/` exists on
+  // disk and `initialized` is unset, mark it initialized. Self-heals entries
+  // from pre-`initialized`-field releases so they don't get bounced back to the
+  // Initial Setup page.
+  if (globalConfig.setupStateDictionary) {
+    for (const p in globalConfig.setupStateDictionary) {
+      const entry = globalConfig.setupStateDictionary[p];
+      if (entry && entry.initialized === undefined) {
+        const hasWestFolder = fs.pathExistsSync(path.join(p, ".west"));
+        entry.initialized = hasWestFolder;
+        needsSave = true;
+      }
+    }
+  }
+
   // Save migrated config if changes were made
   if (needsSave) {
     await context.globalState.update("zephyr-ide.state", globalConfig);
   }
-  
+
   return globalConfig;
 }
 
@@ -109,7 +125,6 @@ export async function loadWorkspaceState(context: vscode.ExtensionContext): Prom
     rootPath: await getRootPathFs(true) ?? "",
     projects: {},
     automaticProjectSelection: true,
-    initialSetupComplete: false,
     projectStates: {}
   };
 
@@ -130,25 +145,68 @@ export async function loadWorkspaceState(context: vscode.ExtensionContext): Prom
     delete config.automaticProjectSelection;
   }
 
-  if (config.initialSetupComplete) {
+  // Migrate legacy `initialSetupComplete` (workspace-level) into per-workspace
+  // `SetupState.initialized` (registry-level). The legacy flag conflated "folder
+  // is bound to a workspace" with "workspace has been initialized"; the two are
+  // now tracked separately.
+  if (config.initialSetupComplete && config.activeSetupState && config.activeSetupState.initialized === undefined) {
+    config.activeSetupState.initialized = true;
+  }
+  delete config.initialSetupComplete;
+
+  if (isActiveWorkspaceInitialized(config)) {
     await loadProjectsFromFile(config);
   }
   return config;
 }
 
 export async function setWorkspaceState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
-  if (wsConfig.initialSetupComplete) {
+  if (isActiveWorkspaceInitialized(wsConfig)) {
     await fs.outputFile(path.join(wsConfig.rootPath, ".vscode", "zephyr-ide.json"), JSON.stringify({ projects: wsConfig.projects }, null, 2));
   }
   await context.workspaceState.update("zephyr.env", wsConfig);
 }
 
-export async function clearWorkspaceState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
-  wsConfig.initialSetupComplete = false;
-  wsConfig.activeSetupState = undefined;
+/**
+ * Reset Workspace: mark the active workspace as uninitialized and clear readiness
+ * flags. The workspace stays in the registry but will be routed back to the
+ * Initial Setup page on next panel open. Does NOT delete the `.west/` folder
+ * from disk.
+ */
+export async function clearWorkspaceState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
+  if (wsConfig.activeSetupState) {
+    wsConfig.activeSetupState.initialized = false;
+    wsConfig.activeSetupState.packagesInstalled = false;
+    wsConfig.activeSetupState.pythonEnvironmentSetup = false;
+    wsConfig.activeSetupState.westUpdated = false;
+    // Persist the reset flags to the global dictionary so the state
+    // survives deactivation and reactivation.
+    await setExternalSetupState(context, globalConfig, wsConfig.activeSetupState.setupPath, wsConfig.activeSetupState);
+  }
   await setWorkspaceState(context, wsConfig);
+  reloadEnvironmentVariables(context, wsConfig.activeSetupState);
 }
 
+/**
+ * Clear readiness flags (python env, west updated) on the active workspace
+ * without touching the `initialized` marker. Use when the user wants to rerun
+ * west setup without returning to the Initial Setup page.
+ */
+export async function clearWorkspaceReadiness(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
+  if (wsConfig.activeSetupState) {
+    wsConfig.activeSetupState.packagesInstalled = false;
+    wsConfig.activeSetupState.pythonEnvironmentSetup = false;
+    wsConfig.activeSetupState.westUpdated = false;
+    await setExternalSetupState(context, globalConfig, wsConfig.activeSetupState.setupPath, wsConfig.activeSetupState);
+  }
+  await setWorkspaceState(context, wsConfig);
+  reloadEnvironmentVariables(context, wsConfig.activeSetupState);
+}
+
+/**
+ * Deactivate Workspace: unbind the folder from its active workspace. The
+ * workspace stays in the registry with `initialized` and readiness preserved.
+ */
 export async function clearSetupState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
   wsConfig.activeSetupState = undefined;
 

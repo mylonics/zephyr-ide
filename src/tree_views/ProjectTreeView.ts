@@ -1,5 +1,5 @@
 /*
-Copyright 2024 mylonics 
+Copyright 2026 mylonics 
 Author Rijesh Augustine
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,7 +28,8 @@ import { sanitizeTreeId } from '../utilities/utils';
 
 export function getUseGuiConfig(): boolean | undefined {
   const configuration = vscode.workspace.getConfiguration();
-  return configuration.get("zephyr-ide.use_gui_config");
+  return configuration.get("zephyr-ide.useGuiConfig")
+    ?? configuration.get("zephyr-ide.use_gui_config");
 }
 
 export type ProjectTreeItemContext =
@@ -98,7 +99,7 @@ export class ProjectTreeView implements vscode.TreeDataProvider<ProjectTreeItem>
       ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
 
     if (isActiveBuild) {
-      item.iconPath = new vscode.ThemeIcon('project', new vscode.ThemeColor('statusBar.background'));
+      item.iconPath = new vscode.ThemeIcon('project', new vscode.ThemeColor('textLink.foreground'));
     } else {
       item.command = { command: 'zephyr-ide.tree-view.select', title: 'Select', arguments: [item] };
     }
@@ -147,7 +148,7 @@ export class ProjectTreeView implements vscode.TreeDataProvider<ProjectTreeItem>
       ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
 
     if (isActive) {
-      item.iconPath = new vscode.ThemeIcon('folder-opened', new vscode.ThemeColor('statusBar.background'));
+      item.iconPath = new vscode.ThemeIcon('folder-opened', new vscode.ThemeColor('textLink.foreground'));
     } else {
       item.command = { command: 'zephyr-ide.tree-view.select', title: 'Select', arguments: [item] };
     }

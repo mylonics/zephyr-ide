@@ -1,5 +1,5 @@
 /*
-Copyright 2024 mylonics 
+Copyright 2024-2026 mylonics 
 Author Rijesh Augustine
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -113,7 +113,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
       title,
       step: 1,
       totalSteps: 3,
-      placeholder: 'Select Zephyr workspace template',
+      placeholder: 'Select West manifest template',
       ignoreFocusOut: true,
       items: westOptionQpItems,
     }).catch((error) => {
@@ -204,7 +204,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
             totalSteps: 4,
             ignoreFocusOut: true,
             value: "Default",
-            prompt: 'Input a Version Number (i.e vX.X.X) or branch name (i.e main)',
+            prompt: 'Enter version (e.g., v3.7.0) or branch name (e.g., main)',
             validate: async (value: string) => {
               if (!value || value.trim() === "") {
                 return "Please enter a version";

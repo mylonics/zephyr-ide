@@ -1,5 +1,5 @@
 /*
-Copyright 2024 mylonics 
+Copyright 2026 mylonics 
 Author Rijesh Augustine
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -100,6 +100,18 @@ export function quoteBuildArgForShell(arg: string): string {
     return arg;
   }
   return `"${arg.replace(/(["\\$`])/g, "\\$1")}"`;
+}
+
+/**
+ * Build a CMake -D flag, single-quoted.
+ * Backslashes in the value are normalized to forward slashes so that CMake
+ * receives valid paths on Windows without shell-escaping issues.
+ * Single quotes are used because PowerShell preserves them as literal strings,
+ * whereas double quotes are stripped before cmake sees them.
+ */
+export function quoteCMakeDef(key: string, value: string): string {
+  const normalized = value.replace(/\\/g, '/');
+  return `-D${key}='${normalized}'`;
 }
 
 /** Join argument list safely for shell command usage. */
