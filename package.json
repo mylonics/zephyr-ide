@@ -457,6 +457,18 @@
         "title": "Zephyr IDE: Reset Workspace"
       },
       {
+        "command": "zephyr-ide.deactivate-workspace",
+        "title": "Zephyr IDE: Deactivate Workspace"
+      },
+      {
+        "command": "zephyr-ide.rerun-west-setup",
+        "title": "Zephyr IDE: Re-run West Setup"
+      },
+      {
+        "command": "zephyr-ide.unregister-workspace",
+        "title": "Zephyr IDE: Unregister Workspace"
+      },
+      {
         "command": "zephyr-ide.clear-projects",
         "title": "Zephyr IDE: Clear Projects"
       },
@@ -739,6 +751,10 @@
       {
         "command": "zephyr-ide.workspace-setup-standard",
         "title": "Zephyr IDE: Setup Standard Workspace"
+      },
+      {
+        "command": "zephyr-ide.workspace-setup-from-external-directory",
+        "title": "Zephyr IDE: Setup Workspace from External Directory"
       },
       {
         "command": "zephyr-ide.west-config",

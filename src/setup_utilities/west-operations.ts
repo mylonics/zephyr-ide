@@ -488,6 +488,14 @@ export async function postWorkspaceSetup(context: vscode.ExtensionContext, wsCon
       return false;
     }
     progress.completeStep('west-init');
+
+    // `west init` succeeded \u2014 a `.west/` directory now exists at the setup path.
+    // Mark the workspace as structurally initialized so subsequent readiness
+    // failures (e.g. a flaky `west update`) don't return the user to the
+    // Initial Setup page. Readiness is tracked separately via westUpdated.
+    if (wsConfig.activeSetupState) {
+      wsConfig.activeSetupState.initialized = true;
+    }
   } else {
     progress.skipStep('west-init');
   }

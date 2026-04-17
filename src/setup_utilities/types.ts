@@ -27,7 +27,23 @@ export type ProjectConfigDictionary = { [name: string]: ProjectConfig };
 export type ProjectStateDictionary = { [name: string]: ProjectState };
 
 export interface SetupState {
+  /**
+   * Workspace-level structural marker: has the user completed the initial setup
+   * selection (choose source, point at .west/west.yml, etc.) for this workspace?
+   *
+   * True when a `.west/` directory has been produced by setup, an existing
+   * `.west/` has been adopted, or the user has explicitly marked the workspace
+   * as set up. Remains true through transient failures (west-update error,
+   * requirements install failure, folder reopened). Cleared only by an explicit
+   * Reset Workspace action or by unregistering the workspace.
+   *
+   * This is distinct from readiness (see `pythonEnvironmentSetup`, `westUpdated`):
+   * an initialized workspace may still be un-ready if west update hasn't run.
+   */
+  initialized?: boolean,
+  /** Readiness flag: venv created, pip available. */
   pythonEnvironmentSetup: boolean,
+  /** Readiness flag: `west update` and requirements install succeeded. */
   westUpdated: boolean,
   packagesInstalled?: boolean,
   zephyrDir: string,
@@ -49,7 +65,12 @@ export interface WorkspaceConfig {
   rootPath: string;
   projects: ProjectConfigDictionary,
   activeProject?: string,
-  initialSetupComplete: boolean,
+  /**
+   * @deprecated Use `isActiveWorkspaceInitialized(wsConfig)` instead. Kept on the
+   * type only so legacy persisted state can be migrated into
+   * `activeSetupState.initialized` by `loadWorkspaceState`.
+   */
+  initialSetupComplete?: boolean,
   /** @deprecated Migrated to VS Code setting zephyr-ide.automaticProjectSelection */
   automaticProjectSelection?: boolean,
   activeSetupState?: SetupState,
@@ -58,6 +79,7 @@ export interface WorkspaceConfig {
 
 export function generateSetupState(setupPath: string): SetupState {
   return {
+    initialized: false,
     pythonEnvironmentSetup: false,
     westUpdated: false,
     packagesInstalled: false,
@@ -65,4 +87,30 @@ export function generateSetupState(setupPath: string): SetupState {
     env: {},
     setupPath: setupPath
   };
+}
+
+/**
+ * True iff the folder is bound to a workspace AND that workspace has completed
+ * initial setup (the `initialized` marker is set). Use to decide whether to
+ * show the Initial Setup page vs the regular workspace management UI.
+ *
+ * Does NOT imply readiness — the workspace may be initialized but still need
+ * `west update`. See `isActiveWorkspaceReady` for the full readiness check.
+ */
+export function isActiveWorkspaceInitialized(wsConfig: WorkspaceConfig): boolean {
+  return !!wsConfig.activeSetupState?.initialized;
+}
+
+/**
+ * True iff the active workspace is initialized AND all readiness flags are set
+ * (python env ready and west updated). This is the "can build" state.
+ */
+export function isActiveWorkspaceReady(wsConfig: WorkspaceConfig): boolean {
+  const s = wsConfig.activeSetupState;
+  return !!(s && s.initialized && s.pythonEnvironmentSetup && s.westUpdated);
+}
+
+/** Registry-level helper: is this workspace initialized? (no folder binding needed) */
+export function isWorkspaceInitialized(setupState: SetupState | undefined): boolean {
+  return !!setupState?.initialized;
 }

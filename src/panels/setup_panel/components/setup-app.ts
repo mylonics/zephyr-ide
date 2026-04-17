@@ -281,7 +281,7 @@ export class SetupApp extends ZephyrLitElement {
   // ---------------------------------------------------------------------------
 
   private _renderWorkspaceList(d: SetupPanelData) {
-    const showEmptyState = !d.hasWorkspaces && !d.initialSetupComplete;
+    const showEmptyState = !d.hasWorkspaces;
 
     // Derive header status
     let status: string, headerStatusClass: string;
@@ -297,12 +297,19 @@ export class SetupApp extends ZephyrLitElement {
       status = "📁 No Folder"; headerStatusClass = "status-info";
     }
 
+    // The "New Workspace" button is always available from the workspace list
+    // header so users can create/add a workspace at any time.
+    const headerActions = html`
+      <span class="status ${headerStatusClass}">${status}</span>
+      <vscode-button appearance="secondary" @click=${() => this._cmd("createNewWestWorkspace")}>New Workspace</vscode-button>
+    `;
+
     if (showEmptyState) {
       return html`
         <div class="workspace-list-section">
           <div class="section-header-row">
             <h3>West Workspaces</h3>
-            <div class="section-header-actions"><span class="status ${headerStatusClass}">${status}</span></div>
+            <div class="section-header-actions">${headerActions}</div>
           </div>
           <div class="empty-state">
             <div class="empty-state-icon">📁</div>
@@ -313,16 +320,11 @@ export class SetupApp extends ZephyrLitElement {
         </div>`;
     }
 
-    if (!d.hasWorkspaces) { return nothing; }
-
     return html`
       <div class="workspace-list-section">
         <div class="section-header-row">
           <h3>West Workspaces</h3>
-          <div class="section-header-actions">
-            <span class="status ${headerStatusClass}">${status}</span>
-            <vscode-button appearance="secondary" @click=${() => this._cmd("openWorkspacePanel")}>New Workspace</vscode-button>
-          </div>
+          <div class="section-header-actions">${headerActions}</div>
         </div>
         <div class="overview-scroll-container">
           <div class="workspace-list-container">

@@ -17,7 +17,7 @@ limitations under the License.
 
 import * as vscode from "vscode";
 import * as path from "upath";
-import { WorkspaceConfig, GlobalConfig, formatZephyrVersion } from "../../setup_utilities/types";
+import { WorkspaceConfig, GlobalConfig, formatZephyrVersion, isActiveWorkspaceInitialized } from "../../setup_utilities/types";
 import { setGlobalState, clearSetupState } from "../../setup_utilities/state-management";
 import { getToolsDir } from "../../setup_utilities/workspace-config";
 import { handleReconfigureInstallation } from "../../setup_utilities/workspace-setup";
@@ -135,6 +135,11 @@ export class SetupPanel {
     selectExistingWestWorkspace: "zephyr-ide.select-existing-west-workspace",
     openSettingsPanel: "zephyr-ide.open-settings-panel",
     openProjectBuildPanel: "zephyr-ide.open-project-build-panel",
+    // "New Workspace" on the overview should land on the Workspace Setup
+    // page with its option grid, not dive straight into a west.yml picker.
+    // That gives the user a chance to choose current-folder vs external,
+    // git-clone vs standard, etc.
+    createNewWestWorkspace: "zephyr-ide.open-workspace-panel",
   };
 
   private handleWebviewMessage(message: Record<string, any>) {
@@ -286,8 +291,7 @@ export class SetupPanel {
 
   private generatePanelData(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig): SetupPanelData {
     const folderOpen = wsConfig.rootPath !== "";
-    const workspaceInitialized = (wsConfig.initialSetupComplete || false) &&
-      (wsConfig.activeSetupState !== undefined);
+    const workspaceInitialized = isActiveWorkspaceInitialized(wsConfig);
     const hasValidSetupState = this.hasValidSetupState();
 
     const dict = globalConfig.setupStateDictionary;
@@ -367,7 +371,7 @@ export class SetupPanel {
       toolsReady: globalConfig.toolsAvailable ?? false,
       sdkReady: globalConfig.sdkInstalled ?? false,
       westUpdated: wsConfig.activeSetupState?.westUpdated ?? false,
-      initialSetupComplete: wsConfig.initialSetupComplete || false,
+      initialSetupComplete: workspaceInitialized,
       hasWorkspaces,
       activeWorkspace,
       workspaces,

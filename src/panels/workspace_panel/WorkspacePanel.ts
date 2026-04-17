@@ -17,14 +17,20 @@ limitations under the License.
 
 import * as vscode from "vscode";
 import * as path from "upath";
-import { WorkspaceConfig, GlobalConfig, formatZephyrVersion } from "../../setup_utilities/types";
+import * as fs from "fs-extra";
+import { WorkspaceConfig, GlobalConfig, formatZephyrVersion, isActiveWorkspaceInitialized, isWorkspaceInitialized } from "../../setup_utilities/types";
 import { notifyError, outputError } from "../../utilities/output";
 import { generateNonce } from "../webview_shared/nonce";
 import { onSetupProgress, getActiveSetupProgress } from "../../setup_utilities/setup-progress";
 import { parseWestConfigManifestPath } from "../../setup_utilities/west-config-parser";
 import { getVenvPath } from "../../setup_utilities/workspace-config";
-import { setSetupState, setWorkspaceState } from "../../setup_utilities/state-management";
-import type { WorkspacePanelData, ActivationBannerData, WorkspaceInfoData } from "./workspace-panel-data";
+import { setSetupState, setWorkspaceState, setExternalSetupState } from "../../setup_utilities/state-management";
+import {
+  workspaceSetupFromWestGit,
+  workspaceSetupStandard,
+  workspaceSetupFromCurrentDirectory,
+} from "../../setup_utilities/workspace-setup";
+import type { WorkspacePanelData, ActivationBannerData, WorkspaceInfoData, WorkspaceReadiness, WorkspacePanelMode } from "./workspace-panel-data";
 
 export class WorkspacePanel {
   /** All open panels, keyed by workspace path (or "__default__" when not specified). */
@@ -38,6 +44,16 @@ export class WorkspacePanel {
 
   private currentWsConfig?: WorkspaceConfig;
   private currentGlobalConfig?: GlobalConfig;
+
+  /**
+   * UI mode when no specific workspace is being shown (no `_setupPath`, no
+   * active workspace). Drives the choice-screen → tile-screen flow.
+   * - undefined → resolved by generatePanelData (workspace-view or choice).
+   * - 'new-current' → user chose to create/adopt in the open folder.
+   * - 'new-external' → user picked an external directory (_externalDir set).
+   */
+  private _uiMode?: 'new-current' | 'new-external';
+  private _externalDir?: string;
 
   /** For backward-compat: returns the first open panel, if any */
   public static get currentPanel(): WorkspacePanel | undefined {
@@ -153,7 +169,7 @@ export class WorkspacePanel {
     this.currentGlobalConfig = globalConfig;
 
     const target = this.getTargetSetupState();
-    const workspaceInitialized = (wsConfig.initialSetupComplete || false) && target !== undefined;
+    const workspaceInitialized = isActiveWorkspaceInitialized(wsConfig) && target !== undefined;
 
     // Update panel title
     if (target) {
@@ -205,6 +221,9 @@ export class WorkspacePanel {
   private readonly commandPassthroughMap: Record<string, string> = {
     openFolder: "vscode.openFolder",
     resetWorkspace: "zephyr-ide.reset-workspace",
+    deactivateWorkspace: "zephyr-ide.deactivate-workspace",
+    rerunWestSetup: "zephyr-ide.rerun-west-setup",
+    unregisterWorkspace: "zephyr-ide.unregister-workspace",
     setupWestEnvironment: "zephyr-ide.setup-west-environment",
     westInit: "zephyr-ide.west-init",
     westUpdate: "zephyr-ide.west-update",
@@ -213,7 +232,9 @@ export class WorkspacePanel {
     workspaceSetupFromWestGit: "zephyr-ide.workspace-setup-from-west-git",
     workspaceSetupStandard: "zephyr-ide.workspace-setup-standard",
     workspaceSetupFromCurrentDirectory: "zephyr-ide.workspace-setup-from-current-directory",
+    workspaceSetupFromExternalDirectory: "zephyr-ide.workspace-setup-from-external-directory",
     openSetupPanel: "zephyr-ide.open-setup-panel",
+    openProjectPanel: "zephyr-ide.open-project-build-panel",
   };
 
   private handleWebviewMessage(message: Record<string, any>) {
@@ -231,7 +252,7 @@ export class WorkspacePanel {
             data: this.generatePanelData(this.currentWsConfig),
           });
           const target = this.getTargetSetupState();
-          const workspaceInitialized = (this.currentWsConfig.initialSetupComplete || false) && target !== undefined;
+          const workspaceInitialized = isActiveWorkspaceInitialized(this.currentWsConfig) && target !== undefined;
           if (workspaceInitialized) {
             void this.loadWestYmlContent();
           }
@@ -254,7 +275,138 @@ export class WorkspacePanel {
       case "activateWorkspace":
         this.activateWorkspace(message.path);
         return;
+      case "chooseNewInCurrent":
+        this._uiMode = 'new-current';
+        this._externalDir = undefined;
+        this._pushContentUpdate();
+        return;
+      case "chooseNewInExternal":
+        void this._promptExternalDirectory();
+        return;
+      case "backToChoice":
+        this._uiMode = undefined;
+        this._externalDir = undefined;
+        this._pushContentUpdate();
+        return;
+      case "activatePreexisting":
+        void this._activatePreexisting();
+        return;
+      case "workspaceSetupFromWestGitExternal":
+        void this._runExternal(async () => {
+          if (!this.currentWsConfig || !this.currentGlobalConfig || !this._externalDir) { return; }
+          await workspaceSetupFromWestGit(this._context, this.currentWsConfig, this.currentGlobalConfig, this._externalDir);
+        });
+        return;
+      case "workspaceSetupStandardExternal":
+        void this._runExternal(async () => {
+          if (!this.currentWsConfig || !this.currentGlobalConfig || !this._externalDir) { return; }
+          await workspaceSetupStandard(this._context, this.currentWsConfig, this.currentGlobalConfig, this._externalDir);
+        });
+        return;
+      case "workspaceSetupFromDirectoryExternal":
+        void this._runExternal(async () => {
+          if (!this.currentWsConfig || !this.currentGlobalConfig || !this._externalDir) { return; }
+          await workspaceSetupFromCurrentDirectory(this._context, this.currentWsConfig, this.currentGlobalConfig, false, this._externalDir);
+        });
+        return;
+      case "markWorkspaceComplete": {
+        // When an active setup state already exists (workspace-view-setup mode),
+        // mark THAT workspace complete — not the VS Code open folder (rootPath).
+        // In new-current mode there is no active state yet, so fall back to rootPath.
+        const target = this.getTargetSetupState();
+        void this._markWorkspaceComplete(target?.setupPath || this.currentWsConfig?.rootPath);
+        return;
+      }
+      case "markWorkspaceCompleteExternal":
+        void this._markWorkspaceComplete(this._externalDir);
+        return;
     }
+  }
+
+  private _pushContentUpdate() {
+    if (!this.currentWsConfig) { return; }
+    void this._panel.webview.postMessage({
+      command: "updateContent",
+      data: this.generatePanelData(this.currentWsConfig),
+    });
+  }
+
+  private async _promptExternalDirectory() {
+    const folderUris = await vscode.window.showOpenDialog({
+      openLabel: "Select External Workspace Directory",
+      canSelectFiles: false,
+      canSelectFolders: true,
+      canSelectMany: false,
+    });
+    if (!folderUris || folderUris.length === 0) { return; }
+    this._externalDir = folderUris[0].fsPath;
+    this._uiMode = 'new-external';
+    this._pushContentUpdate();
+  }
+
+  private async _activatePreexisting() {
+    if (!this.currentWsConfig || !this.currentGlobalConfig) { return; }
+    const rootPath = this.currentWsConfig.rootPath;
+    if (!rootPath) { return; }
+    try {
+      await setSetupState(this._context, this.currentWsConfig, this.currentGlobalConfig, rootPath);
+      await setWorkspaceState(this._context, this.currentWsConfig);
+      this._uiMode = undefined;
+      await vscode.commands.executeCommand("zephyr-ide.update-web-view");
+    } catch (error) {
+      notifyError("Activate Workspace", `Failed: ${error}`);
+    }
+  }
+
+  /**
+   * Register a directory as an already-set-up workspace without running any
+   * west/venv operations. Used by the "Mark as complete" tile.
+   */
+  private async _markWorkspaceComplete(installDir?: string) {
+    if (!this.currentWsConfig || !this.currentGlobalConfig) { return; }
+    if (!installDir) {
+      notifyError("Mark as Complete", "No directory available to mark as complete.");
+      return;
+    }
+    try {
+      await setSetupState(this._context, this.currentWsConfig, this.currentGlobalConfig, installDir);
+      if (this.currentWsConfig.activeSetupState) {
+        this.currentWsConfig.activeSetupState.initialized = true;
+        this.currentWsConfig.activeSetupState.pythonEnvironmentSetup = true;
+        this.currentWsConfig.activeSetupState.westUpdated = true;
+        await setExternalSetupState(
+          this._context,
+          this.currentGlobalConfig,
+          this.currentWsConfig.activeSetupState.setupPath,
+          this.currentWsConfig.activeSetupState,
+        );
+      }
+      await setWorkspaceState(this._context, this.currentWsConfig);
+      this._uiMode = undefined;
+      this._externalDir = undefined;
+      void vscode.window.showInformationMessage(`Workspace registered at: ${installDir}`);
+      await vscode.commands.executeCommand("zephyr-ide.update-web-view");
+    } catch (error) {
+      notifyError("Mark as Complete", `Failed: ${error}`);
+    }
+  }
+
+  /**
+   * Run an external-tile action. After it finishes (regardless of success)
+   * refresh the webview so the panel reflects any new active workspace /
+   * setup state established by the underlying handler.
+   */
+  private async _runExternal(action: () => Promise<void>) {
+    try {
+      await action();
+    } catch (error) {
+      notifyError("Workspace Panel", `External setup failed: ${error}`);
+    }
+    // After external setup, active workspace should be set → panel switches
+    // to workspace-view via generatePanelData.
+    this._uiMode = undefined;
+    this._externalDir = undefined;
+    await vscode.commands.executeCommand("zephyr-ide.update-web-view");
   }
 
   private async executeVSCommand(command: string, label: string) {
@@ -271,12 +423,6 @@ export class WorkspacePanel {
     }
     try {
       await setSetupState(this._context, this.currentWsConfig, this.currentGlobalConfig, installPath);
-      // Only mark as initialized if the workspace's setup state indicates it
-      // has actually been set up (python env or west updated).
-      const s = this.currentWsConfig.activeSetupState;
-      if (s && (s.pythonEnvironmentSetup || s.westUpdated)) {
-        this.currentWsConfig.initialSetupComplete = true;
-      }
       await setWorkspaceState(this._context, this.currentWsConfig);
       await vscode.commands.executeCommand("zephyr-ide.update-web-view");
     } catch (error) {
@@ -376,25 +522,131 @@ export class WorkspacePanel {
   private generatePanelData(wsConfig: WorkspaceConfig): WorkspacePanelData {
     const folderOpen = wsConfig.rootPath !== "";
     const target = this.getTargetSetupState();
-    // For non-active workspaces, check the target's setup flags to determine
-    // initialization. For the active workspace, use initialSetupComplete.
+    // `initialized` is a per-workspace marker on the SetupState itself; use it
+    // uniformly whether we're viewing the active workspace or a registry entry.
     const isViewingNonActive = this._setupPath !== undefined &&
       wsConfig.activeSetupState?.setupPath !== this._setupPath;
     let workspaceInitialized: boolean;
     if (isViewingNonActive && target) {
-      const s = target.setupState;
-      workspaceInitialized = !!(s.pythonEnvironmentSetup || s.westUpdated);
+      workspaceInitialized = isWorkspaceInitialized(target.setupState);
     } else {
-      workspaceInitialized = (wsConfig.initialSetupComplete || false) && target !== undefined;
+      workspaceInitialized = isActiveWorkspaceInitialized(wsConfig) && target !== undefined;
+    }
+
+    // Readiness flags derived from the target's SetupState.
+    const pythonEnvReady = !!target?.setupState?.pythonEnvironmentSetup;
+    const westUpdated = !!target?.setupState?.westUpdated;
+
+    // Tri-state composite surfaced to the header badge.
+    let readiness: WorkspaceReadiness;
+    if (!workspaceInitialized) {
+      readiness = 'not-initialized';
+    } else if (pythonEnvReady && westUpdated) {
+      readiness = 'ready';
+    } else {
+      readiness = 'needs-setup';
     }
 
     const state = (folderOpen && workspaceInitialized) ? "ready" : "setup-required";
-    const statusIcon = workspaceInitialized ? '✓' : '⚙';
-    const statusLabel = workspaceInitialized ? 'Initialized' : 'Setup Required';
-    const statusClass = workspaceInitialized ? 'status-success' : 'status-warning';
+    // Header badge presentation follows readiness.
+    const badgeMap: Record<WorkspaceReadiness, { icon: string; label: string; cls: string }> = {
+      'not-initialized': { icon: '⚙', label: 'Not Initialized', cls: 'status-warning' },
+      'needs-setup': { icon: '↻', label: 'Needs West Setup', cls: 'status-info' },
+      'ready': { icon: '✓', label: 'Ready', cls: 'status-success' },
+    };
+    const { icon: statusIcon, label: statusLabel, cls: statusClass } = badgeMap[readiness];
 
-    const isNonActive = this._setupPath !== undefined &&
-      wsConfig.activeSetupState?.setupPath !== this._setupPath;
+    const isNonActive = isViewingNonActive;
+
+    // Git-clone / "initialize current directory" / "new standard" setup flows
+    // all operate on `wsConfig.rootPath` (the open VS Code folder). They only
+    // make sense when the panel's target IS that folder.
+    let targetIsCurrentFolder = false;
+    if (!isNonActive && folderOpen) {
+      if (!target) {
+        targetIsCurrentFolder = true;
+      } else {
+        targetIsCurrentFolder = path.normalize(target.setupPath) === path.normalize(wsConfig.rootPath);
+      }
+    }
+
+    // Detect whether the OPEN folder already has a workspace that should NOT
+    // be re-initialized. Three signals:
+    //   (a) a registered+initialized SetupState for rootPath in the dictionary;
+    //   (b) the active setup is bound to rootPath AND initialized;
+    //   (c) a `.west/` directory exists on disk at rootPath.
+    // Any one → suppress the "initialize current folder" section.
+    let currentFolderInitializedPath: string | undefined;
+    if (folderOpen) {
+      const rootNorm = path.normalize(wsConfig.rootPath);
+      const dict = this.currentGlobalConfig?.setupStateDictionary;
+      if (dict) {
+        for (const p of Object.keys(dict)) {
+          if (path.normalize(p) === rootNorm && dict[p]?.initialized) {
+            currentFolderInitializedPath = p;
+            break;
+          }
+        }
+      }
+      if (!currentFolderInitializedPath &&
+        wsConfig.activeSetupState &&
+        path.normalize(wsConfig.activeSetupState.setupPath) === rootNorm &&
+        wsConfig.activeSetupState.initialized) {
+        currentFolderInitializedPath = wsConfig.activeSetupState.setupPath;
+      }
+      if (!currentFolderInitializedPath) {
+        try {
+          if (fs.pathExistsSync(path.join(wsConfig.rootPath, ".west"))) {
+            currentFolderInitializedPath = wsConfig.rootPath;
+          }
+        } catch {
+          // ignore fs errors; leave flag unset
+        }
+      }
+    }
+    const currentFolderCanBeInitialized = folderOpen && !currentFolderInitializedPath;
+
+    // Detect a `.west/` folder in the open folder that isn't yet in our
+    // registry — surface as "activate preexisting" on the choice screen.
+    let preexistingWorkspaceDetected = false;
+    if (folderOpen) {
+      try {
+        preexistingWorkspaceDetected = fs.pathExistsSync(path.join(wsConfig.rootPath, ".west"));
+      } catch {
+        preexistingWorkspaceDetected = false;
+      }
+    }
+
+    // Resolve top-level panel mode.
+    // - If a specific setupPath was requested OR an active workspace exists →
+    //   show workspace-view (existing behavior).
+    // - Else, honor the user's in-panel choice (_uiMode) or fall back to
+    //   'choice' screen.
+    let panelMode: WorkspacePanelMode;
+    if (this._setupPath || wsConfig.activeSetupState) {
+      panelMode = 'workspace-view';
+    } else if (this._uiMode === 'new-current') {
+      panelMode = 'new-current';
+    } else if (this._uiMode === 'new-external' && this._externalDir) {
+      panelMode = 'new-external';
+    } else {
+      panelMode = 'choice';
+    }
+
+    // Resolve the directory this panel is currently targeting so it can be
+    // shown in the header on every screen.
+    let targetDirectory: string | undefined;
+    if (panelMode === 'workspace-view') {
+      // Prefer the resolved target setupPath; fall back to _setupPath (if this
+      // panel was opened for a specific path not yet in the registry), then
+      // rootPath as a last resort.
+      targetDirectory = target?.setupPath || this._setupPath || wsConfig.rootPath || undefined;
+    } else if (panelMode === 'new-external') {
+      targetDirectory = this._externalDir;
+    } else if (folderOpen) {
+      // 'new-current' and 'choice' both target the open VS Code folder
+      targetDirectory = wsConfig.rootPath || undefined;
+    }
 
     let activationBanner: ActivationBannerData | undefined;
     if (isNonActive && this._setupPath) {
@@ -424,6 +676,11 @@ export class WorkspacePanel {
     return {
       folderOpen,
       workspaceInitialized,
+      panelMode,
+      externalDirectoryPath: this._externalDir,
+      targetDirectory,
+      preexistingWorkspaceDetected,
+      readiness,
       state,
       statusIcon,
       statusLabel,
@@ -431,6 +688,11 @@ export class WorkspacePanel {
       activationBanner,
       workspaceInfo,
       isNonActive,
+      targetIsCurrentFolder,
+      currentFolderCanBeInitialized,
+      currentFolderInitializedPath,
+      pythonEnvReady,
+      westUpdated,
     };
   }
 

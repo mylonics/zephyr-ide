@@ -41,7 +41,7 @@ class WestWorkspaceItem extends vscode.TreeItem {
     super(label, vscode.TreeItemCollapsibleState.None);
     this.id = `west.${sanitizeTreeId(installPath)}`;
     this.iconPath = contextId === 'westWorkspace.active'
-      ? new vscode.ThemeIcon(icon, new vscode.ThemeColor('statusBar.background'))
+      ? new vscode.ThemeIcon(icon, new vscode.ThemeColor('textLink.foreground'))
       : new vscode.ThemeIcon(icon);
     this.description = description;
     this.tooltip = tooltip;

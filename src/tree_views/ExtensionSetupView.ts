@@ -16,7 +16,7 @@ limitations under the License.
 */
 
 import * as vscode from 'vscode';
-import { WorkspaceConfig, GlobalConfig } from '../setup_utilities/types';
+import { WorkspaceConfig, GlobalConfig, isActiveWorkspaceInitialized } from '../setup_utilities/types';
 
 class SetupItem extends vscode.TreeItem {
   constructor(label: string, icon: string, commandId: string, status?: string) {
@@ -54,7 +54,7 @@ export class ExtensionSetupView implements vscode.TreeDataProvider<SetupItem> {
     const sdkStatus = this.globalConfig.sdkInstalled
       ? (this.globalConfig.sdkVersion ? `v${this.globalConfig.sdkVersion}` : "Installed")
       : "Not Installed";
-    const workspaceStatus = (this.wsConfig.initialSetupComplete && this.wsConfig.activeSetupState) ? "Initialized" : "Setup Required";
+    const workspaceStatus = isActiveWorkspaceInitialized(this.wsConfig) ? "Initialized" : "Setup Required";
     const westUpdatedStatus = this.wsConfig.activeSetupState?.westUpdated ? "Updated" : "Not Updated";
     const pythonEnvStatus = this.wsConfig.activeSetupState?.pythonEnvironmentSetup ? "Ready" : "Not Configured";
 

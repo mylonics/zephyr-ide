@@ -33,6 +33,25 @@
     font-style: italic;
 }
 
+/* Directory shown in header beneath the title row */
+.page-header {
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.header-directory {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+}
+
+.header-directory .codicon {
+    opacity: 0.7;
+}
+
 .activation-banner-content > .codicon {
     color: var(--vscode-textLink-foreground);
     flex-shrink: 0;
@@ -174,24 +193,103 @@
 }
 
 /* ===================================================================
+   Choice screen (no active workspace, no specific path)
+   =================================================================== */
+
+.choice-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 18px;
+    margin-top: 15px;
+}
+
+.choice-card {
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: var(--zephyr-webview-radius);
+    padding: 24px;
+    cursor: pointer;
+    background-color: var(--vscode-editor-background);
+    box-shadow: var(--zephyr-webview-surface-shadow);
+    transition:
+        border-color var(--zephyr-webview-transition-fast),
+        background-color var(--zephyr-webview-transition-fast),
+        box-shadow var(--zephyr-webview-transition-fast);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.choice-card:hover,
+.choice-card:focus-visible {
+    border-color: var(--vscode-focusBorder);
+    background-color: var(--vscode-list-hoverBackground);
+    box-shadow: var(--zephyr-webview-surface-shadow-hover);
+    outline: none;
+}
+
+.choice-card.disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.choice-card .choice-icon {
+    font-size: 28px;
+    line-height: 1;
+}
+
+.choice-card h4 {
+    margin: 4px 0 4px 0;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.choice-card p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--vscode-descriptionForeground);
+}
+
+/* ===================================================================
+   Back button + external-directory banner
+   =================================================================== */
+
+.back-button-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.external-dir-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    border: 1px dashed var(--vscode-panel-border);
+    border-radius: var(--zephyr-webview-radius);
+    background-color: color-mix(in srgb, var(--vscode-textLink-foreground) 5%, var(--vscode-editor-background));
+}
+
+.external-dir-banner code {
+    font-size: 12px;
+    color: var(--vscode-foreground);
+}
+
+/* ===================================================================
    Workspace sub-page state containers
+   Visibility is controlled in Lit (via nothing/null guards), so these
+   containers render only when the component decides to include them.
+   A small fade-in animation is applied when the "initializing" panel
+   appears to preserve the original transition feel.
    =================================================================== */
 
 .ws-state {
-    display: none;
+    display: block;
 }
 
-[data-workspace-state="initializing"] > .ws-state-initializing {
-    display: block;
+.ws-state-initializing {
     animation: fadeIn 0.2s ease-in;
-}
-
-[data-workspace-state="ready"] > .ws-state-ready {
-    display: block;
-}
-
-[data-workspace-state="setup-required"] > .ws-state-setup-required {
-    display: block;
 }
 
 /* ===================================================================
@@ -205,3 +303,8 @@
 /* ===================================================================
    Empty state — styles inherited from webview-base.css
    =================================================================== */
+
+/* ===================================================================
+   Choice screen (no active workspace, no specific path)
+   =================================================================== */
+

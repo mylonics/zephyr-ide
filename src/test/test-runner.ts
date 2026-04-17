@@ -149,7 +149,7 @@ export async function monitorWorkspaceSetup(commandPromise: Thenable<any>, setup
         }
 
         if (wsConfig) {
-            if (!initialSetupComplete && wsConfig.initialSetupComplete) {
+            if (!initialSetupComplete && wsConfig.activeSetupState?.initialized) {
                 console.log("    ✅ Initial setup completed - west.yml created");
                 initialSetupComplete = true;
             }
@@ -240,7 +240,7 @@ export async function executeFinalBuild(
     const ext = vscode.extensions.getExtension("mylonics.zephyr-ide");
     const wsConfig = ext?.exports?.getWorkspaceConfig();
 
-    if (!wsConfig?.initialSetupComplete) {
+    if (!wsConfig?.activeSetupState?.initialized) {
         console.log(`⚠️ Setup not complete for ${testName}, retrying in ${retryDelayMs / 1000} seconds...`);
         await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
     }
