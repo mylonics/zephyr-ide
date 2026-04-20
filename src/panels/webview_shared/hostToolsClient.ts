@@ -30,6 +30,12 @@ export interface PackageStatus {
   name: string;
   package: string;
   available: boolean;
+  /**
+   * True when this package was previously installed but is not yet visible on
+   * PATH (typically because VS Code wasn't fully restarted after install). The
+   * extension persists these across window reloads so the badge survives.
+   */
+  pendingRestart?: boolean;
 }
 
 export interface HostToolsStatusData {
@@ -370,7 +376,14 @@ export class HostToolsClient {
     }
 
     // Clear the 'checking' state — the package now shows its real status.
-    delete this.state.packageStates[packageName];
+    // Keep a persisted 'pending-restart' state when the package is still not
+    // available so the badge survives the post-check render.
+    const prev = this.state.packageStates[packageName];
+    if (prev === 'pending-restart' && !available) {
+      // Leave pending-restart in place; the cached status now also reflects unavailable.
+    } else {
+      delete this.state.packageStates[packageName];
+    }
 
     // Patch just this one card/row in-place.
     this.refreshSinglePackage(packageName);
@@ -490,9 +503,15 @@ export class HostToolsClient {
   displayStatus(data: HostToolsStatusData): void {
     // When the extension signals that checks are starting, mark every package as
     // 'checking' so the initial render shows spinner indicators immediately.
+    // Packages already known to be pending restart from a prior install (across
+    // window reload) are surfaced with the pending-restart badge instead.
     if (data.checking) {
       for (const pkg of data.packages) {
-        this.state.packageStates[pkg.name] = 'checking';
+        if (pkg.pendingRestart) {
+          this.state.packageStates[pkg.name] = 'pending-restart';
+        } else {
+          this.state.packageStates[pkg.name] = 'checking';
+        }
       }
     }
 

@@ -248,6 +248,115 @@ export async function installPackageManager(): Promise<boolean> {
 }
 
 /**
+ * Detect the active python3 minor version and return the matching
+ * `python3.X-venv` apt package name (e.g. "python3.12-venv"). Returns
+ * undefined if python3 is not available or the version cannot be parsed.
+ */
+async function detectVersionedPythonVenvPackage(): Promise<string | undefined> {
+  const minor = await detectPython3MinorVersion();
+  if (minor === undefined) { return undefined; }
+  return `python3.${minor}-venv`;
+}
+
+/**
+ * Return the active python3 minor version number (e.g. 12 for 3.12).
+ * Returns undefined if python3 is unavailable or the version cannot be parsed.
+ */
+async function detectPython3MinorVersion(): Promise<number | undefined> {
+  try {
+    const result = await executeShellCommand(
+      `python3 -c "import sys; print(sys.version_info.minor)"`,
+      "",
+      false
+    );
+    const out = (result.stdout || "").trim();
+    const n = parseInt(out, 10);
+    return isNaN(n) ? undefined : n;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * On distros where Python 3.12 is not in the default apt repositories
+ * (e.g. Ubuntu 22.04 Jammy Jellyfish) add the deadsnakes PPA and refresh
+ * the package cache so that `python3.12` and its supporting packages become
+ * available for installation.
+ *
+ * The function is a no-op when python3.12 is already known to apt.
+ * Returns true on success (PPA already present or successfully added).
+ */
+async function addDeadsnakesPPAIfNeeded(): Promise<boolean> {
+  // Quick check: is python3.12 already in the apt package index?
+  const probe = await executeShellCommand("apt-cache show python3.12", "", true);
+  if (probe.stdout !== undefined) {
+    // python3.12 is already available — nothing to do.
+    return true;
+  }
+
+  outputInfo("Host Tools", "python3.12 not found in default apt repos — adding deadsnakes PPA...");
+
+  // `add-apt-repository` lives in software-properties-common which may not
+  // be present on minimal Ubuntu installs.
+  const spOk = await executeTaskHelper(
+    "Install software-properties-common",
+    "sudo -n apt install -y --no-install-recommends software-properties-common",
+    ""
+  );
+  if (!spOk) {
+    outputError("Host Tools", "Failed to install software-properties-common; cannot add deadsnakes PPA");
+    return false;
+  }
+
+  const ppaOk = await executeTaskHelper(
+    "Add deadsnakes PPA for Python 3.12",
+    "sudo -n add-apt-repository -y ppa:deadsnakes/ppa && sudo -n apt-get update -qq",
+    ""
+  );
+  if (!ppaOk) {
+    outputError("Host Tools", "Failed to add deadsnakes/ppa");
+    return false;
+  }
+
+  outputInfo("Host Tools", "deadsnakes PPA added — python3.12 packages are now available");
+  return true;
+}
+
+/**
+ * Cache sudo credentials up-front by running `sudo -v` in an interactive task
+ * terminal. Subsequent `sudo -n` calls within the sudo timestamp window
+ * (typically 5-15 minutes) succeed without prompting again.
+ *
+ * No-op on non-Linux platforms. Returns true if credentials are now cached
+ * (or platform doesn't need sudo), false if the user dismissed the prompt or
+ * sudo is unavailable.
+ */
+export async function cacheSudoCredentials(): Promise<boolean> {
+  const platform = await getPlatformNameAsync();
+  if (platform !== "linux") {
+    return true;
+  }
+
+  // First check whether sudo is already cached (`sudo -n -v` returns 0 if so).
+  try {
+    const probe = await executeShellCommand("sudo -n -v", "", true);
+    if (probe.stdout !== undefined) {
+      return true;
+    }
+  } catch {
+    // fall through to interactive prompt
+  }
+
+  outputInfo("Host Tools", "Caching sudo credentials for batch package install...");
+  const ok = await executeTaskHelper("Cache sudo credentials", "sudo -v", "");
+  if (!ok) {
+    outputWarning("Host Tools", "Could not cache sudo credentials; package installs may prompt for password individually.");
+    return false;
+  }
+  return true;
+}
+
+/**
  * Get platform packages for the current platform
  */
 export async function getPlatformPackages(): Promise<PlatformPackage[]> {
@@ -294,12 +403,12 @@ async function checkPythonVersion(pythonCommand: string): Promise<{valid: boolea
     const minor = parseInt(versionMatch[2]);
     const versionStr = `${major}.${minor}.${versionMatch[3]}`;
     
-    // Check minimum version: Python >= 3.10
-    if (major < 3 || (major === 3 && minor < 10)) {
+    // Check minimum version: Python >= 3.12
+    if (major < 3 || (major === 3 && minor < 12)) {
       return {
         valid: false,
         version: versionStr,
-        error: `Python ${versionStr} found, but version >= 3.10 is required`
+        error: `Python ${versionStr} found, but version >= 3.12 is required`
       };
     }
     
@@ -332,10 +441,10 @@ export async function checkPackageAvailable(pkg: PlatformPackage): Promise<Packa
             name: pkg.name,
             package: pkg.package,
             available: false,
-            error: versionCheck.error || "Python version < 3.10"
+            error: versionCheck.error || "Python version < 3.12"
           };
         } else {
-          outputInfo("Host Tools", `${pkg.name} version ${versionCheck.version} detected (>= 3.10 required)`);
+          outputInfo("Host Tools", `${pkg.name} version ${versionCheck.version} detected (>= 3.12 required)`);
         }
       }
     }
@@ -379,13 +488,61 @@ export async function installPackage(pkg: PlatformPackage, resolvedManager?: { n
   }
 
   let installCommand: string;
+  const postAptSteps: Array<{ label: string; command: string }> = [];
   switch (manager.name) {
     case "homebrew":
       installCommand = `brew install ${pkg.package}`;
       break;
-    case "apt":
-      installCommand = `sudo apt install --no-install-recommends ${pkg.package}`;
+    case "apt": {
+      // Resolve apt package(s) — special cases for python packages:
+      //
+      // python3-dev: On Ubuntu 22.04 (Jammy) Python 3.12 is not in the
+      //   default repos. We detect this, add the deadsnakes PPA if necessary,
+      //   then install the explicit python3.12 + python3.12-dev packages and
+      //   wire `python3` → `python3.12` via update-alternatives.
+      //
+      // python3-venv: Install the version-matched package (e.g.
+      //   python3.12-venv) so ensurepip is always present.
+      //
+      // python3-tk: Same versioned pattern as python3-venv so that tkinter
+      //   imports against the active python3.12 interpreter.
+      let aptPackages = pkg.package;
+
+      if (pkg.package === "python3-dev") {
+        // Ensure python3.12 is reachable via apt (adds deadsnakes PPA on 22.04)
+        const ppaOk = await addDeadsnakesPPAIfNeeded();
+        if (!ppaOk) {
+          outputWarning("Host Tools", "Could not ensure python3.12 apt availability; falling back to python3-dev");
+        } else {
+          aptPackages = "python3.12 python3.12-dev";
+          // After install, make `python3` point to the new 3.12 binary.
+          postAptSteps.push({
+            label: "Register python3.12 as default python3",
+            command: "sudo -n update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1",
+          });
+        }
+      } else if (pkg.package === "python3-venv") {
+        // Plain `python3-venv` may not include ensurepip on all distros; use
+        // the version-matched package to be safe.
+        const versioned = await detectVersionedPythonVenvPackage();
+        if (versioned) {
+          aptPackages = `${pkg.package} ${versioned}`;
+        }
+      } else if (pkg.package === "python3-tk") {
+        // Install the version-matched tkinter so it works with the active
+        // python3.12 interpreter set up by the python3-dev step.
+        const minor = await detectPython3MinorVersion();
+        if (minor !== undefined) {
+          aptPackages = `${pkg.package} python3.${minor}-tk`;
+        }
+      }
+      // Use `-n` (non-interactive) since hostToolsService caches credentials
+      // up-front via `sudo -v`; if creds aren't cached this will fail fast and
+      // the user will see a clear error rather than a hung password prompt
+      // inside a non-interactive task terminal.
+      installCommand = `sudo -n apt install -y --no-install-recommends ${aptPackages}`;
       break;
+    }
     case "winget":
       installCommand = `winget install --accept-package-agreements --accept-source-agreements ${pkg.package}`;
       break;
@@ -404,6 +561,15 @@ export async function installPackage(pkg: PlatformPackage, resolvedManager?: { n
   if (!result) {
     outputError("Host Tools", `Failed to install ${pkg.name}`);
     return false;
+  }
+
+  // Run any post-apt steps (e.g. update-alternatives after python3.12 install)
+  for (const step of postAptSteps) {
+    outputInfo("Host Tools", `Running: ${step.label}...`);
+    const stepOk = await executeTaskHelper(step.label, step.command, "");
+    if (!stepOk) {
+      outputWarning("Host Tools", `${step.label} failed — manual configuration may be required`);
+    }
   }
 
   // Run post-install step if specified

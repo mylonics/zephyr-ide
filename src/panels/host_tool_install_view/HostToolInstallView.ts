@@ -77,7 +77,11 @@ export class HostToolInstallView {
     this._panel = panel;
     this._extensionPath = extensionPath;
     this._context = context;
-    this._service = new HostToolsService(panel.webview, HOST_TOOL_INSTALL_VIEW_CONFIG);
+    this._service = new HostToolsService(panel.webview, {
+      ...HOST_TOOL_INSTALL_VIEW_CONFIG,
+      onStatusChanged: () => this.refreshAfterStatusChange(),
+    });
+    this._service.setStateRefs({ context, wsConfig, globalConfig });
 
     this.updateContent(wsConfig, globalConfig);
 
@@ -95,11 +99,23 @@ export class HostToolInstallView {
   public updateContent(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
     this.currentWsConfig = wsConfig;
     this.currentGlobalConfig = globalConfig;
+    // Keep the service's state refs current so persistence writes hit the
+    // latest config objects.
+    this._service.setStateRefs({ context: this._context, wsConfig, globalConfig });
 
     if (!this._htmlInitialized) {
       this._panel.webview.html = this.getHtmlForWebview();
       this._htmlInitialized = true;
     }
+  }
+
+  /**
+   * Re-trigger a status check on the webview after the service mutated
+   * persisted state (e.g. `toolsAvailable` flipped or pending-restart list
+   * changed). The webview re-renders cards from the fresh statuses.
+   */
+  private refreshAfterStatusChange(): void {
+    void this._service.checkStatus();
   }
 
   private _htmlInitialized = false;

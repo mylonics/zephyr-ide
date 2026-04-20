@@ -78,27 +78,31 @@ export class WestWorkspaceView implements vscode.TreeDataProvider<WestWorkspaceI
     }
     const items: WestWorkspaceItem[] = [];
 
-    // Add special "Global Installation" option
+    // Add special "Global Installation" option only when the global tools
+    // directory has been initialized (an entry exists in setupStateDictionary).
+    // On a fresh install we don't want to show a "Global" workspace that hasn't
+    // been set up — the user creates it explicitly via the
+    // "Setup Global Install" button on the Extension Setup Panel.
     const globalPath = getToolsDir();
-    const isGlobal = this.wsConfig.activeSetupState?.setupPath === globalPath;
+    const globalEntry = this.globalConfig.setupStateDictionary?.[globalPath];
+    if (globalEntry) {
+      const isGlobal = this.wsConfig.activeSetupState?.setupPath === globalPath;
 
-    let globalDescription = 'System-wide Zephyr installation';
-    if (this.globalConfig.setupStateDictionary && this.globalConfig.setupStateDictionary[globalPath]) {
-      const globalSetupState = this.globalConfig.setupStateDictionary[globalPath];
-      if (globalSetupState.zephyrVersion) {
-        const versionStr = formatZephyrVersion(globalSetupState.zephyrVersion);
+      let globalDescription = 'System-wide Zephyr installation';
+      if (globalEntry.zephyrVersion) {
+        const versionStr = formatZephyrVersion(globalEntry.zephyrVersion);
         globalDescription = `Zephyr ${versionStr}`;
       }
-    }
 
-    items.push(new WestWorkspaceItem(
-      'Global',
-      globalPath,
-      'globe',
-      globalDescription,
-      globalPath,
-      isGlobal ? 'westWorkspace.active' : 'westWorkspace.inactive',
-    ));
+      items.push(new WestWorkspaceItem(
+        'Global',
+        globalPath,
+        'globe',
+        globalDescription,
+        globalPath,
+        isGlobal ? 'westWorkspace.active' : 'westWorkspace.inactive',
+      ));
+    }
 
     if (this.globalConfig.setupStateDictionary) {
       for (const installPath in this.globalConfig.setupStateDictionary) {

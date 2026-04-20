@@ -28,6 +28,7 @@ export interface SetupPanelData {
   westUpdated: boolean;
   initialSetupComplete: boolean;
   hasWorkspaces: boolean;
+  globalInstallExists: boolean;
   activeWorkspace: ActiveWorkspaceData | undefined;
   workspaces: WorkspaceListItem[];
   projects: ProjectListItem[];

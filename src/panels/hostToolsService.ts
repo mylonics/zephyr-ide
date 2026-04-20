@@ -24,10 +24,23 @@ import {
   installPackageManager as installPkgMgr,
   installPackage,
   getPlatformPackages,
+  cacheSudoCredentials,
 } from '../setup_utilities/host_tools';
 import { WorkspaceConfig, GlobalConfig } from '../setup_utilities/types';
 import { saveSetupState } from '../setup_utilities/state-management';
 import { notifyError, notifyWarning } from '../utilities/output';
+
+/**
+ * Provider for the live state references the HostToolsService needs in order
+ * to persist pending-restart entries and `toolsAvailable` updates back to
+ * globalState. Returns undefined fields when not yet wired (the service then
+ * skips persistence and the UI-only behavior degrades gracefully).
+ */
+export interface HostToolsStateRefs {
+  context?: vscode.ExtensionContext;
+  wsConfig?: WorkspaceConfig;
+  globalConfig?: GlobalConfig;
+}
 
 /**
  * Command names used for host tools messages between extension and webview.
@@ -52,6 +65,12 @@ export interface HostToolsServiceConfig {
   markCompleteMessage: string;
   /** Called after markComplete saves state, for panel refresh etc. */
   onMarkComplete?: () => void;
+  /**
+   * Called whenever the service mutates persisted state that the host panels
+   * may need to re-render (e.g. `toolsAvailable` flipped, pending-restart
+   * list changed). Panels use this to trigger a webview refresh.
+   */
+  onStatusChanged?: () => void;
 }
 
 /** Pre-built config for HostToolInstallView */
@@ -65,13 +84,69 @@ export const HOST_TOOL_INSTALL_VIEW_CONFIG: HostToolsServiceConfig = {
  * Shared host tools installation logic used by both HostToolInstallView and SetupPanel.
  */
 export class HostToolsService {
+  private _stateRefs: HostToolsStateRefs = {};
+
   constructor(
     private readonly webview: vscode.Webview,
     private readonly config: HostToolsServiceConfig
   ) { }
 
+  /**
+   * Provide live references to the extension context and current configs.
+   * Callers should invoke this whenever wsConfig/globalConfig are reloaded so
+   * subsequent installs persist their pending-restart entries correctly.
+   */
+  setStateRefs(refs: HostToolsStateRefs): void {
+    this._stateRefs = refs;
+  }
+
   private post(command: string, data?: Record<string, any>) {
     this.webview.postMessage({ command, ...data });
+  }
+
+  /**
+   * Persist `pendingRestart` for a single package into globalConfig. Called
+   * after install attempts to save the restart-needed state across reloads.
+   */
+  private async persistPendingRestart(packageName: string, pendingRestart: boolean): Promise<void> {
+    const { context, wsConfig, globalConfig } = this._stateRefs;
+    if (!context || !wsConfig || !globalConfig) {
+      return;
+    }
+    const list = globalConfig.pendingRestartPackages ?? [];
+    const idx = list.indexOf(packageName);
+    let changed = false;
+    if (pendingRestart && idx === -1) {
+      list.push(packageName);
+      changed = true;
+    } else if (!pendingRestart && idx !== -1) {
+      list.splice(idx, 1);
+      changed = true;
+    }
+    if (changed) {
+      globalConfig.pendingRestartPackages = list;
+      await saveSetupState(context, wsConfig, globalConfig);
+      this.config.onStatusChanged?.();
+    }
+  }
+
+  /**
+   * If every package check_command succeeds, set `toolsAvailable = true` and
+   * persist. This auto-clears the "Setup Required" badge after a successful
+   * install without requiring the user to click "Mark Complete".
+   */
+  private async maybeMarkToolsAvailable(): Promise<void> {
+    const { context, wsConfig, globalConfig } = this._stateRefs;
+    if (!context || !wsConfig || !globalConfig) {
+      return;
+    }
+    const statuses = await checkAllPackages();
+    const allAvailable = statuses.length > 0 && statuses.every(s => s.available);
+    if (allAvailable && !globalConfig.toolsAvailable) {
+      globalConfig.toolsAvailable = true;
+      await saveSetupState(context, wsConfig, globalConfig);
+      this.config.onStatusChanged?.();
+    }
   }
 
   async checkStatus(): Promise<void> {
@@ -84,13 +159,17 @@ export class HostToolsService {
 
       const managerAvailable = await checkPackageManagerAvailable();
       const packages = await getPlatformPackages();
+      const pendingRestartList = this._stateRefs.globalConfig?.pendingRestartPackages ?? [];
 
       // Send the full package list immediately with `checking: true` so the UI
-      // can render every card with a "Checking…" spinner right away.
+      // can render every card with a "Checking…" spinner right away. Packages
+      // marked as pending-restart from a previous install (and persisted across
+      // window reload) are surfaced so the badge re-appears immediately.
       const initialStatuses = packages.map(pkg => ({
         name: pkg.name,
         package: pkg.package,
         available: false,
+        pendingRestart: pendingRestartList.includes(pkg.name) || undefined,
       }));
 
       this.post(HOST_TOOLS_COMMANDS.updateStatus, {
@@ -112,7 +191,17 @@ export class HostToolsService {
           packageName: status.name,
           available: status.available,
         });
+        // If this package was previously pending-restart and is now available,
+        // clear it from the persisted list so the badge doesn't reappear next
+        // window.
+        if (status.available && pendingRestartList.includes(status.name)) {
+          await this.persistPendingRestart(status.name, false);
+        }
       }));
+
+      // After all checks complete, see if all tools are now available and
+      // auto-flip the global toolsAvailable flag if so.
+      await this.maybeMarkToolsAvailable();
     } catch (error) {
       this.post(HOST_TOOLS_COMMANDS.updateStatus, { error: String(error) });
     }
@@ -158,11 +247,21 @@ export class HostToolsService {
         total: 1,
       });
 
+      // Cache sudo credentials up-front on Linux so the install command can
+      // run with `sudo -n` and not block on a password prompt inside the task
+      // terminal. No-op on other platforms.
+      await cacheSudoCredentials();
+
       const success = await installPackage(pkg);
 
       const packageStatuses = await checkAllPackages();
       const installedPkg = packageStatuses.find(p => p.name === packageName);
-      const pendingRestart = success && installedPkg && !installedPkg.available;
+      const pendingRestart = !!(success && installedPkg && !installedPkg.available);
+
+      // Persist pending-restart so the badge survives a window reload.
+      if (success) {
+        await this.persistPendingRestart(packageName, pendingRestart);
+      }
 
       this.post(HOST_TOOLS_COMMANDS.packageInstalled, {
         packageName,
@@ -179,6 +278,9 @@ export class HostToolsService {
           );
         } else {
           void vscode.window.showInformationMessage(`${packageName} installed successfully.`);
+          // A successful install where the package is now available may have
+          // completed the host-tools requirement; auto-flip toolsAvailable.
+          await this.maybeMarkToolsAvailable();
         }
       } else {
         notifyError(this.config.errorLabel, `Failed to install ${packageName}. Check output for details.`);
@@ -211,6 +313,11 @@ export class HostToolsService {
 
       this.post(HOST_TOOLS_COMMANDS.installAllStarted, { total: totalCount });
 
+      // Cache sudo credentials up-front on Linux so each `sudo -n apt install`
+      // below succeeds without a per-package password prompt. No-op on other
+      // platforms.
+      await cacheSudoCredentials();
+
       let installedCount = 0;
       let hasErrors = false;
 
@@ -228,6 +335,11 @@ export class HostToolsService {
 
           const installedPkg = await checkPackageAvailable(pkg);
           const pendingRestart = success && !installedPkg.available;
+
+          // Persist pending-restart so the badge survives a window reload.
+          if (success) {
+            await this.persistPendingRestart(pkg.name, pendingRestart);
+          }
 
           this.post(HOST_TOOLS_COMMANDS.packageInstalled, {
             packageName: pkg.name,
@@ -263,6 +375,10 @@ export class HostToolsService {
       } else {
         notifyWarning(this.config.errorLabel, 'Some host tools failed to install. Check the output for details.');
       }
+
+      // After the batch, see if all tools are available now and auto-flip the
+      // global toolsAvailable flag (clears "Setup Required" badges).
+      await this.maybeMarkToolsAvailable();
 
       if (this.config.recheckAfterBatchInstall) {
         await this.checkStatus();

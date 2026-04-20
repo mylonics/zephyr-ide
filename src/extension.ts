@@ -81,6 +81,7 @@ import {
   getZephyrElfPath,
   getZephyrElfDir,
   getAutomaticProjectSelection,
+  getToolsDir,
 } from "./setup_utilities/workspace-config";
 import { checkIfToolsAvailable } from "./setup_utilities/tools-validation";
 import {
@@ -100,6 +101,7 @@ import {
   manageWorkspaces,
   westConfig,
   selectExistingWestWorkspace,
+  handleReconfigureInstallation,
 } from "./setup_utilities/workspace-setup";
 import {
   initializeDtsExt,
@@ -1515,6 +1517,20 @@ export async function activate(context: vscode.ExtensionContext) {
     (ctx, ws, gc) => workspaceSetupFromCurrentDirectory(ctx, ws, gc, false));
   registerWorkspaceSetupCommand(context, "zephyr-ide.workspace-setup-from-external-directory", workspaceSetupFromExternalDirectory);
   registerWorkspaceSetupCommand(context, "zephyr-ide.workspace-setup-standard", workspaceSetupStandard);
+
+  // Set up (or adopt) the user-level Global Zephyr installation directory.
+  // On a fresh install this is the only way to make the Global entry appear in
+  // the West Workspaces tree view — until then, the tree hides the Global
+  // option to avoid confusion. Thin wrapper around handleReconfigureInstallation
+  // which seeds the entry in setupStateDictionary and runs westSelector +
+  // postWorkspaceSetup against the global tools directory.
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.setup-global-install", async () => {
+      const globalPath = getToolsDir();
+      await handleReconfigureInstallation(context, wsConfig, globalConfig, globalPath);
+      void vscode.commands.executeCommand("zephyr-ide.update-web-view");
+    })
+  );
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.west-config", async () => {

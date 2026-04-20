@@ -58,7 +58,22 @@ export interface GlobalConfig {
   toolsAvailable?: boolean,
   sdkInstalled?: boolean,
   sdkVersion?: string,
-  setupStateDictionary?: SetupStateDictionary
+  setupStateDictionary?: SetupStateDictionary,
+  /**
+   * Names of host packages that were installed but were not yet visible on
+   * PATH at install time. Persisted so the "Pending Restart" badge survives a
+   * VS Code window reload. Cleared automatically when the extension detects
+   * a full process restart (see `pendingRestartSessionToken`) or when the
+   * package is later observed as available.
+   */
+  pendingRestartPackages?: string[],
+  /**
+   * Opaque token written to globalState alongside `pendingRestartPackages`.
+   * Compared against a freshly generated process-level token on activation;
+   * a mismatch indicates VS Code (or the extension host) was fully restarted,
+   * and the pending list is cleared.
+   */
+  pendingRestartSessionToken?: string,
 }
 
 export interface WorkspaceConfig {
