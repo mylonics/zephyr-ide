@@ -57,13 +57,12 @@ export const zephyrHals: vscode.QuickPickItem[] = [
   { label: "xtensa", description: "hal_xtensa" }
 ];
 
-export const zephyrVersions = ["v4.4.0", "v4.3.0", "v4.2.0", "main", "Other Version"];
+export const zephyrVersions = ["v4.4.0", "v4.3.0", "main", "Other Version"];
 export const ncsVersions = ["v3.2.4", "v3.2.2", "v3.2.1", "v3.1.1", "main", "Other Version"];
 
 export const sdkVersions = [
-  { label: "1.0.0", description: "Zephyr 4.4" },
+  { label: "1.0.1", description: "Zephyr 4.4" },
   { label: "0.17.4", description: "Zephyr 4.3" },
-  { label: "0.17.3", description: "Zephyr 4.2" },
   { label: "0.16.9", description: "Zephyr 3.7" },
   { label: "sep", kind: vscode.QuickPickItemKind.Separator },
   { label: "latest", description: "Latest available version" },
