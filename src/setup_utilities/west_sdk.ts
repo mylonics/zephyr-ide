@@ -20,7 +20,7 @@ import * as path from "upath";
 import * as fs from "fs-extra";
 
 import { WorkspaceConfig, GlobalConfig, SetupState } from "./types";
-import { getToolsDir, getToolchainDir } from "./workspace-config";
+import { getToolchainDir } from "./workspace-config";
 import { setGlobalState } from "./state-management";
 import { executeShellCommandInPythonEnv, executeTaskHelperInPythonEnv } from "../utilities/utils";
 import { outputInfo, outputWarning, outputError, notifyError, outputCommandFailure } from "../utilities/output";
@@ -58,24 +58,15 @@ export interface ParsedSDKList {
 }
 
 /**
- * Determines the best west installation to use for SDK management
- * Priority: 1. Global zephyr install, 2. Current workspace install
- * If no installation has the SDK command, manually inject it into the prioritized installation
+ * Determines the best west installation to use for SDK management.
+ * Uses the current workspace install.
+ * If no installation has the SDK command, manually inject it into the installation.
  */
 export async function getWestSDKContext(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, context?: vscode.ExtensionContext): Promise<SetupState | undefined> {
     const candidateStates: SetupState[] = [];
 
-    // Collect candidate states in priority order
-    // 1. Global install from setupStateDictionary
-    if (globalConfig.setupStateDictionary) {
-        const globalToolsDir = await getToolsDir();
-        const globalSetupState = globalConfig.setupStateDictionary[globalToolsDir];
-        if (globalSetupState) {
-            candidateStates.push(globalSetupState);
-        }
-    }
-
-    // 2. Current workspace install
+    // Collect candidate states
+    // Current workspace install
     if (wsConfig.activeSetupState) {
         candidateStates.push(wsConfig.activeSetupState);
     }

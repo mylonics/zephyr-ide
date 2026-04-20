@@ -21,7 +21,6 @@ import * as path from 'upath';
 import { WorkspaceConfig, GlobalConfig, formatZephyrVersion } from '../setup_utilities/types';
 import { setSetupState, setGlobalState, clearSetupState } from '../setup_utilities/state-management';
 import { notifyError, notifyWarningWithActions, outputInfo } from '../utilities/output';
-import { getToolsDir } from '../setup_utilities/workspace-config';
 import { sanitizeTreeId } from '../utilities/utils';
 
 export type WestWorkspaceItemContext =
@@ -78,38 +77,8 @@ export class WestWorkspaceView implements vscode.TreeDataProvider<WestWorkspaceI
     }
     const items: WestWorkspaceItem[] = [];
 
-    // Add special "Global Installation" option only when the global tools
-    // directory has been initialized (an entry exists in setupStateDictionary).
-    // On a fresh install we don't want to show a "Global" workspace that hasn't
-    // been set up — the user creates it explicitly via the
-    // "Setup Global Install" button on the Extension Setup Panel.
-    const globalPath = getToolsDir();
-    const globalEntry = this.globalConfig.setupStateDictionary?.[globalPath];
-    if (globalEntry) {
-      const isGlobal = this.wsConfig.activeSetupState?.setupPath === globalPath;
-
-      let globalDescription = 'System-wide Zephyr installation';
-      if (globalEntry.zephyrVersion) {
-        const versionStr = formatZephyrVersion(globalEntry.zephyrVersion);
-        globalDescription = `Zephyr ${versionStr}`;
-      }
-
-      items.push(new WestWorkspaceItem(
-        'Global',
-        globalPath,
-        'globe',
-        globalDescription,
-        globalPath,
-        isGlobal ? 'westWorkspace.active' : 'westWorkspace.inactive',
-      ));
-    }
-
     if (this.globalConfig.setupStateDictionary) {
       for (const installPath in this.globalConfig.setupStateDictionary) {
-        if (installPath === globalPath) {
-          continue;
-        }
-
         const setupState = this.globalConfig.setupStateDictionary[installPath];
         const isValidPath = fs.pathExistsSync(installPath);
         const isActive = installPath === this.wsConfig.activeSetupState?.setupPath;

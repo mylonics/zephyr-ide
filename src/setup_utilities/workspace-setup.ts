@@ -435,9 +435,7 @@ async function getExistingInstallationPicks(wsConfig: WorkspaceConfig, globalCon
       const versionStr = setupState.zephyrVersion
         ? formatZephyrVersion(setupState.zephyrVersion)
         : "installation";
-      if (installPath === getToolsDir()) {
-        description = `Global Zephyr ${versionStr}`;
-      } else if (installPath === (wsConfig.activeSetupState?.setupPath || wsConfig.rootPath)) {
+      if (installPath === (wsConfig.activeSetupState?.setupPath || wsConfig.rootPath)) {
         description = `Current Zephyr ${versionStr}`;
       } else if (setupState.zephyrVersion) {
         description = `Zephyr ` + versionStr;
@@ -672,6 +670,7 @@ export async function workspaceSetupFromExternalDirectory(context: vscode.Extens
     canSelectFiles: false,
     canSelectFolders: true,
     canSelectMany: false,
+    defaultUri: vscode.Uri.file(getToolsDir()),
   });
   if (!folderUris || folderUris.length === 0) {
     return false;
@@ -995,19 +994,13 @@ export async function westConfig(
       break;
 
     case 'use-external-installation':
-      // Build external installation submenu: New, Global, Existing
+      // Build external installation submenu: New, Existing
       const externalOptions: vscode.QuickPickItem[] = [];
 
       externalOptions.push({
         label: "$(folder-opened) New Installation",
         description: "Create a new Zephyr installation in a chosen folder",
         detail: "new-install"
-      });
-
-      externalOptions.push({
-        label: "$(link) Global Installation",
-        description: "Use or create the global Zephyr installation",
-        detail: "global-install",
       });
 
       const existingInstalls = await getExistingInstallationPicks(wsConfig, globalConfig);
@@ -1042,7 +1035,8 @@ export async function westConfig(
           openLabel: "Select Folder for New Zephyr Installation",
           canSelectFiles: false,
           canSelectFolders: true,
-          canSelectMany: false
+          canSelectMany: false,
+          defaultUri: vscode.Uri.file(getToolsDir()),
         });
         if (!folderUris || folderUris.length === 0) {
           return { cancelled: true, option: null };
@@ -1050,9 +1044,6 @@ export async function westConfig(
         chosenPath = folderUris[0].fsPath;
         needsSetup = true;
       } else {
-        if (chosenPath === "global-install") {
-          chosenPath = getToolsDir();
-        }
         needsSetup = !(globalConfig.setupStateDictionary && globalConfig.setupStateDictionary[chosenPath]);
       }
 

@@ -19,7 +19,6 @@ import * as vscode from "vscode";
 import * as path from "upath";
 import { WorkspaceConfig, GlobalConfig, formatZephyrVersion, isActiveWorkspaceInitialized } from "../../setup_utilities/types";
 import { setGlobalState, clearSetupState } from "../../setup_utilities/state-management";
-import { getToolsDir } from "../../setup_utilities/workspace-config";
 import { handleReconfigureInstallation } from "../../setup_utilities/workspace-setup";
 import { notifyError, outputError } from "../../utilities/output";
 import { generateNonce } from "../webview_shared/nonce";
@@ -143,10 +142,6 @@ export class SetupPanel {
     selectExistingWestWorkspace: "zephyr-ide.select-existing-west-workspace",
     openSettingsPanel: "zephyr-ide.open-settings-panel",
     openProjectBuildPanel: "zephyr-ide.open-project-build-panel",
-    // "Setup Global Install" — adopts (or creates) the user-level Zephyr
-    // installation directory and runs the west config flow against it. Hidden
-    // in the UI once globalInstallExists.
-    setupGlobalInstall: "zephyr-ide.setup-global-install",
     // "New Workspace" on the overview should land on the Workspace Setup
     // page with its option grid, not dive straight into a west.yml picker.
     // That gives the user a chance to choose current-folder vs external,
@@ -327,7 +322,6 @@ export class SetupPanel {
     // Workspace list
     const workspaces: WorkspaceListItem[] = [];
     if (dict && hasWorkspaces) {
-      const toolsDir = getToolsDir();
       const activeSetupPath = wsConfig.activeSetupState?.setupPath;
 
       const allPaths = Object.keys(dict);
@@ -339,14 +333,10 @@ export class SetupPanel {
 
         const setupState = dict[p];
         const isActive = p === activeSetupPath;
-        const isGlobal = path.normalize(p) === path.normalize(toolsDir);
-        const baseName = isGlobal ? "Global" : path.basename(p);
 
         const versionStr = setupState.zephyrVersion ? formatZephyrVersion(setupState.zephyrVersion) : "installation";
         let description = "West installation";
-        if (isGlobal) {
-          description = `Zephyr ${versionStr}`;
-        } else if (p === wsConfig.rootPath) {
+        if (p === wsConfig.rootPath) {
           description = `Current Zephyr ${versionStr}`;
         } else if (setupState.zephyrVersion) {
           description = `Zephyr ${versionStr}`;
@@ -354,10 +344,9 @@ export class SetupPanel {
 
         workspaces.push({
           path: p,
-          name: baseName,
+          name: path.basename(p),
           description,
           isActive,
-          isGlobal,
           hasPythonEnv: !!setupState.pythonEnvironmentSetup,
           hasWestUpdated: !!setupState.westUpdated,
         });
@@ -385,7 +374,6 @@ export class SetupPanel {
       westUpdated: wsConfig.activeSetupState?.westUpdated ?? false,
       initialSetupComplete: workspaceInitialized,
       hasWorkspaces,
-      globalInstallExists: !!dict?.[path.normalize(getToolsDir())] || !!dict?.[getToolsDir()],
       activeWorkspace,
       workspaces,
       projects,
