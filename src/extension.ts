@@ -1176,6 +1176,7 @@ export async function activate(context: vscode.ExtensionContext) {
       ProjectBuildPanel.updateAllPanels(wsConfig, globalConfig);
       SDKPanel.updateAllPanels(wsConfig, globalConfig);
       WorkspacePanel.updateAllPanels(wsConfig, globalConfig);
+      HostToolInstallView.currentPanel?.updateContent(wsConfig, globalConfig);
       void vscode.commands.executeCommand("zephyr-ide.update-status");
     })
   );
