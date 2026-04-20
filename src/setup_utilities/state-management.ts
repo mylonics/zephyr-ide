@@ -18,11 +18,25 @@ limitations under the License.
 import * as vscode from "vscode";
 import * as fs from "fs-extra";
 import * as path from "upath";
+import * as crypto from "crypto";
 import { getRootPathFs, reloadEnvironmentVariables } from "../utilities/utils";
 import { initializeDtsExt } from "./dts_interface";
 import { GlobalConfig, WorkspaceConfig, SetupState, generateSetupState, isActiveWorkspaceInitialized } from "./types";
 import { loadProjectsFromFile, setWorkspaceSettings, generateGitIgnore, generateExtensionsRecommendations } from "./workspace-config";
 import { parseWestConfigManifest } from "./west-config-parser";
+
+/**
+ * Per-extension-host-process token used to detect full process restarts so
+ * `pendingRestartPackages` can be cleared. Generated lazily on first read so
+ * each new extension host activation gets a fresh value.
+ */
+let _currentSessionToken: string | undefined;
+function getCurrentSessionToken(): string {
+  if (!_currentSessionToken) {
+    _currentSessionToken = crypto.randomUUID();
+  }
+  return _currentSessionToken;
+}
 
 export async function loadGlobalState(context: vscode.ExtensionContext): Promise<GlobalConfig> {
   // Load raw config as any to handle deprecated fields
@@ -45,7 +59,24 @@ export async function loadGlobalState(context: vscode.ExtensionContext): Promise
     toolsAvailable: rawConfig.toolsAvailable,
     sdkInstalled: rawConfig.sdkInstalled,
     sdkVersion: rawConfig.sdkVersion,
+    pendingRestartPackages: rawConfig.pendingRestartPackages,
+    pendingRestartSessionToken: rawConfig.pendingRestartSessionToken,
   };
+
+  // Clear pending-restart state if the persisted session token differs from
+  // the one generated for this extension host process. A mismatch means the
+  // VS Code window was reloaded or the extension host was restarted, which
+  // refreshes PATH from the OS — so any "pending restart" entries should be
+  // discarded.
+  const currentToken = getCurrentSessionToken();
+  if (globalConfig.pendingRestartSessionToken !== currentToken) {
+    if (globalConfig.pendingRestartPackages && globalConfig.pendingRestartPackages.length > 0) {
+      globalConfig.pendingRestartPackages = [];
+      needsSave = true;
+    }
+    globalConfig.pendingRestartSessionToken = currentToken;
+    needsSave = true;
+  }
 
   // Migrate registry: for each registered workspace, if `.west/` exists on
   // disk and `initialized` is unset, mark it initialized. Self-heals entries

@@ -143,6 +143,10 @@ export class SetupPanel {
     selectExistingWestWorkspace: "zephyr-ide.select-existing-west-workspace",
     openSettingsPanel: "zephyr-ide.open-settings-panel",
     openProjectBuildPanel: "zephyr-ide.open-project-build-panel",
+    // "Setup Global Install" — adopts (or creates) the user-level Zephyr
+    // installation directory and runs the west config flow against it. Hidden
+    // in the UI once globalInstallExists.
+    setupGlobalInstall: "zephyr-ide.setup-global-install",
     // "New Workspace" on the overview should land on the Workspace Setup
     // page with its option grid, not dive straight into a west.yml picker.
     // That gives the user a chance to choose current-folder vs external,
@@ -381,6 +385,7 @@ export class SetupPanel {
       westUpdated: wsConfig.activeSetupState?.westUpdated ?? false,
       initialSetupComplete: workspaceInitialized,
       hasWorkspaces,
+      globalInstallExists: !!dict?.[path.normalize(getToolsDir())] || !!dict?.[getToolsDir()],
       activeWorkspace,
       workspaces,
       projects,

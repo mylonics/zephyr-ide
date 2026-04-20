@@ -757,6 +757,10 @@
         "title": "Zephyr IDE: Setup Workspace from External Directory"
       },
       {
+        "command": "zephyr-ide.setup-global-install",
+        "title": "Zephyr IDE: Setup Global Install"
+      },
+      {
         "command": "zephyr-ide.west-config",
         "title": "Zephyr IDE: West Config"
       },

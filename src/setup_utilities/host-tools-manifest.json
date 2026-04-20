@@ -50,7 +50,7 @@
       { "name": "DTC (Device Tree Compiler)", "package": "device-tree-compiler", "check_command": "dtc --version" },
       { "name": "wget", "package": "wget", "check_command": "wget --version" },
       { "name": "Python3", "package": "python3-dev", "check_command": "python3 --version" },
-      { "name": "Python3 venv", "package": "python3-venv", "check_command": "python3 -m venv --help" },
+      { "name": "Python3 venv", "package": "python3-venv", "check_command": "python3 -m venv --help && python3 -c \"import ensurepip\"" },
       { "name": "Python3 Tkinter", "package": "python3-tk", "check_command": "python3 -c \"import tkinter\"" },
       { "name": "xz-utils", "package": "xz-utils", "check_command": "xz --version" },
       { "name": "file", "package": "file", "check_command": "file --version" },
@@ -92,6 +92,7 @@
     "winget": [
       { "name": "CMake", "package": "Kitware.CMake", "check_command": "cmake --version" },
       { "name": "Ninja-build", "package": "Ninja-build.Ninja", "check_command": "ninja --version" },
+      { "name": "Visual C++ Redistributable", "package": "Microsoft.VCRedist.2015+.x64", "check_command": "reg query \"HKLM\\SOFTWARE\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\x64\" /v Installed" },
       { "name": "gperf", "package": "oss-winget.gperf", "check_command": "gperf --version" },
       { "name": "Python3", "package": "python", "check_command": "python --version" },
       { "name": "Git", "package": "Git.Git", "check_command": "git --version" },
