@@ -133,15 +133,18 @@ export class VariablesTable extends ZephyrLitElement {
             </div>
           `,
     )}
-        <div class="variable-row">
-          <input class="variable-key-input" type="text" placeholder="name"
+        <div class="variable-row variable-row-add">
+          <input class="variable-key-input" type="text" placeholder="New variable name"
             .value=${this._addKey}
             @input=${(e: InputEvent) => { this._addKey = (e.target as HTMLInputElement).value; }}
             @keydown=${this._onAddKeydown} />
-          <input class="variable-value-input" type="text" placeholder="value"
+          <input class="variable-value-input" type="text" placeholder="Value"
             .value=${this._addValue}
             @input=${(e: InputEvent) => { this._addValue = (e.target as HTMLInputElement).value; }}
             @keydown=${this._onAddKeydown} />
+          <vscode-button appearance="icon" icon="add" title="Add variable"
+            @click=${() => this._addRow()}>
+          </vscode-button>
         </div>
       </div>
     `;

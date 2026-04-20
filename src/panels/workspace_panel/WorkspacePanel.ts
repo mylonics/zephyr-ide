@@ -489,9 +489,14 @@ export class WorkspacePanel {
       });
     } catch (error) {
       outputError("Workspace Panel", `Error loading west.yml: ${String(error)}`);
+      const message = error instanceof Error ? error.message : String(error);
       this._panel.webview.postMessage({
         command: "westYmlContent",
-        content: `# Error loading west.yml\n# ${error}`
+        content:
+          `# Failed to load west.yml\n` +
+          `# ${message}\n` +
+          `# \n` +
+          `# Verify that west has been initialized and the manifest file exists.`
       });
     }
   }

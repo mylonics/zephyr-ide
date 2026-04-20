@@ -31,9 +31,32 @@ export class BuildSection extends ZephyrLitElement {
   @property({ type: Boolean }) isActive = false;
   @property() projectName = "";
   @property({ type: Array }) variableCommands: WebviewVariableCommandInfo[] = [];
+  /**
+   * Build/flash/debug action currently in flight (or null when idle). When
+   * set, the matching button shows a spinner and the rest are disabled to
+   * prevent overlapping commands.
+   */
+  @property() activeAction: string | null = null;
 
-  @state() private _expandedSections: Record<string, boolean> = { config: true };
+  @state() private _expandedSections: Record<string, boolean> = this._loadExpandedState();
   @state() private _varsHelpVisible = false;
+
+  private _loadExpandedState(): Record<string, boolean> {
+    try {
+      const raw = (this.vscodeApi.getState() as { expandedSections?: Record<string, boolean> } | undefined);
+      if (raw && typeof raw.expandedSections === "object") {
+        return { config: true, ...raw.expandedSections };
+      }
+    } catch { /* ignore */ }
+    return { config: true };
+  }
+
+  private _persistExpandedState() {
+    try {
+      const prev = (this.vscodeApi.getState() as Record<string, unknown> | undefined) ?? {};
+      this.vscodeApi.setState({ ...prev, expandedSections: this._expandedSections });
+    } catch { /* ignore */ }
+  }
 
   disconnectedCallback() {
     super.disconnectedCallback();
@@ -45,6 +68,7 @@ export class BuildSection extends ZephyrLitElement {
       ...this._expandedSections,
       [sectionId]: !this._expandedSections[sectionId],
     };
+    this._persistExpandedState();
   }
 
   private _isExpanded(sectionId: string): boolean {
@@ -60,11 +84,13 @@ export class BuildSection extends ZephyrLitElement {
     const expanded = this._isExpanded(sectionId);
     return html`
       <div class="collapsible-section" aria-expanded=${expanded ? "true" : "false"}>
-        <div class="collapsible-header" @click=${() => this._toggle(sectionId)}>
+        <button type="button" class="collapsible-header"
+          aria-expanded=${expanded ? "true" : "false"}
+          @click=${() => this._toggle(sectionId)}>
           <span class="collapsible-chevron codicon codicon-chevron-right"></span>
           <span>${title}</span>
           ${headerRight ? html`<span class="collapsible-header-right">${headerRight}</span>` : nothing}
-        </div>
+        </button>
         ${expanded ? html`<div class="collapsible-body">${body}</div>` : nothing}
       </div>
     `;
@@ -104,7 +130,12 @@ export class BuildSection extends ZephyrLitElement {
     if (this._saveTimer) { clearTimeout(this._saveTimer); }
     this._saveTimer = setTimeout(() => {
       input.classList.remove("input-dirty");
-      this._upsertBuildArg(kind, index, input.value);
+      const trimmed = input.value.trim();
+      if (!trimmed) {
+        this._removeBuildArg(kind, index);
+      } else {
+        this._upsertBuildArg(kind, index, trimmed);
+      }
     }, 600);
   }
 
@@ -113,8 +144,18 @@ export class BuildSection extends ZephyrLitElement {
     const input = e.target as HTMLInputElement;
     if (this._saveTimer) { clearTimeout(this._saveTimer); this._saveTimer = null; }
     input.classList.remove("input-dirty");
-    this._upsertBuildArg(kind, index, input.value);
-    if (index < 0) { input.value = ""; } // clear add row after submit
+    const trimmed = input.value.trim();
+    if (index < 0) {
+      // Add row: only save non-empty, then clear
+      if (trimmed) { this._upsertBuildArg(kind, index, trimmed); }
+      input.value = "";
+    } else {
+      if (!trimmed) {
+        this._removeBuildArg(kind, index);
+      } else {
+        this._upsertBuildArg(kind, index, trimmed);
+      }
+    }
   }
 
   // --- Runner helpers ---
@@ -150,6 +191,32 @@ export class BuildSection extends ZephyrLitElement {
   }
 
   // --- Renderers ---
+
+  /**
+   * Render a build/flash/debug action button. Shows a spinner icon when this
+   * action is in flight and disables the rest while another action runs.
+   */
+  private _renderActionButton(
+    action: string,
+    icon: string,
+    label: string,
+    title: string,
+    appearance: 'primary' | 'secondary' = 'primary',
+  ) {
+    const isThisActive = this.activeAction === action;
+    const otherActive = this.activeAction !== null && !isThisActive;
+    const buttonIcon = isThisActive ? 'sync' : icon;
+    const buttonTitle = isThisActive ? `${title} in progress…` : title;
+    return html`
+      <vscode-button
+        appearance=${appearance === 'primary' ? 'primary' : 'secondary'}
+        icon=${buttonIcon}
+        ?disabled=${otherActive}
+        title=${buttonTitle}
+        @click=${() => this.postCommand(action)}>
+        ${label}
+      </vscode-button>`;
+  }
 
   private _renderBuildArgs(args: string[], kind: string) {
     const kindLabel = kind === "cmake" ? "CMake" : "west";
@@ -280,11 +347,12 @@ export class BuildSection extends ZephyrLitElement {
             <span class="build-status-badge ${statusClass}">${statusLabel}</span>
           </div>
           <div class="build-card-actions">
-            <vscode-button icon="play" @click=${() => this.postCommand("build")} title="Build">Build</vscode-button>
-            <vscode-button appearance="secondary" icon="refresh" @click=${() => this.postCommand("buildPristine")} title="Pristine Build">Pristine</vscode-button>
-            <vscode-button appearance="secondary" icon="zap" @click=${() => this.postCommand("flash")} title="Flash">Flash</vscode-button>
-            <vscode-button appearance="secondary" icon="debug-alt" @click=${() => this.postCommand("debug")} title="Debug">Debug</vscode-button>
+            ${this._renderActionButton('build', 'play', 'Build', 'Build')}
+            ${this._renderActionButton('buildPristine', 'refresh', 'Pristine', 'Pristine Build', 'secondary')}
+            ${this._renderActionButton('flash', 'zap', 'Flash', 'Flash', 'secondary')}
+            ${this._renderActionButton('debug', 'debug-alt', 'Debug', 'Debug', 'secondary')}
             <vscode-button appearance="icon" icon="trash" title="Remove Build"
+              ?disabled=${this.activeAction !== null}
               @click=${() => this.postCommand("removeBuild", { project: this.projectName, build: b.name })}>
             </vscode-button>
           </div>
@@ -320,11 +388,9 @@ export class BuildSection extends ZephyrLitElement {
               .kconfigFiles=${b.confFiles.config}
               kconfigAddCmd="addBuildConfigFile"
               kconfigRemoveCmd="removeBuildConfigFile"
-              kconfigToggleCmd="toggleBuildConfigFileExtra"
               .overlayFiles=${b.confFiles.overlay}
               overlayAddCmd="addBuildOverlayFile"
               overlayRemoveCmd="removeBuildOverlayFile"
-              overlayToggleCmd="toggleBuildOverlayFileExtra"
             ></config-file-group>`,
         )}
 

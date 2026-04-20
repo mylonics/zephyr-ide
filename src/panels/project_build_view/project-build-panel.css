@@ -282,6 +282,18 @@
   font-size: 13px;
   transition:
     background-color var(--zephyr-webview-transition-fast);
+  /* When rendered as <button>, neutralize defaults. */
+  width: 100%;
+  background: transparent;
+  color: inherit;
+  border: none;
+  text-align: left;
+  font-family: inherit;
+}
+
+.collapsible-header:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
 }
 
 .collapsible-header:hover {
@@ -382,7 +394,8 @@
 }
 
 .config-file-scroll {
-  max-height: 200px;
+  max-height: 360px;
+  overflow-y: auto;
 }
 
 .file-list-item {
@@ -397,10 +410,6 @@
   flex: 0 0 90px;
   display: flex;
   justify-content: center;
-}
-
-.file-mode-button {
-  flex: 0 0 90px;
 }
 
 .file-remove-button {
@@ -498,6 +507,14 @@
 
 .variable-row-add {
   border-bottom: none;
+  border-top: 2px solid var(--vscode-panel-border);
+  padding-top: 8px;
+  margin-top: 4px;
+  opacity: 0.8;
+}
+
+.variable-row-add:focus-within {
+  opacity: 1;
 }
 
 /* Dirty indicator for auto-save */

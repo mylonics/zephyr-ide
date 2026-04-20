@@ -96,6 +96,7 @@ export class SetupPanel {
   }
 
   private _htmlInitialized = false;
+  private _lastPostedJson = "";
 
   public updateContent(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
     this.currentWsConfig = wsConfig;
@@ -106,9 +107,16 @@ export class SetupPanel {
       this._htmlInitialized = true;
     }
 
+    const data = this.generatePanelData(wsConfig, globalConfig);
+    const json = JSON.stringify(data);
+    if (json === this._lastPostedJson) {
+      return;
+    }
+    this._lastPostedJson = json;
+
     void this._panel.webview.postMessage({
       command: "updateContent",
-      data: this.generatePanelData(wsConfig, globalConfig),
+      data,
     });
   }
 

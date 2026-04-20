@@ -340,19 +340,19 @@ export class ProjectBuildPanel {
 
         // Build actions
         case "build":
-          await vscode.commands.executeCommand("zephyr-ide.build");
+          await this.runBuildAction("build", "zephyr-ide.build");
           return;
         case "buildPristine":
-          await vscode.commands.executeCommand("zephyr-ide.build-pristine");
+          await this.runBuildAction("buildPristine", "zephyr-ide.build-pristine");
           return;
         case "flash":
-          await vscode.commands.executeCommand("zephyr-ide.flash");
+          await this.runBuildAction("flash", "zephyr-ide.flash");
           return;
         case "debug":
-          await vscode.commands.executeCommand("zephyr-ide.debug");
+          await this.runBuildAction("debug", "zephyr-ide.debug");
           return;
         case "buildDebug":
-          await vscode.commands.executeCommand("zephyr-ide.build-debug");
+          await this.runBuildAction("buildDebug", "zephyr-ide.build-debug");
           return;
 
         // Launch config
@@ -390,7 +390,7 @@ export class ProjectBuildPanel {
     if (!this._selectedProject || !message.file) {
       return;
     }
-    const isPrimary = message.extra !== "true";
+    const isPrimary = message.extra !== true && message.extra !== "true";
     await removeConfigFile(
       this._context,
       this._wsConfig,
@@ -408,24 +408,9 @@ export class ProjectBuildPanel {
     if (!this._selectedProject || !message.file) {
       return;
     }
-    const toggleCmd = String(message["toggle-cmd"] ?? "");
     const file = String(message.file);
-
-    // Determine isKConfig, isProject from the toggle command name
-    let isKConfig: boolean;
-    let isProject: boolean;
-    switch (toggleCmd) {
-      case "toggleProjectConfigFileExtra":
-        isKConfig = true; isProject = true; break;
-      case "toggleProjectOverlayFileExtra":
-        isKConfig = false; isProject = true; break;
-      case "toggleBuildConfigFileExtra":
-        isKConfig = true; isProject = false; break;
-      case "toggleBuildOverlayFileExtra":
-        isKConfig = false; isProject = false; break;
-      default:
-        return;
-    }
+    const isKConfig = message.isKConfig === "true";
+    const isProject = message.isProject === "true";
 
     const project = this._wsConfig.projects[this._selectedProject];
     if (!project) { return; }
@@ -615,6 +600,20 @@ export class ProjectBuildPanel {
   // ---------------------------------------------------------------------------
   // HTML generation
   // ---------------------------------------------------------------------------
+
+  /**
+   * Run a build/flash/debug action while telling the webview which action is
+   * in flight, so the matching button can show a spinner and the rest can be
+   * disabled. The webview is responsible for clearing state on `finished`.
+   */
+  private async runBuildAction(action: string, commandId: string): Promise<void> {
+    void this._panel.webview.postMessage({ command: "buildActionStatus", action, state: "started" });
+    try {
+      await vscode.commands.executeCommand(commandId);
+    } finally {
+      void this._panel.webview.postMessage({ command: "buildActionStatus", action, state: "finished" });
+    }
+  }
 
   private updateHtml() {
     const data = this.generatePanelData();

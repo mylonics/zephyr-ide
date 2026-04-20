@@ -97,14 +97,13 @@ export class ProjectSection extends ZephyrLitElement {
             <div class="project-detail-panel">
               <config-file-group
                 idPrefix="project-${info.name}"
+                ?isProject=${true}
                 .kconfigFiles=${info.confFiles.config}
                 kconfigAddCmd="addProjectConfigFile"
                 kconfigRemoveCmd="removeProjectConfigFile"
-                kconfigToggleCmd="toggleProjectConfigFileExtra"
                 .overlayFiles=${info.confFiles.overlay}
                 overlayAddCmd="addProjectOverlayFile"
                 overlayRemoveCmd="removeProjectOverlayFile"
-                overlayToggleCmd="toggleProjectOverlayFileExtra"
               ></config-file-group>
 
               <div class="variables-section">

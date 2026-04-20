@@ -27,6 +27,9 @@ import "./test-section";
 @customElement("project-build-app")
 export class ProjectBuildApp extends ZephyrLitElement {
   @state() private _data: ProjectBuildPanelData | undefined;
+  /** Build/flash/debug action currently in flight, or null when idle. */
+  @state() private _activeBuildAction: string | null = null;
+  @state() private _statusAnnouncement = "";
 
   connectedCallback() {
     super.connectedCallback();
@@ -44,6 +47,17 @@ export class ProjectBuildApp extends ZephyrLitElement {
     const msg = event.data;
     if (msg.command === "updateContent" && msg.data) {
       this._data = msg.data;
+      this._statusAnnouncement = "Project details updated";
+    } else if (msg.command === "buildActionStatus") {
+      if (msg.state === "started") {
+        this._activeBuildAction = msg.action ?? null;
+      } else if (msg.state === "finished") {
+        // Only clear if the finished action matches the active one — guards
+        // against late finished events from a previous click.
+        if (!msg.action || this._activeBuildAction === msg.action) {
+          this._activeBuildAction = null;
+        }
+      }
     }
   };
 
@@ -77,6 +91,7 @@ export class ProjectBuildApp extends ZephyrLitElement {
 
     return html`
       <div class="container panel-container">
+        <div class="sr-only" role="status" aria-live="polite">${this._statusAnnouncement}</div>
         <div class="page-header">
           <div>
             <h1 class="page-title"><i class="codicon codicon-project"></i> Project Details</h1>
@@ -143,6 +158,7 @@ export class ProjectBuildApp extends ZephyrLitElement {
                     .isActive=${d.isBuildActive}
                     .projectName=${d.selectedProject!}
                     .variableCommands=${d.variableCommands}
+                    .activeAction=${this._activeBuildAction}
                   ></build-section>`
             : nothing}
 

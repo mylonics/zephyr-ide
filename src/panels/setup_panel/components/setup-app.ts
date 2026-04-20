@@ -28,6 +28,12 @@ import type {
 @customElement("setup-app")
 export class SetupApp extends ZephyrLitElement {
   @state() private _data: SetupPanelData | undefined;
+  // Tracks paths/project names with an in-flight destructive action so the
+  // matching row can disable its trash button until the extension responds
+  // (modal resolved + state refresh sent back).
+  @state() private _pendingWorkspaceDeletes = new Set<string>();
+  @state() private _pendingProjectRemoves = new Set<string>();
+  @state() private _statusAnnouncement = "";
 
   connectedCallback() {
     super.connectedCallback();
@@ -44,6 +50,11 @@ export class SetupApp extends ZephyrLitElement {
     const msg = event.data;
     if (msg.command === "updateContent" && msg.data) {
       this._data = msg.data;
+      this._statusAnnouncement = "Overview updated";
+      // A fresh data snapshot means any in-flight destructive action has
+      // resolved (success or cancel) — clear pending markers so rows reset.
+      if (this._pendingWorkspaceDeletes.size) { this._pendingWorkspaceDeletes = new Set(); }
+      if (this._pendingProjectRemoves.size) { this._pendingProjectRemoves = new Set(); }
     }
   };
 
@@ -52,6 +63,8 @@ export class SetupApp extends ZephyrLitElement {
   }
 
   private _deleteWorkspace(path: string, name: string) {
+    if (this._pendingWorkspaceDeletes.has(path)) { return; }
+    this._pendingWorkspaceDeletes = new Set(this._pendingWorkspaceDeletes).add(path);
     this.vscodeApi.postMessage({ command: "deleteWorkspace", path, name });
   }
 
@@ -60,6 +73,8 @@ export class SetupApp extends ZephyrLitElement {
   }
 
   private _removeProject(name: string) {
+    if (this._pendingProjectRemoves.has(name)) { return; }
+    this._pendingProjectRemoves = new Set(this._pendingProjectRemoves).add(name);
     this.vscodeApi.postMessage({ command: "removeProject", name });
   }
 
@@ -95,6 +110,7 @@ export class SetupApp extends ZephyrLitElement {
 
     return html`
       <div class="panel-container" @keydown=${this._handleKeyboard}>
+        <div class="sr-only" role="status" aria-live="polite">${this._statusAnnouncement}</div>
         <div class="overview-section">
           <div class="walkthrough-header page-header">
             <div>
@@ -118,10 +134,10 @@ export class SetupApp extends ZephyrLitElement {
           ${!promoteWorkspaceList ? this._renderWorkspaceList(d) : nothing}
 
           <div class="docs-links-row">
-            <a href="https://zephyr-ide.mylonics.com" class="external-link">📖 Documentation</a>
-            <a href="https://docs.zephyrproject.org/latest/develop/getting_started/index.html" class="external-link">🚀 Getting Started</a>
-            <a href="https://docs.zephyrproject.org/latest/develop/west/index.html" class="external-link">🔧 West Docs</a>
-            <a href="https://github.com/mylonics/zephyr-ide/issues" class="external-link">💬 Get Help</a>
+            <a href="https://zephyr-ide.mylonics.com" class="external-link" target="_blank" rel="noopener noreferrer">📖 Documentation</a>
+            <a href="https://docs.zephyrproject.org/latest/develop/getting_started/index.html" class="external-link" target="_blank" rel="noopener noreferrer">🚀 Getting Started</a>
+            <a href="https://docs.zephyrproject.org/latest/develop/west/index.html" class="external-link" target="_blank" rel="noopener noreferrer">🔧 West Docs</a>
+            <a href="https://github.com/mylonics/zephyr-ide/issues" class="external-link" target="_blank" rel="noopener noreferrer">💬 Get Help</a>
           </div>
         </div>
       </div>
@@ -193,7 +209,7 @@ export class SetupApp extends ZephyrLitElement {
       const desc = d.folderOpen
         ? "Set up a west workspace to initialize your Zephyr development environment."
         : "Open a folder to get started with Zephyr development.";
-      const statusText = d.folderOpen ? "⚙ Setup Required" : "📁 No Folder Open";
+      const statusText = d.folderOpen ? "Setup Required" : "No Folder Open";
       cards.push(this._renderSetupCard("📁", title, statusText, "status-warning", desc, command, workspaceStep, false));
     }
 
@@ -202,7 +218,7 @@ export class SetupApp extends ZephyrLitElement {
       pills.push(this._renderPill("Zephyr SDK", "openSDKPanel"));
     } else {
       const isLocked = !d.hasValidSetupState;
-      const status = isLocked ? "⚠ Workspace Required" : "⚙ Setup Required";
+      const status = isLocked ? "Workspace Required" : "Setup Required";
       cards.push(this._renderSetupCard("📦", "Zephyr SDK Management", status, "status-warning",
         "Install and manage Zephyr SDK for different architectures and toolchains. Requires west workspace.",
         isLocked ? "" : "openSDKPanel", sdkStep, isLocked));
@@ -220,18 +236,21 @@ export class SetupApp extends ZephyrLitElement {
 
   private _renderPill(label: string, command: string) {
     return html`
-      <span class="setup-status-pill status-success" @click=${() => this._cmd(command)} role="button" tabindex="0" title="${label} installed and ready">
+      <span class="setup-status-pill status-success" @click=${() => this._cmd(command)} role="button" tabindex="0" data-keyboard-command="true" title="${label} installed and ready">
         <span class="codicon codicon-check"></span> ${label}
       </span>`;
   }
 
   private _renderSetupCard(icon: string, title: string, status: string, statusClass: string, description: string, command: string, stepNumber: number, locked: boolean) {
     const stepBadgeClass = locked ? "step-badge-locked" : "step-badge-active";
+    const ariaLabel = locked
+      ? `${title} (disabled): ${status}`
+      : `Open ${title}`;
     return html`
       <div class="overview-card${locked ? " overview-card-locked" : ""}"
         @click=${command ? () => this._cmd(command) : undefined}
         role="button" tabindex="${locked ? "-1" : "0"}"
-        ?aria-disabled=${locked} data-keyboard-command="true" aria-label="Open ${title}">
+        ?aria-disabled=${locked} data-keyboard-command="true" aria-label=${ariaLabel}>
         <div class="overview-card-header">
           <span class="step-badge ${stepBadgeClass}">${stepNumber}</span>
           <span class="overview-icon">${icon}</span>
@@ -255,7 +274,7 @@ export class SetupApp extends ZephyrLitElement {
       : html`<span class="workspace-active-badge status-warning">Setup Required</span>`;
 
     return html`
-      <div class="active-workspace-hero" @click=${() => this._openWorkspacePanelForPath(ws.path)} role="button" tabindex="0" aria-label="Active workspace" style="cursor:pointer">
+      <div class="active-workspace-hero" @click=${() => this._openWorkspacePanelForPath(ws.path)} role="button" tabindex="0" data-keyboard-command="true" aria-label="Open active workspace ${ws.name}">
         <div class="hero-info">
           <div class="hero-title-row">
             <span class="codicon codicon-root-folder-opened"></span>
@@ -288,13 +307,13 @@ export class SetupApp extends ZephyrLitElement {
     if (d.workspaceInitialized) {
       status = "✓ Initialized"; headerStatusClass = "status-success";
     } else if (d.activeWorkspace) {
-      status = "⚙ Setup Required"; headerStatusClass = "status-warning";
+      status = "Setup Required"; headerStatusClass = "status-warning";
     } else if (d.hasWorkspaces) {
-      status = "⚠ Activate Workspace"; headerStatusClass = "status-warning";
+      status = "Activate Workspace"; headerStatusClass = "status-warning";
     } else if (d.folderOpen) {
-      status = "⚙ Setup Workspace"; headerStatusClass = "status-warning";
+      status = "Setup Workspace"; headerStatusClass = "status-warning";
     } else {
-      status = "📁 No Folder"; headerStatusClass = "status-info";
+      status = "No Folder"; headerStatusClass = "status-info";
     }
 
     // The "New Workspace" button is always available from the workspace list
@@ -320,23 +339,43 @@ export class SetupApp extends ZephyrLitElement {
         </div>`;
     }
 
+    // When the active workspace already appears in the hero, omit it from
+    // this list to avoid showing the same workspace twice on the same page.
+    const visibleWorkspaces = d.activeWorkspace
+      ? d.workspaces.filter(ws => !ws.isActive)
+      : d.workspaces;
+
+    if (visibleWorkspaces.length === 0) {
+      // All workspaces represented by the hero — render header only with a
+      // short hint instead of an empty container.
+      return html`
+        <div class="workspace-list-section">
+          <div class="section-header-row">
+            <h3>Other West Workspaces</h3>
+            <div class="section-header-actions">${headerActions}</div>
+          </div>
+          <p class="description muted" style="margin: 8px 0 0 0;">No additional workspaces registered.</p>
+        </div>`;
+    }
+
     return html`
       <div class="workspace-list-section">
         <div class="section-header-row">
-          <h3>West Workspaces</h3>
+          <h3>${d.activeWorkspace ? 'Other West Workspaces' : 'West Workspaces'}</h3>
           <div class="section-header-actions">${headerActions}</div>
         </div>
         <div class="overview-scroll-container">
           <div class="workspace-list-container">
-            ${d.workspaces.map(ws => this._renderWorkspaceRow(ws))}
+            ${visibleWorkspaces.map(ws => this._renderWorkspaceRow(ws))}
           </div>
         </div>
       </div>`;
   }
 
   private _renderWorkspaceRow(ws: WorkspaceListItem) {
+    const pendingDelete = this._pendingWorkspaceDeletes.has(ws.path);
     return html`
-      <div class="workspace-list-row${ws.isActive ? " active" : ""}" @click=${() => this._openWorkspacePanelForPath(ws.path)} role="button" tabindex="0" style="cursor:pointer">
+      <div class="workspace-list-row${ws.isActive ? " active" : ""}" @click=${() => this._openWorkspacePanelForPath(ws.path)} role="button" tabindex="0" data-keyboard-command="true" aria-label="Open workspace ${ws.name}">
         <div class="workspace-list-info">
           <div class="workspace-list-name">
             <span class="codicon codicon-root-folder"></span>
@@ -345,7 +384,7 @@ export class SetupApp extends ZephyrLitElement {
           </div>
           <div class="workspace-list-detail">
             <span class="workspace-list-description">${ws.description}</span>
-            <span class="workspace-list-path">${ws.path}</span>
+            <span class="workspace-list-path" title=${ws.path}>${ws.path}</span>
             <span class="workspace-list-statuses">
               ${ws.hasPythonEnv ? html`<span class="workspace-status-icon status-success" title="Python environment ready">venv</span>` : nothing}
               ${ws.hasWestUpdated ? html`<span class="workspace-status-icon status-success" title="West updated">west</span>` : nothing}
@@ -353,8 +392,8 @@ export class SetupApp extends ZephyrLitElement {
           </div>
         </div>
         <div class="workspace-list-actions">
-          <vscode-button appearance="icon" title="Remove from registry" @click=${(e: Event) => { e.stopPropagation(); this._deleteWorkspace(ws.path, ws.name); }}>
-            <vscode-icon name="trash"></vscode-icon>
+          <vscode-button appearance="icon" title=${pendingDelete ? 'Removing…' : 'Remove from registry'} ?disabled=${pendingDelete} @click=${(e: Event) => { e.stopPropagation(); this._deleteWorkspace(ws.path, ws.name); }}>
+            <vscode-icon name=${pendingDelete ? 'sync' : 'trash'}></vscode-icon>
           </vscode-button>
         </div>
       </div>`;
@@ -391,8 +430,9 @@ export class SetupApp extends ZephyrLitElement {
 
   private _renderProjectRow(project: ProjectListItem) {
     const buildLabel = project.buildCount > 0 ? `${project.buildCount} build${project.buildCount > 1 ? "s" : ""}` : "";
+    const pendingRemove = this._pendingProjectRemoves.has(project.name);
     return html`
-      <div class="project-list-row${project.isActive ? " active" : ""}" @click=${() => this._cmd("openProjectBuildPanel")} role="button" tabindex="0" style="cursor:pointer">
+      <div class="project-list-row${project.isActive ? " active" : ""}" @click=${() => this._cmd("openProjectBuildPanel")} role="button" tabindex="0" data-keyboard-command="true" aria-label="Open project ${project.name}">
         <div class="workspace-list-info">
           <div class="workspace-list-name">
             <span class="codicon codicon-symbol-folder"></span>
@@ -402,8 +442,8 @@ export class SetupApp extends ZephyrLitElement {
           </div>
         </div>
         <div class="workspace-list-actions">
-          <vscode-button appearance="icon" title="Remove project" @click=${(e: Event) => { e.stopPropagation(); this._removeProject(project.name); }}>
-            <vscode-icon name="trash"></vscode-icon>
+          <vscode-button appearance="icon" title=${pendingRemove ? 'Removing…' : 'Remove project'} ?disabled=${pendingRemove} @click=${(e: Event) => { e.stopPropagation(); this._removeProject(project.name); }}>
+            <vscode-icon name=${pendingRemove ? 'sync' : 'trash'}></vscode-icon>
           </vscode-button>
         </div>
       </div>`;

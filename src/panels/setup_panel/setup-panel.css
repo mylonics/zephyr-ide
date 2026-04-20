@@ -100,6 +100,11 @@
     transform: translateY(-1px);
 }
 
+.overview-card:focus-visible {
+    outline: 2px solid var(--vscode-focusBorder);
+    outline-offset: -2px;
+}
+
 .overview-card-locked {
     opacity: 0.6;
     cursor: default;
@@ -404,6 +409,7 @@
     border: 1px solid var(--vscode-panel-border);
     border-radius: var(--zephyr-webview-radius);
     background-color: var(--vscode-input-background);
+    cursor: pointer;
     transition: border-color var(--zephyr-webview-transition-fast),
                 background-color var(--zephyr-webview-transition-fast);
 }
@@ -462,11 +468,16 @@
     flex-wrap: wrap;
     font-size: 11px;
     color: var(--vscode-descriptionForeground);
+    min-width: 0;
 }
 
 .workspace-list-path {
     opacity: 0.7;
-    word-break: break-all;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    flex: 1 1 auto;
 }
 
 .workspace-list-statuses {
@@ -509,6 +520,7 @@
     border-radius: var(--zephyr-webview-radius);
     background-color: var(--vscode-input-background);
     box-shadow: var(--zephyr-webview-surface-shadow);
+    cursor: pointer;
 }
 
 .hero-info {
@@ -599,7 +611,7 @@
    =================================================================== */
 
 .overview-scroll-container {
-    max-height: 240px;
+    max-height: min(50vh, 480px);
     overflow-y: auto;
     border: 1px solid var(--vscode-panel-border);
     border-radius: var(--zephyr-webview-radius);
@@ -626,6 +638,7 @@
     border: 1px solid var(--vscode-panel-border);
     border-radius: var(--zephyr-webview-radius);
     background-color: var(--vscode-input-background);
+    cursor: pointer;
     transition: border-color var(--zephyr-webview-transition-fast),
                 background-color var(--zephyr-webview-transition-fast);
 }
