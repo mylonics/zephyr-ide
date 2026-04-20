@@ -623,7 +623,7 @@ export async function executeShellCommand(cmd: string, cwd: string, display_erro
     // process.env is case-insensitive on Windows, but spreading it into a
     // plain object can produce both "PATH" and "Path" keys.  PowerShell
     // reads "Path", so consolidate all PATH-like keys into a single "Path"
-    // entry.
+    // entry.  This also handles 7-Zip injection in the same pass.
     if (!execOptions.env) {
       execOptions.env = { ...effectiveEnv };
     }
@@ -639,7 +639,21 @@ export async function executeShellCommand(cmd: string, cwd: string, display_erro
         delete envObj[key];
       }
     }
-    envObj["Path"] = pathValues.join(";");
+    const consolidatedPath = pathValues.join(";");
+
+    // Ensure 7-Zip is on PATH so that west/sdk operations that shell out to
+    // 7z.exe work immediately.  The directory may be missing from PATH when
+    // refreshWindowsPath() rebuilds it from the registry before the
+    // post-install step has persisted the entry, or in CI environments.
+    const sevenZipDir = "C:\\Program Files\\7-Zip";
+    const hasSevenZip = consolidatedPath.split(";").some(
+      entry => entry.toLowerCase() === sevenZipDir.toLowerCase()
+    );
+    if (!hasSevenZip && fs.existsSync(sevenZipDir)) {
+      envObj["Path"] = `${sevenZipDir};${consolidatedPath}`;
+    } else {
+      envObj["Path"] = consolidatedPath;
+    }
   }
 
   const res = await exec(cmd, execOptions).then(
