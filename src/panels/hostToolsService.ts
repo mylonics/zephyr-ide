@@ -35,6 +35,7 @@ import { notifyError, notifyWarning } from '../utilities/output';
  */
 export const HOST_TOOLS_COMMANDS = {
   updateStatus: 'hostToolsUpdateStatus',
+  packageChecked: 'hostToolsPackageChecked',
   packageInstalling: 'hostToolsPackageInstalling',
   packageInstalled: 'hostToolsPackageInstalled',
   startInstallAll: 'hostToolsStartInstallAll',
@@ -82,16 +83,36 @@ export class HostToolsService {
       }
 
       const managerAvailable = await checkPackageManagerAvailable();
-      const packageStatuses = await checkAllPackages();
+      const packages = await getPlatformPackages();
+
+      // Send the full package list immediately with `checking: true` so the UI
+      // can render every card with a "Checking…" spinner right away.
+      const initialStatuses = packages.map(pkg => ({
+        name: pkg.name,
+        package: pkg.package,
+        available: false,
+      }));
 
       this.post(HOST_TOOLS_COMMANDS.updateStatus, {
         data: {
           managerName: manager.name,
           managerAvailable,
           managerInstallUrl: manager.config.install_url,
-          packages: packageStatuses,
+          packages: initialStatuses,
+          checking: true,
         },
       });
+
+      // Check each package in parallel and post per-package updates as they
+      // complete, so the user sees results stream in rather than waiting for
+      // the entire batch.
+      await Promise.all(packages.map(async (pkg) => {
+        const status = await checkPackageAvailable(pkg);
+        this.post(HOST_TOOLS_COMMANDS.packageChecked, {
+          packageName: status.name,
+          available: status.available,
+        });
+      }));
     } catch (error) {
       this.post(HOST_TOOLS_COMMANDS.updateStatus, { error: String(error) });
     }
@@ -184,6 +205,9 @@ export class HostToolsService {
 
       const totalCount = packageNames.length;
       const packages = await getPlatformPackages();
+      // Resolve the package manager once and reuse it for every installPackage()
+      // call below, avoiding N redundant async platform-detection lookups.
+      const manager = await getPackageManagerForPlatformAsync();
 
       this.post(HOST_TOOLS_COMMANDS.installAllStarted, { total: totalCount });
 
@@ -199,7 +223,7 @@ export class HostToolsService {
             total: totalCount,
           });
 
-          const success = await installPackage(pkg);
+          const success = await installPackage(pkg, manager ?? undefined);
           installedCount++;
 
           const installedPkg = await checkPackageAvailable(pkg);

@@ -37,9 +37,11 @@ export interface HostToolsStatusData {
   managerAvailable: boolean;
   managerInstallUrl?: string;
   packages: PackageStatus[];
+  /** When true, all packages are pending their initial availability check. */
+  checking?: boolean;
 }
 
-export type PackageState = 'installing' | 'installed' | 'pending-restart' | 'error';
+export type PackageState = 'checking' | 'installing' | 'installed' | 'pending-restart' | 'error';
 
 export interface InstallationState {
   inProgress: boolean;
@@ -63,6 +65,7 @@ const OUTBOUND_COMMANDS = {
 
 const INBOUND_COMMANDS = {
   updateStatus: 'hostToolsUpdateStatus',
+  packageChecked: 'hostToolsPackageChecked',
   startInstallAll: 'hostToolsStartInstallAll',
   installAllStarted: 'hostToolsInstallAllStarted',
   packageInstalling: 'hostToolsPackageInstalling',
@@ -90,10 +93,16 @@ function getPackageDisplayInfo(
   managerAvailable: boolean
 ): PackageDisplayInfo {
   const savedState = state.packageStates[pkg.name];
-  const isInstalling = savedState === 'installing';
-  const isPendingRestart = savedState === 'pending-restart';
 
-  if (isInstalling) {
+  if (savedState === 'checking') {
+    return {
+      itemClass: 'checking',
+      statusClass: 'status-checking',
+      statusText: '<span class="codicon codicon-sync codicon-modifier-spin"></span> Checking',
+      showInstallButton: false,
+    };
+  }
+  if (savedState === 'installing') {
     return {
       itemClass: 'installing',
       statusClass: 'status-installing',
@@ -101,7 +110,7 @@ function getPackageDisplayInfo(
       showInstallButton: false,
     };
   }
-  if (isPendingRestart) {
+  if (savedState === 'pending-restart') {
     return {
       itemClass: 'pending-restart',
       statusClass: 'status-pending-restart',
@@ -128,8 +137,11 @@ function getPackageDisplayInfo(
 function countMissing(packages: PackageStatus[], state: InstallationState): number {
   let count = 0;
   for (const pkg of packages) {
-    const isPendingRestart = state.packageStates[pkg.name] === 'pending-restart';
-    if (!pkg.available && !isPendingRestart) {
+    const s = state.packageStates[pkg.name];
+    // Exclude packages that are actively installing or already completed in this
+    // session — they should not inflate the "Not Available" summary count.
+    const clientResolved = s === 'pending-restart' || s === 'installing' || s === 'installed' || s === 'checking';
+    if (!pkg.available && !clientResolved) {
       count++;
     }
   }
@@ -167,6 +179,7 @@ export class HostToolsClient {
         case 'installPackage': this.installPackage(pkg); break;
         case 'installPackageManager': this.installPackageManager(); break;
         case 'openManagerInstallUrl': this.openManagerInstallUrl(); break;
+        case 'navigateToSetup': this.navigateToSetup(); break;
       }
     });
   }
@@ -212,6 +225,10 @@ export class HostToolsClient {
       }
       return true;
     }
+    if (cmd === INBOUND_COMMANDS.packageChecked) {
+      this.handlePackageChecked(message.packageName, message.available);
+      return true;
+    }
     if (cmd === INBOUND_COMMANDS.startInstallAll) {
       this.handleStartInstallAll();
       return true;
@@ -251,6 +268,15 @@ export class HostToolsClient {
         packagesToInstall.push(pkg.name);
       }
     }
+
+    if (packagesToInstall.length === 0) {
+      return;
+    }
+
+    // Close the double-click race window: mark in-progress immediately so a
+    // second rapid click sees the flag before the round-trip to the extension
+    // returns with 'installAllStarted'.
+    this.state.inProgress = true;
 
     this.vscode.postMessage({
       command: OUTBOUND_COMMANDS.installAllMissingPackages,
@@ -322,6 +348,8 @@ export class HostToolsClient {
       }
     }
 
+    // Keep the completion/error label visible for 2 seconds so the user can
+    // read the outcome, then re-enable controls and refresh to the latest state.
     setTimeout(() => {
       this.disableAllButtons(false);
       this.refreshStatus();
@@ -329,11 +357,118 @@ export class HostToolsClient {
   }
 
   // -----------------------------------------------------------------------
+  // Status checking flow
+  // -----------------------------------------------------------------------
+
+  private handlePackageChecked(packageName: string, available: boolean): void {
+    // Update the cached status data with the real check result.
+    if (this.currentStatus) {
+      const pkg = this.currentStatus.packages.find(p => p.name === packageName);
+      if (pkg) {
+        pkg.available = available;
+      }
+    }
+
+    // Clear the 'checking' state — the package now shows its real status.
+    delete this.state.packageStates[packageName];
+
+    // Patch just this one card/row in-place.
+    this.refreshSinglePackage(packageName);
+
+    // Update summary counts and action buttons to reflect the new state.
+    if (this.currentStatus) {
+      this.updateSummary();
+      const actuallyMissing = countMissing(this.currentStatus.packages, this.state);
+      this.updateActionButtons(actuallyMissing, this.currentStatus.managerAvailable);
+    }
+  }
+
+  /**
+   * Re-render a single package card or table row from the current status data.
+   * Unlike updatePackageCard (which maps a PackageState to fixed HTML), this
+   * method uses getPackageDisplayInfo so the rendered output always reflects
+   * the combined server + client state.
+   */
+  private refreshSinglePackage(packageName: string): void {
+    if (!this.currentStatus) { return; }
+    const pkg = this.currentStatus.packages.find(p => p.name === packageName);
+    if (!pkg) { return; }
+
+    const info = getPackageDisplayInfo(pkg, this.state, this.currentStatus.managerAvailable);
+
+    if (this.displayMode === 'cards') {
+      const el = document.querySelector(`[data-package-name="${packageName}"]`) as HTMLElement | null;
+      if (!el) { return; }
+
+      el.classList.remove('available', 'missing', 'installing', 'pending-restart', 'checking');
+      el.classList.add(info.itemClass);
+
+      const badge = el.querySelector('.status-badge');
+      if (badge) {
+        badge.classList.remove('status-available', 'status-missing', 'status-installing', 'status-pending-restart', 'status-checking');
+        badge.classList.add(info.statusClass);
+        badge.innerHTML = info.statusText;
+      }
+
+      const actionArea = el.querySelector('.package-actions');
+      if (actionArea) {
+        const btn = actionArea.querySelector('vscode-button') as HTMLElement | null;
+        if (btn) { btn.style.display = info.showInstallButton ? '' : 'none'; }
+      }
+    } else {
+      const row = document.querySelector(`tr[data-package-name="${packageName}"]`) as HTMLElement | null;
+      if (!row) { return; }
+      const statusCell = row.querySelector('td:nth-child(2)');
+      const actionCell = row.querySelector('td:nth-child(3)');
+      if (statusCell) {
+        statusCell.innerHTML = `<span class="${info.statusClass}">${info.statusText}</span>`;
+      }
+      if (actionCell) {
+        actionCell.innerHTML = info.showInstallButton
+          ? `<vscode-button class="install-inline-btn" appearance="secondary" data-action="installPackage" data-package="${escapeHtml(packageName)}">Install</vscode-button>`
+          : '';
+      }
+    }
+  }
+
+  /**
+   * Update the summary counts box (cards mode) in-place without re-rendering
+   * the full package list.
+   */
+  private updateSummary(): void {
+    if (!this.currentStatus || this.displayMode !== 'cards') { return; }
+
+    const availableCount = this.currentStatus.packages.filter(
+      p => p.available || this.state.packageStates[p.name] === 'installed'
+    ).length;
+    const actuallyMissing = countMissing(this.currentStatus.packages, this.state);
+    const totalCount = this.currentStatus.packages.length;
+
+    const summaryBox = document.querySelector('.summary-box');
+    if (summaryBox) {
+      const counts = summaryBox.querySelectorAll('.summary-count');
+      if (counts.length >= 3) {
+        counts[0].textContent = String(availableCount);
+        counts[1].textContent = String(actuallyMissing);
+        counts[2].textContent = String(totalCount);
+      }
+    }
+  }
+
+  // -----------------------------------------------------------------------
   // DOM rendering
   // -----------------------------------------------------------------------
 
+  /**
+   * Enable or disable install-related buttons only.
+   * "Refresh Status" (#refresh-btn) and "Skip & Mark as Complete" (#mark-complete-btn)
+   * are intentionally excluded so users can still check status or abort if an
+   * installation hangs.
+   */
   private disableAllButtons(disable: boolean): void {
-    document.querySelectorAll('vscode-button').forEach(btn => {
+    const installAllBtn = document.getElementById('install-all-btn');
+    if (installAllBtn) { installAllBtn.toggleAttribute('disabled', disable); }
+    document.querySelectorAll<HTMLElement>('.install-inline-btn').forEach(btn => {
       btn.toggleAttribute('disabled', disable);
     });
   }
@@ -353,6 +488,14 @@ export class HostToolsClient {
   }
 
   displayStatus(data: HostToolsStatusData): void {
+    // When the extension signals that checks are starting, mark every package as
+    // 'checking' so the initial render shows spinner indicators immediately.
+    if (data.checking) {
+      for (const pkg of data.packages) {
+        this.state.packageStates[pkg.name] = 'checking';
+      }
+    }
+
     if (this.displayMode === 'cards') {
       this.displayStatusCards(data);
     } else {
@@ -387,7 +530,12 @@ export class HostToolsClient {
     const el = document.getElementById('manager-status');
     if (el) { el.innerHTML = managerHtml; }
 
-    const availableCount = data.packages.filter(p => p.available).length;
+    // Include packages that have been installed in this session (client state
+    // 'installed') so the Available count updates immediately without waiting
+    // for the next status refresh from the extension.
+    const availableCount = data.packages.filter(
+      p => p.available || this.state.packageStates[p.name] === 'installed'
+    ).length;
     const actuallyMissing = countMissing(data.packages, this.state);
     const totalCount = data.packages.length;
 
@@ -478,15 +626,47 @@ export class HostToolsClient {
     }
   }
 
+  /** Post the 'openSetupPanel' command to navigate back to the setup panel. */
+  navigateToSetup(): void {
+    this.vscode.postMessage({ command: 'openSetupPanel' });
+  }
+
   private updateActionButtons(actuallyMissing: number, managerAvailable: boolean): void {
     const installAllBtn = document.getElementById('install-all-btn');
     const markCompleteBtn = document.getElementById('mark-complete-btn');
 
-    if (installAllBtn) {
-      installAllBtn.toggleAttribute('disabled', !(actuallyMissing > 0 && managerAvailable && !this.state.inProgress));
+    // Are any packages still waiting for their initial availability check?
+    const stillChecking = this.currentStatus?.packages.some(
+      p => this.state.packageStates[p.name] === 'checking'
+    ) ?? false;
+
+    if (installAllBtn && !this.state.inProgress) {
+      if (stillChecking) {
+        // Checks still running — show a spinner label and keep the button disabled.
+        installAllBtn.setAttribute('disabled', '');
+        installAllBtn.removeAttribute('data-action');
+        installAllBtn.innerHTML = `<vscode-icon slot="start-icon" name="loading" spin></vscode-icon> Checking Packages\u2026`;
+      } else if (actuallyMissing === 0) {
+        // All tools are available — pivot the primary action button into a CTA
+        // that takes the user to the next step instead of installing nothing.
+        installAllBtn.removeAttribute('disabled');
+        installAllBtn.setAttribute('data-action', 'navigateToSetup');
+        installAllBtn.innerHTML = `<vscode-icon slot="start-icon" name="arrow-right"></vscode-icon> Open Setup Panel`;
+      } else {
+        // Normal install mode — reset in case button was previously in CTA mode.
+        installAllBtn.removeAttribute('data-action');
+        installAllBtn.toggleAttribute('disabled', !(managerAvailable && !this.state.inProgress));
+        installAllBtn.innerHTML = `<vscode-icon slot="start-icon" name="cloud-download"></vscode-icon> Install All Missing Packages`;
+      }
+    } else if (installAllBtn) {
+      installAllBtn.setAttribute('disabled', '');
     }
+
     if (markCompleteBtn) {
-      markCompleteBtn.toggleAttribute('disabled', !(actuallyMissing > 0));
+      // Keep the skip button enabled only when there are still missing tools
+      // and all checks have finished; once everything is available the primary
+      // CTA above serves as forward navigation, so "Skip" would be misleading.
+      markCompleteBtn.toggleAttribute('disabled', stillChecking || !(actuallyMissing > 0));
     }
   }
 
@@ -508,10 +688,19 @@ export class HostToolsClient {
     const actionButtons = packageItem.querySelector('.package-actions');
     if (!statusBadge) { return; }
 
-    packageItem.classList.remove('available', 'missing', 'installing', 'pending-restart');
-    statusBadge.classList.remove('status-available', 'status-missing', 'status-installing', 'status-pending-restart');
+    packageItem.classList.remove('available', 'missing', 'installing', 'pending-restart', 'checking');
+    statusBadge.classList.remove('status-available', 'status-missing', 'status-installing', 'status-pending-restart', 'status-checking');
 
     switch (state) {
+      case 'checking':
+        packageItem.classList.add('checking');
+        statusBadge.classList.add('status-checking');
+        statusBadge.innerHTML = '<span class="codicon codicon-sync codicon-modifier-spin"></span> Checking';
+        if (actionButtons) {
+          const installBtn = actionButtons.querySelector('vscode-button') as HTMLElement | null;
+          if (installBtn) { installBtn.style.display = 'none'; }
+        }
+        break;
       case 'installing':
         packageItem.classList.add('installing');
         statusBadge.classList.add('status-installing');
@@ -525,6 +714,11 @@ export class HostToolsClient {
         packageItem.classList.add('available');
         statusBadge.classList.add('status-available');
         statusBadge.innerHTML = '✓ Installed';
+        // Hide the inline Install button — the package is now available
+        if (actionButtons) {
+          const installBtn = actionButtons.querySelector('vscode-button') as HTMLElement | null;
+          if (installBtn) { installBtn.style.display = 'none'; }
+        }
         break;
       case 'pending-restart':
         packageItem.classList.add('pending-restart');
@@ -549,6 +743,10 @@ export class HostToolsClient {
     if (!statusCell) { return; }
 
     switch (state) {
+      case 'checking':
+        statusCell.innerHTML = '<span class="info"><span class="codicon codicon-sync codicon-modifier-spin"></span> Checking</span>';
+        if (actionCell) { actionCell.innerHTML = ''; }
+        break;
       case 'installing':
         statusCell.innerHTML = '<span class="info"><span class="codicon codicon-sync codicon-modifier-spin"></span> Installing</span>';
         if (actionCell) { actionCell.innerHTML = ''; }

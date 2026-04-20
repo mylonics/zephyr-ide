@@ -87,6 +87,11 @@ h2 {
     color: var(--vscode-terminal-ansiYellow);
 }
 
+.status-checking {
+    background-color: color-mix(in srgb, var(--vscode-descriptionForeground) 15%, transparent);
+    color: var(--vscode-descriptionForeground);
+}
+
 .package-list {
     display: grid;
     gap: 10px;
@@ -133,6 +138,10 @@ h2 {
 .package-item.pending-restart {
     border-left: 3px solid color-mix(in srgb, var(--vscode-terminal-ansiYellow) 50%, transparent);
     background-color: color-mix(in srgb, var(--vscode-terminal-ansiYellow) 5%, var(--vscode-input-background));
+}
+
+.package-item.checking {
+    border-left: 3px solid color-mix(in srgb, var(--vscode-descriptionForeground) 40%, transparent);
 }
 
 .package-info {
