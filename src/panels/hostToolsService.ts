@@ -23,6 +23,7 @@ import {
   checkPackageAvailable,
   installPackageManager as installPkgMgr,
   installPackage,
+  installPackagesBatch,
   getPlatformPackages,
   cacheSudoCredentials,
 } from '../setup_utilities/host_tools';
@@ -247,9 +248,8 @@ export class HostToolsService {
         total: 1,
       });
 
-      // Cache sudo credentials up-front on Linux so the install command can
-      // run with `sudo -n` and not block on a password prompt inside the task
-      // terminal. No-op on other platforms.
+      // Cache sudo credentials up-front on Linux to reduce repeated password
+      // prompts during package installation. No-op on other platforms.
       await cacheSudoCredentials();
 
       const success = await installPackage(pkg);
@@ -313,13 +313,81 @@ export class HostToolsService {
 
       this.post(HOST_TOOLS_COMMANDS.installAllStarted, { total: totalCount });
 
-      // Cache sudo credentials up-front on Linux so each `sudo -n apt install`
-      // below succeeds without a per-package password prompt. No-op on other
-      // platforms.
+      // Cache sudo credentials up-front on Linux to reduce repeated password
+      // prompts across package installs. No-op on other platforms.
       await cacheSudoCredentials();
 
       let installedCount = 0;
       let hasErrors = false;
+
+      const packagesToInstall = packageNames
+        .map((packageName) => packages.find(p => p.name === packageName))
+        .filter((pkg): pkg is NonNullable<typeof pkg> => !!pkg);
+
+      // On Linux/apt, run one batch install command so sudo prompts once for
+      // the bulk install operation instead of once per package task.
+      if (manager?.name === 'apt' && packagesToInstall.length > 1) {
+        for (const pkg of packagesToInstall) {
+          this.post(HOST_TOOLS_COMMANDS.packageInstalling, {
+            packageName: pkg.name,
+            current: installedCount + 1,
+            total: totalCount,
+          });
+          installedCount++;
+        }
+
+        const batchSuccess = await installPackagesBatch(packagesToInstall, manager);
+
+        for (const pkg of packagesToInstall) {
+          const installedPkg = await checkPackageAvailable(pkg);
+          const success = batchSuccess;
+          const pendingRestart = success && !installedPkg.available;
+
+          if (success) {
+            await this.persistPendingRestart(pkg.name, pendingRestart);
+          }
+
+          this.post(HOST_TOOLS_COMMANDS.packageInstalled, {
+            packageName: pkg.name,
+            success,
+            pendingRestart,
+            current: packageNames.indexOf(pkg.name) + 1,
+            total: totalCount,
+          });
+
+          if (!success) {
+            hasErrors = true;
+          }
+        }
+
+        const packageStatuses = await checkAllPackages();
+        const justInstalledNames = new Set(packageNames);
+        const needsRestart = packageStatuses
+          .filter(p => justInstalledNames.has(p.name))
+          .some(p => !p.available);
+
+        this.post(HOST_TOOLS_COMMANDS.installAllComplete, {
+          needsRestart,
+          hasErrors,
+        });
+
+        if (needsRestart) {
+          notifyWarning(this.config.errorLabel,
+            'Some packages were installed but are not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect.'
+          );
+        } else if (!hasErrors) {
+          void vscode.window.showInformationMessage('All missing packages installed successfully.');
+        } else {
+          notifyWarning(this.config.errorLabel, 'Some host tools failed to install. Check the output for details.');
+        }
+
+        await this.maybeMarkToolsAvailable();
+
+        if (this.config.recheckAfterBatchInstall) {
+          await this.checkStatus();
+        }
+        return;
+      }
 
       for (const packageName of packageNames) {
         const pkg = packages.find(p => p.name === packageName);
@@ -406,6 +474,10 @@ export class HostToolsService {
     await saveSetupState(context, wsConfig, globalConfig);
 
     void vscode.window.showInformationMessage(this.config.markCompleteMessage);
+
+    // Notify listeners that toolsAvailable changed so the tree view and overview
+    // panel can refresh their "Setup Required" / "Ready" status immediately.
+    this.config.onStatusChanged?.();
 
     if (this.config.onMarkComplete) {
       this.config.onMarkComplete();

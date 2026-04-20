@@ -79,7 +79,12 @@ export class HostToolInstallView {
     this._context = context;
     this._service = new HostToolsService(panel.webview, {
       ...HOST_TOOL_INSTALL_VIEW_CONFIG,
-      onStatusChanged: () => this.refreshAfterStatusChange(),
+      onStatusChanged: () => {
+        this.refreshAfterStatusChange();
+        // Propagate state changes (toolsAvailable, pendingRestart list) to all
+        // other views — ExtensionSetupView tree badge and SetupPanel overview.
+        void vscode.commands.executeCommand("zephyr-ide.update-web-view");
+      },
     });
     this._service.setStateRefs({ context, wsConfig, globalConfig });
 

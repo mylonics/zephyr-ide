@@ -66,37 +66,37 @@ async function refreshWindowsPath(): Promise<void> {
   if (process.platform !== 'win32') {
     return;
   }
-  
+
   try {
     logDual("[HOST TOOLS] Refreshing Windows PATH environment variable...");
-    
+
     // Get Machine and User PATH from registry
     const machinePathCmd = `powershell -Command "[System.Environment]::GetEnvironmentVariable('Path','Machine')"`;
     const userPathCmd = `powershell -Command "[System.Environment]::GetEnvironmentVariable('Path','User')"`;
-    
+
     const machinePathResult = await executeShellCommand(machinePathCmd, '', false);
     const userPathResult = await executeShellCommand(userPathCmd, '', false);
-    
+
     const machinePath = machinePathResult.stdout?.trim() || '';
     const userPath = userPathResult.stdout?.trim() || '';
-    
+
     // Combine Machine and User paths
     const registryPath = machinePath + (userPath ? ';' + userPath : '');
-    
+
     if (registryPath) {
       // Merge registry paths with existing process PATH to preserve any
       // paths added at the process level (e.g. GITHUB_PATH in CI, or
       // paths added by the VS Code extension host).
       const registryEntries = registryPath.split(';').filter(Boolean);
       const currentEntries = (process.env.PATH || '').split(';').filter(Boolean);
-      
+
       // Build a set of registry entries (lowercased) for deduplication
       const registrySet = new Set(registryEntries.map(e => e.toLowerCase()));
-      
+
       // Keep any current PATH entries that are NOT in the registry
       // (these were added at the process level and should be preserved)
       const extraEntries = currentEntries.filter(e => !registrySet.has(e.toLowerCase()));
-      
+
       // Final PATH: registry paths first, then any extra process-level paths
       const mergedPath = [...registryEntries, ...extraEntries].join(';');
       process.env.PATH = mergedPath;
@@ -296,25 +296,14 @@ async function addDeadsnakesPPAIfNeeded(): Promise<boolean> {
 
   outputInfo("Host Tools", "python3.12 not found in default apt repos — adding deadsnakes PPA...");
 
-  // `add-apt-repository` lives in software-properties-common which may not
-  // be present on minimal Ubuntu installs.
-  const spOk = await executeTaskHelper(
-    "Install software-properties-common",
-    "sudo -n apt install -y --no-install-recommends software-properties-common",
-    ""
-  );
-  if (!spOk) {
-    outputError("Host Tools", "Failed to install software-properties-common; cannot add deadsnakes PPA");
-    return false;
-  }
-
+  // Keep this in one task so sudo prompts at most once for this PPA flow.
   const ppaOk = await executeTaskHelper(
-    "Add deadsnakes PPA for Python 3.12",
-    "sudo -n add-apt-repository -y ppa:deadsnakes/ppa && sudo -n apt-get update -qq",
+    "Configure deadsnakes PPA for Python 3.12",
+    "sudo apt install -y --no-install-recommends software-properties-common && sudo add-apt-repository -y ppa:deadsnakes/ppa && sudo apt-get update -qq",
     ""
   );
   if (!ppaOk) {
-    outputError("Host Tools", "Failed to add deadsnakes/ppa");
+    outputError("Host Tools", "Failed to configure deadsnakes/ppa");
     return false;
   }
 
@@ -324,8 +313,8 @@ async function addDeadsnakesPPAIfNeeded(): Promise<boolean> {
 
 /**
  * Cache sudo credentials up-front by running `sudo -v` in an interactive task
- * terminal. Subsequent `sudo -n` calls within the sudo timestamp window
- * (typically 5-15 minutes) succeed without prompting again.
+ * terminal. Subsequent sudo calls may reuse cached credentials depending on
+ * sudoers policy and terminal reuse.
  *
  * No-op on non-Linux platforms. Returns true if credentials are now cached
  * (or platform doesn't need sudo), false if the user dismissed the prompt or
@@ -362,14 +351,14 @@ export async function cacheSudoCredentials(): Promise<boolean> {
 export async function getPlatformPackages(): Promise<PlatformPackage[]> {
   const manifest = loadHostToolsManifest();
   const manager = await getPackageManagerForPlatformAsync();
-  
+
   if (!manager) {
     return [];
   }
 
   const packages = manifest.platform_packages[manager.name] || [];
   const arch = getPlatformArch();
-  
+
   // Filter packages by architecture if specified
   return packages.filter(pkg => {
     if (!pkg.architectures) {
@@ -382,7 +371,7 @@ export async function getPlatformPackages(): Promise<PlatformPackage[]> {
 /**
  * Check Python version and ensure it meets minimum requirements (>= 3.10)
  */
-async function checkPythonVersion(pythonCommand: string): Promise<{valid: boolean, version?: string, error?: string}> {
+async function checkPythonVersion(pythonCommand: string): Promise<{ valid: boolean, version?: string, error?: string }> {
   try {
     // Try to get Python version
     const result = await executeShellCommand(`${pythonCommand} --version`, "", false);
@@ -390,19 +379,19 @@ async function checkPythonVersion(pythonCommand: string): Promise<{valid: boolea
     // Some Python builds (especially older Windows ones) write to stderr instead of stdout.
     const rawOutput = result.stdout || result.stderr || '';
     if (!rawOutput) {
-      return {valid: false, error: "Could not determine Python version"};
+      return { valid: false, error: "Could not determine Python version" };
     }
 
     // Parse version from output like "Python 3.x.y"
     const versionMatch = rawOutput.match(/Python\s+(\d+)\.(\d+)\.(\d+)/i);
     if (!versionMatch) {
-      return {valid: false, error: "Could not parse Python version"};
+      return { valid: false, error: "Could not parse Python version" };
     }
-    
+
     const major = parseInt(versionMatch[1]);
     const minor = parseInt(versionMatch[2]);
     const versionStr = `${major}.${minor}.${versionMatch[3]}`;
-    
+
     // Check minimum version: Python >= 3.12
     if (major < 3 || (major === 3 && minor < 12)) {
       return {
@@ -411,10 +400,10 @@ async function checkPythonVersion(pythonCommand: string): Promise<{valid: boolea
         error: `Python ${versionStr} found, but version >= 3.12 is required`
       };
     }
-    
-    return {valid: true, version: versionStr};
+
+    return { valid: true, version: versionStr };
   } catch (error) {
-    return {valid: false, error: String(error)};
+    return { valid: false, error: String(error) };
   }
 }
 
@@ -426,7 +415,7 @@ export async function checkPackageAvailable(pkg: PlatformPackage): Promise<Packa
     const result = await executeShellCommand(pkg.check_command, "", false);
     // Command succeeded if stdout is not undefined (even if empty)
     const available = result.stdout !== undefined;
-    
+
     // Special handling for Python packages - check version
     if (available && pkg.name.toLowerCase().includes("python")) {
       // Extract the python command from check_command (e.g., "python3 --version" -> "python3")
@@ -434,7 +423,7 @@ export async function checkPackageAvailable(pkg: PlatformPackage): Promise<Packa
       if (pythonCmdMatch) {
         const pythonCmd = pythonCmdMatch[1];
         const versionCheck = await checkPythonVersion(pythonCmd);
-        
+
         if (!versionCheck.valid) {
           outputWarning("Host Tools", `${pkg.name}: ${versionCheck.error || "Version check failed"}`);
           return {
@@ -448,7 +437,7 @@ export async function checkPackageAvailable(pkg: PlatformPackage): Promise<Packa
         }
       }
     }
-    
+
     return {
       name: pkg.name,
       package: pkg.package,
@@ -473,6 +462,57 @@ export async function checkAllPackages(): Promise<PackageStatus[]> {
   return Promise.all(packages.map(pkg => checkPackageAvailable(pkg)));
 }
 
+interface AptInstallPlan {
+  aptPackages: string[];
+  postAptSteps: Array<{ label: string; command: string }>;
+}
+
+/**
+ * Resolve apt install targets and post-install actions for a package.
+ * Keeps Python 3.12/deadsnakes behavior consistent across single and batch installs.
+ *
+ * @param pkg - The package to resolve.
+ * @param minorVersionOverride - When set, used as the Python minor version for
+ *   version-matched packages (python3-venv, python3-tk) instead of detecting
+ *   the currently installed version. Pass this in batch installs where
+ *   python3-dev (which installs 3.12) is resolved before venv/tk packages.
+ */
+async function resolveAptInstallPlan(pkg: PlatformPackage, minorVersionOverride?: number): Promise<AptInstallPlan> {
+  let aptPackages = [pkg.package];
+  const postAptSteps: Array<{ label: string; command: string }> = [];
+
+  if (pkg.package === "python3-dev") {
+    // Ensure python3.12 is reachable via apt (adds deadsnakes PPA on 22.04).
+    const ppaOk = await addDeadsnakesPPAIfNeeded();
+    if (!ppaOk) {
+      outputWarning("Host Tools", "Could not ensure python3.12 apt availability; falling back to python3-dev");
+    } else {
+      aptPackages = ["python3.12", "python3.12-dev"];
+      // After install, make `python3` point to the new 3.12 binary.
+      postAptSteps.push({
+        label: "Register python3.12 as default python3",
+        command: "sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1",
+      });
+    }
+  } else if (pkg.package === "python3-venv") {
+    // Plain `python3-venv` may not include ensurepip on all distros; use
+    // the version-matched package to be safe.
+    const minor = minorVersionOverride ?? await detectPython3MinorVersion();
+    if (minor !== undefined) {
+      aptPackages = [pkg.package, `python3.${minor}-venv`];
+    }
+  } else if (pkg.package === "python3-tk") {
+    // Install the version-matched tkinter so it works with the active
+    // python3.12 interpreter set up by the python3-dev step.
+    const minor = minorVersionOverride ?? await detectPython3MinorVersion();
+    if (minor !== undefined) {
+      aptPackages = [pkg.package, `python3.${minor}-tk`];
+    }
+  }
+
+  return { aptPackages, postAptSteps };
+}
+
 /**
  * Install a single package.
  * @param pkg - The package to install.
@@ -494,53 +534,11 @@ export async function installPackage(pkg: PlatformPackage, resolvedManager?: { n
       installCommand = `brew install ${pkg.package}`;
       break;
     case "apt": {
-      // Resolve apt package(s) — special cases for python packages:
-      //
-      // python3-dev: On Ubuntu 22.04 (Jammy) Python 3.12 is not in the
-      //   default repos. We detect this, add the deadsnakes PPA if necessary,
-      //   then install the explicit python3.12 + python3.12-dev packages and
-      //   wire `python3` → `python3.12` via update-alternatives.
-      //
-      // python3-venv: Install the version-matched package (e.g.
-      //   python3.12-venv) so ensurepip is always present.
-      //
-      // python3-tk: Same versioned pattern as python3-venv so that tkinter
-      //   imports against the active python3.12 interpreter.
-      let aptPackages = pkg.package;
-
-      if (pkg.package === "python3-dev") {
-        // Ensure python3.12 is reachable via apt (adds deadsnakes PPA on 22.04)
-        const ppaOk = await addDeadsnakesPPAIfNeeded();
-        if (!ppaOk) {
-          outputWarning("Host Tools", "Could not ensure python3.12 apt availability; falling back to python3-dev");
-        } else {
-          aptPackages = "python3.12 python3.12-dev";
-          // After install, make `python3` point to the new 3.12 binary.
-          postAptSteps.push({
-            label: "Register python3.12 as default python3",
-            command: "sudo -n update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1",
-          });
-        }
-      } else if (pkg.package === "python3-venv") {
-        // Plain `python3-venv` may not include ensurepip on all distros; use
-        // the version-matched package to be safe.
-        const versioned = await detectVersionedPythonVenvPackage();
-        if (versioned) {
-          aptPackages = `${pkg.package} ${versioned}`;
-        }
-      } else if (pkg.package === "python3-tk") {
-        // Install the version-matched tkinter so it works with the active
-        // python3.12 interpreter set up by the python3-dev step.
-        const minor = await detectPython3MinorVersion();
-        if (minor !== undefined) {
-          aptPackages = `${pkg.package} python3.${minor}-tk`;
-        }
-      }
-      // Use `-n` (non-interactive) since hostToolsService caches credentials
-      // up-front via `sudo -v`; if creds aren't cached this will fail fast and
-      // the user will see a clear error rather than a hung password prompt
-      // inside a non-interactive task terminal.
-      installCommand = `sudo -n apt install -y --no-install-recommends ${aptPackages}`;
+      const plan = await resolveAptInstallPlan(pkg);
+      postAptSteps.push(...plan.postAptSteps);
+      // Use interactive sudo so password prompts work on Ubuntu setups that
+      // scope sudo timestamp credentials per terminal/TTY.
+      installCommand = `sudo apt install -y --no-install-recommends ${plan.aptPackages.join(" ")}`;
       break;
     }
     case "winget":
@@ -586,13 +584,103 @@ export async function installPackage(pkg: PlatformPackage, resolvedManager?: { n
   }
 
   outputInfo("Host Tools", `Successfully installed ${pkg.name}`);
-  
+
   // Verify the package is now available
   const status = await checkPackageAvailable(pkg);
   if (!status.available) {
     outputWarning("Host Tools", `${pkg.name} was installed but is not yet available. A VS Code restart may be required.`);
   }
-  
+
+  return true;
+}
+
+/**
+ * Install multiple packages with a single apt invocation when possible.
+ * This reduces repeated sudo password prompts during bulk installs.
+ */
+export async function installPackagesBatch(packages: PlatformPackage[], resolvedManager?: { name: string; config: PackageManager }): Promise<boolean> {
+  if (packages.length === 0) {
+    return true;
+  }
+
+  const manager = resolvedManager ?? await getPackageManagerForPlatformAsync();
+  if (!manager) {
+    outputWarning("Host Tools", "No package manager found for this platform");
+    return false;
+  }
+
+  if (manager.name !== "apt") {
+    let ok = true;
+    for (const pkg of packages) {
+      const success = await installPackage(pkg, manager);
+      if (!success) {
+        ok = false;
+      }
+    }
+    return ok;
+  }
+
+  const aptPackageSet = new Set<string>();
+  const postAptSteps: Array<{ label: string; command: string }> = [];
+  // Tracks the Python minor version selected by the python3-dev step so that
+  // subsequent python3-venv / python3-tk resolutions use the same version
+  // rather than the pre-install system Python (which may be older on 22.04).
+  let resolvedPythonMinor: number | undefined;
+
+  for (const pkg of packages) {
+    const plan = await resolveAptInstallPlan(pkg, resolvedPythonMinor);
+    // If python3-dev resolved to python3.12-dev, track version for venv/tk.
+    if (pkg.package === "python3-dev" && plan.aptPackages.includes("python3.12-dev")) {
+      resolvedPythonMinor = 12;
+    }
+    for (const aptPkg of plan.aptPackages) {
+      aptPackageSet.add(aptPkg);
+    }
+    postAptSteps.push(...plan.postAptSteps);
+  }
+
+  const aptPackages = Array.from(aptPackageSet);
+  if (aptPackages.length === 0) {
+    return true;
+  }
+
+  outputInfo("Host Tools", `Installing ${packages.length} package(s) in a single apt command...`);
+  const installCommand = `sudo apt install -y --no-install-recommends ${aptPackages.join(" ")}`;
+  const installOk = await executeTaskHelper("Install missing host tools (apt)", installCommand, "");
+
+  if (!installOk) {
+    outputError("Host Tools", "Batch apt install failed");
+    return false;
+  }
+
+  const seenStepCommands = new Set<string>();
+  for (const step of postAptSteps) {
+    if (seenStepCommands.has(step.command)) {
+      continue;
+    }
+    seenStepCommands.add(step.command);
+    outputInfo("Host Tools", `Running: ${step.label}...`);
+    const stepOk = await executeTaskHelper(step.label, step.command, "");
+    if (!stepOk) {
+      outputWarning("Host Tools", `${step.label} failed — manual configuration may be required`);
+    }
+  }
+
+  for (const pkg of packages) {
+    if (!pkg.post_install_step) {
+      continue;
+    }
+    outputInfo("Host Tools", `Running post-install step for ${pkg.name}...`);
+    const postInstallResult = await executeTaskHelper(
+      `Post-install ${pkg.name}`,
+      pkg.post_install_step,
+      ""
+    );
+    if (!postInstallResult) {
+      outputWarning("Host Tools", `Post-install step failed for ${pkg.name}`);
+    }
+  }
+
   return true;
 }
 
@@ -602,28 +690,23 @@ export async function installPackage(pkg: PlatformPackage, resolvedManager?: { n
 export async function installAllMissingPackages(): Promise<boolean> {
   const statuses = await checkAllPackages();
   const missingPackages = statuses.filter(s => !s.available);
-  
+
   if (missingPackages.length === 0) {
     outputInfo("Host Tools", "All packages are already installed");
     return true;
   }
 
   outputInfo("Host Tools", `Found ${missingPackages.length} missing packages`);
-  
+
   const packages = await getPlatformPackages();
   const manager = await getPackageManagerForPlatformAsync();
-  let allSuccess = true;
-  
-  for (const status of missingPackages) {
-    const pkg = packages.find(p => p.name === status.name);
-    if (pkg) {
-      const success = await installPackage(pkg, manager ?? undefined);
-      if (!success) {
-        allSuccess = false;
-      }
-    }
-  }
-  
+
+  const missingPkgs = missingPackages
+    .map(s => packages.find(p => p.name === s.name))
+    .filter((p): p is PlatformPackage => !!p);
+
+  const allSuccess = await installPackagesBatch(missingPkgs, manager ?? undefined);
+
   if (allSuccess) {
     outputInfo("Host Tools", "All missing packages installed successfully");
     void vscode.window.showInformationMessage(
@@ -635,7 +718,7 @@ export async function installAllMissingPackages(): Promise<boolean> {
       "Some host tools failed to install. Check the output for details."
     );
   }
-  
+
   return allSuccess;
 }
 
@@ -655,21 +738,21 @@ export async function installPackageManagerHeadless(): Promise<boolean> {
     logDual(`✅ ${manager.name} found`);
     return true;
   }
-  
+
   logDual(`⚠️  ${manager.name} not found`);
-  
+
   const pmSuccess = await installPackageManager();
   if (!pmSuccess) {
     logDual(`❌ Failed to install ${manager.name}`);
     return false;
   }
-  
+
   logDual(`✅ Installed ${manager.name}`);
-  
+
   // On Windows, refresh PATH after installing package manager
   if (process.platform === 'win32') {
     await refreshWindowsPath();
-    
+
     // Check if package manager is now available after PATH refresh
     const pmNowAvailable = await checkPackageManagerAvailable();
     if (pmNowAvailable) {
@@ -677,7 +760,7 @@ export async function installPackageManagerHeadless(): Promise<boolean> {
       return true;
     }
   }
-  
+
   // Return false on non-Windows or if PATH refresh didn't make package manager available
   return false; // macOS/Linux may need restart for PATH updates
 }
@@ -693,11 +776,11 @@ export async function installHostPackagesHeadless(): Promise<boolean> {
     logDual("[HOST TOOLS] Package manager not available - run install-package-manager-headless first");
     return false;
   }
-  
+
   // Check all packages and log status
   const statuses = await checkAllPackages();
   const allAvailable = statuses.every(s => s.available);
-  
+
   if (allAvailable) {
     // All packages already available - log each one
     for (const status of statuses) {
@@ -705,42 +788,44 @@ export async function installHostPackagesHeadless(): Promise<boolean> {
     }
     return true;
   }
-  
-  // Install missing packages with cleaner logging
-  const missingPackages = statuses.filter(s => !s.available);
+
+  // Log available packages and collect missing ones for batch install.
   const packages = await getPlatformPackages();
   const manager = await getPackageManagerForPlatformAsync();
-  
-  let packagesWereInstalled = false;
-  
+
+  const missingPkgs: PlatformPackage[] = [];
   for (const status of statuses) {
     if (status.available) {
       logDual(`✅ ${status.name} found`);
     } else {
       logDual(`⚠️  ${status.name} not found`);
-      
       const pkg = packages.find(p => p.name === status.name);
       if (pkg) {
-        const success = await installPackage(pkg, manager ?? undefined);
-        if (success) {
-          logDual(`✅ Installed ${status.name}`);
-          packagesWereInstalled = true;
-        } else {
-          logDual(`❌ Failed to install ${status.name}`);
-        }
+        missingPkgs.push(pkg);
       }
     }
   }
-  
+
+  const batchOk = await installPackagesBatch(missingPkgs, manager ?? undefined);
+  const packagesWereInstalled = batchOk;
+
+  if (!batchOk) {
+    logDual(`❌ Some packages failed to install`);
+  } else {
+    for (const pkg of missingPkgs) {
+      logDual(`✅ Installed ${pkg.name}`);
+    }
+  }
+
   // On Windows, refresh PATH after installing packages so they become available immediately
   if (packagesWereInstalled && process.platform === 'win32') {
     await refreshWindowsPath();
   }
-  
+
   // Verify all packages are now available on PATH
   const finalStatuses = await checkAllPackages();
   const finalAllAvailable = finalStatuses.every(s => s.available);
-  
+
   if (finalAllAvailable) {
     return true;
   } else {
@@ -755,14 +840,14 @@ export async function installHostPackagesHeadless(): Promise<boolean> {
  */
 export async function installHostToolsHeadless(): Promise<boolean> {
   outputInfo("Host Tools", "Starting headless host tools installation...");
-  
+
   // Ensure package manager is available first
   const pmReady = await installPackageManagerHeadless();
   if (!pmReady) {
     outputWarning("Host Tools", "Package manager not available after install attempt — restart may be needed");
     return false;
   }
-  
+
   // Delegate to installHostPackagesHeadless which handles check → install → verify
   return installHostPackagesHeadless();
 }
@@ -773,7 +858,7 @@ export async function installHostToolsHeadless(): Promise<boolean> {
  */
 export async function checkHostToolsHeadless(): Promise<boolean> {
   const statuses = await checkAllPackages();
-  
+
   // Log each package status
   for (const status of statuses) {
     if (status.available) {
@@ -782,6 +867,6 @@ export async function checkHostToolsHeadless(): Promise<boolean> {
       logDual(`❌ ${status.name} not found`);
     }
   }
-  
+
   return statuses.every(s => s.available);
 }
