@@ -1,90 +1,95 @@
-# IDE for Zephyr — Zephyr RTOS Development in VS Code
+# IDE for Zephyr
 
-<img src="https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/zephyr-ide_branding.png" alt="IDE for Zephyr — VS Code extension for Zephyr RTOS embedded development with west, SDK, build, flash, and debug" width="50%"/>
+<img src="https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/zephyr-ide_branding.png" alt="Zephyr IDE — VS Code extension for Zephyr RTOS" width="50%"/>
 
-IDE for Zephyr is a Visual Studio Code extension that provides a complete embedded development environment for [Zephyr RTOS](https://zephyrproject.org/) projects. It automates SDK installation, west workspace management, building, flashing, and debugging — supporting ARM Cortex-M, RISC-V, ESP32, STM32, Nordic nRF, Raspberry Pi Pico, and all Zephyr-supported platforms.
+A Visual Studio Code extension for [Zephyr RTOS](https://zephyrproject.org/) development. Set up host tools and the Zephyr SDK, manage west workspaces, and build, flash, and debug projects from one window.
 
-An [extension pack](https://marketplace.visualstudio.com/items?itemName=mylonics.zephyr-ide-extension-pack) is available that bundles Cortex-Debug, C/C++ IntelliSense, Serial Monitor, Devicetree LSP, and CMake support.
+*Formerly known as Zephyr IDE.*
 
-You can read about the motivation behind the project [here](https://mylonics.com/blog/zephyr-ide-for-vscode/).
+Install from the [Visual Studio Code Marketplace](https://marketplace.visualstudio.com/items?itemName=mylonics.zephyr-ide) or the [Open VSX Registry](https://open-vsx.org/extension/mylonics/zephyr-ide).
 
-![IDE for Zephyr Setup Panel](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/setup_panel.png)
+Works either as your full setup or alongside an existing Zephyr install (Docker, devcontainer, manual `west` setup) via `ZEPHYR_BASE` detection. An [extension pack](https://marketplace.visualstudio.com/items?itemName=mylonics.zephyr-ide-extension-pack) bundles Cortex-Debug, C/C++, Serial Monitor, Devicetree LSP, and CMake support.
+
+You can read about the motivation behind the project [here](https://mylonics.com/blog/zephyr-ide/).
+
+![Setup Panel](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/setup_panel.png)
+
+## Why IDE for Zephyr
+
+- **Automated host tool install** — follows the [Zephyr Getting Started Guide](https://docs.zephyrproject.org/latest/develop/getting_started/index.html#install-dependencies) on Ubuntu, macOS, and Windows. Skip it if you already have the tools installed.
+- **Automated SDK install** — drives `west sdk` to install and manage SDK versions and toolchains.
+- **Full Cortex-Debug integration** — built-in launch templates for ST-Link, J-Link, OpenOCD, and Black Magic Probe, plus helper commands that resolve project, build, ELF, GDB, and toolchain paths from your active build.
+- **Multiple Zephyr workspaces** — register several west workspaces and switch between them seamlessly without reopening VS Code.
+- **Team-shareable projects** — projects, builds, runners, KConfig, devicetree overlays, and per-build west/CMake args live in a human-readable `zephyr-ide.json` you can commit.
+- **Guided project + build creation** — add an existing app or copy from a Zephyr sample, then add as many builds and runners per project as you need.
+- **Twister test integration** — add, run, and reconfigure Twister tests from the same UI as builds.
+- **Cross-platform** — Linux, macOS, and Windows.
 
 ## Features
 
-### Workspace Setup & SDK Management
-  - Installs host tools required for Zephyr development (CMake, Python, DTC, gcc)
-  - Sets up west environment with built-in west.yml templates or your own manifest
-  - Installs and manages Zephyr SDK versions via west SDK commands
-  - Supports multiple architectures: ARM, RISC-V, x86, Xtensa, and more
+### Workspace setup & SDK management
 
-### Project Management & Build System
-  - Add projects from scratch or from Zephyr sample templates
-  - Multiple projects per workspace with multiple builds per project
-  - Per-project and per-build KConfig overlay and Devicetree overlay files
-  - Per-build board selection, runner configuration, and west/CMake argument customization
-  - Human-readable JSON project configuration for easy version control
+- Installs host tools (CMake, Python 3, Ninja, DTC, gcc) on supported platforms
+- Sets up west via built-in `west.yml` templates or your own manifest
+- Clones existing west or IDE for Zephyr workspaces from Git
+- Adopts existing `.west` folders or external Zephyr installations via `ZEPHYR_BASE`
+- Installs and manages Zephyr SDK versions and per-architecture toolchains through `west sdk`
+- Register and switch between multiple west workspaces from one VS Code window
 
-### Debugging & Flashing
-  - Bind builds to launch/debug configurations for one-click debugging
-  - Cortex-Debug integration with ST-Link, Black Magic Probe, J-Link, and OpenOCD
-  - Launch configuration helper commands for dynamic project/build path resolution
-  - Flash to target hardware with configurable runners
+### Projects & builds
 
-### Developer Productivity
-  - Project tree GUI panel and active project status bar
-  - Automatic active project selection based on the file open in the editor
-  - West terminal for manual west commands
-  - MenuConfig and GuiConfig for Kconfig editing
-  - ROM/RAM usage reports and DTSh devicetree shell
-  - Twister test framework integration
-  - Cross-platform: Linux, macOS, and Windows
+- Add existing applications or create new ones from Zephyr samples
+- Multiple projects per workspace, multiple builds per project, multiple runners per build
+- Per-project and per-build KConfig and devicetree overlay files
+- Per-build board selection, runner arguments, and west / CMake argument overrides
+- Custom project / build variables surfaced through launch configurations
+- Configuration stored in human-readable `zephyr-ide.json` for version control
 
-## Externally Managed Environments
+### Build, flash & debug
 
-IDE for Zephyr automatically detects and works with externally managed Zephyr environments:
+- Build, build pristine, clean, and flash from the status bar or project panel
+- Concurrent builds with per-target locking
+- Cortex-Debug launch templates for ST-Link, J-Link, OpenOCD, and Black Magic Probe
+- Launch helper commands that resolve project, build, ELF, GDB, toolchain, and board paths
+- Debug Select configuration for picking which build to debug at launch time
+- Multi-root and `.code-workspace` aware debug session resolution
 
-- Automatic detection via `ZEPHYR_BASE` environment variable
-- No setup required when using Docker, DevContainers, or pre-configured environments
-- Full support for build, flash, and debug operations
-- Configurable warning suppression via `zephyr-ide.suppressWorkspaceWarning`
+### Productivity
 
-Ideal for Docker/container workflows, CI/CD pipelines, shared development environments, and pre-installed Zephyr setups.
-
-See the [External Environments](https://zephyr-ide.mylonics.com/getting-started/external-environments/) documentation for details.
+- Native VS Code tree view for projects, builds, runners, and tests
+- Active project status bar control with automatic targeting based on the open file
+- MenuConfig and GuiConfig editors
+- ROM and RAM usage reports
+- DTSh devicetree shell
+- Integrated west terminal for ad-hoc commands
+- Twister test panel for adding, running, and reconfiguring tests
 
 ## Getting Started
 
-The [User Manual](https://zephyr-ide.mylonics.com/) is available online, or you can read it locally at [docs/MANUAL.md](docs/MANUAL.md).
+The full documentation is available at [zephyr-ide.mylonics.com](https://zephyr-ide.mylonics.com/).
 
-### Video Tutorials
+### Video tutorials
 
-[![Getting Started with IDE for Zephyr](https://mylonics.com/assets/images/zephyr-ide/getting_started_thumbnail.png)](https://www.youtube.com/watch?v=Asfolnh9kqM&t "Getting Started with IDE for Zephyr")
+[![Getting Started with IDE for Zephyr](https://mylonics.com/assets/images/zephyr-ide/getting_started_thumbnail.png)](https://www.youtube.com/watch?v=Asfolnh9kqM&t)
 
-[![STM32 Board Setup And Debugging with IDE for Zephyr](https://mylonics.com/assets/images/zephyr-ide/board_setup_thumbnail.png)](https://www.youtube.com/watch?v=TXcTzyswBMQ)
+[![STM32 Board Setup and Debugging](https://mylonics.com/assets/images/zephyr-ide/board_setup_thumbnail.png)](https://www.youtube.com/watch?v=TXcTzyswBMQ)
 
-You can also check out the [sample project](https://github.com/mylonics/zephyr-ide-sample-project) for a quick-start example.
+A reference [sample project](https://github.com/mylonics/zephyr-ide-sample-project) is also available.
 
 ## Requirements
 
-This extension can automatically install host tools required for Zephyr development on supported platforms (Ubuntu/Debian, macOS, Windows). The automated installation follows the [Zephyr Getting Started Guide](https://docs.zephyrproject.org/latest/develop/getting_started/index.html#install-dependencies) and installs tools such as **CMake**, **Python 3**, **Ninja**, and **Devicetree Compiler**.
+The extension can install host tools (CMake, Python 3, Ninja, Devicetree Compiler, gcc) automatically on Ubuntu/Debian, macOS, and Windows. On other platforms, install them via your package manager — see the [host tools documentation](https://zephyr-ide.mylonics.com/getting-started/host-tools/) and consider opening an issue or PR to have the IDE do it automatically for you in the future.
 
-For unsupported platforms, install the required packages using your platform's package manager and consider opening an issue or pull request at the [zephyr-ide repository](https://github.com/mylonics/zephyr-ide).
-
-## Testing
-
-This extension includes integration tests that validate the full IDE for Zephyr workflow. For details, see [docs/TESTING.md](docs/TESTING.md).
+If Zephyr is already installed on your machine, set `ZEPHYR_BASE` and the extension will use it directly. See [External Environments](https://zephyr-ide.mylonics.com/getting-started/external-environments/).
 
 ## Known Issues
 
-- **Dev containers with WSL and Windows folders**: When using dev containers in a WSL environment, ensure your workspace folder is within the Ubuntu file system (e.g., `/home/username/project`) rather than mounted Windows directories (e.g., `/mnt/c/Users/...`). This is inherent to the west boards command.
+- **Dev containers in WSL with Windows folders**: keep your workspace inside the Linux file system (e.g. `/home/user/project`) rather than `/mnt/c/...`. This is a `west boards` limitation.
 
 ## Release Notes
 
-See [CHANGELOG](CHANGELOG.md) for release notes.
+See [CHANGELOG.md](CHANGELOG.md) for the full release history. Highlights for the 3.0 series are summarized in [What's New in 3.0](https://zephyr-ide.mylonics.com/whats-new-3-0/).
 
-## Development and Debugging
+## Development
 
-See the [IDE for Zephyr Developer's Guide](https://zephyr-ide.mylonics.com/developer-guide/) for development and debugging instructions.
-
----
+See the [Developer Guide](https://zephyr-ide.mylonics.com/developer-guide/) for instructions on building, debugging, and contributing.
