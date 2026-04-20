@@ -32,6 +32,7 @@ export class WorkspaceApp extends ZephyrLitElement {
   @state() private _westYmlDirty = false;
   @state() private _progressData?: SetupProgressData;
   @state() private _workspaceSetupActive = false;
+  @state() private _statusAnnouncement = '';
 
   private _dismissTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -45,6 +46,7 @@ export class WorkspaceApp extends ZephyrLitElement {
     super.disconnectedCallback();
     window.removeEventListener('message', this._onMessage);
     if (this._dismissTimer) { clearTimeout(this._dismissTimer); }
+    if (this._dirtyTimer) { clearTimeout(this._dirtyTimer); }
   }
 
   private _onMessage = (e: MessageEvent) => {
@@ -52,6 +54,7 @@ export class WorkspaceApp extends ZephyrLitElement {
     switch (msg.command) {
       case 'updateContent':
         this._data = msg.data as WorkspacePanelData;
+        this._statusAnnouncement = 'Workspace panel updated';
         if (!this._progressData ||
           this._progressData.type === 'complete' ||
           this._progressData.type === 'failed') {
@@ -79,10 +82,10 @@ export class WorkspaceApp extends ZephyrLitElement {
       return;
     }
     this._progressData = data;
+    // Note: previously auto-dismissed after 2s on completion; that hid
+    // important final state (especially failures the user may have missed).
+    // The user must now explicitly dismiss via the close button.
     if (this._dismissTimer) { clearTimeout(this._dismissTimer); this._dismissTimer = null; }
-    if (data.type === 'complete') {
-      this._dismissTimer = setTimeout(() => this._dismissProgress(), 2000);
-    }
   }
 
   private _dismissProgress() {
@@ -151,6 +154,7 @@ export class WorkspaceApp extends ZephyrLitElement {
 
     return html`
       <div class="container" @keydown=${this._onKeydown}>
+        <div class="sr-only" role="status" aria-live="polite">${this._statusAnnouncement}</div>
         <a class="breadcrumb-link" @click=${() => this._send('openSetupPanel')}>← Overview</a>
         <div class="page-header">
           <div style="display:flex;align-items:center;gap:12px;">
@@ -187,9 +191,8 @@ export class WorkspaceApp extends ZephyrLitElement {
         <div class="activation-banner-content">
           <span class="codicon codicon-info"></span>
           <span>
-            You are viewing <strong>${b.name}</strong>, which is not bound to
-            the current folder. Actions below operate on the open VS Code
-            folder, not on this workspace. Activate it to bring it forward.
+            Viewing <strong>${b.name}</strong> (inactive). Setup and management
+            actions are hidden until this workspace is activated.
           </span>
         </div>
         <vscode-button @click=${() => this._activateWorkspace(b.path)}>Activate</vscode-button>
@@ -200,8 +203,9 @@ export class WorkspaceApp extends ZephyrLitElement {
     return html`
       <div class="ws-state">
         <p class="description muted">
-          Setup and management actions are hidden while viewing a non-active
-          workspace. Use the banner above to activate it.
+          Setup and management actions are hidden while viewing an inactive
+          workspace. Use <strong>Activate</strong> in the banner above to
+          switch to it.
         </p>
       </div>`;
   }
@@ -339,13 +343,13 @@ export class WorkspaceApp extends ZephyrLitElement {
                 <vscode-icon slot="start-icon" name="rocket"></vscode-icon>
                 Open Projects
               </vscode-button>
-            </div>` : html`
+            </div>` : (disabled ? nothing : html`
             <div class="button-group" style="margin-top:12px;">
-              <vscode-button @click=${() => this._send('rerunWestSetup')} ?disabled=${disabled}>
+              <vscode-button @click=${() => this._send('rerunWestSetup')}>
                 <vscode-icon slot="start-icon" name="sync"></vscode-icon>
                 Finish West Setup
               </vscode-button>
-            </div>`}
+            </div>`)}
         </div>
 
         <div class="section-container">
@@ -360,17 +364,19 @@ export class WorkspaceApp extends ZephyrLitElement {
             </div>
             <textarea id="westYmlEditor" class="west-yml-textarea" rows="15"
               placeholder="Loading west.yml..."
+              ?readonly=${disabled}
               .value=${this._westYmlContent}
               @input=${this._onWestYmlInput}
               @keydown=${this._onTextareaKeydown}></textarea>
+            ${disabled ? nothing : html`
             <div class="editor-actions">
               <vscode-button @click=${this._saveAndUpdateWestYml}
-                ?disabled=${disabled || !this._westYmlDirty}
+                ?disabled=${!this._westYmlDirty}
                 title=${this._westYmlDirty ? 'Save edits and run west update' : 'No pending changes'}>
                 <vscode-icon slot="start-icon" name="save"></vscode-icon>
                 Save and West Update
               </vscode-button>
-            </div>
+            </div>`}
           </div>
         </div>
 
@@ -378,9 +384,15 @@ export class WorkspaceApp extends ZephyrLitElement {
       </div>`;
   }
 
+  private _dirtyTimer: ReturnType<typeof setTimeout> | null = null;
+
   private _onWestYmlInput(e: Event) {
     const ta = e.target as HTMLTextAreaElement;
-    this._westYmlDirty = ta.value !== this._westYmlContent;
+    if (this._dirtyTimer) { clearTimeout(this._dirtyTimer); }
+    this._dirtyTimer = setTimeout(() => {
+      this._westYmlDirty = ta.value !== this._westYmlContent;
+      this._dirtyTimer = null;
+    }, 200);
   }
 
   private _renderWorkspaceManagement() {
@@ -457,9 +469,8 @@ export class WorkspaceApp extends ZephyrLitElement {
     command: WorkspacePanelCommand,
   ) {
     return html`
-      <div class="workspace-option-card"
+      <button type="button" class="workspace-option-card"
            @click=${() => this._sendWorkspaceSetup(command)}
-           role="button" tabindex="0" data-keyboard-command="true"
            aria-label="${title}">
         <div class="option-header">
           <span class="option-icon">${icon}</span>
@@ -467,7 +478,7 @@ export class WorkspaceApp extends ZephyrLitElement {
         </div>
         <p class="option-description">${description}</p>
         <p class="option-usage"><em>Best for: ${usage}</em></p>
-      </div>`;
+      </button>`;
   }
 
   // ── Choice screen ─────────────────────────────────────────

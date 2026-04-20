@@ -28,7 +28,8 @@ export class HostToolsApp extends ZephyrLitElement {
     super.connectedCallback();
     this._client = new HostToolsClient(this.vscodeApi, 'cards');
     window.addEventListener('message', this._onMessage);
-    this.postCommand('ready');
+    // No 'ready' post here — firstUpdated() calls refreshStatus() once the
+    // DOM IDs exist, avoiding a duplicate parallel status check on startup.
   }
 
   disconnectedCallback() {

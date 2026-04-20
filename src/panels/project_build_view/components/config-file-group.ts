@@ -23,21 +23,20 @@ import type { WebviewConfigFileEntry } from "../project-build-data";
 @customElement("config-file-group")
 export class ConfigFileGroup extends ZephyrLitElement {
   @property() idPrefix = "";
+  @property({ type: Boolean }) isProject = false;
   @property({ type: Array }) kconfigFiles: WebviewConfigFileEntry[] = [];
   @property() kconfigAddCmd = "";
   @property() kconfigRemoveCmd = "";
-  @property() kconfigToggleCmd = "";
   @property({ type: Array }) overlayFiles: WebviewConfigFileEntry[] = [];
   @property() overlayAddCmd = "";
   @property() overlayRemoveCmd = "";
-  @property() overlayToggleCmd = "";
 
   private _renderFileList(
     files: WebviewConfigFileEntry[],
     groupId: string,
     addCmd: string,
     removeCmd: string,
-    toggleCmd: string,
+    isKConfig: boolean,
     addLabel: string,
   ) {
     return html`
@@ -57,11 +56,12 @@ export class ConfigFileGroup extends ZephyrLitElement {
           (entry) => html`
                   <div class="file-list-item">
                     <vscode-button class="file-mode-button" appearance="secondary"
-                      title=${entry.extra ? "Switch to override file" : "Switch to extra file"}
+                      title=${entry.extra ? "Currently used as an extra file. Click to use as an override." : "Currently used as an override. Click to use as an extra file."}
                       @click=${() => this.postCommand("toggleFileExtra", {
             file: entry.path,
             group: groupId,
-            "toggle-cmd": toggleCmd,
+            isKConfig: isKConfig ? "true" : "false",
+            isProject: this.isProject ? "true" : "false",
             extra: entry.extra ? "false" : "true",
           })}>
                       ${entry.extra ? "Extra" : "Override"}
@@ -94,11 +94,11 @@ export class ConfigFileGroup extends ZephyrLitElement {
         <vscode-tabs>
           <vscode-tab-header slot="header">Kconfig Files</vscode-tab-header>
           <vscode-tab-panel>
-            ${this._renderFileList(this.kconfigFiles, kconfigGroupId, this.kconfigAddCmd, this.kconfigRemoveCmd, this.kconfigToggleCmd, "Add Kconfig")}
+            ${this._renderFileList(this.kconfigFiles, kconfigGroupId, this.kconfigAddCmd, this.kconfigRemoveCmd, true, "Add Kconfig")}
           </vscode-tab-panel>
           <vscode-tab-header slot="header">Devicetree Overlay Files</vscode-tab-header>
           <vscode-tab-panel>
-            ${this._renderFileList(this.overlayFiles, overlayGroupId, this.overlayAddCmd, this.overlayRemoveCmd, this.overlayToggleCmd, "Add Overlay")}
+            ${this._renderFileList(this.overlayFiles, overlayGroupId, this.overlayAddCmd, this.overlayRemoveCmd, false, "Add Overlay")}
           </vscode-tab-panel>
         </vscode-tabs>
       </div>

@@ -80,6 +80,13 @@
         transform var(--zephyr-webview-transition-fast);
     background-color: var(--vscode-editor-background);
     box-shadow: var(--zephyr-webview-surface-shadow);
+    /* When rendered as <button>, reset native button styling so it inherits
+       the page typography and width like the original <div>. */
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    width: 100%;
+    display: block;
 }
 
 .workspace-option-card:hover,
@@ -151,7 +158,8 @@
 
 .west-yml-textarea {
     width: 100%;
-    min-height: 300px;
+    min-height: 360px;
+    max-height: 60vh;
     font-family: var(--vscode-editor-font-family, monospace);
     font-size: 12px;
     padding: 10px;
@@ -290,6 +298,11 @@
 
 .ws-state-initializing {
     animation: fadeIn 0.2s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 /* ===================================================================

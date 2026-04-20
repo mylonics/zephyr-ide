@@ -277,12 +277,15 @@ async function checkPythonVersion(pythonCommand: string): Promise<{valid: boolea
   try {
     // Try to get Python version
     const result = await executeShellCommand(`${pythonCommand} --version`, "", false);
-    if (!result.stdout) {
+
+    // Some Python builds (especially older Windows ones) write to stderr instead of stdout.
+    const rawOutput = result.stdout || result.stderr || '';
+    if (!rawOutput) {
       return {valid: false, error: "Could not determine Python version"};
     }
-    
+
     // Parse version from output like "Python 3.x.y"
-    const versionMatch = result.stdout.match(/Python\s+(\d+)\.(\d+)\.(\d+)/i);
+    const versionMatch = rawOutput.match(/Python\s+(\d+)\.(\d+)\.(\d+)/i);
     if (!versionMatch) {
       return {valid: false, error: "Could not parse Python version"};
     }
@@ -362,10 +365,14 @@ export async function checkAllPackages(): Promise<PackageStatus[]> {
 }
 
 /**
- * Install a single package
+ * Install a single package.
+ * @param pkg - The package to install.
+ * @param resolvedManager - Pre-resolved package manager; if omitted, looked up from the platform.
+ *   Callers that install multiple packages in a loop should resolve this once and pass it in to
+ *   avoid repeated async platform-detection calls.
  */
-export async function installPackage(pkg: PlatformPackage): Promise<boolean> {
-  const manager = await getPackageManagerForPlatformAsync();
+export async function installPackage(pkg: PlatformPackage, resolvedManager?: { name: string; config: PackageManager }): Promise<boolean> {
+  const manager = resolvedManager ?? await getPackageManagerForPlatformAsync();
   if (!manager) {
     outputWarning("Host Tools", "No package manager found for this platform");
     return false;
@@ -438,12 +445,13 @@ export async function installAllMissingPackages(): Promise<boolean> {
   outputInfo("Host Tools", `Found ${missingPackages.length} missing packages`);
   
   const packages = await getPlatformPackages();
+  const manager = await getPackageManagerForPlatformAsync();
   let allSuccess = true;
   
   for (const status of missingPackages) {
     const pkg = packages.find(p => p.name === status.name);
     if (pkg) {
-      const success = await installPackage(pkg);
+      const success = await installPackage(pkg, manager ?? undefined);
       if (!success) {
         allSuccess = false;
       }
@@ -535,6 +543,7 @@ export async function installHostPackagesHeadless(): Promise<boolean> {
   // Install missing packages with cleaner logging
   const missingPackages = statuses.filter(s => !s.available);
   const packages = await getPlatformPackages();
+  const manager = await getPackageManagerForPlatformAsync();
   
   let packagesWereInstalled = false;
   
@@ -546,7 +555,7 @@ export async function installHostPackagesHeadless(): Promise<boolean> {
       
       const pkg = packages.find(p => p.name === status.name);
       if (pkg) {
-        const success = await installPackage(pkg);
+        const success = await installPackage(pkg, manager ?? undefined);
         if (success) {
           logDual(`✅ Installed ${status.name}`);
           packagesWereInstalled = true;

@@ -106,10 +106,6 @@ export class HostToolInstallView {
 
   private async handleWebviewMessage(message: Record<string, any>) {
     switch (message.command) {
-      case "ready":
-        // Trigger initial status check when client is ready
-        await this._service.checkStatus();
-        return;
       case "hostToolsCheckStatus":
         await this._service.checkStatus();
         break;
