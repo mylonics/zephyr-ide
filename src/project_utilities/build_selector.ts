@@ -135,7 +135,7 @@ async function getBoardlistWest(setupState: SetupState, folder: vscode.Uri | und
 
         if (has_revisions && boardData.length >= 4) {
           if (boardData[3] !== "None") {
-            revisions = boardData[3].split(" ");
+            revisions = boardData[3].split(/[\s,]+/).filter(r => r.length > 0);
             revision_default = boardData.length >= 5 ? boardData[4] : undefined;
           }
         }
