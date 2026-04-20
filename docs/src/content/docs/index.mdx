@@ -1,9 +1,9 @@
 ---
 title: IDE for Zephyr — Zephyr RTOS Development in VS Code
-description: The IDE for Zephyr VS Code extension automates Zephyr SDK installation, west workspace setup, project building, flashing, and debugging for ARM Cortex-M, RISC-V, ESP32, STM32, Nordic nRF, and all Zephyr-supported embedded platforms.
+description: VS Code extension for Zephyr RTOS — automated host tool and SDK installation, west workspace management, multi-workspace support, Cortex-Debug integration, and Twister testing.
 template: splash
 hero:
-  tagline: Build, flash, and debug Zephyr RTOS projects from VS Code — for ARM, RISC-V, ESP32, STM32, nRF, and more
+  tagline: Build, flash, and debug Zephyr RTOS projects from VS Code
   image:
     file: ../../assets/logo.png
   actions:
@@ -17,51 +17,77 @@ hero:
       variant: secondary
 ---
 
-import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+import { Card, CardGrid, LinkCard } from "@astrojs/starlight/components";
 
-## Features
+_Formerly known as Zephyr IDE._
+
+IDE for Zephyr works either as your full setup or alongside an existing Zephyr install — Docker, devcontainer, or a manual `west` install — via `ZEPHYR_BASE` detection.
+
+## Why IDE for Zephyr
 
 <CardGrid>
-  <Card title="Host Tools" icon="laptop">
-    Installs host tools required for Zephyr development automatically on supported platforms.
+  <Card title="Automated Host Tools" icon="laptop">
+    Installs CMake, Python 3, Ninja, DTC, and gcc following the Zephyr getting
+    started guide. Skip it if you already have them.
   </Card>
-  <Card title="West Integration" icon="setting">
-    Sets up west environment, installs Zephyr SDK using West SDK commands, and provides west.yml templates.
+  <Card title="Automated SDK Install" icon="setting">
+    Drives `west sdk` to install and manage SDK versions and toolchains for any
+    architecture you target.
   </Card>
-  <Card title="Project Management" icon="list-format">
-    Multiple projects and builds per workspace with per-project KConfig and overlay files.
+  <Card title="Cortex-Debug Integration" icon="magnifier">
+    Built-in launch templates for ST-Link, J-Link, OpenOCD, and Black Magic
+    Probe, with helper commands that resolve project, build, ELF, and toolchain
+    paths.
   </Card>
-  <Card title="Debugging" icon="magnifier">
-    Bind builds to launch/debug configurations with functions to set up custom debug setups.
+  <Card title="Multiple Workspaces" icon="open-book">
+    Register several west workspaces and switch between them seamlessly from one
+    VS Code window.
   </Card>
-  <Card title="Testing" icon="approve-check">
-    Twister testing support with integrated test panel.
+  <Card title="Team Sharing" icon="seti:json">
+    Projects, builds, runners, overlays, and west / CMake args live in a
+    human-readable `zephyr-ide.json` you can commit.
   </Card>
-  <Card title="Cross-Platform" icon="puzzle">
-    Cross-platform support for all Zephyr-supported platforms (Linux, macOS, Windows).
+  <Card title="Twister Testing" icon="approve-check">
+    Add, run, and reconfigure Twister tests from the same UI as your builds.
   </Card>
 </CardGrid>
 
 ## Quick Links
 
 <CardGrid>
-  <LinkCard title="Getting Started" href="/getting-started/installation/" description="Install and set up IDE for Zephyr" />
-  <LinkCard title="User Guide" href="/user-guide/project-setup/" description="Learn how to use IDE for Zephyr" />
-  <LinkCard title="Commands Reference" href="/reference/commands/" description="Complete command reference" />
-  <LinkCard title="Configuration Settings" href="/reference/configuration/" description="Available settings" />
+  <LinkCard
+    title="Getting Started"
+    href="/getting-started/installation/"
+    description="Install and set up IDE for Zephyr"
+  />
+  <LinkCard
+    title="What's New in 3.0"
+    href="/whats-new-3-0/"
+    description="Highlights of the 3.0 release"
+  />
+  <LinkCard
+    title="User Guide"
+    href="/user-guide/project-setup/"
+    description="Create projects, builds, and debug sessions"
+  />
+  <LinkCard
+    title="Reference"
+    href="/reference/commands/"
+    description="Commands, settings, and launch helpers"
+  />
 </CardGrid>
 
 ## Requirements
 
-This extension can automatically install host tools required for Zephyr development on supported platforms. The automated installation follows the methods described in the [Zephyr Getting Started Guide](https://docs.zephyrproject.org/latest/develop/getting_started/index.html#install-dependencies) and installs tools such as **cmake**, **python3**, and **devicetree compiler**.
+The extension can install host tools automatically on Ubuntu/Debian, macOS, and Windows by following the [Zephyr Getting Started Guide](https://docs.zephyrproject.org/latest/develop/getting_started/index.html#install-dependencies). On other platforms, install the dependencies manually — see [Host Tools Installation](/getting-started/host-tools/).
 
-For installation on unsupported platforms, install the required packages from the getting started guide using your platform's package manager and consider making an issue or pull request for that specific platform at the zephyr-ide repository.
+If Zephyr is already installed on your machine, set `ZEPHYR_BASE` and the extension will use it directly. See [External Environments](/getting-started/external-environments/).
 
 ## Video Tutorials
 
-[![Getting Started with IDE for Zephyr](https://mylonics.com/assets/images/zephyr-ide/getting_started_thumbnail.png)](https://www.youtube.com/watch?v=Asfolnh9kqM&t "Getting Started with IDE for Zephyr")
+[![Getting Started with IDE for Zephyr](https://mylonics.com/assets/images/zephyr-ide/getting_started_thumbnail.png)](https://www.youtube.com/watch?v=Asfolnh9kqM&t)
 
-[![STM32 Board Setup And Debugging with IDE for Zephyr](https://mylonics.com/assets/images/zephyr-ide/board_setup_thumbnail.png)](https://www.youtube.com/watch?v=TXcTzyswBMQ)
+[![STM32 Board Setup and Debugging](https://mylonics.com/assets/images/zephyr-ide/board_setup_thumbnail.png)](https://www.youtube.com/watch?v=TXcTzyswBMQ)
 
 ## Getting Help
 

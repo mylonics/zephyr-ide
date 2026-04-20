@@ -7,7 +7,7 @@ assignees: ''
 
 ---
 
-Before creating an issue have you checked for past issues that may be relevant, checked [manual.md](https://github.com/mylonics/zephyr-ide/blob/main/docs/MANUAL.md) for any reference to your issue, and followed any additional setup instructions specific to your board/architecture as specified in the zephyr docs?
+Before creating an issue, please check past issues that may be relevant, search the [documentation](https://zephyr-ide.mylonics.com/) for a reference to your problem, and follow any additional setup instructions specific to your board or architecture in the Zephyr docs.
 
 **Describe the bug**
 A clear and concise description of what the bug is.
