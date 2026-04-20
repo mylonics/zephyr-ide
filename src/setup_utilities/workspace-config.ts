@@ -327,19 +327,24 @@ export async function migrateSettingKeys(): Promise<void> {
   // Users who set globalDirectory to control their Zephyr root had their SDK
   // stored at globalDirectory/toolchains — auto-set toolchainDirectory to that
   // path so SDK management continues to work without manual intervention.
+  // Process in priority order: globalDirectory wins over global_directory over tools_directory.
+  // Re-inspect toolchainDirectory inside the loop so that once the first key sets it,
+  // subsequent deprecated keys are only cleared (not used to overwrite).
   const globalDirKeys = [
     "zephyr-ide.globalDirectory",
     "zephyr-ide.global_directory",
     "zephyr-ide.tools_directory",
   ];
-  const toolchainInspect = configuration.inspect("zephyr-ide.toolchainDirectory");
 
   for (const gKey of globalDirKeys) {
     const gInspect = configuration.inspect(gKey);
+    // Re-read toolchainDirectory on every iteration so a value set by an earlier key in
+    // this loop prevents later keys from overwriting it.
+    const currentToolchainInspect = configuration.inspect("zephyr-ide.toolchainDirectory");
 
     // Global scope
     const gGlobalVal: string | undefined = gInspect?.globalValue as string | undefined;
-    if (gGlobalVal && !toolchainInspect?.globalValue) {
+    if (gGlobalVal && !currentToolchainInspect?.globalValue) {
       const derivedToolchain = path.join(gGlobalVal, "toolchains");
       await configuration.update("zephyr-ide.toolchainDirectory", derivedToolchain, vscode.ConfigurationTarget.Global);
       await configuration.update(gKey, undefined, vscode.ConfigurationTarget.Global);
@@ -352,7 +357,7 @@ export async function migrateSettingKeys(): Promise<void> {
 
     // Workspace scope
     const gWorkspaceVal: string | undefined = gInspect?.workspaceValue as string | undefined;
-    if (gWorkspaceVal && !toolchainInspect?.workspaceValue) {
+    if (gWorkspaceVal && !currentToolchainInspect?.workspaceValue) {
       const derivedToolchain = path.join(gWorkspaceVal, "toolchains");
       await configuration.update("zephyr-ide.toolchainDirectory", derivedToolchain, vscode.ConfigurationTarget.Workspace);
       await configuration.update(gKey, undefined, vscode.ConfigurationTarget.Workspace);

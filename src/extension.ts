@@ -81,7 +81,6 @@ import {
   getZephyrElfPath,
   getZephyrElfDir,
   getAutomaticProjectSelection,
-  getToolsDir,
 } from "./setup_utilities/workspace-config";
 import { checkIfToolsAvailable } from "./setup_utilities/tools-validation";
 import {
@@ -101,7 +100,6 @@ import {
   manageWorkspaces,
   westConfig,
   selectExistingWestWorkspace,
-  handleReconfigureInstallation,
 } from "./setup_utilities/workspace-setup";
 import {
   initializeDtsExt,
