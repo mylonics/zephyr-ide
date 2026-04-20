@@ -264,20 +264,7 @@ export async function generateExtensionsRecommendations(context: vscode.Extensio
 const toolsfoldername = ".zephyr_ide";
 
 export function getToolsDir() {
-  let toolsdir = path.join(os.homedir(), toolsfoldername);
-
-  const configuration = vscode.workspace.getConfiguration();
-  // Prefer new camelCase key, fall back to deprecated keys
-  const globalDir: string | undefined = configuration.get("zephyr-ide.globalDirectory")
-    || configuration.get("zephyr-ide.global_directory");
-  if (globalDir) {
-    toolsdir = globalDir;
-  } else {
-    const toolsDirFromFile: string | undefined = configuration.get("zephyr-ide.tools_directory");
-    if (toolsDirFromFile) {
-      toolsdir = toolsDirFromFile;
-    }
-  }
+  const toolsdir = path.join(os.homedir(), toolsfoldername);
   // Ensure directory exists before returning
   try {
     if (!fs.pathExistsSync(toolsdir)) {
@@ -293,13 +280,16 @@ export function getToolsDir() {
  * Migrate deprecated setting keys to their camelCase equivalents.
  * Called once on extension activation. For each pair, if the old value exists
  * and the new key is unset, the value is copied to the new key and the old key is cleared.
+ * Also migrates globalDirectory → toolchainDirectory (appending '/toolchains') for users
+ * who previously used globalDirectory to control the Zephyr installation root.
  */
 export async function migrateSettingKeys(): Promise<void> {
   const configuration = vscode.workspace.getConfiguration();
 
   const migrations: { oldKey: string; newKey: string }[] = [
-    { oldKey: "zephyr-ide.tools_directory", newKey: "zephyr-ide.globalDirectory" },
-    { oldKey: "zephyr-ide.global_directory", newKey: "zephyr-ide.globalDirectory" },
+    // Note: globalDirectory, global_directory, and tools_directory are intentionally
+    // excluded from this simple 1-to-1 rename table. They require a value transformation
+    // (appending '/toolchains') so they are handled separately in the block below.
     { oldKey: "zephyr-ide.toolchain_directory", newKey: "zephyr-ide.toolchainDirectory" },
     { oldKey: "zephyr-ide.use_gui_config", newKey: "zephyr-ide.useGuiConfig" },
     { oldKey: "zephyr-ide.suppress-workspace-warning", newKey: "zephyr-ide.suppressWorkspaceWarning" },
@@ -330,6 +320,51 @@ export async function migrateSettingKeys(): Promise<void> {
       if (!migrated.includes(oldKey)) {
         migrated.push(oldKey);
       }
+    }
+  }
+
+  // Migrate globalDirectory (and legacy variants) → toolchainDirectory.
+  // Users who set globalDirectory to control their Zephyr root had their SDK
+  // stored at globalDirectory/toolchains — auto-set toolchainDirectory to that
+  // path so SDK management continues to work without manual intervention.
+  // Process in priority order: globalDirectory wins over global_directory over tools_directory.
+  // Re-inspect toolchainDirectory inside the loop so that once the first key sets it,
+  // subsequent deprecated keys are only cleared (not used to overwrite).
+  const globalDirKeys = [
+    "zephyr-ide.globalDirectory",
+    "zephyr-ide.global_directory",
+    "zephyr-ide.tools_directory",
+  ];
+
+  for (const gKey of globalDirKeys) {
+    const gInspect = configuration.inspect(gKey);
+    // Re-read toolchainDirectory on every iteration so a value set by an earlier key in
+    // this loop prevents later keys from overwriting it.
+    const currentToolchainInspect = configuration.inspect("zephyr-ide.toolchainDirectory");
+
+    // Global scope
+    const gGlobalVal: string | undefined = gInspect?.globalValue as string | undefined;
+    if (gGlobalVal && !currentToolchainInspect?.globalValue) {
+      const derivedToolchain = path.join(gGlobalVal, "toolchains");
+      await configuration.update("zephyr-ide.toolchainDirectory", derivedToolchain, vscode.ConfigurationTarget.Global);
+      await configuration.update(gKey, undefined, vscode.ConfigurationTarget.Global);
+      if (!migrated.includes(gKey)) { migrated.push(gKey); }
+    } else if (gInspect?.globalValue !== undefined) {
+      // Key exists but toolchainDirectory already set — just clear the deprecated key
+      await configuration.update(gKey, undefined, vscode.ConfigurationTarget.Global);
+      if (!migrated.includes(gKey)) { migrated.push(gKey); }
+    }
+
+    // Workspace scope
+    const gWorkspaceVal: string | undefined = gInspect?.workspaceValue as string | undefined;
+    if (gWorkspaceVal && !currentToolchainInspect?.workspaceValue) {
+      const derivedToolchain = path.join(gWorkspaceVal, "toolchains");
+      await configuration.update("zephyr-ide.toolchainDirectory", derivedToolchain, vscode.ConfigurationTarget.Workspace);
+      await configuration.update(gKey, undefined, vscode.ConfigurationTarget.Workspace);
+      if (!migrated.includes(gKey)) { migrated.push(gKey); }
+    } else if (gInspect?.workspaceValue !== undefined) {
+      await configuration.update(gKey, undefined, vscode.ConfigurationTarget.Workspace);
+      if (!migrated.includes(gKey)) { migrated.push(gKey); }
     }
   }
 

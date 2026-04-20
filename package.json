@@ -58,7 +58,8 @@
             "null"
           ],
           "default": null,
-          "description": "Manually specify a global directory for west workspace installation and Zephyr tools. The toolchains subdirectory within this folder is used by default for SDK installations unless overridden by 'zephyr-ide.toolchainDirectory'."
+          "deprecationMessage": "Deprecated: Use 'zephyr-ide.toolchainDirectory' instead. The toolchain directory defaults to ~/.zephyr_ide/toolchains. Migrated automatically on startup.",
+          "description": "Deprecated. Use 'zephyr-ide.toolchainDirectory' instead."
         },
         "zephyr-ide.toolchainDirectory": {
           "type": [
@@ -130,8 +131,8 @@
             "null"
           ],
           "default": null,
-          "deprecationMessage": "Deprecated: Use 'zephyr-ide.globalDirectory' instead. Migrated automatically on startup.",
-          "description": "Deprecated. Use 'zephyr-ide.globalDirectory' instead."
+          "deprecationMessage": "Deprecated: Use 'zephyr-ide.toolchainDirectory' instead. Migrated automatically on startup.",
+          "description": "Deprecated. Use 'zephyr-ide.toolchainDirectory' instead."
         },
         "zephyr-ide.tools_directory": {
           "type": [
@@ -139,8 +140,8 @@
             "null"
           ],
           "default": null,
-          "deprecationMessage": "Deprecated: Use 'zephyr-ide.globalDirectory' instead. Migrated automatically on startup.",
-          "description": "Deprecated. Use 'zephyr-ide.globalDirectory' instead."
+          "deprecationMessage": "Deprecated: Use 'zephyr-ide.toolchainDirectory' instead. Migrated automatically on startup.",
+          "description": "Deprecated. Use 'zephyr-ide.toolchainDirectory' instead."
         },
         "zephyr-ide.toolchain_directory": {
           "type": [
@@ -755,10 +756,6 @@
       {
         "command": "zephyr-ide.workspace-setup-from-external-directory",
         "title": "Zephyr IDE: Setup Workspace from External Directory"
-      },
-      {
-        "command": "zephyr-ide.setup-global-install",
-        "title": "Zephyr IDE: Setup Global Install"
       },
       {
         "command": "zephyr-ide.west-config",

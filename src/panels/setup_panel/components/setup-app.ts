@@ -316,13 +316,8 @@ export class SetupApp extends ZephyrLitElement {
       status = "No Folder"; headerStatusClass = "status-info";
     }
 
-    // The "New Workspace" button is always available from the workspace list
-    // header so users can create/add a workspace at any time. The "Setup
-    // Global Install" button only appears until the user has created/adopted
-    // the user-level Zephyr install at least once.
     const headerActions = html`
       <span class="status ${headerStatusClass}">${status}</span>
-      ${d.globalInstallExists ? nothing : html`<vscode-button appearance="secondary" title="Create or adopt the user-level Zephyr installation directory" @click=${() => this._cmd("setupGlobalInstall")}>Setup Global Install</vscode-button>`}
       <vscode-button appearance="secondary" @click=${() => this._cmd("createNewWestWorkspace")}>New Workspace</vscode-button>
     `;
 

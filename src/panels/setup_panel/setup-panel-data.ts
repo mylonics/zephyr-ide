@@ -28,7 +28,6 @@ export interface SetupPanelData {
   westUpdated: boolean;
   initialSetupComplete: boolean;
   hasWorkspaces: boolean;
-  globalInstallExists: boolean;
   activeWorkspace: ActiveWorkspaceData | undefined;
   workspaces: WorkspaceListItem[];
   projects: ProjectListItem[];
@@ -50,7 +49,6 @@ export interface WorkspaceListItem {
   name: string;
   description: string;
   isActive: boolean;
-  isGlobal: boolean;
   hasPythonEnv: boolean;
   hasWestUpdated: boolean;
 }
