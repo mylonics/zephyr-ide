@@ -57,5 +57,11 @@ jobs:
         run: npm run lint
 
       - name: Run Unit Tests
+        # Skip integration test suites that require Zephyr SDK / network access.
+        # The negative-lookahead regex excludes any test whose name (test suite
+        # title) contains "Workspace" or "Combined", matching the heavyweight
+        # suites in workspace-*.test.ts and combined-installation.test.ts.
+        # Those suites are exercised by basic-tests.yml and
+        # workspace-setup-tests.yml instead.
         run: |
           xvfb-run -a npx vscode-test --grep '^(?!.*(Workspace|Combined))'

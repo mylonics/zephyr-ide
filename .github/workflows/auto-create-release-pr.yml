@@ -84,6 +84,19 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
 
+          # Safety guard: abort if the target branch contains commits that are
+          # not in develop (i.e., the target has diverged). In the normal flow
+          # develop is always ahead of main / pre-release, so the target tip
+          # MUST be an ancestor of develop. If not, something unexpected has
+          # happened (manual hotfix to main, force-push, etc.) and we refuse
+          # to force-push to avoid silently rewriting history.
+          git fetch origin "${TARGET_BRANCH}" develop
+          if ! git merge-base --is-ancestor "origin/${TARGET_BRANCH}" origin/develop; then
+            echo "::error::origin/${TARGET_BRANCH} has commits not present in origin/develop."
+            echo "::error::Refusing to rebase to avoid losing commits. Resolve manually."
+            exit 1
+          fi
+
           git checkout "${TARGET_BRANCH}"
           git rebase origin/develop
           git push --force-with-lease origin "${TARGET_BRANCH}"
