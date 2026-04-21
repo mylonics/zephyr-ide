@@ -102,8 +102,7 @@ suite("Build Args Migration Test Suite", () => {
     }
   });
 
-  test("loadProjectsFromFile migration preserves existing config entry objects when extra arrays exist", async () => {
-    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-config-files-"));
+  test("loadProjectsFromFile migration preserves existing config entry objects when extra arrays exist", async () => {    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-config-files-"));
     try {
       const configDir = path.join(tmpRoot, ".vscode");
       await fs.ensureDir(configDir);
@@ -184,6 +183,150 @@ suite("Build Args Migration Test Suite", () => {
       );
       assert.strictEqual(migrated.projects.app.confFiles.extraConfig, undefined);
       assert.strictEqual(migrated.projects.app.confFiles.extraOverlay, undefined);
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  test("loadProjectsFromFile migrates pure-string config arrays to ConfigFileEntry objects", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-conf-strings-"));
+    try {
+      const configDir = path.join(tmpRoot, ".vscode");
+      await fs.ensureDir(configDir);
+      const configPath = path.join(configDir, "zephyr-ide.json");
+      await fs.writeJson(configPath, {
+        projects: {
+          app: {
+            name: "app",
+            rel_path: "app",
+            confFiles: {
+              config: ["prj.conf", "debug.conf"],
+              overlay: ["board.overlay"],
+            },
+            twisterConfigs: {},
+            buildConfigs: {
+              release: {
+                name: "build/release",
+                board: "native_sim",
+                relBoardDir: "",
+                relBoardSubDir: "native/native_sim",
+                debugOptimization: "Release",
+                westBuildArgs: [],
+                westBuildCMakeArgs: [],
+                runnerConfigs: {},
+                confFiles: {
+                  config: ["release.conf"],
+                  overlay: [],
+                },
+                launchTarget: "Zephyr IDE: Debug",
+                buildDebugTarget: "Zephyr IDE: Debug",
+                attachTarget: "Zephyr IDE: Attach",
+              },
+            },
+          },
+        },
+      }, { spaces: 2 });
+
+      const wsConfig: WorkspaceConfig = {
+        rootPath: tmpRoot,
+        projects: {},
+        initialSetupComplete: true,
+        projectStates: {},
+      };
+
+      await loadProjectsFromFile(wsConfig);
+
+      // Pure strings should become {path: "..."} objects (non-extra)
+      assert.deepStrictEqual(wsConfig.projects.app.confFiles.config, [
+        { path: "prj.conf" },
+        { path: "debug.conf" },
+      ]);
+      assert.deepStrictEqual(wsConfig.projects.app.confFiles.overlay, [
+        { path: "board.overlay" },
+      ]);
+      assert.deepStrictEqual(wsConfig.projects.app.buildConfigs.release.confFiles.config, [
+        { path: "release.conf" },
+      ]);
+
+      // Persisted file should also have the migrated format
+      const persisted = await fs.readJson(configPath);
+      assert.deepStrictEqual(persisted.projects.app.confFiles.config, [
+        { path: "prj.conf" },
+        { path: "debug.conf" },
+      ]);
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  test("loadProjectsFromFile is idempotent: second load does not re-migrate or re-write the file", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-idempotent-"));
+    try {
+      const configDir = path.join(tmpRoot, ".vscode");
+      await fs.ensureDir(configDir);
+      const configPath = path.join(configDir, "zephyr-ide.json");
+      // Start with a legacy (string-array) format that will be migrated on first load
+      await fs.writeJson(configPath, {
+        projects: {
+          app: {
+            name: "app",
+            rel_path: "app",
+            confFiles: {
+              config: ["prj.conf"],
+              extraConfig: ["debug.conf"],
+              overlay: [],
+              extraOverlay: [],
+            },
+            twisterConfigs: {},
+            buildConfigs: {
+              debug: {
+                name: "build/debug",
+                board: "native_sim",
+                relBoardDir: "",
+                relBoardSubDir: "native/native_sim",
+                debugOptimization: "Debug",
+                westBuildArgs: "--sysbuild",
+                westBuildCMakeArgs: [],
+                runnerConfigs: {},
+                confFiles: { config: [], overlay: [] },
+                launchTarget: "Zephyr IDE: Debug",
+                buildDebugTarget: "Zephyr IDE: Debug",
+                attachTarget: "Zephyr IDE: Attach",
+              },
+            },
+          },
+        },
+      }, { spaces: 2 });
+
+      const wsConfig1: WorkspaceConfig = {
+        rootPath: tmpRoot,
+        projects: {},
+        initialSetupComplete: true,
+        projectStates: {},
+      };
+      await loadProjectsFromFile(wsConfig1);
+
+      // Capture the file content after the first (migrating) load
+      const afterFirst = await fs.readJson(configPath);
+
+      // Second load — file is already in new format; should produce the same result
+      const wsConfig2: WorkspaceConfig = {
+        rootPath: tmpRoot,
+        projects: {},
+        initialSetupComplete: true,
+        projectStates: {},
+      };
+      await loadProjectsFromFile(wsConfig2);
+
+      const afterSecond = await fs.readJson(configPath);
+
+      assert.deepStrictEqual(
+        afterSecond,
+        afterFirst,
+        "File content must be identical after a second load (migration is idempotent)"
+      );
+      assert.deepStrictEqual(wsConfig2.projects.app.confFiles.config, wsConfig1.projects.app.confFiles.config);
+      assert.deepStrictEqual(wsConfig2.projects.app.buildConfigs.debug.westBuildArgs, ["--sysbuild"]);
     } finally {
       await fs.remove(tmpRoot);
     }

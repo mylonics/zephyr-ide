@@ -33,3 +33,16 @@ The project build view and the settings panel have been rebuilt on top of [vscod
 - The extension was renamed from **Zephyr IDE** to **IDE for Zephyr**. The marketplace identifier (`mylonics.zephyr-ide`) and all `zephyr-ide.*` commands and settings remain unchanged.
 
 For the full per-PR list of changes, see the [CHANGELOG](https://github.com/mylonics/zephyr-ide/blob/main/CHANGELOG.md).
+
+## Upgrading from v2.4
+
+v3.0 is designed to be a clean in-place upgrade — existing workspaces, projects, and settings continue to work. A few things to be aware of:
+
+- **`.vscode/zephyr-ide.json` is rewritten on first open.** The project file format has been updated (config-file entries are now objects instead of plain strings, and build args are stored as arrays). The extension migrates the file automatically on first activation. If you may need to roll back to v2.4, commit or back up `.vscode/zephyr-ide.json` before upgrading.
+
+- **"Global Install" no longer appears as a special entry.** The dedicated "Global Zephyr installation" option has been removed. Any workspace that was previously registered as the global install is now shown as a normal entry in the multi-workspace list (using its folder name). No action is needed — the workspace continues to work as before.
+
+- **Windows users should re-run Host Tools after upgrading.** 7-Zip is no longer bundled with the extension; it is now installed via `winget` through the Host Tools panel. If your existing install was relying on the previously bundled copy, open **Host Tools** and install the 7-Zip package to restore extraction support.
+
+- **The first build of each project after upgrading may be a full (pristine) rebuild.** v3.0 introduces cache-invalidation logic that detects when CMake-affecting inputs (board, conf files, overlay files, CMake args) have changed since the last successful build and automatically forces `--pristine` in that case. On first launch the cache is empty, so each project will rebuild from scratch once, then incremental builds resume as normal.
+
