@@ -163,7 +163,7 @@ function handleSelectorError(error: unknown): undefined {
   return undefined;
 }
 
-export async function pickBoard(setupState: SetupState, rootPath: string) {
+export async function pickBoard(setupState: SetupState, rootPath: string, input?: MultiStepInput) {
   // Looks for board directories
   let boardDirectories: string[] = [];
 
@@ -182,17 +182,29 @@ export async function pickBoard(setupState: SetupState, rootPath: string) {
 
   const title = "Board Picker";
 
-  let pickPromise = showQuickPick({
-    title,
-    step: 1,
-    totalSteps: 3,
-    placeholder: 'Pick Additional Board Directory',
-    ignoreFocusOut: true,
-    items: boardDirectoriesQpItems,
-    activeItem: undefined,
-    dispose: false,
-  }).catch(handleSelectorError);
-  let pick = (await pickPromise as QuickPickItem);
+  // Use MultiStepInput-managed QuickPick when available so the Back button is
+  // injected for any steps that follow in the same wizard.
+  const pickBoardDir = input
+    ? input.showQuickPick({
+      title,
+      step: 1,
+      totalSteps: 3,
+      placeholder: 'Pick Additional Board Directory',
+      ignoreFocusOut: true,
+      items: boardDirectoriesQpItems,
+      activeItem: undefined,
+    }).catch(handleSelectorError)
+    : showQuickPick({
+      title,
+      step: 1,
+      totalSteps: 3,
+      placeholder: 'Pick Additional Board Directory',
+      ignoreFocusOut: true,
+      items: boardDirectoriesQpItems,
+      activeItem: undefined,
+      dispose: false,
+    }).catch(handleSelectorError);
+  let pick = (await pickBoardDir as QuickPickItem);
   if (!pick) {
     return;
   };
@@ -226,16 +238,26 @@ export async function pickBoard(setupState: SetupState, rootPath: string) {
   }
 
   const boardQpItems: BoardItem[] = boardList.map(x => ({ revisions: x.revisions, revision_default: x.revision_default, label: x.name, description: x.subdir }));
-  pickPromise = showQuickPick({
-    title,
-    step: 2,
-    totalSteps: 3,
-    placeholder: 'Pick Board',
-    ignoreFocusOut: true,
-    items: boardQpItems,
-    activeItem: undefined
-  }).catch(handleSelectorError);
-  pick = (await pickPromise as QuickPickItem);
+  const pickBoardPromise = input
+    ? input.showQuickPick({
+      title,
+      step: 2,
+      totalSteps: 3,
+      placeholder: 'Pick Board',
+      ignoreFocusOut: true,
+      items: boardQpItems,
+      activeItem: undefined,
+    }).catch(handleSelectorError)
+    : showQuickPick({
+      title,
+      step: 2,
+      totalSteps: 3,
+      placeholder: 'Pick Board',
+      ignoreFocusOut: true,
+      items: boardQpItems,
+      activeItem: undefined,
+    }).catch(handleSelectorError);
+  pick = (await pickBoardPromise as QuickPickItem);
   if (!pick) {
     return;
   };
@@ -266,20 +288,30 @@ export async function pickBoard(setupState: SetupState, rootPath: string) {
       revisionQPItems.push({ label: revision, description: description });
     }
 
-    const pickPromise = showQuickPick({
-      title,
-      step: 3,
-      totalSteps: 3,
-      placeholder: 'Pick Revision',
-      ignoreFocusOut: true,
-      items: revisionQPItems,
-      activeItem: revisionQPItems[revisionIndex]
-    }).catch(handleSelectorError);
-    const pick = (await pickPromise as QuickPickItem);
-    if (!pick) {
+    const pickRevisionPromise = input
+      ? input.showQuickPick({
+        title,
+        step: 3,
+        totalSteps: 3,
+        placeholder: 'Pick Revision',
+        ignoreFocusOut: true,
+        items: revisionQPItems,
+        activeItem: revisionQPItems[revisionIndex],
+      }).catch(handleSelectorError)
+      : showQuickPick({
+        title,
+        step: 3,
+        totalSteps: 3,
+        placeholder: 'Pick Revision',
+        ignoreFocusOut: true,
+        items: revisionQPItems,
+        activeItem: revisionQPItems[revisionIndex],
+      }).catch(handleSelectorError);
+    const revPick = (await pickRevisionPromise as QuickPickItem);
+    if (!revPick) {
       return;
     };
-    revision = pick.label;
+    revision = revPick.label;
   }
 
 
@@ -297,7 +329,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
   const title = 'Add Build Configuration';
 
   async function pickBoardStep(input: MultiStepInput, state: Partial<BuildConfig>) {
-    const boardData = await pickBoard(setupState, rootPath);
+    const boardData = await pickBoard(setupState, rootPath, input);
     if (boardData) {
       state.relBoardDir = boardData.relBoardDir;
       state.relBoardSubDir = boardData.relBoardSubDir;

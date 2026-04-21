@@ -100,7 +100,57 @@ export class MultiStepInput {
               resolve(<any>item);
             }
           }),
-          input.onDidChangeSelection(items => resolve(items[0])),
+          input.onDidChangeSelection(items => {
+            // For single-select, resolve immediately on selection. For
+            // multi-select, wait for an explicit accept (Enter) gesture so
+            // the user can toggle multiple items first.
+            if (!canSelectMany) {
+              resolve(items[0]);
+            }
+          }),
+          input.onDidHide(() => {
+            reject(InputFlowAction.cancel);
+          })
+        );
+        if (this.current) {
+          this.current.dispose();
+        }
+        this.current = input;
+        this.current.show();
+      });
+    } finally {
+      disposables.forEach(d => d.dispose());
+    }
+  }
+
+  async showQuickPickMany<T extends QuickPickItem, P extends QuickPickParameters<T>>({ title, step, totalSteps, items, activeItem, ignoreFocusOut, placeholder, buttons }: P): Promise<readonly T[]> {
+    const disposables: Disposable[] = [];
+    try {
+      return await new Promise<readonly T[]>((resolve, reject) => {
+        const input = window.createQuickPick<T>();
+        input.title = title;
+        input.step = step;
+        input.totalSteps = totalSteps;
+        input.ignoreFocusOut = ignoreFocusOut ?? false;
+        input.placeholder = placeholder;
+        input.items = items;
+        input.canSelectMany = true;
+        if (activeItem) {
+          input.activeItems = [activeItem];
+        }
+        input.buttons = [
+          ...(this.steps.length > 1 ? [QuickInputButtons.Back] : []),
+          ...(buttons || [])
+        ];
+        disposables.push(
+          input.onDidTriggerButton(item => {
+            if (item === QuickInputButtons.Back) {
+              reject(InputFlowAction.back);
+            }
+          }),
+          input.onDidAccept(() => {
+            resolve(input.selectedItems);
+          }),
           input.onDidHide(() => {
             reject(InputFlowAction.cancel);
           })
