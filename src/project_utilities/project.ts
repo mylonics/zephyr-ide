@@ -236,7 +236,7 @@ export async function modifyBuildArguments(context: vscode.ExtensionContext, wsC
   // Two-step wizard: modify west args, then cmake args. Back button on step 2
   // allows the user to correct west args after seeing the cmake prompt.
   const title = "Modify Build Arguments";
-  const argsState: { westArgs?: string; cmakeArgs?: string } = {
+  const argsState: { westArgs?: string; cmakeArgs?: string; completed?: boolean } = {
     westArgs: joinBuildArgs(build.westBuildArgs),
     cmakeArgs: joinBuildArgs(build.westBuildCMakeArgs),
   };
@@ -268,18 +268,16 @@ export async function modifyBuildArguments(context: vscode.ExtensionContext, wsC
       validate: noOpValidate,
     });
     argsState.cmakeArgs = value;
+    // Mark the wizard as completed only after the final step accepts.
+    // MultiStepInput.run consumes cancel internally, so without this flag a
+    // mid-wizard cancel would apply the step-1 value even though the user
+    // aborted.
+    argsState.completed = true;
   }
 
-  let committed = false;
-  try {
-    await MultiStepInput.run(input => inputWestArgs(input));
-    committed = true;
-  } catch {
-    // Wizard cancelled — leave build args unchanged
-    return;
-  }
+  await MultiStepInput.run(input => inputWestArgs(input));
 
-  if (!committed) {
+  if (!argsState.completed) {
     return;
   }
 
@@ -351,11 +349,10 @@ export async function createNewProjectFromSample(context: vscode.ExtensionContex
     wizardState.destination = value;
   }
 
-  try {
-    await MultiStepInput.run(input => pickSample(input));
-  } catch {
-    return;
-  }
+  // MultiStepInput.run consumes cancel internally; we detect cancellation by
+  // checking whether wizardState.destination was set (only set on accept of
+  // the final step).
+  await MultiStepInput.run(input => pickSample(input));
 
   const selectedSample = wizardState.sample;
   const projectDest = wizardState.destination;

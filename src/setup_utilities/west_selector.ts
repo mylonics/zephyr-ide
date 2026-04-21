@@ -128,7 +128,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
   }
 
   async function pickHals(input: MultiStepInput, state: WestInternalState) {
-    state.desiredHals = await input.showQuickPickMany({
+    const result = await input.showQuickPickMany({
       title,
       step: 2,
       totalSteps: totalStepsFor(state),
@@ -136,6 +136,9 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
       placeholder: "Select desired HALs (toggle then press Enter)",
       items: zephyrHals,
     });
+    // No custom buttons on this step, so the result is always the selected
+    // items array; narrow for TypeScript.
+    state.desiredHals = Array.isArray(result) ? (result as readonly QuickPickItem[]) : undefined;
     return (input: MultiStepInput) => pickVersion(input, state);
   }
 

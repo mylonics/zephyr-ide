@@ -151,7 +151,8 @@ export async function configRemover(confFiles: ConfigFiles, isKConfigSelector: b
 
     // Use input.showQuickPickMany so the Back button is shown when this step
     // is reached after selectTypeToRemove. The selection is confirmed via the
-    // QuickPick accept (Enter) gesture.
+    // QuickPick accept (Enter) gesture. Do not .catch here — InputFlowAction
+    // rejections must bubble up to MultiStepInput.run for Back/Cancel to work.
     const temp = await input.showQuickPickMany({
       title,
       step: isPrimary === undefined ? 2 : 1,
@@ -159,14 +160,11 @@ export async function configRemover(confFiles: ConfigFiles, isKConfigSelector: b
       placeholder: "Select files to remove (toggle then press Enter)",
       ignoreFocusOut: true,
       items,
-    }).catch((error) => {
-      outputError("Config Selector", String(error));
-      return undefined;
     });
-    if (!temp) {
+    if (!temp || !Array.isArray(temp) || temp.length === 0) {
       return;
     }
-    const selectedFiles = new Set(temp.map((x: QuickPickItem) => x.label));
+    const selectedFiles = new Set((temp as readonly QuickPickItem[]).map((x) => x.label));
 
     confFiles[key] = confFiles[key].filter(el => !(!!el.extra === isExtra && selectedFiles.has(el.path)));
     return;

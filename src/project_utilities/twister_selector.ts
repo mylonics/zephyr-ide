@@ -92,7 +92,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
     testQpItems.push({ label: "", kind: vscode.QuickPickItemKind.Separator });
     testQpItems = testQpItems.concat(mapToQuickPickItems(tests));
 
-    const testPick = await input.showQuickPickMany({
+    const testPickResult = await input.showQuickPickMany({
       title,
       step: 1,
       totalSteps: totalStepsFor(),
@@ -102,10 +102,12 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
       activeItem: undefined,
     });
 
-    if (testPick.length === 0) {
+    // No custom buttons on this step, so the result is always an array.
+    if (!Array.isArray(testPickResult) || testPickResult.length === 0) {
       notifyError("Twister Config", "Need to select at least one test");
       return;
     }
+    const testPick = testPickResult as readonly QuickPickItem[];
 
     twisterConfig.tests = [];
     for (const v of testPick) {

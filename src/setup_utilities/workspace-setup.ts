@@ -222,7 +222,7 @@ export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext
   // so the Back button appears on step 2 and the user can correct the URL
   // without re-running the command.
   const title = "West Workspace from Git";
-  const state: { gitUrl?: string; additionalArgs?: string } = {};
+  const state: { gitUrl?: string; additionalArgs?: string; completed?: boolean } = {};
 
   async function inputGitUrl(input: MultiStepInput) {
     const url = await input.showInputBox({
@@ -251,15 +251,15 @@ export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext
       validate: async () => undefined,
     });
     state.additionalArgs = args;
+    // Mark the wizard as completed only after the final step has accepted.
+    // MultiStepInput.run consumes cancel internally, so this flag is the
+    // only reliable way to detect that the user finished the wizard.
+    state.completed = true;
   }
 
-  try {
-    await MultiStepInput.run(input => inputGitUrl(input));
-  } catch {
-    return false;
-  }
+  await MultiStepInput.run(input => inputGitUrl(input));
 
-  if (!state.gitUrl) {
+  if (!state.completed || !state.gitUrl) {
     return false;
   }
 
@@ -570,11 +570,9 @@ export async function manageWorkspaces(context: vscode.ExtensionContext, wsConfi
     wizardState.action = selected.detail;
   }
 
-  try {
-    await MultiStepInput.run(input => pickInstallation(input));
-  } catch {
-    return;
-  }
+  // MultiStepInput.run consumes cancel internally; we rely on wizardState
+  // being populated by a successful final-step accept.
+  await MultiStepInput.run(input => pickInstallation(input));
 
   if (!wizardState.installPath || !wizardState.action) {
     return;

@@ -438,18 +438,17 @@ async function selectSDKVersionAndToolchains(setupState: SetupState): Promise<{ 
             items: toolchainTargets.filter(item => item.kind !== vscode.QuickPickItemKind.Separator),
         });
 
-        if (!selected || selected.length === 0) {
+        if (!selected || !Array.isArray(selected) || selected.length === 0) {
             // Leave state.toolchains unset so caller treats as cancel
             return;
         }
-        state.toolchains = selected.map(item => item.label);
+        state.toolchains = (selected as readonly vscode.QuickPickItem[]).map(item => item.label);
     }
 
-    try {
-        await MultiStepInput.run(input => pickSDKVersion(input));
-    } catch {
-        return null; // cancelled
-    }
+    // MultiStepInput.run consumes user cancel internally. We rely on the
+    // state flags (sdkVersionChosen + toolchains) to detect successful
+    // completion.
+    await MultiStepInput.run(input => pickSDKVersion(input));
 
     if (!state.sdkVersionChosen || !state.toolchains || state.toolchains.length === 0) {
         return null;

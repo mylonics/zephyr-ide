@@ -183,7 +183,9 @@ export async function pickBoard(setupState: SetupState, rootPath: string, input?
   const title = "Board Picker";
 
   // Use MultiStepInput-managed QuickPick when available so the Back button is
-  // injected for any steps that follow in the same wizard.
+  // injected for any steps that follow in the same wizard. Do not .catch on
+  // the input branch — MultiStepInput rejects with InputFlowAction.back/cancel
+  // which must bubble up to MultiStepInput.run for navigation to work.
   const pickBoardDir = input
     ? input.showQuickPick({
       title,
@@ -193,7 +195,7 @@ export async function pickBoard(setupState: SetupState, rootPath: string, input?
       ignoreFocusOut: true,
       items: boardDirectoriesQpItems,
       activeItem: undefined,
-    }).catch(handleSelectorError)
+    })
     : showQuickPick({
       title,
       step: 1,
@@ -247,7 +249,7 @@ export async function pickBoard(setupState: SetupState, rootPath: string, input?
       ignoreFocusOut: true,
       items: boardQpItems,
       activeItem: undefined,
-    }).catch(handleSelectorError)
+    })
     : showQuickPick({
       title,
       step: 2,
@@ -297,7 +299,7 @@ export async function pickBoard(setupState: SetupState, rootPath: string, input?
         ignoreFocusOut: true,
         items: revisionQPItems,
         activeItem: revisionQPItems[revisionIndex],
-      }).catch(handleSelectorError)
+      })
       : showQuickPick({
         title,
         step: 3,
