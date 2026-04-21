@@ -196,6 +196,10 @@ export function isMacOS() {
   return platform === "darwin";
 }
 
+export function isWindows() {
+  return platform === "win32";
+}
+
 export function isWSL() {
   return vscode.env.remoteName === "wsl";
 }
@@ -547,6 +551,28 @@ export async function executeTaskHelperInPythonEnv(setupState: SetupState | unde
     }
     if (setupState.env["VIRTUAL_ENV"]) {
       env["VIRTUAL_ENV"] = setupState.env["VIRTUAL_ENV"];
+    }
+    return await executeTaskHelper(taskName, cmd, cwd, env);
+  } else if (isWindows()) {
+    // On Windows, pip builds packages from source using a temporary directory
+    // derived from %TEMP% (e.g. C:\Users\<user>\AppData\Local\Temp).  Combined
+    // with the package name and pip's build-isolation subdirectories this can
+    // easily exceed the default MAX_PATH limit of 260 characters.  Redirect
+    // TMPDIR/TEMP/TMP to a short path at the root of the system drive so that
+    // the build directories remain short enough to stay within MAX_PATH.
+    const env: { [key: string]: string } = {};
+    const systemDrive = process.env.SYSTEMDRIVE || "C:";
+    const shortTempDir = `${systemDrive}\\Temp`;
+    try {
+      if (!fs.existsSync(shortTempDir)) {
+        fs.mkdirSync(shortTempDir, { recursive: true });
+      }
+      env["TMPDIR"] = shortTempDir;
+      env["TEMP"] = shortTempDir;
+      env["TMP"] = shortTempDir;
+    } catch {
+      // If the directory cannot be created, proceed without overriding TEMP so
+      // that the command still runs, even if paths may be longer than ideal.
     }
     return await executeTaskHelper(taskName, cmd, cwd, env);
   } else {
