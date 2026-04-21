@@ -390,10 +390,8 @@ async function selectSDKVersionAndToolchains(setupState: SetupState): Promise<{ 
                 notifyError("SDK Install",
                     "Could not auto-detect SDK version from workspace. Please select a specific version."
                 );
-                // Return back to the same step by throwing cancel via returning undefined
-                // Since we can't re-prompt from within the step function cleanly,
-                // signal failure by leaving state unset and aborting.
-                throw new Error("sdk-version-auto-detect-failed");
+                // Signal abort to the caller by leaving sdkVersionChosen false.
+                return;
             }
             void vscode.window.showInformationMessage(
                 `Auto-detected SDK version: ${detectedVersion}`
@@ -449,10 +447,7 @@ async function selectSDKVersionAndToolchains(setupState: SetupState): Promise<{ 
 
     try {
         await MultiStepInput.run(input => pickSDKVersion(input));
-    } catch (err) {
-        if (err instanceof Error && err.message === "sdk-version-auto-detect-failed") {
-            return null;
-        }
+    } catch {
         return null; // cancelled
     }
 
