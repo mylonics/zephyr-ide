@@ -57,12 +57,15 @@ suite("Python Command Test Suite", () => {
         // and reach the platform-default branch.
         const pythonCmd = await getPythonCommand(null);
         
-        // Should return platform-specific default
+        // Should return a platform-appropriate Python executable.
+        // getDefaultPythonExecutable() probes manifest candidates (e.g. python3.12,
+        // python3) and returns the best match, so accept any python3* on Linux/macOS
+        // and any python* on Windows.
         const platform = os.platform();
         if (platform === "linux" || platform === "darwin") {
-            assert.strictEqual(pythonCmd, "python3", "Should return python3 on Linux/macOS");
+            assert.ok(pythonCmd.startsWith("python3"), `Should return a python3 variant on Linux/macOS, got: ${pythonCmd}`);
         } else if (platform === "win32") {
-            assert.strictEqual(pythonCmd, "python", "Should return python on Windows");
+            assert.ok(pythonCmd.startsWith("python") || pythonCmd.startsWith("py"), `Should return a python variant on Windows, got: ${pythonCmd}`);
         }
     });
 
@@ -106,8 +109,8 @@ suite("Python Command Test Suite", () => {
             
             // Should have expanded the environment variable
             assert.ok(!pythonCmd.includes("${env:HOME}"), "Should not contain unexpanded variable");
-            assert.ok(pythonCmd.includes(testHome) || pythonCmd === "python3" || pythonCmd === "python", 
-                "Should either expand the variable or fall back to default");
+            assert.ok(pythonCmd.includes(testHome) || pythonCmd.startsWith("python3") || pythonCmd.startsWith("python") || pythonCmd.startsWith("py"), 
+                "Should either expand the variable or fall back to a platform default");
         } finally {
             // Clean up temp files and directories
             fs.removeSync(tempDir);
@@ -121,12 +124,14 @@ suite("Python Command Test Suite", () => {
         
         const pythonCmd = await getPythonCommand(configPath);
         
-        // Should fall back to platform default because expansion failed
+        // Should fall back to platform default because expansion failed.
+        // getDefaultPythonExecutable() may return a versioned executable
+        // (e.g. python3.12) when one meets the manifest minimum requirement.
         const platform = os.platform();
         if (platform === "linux" || platform === "darwin") {
-            assert.strictEqual(pythonCmd, "python3", "Should fall back to python3 when env var expansion fails");
+            assert.ok(pythonCmd.startsWith("python3"), `Should fall back to a python3 variant when env var expansion fails, got: ${pythonCmd}`);
         } else if (platform === "win32") {
-            assert.strictEqual(pythonCmd, "python", "Should fall back to python when env var expansion fails");
+            assert.ok(pythonCmd.startsWith("python") || pythonCmd.startsWith("py"), `Should fall back to a python variant when env var expansion fails, got: ${pythonCmd}`);
         }
     });
 
@@ -135,12 +140,14 @@ suite("Python Command Test Suite", () => {
         
         const pythonCmd = await getPythonCommand(nonExistentPath);
         
-        // Should fall back to platform default
+        // Should fall back to platform default.
+        // getDefaultPythonExecutable() may return a versioned executable
+        // (e.g. python3.12) when one meets the manifest minimum requirement.
         const platform = os.platform();
         if (platform === "linux" || platform === "darwin") {
-            assert.strictEqual(pythonCmd, "python3", "Should fall back to python3 when path doesn't exist");
+            assert.ok(pythonCmd.startsWith("python3"), `Should fall back to a python3 variant when path doesn't exist, got: ${pythonCmd}`);
         } else if (platform === "win32") {
-            assert.strictEqual(pythonCmd, "python", "Should fall back to python when path doesn't exist");
+            assert.ok(pythonCmd.startsWith("python") || pythonCmd.startsWith("py"), `Should fall back to a python variant when path doesn't exist, got: ${pythonCmd}`);
         }
     });
 
@@ -151,13 +158,14 @@ suite("Python Command Test Suite", () => {
         assert.strictEqual(firstCall, secondCall, "Should return the same cached value on repeated no-override calls");
 
         // Calls with an explicit override always bypass the cache and compute fresh.
-        // A non-existent path falls through to the platform default.
+        // A non-existent path falls through to the platform default, which may be a
+        // versioned executable (e.g. python3.12) probed from the manifest candidates.
         const withOverride = await getPythonCommand("/nonexistent/override/python");
         const platform = os.platform();
         if (platform === "linux" || platform === "darwin") {
-            assert.strictEqual(withOverride, "python3", "Override that doesn't exist should fall back to platform default");
+            assert.ok(withOverride.startsWith("python3"), `Override that doesn't exist should fall back to a python3 variant, got: ${withOverride}`);
         } else if (platform === "win32") {
-            assert.strictEqual(withOverride, "python", "Override that doesn't exist should fall back to platform default on Windows");
+            assert.ok(withOverride.startsWith("python") || withOverride.startsWith("py"), `Override that doesn't exist should fall back to a python variant on Windows, got: ${withOverride}`);
         }
     });
 
@@ -169,12 +177,14 @@ suite("Python Command Test Suite", () => {
         
         const pythonCmd = await getPythonCommand(configPath);
         
-        // Should fall back to platform default because CUSTOM_VAR is not whitelisted
+        // Should fall back to platform default because CUSTOM_VAR is not whitelisted.
+        // getDefaultPythonExecutable() may return a versioned executable
+        // (e.g. python3.12) when one meets the manifest minimum requirement.
         const platform = os.platform();
         if (platform === "linux" || platform === "darwin") {
-            assert.strictEqual(pythonCmd, "python3", "Should fall back to python3 for non-whitelisted env var");
+            assert.ok(pythonCmd.startsWith("python3"), `Should fall back to a python3 variant for non-whitelisted env var, got: ${pythonCmd}`);
         } else if (platform === "win32") {
-            assert.strictEqual(pythonCmd, "python", "Should fall back to python for non-whitelisted env var");
+            assert.ok(pythonCmd.startsWith("python") || pythonCmd.startsWith("py"), `Should fall back to a python variant for non-whitelisted env var, got: ${pythonCmd}`);
         }
         
         // Clean up
@@ -184,24 +194,28 @@ suite("Python Command Test Suite", () => {
     test("Handles empty configured path", async function() {
         const pythonCmd = await getPythonCommand("");
         
-        // Should fall back to platform default
+        // Should fall back to platform default.
+        // getDefaultPythonExecutable() may return a versioned executable
+        // (e.g. python3.12) when one meets the manifest minimum requirement.
         const platform = os.platform();
         if (platform === "linux" || platform === "darwin") {
-            assert.strictEqual(pythonCmd, "python3", "Should fall back to python3 for empty config");
+            assert.ok(pythonCmd.startsWith("python3"), `Should fall back to a python3 variant for empty config, got: ${pythonCmd}`);
         } else if (platform === "win32") {
-            assert.strictEqual(pythonCmd, "python", "Should fall back to python for empty config");
+            assert.ok(pythonCmd.startsWith("python") || pythonCmd.startsWith("py"), `Should fall back to a python variant for empty config, got: ${pythonCmd}`);
         }
     });
 
     test("Handles whitespace-only configured path", async function() {
         const pythonCmd = await getPythonCommand("   ");
         
-        // Should fall back to platform default
+        // Should fall back to platform default.
+        // getDefaultPythonExecutable() may return a versioned executable
+        // (e.g. python3.12) when one meets the manifest minimum requirement.
         const platform = os.platform();
         if (platform === "linux" || platform === "darwin") {
-            assert.strictEqual(pythonCmd, "python3", "Should fall back to python3 for whitespace-only config");
+            assert.ok(pythonCmd.startsWith("python3"), `Should fall back to a python3 variant for whitespace-only config, got: ${pythonCmd}`);
         } else if (platform === "win32") {
-            assert.strictEqual(pythonCmd, "python", "Should fall back to python for whitespace-only config");
+            assert.ok(pythonCmd.startsWith("python") || pythonCmd.startsWith("py"), `Should fall back to a python variant for whitespace-only config, got: ${pythonCmd}`);
         }
     });
 });
