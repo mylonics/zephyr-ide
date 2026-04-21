@@ -196,6 +196,70 @@ export function isMacOS() {
   return platform === "darwin";
 }
 
+export function isWindows() {
+  return platform === "win32";
+}
+
+/** Cached result of the LongPathsEnabled registry check. undefined = not yet read. */
+let _longPathsEnabledCache: boolean | undefined = undefined;
+
+/**
+ * Check whether the Windows LongPathsEnabled registry key is set to 1.
+ * The result is cached for the lifetime of the extension process to avoid
+ * repeated PowerShell round-trips. The cache is cleared when
+ * enableWindowsLongPaths() writes the registry key.
+ * Returns false when not on Windows or when the check cannot be performed.
+ */
+export async function checkWindowsLongPathsEnabled(): Promise<boolean> {
+  if (platform !== "win32") {
+    return false;
+  }
+  if (_longPathsEnabledCache !== undefined) {
+    return _longPathsEnabledCache;
+  }
+  try {
+    // executeShellCommand already uses powershell.exe on Windows, so pass the
+    // script directly without an extra "powershell -Command" wrapper.
+    const cmd = `(Get-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\FileSystem' -Name LongPathsEnabled -ErrorAction SilentlyContinue).LongPathsEnabled`;
+    const result = await executeShellCommand(cmd, "", false);
+    _longPathsEnabledCache = result.stdout?.trim() === "1";
+    return _longPathsEnabledCache;
+  } catch {
+    _longPathsEnabledCache = false;
+    return false;
+  }
+}
+
+/**
+ * Enable Windows long path support by setting the LongPathsEnabled registry
+ * key to 1.  Requires administrator privileges; the PowerShell process is
+ * launched with -Verb RunAs so the user sees a UAC prompt.
+ * Returns true if the registry write succeeded, false otherwise.
+ */
+export async function enableWindowsLongPaths(): Promise<boolean> {
+  if (platform !== "win32") {
+    return false;
+  }
+  try {
+    // executeShellCommand already uses powershell.exe on Windows, so pass the
+    // Start-Process command directly without an extra "powershell -Command" wrapper.
+    // The key takes effect immediately for new processes — no restart needed.
+    const cmd = `Start-Process powershell -Verb RunAs -Wait -ArgumentList '-Command Set-ItemProperty -Path HKLM:\\SYSTEM\\CurrentControlSet\\Control\\FileSystem -Name LongPathsEnabled -Value 1'`;
+    await executeShellCommand(cmd, "", false);
+    // Invalidate the cache so checkWindowsLongPathsEnabled() does a fresh read.
+    _longPathsEnabledCache = undefined;
+    // Verify the key was actually set (UAC deny or other failures leave it unset)
+    const enabled = await checkWindowsLongPathsEnabled();
+    if (!enabled) {
+      outputInfo("Long Paths", "LongPathsEnabled registry write did not take effect — UAC may have been denied or the process lacked privileges.");
+    }
+    return enabled;
+  } catch (error) {
+    outputInfo("Long Paths", `Failed to enable Windows long paths: ${error}`);
+    return false;
+  }
+}
+
 export function isWSL() {
   return vscode.env.remoteName === "wsl";
 }
@@ -533,7 +597,7 @@ async function executeTask(task: vscode.Task) {
   return taskDone;
 }
 
-export async function executeTaskHelperInPythonEnv(setupState: SetupState | undefined, taskName: string, cmd: string, cwd: string | undefined) {
+export async function executeTaskHelperInPythonEnv(setupState: SetupState | undefined, taskName: string, cmd: string, cwd: string | undefined, overrideTempOnWindows: boolean = false) {
   if (setupState && (isMacOS() || isWSL())) {
     // On macOS and WSL, VS Code's environmentVariableCollection doesn't
     // reliably propagate to task shells.  Instead of rewriting the command
@@ -547,6 +611,27 @@ export async function executeTaskHelperInPythonEnv(setupState: SetupState | unde
     }
     if (setupState.env["VIRTUAL_ENV"]) {
       env["VIRTUAL_ENV"] = setupState.env["VIRTUAL_ENV"];
+    }
+    return await executeTaskHelper(taskName, cmd, cwd, env);
+  } else if (isWindows() && overrideTempOnWindows) {
+    // When installing pip packages on Windows, redirect TMPDIR/TEMP/TMP to a
+    // short path at the root of the system drive.  pip builds packages from
+    // source using a temporary directory derived from %TEMP% which — combined
+    // with the package name and pip's build-isolation subdirectories — can
+    // easily exceed the default MAX_PATH limit of 260 characters.
+    const env: { [key: string]: string } = {};
+    const systemDrive = process.env.SYSTEMDRIVE || "C:";
+    const shortTempDir = `${systemDrive}\\Temp`;
+    try {
+      if (!fs.existsSync(shortTempDir)) {
+        fs.mkdirSync(shortTempDir, { recursive: true });
+      }
+      env["TMPDIR"] = shortTempDir;
+      env["TEMP"] = shortTempDir;
+      env["TMP"] = shortTempDir;
+    } catch {
+      // If the directory cannot be created, proceed without overriding TEMP so
+      // that the command still runs, even if paths may be longer than ideal.
     }
     return await executeTaskHelper(taskName, cmd, cwd, env);
   } else {

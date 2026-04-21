@@ -45,6 +45,11 @@ export interface HostToolsStatusData {
   packages: PackageStatus[];
   /** When true, all packages are pending their initial availability check. */
   checking?: boolean;
+  /**
+   * Windows-only: whether the LongPathsEnabled registry key is set to 1.
+   * undefined when not running on Windows.
+   */
+  windowsLongPathsEnabled?: boolean;
 }
 
 export type PackageState = 'checking' | 'installing' | 'installed' | 'pending-restart' | 'error';
@@ -67,6 +72,7 @@ const OUTBOUND_COMMANDS = {
   installAllMissing: 'hostToolsInstallAllMissing',
   installAllMissingPackages: 'hostToolsInstallAllMissingPackages',
   openManagerInstallUrl: 'hostToolsOpenManagerInstallUrl',
+  enableWindowsLongPaths: 'enableWindowsLongPaths',
 } as const;
 
 const INBOUND_COMMANDS = {
@@ -212,6 +218,10 @@ export class HostToolsClient {
 
   openManagerInstallUrl(): void {
     this.vscode.postMessage({ command: OUTBOUND_COMMANDS.openManagerInstallUrl });
+  }
+
+  enableWindowsLongPaths(): void {
+    this.vscode.postMessage({ command: OUTBOUND_COMMANDS.enableWindowsLongPaths });
   }
 
   // -----------------------------------------------------------------------

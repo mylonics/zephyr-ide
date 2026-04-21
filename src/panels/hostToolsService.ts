@@ -30,6 +30,7 @@ import {
 import { WorkspaceConfig, GlobalConfig } from '../setup_utilities/types';
 import { saveSetupState } from '../setup_utilities/state-management';
 import { notifyError, notifyWarning } from '../utilities/output';
+import { isWindows, checkWindowsLongPathsEnabled, enableWindowsLongPaths } from '../utilities/utils';
 
 /**
  * Provider for the live state references the HostToolsService needs in order
@@ -162,6 +163,11 @@ export class HostToolsService {
       const packages = await getPlatformPackages();
       const pendingRestartList = this._stateRefs.globalConfig?.pendingRestartPackages ?? [];
 
+      // On Windows, check whether the LongPathsEnabled registry key is set.
+      const windowsLongPathsEnabled = isWindows()
+        ? await checkWindowsLongPathsEnabled()
+        : undefined;
+
       // Send the full package list immediately with `checking: true` so the UI
       // can render every card with a "Checking…" spinner right away. Packages
       // marked as pending-restart from a previous install (and persisted across
@@ -180,6 +186,7 @@ export class HostToolsService {
           managerInstallUrl: manager.config.install_url,
           packages: initialStatuses,
           checking: true,
+          windowsLongPathsEnabled,
         },
       });
 
@@ -206,6 +213,21 @@ export class HostToolsService {
     } catch (error) {
       this.post(HOST_TOOLS_COMMANDS.updateStatus, { error: String(error) });
     }
+  }
+
+  async enableLongPaths(): Promise<void> {
+    const success = await enableWindowsLongPaths();
+    if (success) {
+      void vscode.window.showInformationMessage('Windows long path support has been enabled. No restart is required.');
+    } else {
+      void vscode.window.showErrorMessage(
+        'Could not enable Windows long path support. The UAC prompt may have been cancelled. ' +
+        'You can enable it manually by running the following command in an elevated PowerShell prompt:\n' +
+        'Set-ItemProperty -Path "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\FileSystem" -Name "LongPathsEnabled" -Value 1'
+      );
+    }
+    // Refresh status so the banner updates to reflect the new long paths state.
+    await this.checkStatus();
   }
 
   async installPackageManager(): Promise<void> {
