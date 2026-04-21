@@ -53,6 +53,7 @@ import * as fs from "fs-extra";
 import * as path from "upath";
 import { executeTaskHelper, validateGitUrl } from "../utilities/utils";
 import { outputInfo, outputError, notifyError, showOutput } from "../utilities/output";
+import { MultiStepInput } from "../utilities/multistepQuickPick";
 import { westSelector, WestLocation } from "./west_selector";
 import { WorkspaceConfig, GlobalConfig, formatZephyrVersion } from "./types";
 import { setSetupState, loadExternalSetupState, setWorkspaceState, setGlobalState, setExternalSetupState } from "./state-management";
@@ -217,24 +218,53 @@ export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext
   // Clear all context flags at start
   await clearWorkspaceSetupContextFlags(context, wsConfig, globalConfig);
 
-  const gitUrl = await vscode.window.showInputBox({
-    prompt: "Enter the Git repository URL for the West workspace",
-    placeHolder:
-      "https://github.com/user/repo.git or git@github.com:user/repo.git",
-    ignoreFocusOut: true,
-    validateInput: validateGitUrl,
-  });
+  // Two-step wizard: git URL, then additional west args. Using MultiStepInput
+  // so the Back button appears on step 2 and the user can correct the URL
+  // without re-running the command.
+  const title = "West Workspace from Git";
+  const state: { gitUrl?: string; additionalArgs?: string } = {};
 
-  if (!gitUrl) {
+  async function inputGitUrl(input: MultiStepInput) {
+    const url = await input.showInputBox({
+      title,
+      step: 1,
+      totalSteps: 2,
+      value: state.gitUrl ?? "",
+      prompt: "Enter the Git repository URL for the West workspace",
+      placeholder: "https://github.com/user/repo.git or git@github.com:user/repo.git",
+      ignoreFocusOut: true,
+      validate: async (value) => validateGitUrl(value),
+    });
+    state.gitUrl = url;
+    return (input: MultiStepInput) => inputAdditionalArgs(input);
+  }
+
+  async function inputAdditionalArgs(input: MultiStepInput) {
+    const args = await input.showInputBox({
+      title,
+      step: 2,
+      totalSteps: 2,
+      value: state.additionalArgs ?? "",
+      prompt: "Enter any additional arguments for west init/update (optional)",
+      placeholder: "--mr main",
+      ignoreFocusOut: true,
+      validate: async () => undefined,
+    });
+    state.additionalArgs = args;
+  }
+
+  try {
+    await MultiStepInput.run(input => inputGitUrl(input));
+  } catch {
     return false;
   }
 
-  // Second quick input for additional west arguments
-  const additionalArgs = await vscode.window.showInputBox({
-    prompt: "Enter any additional arguments for west init/update (optional)",
-    placeHolder: "--mr main",
-    ignoreFocusOut: true,
-  });
+  if (!state.gitUrl) {
+    return false;
+  }
+
+  const gitUrl = state.gitUrl;
+  const additionalArgs = state.additionalArgs;
 
   const currentDir = installDir || wsConfig.rootPath;
   if (!currentDir) {
@@ -486,56 +516,78 @@ export async function manageWorkspaces(context: vscode.ExtensionContext, wsConfi
 
   const allOptions = [...installOptions, ...invalidInstallations];
 
-  const selectedInstall = await vscode.window.showQuickPick(allOptions, {
-    placeHolder: "Select an installation to manage",
-    ignoreFocusOut: true,
-  });
+  // Two-step wizard: pick installation, then action. Using MultiStepInput so
+  // that Back on the action step returns to installation selection.
+  const title = "Manage Installations";
+  const wizardState: { installPath?: string; installName?: string; action?: string } = {};
 
-  if (!selectedInstall) {
+  async function pickInstallation(input: MultiStepInput) {
+    const selected = await input.showQuickPick({
+      title,
+      step: 1,
+      totalSteps: 2,
+      placeholder: "Select an installation to manage",
+      ignoreFocusOut: true,
+      items: allOptions,
+    });
+    wizardState.installPath = selected.detail;
+    wizardState.installName = path.basename(selected.detail ?? "");
+    return (input: MultiStepInput) => pickAction(input);
+  }
+
+  async function pickAction(input: MultiStepInput) {
+    if (!wizardState.installPath) {
+      return;
+    }
+    const isValidPath = fs.pathExistsSync(wizardState.installPath);
+    const actionOptions: vscode.QuickPickItem[] = [];
+    if (isValidPath) {
+      actionOptions.push({
+        label: "$(tools) Reconfigure",
+        description: "Reconfigure this installation",
+        detail: "reconfigure",
+      });
+      actionOptions.push({
+        label: "$(tools) West Update",
+        description: "Run west update and reinstall requirements",
+        detail: "west-update",
+      });
+    }
+    actionOptions.push({
+      label: "$(trash) Delete",
+      description: "Remove this installation from the registry",
+      detail: "delete",
+    });
+
+    const selected = await input.showQuickPick({
+      title,
+      step: 2,
+      totalSteps: 2,
+      placeholder: `What would you like to do with "${wizardState.installName}"?`,
+      ignoreFocusOut: true,
+      items: actionOptions,
+    });
+    wizardState.action = selected.detail;
+  }
+
+  try {
+    await MultiStepInput.run(input => pickInstallation(input));
+  } catch {
     return;
   }
 
-  const installPath = selectedInstall.detail!;
-  const installName = path.basename(installPath);
-  const isValidPath = fs.pathExistsSync(installPath);
-
-  // Second quick pick for action selection
-  const actionOptions: vscode.QuickPickItem[] = [];
-
-  if (isValidPath) {
-    actionOptions.push({
-      label: "$(tools) Reconfigure",
-      description: "Reconfigure this installation",
-      detail: "reconfigure"
-    });
-
-    actionOptions.push({
-      label: "$(tools) West Update",
-      description: "Run west update and reinstall requirements",
-      detail: "west-update"
-    });
-  }
-
-  actionOptions.push({
-    label: "$(trash) Delete",
-    description: "Remove this installation from the registry",
-    detail: "delete"
-  });
-
-  const selectedAction = await vscode.window.showQuickPick(actionOptions, {
-    placeHolder: `What would you like to do with "${installName}"?`,
-    ignoreFocusOut: true,
-  });
-
-  if (!selectedAction) {
+  if (!wizardState.installPath || !wizardState.action) {
     return;
   }
 
-  if (selectedAction.detail === "reconfigure") {
+  const installPath = wizardState.installPath;
+  const installName = wizardState.installName ?? path.basename(installPath);
+
+  if (wizardState.action === "reconfigure") {
     await handleReconfigureInstallation(context, wsConfig, globalConfig, installPath);
-  } else if (selectedAction.detail === "west-update") {
+  } else if (wizardState.action === "west-update") {
     await postWorkspaceSetup(context, wsConfig, globalConfig, installPath, undefined);
-  } else if (selectedAction.detail === "delete") {
+  } else if (wizardState.action === "delete") {
     await handleDeleteInstallation(context, globalConfig, installPath, installName);
   }
 }

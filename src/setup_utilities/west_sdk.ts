@@ -26,6 +26,7 @@ import { executeShellCommandInPythonEnv, executeTaskHelperInPythonEnv } from "..
 import { outputInfo, outputWarning, outputError, notifyError, outputCommandFailure } from "../utilities/output";
 import { sdkVersions, toolchainTargets } from "../defines";
 import { SetupProgressTracker } from "./setup-progress";
+import { MultiStepInput } from "../utilities/multistepQuickPick";
 
 /** Event emitter for SDK install progress, mirroring the workspace setup progress pattern. */
 const _onSDKProgress = new vscode.EventEmitter<import("./setup-progress").SetupProgressEvent>();
@@ -356,77 +357,110 @@ async function detectInstalledSDKVersion(): Promise<string | undefined> {
 }
 
 /**
- * Prompts user to select SDK version
+ * Prompts user to select SDK version and toolchains as a single MultiStep
+ * wizard so the user can navigate back between steps.
+ *
+ * Returns null if the user cancelled, or an object with:
+ *   - sdkVersion: string for a specific version, undefined for "latest"
+ *   - toolchains: string[] (["all"] for all toolchains)
  */
-async function selectSDKVersion(setupState: SetupState): Promise<string | null | undefined> {
-    const selectedVersion = await vscode.window.showQuickPick(sdkVersions, {
-        placeHolder: "Select SDK version to install",
-        ignoreFocusOut: true,
-    });
+async function selectSDKVersionAndToolchains(setupState: SetupState): Promise<{ sdkVersion: string | undefined; toolchains: string[] } | null> {
+    const title = "Install Zephyr SDK";
 
-    if (!selectedVersion) {
-        return null; // user cancelled
-    }
+    type State = {
+        sdkVersion?: string | undefined; // undefined means "latest", not-yet-set is indicated by sdkVersionChosen
+        sdkVersionChosen?: boolean;
+        toolchains?: string[];
+    };
+    const state: State = {};
 
-    if (selectedVersion.label === "automatic") {
-        const detectedVersion = await detectSDKVersionFromWorkspace(setupState);
-        if (!detectedVersion) {
-            notifyError("SDK Install",
-                "Could not auto-detect SDK version from workspace. Please select a specific version."
+    async function pickSDKVersion(input: MultiStepInput) {
+        const selected = await input.showQuickPick({
+            title,
+            step: 1,
+            totalSteps: 2,
+            placeholder: "Select SDK version to install",
+            ignoreFocusOut: true,
+            items: sdkVersions,
+        });
+
+        if (selected.label === "automatic") {
+            const detectedVersion = await detectSDKVersionFromWorkspace(setupState);
+            if (!detectedVersion) {
+                notifyError("SDK Install",
+                    "Could not auto-detect SDK version from workspace. Please select a specific version."
+                );
+                // Return back to the same step by throwing cancel via returning undefined
+                // Since we can't re-prompt from within the step function cleanly,
+                // signal failure by leaving state unset and aborting.
+                throw new Error("sdk-version-auto-detect-failed");
+            }
+            void vscode.window.showInformationMessage(
+                `Auto-detected SDK version: ${detectedVersion}`
             );
-            return null; // auto-detect failed
+            state.sdkVersion = detectedVersion;
+        } else if (selected.label === "latest") {
+            state.sdkVersion = undefined; // undefined means latest
+        } else {
+            state.sdkVersion = selected.label;
         }
-        void vscode.window.showInformationMessage(
-            `Auto-detected SDK version: ${detectedVersion}`
-        );
-        return detectedVersion;
+        state.sdkVersionChosen = true;
+
+        return (input: MultiStepInput) => pickInstallChoice(input);
     }
 
-    if (selectedVersion.label === "latest") {
-        return undefined; // undefined means latest
-    }
+    async function pickInstallChoice(input: MultiStepInput) {
+        const installAllOption = { label: "Install All Toolchains", description: "Install all available toolchains" };
+        const selectSpecificOption = { label: "Select Specific Toolchains", description: "Choose which toolchains to install" };
 
-    return selectedVersion.label;
-}
-
-/**
- * Prompts user to select toolchains to install
- */
-async function selectToolchains(): Promise<string[] | undefined> {
-    const installAllOption = { label: "Install All Toolchains", description: "Install all available toolchains" };
-    const selectSpecificOption = { label: "Select Specific Toolchains", description: "Choose which toolchains to install" };
-
-    const installChoice = await vscode.window.showQuickPick(
-        [installAllOption, selectSpecificOption],
-        {
-            placeHolder: "Choose toolchain installation option",
+        const selected = await input.showQuickPick({
+            title,
+            step: 2,
+            totalSteps: 2,
+            placeholder: "Choose toolchain installation option",
             ignoreFocusOut: true,
+            items: [installAllOption, selectSpecificOption],
+        });
+
+        if (selected.label === "Install All Toolchains") {
+            state.toolchains = ["all"];
+            return; // Done
         }
-    );
 
-    if (!installChoice) {
-        return undefined;
+        return (input: MultiStepInput) => pickSpecificToolchains(input);
     }
 
-    if (installChoice.label === "Install All Toolchains") {
-        return ["all"];
-    }
-
-    // Let user select specific toolchains
-    const selectedToolchains = await vscode.window.showQuickPick(
-        toolchainTargets.filter(item => item.kind !== vscode.QuickPickItemKind.Separator),
-        {
-            placeHolder: "Select toolchains to install",
-            canPickMany: true,
+    async function pickSpecificToolchains(input: MultiStepInput) {
+        const selected = await input.showQuickPickMany({
+            title,
+            step: 2,
+            totalSteps: 2,
+            placeholder: "Select toolchains to install (toggle then press Enter)",
             ignoreFocusOut: true,
-        }
-    );
+            items: toolchainTargets.filter(item => item.kind !== vscode.QuickPickItemKind.Separator),
+        });
 
-    if (!selectedToolchains || selectedToolchains.length === 0) {
-        return undefined;
+        if (!selected || selected.length === 0) {
+            // Leave state.toolchains unset so caller treats as cancel
+            return;
+        }
+        state.toolchains = selected.map(item => item.label);
     }
 
-    return selectedToolchains.map(item => item.label);
+    try {
+        await MultiStepInput.run(input => pickSDKVersion(input));
+    } catch (err) {
+        if (err instanceof Error && err.message === "sdk-version-auto-detect-failed") {
+            return null;
+        }
+        return null; // cancelled
+    }
+
+    if (!state.sdkVersionChosen || !state.toolchains || state.toolchains.length === 0) {
+        return null;
+    }
+
+    return { sdkVersion: state.sdkVersion, toolchains: state.toolchains };
 }
 
 /**
@@ -548,25 +582,22 @@ export async function installSDKInteractive(wsConfig: WorkspaceConfig, globalCon
         outputInfo("SDK Install", `Found west SDK context (setupPath: ${setupState.setupPath})`);
         tracker.completeStep('resolve', `Using: ${setupState.setupPath}`);
 
-        // Step 1: Select SDK version
+        // Step 1+2 combined: select SDK version and toolchains as a single
+        // MultiStep wizard so the user can navigate back between them.
         tracker.startStep('version');
-        const sdkVersion = await selectSDKVersion(setupState);
-        outputInfo("SDK Install", `SDK version selection result: ${sdkVersion === null ? 'cancelled' : sdkVersion === undefined ? 'latest' : sdkVersion}`);
-        if (sdkVersion === null) { // user cancelled or auto-detect failed
-            outputInfo("SDK Install", "SDK version selection was cancelled or failed, aborting SDK install");
+        const selection = await selectSDKVersionAndToolchains(setupState);
+        if (!selection) {
+            outputInfo("SDK Install", "SDK version/toolchain selection was cancelled or failed, aborting SDK install");
             tracker.failStep('version', 'Selection cancelled');
             return;
         }
+        const sdkVersion = selection.sdkVersion;
+        const toolchains = selection.toolchains;
+        outputInfo("SDK Install", `SDK version selection result: ${sdkVersion === undefined ? 'latest' : sdkVersion}`);
         tracker.completeStep('version', sdkVersion ?? 'latest');
 
-        // Step 2: Select toolchains
+        outputInfo("SDK Install", `Toolchain selection result: ${toolchains.join(', ')}`);
         tracker.startStep('toolchains');
-        const toolchains = await selectToolchains();
-        outputInfo("SDK Install", `Toolchain selection result: ${toolchains ? toolchains.join(', ') : 'cancelled'}`);
-        if (!toolchains) { // user cancelled
-            tracker.failStep('toolchains', 'Selection cancelled');
-            return;
-        }
         tracker.completeStep('toolchains', toolchains.includes('all') ? 'All toolchains' : toolchains.join(', '));
 
         // Step 3: Install with progress
