@@ -341,7 +341,7 @@ export async function activate(context: vscode.ExtensionContext) {
   // rather than a second entry being created at a new default path.
   if (wsConfig.activeSetupState) {
     const activePath = wsConfig.activeSetupState.setupPath;
-    if (activePath && (!globalConfig.setupStateDictionary || !(activePath in globalConfig.setupStateDictionary))) {
+    if (activePath && !globalConfig.setupStateDictionary?.[activePath]) {
       if (!globalConfig.setupStateDictionary) {
         globalConfig.setupStateDictionary = {};
       }
