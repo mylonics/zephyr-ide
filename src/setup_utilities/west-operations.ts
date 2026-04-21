@@ -28,6 +28,7 @@ import { saveSetupState, setSetupState, setWorkspaceState } from "./state-manage
 import { getSetupState, getSetupStateOrNotify, getVenvPath } from "./workspace-config";
 import { ensureWestConfigManifest } from "./west-config-parser";
 import { SetupProgressTracker } from "./setup-progress";
+import { getDefaultPythonExecutable } from "./host_tools";
 
 // Test-only override for narrow update
 let forceNarrowUpdateForTest = false;
@@ -50,7 +51,9 @@ export function resetPythonCommand(): void {
 /**
  * Compute the Python command to use, given an optional override.
  * Reads VS Code's `python.defaultInterpreterPath` when no override is supplied.
- * Falls back to the platform default (`python3` on Linux/macOS, `python` on Windows).
+ * Falls back to probing manifest candidates via getDefaultPythonExecutable() so the
+ * venv is created with the required version (e.g. python3.12) rather than whatever
+ * generic python3/python resolves to on PATH.
  */
 async function computePythonCommand(configOverride: string | null | undefined): Promise<string> {
   const configuredPython = configOverride !== undefined
@@ -89,9 +92,10 @@ async function computePythonCommand(configOverride: string | null | undefined): 
     }
   }
 
-  // Fall back to platform default
-  const platformName = await getPlatformNameAsync();
-  const defaultCmd = platformName === "linux" || platformName === "macos" ? "python3" : "python";
+  // Fall back to platform default — probe manifest candidates so the venv
+  // is created with the required version (e.g. python3.12) rather than
+  // whatever generic python3/python resolves to on PATH.
+  const defaultCmd = await getDefaultPythonExecutable();
   outputInfo("Python Setup", `Using platform default Python: ${defaultCmd}`);
   return defaultCmd;
 }
