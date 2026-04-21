@@ -200,18 +200,28 @@ export function isWindows() {
   return platform === "win32";
 }
 
+/** Cached result of the LongPathsEnabled registry check. undefined = not yet read. */
+let _longPathsEnabledCache: boolean | undefined = undefined;
+
 /**
  * Check whether the Windows LongPathsEnabled registry key is set to 1.
+ * The result is cached for the lifetime of the extension process to avoid
+ * repeated PowerShell round-trips. Call invalidateLongPathsCache() before
+ * re-reading (e.g. after writing the registry key).
  * Returns false when not on Windows or when the check cannot be performed.
  */
 export async function checkWindowsLongPathsEnabled(): Promise<boolean> {
   if (platform !== "win32") {
     return false;
   }
+  if (_longPathsEnabledCache !== undefined) {
+    return _longPathsEnabledCache;
+  }
   try {
     const cmd = `powershell -Command "(Get-ItemProperty -Path 'HKLM:\\\\SYSTEM\\\\CurrentControlSet\\\\Control\\\\FileSystem' -Name LongPathsEnabled -ErrorAction SilentlyContinue).LongPathsEnabled"`;
     const result = await executeShellCommand(cmd, "", false);
-    return result.stdout?.trim() === "1";
+    _longPathsEnabledCache = result.stdout?.trim() === "1";
+    return _longPathsEnabledCache;
   } catch {
     return false;
   }
@@ -232,6 +242,8 @@ export async function enableWindowsLongPaths(): Promise<boolean> {
     // The key takes effect immediately for new processes — no restart needed.
     const cmd = `powershell -Command "Start-Process powershell -Verb RunAs -Wait -ArgumentList '-Command Set-ItemProperty -Path HKLM:\\\\SYSTEM\\\\CurrentControlSet\\\\Control\\\\FileSystem -Name LongPathsEnabled -Value 1'"`;
     await executeShellCommand(cmd, "", false);
+    // Invalidate the cache so checkWindowsLongPathsEnabled() does a fresh read.
+    _longPathsEnabledCache = undefined;
     // Verify the key was actually set (UAC deny or other failures leave it unset)
     const enabled = await checkWindowsLongPathsEnabled();
     if (!enabled) {
