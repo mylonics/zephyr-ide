@@ -622,6 +622,10 @@
         "title": "Zephyr IDE: Run ROM Report"
       },
       {
+        "command": "zephyr-ide.run-dashboard",
+        "title": "Zephyr IDE: Run Dashboard Report"
+      },
+      {
         "command": "zephyr-ide.start-dtsh-shell",
         "title": "Zephyr IDE: Start DTSh Shell"
       },
@@ -1141,7 +1145,7 @@
   "scripts": {
     "vscode:prepublish": "npm run esbuild-base -- --minify && npm run esbuild-webview-base -- --minify",
     "esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node",
-    "esbuild-webview-base": "esbuild ./src/panels/host_tool_install_view/host-tool-install.ts ./src/panels/setup_panel/setup-panel.ts ./src/panels/project_build_view/project-build-panel.ts ./src/panels/settings_view/settings-panel.ts ./src/panels/sdk_panel/sdk-panel.ts ./src/panels/workspace_panel/workspace-panel.ts --bundle --outdir=dist/webview --outbase=src/panels --format=iife --platform=browser --tsconfig=tsconfig.webview.json",
+    "esbuild-webview-base": "esbuild ./src/panels/host_tool_install_view/host-tool-install.ts ./src/panels/setup_panel/setup-panel.ts ./src/panels/project_build_view/project-build-panel.ts ./src/panels/settings_view/settings-panel.ts ./src/panels/sdk_panel/sdk-panel.ts ./src/panels/workspace_panel/workspace-panel.ts ./src/panels/dashboard_view/dashboard-panel.ts --bundle --outdir=dist/webview --outbase=src/panels --format=iife --platform=browser --tsconfig=tsconfig.webview.json",
     "esbuild": "npm run esbuild-base -- --sourcemap && npm run esbuild-webview-base -- --sourcemap",
     "esbuild-watch": "npm run esbuild-base -- --sourcemap --watch",
     "test-compile": "tsc -p ./ && tsc -p ./tsconfig.webview.json",

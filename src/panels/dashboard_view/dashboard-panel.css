@@ -1,0 +1,270 @@
+/*
+Copyright 2026 mylonics
+Author Rijesh Augustine
+SPDX-License-Identifier: Apache-2.0
+*/
+
+/* Zephyr IDE Dashboard panel — minimal styling tuned for VS Code themes. */
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  color: var(--vscode-foreground);
+  background-color: var(--vscode-editor-background);
+}
+
+dashboard-app {
+  display: block;
+  height: 100vh;
+}
+
+.dashboard-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  height: 100vh;
+}
+
+.dashboard-sidebar {
+  border-right: 1px solid var(--vscode-panel-border);
+  padding: 16px 0;
+  overflow-y: auto;
+  background-color: var(--vscode-sideBar-background, transparent);
+}
+
+.dashboard-sidebar h2 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 16px 8px;
+  color: var(--vscode-sideBarSectionHeader-foreground, var(--vscode-foreground));
+  opacity: 0.7;
+}
+
+.dashboard-sidebar ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.dashboard-sidebar li {
+  padding: 6px 16px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.dashboard-sidebar li:hover {
+  background-color: var(--vscode-list-hoverBackground);
+}
+
+.dashboard-sidebar li.active {
+  background-color: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+}
+
+.dashboard-content {
+  padding: 24px 32px;
+  overflow: auto;
+}
+
+.dashboard-content h1 {
+  font-size: 1.6em;
+  margin: 0 0 16px;
+  font-weight: 600;
+}
+
+.dashboard-content h2 {
+  font-size: 1.15em;
+  margin: 24px 0 12px;
+  font-weight: 600;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 16px;
+  margin-bottom: 24px;
+}
+
+.summary-grid dt {
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.summary-grid dd {
+  margin: 0;
+  word-break: break-word;
+}
+
+.memory-bar {
+  display: flex;
+  height: 24px;
+  width: 100%;
+  border-radius: 3px;
+  overflow: hidden;
+  border: 1px solid var(--vscode-panel-border);
+}
+
+.memory-bar > span {
+  display: block;
+  text-align: center;
+  font-size: 11px;
+  line-height: 24px;
+  color: white;
+  overflow: hidden;
+}
+
+.memory-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+.memory-legend .swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 4px;
+  vertical-align: middle;
+  border-radius: 2px;
+}
+
+.tree {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: var(--vscode-editor-font-size, 12px);
+}
+
+.tree details {
+  margin-left: 12px;
+}
+
+.tree details > summary {
+  cursor: pointer;
+  padding: 1px 0;
+  list-style: none;
+}
+
+.tree details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.tree details > summary::before {
+  content: '\25B8';
+  display: inline-block;
+  width: 12px;
+  font-size: 9px;
+  opacity: 0.7;
+}
+
+.tree details[open] > summary::before {
+  content: '\25BE';
+}
+
+.tree .leaf {
+  margin-left: 24px;
+  padding: 1px 0;
+}
+
+.tree .size {
+  opacity: 0.7;
+  margin-left: 6px;
+}
+
+.tree .mem-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 4px;
+  border-radius: 2px;
+  font-size: 10px;
+  background-color: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+table th,
+table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+table th {
+  background-color: var(--vscode-editor-background);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  font-weight: 600;
+}
+
+table td.num,
+table th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+pre.text-viewer {
+  background-color: var(--vscode-textCodeBlock-background, var(--vscode-editor-background));
+  border: 1px solid var(--vscode-panel-border);
+  padding: 12px;
+  border-radius: 3px;
+  overflow: auto;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: var(--vscode-editor-font-size, 12px);
+  white-space: pre;
+  max-height: 70vh;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.empty-state {
+  opacity: 0.7;
+  font-style: italic;
+  padding: 16px 0;
+}
+
+.error-state {
+  color: var(--vscode-errorForeground);
+  margin: 12px 0;
+}
+
+.dts-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 1100px) {
+  .dts-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.kconfig-filter {
+  margin-bottom: 12px;
+  width: 100%;
+  max-width: 400px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  background-color: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  margin-right: 4px;
+}

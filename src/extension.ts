@@ -27,6 +27,7 @@ import { ProjectConfigView } from "./tree_views/ProjectConfigView";
 import { SetupPanel } from "./panels/setup_panel/SetupPanel";
 import { HostToolInstallView } from "./panels/host_tool_install_view/HostToolInstallView";
 import { ProjectBuildPanel } from "./panels/project_build_view/ProjectBuildPanel";
+import { DashboardPanel } from "./panels/dashboard_view/DashboardPanel";
 import { SettingsPanel } from "./panels/settings_view/SettingsPanel";
 import { SDKPanel } from "./panels/sdk_panel/SDKPanel";
 import { WorkspacePanel } from "./panels/workspace_panel/WorkspacePanel";
@@ -49,6 +50,7 @@ import {
   buildMenuConfig,
   buildRamRomReport,
   buildRamRomReportHeadless,
+  buildDashboard,
   runDtshShell,
   clean,
   MenuConfig,
@@ -1258,6 +1260,15 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.run-rom-report-headless", async () => {
       return await buildRamRomReportHeadless(context, wsConfig, false);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.run-dashboard", async () => {
+      const result = await buildDashboard(context, wsConfig);
+      if (result?.success) {
+        DashboardPanel.createOrShow(context.extensionPath, result.jsonPath, result.projectName, result.buildName);
+      }
     })
   );
 

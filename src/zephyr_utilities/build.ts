@@ -406,6 +406,53 @@ export async function buildRamRomReportHeadless(
   }
 }
 
+export async function buildDashboard(
+  context: vscode.ExtensionContext,
+  wsConfig: WorkspaceConfig,
+  project?: ProjectConfig,
+  build?: BuildConfig
+): Promise<{ success: boolean; dashboardDir: string; jsonPath: string; projectName: string; buildName: string } | undefined> {
+  if (!project || !build) {
+    const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Dashboard Report", projectName: project?.name });
+    if (!resolved) { return undefined; }
+    project = project ?? resolved.project;
+    build = build ?? resolved.build;
+  }
+
+  const buildFolder = getBuildFolder(wsConfig, project, build);
+  if (!isBuildFolderPopulated(buildFolder)) {
+    notifyError("Dashboard Report", `Run a Build or Build Pristine before running Dashboard Report.`);
+    return undefined;
+  }
+
+  const setupState = await getSetupStateOrNotify(context, wsConfig, "Dashboard Report");
+  if (!setupState) {
+    return undefined;
+  }
+
+  const dashboardDir = path.join(buildFolder, 'dashboard');
+  const jsonPath = path.join(dashboardDir, 'dashboard.json');
+
+  const helperScript = path.join(context.extensionPath, 'resources', 'zephyr_dashboard_json.py');
+  if (!fs.existsSync(helperScript)) {
+    notifyError("Dashboard Report", `Dashboard helper script not found: ${helperScript}`);
+    return undefined;
+  }
+
+  const cmd = `python "${helperScript}" --build-dir "${buildFolder}" --zephyr-base "${setupState.zephyrDir}" --output "${jsonPath}"`;
+  const taskName = "Zephyr IDE Dashboard: " + project.name + " " + build.name;
+
+  outputInfo(`Dashboard Report: ${project.name}/${build.name}`, `Generating dashboard JSON for ${build.name} from project: ${project.name} (cmd: ${cmd})`, true);
+  const success = await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState.setupPath);
+  return {
+    success: !!success && fs.existsSync(jsonPath),
+    dashboardDir,
+    jsonPath,
+    projectName: project.name,
+    buildName: build.name,
+  };
+}
+
 export async function runDtshShell(
   context: vscode.ExtensionContext,
   wsConfig: WorkspaceConfig,
