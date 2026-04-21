@@ -32,12 +32,30 @@ export interface PackageManager {
   install_url?: string;
 }
 
+export interface PythonVersionCheck {
+  /** Minimum required version, e.g. "3.12". */
+  minimum: string;
+  /**
+   * Ordered list of executable commands to probe. The first candidate that
+   * exists AND meets the minimum version is selected. Candidates may include
+   * the literal token `$(brew --prefix)`, which is resolved once per process.
+   * Multi-token forms like `py -3` are supported as-is.
+   */
+  candidates: string[];
+}
+
 export interface PlatformPackage {
   name: string;
   package: string;
   check_command: string;
   architectures?: string[];
   post_install_step?: string;
+  /**
+   * For Python packages: structured version probing that picks a specific
+   * interpreter from a prioritised candidate list rather than relying on
+   * whatever `python3`/`python` resolves first on PATH.
+   */
+  version_check?: PythonVersionCheck;
 }
 
 export interface HostToolsManifest {
@@ -261,20 +279,24 @@ async function detectVersionedPythonVenvPackage(): Promise<string | undefined> {
 /**
  * Return the active python3 minor version number (e.g. 12 for 3.12).
  * Returns undefined if python3 is unavailable or the version cannot be parsed.
+ *
+ * Uses the same prioritised candidate-list logic as `pickPythonExecutable`,
+ * preferring `python3.12` over a generic `python3` in mixed-Python
+ * environments. This matches what the deadsnakes-based install registers as
+ * the default and avoids resolving against an older system python that may
+ * still be on PATH after install.
  */
 async function detectPython3MinorVersion(): Promise<number | undefined> {
-  try {
-    const result = await executeShellCommand(
-      `python3 -c "import sys; print(sys.version_info.minor)"`,
-      "",
-      false
-    );
-    const out = (result.stdout || "").trim();
-    const n = parseInt(out, 10);
-    return isNaN(n) ? undefined : n;
-  } catch {
-    return undefined;
+  // Probe candidates in priority order; pick the first one that runs and
+  // reports a parseable Python 3.x version, regardless of the floor. We need
+  // *some* version here even on systems where the floor isn't met yet.
+  const picked = await pickPythonExecutable(["python3.12", "python3"], [3, 0]);
+  if (picked.valid && picked.version) {
+    const parts = picked.version.split(".");
+    const minor = parseInt(parts[1], 10);
+    return isNaN(minor) ? undefined : minor;
   }
+  return undefined;
 }
 
 /**
@@ -369,42 +391,192 @@ export async function getPlatformPackages(): Promise<PlatformPackage[]> {
 }
 
 /**
- * Check Python version and ensure it meets minimum requirements (>= 3.10)
+ * Parse a "Python X.Y.Z" string into a [major, minor, patch] tuple. Returns
+ * undefined if the string cannot be parsed (e.g. empty output from the
+ * Microsoft Store python.exe stub, or unrelated output).
  */
-async function checkPythonVersion(pythonCommand: string): Promise<{ valid: boolean, version?: string, error?: string }> {
+function parsePythonVersion(rawOutput: string): [number, number, number] | undefined {
+  const versionMatch = rawOutput.match(/Python\s+(\d+)\.(\d+)\.(\d+)/i);
+  if (!versionMatch) {
+    return undefined;
+  }
+  return [parseInt(versionMatch[1], 10), parseInt(versionMatch[2], 10), parseInt(versionMatch[3], 10)];
+}
+
+/**
+ * Heuristic: detect when running `python` resolves to the Microsoft Store
+ * python.exe stub on Windows. The stub either prints nothing on `--version`
+ * or emits a "was not found" / "Microsoft Store" notice instead of a real
+ * Python version banner. We treat both as "not installed" so the version
+ * picker falls through to the next candidate (typically `py -3`).
+ */
+function isMicrosoftStorePythonStub(stdout: string, stderr: string): boolean {
+  const combined = `${stdout || ""}${stderr || ""}`.trim();
+  if (combined === "") {
+    return true;
+  }
+  const lowered = combined.toLowerCase();
+  return (
+    lowered.includes("microsoft store") ||
+    lowered.includes("was not found") ||
+    lowered.includes("manage app execution aliases")
+  );
+}
+
+/** Cached resolved path for `$(brew --prefix)`. `null` means "tried, failed". */
+let brewPrefixCache: string | null | undefined;
+
+/**
+ * Resolve the literal token `$(brew --prefix)` inside a candidate string by
+ * running `brew --prefix` once per process and substituting the result.
+ * Returns undefined if the token is present but `brew` is unavailable.
+ */
+async function resolveBrewPrefix(candidate: string): Promise<string | undefined> {
+  if (!candidate.includes("$(brew --prefix)")) {
+    return candidate;
+  }
+  if (brewPrefixCache === undefined) {
+    try {
+      const result = await executeShellCommand("brew --prefix", "", false);
+      const prefix = (result.stdout || "").trim();
+      brewPrefixCache = prefix.length > 0 ? prefix : null;
+    } catch {
+      brewPrefixCache = null;
+    }
+  }
+  if (!brewPrefixCache) {
+    return undefined;
+  }
+  return candidate.split("$(brew --prefix)").join(brewPrefixCache);
+}
+
+/** Reset the cached `brew --prefix` result. Intended for tests. */
+export function _resetBrewPrefixCacheForTest(): void {
+  brewPrefixCache = undefined;
+}
+
+export interface PythonVersionResult {
+  valid: boolean;
+  version?: string;
+  executable?: string;
+  error?: string;
+}
+
+/**
+ * Probe a single candidate executable command, e.g. `python3.12`,
+ * `/opt/homebrew/opt/python@3/bin/python3`, or `py -3`. Returns the parsed
+ * version and pass/fail relative to the [major, minor] floor.
+ */
+async function checkPythonVersion(
+  pythonCommand: string,
+  minimum: [number, number]
+): Promise<PythonVersionResult> {
   try {
-    // Try to get Python version
     const result = await executeShellCommand(`${pythonCommand} --version`, "", false);
 
-    // Some Python builds (especially older Windows ones) write to stderr instead of stdout.
-    const rawOutput = result.stdout || result.stderr || '';
-    if (!rawOutput) {
-      return { valid: false, error: "Could not determine Python version" };
+    // The shell command failed entirely (e.g. command not found).
+    if (result.stdout === undefined && !result.stderr) {
+      return { valid: false, executable: pythonCommand, error: "Executable not found" };
     }
 
-    // Parse version from output like "Python 3.x.y"
-    const versionMatch = rawOutput.match(/Python\s+(\d+)\.(\d+)\.(\d+)/i);
-    if (!versionMatch) {
-      return { valid: false, error: "Could not parse Python version" };
+    const stdout = result.stdout || "";
+    const stderr = result.stderr || "";
+
+    // Special-case the Windows Microsoft Store stub which produces empty or
+    // promotional output instead of a real version banner.
+    if (isMicrosoftStorePythonStub(stdout, stderr)) {
+      return { valid: false, executable: pythonCommand, error: "Microsoft Store python stub (no version reported)" };
     }
 
-    const major = parseInt(versionMatch[1]);
-    const minor = parseInt(versionMatch[2]);
-    const versionStr = `${major}.${minor}.${versionMatch[3]}`;
+    // Some Python builds (especially older Windows ones) write to stderr.
+    const rawOutput = stdout || stderr;
+    const parsed = parsePythonVersion(rawOutput);
+    if (!parsed) {
+      return { valid: false, executable: pythonCommand, error: "Could not parse Python version" };
+    }
 
-    // Check minimum version: Python >= 3.12
-    if (major < 3 || (major === 3 && minor < 12)) {
+    const [major, minor, patch] = parsed;
+    const versionStr = `${major}.${minor}.${patch}`;
+    const [minMajor, minMinor] = minimum;
+
+    if (major < minMajor || (major === minMajor && minor < minMinor)) {
       return {
         valid: false,
         version: versionStr,
-        error: `Python ${versionStr} found, but version >= 3.12 is required`
+        executable: pythonCommand,
+        error: `Python ${versionStr} found at ${pythonCommand}, but version >= ${minMajor}.${minMinor} is required`,
       };
     }
 
-    return { valid: true, version: versionStr };
+    return { valid: true, version: versionStr, executable: pythonCommand };
   } catch (error) {
-    return { valid: false, error: String(error) };
+    return { valid: false, executable: pythonCommand, error: String(error) };
   }
+}
+
+/**
+ * Iterate the supplied candidate executables in priority order, returning the
+ * first one that runs and meets the minimum [major, minor] version. Candidates
+ * may include the `$(brew --prefix)` token, which is resolved on demand.
+ *
+ * If no candidate satisfies the floor, the result with the highest reported
+ * version is returned (so callers can produce a precise error message such as
+ * "Python 3.10.6 found, but >= 3.12 is required") — matching the historical
+ * single-candidate behaviour.
+ */
+export async function pickPythonExecutable(
+  candidates: string[],
+  minimum: [number, number]
+): Promise<PythonVersionResult> {
+  if (candidates.length === 0) {
+    return { valid: false, error: "No Python candidates configured" };
+  }
+
+  const attempts: PythonVersionResult[] = [];
+  for (const rawCandidate of candidates) {
+    const resolved = await resolveBrewPrefix(rawCandidate);
+    if (resolved === undefined) {
+      attempts.push({ valid: false, executable: rawCandidate, error: "Could not resolve $(brew --prefix)" });
+      continue;
+    }
+    const attempt = await checkPythonVersion(resolved, minimum);
+    if (attempt.valid) {
+      return attempt;
+    }
+    attempts.push(attempt);
+  }
+
+  // Pick the attempt with the highest parsed version, if any, for the most
+  // helpful error. Otherwise return the first failure.
+  const versioned = attempts.filter(a => !!a.version);
+  if (versioned.length > 0) {
+    versioned.sort((a, b) => comparePythonVersions(b.version!, a.version!));
+    return versioned[0];
+  }
+  return attempts[0];
+}
+
+/** Compare two "X.Y.Z" version strings; returns negative/zero/positive. */
+function comparePythonVersions(a: string, b: string): number {
+  const pa = a.split(".").map(n => parseInt(n, 10));
+  const pb = b.split(".").map(n => parseInt(n, 10));
+  for (let i = 0; i < 3; i++) {
+    const diff = (pa[i] || 0) - (pb[i] || 0);
+    if (diff !== 0) {
+      return diff;
+    }
+  }
+  return 0;
+}
+
+/** Parse a "X.Y" minimum string into a [major, minor] tuple. */
+function parseMinimumVersion(s: string): [number, number] {
+  const m = s.match(/^(\d+)\.(\d+)/);
+  if (!m) {
+    // Defensive default; manifest is authored, so this shouldn't fire.
+    return [3, 12];
+  }
+  return [parseInt(m[1], 10), parseInt(m[2], 10)];
 }
 
 /**
@@ -416,26 +588,34 @@ export async function checkPackageAvailable(pkg: PlatformPackage): Promise<Packa
     // Command succeeded if stdout is not undefined (even if empty)
     const available = result.stdout !== undefined;
 
-    // Special handling for Python packages - check version
-    if (available && pkg.name.toLowerCase().includes("python")) {
-      // Extract the python command from check_command (e.g., "python3 --version" -> "python3")
-      const pythonCmdMatch = pkg.check_command.match(/^(python\d*)\s/);
-      if (pythonCmdMatch) {
-        const pythonCmd = pythonCmdMatch[1];
-        const versionCheck = await checkPythonVersion(pythonCmd);
+    // Structured Python version check (preferred): probe a prioritised
+    // candidate list and report the *specific* interpreter that was selected.
+    // Falls back gracefully if the package check_command itself failed
+    // (available=false) — we still want a precise error in that case.
+    if (pkg.version_check) {
+      const minimum = parseMinimumVersion(pkg.version_check.minimum);
+      const picked = await pickPythonExecutable(pkg.version_check.candidates, minimum);
 
-        if (!versionCheck.valid) {
-          outputWarning("Host Tools", `${pkg.name}: ${versionCheck.error || "Version check failed"}`);
-          return {
-            name: pkg.name,
-            package: pkg.package,
-            available: false,
-            error: versionCheck.error || "Python version < 3.12"
-          };
-        } else {
-          outputInfo("Host Tools", `${pkg.name} version ${versionCheck.version} detected (>= 3.12 required)`);
-        }
+      if (!picked.valid) {
+        const detail = picked.error || `Python version < ${pkg.version_check.minimum}`;
+        outputWarning("Host Tools", `${pkg.name}: ${detail}`);
+        return {
+          name: pkg.name,
+          package: pkg.package,
+          available: false,
+          error: detail,
+        };
       }
+
+      outputInfo(
+        "Host Tools",
+        `${pkg.name} ${picked.version} detected via ${picked.executable} (>= ${pkg.version_check.minimum} required)`
+      );
+      return {
+        name: pkg.name,
+        package: pkg.package,
+        available: true,
+      };
     }
 
     return {
