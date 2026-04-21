@@ -328,6 +328,28 @@ export async function activate(context: vscode.ExtensionContext) {
   wsConfig = await loadWorkspaceState(context);
   globalConfig = await loadGlobalState(context);
 
+  // Guard: ensure the active workspace's setup state is registered in the
+  // global dictionary before setSetupState runs. Without this, if the global
+  // dictionary is missing the path (e.g., after a VS Code state reset or when
+  // upgrading from a very old release), loadExternalSetupState would create a
+  // fresh zeroed entry and overwrite the correctly-loaded activeSetupState —
+  // sending the user back to the Initial Setup page even though their
+  // workspace was already fully configured.
+  //
+  // This also ensures that the old global install (previously stored at
+  // getToolsDir()) is preserved as a single entry in setupStateDictionary
+  // rather than a second entry being created at a new default path.
+  if (wsConfig.activeSetupState) {
+    const activePath = wsConfig.activeSetupState.setupPath;
+    if (activePath && (!globalConfig.setupStateDictionary || !(activePath in globalConfig.setupStateDictionary))) {
+      if (!globalConfig.setupStateDictionary) {
+        globalConfig.setupStateDictionary = {};
+      }
+      globalConfig.setupStateDictionary[activePath] = wsConfig.activeSetupState;
+      await setGlobalState(context, globalConfig);
+    }
+  }
+
   if (wsConfig.activeSetupState) {
     await setSetupState(
       context,
