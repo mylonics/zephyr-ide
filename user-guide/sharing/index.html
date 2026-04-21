@@ -83,14 +83,13 @@ svg:where(.astro-c6vsoqas){color:var(--sl-icon-color);font-size:var(--sl-icon-si
 <p><strong>Recommended to commit</strong>:</p>
 <ul>
 <li>Project source code</li>
-<li><code dir="auto">zephyr-ide.json</code> - Project and build configurations</li>
-<li><code dir="auto">.vscode/zephyr-ide.json</code> - Extension-specific settings</li>
-<li>west.yml - Workspace manifest</li>
+<li><code dir="auto">.vscode/zephyr-ide.json</code> - Project and build configurations</li>
+<li><code dir="auto">west.yml</code> / <code dir="auto">.west/</code> - Workspace manifest and west configuration</li>
 </ul>
 <p><strong>Consider case-by-case</strong>:</p>
 <ul>
-<li><code dir="auto">settings.json</code> - May contain user-specific paths</li>
-<li><code dir="auto">launch.json</code> - May contain user-specific debug configurations</li>
+<li><code dir="auto">.vscode/settings.json</code> - May contain user-specific paths</li>
+<li><code dir="auto">.vscode/launch.json</code> - May contain user-specific debug configurations</li>
 </ul>
 <p><strong>Do NOT commit</strong>:</p>
 <ul>
@@ -106,7 +105,8 @@ svg:where(.astro-c6vsoqas){color:var(--sl-icon-color);font-size:var(--sl-icon-si
 <p>If you are trying to share a non-local workspace, then committing settings.json is not advisable as some variables may change between machines.</p>
 <p>Unfortunately, VSCode does not provide a way for having user-specific settings/configurations per workspace. See this <a href="https://github.com/Microsoft/vscode/issues/15909">issue</a> on the VSCode repo.</p>
 <h3 id="using-code-workspace-files">Using Code Workspace Files</h3>
-<p>You can also use a <code dir="auto">code-workspace.json</code> file to help manage projects across different machines. This allows for better separation of user-specific and project-wide settings.</p>
+<p>You can also use a <code dir="auto">.code-workspace</code> file to help manage projects across different machines. The workspace folder containing your project must be added to the workspace via the <code dir="auto">.code-workspace</code> file for the extension to detect it correctly.</p>
+<p>Note that <code dir="auto">.code-workspace</code> files should <strong>not</strong> be committed to version control if you are using it for local use settings.</p>
 <h2 id="sample-project">Sample Project</h2>
 <p>You can have a look at this <a href="https://github.com/mylonics/zephyr-ide-sample-project">sample directory</a> to also help with getting started with sharing projects.</p>
 <h2 id="best-practices">Best Practices</h2>
