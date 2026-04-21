@@ -200,6 +200,50 @@ export function isWindows() {
   return platform === "win32";
 }
 
+/**
+ * Check whether the Windows LongPathsEnabled registry key is set to 1.
+ * Returns false when not on Windows or when the check cannot be performed.
+ */
+export async function checkWindowsLongPathsEnabled(): Promise<boolean> {
+  if (platform !== "win32") {
+    return false;
+  }
+  try {
+    const cmd = `powershell -Command "(Get-ItemProperty -Path 'HKLM:\\\\SYSTEM\\\\CurrentControlSet\\\\Control\\\\FileSystem' -Name LongPathsEnabled -ErrorAction SilentlyContinue).LongPathsEnabled"`;
+    const result = await executeShellCommand(cmd, "", false);
+    return result.stdout?.trim() === "1";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Enable Windows long path support by setting the LongPathsEnabled registry
+ * key to 1.  Requires administrator privileges; the PowerShell process is
+ * launched with -Verb RunAs so the user sees a UAC prompt.
+ * Returns true if the registry write succeeded, false otherwise.
+ */
+export async function enableWindowsLongPaths(): Promise<boolean> {
+  if (platform !== "win32") {
+    return false;
+  }
+  try {
+    // Run an elevated PowerShell process to set the registry key.
+    // The key takes effect immediately for new processes — no restart needed.
+    const cmd = `powershell -Command "Start-Process powershell -Verb RunAs -Wait -ArgumentList '-Command Set-ItemProperty -Path HKLM:\\\\SYSTEM\\\\CurrentControlSet\\\\Control\\\\FileSystem -Name LongPathsEnabled -Value 1'"`;
+    await executeShellCommand(cmd, "", false);
+    // Verify the key was actually set (UAC deny or other failures leave it unset)
+    const enabled = await checkWindowsLongPathsEnabled();
+    if (!enabled) {
+      outputInfo("Long Paths", "LongPathsEnabled registry write did not take effect — UAC may have been denied or the process lacked privileges.");
+    }
+    return enabled;
+  } catch (error) {
+    outputInfo("Long Paths", `Failed to enable Windows long paths: ${error}`);
+    return false;
+  }
+}
+
 export function isWSL() {
   return vscode.env.remoteName === "wsl";
 }
@@ -560,6 +604,14 @@ export async function executeTaskHelperInPythonEnv(setupState: SetupState | unde
     // easily exceed the default MAX_PATH limit of 260 characters.  Redirect
     // TMPDIR/TEMP/TMP to a short path at the root of the system drive so that
     // the build directories remain short enough to stay within MAX_PATH.
+    //
+    // Skip this workaround if the user has already enabled Windows long path
+    // support (LongPathsEnabled registry key = 1) — in that case the 260-char
+    // limit no longer applies and the system TEMP directory is fine.
+    const longPathsEnabled = await checkWindowsLongPathsEnabled();
+    if (longPathsEnabled) {
+      return await executeTaskHelper(taskName, cmd, cwd);
+    }
     const env: { [key: string]: string } = {};
     const systemDrive = process.env.SYSTEMDRIVE || "C:";
     const shortTempDir = `${systemDrive}\\Temp`;

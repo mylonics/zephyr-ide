@@ -16,13 +16,21 @@ limitations under the License.
 */
 
 import { html } from 'lit';
-import { customElement } from 'lit/decorators.js';
+import { customElement, state } from 'lit/decorators.js';
 import { ZephyrLitElement } from '../../webview_shared/lit-base';
 import { HostToolsClient } from '../../webview_shared/hostToolsClient';
 
 @customElement('host-tools-app')
 export class HostToolsApp extends ZephyrLitElement {
   private _client!: HostToolsClient;
+
+  /**
+   * Windows long paths status.
+   * undefined  = not Windows (banner hidden)
+   * false      = Windows, long paths NOT enabled (banner shown)
+   * true       = Windows, long paths ARE enabled (banner hidden)
+   */
+  @state() private _windowsLongPathsEnabled: boolean | undefined = undefined;
 
   connectedCallback() {
     super.connectedCallback();
@@ -38,7 +46,16 @@ export class HostToolsApp extends ZephyrLitElement {
   }
 
   private _onMessage = (e: MessageEvent) => {
-    this._client.handleMessage(e.data);
+    const msg = e.data as Record<string, any>;
+    // Extract Windows long paths status from updateStatus payloads before
+    // delegating to the shared client, which handles package card rendering.
+    if (msg.command === 'hostToolsUpdateStatus' && msg.data) {
+      const enabled = msg.data.windowsLongPathsEnabled;
+      if (typeof enabled === 'boolean') {
+        this._windowsLongPathsEnabled = enabled;
+      }
+    }
+    this._client.handleMessage(msg);
   };
 
   firstUpdated() {
@@ -48,8 +65,10 @@ export class HostToolsApp extends ZephyrLitElement {
 
   private _sendCommand(cmd: string) { this.postCommand(cmd); }
   private _markComplete() { this.vscodeApi.postMessage({ command: 'markComplete' }); }
+  private _enableLongPaths() { this.vscodeApi.postMessage({ command: 'enableWindowsLongPaths' }); }
 
   render() {
+    const showLongPathsBanner = this._windowsLongPathsEnabled === false;
     return html`
       <div class="container">
         <div class="breadcrumb">
@@ -63,6 +82,25 @@ export class HostToolsApp extends ZephyrLitElement {
             <p class="page-subtitle">Install and maintain local system dependencies for Zephyr development.</p>
           </div>
         </div>
+
+        ${showLongPathsBanner ? html`
+          <div class="warning-box">
+            <p><strong>⚠ Windows Long Path Support is not enabled.</strong></p>
+            <p>
+              Without long path support, building Python packages from source (such as
+              <code>hidapi</code>) may fail because the build directories created by
+              pip can exceed Windows' default 260-character path limit.
+            </p>
+            <p>
+              Click the button below to enable long path support system-wide. This
+              requires administrator privileges and takes effect immediately — no
+              restart is needed.
+            </p>
+            <vscode-button @click=${this._enableLongPaths}>
+              Enable Windows Long Path Support
+            </vscode-button>
+          </div>
+        ` : ''}
 
         <div class="host-tools-manager">
           <div class="info-box">

@@ -148,6 +148,9 @@ export class HostToolInstallView {
       case "hostToolsOpenManagerInstallUrl":
         await this._service.openManagerInstallUrl();
         break;
+      case "enableWindowsLongPaths":
+        await this._service.enableLongPaths();
+        break;
       case "openSetupPanel":
         vscode.commands.executeCommand("zephyr-ide.open-setup-panel");
         break;
