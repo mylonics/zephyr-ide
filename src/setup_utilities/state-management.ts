@@ -38,6 +38,33 @@ function getCurrentSessionToken(): string {
   return _currentSessionToken;
 }
 
+/**
+ * Self-heal registry entries that are missing the `initialized` field.
+ *
+ * For each entry in `setupStateDictionary` that does not yet have an
+ * `initialized` value, checks whether a `.west/` folder exists on disk at
+ * the workspace path and sets the flag accordingly.  Entries that already
+ * have `initialized` set (true **or** false) are left unchanged.
+ *
+ * Mutates entries in-place.  Returns `true` if at least one entry was
+ * modified so the caller knows whether to persist the updated dictionary.
+ *
+ * Exported for unit testing.
+ */
+export function backfillInitializedFlags(
+  setupStateDictionary: Record<string, SetupState>
+): boolean {
+  let changed = false;
+  for (const p in setupStateDictionary) {
+    const entry = setupStateDictionary[p];
+    if (entry && entry.initialized === undefined) {
+      entry.initialized = fs.pathExistsSync(path.join(p, ".west"));
+      changed = true;
+    }
+  }
+  return changed;
+}
+
 export async function loadGlobalState(context: vscode.ExtensionContext): Promise<GlobalConfig> {
   // Load raw config as any to handle deprecated fields
   const rawConfig: any = await context.globalState.get("zephyr-ide.state") ?? {};
@@ -83,13 +110,8 @@ export async function loadGlobalState(context: vscode.ExtensionContext): Promise
   // from pre-`initialized`-field releases so they don't get bounced back to the
   // Initial Setup page.
   if (globalConfig.setupStateDictionary) {
-    for (const p in globalConfig.setupStateDictionary) {
-      const entry = globalConfig.setupStateDictionary[p];
-      if (entry && entry.initialized === undefined) {
-        const hasWestFolder = fs.pathExistsSync(path.join(p, ".west"));
-        entry.initialized = hasWestFolder;
-        needsSave = true;
-      }
+    if (backfillInitializedFlags(globalConfig.setupStateDictionary)) {
+      needsSave = true;
     }
   }
 

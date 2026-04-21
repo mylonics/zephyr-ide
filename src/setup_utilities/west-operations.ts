@@ -49,51 +49,80 @@ export function resetPythonCommand(): void {
 }
 
 /**
- * Get the appropriate Python command for the current platform
- * In remote environments (WSL, SSH), this detects the remote OS
- * On all platforms, respects VS Code's configured Python interpreter if available
- * @param configOverride Optional override for the configured Python path (used in tests to bypass VS Code settings)
+ * Compute the Python command to use, given an optional override.
+ * Reads VS Code's `python.defaultInterpreterPath` when no override is supplied.
+ * Falls back to probing manifest candidates via getDefaultPythonExecutable() so the
+ * venv is created with the required version (e.g. python3.12) rather than whatever
+ * generic python3/python resolves to on PATH.
+ */
+async function computePythonCommand(configOverride: string | null | undefined): Promise<string> {
+  const configuredPython = configOverride !== undefined
+    ? configOverride
+    : vscode.workspace.getConfiguration().get<string>("python.defaultInterpreterPath");
+
+  if (configuredPython && configuredPython.trim()) {
+    // Expand environment variables in the path (e.g., ${env:HOME})
+    // Only allow common safe environment variables to prevent potential security issues
+    const safeEnvVars = new Set(['HOME', 'USER', 'USERPROFILE', 'APPDATA', 'LOCALAPPDATA', 'PATH']);
+    let expandedPath = configuredPython;
+    const envVarRegex = /\$\{env:(\w+)\}/g;
+    let hadExpansionError = false;
+    expandedPath = expandedPath.replace(envVarRegex, (match: string, varName: string) => {
+      const value = process.env[varName];
+      if (safeEnvVars.has(varName) && value && value.trim()) {
+        return value;
+      }
+      hadExpansionError = true;
+      outputWarning("Python Setup", `Environment variable ${varName} not found or not allowed in Python path`);
+      // Preserve the original placeholder to avoid creating malformed paths
+      return match;
+    });
+
+    // If expansion failed for any variable, skip using the configured path entirely
+    if (!hadExpansionError) {
+      // Check if the configured Python executable exists
+      if (fs.pathExistsSync(expandedPath)) {
+        outputInfo("Python Setup", `Using configured Python interpreter: ${expandedPath}`);
+        return expandedPath;
+      } else {
+        outputWarning("Python Setup", `Configured Python interpreter not found: ${expandedPath} (original: ${configuredPython}). Falling back to platform default. Ensure the path exists or update python.defaultInterpreterPath.`);
+      }
+    } else {
+      outputWarning("Python Setup", "Skipping configured Python interpreter due to environment variable expansion errors, falling back to default");
+    }
+  }
+
+  // Fall back to platform default — probe manifest candidates so the venv
+  // is created with the required version (e.g. python3.12) rather than
+  // whatever generic python3/python resolves to on PATH.
+  const defaultCmd = await getDefaultPythonExecutable();
+  outputInfo("Python Setup", `Using platform default Python: ${defaultCmd}`);
+  return defaultCmd;
+}
+
+/**
+ * Get the appropriate Python command for the current platform.
+ * In remote environments (WSL, SSH), this detects the remote OS.
+ * On all platforms, respects VS Code's configured Python interpreter if available.
+ *
+ * When called without arguments the result is cached for the lifetime of the
+ * extension host so repeated calls are cheap.  When an explicit `configOverride`
+ * is supplied the cache is bypassed and a fresh determination is always made —
+ * this keeps test helpers predictable regardless of cached state.
+ *
+ * @param configOverride Optional override for the configured Python path.
+ *   Pass `null` to explicitly skip VS Code settings and use the platform default.
  */
 export async function getPythonCommand(configOverride?: string | null): Promise<string> {
+  // When an explicit override is provided, always compute fresh (no cache).
+  // This ensures test helpers always observe the expected result without being
+  // affected by cached state set by the extension host or a previous call.
+  if (configOverride !== undefined) {
+    return computePythonCommand(configOverride);
+  }
+
   if (python === undefined) {
-    // First, try to get the Python interpreter configured in VS Code settings
-    // If configOverride is provided, use it instead of reading from VS Code settings
-    const configuredPython = configOverride !== undefined
-      ? configOverride
-      : vscode.workspace.getConfiguration().get<string>("python.defaultInterpreterPath");
-    
-    if (configuredPython && configuredPython.trim()) {
-      // Expand environment variables in the path (e.g., ${env:HOME})
-      // Only allow common safe environment variables to prevent potential security issues
-      const safeEnvVars = new Set(['HOME', 'USER', 'USERPROFILE', 'APPDATA', 'LOCALAPPDATA', 'PATH']);
-      let expandedPath = configuredPython;
-      const envVarRegex = /\$\{env:(\w+)\}/g;
-      let hadExpansionError = false;
-      expandedPath = expandedPath.replace(envVarRegex, (match: string, varName: string) => {
-        const value = process.env[varName];
-        if (safeEnvVars.has(varName) && value && value.trim()) {
-          return value;
-        }
-        hadExpansionError = true;
-        outputWarning("Python Setup", `Environment variable ${varName} not found or not allowed in Python path`);
-        // Preserve the original placeholder to avoid creating malformed paths
-        return match;
-      });
-      
-      // If expansion failed for any variable, skip using the configured path entirely
-      if (!hadExpansionError) {
-        // Check if the configured Python executable exists
-        if (fs.pathExistsSync(expandedPath)) {
-          python = expandedPath;
-          outputInfo("Python Setup", `Using configured Python interpreter: ${python}`);
-          return python as string;
-        } else {
-          outputWarning("Python Setup", `Configured Python interpreter not found: ${expandedPath} (original: ${configuredPython}). Falling back to platform default. Ensure the path exists or update python.defaultInterpreterPath.`);
-        }
-      } else {
-        outputWarning("Python Setup", "Skipping configured Python interpreter due to environment variable expansion errors, falling back to default");
-      }
-    }
+    python = await computePythonCommand(undefined);
     
     // Fall back to platform default — probe manifest candidates so the venv
     // is created with the required version (e.g. python3.12) rather than

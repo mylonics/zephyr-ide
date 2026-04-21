@@ -370,7 +370,7 @@ export async function migrateSettingKeys(): Promise<void> {
 
   if (migrated.length > 0) {
     void vscode.window.showInformationMessage(
-      `Zephyr IDE: Migrated ${migrated.length} setting(s) to camelCase keys.`
+      `Zephyr IDE: Migrated setting key${migrated.length === 1 ? "" : "s"}: ${migrated.join(", ")}.`
     );
   }
 }
