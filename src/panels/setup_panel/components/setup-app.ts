@@ -137,7 +137,7 @@ export class SetupApp extends ZephyrLitElement {
             <a href="https://zephyr-ide.mylonics.com" class="external-link" target="_blank" rel="noopener noreferrer">📖 Documentation</a>
             <a href="https://docs.zephyrproject.org/latest/develop/getting_started/index.html" class="external-link" target="_blank" rel="noopener noreferrer">🚀 Getting Started</a>
             <a href="https://docs.zephyrproject.org/latest/develop/west/index.html" class="external-link" target="_blank" rel="noopener noreferrer">🔧 West Docs</a>
-            <a href="https://github.com/mylonics/zephyr-ide/issues" class="external-link" target="_blank" rel="noopener noreferrer">💬 Get Help</a>
+            <a href="https://github.com/mylonics/zephyr-ide/issues" class="external-link" target="_blank" rel="noopener noreferrer">💬 Report Issues</a>
           </div>
         </div>
       </div>

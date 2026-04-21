@@ -10,13 +10,13 @@ In general, you should commit everything in your workspace folder except for bui
 **Recommended to commit**:
 
 - Project source code
-- `zephyr-ide.json` - Project and build configurations (same as `.vscode/zephyr-ide.json`; both refer to the same extension settings file)
+- `.vscode/zephyr-ide.json` - Project and build configurations
 - `west.yml` / `.west/` - Workspace manifest and west configuration
 
 **Consider case-by-case**:
 
-- `settings.json` - May contain user-specific paths
-- `launch.json` - May contain user-specific debug configurations
+- `.vscode/settings.json` - May contain user-specific paths
+- `.vscode/launch.json` - May contain user-specific debug configurations
 
 **Do NOT commit**:
 
@@ -39,7 +39,7 @@ Unfortunately, VSCode does not provide a way for having user-specific settings/c
 
 You can also use a `.code-workspace` file to help manage projects across different machines. The workspace folder containing your project must be added to the workspace via the `.code-workspace` file for the extension to detect it correctly.
 
-Note that `.code-workspace` files should **not** be committed to version control — they are intended for local use and can store machine-specific settings such as local paths and personal preferences.
+Note that `.code-workspace` files should **not** be committed to version control if you are using it for local use settings.
 
 ## Sample Project
 

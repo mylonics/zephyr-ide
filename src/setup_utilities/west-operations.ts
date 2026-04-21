@@ -28,6 +28,7 @@ import { saveSetupState, setSetupState, setWorkspaceState } from "./state-manage
 import { getSetupState, getSetupStateOrNotify, getVenvPath } from "./workspace-config";
 import { ensureWestConfigManifest } from "./west-config-parser";
 import { SetupProgressTracker } from "./setup-progress";
+import { getDefaultPythonExecutable } from "./host_tools";
 
 // Test-only override for narrow update
 let forceNarrowUpdateForTest = false;
@@ -94,9 +95,10 @@ export async function getPythonCommand(configOverride?: string | null): Promise<
       }
     }
     
-    // Fall back to platform default
-    const platformName = await getPlatformNameAsync();
-    python = platformName === "linux" || platformName === "macos" ? "python3" : "python";
+    // Fall back to platform default — probe manifest candidates so the venv
+    // is created with the required version (e.g. python3.12) rather than
+    // whatever generic python3/python resolves to on PATH.
+    python = await getDefaultPythonExecutable();
     outputInfo("Python Setup", `Using platform default Python: ${python}`);
   }
   return python as string;
