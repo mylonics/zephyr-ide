@@ -287,7 +287,7 @@ export async function installPythonRequirements(context: vscode.ExtensionContext
   }
   
   const cmd = `pip install -r "${path.join(setupState.zephyrDir, "scripts", "requirements.txt")}" -U ${additionalPackages}`;
-  const reqRes = await executeTaskHelperInPythonEnv(setupState, "Zephyr IDE: Install Python Requirements", cmd, setupState.setupPath);
+  const reqRes = await executeTaskHelperInPythonEnv(setupState, "Zephyr IDE: Install Python Requirements", cmd, setupState.setupPath, true);
 
   if (!reqRes) {
     notifyError("Python Requirements", "Python Requirement Installation Failed. Check the Zephyr IDE output for details.", { command: cmd });
@@ -375,7 +375,7 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
       reloadEnvironmentVariables(context, currentSetupState);
 
       // Install `west`
-      const res = await executeTaskHelperInPythonEnv(currentSetupState, "Zephyr IDE West Environment Setup", `pip install west`, currentSetupState.setupPath);
+      const res = await executeTaskHelperInPythonEnv(currentSetupState, "Zephyr IDE West Environment Setup", `pip install west`, currentSetupState.setupPath, true);
       if (res) {
         outputInfo("West Environment", "west installed");
       } else {
