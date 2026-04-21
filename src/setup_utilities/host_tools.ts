@@ -580,6 +580,38 @@ function parseMinimumVersion(s: string): [number, number] {
 }
 
 /**
+ * Probe the platform-appropriate Python candidates from the host tools manifest
+ * and return the executable of the first one that meets the minimum version
+ * requirement. Falls back to the platform default ("python3" / "python") if no
+ * candidate in the manifest satisfies the floor.
+ *
+ * This is the function that should be used when creating a virtual environment
+ * so that the venv is seeded with the required Python version rather than
+ * whatever generic `python3` resolves to on PATH.
+ */
+export async function getDefaultPythonExecutable(): Promise<string> {
+  const packages = await getPlatformPackages();
+  const pythonPkg = packages.find(p => p.version_check !== undefined);
+
+  if (pythonPkg?.version_check) {
+    const minimum = parseMinimumVersion(pythonPkg.version_check.minimum);
+    const result = await pickPythonExecutable(pythonPkg.version_check.candidates, minimum);
+    if (result.valid && result.executable) {
+      outputInfo("Python Setup", `Selected Python executable for venv creation: ${result.executable} (${result.version})`);
+      return result.executable;
+    }
+    outputWarning(
+      "Python Setup",
+      `No Python candidate met the minimum requirement (${pythonPkg.version_check.minimum}); falling back to platform default. ${result.error ?? ""}`
+    );
+  }
+
+  // Fallback: use the same platform default as the pre-existing logic
+  const platformName = await getPlatformNameAsync();
+  return platformName === "linux" || platformName === "macos" ? "python3" : "python";
+}
+
+/**
  * Check if a single package is available
  */
 export async function checkPackageAvailable(pkg: PlatformPackage): Promise<PackageStatus> {
