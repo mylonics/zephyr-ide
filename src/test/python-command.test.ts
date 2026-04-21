@@ -53,7 +53,9 @@ suite("Python Command Test Suite", () => {
     });
 
     test("Returns platform default when no configuration is set", async () => {
-        const pythonCmd = await getPythonCommand();
+        // Pass null to explicitly bypass VS Code settings (python.defaultInterpreterPath)
+        // and reach the platform-default branch.
+        const pythonCmd = await getPythonCommand(null);
         
         // Should return platform-specific default
         const platform = os.platform();
@@ -143,18 +145,20 @@ suite("Python Command Test Suite", () => {
     });
 
     test("Caching behavior works correctly", async function() {
-        // First call should determine the Python command
+        // Repeated no-override calls should return the same cached value.
         const firstCall = await getPythonCommand();
-        
-        // Second call should return cached value (without resetting)
         const secondCall = await getPythonCommand();
-        
-        assert.strictEqual(firstCall, secondCall, "Should return the same cached value");
-        
-        // Verify it's actually caching by passing a different override (shouldn't affect result
-        // because the cache is already populated)
-        const thirdCall = await getPythonCommand("/different/path");
-        assert.strictEqual(thirdCall, firstCall, "Should still return cached value even after config change");
+        assert.strictEqual(firstCall, secondCall, "Should return the same cached value on repeated no-override calls");
+
+        // Calls with an explicit override always bypass the cache and compute fresh.
+        // A non-existent path falls through to the platform default.
+        const withOverride = await getPythonCommand("/nonexistent/override/python");
+        const platform = os.platform();
+        if (platform === "linux" || platform === "darwin") {
+            assert.strictEqual(withOverride, "python3", "Override that doesn't exist should fall back to platform default");
+        } else if (platform === "win32") {
+            assert.strictEqual(withOverride, "python", "Override that doesn't exist should fall back to platform default on Windows");
+        }
     });
 
     test("Ignores non-whitelisted environment variables", async function() {

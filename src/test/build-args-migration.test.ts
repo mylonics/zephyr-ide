@@ -102,7 +102,8 @@ suite("Build Args Migration Test Suite", () => {
     }
   });
 
-  test("loadProjectsFromFile migration preserves existing config entry objects when extra arrays exist", async () => {    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-config-files-"));
+  test("loadProjectsFromFile migration preserves existing config entry objects when extra arrays exist", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-config-files-"));
     try {
       const configDir = path.join(tmpRoot, ".vscode");
       await fs.ensureDir(configDir);
@@ -259,7 +260,7 @@ suite("Build Args Migration Test Suite", () => {
     }
   });
 
-  test("loadProjectsFromFile is idempotent: second load does not re-migrate or re-write the file", async () => {
+  test("loadProjectsFromFile is idempotent: second load preserves the same migrated file content", async () => {
     const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-idempotent-"));
     try {
       const configDir = path.join(tmpRoot, ".vscode");
