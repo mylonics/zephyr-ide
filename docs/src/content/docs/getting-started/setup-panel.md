@@ -15,7 +15,7 @@ The Setup Panel is the central hub for configuring your Zephyr development envir
 
 The Setup Panel presents three configuration cards:
 
-![Setup Panel Overview](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/setup_panel.png)
+![Overview](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/overview.png)
 
 1. **Host Tools** - Install and verify build tools required for Zephyr development
 2. **Zephyr SDK Management** - Install and manage Zephyr SDK for different architectures

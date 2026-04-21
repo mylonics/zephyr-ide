@@ -12,7 +12,7 @@ Works either as your full setup or alongside an existing Zephyr install (Docker,
 
 You can read about the motivation behind the project [here](https://mylonics.com/blog/zephyr-ide/).
 
-![Setup Panel](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/setup_panel.png)
+![Overview](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/overview.png)
 
 ## Why IDE for Zephyr
 
