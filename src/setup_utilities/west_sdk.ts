@@ -502,8 +502,7 @@ export async function installSDK(
                 setupState,
                 "Zephyr IDE: SDK Install",
                 command,
-                setupState.setupPath,
-                true
+                setupState.setupPath
             );
         }
 
