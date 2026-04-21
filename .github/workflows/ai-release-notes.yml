@@ -1,0 +1,225 @@
+# AI-Generated Release Notes
+#
+# Triggers when a GitHub Release is published. For OFFICIAL releases only
+# (prerelease == false), this workflow:
+#   1. Finds the previous official (non-prerelease) tag
+#   2. Gathers the CHANGELOG section, git log, package.json diff, and
+#      host-tools-manifest.json diff between the two versions
+#   3. Calls the GitHub Models API to generate a structured summary
+#      (Highlights / Bug Fixes / Breaking Changes & Migration)
+#   4. Appends the generated summary to the existing release body (which
+#      already contains GitHub's auto-generated PR list)
+#
+# This workflow is decoupled from release.yml: if generation fails, the
+# release itself is unaffected, and a fallback CHANGELOG dump is appended.
+#
+# Manual re-run: use `workflow_dispatch` with a tag name to regenerate notes
+# for an existing release (e.g. after editing this workflow).
+
+name: "Auto: AI Release Notes"
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to regenerate notes for (e.g. v2.4.6)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  models: read
+
+jobs:
+  generate:
+    # For release events: skip prereleases.
+    # For workflow_dispatch: always run.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'release' && github.event.release.prerelease == false)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve target tag
+        id: tag
+        env:
+          DISPATCH_TAG: ${{ inputs.tag }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${DISPATCH_TAG}"
+          else
+            TAG="${RELEASE_TAG}"
+          fi
+          if [ -z "${TAG}" ]; then
+            echo "::error::Could not determine release tag."
+            exit 1
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Target tag: ${TAG}"
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ steps.tag.outputs.tag }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+
+      - name: Find previous official release tag
+        id: prev
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CURR_TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          # List releases (most recent first), filter out prereleases and the
+          # current tag, take the next one. Falls back to git tag list if the
+          # gh API returns nothing useful.
+          PREV=$(gh release list --limit 50 \
+            --json tagName,isPrerelease \
+            --jq "[.[] | select(.isPrerelease == false) | .tagName] | map(select(. != \"${CURR_TAG}\")) | .[0]" \
+            || true)
+
+          if [ -z "${PREV}" ] || [ "${PREV}" = "null" ]; then
+            echo "::warning::Could not find a previous official release; falling back to git tag walk."
+            PREV=$(git tag --sort=-creatordate | grep -vE '(prerelease|rc|alpha|beta)' | grep -vFx "${CURR_TAG}" | head -n 1 || true)
+          fi
+
+          if [ -z "${PREV}" ]; then
+            echo "::error::No previous release tag found. Cannot generate diff-based notes."
+            exit 1
+          fi
+
+          echo "prev=${PREV}" >> "$GITHUB_OUTPUT"
+          echo "Previous release: ${PREV}"
+          echo "Current release:  ${CURR_TAG}"
+
+      - name: Gather CHANGELOG section
+        id: changelog
+        env:
+          CURR_TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          # Strip leading "v" for changelog heading lookup (CHANGELOG uses vX.Y.Z headings too).
+          # Extract the section starting at the current version's heading and ending
+          # at the next "#### [" heading.
+          {
+            echo 'content<<CHANGELOG_EOF'
+            awk -v tag="${CURR_TAG}" '
+              BEGIN { found = 0 }
+              /^#### \[/ {
+                if (found) { exit }
+                # Match either "[v2.4.6]" or "[v2.4.6](" exactly
+                if (index($0, "[" tag "]") > 0 || index($0, "[" tag "](") > 0) {
+                  found = 1
+                  print
+                  next
+                }
+              }
+              { if (found) print }
+            ' CHANGELOG.md
+            echo 'CHANGELOG_EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Gather diffs and commit log
+        id: diffs
+        env:
+          PREV_TAG: ${{ steps.prev.outputs.prev }}
+          CURR_TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          mkdir -p .release-notes-context
+          cd .release-notes-context
+
+          # 1. Commit log (one line per commit, excluding merges)
+          git log --oneline --no-merges "${PREV_TAG}..${CURR_TAG}" > git-log.txt || true
+
+          # 2. Diff stat: overview of every changed file with +/- counts.
+          #    Cheap and very informative for the model.
+          git diff --stat "${PREV_TAG}..${CURR_TAG}" > diff-stat.txt || true
+
+          # 3. Targeted diffs of high-signal files (always included in full).
+          git diff "${PREV_TAG}..${CURR_TAG}" -- \
+            ../package.json > package-json.diff || true
+          git diff "${PREV_TAG}..${CURR_TAG}" -- \
+            ../src/setup_utilities/host-tools-manifest.json > host-tools-manifest.diff || true
+
+          # 4. Filtered source diff: code-only changes excluding lockfiles,
+          #    bundled output, generated docs, screenshots, and the changelog
+          #    itself. This is the "what actually changed in the codebase"
+          #    signal. Capped to 200KB by the script if too large.
+          git diff "${PREV_TAG}..${CURR_TAG}" -- \
+            'src/**' \
+            'resources/**' \
+            ':(exclude)dist/**' \
+            ':(exclude)out/**' \
+            ':(exclude)**/*.png' \
+            ':(exclude)**/*.jpg' \
+            ':(exclude)**/*.svg' \
+            ':(exclude)**/*.ico' \
+            ':(exclude)**/*.lock' \
+            ':(exclude)package-lock.json' \
+            ':(exclude)CHANGELOG.md' \
+            > source.diff || true
+
+          # 5. Config / public-API diffs (settings, commands, contributions).
+          #    package.json is already covered above; this captures README and
+          #    docs changes that often signal user-visible features.
+          git diff "${PREV_TAG}..${CURR_TAG}" -- \
+            '../README.md' '../docs/**/*.md' '../docs/**/*.mdx' \
+            > docs.diff || true
+
+          echo "Context files:"
+          ls -la
+          echo ""
+          echo "Sizes:"
+          wc -c *.txt *.diff || true
+
+      - name: Generate AI release notes
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PREV_VERSION: ${{ steps.prev.outputs.prev }}
+          CURR_VERSION: ${{ steps.tag.outputs.tag }}
+          CHANGELOG_CONTENT: ${{ steps.changelog.outputs.content }}
+          CONTEXT_DIR: .release-notes-context
+          OUTPUT_FILE: ai-release-notes.md
+        run: node scripts/generate-release-notes.js
+
+      - name: Append AI notes to GitHub Release body
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CURR_TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          # Read existing release body, then append the AI section. We use a
+          # marker so re-runs replace the previous AI block instead of stacking.
+          MARKER="<!-- AI_RELEASE_NOTES -->"
+
+          EXISTING=$(gh release view "${CURR_TAG}" --json body --jq .body || echo "")
+
+          # Strip any previous AI block (everything from MARKER onward).
+          CLEANED=$(printf '%s' "${EXISTING}" | awk -v m="${MARKER}" '
+            $0 == m { found = 1 }
+            !found { print }
+          ')
+
+          AI_NOTES=$(cat ai-release-notes.md)
+
+          {
+            printf '%s\n' "${CLEANED}"
+            printf '\n%s\n\n' "${MARKER}"
+            printf '%s\n' "${AI_NOTES}"
+          } > combined-body.md
+
+          gh release edit "${CURR_TAG}" --notes-file combined-body.md
+          echo "Updated release body for ${CURR_TAG}"
+
+      - name: Upload notes artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-release-notes-${{ steps.tag.outputs.tag }}
+          path: |
+            ai-release-notes.md
+            .release-notes-context/
+          retention-days: 90
