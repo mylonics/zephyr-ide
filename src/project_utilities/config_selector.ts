@@ -149,15 +149,22 @@ export async function configRemover(confFiles: ConfigFiles, isKConfigSelector: b
     const filtered = state[key].filter(e => !!e.extra === isExtra);
     const items = mapToQuickPickItems(filtered.map(e => e.path));
 
-    const temp = await vscode.window.showQuickPick(items, {
+    // Use input.showQuickPickMany so the Back button is shown when this step
+    // is reached after selectTypeToRemove. The selection is confirmed via the
+    // QuickPick accept (Enter) gesture. Do not .catch here — InputFlowAction
+    // rejections must bubble up to MultiStepInput.run for Back/Cancel to work.
+    const temp = await input.showQuickPickMany({
+      title,
+      step: isPrimary === undefined ? 2 : 1,
+      totalSteps: isPrimary === undefined ? 2 : 1,
+      placeholder: "Select files to remove (toggle then press Enter)",
       ignoreFocusOut: true,
-      placeHolder: "Select files to remove",
-      canPickMany: true,
+      items,
     });
-    if (!temp) {
+    if (!temp || !Array.isArray(temp) || temp.length === 0) {
       return;
     }
-    const selectedFiles = new Set(temp.map(x => x.label));
+    const selectedFiles = new Set((temp as readonly QuickPickItem[]).map((x) => x.label));
 
     confFiles[key] = confFiles[key].filter(el => !(!!el.extra === isExtra && selectedFiles.has(el.path)));
     return;

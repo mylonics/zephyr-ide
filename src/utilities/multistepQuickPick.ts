@@ -32,7 +32,7 @@ interface InputBoxParameters {
   dispose?: boolean;
 }
 
-type InputStep = (input: MultiStepInput) => Thenable<InputStep | void>;
+export type InputStep = (input: MultiStepInput) => Thenable<InputStep | void>;
 
 
 export class MultiStepInput {
@@ -73,7 +73,7 @@ export class MultiStepInput {
     }
   }
 
-  async showQuickPick<T extends QuickPickItem, P extends QuickPickParameters<T>>({ title, step, totalSteps, items, activeItem, ignoreFocusOut, placeholder, buttons, canSelectMany = false }: P) {
+  async showQuickPick<T extends QuickPickItem, P extends Omit<QuickPickParameters<T>, 'canSelectMany'>>({ title, step, totalSteps, items, activeItem, ignoreFocusOut, placeholder, buttons }: P) {
     const disposables: Disposable[] = [];
     try {
       return await new Promise<T | (P extends { buttons: (infer I)[] } ? I : never)>((resolve, reject) => {
@@ -84,7 +84,9 @@ export class MultiStepInput {
         input.ignoreFocusOut = ignoreFocusOut ?? false;
         input.placeholder = placeholder;
         input.items = items;
-        input.canSelectMany = canSelectMany;
+        // canSelectMany is intentionally not supported here; use showQuickPickMany
+        // for multi-select so the promise is resolved via explicit accept (Enter).
+        input.canSelectMany = false;
         if (activeItem) {
           input.activeItems = [activeItem];
         }
@@ -101,6 +103,51 @@ export class MultiStepInput {
             }
           }),
           input.onDidChangeSelection(items => resolve(items[0])),
+          input.onDidHide(() => {
+            reject(InputFlowAction.cancel);
+          })
+        );
+        if (this.current) {
+          this.current.dispose();
+        }
+        this.current = input;
+        this.current.show();
+      });
+    } finally {
+      disposables.forEach(d => d.dispose());
+    }
+  }
+
+  async showQuickPickMany<T extends QuickPickItem, P extends QuickPickParameters<T>>({ title, step, totalSteps, items, activeItem, ignoreFocusOut, placeholder, buttons }: P): Promise<readonly T[] | (P extends { buttons: (infer I)[] } ? I : never)> {
+    const disposables: Disposable[] = [];
+    try {
+      return await new Promise<readonly T[] | (P extends { buttons: (infer I)[] } ? I : never)>((resolve, reject) => {
+        const input = window.createQuickPick<T>();
+        input.title = title;
+        input.step = step;
+        input.totalSteps = totalSteps;
+        input.ignoreFocusOut = ignoreFocusOut ?? false;
+        input.placeholder = placeholder;
+        input.items = items;
+        input.canSelectMany = true;
+        if (activeItem) {
+          input.activeItems = [activeItem];
+        }
+        input.buttons = [
+          ...(this.steps.length > 1 ? [QuickInputButtons.Back] : []),
+          ...(buttons || [])
+        ];
+        disposables.push(
+          input.onDidTriggerButton(item => {
+            if (item === QuickInputButtons.Back) {
+              reject(InputFlowAction.back);
+            } else {
+              resolve(<any>item);
+            }
+          }),
+          input.onDidAccept(() => {
+            resolve(input.selectedItems);
+          }),
           input.onDidHide(() => {
             reject(InputFlowAction.cancel);
           })
