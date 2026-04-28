@@ -6,7 +6,6 @@ SPDX-License-Identifier: Apache-2.0
 
 import { html, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { ZephyrLitElement } from "../../webview_shared/lit-base";
 import type { DashboardKconfigEntry } from "../dashboard-data";
 
@@ -24,12 +23,12 @@ export class KconfigPage extends ZephyrLitElement {
     if (!this._filter) {
       return this.entries;
     }
-    return this.entries.filter((e) => {
-      return (
-        e.name.toLowerCase().includes(this._filter) ||
-        (e.value ?? "").toLowerCase().includes(this._filter)
-      );
-    });
+    const f = this._filter;
+    return this.entries.filter(
+      (e) =>
+        e.name.toLowerCase().includes(f) ||
+        e.value.toLowerCase().includes(f),
+    );
   }
 
   render() {
@@ -38,22 +37,20 @@ export class KconfigPage extends ZephyrLitElement {
     }
     const filtered = this._filteredEntries();
     return html`
-      <h1>Kconfig (${this.entries.length} symbols)</h1>
+      <h1>Kconfig <span style="font-weight:400;font-size:0.75em;opacity:0.7">(${this.entries.length} symbols)</span></h1>
       <vscode-textfield
         class="kconfig-filter"
         placeholder="Filter by name or value…"
         .value=${this._filter}
         @input=${this._onFilter}
       ></vscode-textfield>
-      <p class="empty-state">${filtered.length} matching</p>
-      <table>
+      <p class="kconfig-count">${filtered.length} of ${this.entries.length} symbols</p>
+      <table class="dashboard-table">
         <thead>
           <tr>
             <th>Symbol</th>
             <th>Type</th>
             <th>Value</th>
-            <th>Source</th>
-            <th>Location</th>
           </tr>
         </thead>
         <tbody>
@@ -61,10 +58,8 @@ export class KconfigPage extends ZephyrLitElement {
             (e) => html`
               <tr>
                 <td><code>${e.name}</code></td>
-                <td>${e.type}</td>
-                <td><code>${e.value ?? ""}</code></td>
-                <td>${unsafeHTML(e.srcHtml || "")}</td>
-                <td>${unsafeHTML(e.locHtml || "")}</td>
+                <td><span class="badge">${e.type ?? ""}</span></td>
+                <td><code>${e.value}</code></td>
               </tr>
             `,
           )}

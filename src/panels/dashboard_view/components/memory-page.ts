@@ -47,7 +47,7 @@ export class MemoryPage extends ZephyrLitElement {
     }
     return html`
       <h2>Top Ten Symbols by Size</h2>
-      <table>
+      <table class="dashboard-table">
         <thead>
           <tr>
             <th>Symbol</th>
@@ -100,10 +100,18 @@ export class MemoryPage extends ZephyrLitElement {
 
   private _renderReport(report: DashboardMemoryReport | null) {
     if (!report) {
-      return html`<p class="empty-state">No memory report available.</p>`;
+      return html`
+        <div class="empty-state">
+          <span class="codicon codicon-info" style="font-size:24px;opacity:0.5"></span>
+          <p>No memory report available for this view.</p>
+          <p style="font-size:12px">Run <code>Zephyr IDE: RAM/ROM Report</code> to generate one.</p>
+        </div>
+      `;
     }
     return html`
-      <p>Total: <strong>${report.size.toLocaleString()} bytes</strong></p>
+      <p style="font-size:13px;margin:0 0 12px">
+        Total: <strong>${report.size.toLocaleString()} bytes</strong>
+      </p>
       <div class="tree">${report.tree.map((n) => this._renderNode(n, report.size))}</div>
       ${this._tab === "all" ? this._renderTopTen(report) : nothing}
     `;
@@ -120,7 +128,7 @@ export class MemoryPage extends ZephyrLitElement {
     ];
     return html`
       <h1>Memory Report</h1>
-      <div class="toolbar">
+      <div class="memory-toolbar">
         ${tabs.map(
           (t) => html`
             <vscode-button

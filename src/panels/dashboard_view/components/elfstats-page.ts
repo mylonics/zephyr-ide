@@ -19,10 +19,18 @@ export class ElfStatsPage extends ZephyrLitElement {
     }
     return html`
       <h1>ELF Stats</h1>
-      <p class="empty-state"><code>${this.data.path}</code></p>
+      <p style="font-size:12px;color:var(--vscode-descriptionForeground);margin:0 0 12px">
+        <code>${this.data.path}</code>
+      </p>
       ${this.data.contents
         ? html`<pre class="text-viewer">${this.data.contents}</pre>`
-        : html`<p class="empty-state">No ELF stats available.</p>`}
+        : html`
+            <div class="empty-state">
+              <span class="codicon codicon-file-binary" style="font-size:24px;opacity:0.5"></span>
+              <p>No ELF stats available.</p>
+              <p style="font-size:12px">The <code>zephyr.stat</code> file is generated during a normal build.</p>
+            </div>
+          `}
     `;
   }
 }

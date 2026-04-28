@@ -23,12 +23,9 @@ export interface DashboardSummary {
 
 export interface DashboardKconfigEntry {
   name: string;
-  type: string;
-  value: string | null;
-  src: string;
-  visible: boolean;
-  locHtml: string;
-  srcHtml: string;
+  /** Inferred Kconfig type: "bool" | "int" | "hex" | "string" */
+  type?: string;
+  value: string;
 }
 
 export interface DashboardSysInitEntry {
@@ -65,24 +62,8 @@ export interface DashboardMemory {
   rom: DashboardMemoryReport | null;
 }
 
-export interface DashboardEdtNode {
-  id: string;
-  expanded?: boolean;
-  edtNode: {
-    isProperty: boolean;
-    name: string;
-    labels?: string[];
-    filename?: string;
-    lineno?: number;
-    description?: string;
-    value?: string;
-    typeSpec?: string;
-  };
-  children?: DashboardEdtNode[];
-}
-
 export interface DashboardDts {
-  tree: { tree: DashboardEdtNode[]; label2path?: Record<string, string>; error?: string };
+  /** Raw .dts source text. */
   source: string;
   sourcePath: string;
 }

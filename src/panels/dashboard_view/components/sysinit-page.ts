@@ -22,18 +22,28 @@ export class SysInitPage extends ZephyrLitElement {
       <h1>System Initialization</h1>
       ${this.data.errors?.length
         ? html`
-            <h2>Validation Errors</h2>
-            <ul>
-              ${this.data.errors.map((e) => html`<li class="error-state">${e}</li>`)}
-            </ul>
+            <div class="warning-box">
+              <ul style="margin:0;padding-left:18px">
+                ${this.data.errors.map((e) => html`<li>${e}</li>`)}
+              </ul>
+            </div>
           `
         : nothing}
       ${levelEntries.length === 0
-        ? html`<p class="empty-state">No sys-init levels available.</p>`
+        ? html`
+            <div class="empty-state">
+              <span class="codicon codicon-info" style="font-size:24px;opacity:0.5"></span>
+              <p>No system initialization data available.</p>
+              <p style="font-size:12px">
+                This information requires analysis of the Zephyr ELF file.<br>
+                It is not yet extracted by the standalone dashboard generator.
+              </p>
+            </div>
+          `
         : levelEntries.map(
             ([level, entries]) => html`
               <h2>${level}</h2>
-              <table>
+              <table class="dashboard-table">
                 <thead>
                   <tr>
                     <th class="num">Priority</th>

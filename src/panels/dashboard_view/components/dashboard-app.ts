@@ -18,13 +18,13 @@ import "./elfstats-page";
 
 type PageId = "summary" | "memory" | "kconfig" | "sysinit" | "dts" | "elfstats";
 
-const PAGES: { id: PageId; label: string }[] = [
-  { id: "summary", label: "Build Summary" },
-  { id: "memory", label: "Memory Report" },
-  { id: "kconfig", label: "Kconfig" },
-  { id: "sysinit", label: "Sys Init" },
-  { id: "dts", label: "Device Tree" },
-  { id: "elfstats", label: "ELF Stats" },
+const PAGES: { id: PageId; label: string; icon: string }[] = [
+  { id: "summary",  label: "Build Summary",   icon: "codicon-info" },
+  { id: "memory",   label: "Memory Report",   icon: "codicon-graph" },
+  { id: "kconfig",  label: "Kconfig",          icon: "codicon-settings" },
+  { id: "sysinit",  label: "Sys Init",         icon: "codicon-list-ordered" },
+  { id: "dts",      label: "Device Tree",      icon: "codicon-circuit-board" },
+  { id: "elfstats", label: "ELF Stats",        icon: "codicon-symbol-file" },
 ];
 
 @customElement("dashboard-app")
@@ -58,6 +58,23 @@ export class DashboardApp extends ZephyrLitElement {
     this._activePage = id;
   }
 
+  private _onNavKeydown(e: KeyboardEvent, id: PageId) {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      this._selectPage(id);
+    } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const idx = PAGES.findIndex((p) => p.id === id);
+      const next = e.key === "ArrowDown"
+        ? PAGES[(idx + 1) % PAGES.length]
+        : PAGES[(idx - 1 + PAGES.length) % PAGES.length];
+      this._selectPage(next.id);
+      // Move focus to the newly selected item
+      const el = this.querySelector<HTMLElement>(`[data-page-id="${next.id}"]`);
+      el?.focus();
+    }
+  }
+
   private _renderPage() {
     if (!this._data) {
       return nothing;
@@ -83,39 +100,48 @@ export class DashboardApp extends ZephyrLitElement {
   render() {
     if (this._error) {
       return html`
-        <div class="dashboard-content">
-          <h1>Dashboard</h1>
-          <p class="error-state">${this._error}</p>
+        <div class="dashboard-error" role="alert">
+          <span class="codicon codicon-error" style="font-size:32px"></span>
+          <p>${this._error}</p>
         </div>
       `;
     }
 
     if (!this._data) {
       return html`
-        <div class="dashboard-content">
-          <p class="empty-state">Loading dashboard data…</p>
+        <div class="dashboard-loading" aria-live="polite" aria-busy="true">
+          <span class="codicon codicon-loading codicon-modifier-spin" style="font-size:28px"></span>
+          <p>Loading dashboard data…</p>
         </div>
       `;
     }
 
     return html`
       <div class="dashboard-layout">
-        <nav class="dashboard-sidebar">
-          <h2>${this._data.meta.projectName} / ${this._data.meta.buildName}</h2>
-          <ul>
+        <nav class="dashboard-sidebar" aria-label="Dashboard sections">
+          <p class="dashboard-sidebar-heading">
+            ${this._data.meta.projectName} / ${this._data.meta.buildName}
+          </p>
+          <ul class="dashboard-nav" role="tablist" aria-orientation="vertical">
             ${PAGES.map(
               (p) => html`
                 <li
-                  class=${this._activePage === p.id ? "active" : ""}
+                  class="dashboard-nav-item"
+                  role="tab"
+                  tabindex=${this._activePage === p.id ? "0" : "-1"}
+                  aria-selected=${this._activePage === p.id ? "true" : "false"}
+                  data-page-id=${p.id}
                   @click=${() => this._selectPage(p.id)}
+                  @keydown=${(e: KeyboardEvent) => this._onNavKeydown(e, p.id)}
                 >
+                  <span class="codicon ${p.icon}" aria-hidden="true"></span>
                   ${p.label}
                 </li>
               `,
             )}
           </ul>
         </nav>
-        <main class="dashboard-content">${this._renderPage()}</main>
+        <main class="dashboard-content" role="tabpanel">${this._renderPage()}</main>
       </div>
     `;
   }

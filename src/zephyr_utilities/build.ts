@@ -439,7 +439,7 @@ export async function buildDashboard(
     return undefined;
   }
 
-  const cmd = `python "${helperScript}" --build-dir "${buildFolder}" --zephyr-base "${setupState.zephyrDir}" --output "${jsonPath}"`;
+  const cmd = `python "${helperScript}" --build-dir "${buildFolder}" --output "${jsonPath}"`;
   const taskName = "Zephyr IDE Dashboard: " + project.name + " " + build.name;
 
   outputInfo(`Dashboard Report: ${project.name}/${build.name}`, `Generating dashboard JSON for ${build.name} from project: ${project.name} (cmd: ${cmd})`, true);

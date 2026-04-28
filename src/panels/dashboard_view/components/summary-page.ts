@@ -10,19 +10,19 @@ import { ZephyrLitElement } from "../../webview_shared/lit-base";
 import type { DashboardSummary } from "../dashboard-data";
 
 const REGION_COLORS: Record<keyof DashboardSummary["memorySummary"], string> = {
-  text: "#0288d1",
-  rodata: "#7e57c2",
-  rwdata: "#ef6c00",
-  bss: "#43a047",
-  other: "#757575",
+  text:    "#0288d1",
+  rodata:  "#7e57c2",
+  rwdata:  "#ef6c00",
+  bss:     "#43a047",
+  other:   "#757575",
 };
 
 const REGION_LABELS: Record<keyof DashboardSummary["memorySummary"], string> = {
-  text: "Text (code)",
+  text:   "Text (code)",
   rodata: "Read-only data",
   rwdata: "Read/write data",
-  bss: "BSS",
-  other: "Other",
+  bss:    "BSS",
+  other:  "Other",
 };
 
 @customElement("summary-page")
@@ -40,25 +40,23 @@ export class SummaryPage extends ZephyrLitElement {
     const summary = this.data.memorySummary;
     const total = Object.values(summary).reduce((a, b) => a + b, 0);
     if (total === 0) {
-      return html`<p class="empty-state">No memory information available.</p>`;
+      return html`<p class="text-muted" style="padding:10px 0">No symbol size data available (build may lack a .stat file).</p>`;
     }
-    const regions = Object.entries(summary) as [keyof typeof summary, number][];
+    const regions = (Object.entries(summary) as [keyof typeof summary, number][]).filter(
+      ([, sz]) => sz > 0,
+    );
     return html`
       <div class="memory-bar" role="img" aria-label="Memory breakdown">
-        ${regions
-          .filter(([, size]) => size > 0)
-          .map(([region, size]) => {
-            const pct = (size * 100) / total;
-            return html`<span
-              style="width:${pct}%; background-color:${REGION_COLORS[region]};"
-              title="${REGION_LABELS[region]}: ${size} bytes (${pct.toFixed(1)}%)"
-            >
-              ${pct >= 8 ? `${REGION_LABELS[region]} ${pct.toFixed(1)}%` : ""}
-            </span>`;
-          })}
+        ${regions.map(([region, size]) => {
+          const pct = (size * 100) / total;
+          return html`<span
+            style="width:${pct}%;background-color:${REGION_COLORS[region]}"
+            title="${REGION_LABELS[region]}: ${size.toLocaleString()} bytes (${pct.toFixed(1)}%)"
+          >${pct >= 10 ? `${pct.toFixed(0)}%` : ""}</span>`;
+        })}
       </div>
       <div class="memory-legend">
-        ${regions.map(
+        ${(Object.entries(summary) as [keyof typeof summary, number][]).map(
           ([region, size]) => html`
             <span>
               <span class="swatch" style="background-color:${REGION_COLORS[region]}"></span>
@@ -77,16 +75,16 @@ export class SummaryPage extends ZephyrLitElement {
     return html`
       <h1>Build Summary</h1>
       <dl class="summary-grid">
-        ${this._renderRow("Board", this.data.board)}
-        ${this._renderRow("Application", this.data.application)}
-        ${this._renderRow("West command", this.data.command)}
-        ${this._renderRow("Zephyr version", this.data.zephyrVersion)}
-        ${this._renderRow("Toolchain", this.data.toolchain)}
-        ${this._renderRow("ELF size", this.data.elfSize)}
-        ${this._renderRow("BIN size", this.data.binSize)}
-        ${this._renderRow("ELF date", this.data.elfDate)}
+        ${this._renderRow("Board",           this.data.board)}
+        ${this._renderRow("Application",     this.data.application)}
+        ${this._renderRow("West command",    this.data.command)}
+        ${this._renderRow("Zephyr version",  this.data.zephyrVersion)}
+        ${this._renderRow("Toolchain",       this.data.toolchain)}
+        ${this._renderRow("ELF size",        this.data.elfSize)}
+        ${this._renderRow("BIN size",        this.data.binSize)}
+        ${this._renderRow("ELF date",        this.data.elfDate)}
       </dl>
-      <h2>Memory Breakdown</h2>
+      <h2>Memory Breakdown (from symbol table)</h2>
       ${this._renderMemoryBar()}
     `;
   }
