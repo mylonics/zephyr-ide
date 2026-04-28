@@ -32,7 +32,7 @@ interface InputBoxParameters {
   dispose?: boolean;
 }
 
-type InputStep = (input: MultiStepInput) => Thenable<InputStep | void>;
+export type InputStep = (input: MultiStepInput) => Thenable<InputStep | void>;
 
 
 export class MultiStepInput {
@@ -73,7 +73,7 @@ export class MultiStepInput {
     }
   }
 
-  async showQuickPick<T extends QuickPickItem, P extends QuickPickParameters<T>>({ title, step, totalSteps, items, activeItem, ignoreFocusOut, placeholder, buttons }: P) {
+  async showQuickPick<T extends QuickPickItem, P extends Omit<QuickPickParameters<T>, 'canSelectMany'>>({ title, step, totalSteps, items, activeItem, ignoreFocusOut, placeholder, buttons }: P) {
     const disposables: Disposable[] = [];
     try {
       return await new Promise<T | (P extends { buttons: (infer I)[] } ? I : never)>((resolve, reject) => {

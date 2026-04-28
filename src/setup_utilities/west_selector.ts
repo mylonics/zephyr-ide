@@ -71,6 +71,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
     desiredHals?: readonly QuickPickItem[];
     isNcsProject?: boolean;
     versionLabel?: string;
+    completed?: boolean;
   } & Partial<WestLocation>;
 
   // Compute total steps dynamically depending on whether HAL selection is required.
@@ -260,13 +261,18 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
       prompt: 'Additional west init arguments (optional)',
       validate: async () => undefined
     });
+    // Mark completion only after the final step accepts. MultiStepInput.run
+    // consumes user cancel internally, so without this flag a cancel on this
+    // step would still treat the wizard as successful (state.path is set in
+    // the prior pickVersion step).
+    state.completed = true;
   }
 
   async function collectInputs(): Promise<WestLocation> {
     const state: WestInternalState = { ...defaultState };
     try {
       await MultiStepInput.run(input => pickTemplate(input, state));
-      if (state.failed || !state.path) {
+      if (!state.completed || state.failed || !state.path) {
         return { ...defaultState, failed: true };
       }
       return {

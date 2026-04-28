@@ -16,11 +16,11 @@ import { QuickPickItem, ExtensionContext } from 'vscode';
 import * as vscode from "vscode";
 import * as path from "upath";
 import * as fs from "fs-extra";
-import { MultiStepInput, noOpValidate, mapToQuickPickItems } from "../utilities/multistepQuickPick";
+import { MultiStepInput, InputStep, noOpValidate, mapToQuickPickItems } from "../utilities/multistepQuickPick";
 import { notifyError } from "../utilities/output";
 import { loadYamlFile } from "../utilities/utils";
 import { SetupState } from '../setup_utilities/types';
-import { pickBoard, BoardConfig } from './build_selector';
+import { pickBoardSteps, BoardConfig, PickBoardState } from './build_selector';
 
 // Config for the extension
 export interface TwisterConfig {
@@ -69,6 +69,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
 
   const twisterConfig: Partial<TwisterConfig> = {};
   twisterConfig.tests = [];
+  const boardPickState: PickBoardState = {};
 
   //check if project contain sample.yaml or testcase.yaml
   const projectPath = path.join(rootPath, projectFolder);
@@ -81,9 +82,10 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
 
   // Compute the total number of steps dynamically. Base path is 4 steps
   // (tests, platform, args, name); when the hardware platform is chosen the
-  // com port / baud rate steps are inserted, bringing the total to 6.
+  // 3-step board picker plus com port / baud rate steps are inserted,
+  // bringing the total to 9.
   function totalStepsFor(): number {
-    return twisterConfig.platform === "hardware" ? 6 : 4;
+    return twisterConfig.platform === "hardware" ? 9 : 4;
   }
 
   async function pickTests(input: MultiStepInput) {
@@ -143,22 +145,28 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
     return (input: MultiStepInput) => inputTwisterArgs(input);
   }
 
-  async function pickHardwareBoard(input: MultiStepInput) {
-    // pickBoard runs a 3-step sub-wizard (board dir → board → revision). It
-    // shares the same MultiStepInput so the Back button navigates back
-    // through those sub-steps and then back to platform/tests.
-    const boardConfig = await pickBoard(setupState, rootPath, input);
-    if (boardConfig === undefined) {
-      return;
-    }
-    twisterConfig.boardConfig = boardConfig;
-    return (input: MultiStepInput) => inputComPort(input);
+  async function pickHardwareBoard(input: MultiStepInput): Promise<InputStep | void> {
+    // Compose the 3-step board picker (board dir → board → revision) into
+    // this wizard so Back navigates between board picker sub-steps as well
+    // as back to platform/tests. The picker writes into boardPickState; the
+    // returned starting step continues to inputComPort when revision accepts.
+    const startStep = pickBoardSteps(setupState, rootPath, boardPickState, {
+      startStep: 3,
+      totalSteps: totalStepsFor(),
+      next: (input) => {
+        if (boardPickState.boardConfig) {
+          twisterConfig.boardConfig = boardPickState.boardConfig;
+        }
+        return inputComPort(input);
+      },
+    });
+    return startStep;
   }
 
   async function inputComPort(input: MultiStepInput) {
     const comPort = await input.showInputBox({
       title,
-      step: 3,
+      step: 6,
       totalSteps: totalStepsFor(),
       prompt: "Enter serial port (e.g., COM1)",
       ignoreFocusOut: true,
@@ -173,7 +181,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
   async function inputBaud(input: MultiStepInput) {
     const baud = await input.showInputBox({
       title,
-      step: 4,
+      step: 7,
       totalSteps: totalStepsFor(),
       prompt: "Enter baud rate (e.g., 115200)",
       ignoreFocusOut: true,
