@@ -322,54 +322,75 @@ export async function activate(context: vscode.ExtensionContext) {
   const remoteName = vscode.env.remoteName;
   outputInfo("Startup", `Platform: ${platformName} (${platformArch})${remoteName ? `, remote: ${remoteName}` : ""}${isWSL() ? " [WSL]" : ""}`);
 
-  // Migrate deprecated setting keys to camelCase equivalents
-  await migrateSettingKeys();
+  // Wrap critical initialization in try/catch so an unexpected failure produces
+  // a meaningful notification instead of silently preventing activation.
+  try {
+    // Migrate deprecated setting keys to camelCase equivalents
+    await migrateSettingKeys();
 
-  wsConfig = await loadWorkspaceState(context);
-  globalConfig = await loadGlobalState(context);
+    wsConfig = await loadWorkspaceState(context);
+    globalConfig = await loadGlobalState(context);
 
-  // Guard: ensure the active workspace's setup state is registered in the
-  // global dictionary before setSetupState runs. Without this, if the global
-  // dictionary is missing the path (e.g., after a VS Code state reset or when
-  // upgrading from a very old release), loadExternalSetupState would create a
-  // fresh zeroed entry and overwrite the correctly-loaded activeSetupState —
-  // sending the user back to the Initial Setup page even though their
-  // workspace was already fully configured.
-  //
-  // This also ensures that the old global install (previously stored at
-  // getToolsDir()) is preserved as a single entry in setupStateDictionary
-  // rather than a second entry being created at a new default path.
-  if (wsConfig.activeSetupState) {
-    const activePath = wsConfig.activeSetupState.setupPath;
-    if (activePath && !globalConfig.setupStateDictionary?.[activePath]) {
-      if (!globalConfig.setupStateDictionary) {
-        globalConfig.setupStateDictionary = {};
+    // Guard: ensure the active workspace's setup state is registered in the
+    // global dictionary before setSetupState runs. Without this, if the global
+    // dictionary is missing the path (e.g., after a VS Code state reset or when
+    // upgrading from a very old release), loadExternalSetupState would create a
+    // fresh zeroed entry and overwrite the correctly-loaded activeSetupState —
+    // sending the user back to the Initial Setup page even though their
+    // workspace was already fully configured.
+    //
+    // This also ensures that the old global install (previously stored at
+    // getToolsDir()) is preserved as a single entry in setupStateDictionary
+    // rather than a second entry being created at a new default path.
+    if (wsConfig.activeSetupState) {
+      const activePath = wsConfig.activeSetupState.setupPath;
+      if (activePath && !globalConfig.setupStateDictionary?.[activePath]) {
+        if (!globalConfig.setupStateDictionary) {
+          globalConfig.setupStateDictionary = {};
+        }
+        globalConfig.setupStateDictionary[activePath] = wsConfig.activeSetupState;
+        await setGlobalState(context, globalConfig);
       }
-      globalConfig.setupStateDictionary[activePath] = wsConfig.activeSetupState;
-      await setGlobalState(context, globalConfig);
+    }
+
+    if (wsConfig.activeSetupState) {
+      await setSetupState(
+        context,
+        wsConfig,
+        globalConfig,
+        wsConfig.activeSetupState.setupPath
+      );
+    }
+
+    if (
+      wsConfig.activeSetupState &&
+      wsConfig.activeSetupState.zephyrVersion === undefined &&
+      wsConfig.activeSetupState.zephyrDir
+    ) {
+      wsConfig.activeSetupState.zephyrVersion = await getModuleVersion(
+        wsConfig.activeSetupState.zephyrDir
+      );
+    }
+
+    reloadEnvironmentVariables(context, wsConfig.activeSetupState);
+  } catch (initError) {
+    const initErrorMsg = initError instanceof Error ? initError.message : String(initError);
+    outputError("Startup", `Extension initialization failed: ${initErrorMsg}`);
+    void vscode.window.showErrorMessage(
+      `Zephyr IDE failed to initialize: ${initErrorMsg}. Check the Zephyr IDE output channel for details.`
+    );
+    // Initialize with safe defaults so that commands and views are still registered
+    if (!wsConfig) {
+      wsConfig = {
+        rootPath: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? "",
+        projects: {},
+        projectStates: {},
+      };
+    }
+    if (!globalConfig) {
+      globalConfig = {};
     }
   }
-
-  if (wsConfig.activeSetupState) {
-    await setSetupState(
-      context,
-      wsConfig,
-      globalConfig,
-      wsConfig.activeSetupState.setupPath
-    );
-  }
-
-  if (
-    wsConfig.activeSetupState &&
-    wsConfig.activeSetupState.zephyrVersion === undefined &&
-    wsConfig.activeSetupState.zephyrDir
-  ) {
-    wsConfig.activeSetupState.zephyrVersion = await getModuleVersion(
-      wsConfig.activeSetupState.zephyrDir
-    );
-  }
-
-  reloadEnvironmentVariables(context, wsConfig.activeSetupState);
 
   const activeProjectView = new ActiveProjectView(
     context.extensionPath,

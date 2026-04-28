@@ -199,11 +199,17 @@ export async function loadProjectsFromFile(config: WorkspaceConfig) {
 
 export function setDefaultTerminal(configuration: vscode.WorkspaceConfiguration, target: vscode.ConfigurationTarget, platform_name: string, force: boolean) {
   if (force || !configuration.inspect('terminal.integrated.defaultProfile.' + platform_name)?.workspaceValue) {
-    configuration.update('terminal.integrated.defaultProfile.' + platform_name, "Zephyr IDE Terminal", target, false);
+    void configuration.update('terminal.integrated.defaultProfile.' + platform_name, "Zephyr IDE Terminal", target, false);
   }
 }
 
 export async function setWorkspaceSettings(force = false) {
+  // Skip workspace-scoped settings when no workspace folder is open to avoid
+  // unhandled promise rejections from ConfigurationTarget.Workspace updates.
+  if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
+    return;
+  }
+
   const configuration = vscode.workspace.getConfiguration();
   const target = vscode.ConfigurationTarget.Workspace;
 
@@ -216,10 +222,10 @@ export async function setWorkspaceSettings(force = false) {
     setDefaultTerminal(configuration, target, "osx", force);
   }
   if (force || !configuration.inspect("C_Cpp.default.compileCommands")?.workspaceValue) {
-    configuration.update("C_Cpp.default.compileCommands", path.join("${workspaceFolder}", '.vscode', 'compile_commands.json'), target);
+    void configuration.update("C_Cpp.default.compileCommands", path.join("${workspaceFolder}", '.vscode', 'compile_commands.json'), target);
   }
   if (force || !configuration.inspect("cmake.configureOnOpen")?.workspaceValue) {
-    configuration.update("cmake.configureOnOpen", false, target);
+    void configuration.update("cmake.configureOnOpen", false, target);
   }
 }
 
