@@ -58,7 +58,14 @@ const SETTINGS: SettingDefinition[] = [
   {
     key: "zephyr-ide.westNarrowUpdate",
     label: "West Narrow Update",
-    description: "If enabled, uses 'west update --narrow' instead of 'west update'.",
+    description: "If enabled, uses 'west update --narrow' instead of 'west update'. Reduces disk usage and download time by fetching only required Git history.",
+    type: "boolean",
+    defaultValue: false,
+  },
+  {
+    key: "zephyr-ide.westKeepDescendants",
+    label: "West Keep Descendants",
+    description: "If enabled, passes '--keep-descendants' to 'west update'. West will not reset a project's branch if its current HEAD is already a descendant of the manifest revision, preserving any local commits on top of it.",
     type: "boolean",
     defaultValue: false,
   },

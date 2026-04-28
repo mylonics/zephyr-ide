@@ -237,7 +237,14 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
   if (forceNarrowUpdateForTest) {
     useNarrowUpdate = true;
   }
-  const cmd = useNarrowUpdate ? 'west update --narrow' : 'west update';
+  const useKeepDescendants = configuration.get<boolean>('westKeepDescendants', false);
+  let cmd = 'west update';
+  if (useNarrowUpdate) {
+    cmd += ' --narrow';
+  }
+  if (useKeepDescendants) {
+    cmd += ' --keep-descendants';
+  }
   const westUpdateRes = await executeTaskHelperInPythonEnv(setupState, "Zephyr IDE: West Update", cmd, setupState.setupPath, true);
 
   if (!westUpdateRes) {
