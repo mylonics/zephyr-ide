@@ -83,6 +83,13 @@
           "default": false,
           "description": "Use 'west update --narrow' to reduce disk usage and download time by fetching only required Git history."
         },
+        "zephyr-ide.westKeepDescendants": {
+          "type": [
+            "boolean"
+          ],
+          "default": false,
+          "description": "Use 'west update --keep-descendants' to preserve local commits on top of the manifest revision. When enabled, west will not reset a project if its current HEAD is a descendant of the manifest revision."
+        },
         "zephyr-ide.suppressWorkspaceWarning": {
           "type": [
             "boolean"
