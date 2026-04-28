@@ -20,6 +20,11 @@ import * as vscode from "vscode";
 // ─── Output Channel ──────────────────────────────────────────────────────────
 
 let outputChannel: vscode.OutputChannel | undefined;
+// Keep the unwrapped channel for operations (like show()) that must run on
+// the real VS Code object.  VS Code internally keys channels by object
+// identity (WeakMap / internal ID), so calling show() through the Proxy
+// would fail silently.
+let _rawOutputChannel: vscode.OutputChannel | undefined;
 
 // ─── Debug Output Buffer ─────────────────────────────────────────────────────
 //
@@ -56,8 +61,14 @@ function createMirroredChannel(real: vscode.OutputChannel): vscode.OutputChannel
   // We return a Proxy so that any property access (show, hide, dispose, name …)
   // transparently forwards to the real channel.  Only `append` and `appendLine`
   // are intercepted to also push into the debug buffer.
+  //
+  // Important: for every property that is a function (including `show`, `hide`,
+  // `clear`, `dispose`, `replace`) we must bind the returned function to `target`
+  // (the real channel), NOT to the Proxy.  VS Code's extension-host implementation
+  // identifies channels via internal WeakMaps / IDs keyed on the *real* object.
+  // Calling methods with `this = Proxy` would fail those lookups silently.
   return new Proxy(real, {
-    get(target, prop, receiver) {
+    get(target, prop, _receiver) {
       if (prop === "appendLine") {
         return (value: string) => {
           debugBuffer.push(value + "\n");
@@ -70,7 +81,14 @@ function createMirroredChannel(real: vscode.OutputChannel): vscode.OutputChannel
           target.append(value);
         };
       }
-      return Reflect.get(target, prop, receiver);
+      // Use `target` as the receiver for getters so they run against the real
+      // object.  Bind function values to `target` so that `this` inside VS Code
+      // API methods always refers to the real channel.
+      const value = Reflect.get(target, prop, target);
+      if (typeof value === 'function') {
+        return (value as (...args: unknown[]) => unknown).bind(target);
+      }
+      return value;
     },
   });
 }
@@ -82,6 +100,7 @@ function createMirroredChannel(real: vscode.OutputChannel): vscode.OutputChannel
  * debug buffer that tests can retrieve via {@link getDebugOutput}.
  */
 export function initOutputChannel(channel: vscode.OutputChannel): void {
+  _rawOutputChannel = channel;
   outputChannel = createMirroredChannel(channel);
 }
 
@@ -215,9 +234,12 @@ export function outputRaw(label: string, text?: string): void {
  * operations (workspace setup, builds, etc.) so the user can follow progress.
  * For error/warning notifications the "Show Output" button (via the `notify`
  * parameter on `outputError` / `outputWarning`) is preferred instead.
+ *
+ * Always delegates to the unwrapped real channel so that VS Code's internal
+ * channel-identity lookup succeeds (the Proxy wrapper must not be used here).
  */
 export function showOutput(): void {
-  outputChannel?.show();
+  _rawOutputChannel?.show();
 }
 
 // ─── Convenience Notification Wrappers ───────────────────────────────────────

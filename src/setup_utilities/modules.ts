@@ -20,7 +20,7 @@ import * as fs from "fs-extra";
 import * as path from "upath";
 
 import { executeShellCommandInPythonEnv, loadYamlFile } from "../utilities/utils";
-import { outputInfo, outputError, notifyError, outputCommandFailure } from "../utilities/output";
+import { outputInfo, outputError, outputCommandFailure, showOutput } from "../utilities/output";
 import { SetupState, formatZephyrVersion } from "./types";
 import { parseWestConfigManifest } from "./west-config-parser";
 
@@ -34,15 +34,24 @@ export interface ZephyrVersionNumber {
 }
 
 /**
- * Execute west list command and return the output
+ * Result returned by {@link executeWestList}.
+ *
+ * On success `ok` is `true` and `lines` contains the raw output lines.
+ * On failure `ok` is `false` and `needsWestUpdate` indicates whether the
+ * west error message suggests running `west update` (e.g. deleted module
+ * files that need to be re-cloned).
  */
-async function executeWestList(setupState: SetupState): Promise<string[]> {
+type WestListOutcome =
+  | { ok: true; lines: string[] }
+  | { ok: false; needsWestUpdate: boolean };
+
+async function executeWestList(setupState: SetupState): Promise<WestListOutcome> {
   // Verify .west/config and manifest file exist before invoking west.
   // Uses the shared west-config-parser to avoid duplicating INI parsing logic.
   const manifest = parseWestConfigManifest(setupState.setupPath);
   if (!manifest || !manifest.path) {
     outputError("West List", `.west/config not found or manifest section missing at: ${setupState.setupPath}. West is not initialized.`);
-    return [];
+    return { ok: false, needsWestUpdate: false };
   }
 
   const manifestFile = manifest.file ?? "west.yml";
@@ -50,7 +59,7 @@ async function executeWestList(setupState: SetupState): Promise<string[]> {
 
   if (!fs.existsSync(fullManifestPath)) {
     outputError("West List", `Manifest file not found at: ${fullManifestPath}. West list will fail.`);
-    return [];
+    return { ok: false, needsWestUpdate: false };
   }
 
   // Use pipe separator to avoid paths with spaces being split incorrectly.
@@ -62,10 +71,39 @@ async function executeWestList(setupState: SetupState): Promise<string[]> {
 
   if (!res.stdout) {
     outputCommandFailure("West List", res);
-    return [];
+    // Detect whether the west error message advises running `west update`
+    // (e.g. a module repo was manually deleted).
+    const needsWestUpdate = typeof res.stderr === 'string' && res.stderr.includes("west update");
+    return { ok: false, needsWestUpdate };
   }
 
-  return res.stdout.split(/\r?\n/);
+  return { ok: true, lines: res.stdout.split(/\r?\n/) };
+}
+
+/**
+ * Show an actionable error notification after a `west list` failure.
+ *
+ * When `needsWestUpdate` is true (detected from west's own stderr hint),
+ * offer a "Run West Update" button so the user can restore deleted module
+ * files with a single click.  Always include "Show Output" so the user can
+ * inspect the full error details logged by {@link outputCommandFailure}.
+ */
+function notifyWestListFailure(needsWestUpdate: boolean): void {
+  const message = needsWestUpdate
+    ? "West module files are missing or outdated. Run 'west update' to restore them."
+    : "West list failed. Check the Zephyr IDE output for details.";
+
+  const actions: string[] = needsWestUpdate
+    ? ["Run West Update", "Show Output"]
+    : ["Show Output"];
+
+  void vscode.window.showErrorMessage(message, ...actions).then(selection => {
+    if (selection === "Run West Update") {
+      void vscode.commands.executeCommand("zephyr-ide.west-update");
+    } else if (selection === "Show Output") {
+      showOutput();
+    }
+  });
 }
 
 /**
@@ -79,14 +117,14 @@ function isZephyrRepository(dirPath: string): boolean {
 export async function getModuleList(setupState: SetupState) {
 
   const outputList: Array<string[]> = [];
-  const modules = await executeWestList(setupState);
+  const outcome = await executeWestList(setupState);
 
-  if (modules.length === 0) {
-    notifyError("West Modules", "Failed to run west list command. Check the Zephyr IDE output for details.");
+  if (!outcome.ok) {
+    notifyWestListFailure(outcome.needsWestUpdate);
     return outputList;
   }
 
-  for (const line of modules) {
+  for (const line of outcome.lines) {
     if (!line.trim()) {
       continue;
     }
@@ -158,16 +196,16 @@ export async function getDtsIncludes(setupState: SetupState) {
 }
 
 export async function getModulePathAndVersion(setupState: SetupState, moduleName: string) {
-  const westOutput = await executeWestList(setupState);
-  
-  if (westOutput.length === 0) {
-    notifyError("West Modules", "Failed to run west list command. Check the Zephyr IDE output for details.");
+  const outcome = await executeWestList(setupState);
+
+  if (!outcome.ok) {
+    notifyWestListFailure(outcome.needsWestUpdate);
     return;
   }
 
   let manifestEntry: string[] | undefined;
 
-  for (const line of westOutput) {
+  for (const line of outcome.lines) {
     if (!line.trim()) {
       continue;
     }
@@ -189,17 +227,17 @@ export async function getModulePathAndVersion(setupState: SetupState, moduleName
 }
 
 export async function getModuleSampleFolders(setupState: SetupState) {
-  const westOutput = await executeWestList(setupState);
+  const outcome = await executeWestList(setupState);
   const samplefolders: [string, string][] = [];
 
-  if (westOutput.length === 0) {
+  if (!outcome.ok) {
     return samplefolders;
   }
 
   const modules: string[][] = [];
   let manifestEntry: string[] | undefined;
 
-  for (const line of westOutput) {
+  for (const line of outcome.lines) {
     if (!line.trim()) {
       continue;
     }
