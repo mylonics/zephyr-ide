@@ -256,7 +256,6 @@ def main():
 
     output_path.write_text(json.dumps(payload), encoding="utf-8")
     log.info("Wrote dashboard JSON: %s", output_path)
-    print(f"Wrote dashboard JSON: {output_path}")
 
 
 if __name__ == "__main__":

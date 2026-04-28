@@ -10,19 +10,19 @@ import { ZephyrLitElement } from "../../webview_shared/lit-base";
 import type { DashboardSummary } from "../dashboard-data";
 
 const REGION_COLORS: Record<keyof DashboardSummary["memorySummary"], string> = {
-  text:    "#0288d1",
-  rodata:  "#7e57c2",
-  rwdata:  "#ef6c00",
-  bss:     "#43a047",
-  other:   "#757575",
+  text: "#0288d1",
+  rodata: "#7e57c2",
+  rwdata: "#ef6c00",
+  bss: "#43a047",
+  other: "#757575",
 };
 
 const REGION_LABELS: Record<keyof DashboardSummary["memorySummary"], string> = {
-  text:   "Text (code)",
+  text: "Text (code)",
   rodata: "Read-only data",
   rwdata: "Read/write data",
-  bss:    "BSS",
-  other:  "Other",
+  bss: "BSS",
+  other: "Other",
 };
 
 @customElement("summary-page")
@@ -75,14 +75,14 @@ export class SummaryPage extends ZephyrLitElement {
     return html`
       <h1>Build Summary</h1>
       <dl class="summary-grid">
-        ${this._renderRow("Board",           this.data.board)}
-        ${this._renderRow("Application",     this.data.application)}
-        ${this._renderRow("West command",    this.data.command)}
-        ${this._renderRow("Zephyr version",  this.data.zephyrVersion)}
-        ${this._renderRow("Toolchain",       this.data.toolchain)}
-        ${this._renderRow("ELF size",        this.data.elfSize)}
-        ${this._renderRow("BIN size",        this.data.binSize)}
-        ${this._renderRow("ELF date",        this.data.elfDate)}
+        ${this._renderRow("Board", this.data.board)}
+        ${this._renderRow("Application", this.data.application)}
+        ${this._renderRow("West command", this.data.command)}
+        ${this._renderRow("Zephyr version", this.data.zephyrVersion)}
+        ${this._renderRow("Toolchain", this.data.toolchain)}
+        ${this._renderRow("ELF size", this.data.elfSize)}
+        ${this._renderRow("BIN size", this.data.binSize)}
+        ${this._renderRow("ELF date", this.data.elfDate)}
       </dl>
       <h2>Memory Breakdown (from symbol table)</h2>
       ${this._renderMemoryBar()}

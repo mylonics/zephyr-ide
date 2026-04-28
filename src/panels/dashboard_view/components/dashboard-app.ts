@@ -19,12 +19,12 @@ import "./elfstats-page";
 type PageId = "summary" | "memory" | "kconfig" | "sysinit" | "dts" | "elfstats";
 
 const PAGES: { id: PageId; label: string; icon: string }[] = [
-  { id: "summary",  label: "Build Summary",   icon: "codicon-info" },
-  { id: "memory",   label: "Memory Report",   icon: "codicon-graph" },
-  { id: "kconfig",  label: "Kconfig",          icon: "codicon-settings" },
-  { id: "sysinit",  label: "Sys Init",         icon: "codicon-list-ordered" },
-  { id: "dts",      label: "Device Tree",      icon: "codicon-circuit-board" },
-  { id: "elfstats", label: "ELF Stats",        icon: "codicon-symbol-file" },
+  { id: "summary", label: "Build Summary", icon: "codicon-info" },
+  { id: "memory", label: "Memory Report", icon: "codicon-graph" },
+  { id: "kconfig", label: "Kconfig", icon: "codicon-settings" },
+  { id: "sysinit", label: "Sys Init", icon: "codicon-list-ordered" },
+  { id: "dts", label: "Device Tree", icon: "codicon-circuit-board" },
+  { id: "elfstats", label: "ELF Stats", icon: "codicon-symbol-file" },
 ];
 
 @customElement("dashboard-app")
