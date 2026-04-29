@@ -248,8 +248,7 @@ export async function setWorkspaceSettings(force = false) {
       if (!configuredToolchainDir) {
         outputWarning("Workspace Config", "Toolchain directory is not configured; skipping clangd query-driver. Set 'zephyr-ide.toolchainDirectory' or install the Zephyr SDK.");
       } else {
-        const toolchainDir = getToolchainDir();
-        const queryDriver = path.join(toolchainDir, "**", "*");
+        const queryDriver = path.join(configuredToolchainDir, "**", "*");
         const clangdArgs = [
           "--compile-commands-dir=${workspaceFolder}/.vscode",
           "--background-index",
