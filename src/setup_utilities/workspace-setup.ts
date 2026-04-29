@@ -51,7 +51,7 @@ WorkspaceSetupFromWestGit
 import * as vscode from "vscode";
 import * as fs from "fs-extra";
 import * as path from "upath";
-import { executeTaskHelper, validateGitUrl } from "../utilities/utils";
+import { executeTaskHelper, validateGitUrl, compareWorkspacePathsByLocality, isWorkspaceLocal } from "../utilities/utils";
 import { outputInfo, outputError, notifyError, showOutput } from "../utilities/output";
 import { MultiStepInput } from "../utilities/multistepQuickPick";
 import { westSelector, WestLocation } from "./west_selector";
@@ -465,7 +465,7 @@ async function getExistingInstallationPicks(wsConfig: WorkspaceConfig, globalCon
       const versionStr = setupState.zephyrVersion
         ? formatZephyrVersion(setupState.zephyrVersion)
         : "installation";
-      if (installPath === (wsConfig.activeSetupState?.setupPath || wsConfig.rootPath)) {
+      if (wsConfig.rootPath && isWorkspaceLocal(wsConfig.rootPath, installPath)) {
         description = `Current Zephyr ${versionStr}`;
       } else if (setupState.zephyrVersion) {
         description = `Zephyr ` + versionStr;
@@ -486,6 +486,14 @@ async function getExistingInstallationPicks(wsConfig: WorkspaceConfig, globalCon
       "No valid existing Zephyr installations found."
     );
     return;
+  }
+
+  // Sort so the workspace matching the currently open folder appears first
+  const rootPath = wsConfig.rootPath;
+  if (rootPath) {
+    installOptions.sort((a, b) =>
+      compareWorkspacePathsByLocality(rootPath, a.detail as string, b.detail as string)
+    );
   }
 
   return installOptions;
