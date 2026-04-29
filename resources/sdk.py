@@ -359,26 +359,10 @@ class Sdk(WestCommand):
             setup = Path(sdk_dir) / "setup.sh"
             optsep = "-"
 
-        # Build a subprocess environment that guarantees standard Linux paths are
-        # present.  On some distributions (Fedora, Arch) running inside a Docker
-        # container the PATH visible to Python may not include /usr/bin by the
-        # time setup.sh is invoked, even though cmake was installed there by the
-        # package manager.  Appending the well-known directories is a no-op when
-        # they are already present and fixes the "cmake not found" error on those
-        # platforms.
-        run_env = dict(os.environ)
-        if platform.system() != "Windows":
-            existing = run_env.get("PATH", "")
-            path_parts = existing.split(":") if existing else []
-            for p in ["/usr/bin", "/usr/local/bin", "/bin", "/usr/sbin", "/usr/local/sbin", "/sbin"]:
-                if p not in path_parts:
-                    path_parts.append(p)
-            run_env["PATH"] = ":".join(path_parts)
-
         # Associate installed SDK so that it can be found.
         cmds_cmake_pkg = [str(setup), f"{optsep}c"]
         self.dbg("Run: ", cmds_cmake_pkg)
-        result = subprocess.run(cmds_cmake_pkg, env=run_env)
+        result = subprocess.run(cmds_cmake_pkg)
         if result.returncode != 0:
             self.die(f"command \"{' '.join(cmds_cmake_pkg)}\" failed")
 
@@ -396,7 +380,7 @@ class Sdk(WestCommand):
 
         if args.interactive or len(cmds) != 1:
             self.dbg("Run: ", cmds)
-            result = subprocess.run(cmds, env=run_env)
+            result = subprocess.run(cmds)
             if result.returncode != 0:
                 self.die(f"command \"{' '.join(cmds)}\" failed")
 

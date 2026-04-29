@@ -203,13 +203,13 @@ export async function detectLinuxDistro(): Promise<string> {
 
       // Check for Arch-based distros
       const archIds = new Set(["arch", "manjaro", "endeavouros", "artix", "garuda"]);
-      if (archIds.has(id) || idLike.split(" ").some(l => l === "arch")) {
+      if (archIds.has(id) || idLike.split(/\s+/).filter(l => l).some(l => l === "arch")) {
         return "arch";
       }
 
       // Check for Fedora/RHEL/CentOS-based distros
       const fedoraIds = new Set(["fedora", "rhel", "centos", "rocky", "almalinux", "ol"]);
-      if (fedoraIds.has(id) || idLike.split(" ").some(l => l === "fedora" || l === "rhel")) {
+      if (fedoraIds.has(id) || idLike.split(/\s+/).filter(l => l).some(l => l === "fedora" || l === "rhel")) {
         return "fedora";
       }
 
