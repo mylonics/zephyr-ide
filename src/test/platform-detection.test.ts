@@ -17,7 +17,7 @@ limitations under the License.
 
 import * as assert from "assert";
 import { getPlatformName, getPlatformNameAsync } from "../utilities/utils";
-import { detectLinuxDistro, resetLinuxDistroCache, setLinuxDistroForTesting } from "../setup_utilities/host_tools";
+import { detectLinuxDistro, resetLinuxDistroCache, setLinuxDistroForTesting, LINUX_DISTRO_FAMILIES } from "../setup_utilities/host_tools";
 
 suite("Platform Detection Test Suite", () => {
     
@@ -85,8 +85,7 @@ suite("Platform Detection Test Suite", () => {
                 this.skip();
             }
             const distro = await detectLinuxDistro();
-            const valid = ["apt", "fedora", "arch", "clear"];
-            assert.ok(valid.includes(distro), `Expected a valid distro family, got: ${distro}`);
+            assert.ok(LINUX_DISTRO_FAMILIES.includes(distro as typeof LINUX_DISTRO_FAMILIES[number]), `Expected a valid distro family, got: ${distro}`);
         });
 
         test("detectLinuxDistro returns consistent results (cached)", async function() {
@@ -111,8 +110,7 @@ suite("Platform Detection Test Suite", () => {
             // the stale sentinel.
             resetLinuxDistroCache();
             const reDetected = await detectLinuxDistro();
-            const valid = ["apt", "fedora", "arch", "clear"];
-            assert.ok(valid.includes(reDetected), `Expected a valid distro family after cache reset, got: ${reDetected}`);
+            assert.ok(LINUX_DISTRO_FAMILIES.includes(reDetected as typeof LINUX_DISTRO_FAMILIES[number]), `Expected a valid distro family after cache reset, got: ${reDetected}`);
             assert.notStrictEqual(reDetected, "__test_sentinel__", "resetLinuxDistroCache should have cleared the injected sentinel");
         });
     });

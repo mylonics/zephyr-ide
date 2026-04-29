@@ -153,6 +153,10 @@ export function loadHostToolsManifest(): HostToolsManifest {
   }
 }
 
+/** All Linux distro families that can be returned by detectLinuxDistro(). */
+export const LINUX_DISTRO_FAMILIES = ["apt", "fedora", "arch", "clear"] as const;
+export type LinuxDistroFamily = typeof LINUX_DISTRO_FAMILIES[number];
+
 /**
  * In-flight / resolved detection promise.  Undefined means no detection has
  * been started yet.  Caching the Promise (rather than a boolean flag) prevents
