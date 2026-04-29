@@ -488,6 +488,21 @@ async function getExistingInstallationPicks(wsConfig: WorkspaceConfig, globalCon
     return;
   }
 
+  // Sort so the workspace matching the currently open folder appears first
+  const rootPath = wsConfig.rootPath;
+  if (rootPath) {
+    const normalizedRoot = path.normalize(rootPath);
+    installOptions.sort((a, b) => {
+      const aPath = path.normalize(a.detail as string);
+      const bPath = path.normalize(b.detail as string);
+      const aIsLocal = aPath === normalizedRoot || normalizedRoot.startsWith(aPath + '/');
+      const bIsLocal = bPath === normalizedRoot || normalizedRoot.startsWith(bPath + '/');
+      if (aIsLocal && !bIsLocal) { return -1; }
+      if (!aIsLocal && bIsLocal) { return 1; }
+      return 0;
+    });
+  }
+
   return installOptions;
 }
 

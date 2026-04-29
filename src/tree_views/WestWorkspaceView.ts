@@ -117,6 +117,21 @@ export class WestWorkspaceView implements vscode.TreeDataProvider<WestWorkspaceI
           contextId,
         ));
       }
+
+      // Sort so the workspace matching the currently open folder appears first
+      const rootPath = this.wsConfig.rootPath;
+      if (rootPath) {
+        const normalizedRoot = path.normalize(rootPath);
+        items.sort((a, b) => {
+          const aPath = path.normalize(a.installPath);
+          const bPath = path.normalize(b.installPath);
+          const aIsLocal = aPath === normalizedRoot || normalizedRoot.startsWith(aPath + '/');
+          const bIsLocal = bPath === normalizedRoot || normalizedRoot.startsWith(bPath + '/');
+          if (aIsLocal && !bIsLocal) { return -1; }
+          if (!aIsLocal && bIsLocal) { return 1; }
+          return 0;
+        });
+      }
     }
 
     return items;
