@@ -154,9 +154,8 @@ jobs:
       - name: Install git (Clear Linux)
         if: matrix.platform == 'clr'
         run: |
-          clrtrust generate
-          swupd update --no-progress
-          swupd bundle-add git
+          clrtrust generate || true
+          swupd bundle-add --no-progress git
 
       - uses: actions/checkout@v4
         with:
@@ -205,6 +204,15 @@ jobs:
       - name: Install VS Code runtime dependencies (Fedora)
         if: matrix.platform == 'fedora'
         run: dnf install -y xorg-x11-server-Xvfb gtk3 mesa-libgbm nss alsa-lib
+
+      # Fedora container: pre-install Zephyr build dependencies so they are on
+      # PATH before VS Code starts.  cmake in particular must be discoverable by
+      # the Zephyr SDK setup.sh script which runs later during the test.
+      - name: Install Zephyr build tools (Fedora)
+        if: matrix.platform == 'fedora'
+        run: |
+          dnf install -y cmake ninja-build gperf ccache dfu-util dtc wget \
+            python3.12 python3-tkinter file make gcc SDL2-devel
 
       # Arch Linux container: install VS Code Electron runtime deps via pacman.
       - name: Install VS Code runtime dependencies (Arch Linux)

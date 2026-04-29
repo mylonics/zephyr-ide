@@ -163,6 +163,7 @@
       { "name": "wget", "package": "wget", "check_command": "wget --version" },
       { "name": "Python3", "package": "python", "check_command": "python3 --version",
         "version_check": { "minimum": "3.10", "candidates": ["python3.12", "python3.11", "python3.10", "python3"] } },
+      { "name": "Python 3.12", "package": "python312", "check_command": "python3.12 --version" },
       { "name": "Python3 Tkinter", "package": "tk", "check_command": "python3 -c \"import tkinter\"" },
       { "name": "xz", "package": "xz", "check_command": "xz --version" },
       { "name": "file", "package": "file", "check_command": "file --version" },
