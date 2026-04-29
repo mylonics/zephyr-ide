@@ -688,7 +688,7 @@ export async function executeShellCommandInPythonEnv(cmd: string, cwd: string, s
   if (os.platform() === "linux") {
     const standardPaths = ["/usr/local/bin", "/usr/bin", "/bin", "/usr/local/sbin", "/usr/sbin", "/sbin"];
     const currentPath = env[existingKey] || "";
-    const pathEntries = currentPath.split(":").filter((p: string) => p.length > 0);
+    const pathEntries = currentPath.split(":").filter(Boolean);
     for (const p of standardPaths) {
       if (!pathEntries.includes(p)) {
         pathEntries.push(p);

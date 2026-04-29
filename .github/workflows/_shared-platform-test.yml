@@ -226,10 +226,15 @@ jobs:
       - name: Install Python 3.13 (Arch Linux)
         if: matrix.platform == 'arch'
         run: |
+          set -e
           curl -LsSf https://astral.sh/uv/install.sh | sh
           export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
           uv python install 3.13
           PYTHON_PATH=$(uv python find 3.13)
+          if [ -z "$PYTHON_PATH" ]; then
+            echo "ERROR: uv could not locate Python 3.13 after installation" >&2
+            exit 1
+          fi
           ln -sf "$PYTHON_PATH" /usr/local/bin/python3.13
           python3.13 --version
 
