@@ -58,7 +58,14 @@ const SETTINGS: SettingDefinition[] = [
   {
     key: "zephyr-ide.westNarrowUpdate",
     label: "West Narrow Update",
-    description: "If enabled, uses 'west update --narrow' instead of 'west update'.",
+    description: "If enabled, uses 'west update --narrow' instead of 'west update'. Reduces disk usage and download time by fetching only required Git history.",
+    type: "boolean",
+    defaultValue: false,
+  },
+  {
+    key: "zephyr-ide.westKeepDescendants",
+    label: "West Keep Descendants",
+    description: "If enabled, passes '--keep-descendants' to 'west update'. West will not reset a project's branch if its current HEAD is already a descendant of the manifest revision, preserving any local commits on top of it.",
     type: "boolean",
     defaultValue: false,
   },
@@ -75,6 +82,13 @@ const SETTINGS: SettingDefinition[] = [
     description: "Automatically switch the active project when the editor focus changes to a file belonging to a different project.",
     type: "boolean",
     defaultValue: true,
+  },
+  {
+    key: "zephyr-ide.useClangd",
+    label: "Use clangd IntelliSense",
+    description: "Use clangd for IntelliSense instead of the C/C++ extension. When enabled, disables C_Cpp.intelliSenseEngine and configures clangd.arguments with the Zephyr SDK query-driver. Workspace settings are applied automatically when this setting changes. Requires the clangd VS Code extension (llvm-vs-code-extensions.vscode-clangd).",
+    type: "boolean",
+    defaultValue: false,
   },
 ];
 

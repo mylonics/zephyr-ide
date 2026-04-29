@@ -324,54 +324,104 @@ export async function activate(context: vscode.ExtensionContext) {
   const remoteName = vscode.env.remoteName;
   outputInfo("Startup", `Platform: ${platformName} (${platformArch})${remoteName ? `, remote: ${remoteName}` : ""}${isWSL() ? " [WSL]" : ""}`);
 
-  // Migrate deprecated setting keys to camelCase equivalents
-  await migrateSettingKeys();
+  // Wrap critical initialization in try/catch so an unexpected failure produces
+  // a meaningful notification instead of silently preventing activation.
+  try {
+    // Migrate deprecated setting keys to camelCase equivalents
+    await migrateSettingKeys();
 
-  wsConfig = await loadWorkspaceState(context);
-  globalConfig = await loadGlobalState(context);
+    // Auto-enable clangd mode when the clangd extension is installed and the
+    // user has not yet explicitly configured zephyr-ide.useClangd (i.e. it is
+    // still at its default value of false across all configuration scopes).
+    {
+      const cfg = vscode.workspace.getConfiguration();
+      const clangdInspect = cfg.inspect<boolean>("zephyr-ide.useClangd");
+      const isExplicitlySet = [
+        clangdInspect?.globalValue,
+        clangdInspect?.workspaceValue,
+        clangdInspect?.workspaceFolderValue,
+      ].some((v) => v !== undefined);
 
-  // Guard: ensure the active workspace's setup state is registered in the
-  // global dictionary before setSetupState runs. Without this, if the global
-  // dictionary is missing the path (e.g., after a VS Code state reset or when
-  // upgrading from a very old release), loadExternalSetupState would create a
-  // fresh zeroed entry and overwrite the correctly-loaded activeSetupState —
-  // sending the user back to the Initial Setup page even though their
-  // workspace was already fully configured.
-  //
-  // This also ensures that the old global install (previously stored at
-  // getToolsDir()) is preserved as a single entry in setupStateDictionary
-  // rather than a second entry being created at a new default path.
-  if (wsConfig.activeSetupState) {
-    const activePath = wsConfig.activeSetupState.setupPath;
-    if (activePath && !globalConfig.setupStateDictionary?.[activePath]) {
-      if (!globalConfig.setupStateDictionary) {
-        globalConfig.setupStateDictionary = {};
+      if (!isExplicitlySet && vscode.extensions.getExtension("llvm-vs-code-extensions.vscode-clangd")) {
+        await cfg.update("zephyr-ide.useClangd", true, vscode.ConfigurationTarget.Global)
+          .then(
+            () => {
+              outputInfo("Startup", "clangd extension detected and 'zephyr-ide.useClangd' was not set — automatically enabled clangd IntelliSense mode.");
+            },
+            (err: unknown) => {
+              const detail = err instanceof Error ? err.message : String(err);
+              outputInfo("Startup", `Auto-enable clangd: could not write useClangd setting: ${detail}`);
+            });
       }
-      globalConfig.setupStateDictionary[activePath] = wsConfig.activeSetupState;
-      await setGlobalState(context, globalConfig);
     }
-  }
 
-  if (wsConfig.activeSetupState) {
-    await setSetupState(
-      context,
-      wsConfig,
-      globalConfig,
-      wsConfig.activeSetupState.setupPath
-    );
-  }
+    wsConfig = await loadWorkspaceState(context);
+    globalConfig = await loadGlobalState(context);
 
-  if (
-    wsConfig.activeSetupState &&
-    wsConfig.activeSetupState.zephyrVersion === undefined &&
-    wsConfig.activeSetupState.zephyrDir
-  ) {
-    wsConfig.activeSetupState.zephyrVersion = await getModuleVersion(
+    // Guard: ensure the active workspace's setup state is registered in the
+    // global dictionary before setSetupState runs. Without this, if the global
+    // dictionary is missing the path (e.g., after a VS Code state reset or when
+    // upgrading from a very old release), loadExternalSetupState would create a
+    // fresh zeroed entry and overwrite the correctly-loaded activeSetupState —
+    // sending the user back to the Initial Setup page even though their
+    // workspace was already fully configured.
+    //
+    // This also ensures that the old global install (previously stored at
+    // getToolsDir()) is preserved as a single entry in setupStateDictionary
+    // rather than a second entry being created at a new default path.
+    if (wsConfig.activeSetupState) {
+      const activePath = wsConfig.activeSetupState.setupPath;
+      if (activePath && !globalConfig.setupStateDictionary?.[activePath]) {
+        if (!globalConfig.setupStateDictionary) {
+          globalConfig.setupStateDictionary = {};
+        }
+        globalConfig.setupStateDictionary[activePath] = wsConfig.activeSetupState;
+        await setGlobalState(context, globalConfig);
+      }
+    }
+
+    if (wsConfig.activeSetupState) {
+      await setSetupState(
+        context,
+        wsConfig,
+        globalConfig,
+        wsConfig.activeSetupState.setupPath
+      );
+    }
+
+    if (
+      wsConfig.activeSetupState &&
+      wsConfig.activeSetupState.zephyrVersion === undefined &&
       wsConfig.activeSetupState.zephyrDir
+    ) {
+      wsConfig.activeSetupState.zephyrVersion = await getModuleVersion(
+        wsConfig.activeSetupState.zephyrDir
+      );
+    }
+  } catch (initError) {
+    const initErrorMsg = initError instanceof Error ? initError.message : String(initError);
+    const initErrorDetail =
+      initError instanceof Error && initError.stack ? initError.stack : initErrorMsg;
+    outputError("Startup", `Extension initialization failed: ${initErrorDetail}`);
+    void vscode.window.showErrorMessage(
+      `Zephyr IDE failed to initialize: ${initErrorMsg}. Check the Zephyr IDE output channel for details.`
     );
+    // Initialize with safe defaults so that commands and views are still registered
+    if (!wsConfig) {
+      wsConfig = {
+        rootPath: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? "",
+        projects: {},
+        projectStates: {},
+      };
+    }
+    if (!globalConfig) {
+      globalConfig = {};
+    }
+  } finally {
+    // Always sync the environment variable collection regardless of init success/failure
+    // so terminals opened after activation pick up the correct (or cleared) variables.
+    reloadEnvironmentVariables(context, wsConfig?.activeSetupState);
   }
-
-  reloadEnvironmentVariables(context, wsConfig.activeSetupState);
 
   const activeProjectView = new ActiveProjectView(
     context.extensionPath,
@@ -1385,6 +1435,21 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration(async (e) => {
+      if (e.affectsConfiguration("zephyr-ide.useClangd")) {
+        await setWorkspaceSettings(false);
+      } else if (e.affectsConfiguration("zephyr-ide.toolchainDirectory")) {
+        // If toolchainDirectory changes while clangd is active, the --query-driver glob
+        // needs to be refreshed to point at the new SDK location.
+        const useClangd: boolean = vscode.workspace.getConfiguration().get("zephyr-ide.useClangd") ?? false;
+        if (useClangd) {
+          await setWorkspaceSettings(false);
+        }
+      }
+    })
+  );
+
+  context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.install-host-tools", async () => {
       // Open the standalone Host Tools panel
       HostToolInstallView.createOrShow(
@@ -1426,6 +1491,15 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.install-sdk", async () => {
       const ret = await installSDKInteractive(wsConfig, globalConfig, context);
+      // If clangd is active, refresh workspace settings so --query-driver picks up
+      // the newly installed SDK (the install does not write zephyr-ide.toolchainDirectory,
+      // so the onDidChangeConfiguration listener would not fire on its own).
+      if (ret) {
+        const useClangd: boolean = vscode.workspace.getConfiguration().get("zephyr-ide.useClangd") ?? false;
+        if (useClangd) {
+          await setWorkspaceSettings(false);
+        }
+      }
       return ret;
     })
   );

@@ -122,13 +122,9 @@ export async function getPythonCommand(configOverride?: string | null): Promise<
   }
 
   if (python === undefined) {
+    // computePythonCommand already probes VS Code settings and falls back to
+    // getDefaultPythonExecutable() internally — no need to call it twice.
     python = await computePythonCommand(undefined);
-    
-    // Fall back to platform default — probe manifest candidates so the venv
-    // is created with the required version (e.g. python3.12) rather than
-    // whatever generic python3/python resolves to on PATH.
-    python = await getDefaultPythonExecutable();
-    outputInfo("Python Setup", `Using platform default Python: ${python}`);
   }
   return python as string;
 }
@@ -237,7 +233,14 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
   if (forceNarrowUpdateForTest) {
     useNarrowUpdate = true;
   }
-  const cmd = useNarrowUpdate ? 'west update --narrow' : 'west update';
+  const useKeepDescendants = configuration.get<boolean>('westKeepDescendants', false);
+  let cmd = 'west update';
+  if (useNarrowUpdate) {
+    cmd += ' --narrow';
+  }
+  if (useKeepDescendants) {
+    cmd += ' --keep-descendants';
+  }
   const westUpdateRes = await executeTaskHelperInPythonEnv(setupState, "Zephyr IDE: West Update", cmd, setupState.setupPath, true);
 
   if (!westUpdateRes) {

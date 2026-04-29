@@ -17,6 +17,7 @@ limitations under the License.
 
 import * as assert from "assert";
 import { getPlatformName, getPlatformNameAsync } from "../utilities/utils";
+import { detectLinuxDistro, resetLinuxDistroCache, setLinuxDistroForTesting, LINUX_DISTRO_FAMILIES } from "../setup_utilities/host_tools";
 
 suite("Platform Detection Test Suite", () => {
     
@@ -67,5 +68,50 @@ suite("Platform Detection Test Suite", () => {
             validPlatforms.includes(asyncPlatform as string),
             `Async platform should be valid: ${asyncPlatform}`
         );
+    });
+
+    suite("Linux distro detection", () => {
+
+        setup(() => {
+            resetLinuxDistroCache();
+        });
+
+        teardown(() => {
+            resetLinuxDistroCache();
+        });
+
+        test("detectLinuxDistro returns a valid distro family on Linux", async function() {
+            if (process.platform !== "linux") {
+                this.skip();
+            }
+            const distro = await detectLinuxDistro();
+            assert.ok(LINUX_DISTRO_FAMILIES.includes(distro as typeof LINUX_DISTRO_FAMILIES[number]), `Expected a valid distro family, got: ${distro}`);
+        });
+
+        test("detectLinuxDistro returns consistent results (cached)", async function() {
+            if (process.platform !== "linux") {
+                this.skip();
+            }
+            const first = await detectLinuxDistro();
+            const second = await detectLinuxDistro();
+            assert.strictEqual(first, second, "detectLinuxDistro should return the same cached result");
+        });
+
+        test("resetLinuxDistroCache clears the cache", async function() {
+            if (process.platform !== "linux") {
+                this.skip();
+            }
+            // Inject a sentinel value so we can tell whether the cache was truly cleared.
+            setLinuxDistroForTesting("__test_sentinel__");
+            const injected = await detectLinuxDistro();
+            assert.strictEqual(injected, "__test_sentinel__", "setLinuxDistroForTesting should make detectLinuxDistro return the injected value");
+
+            // Clear the cache — the next call must re-probe instead of returning
+            // the stale sentinel.
+            resetLinuxDistroCache();
+            const reDetected = await detectLinuxDistro();
+            assert.ok(LINUX_DISTRO_FAMILIES.includes(reDetected as typeof LINUX_DISTRO_FAMILIES[number]), `Expected a valid distro family after cache reset, got: ${reDetected}`);
+            assert.notStrictEqual(reDetected, "__test_sentinel__", "resetLinuxDistroCache should have cleared the injected sentinel");
+        });
     });
 });

@@ -21,6 +21,7 @@ import { WorkspaceConfig, GlobalConfig, formatZephyrVersion, isActiveWorkspaceIn
 import { setGlobalState, clearSetupState } from "../../setup_utilities/state-management";
 import { handleReconfigureInstallation } from "../../setup_utilities/workspace-setup";
 import { notifyError, outputError } from "../../utilities/output";
+import { compareWorkspacePathsByLocality, isWorkspaceLocal, canonicalizePath } from "../../utilities/utils";
 import { generateNonce } from "../webview_shared/nonce";
 import { WorkspacePanel } from "../workspace_panel/WorkspacePanel";
 import type { SetupPanelData, ActiveWorkspaceData, WorkspaceListItem, ProjectListItem } from "./setup-panel-data";
@@ -327,16 +328,16 @@ export class SetupPanel {
       const allPaths = Object.keys(dict);
       const seen = new Set<string>();
       for (const p of allPaths) {
-        const normalized = path.normalize(p);
-        if (seen.has(normalized)) { continue; }
-        seen.add(normalized);
+        const canonical = canonicalizePath(p);
+        if (seen.has(canonical)) { continue; }
+        seen.add(canonical);
 
         const setupState = dict[p];
         const isActive = p === activeSetupPath;
 
         const versionStr = setupState.zephyrVersion ? formatZephyrVersion(setupState.zephyrVersion) : "installation";
         let description = "West installation";
-        if (p === wsConfig.rootPath) {
+        if (wsConfig.rootPath && isWorkspaceLocal(wsConfig.rootPath, p)) {
           description = `Current Zephyr ${versionStr}`;
         } else if (setupState.zephyrVersion) {
           description = `Zephyr ${versionStr}`;
@@ -350,6 +351,14 @@ export class SetupPanel {
           hasPythonEnv: !!setupState.pythonEnvironmentSetup,
           hasWestUpdated: !!setupState.westUpdated,
         });
+      }
+
+      // Sort so the workspace matching the currently open folder appears first
+      const rootPath = wsConfig.rootPath;
+      if (rootPath) {
+        workspaces.sort((a, b) =>
+          compareWorkspacePathsByLocality(rootPath, a.path, b.path)
+        );
       }
     }
 

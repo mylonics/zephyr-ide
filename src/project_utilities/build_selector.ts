@@ -19,7 +19,7 @@ import { QuickPickItem, ExtensionContext } from 'vscode';
 import * as vscode from "vscode";
 import * as path from "upath";
 import * as fs from "fs-extra";
-import { MultiStepInput, showQuickPick, showInputBox, noOpValidate, mapToQuickPickItems } from "../utilities/multistepQuickPick";
+import { MultiStepInput, InputStep, noOpValidate, mapToQuickPickItems } from "../utilities/multistepQuickPick";
 import { RunnerConfigDictionary, RunnerStateDictionary } from './runner_selector';
 import { ConfigFiles } from './config_selector';
 import { SetupState } from '../setup_utilities/types';
@@ -68,7 +68,7 @@ export interface BuildState {
   cachedPristineCmd?: string; // Pristine build command from last build, used to detect config changes
 }
 
-interface BoardItem extends QuickPickItem {
+export interface BoardItem extends QuickPickItem {
   revisions?: string[],
   revision_default?: string;
 }
@@ -163,214 +163,266 @@ function handleSelectorError(error: unknown): undefined {
   return undefined;
 }
 
-export async function pickBoard(setupState: SetupState, rootPath: string) {
-  // Looks for board directories
-  let boardDirectories: string[] = [];
+export interface PickBoardState {
+  boardConfig?: BoardConfig;
+  // Working values accumulated across the 3 sub-steps. Kept on the state so
+  // a Back navigation back into a previous step can reuse what was selected.
+  relBoardDir?: string;
+  boardList?: { name: string, subdir: string, revisions?: string[], revision_default?: string }[];
+  pickedBoard?: BoardItem;
+}
 
-  // Look in root
+/**
+ * Build the chain of InputSteps that drive the board picker (board dir →
+ * board → revision). The chain runs as part of an enclosing
+ * `MultiStepInput.run`, which lets Back navigate within the picker as well
+ * as to/from any wrapping wizard steps.
+ *
+ * @param next  Step to continue with after the revision step accepts. When
+ *              omitted the chain ends and `MultiStepInput.run` returns.
+ */
+export function pickBoardSteps(
+  setupState: SetupState,
+  rootPath: string,
+  state: PickBoardState,
+  options: { startStep: number; totalSteps: number; next?: InputStep }
+): InputStep {
+  const title = "Board Picker";
+  const { startStep, totalSteps, next } = options;
+
+  // Build the list of candidate board directories once; it doesn't depend on
+  // any user input.
+  const boardDirectories: string[] = [];
   const boardDir = path.join(rootPath, `boards`);
   if (fs.pathExistsSync(boardDir)) {
-    boardDirectories = boardDirectories.concat(boardDir);
+    boardDirectories.push(boardDir);
   }
-
   if (setupState.zephyrDir) {
     boardDirectories.push('Zephyr Directory Only');
   }
-
   boardDirectories.push("Select Other Folder");
   const boardDirectoriesQpItems: QuickPickItem[] = mapToQuickPickItems(boardDirectories);
 
-  const title = "Board Picker";
-
-  let pickPromise = showQuickPick({
-    title,
-    step: 1,
-    totalSteps: 3,
-    placeholder: 'Pick Additional Board Directory',
-    ignoreFocusOut: true,
-    items: boardDirectoriesQpItems,
-    activeItem: undefined,
-    dispose: false,
-  }).catch(handleSelectorError);
-  let pick = (await pickPromise as QuickPickItem);
-  if (!pick) {
-    return;
-  };
-
-  let relBoardDir: string | undefined = path.relative(rootPath, (pick.label));
-  if (pick.label === "Select Other Folder") {
-    const boarddir = await vscode.window.showOpenDialog({
-      canSelectFiles: false,
-      canSelectFolders: true,
-      canSelectMany: false,
+  async function pickBoardDir(input: MultiStepInput): Promise<InputStep | void> {
+    const pick = await input.showQuickPick({
+      title,
+      step: startStep,
+      totalSteps,
+      placeholder: 'Pick Additional Board Directory',
+      ignoreFocusOut: true,
+      items: boardDirectoriesQpItems,
+      activeItem: undefined,
     });
-    if (boarddir) {
-      relBoardDir = path.relative(rootPath, boarddir[0].fsPath);
-    } else {
-      void vscode.window.showInformationMessage(`Failed to select board directory`);
+
+    let relBoardDir: string | undefined = path.relative(rootPath, pick.label);
+    if (pick.label === "Select Other Folder") {
+      const boarddir = await vscode.window.showOpenDialog({
+        canSelectFiles: false,
+        canSelectFolders: true,
+        canSelectMany: false,
+      });
+      if (boarddir) {
+        relBoardDir = path.relative(rootPath, boarddir[0].fsPath);
+      } else {
+        void vscode.window.showInformationMessage(`Failed to select board directory`);
+        return;
+      }
+    } else if (pick.label === 'Zephyr Directory Only') {
+      relBoardDir = undefined;
+    }
+
+    state.relBoardDir = relBoardDir;
+
+    const boardList = relBoardDir
+      ? await getBoardlistWest(setupState, vscode.Uri.file(path.join(rootPath, relBoardDir)))
+      : await getBoardlistWest(setupState, undefined);
+
+    if (!boardList) {
       return;
     }
-  } else if (pick.label === 'Zephyr Directory Only') {
-    relBoardDir = undefined;
+    state.boardList = boardList;
+
+    return (input: MultiStepInput) => pickBoardName(input);
   }
 
-  let boardList;
-  if (relBoardDir) {
-    boardList = await getBoardlistWest(setupState, vscode.Uri.file(path.join(rootPath, relBoardDir)));
-  } else {
-    boardList = await getBoardlistWest(setupState, undefined);
-  }
+  async function pickBoardName(input: MultiStepInput): Promise<InputStep | void> {
+    const boardList = state.boardList ?? [];
+    const boardQpItems: BoardItem[] = boardList.map(x => ({
+      revisions: x.revisions,
+      revision_default: x.revision_default,
+      label: x.name,
+      description: x.subdir,
+    }));
 
-  if (!boardList) {
-    return;
-  }
+    const pick = await input.showQuickPick({
+      title,
+      step: startStep + 1,
+      totalSteps,
+      placeholder: 'Pick Board',
+      ignoreFocusOut: true,
+      items: boardQpItems,
+      activeItem: undefined,
+    });
 
-  const boardQpItems: BoardItem[] = boardList.map(x => ({ revisions: x.revisions, revision_default: x.revision_default, label: x.name, description: x.subdir }));
-  pickPromise = showQuickPick({
-    title,
-    step: 2,
-    totalSteps: 3,
-    placeholder: 'Pick Board',
-    ignoreFocusOut: true,
-    items: boardQpItems,
-    activeItem: undefined
-  }).catch(handleSelectorError);
-  pick = (await pickPromise as QuickPickItem);
-  if (!pick) {
-    return;
-  };
+    state.pickedBoard = pick as BoardItem;
 
-  const pick_data = (pick as BoardItem);
-
-  let relBoardSubDir: string = "";
-  if (pick_data.description) {
-    if (relBoardDir) {
-      relBoardSubDir = path.relative(path.join(rootPath, relBoardDir), pick_data.description);
-    } else {
-      relBoardSubDir = path.relative(path.join(setupState.zephyrDir, "boards"), pick_data.description);
+    // If the picked board has no revisions, we can finish here without
+    // showing the revision step.
+    if (!state.pickedBoard.revisions) {
+      finalizeBoardConfig(state, rootPath, setupState, undefined);
+      return next;
     }
+
+    return (input: MultiStepInput) => pickRevision(input);
   }
 
+  async function pickRevision(input: MultiStepInput): Promise<InputStep | void> {
+    const picked = state.pickedBoard;
+    if (!picked || !picked.revisions) {
+      return;
+    }
 
-  const board = pick_data.label;
-  let revision: string | undefined;
-  if (pick_data.revisions) {
     const revisionQPItems: QuickPickItem[] = [];
     let revisionIndex = 0;
-    for (const revision of pick_data.revisions) {
+    for (const revision of picked.revisions) {
       let description = "";
-      if (revision === pick_data.revision_default) {
+      if (revision === picked.revision_default) {
         revisionIndex = revisionQPItems.length;
         description = "default";
       }
-      revisionQPItems.push({ label: revision, description: description });
+      revisionQPItems.push({ label: revision, description });
     }
 
-    const pickPromise = showQuickPick({
+    const revPick = await input.showQuickPick({
       title,
-      step: 3,
-      totalSteps: 3,
+      step: startStep + 2,
+      totalSteps,
       placeholder: 'Pick Revision',
       ignoreFocusOut: true,
       items: revisionQPItems,
-      activeItem: revisionQPItems[revisionIndex]
-    }).catch(handleSelectorError);
-    const pick = (await pickPromise as QuickPickItem);
-    if (!pick) {
-      return;
-    };
-    revision = pick.label;
+      activeItem: revisionQPItems[revisionIndex],
+    });
+
+    finalizeBoardConfig(state, rootPath, setupState, revPick.label);
+    return next;
   }
 
+  return pickBoardDir;
+}
 
-
-  const boardConfig = {
-    board: board,
-    relBoardDir: relBoardDir,
-    relBoardSubDir: relBoardSubDir,
-    revision: revision,
+function finalizeBoardConfig(
+  state: PickBoardState,
+  rootPath: string,
+  setupState: SetupState,
+  revision: string | undefined,
+): void {
+  const picked = state.pickedBoard;
+  if (!picked) {
+    return;
+  }
+  let relBoardSubDir = "";
+  if (picked.description) {
+    if (state.relBoardDir) {
+      relBoardSubDir = path.relative(path.join(rootPath, state.relBoardDir), picked.description);
+    } else {
+      relBoardSubDir = path.relative(path.join(setupState.zephyrDir, "boards"), picked.description);
+    }
+  }
+  state.boardConfig = {
+    board: picked.label,
+    relBoardDir: state.relBoardDir,
+    relBoardSubDir,
+    revision,
   };
-  return boardConfig;
+}
+
+/**
+ * Pick a board interactively. Runs as a 3-step wizard
+ * (board dir → board → revision) so the Back button navigates between
+ * sub-steps. Returns `undefined` if the user cancels.
+ */
+export async function pickBoard(setupState: SetupState, rootPath: string): Promise<BoardConfig | undefined> {
+  const state: PickBoardState = {};
+  try {
+    await MultiStepInput.run(pickBoardSteps(setupState, rootPath, state, { startStep: 1, totalSteps: 3 }));
+  } catch (error) {
+    handleSelectorError(error);
+    return undefined;
+  }
+  return state.boardConfig;
 }
 
 export async function buildSelector(context: ExtensionContext, setupState: SetupState, rootPath: string) {
   const title = 'Add Build Configuration';
+  const TOTAL_STEPS = 7;
 
-  async function pickBoardStep(input: MultiStepInput, state: Partial<BuildConfig>) {
-    const boardData = await pickBoard(setupState, rootPath);
-    if (boardData) {
-      state.relBoardDir = boardData.relBoardDir;
-      state.relBoardSubDir = boardData.relBoardSubDir;
-      state.board = boardData.board;
-      state.revision = boardData.revision;
-    } else {
+  const state: Partial<BuildConfig> & { completed?: boolean } = {};
+  const boardState: PickBoardState = {};
+
+  async function inputBuildName(input: MultiStepInput): Promise<InputStep | void> {
+    const boardConfig = boardState.boardConfig;
+    if (!boardConfig) {
       return;
     }
+    state.relBoardDir = boardConfig.relBoardDir;
+    state.relBoardSubDir = boardConfig.relBoardSubDir;
+    state.board = boardConfig.board;
+    state.revision = boardConfig.revision;
 
-    return (input: MultiStepInput) => inputBuildName(input, state);
-  }
-
-  async function inputBuildName(input: MultiStepInput, state: Partial<BuildConfig>) {
-    if (state.board === undefined) {
-      return;
-    }
-
-    const inputPromise = input.showInputBox({
+    const name = await input.showInputBox({
       title,
       step: 4,
-      totalSteps: 7,
+      totalSteps: TOTAL_STEPS,
       ignoreFocusOut: true,
       value: path.join("build", state.board + (state.revision ? "_" + state.revision : "")),
       prompt: 'Enter build configuration name',
-      validate: noOpValidate
-    }).catch(handleSelectorError);
-    const name = await inputPromise;
+      validate: noOpValidate,
+    });
     if (!name) {
       return;
-    };
-
+    }
     state.name = name;
-    return (input: MultiStepInput) => setBuildOptimization(input, state);
+    return (input: MultiStepInput) => setBuildOptimization(input);
   }
 
-  async function setBuildOptimization(input: MultiStepInput, state: Partial<BuildConfig>) {
+  async function setBuildOptimization(input: MultiStepInput): Promise<InputStep | void> {
     const buildOptimizations = ["Debug", "Speed", "Size", "No Optimizations", "Don't set. Will be configured in included KConfig file"];
     const buildOptimizationsQpItems: QuickPickItem[] = mapToQuickPickItems(buildOptimizations);
 
-    const pickPromise = input.showQuickPick({
+    const pick = await input.showQuickPick({
       title,
       step: 5,
-      totalSteps: 7,
+      totalSteps: TOTAL_STEPS,
       placeholder: 'Select Build Optimization',
       ignoreFocusOut: true,
       items: buildOptimizationsQpItems,
-      activeItem: typeof state.debugOptimization !== 'string' ? state.debugOptimization : undefined
-    }).catch(handleSelectorError);
-    const pick = await pickPromise;
-    if (!pick) {
-      return;
-    };
-    const debugOptimization = pick.label;
+      activeItem: typeof state.debugOptimization !== 'string' ? state.debugOptimization : undefined,
+    });
+    state.debugOptimization = pick.label;
+    return (input: MultiStepInput) => inputWestArgs(input);
+  }
 
-    const westArgsInputPromise = input.showInputBox({
+  async function inputWestArgs(input: MultiStepInput): Promise<InputStep | void> {
+    const westBuildArgs = await input.showInputBox({
       title,
       step: 6,
-      totalSteps: 7,
+      totalSteps: TOTAL_STEPS,
       ignoreFocusOut: true,
       value: "",
       prompt: 'Additional Build Arguments',
       placeholder: '--sysbuild',
-      validate: noOpValidate
-    }).catch(handleSelectorError);
-    const westBuildArgs = await westArgsInputPromise;
+      validate: noOpValidate,
+    });
     if (westBuildArgs === undefined) {
       return;
-    };
-
+    }
     state.westBuildArgs = splitBuildArgs(westBuildArgs);
+    return (input: MultiStepInput) => inputCMakeArgs(input);
+  }
 
+  async function inputCMakeArgs(input: MultiStepInput): Promise<InputStep | void> {
     let cmakeArg = "";
-    switch (debugOptimization) {
+    switch (state.debugOptimization) {
       case "Debug":
         cmakeArg = ` -DCONFIG_DEBUG_OPTIMIZATIONS=y -DCONFIG_DEBUG_THREAD_INFO=y `;
         break;
@@ -387,22 +439,19 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
         break;
     }
 
-    const cmakeArgsInputPromise = input.showInputBox({
+    const cmakeBuildArgs = await input.showInputBox({
       title,
       step: 7,
-      totalSteps: 7,
+      totalSteps: TOTAL_STEPS,
       ignoreFocusOut: true,
       value: cmakeArg,
       prompt: 'Modify CMake Arguments',
-      validate: noOpValidate
-    }).catch(handleSelectorError);
-    const cmakeBuildArgs = await cmakeArgsInputPromise;
+      validate: noOpValidate,
+    });
     if (cmakeBuildArgs === undefined) {
       return;
-    };
-
+    }
     state.westBuildCMakeArgs = splitBuildArgs(cmakeBuildArgs);
-    state.debugOptimization = debugOptimization;
 
     state.confFiles = {
       config: [],
@@ -414,17 +463,27 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
     state.buildDebugTarget = state.buildDebugTarget ?? "Zephyr IDE: Debug";
     state.attachTarget = state.attachTarget ?? "Zephyr IDE: Attach";
 
+    state.completed = true;
     return;
   }
 
-  async function collectInputs() {
-    const state = {} as Partial<BuildConfig>;
-    await MultiStepInput.run(input => pickBoardStep(input, state));
-    return state;
+  // Compose the board picker (3 sub-steps) with the rest of the wizard so a
+  // single MultiStepInput.run drives all 7 steps. Back navigation works
+  // across the entire chain because every prompt is its own InputStep.
+  const startStep = pickBoardSteps(setupState, rootPath, boardState, {
+    startStep: 1,
+    totalSteps: TOTAL_STEPS,
+    next: inputBuildName,
+  });
+
+  try {
+    await MultiStepInput.run(startStep);
+  } catch (error) {
+    handleSelectorError(error);
+    return undefined;
   }
 
-  const state = await collectInputs();
-  if (!state.name) {
+  if (!state.completed || !state.name || !boardState.boardConfig) {
     return undefined;
   }
   return state as BuildConfig;

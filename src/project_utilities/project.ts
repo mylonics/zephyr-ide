@@ -29,6 +29,7 @@ import { setDtsContext } from "../setup_utilities/dts_interface";
 import { getSamples } from "../setup_utilities/modules";
 import { getSetupState } from "../setup_utilities/workspace-config";
 import { joinBuildArgs, normalizeBuildArgs, quoteCMakeDef } from "./build_args";
+import { MultiStepInput, noOpValidate } from "../utilities/multistepQuickPick";
 
 import { TwisterConfig, TwisterConfigDictionary, twisterSelector, TwisterStateDictionary } from "./twister_selector";
 
@@ -230,18 +231,61 @@ export function resolveActiveProjectBuildRunner(
 export async function modifyBuildArguments(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName?: string, buildName?: string) {
   const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Project", projectName, buildName });
   if (!resolved) { return; }
-  const { project, build } = resolved;
+  const { build } = resolved;
 
-  const newWestBuildArgs = await vscode.window.showInputBox({ title: "Modify West Build Arguments", value: joinBuildArgs(build.westBuildArgs), prompt: "West build arguments (e.g., --sysbuild)", placeHolder: "--sysbuild" });
+  // Two-step wizard: modify west args, then cmake args. Back button on step 2
+  // allows the user to correct west args after seeing the cmake prompt.
+  const title = "Modify Build Arguments";
+  const argsState: { westArgs?: string; cmakeArgs?: string; completed?: boolean } = {
+    westArgs: joinBuildArgs(build.westBuildArgs),
+    cmakeArgs: joinBuildArgs(build.westBuildCMakeArgs),
+  };
 
-  if (newWestBuildArgs !== undefined) {
-    build.westBuildArgs = normalizeBuildArgs(newWestBuildArgs);
+  async function inputWestArgs(input: MultiStepInput) {
+    const value = await input.showInputBox({
+      title,
+      step: 1,
+      totalSteps: 2,
+      ignoreFocusOut: true,
+      value: argsState.westArgs ?? "",
+      prompt: "West build arguments (e.g., --sysbuild)",
+      placeholder: "--sysbuild",
+      validate: noOpValidate,
+    });
+    argsState.westArgs = value;
+    return (input: MultiStepInput) => inputCMakeArgs(input);
   }
 
-  const newCMakeBuildArgs = await vscode.window.showInputBox({ title: "Modify CMake Build Arguments", value: joinBuildArgs(build.westBuildCMakeArgs), prompt: "CMake arguments (e.g., -DCMAKE_VERBOSE_MAKEFILE=ON)", placeHolder: "-DCMAKE_VERBOSE_MAKEFILE=ON" });
+  async function inputCMakeArgs(input: MultiStepInput) {
+    const value = await input.showInputBox({
+      title,
+      step: 2,
+      totalSteps: 2,
+      ignoreFocusOut: true,
+      value: argsState.cmakeArgs ?? "",
+      prompt: "CMake arguments (e.g., -DCMAKE_VERBOSE_MAKEFILE=ON)",
+      placeholder: "-DCMAKE_VERBOSE_MAKEFILE=ON",
+      validate: noOpValidate,
+    });
+    argsState.cmakeArgs = value;
+    // Mark the wizard as completed only after the final step accepts.
+    // MultiStepInput.run consumes cancel internally, so without this flag a
+    // mid-wizard cancel would apply the step-1 value even though the user
+    // aborted.
+    argsState.completed = true;
+  }
 
-  if (newCMakeBuildArgs !== undefined) {
-    build.westBuildCMakeArgs = normalizeBuildArgs(newCMakeBuildArgs);
+  await MultiStepInput.run(input => inputWestArgs(input));
+
+  if (!argsState.completed) {
+    return;
+  }
+
+  if (argsState.westArgs !== undefined) {
+    build.westBuildArgs = normalizeBuildArgs(argsState.westArgs);
+  }
+  if (argsState.cmakeArgs !== undefined) {
+    build.westBuildCMakeArgs = normalizeBuildArgs(argsState.cmakeArgs);
   }
 
   await setWorkspaceState(context, wsConfig);
@@ -267,31 +311,68 @@ export async function createNewProjectFromSample(context: vscode.ExtensionContex
 
   loadingQuickPick.dispose();
 
-  // Show sample selection QuickPick as usual
+  // Two-step wizard: pick sample, then choose destination. Back on step 2
+  // returns to the sample picker.
+  const title = "Create Project From Sample";
   const projectList: vscode.QuickPickItem[] = samplesDir.map(x => ({ label: x[1], detail: "(" + x[0] + ") " + x[3], description: x[2] }));
-  const pickOptions: vscode.QuickPickOptions = {
-    ignoreFocusOut: true,
-    matchOnDescription: true,
-    placeHolder: "Select Sample Project",
-  };
-  const selectedSample = await vscode.window.showQuickPick(projectList, pickOptions);
-  if (selectedSample && selectedSample.detail && selectedSample.label) {
-    const detailParts = selectedSample.detail.split(") ");
+
+  const wizardState: { sample?: vscode.QuickPickItem; destination?: string } = {};
+
+  async function pickSample(input: MultiStepInput) {
+    const selected = await input.showQuickPick({
+      title,
+      step: 1,
+      totalSteps: 2,
+      ignoreFocusOut: true,
+      placeholder: "Select Sample Project",
+      items: projectList,
+    });
+    wizardState.sample = selected;
+    const detailParts = (selected.detail ?? "").split(") ");
     const selectedSamplePath = detailParts.length > 1 ? detailParts.slice(1).join(") ") : detailParts[0];
     if (!selectedSamplePath) {
       return;
     }
-    const projectDest = await vscode.window.showInputBox({ title: "Choose Project Destination", value: path.basename(selectedSamplePath) });
-    if (projectDest) {
-      const destinationPath = path.join(wsConfig.rootPath, projectDest);
-      fs.cpSync(selectedSamplePath, destinationPath, { recursive: true });
-      const newProjectName = path.basename(projectDest);
-      if (selectedSample.label !== newProjectName) {
-        changeProjectNameInCMakeFile(destinationPath, newProjectName);
-      }
-      return destinationPath;
-    }
+    return (input: MultiStepInput) => inputDestination(input, selectedSamplePath);
   }
+
+  async function inputDestination(input: MultiStepInput, selectedSamplePath: string) {
+    const value = await input.showInputBox({
+      title,
+      step: 2,
+      totalSteps: 2,
+      ignoreFocusOut: true,
+      value: path.basename(selectedSamplePath),
+      prompt: "Choose Project Destination",
+      validate: noOpValidate,
+    });
+    wizardState.destination = value;
+  }
+
+  // MultiStepInput.run consumes cancel internally; we detect cancellation by
+  // checking whether wizardState.destination was set (only set on accept of
+  // the final step).
+  await MultiStepInput.run(input => pickSample(input));
+
+  const selectedSample = wizardState.sample;
+  const projectDest = wizardState.destination;
+  if (!selectedSample || !selectedSample.detail || !selectedSample.label || !projectDest) {
+    return;
+  }
+
+  const detailParts = selectedSample.detail.split(") ");
+  const selectedSamplePath = detailParts.length > 1 ? detailParts.slice(1).join(") ") : detailParts[0];
+  if (!selectedSamplePath) {
+    return;
+  }
+
+  const destinationPath = path.join(wsConfig.rootPath, projectDest);
+  fs.cpSync(selectedSamplePath, destinationPath, { recursive: true });
+  const newProjectName = path.basename(projectDest);
+  if (selectedSample.label !== newProjectName) {
+    changeProjectNameInCMakeFile(destinationPath, newProjectName);
+  }
+  return destinationPath;
 }
 
 
