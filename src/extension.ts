@@ -1455,6 +1455,15 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.install-sdk", async () => {
       const ret = await installSDKInteractive(wsConfig, globalConfig, context);
+      // If clangd is active, refresh workspace settings so --query-driver picks up
+      // the newly installed SDK (the install does not write zephyr-ide.toolchainDirectory,
+      // so the onDidChangeConfiguration listener would not fire on its own).
+      if (ret) {
+        const useClangd: boolean = vscode.workspace.getConfiguration().get("zephyr-ide.useClangd") ?? false;
+        if (useClangd) {
+          await setWorkspaceSettings(false);
+        }
+      }
       return ret;
     })
   );
