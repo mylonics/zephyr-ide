@@ -153,26 +153,96 @@ export function loadHostToolsManifest(): HostToolsManifest {
   }
 }
 
-/**
- * Resolve a package manager from a platform name string
- */
-function getPackageManagerFromPlatformName(platformName: string | undefined): { name: string; config: PackageManager } | null {
-  const manifest = loadHostToolsManifest();
+/** Cache for Linux distribution detection. undefined = not yet detected. */
+let linuxDistroCache: string | undefined = undefined;
+let linuxDistroDetected = false;
 
-  let platformKey: string;
-  switch (platformName) {
-    case "linux":
-      platformKey = "linux";
-      break;
-    case "macos":
-      platformKey = "mac";
-      break;
-    case "windows":
-      platformKey = "windows";
-      break;
-    default:
-      return null;
+/**
+ * Detect the Linux distribution family by reading /etc/os-release.
+ * Returns one of: "fedora" (dnf-based), "arch" (pacman-based),
+ * "clear" (swupd-based), or "apt" (Debian/Ubuntu and other apt-based distros).
+ */
+export async function detectLinuxDistro(): Promise<string> {
+  if (linuxDistroDetected) {
+    return linuxDistroCache ?? "apt";
   }
+
+  linuxDistroDetected = true;
+
+  try {
+    const result = await executeShellCommand("cat /etc/os-release", "", false);
+    if (!result.stdout) {
+      linuxDistroCache = "apt";
+      return "apt";
+    }
+
+    const text = result.stdout.toString();
+    const lines = text.split("\n");
+
+    const getValue = (key: string): string | undefined => {
+      const line = lines.find(l => l.startsWith(`${key}=`));
+      return line?.slice(key.length + 1).trim().replace(/^"|"$/g, "").toLowerCase();
+    };
+
+    const id = getValue("ID") ?? "";
+    const idLike = getValue("ID_LIKE") ?? "";
+
+    // Check for Clear Linux first (unique ID)
+    if (id === "clear-linux-os") {
+      linuxDistroCache = "clear";
+      return "clear";
+    }
+
+    // Check for Arch-based distros
+    const archIds = new Set(["arch", "manjaro", "endeavouros", "artix", "garuda"]);
+    if (archIds.has(id) || idLike.split(" ").some(l => l === "arch")) {
+      linuxDistroCache = "arch";
+      return "arch";
+    }
+
+    // Check for Fedora/RHEL/CentOS-based distros
+    const fedoraIds = new Set(["fedora", "rhel", "centos", "rocky", "almalinux", "ol"]);
+    if (fedoraIds.has(id) || idLike.split(" ").some(l => l === "fedora" || l === "rhel")) {
+      linuxDistroCache = "fedora";
+      return "fedora";
+    }
+
+    // Default: treat as apt-based (Debian/Ubuntu and derivatives)
+    linuxDistroCache = "apt";
+    return "apt";
+  } catch {
+    linuxDistroCache = "apt";
+    return "apt";
+  }
+}
+
+/**
+ * Reset the Linux distro detection cache (used for testing).
+ */
+export function resetLinuxDistroCache(): void {
+  linuxDistroCache = undefined;
+  linuxDistroDetected = false;
+}
+
+/**
+ * Resolve the manifest platform key for the current Linux distribution.
+ * Returns "linux" (apt), "linux-fedora" (dnf), "linux-arch" (pacman), or "linux-clear" (swupd).
+ */
+async function getLinuxPlatformKeyAsync(): Promise<string> {
+  const distro = await detectLinuxDistro();
+  switch (distro) {
+    case "fedora": return "linux-fedora";
+    case "arch": return "linux-arch";
+    case "clear": return "linux-clear";
+    default: return "linux";
+  }
+}
+
+/**
+ * Resolve a package manager from a manifest platform key string.
+ */
+function getPackageManagerFromPlatformKey(platformKey: string): { name: string; config: PackageManager } | null {
+  const manifest = loadHostToolsManifest();
 
   const platformConfig = manifest.platforms[platformKey];
   if (!platformConfig) {
@@ -190,10 +260,28 @@ function getPackageManagerFromPlatformName(platformName: string | undefined): { 
 }
 
 /**
- * Get the package manager for the current platform (async version with remote detection)
+ * Get the package manager for the current platform (async version with remote detection).
+ * On Linux, performs distribution detection to select the correct package manager.
  */
 export async function getPackageManagerForPlatformAsync(): Promise<{ name: string; config: PackageManager } | null> {
-  return getPackageManagerFromPlatformName(await getPlatformNameAsync());
+  const platformName = await getPlatformNameAsync();
+
+  let platformKey: string;
+  switch (platformName) {
+    case "linux":
+      platformKey = await getLinuxPlatformKeyAsync();
+      break;
+    case "macos":
+      platformKey = "mac";
+      break;
+    case "windows":
+      platformKey = "windows";
+      break;
+    default:
+      return null;
+  }
+
+  return getPackageManagerFromPlatformKey(platformKey);
 }
 
 /**
@@ -753,6 +841,15 @@ export async function installPackage(pkg: PlatformPackage, resolvedManager?: { n
       installCommand = `sudo apt install -y --no-install-recommends ${plan.aptPackages.join(" ")}`;
       break;
     }
+    case "dnf":
+      installCommand = `sudo dnf install -y ${pkg.package}`;
+      break;
+    case "pacman":
+      installCommand = `sudo pacman -S --noconfirm ${pkg.package}`;
+      break;
+    case "swupd":
+      installCommand = `sudo swupd bundle-add ${pkg.package}`;
+      break;
     case "winget":
       installCommand = `winget install --accept-package-agreements --accept-source-agreements ${pkg.package}`;
       break;
@@ -821,7 +918,30 @@ export async function installPackagesBatch(packages: PlatformPackage[], resolved
     return false;
   }
 
-  if (manager.name !== "apt") {
+  if (manager.name === "dnf" || manager.name === "pacman") {
+    // Batch install with a single command for dnf and pacman
+    const packageList = packages.map(p => p.package).join(" ");
+    const batchCmd = manager.name === "dnf"
+      ? `sudo dnf install -y ${packageList}`
+      : `sudo pacman -S --noconfirm ${packageList}`;
+    outputInfo("Host Tools", `Installing ${packages.length} package(s) in a single ${manager.name} command...`);
+    const ok = await executeTaskHelper(`Install missing host tools (${manager.name})`, batchCmd, "");
+    if (!ok) {
+      outputError("Host Tools", `Batch ${manager.name} install failed`);
+      return false;
+    }
+    // Run per-package post-install steps
+    for (const pkg of packages) {
+      if (!pkg.post_install_step) { continue; }
+      outputInfo("Host Tools", `Running post-install step for ${pkg.name}...`);
+      const postInstallResult = await executeTaskHelper(`Post-install ${pkg.name}`, pkg.post_install_step, "");
+      if (!postInstallResult) {
+        outputWarning("Host Tools", `Post-install step failed for ${pkg.name}`);
+      }
+    }
+    return true;
+  } else if (manager.name !== "apt") {
+    // Sequential installs for other managers (swupd, winget)
     let ok = true;
     for (const pkg of packages) {
       const success = await installPackage(pkg, manager);

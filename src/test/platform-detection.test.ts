@@ -17,6 +17,7 @@ limitations under the License.
 
 import * as assert from "assert";
 import { getPlatformName, getPlatformNameAsync } from "../utilities/utils";
+import { detectLinuxDistro, resetLinuxDistroCache } from "../setup_utilities/host_tools";
 
 suite("Platform Detection Test Suite", () => {
     
@@ -67,5 +68,44 @@ suite("Platform Detection Test Suite", () => {
             validPlatforms.includes(asyncPlatform as string),
             `Async platform should be valid: ${asyncPlatform}`
         );
+    });
+
+    suite("Linux distro detection", () => {
+
+        setup(() => {
+            resetLinuxDistroCache();
+        });
+
+        teardown(() => {
+            resetLinuxDistroCache();
+        });
+
+        test("detectLinuxDistro returns a valid distro family on Linux", async function() {
+            if (process.platform !== "linux") {
+                this.skip();
+            }
+            const distro = await detectLinuxDistro();
+            const valid = ["apt", "fedora", "arch", "clear"];
+            assert.ok(valid.includes(distro), `Expected a valid distro family, got: ${distro}`);
+        });
+
+        test("detectLinuxDistro returns consistent results (cached)", async function() {
+            if (process.platform !== "linux") {
+                this.skip();
+            }
+            const first = await detectLinuxDistro();
+            const second = await detectLinuxDistro();
+            assert.strictEqual(first, second, "detectLinuxDistro should return the same cached result");
+        });
+
+        test("resetLinuxDistroCache clears the cache", async function() {
+            if (process.platform !== "linux") {
+                this.skip();
+            }
+            const first = await detectLinuxDistro();
+            resetLinuxDistroCache();
+            const second = await detectLinuxDistro();
+            assert.strictEqual(first, second, "After cache reset, detectLinuxDistro should detect the same distro again");
+        });
     });
 });
