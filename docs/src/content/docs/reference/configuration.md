@@ -18,7 +18,7 @@ The following settings are available in VS Code settings (File > Preferences > S
 
 ## clangd Configuration
 
-When `zephyr-ide.useClangd` is enabled, running **Zephyr IDE: Set Workspace Settings** will automatically configure the workspace `.vscode/settings.json` with:
+When `zephyr-ide.useClangd` is enabled, the workspace `.vscode/settings.json` is **automatically configured** with the appropriate settings — no manual command is needed. Toggling the setting applies the corresponding configuration immediately:
 
 ```json
 {
@@ -33,9 +33,9 @@ When `zephyr-ide.useClangd` is enabled, running **Zephyr IDE: Set Workspace Sett
 }
 ```
 
-The `--query-driver` glob is derived from your configured toolchain directory (see `zephyr-ide.toolchainDirectory`), which points to the Zephyr SDK containing the cross-compilers.
+The `--query-driver` glob is derived from your configured toolchain directory (see `zephyr-ide.toolchainDirectory`), which points to the Zephyr SDK containing the cross-compilers. If that setting changes while clangd is active, the `--query-driver` path is refreshed automatically.
 
-To switch back to the C/C++ extension, disable `zephyr-ide.useClangd` and run **Zephyr IDE: Set Workspace Settings** again.
+To switch back to the C/C++ extension, disable `zephyr-ide.useClangd`. The `C_Cpp.intelliSenseEngine` and `clangd.arguments` workspace overrides are cleared automatically.
 
 ## Next Steps
 

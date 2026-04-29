@@ -1401,13 +1401,13 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration(async (e) => {
       if (e.affectsConfiguration("zephyr-ide.useClangd")) {
-        await setWorkspaceSettings(true);
+        await setWorkspaceSettings(false);
       } else if (e.affectsConfiguration("zephyr-ide.toolchainDirectory")) {
         // If toolchainDirectory changes while clangd is active, the --query-driver glob
         // needs to be refreshed to point at the new SDK location.
         const useClangd: boolean = vscode.workspace.getConfiguration().get("zephyr-ide.useClangd") ?? false;
         if (useClangd) {
-          await setWorkspaceSettings(true);
+          await setWorkspaceSettings(false);
         }
       }
     })

@@ -238,10 +238,17 @@ export async function setWorkspaceSettings(force = false) {
         });
     }
     if (force || !configuration.inspect("clangd.arguments")?.workspaceValue) {
-      const toolchainDir = getToolchainDir();
-      if (!toolchainDir || !toolchainDir.trim()) {
+      const toolchainDirConfig = configuration.inspect<string>("zephyr-ide.toolchainDirectory");
+      const configuredToolchainDir = [
+        toolchainDirConfig?.workspaceFolderValue,
+        toolchainDirConfig?.workspaceValue,
+        toolchainDirConfig?.globalValue,
+      ].find((value): value is string => typeof value === "string" && value.trim().length > 0);
+
+      if (!configuredToolchainDir) {
         outputWarning("Workspace Config", "Toolchain directory is not configured; skipping clangd query-driver. Set 'zephyr-ide.toolchainDirectory' or install the Zephyr SDK.");
       } else {
+        const toolchainDir = getToolchainDir();
         const queryDriver = path.join(toolchainDir, "**", "*");
         const clangdArgs = [
           "--compile-commands-dir=${workspaceFolder}/.vscode",
@@ -280,6 +287,14 @@ export async function setWorkspaceSettings(force = false) {
         .then(undefined, (err: unknown) => {
           const detail = err instanceof Error && err.stack ? err.stack : (err instanceof Error ? err.message : String(err));
           outputWarning("Workspace Config", `Failed to clear C_Cpp.intelliSenseEngine: ${detail}`);
+        });
+    }
+    // Clear workspace-scoped clangd arguments left over from clangd mode
+    if (configuration.inspect("clangd.arguments")?.workspaceValue !== undefined) {
+      await configuration.update("clangd.arguments", undefined, target)
+        .then(undefined, (err: unknown) => {
+          const detail = err instanceof Error && err.stack ? err.stack : (err instanceof Error ? err.message : String(err));
+          outputWarning("Workspace Config", `Failed to clear clangd.arguments: ${detail}`);
         });
     }
   }
