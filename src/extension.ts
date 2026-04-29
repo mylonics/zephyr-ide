@@ -1399,6 +1399,14 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration(async (e) => {
+      if (e.affectsConfiguration("zephyr-ide.useClangd")) {
+        await setWorkspaceSettings(true);
+      }
+    })
+  );
+
+  context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.install-host-tools", async () => {
       // Open the standalone Host Tools panel
       HostToolInstallView.createOrShow(

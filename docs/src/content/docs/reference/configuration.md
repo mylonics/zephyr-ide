@@ -1,6 +1,6 @@
 ---
 title: Configuration Settings
-description: All IDE for Zephyr VS Code settings — global directory, toolchain directory, GUI config, west narrow update, virtual environment path, and workspace warning suppression.
+description: All IDE for Zephyr VS Code settings — global directory, toolchain directory, GUI config, west narrow update, virtual environment path, workspace warning suppression, and clangd support.
 ---
 
 The following settings are available in VS Code settings (File > Preferences > Settings):
@@ -14,6 +14,28 @@ The following settings are available in VS Code settings (File > Preferences > S
 | `zephyr-ide.westNarrowUpdate` | boolean | false | Pass `--narrow` to `west update` to fetch only required Git history, reducing disk usage and download time. |
 | `zephyr-ide.suppressWorkspaceWarning` | boolean | false | Suppress the notification about missing `ZEPHYR_BASE` / `ZEPHYR_SDK_INSTALL_DIR` environment variables. |
 | `zephyr-ide.venvFolder` | string \| null | null | Custom Python virtual environment path. Defaults to `.venv` in the workspace setup path. |
+| `zephyr-ide.useClangd` | boolean | false | Use clangd for IntelliSense instead of the C/C++ extension. When enabled, sets `C_Cpp.intelliSenseEngine` to `disabled` and configures `clangd.arguments` with the Zephyr SDK query-driver. Requires the [clangd VS Code extension](https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.vscode-clangd). |
+
+## clangd Configuration
+
+When `zephyr-ide.useClangd` is enabled, running **Zephyr IDE: Set Workspace Settings** will automatically configure the workspace `.vscode/settings.json` with:
+
+```json
+{
+  "C_Cpp.intelliSenseEngine": "disabled",
+  "clangd.arguments": [
+    "--compile-commands-dir=${workspaceFolder}/.vscode",
+    "--background-index",
+    "--completion-style=detailed",
+    "--header-insertion=never",
+    "--query-driver=/path/to/toolchains/**/*"
+  ]
+}
+```
+
+The `--query-driver` glob is derived from your configured toolchain directory (see `zephyr-ide.toolchainDirectory`), which points to the Zephyr SDK containing the cross-compilers.
+
+To switch back to the C/C++ extension, disable `zephyr-ide.useClangd` and run **Zephyr IDE: Set Workspace Settings** again.
 
 ## Next Steps
 

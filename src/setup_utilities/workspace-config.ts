@@ -225,13 +225,65 @@ export async function setWorkspaceSettings(force = false) {
   } else if (platform === "macos") {
     await setDefaultTerminal(configuration, target, "osx", force);
   }
-  if (force || !configuration.inspect("C_Cpp.default.compileCommands")?.workspaceValue) {
-    await configuration.update("C_Cpp.default.compileCommands", path.join("${workspaceFolder}", '.vscode', 'compile_commands.json'), target)
-      .then(undefined, (err: unknown) => {
-        const detail = err instanceof Error && err.stack ? err.stack : (err instanceof Error ? err.message : String(err));
-        outputWarning("Workspace Config", `Failed to set C_Cpp.default.compileCommands: ${detail}`);
-      });
+
+  const useClangd: boolean = configuration.get("zephyr-ide.useClangd") ?? false;
+
+  if (useClangd) {
+    // clangd mode: disable C/C++ IntelliSense engine and configure clangd arguments
+    if (force || !configuration.inspect("C_Cpp.intelliSenseEngine")?.workspaceValue) {
+      await configuration.update("C_Cpp.intelliSenseEngine", "disabled", target)
+        .then(undefined, (err: unknown) => {
+          const detail = err instanceof Error && err.stack ? err.stack : (err instanceof Error ? err.message : String(err));
+          outputWarning("Workspace Config", `Failed to set C_Cpp.intelliSenseEngine: ${detail}`);
+        });
+    }
+    if (force || !configuration.inspect("clangd.arguments")?.workspaceValue) {
+      const toolchainDir = getToolchainDir();
+      if (!toolchainDir || !toolchainDir.trim()) {
+        outputWarning("Workspace Config", "Toolchain directory is not configured; skipping clangd query-driver. Set 'zephyr-ide.toolchainDirectory' or install the Zephyr SDK.");
+      } else {
+        const queryDriver = path.join(toolchainDir, "**", "*");
+        const clangdArgs = [
+          "--compile-commands-dir=${workspaceFolder}/.vscode",
+          "--background-index",
+          "--completion-style=detailed",
+          "--header-insertion=never",
+          `--query-driver=${queryDriver}`,
+        ];
+        await configuration.update("clangd.arguments", clangdArgs, target)
+          .then(undefined, (err: unknown) => {
+            const detail = err instanceof Error && err.stack ? err.stack : (err instanceof Error ? err.message : String(err));
+            outputWarning("Workspace Config", `Failed to set clangd.arguments: ${detail}`);
+          });
+      }
+    }
+    // Remove C_Cpp.default.compileCommands to avoid conflicts with clangd mode
+    if (configuration.inspect("C_Cpp.default.compileCommands")?.workspaceValue !== undefined) {
+      await configuration.update("C_Cpp.default.compileCommands", undefined, target)
+        .then(undefined, (err: unknown) => {
+          const detail = err instanceof Error && err.stack ? err.stack : (err instanceof Error ? err.message : String(err));
+          outputWarning("Workspace Config", `Failed to clear C_Cpp.default.compileCommands: ${detail}`);
+        });
+    }
+  } else {
+    // cpptools mode: configure C/C++ extension compile commands
+    if (force || !configuration.inspect("C_Cpp.default.compileCommands")?.workspaceValue) {
+      await configuration.update("C_Cpp.default.compileCommands", path.join("${workspaceFolder}", '.vscode', 'compile_commands.json'), target)
+        .then(undefined, (err: unknown) => {
+          const detail = err instanceof Error && err.stack ? err.stack : (err instanceof Error ? err.message : String(err));
+          outputWarning("Workspace Config", `Failed to set C_Cpp.default.compileCommands: ${detail}`);
+        });
+    }
+    // Restore C_Cpp.intelliSenseEngine to default to ensure cpptools is active
+    if (configuration.inspect("C_Cpp.intelliSenseEngine")?.workspaceValue !== undefined) {
+      await configuration.update("C_Cpp.intelliSenseEngine", undefined, target)
+        .then(undefined, (err: unknown) => {
+          const detail = err instanceof Error && err.stack ? err.stack : (err instanceof Error ? err.message : String(err));
+          outputWarning("Workspace Config", `Failed to clear C_Cpp.intelliSenseEngine: ${detail}`);
+        });
+    }
   }
+
   if (force || !configuration.inspect("cmake.configureOnOpen")?.workspaceValue) {
     await configuration.update("cmake.configureOnOpen", false, target)
       .then(undefined, (err: unknown) => {
