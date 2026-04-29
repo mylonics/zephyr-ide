@@ -9,7 +9,7 @@
 #
 # Called by:
 #   - basic-tests.yml (Ubuntu-only, fast CI for every PR)
-#   - multiplatform-tests.yml (Ubuntu + Windows + macOS for releases)
+#   - multiplatform-tests.yml (Ubuntu + Fedora + Arch + Clear Linux + Windows + macOS for releases)
 
 name: _Shared Combined Integration Test
 
@@ -22,7 +22,7 @@ on:
         type: string
         default: ""
       platforms:
-        description: "Comma-separated list of platforms to test (ubuntu, windows, macos)"
+        description: "Comma-separated list of platforms to test (ubuntu, fedora, arch, clr, windows, macos)"
         required: true
         type: string
 
@@ -48,6 +48,15 @@ jobs:
             case "$PLATFORM" in
               ubuntu)
                 ENTRY='{"platform":"ubuntu","os":"ubuntu-latest","xvfb":"xvfb-run -a ","zephyr_base":"/tmp/zephyr"}'
+                ;;
+              fedora)
+                ENTRY='{"platform":"fedora","os":"ubuntu-latest","container":"fedora:latest","xvfb":"xvfb-run -a ","zephyr_base":"/tmp/zephyr"}'
+                ;;
+              arch)
+                ENTRY='{"platform":"arch","os":"ubuntu-latest","container":"archlinux:latest","xvfb":"xvfb-run -a ","zephyr_base":"/tmp/zephyr"}'
+                ;;
+              clr)
+                ENTRY='{"platform":"clr","os":"ubuntu-latest","container":"clearlinux:latest","xvfb":"xvfb-run -a ","zephyr_base":"/tmp/zephyr"}'
                 ;;
               windows)
                 ENTRY='{"platform":"windows","os":"windows-latest","xvfb":"","zephyr_base":"D:\\zephyr"}'
@@ -126,9 +135,28 @@ jobs:
       matrix: ${{ fromJson(needs.build-matrix.outputs.matrix) }}
 
     runs-on: ${{ matrix.os }}
+    container: ${{ matrix.container }}
     name: test-${{ matrix.platform }}
 
     steps:
+      # Container-based Linux distros may not have git pre-installed; install it
+      # before actions/checkout runs.
+      - name: Install git (Fedora)
+        if: matrix.platform == 'fedora'
+        run: dnf install -y git
+
+      - name: Install git (Arch Linux)
+        if: matrix.platform == 'arch'
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm git
+
+      - name: Install git (Clear Linux)
+        if: matrix.platform == 'clr'
+        run: |
+          swupd update --no-progress
+          swupd bundle-add git
+
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref || github.ref }}
@@ -165,13 +193,27 @@ jobs:
           name: vsix-package
           path: ./vsix
 
-      # Ubuntu runners need additional packages for VS Code's Electron shell
-      # to launch headlessly (display server, GTK, GPU buffers, NSS, ALSA).
-      - name: Install VS Code runtime dependencies
-        if: runner.os == 'Linux'
+      # Ubuntu native runner: install VS Code Electron runtime deps via apt.
+      - name: Install VS Code runtime dependencies (Ubuntu)
+        if: matrix.platform == 'ubuntu'
         run: |
           sudo apt-get update
           sudo apt-get install -y xvfb libgtk-3-0 libgbm1 libnss3 libasound2t64
+
+      # Fedora container: install VS Code Electron runtime deps via dnf.
+      - name: Install VS Code runtime dependencies (Fedora)
+        if: matrix.platform == 'fedora'
+        run: dnf install -y xorg-x11-server-Xvfb gtk3 mesa-libgbm nss alsa-lib
+
+      # Arch Linux container: install VS Code Electron runtime deps via pacman.
+      - name: Install VS Code runtime dependencies (Arch Linux)
+        if: matrix.platform == 'arch'
+        run: pacman -S --noconfirm xorg-server-xvfb gtk3 mesa nss alsa-lib
+
+      # Clear Linux container: install VS Code Electron runtime deps via swupd.
+      - name: Install VS Code runtime dependencies (Clear Linux)
+        if: matrix.platform == 'clr'
+        run: swupd bundle-add x11-server desktop-dev
 
       - name: Install npm dependencies
         run: npm ci
