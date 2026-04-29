@@ -342,11 +342,14 @@ export async function activate(context: vscode.ExtensionContext) {
 
       if (!isExplicitlySet && vscode.extensions.getExtension("llvm-vs-code-extensions.vscode-clangd")) {
         await cfg.update("zephyr-ide.useClangd", true, vscode.ConfigurationTarget.Global)
-          .then(undefined, (err: unknown) => {
-            const detail = err instanceof Error ? err.message : String(err);
-            outputInfo("Startup", `Auto-enable clangd: could not write useClangd setting: ${detail}`);
-          });
-        outputInfo("Startup", "clangd extension detected and 'zephyr-ide.useClangd' was not set — automatically enabled clangd IntelliSense mode.");
+          .then(
+            () => {
+              outputInfo("Startup", "clangd extension detected and 'zephyr-ide.useClangd' was not set — automatically enabled clangd IntelliSense mode.");
+            },
+            (err: unknown) => {
+              const detail = err instanceof Error ? err.message : String(err);
+              outputInfo("Startup", `Auto-enable clangd: could not write useClangd setting: ${detail}`);
+            });
       }
     }
 
