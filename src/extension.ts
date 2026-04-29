@@ -328,6 +328,31 @@ export async function activate(context: vscode.ExtensionContext) {
     // Migrate deprecated setting keys to camelCase equivalents
     await migrateSettingKeys();
 
+    // Auto-enable clangd mode when the clangd extension is installed and the
+    // user has not yet explicitly configured zephyr-ide.useClangd (i.e. it is
+    // still at its default value of false across all configuration scopes).
+    {
+      const cfg = vscode.workspace.getConfiguration();
+      const clangdInspect = cfg.inspect<boolean>("zephyr-ide.useClangd");
+      const isExplicitlySet = [
+        clangdInspect?.globalValue,
+        clangdInspect?.workspaceValue,
+        clangdInspect?.workspaceFolderValue,
+      ].some((v) => v !== undefined);
+
+      if (!isExplicitlySet && vscode.extensions.getExtension("llvm-vs-code-extensions.vscode-clangd")) {
+        await cfg.update("zephyr-ide.useClangd", true, vscode.ConfigurationTarget.Global)
+          .then(
+            () => {
+              outputInfo("Startup", "clangd extension detected and 'zephyr-ide.useClangd' was not set — automatically enabled clangd IntelliSense mode.");
+            },
+            (err: unknown) => {
+              const detail = err instanceof Error ? err.message : String(err);
+              outputInfo("Startup", `Auto-enable clangd: could not write useClangd setting: ${detail}`);
+            });
+      }
+    }
+
     wsConfig = await loadWorkspaceState(context);
     globalConfig = await loadGlobalState(context);
 
@@ -1399,6 +1424,21 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration(async (e) => {
+      if (e.affectsConfiguration("zephyr-ide.useClangd")) {
+        await setWorkspaceSettings(false);
+      } else if (e.affectsConfiguration("zephyr-ide.toolchainDirectory")) {
+        // If toolchainDirectory changes while clangd is active, the --query-driver glob
+        // needs to be refreshed to point at the new SDK location.
+        const useClangd: boolean = vscode.workspace.getConfiguration().get("zephyr-ide.useClangd") ?? false;
+        if (useClangd) {
+          await setWorkspaceSettings(false);
+        }
+      }
+    })
+  );
+
+  context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.install-host-tools", async () => {
       // Open the standalone Host Tools panel
       HostToolInstallView.createOrShow(
@@ -1440,6 +1480,15 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.install-sdk", async () => {
       const ret = await installSDKInteractive(wsConfig, globalConfig, context);
+      // If clangd is active, refresh workspace settings so --query-driver picks up
+      // the newly installed SDK (the install does not write zephyr-ide.toolchainDirectory,
+      // so the onDidChangeConfiguration listener would not fire on its own).
+      if (ret) {
+        const useClangd: boolean = vscode.workspace.getConfiguration().get("zephyr-ide.useClangd") ?? false;
+        if (useClangd) {
+          await setWorkspaceSettings(false);
+        }
+      }
       return ret;
     })
   );

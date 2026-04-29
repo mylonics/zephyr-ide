@@ -83,6 +83,13 @@ const SETTINGS: SettingDefinition[] = [
     type: "boolean",
     defaultValue: true,
   },
+  {
+    key: "zephyr-ide.useClangd",
+    label: "Use clangd IntelliSense",
+    description: "Use clangd for IntelliSense instead of the C/C++ extension. When enabled, disables C_Cpp.intelliSenseEngine and configures clangd.arguments with the Zephyr SDK query-driver. Workspace settings are applied automatically when this setting changes. Requires the clangd VS Code extension (llvm-vs-code-extensions.vscode-clangd).",
+    type: "boolean",
+    defaultValue: false,
+  },
 ];
 
 export class SettingsPanel {

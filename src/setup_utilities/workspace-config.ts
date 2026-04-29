@@ -225,13 +225,98 @@ export async function setWorkspaceSettings(force = false) {
   } else if (platform === "macos") {
     await setDefaultTerminal(configuration, target, "osx", force);
   }
-  if (force || !configuration.inspect("C_Cpp.default.compileCommands")?.workspaceValue) {
-    await configuration.update("C_Cpp.default.compileCommands", path.join("${workspaceFolder}", '.vscode', 'compile_commands.json'), target)
-      .then(undefined, (err: unknown) => {
-        const detail = err instanceof Error && err.stack ? err.stack : (err instanceof Error ? err.message : String(err));
-        outputWarning("Workspace Config", `Failed to set C_Cpp.default.compileCommands: ${detail}`);
-      });
+
+  const useClangd: boolean = configuration.get("zephyr-ide.useClangd") ?? false;
+
+  if (useClangd) {
+    // clangd mode: disable C/C++ IntelliSense engine and configure clangd arguments.
+    // Always ensure C_Cpp.intelliSenseEngine is "disabled" — a pre-existing value of
+    // e.g. "default" (truthy) must still be overwritten.
+    if (configuration.inspect("C_Cpp.intelliSenseEngine")?.workspaceValue !== "disabled") {
+      await configuration.update("C_Cpp.intelliSenseEngine", "disabled", target)
+        .then(undefined, (err: unknown) => {
+          const detail = err instanceof Error && err.stack ? err.stack : (err instanceof Error ? err.message : String(err));
+          outputWarning("Workspace Config", `Failed to set C_Cpp.intelliSenseEngine: ${detail}`);
+        });
+    }
+    {
+      const toolchainDirConfig = configuration.inspect<string>("zephyr-ide.toolchainDirectory");
+      const configuredToolchainDir = [
+        toolchainDirConfig?.workspaceFolderValue,
+        toolchainDirConfig?.workspaceValue,
+        toolchainDirConfig?.globalValue,
+      ].find((value): value is string => typeof value === "string" && value.trim().length > 0);
+
+      // Use the explicitly configured path when available; otherwise fall back to
+      // getToolchainDir() so that the default SDK install location is covered
+      // even when the user has not set zephyr-ide.toolchainDirectory explicitly.
+      const resolvedToolchainDir = configuredToolchainDir ?? getToolchainDir();
+
+      // Always build the base clangd arguments; --query-driver is added only
+      // when the resolved toolchain directory actually exists on disk.
+      const clangdArgs: string[] = [
+        "--compile-commands-dir=${workspaceFolder}/.vscode",
+        "--background-index",
+        "--completion-style=detailed",
+        "--header-insertion=never",
+      ];
+      if (!resolvedToolchainDir || !(await fs.pathExists(resolvedToolchainDir))) {
+        outputWarning("Workspace Config", "--query-driver will not be configured because the resolved toolchain directory is unavailable. Set 'zephyr-ide.toolchainDirectory' or install the Zephyr SDK.");
+      } else {
+        const queryDriver = path.join(resolvedToolchainDir, "**", "*");
+        clangdArgs.push(`--query-driver=${queryDriver}`);
+      }
+      // Compare computed args against the current workspace value so that a
+      // toolchainDirectory change (force=false) still refreshes --query-driver.
+      {
+        const currentClangdArgs = configuration.inspect<string[]>("clangd.arguments")?.workspaceValue;
+        const argsMatch = Array.isArray(currentClangdArgs) &&
+          currentClangdArgs.length === clangdArgs.length &&
+          clangdArgs.every((arg, i) => currentClangdArgs[i] === arg);
+        if (force || !argsMatch) {
+          await configuration.update("clangd.arguments", clangdArgs, target)
+            .then(undefined, (err: unknown) => {
+              const detail = err instanceof Error && err.stack ? err.stack : (err instanceof Error ? err.message : String(err));
+              outputWarning("Workspace Config", `Failed to set clangd.arguments: ${detail}`);
+            });
+        }
+      }
+    }
+    // Remove C_Cpp.default.compileCommands to avoid conflicts with clangd mode
+    if (configuration.inspect("C_Cpp.default.compileCommands")?.workspaceValue !== undefined) {
+      await configuration.update("C_Cpp.default.compileCommands", undefined, target)
+        .then(undefined, (err: unknown) => {
+          const detail = err instanceof Error && err.stack ? err.stack : (err instanceof Error ? err.message : String(err));
+          outputWarning("Workspace Config", `Failed to clear C_Cpp.default.compileCommands: ${detail}`);
+        });
+    }
+  } else {
+    // cpptools mode: configure C/C++ extension compile commands
+    if (force || !configuration.inspect("C_Cpp.default.compileCommands")?.workspaceValue) {
+      await configuration.update("C_Cpp.default.compileCommands", path.join("${workspaceFolder}", '.vscode', 'compile_commands.json'), target)
+        .then(undefined, (err: unknown) => {
+          const detail = err instanceof Error && err.stack ? err.stack : (err instanceof Error ? err.message : String(err));
+          outputWarning("Workspace Config", `Failed to set C_Cpp.default.compileCommands: ${detail}`);
+        });
+    }
+    // Restore C_Cpp.intelliSenseEngine to default to ensure cpptools is active
+    if (configuration.inspect("C_Cpp.intelliSenseEngine")?.workspaceValue !== undefined) {
+      await configuration.update("C_Cpp.intelliSenseEngine", undefined, target)
+        .then(undefined, (err: unknown) => {
+          const detail = err instanceof Error && err.stack ? err.stack : (err instanceof Error ? err.message : String(err));
+          outputWarning("Workspace Config", `Failed to clear C_Cpp.intelliSenseEngine: ${detail}`);
+        });
+    }
+    // Clear workspace-scoped clangd arguments left over from clangd mode
+    if (configuration.inspect("clangd.arguments")?.workspaceValue !== undefined) {
+      await configuration.update("clangd.arguments", undefined, target)
+        .then(undefined, (err: unknown) => {
+          const detail = err instanceof Error && err.stack ? err.stack : (err instanceof Error ? err.message : String(err));
+          outputWarning("Workspace Config", `Failed to clear clangd.arguments: ${detail}`);
+        });
+    }
   }
+
   if (force || !configuration.inspect("cmake.configureOnOpen")?.workspaceValue) {
     await configuration.update("cmake.configureOnOpen", false, target)
       .then(undefined, (err: unknown) => {
