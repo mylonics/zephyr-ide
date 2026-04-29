@@ -1,6 +1,6 @@
 ---
 title: Host Tools Installation
-description: Automatically install CMake, Python 3, Ninja, Devicetree Compiler, and gcc for Zephyr RTOS development on Ubuntu, macOS, and Windows with IDE for Zephyr.
+description: Automatically install CMake, Python 3, Ninja, Devicetree Compiler, and gcc for Zephyr RTOS development on Ubuntu, Fedora, Arch Linux, Clear Linux, macOS, and Windows with IDE for Zephyr.
 ---
 
 ![Host Tools Installation](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/host_tool_install.png)
@@ -35,9 +35,12 @@ For unsupported platforms or if you prefer manual installation, follow the [Zeph
 
 Automated installation is supported on:
 
-- **Ubuntu/Debian** - Uses apt package manager
+- **Ubuntu/Debian** and derivatives - Uses `apt`
+- **Fedora/RHEL/CentOS** and derivatives (Rocky Linux, AlmaLinux, etc.) - Uses `dnf`
+- **Arch Linux** and derivatives (Manjaro, EndeavourOS, etc.) - Uses `pacman`
+- **Clear Linux** - Uses `swupd`
 - **macOS** - Uses Homebrew
-- **Windows** - Uses Chocolatey or manual downloads
+- **Windows** - Uses winget
 
 ## Next Steps
 

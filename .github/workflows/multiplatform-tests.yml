@@ -1,6 +1,7 @@
 # Combined Integration Test (All Platforms) Pipeline
 #
-# Runs the combined integration test on Ubuntu, Windows, and macOS.
+# Runs the combined integration test on Ubuntu, Fedora, Arch Linux, Clear Linux,
+# Windows, and macOS.
 # This is the heavier CI that validates cross-platform compatibility before releases.
 #
 # For fast Ubuntu-only testing, see basic-tests.yml.
@@ -73,4 +74,4 @@ jobs:
     uses: ./.github/workflows/_shared-platform-test.yml
     with:
       ref: ${{ inputs.branch || '' }}
-      platforms: ubuntu,windows,macos
+      platforms: ubuntu,fedora,arch,clr,windows,macos
