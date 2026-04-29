@@ -21,7 +21,7 @@ import * as path from 'upath';
 import { WorkspaceConfig, GlobalConfig, formatZephyrVersion } from '../setup_utilities/types';
 import { setSetupState, setGlobalState, clearSetupState } from '../setup_utilities/state-management';
 import { notifyError, notifyWarningWithActions, outputInfo } from '../utilities/output';
-import { sanitizeTreeId, compareWorkspacePathsByLocality } from '../utilities/utils';
+import { sanitizeTreeId, compareWorkspacePathsByLocality, canonicalizePath } from '../utilities/utils';
 
 export type WestWorkspaceItemContext =
   | 'westWorkspace.active'
@@ -78,7 +78,11 @@ export class WestWorkspaceView implements vscode.TreeDataProvider<WestWorkspaceI
     const items: WestWorkspaceItem[] = [];
 
     if (this.globalConfig.setupStateDictionary) {
+      const seen = new Set<string>();
       for (const installPath in this.globalConfig.setupStateDictionary) {
+        const canonical = canonicalizePath(installPath);
+        if (seen.has(canonical)) { continue; }
+        seen.add(canonical);
         const setupState = this.globalConfig.setupStateDictionary[installPath];
         const isValidPath = fs.pathExistsSync(installPath);
         const isActive = installPath === this.wsConfig.activeSetupState?.setupPath;

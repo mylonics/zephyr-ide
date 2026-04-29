@@ -72,6 +72,32 @@ export function sanitizeTreeId(segment: string): string {
 }
 
 /**
+ * Canonicalize a filesystem path for comparison and deduplication.
+ * Normalizes separators (via upath) and strips any trailing slashes so that
+ * `/ws/foo` and `/ws/foo/` resolve to the same key.
+ */
+export function canonicalizePath(p: string): string {
+  return path.normalize(p).replace(/\/+$/, '');
+}
+
+/**
+ * Returns true when `installPath` is considered "local" relative to the
+ * currently open VS Code folder (`rootPath`).
+ *
+ * A workspace is local when:
+ * - it exactly equals `rootPath`, OR
+ * - `rootPath` is nested inside it (the open folder lives within the workspace).
+ *
+ * Both paths are canonicalized (normalized + trailing-slash stripped) before
+ * comparison so platform differences and cosmetic slash variants don't matter.
+ */
+export function isWorkspaceLocal(rootPath: string, installPath: string): boolean {
+  const normalizedRoot = canonicalizePath(rootPath);
+  const normalizedInstall = canonicalizePath(installPath);
+  return normalizedInstall === normalizedRoot || normalizedRoot.startsWith(normalizedInstall + '/');
+}
+
+/**
  * Compare two workspace install paths for sorting relative to the currently
  * open VS Code folder (`rootPath`).
  *
@@ -91,15 +117,12 @@ export function sanitizeTreeId(segment: string): string {
  * @returns Negative if `a` should sort before `b`, positive if `b` first, 0 if equal rank
  */
 export function compareWorkspacePathsByLocality(rootPath: string, aInstallPath: string, bInstallPath: string): number {
-  const normalizedRoot = path.normalize(rootPath).replace(/\/+$/, '');
-  const aPath = path.normalize(aInstallPath).replace(/\/+$/, '');
-  const bPath = path.normalize(bInstallPath).replace(/\/+$/, '');
-  const aIsLocal = aPath === normalizedRoot || normalizedRoot.startsWith(aPath + '/');
-  const bIsLocal = bPath === normalizedRoot || normalizedRoot.startsWith(bPath + '/');
+  const aIsLocal = isWorkspaceLocal(rootPath, aInstallPath);
+  const bIsLocal = isWorkspaceLocal(rootPath, bInstallPath);
   if (aIsLocal && !bIsLocal) { return -1; }
   if (!aIsLocal && bIsLocal) { return 1; }
   // Both match (nested workspaces): prefer the more specific (longer) path
-  if (aIsLocal && bIsLocal) { return bPath.length - aPath.length; }
+  if (aIsLocal && bIsLocal) { return canonicalizePath(bInstallPath).length - canonicalizePath(aInstallPath).length; }
   return 0;
 }
 
