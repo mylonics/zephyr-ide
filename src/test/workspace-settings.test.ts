@@ -18,6 +18,7 @@ limitations under the License.
 import * as assert from "assert";
 import * as vscode from "vscode";
 import * as os from "os";
+import * as upath from "upath";
 import { setWorkspaceSettings } from "../setup_utilities/workspace-config";
 
 suite("Workspace Settings (clangd/cpptools) Test Suite", () => {
@@ -54,7 +55,7 @@ suite("Workspace Settings (clangd/cpptools) Test Suite", () => {
         assert.ok(Array.isArray(clangdArgs) && clangdArgs.length > 0, "clangd.arguments should be set");
         const queryDriverArg = clangdArgs?.find(a => a.startsWith("--query-driver="));
         assert.ok(queryDriverArg, "--query-driver argument should be present");
-        assert.ok(queryDriverArg?.includes(existingToolchainDir), "--query-driver should include the configured toolchain dir");
+        assert.ok(queryDriverArg?.includes(upath.toUnix(existingToolchainDir)), "--query-driver should include the configured toolchain dir");
 
         await resetClangdSettings();
     });
@@ -98,7 +99,7 @@ suite("Workspace Settings (clangd/cpptools) Test Suite", () => {
         const updatedConfig = vscode.workspace.getConfiguration();
         const clangdArgs = updatedConfig.inspect<string[]>("clangd.arguments")?.workspaceValue;
         const queryDriverArg = clangdArgs?.find(a => a.startsWith("--query-driver="));
-        assert.ok(queryDriverArg?.includes(newToolchainDir),
+        assert.ok(queryDriverArg?.includes(upath.toUnix(newToolchainDir)),
             "--query-driver should be updated to new toolchain directory even with force=false");
 
         await resetClangdSettings();

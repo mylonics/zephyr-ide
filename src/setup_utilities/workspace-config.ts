@@ -251,19 +251,24 @@ export async function setWorkspaceSettings(force = false) {
       // getToolchainDir() so that the default SDK install location is covered
       // even when the user has not set zephyr-ide.toolchainDirectory explicitly.
       const resolvedToolchainDir = configuredToolchainDir ?? getToolchainDir();
+
+      // Always build the base clangd arguments; --query-driver is added only
+      // when the resolved toolchain directory actually exists on disk.
+      const clangdArgs: string[] = [
+        "--compile-commands-dir=${workspaceFolder}/.vscode",
+        "--background-index",
+        "--completion-style=detailed",
+        "--header-insertion=never",
+      ];
       if (!resolvedToolchainDir || !(await fs.pathExists(resolvedToolchainDir))) {
-        outputWarning("Workspace Config", "Resolved toolchain directory is unavailable; skipping clangd query-driver. Set 'zephyr-ide.toolchainDirectory' or install the Zephyr SDK.");
+        outputWarning("Workspace Config", "--query-driver will not be configured because the resolved toolchain directory is unavailable. Set 'zephyr-ide.toolchainDirectory' or install the Zephyr SDK.");
       } else {
         const queryDriver = path.join(resolvedToolchainDir, "**", "*");
-        const clangdArgs = [
-          "--compile-commands-dir=${workspaceFolder}/.vscode",
-          "--background-index",
-          "--completion-style=detailed",
-          "--header-insertion=never",
-          `--query-driver=${queryDriver}`,
-        ];
-        // Compare computed args against the current workspace value so that a
-        // toolchainDirectory change (force=false) still refreshes --query-driver.
+        clangdArgs.push(`--query-driver=${queryDriver}`);
+      }
+      // Compare computed args against the current workspace value so that a
+      // toolchainDirectory change (force=false) still refreshes --query-driver.
+      {
         const currentClangdArgs = configuration.inspect<string[]>("clangd.arguments")?.workspaceValue;
         const argsMatch = Array.isArray(currentClangdArgs) &&
           currentClangdArgs.length === clangdArgs.length &&
