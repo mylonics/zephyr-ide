@@ -72,6 +72,38 @@ export function sanitizeTreeId(segment: string): string {
 }
 
 /**
+ * Compare two workspace install paths for sorting relative to the currently
+ * open VS Code folder (`rootPath`).
+ *
+ * A path is considered "local" when:
+ * - it exactly equals `rootPath`, OR
+ * - `rootPath` starts with the install path followed by a separator (i.e.
+ *   the open folder is *inside* that workspace directory).
+ *
+ * Trailing slashes are stripped after normalization so double-slash false
+ * negatives cannot occur.  When both paths are local (nested workspaces),
+ * the longer/more-specific path wins; when neither matches, the order is
+ * preserved (return 0).
+ *
+ * @param rootPath - The open VS Code folder (wsConfig.rootPath)
+ * @param aInstallPath - First workspace install path to compare
+ * @param bInstallPath - Second workspace install path to compare
+ * @returns Negative if `a` should sort before `b`, positive if `b` first, 0 if equal rank
+ */
+export function compareWorkspacePathsByLocality(rootPath: string, aInstallPath: string, bInstallPath: string): number {
+  const normalizedRoot = path.normalize(rootPath).replace(/\/+$/, '');
+  const aPath = path.normalize(aInstallPath).replace(/\/+$/, '');
+  const bPath = path.normalize(bInstallPath).replace(/\/+$/, '');
+  const aIsLocal = aPath === normalizedRoot || normalizedRoot.startsWith(aPath + '/');
+  const bIsLocal = bPath === normalizedRoot || normalizedRoot.startsWith(bPath + '/');
+  if (aIsLocal && !bIsLocal) { return -1; }
+  if (!aIsLocal && bIsLocal) { return 1; }
+  // Both match (nested workspaces): prefer the more specific (longer) path
+  if (aIsLocal && bIsLocal) { return bPath.length - aPath.length; }
+  return 0;
+}
+
+/**
  * Load and parse a YAML file if it exists.
  * Returns the parsed document, or undefined if the file does not exist.
  */

@@ -51,7 +51,7 @@ WorkspaceSetupFromWestGit
 import * as vscode from "vscode";
 import * as fs from "fs-extra";
 import * as path from "upath";
-import { executeTaskHelper, validateGitUrl } from "../utilities/utils";
+import { executeTaskHelper, validateGitUrl, compareWorkspacePathsByLocality } from "../utilities/utils";
 import { outputInfo, outputError, notifyError, showOutput } from "../utilities/output";
 import { MultiStepInput } from "../utilities/multistepQuickPick";
 import { westSelector, WestLocation } from "./west_selector";
@@ -491,16 +491,9 @@ async function getExistingInstallationPicks(wsConfig: WorkspaceConfig, globalCon
   // Sort so the workspace matching the currently open folder appears first
   const rootPath = wsConfig.rootPath;
   if (rootPath) {
-    const normalizedRoot = path.normalize(rootPath);
-    installOptions.sort((a, b) => {
-      const aPath = path.normalize(a.detail as string);
-      const bPath = path.normalize(b.detail as string);
-      const aIsLocal = aPath === normalizedRoot || normalizedRoot.startsWith(aPath + '/');
-      const bIsLocal = bPath === normalizedRoot || normalizedRoot.startsWith(bPath + '/');
-      if (aIsLocal && !bIsLocal) { return -1; }
-      if (!aIsLocal && bIsLocal) { return 1; }
-      return 0;
-    });
+    installOptions.sort((a, b) =>
+      compareWorkspacePathsByLocality(rootPath, a.detail as string, b.detail as string)
+    );
   }
 
   return installOptions;

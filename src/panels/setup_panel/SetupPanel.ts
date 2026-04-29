@@ -21,6 +21,7 @@ import { WorkspaceConfig, GlobalConfig, formatZephyrVersion, isActiveWorkspaceIn
 import { setGlobalState, clearSetupState } from "../../setup_utilities/state-management";
 import { handleReconfigureInstallation } from "../../setup_utilities/workspace-setup";
 import { notifyError, outputError } from "../../utilities/output";
+import { compareWorkspacePathsByLocality } from "../../utilities/utils";
 import { generateNonce } from "../webview_shared/nonce";
 import { WorkspacePanel } from "../workspace_panel/WorkspacePanel";
 import type { SetupPanelData, ActiveWorkspaceData, WorkspaceListItem, ProjectListItem } from "./setup-panel-data";
@@ -355,16 +356,9 @@ export class SetupPanel {
       // Sort so the workspace matching the currently open folder appears first
       const rootPath = wsConfig.rootPath;
       if (rootPath) {
-        const normalizedRoot = path.normalize(rootPath);
-        workspaces.sort((a, b) => {
-          const aPath = path.normalize(a.path);
-          const bPath = path.normalize(b.path);
-          const aIsLocal = aPath === normalizedRoot || normalizedRoot.startsWith(aPath + '/');
-          const bIsLocal = bPath === normalizedRoot || normalizedRoot.startsWith(bPath + '/');
-          if (aIsLocal && !bIsLocal) { return -1; }
-          if (!aIsLocal && bIsLocal) { return 1; }
-          return 0;
-        });
+        workspaces.sort((a, b) =>
+          compareWorkspacePathsByLocality(rootPath, a.path, b.path)
+        );
       }
     }
 
