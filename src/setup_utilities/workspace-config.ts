@@ -200,7 +200,10 @@ export async function loadProjectsFromFile(config: WorkspaceConfig) {
 export async function setDefaultTerminal(configuration: vscode.WorkspaceConfiguration, target: vscode.ConfigurationTarget, platform_name: string, force: boolean) {
   if (force || !configuration.inspect('terminal.integrated.defaultProfile.' + platform_name)?.workspaceValue) {
     await configuration.update('terminal.integrated.defaultProfile.' + platform_name, "Zephyr IDE Terminal", target, false)
-      .then(undefined, (err: unknown) => outputWarning("Workspace Config", `Failed to set default terminal profile: ${err}`));
+      .then(undefined, (err: unknown) => {
+        const detail = err instanceof Error && err.stack ? err.stack : (err instanceof Error ? err.message : String(err));
+        outputWarning("Workspace Config", `Failed to set default terminal profile: ${detail}`);
+      });
   }
 }
 
@@ -224,11 +227,17 @@ export async function setWorkspaceSettings(force = false) {
   }
   if (force || !configuration.inspect("C_Cpp.default.compileCommands")?.workspaceValue) {
     await configuration.update("C_Cpp.default.compileCommands", path.join("${workspaceFolder}", '.vscode', 'compile_commands.json'), target)
-      .then(undefined, (err: unknown) => outputWarning("Workspace Config", `Failed to set C_Cpp.default.compileCommands: ${err}`));
+      .then(undefined, (err: unknown) => {
+        const detail = err instanceof Error && err.stack ? err.stack : (err instanceof Error ? err.message : String(err));
+        outputWarning("Workspace Config", `Failed to set C_Cpp.default.compileCommands: ${detail}`);
+      });
   }
   if (force || !configuration.inspect("cmake.configureOnOpen")?.workspaceValue) {
     await configuration.update("cmake.configureOnOpen", false, target)
-      .then(undefined, (err: unknown) => outputWarning("Workspace Config", `Failed to set cmake.configureOnOpen: ${err}`));
+      .then(undefined, (err: unknown) => {
+        const detail = err instanceof Error && err.stack ? err.stack : (err instanceof Error ? err.message : String(err));
+        outputWarning("Workspace Config", `Failed to set cmake.configureOnOpen: ${detail}`);
+      });
   }
 }
 
