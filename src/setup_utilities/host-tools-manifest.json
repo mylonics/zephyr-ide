@@ -21,12 +21,16 @@
       "install_command": "/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\"",
       "post_install_setup": [
         {
-          "architectures": ["aarch64"],
+          "architectures": [
+            "aarch64"
+          ],
           "command": "(echo; echo 'eval \"$(/opt/homebrew/bin/brew shellenv)\"') >> ~/.zprofile && source ~/.zprofile",
           "notes": "Required to set up environment path on Apple Silicon Macs."
         },
         {
-          "architectures": ["x86_64"],
+          "architectures": [
+            "x86_64"
+          ],
           "command": "(echo; echo 'eval \"$(/usr/local/bin/brew shellenv)\"') >> ~/.zprofile && source ~/.zprofile",
           "notes": "Required to set up environment path on Intel Macs."
         }
@@ -59,41 +63,131 @@
   },
   "platform_packages": {
     "apt": [
-      { "name": "Git", "package": "git", "check_command": "git --version" },
-      { "name": "CMake", "package": "cmake", "check_command": "cmake --version" },
-      { "name": "Ninja-build", "package": "ninja-build", "check_command": "ninja --version" },
-      { "name": "gperf", "package": "gperf", "check_command": "gperf --version" },
-      { "name": "ccache", "package": "ccache", "check_command": "ccache --version" },
-      { "name": "dfu-util", "package": "dfu-util", "check_command": "dfu-util --version" },
-      { "name": "DTC (Device Tree Compiler)", "package": "device-tree-compiler", "check_command": "dtc --version" },
-      { "name": "wget", "package": "wget", "check_command": "wget --version" },
-      { "name": "Python3", "package": "python3-dev", "check_command": "python3 --version",
-        "version_check": { "minimum": "3.12", "candidates": ["python3.12", "python3"] } },
-      { "name": "Python3 venv", "package": "python3-venv", "check_command": "python3 -m venv --help && python3 -c \"import ensurepip\"" },
-      { "name": "Python3 Tkinter", "package": "python3-tk", "check_command": "python3 -c \"import tkinter\"" },
-      { "name": "xz-utils", "package": "xz-utils", "check_command": "xz --version" },
-      { "name": "file", "package": "file", "check_command": "file --version" },
-      { "name": "make", "package": "make", "check_command": "make --version" },
-      { "name": "gcc", "package": "gcc", "check_command": "gcc --version" },
+      {
+        "name": "Git",
+        "package": "git",
+        "check_command": "git --version"
+      },
+      {
+        "name": "CMake",
+        "package": "cmake",
+        "check_command": "cmake --version"
+      },
+      {
+        "name": "Ninja-build",
+        "package": "ninja-build",
+        "check_command": "ninja --version"
+      },
+      {
+        "name": "gperf",
+        "package": "gperf",
+        "check_command": "gperf --version"
+      },
+      {
+        "name": "ccache",
+        "package": "ccache",
+        "check_command": "ccache --version"
+      },
+      {
+        "name": "dfu-util",
+        "package": "dfu-util",
+        "check_command": "dfu-util --version"
+      },
+      {
+        "name": "DTC (Device Tree Compiler)",
+        "package": "device-tree-compiler",
+        "check_command": "dtc --version"
+      },
+      {
+        "name": "wget",
+        "package": "wget",
+        "check_command": "wget --version"
+      },
+      {
+        "name": "Python3",
+        "package": "python3-dev",
+        "check_command": "python3 --version",
+        "version_check": {
+          "minimum": "3.12",
+          "candidates": [
+            "python3.12",
+            "python3"
+          ]
+        }
+      },
+      {
+        "name": "Python3 venv",
+        "package": "python3-venv",
+        "check_command": "python3 -m venv --help && python3 -c \"import ensurepip\""
+      },
+      {
+        "name": "Python3 Tkinter",
+        "package": "python3-tk",
+        "check_command": "python3 -c \"import tkinter\""
+      },
+      {
+        "name": "xz-utils",
+        "package": "xz-utils",
+        "check_command": "xz --version"
+      },
+      {
+        "name": "file",
+        "package": "file",
+        "check_command": "file --version"
+      },
+      {
+        "name": "make",
+        "package": "make",
+        "check_command": "make --version"
+      },
+      {
+        "name": "gcc",
+        "package": "gcc",
+        "check_command": "gcc --version"
+      },
       {
         "name": "gcc-multilib",
         "package": "gcc-multilib",
         "check_command": "gcc --version",
-        "architectures": ["x86_64"]
+        "architectures": [
+          "x86_64"
+        ]
       },
       {
         "name": "g++-multilib",
         "package": "g++-multilib",
         "check_command": "g++ --version",
-        "architectures": ["x86_64"]
+        "architectures": [
+          "x86_64"
+        ]
       },
-      { "name": "libsdl2-dev", "package": "libsdl2-dev", "check_command": "pkg-config --modversion sdl2" },
-      { "name": "libmagic", "package": "libmagic1", "check_command": "file -v" }
+      {
+        "name": "libsdl2-dev",
+        "package": "libsdl2-dev",
+        "check_command": "pkg-config --modversion sdl2"
+      },
+      {
+        "name": "libmagic",
+        "package": "libmagic1",
+        "check_command": "file -v"
+      }
     ],
     "homebrew": [
-      { "name": "CMake", "package": "cmake", "check_command": "cmake --version" },
-      { "name": "Ninja-build", "package": "ninja", "check_command": "ninja --version" },
-      { "name": "gperf", "package": "gperf", "check_command": "gperf --version" },
+      {
+        "name": "CMake",
+        "package": "cmake",
+        "check_command": "cmake --version"
+      },
+      {
+        "name": "Ninja-build",
+        "package": "ninja",
+        "check_command": "ninja --version"
+      },
+      {
+        "name": "gperf",
+        "package": "gperf",
+        "check_command": "gperf --version"
+      },
       {
         "name": "Python3",
         "package": "python@3",
@@ -108,24 +202,91 @@
         },
         "post_install_step": "(echo; echo 'export PATH=\"$(brew --prefix)/opt/python/libexec/bin:$PATH\"') >> ~/.zprofile && source ~/.zprofile"
       },
-      { "name": "Python3 Tkinter", "package": "python-tk", "check_command": "python3 -c \"import tkinter\"" },
-      { "name": "ccache", "package": "ccache", "check_command": "ccache --version" },
-      { "name": "QEMU", "package": "qemu", "check_command": "qemu-system-arm --version" },
-      { "name": "DTC (Device Tree Compiler)", "package": "dtc", "check_command": "dtc --version" },
-      { "name": "libmagic", "package": "libmagic", "check_command": "file -v" },
-      { "name": "wget", "package": "wget", "check_command": "wget --version" },
-      { "name": "openocd", "package": "openocd", "check_command": "openocd --version" }
+      {
+        "name": "Python3 Tkinter",
+        "package": "python-tk",
+        "check_command": "python3 -c \"import tkinter\""
+      },
+      {
+        "name": "ccache",
+        "package": "ccache",
+        "check_command": "ccache --version"
+      },
+      {
+        "name": "QEMU",
+        "package": "qemu",
+        "check_command": "qemu-system-arm --version"
+      },
+      {
+        "name": "DTC (Device Tree Compiler)",
+        "package": "dtc",
+        "check_command": "dtc --version"
+      },
+      {
+        "name": "libmagic",
+        "package": "libmagic",
+        "check_command": "file -v"
+      },
+      {
+        "name": "wget",
+        "package": "wget",
+        "check_command": "wget --version"
+      },
+      {
+        "name": "openocd",
+        "package": "openocd",
+        "check_command": "openocd --version"
+      }
     ],
     "winget": [
-      { "name": "CMake", "package": "Kitware.CMake", "check_command": "cmake --version" },
-      { "name": "Ninja-build", "package": "Ninja-build.Ninja", "check_command": "ninja --version" },
-      { "name": "Visual C++ Redistributable", "package": "Microsoft.VCRedist.2015+.x64", "check_command": "reg query \"HKLM\\SOFTWARE\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\x64\" /v Installed" },
-      { "name": "gperf", "package": "oss-winget.gperf", "check_command": "gperf --version" },
-      { "name": "Python3", "package": "python", "check_command": "python --version",
-        "version_check": { "minimum": "3.12", "candidates": ["py -3", "python3", "python"] } },
-      { "name": "Git", "package": "Git.Git", "check_command": "git --version" },
-      { "name": "DTC (Device Tree Compiler)", "package": "oss-winget.dtc", "check_command": "dtc --version" },
-      { "name": "wget", "package": "wget", "check_command": "wget.exe --help" },
+      {
+        "name": "CMake",
+        "package": "Kitware.CMake",
+        "check_command": "cmake --version"
+      },
+      {
+        "name": "Ninja-build",
+        "package": "Ninja-build.Ninja",
+        "check_command": "ninja --version"
+      },
+      {
+        "name": "Visual C++ Redistributable",
+        "package": "Microsoft.VCRedist.2015+.x64",
+        "check_command": "reg query \"HKLM\\SOFTWARE\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\x64\" /v Installed"
+      },
+      {
+        "name": "gperf",
+        "package": "oss-winget.gperf",
+        "check_command": "gperf --version"
+      },
+      {
+        "name": "Python3",
+        "package": "python",
+        "check_command": "python --version",
+        "version_check": {
+          "minimum": "3.12",
+          "candidates": [
+            "py -3",
+            "python3",
+            "python"
+          ]
+        }
+      },
+      {
+        "name": "Git",
+        "package": "Git.Git",
+        "check_command": "git --version"
+      },
+      {
+        "name": "DTC (Device Tree Compiler)",
+        "package": "oss-winget.dtc",
+        "check_command": "dtc --version"
+      },
+      {
+        "name": "wget",
+        "package": "wget",
+        "check_command": "wget.exe --help"
+      },
       {
         "name": "7-Zip",
         "package": "7zip.7zip",
@@ -134,48 +295,199 @@
       }
     ],
     "dnf": [
-      { "name": "Git", "package": "git", "check_command": "git --version" },
-      { "name": "CMake", "package": "cmake", "check_command": "cmake --version" },
-      { "name": "Ninja-build", "package": "ninja-build", "check_command": "ninja --version" },
-      { "name": "gperf", "package": "gperf", "check_command": "gperf --version" },
-      { "name": "ccache", "package": "ccache", "check_command": "ccache --version" },
-      { "name": "dfu-util", "package": "dfu-util", "check_command": "dfu-util --version" },
-      { "name": "DTC (Device Tree Compiler)", "package": "dtc", "check_command": "dtc --version" },
-      { "name": "wget", "package": "wget", "check_command": "wget --version" },
-      { "name": "Python3", "package": "python3", "check_command": "python3 --version",
-        "version_check": { "minimum": "3.12", "candidates": ["python3.13", "python3.12", "python3"] } },
-      { "name": "Python 3.13", "package": "python3.13", "check_command": "python3.13 --version" },
-      { "name": "Python 3.12", "package": "python3.12", "check_command": "python3.12 --version" },
-      { "name": "Python3 Tkinter", "package": "python3-tkinter", "check_command": "python3 -c \"import tkinter\"" },
-      { "name": "xz", "package": "xz", "check_command": "xz --version" },
-      { "name": "file", "package": "file", "check_command": "file --version" },
-      { "name": "make", "package": "make", "check_command": "make --version" },
-      { "name": "gcc", "package": "gcc", "check_command": "gcc --version" },
-      { "name": "SDL2", "package": "SDL2-devel", "check_command": "pkg-config --modversion sdl2" }
+      {
+        "name": "Git",
+        "package": "git",
+        "check_command": "git --version"
+      },
+      {
+        "name": "CMake",
+        "package": "cmake",
+        "check_command": "cmake --version"
+      },
+      {
+        "name": "Ninja-build",
+        "package": "ninja-build",
+        "check_command": "ninja --version"
+      },
+      {
+        "name": "gperf",
+        "package": "gperf",
+        "check_command": "gperf --version"
+      },
+      {
+        "name": "ccache",
+        "package": "ccache",
+        "check_command": "ccache --version"
+      },
+      {
+        "name": "dfu-util",
+        "package": "dfu-util",
+        "check_command": "dfu-util --version"
+      },
+      {
+        "name": "DTC (Device Tree Compiler)",
+        "package": "dtc",
+        "check_command": "dtc --version"
+      },
+      {
+        "name": "wget",
+        "package": "wget",
+        "check_command": "wget --version"
+      },
+      {
+        "name": "Python3",
+        "package": "python3",
+        "check_command": "python3 --version",
+        "version_check": {
+          "minimum": "3.12",
+          "candidates": [
+            "python3.12",
+            "python3"
+          ]
+        }
+      },
+      {
+        "name": "Python 3.12",
+        "package": "python3.12",
+        "check_command": "python3.12 --version"
+      },
+      {
+        "name": "Python3 Tkinter",
+        "package": "python3-tkinter",
+        "check_command": "python3 -c \"import tkinter\""
+      },
+      {
+        "name": "xz",
+        "package": "xz",
+        "check_command": "xz --version"
+      },
+      {
+        "name": "file",
+        "package": "file",
+        "check_command": "file --version"
+      },
+      {
+        "name": "make",
+        "package": "make",
+        "check_command": "make --version"
+      },
+      {
+        "name": "gcc",
+        "package": "gcc",
+        "check_command": "gcc --version"
+      },
+      {
+        "name": "SDL2",
+        "package": "SDL2-devel",
+        "check_command": "pkg-config --modversion sdl2"
+      }
     ],
     "pacman": [
-      { "name": "Git", "package": "git", "check_command": "git --version" },
-      { "name": "CMake", "package": "cmake", "check_command": "cmake --version" },
-      { "name": "Ninja-build", "package": "ninja", "check_command": "ninja --version" },
-      { "name": "gperf", "package": "gperf", "check_command": "gperf --version" },
-      { "name": "ccache", "package": "ccache", "check_command": "ccache --version" },
-      { "name": "dfu-util", "package": "dfu-util", "check_command": "dfu-util --version" },
-      { "name": "DTC (Device Tree Compiler)", "package": "dtc", "check_command": "dtc --version" },
-      { "name": "wget", "package": "wget", "check_command": "wget --version" },
-      { "name": "Python3", "package": "python", "check_command": "python3 --version",
-        "version_check": { "minimum": "3.12", "candidates": ["python3.13", "python3.12", "python3"] } },
-      { "name": "Python3 Tkinter", "package": "tk", "check_command": "python3 -c \"import tkinter\"" },
-      { "name": "xz", "package": "xz", "check_command": "xz --version" },
-      { "name": "file", "package": "file", "check_command": "file --version" },
-      { "name": "make", "package": "make", "check_command": "make --version" },
-      { "name": "gcc", "package": "gcc", "check_command": "gcc --version" },
-      { "name": "SDL2", "package": "sdl2", "check_command": "sdl2-config --version" }
+      {
+        "name": "Git",
+        "package": "git",
+        "check_command": "git --version"
+      },
+      {
+        "name": "CMake",
+        "package": "cmake",
+        "check_command": "cmake --version"
+      },
+      {
+        "name": "Ninja-build",
+        "package": "ninja",
+        "check_command": "ninja --version"
+      },
+      {
+        "name": "gperf",
+        "package": "gperf",
+        "check_command": "gperf --version"
+      },
+      {
+        "name": "ccache",
+        "package": "ccache",
+        "check_command": "ccache --version"
+      },
+      {
+        "name": "dfu-util",
+        "package": "dfu-util",
+        "check_command": "dfu-util --version"
+      },
+      {
+        "name": "DTC (Device Tree Compiler)",
+        "package": "dtc",
+        "check_command": "dtc --version"
+      },
+      {
+        "name": "wget",
+        "package": "wget",
+        "check_command": "wget --version"
+      },
+      {
+        "name": "Python3",
+        "package": "python",
+        "check_command": "python3 --version",
+        "version_check": {
+          "minimum": "3.12",
+          "candidates": [
+            "python3.12",
+            "python3"
+          ]
+        }
+      },
+      {
+        "name": "Python3 Tkinter",
+        "package": "tk",
+        "check_command": "python3 -c \"import tkinter\""
+      },
+      {
+        "name": "xz",
+        "package": "xz",
+        "check_command": "xz --version"
+      },
+      {
+        "name": "file",
+        "package": "file",
+        "check_command": "file --version"
+      },
+      {
+        "name": "make",
+        "package": "make",
+        "check_command": "make --version"
+      },
+      {
+        "name": "gcc",
+        "package": "gcc",
+        "check_command": "gcc --version"
+      },
+      {
+        "name": "SDL2",
+        "package": "sdl2",
+        "check_command": "sdl2-config --version"
+      }
     ],
     "swupd": [
-      { "name": "C Development Tools (c-basic)", "package": "c-basic", "check_command": "gcc --version" },
-      { "name": "Development Utilities (dev-utils)", "package": "dev-utils", "check_command": "cmake --version" },
-      { "name": "Device Tree Compiler (dtc)", "package": "dtc", "check_command": "dtc --version" },
-      { "name": "Python and Core Tools (os-clr-on-clr)", "package": "os-clr-on-clr", "check_command": "python3 --version" }
+      {
+        "name": "C Development Tools (c-basic)",
+        "package": "c-basic",
+        "check_command": "gcc --version"
+      },
+      {
+        "name": "Development Utilities (dev-utils)",
+        "package": "dev-utils",
+        "check_command": "cmake --version"
+      },
+      {
+        "name": "Device Tree Compiler (dtc)",
+        "package": "dtc",
+        "check_command": "dtc --version"
+      },
+      {
+        "name": "Python and Core Tools (os-clr-on-clr)",
+        "package": "os-clr-on-clr",
+        "check_command": "python3 --version"
+      }
     ]
   }
 }
