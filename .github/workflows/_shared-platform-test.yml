@@ -154,6 +154,7 @@ jobs:
       - name: Install git (Clear Linux)
         if: matrix.platform == 'clr'
         run: |
+          clrtrust generate
           swupd update --no-progress
           swupd bundle-add git
 
