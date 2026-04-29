@@ -153,75 +153,85 @@ export function loadHostToolsManifest(): HostToolsManifest {
   }
 }
 
-/** Cache for Linux distribution detection. undefined = not yet detected. */
-let linuxDistroCache: string | undefined = undefined;
-let linuxDistroDetected = false;
+/**
+ * In-flight / resolved detection promise.  Undefined means no detection has
+ * been started yet.  Caching the Promise (rather than a boolean flag) prevents
+ * concurrent callers from racing and each independently falling back to "apt"
+ * before the first probe completes.
+ */
+let linuxDetectionPromise: Promise<string> | undefined = undefined;
 
 /**
  * Detect the Linux distribution family by reading /etc/os-release.
  * Returns one of: "fedora" (dnf-based), "arch" (pacman-based),
  * "clear" (swupd-based), or "apt" (Debian/Ubuntu and other apt-based distros).
+ *
+ * The result is cached: concurrent callers all await the same Promise, so the
+ * probe runs at most once per process lifetime (or after resetLinuxDistroCache).
  */
 export async function detectLinuxDistro(): Promise<string> {
-  if (linuxDistroDetected) {
-    return linuxDistroCache ?? "apt";
+  if (linuxDetectionPromise !== undefined) {
+    return linuxDetectionPromise;
   }
 
-  linuxDistroDetected = true;
+  linuxDetectionPromise = (async (): Promise<string> => {
+    try {
+      const result = await executeShellCommand("cat /etc/os-release", "", false);
+      if (!result.stdout) {
+        return "apt";
+      }
 
-  try {
-    const result = await executeShellCommand("cat /etc/os-release", "", false);
-    if (!result.stdout) {
-      linuxDistroCache = "apt";
+      const text = result.stdout.toString();
+      const lines = text.split("\n");
+
+      const getValue = (key: string): string | undefined => {
+        const line = lines.find(l => l.startsWith(`${key}=`));
+        return line?.slice(key.length + 1).trim().replace(/^"|"$/g, "").toLowerCase();
+      };
+
+      const id = getValue("ID") ?? "";
+      const idLike = getValue("ID_LIKE") ?? "";
+
+      // Check for Clear Linux first (unique ID)
+      if (id === "clear-linux-os") {
+        return "clear";
+      }
+
+      // Check for Arch-based distros
+      const archIds = new Set(["arch", "manjaro", "endeavouros", "artix", "garuda"]);
+      if (archIds.has(id) || idLike.split(" ").some(l => l === "arch")) {
+        return "arch";
+      }
+
+      // Check for Fedora/RHEL/CentOS-based distros
+      const fedoraIds = new Set(["fedora", "rhel", "centos", "rocky", "almalinux", "ol"]);
+      if (fedoraIds.has(id) || idLike.split(" ").some(l => l === "fedora" || l === "rhel")) {
+        return "fedora";
+      }
+
+      // Default: treat as apt-based (Debian/Ubuntu and derivatives)
+      return "apt";
+    } catch {
       return "apt";
     }
+  })();
 
-    const text = result.stdout.toString();
-    const lines = text.split("\n");
-
-    const getValue = (key: string): string | undefined => {
-      const line = lines.find(l => l.startsWith(`${key}=`));
-      return line?.slice(key.length + 1).trim().replace(/^"|"$/g, "").toLowerCase();
-    };
-
-    const id = getValue("ID") ?? "";
-    const idLike = getValue("ID_LIKE") ?? "";
-
-    // Check for Clear Linux first (unique ID)
-    if (id === "clear-linux-os") {
-      linuxDistroCache = "clear";
-      return "clear";
-    }
-
-    // Check for Arch-based distros
-    const archIds = new Set(["arch", "manjaro", "endeavouros", "artix", "garuda"]);
-    if (archIds.has(id) || idLike.split(" ").some(l => l === "arch")) {
-      linuxDistroCache = "arch";
-      return "arch";
-    }
-
-    // Check for Fedora/RHEL/CentOS-based distros
-    const fedoraIds = new Set(["fedora", "rhel", "centos", "rocky", "almalinux", "ol"]);
-    if (fedoraIds.has(id) || idLike.split(" ").some(l => l === "fedora" || l === "rhel")) {
-      linuxDistroCache = "fedora";
-      return "fedora";
-    }
-
-    // Default: treat as apt-based (Debian/Ubuntu and derivatives)
-    linuxDistroCache = "apt";
-    return "apt";
-  } catch {
-    linuxDistroCache = "apt";
-    return "apt";
-  }
+  return linuxDetectionPromise;
 }
 
 /**
  * Reset the Linux distro detection cache (used for testing).
  */
 export function resetLinuxDistroCache(): void {
-  linuxDistroCache = undefined;
-  linuxDistroDetected = false;
+  linuxDetectionPromise = undefined;
+}
+
+/**
+ * Override the cached Linux distro family (used for testing only).
+ * Has no effect outside of test code.
+ */
+export function setLinuxDistroForTesting(distro: string): void {
+  linuxDetectionPromise = Promise.resolve(distro);
 }
 
 /**
@@ -814,6 +824,23 @@ async function resolveAptInstallPlan(pkg: PlatformPackage, minorVersionOverride?
 }
 
 /**
+ * Build a shell command that uses `sudo` only when necessary.
+ *
+ * - If `sudo` is present in PATH, prefix the command with it (handles a normal
+ *   user account where privilege escalation is required).
+ * - If `sudo` is absent but the process is already running as root (UID 0),
+ *   run the command directly (common inside Docker containers such as the CI
+ *   `archlinux:latest` or `fedora:latest` images).
+ * - Otherwise, print an error and exit non-zero.
+ *
+ * Using this instead of unconditional `sudo` fixes failures in minimal distro
+ * containers where `sudo` is not installed.
+ */
+function conditionalSudoCmd(cmd: string): string {
+  return `if command -v sudo >/dev/null 2>&1; then sudo ${cmd}; elif [ "$(id -u)" -eq 0 ]; then ${cmd}; else echo "sudo is required but not installed" >&2; exit 1; fi`;
+}
+
+/**
  * Install a single package.
  * @param pkg - The package to install.
  * @param resolvedManager - Pre-resolved package manager; if omitted, looked up from the platform.
@@ -842,13 +869,13 @@ export async function installPackage(pkg: PlatformPackage, resolvedManager?: { n
       break;
     }
     case "dnf":
-      installCommand = `sudo dnf install -y ${pkg.package}`;
+      installCommand = conditionalSudoCmd(`dnf install -y ${pkg.package}`);
       break;
     case "pacman":
-      installCommand = `sudo pacman -S --noconfirm ${pkg.package}`;
+      installCommand = conditionalSudoCmd(`pacman -S --noconfirm ${pkg.package}`);
       break;
     case "swupd":
-      installCommand = `sudo swupd bundle-add ${pkg.package}`;
+      installCommand = conditionalSudoCmd(`swupd bundle-add ${pkg.package}`);
       break;
     case "winget":
       installCommand = `winget install --accept-package-agreements --accept-source-agreements ${pkg.package}`;
@@ -921,9 +948,10 @@ export async function installPackagesBatch(packages: PlatformPackage[], resolved
   if (manager.name === "dnf" || manager.name === "pacman") {
     // Batch install with a single command for dnf and pacman
     const packageList = packages.map(p => p.package).join(" ");
-    const batchCmd = manager.name === "dnf"
-      ? `sudo dnf install -y ${packageList}`
-      : `sudo pacman -S --noconfirm ${packageList}`;
+    const installCmd = manager.name === "dnf"
+      ? `dnf install -y ${packageList}`
+      : `pacman -S --noconfirm ${packageList}`;
+    const batchCmd = conditionalSudoCmd(installCmd);
     outputInfo("Host Tools", `Installing ${packages.length} package(s) in a single ${manager.name} command...`);
     const ok = await executeTaskHelper(`Install missing host tools (${manager.name})`, batchCmd, "");
     if (!ok) {

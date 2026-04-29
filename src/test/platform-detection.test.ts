@@ -17,7 +17,7 @@ limitations under the License.
 
 import * as assert from "assert";
 import { getPlatformName, getPlatformNameAsync } from "../utilities/utils";
-import { detectLinuxDistro, resetLinuxDistroCache } from "../setup_utilities/host_tools";
+import { detectLinuxDistro, resetLinuxDistroCache, setLinuxDistroForTesting } from "../setup_utilities/host_tools";
 
 suite("Platform Detection Test Suite", () => {
     
@@ -102,10 +102,18 @@ suite("Platform Detection Test Suite", () => {
             if (process.platform !== "linux") {
                 this.skip();
             }
-            const first = await detectLinuxDistro();
+            // Inject a sentinel value so we can tell whether the cache was truly cleared.
+            setLinuxDistroForTesting("__test_sentinel__");
+            const injected = await detectLinuxDistro();
+            assert.strictEqual(injected, "__test_sentinel__", "setLinuxDistroForTesting should make detectLinuxDistro return the injected value");
+
+            // Clear the cache — the next call must re-probe instead of returning
+            // the stale sentinel.
             resetLinuxDistroCache();
-            const second = await detectLinuxDistro();
-            assert.strictEqual(first, second, "After cache reset, detectLinuxDistro should detect the same distro again");
+            const reDetected = await detectLinuxDistro();
+            const valid = ["apt", "fedora", "arch", "clear"];
+            assert.ok(valid.includes(reDetected), `Expected a valid distro family after cache reset, got: ${reDetected}`);
+            assert.notStrictEqual(reDetected, "__test_sentinel__", "resetLinuxDistroCache should have cleared the injected sentinel");
         });
     });
 });

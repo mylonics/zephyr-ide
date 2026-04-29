@@ -135,7 +135,7 @@ jobs:
       matrix: ${{ fromJson(needs.build-matrix.outputs.matrix) }}
 
     runs-on: ${{ matrix.os }}
-    container: ${{ matrix.container }}
+    container: ${{ contains(fromJson('["fedora","arch","clr"]'), matrix.platform) && matrix.container || null }}
     name: test-${{ matrix.platform }}
 
     steps:
