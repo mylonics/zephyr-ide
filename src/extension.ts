@@ -328,6 +328,28 @@ export async function activate(context: vscode.ExtensionContext) {
     // Migrate deprecated setting keys to camelCase equivalents
     await migrateSettingKeys();
 
+    // Auto-enable clangd mode when the clangd extension is installed and the
+    // user has not yet explicitly configured zephyr-ide.useClangd (i.e. it is
+    // still at its default value of false across all configuration scopes).
+    {
+      const cfg = vscode.workspace.getConfiguration();
+      const clangdInspect = cfg.inspect<boolean>("zephyr-ide.useClangd");
+      const isExplicitlySet = [
+        clangdInspect?.globalValue,
+        clangdInspect?.workspaceValue,
+        clangdInspect?.workspaceFolderValue,
+      ].some((v) => v !== undefined);
+
+      if (!isExplicitlySet && vscode.extensions.getExtension("llvm-vs-code-extensions.vscode-clangd")) {
+        await cfg.update("zephyr-ide.useClangd", true, vscode.ConfigurationTarget.Global)
+          .then(undefined, (err: unknown) => {
+            const detail = err instanceof Error ? err.message : String(err);
+            outputInfo("Startup", `Auto-enable clangd: could not write useClangd setting: ${detail}`);
+          });
+        outputInfo("Startup", "clangd extension detected and 'zephyr-ide.useClangd' was not set — automatically enabled clangd IntelliSense mode.");
+      }
+    }
+
     wsConfig = await loadWorkspaceState(context);
     globalConfig = await loadGlobalState(context);
 
