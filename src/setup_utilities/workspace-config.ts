@@ -197,9 +197,10 @@ export async function loadProjectsFromFile(config: WorkspaceConfig) {
   }
 }
 
-export function setDefaultTerminal(configuration: vscode.WorkspaceConfiguration, target: vscode.ConfigurationTarget, platform_name: string, force: boolean) {
+export async function setDefaultTerminal(configuration: vscode.WorkspaceConfiguration, target: vscode.ConfigurationTarget, platform_name: string, force: boolean) {
   if (force || !configuration.inspect('terminal.integrated.defaultProfile.' + platform_name)?.workspaceValue) {
-    void configuration.update('terminal.integrated.defaultProfile.' + platform_name, "Zephyr IDE Terminal", target, false);
+    await configuration.update('terminal.integrated.defaultProfile.' + platform_name, "Zephyr IDE Terminal", target, false)
+      .then(undefined, (err: unknown) => outputWarning("Workspace Config", `Failed to set default terminal profile: ${err}`));
   }
 }
 
@@ -215,17 +216,19 @@ export async function setWorkspaceSettings(force = false) {
 
   const platform = await getPlatformNameAsync();
   if (platform === "windows") {
-    setDefaultTerminal(configuration, target, "windows", force);
+    await setDefaultTerminal(configuration, target, "windows", force);
   } else if (platform === "linux") {
-    setDefaultTerminal(configuration, target, "linux", force);
+    await setDefaultTerminal(configuration, target, "linux", force);
   } else if (platform === "macos") {
-    setDefaultTerminal(configuration, target, "osx", force);
+    await setDefaultTerminal(configuration, target, "osx", force);
   }
   if (force || !configuration.inspect("C_Cpp.default.compileCommands")?.workspaceValue) {
-    void configuration.update("C_Cpp.default.compileCommands", path.join("${workspaceFolder}", '.vscode', 'compile_commands.json'), target);
+    await configuration.update("C_Cpp.default.compileCommands", path.join("${workspaceFolder}", '.vscode', 'compile_commands.json'), target)
+      .then(undefined, (err: unknown) => outputWarning("Workspace Config", `Failed to set C_Cpp.default.compileCommands: ${err}`));
   }
   if (force || !configuration.inspect("cmake.configureOnOpen")?.workspaceValue) {
-    void configuration.update("cmake.configureOnOpen", false, target);
+    await configuration.update("cmake.configureOnOpen", false, target)
+      .then(undefined, (err: unknown) => outputWarning("Workspace Config", `Failed to set cmake.configureOnOpen: ${err}`));
   }
 }
 

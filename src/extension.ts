@@ -371,11 +371,11 @@ export async function activate(context: vscode.ExtensionContext) {
         wsConfig.activeSetupState.zephyrDir
       );
     }
-
-    reloadEnvironmentVariables(context, wsConfig.activeSetupState);
   } catch (initError) {
     const initErrorMsg = initError instanceof Error ? initError.message : String(initError);
-    outputError("Startup", `Extension initialization failed: ${initErrorMsg}`);
+    const initErrorDetail =
+      initError instanceof Error && initError.stack ? initError.stack : initErrorMsg;
+    outputError("Startup", `Extension initialization failed: ${initErrorDetail}`);
     void vscode.window.showErrorMessage(
       `Zephyr IDE failed to initialize: ${initErrorMsg}. Check the Zephyr IDE output channel for details.`
     );
@@ -390,6 +390,10 @@ export async function activate(context: vscode.ExtensionContext) {
     if (!globalConfig) {
       globalConfig = {};
     }
+  } finally {
+    // Always sync the environment variable collection regardless of init success/failure
+    // so terminals opened after activation pick up the correct (or cleared) variables.
+    reloadEnvironmentVariables(context, wsConfig?.activeSetupState);
   }
 
   const activeProjectView = new ActiveProjectView(
