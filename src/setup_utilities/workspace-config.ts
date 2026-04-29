@@ -229,15 +229,17 @@ export async function setWorkspaceSettings(force = false) {
   const useClangd: boolean = configuration.get("zephyr-ide.useClangd") ?? false;
 
   if (useClangd) {
-    // clangd mode: disable C/C++ IntelliSense engine and configure clangd arguments
-    if (force || !configuration.inspect("C_Cpp.intelliSenseEngine")?.workspaceValue) {
+    // clangd mode: disable C/C++ IntelliSense engine and configure clangd arguments.
+    // Always ensure C_Cpp.intelliSenseEngine is "disabled" — a pre-existing value of
+    // e.g. "default" (truthy) must still be overwritten.
+    if (configuration.inspect("C_Cpp.intelliSenseEngine")?.workspaceValue !== "disabled") {
       await configuration.update("C_Cpp.intelliSenseEngine", "disabled", target)
         .then(undefined, (err: unknown) => {
           const detail = err instanceof Error && err.stack ? err.stack : (err instanceof Error ? err.message : String(err));
           outputWarning("Workspace Config", `Failed to set C_Cpp.intelliSenseEngine: ${detail}`);
         });
     }
-    if (force || !configuration.inspect("clangd.arguments")?.workspaceValue) {
+    {
       const toolchainDirConfig = configuration.inspect<string>("zephyr-ide.toolchainDirectory");
       const configuredToolchainDir = [
         toolchainDirConfig?.workspaceFolderValue,
@@ -249,8 +251,8 @@ export async function setWorkspaceSettings(force = false) {
       // getToolchainDir() so that the default SDK install location is covered
       // even when the user has not set zephyr-ide.toolchainDirectory explicitly.
       const resolvedToolchainDir = configuredToolchainDir ?? getToolchainDir();
-      if (!resolvedToolchainDir || !resolvedToolchainDir.trim()) {
-        outputWarning("Workspace Config", "Toolchain directory could not be resolved; skipping clangd query-driver. Set 'zephyr-ide.toolchainDirectory' or install the Zephyr SDK.");
+      if (!resolvedToolchainDir || !(await fs.pathExists(resolvedToolchainDir))) {
+        outputWarning("Workspace Config", "Resolved toolchain directory is unavailable; skipping clangd query-driver. Set 'zephyr-ide.toolchainDirectory' or install the Zephyr SDK.");
       } else {
         const queryDriver = path.join(resolvedToolchainDir, "**", "*");
         const clangdArgs = [
@@ -260,11 +262,19 @@ export async function setWorkspaceSettings(force = false) {
           "--header-insertion=never",
           `--query-driver=${queryDriver}`,
         ];
-        await configuration.update("clangd.arguments", clangdArgs, target)
-          .then(undefined, (err: unknown) => {
-            const detail = err instanceof Error && err.stack ? err.stack : (err instanceof Error ? err.message : String(err));
-            outputWarning("Workspace Config", `Failed to set clangd.arguments: ${detail}`);
-          });
+        // Compare computed args against the current workspace value so that a
+        // toolchainDirectory change (force=false) still refreshes --query-driver.
+        const currentClangdArgs = configuration.inspect<string[]>("clangd.arguments")?.workspaceValue;
+        const argsMatch = Array.isArray(currentClangdArgs) &&
+          currentClangdArgs.length === clangdArgs.length &&
+          clangdArgs.every((arg, i) => currentClangdArgs[i] === arg);
+        if (force || !argsMatch) {
+          await configuration.update("clangd.arguments", clangdArgs, target)
+            .then(undefined, (err: unknown) => {
+              const detail = err instanceof Error && err.stack ? err.stack : (err instanceof Error ? err.message : String(err));
+              outputWarning("Workspace Config", `Failed to set clangd.arguments: ${detail}`);
+            });
+        }
       }
     }
     // Remove C_Cpp.default.compileCommands to avoid conflicts with clangd mode
