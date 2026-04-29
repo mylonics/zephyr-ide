@@ -191,6 +191,27 @@ dashboard-app {
    MEMORY PAGE
    =================================================================== */
 
+/* Ensure page components render as block elements (custom elements default to inline). */
+memory-page,
+summary-page,
+kconfig-page,
+sysinit-page,
+dts-page,
+elfstats-page {
+  display: block;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 48px 20px;
+  text-align: center;
+  color: var(--vscode-descriptionForeground);
+}
+
 .memory-toolbar {
   display: flex;
   align-items: center;
@@ -199,70 +220,140 @@ dashboard-app {
 }
 
 .tree {
-  font-family: var(--vscode-editor-font-family, monospace);
-  font-size: var(--vscode-editor-font-size, 12px);
-  line-height: 1.5;
+  font-family: var(--vscode-font-family);
+  font-size: 13px;
+  line-height: 1.4;
   background-color: var(--vscode-sideBar-background);
   border: 1px solid var(--vscode-panel-border);
   border-radius: var(--zephyr-webview-radius);
-  padding: 10px 8px;
+  padding: 4px 0;
+  overflow-x: auto;
 }
 
-.tree details {
-  margin-left: 14px;
-}
-
-.tree details > summary {
-  cursor: pointer;
-  padding: 1px 2px;
+/* Branch row (the <summary> inside <details>) */
+.tree-branch > summary {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px 3px 4px;
   list-style: none;
+  cursor: pointer;
   border-radius: 3px;
+  user-select: none;
   outline: none;
 }
 
-.tree details > summary:hover {
-  background-color: var(--vscode-list-hoverBackground);
-}
-
-.tree details > summary:focus-visible {
-  outline: 1px solid var(--vscode-focusBorder);
-}
-
-.tree details > summary::-webkit-details-marker {
+.tree-branch > summary::-webkit-details-marker {
   display: none;
 }
 
-.tree details > summary::before {
-  content: '\25B8';
-  display: inline-block;
-  width: 14px;
-  font-size: 9px;
-  opacity: 0.6;
+.tree-branch > summary:hover,
+.tree-leaf:hover {
+  background-color: var(--vscode-list-hoverBackground);
 }
 
-.tree details[open] > summary::before {
-  content: '\25BE';
+.tree-branch > summary:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
 }
 
-.tree .leaf {
-  margin-left: 28px;
-  padding: 1px 2px;
+/* Rotating chevron — transitions from ▶ (collapsed) to ▼ (expanded) */
+.tree-toggle {
+  flex-shrink: 0;
+  font-size: 16px;
+  color: var(--vscode-foreground);
+  opacity: 0.7;
+  transition: transform 0.12s ease;
+  display: inline-flex;
+  align-items: center;
 }
 
-.tree .size {
-  opacity: 0.65;
-  margin-left: 6px;
-  font-size: 0.9em;
+.tree-branch[open] > summary .tree-toggle {
+  transform: rotate(90deg);
 }
 
-.tree .mem-tag {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 0 4px;
+/* Children block — indented with a vertical guide line */
+.tree-children {
+  border-left: 1px solid var(--vscode-panel-border);
+  margin-left: 11px;
+  padding-left: 8px;
+}
+
+/* Leaf row */
+.tree-leaf {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px 3px 4px;
+  border-radius: 3px;
+}
+
+/* Spacer in leaf rows to align names with branch names */
+.tree-leaf-indent {
+  width: 20px;
+  flex-shrink: 0;
+}
+
+/* Grows to fill available space; clips long symbol names */
+.tree-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Right-aligned metadata: bar + size + percent */
+.tree-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: 10px;
+}
+
+/* Mini proportional size bar */
+.tree-bar-wrap {
+  width: 64px;
+  height: 5px;
+  background-color: color-mix(in srgb, var(--vscode-progressBar-background, #0e70c0) 18%, transparent);
+  border-radius: 3px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.tree-bar {
+  height: 100%;
+  background-color: var(--vscode-progressBar-background, #0e70c0);
+  border-radius: 3px;
+  min-width: 2px;
+}
+
+.tree-size {
+  opacity: 0.8;
+  font-variant-numeric: tabular-nums;
+  min-width: 58px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.tree-pct {
+  opacity: 0.5;
+  font-variant-numeric: tabular-nums;
+  min-width: 44px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.mem-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 5px;
   border-radius: 3px;
   font-size: 10px;
+  line-height: 16px;
   background-color: var(--vscode-badge-background);
   color: var(--vscode-badge-foreground);
+  flex-shrink: 0;
 }
 
 /* ===================================================================

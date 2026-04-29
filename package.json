@@ -629,15 +629,23 @@
       },
       {
         "command": "zephyr-ide.run-ram-report",
-        "title": "Zephyr IDE: Run RAM Report"
+        "title": "Zephyr IDE: Zephyr RAM Report",
+        "description": "Run west build -t ram_report and open the RAM usage output for the active project/build"
       },
       {
         "command": "zephyr-ide.run-rom-report",
-        "title": "Zephyr IDE: Run ROM Report"
+        "title": "Zephyr IDE: Zephyr ROM Report",
+        "description": "Run west build -t rom_report and open the ROM usage output for the active project/build"
+      },
+      {
+        "command": "zephyr-ide.run-dashboard-report",
+        "title": "Zephyr IDE: Zephyr Dashboard Report",
+        "description": "Generate RAM/ROM reports and symbol-table data for the active project/build, refreshing any open Build Dashboard"
       },
       {
         "command": "zephyr-ide.run-dashboard",
-        "title": "Zephyr IDE: Run Dashboard Report"
+        "title": "Zephyr IDE: Open Build Dashboard",
+        "description": "Open the Build Dashboard panel (interactive memory explorer, Kconfig viewer, device-tree viewer, ELF stats) for the active project/build"
       },
       {
         "command": "zephyr-ide.start-dtsh-shell",

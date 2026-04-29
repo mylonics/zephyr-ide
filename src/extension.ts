@@ -51,6 +51,8 @@ import {
   buildRamRomReport,
   buildRamRomReportHeadless,
   buildDashboard,
+  buildDashboardReport,
+  refreshDashboardMemory,
   runDtshShell,
   clean,
   MenuConfig,
@@ -1302,6 +1304,20 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.run-dashboard-report", async () => {
+      // Run the full dashboard memory report (stat + ram_report + rom_report).
+      // If a dashboard panel is already open for this project/build, refresh
+      // its memory view with the newly generated data.
+      const result = await buildDashboardReport(context, wsConfig);
+      if (!result) { return; }
+      const panel = DashboardPanel.getPanel(result.projectName, result.buildName);
+      if (panel) {
+        void panel.refreshMemory();
+      }
+    })
+  );
+
+  context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.run-ram-report-headless", async () => {
       return await buildRamRomReportHeadless(context, wsConfig, true);
     })
@@ -1315,10 +1331,21 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.run-dashboard", async () => {
+      // 1. Fast path: read build artifacts from disk immediately.
       const result = await buildDashboard(context, wsConfig);
-      if (result?.success) {
-        DashboardPanel.createOrShow(context.extensionPath, result.jsonPath, result.projectName, result.buildName);
-      }
+      if (!result?.success) { return; }
+
+      // 2. Open the panel right away with all fast data (memory tree is null
+      //    until the cmake targets finish).
+      const panel = DashboardPanel.createOrShow(
+        context.extensionPath,
+        result.data,
+        () => refreshDashboardMemory(context, wsConfig, result.buildFolder, result.projectName, result.buildName),
+      );
+
+      // 3. Auto-trigger memory report generation in the background so the
+      //    Memory page populates without requiring a manual refresh click.
+      void panel.refreshMemory();
     })
   );
 

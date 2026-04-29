@@ -8,7 +8,6 @@ import { html, nothing } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { ZephyrLitElement } from "../../webview_shared/lit-base";
 import type { DashboardSummary } from "../dashboard-data";
-
 const REGION_COLORS: Record<keyof DashboardSummary["memorySummary"], string> = {
   text: "#0288d1",
   rodata: "#7e57c2",
@@ -21,13 +20,22 @@ const REGION_LABELS: Record<keyof DashboardSummary["memorySummary"], string> = {
   text: "Text (code)",
   rodata: "Read-only data",
   rwdata: "Read/write data",
-  bss: "BSS",
+  bss: "BSS (zero init)",
   other: "Other",
 };
 
 @customElement("summary-page")
 export class SummaryPage extends ZephyrLitElement {
   @property({ attribute: false }) data!: DashboardSummary;
+  /** True while a background memory refresh is in progress. */
+  @property({ type: Boolean }) refreshing = false;
+
+  private _formatBytes(bytes: number): string {
+    if (bytes === 0) { return '0 B'; }
+    if (bytes < 1024) { return `${bytes} Bytes`; }
+    if (bytes < 1024 * 1024) { return `${(bytes / 1024).toFixed(1)} KB`; }
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
 
   private _renderRow(label: string, value: string | number | null | undefined) {
     if (value === null || value === undefined || value === "") {
@@ -40,7 +48,15 @@ export class SummaryPage extends ZephyrLitElement {
     const summary = this.data.memorySummary;
     const total = Object.values(summary).reduce((a, b) => a + b, 0);
     if (total === 0) {
-      return html`<p class="text-muted" style="padding:10px 0">No symbol size data available (build may lack a .stat file).</p>`;
+      if (this.refreshing) {
+        return html`
+          <div style="display:flex;align-items:center;gap:8px;padding:10px 0">
+            <span class="codicon codicon-loading codicon-modifier-spin" style="opacity:0.7"></span>
+            <span class="text-muted">Generating symbol table…</span>
+          </div>
+        `;
+      }
+      return html`<p class="text-muted" style="padding:10px 0">No symbol size data available. Click Refresh on the Memory page to generate it.</p>`;
     }
     const regions = (Object.entries(summary) as [keyof typeof summary, number][]).filter(
       ([, sz]) => sz > 0,
@@ -72,19 +88,41 @@ export class SummaryPage extends ZephyrLitElement {
     if (!this.data) {
       return nothing;
     }
+    const ms = this.data.memorySummary;
+    const hasMemory = ms.text > 0 || ms.rodata > 0 || ms.rwdata > 0 || ms.bss > 0;
+    const romUsed = ms.text + ms.rodata;
+    const romPct = this.data.romTotal > 0 ? ((romUsed / this.data.romTotal) * 100).toFixed(1) : null;
     return html`
       <h1>Build Summary</h1>
+
+      <h2>Build Attributes</h2>
       <dl class="summary-grid">
+        ${this._renderRow("Zephyr Version", this.data.zephyrVersion)}
         ${this._renderRow("Board", this.data.board)}
         ${this._renderRow("Application", this.data.application)}
-        ${this._renderRow("West command", this.data.command)}
-        ${this._renderRow("Zephyr version", this.data.zephyrVersion)}
+        ${this._renderRow("Date", this.data.elfDate)}
         ${this._renderRow("Toolchain", this.data.toolchain)}
-        ${this._renderRow("ELF size", this.data.elfSize)}
-        ${this._renderRow("BIN size", this.data.binSize)}
-        ${this._renderRow("ELF date", this.data.elfDate)}
       </dl>
-      <h2>Memory Breakdown (from symbol table)</h2>
+
+      <h2>Build Command</h2>
+      <dl class="summary-grid">
+        ${this._renderRow("Output Directory", this.data.outputDir)}
+        ${this._renderRow("Command", this.data.command)}
+      </dl>
+
+      <h2>Memory Summary</h2>
+      <dl class="summary-grid">
+        ${this._renderRow("Bin Size", this.data.binSize)}
+        ${hasMemory ? html`
+          ${this._renderRow("Text (Code)", this._formatBytes(ms.text))}
+          ${this._renderRow("Read-Only Data", this._formatBytes(ms.rodata))}
+          ${this._renderRow("Read/Write Data", this._formatBytes(ms.rwdata))}
+          ${this._renderRow("BSS (Zero Init)", this._formatBytes(ms.bss))}
+          ${romPct !== null ? this._renderRow("ROM Used", `${romPct}% of ${this._formatBytes(this.data.romTotal)}`) : nothing}
+        ` : nothing}
+      </dl>
+
+      <h2>Memory Breakdown (from ELF sections)</h2>
       ${this._renderMemoryBar()}
     `;
   }

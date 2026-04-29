@@ -16,10 +16,12 @@ limitations under the License.
 */
 
 import * as vscode from "vscode";
-import * as fs from "fs-extra";
 
-import type { DashboardData } from "./dashboard-data";
+import type { DashboardData, DashboardMemoryRefresh } from "./dashboard-data";
 import { generateNonce } from "../webview_shared/nonce";
+
+/** Callback invoked when the user requests a memory report refresh. */
+type MemoryRefreshCallback = () => Promise<(DashboardMemoryRefresh & { error?: string }) | undefined>;
 
 /**
  * VS Code webview panel that displays the Zephyr build dashboard natively.
@@ -32,22 +34,25 @@ export class DashboardPanel {
 
   private readonly _panel: vscode.WebviewPanel;
   private readonly _extensionPath: string;
-  private readonly _projectName: string;
-  private readonly _buildName: string;
-  private _jsonPath: string;
+  private _data: DashboardData;
+  private readonly _onRefreshMemory: MemoryRefreshCallback;
+  private _memoryRefreshing = false;
   private _disposables: vscode.Disposable[] = [];
-  private _htmlInitialized = false;
 
   // ---------------------------------------------------------------------------
   // Public API
   // ---------------------------------------------------------------------------
 
+  /** Returns the open panel for the given project/build pair, if any. */
+  public static getPanel(projectName: string, buildName: string): DashboardPanel | undefined {
+    return DashboardPanel._panels.get(`${projectName}/${buildName}`);
+  }
+
   public static createOrShow(
     extensionPath: string,
-    jsonPath: string,
-    projectName: string,
-    buildName: string,
-  ) {
+    data: DashboardData,
+    onRefreshMemory: MemoryRefreshCallback,
+  ): DashboardPanel {    const { projectName, buildName } = data.meta;
     const key = `${projectName}/${buildName}`;
     const column = vscode.window.activeTextEditor
       ? vscode.window.activeTextEditor.viewColumn
@@ -56,9 +61,9 @@ export class DashboardPanel {
     const existing = DashboardPanel._panels.get(key);
     if (existing) {
       existing._panel.reveal(column);
-      existing._jsonPath = jsonPath;
-      void existing.refresh();
-      return;
+      existing._data = data;
+      void existing._postData();
+      return existing;
     }
 
     const panel = vscode.window.createWebviewPanel(
@@ -72,8 +77,9 @@ export class DashboardPanel {
       },
     );
 
-    const instance = new DashboardPanel(panel, extensionPath, jsonPath, projectName, buildName);
+    const instance = new DashboardPanel(panel, extensionPath, data, onRefreshMemory);
     DashboardPanel._panels.set(key, instance);
+    return instance;
   }
 
   // ---------------------------------------------------------------------------
@@ -83,15 +89,13 @@ export class DashboardPanel {
   private constructor(
     panel: vscode.WebviewPanel,
     extensionPath: string,
-    jsonPath: string,
-    projectName: string,
-    buildName: string,
+    data: DashboardData,
+    onRefreshMemory: MemoryRefreshCallback,
   ) {
     this._panel = panel;
     this._extensionPath = extensionPath;
-    this._jsonPath = jsonPath;
-    this._projectName = projectName;
-    this._buildName = buildName;
+    this._data = data;
+    this._onRefreshMemory = onRefreshMemory;
 
     this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
     this._panel.webview.onDidReceiveMessage(
@@ -101,45 +105,50 @@ export class DashboardPanel {
     );
 
     this._panel.webview.html = this.getHtmlShell();
-    this._htmlInitialized = true;
-    void this.refresh();
+    void this._postData();
   }
 
   private async handleMessage(message: Record<string, unknown>) {
     if (message?.command === "ready") {
-      await this.refresh();
+      await this._postData();
+    } else if (message?.command === "refreshMemory") {
+      await this.refreshMemory();
     }
   }
 
-  private async refresh() {
-    if (!this._htmlInitialized) {
-      return;
-    }
+  /**
+   * Triggers a memory report refresh via the stored callback and pushes the
+   * updated memory data to the webview.  Safe to call concurrently — a second
+   * call while a refresh is in-progress is a no-op.
+   */
+  public async refreshMemory(): Promise<void> {
+    if (this._memoryRefreshing) { return; }
+    this._memoryRefreshing = true;
+    await this._panel.webview.postMessage({ command: "memoryRefreshing" });
     try {
-      if (!fs.existsSync(this._jsonPath)) {
+      const result = await this._onRefreshMemory();
+      if (result) {
+        this._data.memory = result.memory;
+        this._data.summary.memorySummary = result.memorySummary;
         await this._panel.webview.postMessage({
-          command: "error",
-          message: `Dashboard JSON not found: ${this._jsonPath}`,
+          command: "updateMemory",
+          memory: result.memory,
+          memorySummary: result.memorySummary,
+          error: result.error,
         });
-        return;
+      } else {
+        await this._panel.webview.postMessage({
+          command: "memoryRefreshFailed",
+          error: "Memory refresh could not start. Check Zephyr IDE setup.",
+        });
       }
-      const raw = await fs.readFile(this._jsonPath, "utf8");
-      const parsed = JSON.parse(raw) as Omit<DashboardData, "meta">;
-      const data: DashboardData = {
-        ...parsed,
-        meta: {
-          projectName: this._projectName,
-          buildName: this._buildName,
-          generatedAt: new Date().toISOString(),
-        },
-      };
-      await this._panel.webview.postMessage({ command: "updateContent", data });
-    } catch (err) {
-      await this._panel.webview.postMessage({
-        command: "error",
-        message: `Failed to load dashboard data: ${err instanceof Error ? err.message : String(err)}`,
-      });
+    } finally {
+      this._memoryRefreshing = false;
     }
+  }
+
+  private async _postData(): Promise<void> {
+    await this._panel.webview.postMessage({ command: "updateContent", data: this._data });
   }
 
   private getHtmlShell(): string {

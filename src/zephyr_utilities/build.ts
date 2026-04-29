@@ -21,6 +21,10 @@ import * as fs from 'fs-extra';
 
 import { executeTaskHelperInPythonEnv, executeShellCommandInPythonEnv, loadYamlFile } from "../utilities/utils";
 import { notifyError, outputInfo, outputWarning } from "../utilities/output";
+import { readDashboardData } from '../build_data/build-artifact-reader';
+import { readMemoryRefresh } from '../build_data/build-artifact-reader';
+import { runFullMemoryRefresh } from '../build_data/memory-report-runner';
+import type { DashboardData, DashboardMemoryRefresh } from '../build_data/dashboard-data';
 
 import { WorkspaceConfig } from '../setup_utilities/types';
 import { addBuild, ProjectConfig, getResolvedBuildName, resolveActiveProject, resolveActiveProjectBuild, getProjectFolder, getBuildFolder, resolveBoardRootArg, resolveBoardRoot } from "../project_utilities/project";
@@ -406,12 +410,20 @@ export async function buildRamRomReportHeadless(
   }
 }
 
-export async function buildDashboard(
+/**
+ * Runs the native Zephyr `west build -t dashboard` target, which generates an
+ * HTML memory dashboard and opens it in the system browser.
+ *
+ * This is a thin wrapper around the Zephyr build system — identical in spirit
+ * to buildRamRomReport — and runs as a visible VS Code task so the terminal
+ * output is accessible to the user.
+ */
+export async function buildDashboardReport(
   context: vscode.ExtensionContext,
   wsConfig: WorkspaceConfig,
   project?: ProjectConfig,
   build?: BuildConfig
-): Promise<{ success: boolean; dashboardDir: string; jsonPath: string; projectName: string; buildName: string } | undefined> {
+): Promise<{ buildFolder: string; projectName: string; buildName: string } | undefined> {
   if (!project || !build) {
     const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Dashboard Report", projectName: project?.name });
     if (!resolved) { return undefined; }
@@ -419,38 +431,79 @@ export async function buildDashboard(
     build = build ?? resolved.build;
   }
 
+  const projectFolder = getProjectFolder(wsConfig, project);
   const buildFolder = getBuildFolder(wsConfig, project, build);
   if (!isBuildFolderPopulated(buildFolder)) {
-    notifyError("Dashboard Report", `Run a Build or Build Pristine before running Dashboard Report.`);
+    notifyError("Dashboard Report", "Run a Build or Build Pristine before generating the Dashboard Report.");
     return undefined;
   }
 
   const setupState = await getSetupStateOrNotify(context, wsConfig, "Dashboard Report");
+  if (!setupState) { return undefined; }
+
+  const taskName = `Zephyr IDE Dashboard Report: ${project.name} ${build.name}`;
+  const cmd = `west build -t dashboard "${projectFolder}" --build-dir "${buildFolder}"`;
+  outputInfo(
+    `Dashboard Report: ${project.name}/${build.name}`,
+    `Running Zephyr dashboard report for ${build.name} (cmd: ${cmd})`,
+    true
+  );
+  await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState.setupPath);
+
+  return { buildFolder, projectName: project.name, buildName: build.name };
+}
+
+export async function buildDashboard(
+  context: vscode.ExtensionContext,
+  wsConfig: WorkspaceConfig,
+  project?: ProjectConfig,
+  build?: BuildConfig
+): Promise<{ success: boolean; data: DashboardData; buildFolder: string; projectName: string; buildName: string } | undefined> {
+  if (!project || !build) {
+    const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Dashboard", projectName: project?.name });
+    if (!resolved) { return undefined; }
+    project = project ?? resolved.project;
+    build = build ?? resolved.build;
+  }
+
+  const buildFolder = getBuildFolder(wsConfig, project, build);
+  if (!isBuildFolderPopulated(buildFolder)) {
+    notifyError("Dashboard", `Run a Build or Build Pristine before opening the Dashboard.`);
+    return undefined;
+  }
+
+  const setupState = await getSetupStateOrNotify(context, wsConfig, "Dashboard");
   if (!setupState) {
     return undefined;
   }
 
-  const dashboardDir = path.join(buildFolder, 'dashboard');
-  const jsonPath = path.join(dashboardDir, 'dashboard.json');
+  outputInfo(`Dashboard: ${project.name}/${build.name}`, `Generating dashboard for ${build.name}`, true);
 
-  const helperScript = path.join(context.extensionPath, 'resources', 'zephyr_dashboard_json.py');
-  if (!fs.existsSync(helperScript)) {
-    notifyError("Dashboard Report", `Dashboard helper script not found: ${helperScript}`);
-    return undefined;
-  }
+  // Read fast artifacts from disk immediately — no subprocess needed.
+  const cachedPristineCmd = wsConfig.projectStates[project.name]?.buildStates[build.name]?.cachedPristineCmd ?? null;
+  const data = await readDashboardData(buildFolder, project.name, build.name, 'zephyr', cachedPristineCmd);
+  return { success: true, data, buildFolder, projectName: project.name, buildName: build.name };
+}
 
-  const cmd = `python "${helperScript}" --build-dir "${buildFolder}" --output "${jsonPath}"`;
-  const taskName = "Zephyr IDE Dashboard: " + project.name + " " + build.name;
+/**
+ * Runs the full memory refresh (stat file via nm + cmake ram/rom_report
+ * targets) and returns updated memory tree + summary data.
+ * Intended to be called after buildDashboard(), in the background.
+ * Returns undefined on setup failure, or a result with an optional error
+ * message if cmake targets fail (data will still be read from disk).
+ */
+export async function refreshDashboardMemory(
+  context: vscode.ExtensionContext,
+  wsConfig: WorkspaceConfig,
+  buildFolder: string,
+  projectName?: string,
+  buildName?: string,
+): Promise<(DashboardMemoryRefresh & { error?: string }) | undefined> {
+  const setupState = await getSetupStateOrNotify(context, wsConfig, "Memory Refresh");
+  if (!setupState) { return undefined; }
 
-  outputInfo(`Dashboard Report: ${project.name}/${build.name}`, `Generating dashboard JSON for ${build.name} from project: ${project.name} (cmd: ${cmd})`, true);
-  const success = await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState.setupPath);
-  return {
-    success: !!success && fs.existsSync(jsonPath),
-    dashboardDir,
-    jsonPath,
-    projectName: project.name,
-    buildName: build.name,
-  };
+  const error = await runFullMemoryRefresh(buildFolder, setupState, projectName, buildName) ?? undefined;
+  return { ...readMemoryRefresh(buildFolder), error };
 }
 
 export async function runDtshShell(
