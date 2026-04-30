@@ -760,31 +760,6 @@ export async function executeShellCommand(cmd: string, cwd: string, display_erro
     execOptions.env = env;
   }
 
-  // On Linux, guarantee that the standard system binary directories are always
-  // present in PATH.  In Docker containers launched by GitHub Actions (and some
-  // other CI setups), the VS Code extension host's process.env.PATH can be
-  // minimal and may omit directories like /usr/bin.  Tools installed by dnf or
-  // pacman (e.g. cmake at /usr/bin/cmake) will then be invisible to child
-  // processes.  Appending the well-known directories is a no-op when they are
-  // already present.  This augmentation applies to ALL shell commands so that
-  // both venv and non-venv operations (tool detection, SDK install, etc.) see
-  // the same complete search path on every Linux distro.
-  if (os.platform() === "linux") {
-    if (!execOptions.env) {
-      execOptions.env = { ...effectiveEnv };
-    }
-    const linuxEnv = execOptions.env as Record<string, string | undefined>;
-    const standardPaths = ["/usr/local/bin", "/usr/bin", "/bin", "/usr/local/sbin", "/usr/sbin", "/sbin"];
-    const currentPath = linuxEnv["PATH"] || "";
-    const pathEntries = currentPath.split(":").filter(Boolean);
-    for (const p of standardPaths) {
-      if (!pathEntries.includes(p)) {
-        pathEntries.push(p);
-      }
-    }
-    linuxEnv["PATH"] = pathEntries.join(":");
-  }
-
   // On Windows, use PowerShell instead of the default cmd.exe. cmd.exe has
   // subtle quoting and environment-propagation issues that break Python-based
   // CLI tools like west (e.g. "manifest file not found: None"). PowerShell
