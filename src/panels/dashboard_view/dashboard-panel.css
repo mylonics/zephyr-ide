@@ -807,6 +807,88 @@ memory-tree-table {
   margin-bottom: 8px;
 }
 
+.kconfig-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 12px;
+}
+
+.kconfig-toolbar .kconfig-filter {
+  margin-bottom: 0;
+  flex: 0 1 320px;
+}
+
+.kconfig-toolbar-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  user-select: none;
+  cursor: pointer;
+}
+
+.kconfig-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  margin: 0 0 10px;
+  padding: 6px 10px;
+  border-radius: var(--zephyr-webview-radius);
+}
+
+.kconfig-status code {
+  background: transparent;
+  padding: 0;
+  font-size: inherit;
+}
+
+.kconfig-status-ok {
+  background-color: var(--vscode-inputValidation-infoBackground, transparent);
+  border: 1px solid var(--vscode-inputValidation-infoBorder, var(--vscode-panel-border));
+  color: var(--vscode-foreground);
+}
+
+.kconfig-status-error {
+  background-color: var(--vscode-inputValidation-errorBackground, transparent);
+  border: 1px solid var(--vscode-inputValidation-errorBorder, var(--vscode-errorForeground));
+  color: var(--vscode-errorForeground);
+}
+
+.kconfig-table .kconfig-value-cell {
+  min-width: 200px;
+}
+
+.kconfig-value-input {
+  width: 100%;
+  min-width: 140px;
+}
+
+.kconfig-bool-label {
+  display: inline-block;
+  margin-left: 6px;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.kconfig-status-cell {
+  width: 80px;
+  text-align: right;
+}
+
+.kconfig-row-modified {
+  background-color: var(--vscode-diffEditor-insertedLineBackground, transparent);
+}
+
+.badge-modified {
+  background-color: var(--vscode-charts-orange, var(--vscode-button-background));
+  color: var(--vscode-button-foreground);
+}
+
 /* ===================================================================
    DEVICE TREE
    =================================================================== */
@@ -972,3 +1054,229 @@ pre.text-viewer {
 .dashboard-error {
   color: var(--vscode-errorForeground);
 }
+
+/* ===================================================================
+   KCONFIG TWO-PANE EDITOR (Phase 1B / Phase 2)
+   =================================================================== */
+
+.kconfig-header-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--vscode-button-foreground);
+  background-color: var(--vscode-charts-orange, var(--vscode-button-background));
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
+.kconfig-info {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.kconfig-view-tabs {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.kconfig-split {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(320px, 1.2fr);
+  gap: 12px;
+  align-items: stretch;
+  margin-top: 8px;
+  min-height: 480px;
+}
+
+.kconfig-pane {
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--zephyr-webview-radius);
+  background-color: var(--vscode-editor-background);
+  overflow: auto;
+  padding: 6px 4px;
+  max-height: calc(100vh - 240px);
+}
+
+.kconfig-pane-detail {
+  padding: 12px 16px;
+}
+
+/* --- Tree --- */
+
+.kconfig-tree,
+.kconfig-tree ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.kconfig-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.kconfig-tree-row:hover {
+  background-color: var(--vscode-list-hoverBackground);
+}
+
+.kconfig-tree-row-menu {
+  font-weight: 500;
+  color: var(--vscode-foreground);
+}
+
+.kconfig-tree-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kconfig-tree-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  min-width: 0;
+}
+
+.kconfig-tree-selected > .kconfig-tree-row {
+  background-color: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+}
+
+.kconfig-tree-hidden > .kconfig-tree-row {
+  opacity: 0.55;
+  font-style: italic;
+}
+
+.kconfig-tree-link {
+  cursor: pointer;
+  color: var(--vscode-textLink-foreground);
+  text-decoration: none;
+}
+
+.kconfig-tree-link:hover {
+  color: var(--vscode-textLink-activeForeground);
+  text-decoration: underline;
+}
+
+.kconfig-tree-flat .kconfig-tree-row {
+  padding-left: 14px !important;
+}
+
+.kconfig-inline-input {
+  width: 120px;
+}
+
+/* --- Detail pane --- */
+
+.kconfig-detail-header h2 {
+  margin: 0 0 4px;
+  font-size: 14px;
+}
+
+.kconfig-detail-prompt {
+  margin: 0 0 12px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+}
+
+.kconfig-detail-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: 12px;
+  row-gap: 4px;
+  margin: 0 0 12px;
+  font-size: 12px;
+}
+
+.kconfig-detail-grid dt {
+  font-weight: 500;
+  color: var(--vscode-descriptionForeground);
+}
+
+.kconfig-detail-grid dd {
+  margin: 0;
+}
+
+.kconfig-detail-editor {
+  border-top: 1px solid var(--vscode-panel-border);
+  padding-top: 10px;
+  margin-top: 4px;
+}
+
+.kconfig-detail-editor h3,
+.kconfig-help h3,
+.kconfig-defining h3 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vscode-descriptionForeground);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.kconfig-detail-editor-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.kconfig-help {
+  margin-top: 14px;
+}
+
+.kconfig-help pre {
+  background-color: var(--vscode-textCodeBlock-background, var(--vscode-editor-background));
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--zephyr-webview-radius);
+  padding: 8px 10px;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  max-height: 240px;
+  overflow: auto;
+}
+
+.kconfig-defining {
+  margin-top: 14px;
+}
+
+.kconfig-defining ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 12px;
+}
+
+.kconfig-defining li {
+  padding: 2px 0;
+}
+
+.kconfig-expr code {
+  background: transparent;
+  padding: 0;
+}
+
+.badge-muted {
+  background-color: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  margin-left: 6px;
+}
+
+.kconfig-changes-table code {
+  font-size: 11px;
+}
+

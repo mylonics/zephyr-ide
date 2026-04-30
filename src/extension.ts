@@ -28,6 +28,15 @@ import { SetupPanel } from "./panels/setup_panel/SetupPanel";
 import { HostToolInstallView } from "./panels/host_tool_install_view/HostToolInstallView";
 import { ProjectBuildPanel } from "./panels/project_build_view/ProjectBuildPanel";
 import { DashboardPanel } from "./panels/dashboard_view/DashboardPanel";
+import { offerAddFragmentToBuild, saveFragmentInteractive } from "./panels/dashboard_view/kconfig-fragment";
+import {
+  KconfigSession,
+  buildEnvFromCMakeCache,
+  getKconfigHelperPath,
+  resolveDotConfig,
+  resolveKconfigRoot,
+  resolveVenvPython,
+} from "./build_data/kconfig-session";
 import { SettingsPanel } from "./panels/settings_view/SettingsPanel";
 import { SDKPanel } from "./panels/sdk_panel/SDKPanel";
 import { WorkspacePanel } from "./panels/workspace_panel/WorkspacePanel";
@@ -115,6 +124,7 @@ import {
   getResolvedRunnerName,
   resolveActiveProjectBuild,
   resolveActiveProject,
+  getProjectFolder,
 } from "./project_utilities/project";
 import { testHelper, deleteTestDirs } from "./zephyr_utilities/twister";
 
@@ -1335,12 +1345,103 @@ export async function activate(context: vscode.ExtensionContext) {
       const result = await buildDashboard(context, wsConfig);
       if (!result?.success) { return; }
 
+      // Resolve the project/build objects so the Kconfig save callback can
+      // persist its fragment into the right build's confFiles list.
+      const proj = wsConfig.projects[result.projectName];
+      const bld = proj?.buildConfigs[result.buildName];
+
       // 2. Open the panel right away with all fast data (memory tree is null
       //    until the cmake targets finish).
       const panel = DashboardPanel.createOrShow(
         context.extensionPath,
         result.data,
         () => refreshDashboardMemory(context, wsConfig, result.buildFolder, result.projectName, result.buildName),
+        proj && bld ? {
+          saveFragment: async (changes) => {
+            const saved = await saveFragmentInteractive(wsConfig, proj, changes);
+            if (saved) {
+              await offerAddFragmentToBuild(context, wsConfig, proj, bld, saved);
+            }
+            return saved;
+          },
+          // kconfiglib-backed "Save as minimal fragment" flow used by the
+          // two-pane editor.  We pick the destination first (so the user can
+          // cancel before we touch disk), let the helper write the minimal
+          // file, then offer to attach it to this build.
+          saveSessionFragment: async (writeFragment) => {
+            const defaultUri = vscode.Uri.file(
+              path.join(getProjectFolder(wsConfig, proj), "prj_dashboard.conf"),
+            );
+            const target = await vscode.window.showSaveDialog({
+              defaultUri,
+              filters: { "Kconfig fragment": ["conf"] },
+              saveLabel: "Save Kconfig Fragment",
+              title: "Save Kconfig fragment from Dashboard",
+            });
+            if (!target) { return undefined; }
+            await writeFragment(target.fsPath);
+            await offerAddFragmentToBuild(context, wsConfig, proj, bld, target.fsPath);
+            return target.fsPath;
+          },
+          openExternal: async (tool) => {
+            await buildMenuConfig(
+              context,
+              wsConfig,
+              tool === "guiconfig" ? MenuConfig.GuiConfig : MenuConfig.MenuConfig,
+              proj,
+              bld,
+            );
+          },
+        } : undefined,
+        // Lazy Kconfig session factory: spawned on first kconfig request from
+        // the webview, kept alive for the panel's lifetime, disposed on close.
+        () => {
+          const buildFolder = result.buildFolder;
+          const env = buildEnvFromCMakeCache(buildFolder);
+          const kconfigRoot = resolveKconfigRoot(env);
+          if (!kconfigRoot) {
+            return Promise.reject(new Error(
+              "Could not resolve KCONFIG_ROOT from this build's CMakeCache.txt. " +
+              "Re-run a clean build and try again.",
+            ));
+          }
+          const setupState = wsConfig.activeSetupState;
+          const helperScript = getKconfigHelperPath(context.extensionPath);
+          // Build env for the Python child: prepend venv bin to PATH so the
+          // helper imports kconfiglib from the Zephyr venv rather than a
+          // system Python.
+          const spawnEnv: NodeJS.ProcessEnv = { ...process.env };
+          if (setupState?.env?.["VIRTUAL_ENV"]) {
+            spawnEnv["VIRTUAL_ENV"] = setupState.env["VIRTUAL_ENV"];
+          }
+          if (setupState?.env?.["PATH"]) {
+            const pathKey = Object.keys(spawnEnv).find((k) => k.toLowerCase() === "path") ?? "PATH";
+            spawnEnv[pathKey] = setupState.env["PATH"] + (spawnEnv[pathKey] ?? "");
+          }
+          const session = new KconfigSession({
+            helperScript,
+            pythonExecutable: resolveVenvPython(setupState),
+            spawnEnv,
+            cwd: setupState?.setupPath,
+            onLog: (level, message) => {
+              if (level === "error") {
+                console.error(`[kconfig_helper] ${message}`);
+              } else if (level === "warn") {
+                console.warn(`[kconfig_helper] ${message}`);
+              }
+            },
+          });
+          session.start();
+          return session.init({
+            kconfigRoot,
+            env,
+            dotConfig: resolveDotConfig(buildFolder),
+          }).then(() => session, (err) => {
+            // Init failed - tear down the spawned process before propagating.
+            session.dispose();
+            throw err;
+          });
+        },
       );
 
       // 3. Auto-trigger memory report generation in the background so the

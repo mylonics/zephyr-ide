@@ -10,6 +10,7 @@ SPDX-License-Identifier: Apache-2.0
 import "@vscode-elements/elements/dist/vscode-button/index.js";
 import "@vscode-elements/elements/dist/vscode-icon/index.js";
 import "@vscode-elements/elements/dist/vscode-badge/index.js";
+import "@vscode-elements/elements/dist/vscode-checkbox/index.js";
 import "@vscode-elements/elements/dist/vscode-textfield/index.js";
 import "@vscode-elements/elements/dist/vscode-tabs/index.js";
 import "@vscode-elements/elements/dist/vscode-tab-header/index.js";

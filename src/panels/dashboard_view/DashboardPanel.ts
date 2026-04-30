@@ -21,9 +21,51 @@ import * as vscode from "vscode";
 
 import type { DashboardData, DashboardMemoryRefresh } from "./dashboard-data";
 import { generateNonce } from "../webview_shared/nonce";
+import type { KconfigSession } from "../../build_data/kconfig-session";
 
 /** Callback invoked when the user requests a memory report refresh. */
 type MemoryRefreshCallback = () => Promise<(DashboardMemoryRefresh & { error?: string }) | undefined>;
+
+/**
+ * Callbacks that route Kconfig editor actions to extension-side helpers.
+ * The DashboardPanel does not know about workspace state directly — these
+ * callbacks are bound at construction time from extension.ts where the
+ * relevant project/build are already resolved.
+ */
+export interface DashboardKconfigCallbacks {
+  /** Persist the listed changes as a Kconfig fragment file. Returns the
+   * absolute path of the saved file, or undefined if the user cancelled. */
+  saveFragment: (changes: KconfigChange[]) => Promise<string | undefined>;
+  /** Show the save-as dialog, invoke `writeFragment(path)` to actually
+   * persist the file (typically `session.save(path, true)`), then offer to
+   * register the saved file with the build's EXTRA_CONF_FILE list.  Returns
+   * the saved absolute path, or undefined if the user cancelled the dialog. */
+  saveSessionFragment: (
+    writeFragment: (path: string) => Promise<unknown>,
+  ) => Promise<string | undefined>;
+  /** Launch the existing terminal-based menuconfig or guiconfig task. */
+  openExternal: (tool: "menuconfig" | "guiconfig") => Promise<void>;
+}
+
+/** A single Kconfig symbol edit emitted from the webview. */
+export interface KconfigChange {
+  name: string;
+  /** Raw fragment value: "y" / "n" for bool/tristate, decimal/hex for ints,
+   * unquoted string for strings (the extension will quote it on write). */
+  value: string;
+  type?: string;
+}
+
+/**
+ * Lazy factory for a kconfiglib-backed editor session.  Called at most once
+ * per panel — the resulting session is cached and reused for all subsequent
+ * Kconfig requests.  May reject if kconfiglib is missing or the helper cannot
+ * load the build's Kconfig tree (the error is surfaced to the webview).
+ *
+ * The factory is responsible for spawning the helper AND calling `init()` so
+ * the returned session is ready to receive `tree`/`symbol`/`set` requests.
+ */
+export type KconfigSessionFactory = () => Promise<KconfigSession>;
 
 /**
  * VS Code webview panel that displays the Zephyr build dashboard natively.
@@ -38,6 +80,10 @@ export class DashboardPanel {
   private readonly _extensionPath: string;
   private _data: DashboardData;
   private readonly _onRefreshMemory: MemoryRefreshCallback;
+  private readonly _kconfigCallbacks: DashboardKconfigCallbacks | undefined;
+  private readonly _kconfigSessionFactory: KconfigSessionFactory | undefined;
+  /** In-flight or completed session promise. Reused across concurrent requests. */
+  private _kconfigSessionPromise: Promise<KconfigSession> | undefined;
   private _memoryRefreshing = false;
   private _disposables: vscode.Disposable[] = [];
 
@@ -54,6 +100,8 @@ export class DashboardPanel {
     extensionPath: string,
     data: DashboardData,
     onRefreshMemory: MemoryRefreshCallback,
+    kconfigCallbacks?: DashboardKconfigCallbacks,
+    kconfigSessionFactory?: KconfigSessionFactory,
   ): DashboardPanel {
     const { projectName, buildName } = data.meta;
     const key = `${projectName}/${buildName}`;
@@ -80,7 +128,14 @@ export class DashboardPanel {
       },
     );
 
-    const instance = new DashboardPanel(panel, extensionPath, data, onRefreshMemory);
+    const instance = new DashboardPanel(
+      panel,
+      extensionPath,
+      data,
+      onRefreshMemory,
+      kconfigCallbacks,
+      kconfigSessionFactory,
+    );
     DashboardPanel._panels.set(key, instance);
     return instance;
   }
@@ -94,11 +149,15 @@ export class DashboardPanel {
     extensionPath: string,
     data: DashboardData,
     onRefreshMemory: MemoryRefreshCallback,
+    kconfigCallbacks?: DashboardKconfigCallbacks,
+    kconfigSessionFactory?: KconfigSessionFactory,
   ) {
     this._panel = panel;
     this._extensionPath = extensionPath;
     this._data = data;
     this._onRefreshMemory = onRefreshMemory;
+    this._kconfigCallbacks = kconfigCallbacks;
+    this._kconfigSessionFactory = kconfigSessionFactory;
 
     this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
     this._panel.webview.onDidReceiveMessage(
@@ -121,6 +180,181 @@ export class DashboardPanel {
         typeof message.path === "string" ? message.path : "",
         typeof message.line === "number" ? message.line : undefined,
       );
+    } else if (message?.command === "kconfigSaveFragment") {
+      await this._handleKconfigSaveFragment(message);
+    } else if (message?.command === "kconfigOpenExternal") {
+      const tool = message.tool === "guiconfig" ? "guiconfig" : "menuconfig";
+      await this._kconfigCallbacks?.openExternal(tool);
+    } else if (typeof message?.command === "string" && (message.command as string).startsWith("kconfig")) {
+      await this._handleKconfigSession(message);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Kconfig session (kconfiglib-backed editor)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Lazily creates the Kconfig session via the registered factory.  The
+   * session promise is cached: concurrent callers share the same in-flight
+   * spawn+init, and once resolved the session is reused for every subsequent
+   * request.  If the factory rejects (kconfiglib missing, parse error, ...)
+   * the rejection is surfaced and the cache is cleared so the next request
+   * may retry from scratch.
+   */
+  private _getOrInitSession(): Promise<KconfigSession> {
+    if (!this._kconfigSessionFactory) {
+      return Promise.reject(new Error("Kconfig editor is not available for this dashboard."));
+    }
+    if (!this._kconfigSessionPromise) {
+      this._kconfigSessionPromise = this._kconfigSessionFactory().catch((err) => {
+        this._kconfigSessionPromise = undefined;
+        throw err;
+      });
+    }
+    return this._kconfigSessionPromise;
+  }
+
+  /**
+   * Routes a `kconfig*` (session-backed) message to the helper subprocess and
+   * posts the response back as `kconfig*Result`.  Errors are surfaced as
+   * `{ ok: false, error }` so the webview never has to reason about
+   * subprocess lifecycle.
+   */
+  private async _handleKconfigSession(message: Record<string, unknown>): Promise<void> {
+    const command = message.command as string;
+    const requestId = typeof message.requestId === "number" ? message.requestId : undefined;
+    const replyCommand = `${command}Result`;
+    try {
+      const session = await this._getOrInitSession();
+      let result: unknown;
+      switch (command) {
+        case "kconfigInit": {
+          // Init is performed by the factory; expose just the cached snapshot.
+          // Most callers should rely on `kconfigTree` instead.
+          result = { ok: true };
+          break;
+        }
+        case "kconfigTree":
+          result = await session.tree();
+          break;
+        case "kconfigSymbol":
+          result = await session.symbol(String(message.name ?? ""));
+          break;
+        case "kconfigSet":
+          result = await session.set(
+            String(message.name ?? ""),
+            String(message.value ?? ""),
+          );
+          break;
+        case "kconfigDiff":
+          result = await session.diff();
+          break;
+        case "kconfigSearch":
+          result = await session.search(
+            String(message.query ?? ""),
+            {
+              include_help: message.includeHelp !== false,
+              include_hidden: !!message.includeHidden,
+              limit: typeof message.limit === "number" ? message.limit : 200,
+            },
+          );
+          break;
+        case "kconfigSaveFromSession": {
+          const filePath = typeof message.path === "string" ? message.path : "";
+          const minimal = message.minimal !== false;
+          result = await session.save(filePath, minimal);
+          break;
+        }
+        case "kconfigSaveAs": {
+          // Combined: ask the extension to pick a save location, then write
+          // the (minimal) fragment via the helper, then offer to attach it
+          // to the active build.  Returns { savedPath } or { savedPath: null }
+          // on user cancel.
+          if (!this._kconfigCallbacks) {
+            throw new Error("Kconfig save is not available for this dashboard.");
+          }
+          const minimalSave = message.minimal !== false;
+          const savedPath = await this._kconfigCallbacks.saveSessionFragment(
+            async (p) => session.save(p, minimalSave),
+          );
+          result = { savedPath: savedPath ?? null };
+          break;
+        }
+        case "kconfigReload":
+          result = await session.reload();
+          break;
+        default:
+          // Unknown kconfig* message - swallow silently; the existing fragment
+          // handler upstream already deals with kconfigSaveFragment / Open.
+          return;
+      }
+      await this._panel.webview.postMessage({
+        command: replyCommand,
+        ok: true,
+        requestId,
+        result,
+      });
+    } catch (err) {
+      await this._panel.webview.postMessage({
+        command: replyCommand,
+        ok: false,
+        requestId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  /**
+   * Validates the change list from the webview, delegates persistence to the
+   * extension-side callback, and reports the outcome back to the webview so
+   * its dirty-state can be cleared on success.
+   */
+  private async _handleKconfigSaveFragment(message: Record<string, unknown>): Promise<void> {
+    if (!this._kconfigCallbacks) {
+      await this._panel.webview.postMessage({
+        command: "kconfigSaveResult",
+        ok: false,
+        error: "Kconfig save is not available for this dashboard.",
+      });
+      return;
+    }
+    const rawChanges = Array.isArray(message.changes) ? message.changes : [];
+    const changes: KconfigChange[] = [];
+    for (const c of rawChanges) {
+      if (
+        c && typeof c === "object"
+        && typeof (c as KconfigChange).name === "string"
+        && typeof (c as KconfigChange).value === "string"
+      ) {
+        changes.push({
+          name: (c as KconfigChange).name,
+          value: (c as KconfigChange).value,
+          type: typeof (c as KconfigChange).type === "string" ? (c as KconfigChange).type : undefined,
+        });
+      }
+    }
+    if (changes.length === 0) {
+      await this._panel.webview.postMessage({
+        command: "kconfigSaveResult",
+        ok: false,
+        error: "No edited symbols to save.",
+      });
+      return;
+    }
+    try {
+      const savedPath = await this._kconfigCallbacks.saveFragment(changes);
+      await this._panel.webview.postMessage({
+        command: "kconfigSaveResult",
+        ok: !!savedPath,
+        savedPath,
+      });
+    } catch (e) {
+      await this._panel.webview.postMessage({
+        command: "kconfigSaveResult",
+        ok: false,
+        error: e instanceof Error ? e.message : String(e),
+      });
     }
   }
 
@@ -304,6 +538,15 @@ export class DashboardPanel {
         DashboardPanel._panels.delete(key);
         break;
       }
+    }
+    // Tear down the Kconfig helper subprocess if one was started.  We don't
+    // await shutdown - the panel is going away and the OS will reap the
+    // process; we just want to make sure dispose() returns synchronously.
+    if (this._kconfigSessionPromise) {
+      this._kconfigSessionPromise
+        .then((s) => s.dispose())
+        .catch(() => { /* already failed - nothing to dispose */ });
+      this._kconfigSessionPromise = undefined;
     }
     this._panel.dispose();
     while (this._disposables.length) {

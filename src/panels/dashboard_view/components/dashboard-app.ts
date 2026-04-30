@@ -114,7 +114,7 @@ export class DashboardApp extends ZephyrLitElement {
           this._memoryRefreshing = false;
           this._memoryError = "Memory refresh timed out.";
         }
-      }, 5 * 60 * 1000);
+      }, 5 * 60 * 1000) as unknown as ReturnType<typeof setTimeout>;
     } else if (msg?.command === "memoryRefreshFailed") {
       this._memoryError = typeof msg.error === "string" ? msg.error : "Memory refresh failed.";
       this._memoryRefreshing = false;
@@ -184,9 +184,9 @@ export class DashboardApp extends ZephyrLitElement {
         ></memory-page>`;
 
       case "kconfig":
-        return this._kconfig
-          ? html`<kconfig-page .entries=${this._kconfig}></kconfig-page>`
-          : nothing;
+        // Always render kconfig-page: it boots its own kconfiglib session and
+        // falls back to the static `entries` table only if the helper fails.
+        return html`<kconfig-page .entries=${this._kconfig}></kconfig-page>`;
 
       case "sysinit":
         return this._sysInit
