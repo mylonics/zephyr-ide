@@ -26,7 +26,7 @@ import { executeShellCommandInPythonEnv, executeTaskHelperInPythonEnv } from "..
 import { outputInfo, outputWarning, outputError, notifyError, outputCommandFailure } from "../utilities/output";
 import { sdkVersions, toolchainTargets } from "../defines";
 import { SetupProgressTracker } from "./setup-progress";
-import { MultiStepInput } from "../utilities/multistepQuickPick";
+import { MultiStepInput, InputStep } from "../utilities/multistepQuickPick";
 
 /** Event emitter for SDK install progress, mirroring the workspace setup progress pattern. */
 const _onSDKProgress = new vscode.EventEmitter<import("./setup-progress").SetupProgressEvent>();
@@ -374,33 +374,40 @@ async function selectSDKVersionAndToolchains(setupState: SetupState): Promise<{ 
     };
     const state: State = {};
 
-    async function pickSDKVersion(input: MultiStepInput) {
-        const selected = await input.showQuickPick({
-            title,
-            step: 1,
-            totalSteps: 2,
-            placeholder: "Select SDK version to install",
-            ignoreFocusOut: true,
-            items: sdkVersions,
-        });
+    async function pickSDKVersion(input: MultiStepInput): Promise<InputStep | void> {
+        // Loop until the user picks a concrete version (or Back/Cancel bubbles up
+        // as an InputFlowAction exception and escapes the loop naturally).
+        while (true) {
+            const selected = await input.showQuickPick({
+                title,
+                step: 1,
+                totalSteps: 2,
+                placeholder: "Select SDK version to install",
+                ignoreFocusOut: true,
+                items: sdkVersions,
+            });
 
-        if (selected.label === "automatic") {
-            const detectedVersion = await detectSDKVersionFromWorkspace(setupState);
-            if (!detectedVersion) {
-                notifyError("SDK Install",
-                    "Could not auto-detect SDK version from workspace. Please select a specific version."
+            if (selected.label === "automatic") {
+                const detectedVersion = await detectSDKVersionFromWorkspace(setupState);
+                if (!detectedVersion) {
+                    notifyError("SDK Install",
+                        "Could not auto-detect SDK version from workspace. Please select a specific version."
+                    );
+                    // Re-show the same step (continue the loop) without pushing a
+                    // new entry onto MultiStepInput's stack — avoids a spurious
+                    // Back button that would loop to the same prompt.
+                    continue;
+                }
+                void vscode.window.showInformationMessage(
+                    `Auto-detected SDK version: ${detectedVersion}`
                 );
-                // Signal abort to the caller by leaving sdkVersionChosen false.
-                return;
+                state.sdkVersion = detectedVersion;
+            } else if (selected.label === "latest") {
+                state.sdkVersion = undefined; // undefined means latest
+            } else {
+                state.sdkVersion = selected.label;
             }
-            void vscode.window.showInformationMessage(
-                `Auto-detected SDK version: ${detectedVersion}`
-            );
-            state.sdkVersion = detectedVersion;
-        } else if (selected.label === "latest") {
-            state.sdkVersion = undefined; // undefined means latest
-        } else {
-            state.sdkVersion = selected.label;
+            break;
         }
         state.sdkVersionChosen = true;
 
