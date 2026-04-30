@@ -18,7 +18,7 @@ limitations under the License.
 import * as assert from "assert";
 
 import { assembleBuildCommand, BuildCommandParams, computeCMakeDefs } from "../zephyr_utilities/build";
-import { quoteCMakeDef, quoteBuildArgForShell, splitBuildArgs, normalizeCMakeArg } from "../project_utilities/build_args";
+import { quoteCMakeDef, quoteBuildArgForShell, splitBuildArgs, normalizeCMakeArg, quoteUserCMakeArgForShell } from "../project_utilities/build_args";
 
 /** Helper: create a default BuildCommandParams with overrides. */
 function makeParams(overrides: Partial<BuildCommandParams> = {}): BuildCommandParams {
@@ -86,11 +86,11 @@ suite("assembleBuildCommand", () => {
     assert.ok(cmd.includes("-- -DCMAKE_BUILD_TYPE=Debug -DCONFIG_LOG=y"));
   });
 
-  test("cmake args with spaces are shell-quoted", () => {
+  test("cmake args with spaces are single-quoted", () => {
     const cmd = assembleBuildCommand(makeParams({
       westBuildCMakeArgs: ["-DEXTRA=value with spaces"],
     }));
-    assert.ok(cmd.includes('"-DEXTRA=value with spaces"'));
+    assert.ok(cmd.includes("-DEXTRA='value with spaces'"));
   });
 
   test("primary conf files produce -DCONF_FILE", () => {
@@ -185,9 +185,11 @@ suite("assembleBuildCommand", () => {
       westBuildCMakeArgs: ["-DKCONFIG_ROOT='${CUSTOM_VAR}/../../src/bl/Kconfig'"],
     }));
     assert.ok(cmd.includes("KCONFIG_ROOT"), "cmake key should be present");
-    assert.ok(cmd.includes("${CUSTOM_VAR}"), "env var reference should survive quoting for shell expansion");
-    assert.ok(!cmd.includes("\\${CUSTOM_VAR}"), "env var reference should not be escaped");
-    assert.ok(!cmd.includes("'${CUSTOM_VAR}"), "shell single quotes should be stripped so cmake does not see them literally");
+    assert.ok(cmd.includes("${CUSTOM_VAR}"), "CMake variable reference should survive quoting");
+    assert.ok(!cmd.includes("\\${CUSTOM_VAR}"), "CMake variable reference should not be escaped");
+    // The value must be single-quoted in the command string so that bash, zsh, and
+    // PowerShell all pass it literally to CMake for CMake-variable expansion.
+    assert.ok(cmd.includes("'${CUSTOM_VAR}"), "value should be single-quoted so CMake receives ${CUSTOM_VAR} as a CMake variable reference");
   });
 
   test("cmake arg with Windows backslash path normalizes slashes", () => {
@@ -342,7 +344,7 @@ suite("computeCMakeDefs", () => {
       extraOverlayFiles: [],
     });
     assert.ok(defs.includes("-DCMAKE_BUILD_TYPE=Debug"));
-    assert.ok(defs.some(d => d.includes("-DVAL=hello world")));
+    assert.ok(defs.some(d => d.includes("-DVAL='hello world'")));
   });
 
   test("conf files produce correct defs", () => {
@@ -417,7 +419,7 @@ suite("computeCMakeDefs", () => {
     }
   });
 
-  test("cmake arg with env var path: shell quotes stripped, variable reference preserved", () => {
+  test("cmake arg with env var path: single-quoted so cmake receives reference literally", () => {
     const defs = computeCMakeDefs({
       boardRootArg: "",
       westBuildCMakeArgs: ["-DKCONFIG_ROOT='${CUSTOM_VAR}/../../src/bl/Kconfig'"],
@@ -428,9 +430,10 @@ suite("computeCMakeDefs", () => {
     });
     assert.strictEqual(defs.length, 1);
     assert.ok(defs[0].includes("KCONFIG_ROOT"), "cmake key should be present");
-    assert.ok(defs[0].includes("${CUSTOM_VAR}"), "env var reference should be preserved for shell expansion");
-    assert.ok(!defs[0].includes("\\${CUSTOM_VAR}"), "env var reference should not be escaped");
-    assert.ok(!defs[0].includes("'${CUSTOM_VAR}"), "shell single quotes should be stripped so cmake does not receive them literally");
+    assert.ok(defs[0].includes("${CUSTOM_VAR}"), "CMake variable reference should be preserved");
+    assert.ok(!defs[0].includes("\\${CUSTOM_VAR}"), "CMake variable reference should not be escaped");
+    // Value must be single-quoted so all shells pass it literally to CMake
+    assert.ok(defs[0].includes("'${CUSTOM_VAR}"), "value should be single-quoted in the command string");
   });
 
   test("cmake arg with Windows backslash path normalizes slashes", () => {
@@ -503,5 +506,80 @@ suite("normalizeCMakeArg", () => {
     const fromArray = ["-DKCONFIG_ROOT='${CUSTOM_VAR}/../../src/bl/Kconfig'"]
       .map(normalizeCMakeArg);
     assert.deepStrictEqual(fromArray, fromString, "array and string formats should normalize to the same cmake arg");
+  });
+});
+
+suite("quoteUserCMakeArgForShell", () => {
+  test("safe-chars value passes through bare", () => {
+    assert.strictEqual(quoteUserCMakeArgForShell("-DCMAKE_BUILD_TYPE=Debug"), "-DCMAKE_BUILD_TYPE=Debug");
+  });
+
+  test("value with spaces is single-quoted", () => {
+    assert.strictEqual(
+      quoteUserCMakeArgForShell("-DVAL=hello world"),
+      "-DVAL='hello world'",
+    );
+  });
+
+  test("CMake variable reference is single-quoted so shell does not expand it", () => {
+    // After normalizeCMakeArg strips the outer quotes the value is
+    // ${CUSTOM_VAR}/../../src/bl/Kconfig — this must be single-quoted in the
+    // command string so bash, zsh AND PowerShell leave it for CMake to expand.
+    assert.strictEqual(
+      quoteUserCMakeArgForShell("-DKCONFIG_ROOT=${CUSTOM_VAR}/../../src/bl/Kconfig"),
+      "-DKCONFIG_ROOT='${CUSTOM_VAR}/../../src/bl/Kconfig'",
+    );
+  });
+
+  test("$ENV{VAR} cmake env-var syntax is single-quoted", () => {
+    assert.strictEqual(
+      quoteUserCMakeArgForShell("-DKCONFIG_ROOT=$ENV{ZEPHYR_BASE}/../../src/bl/Kconfig"),
+      "-DKCONFIG_ROOT='$ENV{ZEPHYR_BASE}/../../src/bl/Kconfig'",
+    );
+  });
+
+  test("forward-slash path with spaces is single-quoted", () => {
+    assert.strictEqual(
+      quoteUserCMakeArgForShell("-DBOARD_ROOT=/home/my user/boards"),
+      "-DBOARD_ROOT='/home/my user/boards'",
+    );
+  });
+
+  test("forward-slash path without spaces passes through bare", () => {
+    assert.strictEqual(
+      quoteUserCMakeArgForShell("-DCMAKE_TOOLCHAIN_FILE=/tools/arm/toolchain.cmake"),
+      "-DCMAKE_TOOLCHAIN_FILE=/tools/arm/toolchain.cmake",
+    );
+  });
+
+  test("non -D arg falls through to quoteBuildArgForShell", () => {
+    assert.strictEqual(quoteUserCMakeArgForShell("--sysbuild"), "--sysbuild");
+    assert.strictEqual(quoteUserCMakeArgForShell("-GNinja"), "-GNinja");
+  });
+
+  test("embedded single quote in value uses POSIX escape sequence", () => {
+    // -DVAL=it's  →  -DVAL='it'\''s'
+    assert.strictEqual(
+      quoteUserCMakeArgForShell("-DVAL=it's"),
+      "-DVAL='it'\\''s'",
+    );
+  });
+
+  test("$() is single-quoted so command substitution cannot execute in any shell", () => {
+    assert.strictEqual(
+      quoteUserCMakeArgForShell("-DVAL=$(evil-cmd)"),
+      "-DVAL='$(evil-cmd)'",
+    );
+  });
+
+  test("full pipeline: normalizeCMakeArg then quoteUserCMakeArgForShell reproduces v2.4.0 command shape", () => {
+    // User stores: -DKCONFIG_ROOT='${ZEPHYR_BASE}/../../src/bl/Kconfig'
+    // normalizeCMakeArg strips the outer quotes
+    // quoteUserCMakeArgForShell re-applies single quotes
+    // Net result in the command string: -DKCONFIG_ROOT='${ZEPHYR_BASE}/../../src/bl/Kconfig'
+    // which is identical to the v2.4.0 verbatim passthrough
+    const normalized = normalizeCMakeArg("-DKCONFIG_ROOT='${ZEPHYR_BASE}/../../src/bl/Kconfig'");
+    const quoted = quoteUserCMakeArgForShell(normalized);
+    assert.strictEqual(quoted, "-DKCONFIG_ROOT='${ZEPHYR_BASE}/../../src/bl/Kconfig'");
   });
 });

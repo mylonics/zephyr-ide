@@ -153,6 +153,39 @@ export function normalizeCMakeArg(arg: string): string {
   return stripped.replace(/\\/g, '/');
 }
 
+/**
+ * Quote a user-supplied cmake -D argument for shell use.
+ *
+ * The value portion is single-quoted, matching the strategy used by
+ * quoteCMakeDef for all internally-generated defs (CONF_FILE, BOARD_ROOT,
+ * DTC_OVERLAY_FILE, etc.). Single quotes protect the value from shell expansion
+ * identically on bash, zsh, AND PowerShell — so ${ZEPHYR_BASE}-style references
+ * are passed literally to CMake, which then expands them as CMake variables
+ * (set by west during configuration) or as CMake env-var syntax ($ENV{VAR}).
+ *
+ * Non -D arguments (e.g. -GNinja, --sysbuild) fall through to
+ * quoteBuildArgForShell so that west flags are handled correctly.
+ *
+ * Embedded single quotes in the value are escaped with the POSIX '\''
+ * sequence, which also works in PowerShell.
+ */
+export function quoteUserCMakeArgForShell(arg: string): string {
+  const match = arg.match(/^(-D[^=]+=)([\s\S]*)$/);
+  if (!match) {
+    return quoteBuildArgForShell(arg);
+  }
+  const prefix = match[1]; // e.g. -DKCONFIG_ROOT=
+  const value  = match[2]; // everything after the first =
+
+  // No quoting needed when the value contains only shell-safe chars.
+  if (/^[A-Za-z0-9_@%+=:,./-]*$/.test(value)) {
+    return arg;
+  }
+  // Single-quote the value. Embedded single quotes use the POSIX '\'' escape
+  // (terminate the single-quoted string, emit a literal ', reopen).
+  return `${prefix}'${value.replace(/'/g, "'\\''")}'`;
+}
+
 /** Join argument list safely for shell command usage. */
 export function joinBuildArgsForShell(value: BuildArgValue): string {
   return normalizeBuildArgs(value)

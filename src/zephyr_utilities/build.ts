@@ -26,7 +26,7 @@ import { WorkspaceConfig } from '../setup_utilities/types';
 import { addBuild, ProjectConfig, getResolvedBuildName, resolveActiveProject, resolveActiveProjectBuild, getProjectFolder, getBuildFolder, resolveBoardRootArg, resolveBoardRoot } from "../project_utilities/project";
 import { BuildConfig } from "../project_utilities/build_selector";
 import { primaryPaths, extraPaths } from "../project_utilities/config_selector";
-import { joinBuildArgsForShell, normalizeBuildArgs, normalizeCMakeArg, quoteBuildArgForShell, quoteCMakeDef } from "../project_utilities/build_args";
+import { joinBuildArgsForShell, normalizeBuildArgs, normalizeCMakeArg, quoteBuildArgForShell, quoteCMakeDef, quoteUserCMakeArgForShell } from "../project_utilities/build_args";
 import { updateDtsContext } from "../setup_utilities/dts_interface";
 import { getSetupState, getSetupStateOrNotify, updateBuildCMakeInfo, clearBuildCMakeInfo } from "../setup_utilities/workspace-config";
 import { setWorkspaceState } from "../setup_utilities/state-management";
@@ -156,7 +156,7 @@ export interface BuildCommandParams {
  */
 export function computeCMakeDefs(params: Pick<BuildCommandParams, 'boardRootArg' | 'westBuildCMakeArgs' | 'primaryConfFiles' | 'secondaryConfFiles' | 'overlayFiles' | 'extraOverlayFiles'>): string[] {
   const extraWestBuildCMakeArgs = normalizeBuildArgs(params.westBuildCMakeArgs)
-    .map((arg) => quoteBuildArgForShell(normalizeCMakeArg(arg)));
+    .map((arg) => quoteUserCMakeArgForShell(normalizeCMakeArg(arg)));
 
   const cmakeDefs: string[] = [params.boardRootArg, ...extraWestBuildCMakeArgs]
     .filter(s => s.trim().length > 0);
