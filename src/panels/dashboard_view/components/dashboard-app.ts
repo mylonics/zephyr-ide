@@ -86,6 +86,18 @@ export class DashboardApp extends ZephyrLitElement {
       this._error = undefined;
       // Do NOT clear _memoryRefreshing — a background refresh starts right
       // after updateContent; keep spinner visible until updateMemory arrives.
+    } else if (msg?.command === "memoryRefreshing") {
+      // Extension host has started a memory refresh — show spinner and arm
+      // a safety-net timer so the UI never stays stuck if the response is lost.
+      this._memoryError = undefined;
+      this._memoryRefreshing = true;
+      clearTimeout(this._memoryRefreshTimeout);
+      this._memoryRefreshTimeout = window.setTimeout(() => {
+        if (this._memoryRefreshing) {
+          this._memoryRefreshing = false;
+          this._memoryError = "Memory refresh timed out.";
+        }
+      }, 5 * 60 * 1000) as unknown as ReturnType<typeof setTimeout>;
     } else if (msg?.command === "updateMemory") {
       // Only the memory slice and the summary bar update — all other pages
       // are unaffected by this state change.
@@ -101,20 +113,10 @@ export class DashboardApp extends ZephyrLitElement {
           memorySummary: msg.memorySummary as DashboardSummary["memorySummary"],
         };
       }
+      // Preserve the error from the message, if any; clear the safety-net timer.
       this._memoryError = typeof msg.error === "string" ? msg.error : undefined;
       this._memoryRefreshing = false;
       clearTimeout(this._memoryRefreshTimeout);
-      this._memoryError = undefined;
-      this._memoryRefreshing = true;
-      // Safety net: if no updateMemory/memoryRefreshFailed arrives within
-      // 5 minutes, clear the spinner so the button doesn't stay stuck.
-      clearTimeout(this._memoryRefreshTimeout);
-      this._memoryRefreshTimeout = window.setTimeout(() => {
-        if (this._memoryRefreshing) {
-          this._memoryRefreshing = false;
-          this._memoryError = "Memory refresh timed out.";
-        }
-      }, 5 * 60 * 1000) as unknown as ReturnType<typeof setTimeout>;
     } else if (msg?.command === "memoryRefreshFailed") {
       this._memoryError = typeof msg.error === "string" ? msg.error : "Memory refresh failed.";
       this._memoryRefreshing = false;
