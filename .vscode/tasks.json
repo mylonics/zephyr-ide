@@ -1,342 +1,342 @@
 // See https://go.microsoft.com/fwlink/?LinkId=733558
 // for the documentation about the tasks.json format
 {
-	"version": "2.0.0",
-	"tasks": [
-		// ── Build ──────────────────────────────────────────────────────────────
-		{
-			"label": "watch",
-			"type": "npm",
-			"script": "watch",
-			"problemMatcher": "$tsc-watch",
-			"isBackground": true,
-			"presentation": {
-				"reveal": "never"
-			},
-			"group": {
-				"kind": "build",
-				"isDefault": true
-			}
-		},
-		{
-			"label": "compile",
-			"type": "npm",
-			"script": "test-compile",
-			"problemMatcher": "$tsc",
-			"group": "build",
-			"presentation": {
-				"reveal": "silent",
-				"panel": "shared"
-			}
-		},
-		{
-			"label": "esbuild",
-			"type": "npm",
-			"script": "esbuild",
-			"problemMatcher": [],
-			"group": "build",
-			"presentation": {
-				"reveal": "silent",
-				"panel": "shared"
-			}
-		},
-		{
-			"label": "lint",
-			"type": "npm",
-			"script": "lint",
-			"problemMatcher": "$eslint-stylish",
-			"group": "test",
-			"presentation": {
-				"reveal": "always",
-				"panel": "shared"
-			}
-		},
-		// ── Unit tests (fast, no VS Code download required) ────────────────────
-		{
-			"label": "test: all unit tests",
-			"type": "npm",
-			"script": "test",
-			"problemMatcher": [],
-			"group": {
-				"kind": "test",
-				"isDefault": true
-			},
-			"presentation": {
-				"reveal": "always",
-				"panel": "shared"
-			},
-			"dependsOn": "compile"
-		},
-		{
-			"label": "test: build-command-assembly",
-			"type": "shell",
-			"command": "npx vscode-test --grep build-command-assembly",
-			"problemMatcher": [],
-			"group": "test",
-			"presentation": {
-				"reveal": "always",
-				"panel": "shared"
-			},
-			"dependsOn": "compile"
-		},
-		{
-			"label": "test: build-args-migration",
-			"type": "shell",
-			"command": "npx vscode-test --grep build-args-migration",
-			"problemMatcher": [],
-			"group": "test",
-			"presentation": {
-				"reveal": "always",
-				"panel": "shared"
-			},
-			"dependsOn": "compile"
-		},
-		{
-			"label": "test: env-detection",
-			"type": "shell",
-			"command": "npx vscode-test --grep env-detection",
-			"problemMatcher": [],
-			"group": "test",
-			"presentation": {
-				"reveal": "always",
-				"panel": "shared"
-			},
-			"dependsOn": "compile"
-		},
-		{
-			"label": "test: git-url-validation",
-			"type": "shell",
-			"command": "npx vscode-test --grep git-url-validation",
-			"problemMatcher": [],
-			"group": "test",
-			"presentation": {
-				"reveal": "always",
-				"panel": "shared"
-			},
-			"dependsOn": "compile"
-		},
-		{
-			"label": "test: launch-config",
-			"type": "shell",
-			"command": "npx vscode-test --grep launch-config",
-			"problemMatcher": [],
-			"group": "test",
-			"presentation": {
-				"reveal": "always",
-				"panel": "shared"
-			},
-			"dependsOn": "compile"
-		},
-		{
-			"label": "test: platform-detection",
-			"type": "shell",
-			"command": "npx vscode-test --grep platform-detection",
-			"problemMatcher": [],
-			"group": "test",
-			"presentation": {
-				"reveal": "always",
-				"panel": "shared"
-			},
-			"dependsOn": "compile"
-		},
-		{
-			"label": "test: python-command",
-			"type": "shell",
-			"command": "npx vscode-test --grep python-command",
-			"problemMatcher": [],
-			"group": "test",
-			"presentation": {
-				"reveal": "always",
-				"panel": "shared"
-			},
-			"dependsOn": "compile"
-		},
-		{
-			"label": "test: python-version-check",
-			"type": "shell",
-			"command": "npx vscode-test --grep python-version-check",
-			"problemMatcher": [],
-			"group": "test",
-			"presentation": {
-				"reveal": "always",
-				"panel": "shared"
-			},
-			"dependsOn": "compile"
-		},
-		{
-			"label": "test: toolchain-config",
-			"type": "shell",
-			"command": "npx vscode-test --grep toolchain-config",
-			"problemMatcher": [],
-			"group": "test",
-			"presentation": {
-				"reveal": "always",
-				"panel": "shared"
-			},
-			"dependsOn": "compile"
-		},
-		{
-			"label": "test: venv-config",
-			"type": "shell",
-			"command": "npx vscode-test --grep venv-config",
-			"problemMatcher": [],
-			"group": "test",
-			"presentation": {
-				"reveal": "always",
-				"panel": "shared"
-			},
-			"dependsOn": "compile"
-		},
-		{
-			"label": "test: project-variable-defaults",
-			"type": "shell",
-			"command": "npx vscode-test --grep project-variable-defaults",
-			"problemMatcher": [],
-			"group": "test",
-			"presentation": {
-				"reveal": "always",
-				"panel": "shared"
-			},
-			"dependsOn": "compile"
-		},
-		{
-			"label": "test: automatic-project-selection",
-			"type": "shell",
-			"command": "npx vscode-test --grep automatic-project-selection",
-			"problemMatcher": [],
-			"group": "test",
-			"presentation": {
-				"reveal": "always",
-				"panel": "shared"
-			},
-			"dependsOn": "compile"
-		},
-		{
-			"label": "test: workspace-settings",
-			"type": "shell",
-			"command": "npx vscode-test --grep workspace-settings",
-			"problemMatcher": [],
-			"group": "test",
-			"presentation": {
-				"reveal": "always",
-				"panel": "shared"
-			},
-			"dependsOn": "compile"
-		},
-		{
-			"label": "test: workspace-state-migration",
-			"type": "shell",
-			"command": "npx vscode-test --grep workspace-state-migration",
-			"problemMatcher": [],
-			"group": "test",
-			"presentation": {
-				"reveal": "always",
-				"panel": "shared"
-			},
-			"dependsOn": "compile"
-		},
-		// ── Integration tests (require Zephyr SDK, ~15 min each) ───────────────
-		{
-			"label": "integration: standard",
-			"type": "shell",
-			"command": "node scripts/run-integration-tests.js standard",
-			"problemMatcher": [],
-			"group": "test",
-			"presentation": {
-				"reveal": "always",
-				"panel": "dedicated",
-				"clear": true
-			}
-		},
-		{
-			"label": "integration: west-git",
-			"type": "shell",
-			"command": "node scripts/run-integration-tests.js west-git",
-			"problemMatcher": [],
-			"group": "test",
-			"presentation": {
-				"reveal": "always",
-				"panel": "dedicated",
-				"clear": true
-			}
-		},
-		{
-			"label": "integration: zephyr-ide-git",
-			"type": "shell",
-			"command": "node scripts/run-integration-tests.js zephyr-ide-git",
-			"problemMatcher": [],
-			"group": "test",
-			"presentation": {
-				"reveal": "always",
-				"panel": "dedicated",
-				"clear": true
-			}
-		},
-		{
-			"label": "integration: local-west",
-			"type": "shell",
-			"command": "node scripts/run-integration-tests.js local-west",
-			"problemMatcher": [],
-			"group": "test",
-			"presentation": {
-				"reveal": "always",
-				"panel": "dedicated",
-				"clear": true
-			}
-		},
-		{
-			"label": "integration: external-zephyr",
-			"type": "shell",
-			"command": "node scripts/run-integration-tests.js external-zephyr",
-			"problemMatcher": [],
-			"group": "test",
-			"presentation": {
-				"reveal": "always",
-				"panel": "dedicated",
-				"clear": true
-			}
-		},
-		{
-			"label": "integration: combined",
-			"type": "shell",
-			"command": "node scripts/run-integration-tests.js combined",
-			"problemMatcher": [],
-			"group": "test",
-			"presentation": {
-				"reveal": "always",
-				"panel": "dedicated",
-				"clear": true
-			}
-		},
-		{
-			"label": "integration: all",
-			"type": "shell",
-			"command": "node scripts/run-integration-tests.js all",
-			"problemMatcher": [],
-			"group": "test",
-			"presentation": {
-				"reveal": "always",
-				"panel": "dedicated",
-				"clear": true
-			}
-		},
-		// ── Integration tests (skip build step, faster) ────────────────────────
-		{
-			"label": "integration: standard (skip builds)",
-			"type": "shell",
-			"command": "node scripts/run-integration-tests.js standard",
-			"options": {
-				"env": {
-					"SKIP_BUILD_TESTS": "true"
-				}
-			},
-			"problemMatcher": [],
-			"group": "test",
-			"presentation": {
-				"reveal": "always",
-				"panel": "dedicated",
-				"clear": true
-			}
-		}
-	]
+  "version": "2.0.0",
+  "tasks": [
+    // ── Build ──────────────────────────────────────────────────────────────
+    {
+      "label": "watch",
+      "type": "npm",
+      "script": "watch",
+      "problemMatcher": "$tsc-watch",
+      "isBackground": true,
+      "presentation": {
+        "reveal": "never"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "compile",
+      "type": "npm",
+      "script": "test-compile",
+      "problemMatcher": "$tsc",
+      "group": "build",
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "esbuild",
+      "type": "npm",
+      "script": "esbuild",
+      "problemMatcher": [],
+      "group": "build",
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "lint",
+      "type": "npm",
+      "script": "lint",
+      "problemMatcher": "$eslint-stylish",
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    // ── Unit tests ────────────────────
+    {
+      "label": "test: all unit tests",
+      "type": "npm",
+      "script": "test",
+      "problemMatcher": [],
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "dependsOn": "compile"
+    },
+    {
+      "label": "test: build-command-assembly",
+      "type": "shell",
+      "command": "npx vscode-test --grep build-command-assembly",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "dependsOn": "compile"
+    },
+    {
+      "label": "test: build-args-migration",
+      "type": "shell",
+      "command": "npx vscode-test --grep build-args-migration",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "dependsOn": "compile"
+    },
+    {
+      "label": "test: env-detection",
+      "type": "shell",
+      "command": "npx vscode-test --grep env-detection",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "dependsOn": "compile"
+    },
+    {
+      "label": "test: git-url-validation",
+      "type": "shell",
+      "command": "npx vscode-test --grep git-url-validation",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "dependsOn": "compile"
+    },
+    {
+      "label": "test: launch-config",
+      "type": "shell",
+      "command": "npx vscode-test --grep launch-config",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "dependsOn": "compile"
+    },
+    {
+      "label": "test: platform-detection",
+      "type": "shell",
+      "command": "npx vscode-test --grep platform-detection",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "dependsOn": "compile"
+    },
+    {
+      "label": "test: python-command",
+      "type": "shell",
+      "command": "npx vscode-test --grep python-command",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "dependsOn": "compile"
+    },
+    {
+      "label": "test: python-version-check",
+      "type": "shell",
+      "command": "npx vscode-test --grep python-version-check",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "dependsOn": "compile"
+    },
+    {
+      "label": "test: toolchain-config",
+      "type": "shell",
+      "command": "npx vscode-test --grep toolchain-config",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "dependsOn": "compile"
+    },
+    {
+      "label": "test: venv-config",
+      "type": "shell",
+      "command": "npx vscode-test --grep venv-config",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "dependsOn": "compile"
+    },
+    {
+      "label": "test: project-variable-defaults",
+      "type": "shell",
+      "command": "npx vscode-test --grep project-variable-defaults",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "dependsOn": "compile"
+    },
+    {
+      "label": "test: automatic-project-selection",
+      "type": "shell",
+      "command": "npx vscode-test --grep automatic-project-selection",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "dependsOn": "compile"
+    },
+    {
+      "label": "test: workspace-settings",
+      "type": "shell",
+      "command": "npx vscode-test --grep workspace-settings",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "dependsOn": "compile"
+    },
+    {
+      "label": "test: workspace-state-migration",
+      "type": "shell",
+      "command": "npx vscode-test --grep workspace-state-migration",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "dependsOn": "compile"
+    },
+    // ── Integration tests (require Zephyr SDK, ~15 min each) ───────────────
+    {
+      "label": "integration: standard",
+      "type": "shell",
+      "command": "node scripts/run-integration-tests.js standard",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "integration: west-git",
+      "type": "shell",
+      "command": "node scripts/run-integration-tests.js west-git",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "integration: zephyr-ide-git",
+      "type": "shell",
+      "command": "node scripts/run-integration-tests.js zephyr-ide-git",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "integration: local-west",
+      "type": "shell",
+      "command": "node scripts/run-integration-tests.js local-west",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "integration: external-zephyr",
+      "type": "shell",
+      "command": "node scripts/run-integration-tests.js external-zephyr",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "integration: combined",
+      "type": "shell",
+      "command": "node scripts/run-integration-tests.js combined",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    {
+      "label": "integration: all",
+      "type": "shell",
+      "command": "node scripts/run-integration-tests.js all",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    },
+    // ── Integration tests (skip build step, faster) ────────────────────────
+    {
+      "label": "integration: standard (skip builds)",
+      "type": "shell",
+      "command": "node scripts/run-integration-tests.js standard",
+      "options": {
+        "env": {
+          "SKIP_BUILD_TESTS": "true"
+        }
+      },
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "clear": true
+      }
+    }
+  ]
 }

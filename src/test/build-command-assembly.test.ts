@@ -18,7 +18,7 @@ limitations under the License.
 import * as assert from "assert";
 
 import { assembleBuildCommand, BuildCommandParams, computeCMakeDefs } from "../zephyr_utilities/build";
-import { quoteCMakeDef, quoteBuildArgForShell, splitBuildArgs } from "../project_utilities/build_args";
+import { quoteCMakeDef, quoteBuildArgForShell, splitBuildArgs, normalizeCMakeArg } from "../project_utilities/build_args";
 
 /** Helper: create a default BuildCommandParams with overrides. */
 function makeParams(overrides: Partial<BuildCommandParams> = {}): BuildCommandParams {
@@ -187,6 +187,16 @@ suite("assembleBuildCommand", () => {
     assert.ok(cmd.includes("KCONFIG_ROOT"), "cmake key should be present");
     assert.ok(cmd.includes("${CUSTOM_VAR}"), "env var reference should survive quoting for shell expansion");
     assert.ok(!cmd.includes("\\${CUSTOM_VAR}"), "env var reference should not be escaped");
+    assert.ok(!cmd.includes("'${CUSTOM_VAR}"), "shell single quotes should be stripped so cmake does not see them literally");
+  });
+
+  test("cmake arg with Windows backslash path normalizes slashes", () => {
+    const cmd = assembleBuildCommand(makeParams({
+      westBuildCMakeArgs: ["-DCMAKE_TOOLCHAIN_FILE=C:\\tools\\arm\\toolchain.cmake"],
+    }));
+    assert.ok(cmd.includes("CMAKE_TOOLCHAIN_FILE"));
+    assert.ok(cmd.includes("C:/tools/arm/toolchain.cmake"), "backslashes should be normalized to forward slashes");
+    assert.ok(!cmd.includes("C:\\\\tools"), "backslashes should not be doubled-escaped");
   });
 });
 
@@ -255,6 +265,11 @@ suite("quoteBuildArgForShell", () => {
 
   test("bare dollar sign in arg is not escaped", () => {
     assert.strictEqual(quoteBuildArgForShell("-DVAL=$MY_VAR"), '"-DVAL=$MY_VAR"');
+  });
+
+  test("command substitution $() is escaped to prevent arbitrary code execution", () => {
+    // $( must be escaped so neither bash nor PowerShell treats it as command substitution
+    assert.strictEqual(quoteBuildArgForShell("-DVAL=$(evil-cmd)"), '"-DVAL=\\$(evil-cmd)"');
   });
 });
 
@@ -402,7 +417,7 @@ suite("computeCMakeDefs", () => {
     }
   });
 
-  test("cmake arg with env var path preserves variable reference for shell expansion", () => {
+  test("cmake arg with env var path: shell quotes stripped, variable reference preserved", () => {
     const defs = computeCMakeDefs({
       boardRootArg: "",
       westBuildCMakeArgs: ["-DKCONFIG_ROOT='${CUSTOM_VAR}/../../src/bl/Kconfig'"],
@@ -413,7 +428,80 @@ suite("computeCMakeDefs", () => {
     });
     assert.strictEqual(defs.length, 1);
     assert.ok(defs[0].includes("KCONFIG_ROOT"), "cmake key should be present");
-    assert.ok(defs[0].includes("${CUSTOM_VAR}"), "env var reference should be preserved");
+    assert.ok(defs[0].includes("${CUSTOM_VAR}"), "env var reference should be preserved for shell expansion");
     assert.ok(!defs[0].includes("\\${CUSTOM_VAR}"), "env var reference should not be escaped");
+    assert.ok(!defs[0].includes("'${CUSTOM_VAR}"), "shell single quotes should be stripped so cmake does not receive them literally");
+  });
+
+  test("cmake arg with Windows backslash path normalizes slashes", () => {
+    const defs = computeCMakeDefs({
+      boardRootArg: "",
+      westBuildCMakeArgs: ["-DCMAKE_TOOLCHAIN_FILE=C:\\tools\\arm\\toolchain.cmake"],
+      primaryConfFiles: [],
+      secondaryConfFiles: [],
+      overlayFiles: [],
+      extraOverlayFiles: [],
+    });
+    assert.strictEqual(defs.length, 1);
+    assert.ok(defs[0].includes("CMAKE_TOOLCHAIN_FILE"));
+    assert.ok(defs[0].includes("C:/tools/arm/toolchain.cmake"), "backslashes should be normalized to forward slashes");
+    assert.ok(!defs[0].includes("C:\\\\tools"), "backslashes should not be doubled-escaped");
+  });
+});
+
+suite("normalizeCMakeArg", () => {
+  test("strips single quotes from cmake value", () => {
+    assert.strictEqual(normalizeCMakeArg("-DKCONFIG_ROOT='/path/to/Kconfig'"), "-DKCONFIG_ROOT=/path/to/Kconfig");
+  });
+
+  test("strips double quotes from cmake value", () => {
+    assert.strictEqual(normalizeCMakeArg("-DKCONFIG_ROOT=\"/path/to/Kconfig\""), "-DKCONFIG_ROOT=/path/to/Kconfig");
+  });
+
+  test("strips single quotes containing env var reference", () => {
+    assert.strictEqual(
+      normalizeCMakeArg("-DKCONFIG_ROOT='${CUSTOM_VAR}/../../src/bl/Kconfig'"),
+      "-DKCONFIG_ROOT=${CUSTOM_VAR}/../../src/bl/Kconfig",
+    );
+  });
+
+  test("preserves arg without shell quotes", () => {
+    assert.strictEqual(normalizeCMakeArg("-DCMAKE_BUILD_TYPE=Debug"), "-DCMAKE_BUILD_TYPE=Debug");
+  });
+
+  test("preserves arg with spaces but no surrounding quotes", () => {
+    assert.strictEqual(normalizeCMakeArg("-DVAL=hello world"), "-DVAL=hello world");
+  });
+
+  test("does not strip partially quoted value", () => {
+    // Embedded quote means it's not a cleanly wrapped value — leave it alone
+    assert.strictEqual(normalizeCMakeArg("-DKEY='it''s'"), "-DKEY='it''s'");
+  });
+
+  test("normalizes Windows backslashes in value", () => {
+    assert.strictEqual(
+      normalizeCMakeArg("-DCMAKE_TOOLCHAIN_FILE=C:\\tools\\arm\\toolchain.cmake"),
+      "-DCMAKE_TOOLCHAIN_FILE=C:/tools/arm/toolchain.cmake",
+    );
+  });
+
+  test("strips quotes AND normalizes backslashes in combination", () => {
+    assert.strictEqual(
+      normalizeCMakeArg("-DBOARD_ROOT='C:\\Users\\dev\\boards'"),
+      "-DBOARD_ROOT=C:/Users/dev/boards",
+    );
+  });
+
+  test("passes through non -D arg unchanged", () => {
+    assert.strictEqual(normalizeCMakeArg("--sysbuild"), "--sysbuild");
+  });
+
+  test("array vs string format produce identical cmake args", () => {
+    // Legacy string path: splitBuildArgs strips shell quotes
+    const fromString = splitBuildArgs("-DKCONFIG_ROOT='${CUSTOM_VAR}/../../src/bl/Kconfig'");
+    // Array path: normalizeCMakeArg strips shell quotes
+    const fromArray = ["-DKCONFIG_ROOT='${CUSTOM_VAR}/../../src/bl/Kconfig'"]
+      .map(normalizeCMakeArg);
+    assert.deepStrictEqual(fromArray, fromString, "array and string formats should normalize to the same cmake arg");
   });
 });
