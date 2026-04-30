@@ -436,40 +436,6 @@ async function addDeadsnakesPPAIfNeeded(): Promise<boolean> {
 }
 
 /**
- * Cache sudo credentials up-front by running `sudo -v` in an interactive task
- * terminal. Subsequent sudo calls may reuse cached credentials depending on
- * sudoers policy and terminal reuse.
- *
- * No-op on non-Linux platforms. Returns true if credentials are now cached
- * (or platform doesn't need sudo), false if the user dismissed the prompt or
- * sudo is unavailable.
- */
-export async function cacheSudoCredentials(): Promise<boolean> {
-  const platform = await getPlatformNameAsync();
-  if (platform !== "linux") {
-    return true;
-  }
-
-  // First check whether sudo is already cached (`sudo -n -v` returns 0 if so).
-  try {
-    const probe = await executeShellCommand("sudo -n -v", "", true);
-    if (probe.stdout !== undefined) {
-      return true;
-    }
-  } catch {
-    // fall through to interactive prompt
-  }
-
-  outputInfo("Host Tools", "Caching sudo credentials for batch package install...");
-  const ok = await executeTaskHelper("Cache sudo credentials", "sudo -v", "");
-  if (!ok) {
-    outputWarning("Host Tools", "Could not cache sudo credentials; package installs may prompt for password individually.");
-    return false;
-  }
-  return true;
-}
-
-/**
  * Get platform packages for the current platform
  */
 export async function getPlatformPackages(): Promise<PlatformPackage[]> {
