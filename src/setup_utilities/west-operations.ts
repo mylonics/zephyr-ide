@@ -124,9 +124,11 @@ export async function getPythonCommand(configOverride?: string | null): Promise<
   if (python === undefined) {
     python = await computePythonCommand(undefined);
 
-    // Fall back to platform default — probe manifest candidates so the venv
-    // is created with the required version (e.g. python3.12) rather than
-    // whatever generic python3/python resolves to on PATH.
+    // Intentionally overwrite with getDefaultPythonExecutable() to preserve
+    // pre-existing behaviour: the main getPythonCommand() path always uses the
+    // platform-manifest candidate (e.g. python3.12) regardless of any VS Code
+    // python.defaultInterpreterPath setting.  computePythonCommand() is still
+    // called above so that its side-effect logging runs consistently.
     python = await getDefaultPythonExecutable();
     outputInfo("Python Setup", `Using platform default Python: ${python}`);
   }
