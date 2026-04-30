@@ -25,7 +25,6 @@ import {
   installPackage,
   installPackagesBatch,
   getPlatformPackages,
-  cacheSudoCredentials,
 } from '../setup_utilities/host_tools';
 import { WorkspaceConfig, GlobalConfig } from '../setup_utilities/types';
 import { saveSetupState } from '../setup_utilities/state-management';
@@ -270,10 +269,6 @@ export class HostToolsService {
         total: 1,
       });
 
-      // Cache sudo credentials up-front on Linux to reduce repeated password
-      // prompts during package installation. No-op on other platforms.
-      await cacheSudoCredentials();
-
       const success = await installPackage(pkg);
 
       const packageStatuses = await checkAllPackages();
@@ -334,10 +329,6 @@ export class HostToolsService {
       const manager = await getPackageManagerForPlatformAsync();
 
       this.post(HOST_TOOLS_COMMANDS.installAllStarted, { total: totalCount });
-
-      // Cache sudo credentials up-front on Linux to reduce repeated password
-      // prompts across package installs. No-op on other platforms.
-      await cacheSudoCredentials();
 
       let installedCount = 0;
       let hasErrors = false;
