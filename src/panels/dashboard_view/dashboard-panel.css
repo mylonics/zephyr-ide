@@ -188,7 +188,7 @@ dashboard-app {
 }
 
 /* ===================================================================
-   MEMORY PAGE
+   MEMORY PAGE — NRF-style two-column layout
    =================================================================== */
 
 /* Ensure page components render as block elements (custom elements default to inline). */
@@ -198,6 +198,10 @@ kconfig-page,
 sysinit-page,
 dts-page,
 elfstats-page {
+  display: block;
+}
+memory-sunburst,
+memory-tree-table {
   display: block;
 }
 
@@ -212,89 +216,397 @@ elfstats-page {
   color: var(--vscode-descriptionForeground);
 }
 
+/* ---- Toolbar ---- */
 .memory-toolbar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   margin-bottom: 14px;
+  flex-wrap: wrap;
 }
 
-.tree {
-  font-family: var(--vscode-font-family);
-  font-size: 13px;
-  line-height: 1.4;
-  background-color: var(--vscode-sideBar-background);
+.memory-tabs {
+  display: inline-flex;
+  background-color: var(--vscode-input-background);
   border: 1px solid var(--vscode-panel-border);
-  border-radius: var(--zephyr-webview-radius);
-  padding: 4px 0;
-  overflow-x: auto;
+  border-radius: 6px;
+  padding: 2px;
+  gap: 0;
 }
 
-/* Branch row (the <summary> inside <details>) */
-.tree-branch > summary {
+.memory-tab {
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: var(--vscode-foreground);
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.memory-tab:hover:not(:disabled):not(.is-active) {
+  background-color: var(--vscode-toolbar-hoverBackground);
+}
+
+.memory-tab.is-active {
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.memory-tab:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.memory-tab-desc {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.8;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.memory-search {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 3px 10px 3px 4px;
-  list-style: none;
-  cursor: pointer;
-  border-radius: 3px;
-  user-select: none;
+  flex: 1;
+  min-width: 180px;
+  max-width: 360px;
+}
+
+.memory-search-icon {
+  position: absolute;
+  left: 8px;
+  font-size: 14px;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.memory-search-input {
+  width: 100%;
+  padding: 5px 28px 5px 28px;
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+  border-radius: 4px;
+  font: inherit;
+  font-size: 12px;
   outline: none;
 }
 
-.tree-branch > summary::-webkit-details-marker {
-  display: none;
+.memory-search-input:focus {
+  border-color: var(--vscode-focusBorder);
 }
 
-.tree-branch > summary:hover,
-.tree-leaf:hover {
+.memory-search-clear {
+  position: absolute;
+  right: 4px;
+  background: transparent;
+  border: none;
+  color: var(--vscode-foreground);
+  opacity: 0.6;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 3px;
+  font-size: 14px;
+}
+
+.memory-search-clear:hover {
+  background-color: var(--vscode-toolbar-hoverBackground);
+  opacity: 1;
+}
+
+.memory-icon-btn {
+  appearance: none;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--vscode-foreground);
+  border-radius: 4px;
+  padding: 5px 7px;
+  cursor: pointer;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.memory-icon-btn:hover:not(:disabled) {
+  background-color: var(--vscode-toolbar-hoverBackground);
+}
+
+.memory-icon-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ---- Empty / loading state ---- */
+.memory-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 64px 20px;
+  text-align: center;
+  color: var(--vscode-descriptionForeground);
+  background-color: var(--vscode-editor-background);
+  border: 1px dashed var(--vscode-panel-border);
+  border-radius: var(--zephyr-webview-radius);
+}
+
+.memory-cta {
+  appearance: none;
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border: none;
+  border-radius: 4px;
+  padding: 6px 14px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.memory-cta:hover {
+  background-color: var(--vscode-button-hoverBackground);
+}
+
+/* ---- Two-column layout ---- */
+.memory-layout {
+  display: grid;
+  grid-template-columns: minmax(300px, 55%) 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+.memory-layout.no-sunburst {
+  grid-template-columns: 1fr;
+}
+
+@media (max-width: 820px) {
+  .memory-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sunburst-card,
+.tree-card {
+  background-color: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--zephyr-webview-radius);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.sunburst-card {
+  padding: 6px;
+  align-items: stretch;
+}
+
+.tree-card {
+  max-height: calc(100vh - 155px);
+  min-height: 320px;
+}
+
+/* The custom element itself must be a flex item so height propagates to .tt-body */
+memory-tree-table {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ---- Sunburst chart ---- */
+.sunburst-svg-wrap {
+  width: 100%;
+  position: relative;
+}
+
+.sunburst-arc {
+  cursor: pointer;
+  transition: fill-opacity 0.12s ease, stroke-width 0.12s ease;
+}
+
+.sunburst-arc:hover {
+  fill-opacity: 1 !important;
+  filter: brightness(1.1);
+}
+
+.sunburst-center {
+  cursor: pointer;
+}
+
+.sunburst-center-name {
+  fill: var(--vscode-foreground);
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.sunburst-center-size {
+  fill: var(--vscode-descriptionForeground);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.sunburst-tooltip {
+  position: absolute;
+  pointer-events: none;
+  z-index: 10;
+  transform: translate(0, calc(-100% - 8px));
+  background: #16161e;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 8px 12px;
+  min-width: 120px;
+  max-width: 280px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.7), 0 0 0 0.5px rgba(255, 255, 255, 0.05);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.sunburst-tooltip-path {
+  font-size: 11px;
+  font-weight: 600;
+  color: #e0e0e0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+
+.sunburst-tooltip-meta {
+  display: flex;
+  gap: 10px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.sunburst-tooltip-size {
+  color: #a0c4ff;
+  font-weight: 600;
+}
+
+.sunburst-tooltip-pct {
+  color: #888;
+}
+
+/* ---- Tree-table ---- */
+.memory-tree-table {
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  font-family: var(--vscode-font-family);
+  height: 100%;
+}
+
+.tt-header {
+  display: grid;
+  grid-template-columns: 1fr 140px 60px 80px;
+  background-color: var(--vscode-sideBarSectionHeader-background, var(--vscode-sideBar-background));
+  border-bottom: 1px solid var(--vscode-panel-border);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.tt-th {
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: var(--vscode-sideBarSectionHeader-foreground, var(--vscode-foreground));
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-align: left;
+  padding: 8px 10px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  outline: none;
+}
+
+.tt-th:not(:last-child) {
+  border-right: 1px solid color-mix(in srgb, var(--vscode-panel-border) 60%, transparent);
+}
+
+.tt-th:hover {
+  background-color: var(--vscode-toolbar-hoverBackground);
+}
+
+.tt-th-size,
+.tt-th-pct {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.tt-sort-icon {
+  display: inline-block;
+  width: 12px;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.tt-body {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.tt-row {
+  display: grid;
+  grid-template-columns: 1fr 140px 60px 80px;
+  align-items: center;
+  cursor: pointer;
+  border-bottom: 1px solid color-mix(in srgb, var(--vscode-panel-border) 50%, transparent);
+  outline: none;
+  user-select: none;
+}
+
+.tt-row:hover {
   background-color: var(--vscode-list-hoverBackground);
 }
 
-.tree-branch > summary:focus-visible {
+.tt-row:focus-visible {
   outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
 }
 
-/* Rotating chevron — transitions from ▶ (collapsed) to ▼ (expanded) */
-.tree-toggle {
-  flex-shrink: 0;
-  font-size: 16px;
-  color: var(--vscode-foreground);
-  opacity: 0.7;
-  transition: transform 0.12s ease;
-  display: inline-flex;
-  align-items: center;
+.tt-row.is-selected {
+  background-color: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
 }
 
-.tree-branch[open] > summary .tree-toggle {
-  transform: rotate(90deg);
+.tt-row.is-selected .tt-size,
+.tt-row.is-selected .tt-cell-pct {
+  color: inherit;
 }
 
-/* Children block — indented with a vertical guide line */
-.tree-children {
-  border-left: 1px solid var(--vscode-panel-border);
-  margin-left: 11px;
-  padding-left: 8px;
+.tt-cell {
+  padding: 4px 10px;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
 }
 
-/* Leaf row */
-.tree-leaf {
+.tt-cell-name {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 10px 3px 4px;
-  border-radius: 3px;
+  min-width: 0;
 }
 
-/* Spacer in leaf rows to align names with branch names */
-.tree-leaf-indent {
-  width: 20px;
-  flex-shrink: 0;
-}
-
-/* Grows to fill available space; clips long symbol names */
-.tree-name {
+.tt-name {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -302,48 +614,114 @@ elfstats-page {
   white-space: nowrap;
 }
 
-/* Right-aligned metadata: bar + size + percent */
-.tree-meta {
+.tt-link-icon {
+  flex-shrink: 0;
+  font-size: 12px;
+  opacity: 0;
+  color: var(--vscode-textLink-foreground, #4fc1ff);
+  transition: opacity 0.1s;
+}
+
+.tt-row:hover .tt-link-icon,
+.tt-row.is-selected .tt-link-icon {
+  opacity: 0.7;
+}
+
+.tt-chevron {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  opacity: 0.7;
+  border-radius: 2px;
+}
+
+.tt-chevron-empty {
+  opacity: 0;
+}
+
+.tt-cell-size {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-shrink: 0;
-  margin-left: 10px;
+  justify-content: flex-end;
 }
 
-/* Mini proportional size bar */
-.tree-bar-wrap {
-  width: 64px;
-  height: 5px;
-  background-color: color-mix(in srgb, var(--vscode-progressBar-background, #0e70c0) 18%, transparent);
-  border-radius: 3px;
+.tt-bar-wrap {
+  width: 48px;
+  flex-shrink: 0;
+  height: 4px;
+  background: color-mix(in srgb, var(--vscode-progressBar-background, #0e70c0) 15%, transparent);
+  border-radius: 2px;
   overflow: hidden;
-  flex-shrink: 0;
 }
 
-.tree-bar {
+.tt-bar {
+  display: block;
   height: 100%;
   background-color: var(--vscode-progressBar-background, #0e70c0);
-  border-radius: 3px;
-  min-width: 2px;
-}
-
-.tree-size {
+  border-radius: 2px;
+  transition: width 0.15s ease;
   opacity: 0.8;
-  font-variant-numeric: tabular-nums;
-  min-width: 58px;
-  text-align: right;
-  flex-shrink: 0;
 }
 
-.tree-pct {
-  opacity: 0.5;
-  font-variant-numeric: tabular-nums;
-  min-width: 44px;
-  text-align: right;
-  flex-shrink: 0;
+.tt-row.is-selected .tt-bar {
+  background-color: var(--vscode-button-foreground);
+  opacity: 1;
 }
 
+.tt-row.is-selected .tt-bar-wrap {
+  background: rgba(255,255,255,0.2);
+}
+
+.tt-size {
+  color: var(--vscode-foreground);
+  opacity: 0.85;
+  min-width: 50px;
+  text-align: right;
+}
+
+.tt-cell-pct {
+  text-align: right;
+  color: var(--vscode-descriptionForeground);
+}
+
+.tt-cell-region {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.tt-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 6px;
+  height: 16px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  background-color: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+}
+
+.tt-mark {
+  background-color: var(--vscode-editor-findMatchHighlightBackground, rgba(255, 215, 0, 0.4));
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+.tt-empty {
+  padding: 32px;
+  text-align: center;
+  color: var(--vscode-descriptionForeground);
+  font-style: italic;
+}
+
+/* Keep legacy classes around (no-op, used elsewhere) */
 .mem-tag {
   display: inline-flex;
   align-items: center;
@@ -399,6 +777,20 @@ elfstats-page {
   background-color: var(--vscode-list-hoverBackground);
 }
 
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--vscode-textLink-foreground);
+  cursor: pointer;
+  text-align: left;
+}
+
+.link-button:hover {
+  color: var(--vscode-textLink-activeForeground);
+  text-decoration: underline;
+}
+
 /* ===================================================================
    KCONFIG
    =================================================================== */
@@ -431,6 +823,118 @@ pre.text-viewer {
   white-space: pre;
   max-height: 72vh;
   margin: 0;
+}
+
+/* ---- DTS tree browser ---- */
+
+.dts-path {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  margin: -8px 0 14px;
+}
+
+.dts-tabs {
+  display: inline-flex;
+  background-color: var(--vscode-input-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  padding: 2px;
+  margin-bottom: 14px;
+}
+
+.dts-tab {
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: var(--vscode-foreground);
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.dts-tab:hover:not(.dts-tab-active) {
+  background-color: var(--vscode-toolbar-hoverBackground);
+}
+
+.dts-tab-active {
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.dts-tree-wrap {
+  overflow: auto;
+  max-height: calc(100vh - 210px);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--zephyr-webview-radius);
+}
+
+.dts-tree-table td {
+  vertical-align: middle;
+}
+
+.dts-tree-table .dts-row-disabled {
+  opacity: 0.5;
+}
+
+.dts-tree-table .dts-row-disabled:hover {
+  background-color: transparent;
+}
+
+
+.dts-node-name {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 12px;
+  vertical-align: middle;
+}
+
+.dts-label {
+  font-size: 10px;
+  padding: 0 5px;
+  border-radius: 3px;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  margin-left: 5px;
+  vertical-align: middle;
+}
+
+.dts-compat {
+  font-size: 11px;
+}
+
+.dts-compat code {
+  font-size: 11px;
+}
+
+.dts-status-cell {
+  text-align: center;
+}
+
+.dts-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.dts-badge-ok {
+  background-color: #1e6a27;
+  color: #7ee787;
+}
+
+.dts-badge-dis {
+  background-color: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  opacity: 0.8;
+}
+
+.dts-src {
+  font-size: 11px;
+  white-space: nowrap;
 }
 
 /* ===================================================================

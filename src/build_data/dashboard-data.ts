@@ -13,6 +13,7 @@ export interface DashboardSummary {
   application: string | null;
   command: string | null;
   outputDir: string | null;
+  zephyrBase: string | null;
   zephyrVersion: string;
   toolchain: string;
   elfDate: string | null;
@@ -51,6 +52,8 @@ export interface DashboardMemoryNode {
     size: number;
     displaySize: string;
     memoryType?: string[];
+    /** Optional source location identifier from Zephyr size_report (e.g. "path/to/file.c:42"). */
+    identifier?: string;
   };
   children?: DashboardMemoryNode[];
 }

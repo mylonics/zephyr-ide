@@ -15,6 +15,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import * as path from "upath";
+import * as fs from "fs-extra";
 import * as vscode from "vscode";
 
 import type { DashboardData, DashboardMemoryRefresh } from "./dashboard-data";
@@ -52,7 +54,8 @@ export class DashboardPanel {
     extensionPath: string,
     data: DashboardData,
     onRefreshMemory: MemoryRefreshCallback,
-  ): DashboardPanel {    const { projectName, buildName } = data.meta;
+  ): DashboardPanel {
+    const { projectName, buildName } = data.meta;
     const key = `${projectName}/${buildName}`;
     const column = vscode.window.activeTextEditor
       ? vscode.window.activeTextEditor.viewColumn
@@ -113,7 +116,97 @@ export class DashboardPanel {
       await this._postData();
     } else if (message?.command === "refreshMemory") {
       await this.refreshMemory();
+    } else if (message?.command === "openMemorySymbol") {
+      await this._openSymbolFile(
+        typeof message.path === "string" ? message.path : "",
+        typeof message.line === "number" ? message.line : undefined,
+      );
     }
+  }
+
+  /**
+   * Converts POSIX-style absolute paths from cross-compiler build environments
+   * into Windows paths.
+   *   /c/Users/...     -> C:/Users/... (MSYS2 / MinGW drive-letter shorthand)
+   *   /mnt/c/Users/... -> C:/Users/... (WSL mount)
+   */
+  private static _toWindowsPath(p: string): string | undefined {
+    const wsl = p.match(/^\/mnt\/([a-zA-Z])\/(.*)/);
+    if (wsl) { return `${wsl[1].toUpperCase()}:/${wsl[2]}`; }
+    const msys = p.match(/^\/([a-zA-Z])\/(.*)/);
+    if (msys) { return `${msys[1].toUpperCase()}:/${msys[2]}`; }
+    return undefined;
+  }
+
+  /**
+   * Best-effort resolves a symbol path string from the memory report and
+   * opens it in the editor.  Probes (in order):
+   *   - POSIX cross-compiler path converted to Windows (MSYS2 / WSL)
+   *   - the path as-is if absolute
+   *   - relative to the build folder (summary.outputDir)
+   *   - relative to APPLICATION_SOURCE_DIR (app source root)
+   *   - relative to each workspace folder
+   * Shows an info message on miss.
+   */
+  private async _openSymbolFile(symbolPath: string, line?: number): Promise<void> {
+    if (!symbolPath) { return; }
+    // Strip ":line" suffix if embedded (Zephyr identifiers may use "file.c:42").
+    let resolvedLine = line;
+    let p = symbolPath;
+    const m = p.match(/^(.*):(\d+)$/);
+    if (m) {
+      p = m[1];
+      if (resolvedLine === undefined) { resolvedLine = parseInt(m[2], 10); }
+    }
+
+    const candidates: string[] = [];
+
+    // On Windows, DWARF paths from cross-compilers (arm-zephyr-eabi built via
+    // MSYS2) are POSIX-style (/c/Users/...) or WSL-style (/mnt/c/Users/...).
+    // Convert them to usable Windows paths before falling back to others.
+    const winEquiv = DashboardPanel._toWindowsPath(p);
+    if (winEquiv) { candidates.push(winEquiv); }
+
+    if (path.isAbsolute(p)) { candidates.push(p); }
+    const buildFolder = this._data.summary.outputDir;
+    if (buildFolder) {
+      candidates.push(path.join(buildFolder, p));
+      candidates.push(path.join(buildFolder, "..", p));
+    }
+    // APPLICATION_SOURCE_DIR from CMake — the actual project source tree root.
+    const appDir = this._data.summary.application;
+    if (appDir) {
+      candidates.push(path.join(appDir, p));
+      candidates.push(path.join(appDir, "..", p));
+    }
+    for (const ws of vscode.workspace.workspaceFolders ?? []) {
+      candidates.push(path.join(ws.uri.fsPath, p));
+    }
+    // ZEPHYR_BASE from the CMake cache — reliable even when the env var is not
+    // set (e.g. VS Code opened from Start menu rather than a shell).  Only
+    // useful for RELATIVE paths; absolute paths are already handled above.
+    const zephyrBase = this._data.summary.zephyrBase ?? process.env["ZEPHYR_BASE"];
+    if (zephyrBase && !path.isAbsolute(p)) {
+      candidates.push(path.join(zephyrBase, p));
+    }
+
+    for (const candidate of candidates) {
+      try {
+        if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
+          const uri = vscode.Uri.file(candidate);
+          const opts: vscode.TextDocumentShowOptions = {};
+          if (resolvedLine !== undefined && resolvedLine > 0) {
+            const pos = new vscode.Position(Math.max(0, resolvedLine - 1), 0);
+            opts.selection = new vscode.Range(pos, pos);
+          }
+          await vscode.window.showTextDocument(uri, opts);
+          return;
+        }
+      } catch { /* keep trying */ }
+    }
+    void vscode.window.showInformationMessage(
+      `Zephyr IDE: could not locate source file for symbol: ${symbolPath}`,
+    );
   }
 
   /**
@@ -142,6 +235,11 @@ export class DashboardPanel {
           error: "Memory refresh could not start. Check Zephyr IDE setup.",
         });
       }
+    } catch (err) {
+      await this._panel.webview.postMessage({
+        command: "memoryRefreshFailed",
+        error: err instanceof Error ? err.message : "Memory refresh failed unexpectedly.",
+      });
     } finally {
       this._memoryRefreshing = false;
     }

@@ -222,13 +222,13 @@ function parseElfSectionSizes(elfPath: string): DashboardSummary['memorySummary'
     // Section header table metadata from ELF header
     let shoff: number, shentsize: number, shnum: number;
     if (is64) {
-      shoff     = u64(40);
+      shoff = u64(40);
       shentsize = u16(58);
-      shnum     = u16(60);
+      shnum = u16(60);
     } else {
-      shoff     = u32(32);
+      shoff = u32(32);
       shentsize = u16(46);
-      shnum     = u16(48);
+      shnum = u16(48);
     }
 
     if (shoff === 0 || shnum === 0 || shentsize === 0) { return null; }
@@ -239,13 +239,13 @@ function parseElfSectionSizes(elfPath: string): DashboardSummary['memorySummary'
       const b = shoff + i * shentsize;
       let secType: number, secFlags: number, secSize: number;
       if (is64) {
-        secType  = u32(b + 4);
+        secType = u32(b + 4);
         secFlags = u64(b + 8);
-        secSize  = u64(b + 32);
+        secSize = u64(b + 32);
       } else {
-        secType  = u32(b + 4);
+        secType = u32(b + 4);
         secFlags = u32(b + 8);
-        secSize  = u32(b + 20);
+        secSize = u32(b + 20);
       }
 
       if (!(secFlags & SHF_ALLOC) || secSize === 0) { continue; }
@@ -273,7 +273,7 @@ function parseElfSectionSizes(elfPath: string): DashboardSummary['memorySummary'
 // ---------------------------------------------------------------------------
 
 const ZINIT_SECTION_RE = /^\s*(\.z_init_([A-Z_0-9]+)_P_(\d+)_SUB_(\d+)_)\s*$/;
-const ZINIT_ADDR_RE    = /^\s+(0x[0-9a-fA-F]+)\s+0x[0-9a-fA-F]+\s+(\S+)\s*$/;
+const ZINIT_ADDR_RE = /^\s+(0x[0-9a-fA-F]+)\s+0x[0-9a-fA-F]+\s+(\S+)\s*$/;
 
 /**
  * Extract SYS_INIT / device init entries by combining:
@@ -282,7 +282,7 @@ const ZINIT_ADDR_RE    = /^\s+(0x[0-9a-fA-F]+)\s+0x[0-9a-fA-F]+\s+(\S+)\s*$/;
  *
  * Works purely from files on disk — no toolchain subprocess needed.
  */
-function parseSysInit(buildFolder: string, kernelBinName: string): DashboardSysInit {
+function parseSysInit(buildFolder: string, kernelBinName: string, cache: Record<string, string>): DashboardSysInit {
   const errors: string[] = [];
   const levels: Record<string, DashboardSysInitEntry[]> = {};
 
@@ -333,9 +333,9 @@ function parseSysInit(buildFolder: string, kernelBinName: string): DashboardSysI
         const nameOff = u32(b);
         const secName = getString(shstrtabOff, nameOff);
         const secOffset = is64 ? u64(b + 24) : u32(b + 16);
-        const secSize   = is64 ? u64(b + 32) : u32(b + 20);
-        const secEntSz  = is64 ? u64(b + 56) : u32(b + 36);
-        const secType   = u32(b + 4);
+        const secSize = is64 ? u64(b + 32) : u32(b + 20);
+        const secEntSz = is64 ? u64(b + 56) : u32(b + 36);
+        const secType = u32(b + 4);
         const SHT_SYMTAB = 2, SHT_STRTAB = 3, SHT_DYNSYM = 11;
         if (secType === SHT_SYMTAB || secType === SHT_DYNSYM) {
           symtabOff = secOffset; symtabSize = secSize; symEntSize = secEntSz;
@@ -355,10 +355,10 @@ function parseSysInit(buildFolder: string, kernelBinName: string): DashboardSysI
           let symNameOff: number, symValue: number;
           if (is64) {
             symNameOff = u32(b);
-            symValue   = u64(b + 8);
+            symValue = u64(b + 8);
           } else {
             symNameOff = u32(b);
-            symValue   = u32(b + 4);
+            symValue = u32(b + 4);
           }
           if (symValue === 0) { continue; }
           // Resolve name from .strtab
@@ -379,7 +379,16 @@ function parseSysInit(buildFolder: string, kernelBinName: string): DashboardSysI
   }
 
   // -------------------------------------------------------------------------
-  // 2. Parse the linker map for .z_init_* sections
+  // 2. Build source-root map from CMakeCache for absolute path resolution
+  // -------------------------------------------------------------------------
+  const sourceRoots: Record<string, string> = {};
+  const zephyrBase = cache['ZEPHYR_BASE'] ?? '';
+  const appSourceDir = cache['APPLICATION_SOURCE_DIR'] ?? '';
+  if (zephyrBase) { sourceRoots['zephyr'] = zephyrBase.replace(/\\/g, '/'); }
+  if (appSourceDir) { sourceRoots['app'] = appSourceDir.replace(/\\/g, '/'); }
+
+  // -------------------------------------------------------------------------
+  // 3. Parse the linker map for .z_init_* sections
   // -------------------------------------------------------------------------
 
   /**
@@ -403,9 +412,9 @@ function parseSysInit(buildFolder: string, kernelBinName: string): DashboardSysI
       const line = mapLines[i];
       const sectionMatch = line.match(ZINIT_SECTION_RE);
       if (sectionMatch) {
-        pendingLevel    = sectionMatch[2];   // e.g. "PRE_KERNEL_1"
+        pendingLevel = sectionMatch[2];   // e.g. "PRE_KERNEL_1"
         pendingPriority = sectionMatch[3];   // e.g. "30"
-        pendingOrdinal  = parseInt(sectionMatch[4], 10);
+        pendingOrdinal = parseInt(sectionMatch[4], 10);
         continue;
       }
 
@@ -415,24 +424,38 @@ function parseSysInit(buildFolder: string, kernelBinName: string): DashboardSysI
       if (!addrMatch) { pendingLevel = ''; continue; }
 
       const entryAddr = parseInt(addrMatch[1], 16); // address of init_entry struct
-      const srcRaw    = addrMatch[2];               // e.g. "zephyr/drivers/foo/libfoo.a(bar.c.obj)"
+      const srcRaw = addrMatch[2];               // e.g. "zephyr/drivers/foo/libfoo.a(bar.c.obj)"
 
-      // Extract source file name from archive notation: "libfoo.a(bar.c.obj)" → "bar.c"
-      const srcFile = (() => {
-        const m = srcRaw.match(/\(([^)]+)\)/);
-        if (m) { return m[1].replace(/\.obj$/, ''); }  // e.g. "clock_control_rpi_pico.c"
-        return srcRaw;
-      })();
+      // Extract source file path from archive notation.
+      // "zephyr/drivers/foo/libfoo.a(bar.c.obj)" → display="bar.c", path=absolute if base known
+      let srcPath: string | null = null;
+      const archiveMatch = srcRaw.match(/^(.+\/)?[^/(]+\.a\(([^)]+)\)$/);
+      if (archiveMatch) {
+        const dir = (archiveMatch[1] ?? '').replace(/\/$/, '');   // e.g. "zephyr/drivers/foo"
+        const filename = archiveMatch[2].replace(/\.obj$/, '');  // e.g. "bar.c"
+        const dirParts = dir.split('/');
+        const leadingSegment = dirParts[0];                       // e.g. "zephyr", "app"
+        const innerDir = dirParts.slice(1).join('/');             // e.g. "drivers/foo"
+        const base = sourceRoots[leadingSegment];
+        if (base && innerDir) {
+          // Construct absolute path: {ZEPHYR_BASE}/drivers/foo/bar.c
+          srcPath = `${base}/${innerDir}/${filename}`;
+        } else {
+          srcPath = filename;                                      // basename-only fallback
+        }
+      } else {
+        srcPath = srcRaw;
+      }
 
       const fnName = resolveInitFn(entryAddr);
 
       const levelKey = pendingLevel;
       if (!levels[levelKey]) { levels[levelKey] = []; }
       levels[levelKey].push({
-        name: fnName || `(${srcFile})`,
+        name: fnName || srcPath || '',
         priority: parseInt(pendingPriority, 10),
         ordinal: pendingOrdinal,
-        path: srcFile || null,
+        path: srcPath || null,
       });
 
       pendingLevel = '';
@@ -514,6 +537,7 @@ function convertZephyrNode(node: ZephyrSymNode): DashboardMemoryNode {
       size: node.size,
       displaySize: formatBytes(node.size),
       memoryType: node.loc && node.loc.length > 0 ? node.loc : undefined,
+      identifier: node.identifier,
     },
     children: node.children && node.children.length > 0
       ? node.children.map((c) => convertZephyrNode(c))
@@ -589,9 +613,15 @@ function mergeMemoryReports(
   rom: DashboardMemoryReport | null,
 ): DashboardMemoryReport | null {
   if (!ram && !rom) { return null; }
+  // Zephyr size_report uses "Root" as the top-level name for both ram.json and
+  // rom.json.  When merged side-by-side the duplicate names cause key collisions
+  // in the sunburst / tree-table.  Rename each top-level tree to "RAM" / "ROM"
+  // so they are always distinct in the "All" (Total) view.
+  const tagTree = (nodes: DashboardMemoryNode[], tag: string): DashboardMemoryNode[] =>
+    nodes.map((n) => ({ ...n, data: { ...n.data, name: tag } }));
   return {
     size: (ram?.size ?? 0) + (rom?.size ?? 0),
-    tree: [...(ram?.tree ?? []), ...(rom?.tree ?? [])],
+    tree: [...(ram ? tagTree(ram.tree, 'RAM') : []), ...(rom ? tagTree(rom.tree, 'ROM') : [])],
   };
 }
 
@@ -643,13 +673,14 @@ export async function readDashboardData(
   const cache = parseCMakeCache(buildFolder);
   const board = cache['BOARD'] ?? cache['CACHED_BOARD'] ?? null;
   const application = cache['APPLICATION_SOURCE_DIR'] ?? null;
+  const zephyrBase = cache['ZEPHYR_BASE'] ?? null;
   const zephyrVersion = resolveZephyrVersion(cache, buildFolder);
   const toolchain = resolveToolchain(cache, buildFolder);
 
   const elfInfo = getElfInfo(buildFolder, kernelBinName);
   const kconfig = parseKconfig(buildFolder);
   const { romTotal, ramTotal } = parseMapMemoryRegions(buildFolder, kernelBinName);
-  const sysInit = parseSysInit(buildFolder, kernelBinName);
+  const sysInit = parseSysInit(buildFolder, kernelBinName, cache);
 
   const dtsPath = path.join(buildFolder, 'zephyr', 'zephyr.dts');
   const dtsSource = fs.existsSync(dtsPath) ? fs.readFileSync(dtsPath, 'utf8') : '';
@@ -663,6 +694,7 @@ export async function readDashboardData(
       application,
       command,
       outputDir: buildFolder,
+      zephyrBase,
       zephyrVersion,
       toolchain,
       elfDate: elfInfo.elfDate,

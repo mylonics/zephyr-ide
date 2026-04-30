@@ -55,6 +55,7 @@ export class DashboardApp extends ZephyrLitElement {
   // first memoryRefreshing message arrives from the extension host.
   @state() private _memoryRefreshing = true;
   @state() private _memoryError: string | undefined;
+  private _memoryRefreshTimeout: ReturnType<typeof setTimeout> | undefined;
 
   connectedCallback() {
     super.connectedCallback();
@@ -75,20 +76,25 @@ export class DashboardApp extends ZephyrLitElement {
     const msg = event.data;
     if (msg?.command === "updateContent" && msg.data) {
       const d = msg.data as DashboardData;
-      this._meta     = d.meta;
-      this._summary  = d.summary;
-      this._memory   = d.memory;
-      this._kconfig  = d.kconfig;
-      this._sysInit  = d.sysInit;
-      this._dts      = d.dts;
+      this._meta = d.meta;
+      this._summary = d.summary;
+      this._memory = d.memory;
+      this._kconfig = d.kconfig;
+      this._sysInit = d.sysInit;
+      this._dts = d.dts;
       this._elfStats = d.elfStats;
-      this._error    = undefined;
+      this._error = undefined;
       // Do NOT clear _memoryRefreshing — a background refresh starts right
       // after updateContent; keep spinner visible until updateMemory arrives.
     } else if (msg?.command === "updateMemory") {
       // Only the memory slice and the summary bar update — all other pages
       // are unaffected by this state change.
-      this._memory = msg.memory as DashboardMemory;
+      const newMemory = msg.memory as DashboardMemory;
+      // Skip re-render if the data is structurally identical — avoids resetting
+      // the user's sunburst focus and tree expansion while they are interacting.
+      if (JSON.stringify(newMemory) !== JSON.stringify(this._memory)) {
+        this._memory = newMemory;
+      }
       if (msg.memorySummary && this._summary) {
         this._summary = {
           ...this._summary,
@@ -97,12 +103,22 @@ export class DashboardApp extends ZephyrLitElement {
       }
       this._memoryError = typeof msg.error === "string" ? msg.error : undefined;
       this._memoryRefreshing = false;
-    } else if (msg?.command === "memoryRefreshing") {
+      clearTimeout(this._memoryRefreshTimeout);
       this._memoryError = undefined;
       this._memoryRefreshing = true;
+      // Safety net: if no updateMemory/memoryRefreshFailed arrives within
+      // 5 minutes, clear the spinner so the button doesn't stay stuck.
+      clearTimeout(this._memoryRefreshTimeout);
+      this._memoryRefreshTimeout = window.setTimeout(() => {
+        if (this._memoryRefreshing) {
+          this._memoryRefreshing = false;
+          this._memoryError = "Memory refresh timed out.";
+        }
+      }, 5 * 60 * 1000);
     } else if (msg?.command === "memoryRefreshFailed") {
       this._memoryError = typeof msg.error === "string" ? msg.error : "Memory refresh failed.";
       this._memoryRefreshing = false;
+      clearTimeout(this._memoryRefreshTimeout);
     } else if (msg?.command === "error" && typeof msg.message === "string") {
       this._error = msg.message;
     }
@@ -135,6 +151,16 @@ export class DashboardApp extends ZephyrLitElement {
     this.postCommand("refreshMemory");
   }
 
+  private _onOpenSymbol = (e: Event) => {
+    const ev = e as CustomEvent<{ path?: string; line?: number }>;
+    if (!ev.detail?.path) { return; }
+    this.vscodeApi.postMessage({
+      command: "openMemorySymbol",
+      path: ev.detail.path,
+      ...(typeof ev.detail.line === "number" ? { line: ev.detail.line } : {}),
+    });
+  };
+
   // ---------------------------------------------------------------------------
   // Page content — each child receives only its own data slice.
   // ---------------------------------------------------------------------------
@@ -154,6 +180,7 @@ export class DashboardApp extends ZephyrLitElement {
           .refreshing=${this._memoryRefreshing}
           .errorMessage=${this._memoryError}
           @refresh-memory=${this._onRefreshMemory}
+          @open-symbol=${this._onOpenSymbol}
         ></memory-page>`;
 
       case "kconfig":
@@ -163,12 +190,15 @@ export class DashboardApp extends ZephyrLitElement {
 
       case "sysinit":
         return this._sysInit
-          ? html`<sysinit-page .data=${this._sysInit}></sysinit-page>`
+          ? html`<sysinit-page
+              .data=${this._sysInit}
+              @open-symbol=${this._onOpenSymbol}
+            ></sysinit-page>`
           : nothing;
 
       case "dts":
         return this._dts
-          ? html`<dts-page .data=${this._dts}></dts-page>`
+          ? html`<dts-page .data=${this._dts} @open-symbol=${this._onOpenSymbol}></dts-page>`
           : nothing;
 
       case "elfstats":
@@ -211,7 +241,7 @@ export class DashboardApp extends ZephyrLitElement {
           </p>
           <ul class="dashboard-nav" role="tablist" aria-orientation="vertical">
             ${PAGES.map(
-              (p) => html`
+      (p) => html`
                 <li
                   class="dashboard-nav-item"
                   role="tab"
@@ -224,11 +254,11 @@ export class DashboardApp extends ZephyrLitElement {
                   <span class="codicon ${p.icon}" aria-hidden="true"></span>
                   ${p.label}
                   ${p.id === "memory" && this._memoryRefreshing
-                    ? html`<span class="codicon codicon-loading codicon-modifier-spin" style="margin-left:auto;font-size:11px" aria-label="Refreshing…"></span>`
-                    : nothing}
+          ? html`<span class="codicon codicon-loading codicon-modifier-spin" style="margin-left:auto;font-size:11px" aria-label="Refreshing…"></span>`
+          : nothing}
                 </li>
               `,
-            )}
+    )}
           </ul>
         </nav>
         <main class="dashboard-content" role="tabpanel">${this._renderPage()}</main>

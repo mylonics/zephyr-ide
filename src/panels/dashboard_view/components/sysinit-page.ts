@@ -110,7 +110,15 @@ export class SysInitPage extends ZephyrLitElement {
                 const priOrd = entry.priority != null
                   ? `${entry.priority}${entry.ordinal != null ? ` / ${entry.ordinal}` : ''}`
                   : '';
-                return html`
+                        const openFile = () => {
+                          if (!entry.path) { return; }
+                          this.dispatchEvent(new CustomEvent('open-symbol', {
+                            detail: { path: entry.path },
+                            bubbles: true,
+                            composed: true,
+                          }));
+                        };
+                        return html`
                             <tr>
                               <td class="num">${priOrd}</td>
                               <td>
@@ -122,7 +130,13 @@ export class SysInitPage extends ZephyrLitElement {
                                 ">${isDevice ? 'Device' : 'SYS_INIT'}</span>
                               </td>
                               <td><code>${displayName}</code></td>
-                              <td><code>${entry.path ?? ''}</code></td>
+                              <td>${entry.path
+                                ? html`<button
+                                    class="link-button"
+                                    title="Open ${entry.path}"
+                                    @click=${openFile}
+                                  ><code>${entry.path.replace(/\\/g, '/').split('/').pop()}</code></button>`
+                                : nothing}</td>
                             </tr>
                           `;
               })}

@@ -1,5 +1,5 @@
 /*
-Copyright 2026 mylonics 
+Copyright 2026 mylonics
 Author Rijesh Augustine
 SPDX-License-Identifier: Apache-2.0
 */
@@ -7,7 +7,11 @@ SPDX-License-Identifier: Apache-2.0
 import { html, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { ZephyrLitElement } from "../../webview_shared/lit-base";
-import type { DashboardMemory, DashboardMemoryNode, DashboardMemoryReport } from "../dashboard-data";
+import type { DashboardMemory, DashboardMemoryReport, DashboardMemoryNode } from "../dashboard-data";
+
+import "./memory/sunburst-chart";
+import "./memory/memory-tree-table";
+import { filterKeys } from "./memory/memory-utils";
 
 type Tab = "all" | "ram" | "rom";
 
@@ -16,193 +20,220 @@ export class MemoryPage extends ZephyrLitElement {
   @property({ attribute: false }) data: DashboardMemory | undefined;
   @property({ type: Boolean }) refreshing = false;
   @property({ type: String }) errorMessage: string | undefined;
+
   @state() private _tab: Tab = "ram";
+  @state() private _query = "";
+  @state() private _selectedKey = "";
+  @state() private _hideSunburst = false;
+
+  // Cache the synthetic root per report reference.  When the same report
+  // object is rendered again (e.g. refreshing spinner clears but data didn't
+  // change) the sunburst receives the same root reference, so Lit's dirty
+  // check skips the update and _focusKey / tree expansion are preserved.
+  private _rootCache = new WeakMap<DashboardMemoryReport, DashboardMemoryNode>();
+
+  private _getRoot(report: DashboardMemoryReport): DashboardMemoryNode {
+    if (this._rootCache.has(report)) { return this._rootCache.get(report)!; }
+    const root: DashboardMemoryNode = report.tree.length === 1
+      ? report.tree[0]
+      : {
+        expanded: true,
+        data: { name: "All", size: report.size, displaySize: `${report.size} B` },
+        children: report.tree,
+      };
+    this._rootCache.set(report, root);
+    return root;
+  }
 
   private _selectTab(tab: Tab) {
+    if (this._tab === tab) { return; }
     this._tab = tab;
+    this._selectedKey = "";
+    this._query = "";
   }
 
-  private _renderTopTen(report: DashboardMemoryReport | null) {
-    if (!report) {
-      return nothing;
-    }
-    const flat: { name: string; size: number; loc: string[] }[] = [];
-    const walk = (nodes: DashboardMemoryNode[] | undefined, prefix: string[]) => {
-      if (!nodes) { return; }
-      for (const n of nodes) {
-        if (n.children && n.children.length) {
-          walk(n.children, [...prefix, n.data.name]);
-        } else if (n.data.name && !n.data.name.startsWith("(")) {
-          flat.push({
-            name: [...prefix, n.data.name].slice(1).join("/"),
-            size: n.data.size,
-            loc: n.data.memoryType ?? [],
-          });
-        }
-      }
-    };
-    walk(report.tree, []);
-    flat.sort((a, b) => b.size - a.size);
-    const top = flat.slice(0, 10);
-    if (!top.length) {
-      return nothing;
-    }
-    return html`
-      <h2>Top Ten Symbols by Size</h2>
-      <table class="dashboard-table">
-        <thead>
-          <tr>
-            <th>Symbol</th>
-            <th class="num">Size (B)</th>
-            <th class="num">% of total</th>
-            <th>Region</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${top.map(
-      (s) => html`
-              <tr>
-                <td>${s.name}</td>
-                <td class="num">${s.size.toLocaleString()}</td>
-                <td class="num">${((s.size * 100) / report.size).toFixed(2)}%</td>
-                <td>${s.loc.map((l) => html`<span class="badge">${l}</span>`)}</td>
-              </tr>
-            `,
-    )}
-        </tbody>
-      </table>
-    `;
+  private _onSearchInput(e: Event) {
+    const t = e.target as HTMLInputElement | { value?: string };
+    this._query = (t.value ?? "").trim();
   }
 
-  private _renderNode(node: DashboardMemoryNode, total: number): unknown {
-    const pct = total > 0 ? (node.data.size * 100) / total : 0;
-    const pctStr = pct < 0.1 ? "<0.1%" : `${pct.toFixed(1)}%`;
-    const barPct = Math.min(100, Math.max(0.5, pct)).toFixed(1);
-    const tags = (node.data.memoryType ?? []).map(
-      (t) => html`<span class="mem-tag">${t}</span>`,
-    );
-    const meta = html`
-      <span class="tree-meta">
-        <span class="tree-bar-wrap"><span class="tree-bar" style="width:${barPct}%"></span></span>
-        <span class="tree-size">${node.data.displaySize}</span>
-        <span class="tree-pct">${pctStr}</span>
-      </span>
-    `;
-    if (node.children && node.children.length) {
-      return html`
-        <details class="tree-branch" ?open=${node.expanded}>
-          <summary>
-            <span class="tree-toggle codicon codicon-chevron-right"></span>
-            <span class="tree-name">${node.data.name}</span>
-            ${tags}
-            ${meta}
-          </summary>
-          <div class="tree-children">
-            ${node.children.map((c) => this._renderNode(c, total))}
-          </div>
-        </details>
-      `;
-    }
-    return html`
-      <div class="tree-leaf">
-        <span class="tree-leaf-indent"></span>
-        <span class="tree-name">${node.data.name}</span>
-        ${tags}
-        ${meta}
-      </div>
-    `;
+  private _onClearSearch() {
+    this._query = "";
   }
 
   private _onRefreshClick() {
     this.dispatchEvent(new CustomEvent("refresh-memory", { bubbles: true, composed: true }));
   }
 
-  private _renderReport(report: DashboardMemoryReport | null | undefined) {
-    if (!report) {
-      if (this.refreshing) {
-        return html`
-          <div class="empty-state">
-            <span class="codicon codicon-loading codicon-modifier-spin" style="font-size:24px;opacity:0.7"></span>
-            <p>Generating memory report…</p>
-          </div>
-        `;
-      }
-      if (this.errorMessage) {
-        return html`
-          <div class="empty-state">
-            <span class="codicon codicon-warning" style="font-size:24px;color:var(--vscode-notificationsWarningIcon-foreground)"></span>
-            <p>${this.errorMessage}</p>
-          </div>
-        `;
-      }
-      return html`
-        <div class="empty-state">
-          <span class="codicon codicon-graph" style="font-size:24px;opacity:0.4"></span>
-          <p>No data for this view.</p>
-          <p style="font-size:12px;opacity:0.7">Click <strong>Refresh</strong> to generate the report.</p>
-        </div>
-      `;
+  private _onTreeSelect = (e: Event) => {
+    const ev = e as CustomEvent<{ key: string }>;
+    this._selectedKey = ev.detail.key;
+  };
+
+  private _onArcSelect = (e: Event) => {
+    const ev = e as CustomEvent<{ key: string }>;
+    this._selectedKey = ev.detail.key;
+  };
+
+  private _onRowDrill = (e: Event) => {
+    const ev = e as CustomEvent<{ key: string }>;
+    const key = ev.detail?.key;
+    if (!key) { return; }
+    this._selectedKey = key;
+    const sunburst = this.querySelector("memory-sunburst") as (HTMLElement & { focusKey(k: string): void }) | null;
+    sunburst?.focusKey(key);
+  };
+
+  private _onOpenSymbol = (e: Event) => {
+    const ev = e as CustomEvent<{ identifier: string }>;
+    if (ev.detail?.identifier) {
+      this.dispatchEvent(new CustomEvent("open-symbol", {
+        detail: { path: ev.detail.identifier },
+        bubbles: true,
+        composed: true,
+      }));
     }
-    const size = typeof report.size === "number" ? report.size : 0;
-    const tree = Array.isArray(report.tree) ? report.tree : [];
+  };
+
+  private _renderToolbar(disabled: boolean) {
+    const tabs: { id: Tab; label: string; title: string }[] = [
+      { id: "all", label: "Total", title: "Total: combined RAM + ROM usage (all memory regions)" },
+      { id: "ram", label: "RAM", title: "RAM: read-write memory in SRAM — BSS (zero-init globals), data (initialized globals), and stack/heap" },
+      { id: "rom", label: "ROM", title: "ROM: read-only memory in Flash — text (code), rodata (const data), and other non-volatile sections" },
+    ];
+    const tabDescriptions: Record<Tab, string> = {
+      all: "All memory regions combined",
+      ram: "SRAM — BSS, data, stack/heap",
+      rom: "Flash — text, rodata, const sections",
+    };
     return html`
-      <p style="font-size:13px;margin:0 0 12px">
-        Total: <strong>${size.toLocaleString()} bytes</strong>
-      </p>
-      <div class="tree">${tree.map((n) => this._renderNode(n, size))}</div>
-      ${this._tab === "all" ? this._renderTopTen(report) : nothing}
+      <div class="memory-toolbar">
+        <div class="memory-tabs" role="tablist">
+          ${tabs.map(
+      (t) => html`
+              <button
+                class="memory-tab ${this._tab === t.id ? "is-active" : ""}"
+                role="tab"
+                aria-selected=${this._tab === t.id}
+                title=${t.title}
+                ?disabled=${disabled}
+                @click=${() => this._selectTab(t.id)}
+              >${t.label}</button>
+            `,
+    )}
+        </div>
+        <span class="memory-tab-desc">${tabDescriptions[this._tab]}</span>
+        <div class="memory-search">
+          <span class="codicon codicon-search memory-search-icon" aria-hidden="true"></span>
+          <input
+            type="text"
+            class="memory-search-input"
+            placeholder="Search symbols…"
+            .value=${this._query}
+            ?disabled=${disabled}
+            @input=${this._onSearchInput}
+          />
+          ${this._query
+        ? html`<button
+                class="memory-search-clear codicon codicon-close"
+                aria-label="Clear search"
+                @click=${this._onClearSearch}
+              ></button>`
+        : nothing}
+        </div>
+        <button
+          class="memory-icon-btn"
+          title=${this._hideSunburst ? "Show sunburst diagram" : "Hide sunburst diagram"}
+          @click=${() => (this._hideSunburst = !this._hideSunburst)}
+        >
+          <span class="codicon ${this._hideSunburst ? "codicon-pie-chart" : "codicon-layout-sidebar-left-off"}"></span>
+        </button>
+        <button
+          class="memory-icon-btn"
+          title="Re-run RAM/ROM report"
+          ?disabled=${this.refreshing}
+          @click=${this._onRefreshClick}
+        >
+          <span class="codicon ${this.refreshing ? "codicon-loading codicon-modifier-spin" : "codicon-refresh"}"></span>
+        </button>
+      </div>
     `;
   }
 
-  render() {
-    if (!this.data) {
+  private _renderEmpty() {
+    if (this.refreshing) {
       return html`
-        <h1>Memory Report</h1>
-        <div class="memory-toolbar">
-          <vscode-button appearance="secondary" ?disabled=${true}>Total</vscode-button>
-          <vscode-button appearance="secondary" ?disabled=${true}>RAM</vscode-button>
-          <vscode-button appearance="secondary" ?disabled=${true}>ROM</vscode-button>
-          <vscode-button appearance="secondary" ?disabled=${true} style="margin-left:auto">
-            <span class="codicon codicon-loading codicon-modifier-spin" style="margin-right:4px"></span>
-            Refreshing…
-          </vscode-button>
-        </div>
-        <div class="empty-state">
-          <span class="codicon codicon-loading codicon-modifier-spin" style="font-size:24px;opacity:0.7"></span>
+        <div class="memory-empty">
+          <span class="codicon codicon-loading codicon-modifier-spin" style="font-size:28px;opacity:0.7"></span>
           <p>Generating memory report…</p>
         </div>
       `;
     }
-    const tabs: { id: Tab; label: string }[] = [
-      { id: "all", label: "Total" },
-      { id: "ram", label: "RAM" },
-      { id: "rom", label: "ROM" },
-    ];
+    if (this.errorMessage) {
+      return html`
+        <div class="memory-empty">
+          <span class="codicon codicon-warning" style="font-size:28px;color:var(--vscode-notificationsWarningIcon-foreground)"></span>
+          <p>${this.errorMessage}</p>
+          <button class="memory-cta" @click=${this._onRefreshClick}>
+            <span class="codicon codicon-refresh"></span> Retry
+          </button>
+        </div>
+      `;
+    }
+    return html`
+      <div class="memory-empty">
+        <span class="codicon codicon-graph" style="font-size:28px;opacity:0.4"></span>
+        <p>No memory report available for this view.</p>
+        <button class="memory-cta" @click=${this._onRefreshClick}>
+          <span class="codicon codicon-refresh"></span> Generate report
+        </button>
+      </div>
+    `;
+  }
+
+  private _renderReport(report: DashboardMemoryReport) {
+    const root = this._getRoot(report);
+    const tree = report.tree;
+    const visible = this._query ? filterKeys(tree, this._query) : undefined;
+
+    return html`
+      <div class="memory-layout ${this._hideSunburst ? "no-sunburst" : ""}">
+        ${this._hideSunburst
+        ? nothing
+        : html`
+              <div class="sunburst-card">
+                <memory-sunburst
+                  .root=${root}
+                  .selectedKey=${this._selectedKey}
+                  .visibleKeys=${visible}
+                  regionLabel=${this._tab === "ram" ? "RAM" : this._tab === "rom" ? "ROM" : "All"}
+                  @arc-select=${this._onArcSelect}
+                  @arc-open=${this._onOpenSymbol}
+                ></memory-sunburst>
+              </div>
+            `}
+        <div class="tree-card">
+          <memory-tree-table
+            .tree=${tree}
+            .total=${report.size}
+            .selectedKey=${this._selectedKey}
+            .query=${this._query}
+            @row-select=${this._onTreeSelect}
+            @row-drill=${this._onRowDrill}
+            @row-open=${this._onOpenSymbol}
+          ></memory-tree-table>
+        </div>
+      </div>
+    `;
+  }
+
+  render() {
+    const report = this.data ? this.data[this._tab] : null;
+    const disabled = !this.data;
     return html`
       <h1>Memory Report</h1>
-      <div class="memory-toolbar">
-        ${tabs.map(
-      (t) => html`
-            <vscode-button
-              appearance=${this._tab === t.id ? "primary" : "secondary"}
-              @click=${() => this._selectTab(t.id)}
-            >
-              ${t.label}
-            </vscode-button>
-          `,
-    )}
-        <vscode-button
-          appearance="secondary"
-          title="Re-run RAM/ROM report"
-          ?disabled=${this.refreshing}
-          style="margin-left:auto"
-          @click=${this._onRefreshClick}
-        >
-          <span class="codicon ${this.refreshing ? "codicon-loading codicon-modifier-spin" : "codicon-refresh"}" style="margin-right:4px"></span>
-          ${this.refreshing ? "Refreshing…" : "Refresh"}
-        </vscode-button>
-      </div>
-      ${this._renderReport(this.data![this._tab])}
+      ${this._renderToolbar(disabled)}
+      ${report ? this._renderReport(report) : this._renderEmpty()}
     `;
   }
 }
