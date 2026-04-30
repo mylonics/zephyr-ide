@@ -375,32 +375,39 @@ async function selectSDKVersionAndToolchains(setupState: SetupState): Promise<{ 
     const state: State = {};
 
     async function pickSDKVersion(input: MultiStepInput): Promise<InputStep | void> {
-        const selected = await input.showQuickPick({
-            title,
-            step: 1,
-            totalSteps: 2,
-            placeholder: "Select SDK version to install",
-            ignoreFocusOut: true,
-            items: sdkVersions,
-        });
+        // Loop until the user picks a concrete version (or Back/Cancel bubbles up
+        // as an InputFlowAction exception and escapes the loop naturally).
+        while (true) {
+            const selected = await input.showQuickPick({
+                title,
+                step: 1,
+                totalSteps: 2,
+                placeholder: "Select SDK version to install",
+                ignoreFocusOut: true,
+                items: sdkVersions,
+            });
 
-        if (selected.label === "automatic") {
-            const detectedVersion = await detectSDKVersionFromWorkspace(setupState);
-            if (!detectedVersion) {
-                notifyError("SDK Install",
-                    "Could not auto-detect SDK version from workspace. Please select a specific version."
+            if (selected.label === "automatic") {
+                const detectedVersion = await detectSDKVersionFromWorkspace(setupState);
+                if (!detectedVersion) {
+                    notifyError("SDK Install",
+                        "Could not auto-detect SDK version from workspace. Please select a specific version."
+                    );
+                    // Re-show the same step (continue the loop) without pushing a
+                    // new entry onto MultiStepInput's stack — avoids a spurious
+                    // Back button that would loop to the same prompt.
+                    continue;
+                }
+                void vscode.window.showInformationMessage(
+                    `Auto-detected SDK version: ${detectedVersion}`
                 );
-                // Return to this step so the user can select a specific version.
-                return (input: MultiStepInput) => pickSDKVersion(input);
+                state.sdkVersion = detectedVersion;
+            } else if (selected.label === "latest") {
+                state.sdkVersion = undefined; // undefined means latest
+            } else {
+                state.sdkVersion = selected.label;
             }
-            void vscode.window.showInformationMessage(
-                `Auto-detected SDK version: ${detectedVersion}`
-            );
-            state.sdkVersion = detectedVersion;
-        } else if (selected.label === "latest") {
-            state.sdkVersion = undefined; // undefined means latest
-        } else {
-            state.sdkVersion = selected.label;
+            break;
         }
         state.sdkVersionChosen = true;
 

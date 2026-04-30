@@ -102,8 +102,11 @@ async function computePythonCommand(configOverride: string | null | undefined): 
 
 /**
  * Get the appropriate Python command for the current platform.
- * In remote environments (WSL, SSH), this detects the remote OS.
- * On all platforms, respects VS Code's configured Python interpreter if available.
+ * Always enforces the minimum required version (3.12+) by probing the
+ * platform manifest candidate list via getDefaultPythonExecutable().
+ * VS Code's python.defaultInterpreterPath is intentionally ignored on the
+ * default/cached path — the user may have configured a project venv that
+ * predates 3.12.
  *
  * When called without arguments the result is cached for the lifetime of the
  * extension host so repeated calls are cheap.  When an explicit `configOverride`
