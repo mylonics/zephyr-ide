@@ -731,14 +731,11 @@ export async function executeShellCommandInPythonEnv(cmd: string, cwd: string, s
   // Build environment with venv PATH prepended
   const env = { ...process.env };
 
-  // On Windows, process.env spreads as "Path" (title-case).  We must
-  // prepend the venv directory onto the *same* key that already exists,
-  // otherwise executeShellCommand's PATH consolidation will see two
-  // separate keys and may order the system PATH before the venv PATH,
-  // causing the system Python to shadow the venv Python.
-  const existingKey = Object.keys(env).find(k => k.toLowerCase() === "path") || "PATH";
-
   if (setupState.env["PATH"]) {
+    // On Windows, process.env spreads as "Path" (title-case).  Find the
+    // actual key so we prepend onto the right entry; executeShellCommand's
+    // Windows PATH consolidation will then merge any duplicates.
+    const existingKey = Object.keys(env).find(k => k.toLowerCase() === "path") || "PATH";
     const existingPath = env[existingKey] || "";
     env[existingKey] = setupState.env["PATH"] + existingPath;
   }
@@ -761,6 +758,31 @@ export async function executeShellCommand(cmd: string, cwd: string, display_erro
   // Use provided environment or default to process.env
   if (env) {
     execOptions.env = env;
+  }
+
+  // On Linux, guarantee that the standard system binary directories are always
+  // present in PATH.  In Docker containers launched by GitHub Actions (and some
+  // other CI setups), the VS Code extension host's process.env.PATH can be
+  // minimal and may omit directories like /usr/bin.  Tools installed by dnf or
+  // pacman (e.g. cmake at /usr/bin/cmake) will then be invisible to child
+  // processes.  Appending the well-known directories is a no-op when they are
+  // already present.  This augmentation applies to ALL shell commands so that
+  // both venv and non-venv operations (tool detection, SDK install, etc.) see
+  // the same complete search path on every Linux distro.
+  if (os.platform() === "linux") {
+    if (!execOptions.env) {
+      execOptions.env = { ...effectiveEnv };
+    }
+    const linuxEnv = execOptions.env as Record<string, string | undefined>;
+    const standardPaths = ["/usr/local/bin", "/usr/bin", "/bin", "/usr/local/sbin", "/usr/sbin", "/sbin"];
+    const currentPath = linuxEnv["PATH"] || "";
+    const pathEntries = currentPath.split(":").filter(Boolean);
+    for (const p of standardPaths) {
+      if (!pathEntries.includes(p)) {
+        pathEntries.push(p);
+      }
+    }
+    linuxEnv["PATH"] = pathEntries.join(":");
   }
 
   // On Windows, use PowerShell instead of the default cmd.exe. cmd.exe has
