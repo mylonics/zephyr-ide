@@ -179,6 +179,15 @@ suite("assembleBuildCommand", () => {
     assert.ok(!cmd.includes("CMAKE_BUILD_TYPE"));
     assert.ok(!cmd.includes(" -- "));
   });
+
+  test("cmake arg with environment variable path preserves the variable reference", () => {
+    const cmd = assembleBuildCommand(makeParams({
+      westBuildCMakeArgs: ["-DKCONFIG_ROOT='${CUSTOM_VAR}/../../src/bl/Kconfig'"],
+    }));
+    assert.ok(cmd.includes("KCONFIG_ROOT"), "cmake key should be present");
+    assert.ok(cmd.includes("${CUSTOM_VAR}"), "env var reference should survive quoting for shell expansion");
+    assert.ok(!cmd.includes("\\${CUSTOM_VAR}"), "env var reference should not be escaped");
+  });
 });
 
 suite("quoteCMakeDef", () => {
@@ -234,6 +243,18 @@ suite("quoteBuildArgForShell", () => {
 
   test("arg with backslashes is escaped", () => {
     assert.strictEqual(quoteBuildArgForShell("C:\\path\\to\\file"), '"C:\\\\path\\\\to\\\\file"');
+  });
+
+  test("arg with environment variable reference preserves dollar sign for shell expansion", () => {
+    // ${...} must not be escaped so the shell expands the variable at runtime
+    assert.strictEqual(
+      quoteBuildArgForShell("-DKCONFIG_ROOT='${CUSTOM_VAR}/../../src/bl/Kconfig'"),
+      "\"-DKCONFIG_ROOT='${CUSTOM_VAR}/../../src/bl/Kconfig'\"",
+    );
+  });
+
+  test("bare dollar sign in arg is not escaped", () => {
+    assert.strictEqual(quoteBuildArgForShell("-DVAL=$MY_VAR"), '"-DVAL=$MY_VAR"');
   });
 });
 
@@ -379,5 +400,20 @@ suite("computeCMakeDefs", () => {
     for (const def of defs) {
       assert.ok(cmd.includes(def), `Expected command to include "${def}"`);
     }
+  });
+
+  test("cmake arg with env var path preserves variable reference for shell expansion", () => {
+    const defs = computeCMakeDefs({
+      boardRootArg: "",
+      westBuildCMakeArgs: ["-DKCONFIG_ROOT='${CUSTOM_VAR}/../../src/bl/Kconfig'"],
+      primaryConfFiles: [],
+      secondaryConfFiles: [],
+      overlayFiles: [],
+      extraOverlayFiles: [],
+    });
+    assert.strictEqual(defs.length, 1);
+    assert.ok(defs[0].includes("KCONFIG_ROOT"), "cmake key should be present");
+    assert.ok(defs[0].includes("${CUSTOM_VAR}"), "env var reference should be preserved");
+    assert.ok(!defs[0].includes("\\${CUSTOM_VAR}"), "env var reference should not be escaped");
   });
 });

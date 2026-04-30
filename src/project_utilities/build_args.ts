@@ -99,7 +99,9 @@ export function quoteBuildArgForShell(arg: string): string {
   if (/^[A-Za-z0-9_@%+=:,./-]+$/.test(arg)) {
     return arg;
   }
-  return `"${arg.replace(/(["\\$`])/g, "\\$1")}"`;
+  // Do NOT escape `$` so that shell variable references like ${MY_VAR} are
+  // expanded at runtime when the command is executed in a terminal.
+  return `"${arg.replace(/(["\\`])/g, "\\$1")}"`;
 }
 
 /**
