@@ -26,7 +26,7 @@ import { executeShellCommandInPythonEnv, executeTaskHelperInPythonEnv } from "..
 import { outputInfo, outputWarning, outputError, notifyError, outputCommandFailure } from "../utilities/output";
 import { sdkVersions, toolchainTargets } from "../defines";
 import { SetupProgressTracker } from "./setup-progress";
-import { MultiStepInput } from "../utilities/multistepQuickPick";
+import { MultiStepInput, InputStep } from "../utilities/multistepQuickPick";
 
 /** Event emitter for SDK install progress, mirroring the workspace setup progress pattern. */
 const _onSDKProgress = new vscode.EventEmitter<import("./setup-progress").SetupProgressEvent>();
@@ -374,7 +374,7 @@ async function selectSDKVersionAndToolchains(setupState: SetupState): Promise<{ 
     };
     const state: State = {};
 
-    async function pickSDKVersion(input: MultiStepInput) {
+    async function pickSDKVersion(input: MultiStepInput): Promise<InputStep | void> {
         const selected = await input.showQuickPick({
             title,
             step: 1,
@@ -390,8 +390,8 @@ async function selectSDKVersionAndToolchains(setupState: SetupState): Promise<{ 
                 notifyError("SDK Install",
                     "Could not auto-detect SDK version from workspace. Please select a specific version."
                 );
-                // Signal abort to the caller by leaving sdkVersionChosen false.
-                return;
+                // Return to this step so the user can select a specific version.
+                return (input: MultiStepInput) => pickSDKVersion(input);
             }
             void vscode.window.showInformationMessage(
                 `Auto-detected SDK version: ${detectedVersion}`

@@ -231,6 +231,7 @@ export async function getModuleSampleFolders(setupState: SetupState) {
   const samplefolders: [string, string][] = [];
 
   if (!outcome.ok) {
+    notifyWestListFailure(outcome.needsWestUpdate);
     return samplefolders;
   }
 

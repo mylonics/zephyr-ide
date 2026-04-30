@@ -340,11 +340,15 @@ export async function activate(context: vscode.ExtensionContext) {
         clangdInspect?.workspaceFolderValue,
       ].some((v) => v !== undefined);
 
-      if (!isExplicitlySet && vscode.extensions.getExtension("llvm-vs-code-extensions.vscode-clangd")) {
+      if (
+        !isExplicitlySet &&
+        vscode.extensions.getExtension("llvm-vs-code-extensions.vscode-clangd") &&
+        !vscode.extensions.getExtension("ms-vscode.cpptools")
+      ) {
         await cfg.update("zephyr-ide.useClangd", true, vscode.ConfigurationTarget.Global)
           .then(
             () => {
-              outputInfo("Startup", "clangd extension detected and 'zephyr-ide.useClangd' was not set — automatically enabled clangd IntelliSense mode.");
+              outputInfo("Startup", "clangd extension detected (and ms-vscode.cpptools is absent), 'zephyr-ide.useClangd' was not set — automatically enabled clangd IntelliSense mode.");
             },
             (err: unknown) => {
               const detail = err instanceof Error ? err.message : String(err);
