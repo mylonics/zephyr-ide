@@ -815,6 +815,13 @@ memory-tree-table {
   margin: 4px 0 12px;
 }
 
+/* While a reload is in progress, grey out and block all toolbar interaction. */
+.kconfig-toolbar--reloading {
+  opacity: 0.5;
+  pointer-events: none;
+  user-select: none;
+}
+
 .kconfig-toolbar .kconfig-filter {
   margin-bottom: 0;
   flex: 0 1 320px;

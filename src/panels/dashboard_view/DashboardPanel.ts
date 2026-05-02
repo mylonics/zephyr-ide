@@ -44,15 +44,14 @@ export interface DashboardKconfigCallbacks {
     writeFragment: (path: string) => Promise<unknown>,
   ) => Promise<string | undefined>;
   /** Write fragment content to an existing target path that the user chose
-   * from the in-panel Save menu.  When `merge` is true the extension reads
-   * the existing file first and merges only the provided symbol changes
-   * into it (used for override-style targets like prj.conf).  Otherwise
-   * the file is replaced with the minimal fragment.  Returns the saved
-   * absolute path, or undefined on error. */
+   * from the in-panel Save menu.  Existing symbol lines are updated in-place;
+   * new symbols are appended.  Pass `symbols` to restrict the write to a
+   * subset (used by the per-row "Save this symbol to…" action).
+   * Returns the saved absolute path, or undefined on error. */
   saveSessionFragmentToPath: (
     absPath: string,
     writeFragment: (path: string) => Promise<unknown>,
-    opts: { merge: boolean; symbols?: string[] },
+    opts: { symbols?: string[] },
   ) => Promise<string | undefined>;
   /** List existing extra Kconfig fragments attached to the active project +
    * build that the user may overwrite from the dashboard.  Build-scope
@@ -259,6 +258,9 @@ export class DashboardPanel {
     } else if (message?.command === "kconfigOpenExternal") {
       const tool = message.tool === "guiconfig" ? "guiconfig" : "menuconfig";
       await this._kconfigCallbacks?.openExternal(tool);
+    } else if (message?.command === "build") {
+      const pristine = !!message.pristine;
+      await vscode.commands.executeCommand(pristine ? "zephyr-ide.build-pristine" : "zephyr-ide.build");
     } else if (typeof message?.command === "string" && (message.command as string).startsWith("kconfig")) {
       await this._handleKconfigSession(message);
     }
@@ -341,22 +343,19 @@ export class DashboardPanel {
           break;
         }
         case "kconfigSaveAs": {
-          // Combined save-as flow.  Returns { savedPath, merged?, count? } or
-          // { savedPath: null } on user cancel.
+          // Combined save-as flow.  Returns { savedPath } or { savedPath: null } on cancel.
           //
           // Variants:
           //   target=""  + scope="build"|"project"  →  save-as-new dialog,
           //                                             attach to chosen scope.
-          //   target=<absPath>                       →  overwrite / merge into
-          //                                             existing target file.
-          //     merge=true  →  read existing file + patch symbol lines in place.
+          //   target=<absPath>                       →  update existing entries
+          //                                             in-place, append new ones.
           //     symbols=[…] →  only write the listed symbol names (subset save).
           if (!this._kconfigCallbacks) {
             throw new Error("Kconfig save is not available for this dashboard.");
           }
           const minimalSave = message.minimal !== false;
           const target = typeof message.target === "string" ? message.target : "";
-          const merge = !!message.merge;
           const scope = (message.scope === "project" ? "project" : "build") as "build" | "project";
           // Subset of symbol names to save (for per-row "Save this symbol to…").
           const symbols: string[] | undefined = Array.isArray(message.symbols) && message.symbols.length > 0
@@ -364,16 +363,14 @@ export class DashboardPanel {
             : undefined;
 
           let savedPath: string | undefined;
-          let merged = false;
 
           if (target) {
-            // Existing-target flow.
+            // Existing-target flow: update in-place / append.
             savedPath = await this._kconfigCallbacks.saveSessionFragmentToPath(
               target,
               async (p) => session.save(p, minimalSave),
-              { merge, symbols },
+              { symbols },
             );
-            merged = merge;
           } else {
             // New-fragment flow — scope chosen by user in the Save menu.
             savedPath = await this._kconfigCallbacks.saveSessionFragmentNew(
@@ -381,7 +378,7 @@ export class DashboardPanel {
               async (p) => session.save(p, minimalSave),
             );
           }
-          result = { savedPath: savedPath ?? null, merged };
+          result = { savedPath: savedPath ?? null };
           break;
         }
         case "kconfigListSaveTargets": {

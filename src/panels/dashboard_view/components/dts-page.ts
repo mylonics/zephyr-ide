@@ -230,10 +230,18 @@ export class DtsPage extends ZephyrLitElement {
   }
 
   private _renderDtsSourceFiles(): TemplateResult | typeof nothing {
-    const files = this.data?.sourceFiles;
-    if (!files || files.length === 0) { return nothing; }
+    const raw = this.data?.sourceFiles;
+    if (!raw || raw.length === 0) { return nothing; }
+    // Deduplicate while preserving order.
+    const seen = new Set<string>();
+    const files = raw.filter((f) => {
+      const k = f.replace(/\\/g, "/").toLowerCase();
+      if (seen.has(k)) { return false; }
+      seen.add(k);
+      return true;
+    });
     return html`
-      <details class="source-files-panel" open>
+      <details class="source-files-panel">
         <summary class="source-files-heading">
           <span class="codicon codicon-file-text" aria-hidden="true"></span>
           Device tree sources

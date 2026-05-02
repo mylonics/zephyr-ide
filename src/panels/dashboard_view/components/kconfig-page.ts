@@ -118,7 +118,7 @@ interface PersistedState {
 type SaveStatus =
   | { kind: "idle" }
   | { kind: "saving" }
-  | { kind: "saved"; path: string; count: number; merged?: boolean }
+  | { kind: "saved"; path: string; count: number; rebuildRequired: boolean }
   | { kind: "error"; message: string }
   | { kind: "info"; message: string };
 
@@ -175,6 +175,9 @@ export class KconfigPage extends ZephyrLitElement {
   @state() private _saveTargetsLoading = false;
   /** Last save target the user picked, persisted across reloads. */
   @state() private _lastSaveTarget?: string;
+  /** True while a reload (discard + re-parse) is in progress — disables all
+   * interactive controls so the user cannot edit while the tree is stale. */
+  @state() private _reloading = false;
   /** Floating right-click context menu for tree rows. */
   @state() private _contextMenu?: {
     x: number;
@@ -530,11 +533,11 @@ export class KconfigPage extends ZephyrLitElement {
     await this._performSave("", { scope });
   }
 
-  /** Save to an existing target — merges for override files, overwrites for extras. */
+  /** Save to an existing target — updates symbols in-place, appends new ones. */
   private async _onSaveToTarget(target: KconfigSaveTarget): Promise<void> {
     this._saveMenuOpen = false;
     this._lastSaveTarget = target.absPath;
-    await this._performSave(target.absPath, { merge: target.kind === "override" });
+    await this._performSave(target.absPath);
   }
 
   /** Per-row "Save just this symbol to <target>". */
@@ -543,10 +546,7 @@ export class KconfigPage extends ZephyrLitElement {
     this._contextMenu = undefined;
     if (!symbolName) { return; }
     this._lastSaveTarget = target.absPath;
-    await this._performSave(target.absPath, {
-      merge: target.kind === "override",
-      symbols: [symbolName],
-    });
+    await this._performSave(target.absPath, { symbols: [symbolName] });
   }
 
   /** Per-row "Save just this symbol to a new fragment". */
@@ -558,26 +558,34 @@ export class KconfigPage extends ZephyrLitElement {
 
   private async _performSave(
     target: string,
-    opts: { merge?: boolean; scope?: "build" | "project"; symbols?: string[] } = {},
+    opts: { scope?: "build" | "project"; symbols?: string[] } = {},
   ): Promise<void> {
     const dirty = opts.symbols ? opts.symbols.length : this._changes.length;
     this._saveStatus = { kind: "saving" };
     try {
-      const r = await this._request<{ savedPath: string | null; merged?: boolean }>(
+      const r = await this._request<{ savedPath: string | null }>(
         "kconfigSaveAs",
         {
           minimal: true,
           target,
-          merge: !!opts.merge,
           scope: opts.scope ?? "build",
           symbols: opts.symbols ?? [],
         },
       );
       if (r.savedPath) {
-        this._saveStatus = { kind: "saved", path: r.savedPath, count: dirty, merged: !!r.merged };
+        this._saveStatus = { kind: "saved", path: r.savedPath, count: dirty, rebuildRequired: true };
         // Save targets list may have changed (file existence flipped) — drop
         // the cache so the menu is repopulated on next open.
         this._saveTargets = undefined;
+        // Clear the pending-changes list.  For a full save every change was
+        // written; for a per-symbol save only those symbols were written —
+        // remove just them from the list.
+        if (!opts.symbols || opts.symbols.length === 0) {
+          this._changes = [];
+        } else {
+          const saved = new Set(opts.symbols);
+          this._changes = this._changes.filter((c) => !saved.has(c.name));
+        }
       } else {
         // User cancelled the save dialog.
         this._saveStatus = { kind: "idle" };
@@ -588,6 +596,11 @@ export class KconfigPage extends ZephyrLitElement {
         message: e instanceof Error ? e.message : String(e),
       };
     }
+  }
+
+  /** Trigger a project build (pristine=true for build-pristine). */
+  private _onBuild(pristine: boolean): void {
+    this.vscodeApi.postMessage({ command: "build", pristine });
   }
 
   /** Open the saved file in the editor. */
@@ -644,6 +657,7 @@ export class KconfigPage extends ZephyrLitElement {
 
   private async _onReload(): Promise<void> {
     this._loading = true;
+    this._reloading = true;
     this._saveStatus = { kind: "idle" };
     try {
       await this._request("kconfigReload");
@@ -656,6 +670,7 @@ export class KconfigPage extends ZephyrLitElement {
       this._treeError = e instanceof Error ? e.message : String(e);
     } finally {
       this._loading = false;
+      this._reloading = false;
     }
   }
 
@@ -821,10 +836,10 @@ export class KconfigPage extends ZephyrLitElement {
                 Save this symbol to…
               </li>
               ${this._saveTargetsLoading
-              ? html`<li class="kconfig-ctx-item kconfig-ctx-disabled">
+                ? html`<li class="kconfig-ctx-item kconfig-ctx-disabled">
                   <span class="codicon codicon-loading codicon-modifier-spin"></span> Loading…
                 </li>`
-              : (this._saveTargets ?? []).map((t) => {
+                : (this._saveTargets ?? []).map((t) => {
                   const badge = t.kind === "override"
                     ? html`<span class="badge badge-warning">override</span>`
                     : html`<span class="badge badge-muted">${t.kind}</span>`;
@@ -879,13 +894,18 @@ export class KconfigPage extends ZephyrLitElement {
       ${this._renderStatus()}
 
       <div class="kconfig-split">
-        <div class="kconfig-pane kconfig-pane-tree">
-          ${this._loading && !this._treeRoot
+        <div class="kconfig-pane kconfig-pane-tree${this._reloading ? " kconfig-pane--reloading" : ""}">
+          ${this._reloading
         ? html`<div class="kconfig-pane-loading">
+                <span class="codicon codicon-loading codicon-modifier-spin" style="font-size:28px;opacity:0.7"></span>
+                <p>Reloading Kconfig tree…</p>
+              </div>`
+        : this._loading && !this._treeRoot
+          ? html`<div class="kconfig-pane-loading">
                 <span class="codicon codicon-loading codicon-modifier-spin" style="font-size:28px;opacity:0.7"></span>
                 <p>Loading Kconfig tree…</p>
               </div>`
-        : this._viewMode === "tree" ? this._renderTree() : this._renderChanges()}
+          : this._viewMode === "tree" ? this._renderTree() : this._renderChanges()}
         </div>
         <div class="kconfig-pane kconfig-pane-detail">
           ${this._renderDetail()}
@@ -902,10 +922,18 @@ export class KconfigPage extends ZephyrLitElement {
   /** Displays the .conf files that contributed to this build (from
    * build_info.yml).  Each file is clickable to open it in the editor. */
   private _renderSourceFiles(): TemplateResult | typeof nothing {
-    const files = this.kconfigSourceFiles;
-    if (!files || files.length === 0) { return nothing; }
+    const raw = this.kconfigSourceFiles;
+    if (!raw || raw.length === 0) { return nothing; }
+    // Deduplicate while preserving order.
+    const seen = new Set<string>();
+    const files = raw.filter((f) => {
+      const k = f.replace(/\\/g, "/").toLowerCase();
+      if (seen.has(k)) { return false; }
+      seen.add(k);
+      return true;
+    });
     return html`
-      <details class="source-files-panel" open>
+      <details class="source-files-panel">
         <summary class="source-files-heading">
           <span class="codicon codicon-file-text" aria-hidden="true"></span>
           Configuration sources
@@ -913,14 +941,14 @@ export class KconfigPage extends ZephyrLitElement {
         </summary>
         <ul class="source-files-list">
           ${files.map((f) => {
-            const display = f.replace(/\\/g, '/').split('/').slice(-2).join('/');
-            return html`
+      const display = f.replace(/\\/g, '/').split('/').slice(-2).join('/');
+      return html`
               <li class="source-files-item" title="${f}">
                 <span class="codicon codicon-file" aria-hidden="true"></span>
                 <button class="link-button" @click=${() => this._onOpenSourceFile(f)}>${display}</button>
               </li>
             `;
-          })}
+    })}
         </ul>
       </details>
     `;
@@ -965,10 +993,11 @@ export class KconfigPage extends ZephyrLitElement {
   private _renderToolbar() {
     const dirty = this._changes.length;
     const saving = this._saveStatus.kind === "saving";
-    const canBack = this._historyIndex > 0;
-    const canFwd = this._historyIndex < this._history.length - 1;
+    const reloading = this._reloading;
+    const canBack = !reloading && this._historyIndex > 0;
+    const canFwd = !reloading && this._historyIndex < this._history.length - 1;
     return html`
-      <div class="kconfig-toolbar">
+      <div class="kconfig-toolbar${reloading ? " kconfig-toolbar--reloading" : ""}">
         <vscode-button
           appearance="icon"
           ?disabled=${!canBack}
@@ -1038,15 +1067,16 @@ export class KconfigPage extends ZephyrLitElement {
         </div>
         <vscode-button
           appearance="icon"
+          ?disabled=${reloading}
           @click=${this._onReload}
           title="Discard in-memory edits and re-parse the build's .config"
         >
-          <span class="codicon codicon-refresh"></span>
+          <span class="codicon ${reloading ? "codicon-loading codicon-modifier-spin" : "codicon-refresh"}"></span>
         </vscode-button>
-        ${this._renderSaveButton(saving, dirty)}
+        ${this._renderSaveButton(saving || reloading, dirty)}
         <vscode-button
           appearance="icon"
-          ?disabled=${saving}
+          ?disabled=${saving || reloading}
           @click=${() => this._onOpenExternal("menuconfig")}
           title="Run 'west build -t menuconfig' in a terminal"
         >
@@ -1054,7 +1084,7 @@ export class KconfigPage extends ZephyrLitElement {
         </vscode-button>
         <vscode-button
           appearance="icon"
-          ?disabled=${saving}
+          ?disabled=${saving || reloading}
           @click=${() => this._onOpenExternal("guiconfig")}
           title="Run 'west build -t guiconfig' in a terminal"
         >
@@ -1068,18 +1098,25 @@ export class KconfigPage extends ZephyrLitElement {
     const s = this._saveStatus;
     if (s.kind === "saved") {
       const rel = this._relPath(s.path);
-      const verb = s.merged ? "Merged" : "Saved";
       const noun = s.count === 1 ? "symbol" : "symbols";
-      const prep = s.merged ? "into" : "to";
       return html`
         <p class="kconfig-status kconfig-status-ok">
           <span class="codicon codicon-check"></span>
-          ${verb} ${s.count} ${noun} ${prep} <code>${rel}</code>
+          Saved ${s.count} ${noun} to <code>${rel}</code>
           <span
             class="kconfig-tree-link"
             style="margin-left:8px"
             @click=${() => this._onOpenSavedFile(s.path)}
           >Open file</span>
+          ${s.rebuildRequired ? html`
+            <span style="margin-left:12px;opacity:0.8">— Rebuild required to apply changes.</span>
+            <vscode-button
+              appearance="secondary"
+              style="margin-left:8px"
+              @click=${() => this._onBuild(false)}
+              title="Run west build"
+            >Build</vscode-button>
+          ` : nothing}
         </p>
       `;
     }
@@ -1127,9 +1164,7 @@ export class KconfigPage extends ZephyrLitElement {
         ? `Save to ${this._relPath(last.absPath)}${dirty > 0 ? ` (${dirty})` : ""}`
         : `Save fragment…${dirty > 0 ? ` (${dirty})` : ""}`;
     const primaryTitle = last
-      ? (last.kind === "override"
-        ? `Merge ${dirty} change${dirty === 1 ? "" : "s"} into ${last.path} (override conf)`
-        : `Overwrite ${last.path} with the current minimal config (${last.scope} extra)`)
+      ? `Save ${dirty} change${dirty === 1 ? "" : "s"} to ${last.path}`
       : "Choose where to save your Kconfig changes";
     const primaryAction = async () => {
       if (last) {
@@ -1202,10 +1237,11 @@ export class KconfigPage extends ZephyrLitElement {
             ${kindBadge}
             ${scopeBadge}
             ${!t.exists && t.kind !== "override"
-            ? html`<span class="badge" title="File does not exist yet — will be created">new</span>`
-            : nothing}
+              ? html`<span class="badge" title="File does not exist yet — will be created">new</span>`
+              : nothing}
           </li>
-        `;})}
+        `;
+        })}
         ${targets.length > 0 ? html`<li class="kconfig-save-menu-sep" role="separator"></li>` : nothing}
         <li
           class="kconfig-save-menu-item"
@@ -1626,7 +1662,7 @@ export class KconfigPage extends ZephyrLitElement {
           ${this._changes.map((c) => html`
             <tr>
               <td>
-                <code class="kconfig-tree-link" @click=${() => this._onJumpToSymbol(c.name)}>
+                <code class="kconfig-tree-link" @click=${() => void this._selectSymbol(c.name)}>
                   ${c.name}
                 </code>
               </td>
@@ -1790,7 +1826,7 @@ export class KconfigPage extends ZephyrLitElement {
   private _handleFallbackSaveReply(msg: Record<string, unknown>): void {
     if (msg.ok && typeof msg.savedPath === "string") {
       const count = Object.keys(this._fallbackEdits).length;
-      this._saveStatus = { kind: "saved", path: msg.savedPath, count };
+      this._saveStatus = { kind: "saved", path: msg.savedPath, count, rebuildRequired: true };
       this._fallbackEdits = {};
     } else if (msg.ok && !msg.savedPath) {
       this._saveStatus = { kind: "idle" };

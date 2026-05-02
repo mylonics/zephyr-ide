@@ -365,20 +365,22 @@ export function listSaveTargets(
 }
 
 /**
- * Overwrite or merge into an existing target conf file.
+ * Save Kconfig changes to a target conf file.
  *
- * - When `opts.merge` is false  — minimal fragment is written directly by
- *   invoking `writeFragment(path)` (same as before).
- * - When `opts.merge` is true   — the existing file is read, the symbol
- *   changes are merged in-place (preserving unmodified lines), and the
- *   result is written atomically.  `writeFragment` is still called to a
- *   temporary path so that the Kconfig session's write_min_config provides
- *   the canonical value encoding; its output is then parsed as the source
- *   of truth for the new values, and those values are merged into the real
- *   file.
- * - When `opts.symbols` is set — only those named symbols are written;
- *   the rest of the change set is ignored.  This enables the per-row
- *   "Save this symbol to…" context-menu action.
+ * Behaviour (same for new files and existing ones):
+ *   - If the file already exists, each symbol is looked up in the file:
+ *       • Found  → the existing line is replaced with the new value.
+ *       • Not found → the entry is appended at the end.
+ *   - If the file does not yet exist every entry is simply appended
+ *     (which is equivalent to creating it from scratch).
+ *
+ * When `opts.symbols` is provided only those named symbols are written;
+ * all other changes in the session are ignored.  This powers the per-row
+ * "Save this symbol to…" context-menu action.
+ *
+ * The session's `writeFragment` callback is always used to obtain
+ * canonically-encoded values (kconfiglib's write_min_config format) before
+ * merging so bool "n" values appear as `# CONFIG_X is not set`.
  *
  * Uses a temp-file + rename for atomicity.
  */
@@ -388,7 +390,7 @@ export async function saveSessionFragmentToPath(
   build: BuildConfig,
   absPath: string,
   writeFragment: (path: string) => Promise<unknown>,
-  opts: { merge: boolean; symbols?: string[] } = { merge: false },
+  opts: { symbols?: string[] } = {},
 ): Promise<string | undefined> {
   if (!absPath) { return undefined; }
   // Defence-in-depth: only allow paths that appear in the picker.
@@ -404,62 +406,62 @@ export async function saveSessionFragmentToPath(
   await fs.ensureDir(path.dirname(absPath));
   const tmp = `${absPath}.tmp-${process.pid}-${Date.now()}`;
 
-  // Create a single-revision backup before touching the file so the user can
-  // revert manually if needed.  Only created when the file already exists.
-  const bakPath = `${absPath}.bak`;
+  // Best-effort single-revision backup so the user can revert manually.
   try {
     if (await fs.pathExists(absPath)) {
-      await fs.copy(absPath, bakPath, { overwrite: true });
+      await fs.copy(absPath, `${absPath}.bak`, { overwrite: true });
     }
-  } catch { /* backup is best-effort; never block the save */ }
+  } catch { /* backup failure must never block the save */ }
 
+  const sessionTmp = `${absPath}.session-${process.pid}-${Date.now()}`;
   try {
-    if (!opts.merge) {
-      // Simple overwrite: let the session write the minimal fragment.
-      await writeFragment(tmp);
-      await fs.move(tmp, absPath, { overwrite: true });
-      return absPath;
+    // 1. Ask kconfiglib to write the minimal fragment so we get canonical
+    //    encoding (e.g. `# CONFIG_X is not set` for disabled bools).
+    await writeFragment(sessionTmp);
+
+    // 2. Parse the session output to build the change list.
+    let sessionContent = "";
+    try { sessionContent = await fs.readFile(sessionTmp, "utf8"); } catch { /* empty */ }
+    const sessionLines = parseConfFile(sessionContent);
+    const sessionChanges: KconfigChange[] = [];
+    for (const { sym, line } of sessionLines) {
+      if (!sym) { continue; }
+      const notSet = /^#\s*CONFIG_[A-Za-z0-9_]+\s+is not set/.test(line);
+      const assign = line.match(/^CONFIG_[A-Za-z0-9_]+=(.*)/);
+      const rawValue = assign ? assign[1] : "";
+      // Detect type from the raw value written by kconfiglib:
+      //   bool/tristate: unquoted "y" or "m"
+      //   string: double-quoted value
+      //   int/hex: everything else (0x…, decimal, etc.)
+      const isQuotedString = rawValue.startsWith('"') && rawValue.endsWith('"') && rawValue.length >= 2;
+      const type: string = notSet ? "bool"
+        : (rawValue === "y" || rawValue === "m") ? "bool"
+          : isQuotedString ? "string"
+            : "int";
+      const value = notSet ? "n" : rawValue.replace(/^"(.*)"$/, "$1");
+      sessionChanges.push({ name: sym, value, type });
     }
 
-    // Merge mode:
-    // 1. Ask the session to write its minimal fragment to a temp path so we
-    //    get the canonically-encoded values.
-    const sessionTmp = `${absPath}.session-${process.pid}-${Date.now()}`;
-    try {
-      await writeFragment(sessionTmp);
-      // 2. Parse the session output to extract the change set.
-      let sessionContent = "";
-      try { sessionContent = await fs.readFile(sessionTmp, "utf8"); } catch { /* empty */ }
-      const sessionLines = parseConfFile(sessionContent);
-      const sessionChanges: KconfigChange[] = [];
-      for (const { sym, line } of sessionLines) {
-        if (!sym) { continue; }
-        const notSet = line.match(/^#\s*CONFIG_[A-Za-z0-9_]+\s+is not set/);
-        const assign = line.match(/^CONFIG_[A-Za-z0-9_]+=(.*)/);
-        const value = notSet ? "n" : (assign ? assign[1].replace(/^"(.*)"$/, "$1") : "");
-        const type = notSet ? "bool" : undefined;
-        sessionChanges.push({ name: sym, value, type });
-      }
-      // 3. Apply symbol filter if a subset was requested.
-      const changes = opts.symbols
-        ? sessionChanges.filter((c) => opts.symbols!.includes(c.name))
-        : sessionChanges;
+    // 3. Apply symbol filter (for per-row single-symbol saves).
+    const changes = opts.symbols
+      ? sessionChanges.filter((c) => opts.symbols!.includes(c.name))
+      : sessionChanges;
 
-      // 4. Read the existing file and merge.
-      let existing = "";
-      try { existing = await fs.readFile(absPath, "utf8"); } catch { /* new file */ }
-      const merged = mergeFragmentContent(existing, changes);
+    // 4. Read the existing file content (empty string for new files).
+    let existing = "";
+    try { existing = await fs.readFile(absPath, "utf8"); } catch { /* new file — start empty */ }
 
-      // 5. Write the result atomically.
-      await fs.outputFile(tmp, merged, "utf8");
-      await fs.move(tmp, absPath, { overwrite: true });
-    } finally {
-      try { await fs.remove(sessionTmp); } catch { /* ignore */ }
-    }
-    return absPath;
+    // 5. Merge: update existing symbol lines in-place, append new ones at end.
+    const merged = mergeFragmentContent(existing, changes);
+
+    // 6. Write atomically.
+    await fs.outputFile(tmp, merged, "utf8");
+    await fs.move(tmp, absPath, { overwrite: true });
   } finally {
+    try { await fs.remove(sessionTmp); } catch { /* ignore */ }
     try {
       if (await fs.pathExists(tmp)) { await fs.remove(tmp); }
     } catch { /* ignore */ }
   }
+  return absPath;
 }
