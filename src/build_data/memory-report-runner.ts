@@ -57,10 +57,10 @@ async function generateStatFile(
   setupState: SetupState,
   kernelBinName = 'zephyr',
 ): Promise<void> {
-  const nmPath  = readCMakeNm(buildFolder);
+  const nmPath = readCMakeNm(buildFolder);
   if (!nmPath) { return; }
 
-  const elfPath  = path.join(buildFolder, 'zephyr', `${kernelBinName}.elf`);
+  const elfPath = path.join(buildFolder, 'zephyr', `${kernelBinName}.elf`);
   const statPath = path.join(buildFolder, 'zephyr', `${kernelBinName}.stat`);
   if (!fs.existsSync(elfPath)) { return; }
 
@@ -81,19 +81,32 @@ async function generateStatFile(
  * Runs the cmake `ram_report` and `rom_report` targets which write
  * `ram.json` and `rom.json` at the build root.
  * Returns an error message string on failure, or null on success.
+ *
+ * When `silent` is true (the default) the cmake commands run as background
+ * child processes with no visible terminal.  Pass `silent = false` to keep
+ * the old behaviour of showing a VS Code Task terminal (used by the explicit
+ * "Run RAM/ROM Report" commands).
  */
 export async function runMemoryReports(
   buildFolder: string,
   setupState: SetupState,
   projectName = 'project',
   buildName = 'build',
+  silent = true,
 ): Promise<string | null> {
-  const taskName = `Zephyr IDE Memory Report: ${projectName} ${buildName}`;
   for (const target of ['ram_report', 'rom_report']) {
     const cmd = `cmake --build "${buildFolder}" --target ${target}`;
-    const ok = await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState.setupPath);
-    if (!ok) {
-      return `cmake --target ${target} failed. Check the terminal output for details.`;
+    if (silent) {
+      const result = await executeShellCommandInPythonEnv(cmd, setupState.setupPath ?? '', setupState, false);
+      if (result.exitCode !== 0) {
+        return `cmake --target ${target} failed.`;
+      }
+    } else {
+      const taskName = `Zephyr IDE Memory Report: ${projectName} ${buildName}`;
+      const ok = await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState.setupPath);
+      if (!ok) {
+        return `cmake --target ${target} failed. Check the terminal output for details.`;
+      }
     }
   }
   return null;

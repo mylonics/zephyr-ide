@@ -6,7 +6,7 @@
       "type": "extensionHost",
       "request": "launch",
       "args": ["--extensionDevelopmentPath=${workspaceFolder}"],
-      "preLaunchTask": "npm: esbuild",
+      "preLaunchTask": "esbuild",
       "outFiles": ["${workspaceFolder}/dist/**/*.js"],
       "sourceMaps": true
     },

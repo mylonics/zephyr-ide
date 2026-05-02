@@ -76,6 +76,21 @@
           "default": false,
           "description": "Use GUI configuration editor instead of terminal-based menuconfig in the Project Tree View."
         },
+        "zephyr-ide.activeViewKconfigButton": {
+          "type": "string",
+          "enum": [
+            "kconfig-dashboard",
+            "gui-config",
+            "menu-config"
+          ],
+          "enumDescriptions": [
+            "Open the build dashboard and navigate directly to the Kconfig page (default).",
+            "Run 'west build -t guiconfig' to open the graphical Kconfig editor in a terminal.",
+            "Run 'west build -t menuconfig' to open the terminal-based Kconfig editor."
+          ],
+          "default": "kconfig-dashboard",
+          "description": "Controls what the Kconfig button in the Active Project view does. Defaults to opening the Kconfig page in the build dashboard. Can be changed to launch the external guiconfig or menuconfig tool instead."
+        },
         "zephyr-ide.westNarrowUpdate": {
           "type": [
             "boolean"
@@ -279,14 +294,9 @@
       ],
       "view/item/context": [
         {
-          "command": "zephyr-ide.active-view.gui-config",
+          "command": "zephyr-ide.active-view.kconfig",
           "when": "view == zephyrIdeActiveProject && viewItem =~ /activeProject\\.build(Pristine)?$/",
           "group": "inline@1"
-        },
-        {
-          "command": "zephyr-ide.active-view.menu-config",
-          "when": "view == zephyrIdeActiveProject && viewItem =~ /activeProject\\.build(Pristine)?$/",
-          "group": "inline@2"
         },
         {
           "command": "zephyr-ide.active-view.change-launch-target",
@@ -852,14 +862,9 @@
         "title": "Zephyr IDE: Get Active Build Variable"
       },
       {
-        "command": "zephyr-ide.active-view.gui-config",
-        "title": "GUI Config",
+        "command": "zephyr-ide.active-view.kconfig",
+        "title": "Kconfig",
         "icon": "$(preview)"
-      },
-      {
-        "command": "zephyr-ide.active-view.menu-config",
-        "title": "Menu Config",
-        "icon": "$(settings-gear)"
       },
       {
         "command": "zephyr-ide.active-view.change-launch-target",

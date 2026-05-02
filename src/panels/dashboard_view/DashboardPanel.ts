@@ -43,8 +43,37 @@ export interface DashboardKconfigCallbacks {
   saveSessionFragment: (
     writeFragment: (path: string) => Promise<unknown>,
   ) => Promise<string | undefined>;
+  /** Write the (minimal) fragment directly to an absolute path that the user
+   * already chose from the in-panel save-target picker.  Skips the save
+   * dialog and the "attach to build" prompt because the path is one of the
+   * fragments already attached to the active build/project. */
+  saveSessionFragmentToPath: (
+    absPath: string,
+    writeFragment: (path: string) => Promise<unknown>,
+  ) => Promise<string | undefined>;
+  /** List existing extra Kconfig fragments attached to the active project +
+   * build that the user may overwrite from the dashboard.  Build-scope
+   * entries shadow project-scope entries with the same path. */
+  listSaveTargets: () => Promise<KconfigSaveTarget[]>;
   /** Launch the existing terminal-based menuconfig or guiconfig task. */
   openExternal: (tool: "menuconfig" | "guiconfig") => Promise<void>;
+}
+
+/** A pre-existing Kconfig fragment file the user may overwrite from the
+ * dashboard's Save menu. */
+export interface KconfigSaveTarget {
+  /** Workspace-relative path, as stored in `confFiles`. */
+  path: string;
+  /** Absolute path on disk. */
+  absPath: string;
+  /** "build" if attached at the build scope, "project" if at the project
+   * scope.  When the same path is attached at both scopes the build-scope
+   * entry shadows the project-scope one. */
+  scope: "build" | "project";
+  /** True if the file currently exists on disk.  False entries are still
+   * offered so the user can populate a fragment that was attached but never
+   * created. */
+  exists: boolean;
 }
 
 /** A single Kconfig symbol edit emitted from the webview. */
@@ -94,6 +123,11 @@ export class DashboardPanel {
   /** Returns the open panel for the given project/build pair, if any. */
   public static getPanel(projectName: string, buildName: string): DashboardPanel | undefined {
     return DashboardPanel._panels.get(`${projectName}/${buildName}`);
+  }
+
+  /** Navigate the webview to the specified dashboard page (e.g. "kconfig"). */
+  public navigateTo(page: string): void {
+    void this._panel.webview.postMessage({ command: "navigateTo", page });
   }
 
   public static createOrShow(
@@ -168,6 +202,29 @@ export class DashboardPanel {
 
     this._panel.webview.html = this.getHtmlShell();
     void this._postData();
+
+    // Kick off the Kconfig session immediately in the background so it is
+    // ready (or near-ready) by the time the user navigates to the Kconfig
+    // page.  We notify the webview as the promise settles so it can update
+    // the loading spinner in the sidebar nav.
+    if (this._kconfigSessionFactory) {
+      void this._preloadKconfigSession();
+    }
+  }
+
+  /** Eagerly initialises the Kconfig session and notifies the webview of the
+   * outcome so the sidebar can show/hide the loading spinner. */
+  private async _preloadKconfigSession(): Promise<void> {
+    await this._panel.webview.postMessage({ command: "kconfigPreloading" });
+    try {
+      await this._getOrInitSession();
+      await this._panel.webview.postMessage({ command: "kconfigReady" });
+    } catch (err) {
+      await this._panel.webview.postMessage({
+        command: "kconfigPreloadFailed",
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   private async handleMessage(message: Record<string, unknown>) {
@@ -271,14 +328,36 @@ export class DashboardPanel {
           // the (minimal) fragment via the helper, then offer to attach it
           // to the active build.  Returns { savedPath } or { savedPath: null }
           // on user cancel.
+          //
+          // When `target` is a non-empty string, it is treated as an absolute
+          // path of an existing extra-fragment that the user picked from the
+          // in-panel Save menu — the dialog is skipped and we overwrite the
+          // file in place with the minimal config.
           if (!this._kconfigCallbacks) {
             throw new Error("Kconfig save is not available for this dashboard.");
           }
           const minimalSave = message.minimal !== false;
-          const savedPath = await this._kconfigCallbacks.saveSessionFragment(
-            async (p) => session.save(p, minimalSave),
-          );
+          const target = typeof message.target === "string" ? message.target : "";
+          let savedPath: string | undefined;
+          if (target) {
+            savedPath = await this._kconfigCallbacks.saveSessionFragmentToPath(
+              target,
+              async (p) => session.save(p, minimalSave),
+            );
+          } else {
+            savedPath = await this._kconfigCallbacks.saveSessionFragment(
+              async (p) => session.save(p, minimalSave),
+            );
+          }
           result = { savedPath: savedPath ?? null };
+          break;
+        }
+        case "kconfigListSaveTargets": {
+          if (!this._kconfigCallbacks) {
+            throw new Error("Kconfig save is not available for this dashboard.");
+          }
+          const targets = await this._kconfigCallbacks.listSaveTargets();
+          result = { targets };
           break;
         }
         case "kconfigReload":
@@ -448,6 +527,17 @@ export class DashboardPanel {
    * updated memory data to the webview.  Safe to call concurrently — a second
    * call while a refresh is in-progress is a no-op.
    */
+  /**
+   * Notify the webview that an external menuconfig/guiconfig run has finished
+   * so the in-panel editor can reload the build's .config from disk.  No-op
+   * if the panel is disposed.
+   */
+  public async notifyKconfigExternalDone(tool: "menuconfig" | "guiconfig"): Promise<void> {
+    try {
+      await this._panel.webview.postMessage({ command: "kconfigExternalDone", tool });
+    } catch { /* panel may be disposed */ }
+  }
+
   public async refreshMemory(): Promise<void> {
     if (this._memoryRefreshing) { return; }
     this._memoryRefreshing = true;

@@ -22,7 +22,7 @@ import { getProjectFolder, ProjectConfig } from "../../project_utilities/project
 import { BuildConfig } from "../../project_utilities/build_selector";
 import { setWorkspaceState } from "../../setup_utilities/state-management";
 import type { WorkspaceConfig } from "../../setup_utilities/types";
-import type { KconfigChange } from "./DashboardPanel";
+import type { KconfigChange, KconfigSaveTarget } from "./DashboardPanel";
 
 /**
  * Render the user's edits as a Kconfig fragment.  Bool symbols use the
@@ -122,4 +122,83 @@ export async function offerAddFragmentToBuild(
     `Added ${rel} to build "${build.name}" as EXTRA_CONF_FILE.`,
   );
   return true;
+}
+
+/**
+ * Build the list of pre-existing extra Kconfig fragments attached to either
+ * the build (preferred) or the project that the dashboard's Save menu can
+ * overwrite.  Only `.conf` entries with `extra=true` are included; override
+ * entries (prj.conf) are deliberately left out so the user cannot accidentally
+ * blow away a hand-maintained main configuration with a minimal fragment.
+ *
+ * Build-scope entries shadow project-scope entries with the same path so each
+ * relative path appears at most once.
+ */
+export function listSaveTargets(
+  wsConfig: WorkspaceConfig,
+  project: ProjectConfig,
+  build: BuildConfig,
+): KconfigSaveTarget[] {
+  const isFragment = (p: string) => /\.conf$/i.test(p);
+  const seen = new Set<string>();
+  const out: KconfigSaveTarget[] = [];
+
+  const push = (entryPath: string, scope: "build" | "project") => {
+    const norm = path.normalize(entryPath);
+    if (seen.has(norm)) { return; }
+    seen.add(norm);
+    const absPath = path.resolve(wsConfig.rootPath, entryPath);
+    out.push({
+      path: entryPath,
+      absPath,
+      scope,
+      exists: fs.existsSync(absPath),
+    });
+  };
+
+  for (const e of build.confFiles.config) {
+    if (e.extra && isFragment(e.path)) { push(e.path, "build"); }
+  }
+  for (const e of project.confFiles.config) {
+    if (e.extra && isFragment(e.path)) { push(e.path, "project"); }
+  }
+  return out;
+}
+
+/**
+ * Overwrite an existing extra-fragment file with the (minimal) Kconfig output
+ * produced by `writeFragment`.  Uses a temp-file + rename for atomicity so a
+ * crash mid-write cannot leave the build with a half-written fragment.
+ *
+ * Skips the "attach to build" prompt because the path is already attached
+ * (the picker only offers paths from `listSaveTargets`).
+ */
+export async function saveSessionFragmentToPath(
+  wsConfig: WorkspaceConfig,
+  project: ProjectConfig,
+  build: BuildConfig,
+  absPath: string,
+  writeFragment: (path: string) => Promise<unknown>,
+): Promise<string | undefined> {
+  if (!absPath) { return undefined; }
+  // Defence-in-depth: only allow paths that actually appear in the picker.
+  const allowed = listSaveTargets(wsConfig, project, build);
+  const match = allowed.find(
+    (t) => path.normalize(t.absPath).toLowerCase()
+      === path.normalize(absPath).toLowerCase(),
+  );
+  if (!match) {
+    throw new Error(`Refusing to save: ${absPath} is not an attached extra Kconfig fragment for this build.`);
+  }
+  await fs.ensureDir(path.dirname(absPath));
+  // kconfiglib's write_min_config writes directly; route through a temp file
+  // so we can rename atomically.
+  const tmp = `${absPath}.tmp-${process.pid}-${Date.now()}`;
+  try {
+    await writeFragment(tmp);
+    await fs.move(tmp, absPath, { overwrite: true });
+  } finally {
+    if (await fs.pathExists(tmp)) { try { await fs.remove(tmp); } catch { /* ignore */ } }
+  }
+  return absPath;
 }

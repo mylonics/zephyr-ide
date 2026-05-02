@@ -1080,9 +1080,67 @@ pre.text-viewer {
   margin: 8px 0;
 }
 
-.kconfig-view-tabs {
+/* View-mode segmented toggle (Tree / Changes) */
+
+.kconfig-view-toggle {
   display: inline-flex;
-  gap: 4px;
+  border: 1px solid var(--vscode-button-border, var(--vscode-panel-border));
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.kconfig-view-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  background: transparent;
+  color: var(--vscode-foreground);
+  border: none;
+  border-right: 1px solid var(--vscode-button-border, var(--vscode-panel-border));
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 100ms;
+}
+
+.kconfig-view-toggle-btn:last-child {
+  border-right: none;
+}
+
+.kconfig-view-toggle-btn:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.kconfig-view-toggle-btn--active {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.kconfig-view-toggle-btn--active:hover {
+  background: var(--vscode-button-hoverBackground);
+}
+
+.kconfig-toggle-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.kconfig-view-toggle-btn--active .kconfig-toggle-badge {
+  background: var(--vscode-button-foreground);
+  color: var(--vscode-button-background);
 }
 
 .kconfig-split {
@@ -1105,6 +1163,16 @@ pre.text-viewer {
 
 .kconfig-pane-detail {
   padding: 12px 16px;
+}
+
+.kconfig-pane-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 200px;
+  color: var(--vscode-descriptionForeground);
 }
 
 /* --- Tree --- */
@@ -1178,6 +1246,151 @@ pre.text-viewer {
 
 .kconfig-inline-input {
   width: 120px;
+}
+
+/* Phase 2: modified marker, per-row actions, context menu */
+
+.kconfig-modified-dot {
+  flex-shrink: 0;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--vscode-gitDecoration-modifiedResourceForeground, var(--vscode-charts-orange));
+}
+
+.kconfig-row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 4px;
+  opacity: 0;
+  transition: opacity 100ms ease-in;
+  flex-shrink: 0;
+}
+
+.kconfig-tree-row:hover .kconfig-row-actions,
+.kconfig-tree-selected > .kconfig-tree-row .kconfig-row-actions {
+  opacity: 1;
+}
+
+/* Always show the reset button on modified rows even without hover so the
+   change is discoverable. */
+.kconfig-tree-modified > .kconfig-tree-row .kconfig-row-actions {
+  opacity: 1;
+}
+
+.kconfig-ctx-menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 200px;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  background: var(--vscode-menu-background, var(--vscode-editorWidget-background));
+  color: var(--vscode-menu-foreground, var(--vscode-foreground));
+  border: 1px solid var(--vscode-menu-border, var(--vscode-editorWidget-border));
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  font-size: 12px;
+}
+
+.kconfig-ctx-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.kconfig-ctx-item:hover {
+  background: var(--vscode-menu-selectionBackground, var(--vscode-list-activeSelectionBackground));
+  color: var(--vscode-menu-selectionForeground, var(--vscode-list-activeSelectionForeground));
+}
+
+.kconfig-ctx-item code {
+  font-size: 11px;
+}
+
+.kconfig-ctx-sep {
+  height: 1px;
+  margin: 4px 0;
+  background: var(--vscode-menu-separatorBackground, var(--vscode-editorWidget-border));
+  list-style: none;
+}
+
+/* Phase 1: Save split-button + popover menu */
+
+.kconfig-save-split {
+  position: relative;
+  display: inline-flex;
+  align-items: stretch;
+}
+
+.kconfig-save-chevron {
+  margin-left: -1px;
+}
+
+.kconfig-save-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 1000;
+  min-width: 280px;
+  max-width: 480px;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  background: var(--vscode-menu-background, var(--vscode-editorWidget-background));
+  color: var(--vscode-menu-foreground, var(--vscode-foreground));
+  border: 1px solid var(--vscode-menu-border, var(--vscode-editorWidget-border));
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  font-size: 12px;
+}
+
+.kconfig-save-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.kconfig-save-menu-item:hover {
+  background: var(--vscode-menu-selectionBackground, var(--vscode-list-activeSelectionBackground));
+  color: var(--vscode-menu-selectionForeground, var(--vscode-list-activeSelectionForeground));
+}
+
+.kconfig-save-menu-current {
+  font-weight: 600;
+}
+
+.kconfig-save-menu-path {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--vscode-editor-font-family);
+}
+
+.kconfig-save-menu-info {
+  padding: 8px 12px;
+  color: var(--vscode-descriptionForeground);
+  font-style: italic;
+}
+
+.kconfig-save-menu-sep {
+  height: 1px;
+  margin: 4px 0;
+  background: var(--vscode-menu-separatorBackground, var(--vscode-editorWidget-border));
+  list-style: none;
+}
+
+.kconfig-status-info {
+  color: var(--vscode-foreground);
 }
 
 /* --- Detail pane --- */

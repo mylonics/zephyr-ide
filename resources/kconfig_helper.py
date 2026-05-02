@@ -151,6 +151,78 @@ def _ensure_zephyr_kconfiglib() -> None:
         _log("warn", f"Could not load Zephyr kconfiglib from {kconfig_scripts}: {exc}")
 
 
+def _find_module_kconfig(module_dir: str) -> Optional[str]:
+    """Return the Kconfig file for a module directory, or None.
+
+    Checks ``module.yml`` / ``zephyr/module.yml`` for a custom ``build.kconfig``
+    path first, then falls back to the conventional locations.
+    """
+    for yml_rel in ("zephyr/module.yml", "module.yml"):
+        yml_path = os.path.join(module_dir, yml_rel)
+        if os.path.isfile(yml_path):
+            try:
+                content = open(yml_path, encoding="utf-8", errors="replace").read()
+                # Simple line-based extraction; avoids a YAML dependency.
+                m = re.search(r'^\s*kconfig:\s*[\'"]?([^\s\'"#]+)', content, re.MULTILINE)
+                if m:
+                    rel = m.group(1).strip("\'\"")
+                    full = os.path.normpath(os.path.join(module_dir, rel))
+                    if os.path.isfile(full):
+                        return full
+            except OSError:
+                pass
+    for rel in ("Kconfig", "zephyr/Kconfig"):
+        p = os.path.join(module_dir, rel)
+        if os.path.isfile(p):
+            return p
+    return None
+
+
+def _resolve_module_kconfig_vars() -> None:
+    """Resolve ZEPHYR_*_KCONFIG env vars from ZEPHYR_MODULES.
+
+    ``ZEPHYR_MODULES`` is a semicolon-separated list of module root
+    directories stored as a CMake CACHE INTERNAL variable, so it IS
+    written to CMakeCache.txt and is available in our env dict.
+
+    For each directory Zephyr derives the env var name as::
+
+        ZEPHYR_<BASENAME_UPPER>_KCONFIG
+
+    where ``BASENAME_UPPER`` is the directory's basename uppercased with
+    non-alphanumeric characters replaced by underscores (matching CMake's
+    own ``string(TOUPPER ...)`` behaviour).
+
+    This must be called BEFORE ``_seed_module_kconfig_vars`` so real
+    paths are set before the sentinel fallback runs.
+    """
+    modules_str = os.environ.get("ZEPHYR_MODULES", "")
+    extra_str = os.environ.get("ZEPHYR_EXTRA_MODULES", "")
+    dirs: List[str] = []
+    for s in (modules_str, extra_str):
+        dirs.extend(d.strip() for d in s.split(";") if d.strip())
+    if not dirs:
+        return
+
+    resolved: List[str] = []
+    for module_dir in dirs:
+        if not os.path.isdir(module_dir):
+            continue
+        basename = os.path.basename(module_dir.rstrip("/\\"))
+        # Match CMake's string(TOUPPER ...) + non-alphanumeric → underscore
+        name_upper = re.sub(r'[^A-Z0-9]', '_', basename.upper())
+        var_name = f"ZEPHYR_{name_upper}_KCONFIG"
+        if var_name in os.environ:
+            continue  # already set; don't clobber
+        kconfig_path = _find_module_kconfig(module_dir)
+        if kconfig_path:
+            os.environ[var_name] = kconfig_path
+            resolved.append(var_name)
+
+    if resolved:
+        _log("info", f"Resolved {len(resolved)} module Kconfig paths from ZEPHYR_MODULES")
+
+
 def _seed_module_kconfig_vars() -> None:
     """Pre-populate unset $(VAR) references found in generated Kconfig files.
 
@@ -280,10 +352,15 @@ class Session:
         # Zephyr boards.  The pip version raises KconfigError on them.
         _ensure_zephyr_kconfiglib()
 
-        # Pre-seed any $(ZEPHYR_*_KCONFIG) vars that are referenced in the
-        # generated Kconfig files but absent from os.environ.  Without this,
-        # empty expansions resolve to `srctree/` (a directory that exists),
-        # causing _KconfigIOError in osource instead of a silent skip.
+        # Resolve ZEPHYR_*_KCONFIG paths from the module directories listed in
+        # ZEPHYR_MODULES before falling back to the sentinel.  This populates
+        # the module Kconfig tree so the "Modules" section is not empty.
+        _resolve_module_kconfig_vars()
+
+        # Pre-seed any remaining $(ZEPHYR_*_KCONFIG) vars that are still unset
+        # after the resolution pass above (e.g. external modules not listed in
+        # ZEPHYR_MODULES, or non-module vars).  Without this, empty expansions
+        # resolve to `srctree/` causing _KconfigIOError in osource.
         _seed_module_kconfig_vars()
 
         # warn=False keeps the helper quiet; warnings would otherwise be
@@ -388,8 +465,21 @@ class Session:
 
         if depth != 0 and node.list:
             children = []
+            # Track symbol names already serialized at this level.  A symbol
+            # can have multiple MenuNodes (one per `config`/`configdefault`
+            # block in different files) and all of them appear in the sibling
+            # chain.  We keep only the first node for each symbol name so the
+            # tree does not show duplicates.  Menus and choices are always
+            # kept because they are structurally unique.
+            seen_sym_names: set = set()
             child = node.list
             while child:
+                item = child.item
+                if isinstance(item, kconfiglib.Symbol):
+                    if item.name in seen_sym_names:
+                        child = child.next
+                        continue
+                    seen_sym_names.add(item.name)
                 children.append(self._serialize_node(child, depth - 1 if depth > 0 else -1))
                 child = child.next
             out["children"] = children

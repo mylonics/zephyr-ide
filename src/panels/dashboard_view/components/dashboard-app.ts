@@ -57,6 +57,10 @@ export class DashboardApp extends ZephyrLitElement {
   @state() private _memoryError: string | undefined;
   private _memoryRefreshTimeout: ReturnType<typeof setTimeout> | undefined;
 
+  // Start true so the Kconfig nav item shows a spinner immediately; cleared
+  // when the extension signals the session is ready (or failed to start).
+  @state() private _kconfigLoading = true;
+
   connectedCallback() {
     super.connectedCallback();
     window.addEventListener("message", this._onMessage);
@@ -121,6 +125,15 @@ export class DashboardApp extends ZephyrLitElement {
       this._memoryError = typeof msg.error === "string" ? msg.error : "Memory refresh failed.";
       this._memoryRefreshing = false;
       clearTimeout(this._memoryRefreshTimeout);
+    } else if (msg?.command === "kconfigPreloading") {
+      this._kconfigLoading = true;
+    } else if (msg?.command === "kconfigReady" || msg?.command === "kconfigPreloadFailed") {
+      this._kconfigLoading = false;
+    } else if (msg?.command === "navigateTo" && typeof msg.page === "string") {
+      const pages = PAGES.map(p => p.id as string);
+      if (pages.includes(msg.page)) {
+        this._selectPage(msg.page as PageId);
+      }
     } else if (msg?.command === "error" && typeof msg.message === "string") {
       this._error = msg.message;
     }
@@ -188,7 +201,9 @@ export class DashboardApp extends ZephyrLitElement {
       case "kconfig":
         // Always render kconfig-page: it boots its own kconfiglib session and
         // falls back to the static `entries` table only if the helper fails.
-        return html`<kconfig-page .entries=${this._kconfig}></kconfig-page>`;
+        // Pass .preloaded so the page can skip the loading-screen flicker when
+        // the session was warmed up in the background before the user arrived.
+        return html`<kconfig-page .entries=${this._kconfig} .preloaded=${!this._kconfigLoading}></kconfig-page>`;
 
       case "sysinit":
         return this._sysInit
@@ -257,6 +272,9 @@ export class DashboardApp extends ZephyrLitElement {
                   ${p.label}
                   ${p.id === "memory" && this._memoryRefreshing
           ? html`<span class="codicon codicon-loading codicon-modifier-spin" style="margin-left:auto;font-size:11px" aria-label="Refreshing…"></span>`
+          : nothing}
+                  ${p.id === "kconfig" && this._kconfigLoading
+          ? html`<span class="codicon codicon-loading codicon-modifier-spin" style="margin-left:auto;font-size:11px" aria-label="Loading…"></span>`
           : nothing}
                 </li>
               `,

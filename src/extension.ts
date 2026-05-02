@@ -28,7 +28,7 @@ import { SetupPanel } from "./panels/setup_panel/SetupPanel";
 import { HostToolInstallView } from "./panels/host_tool_install_view/HostToolInstallView";
 import { ProjectBuildPanel } from "./panels/project_build_view/ProjectBuildPanel";
 import { DashboardPanel } from "./panels/dashboard_view/DashboardPanel";
-import { offerAddFragmentToBuild, saveFragmentInteractive } from "./panels/dashboard_view/kconfig-fragment";
+import { listSaveTargets as listKconfigSaveTargets, offerAddFragmentToBuild, saveFragmentInteractive, saveSessionFragmentToPath } from "./panels/dashboard_view/kconfig-fragment";
 import {
   KconfigSession,
   buildEnvFromCMakeCache,
@@ -542,11 +542,19 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // -- ActiveProjectView inline action commands --
   context.subscriptions.push(
-    vscode.commands.registerCommand("zephyr-ide.active-view.gui-config", (item: any) => {
-      void buildMenuConfig(context, wsConfig, MenuConfig.GuiConfig);
-    }),
-    vscode.commands.registerCommand("zephyr-ide.active-view.menu-config", (item: any) => {
-      void buildMenuConfig(context, wsConfig, MenuConfig.MenuConfig);
+    vscode.commands.registerCommand("zephyr-ide.active-view.kconfig", async () => {
+      const buttonMode = vscode.workspace.getConfiguration().get<string>("zephyr-ide.activeViewKconfigButton") ?? "kconfig-dashboard";
+      if (buttonMode === "gui-config") {
+        void buildMenuConfig(context, wsConfig, MenuConfig.GuiConfig);
+      } else if (buttonMode === "menu-config") {
+        void buildMenuConfig(context, wsConfig, MenuConfig.MenuConfig);
+      } else {
+        // Default: open dashboard and navigate to Kconfig page.
+        const resolved = resolveActiveProjectBuild(wsConfig);
+        if (!resolved) { return; }
+        await vscode.commands.executeCommand("zephyr-ide.run-dashboard");
+        DashboardPanel.getPanel(resolved.projectName, resolved.buildName)?.navigateTo("kconfig");
+      }
     }),
     vscode.commands.registerCommand("zephyr-ide.active-view.change-launch-target", (item: any) => {
       if (item?.launchChangeCmd) {
@@ -1387,6 +1395,12 @@ export async function activate(context: vscode.ExtensionContext) {
             await offerAddFragmentToBuild(context, wsConfig, proj, bld, target.fsPath);
             return target.fsPath;
           },
+          saveSessionFragmentToPath: async (absPath, writeFragment) => {
+            return saveSessionFragmentToPath(wsConfig, proj, bld, absPath, writeFragment);
+          },
+          listSaveTargets: async () => {
+            return listKconfigSaveTargets(wsConfig, proj, bld);
+          },
           openExternal: async (tool) => {
             await buildMenuConfig(
               context,
@@ -1395,6 +1409,10 @@ export async function activate(context: vscode.ExtensionContext) {
               proj,
               bld,
             );
+            // Phase 3: external tool wrote a fresh .config — tell the panel
+            // (if still open) so its in-memory editor reloads from disk.
+            const liveDashPanel = DashboardPanel.getPanel(proj.name, bld.name);
+            await liveDashPanel?.notifyKconfigExternalDone(tool);
           },
         } : undefined,
         // Lazy Kconfig session factory: spawned on first kconfig request from

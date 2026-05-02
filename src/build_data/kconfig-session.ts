@@ -149,6 +149,11 @@ const CMAKE_TO_ENV: Array<[cacheKey: string, envName: string]> = [
   ["APPLICATION_BINARY_DIR", "APPLICATION_BINARY_DIR"],
   ["EDT_PICKLE", "EDT_PICKLE"],
   ["ZEPHYR_TOOLCHAIN_VARIANT", "ZEPHYR_TOOLCHAIN_VARIANT"],
+  // Semicolon-separated list of module root dirs.  CMake stores this as a
+  // CACHE INTERNAL variable so it IS present in CMakeCache.txt.  The Python
+  // helper uses it to resolve ZEPHYR_*_KCONFIG paths before seeding sentinels.
+  ["ZEPHYR_MODULES", "ZEPHYR_MODULES"],
+  ["ZEPHYR_EXTRA_MODULES", "ZEPHYR_EXTRA_MODULES"],
 ];
 
 /**

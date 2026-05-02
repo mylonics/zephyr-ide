@@ -87,6 +87,13 @@ interface KconfigSearchHit {
   rank: number;
 }
 
+interface KconfigSaveTarget {
+  path: string;
+  absPath: string;
+  scope: "build" | "project";
+  exists: boolean;
+}
+
 /** Persisted webview state (vscodeApi.setState).  Restored across reloads of
  * the dashboard panel - per-panel scope, so each (project, build) keeps its
  * own UI state. */
@@ -98,13 +105,17 @@ interface PersistedState {
   viewMode?: ViewMode;
   history?: string[];
   historyIndex?: number;
+  /** Absolute path of the last save target picked from the in-panel menu,
+   * so the next save defaults to the same file. */
+  lastSaveTarget?: string;
 }
 
 type SaveStatus =
   | { kind: "idle" }
   | { kind: "saving" }
-  | { kind: "saved"; path: string }
-  | { kind: "error"; message: string };
+  | { kind: "saved"; path: string; count: number }
+  | { kind: "error"; message: string }
+  | { kind: "info"; message: string };
 
 type ViewMode = "tree" | "changes";
 
@@ -113,6 +124,12 @@ export class KconfigPage extends ZephyrLitElement {
   /** Optional fallback entries from the dashboard JSON used only when the
    * Python session is unavailable. */
   @property({ attribute: false }) entries?: DashboardKconfigEntry[];
+
+  /** Set by the parent when the session was warmed up in the background
+   * before the user navigated here.  When true the loading state shows a
+   * lightweight inline spinner instead of replacing the whole page so the
+   * toolbar and nav remain visible while the tree is being fetched. */
+  @property({ type: Boolean }) preloaded = false;
 
   // --- Session-mode state --------------------------------------------------
   @state() private _treeRoot?: KconfigNode;
@@ -139,6 +156,23 @@ export class KconfigPage extends ZephyrLitElement {
   @state() private _history: string[] = [];
   @state() private _historyIndex = -1;
 
+  // --- Phase 1 / 2: Save menu + per-row UX --------------------------------
+  /** Pre-existing extra Kconfig fragments the user can overwrite from the
+   * Save menu.  Lazily fetched on first menu open and refreshed after each
+   * successful save. */
+  @state() private _saveTargets?: KconfigSaveTarget[];
+  @state() private _saveMenuOpen = false;
+  @state() private _saveTargetsLoading = false;
+  /** Last save target the user picked, persisted across reloads. */
+  @state() private _lastSaveTarget?: string;
+  /** Floating right-click context menu for tree rows. */
+  @state() private _contextMenu?: {
+    x: number;
+    y: number;
+    node: KconfigNode;
+    modified: boolean;
+  };
+
   // --- Fallback (Phase 1A) state ------------------------------------------
   @state() private _fallbackEdits: Record<string, string> = {};
   @state() private _fallbackShowOnlyModified = false;
@@ -157,6 +191,7 @@ export class KconfigPage extends ZephyrLitElement {
     super.connectedCallback();
     window.addEventListener("message", this._onMessage);
     window.addEventListener("keydown", this._onKeydown);
+    document.addEventListener("mousedown", this._onDocumentMouseDown, true);
     this._restoreState();
     void this._bootstrap();
   }
@@ -165,6 +200,7 @@ export class KconfigPage extends ZephyrLitElement {
     super.disconnectedCallback();
     window.removeEventListener("message", this._onMessage);
     window.removeEventListener("keydown", this._onKeydown);
+    document.removeEventListener("mousedown", this._onDocumentMouseDown, true);
   }
 
   /** Persist UI-only state via the VS Code webview state API.  Survives
@@ -178,6 +214,7 @@ export class KconfigPage extends ZephyrLitElement {
       viewMode: this._viewMode,
       history: this._history,
       historyIndex: this._historyIndex,
+      lastSaveTarget: this._lastSaveTarget,
     };
     try { this.vscodeApi.setState(state); } catch { /* best-effort */ }
   }
@@ -193,6 +230,7 @@ export class KconfigPage extends ZephyrLitElement {
     if (Array.isArray(s.history)) { this._history = s.history; }
     if (typeof s.historyIndex === "number") { this._historyIndex = s.historyIndex; }
     if (typeof s.selectedName === "string") { this._selectedName = s.selectedName; }
+    if (typeof s.lastSaveTarget === "string") { this._lastSaveTarget = s.lastSaveTarget; }
   }
 
   /** Updates whose property change should write through to webview state. */
@@ -200,7 +238,7 @@ export class KconfigPage extends ZephyrLitElement {
     super.updated?.(changed);
     const persistKeys = [
       "_expanded", "_selectedName", "_showHidden", "_searchHelp",
-      "_viewMode", "_history", "_historyIndex",
+      "_viewMode", "_history", "_historyIndex", "_lastSaveTarget",
     ];
     if (persistKeys.some((k) => changed.has(k))) { this._persistState(); }
   }
@@ -230,6 +268,14 @@ export class KconfigPage extends ZephyrLitElement {
     // Phase 1A fallback save reply.
     if (msg.command === "kconfigSaveResult") {
       this._handleFallbackSaveReply(msg);
+      return;
+    }
+
+    // Phase 3: external menuconfig/guiconfig finished — reload the tree and
+    // .config so the dashboard matches what the user just edited.
+    if (msg.command === "kconfigExternalDone") {
+      const tool = typeof msg.tool === "string" ? msg.tool : "menuconfig";
+      void this._reloadAfterExternal(tool);
       return;
     }
 
@@ -268,14 +314,11 @@ export class KconfigPage extends ZephyrLitElement {
       this._treeRoot = result.top_menu;
       this._treeError = undefined;
       this._useFallback = false;
-      // Auto-expand the top level on first load (no persisted expansion).
-      if (this._expanded.size === 0 && this._treeRoot.children) {
-        const next = new Set<number>();
-        for (const child of this._treeRoot.children) {
-          if (this._isMenuLike(child)) { next.add(child.id); }
-        }
-        this._expanded = next;
-      }
+      // Start fully collapsed (persisted expansion restored by _restoreState
+      // above).  Only seed the set so subsequent toggles work; the virtual
+      // General group and real menus are all collapsed by default.
+      // (Nothing to do — _expanded starts empty.)
+
       // Restore selection detail if a symbol was persisted from a previous session.
       if (this._selectedName) {
         void this._loadDetail(this._selectedName);
@@ -471,13 +514,34 @@ export class KconfigPage extends ZephyrLitElement {
   // Toolbar actions
   // ------------------------------------------------------------------
 
-  private async _onSaveAs(): Promise<void> {
+  /** Show the OS save-as dialog (the legacy "save as new fragment" path).
+   * Pass an empty `target` so the extension takes the dialog branch. */
+  private async _onSaveAsNew(): Promise<void> {
+    await this._performSave("");
+  }
+
+  /** Overwrite an existing extra-fragment in place. */
+  private async _onSaveToTarget(target: KconfigSaveTarget): Promise<void> {
+    this._saveMenuOpen = false;
+    this._lastSaveTarget = target.absPath;
+    await this._performSave(target.absPath);
+  }
+
+  private async _performSave(target: string): Promise<void> {
+    const dirty = this._changes.length;
     this._saveStatus = { kind: "saving" };
     try {
-      const r = await this._request<{ savedPath: string | null }>("kconfigSaveAs", { minimal: true });
+      const r = await this._request<{ savedPath: string | null }>(
+        "kconfigSaveAs",
+        { minimal: true, target },
+      );
       if (r.savedPath) {
-        this._saveStatus = { kind: "saved", path: r.savedPath };
+        this._saveStatus = { kind: "saved", path: r.savedPath, count: dirty };
+        // Save targets list may have changed (file existence flipped) — drop
+        // the cache so the menu is repopulated on next open.
+        this._saveTargets = undefined;
       } else {
+        // User cancelled the save dialog.
         this._saveStatus = { kind: "idle" };
       }
     } catch (e) {
@@ -487,6 +551,58 @@ export class KconfigPage extends ZephyrLitElement {
       };
     }
   }
+
+  /** Open the saved file in the editor. */
+  private _onOpenSavedFile(absPath: string): void {
+    this.vscodeApi.postMessage({
+      command: "openMemorySymbol",   // reuse existing extension file-open handler
+      path: absPath,
+    });
+  }
+
+  private async _ensureSaveTargets(): Promise<void> {
+    if (this._saveTargets !== undefined || this._saveTargetsLoading) { return; }
+    this._saveTargetsLoading = true;
+    try {
+      const r = await this._request<{ targets: KconfigSaveTarget[] }>("kconfigListSaveTargets");
+      this._saveTargets = r.targets ?? [];
+    } catch {
+      this._saveTargets = [];
+    } finally {
+      this._saveTargetsLoading = false;
+    }
+  }
+
+  private async _toggleSaveMenu(): Promise<void> {
+    if (this._saveMenuOpen) {
+      this._saveMenuOpen = false;
+      return;
+    }
+    await this._ensureSaveTargets();
+    this._saveMenuOpen = true;
+  }
+
+  /** Clicked outside the save menu / context menu: dismiss them.  Wired up
+   * via `connectedCallback`. */
+  private _onDocumentMouseDown = (e: MouseEvent) => {
+    const root = this.shadowRoot;
+    if (!root) { return; }
+    const path = e.composedPath();
+    if (this._saveMenuOpen) {
+      const inMenu = path.some((n) => {
+        return n instanceof Element
+          && (n.classList?.contains?.("kconfig-save-menu")
+            || n.classList?.contains?.("kconfig-save-button"));
+      });
+      if (!inMenu) { this._saveMenuOpen = false; }
+    }
+    if (this._contextMenu) {
+      const inCtx = path.some((n) => {
+        return n instanceof Element && n.classList?.contains?.("kconfig-ctx-menu");
+      });
+      if (!inCtx) { this._contextMenu = undefined; }
+    }
+  };
 
   private async _onReload(): Promise<void> {
     this._loading = true;
@@ -509,6 +625,17 @@ export class KconfigPage extends ZephyrLitElement {
     this.postCommand("kconfigOpenExternal", { tool });
   }
 
+  /** Phase 3: re-run `kconfigReload` after the user exits an external
+   * menuconfig/guiconfig session and surface a transient banner so they
+   * know the dashboard has caught up. */
+  private async _reloadAfterExternal(tool: string): Promise<void> {
+    await this._onReload();
+    this._saveStatus = {
+      kind: "info",
+      message: `Reloaded after external ${tool}.`,
+    };
+  }
+
   private _onJumpToSymbol = (name: string) => {
     const node = this._findNodeByName(name);
     if (node) { this._revealNode(node); }
@@ -525,12 +652,140 @@ export class KconfigPage extends ZephyrLitElement {
   }
 
   // ------------------------------------------------------------------
+  // Phase 2: per-row helpers (modified marker, reset, jump-to-def, context)
+  // ------------------------------------------------------------------
+
+  /** True if this symbol differs from the on-disk .config that was loaded
+   * when the dashboard opened (drives the modified ● and reset button). */
+  private _isModified(name: string): boolean {
+    if (!name) { return false; }
+    return this._changes.some((c) => c.name === name);
+  }
+
+  /** Restore a symbol to the value it had at load time (or last reload). */
+  private async _resetSymbol(name: string): Promise<void> {
+    const change = this._changes.find((c) => c.name === name);
+    if (!change) { return; }
+    await this._setSymbol(name, change.old);
+  }
+
+  /** Open the Kconfig file that defines this symbol.  Uses the cached detail
+   * if it matches; otherwise asks the helper. */
+  private async _jumpToDefinition(name: string): Promise<void> {
+    let detail = this._selectedDetail;
+    if (!detail || detail.name !== name) {
+      try {
+        detail = await this._request<KconfigSymbolDetail>("kconfigSymbol", { name });
+      } catch {
+        return;
+      }
+    }
+    const def = detail.defining_files?.[0];
+    if (def) { this._onOpenDefiningFile(def.filename, def.linenr); }
+  }
+
+  private _openContextMenu(e: MouseEvent, node: KconfigNode): void {
+    e.preventDefault();
+    e.stopPropagation();
+    this._contextMenu = {
+      x: e.clientX,
+      y: e.clientY,
+      node,
+      modified: this._isModified(node.name),
+    };
+  }
+
+  /** Recursively collect all menu/choice node ids in a subtree (for the
+   * Expand/Collapse-subtree context-menu actions). */
+  private _collectMenuIds(node: KconfigNode, into: Set<number>): void {
+    if (this._isMenuLike(node)) { into.add(node.id); }
+    if (node.children) {
+      for (const c of node.children) { this._collectMenuIds(c, into); }
+    }
+  }
+
+  private _expandSubtree(node: KconfigNode): void {
+    const ids = new Set<number>(this._expanded);
+    this._collectMenuIds(node, ids);
+    this._expanded = ids;
+    this._contextMenu = undefined;
+  }
+
+  private _collapseSubtree(node: KconfigNode): void {
+    const collect = new Set<number>();
+    this._collectMenuIds(node, collect);
+    const next = new Set<number>();
+    for (const id of this._expanded) { if (!collect.has(id)) { next.add(id); } }
+    this._expanded = next;
+    this._contextMenu = undefined;
+  }
+
+  private async _copyConfigName(name: string): Promise<void> {
+    this._contextMenu = undefined;
+    if (!name) { return; }
+    try {
+      await navigator.clipboard.writeText(`CONFIG_${name}`);
+    } catch { /* clipboard may be blocked */ }
+  }
+
+  private _renderContextMenu(): TemplateResult | typeof nothing {
+    const ctx = this._contextMenu;
+    if (!ctx) { return nothing; }
+    const node = ctx.node;
+    const isMenu = this._isMenuLike(node);
+    return html`
+      <ul
+        class="kconfig-ctx-menu"
+        role="menu"
+        style="left:${ctx.x}px;top:${ctx.y}px"
+        @mousedown=${(e: Event) => e.stopPropagation()}
+      >
+        ${isMenu
+        ? html`
+            <li class="kconfig-ctx-item" role="menuitem"
+                @click=${() => this._expandSubtree(node)}>
+              <span class="codicon codicon-expand-all"></span>Expand subtree
+            </li>
+            <li class="kconfig-ctx-item" role="menuitem"
+                @click=${() => this._collapseSubtree(node)}>
+              <span class="codicon codicon-collapse-all"></span>Collapse subtree
+            </li>
+            <li class="kconfig-ctx-sep" role="separator"></li>`
+        : nothing}
+        ${node.is_symbol && node.name
+        ? html`
+            <li class="kconfig-ctx-item" role="menuitem"
+                @click=${() => { this._contextMenu = undefined; void this._jumpToDefinition(node.name); }}>
+              <span class="codicon codicon-go-to-file"></span>Go to definition
+            </li>
+            <li class="kconfig-ctx-item" role="menuitem"
+                @click=${() => void this._copyConfigName(node.name)}>
+              <span class="codicon codicon-copy"></span>Copy <code>CONFIG_${node.name}</code>
+            </li>`
+        : nothing}
+        ${ctx.modified
+        ? html`
+            <li class="kconfig-ctx-sep" role="separator"></li>
+            <li class="kconfig-ctx-item" role="menuitem"
+                @click=${() => { this._contextMenu = undefined; void this._resetSymbol(node.name); }}>
+              <span class="codicon codicon-discard"></span>Reset to original
+            </li>`
+        : nothing}
+      </ul>
+    `;
+  }
+
+  // ------------------------------------------------------------------
   // Render: top-level
   // ------------------------------------------------------------------
 
   render() {
     if (this._useFallback) { return this._renderFallback(); }
-    if (this._loading && !this._treeRoot) { return this._renderLoading(); }
+    if (this._loading && !this._treeRoot) {
+      // If the session was preloaded we keep the shell (toolbar etc.) visible
+      // with an inline spinner so the UI feels faster.
+      if (!this.preloaded) { return this._renderLoading(); }
+    }
     if (this._treeError && !this._treeRoot) { return this._renderError(); }
 
     return html`
@@ -548,12 +803,18 @@ export class KconfigPage extends ZephyrLitElement {
 
       <div class="kconfig-split">
         <div class="kconfig-pane kconfig-pane-tree">
-          ${this._viewMode === "tree" ? this._renderTree() : this._renderChanges()}
+          ${this._loading && !this._treeRoot
+        ? html`<div class="kconfig-pane-loading">
+                <span class="codicon codicon-loading codicon-modifier-spin" style="font-size:28px;opacity:0.7"></span>
+                <p>Loading Kconfig tree…</p>
+              </div>`
+        : this._viewMode === "tree" ? this._renderTree() : this._renderChanges()}
         </div>
         <div class="kconfig-pane kconfig-pane-detail">
           ${this._renderDetail()}
         </div>
       </div>
+      ${this._renderContextMenu()}
     `;
   }
 
@@ -645,60 +906,47 @@ export class KconfigPage extends ZephyrLitElement {
           Show hidden symbols
         </label>
         <span style="flex:1"></span>
-        <div class="kconfig-view-tabs" role="tablist">
-          <vscode-button
-            appearance=${this._viewMode === "tree" ? "primary" : "secondary"}
-            role="tab"
-            aria-selected=${this._viewMode === "tree"}
-            @click=${() => this._viewMode = "tree"}
+        <div class="kconfig-view-toggle" role="group" aria-label="View mode">
+          <button
+            class="kconfig-view-toggle-btn ${this._viewMode === "tree" ? "kconfig-view-toggle-btn--active" : ""}"
+            title="Show Kconfig tree"
+            @click=${() => { this._viewMode = "tree"; }}
           >
-            <span class="codicon codicon-list-tree" style="margin-right:4px"></span>
+            <span class="codicon codicon-list-tree"></span>
             Tree
-          </vscode-button>
-          <vscode-button
-            appearance=${this._viewMode === "changes" ? "primary" : "secondary"}
-            role="tab"
-            aria-selected=${this._viewMode === "changes"}
+          </button>
+          <button
+            class="kconfig-view-toggle-btn ${this._viewMode === "changes" ? "kconfig-view-toggle-btn--active" : ""}"
+            title="Show pending changes"
             @click=${() => { this._viewMode = "changes"; void this._refreshChanges(); }}
           >
             <span class="codicon codicon-diff"></span>
-            Changes${dirty > 0 ? html`&nbsp;(${dirty})` : nothing}
-          </vscode-button>
+            Changes${dirty > 0 ? html`<span class="kconfig-toggle-badge">${dirty}</span>` : nothing}
+          </button>
         </div>
         <vscode-button
-          appearance="secondary"
+          appearance="icon"
           @click=${this._onReload}
           title="Discard in-memory edits and re-parse the build's .config"
         >
-          <span class="codicon codicon-refresh" style="margin-right:4px"></span>
-          Reload
+          <span class="codicon codicon-refresh"></span>
         </vscode-button>
+        ${this._renderSaveButton(saving, dirty)}
         <vscode-button
-          appearance="primary"
-          ?disabled=${saving || dirty === 0}
-          @click=${this._onSaveAs}
-          title="Save edited symbols to a Kconfig fragment file (minimal)"
-        >
-          <span class="codicon ${saving
-        ? "codicon-loading codicon-modifier-spin"
-        : "codicon-save"}" style="margin-right:4px"></span>
-          ${saving ? "Saving…" : `Save fragment…${dirty > 0 ? ` (${dirty})` : ""}`}
-        </vscode-button>
-        <vscode-button
-          appearance="secondary"
+          appearance="icon"
+          ?disabled=${saving}
           @click=${() => this._onOpenExternal("menuconfig")}
           title="Run 'west build -t menuconfig' in a terminal"
         >
-          <span class="codicon codicon-terminal" style="margin-right:4px"></span>
-          menuconfig
+          <span class="codicon codicon-terminal"></span>
         </vscode-button>
         <vscode-button
-          appearance="secondary"
+          appearance="icon"
+          ?disabled=${saving}
           @click=${() => this._onOpenExternal("guiconfig")}
           title="Run 'west build -t guiconfig' in a terminal"
         >
-          <span class="codicon codicon-window" style="margin-right:4px"></span>
-          guiconfig
+          <span class="codicon codicon-window"></span>
         </vscode-button>
       </div>
     `;
@@ -707,10 +955,16 @@ export class KconfigPage extends ZephyrLitElement {
   private _renderStatus() {
     const s = this._saveStatus;
     if (s.kind === "saved") {
+      const rel = this._relPath(s.path);
       return html`
         <p class="kconfig-status kconfig-status-ok">
           <span class="codicon codicon-check"></span>
-          Saved fragment to <code>${s.path}</code>
+          Saved ${s.count} change${s.count === 1 ? "" : "s"} to <code>${rel}</code>
+          <span
+            class="kconfig-tree-link"
+            style="margin-left:8px"
+            @click=${() => this._onOpenSavedFile(s.path)}
+          >Open file</span>
         </p>
       `;
     }
@@ -722,7 +976,119 @@ export class KconfigPage extends ZephyrLitElement {
         </p>
       `;
     }
+    if (s.kind === "info") {
+      return html`
+        <p class="kconfig-status kconfig-status-info">
+          <span class="codicon codicon-info"></span>
+          ${s.message}
+        </p>
+      `;
+    }
     return nothing;
+  }
+
+  /** Best-effort: trim a workspace-rootless path off an absolute one for
+   * display.  We don't know the workspace root in the webview, so we just
+   * shorten the leading segments to avoid huge absolute paths. */
+  private _relPath(absPath: string): string {
+    const norm = absPath.replace(/\\/g, "/");
+    const parts = norm.split("/");
+    if (parts.length <= 4) { return norm; }
+    return ".../" + parts.slice(-3).join("/");
+  }
+
+  /** Save split-button: primary action saves to the last-used target (or
+   * shows the dialog if there is none); the chevron opens a popover listing
+   * all attached extra-fragments + "Save as new fragment…". */
+  private _renderSaveButton(saving: boolean, dirty: number): TemplateResult {
+    const disabled = saving || dirty === 0;
+    const last = this._lastSaveTarget
+      ? this._saveTargets?.find((t) => t.absPath === this._lastSaveTarget)
+      : undefined;
+    const primaryLabel = saving
+      ? "Saving…"
+      : last
+        ? `Save to ${this._relPath(last.absPath)}${dirty > 0 ? ` (${dirty})` : ""}`
+        : `Save fragment…${dirty > 0 ? ` (${dirty})` : ""}`;
+    const primaryTitle = last
+      ? `Overwrite ${last.path} with the current minimal config (${last.scope} extra)`
+      : "Save edited symbols to a Kconfig fragment file (minimal)";
+    const primaryAction = () => {
+      if (last) {
+        void this._onSaveToTarget(last);
+      } else {
+        void this._onSaveAsNew();
+      }
+    };
+    return html`
+      <span class="kconfig-save-split">
+        <vscode-button
+          class="kconfig-save-button"
+          appearance="primary"
+          ?disabled=${disabled}
+          title=${primaryTitle}
+          @click=${primaryAction}
+        >
+          <span class="codicon ${saving
+        ? "codicon-loading codicon-modifier-spin"
+        : "codicon-save"}" style="margin-right:4px"></span>
+          ${primaryLabel}
+        </vscode-button>
+        <vscode-button
+          class="kconfig-save-button kconfig-save-chevron"
+          appearance="primary"
+          ?disabled=${disabled}
+          title="Choose save target…"
+          @click=${(e: Event) => { e.stopPropagation(); void this._toggleSaveMenu(); }}
+        >
+          <span class="codicon codicon-chevron-down"></span>
+        </vscode-button>
+        ${this._saveMenuOpen ? this._renderSaveMenu() : nothing}
+      </span>
+    `;
+  }
+
+  private _renderSaveMenu(): TemplateResult {
+    const targets = this._saveTargets ?? [];
+    return html`
+      <ul class="kconfig-save-menu" role="menu" @mousedown=${(e: Event) => e.stopPropagation()}>
+        ${this._saveTargetsLoading
+        ? html`<li class="kconfig-save-menu-info">
+              <span class="codicon codicon-loading codicon-modifier-spin"></span>
+              Loading targets…
+            </li>`
+        : nothing}
+        ${!this._saveTargetsLoading && targets.length === 0
+        ? html`<li class="kconfig-save-menu-info">
+              No extra Kconfig fragments attached to this build or project.
+            </li>`
+        : nothing}
+        ${targets.map((t) => html`
+          <li
+            class="kconfig-save-menu-item ${t.absPath === this._lastSaveTarget ? "kconfig-save-menu-current" : ""}"
+            role="menuitem"
+            title=${t.absPath}
+            @click=${() => void this._onSaveToTarget(t)}
+          >
+            <span class="codicon codicon-file"></span>
+            <span class="kconfig-save-menu-path">${t.path}</span>
+            <span class="badge badge-muted">${t.scope}</span>
+            ${t.exists
+            ? nothing
+            : html`<span class="badge" title="File does not exist yet — will be created">new</span>`}
+          </li>
+        `)}
+        ${targets.length > 0 ? html`<li class="kconfig-save-menu-sep" role="separator"></li>` : nothing}
+        <li
+          class="kconfig-save-menu-item"
+          role="menuitem"
+          @click=${() => { this._saveMenuOpen = false; void this._onSaveAsNew(); }}
+        >
+          <span class="codicon codicon-new-file"></span>
+          <span class="kconfig-save-menu-path">Save as new fragment…</span>
+        </li>
+      </ul>
+    `;
   }
 
   // ------------------------------------------------------------------
@@ -784,8 +1150,60 @@ export class KconfigPage extends ZephyrLitElement {
 
     return html`
       <ul class="kconfig-tree" role="tree">
-        ${(this._treeRoot.children ?? []).map((c) => this._renderTreeNode(c, 0))}
+        ${this._renderTopLevel()}
       </ul>
+    `;
+  }
+
+  /** Render the top-level children of the tree root.
+   *
+   * Zephyr's root Kconfig defines a number of symbols (BOARD, ARCH, SOC, …)
+   * directly under `top_node` before any `menu` block.  Rendering them
+   * inline as a flat list mixes them visually with the menu headers.  We
+   * collect these "orphaned" top-level symbols and choices into a virtual
+   * "General" collapsible section so the view is uniform.
+   */
+  private _renderTopLevel(): TemplateResult | typeof nothing {
+    const children = this._treeRoot?.children ?? [];
+    // Partition into orphaned symbols/choices vs. real menu nodes.
+    const orphans: KconfigNode[] = [];
+    const menus: KconfigNode[] = [];
+    for (const c of children) {
+      if (c.is_menu || (!c.is_symbol && !c.is_choice && (c.children?.length ?? 0) > 0)) {
+        menus.push(c);
+      } else {
+        orphans.push(c);
+      }
+    }
+
+    // Filter invisible orphans now (menus are handled in _renderTreeNode).
+    const visibleOrphans = this._showHidden
+      ? orphans
+      : orphans.filter((n) => n.visible);
+
+    const GENERAL_ID = -1; // virtual node id, never conflicts with real py id()
+    const generalExpanded = this._expanded.has(GENERAL_ID);
+
+    return html`
+      ${visibleOrphans.length > 0 ? html`
+        <li class="kconfig-tree-menu" role="treeitem" aria-expanded=${generalExpanded}>
+          <div
+            class="kconfig-tree-row kconfig-tree-row-menu"
+            style="padding-left:0"
+            @click=${() => this._toggleExpand(GENERAL_ID)}
+            @contextmenu=${(e: MouseEvent) => this._openContextMenu(e, { id: GENERAL_ID, prompt: "General", name: "", type: "", value: "", visible: true, is_menu: true, is_choice: false, is_symbol: false, children: visibleOrphans })}
+          >
+            <span class="codicon ${generalExpanded ? "codicon-chevron-down" : "codicon-chevron-right"}"></span>
+            <span class="kconfig-tree-label">General</span>
+          </div>
+          ${generalExpanded
+          ? html`<ul role="group">
+                ${visibleOrphans.map((c) => this._renderTreeNode(c, 1))}
+              </ul>`
+          : nothing}
+        </li>
+      ` : nothing}
+      ${menus.map((c) => this._renderTreeNode(c, 0))}
     `;
   }
 
@@ -813,9 +1231,25 @@ export class KconfigPage extends ZephyrLitElement {
     `;
   }
 
+  /** Returns true when a node has at least one descendant that would be
+   * visible in the tree (respects `_showHidden` via caller context). */
+  private _hasVisibleContent(node: KconfigNode): boolean {
+    if (node.is_symbol) { return node.visible; }
+    if (node.is_choice || node.is_menu) {
+      if (!node.visible) { return false; }
+      return (node.children ?? []).some((c) => this._hasVisibleContent(c));
+    }
+    return false;
+  }
+
   private _renderTreeNode(node: KconfigNode, depth: number): TemplateResult | typeof nothing {
-    if (!this._showHidden && !node.visible && !node.is_menu && !node.is_choice) {
-      return nothing;
+    if (!this._showHidden) {
+      // Hide invisible leaf symbols.
+      if (!node.visible && !node.is_menu && !node.is_choice) { return nothing; }
+      // Hide menus/choices whose own `depends on` condition is false.
+      if ((node.is_menu || node.is_choice) && !node.visible) { return nothing; }
+      // Hide menus/choices that contain no visible descendants.
+      if ((node.is_menu || node.is_choice) && !this._hasVisibleContent(node)) { return nothing; }
     }
     const hasChildren = !!(node.children && node.children.length);
     const expanded = this._expanded.has(node.id);
@@ -830,9 +1264,10 @@ export class KconfigPage extends ZephyrLitElement {
             class="kconfig-tree-row kconfig-tree-row-menu"
             style="padding-left:${depth * 14}px"
             @click=${() => this._toggleExpand(node.id)}
+            @contextmenu=${(e: MouseEvent) => this._openContextMenu(e, node)}
           >
             <span class="codicon ${expanded ? "codicon-chevron-down" : "codicon-chevron-right"}"></span>
-            <span class="kconfig-tree-label">${node.prompt || node.name || "(menu)"}</span>
+            <span class="kconfig-tree-label" title=${node.prompt || node.name || ""}>${node.prompt || node.name || "(menu)"}</span>
           </div>
           ${expanded && hasChildren
           ? html`<ul role="group">
@@ -870,29 +1305,60 @@ export class KconfigPage extends ZephyrLitElement {
 
   private _renderLeafRow(node: KconfigNode, depth = 0): TemplateResult {
     const selected = this._selectedName === node.name;
+    const modified = this._isModified(node.name);
     return html`
       <li
-        class="kconfig-tree-leaf ${selected ? "kconfig-tree-selected" : ""} ${!node.visible ? "kconfig-tree-hidden" : ""}"
+        class="kconfig-tree-leaf ${selected ? "kconfig-tree-selected" : ""} ${!node.visible ? "kconfig-tree-hidden" : ""} ${modified ? "kconfig-tree-modified" : ""}"
         role="treeitem"
       >
         <div
           class="kconfig-tree-row"
           style="padding-left:${(depth + 1) * 14}px"
           @click=${() => this._selectSymbol(node.name)}
+          @contextmenu=${(e: MouseEvent) => this._openContextMenu(e, node)}
         >
-          ${this._renderLeafRowInner(node)}
+          ${this._renderLeafRowInner(node, modified)}
         </div>
       </li>
     `;
   }
 
-  private _renderLeafRowInner(node: KconfigNode): TemplateResult {
+  private _renderLeafRowInner(node: KconfigNode, modified = this._isModified(node.name)): TemplateResult {
+    // Use the prompt as the label; fall back to the symbol name in code style.
+    // title= provides a tooltip for truncated text (browser native).
+    const labelText = node.prompt || node.name;
     return html`
-      <span class="kconfig-tree-label">
+      ${modified
+        ? html`<span
+            class="kconfig-modified-dot"
+            title="Modified from on-disk .config"
+          >●</span>`
+        : nothing}
+      <span class="kconfig-tree-label" title=${labelText}>
         ${node.prompt || html`<code>${node.name}</code>`}
       </span>
-      <span class="kconfig-tree-value" @click=${(e: Event) => e.stopPropagation()}>
+      <span class="kconfig-tree-value" title=${node.value} @click=${(e: Event) => e.stopPropagation()}>
         ${this._renderInlineEditor(node)}
+      </span>
+      <span class="kconfig-row-actions" @click=${(e: Event) => e.stopPropagation()}>
+        ${modified
+        ? html`<vscode-button
+              appearance="icon"
+              title="Reset to original"
+              @click=${() => void this._resetSymbol(node.name)}
+            >
+              <span class="codicon codicon-discard"></span>
+            </vscode-button>`
+        : nothing}
+        ${node.name
+        ? html`<vscode-button
+              appearance="icon"
+              title="Go to definition"
+              @click=${() => void this._jumpToDefinition(node.name)}
+            >
+              <span class="codicon codicon-go-to-file"></span>
+            </vscode-button>`
+        : nothing}
       </span>
     `;
   }
@@ -948,17 +1414,22 @@ export class KconfigPage extends ZephyrLitElement {
     const expanded = this._expanded.has(node.id);
     const options = (node.children ?? []).filter((c) => c.is_symbol);
     const selected = options.find((o) => o.value === "y");
+    // Prefer the choice's prompt text; fall back to its identifier name; then generic label.
+    const choiceLabel = node.prompt || node.name || "(choice)";
+    // Show the selected option's human-readable prompt rather than raw symbol name.
+    const selectedLabel = selected ? (selected.prompt || selected.name) : null;
     return html`
       <li class="kconfig-tree-menu kconfig-tree-choice" role="treeitem" aria-expanded=${expanded}>
         <div
           class="kconfig-tree-row kconfig-tree-row-menu"
           style="padding-left:${depth * 14}px"
           @click=${() => this._toggleExpand(node.id)}
+          @contextmenu=${(e: MouseEvent) => this._openContextMenu(e, node)}
         >
           <span class="codicon ${expanded ? "codicon-chevron-down" : "codicon-chevron-right"}"></span>
-          <span class="kconfig-tree-label">${node.prompt || "(choice)"}</span>
-          <span class="kconfig-tree-value">
-            ${selected ? html`<code>${selected.name}</code>` : html`<em class="kconfig-bool-label">none</em>`}
+          <span class="kconfig-tree-label" title=${choiceLabel}>${choiceLabel}</span>
+          <span class="kconfig-tree-value" title=${selectedLabel ?? ""}>
+            ${selectedLabel ? html`<code>${selectedLabel}</code>` : html`<em class="kconfig-bool-label">none</em>`}
           </span>
         </div>
         ${expanded
@@ -979,6 +1450,7 @@ export class KconfigPage extends ZephyrLitElement {
                     ></vscode-radio>
                     <span
                       class="kconfig-tree-label kconfig-tree-link"
+                      title=${opt.prompt || opt.name}
                       @click=${() => this._selectSymbol(opt.name)}
                     >${opt.prompt || html`<code>${opt.name}</code>`}</span>
                   </div>
@@ -1181,7 +1653,8 @@ export class KconfigPage extends ZephyrLitElement {
 
   private _handleFallbackSaveReply(msg: Record<string, unknown>): void {
     if (msg.ok && typeof msg.savedPath === "string") {
-      this._saveStatus = { kind: "saved", path: msg.savedPath };
+      const count = Object.keys(this._fallbackEdits).length;
+      this._saveStatus = { kind: "saved", path: msg.savedPath, count };
       this._fallbackEdits = {};
     } else if (msg.ok && !msg.savedPath) {
       this._saveStatus = { kind: "idle" };
