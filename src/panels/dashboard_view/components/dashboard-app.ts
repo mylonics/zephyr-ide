@@ -45,6 +45,7 @@ export class DashboardApp extends ZephyrLitElement {
   @state() private _summary: DashboardSummary | undefined;
   @state() private _memory: DashboardMemory | undefined;
   @state() private _kconfig: DashboardKconfigEntry[] | undefined;
+  @state() private _kconfigSourceFiles: string[] = [];
   @state() private _sysInit: DashboardSysInit | undefined;
   @state() private _dts: DashboardDts | undefined;
   @state() private _elfStats: DashboardElfStats | undefined;
@@ -84,6 +85,7 @@ export class DashboardApp extends ZephyrLitElement {
       this._summary = d.summary;
       this._memory = d.memory;
       this._kconfig = d.kconfig;
+      this._kconfigSourceFiles = d.kconfigSourceFiles ?? [];
       this._sysInit = d.sysInit;
       this._dts = d.dts;
       this._elfStats = d.elfStats;
@@ -203,7 +205,7 @@ export class DashboardApp extends ZephyrLitElement {
         // falls back to the static `entries` table only if the helper fails.
         // Pass .preloaded so the page can skip the loading-screen flicker when
         // the session was warmed up in the background before the user arrived.
-        return html`<kconfig-page .entries=${this._kconfig} .preloaded=${!this._kconfigLoading}></kconfig-page>`;
+        return html`<kconfig-page .entries=${this._kconfig} .kconfigSourceFiles=${this._kconfigSourceFiles} .preloaded=${!this._kconfigLoading}></kconfig-page>`;
 
       case "sysinit":
         return this._sysInit

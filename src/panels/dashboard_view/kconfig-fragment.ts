@@ -404,6 +404,15 @@ export async function saveSessionFragmentToPath(
   await fs.ensureDir(path.dirname(absPath));
   const tmp = `${absPath}.tmp-${process.pid}-${Date.now()}`;
 
+  // Create a single-revision backup before touching the file so the user can
+  // revert manually if needed.  Only created when the file already exists.
+  const bakPath = `${absPath}.bak`;
+  try {
+    if (await fs.pathExists(absPath)) {
+      await fs.copy(absPath, bakPath, { overwrite: true });
+    }
+  } catch { /* backup is best-effort; never block the save */ }
+
   try {
     if (!opts.merge) {
       // Simple overwrite: let the session write the minimal fragment.

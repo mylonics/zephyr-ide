@@ -216,6 +216,8 @@ export class DtsPage extends ZephyrLitElement {
       <h1>Device Tree</h1>
       <p class="dts-path"><code>${this.data.sourcePath}</code></p>
 
+      ${this._renderDtsSourceFiles()}
+
       <div class="dts-tabs">
         <button class="dts-tab${this._activeTab === 'browser' ? ' dts-tab-active' : ''}"
           @click=${() => { this._activeTab = 'browser'; }}>Browser</button>
@@ -224,6 +226,31 @@ export class DtsPage extends ZephyrLitElement {
       </div>
 
       ${this._activeTab === 'browser' ? this._renderBrowser() : this._renderSource()}
+    `;
+  }
+
+  private _renderDtsSourceFiles(): TemplateResult | typeof nothing {
+    const files = this.data?.sourceFiles;
+    if (!files || files.length === 0) { return nothing; }
+    return html`
+      <details class="source-files-panel" open>
+        <summary class="source-files-heading">
+          <span class="codicon codicon-file-text" aria-hidden="true"></span>
+          Device tree sources
+          <span class="source-files-count">(${files.length})</span>
+        </summary>
+        <ul class="source-files-list">
+          ${files.map((f) => {
+            const display = f.replace(/\\/g, '/').split('/').slice(-2).join('/');
+            return html`
+              <li class="source-files-item" title="${f}">
+                <span class="codicon codicon-file" aria-hidden="true"></span>
+                <button class="link-button" @click=${() => this._openSource(f, null)}>${display}</button>
+              </li>
+            `;
+          })}
+        </ul>
+      </details>
     `;
   }
 

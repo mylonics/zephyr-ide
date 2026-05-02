@@ -130,6 +130,11 @@ export class KconfigPage extends ZephyrLitElement {
    * Python session is unavailable. */
   @property({ attribute: false }) entries?: DashboardKconfigEntry[];
 
+  /** Absolute paths of every Kconfig conf file that contributed to this
+   * build (from build_info.yml).  Displayed as an informational file list
+   * at the top of the page so the user knows which files are in effect. */
+  @property({ attribute: false }) kconfigSourceFiles?: string[];
+
   /** Set by the parent when the session was warmed up in the background
    * before the user navigated here.  When true the loading state shows a
    * lightweight inline spinner instead of replacing the whole page so the
@@ -869,6 +874,7 @@ export class KconfigPage extends ZephyrLitElement {
         : nothing}
       </h1>
 
+      ${this._renderSourceFiles()}
       ${this._renderToolbar()}
       ${this._renderStatus()}
 
@@ -887,6 +893,41 @@ export class KconfigPage extends ZephyrLitElement {
       </div>
       ${this._renderContextMenu()}
     `;
+  }
+
+  // ------------------------------------------------------------------
+  // Render: Kconfig source file list
+  // ------------------------------------------------------------------
+
+  /** Displays the .conf files that contributed to this build (from
+   * build_info.yml).  Each file is clickable to open it in the editor. */
+  private _renderSourceFiles(): TemplateResult | typeof nothing {
+    const files = this.kconfigSourceFiles;
+    if (!files || files.length === 0) { return nothing; }
+    return html`
+      <details class="source-files-panel" open>
+        <summary class="source-files-heading">
+          <span class="codicon codicon-file-text" aria-hidden="true"></span>
+          Configuration sources
+          <span class="source-files-count">(${files.length})</span>
+        </summary>
+        <ul class="source-files-list">
+          ${files.map((f) => {
+            const display = f.replace(/\\/g, '/').split('/').slice(-2).join('/');
+            return html`
+              <li class="source-files-item" title="${f}">
+                <span class="codicon codicon-file" aria-hidden="true"></span>
+                <button class="link-button" @click=${() => this._onOpenSourceFile(f)}>${display}</button>
+              </li>
+            `;
+          })}
+        </ul>
+      </details>
+    `;
+  }
+
+  private _onOpenSourceFile(absPath: string): void {
+    this.vscodeApi.postMessage({ command: "openMemorySymbol", path: absPath });   // reuse existing extension file-open handler
   }
 
   private _renderLoading() {
@@ -1822,6 +1863,7 @@ export class KconfigPage extends ZephyrLitElement {
             Live editor unavailable: ${this._treeError}. Showing fallback table view.
           </p>`
         : nothing}
+      ${this._renderSourceFiles()}
       <div class="kconfig-toolbar">
         <vscode-textfield
           class="kconfig-filter"

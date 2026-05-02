@@ -175,6 +175,67 @@ function parseKconfig(buildFolder: string): DashboardKconfigEntry[] {
 }
 
 // ---------------------------------------------------------------------------
+// build_info.yml — source file lists
+// ---------------------------------------------------------------------------
+
+interface BuildInfoSourceFiles {
+  kconfigFiles: string[];
+  dtsFiles: string[];
+}
+
+/**
+ * Reads build_info.yml and extracts the flat lists of Kconfig conf files and
+ * DTS/overlay source files that contributed to this build.  Returns empty
+ * arrays when the file is absent or malformed (lenient by design).
+ */
+function readBuildInfoSourceFiles(buildFolder: string): BuildInfoSourceFiles {
+  const buildInfoPath = path.join(buildFolder, 'build_info.yml');
+  if (!fs.existsSync(buildInfoPath)) {
+    return { kconfigFiles: [], dtsFiles: [] };
+  }
+  try {
+    // Lightweight YAML parse for the two lists we care about.
+    const raw = fs.readFileSync(buildInfoPath, 'utf8');
+    // Parse inline: look for the yaml structure manually to avoid adding a
+    // heavy YAML dependency.  build_info.yml uses a known schema so a simple
+    // block-sequence parser is sufficient.
+    const kconfigFiles: string[] = [];
+    const dtsFiles: string[] = [];
+
+    let section: 'kconfig' | 'dts' | null = null;
+    let inFiles = false;
+
+    for (const line of raw.split(/\r?\n/)) {
+      if (/^\s*kconfig\s*:/.test(line)) { section = 'kconfig'; inFiles = false; continue; }
+      if (/^\s*devicetree\s*:/.test(line)) { section = 'dts'; inFiles = false; continue; }
+      // Lines with 0 or 1 leading spaces are top-level YAML keys.
+      if (/^ {0,1}\S/.test(line)) {
+        // Top-level key — reset section if it's something other than kconfig/dts
+        if (!/^\s*(kconfig|devicetree)\s*:/.test(line)) { section = null; }
+        inFiles = false;
+        continue;
+      }
+      if (/^\s+(files|user-files)\s*:/.test(line)) { inFiles = true; continue; }
+      // A new indented key that is not a list item ends the files block.
+      if (inFiles && /^\s+\S/.test(line) && !/^\s+-\s/.test(line)) { inFiles = false; }
+      if (inFiles && /^\s+-\s+(.+)/.test(line)) {
+        const m = line.match(/^\s+-\s+(.*)/);
+        if (m) {
+          const p = m[1].trim().replace(/^['"]|['"]$/g, '');
+          if (p) {
+            if (section === 'kconfig') { kconfigFiles.push(p); }
+            else if (section === 'dts') { dtsFiles.push(p); }
+          }
+        }
+      }
+    }
+    return { kconfigFiles, dtsFiles };
+  } catch {
+    return { kconfigFiles: [], dtsFiles: [] };
+  }
+}
+
+// ---------------------------------------------------------------------------
 // ELF section sizes
 // ---------------------------------------------------------------------------
 
@@ -681,6 +742,7 @@ export async function readDashboardData(
   const kconfig = parseKconfig(buildFolder);
   const { romTotal, ramTotal } = parseMapMemoryRegions(buildFolder, kernelBinName);
   const sysInit = parseSysInit(buildFolder, kernelBinName, cache);
+  const buildInfoFiles = readBuildInfoSourceFiles(buildFolder);
 
   const dtsPath = path.join(buildFolder, 'zephyr', 'zephyr.dts');
   const dtsSource = fs.existsSync(dtsPath) ? fs.readFileSync(dtsPath, 'utf8') : '';
@@ -705,9 +767,10 @@ export async function readDashboardData(
       ramTotal,
     },
     kconfig,
+    kconfigSourceFiles: buildInfoFiles.kconfigFiles,
     sysInit,
     memory,
-    dts: { source: dtsSource, sourcePath: dtsPath },
+    dts: { source: dtsSource, sourcePath: dtsPath, sourceFiles: buildInfoFiles.dtsFiles },
     elfStats: { contents: elfInfo.statContents, path: elfInfo.statPath },
     meta: {
       projectName,

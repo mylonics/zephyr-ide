@@ -1493,3 +1493,53 @@ pre.text-viewer {
   font-size: 11px;
 }
 
+
+/* ── Source file panel (shared by kconfig-page and dts-page) ── */
+
+.source-files-panel {
+  margin-bottom: 12px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--zephyr-webview-radius);
+  overflow: hidden;
+}
+
+.source-files-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+  background: var(--vscode-sideBar-background, var(--vscode-editor-background));
+  user-select: none;
+  list-style: none;
+}
+
+.source-files-heading::-webkit-details-marker { display: none; }
+
+.source-files-count {
+  font-weight: 400;
+  opacity: 0.7;
+}
+
+.source-files-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  background: var(--vscode-editor-background);
+}
+
+.source-files-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  font-size: 12px;
+}
+
+.source-files-item .codicon {
+  opacity: 0.6;
+  flex-shrink: 0;
+}

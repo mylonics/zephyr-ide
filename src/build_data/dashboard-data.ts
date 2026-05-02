@@ -73,6 +73,9 @@ export interface DashboardDts {
   /** Raw .dts source text. */
   source: string;
   sourcePath: string;
+  /** Absolute paths of every DTS/overlay file that contributed to this build,
+   * read from build_info.yml cmake.devicetree.{files,user-files}. */
+  sourceFiles: string[];
 }
 
 export interface DashboardElfStats {
@@ -83,6 +86,9 @@ export interface DashboardElfStats {
 export interface DashboardData {
   summary: DashboardSummary;
   kconfig: DashboardKconfigEntry[];
+  /** Absolute paths of every Kconfig .conf file that contributed to this
+   * build, read from build_info.yml cmake.kconfig.{files,user-files}. */
+  kconfigSourceFiles: string[];
   sysInit: DashboardSysInit;
   memory: DashboardMemory;
   dts: DashboardDts;
