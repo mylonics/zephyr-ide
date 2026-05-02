@@ -26,6 +26,10 @@ import type { KconfigSession } from "../../build_data/kconfig-session";
 /** Callback invoked when the user requests a memory report refresh. */
 type MemoryRefreshCallback = () => Promise<(DashboardMemoryRefresh & { error?: string }) | undefined>;
 
+/** Callback invoked when the user clicks Build from the Kconfig page.
+ * Builds the specific project/build this dashboard was opened for. */
+type BuildCallback = (pristine: boolean) => Promise<void>;
+
 /**
  * Callbacks that route Kconfig editor actions to extension-side helpers.
  * The DashboardPanel does not know about workspace state directly — these
@@ -125,6 +129,7 @@ export class DashboardPanel {
   private readonly _extensionPath: string;
   private _data: DashboardData;
   private readonly _onRefreshMemory: MemoryRefreshCallback;
+  private readonly _onBuild: BuildCallback | undefined;
   private readonly _kconfigCallbacks: DashboardKconfigCallbacks | undefined;
   private readonly _kconfigSessionFactory: KconfigSessionFactory | undefined;
   /** In-flight or completed session promise. Reused across concurrent requests. */
@@ -152,6 +157,7 @@ export class DashboardPanel {
     onRefreshMemory: MemoryRefreshCallback,
     kconfigCallbacks?: DashboardKconfigCallbacks,
     kconfigSessionFactory?: KconfigSessionFactory,
+    onBuild?: BuildCallback,
   ): DashboardPanel {
     const { projectName, buildName } = data.meta;
     const key = `${projectName}/${buildName}`;
@@ -185,6 +191,7 @@ export class DashboardPanel {
       onRefreshMemory,
       kconfigCallbacks,
       kconfigSessionFactory,
+      onBuild,
     );
     DashboardPanel._panels.set(key, instance);
     return instance;
@@ -201,11 +208,13 @@ export class DashboardPanel {
     onRefreshMemory: MemoryRefreshCallback,
     kconfigCallbacks?: DashboardKconfigCallbacks,
     kconfigSessionFactory?: KconfigSessionFactory,
+    onBuild?: BuildCallback,
   ) {
     this._panel = panel;
     this._extensionPath = extensionPath;
     this._data = data;
     this._onRefreshMemory = onRefreshMemory;
+    this._onBuild = onBuild;
     this._kconfigCallbacks = kconfigCallbacks;
     this._kconfigSessionFactory = kconfigSessionFactory;
 
@@ -260,7 +269,20 @@ export class DashboardPanel {
       await this._kconfigCallbacks?.openExternal(tool);
     } else if (message?.command === "build") {
       const pristine = !!message.pristine;
-      await vscode.commands.executeCommand(pristine ? "zephyr-ide.build-pristine" : "zephyr-ide.build");
+      // Build the specific project/build this dashboard was opened for, not
+      // the globally active project.  Falls back to the VS Code command if
+      // no callback was registered (should not happen in normal usage).
+      if (this._onBuild) {
+        await this._onBuild(pristine);
+      } else {
+        await vscode.commands.executeCommand(
+          pristine ? "zephyr-ide.build-pristine" : "zephyr-ide.build",
+        );
+      }
+      // Auto-rescan: reload the Kconfig session from the new .config so the
+      // editor reflects the result of the build immediately.  If the build
+      // failed, .config is unchanged and the reload is a harmless no-op.
+      await this.notifyKconfigExternalDone("build");
     } else if (typeof message?.command === "string" && (message.command as string).startsWith("kconfig")) {
       await this._handleKconfigSession(message);
     }
@@ -561,7 +583,7 @@ export class DashboardPanel {
    * so the in-panel editor can reload the build's .config from disk.  No-op
    * if the panel is disposed.
    */
-  public async notifyKconfigExternalDone(tool: "menuconfig" | "guiconfig"): Promise<void> {
+  public async notifyKconfigExternalDone(tool: "menuconfig" | "guiconfig" | "build"): Promise<void> {
     try {
       await this._panel.webview.postMessage({ command: "kconfigExternalDone", tool });
     } catch { /* panel may be disposed */ }

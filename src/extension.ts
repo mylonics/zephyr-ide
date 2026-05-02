@@ -56,6 +56,7 @@ import { notifyError, outputInfo, outputError, outputLine, outputCommandFailure,
 import * as project from "./project_utilities/project";
 import {
   buildHelper,
+  buildByName,
   buildMenuConfig,
   buildRamRomReport,
   buildRamRomReportHeadless,
@@ -1475,6 +1476,11 @@ export async function activate(context: vscode.ExtensionContext) {
             session.dispose();
             throw err;
           });
+        },
+        // onBuild: build the dashboard's own project/build, not the active project.
+        // build.ts auto-detects whether a pristine build is needed (conf file changes).
+        async (pristine) => {
+          await buildByName(context, wsConfig, pristine, result.projectName, result.buildName);
         },
       );
 

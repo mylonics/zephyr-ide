@@ -685,7 +685,9 @@ export class KconfigPage extends ZephyrLitElement {
     await this._onReload();
     this._saveStatus = {
       kind: "info",
-      message: `Reloaded after external ${tool}.`,
+      message: tool === "build"
+        ? "Kconfig reloaded after build."
+        : `Reloaded after external ${tool}.`,
     };
   }
 
