@@ -351,6 +351,7 @@ export class BuildSection extends ZephyrLitElement {
             ${this._renderActionButton('buildPristine', 'refresh', 'Pristine', 'Pristine Build', 'secondary')}
             ${this._renderActionButton('flash', 'zap', 'Flash', 'Flash', 'secondary')}
             ${this._renderActionButton('debug', 'debug-alt', 'Debug', 'Debug', 'secondary')}
+            ${this._renderActionButton('runDashboard', 'graph', 'Report', 'Dashboard Report', 'secondary')}
             <vscode-button appearance="icon" icon="trash" title="Remove Build"
               ?disabled=${this.activeAction !== null}
               @click=${() => this.postCommand("removeBuild", { project: this.projectName, build: b.name })}>

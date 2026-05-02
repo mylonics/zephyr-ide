@@ -41,6 +41,28 @@
       }
     },
     {
+      "label": "esbuild-watch (background)",
+      "type": "npm",
+      "script": "esbuild-watch",
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "custom",
+        "pattern": {
+          "regexp": "."
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".",
+          "endsPattern": "watching for changes"
+        }
+      },
+      "group": "build",
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      }
+    },
+    {
       "label": "lint",
       "type": "npm",
       "script": "lint",

@@ -76,6 +76,38 @@
           "default": false,
           "description": "Use GUI configuration editor instead of terminal-based menuconfig in the Project Tree View."
         },
+        "zephyr-ide.activeViewKconfigButton": {
+          "type": "string",
+          "enum": [
+            "dashboard",
+            "kconfig-dashboard",
+            "gui-config",
+            "menu-config"
+          ],
+          "enumDescriptions": [
+            "Open the build dashboard to the main summary page (default).",
+            "Open the build dashboard and navigate directly to the Kconfig page.",
+            "Run 'west build -t guiconfig' to open the graphical Kconfig editor in a terminal.",
+            "Run 'west build -t menuconfig' to open the terminal-based Kconfig editor."
+          ],
+          "default": "dashboard",
+          "description": "Controls what the Kconfig button in the Active Project view does. Defaults to opening the main summary page of the build dashboard. Can also be set to open the Kconfig page of the dashboard, or to launch the external guiconfig or menuconfig tool."
+        },
+        "zephyr-ide.projectViewKconfigButton": {
+          "type": "string",
+          "enum": [
+            "kconfig-dashboard",
+            "gui-config",
+            "menu-config"
+          ],
+          "enumDescriptions": [
+            "Open the build dashboard and navigate directly to the Kconfig page (default).",
+            "Run 'west build -t guiconfig' to open the graphical Kconfig editor in a terminal.",
+            "Run 'west build -t menuconfig' to open the terminal-based Kconfig editor."
+          ],
+          "default": "kconfig-dashboard",
+          "description": "Controls what the Config button in the Projects view does for a build. Defaults to opening the Kconfig page in the build dashboard. Can be changed to launch the external guiconfig or menuconfig tool instead."
+        },
         "zephyr-ide.westNarrowUpdate": {
           "type": [
             "boolean"
@@ -279,14 +311,9 @@
       ],
       "view/item/context": [
         {
-          "command": "zephyr-ide.active-view.gui-config",
+          "command": "zephyr-ide.active-view.kconfig",
           "when": "view == zephyrIdeActiveProject && viewItem =~ /activeProject\\.build(Pristine)?$/",
           "group": "inline@1"
-        },
-        {
-          "command": "zephyr-ide.active-view.menu-config",
-          "when": "view == zephyrIdeActiveProject && viewItem =~ /activeProject\\.build(Pristine)?$/",
-          "group": "inline@2"
         },
         {
           "command": "zephyr-ide.active-view.change-launch-target",
@@ -629,11 +656,23 @@
       },
       {
         "command": "zephyr-ide.run-ram-report",
-        "title": "Zephyr IDE: Run RAM Report"
+        "title": "Zephyr IDE: Zephyr RAM Report",
+        "description": "Run west build -t ram_report and open the RAM usage output for the active project/build"
       },
       {
         "command": "zephyr-ide.run-rom-report",
-        "title": "Zephyr IDE: Run ROM Report"
+        "title": "Zephyr IDE: Zephyr ROM Report",
+        "description": "Run west build -t rom_report and open the ROM usage output for the active project/build"
+      },
+      {
+        "command": "zephyr-ide.run-dashboard-report",
+        "title": "Zephyr IDE: Zephyr Dashboard Report",
+        "description": "Generate RAM/ROM reports and symbol-table data for the active project/build, refreshing any open Build Dashboard"
+      },
+      {
+        "command": "zephyr-ide.run-dashboard",
+        "title": "Zephyr IDE: Open Build Dashboard",
+        "description": "Open the Build Dashboard panel (interactive memory explorer, Kconfig viewer, device-tree viewer, ELF stats) for the active project/build"
       },
       {
         "command": "zephyr-ide.start-dtsh-shell",
@@ -840,14 +879,9 @@
         "title": "Zephyr IDE: Get Active Build Variable"
       },
       {
-        "command": "zephyr-ide.active-view.gui-config",
-        "title": "GUI Config",
+        "command": "zephyr-ide.active-view.kconfig",
+        "title": "Kconfig",
         "icon": "$(preview)"
-      },
-      {
-        "command": "zephyr-ide.active-view.menu-config",
-        "title": "Menu Config",
-        "icon": "$(settings-gear)"
       },
       {
         "command": "zephyr-ide.active-view.change-launch-target",
@@ -1155,7 +1189,7 @@
   "scripts": {
     "vscode:prepublish": "npm run esbuild-base -- --minify && npm run esbuild-webview-base -- --minify",
     "esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node",
-    "esbuild-webview-base": "esbuild ./src/panels/host_tool_install_view/host-tool-install.ts ./src/panels/setup_panel/setup-panel.ts ./src/panels/project_build_view/project-build-panel.ts ./src/panels/settings_view/settings-panel.ts ./src/panels/sdk_panel/sdk-panel.ts ./src/panels/workspace_panel/workspace-panel.ts --bundle --outdir=dist/webview --outbase=src/panels --format=iife --platform=browser --tsconfig=tsconfig.webview.json",
+    "esbuild-webview-base": "esbuild ./src/panels/host_tool_install_view/host-tool-install.ts ./src/panels/setup_panel/setup-panel.ts ./src/panels/project_build_view/project-build-panel.ts ./src/panels/settings_view/settings-panel.ts ./src/panels/sdk_panel/sdk-panel.ts ./src/panels/workspace_panel/workspace-panel.ts ./src/panels/dashboard_view/dashboard-panel.ts --bundle --outdir=dist/webview --outbase=src/panels --format=iife --platform=browser --tsconfig=tsconfig.webview.json",
     "esbuild": "npm run esbuild-base -- --sourcemap && npm run esbuild-webview-base -- --sourcemap",
     "esbuild-watch": "npm run esbuild-base -- --sourcemap --watch",
     "test-compile": "tsc -p ./ && tsc -p ./tsconfig.webview.json",
@@ -1168,6 +1202,11 @@
     "version": "npx auto-changelog -p && git add CHANGELOG.md"
   },
   "devDependencies": {
+    "@types/d3-color": "^3.1.3",
+    "@types/d3-hierarchy": "^3.1.7",
+    "@types/d3-interpolate": "^3.0.4",
+    "@types/d3-selection": "^3.0.11",
+    "@types/d3-shape": "^3.1.8",
     "@types/fs-extra": "^11.0.4",
     "@types/js-yaml": "^4.0.9",
     "@types/mocha": "^10.0.10",
@@ -1187,6 +1226,11 @@
     "@vscode/codicons": "^0.0.45",
     "auto-changelog": "^2.5.0",
     "compare-versions": "^6.1.1",
+    "d3-color": "^3.1.0",
+    "d3-hierarchy": "^3.1.2",
+    "d3-interpolate": "^3.0.1",
+    "d3-selection": "^3.0.0",
+    "d3-shape": "^3.2.0",
     "devicetree-language-server-vscode-types": "^0.0.1-alpha.38",
     "fs-extra": "^11.3.4",
     "js-yaml": "^4.1.1",

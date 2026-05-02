@@ -354,6 +354,9 @@ export class ProjectBuildPanel {
         case "buildDebug":
           await this.runBuildAction("buildDebug", "zephyr-ide.build-debug");
           return;
+        case "runDashboard":
+          await this.runBuildAction("runDashboard", "zephyr-ide.run-dashboard");
+          return;
 
         // Launch config
         case "changeLaunchTarget":

@@ -1,0 +1,1552 @@
+/*
+Copyright 2026 mylonics
+Author Rijesh Augustine
+SPDX-License-Identifier: Apache-2.0
+*/
+
+/* Zephyr IDE Dashboard panel — extends the shared base styles. */
+@import url("../webview_shared/webview-base.css");
+
+/* ===================================================================
+   LAYOUT — two-column: sticky sidebar + scrollable content
+   =================================================================== */
+
+/*
+ * Override the webview-base body scroll: the body itself must NOT scroll so
+ * we can keep the sidebar sticky while the content area scrolls independently.
+ */
+body {
+  overflow: hidden;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+dashboard-app {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.dashboard-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ===================================================================
+   SIDEBAR
+   =================================================================== */
+
+.dashboard-sidebar {
+  width: 200px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--vscode-panel-border);
+  overflow-y: auto;
+  background-color: var(--vscode-sideBar-background, transparent);
+  padding: 12px 0 20px;
+}
+
+.dashboard-sidebar-heading {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--vscode-sideBarSectionHeader-foreground, var(--vscode-descriptionForeground));
+  margin: 0 0 6px;
+  padding: 0 12px;
+}
+
+.dashboard-nav {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.dashboard-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  user-select: none;
+  border-radius: 4px;
+  margin: 1px 6px;
+  font-size: 13px;
+  color: var(--vscode-foreground);
+  outline: none;
+  transition: background-color 0.1s ease;
+}
+
+.dashboard-nav-item:hover {
+  background-color: var(--vscode-list-hoverBackground);
+}
+
+.dashboard-nav-item:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+  box-shadow: none;
+}
+
+.dashboard-nav-item[aria-selected="true"] {
+  background-color: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+}
+
+/* ===================================================================
+   CONTENT
+   =================================================================== */
+
+.dashboard-content {
+  flex: 1;
+  padding: 20px 28px 32px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.dashboard-content h1 {
+  font-size: 18px;
+  margin: 0 0 16px;
+  font-weight: 600;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.dashboard-content h2 {
+  font-size: 14px;
+  margin: 20px 0 10px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+}
+
+/* ===================================================================
+   SUMMARY PAGE
+   =================================================================== */
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 5px 16px;
+  margin-bottom: 20px;
+  background-color: var(--vscode-sideBar-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--zephyr-webview-radius);
+  padding: 14px 16px;
+}
+
+.summary-grid dt {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  align-self: center;
+}
+
+.summary-grid dd {
+  margin: 0;
+  word-break: break-all;
+  font-size: 13px;
+  align-self: center;
+}
+
+.memory-bar {
+  display: flex;
+  height: 22px;
+  width: 100%;
+  border-radius: var(--zephyr-webview-radius);
+  overflow: hidden;
+  border: 1px solid var(--vscode-panel-border);
+}
+
+.memory-bar > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.memory-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  font-size: 12px;
+  margin-top: 8px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.memory-legend .swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 4px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+/* ===================================================================
+   MEMORY PAGE — NRF-style two-column layout
+   =================================================================== */
+
+/* Ensure page components render as block elements (custom elements default to inline). */
+memory-page,
+summary-page,
+kconfig-page,
+sysinit-page,
+dts-page,
+elfstats-page {
+  display: block;
+}
+memory-sunburst,
+memory-tree-table {
+  display: block;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 48px 20px;
+  text-align: center;
+  color: var(--vscode-descriptionForeground);
+}
+
+/* ---- Toolbar ---- */
+.memory-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.memory-tabs {
+  display: inline-flex;
+  background-color: var(--vscode-input-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  padding: 2px;
+  gap: 0;
+}
+
+.memory-tab {
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: var(--vscode-foreground);
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.memory-tab:hover:not(:disabled):not(.is-active) {
+  background-color: var(--vscode-toolbar-hoverBackground);
+}
+
+.memory-tab.is-active {
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.memory-tab:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.memory-tab-desc {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.8;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.memory-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 180px;
+  max-width: 360px;
+}
+
+.memory-search-icon {
+  position: absolute;
+  left: 8px;
+  font-size: 14px;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.memory-search-input {
+  width: 100%;
+  padding: 5px 28px 5px 28px;
+  background-color: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+  border-radius: 4px;
+  font: inherit;
+  font-size: 12px;
+  outline: none;
+}
+
+.memory-search-input:focus {
+  border-color: var(--vscode-focusBorder);
+}
+
+.memory-search-clear {
+  position: absolute;
+  right: 4px;
+  background: transparent;
+  border: none;
+  color: var(--vscode-foreground);
+  opacity: 0.6;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 3px;
+  font-size: 14px;
+}
+
+.memory-search-clear:hover {
+  background-color: var(--vscode-toolbar-hoverBackground);
+  opacity: 1;
+}
+
+.memory-icon-btn {
+  appearance: none;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--vscode-foreground);
+  border-radius: 4px;
+  padding: 5px 7px;
+  cursor: pointer;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.memory-icon-btn:hover:not(:disabled) {
+  background-color: var(--vscode-toolbar-hoverBackground);
+}
+
+.memory-icon-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ---- Empty / loading state ---- */
+.memory-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 64px 20px;
+  text-align: center;
+  color: var(--vscode-descriptionForeground);
+  background-color: var(--vscode-editor-background);
+  border: 1px dashed var(--vscode-panel-border);
+  border-radius: var(--zephyr-webview-radius);
+}
+
+.memory-cta {
+  appearance: none;
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border: none;
+  border-radius: 4px;
+  padding: 6px 14px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.memory-cta:hover {
+  background-color: var(--vscode-button-hoverBackground);
+}
+
+/* ---- Two-column layout ---- */
+.memory-layout {
+  display: grid;
+  grid-template-columns: minmax(300px, 55%) 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+.memory-layout.no-sunburst {
+  grid-template-columns: 1fr;
+}
+
+@media (max-width: 820px) {
+  .memory-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sunburst-card,
+.tree-card {
+  background-color: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--zephyr-webview-radius);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.sunburst-card {
+  padding: 6px;
+  align-items: stretch;
+}
+
+.tree-card {
+  max-height: calc(100vh - 155px);
+  min-height: 320px;
+}
+
+/* The custom element itself must be a flex item so height propagates to .tt-body */
+memory-tree-table {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ---- Sunburst chart ---- */
+.sunburst-svg-wrap {
+  width: 100%;
+  position: relative;
+}
+
+.sunburst-arc {
+  cursor: pointer;
+  transition: fill-opacity 0.12s ease, stroke-width 0.12s ease;
+}
+
+.sunburst-arc:hover {
+  fill-opacity: 1 !important;
+  filter: brightness(1.1);
+}
+
+.sunburst-center {
+  cursor: pointer;
+}
+
+.sunburst-center-name {
+  fill: var(--vscode-foreground);
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.sunburst-center-size {
+  fill: var(--vscode-descriptionForeground);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.sunburst-tooltip {
+  position: absolute;
+  pointer-events: none;
+  z-index: 10;
+  transform: translate(0, calc(-100% - 8px));
+  background: #16161e;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 8px 12px;
+  min-width: 120px;
+  max-width: 280px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.7), 0 0 0 0.5px rgba(255, 255, 255, 0.05);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.sunburst-tooltip-path {
+  font-size: 11px;
+  font-weight: 600;
+  color: #e0e0e0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+
+.sunburst-tooltip-meta {
+  display: flex;
+  gap: 10px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.sunburst-tooltip-size {
+  color: #a0c4ff;
+  font-weight: 600;
+}
+
+.sunburst-tooltip-pct {
+  color: #888;
+}
+
+/* ---- Tree-table ---- */
+.memory-tree-table {
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  font-family: var(--vscode-font-family);
+  height: 100%;
+}
+
+.tt-header {
+  display: grid;
+  grid-template-columns: 1fr 140px 60px 80px;
+  background-color: var(--vscode-sideBarSectionHeader-background, var(--vscode-sideBar-background));
+  border-bottom: 1px solid var(--vscode-panel-border);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.tt-th {
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: var(--vscode-sideBarSectionHeader-foreground, var(--vscode-foreground));
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-align: left;
+  padding: 8px 10px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  outline: none;
+}
+
+.tt-th:not(:last-child) {
+  border-right: 1px solid color-mix(in srgb, var(--vscode-panel-border) 60%, transparent);
+}
+
+.tt-th:hover {
+  background-color: var(--vscode-toolbar-hoverBackground);
+}
+
+.tt-th-size,
+.tt-th-pct {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.tt-sort-icon {
+  display: inline-block;
+  width: 12px;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.tt-body {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.tt-row {
+  display: grid;
+  grid-template-columns: 1fr 140px 60px 80px;
+  align-items: center;
+  cursor: pointer;
+  border-bottom: 1px solid color-mix(in srgb, var(--vscode-panel-border) 50%, transparent);
+  outline: none;
+  user-select: none;
+}
+
+.tt-row:hover {
+  background-color: var(--vscode-list-hoverBackground);
+}
+
+.tt-row:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
+.tt-row.is-selected {
+  background-color: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+}
+
+.tt-row.is-selected .tt-size,
+.tt-row.is-selected .tt-cell-pct {
+  color: inherit;
+}
+
+.tt-cell {
+  padding: 4px 10px;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+}
+
+.tt-cell-name {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.tt-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tt-link-icon {
+  flex-shrink: 0;
+  font-size: 12px;
+  opacity: 0;
+  color: var(--vscode-textLink-foreground, #4fc1ff);
+  transition: opacity 0.1s;
+}
+
+.tt-row:hover .tt-link-icon,
+.tt-row.is-selected .tt-link-icon {
+  opacity: 0.7;
+}
+
+.tt-chevron {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  opacity: 0.7;
+  border-radius: 2px;
+}
+
+.tt-chevron-empty {
+  opacity: 0;
+}
+
+.tt-cell-size {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.tt-bar-wrap {
+  width: 48px;
+  flex-shrink: 0;
+  height: 4px;
+  background: color-mix(in srgb, var(--vscode-progressBar-background, #0e70c0) 15%, transparent);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.tt-bar {
+  display: block;
+  height: 100%;
+  background-color: var(--vscode-progressBar-background, #0e70c0);
+  border-radius: 2px;
+  transition: width 0.15s ease;
+  opacity: 0.8;
+}
+
+.tt-row.is-selected .tt-bar {
+  background-color: var(--vscode-button-foreground);
+  opacity: 1;
+}
+
+.tt-row.is-selected .tt-bar-wrap {
+  background: rgba(255,255,255,0.2);
+}
+
+.tt-size {
+  color: var(--vscode-foreground);
+  opacity: 0.85;
+  min-width: 50px;
+  text-align: right;
+}
+
+.tt-cell-pct {
+  text-align: right;
+  color: var(--vscode-descriptionForeground);
+}
+
+.tt-cell-region {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.tt-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 6px;
+  height: 16px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  background-color: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+}
+
+.tt-mark {
+  background-color: var(--vscode-editor-findMatchHighlightBackground, rgba(255, 215, 0, 0.4));
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+.tt-empty {
+  padding: 32px;
+  text-align: center;
+  color: var(--vscode-descriptionForeground);
+  font-style: italic;
+}
+
+/* Keep legacy classes around (no-op, used elsewhere) */
+.mem-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 5px;
+  border-radius: 3px;
+  font-size: 10px;
+  line-height: 16px;
+  background-color: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  flex-shrink: 0;
+}
+
+/* ===================================================================
+   TABLES
+   =================================================================== */
+
+.dashboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.dashboard-table th,
+.dashboard-table td {
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.dashboard-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.dashboard-table th {
+  background-color: var(--vscode-sideBar-background);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--vscode-descriptionForeground);
+}
+
+.dashboard-table td.num,
+.dashboard-table th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-table tbody tr:hover {
+  background-color: var(--vscode-list-hoverBackground);
+}
+
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--vscode-textLink-foreground);
+  cursor: pointer;
+  text-align: left;
+}
+
+.link-button:hover {
+  color: var(--vscode-textLink-activeForeground);
+  text-decoration: underline;
+}
+
+/* ===================================================================
+   KCONFIG
+   =================================================================== */
+
+.kconfig-filter {
+  width: 100%;
+  max-width: 380px;
+  margin-bottom: 12px;
+}
+
+.kconfig-count {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  margin-bottom: 8px;
+}
+
+.kconfig-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 12px;
+}
+
+/* While a reload is in progress, grey out and block all toolbar interaction. */
+.kconfig-toolbar--reloading {
+  opacity: 0.5;
+  pointer-events: none;
+  user-select: none;
+}
+
+.kconfig-toolbar .kconfig-filter {
+  margin-bottom: 0;
+  flex: 0 1 320px;
+}
+
+.kconfig-toolbar-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  user-select: none;
+  cursor: pointer;
+}
+
+.kconfig-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  margin: 0 0 10px;
+  padding: 6px 10px;
+  border-radius: var(--zephyr-webview-radius);
+}
+
+.kconfig-status code {
+  background: transparent;
+  padding: 0;
+  font-size: inherit;
+}
+
+.kconfig-status-ok {
+  background-color: var(--vscode-inputValidation-infoBackground, transparent);
+  border: 1px solid var(--vscode-inputValidation-infoBorder, var(--vscode-panel-border));
+  color: var(--vscode-foreground);
+}
+
+.kconfig-status-error {
+  background-color: var(--vscode-inputValidation-errorBackground, transparent);
+  border: 1px solid var(--vscode-inputValidation-errorBorder, var(--vscode-errorForeground));
+  color: var(--vscode-errorForeground);
+}
+
+.kconfig-table .kconfig-value-cell {
+  min-width: 200px;
+}
+
+.kconfig-value-input {
+  width: 100%;
+  min-width: 140px;
+}
+
+.kconfig-bool-label {
+  display: inline-block;
+  margin-left: 6px;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.kconfig-status-cell {
+  width: 80px;
+  text-align: right;
+}
+
+.kconfig-row-modified {
+  background-color: var(--vscode-diffEditor-insertedLineBackground, transparent);
+}
+
+.badge-modified {
+  background-color: var(--vscode-charts-orange, var(--vscode-button-background));
+  color: var(--vscode-button-foreground);
+}
+
+/* ===================================================================
+   DEVICE TREE
+   =================================================================== */
+
+pre.text-viewer {
+  background-color: var(--vscode-textCodeBlock-background, var(--vscode-editor-background));
+  border: 1px solid var(--vscode-panel-border);
+  padding: 12px 14px;
+  border-radius: var(--zephyr-webview-radius);
+  overflow: auto;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: var(--vscode-editor-font-size, 12px);
+  line-height: 1.5;
+  white-space: pre;
+  max-height: 72vh;
+  margin: 0;
+}
+
+/* ---- DTS tree browser ---- */
+
+.dts-path {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  margin: -8px 0 14px;
+}
+
+.dts-tabs {
+  display: inline-flex;
+  background-color: var(--vscode-input-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  padding: 2px;
+  margin-bottom: 14px;
+}
+
+.dts-tab {
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: var(--vscode-foreground);
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.dts-tab:hover:not(.dts-tab-active) {
+  background-color: var(--vscode-toolbar-hoverBackground);
+}
+
+.dts-tab-active {
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.dts-tree-wrap {
+  overflow: auto;
+  max-height: calc(100vh - 210px);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--zephyr-webview-radius);
+}
+
+.dts-tree-table td {
+  vertical-align: middle;
+}
+
+.dts-tree-table .dts-row-disabled {
+  opacity: 0.5;
+}
+
+.dts-tree-table .dts-row-disabled:hover {
+  background-color: transparent;
+}
+
+
+.dts-node-name {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 12px;
+  vertical-align: middle;
+}
+
+.dts-label {
+  font-size: 10px;
+  padding: 0 5px;
+  border-radius: 3px;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  margin-left: 5px;
+  vertical-align: middle;
+}
+
+.dts-compat {
+  font-size: 11px;
+}
+
+.dts-compat code {
+  font-size: 11px;
+}
+
+.dts-status-cell {
+  text-align: center;
+}
+
+.dts-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.dts-badge-ok {
+  background-color: #1e6a27;
+  color: #7ee787;
+}
+
+.dts-badge-dis {
+  background-color: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  opacity: 0.8;
+}
+
+.dts-src {
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+/* ===================================================================
+   BADGES
+   =================================================================== */
+
+.badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 11px;
+  background-color: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  margin-right: 4px;
+  font-weight: 500;
+}
+
+/* ===================================================================
+   LOADING / ERROR STATES
+   =================================================================== */
+
+.dashboard-loading,
+.dashboard-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 60px 24px;
+  text-align: center;
+  color: var(--vscode-descriptionForeground);
+  flex: 1;
+}
+
+.dashboard-error {
+  color: var(--vscode-errorForeground);
+}
+
+/* ===================================================================
+   KCONFIG TWO-PANE EDITOR (Phase 1B / Phase 2)
+   =================================================================== */
+
+.kconfig-header-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--vscode-button-foreground);
+  background-color: var(--vscode-charts-orange, var(--vscode-button-background));
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
+.kconfig-info {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+/* View-mode segmented toggle (Tree / Changes) */
+
+.kconfig-view-toggle {
+  display: inline-flex;
+  border: 1px solid var(--vscode-button-border, var(--vscode-panel-border));
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.kconfig-view-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  background: transparent;
+  color: var(--vscode-foreground);
+  border: none;
+  border-right: 1px solid var(--vscode-button-border, var(--vscode-panel-border));
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 100ms;
+}
+
+.kconfig-view-toggle-btn:last-child {
+  border-right: none;
+}
+
+.kconfig-view-toggle-btn:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.kconfig-view-toggle-btn--active {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.kconfig-view-toggle-btn--active:hover {
+  background: var(--vscode-button-hoverBackground);
+}
+
+.kconfig-toggle-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.kconfig-view-toggle-btn--active .kconfig-toggle-badge {
+  background: var(--vscode-button-foreground);
+  color: var(--vscode-button-background);
+}
+
+.kconfig-split {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(320px, 1.2fr);
+  gap: 12px;
+  align-items: stretch;
+  margin-top: 8px;
+  min-height: 480px;
+}
+
+.kconfig-pane {
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--zephyr-webview-radius);
+  background-color: var(--vscode-editor-background);
+  overflow: auto;
+  padding: 6px 4px;
+  max-height: calc(100vh - 240px);
+}
+
+.kconfig-pane-detail {
+  padding: 12px 16px;
+}
+
+.kconfig-pane-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 200px;
+  color: var(--vscode-descriptionForeground);
+}
+
+/* --- Tree --- */
+
+.kconfig-tree,
+.kconfig-tree ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.kconfig-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.kconfig-tree-row:hover {
+  background-color: var(--vscode-list-hoverBackground);
+}
+
+.kconfig-tree-row-menu {
+  font-weight: 500;
+  color: var(--vscode-foreground);
+}
+
+.kconfig-tree-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kconfig-tree-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  min-width: 0;
+}
+
+.kconfig-tree-selected > .kconfig-tree-row {
+  background-color: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+}
+
+.kconfig-tree-hidden > .kconfig-tree-row {
+  opacity: 0.55;
+  font-style: italic;
+}
+
+.kconfig-tree-link {
+  cursor: pointer;
+  color: var(--vscode-textLink-foreground);
+  text-decoration: none;
+}
+
+.kconfig-tree-link:hover {
+  color: var(--vscode-textLink-activeForeground);
+  text-decoration: underline;
+}
+
+.kconfig-tree-flat .kconfig-tree-row {
+  padding-left: 14px !important;
+}
+
+.kconfig-inline-input {
+  width: 120px;
+}
+
+/* Phase 2: modified marker, per-row actions, context menu */
+
+.kconfig-modified-dot {
+  flex-shrink: 0;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--vscode-gitDecoration-modifiedResourceForeground, var(--vscode-charts-orange));
+}
+
+.kconfig-row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 4px;
+  opacity: 0;
+  transition: opacity 100ms ease-in;
+  flex-shrink: 0;
+}
+
+.kconfig-tree-row:hover .kconfig-row-actions,
+.kconfig-tree-selected > .kconfig-tree-row .kconfig-row-actions {
+  opacity: 1;
+}
+
+/* Always show the reset button on modified rows even without hover so the
+   change is discoverable. */
+.kconfig-tree-modified > .kconfig-tree-row .kconfig-row-actions {
+  opacity: 1;
+}
+
+.kconfig-ctx-menu {
+  position: fixed;
+  z-index: 1000;
+  min-width: 200px;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  background: var(--vscode-menu-background, var(--vscode-editorWidget-background));
+  color: var(--vscode-menu-foreground, var(--vscode-foreground));
+  border: 1px solid var(--vscode-menu-border, var(--vscode-editorWidget-border));
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  font-size: 12px;
+}
+
+.kconfig-ctx-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.kconfig-ctx-item:hover {
+  background: var(--vscode-menu-selectionBackground, var(--vscode-list-activeSelectionBackground));
+  color: var(--vscode-menu-selectionForeground, var(--vscode-list-activeSelectionForeground));
+}
+
+.kconfig-ctx-item code {
+  font-size: 11px;
+}
+
+.kconfig-ctx-sep {
+  height: 1px;
+  margin: 4px 0;
+  background: var(--vscode-menu-separatorBackground, var(--vscode-editorWidget-border));
+  list-style: none;
+}
+
+/* Phase 1: Save split-button + popover menu */
+
+.kconfig-save-split {
+  position: relative;
+  display: inline-flex;
+  align-items: stretch;
+}
+
+.kconfig-save-chevron {
+  margin-left: -1px;
+}
+
+.kconfig-save-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 1000;
+  min-width: 280px;
+  max-width: 480px;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  background: var(--vscode-menu-background, var(--vscode-editorWidget-background));
+  color: var(--vscode-menu-foreground, var(--vscode-foreground));
+  border: 1px solid var(--vscode-menu-border, var(--vscode-editorWidget-border));
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  font-size: 12px;
+}
+
+.kconfig-save-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.kconfig-save-menu-item:hover {
+  background: var(--vscode-menu-selectionBackground, var(--vscode-list-activeSelectionBackground));
+  color: var(--vscode-menu-selectionForeground, var(--vscode-list-activeSelectionForeground));
+}
+
+.kconfig-save-menu-current {
+  font-weight: 600;
+}
+
+.kconfig-save-menu-path {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--vscode-editor-font-family);
+}
+
+.kconfig-save-menu-info {
+  padding: 8px 12px;
+  color: var(--vscode-descriptionForeground);
+  font-style: italic;
+}
+
+.kconfig-save-menu-sep {
+  height: 1px;
+  margin: 4px 0;
+  background: var(--vscode-menu-separatorBackground, var(--vscode-editorWidget-border));
+  list-style: none;
+}
+
+.kconfig-status-info {
+  color: var(--vscode-foreground);
+}
+
+/* --- Detail pane --- */
+
+.kconfig-detail-header h2 {
+  margin: 0 0 4px;
+  font-size: 14px;
+}
+
+.kconfig-detail-prompt {
+  margin: 0 0 12px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+}
+
+.kconfig-detail-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: 12px;
+  row-gap: 4px;
+  margin: 0 0 12px;
+  font-size: 12px;
+}
+
+.kconfig-detail-grid dt {
+  font-weight: 500;
+  color: var(--vscode-descriptionForeground);
+}
+
+.kconfig-detail-grid dd {
+  margin: 0;
+}
+
+.kconfig-detail-editor {
+  border-top: 1px solid var(--vscode-panel-border);
+  padding-top: 10px;
+  margin-top: 4px;
+}
+
+.kconfig-detail-editor h3,
+.kconfig-help h3,
+.kconfig-defining h3 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vscode-descriptionForeground);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.kconfig-detail-editor-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.kconfig-help {
+  margin-top: 14px;
+}
+
+.kconfig-help pre {
+  background-color: var(--vscode-textCodeBlock-background, var(--vscode-editor-background));
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--zephyr-webview-radius);
+  padding: 8px 10px;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  max-height: 240px;
+  overflow: auto;
+}
+
+.kconfig-defining {
+  margin-top: 14px;
+}
+
+.kconfig-defining ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 12px;
+}
+
+.kconfig-defining li {
+  padding: 2px 0;
+}
+
+.kconfig-expr code {
+  background: transparent;
+  padding: 0;
+}
+
+.badge-muted {
+  background-color: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  margin-left: 6px;
+}
+
+.kconfig-changes-table code {
+  font-size: 11px;
+}
+
+
+/* ── Source file panel (shared by kconfig-page and dts-page) ── */
+
+.source-files-panel {
+  margin-bottom: 12px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--zephyr-webview-radius);
+  overflow: hidden;
+}
+
+.source-files-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+  background: var(--vscode-sideBar-background, var(--vscode-editor-background));
+  user-select: none;
+  list-style: none;
+}
+
+.source-files-heading::-webkit-details-marker { display: none; }
+
+.source-files-count {
+  font-weight: 400;
+  opacity: 0.7;
+}
+
+.source-files-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  background: var(--vscode-editor-background);
+}
+
+.source-files-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  font-size: 12px;
+}
+
+.source-files-item .codicon {
+  opacity: 0.6;
+  flex-shrink: 0;
+}

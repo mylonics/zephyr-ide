@@ -20,13 +20,23 @@ import * as path from "upath";
 import * as fs from "fs";
 
 import { ActiveProjectView } from "./tree_views/ActiveProjectView";
-import { ProjectTreeView, getUseGuiConfig } from "./tree_views/ProjectTreeView";
+import { ProjectTreeView } from "./tree_views/ProjectTreeView";
 import { ExtensionSetupView } from "./tree_views/ExtensionSetupView";
 import { WestWorkspaceView } from "./tree_views/WestWorkspaceView";
 import { ProjectConfigView } from "./tree_views/ProjectConfigView";
 import { SetupPanel } from "./panels/setup_panel/SetupPanel";
 import { HostToolInstallView } from "./panels/host_tool_install_view/HostToolInstallView";
 import { ProjectBuildPanel } from "./panels/project_build_view/ProjectBuildPanel";
+import { DashboardPanel } from "./panels/dashboard_view/DashboardPanel";
+import { listSaveTargets as listKconfigSaveTargets, attachFragmentToScope, offerAddFragmentToBuild, saveFragmentInteractive, saveSessionFragmentToPath } from "./panels/dashboard_view/kconfig-fragment";
+import {
+  KconfigSession,
+  buildEnvFromCMakeCache,
+  getKconfigHelperPath,
+  resolveDotConfig,
+  resolveKconfigRoot,
+  resolveVenvPython,
+} from "./build_data/kconfig-session";
 import { SettingsPanel } from "./panels/settings_view/SettingsPanel";
 import { SDKPanel } from "./panels/sdk_panel/SDKPanel";
 import { WorkspacePanel } from "./panels/workspace_panel/WorkspacePanel";
@@ -46,9 +56,13 @@ import { notifyError, outputInfo, outputError, outputLine, outputCommandFailure,
 import * as project from "./project_utilities/project";
 import {
   buildHelper,
+  buildByName,
   buildMenuConfig,
   buildRamRomReport,
   buildRamRomReportHeadless,
+  buildDashboard,
+  buildDashboardReport,
+  refreshDashboardMemory,
   runDtshShell,
   clean,
   MenuConfig,
@@ -111,6 +125,7 @@ import {
   getResolvedRunnerName,
   resolveActiveProjectBuild,
   resolveActiveProject,
+  getProjectFolder,
 } from "./project_utilities/project";
 import { testHelper, deleteTestDirs } from "./zephyr_utilities/twister";
 
@@ -528,11 +543,22 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // -- ActiveProjectView inline action commands --
   context.subscriptions.push(
-    vscode.commands.registerCommand("zephyr-ide.active-view.gui-config", (item: any) => {
-      void buildMenuConfig(context, wsConfig, MenuConfig.GuiConfig);
-    }),
-    vscode.commands.registerCommand("zephyr-ide.active-view.menu-config", (item: any) => {
-      void buildMenuConfig(context, wsConfig, MenuConfig.MenuConfig);
+    vscode.commands.registerCommand("zephyr-ide.active-view.kconfig", async () => {
+      const buttonMode = vscode.workspace.getConfiguration().get<string>("zephyr-ide.activeViewKconfigButton") ?? "dashboard";
+      if (buttonMode === "gui-config") {
+        void buildMenuConfig(context, wsConfig, MenuConfig.GuiConfig);
+      } else if (buttonMode === "menu-config") {
+        void buildMenuConfig(context, wsConfig, MenuConfig.MenuConfig);
+      } else if (buttonMode === "kconfig-dashboard") {
+        // Navigate to Kconfig page of the dashboard.
+        const resolved = resolveActiveProjectBuild(wsConfig);
+        if (!resolved) { return; }
+        await vscode.commands.executeCommand("zephyr-ide.run-dashboard");
+        DashboardPanel.getPanel(resolved.projectName, resolved.buildName)?.navigateTo("kconfig");
+      } else {
+        // Default ("dashboard"): open dashboard to the main summary page.
+        await vscode.commands.executeCommand("zephyr-ide.run-dashboard");
+      }
     }),
     vscode.commands.registerCommand("zephyr-ide.active-view.change-launch-target", (item: any) => {
       if (item?.launchChangeCmd) {
@@ -624,9 +650,21 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.tree-view.build-pristine", (item: any) => {
       projectTreeView.handleSharedCommand("buildPristine", item);
     }),
-    vscode.commands.registerCommand("zephyr-ide.tree-view.config", (item: any) => {
-      const useGui = getUseGuiConfig();
-      projectTreeView.handleSharedCommand(useGui ? "guiConfig" : "menuConfig", item);
+    vscode.commands.registerCommand("zephyr-ide.tree-view.config", async (item: any) => {
+      const buttonMode = vscode.workspace.getConfiguration().get<string>("zephyr-ide.projectViewKconfigButton") ?? "kconfig-dashboard";
+      if (buttonMode === "gui-config") {
+        projectTreeView.handleSharedCommand("guiConfig", item);
+      } else if (buttonMode === "menu-config") {
+        projectTreeView.handleSharedCommand("menuConfig", item);
+      } else {
+        // Default ("kconfig-dashboard"): set this build active, open dashboard, navigate to Kconfig.
+        const projectName: string = item?.data?.project;
+        const buildName: string = item?.data?.build;
+        if (!projectName || !buildName) { return; }
+        await project.setActive(context, wsConfig, projectName, buildName);
+        await vscode.commands.executeCommand("zephyr-ide.run-dashboard");
+        DashboardPanel.getPanel(projectName, buildName)?.navigateTo("kconfig");
+      }
     }),
     vscode.commands.registerCommand("zephyr-ide.tree-view.add-runner", (item: any) => {
       projectTreeView.handleSharedCommand("addRunner", item);
@@ -1304,6 +1342,20 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.run-dashboard-report", async () => {
+      // Run the full dashboard memory report (stat + ram_report + rom_report).
+      // If a dashboard panel is already open for this project/build, refresh
+      // its memory view with the newly generated data.
+      const result = await buildDashboardReport(context, wsConfig);
+      if (!result) { return; }
+      const panel = DashboardPanel.getPanel(result.projectName, result.buildName);
+      if (panel) {
+        void panel.refreshMemory();
+      }
+    })
+  );
+
+  context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.run-ram-report-headless", async () => {
       return await buildRamRomReportHeadless(context, wsConfig, true);
     })
@@ -1312,6 +1364,129 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.run-rom-report-headless", async () => {
       return await buildRamRomReportHeadless(context, wsConfig, false);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.run-dashboard", async () => {
+      // 1. Fast path: read build artifacts from disk immediately.
+      const result = await buildDashboard(context, wsConfig);
+      if (!result?.success) { return; }
+
+      // Resolve the project/build objects so the Kconfig save callback can
+      // persist its fragment into the right build's confFiles list.
+      const proj = wsConfig.projects[result.projectName];
+      const bld = proj?.buildConfigs[result.buildName];
+
+      // 2. Open the panel right away with all fast data (memory tree is null
+      //    until the cmake targets finish).
+      const panel = DashboardPanel.createOrShow(
+        context.extensionPath,
+        result.data,
+        () => refreshDashboardMemory(context, wsConfig, result.buildFolder, result.projectName, result.buildName),
+        proj && bld ? {
+          saveFragment: async (changes) => {
+            const saved = await saveFragmentInteractive(wsConfig, proj, changes);
+            if (saved) {
+              await offerAddFragmentToBuild(context, wsConfig, proj, bld, saved);
+            }
+            return saved;
+          },
+          // kconfiglib-backed "Save as new fragment" — scope chosen by user.
+          saveSessionFragmentNew: async (scope, writeFragment) => {
+            const defaultUri = vscode.Uri.file(
+              path.join(getProjectFolder(wsConfig, proj), "prj_dashboard.conf"),
+            );
+            const target = await vscode.window.showSaveDialog({
+              defaultUri,
+              filters: { "Kconfig fragment": ["conf"] },
+              saveLabel: "Save Kconfig Fragment",
+              title: `Save Kconfig fragment (attached to ${scope})`,
+            });
+            if (!target) { return undefined; }
+            await writeFragment(target.fsPath);
+            await attachFragmentToScope(context, wsConfig, proj, bld, target.fsPath, scope);
+            return target.fsPath;
+          },
+          saveSessionFragmentToPath: async (absPath, writeFragment, opts) => {
+            return saveSessionFragmentToPath(wsConfig, proj, bld, absPath, writeFragment, opts);
+          },
+          listSaveTargets: async () => {
+            return listKconfigSaveTargets(wsConfig, proj, bld);
+          },
+          openExternal: async (tool) => {
+            await buildMenuConfig(
+              context,
+              wsConfig,
+              tool === "guiconfig" ? MenuConfig.GuiConfig : MenuConfig.MenuConfig,
+              proj,
+              bld,
+            );
+            // Phase 3: external tool wrote a fresh .config — tell the panel
+            // (if still open) so its in-memory editor reloads from disk.
+            const liveDashPanel = DashboardPanel.getPanel(proj.name, bld.name);
+            await liveDashPanel?.notifyKconfigExternalDone(tool);
+          },
+        } : undefined,
+        // Lazy Kconfig session factory: spawned on first kconfig request from
+        // the webview, kept alive for the panel's lifetime, disposed on close.
+        () => {
+          const buildFolder = result.buildFolder;
+          const env = buildEnvFromCMakeCache(buildFolder);
+          const kconfigRoot = resolveKconfigRoot(env);
+          if (!kconfigRoot) {
+            return Promise.reject(new Error(
+              "Could not resolve KCONFIG_ROOT from this build's CMakeCache.txt. " +
+              "Re-run a clean build and try again.",
+            ));
+          }
+          const setupState = wsConfig.activeSetupState;
+          const helperScript = getKconfigHelperPath(context.extensionPath);
+          // Build env for the Python child: prepend venv bin to PATH so the
+          // helper imports kconfiglib from the Zephyr venv rather than a
+          // system Python.
+          const spawnEnv: NodeJS.ProcessEnv = { ...process.env };
+          if (setupState?.env?.["VIRTUAL_ENV"]) {
+            spawnEnv["VIRTUAL_ENV"] = setupState.env["VIRTUAL_ENV"];
+          }
+          if (setupState?.env?.["PATH"]) {
+            const pathKey = Object.keys(spawnEnv).find((k) => k.toLowerCase() === "path") ?? "PATH";
+            spawnEnv[pathKey] = setupState.env["PATH"] + (spawnEnv[pathKey] ?? "");
+          }
+          const session = new KconfigSession({
+            helperScript,
+            pythonExecutable: resolveVenvPython(setupState),
+            spawnEnv,
+            cwd: setupState?.setupPath,
+            onLog: (level, message) => {
+              if (level === "error") {
+                console.error(`[kconfig_helper] ${message}`);
+              } else if (level === "warn") {
+                console.warn(`[kconfig_helper] ${message}`);
+              }
+            },
+          });
+          session.start();
+          return session.init({
+            kconfigRoot,
+            env,
+            dotConfig: resolveDotConfig(buildFolder),
+          }).then(() => session, (err) => {
+            // Init failed - tear down the spawned process before propagating.
+            session.dispose();
+            throw err;
+          });
+        },
+        // onBuild: build the dashboard's own project/build, not the active project.
+        // build.ts auto-detects whether a pristine build is needed (conf file changes).
+        async (pristine) => {
+          await buildByName(context, wsConfig, pristine, result.projectName, result.buildName);
+        },
+      );
+
+      // 3. Auto-trigger memory report generation in the background so the
+      //    Memory page populates without requiring a manual refresh click.
+      void panel.refreshMemory();
     })
   );
 
