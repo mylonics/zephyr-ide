@@ -299,7 +299,7 @@ export async function setWorkspaceSettings(force = false) {
         }
       }
     } else {
-      outputInfo("Workspace Config", "llvm-vs-code-extensions.vscode-clangd is not installed; skipping clangd.* settings.");
+      outputWarning("Workspace Config", "zephyr-ide.useClangd is enabled but llvm-vs-code-extensions.vscode-clangd is not installed; clangd.* settings will not be applied.");
     }
   } else {
     // cpptools mode: configure C/C++ extension compile commands
