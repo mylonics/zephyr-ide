@@ -228,18 +228,35 @@ export async function setWorkspaceSettings(force = false) {
 
   const useClangd: boolean = configuration.get("zephyr-ide.useClangd") ?? false;
 
+  const cpptoolsInstalled = !!vscode.extensions.getExtension("ms-vscode.cpptools");
+  const clangdInstalled = !!vscode.extensions.getExtension("llvm-vs-code-extensions.vscode-clangd");
+  const cmakeToolsInstalled = !!vscode.extensions.getExtension("ms-vscode.cmake-tools");
+
   if (useClangd) {
     // clangd mode: disable C/C++ IntelliSense engine and configure clangd arguments.
-    // Always ensure C_Cpp.intelliSenseEngine is "disabled" — a pre-existing value of
-    // e.g. "default" (truthy) must still be overwritten.
-    if (configuration.inspect("C_Cpp.intelliSenseEngine")?.workspaceValue !== "disabled") {
-      await configuration.update("C_Cpp.intelliSenseEngine", "disabled", target)
-        .then(undefined, (err: unknown) => {
-          const detail = err instanceof Error && err.stack ? err.stack : (err instanceof Error ? err.message : String(err));
-          outputWarning("Workspace Config", `Failed to set C_Cpp.intelliSenseEngine: ${detail}`);
-        });
+    if (cpptoolsInstalled) {
+      // Always ensure C_Cpp.intelliSenseEngine is "disabled" — a pre-existing value of
+      // e.g. "default" (truthy) must still be overwritten.
+      if (configuration.inspect("C_Cpp.intelliSenseEngine")?.workspaceValue !== "disabled") {
+        await configuration.update("C_Cpp.intelliSenseEngine", "disabled", target)
+          .then(undefined, (err: unknown) => {
+            const detail = err instanceof Error ? err.message : String(err);
+            outputWarning("Workspace Config", `Failed to set C_Cpp.intelliSenseEngine: ${detail}`);
+          });
+      }
+      // Remove C_Cpp.default.compileCommands to avoid conflicts with clangd mode
+      if (configuration.inspect("C_Cpp.default.compileCommands")?.workspaceValue !== undefined) {
+        await configuration.update("C_Cpp.default.compileCommands", undefined, target)
+          .then(undefined, (err: unknown) => {
+            const detail = err instanceof Error ? err.message : String(err);
+            outputWarning("Workspace Config", `Failed to clear C_Cpp.default.compileCommands: ${detail}`);
+          });
+      }
+    } else {
+      outputInfo("Workspace Config", "ms-vscode.cpptools is not installed; skipping C_Cpp.* settings.");
     }
-    {
+
+    if (clangdInstalled) {
       const toolchainDirConfig = configuration.inspect<string>("zephyr-ide.toolchainDirectory");
       const configuredToolchainDir = [
         toolchainDirConfig?.workspaceFolderValue,
@@ -276,53 +293,58 @@ export async function setWorkspaceSettings(force = false) {
         if (force || !argsMatch) {
           await configuration.update("clangd.arguments", clangdArgs, target)
             .then(undefined, (err: unknown) => {
-              const detail = err instanceof Error && err.stack ? err.stack : (err instanceof Error ? err.message : String(err));
+              const detail = err instanceof Error ? err.message : String(err);
               outputWarning("Workspace Config", `Failed to set clangd.arguments: ${detail}`);
             });
         }
       }
-    }
-    // Remove C_Cpp.default.compileCommands to avoid conflicts with clangd mode
-    if (configuration.inspect("C_Cpp.default.compileCommands")?.workspaceValue !== undefined) {
-      await configuration.update("C_Cpp.default.compileCommands", undefined, target)
-        .then(undefined, (err: unknown) => {
-          const detail = err instanceof Error && err.stack ? err.stack : (err instanceof Error ? err.message : String(err));
-          outputWarning("Workspace Config", `Failed to clear C_Cpp.default.compileCommands: ${detail}`);
-        });
+    } else {
+      outputWarning("Workspace Config", "zephyr-ide.useClangd is enabled but llvm-vs-code-extensions.vscode-clangd is not installed; clangd.* settings will not be applied.");
     }
   } else {
     // cpptools mode: configure C/C++ extension compile commands
-    if (force || !configuration.inspect("C_Cpp.default.compileCommands")?.workspaceValue) {
-      await configuration.update("C_Cpp.default.compileCommands", path.join("${workspaceFolder}", '.vscode', 'compile_commands.json'), target)
-        .then(undefined, (err: unknown) => {
-          const detail = err instanceof Error && err.stack ? err.stack : (err instanceof Error ? err.message : String(err));
-          outputWarning("Workspace Config", `Failed to set C_Cpp.default.compileCommands: ${detail}`);
-        });
+    if (cpptoolsInstalled) {
+      if (force || !configuration.inspect("C_Cpp.default.compileCommands")?.workspaceValue) {
+        await configuration.update("C_Cpp.default.compileCommands", path.join("${workspaceFolder}", '.vscode', 'compile_commands.json'), target)
+          .then(undefined, (err: unknown) => {
+            const detail = err instanceof Error ? err.message : String(err);
+            outputWarning("Workspace Config", `Failed to set C_Cpp.default.compileCommands: ${detail}`);
+          });
+      }
+      // Restore C_Cpp.intelliSenseEngine to default to ensure cpptools is active
+      if (configuration.inspect("C_Cpp.intelliSenseEngine")?.workspaceValue !== undefined) {
+        await configuration.update("C_Cpp.intelliSenseEngine", undefined, target)
+          .then(undefined, (err: unknown) => {
+            const detail = err instanceof Error ? err.message : String(err);
+            outputWarning("Workspace Config", `Failed to clear C_Cpp.intelliSenseEngine: ${detail}`);
+          });
+      }
+    } else {
+      outputInfo("Workspace Config", "ms-vscode.cpptools is not installed; skipping C_Cpp.* settings.");
     }
-    // Restore C_Cpp.intelliSenseEngine to default to ensure cpptools is active
-    if (configuration.inspect("C_Cpp.intelliSenseEngine")?.workspaceValue !== undefined) {
-      await configuration.update("C_Cpp.intelliSenseEngine", undefined, target)
-        .then(undefined, (err: unknown) => {
-          const detail = err instanceof Error && err.stack ? err.stack : (err instanceof Error ? err.message : String(err));
-          outputWarning("Workspace Config", `Failed to clear C_Cpp.intelliSenseEngine: ${detail}`);
-        });
-    }
-    // Clear workspace-scoped clangd arguments left over from clangd mode
-    if (configuration.inspect("clangd.arguments")?.workspaceValue !== undefined) {
-      await configuration.update("clangd.arguments", undefined, target)
-        .then(undefined, (err: unknown) => {
-          const detail = err instanceof Error && err.stack ? err.stack : (err instanceof Error ? err.message : String(err));
-          outputWarning("Workspace Config", `Failed to clear clangd.arguments: ${detail}`);
-        });
+
+    if (clangdInstalled) {
+      // Clear workspace-scoped clangd arguments left over from clangd mode
+      if (configuration.inspect("clangd.arguments")?.workspaceValue !== undefined) {
+        await configuration.update("clangd.arguments", undefined, target)
+          .then(undefined, (err: unknown) => {
+            const detail = err instanceof Error ? err.message : String(err);
+            outputWarning("Workspace Config", `Failed to clear clangd.arguments: ${detail}`);
+          });
+      }
     }
   }
 
-  if (force || !configuration.inspect("cmake.configureOnOpen")?.workspaceValue) {
-    await configuration.update("cmake.configureOnOpen", false, target)
-      .then(undefined, (err: unknown) => {
-        const detail = err instanceof Error && err.stack ? err.stack : (err instanceof Error ? err.message : String(err));
-        outputWarning("Workspace Config", `Failed to set cmake.configureOnOpen: ${detail}`);
-      });
+  if (cmakeToolsInstalled) {
+    if (force || !configuration.inspect("cmake.configureOnOpen")?.workspaceValue) {
+      await configuration.update("cmake.configureOnOpen", false, target)
+        .then(undefined, (err: unknown) => {
+          const detail = err instanceof Error ? err.message : String(err);
+          outputWarning("Workspace Config", `Failed to set cmake.configureOnOpen: ${detail}`);
+        });
+    }
+  } else {
+    outputInfo("Workspace Config", "ms-vscode.cmake-tools is not installed; skipping cmake.* settings.");
   }
 }
 
