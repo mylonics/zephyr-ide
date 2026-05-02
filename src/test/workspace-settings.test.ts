@@ -25,13 +25,20 @@ suite("Workspace Settings (clangd/cpptools) Test Suite", () => {
 
     const wsTarget = vscode.ConfigurationTarget.Workspace;
 
+    const cpptoolsInstalled = !!vscode.extensions.getExtension("ms-vscode.cpptools");
+    const clangdInstalled = !!vscode.extensions.getExtension("llvm-vs-code-extensions.vscode-clangd");
+
     async function resetClangdSettings() {
         const config = vscode.workspace.getConfiguration();
         await config.update("zephyr-ide.useClangd", undefined, wsTarget);
         await config.update("zephyr-ide.toolchainDirectory", undefined, vscode.ConfigurationTarget.Global);
-        await config.update("C_Cpp.intelliSenseEngine", undefined, wsTarget);
-        await config.update("C_Cpp.default.compileCommands", undefined, wsTarget);
-        await config.update("clangd.arguments", undefined, wsTarget);
+        if (cpptoolsInstalled) {
+            await config.update("C_Cpp.intelliSenseEngine", undefined, wsTarget);
+            await config.update("C_Cpp.default.compileCommands", undefined, wsTarget);
+        }
+        if (clangdInstalled) {
+            await config.update("clangd.arguments", undefined, wsTarget);
+        }
     }
 
     // Use the OS temp dir as a guaranteed-existing toolchain path for tests
@@ -46,21 +53,28 @@ suite("Workspace Settings (clangd/cpptools) Test Suite", () => {
         await setWorkspaceSettings(true);
 
         const updatedConfig = vscode.workspace.getConfiguration();
-        assert.strictEqual(
-            updatedConfig.inspect("C_Cpp.intelliSenseEngine")?.workspaceValue,
-            "disabled",
-            "C_Cpp.intelliSenseEngine should be 'disabled' in clangd mode"
-        );
-        const clangdArgs = updatedConfig.inspect<string[]>("clangd.arguments")?.workspaceValue;
-        assert.ok(Array.isArray(clangdArgs) && clangdArgs.length > 0, "clangd.arguments should be set");
-        const queryDriverArg = clangdArgs?.find(a => a.startsWith("--query-driver="));
-        assert.ok(queryDriverArg, "--query-driver argument should be present");
-        assert.ok(queryDriverArg?.includes(upath.toUnix(existingToolchainDir)), "--query-driver should include the configured toolchain dir");
+        if (cpptoolsInstalled) {
+            assert.strictEqual(
+                updatedConfig.inspect("C_Cpp.intelliSenseEngine")?.workspaceValue,
+                "disabled",
+                "C_Cpp.intelliSenseEngine should be 'disabled' in clangd mode"
+            );
+        }
+        if (clangdInstalled) {
+            const clangdArgs = updatedConfig.inspect<string[]>("clangd.arguments")?.workspaceValue;
+            assert.ok(Array.isArray(clangdArgs) && clangdArgs.length > 0, "clangd.arguments should be set");
+            const queryDriverArg = clangdArgs?.find(a => a.startsWith("--query-driver="));
+            assert.ok(queryDriverArg, "--query-driver argument should be present");
+            assert.ok(queryDriverArg?.includes(upath.toUnix(existingToolchainDir)), "--query-driver should include the configured toolchain dir");
+        }
 
         await resetClangdSettings();
     });
 
-    test("clangd mode: updates C_Cpp.intelliSenseEngine even when pre-existing workspace value is not 'disabled'", async () => {
+    test("clangd mode: updates C_Cpp.intelliSenseEngine even when pre-existing workspace value is not 'disabled'", async function () {
+        if (!cpptoolsInstalled) {
+            this.skip();
+        }
         await resetClangdSettings();
         const config = vscode.workspace.getConfiguration();
         await config.update("zephyr-ide.useClangd", true, wsTarget);
@@ -80,7 +94,10 @@ suite("Workspace Settings (clangd/cpptools) Test Suite", () => {
         await resetClangdSettings();
     });
 
-    test("clangd mode: refreshes --query-driver when toolchainDirectory changes (force=false)", async () => {
+    test("clangd mode: refreshes --query-driver when toolchainDirectory changes (force=false)", async function () {
+        if (!clangdInstalled) {
+            this.skip();
+        }
         await resetClangdSettings();
         const config = vscode.workspace.getConfiguration();
         await config.update("zephyr-ide.useClangd", true, wsTarget);
@@ -110,29 +127,38 @@ suite("Workspace Settings (clangd/cpptools) Test Suite", () => {
         const config = vscode.workspace.getConfiguration();
         await config.update("zephyr-ide.useClangd", false, wsTarget);
         // Pre-populate clangd.arguments to simulate switching away from clangd mode
-        await config.update("clangd.arguments", ["--some-arg"], wsTarget);
+        if (clangdInstalled) {
+            await config.update("clangd.arguments", ["--some-arg"], wsTarget);
+        }
 
         await setWorkspaceSettings(true);
 
         const updatedConfig = vscode.workspace.getConfiguration();
-        const compileCommands = updatedConfig.inspect("C_Cpp.default.compileCommands")?.workspaceValue;
-        assert.ok(typeof compileCommands === "string" && compileCommands.includes("compile_commands.json"),
-            "C_Cpp.default.compileCommands should be set in cpptools mode");
-        assert.strictEqual(
-            updatedConfig.inspect("clangd.arguments")?.workspaceValue,
-            undefined,
-            "clangd.arguments should be cleared when switching to cpptools mode"
-        );
-        assert.strictEqual(
-            updatedConfig.inspect("C_Cpp.intelliSenseEngine")?.workspaceValue,
-            undefined,
-            "C_Cpp.intelliSenseEngine should be cleared when switching to cpptools mode"
-        );
+        if (cpptoolsInstalled) {
+            const compileCommands = updatedConfig.inspect("C_Cpp.default.compileCommands")?.workspaceValue;
+            assert.ok(typeof compileCommands === "string" && compileCommands.includes("compile_commands.json"),
+                "C_Cpp.default.compileCommands should be set in cpptools mode");
+            assert.strictEqual(
+                updatedConfig.inspect("C_Cpp.intelliSenseEngine")?.workspaceValue,
+                undefined,
+                "C_Cpp.intelliSenseEngine should be cleared when switching to cpptools mode"
+            );
+        }
+        if (clangdInstalled) {
+            assert.strictEqual(
+                updatedConfig.inspect("clangd.arguments")?.workspaceValue,
+                undefined,
+                "clangd.arguments should be cleared when switching to cpptools mode"
+            );
+        }
 
         await resetClangdSettings();
     });
 
-    test("cpptools mode: clears C_Cpp.intelliSenseEngine left over from clangd mode", async () => {
+    test("cpptools mode: clears C_Cpp.intelliSenseEngine left over from clangd mode", async function () {
+        if (!cpptoolsInstalled) {
+            this.skip();
+        }
         await resetClangdSettings();
         const config = vscode.workspace.getConfiguration();
         await config.update("zephyr-ide.useClangd", false, wsTarget);
