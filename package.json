@@ -79,6 +79,23 @@
         "zephyr-ide.activeViewKconfigButton": {
           "type": "string",
           "enum": [
+            "dashboard",
+            "kconfig-dashboard",
+            "gui-config",
+            "menu-config"
+          ],
+          "enumDescriptions": [
+            "Open the build dashboard to the main summary page (default).",
+            "Open the build dashboard and navigate directly to the Kconfig page.",
+            "Run 'west build -t guiconfig' to open the graphical Kconfig editor in a terminal.",
+            "Run 'west build -t menuconfig' to open the terminal-based Kconfig editor."
+          ],
+          "default": "dashboard",
+          "description": "Controls what the Kconfig button in the Active Project view does. Defaults to opening the main summary page of the build dashboard. Can also be set to open the Kconfig page of the dashboard, or to launch the external guiconfig or menuconfig tool."
+        },
+        "zephyr-ide.projectViewKconfigButton": {
+          "type": "string",
+          "enum": [
             "kconfig-dashboard",
             "gui-config",
             "menu-config"
@@ -89,7 +106,7 @@
             "Run 'west build -t menuconfig' to open the terminal-based Kconfig editor."
           ],
           "default": "kconfig-dashboard",
-          "description": "Controls what the Kconfig button in the Active Project view does. Defaults to opening the Kconfig page in the build dashboard. Can be changed to launch the external guiconfig or menuconfig tool instead."
+          "description": "Controls what the Config button in the Projects view does for a build. Defaults to opening the Kconfig page in the build dashboard. Can be changed to launch the external guiconfig or menuconfig tool instead."
         },
         "zephyr-ide.westNarrowUpdate": {
           "type": [

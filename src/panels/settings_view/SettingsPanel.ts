@@ -22,8 +22,10 @@ interface SettingDefinition {
   key: string;
   label: string;
   description: string;
-  type: "boolean" | "string";
+  type: "boolean" | "string" | "enum";
   defaultValue: boolean | string | null;
+  /** Options for enum settings — each entry has a value and a human-readable label. */
+  options?: { value: string; label: string }[];
 }
 
 const SETTINGS: SettingDefinition[] = [
@@ -54,6 +56,31 @@ const SETTINGS: SettingDefinition[] = [
     description: "Display GUI config instead of menu config in Project Tree View.",
     type: "boolean",
     defaultValue: false,
+  },
+  {
+    key: "zephyr-ide.activeViewKconfigButton",
+    label: "Active View Kconfig Button",
+    description: "Controls what the Kconfig button in the Active Project view does.",
+    type: "enum",
+    defaultValue: "dashboard",
+    options: [
+      { value: "dashboard", label: "Open Dashboard (main page)" },
+      { value: "kconfig-dashboard", label: "Open Dashboard (Kconfig page)" },
+      { value: "gui-config", label: "Run GUI Config (guiconfig)" },
+      { value: "menu-config", label: "Run Menu Config (menuconfig)" },
+    ],
+  },
+  {
+    key: "zephyr-ide.projectViewKconfigButton",
+    label: "Project View Config Button",
+    description: "Controls what the Config button in the Projects view does for a build.",
+    type: "enum",
+    defaultValue: "kconfig-dashboard",
+    options: [
+      { value: "kconfig-dashboard", label: "Open Dashboard (Kconfig page)" },
+      { value: "gui-config", label: "Run GUI Config (guiconfig)" },
+      { value: "menu-config", label: "Run Menu Config (menuconfig)" },
+    ],
   },
   {
     key: "zephyr-ide.westNarrowUpdate",
@@ -186,6 +213,7 @@ export class SettingsPanel {
         description: def.description,
         type: def.type,
         defaultValue: def.defaultValue,
+        options: def.options ?? null,
         currentValue: currentValue ?? def.defaultValue,
         scope,
         userValue: userValue ?? null,

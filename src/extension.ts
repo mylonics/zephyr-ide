@@ -20,7 +20,7 @@ import * as path from "upath";
 import * as fs from "fs";
 
 import { ActiveProjectView } from "./tree_views/ActiveProjectView";
-import { ProjectTreeView, getUseGuiConfig } from "./tree_views/ProjectTreeView";
+import { ProjectTreeView } from "./tree_views/ProjectTreeView";
 import { ExtensionSetupView } from "./tree_views/ExtensionSetupView";
 import { WestWorkspaceView } from "./tree_views/WestWorkspaceView";
 import { ProjectConfigView } from "./tree_views/ProjectConfigView";
@@ -543,17 +543,20 @@ export async function activate(context: vscode.ExtensionContext) {
   // -- ActiveProjectView inline action commands --
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.active-view.kconfig", async () => {
-      const buttonMode = vscode.workspace.getConfiguration().get<string>("zephyr-ide.activeViewKconfigButton") ?? "kconfig-dashboard";
+      const buttonMode = vscode.workspace.getConfiguration().get<string>("zephyr-ide.activeViewKconfigButton") ?? "dashboard";
       if (buttonMode === "gui-config") {
         void buildMenuConfig(context, wsConfig, MenuConfig.GuiConfig);
       } else if (buttonMode === "menu-config") {
         void buildMenuConfig(context, wsConfig, MenuConfig.MenuConfig);
-      } else {
-        // Default: open dashboard and navigate to Kconfig page.
+      } else if (buttonMode === "kconfig-dashboard") {
+        // Navigate to Kconfig page of the dashboard.
         const resolved = resolveActiveProjectBuild(wsConfig);
         if (!resolved) { return; }
         await vscode.commands.executeCommand("zephyr-ide.run-dashboard");
         DashboardPanel.getPanel(resolved.projectName, resolved.buildName)?.navigateTo("kconfig");
+      } else {
+        // Default ("dashboard"): open dashboard to the main summary page.
+        await vscode.commands.executeCommand("zephyr-ide.run-dashboard");
       }
     }),
     vscode.commands.registerCommand("zephyr-ide.active-view.change-launch-target", (item: any) => {
@@ -646,9 +649,21 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.tree-view.build-pristine", (item: any) => {
       projectTreeView.handleSharedCommand("buildPristine", item);
     }),
-    vscode.commands.registerCommand("zephyr-ide.tree-view.config", (item: any) => {
-      const useGui = getUseGuiConfig();
-      projectTreeView.handleSharedCommand(useGui ? "guiConfig" : "menuConfig", item);
+    vscode.commands.registerCommand("zephyr-ide.tree-view.config", async (item: any) => {
+      const buttonMode = vscode.workspace.getConfiguration().get<string>("zephyr-ide.projectViewKconfigButton") ?? "kconfig-dashboard";
+      if (buttonMode === "gui-config") {
+        projectTreeView.handleSharedCommand("guiConfig", item);
+      } else if (buttonMode === "menu-config") {
+        projectTreeView.handleSharedCommand("menuConfig", item);
+      } else {
+        // Default ("kconfig-dashboard"): set this build active, open dashboard, navigate to Kconfig.
+        const projectName: string = item?.data?.project;
+        const buildName: string = item?.data?.build;
+        if (!projectName || !buildName) { return; }
+        await project.setActive(context, wsConfig, projectName, buildName);
+        await vscode.commands.executeCommand("zephyr-ide.run-dashboard");
+        DashboardPanel.getPanel(projectName, buildName)?.navigateTo("kconfig");
+      }
     }),
     vscode.commands.registerCommand("zephyr-ide.tree-view.add-runner", (item: any) => {
       projectTreeView.handleSharedCommand("addRunner", item);

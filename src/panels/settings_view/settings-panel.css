@@ -97,6 +97,11 @@
     min-height: 28px;
 }
 
+.setting-enum-select {
+    min-width: 260px;
+    min-height: 28px;
+}
+
 .setting-reset-button,
 .setting-browse-button {
     min-width: 78px;

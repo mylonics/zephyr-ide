@@ -23,8 +23,9 @@ interface SettingState {
   key: string;
   label: string;
   description: string;
-  type: "boolean" | "string";
+  type: "boolean" | "string" | "enum";
   defaultValue: boolean | string | null;
+  options: { value: string; label: string }[] | null;
   currentValue: boolean | string | null;
   scope: "default" | "user" | "workspace";
   userValue: boolean | string | null;
@@ -84,6 +85,12 @@ export class SettingsApp extends ZephyrLitElement {
     this.vscodeApi.postMessage({ command: "updateSetting", key, value: checked, scope });
   }
 
+  private _onEnumChanged(key: string, e: Event) {
+    const value = (e.target as any).value;
+    const scope = this._getTargetScope(key, "workspace");
+    this.vscodeApi.postMessage({ command: "updateSetting", key, value, scope });
+  }
+
   private _onStringChanged(key: string, value: string) {
     const scope = this._getTargetScope(key, "workspace");
     const finalValue = value.trim() === "" ? null : value.trim();
@@ -128,6 +135,7 @@ export class SettingsApp extends ZephyrLitElement {
 
     const dirSettings = this._settings.filter(s => s.type === "string");
     const boolSettings = this._settings.filter(s => s.type === "boolean");
+    const enumSettings = this._settings.filter(s => s.type === "enum");
 
     return html`
       <div class="container">
@@ -168,6 +176,11 @@ export class SettingsApp extends ZephyrLitElement {
           ${boolSettings.map((s, i) => html`
             ${i > 0 ? html`<vscode-divider></vscode-divider>` : nothing}
             ${this._renderBoolSetting(s)}
+          `)}
+          ${boolSettings.length > 0 && enumSettings.length > 0 ? html`<vscode-divider></vscode-divider>` : nothing}
+          ${enumSettings.map((s, i) => html`
+            ${i > 0 ? html`<vscode-divider></vscode-divider>` : nothing}
+            ${this._renderEnumSetting(s)}
           `)}
         </div>
       </div>
@@ -251,6 +264,40 @@ export class SettingsApp extends ZephyrLitElement {
             ?checked=${!!setting.currentValue}
             @vsc-change=${(e: Event) => this._onToggleChanged(setting.key, e)}
           ></vscode-checkbox>
+          <vscode-single-select class="setting-scope-select"
+            .value=${targetScope}
+            @vsc-change=${(e: Event) => this._onScopeChanged(setting.key, e)}>
+            <vscode-option value="workspace">Workspace</vscode-option>
+            <vscode-option value="user">User</vscode-option>
+          </vscode-single-select>
+          <vscode-button class="setting-reset-button" appearance="secondary" title="Reset to default"
+            style=${setting.scope === "default" ? "display:none" : ""}
+            @click=${() => this._onReset(setting.key)}>Reset</vscode-button>
+        </div>
+      </div>
+    `;
+  }
+
+  private _renderEnumSetting(setting: SettingState) {
+    const targetScope = this._getTargetScope(setting.key, setting.scope !== "default" ? setting.scope : "workspace");
+    const isOverridden = targetScope === "user" && setting.hasWorkspaceValue;
+    const currentVal = setting.currentValue !== null && setting.currentValue !== undefined ? String(setting.currentValue) : String(setting.defaultValue ?? "");
+    const options = setting.options ?? [];
+
+    return html`
+      <div class="setting-row ${isOverridden ? "setting-row-overridden" : ""}" data-key="${setting.key}" data-type="enum">
+        <div class="setting-header">
+          <vscode-label class="setting-label">${setting.label}</vscode-label>
+          <div class="setting-scope-badge scope-${setting.scope}">${setting.scope}</div>
+        </div>
+        <div class="setting-description">${setting.description}</div>
+        ${this._renderOverrideWarning(setting)}
+        <div class="setting-controls">
+          <vscode-single-select class="setting-enum-select"
+            .value=${currentVal}
+            @vsc-change=${(e: Event) => this._onEnumChanged(setting.key, e)}>
+            ${options.map(opt => html`<vscode-option value=${opt.value}>${opt.label}</vscode-option>`)}
+          </vscode-single-select>
           <vscode-single-select class="setting-scope-select"
             .value=${targetScope}
             @vsc-change=${(e: Event) => this._onScopeChanged(setting.key, e)}>
