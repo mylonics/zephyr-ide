@@ -5,12 +5,13 @@ SPDX-License-Identifier: Apache-2.0
 */
 
 /**
- * Helpers shared by the Build Dashboard's Kconfig editor (Phase 1A).
+ * Helpers shared by the Build Dashboard's Kconfig editor.
  *
  * Responsible for serializing the user's edits as a Kconfig fragment file
- * (`CONFIG_FOO=value` / `# CONFIG_FOO is not set` lines) and offering to
- * register the saved file as an EXTRA_CONF_FILE on the active build via
- * the existing `confFiles` plumbing in `project_utilities/config_selector`.
+ * (`CONFIG_FOO=value` / `# CONFIG_FOO is not set` lines), merging changes
+ * into existing conf files (e.g. prj.conf), offering to register the saved
+ * file as an EXTRA_CONF_FILE on the active build, and enumerating the
+ * available save targets from build_info.yml + confFiles.
  */
 
 import * as fs from "fs-extra";
@@ -18,8 +19,9 @@ import * as path from "upath";
 import * as vscode from "vscode";
 
 import { ConfigFiles, mergeConfigFiles } from "../../project_utilities/config_selector";
-import { getProjectFolder, ProjectConfig } from "../../project_utilities/project";
+import { getProjectFolder, getBuildFolder, ProjectConfig } from "../../project_utilities/project";
 import { BuildConfig } from "../../project_utilities/build_selector";
+import { loadYamlFile } from "../../utilities/utils";
 import { setWorkspaceState } from "../../setup_utilities/state-management";
 import type { WorkspaceConfig } from "../../setup_utilities/types";
 import type { KconfigChange, KconfigSaveTarget } from "./DashboardPanel";
@@ -125,53 +127,260 @@ export async function offerAddFragmentToBuild(
 }
 
 /**
- * Build the list of pre-existing extra Kconfig fragments attached to either
- * the build (preferred) or the project that the dashboard's Save menu can
- * overwrite.  Only `.conf` entries with `extra=true` are included; override
- * entries (prj.conf) are deliberately left out so the user cannot accidentally
- * blow away a hand-maintained main configuration with a minimal fragment.
+ * Attach a conf fragment to the project's or build's confFiles list as an
+ * EXTRA_CONF_FILE.  Does not prompt — the scope was already chosen by the
+ * user in the Save menu.  Skips silently if the path is already registered.
+ */
+export async function attachFragmentToScope(
+  context: vscode.ExtensionContext,
+  wsConfig: WorkspaceConfig,
+  project: ProjectConfig,
+  build: BuildConfig,
+  fragmentAbsPath: string,
+  scope: "build" | "project",
+): Promise<void> {
+  const rel = path.relative(wsConfig.rootPath, fragmentAbsPath);
+  const targetFiles = scope === "build" ? build.confFiles.config : project.confFiles.config;
+  if (targetFiles.some((c) => path.normalize(c.path) === path.normalize(rel))) {
+    // Already registered — nothing to do.
+    return;
+  }
+  const addition: ConfigFiles = {
+    config: [{ path: rel, extra: true }],
+    overlay: [],
+  };
+  if (scope === "build") {
+    mergeConfigFiles(build.confFiles, addition);
+  } else {
+    mergeConfigFiles(project.confFiles, addition);
+  }
+  await setWorkspaceState(context, wsConfig);
+}
+
+/**
+ * Parse a Kconfig conf/fragment file into a map of symbol name → raw value
+ * line (the full "CONFIG_X=value" or "# CONFIG_X is not set" line is kept
+ * for round-trip fidelity on unmodified entries).
  *
- * Build-scope entries shadow project-scope entries with the same path so each
- * relative path appears at most once.
+ * Returns an array of lines in order, where each element is either
+ * `{ sym: name, line: "CONFIG_X=val" }` for a known symbol line or
+ * `{ sym: null, line: "..." }` for a comment / blank / unknown line.
+ */
+interface ParsedLine { sym: string | null; line: string; }
+
+function parseConfFile(content: string): ParsedLine[] {
+  const out: ParsedLine[] = [];
+  for (const raw of content.split(/\r?\n/)) {
+    const notSet = raw.match(/^#\s*(CONFIG_[A-Za-z0-9_]+)\s+is not set\s*$/);
+    if (notSet) {
+      out.push({ sym: notSet[1], line: raw });
+      continue;
+    }
+    const assign = raw.match(/^(CONFIG_[A-Za-z0-9_]+)=/);
+    if (assign) {
+      out.push({ sym: assign[1], line: raw });
+      continue;
+    }
+    out.push({ sym: null, line: raw });
+  }
+  return out;
+}
+
+/**
+ * Render a single symbol change as a Kconfig fragment line.
+ * Mirrors the logic in renderFragment but for a single entry.
+ */
+function renderLine(c: KconfigChange): string {
+  if (!/^CONFIG_[A-Za-z0-9_]+$/.test(c.name)) { return ""; }
+  const t = c.type;
+  if (t === "bool" || t === "tristate") {
+    const v = c.value.trim().toLowerCase();
+    return (v === "y" || v === "m") ? `${c.name}=${v}` : `# ${c.name} is not set`;
+  } else if (t === "int" || t === "hex") {
+    return `${c.name}=${c.value.trim()}`;
+  } else {
+    const escaped = c.value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    return `${c.name}="${escaped}"`;
+  }
+}
+
+/**
+ * Merge Kconfig changes into an existing conf file's content (string).
+ *
+ * - Symbols already present in the file have their line replaced in-place.
+ * - New symbols are appended at the end.
+ * - Lines for symbols NOT in the change set are preserved unchanged.
+ *
+ * Returns the merged content string.
+ */
+export function mergeFragmentContent(existing: string, changes: KconfigChange[]): string {
+  const parsed = parseConfFile(existing);
+  const byName = new Map<string, KconfigChange>();
+  for (const c of changes) {
+    if (/^CONFIG_[A-Za-z0-9_]+$/.test(c.name)) { byName.set(c.name, c); }
+  }
+
+  const applied = new Set<string>();
+  const merged: string[] = [];
+
+  for (const { sym, line } of parsed) {
+    if (sym && byName.has(sym)) {
+      merged.push(renderLine(byName.get(sym)!));
+      applied.add(sym);
+    } else {
+      merged.push(line);
+    }
+  }
+
+  // Strip trailing empty line that parseConfFile may have generated
+  while (merged.length > 0 && merged[merged.length - 1] === "") { merged.pop(); }
+
+  // Append new symbols not yet in the file
+  const appended: string[] = [];
+  for (const [name, c] of byName) {
+    if (!applied.has(name)) {
+      appended.push(renderLine(c));
+    }
+  }
+  if (appended.length > 0) {
+    merged.push(""); // blank separator
+    merged.push(...appended);
+  }
+  merged.push("");
+  return merged.join("\n");
+}
+
+/**
+ * Build the list of save targets available in the Save menu.
+ *
+ * Priority order:
+ *   1. confFiles entries (build-scope first, then project-scope).
+ *   2. Auto-detected entries from build_info.yml (cmake.kconfig.files +
+ *      user-files) that are inside the workspace root and outside the
+ *      build folder.  Board/arch/module files that live outside the
+ *      workspace are silently excluded.
+ *
+ * Each entry carries a `kind` ("extra" | "override" | "auto") and an
+ * `attached` flag indicating whether it is already tracked in confFiles.
+ *
+ * When build_info.yml is not present (no build yet) the function falls
+ * back to the confFiles-only enumeration so the menu still works.
  */
 export function listSaveTargets(
   wsConfig: WorkspaceConfig,
   project: ProjectConfig,
   build: BuildConfig,
 ): KconfigSaveTarget[] {
-  const isFragment = (p: string) => /\.conf$/i.test(p);
-  const seen = new Set<string>();
+  const isConfFile = (p: string) => /\.conf$/i.test(p);
+  const buildFolder = path.normalize(getBuildFolder(wsConfig, project, build));
+  const rootNorm = path.normalize(wsConfig.rootPath);
+
+  const seen = new Set<string>(); // normalised absolute paths already added
   const out: KconfigSaveTarget[] = [];
 
-  const push = (entryPath: string, scope: "build" | "project") => {
-    const norm = path.normalize(entryPath);
+  /** Push one entry, deduplicating by absolute path. */
+  const push = (
+    relPath: string,
+    absPath: string,
+    scope: "build" | "project",
+    kind: "extra" | "override" | "auto",
+    attached: boolean,
+  ) => {
+    const norm = path.normalize(absPath).toLowerCase();
     if (seen.has(norm)) { return; }
     seen.add(norm);
-    const absPath = path.resolve(wsConfig.rootPath, entryPath);
     out.push({
-      path: entryPath,
+      path: relPath,
       absPath,
       scope,
+      kind,
+      attached,
       exists: fs.existsSync(absPath),
     });
   };
 
+  // ── 1. Entries already known to the extension (confFiles) ──────────────
   for (const e of build.confFiles.config) {
-    if (e.extra && isFragment(e.path)) { push(e.path, "build"); }
+    if (!isConfFile(e.path)) { continue; }
+    const abs = path.resolve(wsConfig.rootPath, e.path);
+    push(e.path, abs, "build", e.extra ? "extra" : "override", true);
   }
   for (const e of project.confFiles.config) {
-    if (e.extra && isFragment(e.path)) { push(e.path, "project"); }
+    if (!isConfFile(e.path)) { continue; }
+    const abs = path.resolve(wsConfig.rootPath, e.path);
+    push(e.path, abs, "project", e.extra ? "extra" : "override", true);
   }
+
+  // ── 2. Auto-detected entries from build_info.yml ────────────────────────
+  // getBuildInfo is synchronous-ish (reads yaml) — we call the sync variant
+  // via the already-loaded module.
+  const buildInfoPath = path.join(buildFolder, "build_info.yml");
+  if (fs.existsSync(buildInfoPath)) {
+    // Collect all kconfig source files west fed into this build.
+    let kconfigFiles: string[] = [];
+    try {
+      const parsed = loadYamlFile(buildInfoPath);
+      if (parsed?.cmake?.kconfig) {
+        kconfigFiles = [
+          ...(parsed.cmake.kconfig["files"] ?? []),
+          ...(parsed.cmake.kconfig["user-files"] ?? []),
+        ];
+      }
+    } catch {
+      // build_info.yml unreadable — skip auto-detection.
+    }
+
+    for (const absStr of kconfigFiles) {
+      const absNorm = path.normalize(absStr);
+      // Exclude generated files inside the build folder.
+      if (absNorm.toLowerCase().startsWith(buildFolder.toLowerCase())) { continue; }
+      // Exclude files outside the workspace root (board/arch/module files
+      // from the Zephyr tree or SDK that the user should not edit here).
+      if (!absNorm.toLowerCase().startsWith(rootNorm.toLowerCase())) { continue; }
+      // Only .conf files are editable fragments.
+      if (!isConfFile(absNorm)) { continue; }
+
+      const rel = path.relative(wsConfig.rootPath, absNorm);
+      // Determine kind by checking whether the file is in confFiles.
+      // If it's already in confFiles it was already pushed in step 1 and
+      // will be deduped by `push`; the kind/attached were already set.
+      // If it's not in confFiles it is auto-detected.
+      const normLower = absNorm.toLowerCase();
+      const matchedBuildEntry = build.confFiles.config.find(
+        (e) => path.normalize(path.resolve(wsConfig.rootPath, e.path)).toLowerCase() === normLower,
+      );
+      const matchedProjEntry = project.confFiles.config.find(
+        (e) => path.normalize(path.resolve(wsConfig.rootPath, e.path)).toLowerCase() === normLower,
+      );
+      const attached = !!(matchedBuildEntry ?? matchedProjEntry);
+      const autoScope: "build" | "project" = matchedBuildEntry ? "build" : "project";
+      const kind: "extra" | "override" | "auto" = attached
+        ? ((matchedBuildEntry ?? matchedProjEntry)!.extra ? "extra" : "override")
+        : "auto";
+      push(rel, path.normalize(absNorm), autoScope, kind, attached);
+    }
+  }
+
   return out;
 }
 
 /**
- * Overwrite an existing extra-fragment file with the (minimal) Kconfig output
- * produced by `writeFragment`.  Uses a temp-file + rename for atomicity so a
- * crash mid-write cannot leave the build with a half-written fragment.
+ * Overwrite or merge into an existing target conf file.
  *
- * Skips the "attach to build" prompt because the path is already attached
- * (the picker only offers paths from `listSaveTargets`).
+ * - When `opts.merge` is false  — minimal fragment is written directly by
+ *   invoking `writeFragment(path)` (same as before).
+ * - When `opts.merge` is true   — the existing file is read, the symbol
+ *   changes are merged in-place (preserving unmodified lines), and the
+ *   result is written atomically.  `writeFragment` is still called to a
+ *   temporary path so that the Kconfig session's write_min_config provides
+ *   the canonical value encoding; its output is then parsed as the source
+ *   of truth for the new values, and those values are merged into the real
+ *   file.
+ * - When `opts.symbols` is set — only those named symbols are written;
+ *   the rest of the change set is ignored.  This enables the per-row
+ *   "Save this symbol to…" context-menu action.
+ *
+ * Uses a temp-file + rename for atomicity.
  */
 export async function saveSessionFragmentToPath(
   wsConfig: WorkspaceConfig,
@@ -179,26 +388,69 @@ export async function saveSessionFragmentToPath(
   build: BuildConfig,
   absPath: string,
   writeFragment: (path: string) => Promise<unknown>,
+  opts: { merge: boolean; symbols?: string[] } = { merge: false },
 ): Promise<string | undefined> {
   if (!absPath) { return undefined; }
-  // Defence-in-depth: only allow paths that actually appear in the picker.
+  // Defence-in-depth: only allow paths that appear in the picker.
   const allowed = listSaveTargets(wsConfig, project, build);
   const match = allowed.find(
     (t) => path.normalize(t.absPath).toLowerCase()
       === path.normalize(absPath).toLowerCase(),
   );
   if (!match) {
-    throw new Error(`Refusing to save: ${absPath} is not an attached extra Kconfig fragment for this build.`);
+    throw new Error(`Refusing to save: ${absPath} is not a known Kconfig conf file for this build.`);
   }
+
   await fs.ensureDir(path.dirname(absPath));
-  // kconfiglib's write_min_config writes directly; route through a temp file
-  // so we can rename atomically.
   const tmp = `${absPath}.tmp-${process.pid}-${Date.now()}`;
+
   try {
-    await writeFragment(tmp);
-    await fs.move(tmp, absPath, { overwrite: true });
+    if (!opts.merge) {
+      // Simple overwrite: let the session write the minimal fragment.
+      await writeFragment(tmp);
+      await fs.move(tmp, absPath, { overwrite: true });
+      return absPath;
+    }
+
+    // Merge mode:
+    // 1. Ask the session to write its minimal fragment to a temp path so we
+    //    get the canonically-encoded values.
+    const sessionTmp = `${absPath}.session-${process.pid}-${Date.now()}`;
+    try {
+      await writeFragment(sessionTmp);
+      // 2. Parse the session output to extract the change set.
+      let sessionContent = "";
+      try { sessionContent = await fs.readFile(sessionTmp, "utf8"); } catch { /* empty */ }
+      const sessionLines = parseConfFile(sessionContent);
+      const sessionChanges: KconfigChange[] = [];
+      for (const { sym, line } of sessionLines) {
+        if (!sym) { continue; }
+        const notSet = line.match(/^#\s*CONFIG_[A-Za-z0-9_]+\s+is not set/);
+        const assign = line.match(/^CONFIG_[A-Za-z0-9_]+=(.*)/);
+        const value = notSet ? "n" : (assign ? assign[1].replace(/^"(.*)"$/, "$1") : "");
+        const type = notSet ? "bool" : undefined;
+        sessionChanges.push({ name: sym, value, type });
+      }
+      // 3. Apply symbol filter if a subset was requested.
+      const changes = opts.symbols
+        ? sessionChanges.filter((c) => opts.symbols!.includes(c.name))
+        : sessionChanges;
+
+      // 4. Read the existing file and merge.
+      let existing = "";
+      try { existing = await fs.readFile(absPath, "utf8"); } catch { /* new file */ }
+      const merged = mergeFragmentContent(existing, changes);
+
+      // 5. Write the result atomically.
+      await fs.outputFile(tmp, merged, "utf8");
+      await fs.move(tmp, absPath, { overwrite: true });
+    } finally {
+      try { await fs.remove(sessionTmp); } catch { /* ignore */ }
+    }
+    return absPath;
   } finally {
-    if (await fs.pathExists(tmp)) { try { await fs.remove(tmp); } catch { /* ignore */ } }
+    try {
+      if (await fs.pathExists(tmp)) { await fs.remove(tmp); }
+    } catch { /* ignore */ }
   }
-  return absPath;
 }

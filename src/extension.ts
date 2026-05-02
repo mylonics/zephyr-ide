@@ -28,7 +28,7 @@ import { SetupPanel } from "./panels/setup_panel/SetupPanel";
 import { HostToolInstallView } from "./panels/host_tool_install_view/HostToolInstallView";
 import { ProjectBuildPanel } from "./panels/project_build_view/ProjectBuildPanel";
 import { DashboardPanel } from "./panels/dashboard_view/DashboardPanel";
-import { listSaveTargets as listKconfigSaveTargets, offerAddFragmentToBuild, saveFragmentInteractive, saveSessionFragmentToPath } from "./panels/dashboard_view/kconfig-fragment";
+import { listSaveTargets as listKconfigSaveTargets, attachFragmentToScope, offerAddFragmentToBuild, saveFragmentInteractive, saveSessionFragmentToPath } from "./panels/dashboard_view/kconfig-fragment";
 import {
   KconfigSession,
   buildEnvFromCMakeCache,
@@ -1391,11 +1391,8 @@ export async function activate(context: vscode.ExtensionContext) {
             }
             return saved;
           },
-          // kconfiglib-backed "Save as minimal fragment" flow used by the
-          // two-pane editor.  We pick the destination first (so the user can
-          // cancel before we touch disk), let the helper write the minimal
-          // file, then offer to attach it to this build.
-          saveSessionFragment: async (writeFragment) => {
+          // kconfiglib-backed "Save as new fragment" — scope chosen by user.
+          saveSessionFragmentNew: async (scope, writeFragment) => {
             const defaultUri = vscode.Uri.file(
               path.join(getProjectFolder(wsConfig, proj), "prj_dashboard.conf"),
             );
@@ -1403,15 +1400,15 @@ export async function activate(context: vscode.ExtensionContext) {
               defaultUri,
               filters: { "Kconfig fragment": ["conf"] },
               saveLabel: "Save Kconfig Fragment",
-              title: "Save Kconfig fragment from Dashboard",
+              title: `Save Kconfig fragment (attached to ${scope})`,
             });
             if (!target) { return undefined; }
             await writeFragment(target.fsPath);
-            await offerAddFragmentToBuild(context, wsConfig, proj, bld, target.fsPath);
+            await attachFragmentToScope(context, wsConfig, proj, bld, target.fsPath, scope);
             return target.fsPath;
           },
-          saveSessionFragmentToPath: async (absPath, writeFragment) => {
-            return saveSessionFragmentToPath(wsConfig, proj, bld, absPath, writeFragment);
+          saveSessionFragmentToPath: async (absPath, writeFragment, opts) => {
+            return saveSessionFragmentToPath(wsConfig, proj, bld, absPath, writeFragment, opts);
           },
           listSaveTargets: async () => {
             return listKconfigSaveTargets(wsConfig, proj, bld);

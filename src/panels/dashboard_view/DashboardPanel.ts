@@ -36,24 +36,28 @@ export interface DashboardKconfigCallbacks {
   /** Persist the listed changes as a Kconfig fragment file. Returns the
    * absolute path of the saved file, or undefined if the user cancelled. */
   saveFragment: (changes: KconfigChange[]) => Promise<string | undefined>;
-  /** Show the save-as dialog, invoke `writeFragment(path)` to actually
-   * persist the file (typically `session.save(path, true)`), then offer to
-   * register the saved file with the build's EXTRA_CONF_FILE list.  Returns
-   * the saved absolute path, or undefined if the user cancelled the dialog. */
-  saveSessionFragment: (
+  /** Show the save-as dialog for a NEW fragment, attach to the given scope
+   * (build or project), invoke `writeFragment(path)` to persist the file.
+   * Returns the saved absolute path, or undefined if the user cancelled. */
+  saveSessionFragmentNew: (
+    scope: "build" | "project",
     writeFragment: (path: string) => Promise<unknown>,
   ) => Promise<string | undefined>;
-  /** Write the (minimal) fragment directly to an absolute path that the user
-   * already chose from the in-panel save-target picker.  Skips the save
-   * dialog and the "attach to build" prompt because the path is one of the
-   * fragments already attached to the active build/project. */
+  /** Write fragment content to an existing target path that the user chose
+   * from the in-panel Save menu.  When `merge` is true the extension reads
+   * the existing file first and merges only the provided symbol changes
+   * into it (used for override-style targets like prj.conf).  Otherwise
+   * the file is replaced with the minimal fragment.  Returns the saved
+   * absolute path, or undefined on error. */
   saveSessionFragmentToPath: (
     absPath: string,
     writeFragment: (path: string) => Promise<unknown>,
+    opts: { merge: boolean; symbols?: string[] },
   ) => Promise<string | undefined>;
   /** List existing extra Kconfig fragments attached to the active project +
    * build that the user may overwrite from the dashboard.  Build-scope
-   * entries shadow project-scope entries with the same path. */
+   * entries shadow project-scope entries with the same path.  Also returns
+   * override-style (CONF_FILE) and auto-detected (build_info.yml) entries. */
   listSaveTargets: () => Promise<KconfigSaveTarget[]>;
   /** Launch the existing terminal-based menuconfig or guiconfig task. */
   openExternal: (tool: "menuconfig" | "guiconfig") => Promise<void>;
@@ -74,6 +78,19 @@ export interface KconfigSaveTarget {
    * offered so the user can populate a fragment that was attached but never
    * created. */
   exists: boolean;
+  /**
+   * How this file is used in the build:
+   * - "extra"    — passed as EXTRA_CONF_FILE (safe to overwrite as fragment).
+   * - "override" — passed as CONF_FILE (e.g. prj.conf); saving will merge
+   *               changed symbols into the file instead of overwriting it.
+   * - "auto"     — detected by west from build_info.yml but not yet listed
+   *               in the project/build confFiles; saving offers to attach it.
+   */
+  kind: "extra" | "override" | "auto";
+  /** True when this path appears in the project's or build's confFiles list
+   * (i.e. it is under active extension management).  Auto-detected entries
+   * that come from build_info.yml alone have attached=false. */
+  attached: boolean;
 }
 
 /** A single Kconfig symbol edit emitted from the webview. */
@@ -324,32 +341,47 @@ export class DashboardPanel {
           break;
         }
         case "kconfigSaveAs": {
-          // Combined: ask the extension to pick a save location, then write
-          // the (minimal) fragment via the helper, then offer to attach it
-          // to the active build.  Returns { savedPath } or { savedPath: null }
-          // on user cancel.
+          // Combined save-as flow.  Returns { savedPath, merged?, count? } or
+          // { savedPath: null } on user cancel.
           //
-          // When `target` is a non-empty string, it is treated as an absolute
-          // path of an existing extra-fragment that the user picked from the
-          // in-panel Save menu — the dialog is skipped and we overwrite the
-          // file in place with the minimal config.
+          // Variants:
+          //   target=""  + scope="build"|"project"  →  save-as-new dialog,
+          //                                             attach to chosen scope.
+          //   target=<absPath>                       →  overwrite / merge into
+          //                                             existing target file.
+          //     merge=true  →  read existing file + patch symbol lines in place.
+          //     symbols=[…] →  only write the listed symbol names (subset save).
           if (!this._kconfigCallbacks) {
             throw new Error("Kconfig save is not available for this dashboard.");
           }
           const minimalSave = message.minimal !== false;
           const target = typeof message.target === "string" ? message.target : "";
+          const merge = !!message.merge;
+          const scope = (message.scope === "project" ? "project" : "build") as "build" | "project";
+          // Subset of symbol names to save (for per-row "Save this symbol to…").
+          const symbols: string[] | undefined = Array.isArray(message.symbols) && message.symbols.length > 0
+            ? (message.symbols as string[])
+            : undefined;
+
           let savedPath: string | undefined;
+          let merged = false;
+
           if (target) {
+            // Existing-target flow.
             savedPath = await this._kconfigCallbacks.saveSessionFragmentToPath(
               target,
               async (p) => session.save(p, minimalSave),
+              { merge, symbols },
             );
+            merged = merge;
           } else {
-            savedPath = await this._kconfigCallbacks.saveSessionFragment(
+            // New-fragment flow — scope chosen by user in the Save menu.
+            savedPath = await this._kconfigCallbacks.saveSessionFragmentNew(
+              scope,
               async (p) => session.save(p, minimalSave),
             );
           }
-          result = { savedPath: savedPath ?? null };
+          result = { savedPath: savedPath ?? null, merged };
           break;
         }
         case "kconfigListSaveTargets": {

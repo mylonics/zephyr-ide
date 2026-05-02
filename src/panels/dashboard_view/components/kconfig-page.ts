@@ -92,6 +92,11 @@ interface KconfigSaveTarget {
   absPath: string;
   scope: "build" | "project";
   exists: boolean;
+  /** "extra" = EXTRA_CONF_FILE; "override" = CONF_FILE (e.g. prj.conf);
+   * "auto" = detected by west (build_info.yml) but not yet in confFiles. */
+  kind: "extra" | "override" | "auto";
+  /** True when the file is tracked in the project/build confFiles list. */
+  attached: boolean;
 }
 
 /** Persisted webview state (vscodeApi.setState).  Restored across reloads of
@@ -113,7 +118,7 @@ interface PersistedState {
 type SaveStatus =
   | { kind: "idle" }
   | { kind: "saving" }
-  | { kind: "saved"; path: string; count: number }
+  | { kind: "saved"; path: string; count: number; merged?: boolean }
   | { kind: "error"; message: string }
   | { kind: "info"; message: string };
 
@@ -514,29 +519,57 @@ export class KconfigPage extends ZephyrLitElement {
   // Toolbar actions
   // ------------------------------------------------------------------
 
-  /** Show the OS save-as dialog (the legacy "save as new fragment" path).
-   * Pass an empty `target` so the extension takes the dialog branch. */
-  private async _onSaveAsNew(): Promise<void> {
-    await this._performSave("");
+  /** Open the save-as dialog for a NEW fragment, attaching to the given scope. */
+  private async _onSaveAsNew(scope: "build" | "project" = "build"): Promise<void> {
+    this._saveMenuOpen = false;
+    await this._performSave("", { scope });
   }
 
-  /** Overwrite an existing extra-fragment in place. */
+  /** Save to an existing target — merges for override files, overwrites for extras. */
   private async _onSaveToTarget(target: KconfigSaveTarget): Promise<void> {
     this._saveMenuOpen = false;
     this._lastSaveTarget = target.absPath;
-    await this._performSave(target.absPath);
+    await this._performSave(target.absPath, { merge: target.kind === "override" });
   }
 
-  private async _performSave(target: string): Promise<void> {
-    const dirty = this._changes.length;
+  /** Per-row "Save just this symbol to <target>". */
+  private async _onSaveSymbolToTarget(symbolName: string, target: KconfigSaveTarget): Promise<void> {
+    this._saveMenuOpen = false;
+    this._contextMenu = undefined;
+    if (!symbolName) { return; }
+    this._lastSaveTarget = target.absPath;
+    await this._performSave(target.absPath, {
+      merge: target.kind === "override",
+      symbols: [symbolName],
+    });
+  }
+
+  /** Per-row "Save just this symbol to a new fragment". */
+  private async _onSaveSymbolAsNew(symbolName: string, scope: "build" | "project"): Promise<void> {
+    this._contextMenu = undefined;
+    if (!symbolName) { return; }
+    await this._performSave("", { scope, symbols: [symbolName] });
+  }
+
+  private async _performSave(
+    target: string,
+    opts: { merge?: boolean; scope?: "build" | "project"; symbols?: string[] } = {},
+  ): Promise<void> {
+    const dirty = opts.symbols ? opts.symbols.length : this._changes.length;
     this._saveStatus = { kind: "saving" };
     try {
-      const r = await this._request<{ savedPath: string | null }>(
+      const r = await this._request<{ savedPath: string | null; merged?: boolean }>(
         "kconfigSaveAs",
-        { minimal: true, target },
+        {
+          minimal: true,
+          target,
+          merge: !!opts.merge,
+          scope: opts.scope ?? "build",
+          symbols: opts.symbols ?? [],
+        },
       );
       if (r.savedPath) {
-        this._saveStatus = { kind: "saved", path: r.savedPath, count: dirty };
+        this._saveStatus = { kind: "saved", path: r.savedPath, count: dirty, merged: !!r.merged };
         // Save targets list may have changed (file existence flipped) — drop
         // the cache so the menu is repopulated on next open.
         this._saveTargets = undefined;
@@ -687,12 +720,18 @@ export class KconfigPage extends ZephyrLitElement {
   private _openContextMenu(e: MouseEvent, node: KconfigNode): void {
     e.preventDefault();
     e.stopPropagation();
+    const modified = this._isModified(node.name);
     this._contextMenu = {
       x: e.clientX,
       y: e.clientY,
       node,
-      modified: this._isModified(node.name),
+      modified,
     };
+    // Eagerly load save targets when we open a context menu on a modified
+    // symbol so the sub-list is ready by the time the user hovers it.
+    if (modified && node.is_symbol && !this._isMenuLike(node)) {
+      void this._ensureSaveTargets();
+    }
   }
 
   /** Recursively collect all menu/choice node ids in a subtree (for the
@@ -769,7 +808,39 @@ export class KconfigPage extends ZephyrLitElement {
             <li class="kconfig-ctx-item" role="menuitem"
                 @click=${() => { this._contextMenu = undefined; void this._resetSymbol(node.name); }}>
               <span class="codicon codicon-discard"></span>Reset to original
-            </li>`
+            </li>
+            ${node.is_symbol && !isMenu
+            ? html`
+              <li class="kconfig-ctx-sep" role="separator"></li>
+              <li class="kconfig-ctx-item kconfig-ctx-item-header" role="presentation">
+                Save this symbol to…
+              </li>
+              ${this._saveTargetsLoading
+              ? html`<li class="kconfig-ctx-item kconfig-ctx-disabled">
+                  <span class="codicon codicon-loading codicon-modifier-spin"></span> Loading…
+                </li>`
+              : (this._saveTargets ?? []).map((t) => {
+                  const badge = t.kind === "override"
+                    ? html`<span class="badge badge-warning">override</span>`
+                    : html`<span class="badge badge-muted">${t.kind}</span>`;
+                  return html`
+                    <li class="kconfig-ctx-item" role="menuitem"
+                        @click=${() => void this._onSaveSymbolToTarget(node.name, t)}>
+                      <span class="codicon codicon-file"></span>
+                      ${t.path} ${badge}
+                    </li>
+                  `;
+                })}
+              <li class="kconfig-ctx-item" role="menuitem"
+                  @click=${() => void this._onSaveSymbolAsNew(node.name, "build")}>
+                <span class="codicon codicon-new-file"></span>New fragment (build)…
+              </li>
+              <li class="kconfig-ctx-item" role="menuitem"
+                  @click=${() => void this._onSaveSymbolAsNew(node.name, "project")}>
+                <span class="codicon codicon-new-file"></span>New fragment (project)…
+              </li>
+            `
+            : nothing}`
         : nothing}
       </ul>
     `;
@@ -956,10 +1027,13 @@ export class KconfigPage extends ZephyrLitElement {
     const s = this._saveStatus;
     if (s.kind === "saved") {
       const rel = this._relPath(s.path);
+      const verb = s.merged ? "Merged" : "Saved";
+      const noun = s.count === 1 ? "symbol" : "symbols";
+      const prep = s.merged ? "into" : "to";
       return html`
         <p class="kconfig-status kconfig-status-ok">
           <span class="codicon codicon-check"></span>
-          Saved ${s.count} change${s.count === 1 ? "" : "s"} to <code>${rel}</code>
+          ${verb} ${s.count} ${noun} ${prep} <code>${rel}</code>
           <span
             class="kconfig-tree-link"
             style="margin-left:8px"
@@ -998,8 +1072,9 @@ export class KconfigPage extends ZephyrLitElement {
   }
 
   /** Save split-button: primary action saves to the last-used target (or
-   * shows the dialog if there is none); the chevron opens a popover listing
-   * all attached extra-fragments + "Save as new fragment…". */
+   * opens the menu when there is no last target so scope is always chosen);
+   * the chevron always opens the popover listing all conf files +
+   * "Save as new fragment attached to build/project…". */
   private _renderSaveButton(saving: boolean, dirty: number): TemplateResult {
     const disabled = saving || dirty === 0;
     const last = this._lastSaveTarget
@@ -1011,13 +1086,16 @@ export class KconfigPage extends ZephyrLitElement {
         ? `Save to ${this._relPath(last.absPath)}${dirty > 0 ? ` (${dirty})` : ""}`
         : `Save fragment…${dirty > 0 ? ` (${dirty})` : ""}`;
     const primaryTitle = last
-      ? `Overwrite ${last.path} with the current minimal config (${last.scope} extra)`
-      : "Save edited symbols to a Kconfig fragment file (minimal)";
-    const primaryAction = () => {
+      ? (last.kind === "override"
+        ? `Merge ${dirty} change${dirty === 1 ? "" : "s"} into ${last.path} (override conf)`
+        : `Overwrite ${last.path} with the current minimal config (${last.scope} extra)`)
+      : "Choose where to save your Kconfig changes";
+    const primaryAction = async () => {
       if (last) {
-        void this._onSaveToTarget(last);
+        await this._onSaveToTarget(last);
       } else {
-        void this._onSaveAsNew();
+        // No prior target — open the menu so the user picks scope first.
+        await this._toggleSaveMenu();
       }
     };
     return html`
@@ -1059,33 +1137,50 @@ export class KconfigPage extends ZephyrLitElement {
             </li>`
         : nothing}
         ${!this._saveTargetsLoading && targets.length === 0
-        ? html`<li class="kconfig-save-menu-info">
-              No extra Kconfig fragments attached to this build or project.
-            </li>`
+        ? html`<li class="kconfig-save-menu-info">No conf files found for this build.</li>`
         : nothing}
-        ${targets.map((t) => html`
+        ${targets.map((t) => {
+          const kindBadge = t.kind === "override"
+            ? html`<span class="badge badge-warning" title="Override file (CONF_FILE). Changes will be merged in-place.">override</span>`
+            : t.kind === "auto"
+              ? html`<span class="badge badge-muted" title="Auto-detected by west (not yet attached to build/project)">auto</span>`
+              : html`<span class="badge badge-muted">extra</span>`;
+          const scopeBadge = html`<span class="badge badge-muted">${t.scope}</span>`;
+          const actionHint = t.kind === "override"
+            ? " — merge"
+            : t.exists ? "" : " — will be created";
+          return html`
           <li
             class="kconfig-save-menu-item ${t.absPath === this._lastSaveTarget ? "kconfig-save-menu-current" : ""}"
             role="menuitem"
-            title=${t.absPath}
+            title="${t.absPath}${actionHint}"
             @click=${() => void this._onSaveToTarget(t)}
           >
             <span class="codicon codicon-file"></span>
             <span class="kconfig-save-menu-path">${t.path}</span>
-            <span class="badge badge-muted">${t.scope}</span>
-            ${t.exists
-            ? nothing
-            : html`<span class="badge" title="File does not exist yet — will be created">new</span>`}
+            ${kindBadge}
+            ${scopeBadge}
+            ${!t.exists && t.kind !== "override"
+            ? html`<span class="badge" title="File does not exist yet — will be created">new</span>`
+            : nothing}
           </li>
-        `)}
+        `;})}
         ${targets.length > 0 ? html`<li class="kconfig-save-menu-sep" role="separator"></li>` : nothing}
         <li
           class="kconfig-save-menu-item"
           role="menuitem"
-          @click=${() => { this._saveMenuOpen = false; void this._onSaveAsNew(); }}
+          @click=${() => void this._onSaveAsNew("build")}
         >
           <span class="codicon codicon-new-file"></span>
-          <span class="kconfig-save-menu-path">Save as new fragment…</span>
+          <span class="kconfig-save-menu-path">Save as new fragment (attach to build)…</span>
+        </li>
+        <li
+          class="kconfig-save-menu-item"
+          role="menuitem"
+          @click=${() => void this._onSaveAsNew("project")}
+        >
+          <span class="codicon codicon-new-file"></span>
+          <span class="kconfig-save-menu-path">Save as new fragment (attach to project)…</span>
         </li>
       </ul>
     `;
