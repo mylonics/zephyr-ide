@@ -11,7 +11,21 @@ The project may now be built. This can be done with the Active Project Panel or 
 
 ## Setting Up Debug Configuration
 
-To debug, launch configurations need to be setup. By default, IDE for Zephyr provides 4 examples using cortex-debug. The examples use cortex debug and have a blackmagic probe and st-link configuration. There is a Debug and Attach configuration for each. The OpenOCD examples are configured for stlink and nrf52. A fifth example is also available called the Debug Select Configuration.
+The IDE for Zephyr ships with a built-in `zephyr-ide` debugger type that reads `runners.yaml` from the active build and translates it into a `cortex-debug` session automatically. With this provider in place, the **Debug**, **Build and Debug**, and **Debug Attach** buttons work out of the box on a freshly-created build — no `launch.json` entries are required.
+
+If you do create a `launch.json`, the simplest possible configuration is:
+
+```json
+{
+  "name": "Zephyr IDE: Debug",
+  "type": "zephyr-ide",
+  "request": "launch"
+}
+```
+
+The provider picks the runner from `runners.yaml` (preferring `debug-runner`), looks up the ELF and GDB paths recorded there, sets `"rtos": "Zephyr"`, and passes the result to cortex-debug. To pin a specific runner explicitly, add a `"runner"` field (`"jlink"`, `"openocd"`, `"pyocd"`, `"stlink"`, `"bmp"`, etc.).
+
+For users who need full control, the IDE also ships several `cortex-debug` snippets (their titles include "Cortex Debug" so they are easy to find in the *Add Configuration* picker). These cover Black Magic Probe and OpenOCD (ST-Link / nRF52) examples, including a `Debug Select` variant that prompts you for the build to attach to at launch time.
 
 ![Setting Up Launch Configuration](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/setting_up_debug.gif)
 

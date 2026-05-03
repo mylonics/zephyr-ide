@@ -69,6 +69,7 @@ import {
   build,
 } from "./zephyr_utilities/build";
 import { flashActive } from "./zephyr_utilities/flash";
+import { ZephyrIdeDebugConfigurationProvider } from "./zephyr_utilities/debug-provider";
 import { WorkspaceConfig, GlobalConfig } from "./setup_utilities/types";
 import {
   loadGlobalState,
@@ -250,12 +251,6 @@ async function startDebugSession(
   wsConfig: WorkspaceConfig,
   mode: 'debug' | 'attach' | 'build-debug'
 ) {
-  const defaults: Record<string, string> = {
-    'debug': 'Zephyr IDE: Debug',
-    'attach': 'Zephyr IDE: Attach',
-    'build-debug': 'Zephyr IDE: Debug',
-  };
-
   const resolved = resolveActiveProjectBuild(wsConfig);
   const activeBuild = resolved?.build;
 
@@ -266,7 +261,11 @@ async function startDebugSession(
   };
 
   const keys = targetKeys[mode];
-  const debugTarget = activeBuild?.[keys.name] || defaults[mode];
+  // An empty-string target is treated as "unset" so newly-created builds fall
+  // through to the runners.yaml-driven DebugConfigurationProvider path below.
+  const debugTarget = (activeBuild?.[keys.name] && activeBuild?.[keys.name] !== "")
+    ? activeBuild![keys.name]
+    : undefined;
   const debugTargetFolder = activeBuild?.[keys.folder];
 
   if (mode === 'build-debug') {
@@ -278,6 +277,30 @@ async function startDebugSession(
     if (!res) {
       return;
     }
+  }
+
+  // No bound launch.json target → synthesize a Zephyr IDE provider config
+  // (cortex-debug + runners.yaml) directly. This is the new default for
+  // newly-created builds; users can still bind a named launch by using the
+  // "Change ... Launch Configuration For Build" commands.
+  if (!debugTarget) {
+    if (!resolved) {
+      notifyError("Debug", "No active project or build configuration found");
+      return;
+    }
+    const inlineCfg: vscode.DebugConfiguration = {
+      type: "zephyr-ide",
+      name: mode === 'attach' ? "Zephyr IDE: Attach" : "Zephyr IDE: Debug",
+      request: mode === 'attach' ? "attach" : "launch",
+    };
+    const folder = vscode.workspace.workspaceFolders?.[0];
+    const started = await vscode.debug.startDebugging(folder, inlineCfg);
+    if (!started) {
+      const sessionLabel = mode === 'attach' ? 'attach session' : 'debug session';
+      notifyError("Debug", `Failed to start ${sessionLabel} from runners.yaml.` +
+        `\nCheck the Debug Console and Output panel for more details.`);
+    }
+    return;
   }
 
   // Determine the correct folder to pass to startDebugging.
@@ -1262,6 +1285,22 @@ export async function activate(context: vscode.ExtensionContext) {
         return new vscode.TerminalProfile(opts);
       },
     }
+    )
+  );
+
+  // DebugConfigurationProvider that translates `zephyr-ide` launch.json entries
+  // to cortex-debug configurations using the build's runners.yaml.  Registered
+  // for both Initial (provideDebugConfigurations) and Dynamic triggers so it
+  // populates the "Add Configuration" menu and resolves at launch time.
+  const zephyrIdeDebugProvider = new ZephyrIdeDebugConfigurationProvider(() => wsConfig);
+  context.subscriptions.push(
+    vscode.debug.registerDebugConfigurationProvider("zephyr-ide", zephyrIdeDebugProvider)
+  );
+  context.subscriptions.push(
+    vscode.debug.registerDebugConfigurationProvider(
+      "zephyr-ide",
+      zephyrIdeDebugProvider,
+      vscode.DebugConfigurationProviderTriggerKind.Dynamic
     )
   );
 

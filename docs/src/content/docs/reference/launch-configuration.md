@@ -3,6 +3,25 @@ title: Launch Configuration Helpers
 description: Dynamic launch.json helper commands for Zephyr debugging — get active project paths, GDB paths, toolchain paths, ELF file paths, board names, and custom build variables with IDE for Zephyr.
 ---
 
+The simplest way to debug a Zephyr build with this extension is to use the `zephyr-ide` debugger type, which reads `runners.yaml` from the active build and translates it to a `cortex-debug` configuration automatically:
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Zephyr IDE: Debug",
+      "type": "zephyr-ide",
+      "request": "launch"
+    }
+  ]
+}
+```
+
+You can optionally pin a specific runner (when more than one is configured) by adding a `"runner"` field — e.g. `"runner": "openocd"` or `"runner": "jlink"`. When `runner` is omitted the extension uses `debug-runner` from `runners.yaml`, falling back to the first available runner. The `Debug`, `Build and Debug`, and `Debug Attach` commands also use this provider automatically when no launch configuration is bound to the active build.
+
+If you need finer control you can still write a `cortex-debug` configuration directly using the helper commands listed below.
+
 The following commands can be used in launch.json configurations to dynamically retrieve project and build information:
 
 ## Available Commands
@@ -65,7 +84,7 @@ Get the board name for the currently active build configuration.
 
 ## Usage Example
 
-Here's an example of using these commands in a launch.json file:
+Here's an example of using these commands in a `cortex-debug` launch.json (use this when you need full control; otherwise prefer the simpler `zephyr-ide` launch shown at the top of this page):
 
 ```json
 {

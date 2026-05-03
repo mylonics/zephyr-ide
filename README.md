@@ -49,6 +49,7 @@ You can read about the motivation behind the project [here](https://mylonics.com
 
 - Build, build pristine, clean, and flash from the status bar or project panel
 - Concurrent builds with per-target locking
+- Built-in `zephyr-ide` debugger that auto-translates `runners.yaml` into a Cortex-Debug session — no per-runner launch.json required
 - Cortex-Debug launch templates for ST-Link, J-Link, OpenOCD, and Black Magic Probe
 - Launch helper commands that resolve project, build, ELF, GDB, toolchain, and board paths
 - Debug Select configuration for picking which build to debug at launch time

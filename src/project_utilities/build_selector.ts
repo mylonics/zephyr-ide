@@ -458,10 +458,15 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       overlay: [],
     };
 
-    // Initialize launch/debug targets to safe defaults
-    state.launchTarget = state.launchTarget ?? "Zephyr IDE: Debug";
-    state.buildDebugTarget = state.buildDebugTarget ?? "Zephyr IDE: Debug";
-    state.attachTarget = state.attachTarget ?? "Zephyr IDE: Attach";
+    // Leave launch/debug targets unset on new builds so the Zephyr IDE
+    // DebugConfigurationProvider (driven by runners.yaml) is used by default.
+    // Users can still bind a specific named launch.json configuration via the
+    // "Change ... Launch Configuration For Build" commands; an empty string
+    // is treated as "unset" by startDebugSession and triggers the provider
+    // path. Pre-existing builds keep whatever value they already have.
+    state.launchTarget = state.launchTarget ?? "";
+    state.buildDebugTarget = state.buildDebugTarget ?? "";
+    state.attachTarget = state.attachTarget ?? "";
 
     state.completed = true;
     return;
