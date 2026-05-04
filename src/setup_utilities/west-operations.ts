@@ -26,7 +26,7 @@ import { westSelector, WestLocation } from "./west_selector";
 import { WorkspaceConfig, GlobalConfig, SetupState, formatZephyrVersion } from "./types";
 import { saveSetupState, setSetupState, setWorkspaceState } from "./state-management";
 import { getSetupState, getSetupStateOrNotify, getVenvPath } from "./workspace-config";
-import { ensureWestConfigManifest } from "./west-config-parser";
+import { ensureWestConfigManifest, findWestTopDir } from "./west-config-parser";
 import { SetupProgressTracker } from "./setup-progress";
 import { getDefaultPythonExecutable } from "./host_tools";
 
@@ -137,9 +137,10 @@ export async function getPythonCommand(configOverride?: string | null): Promise<
 }
 
 export function checkWestInit(setupState: SetupState) {
-  const westPath = path.join(setupState.setupPath, ".west");
-  const res = fs.pathExistsSync(westPath);
-  return res;
+  // Use findWestTopDir so we detect a west workspace that was initialized in a
+  // parent directory of setupState.setupPath (common in WSL and nested-workspace
+  // layouts where the VS Code folder is a sub-directory of the west topdir).
+  return findWestTopDir(setupState.setupPath) !== null;
 }
 
 export async function westInit(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, solo = true, westSelection?: WestLocation) {

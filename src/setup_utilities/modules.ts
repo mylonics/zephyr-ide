@@ -22,7 +22,7 @@ import * as path from "upath";
 import { executeShellCommandInPythonEnv, loadYamlFile } from "../utilities/utils";
 import { outputInfo, outputError, outputCommandFailure, showOutput } from "../utilities/output";
 import { SetupState, formatZephyrVersion } from "./types";
-import { parseWestConfigManifest } from "./west-config-parser";
+import { parseWestConfigManifest, findWestTopDir } from "./west-config-parser";
 
 
 export interface ZephyrVersionNumber {
@@ -46,16 +46,22 @@ type WestListOutcome =
   | { ok: false; needsWestUpdate: boolean };
 
 async function executeWestList(setupState: SetupState): Promise<WestListOutcome> {
+  // Find the west workspace root by walking up from setupState.setupPath.
+  // This mirrors west's own discovery algorithm and handles the common case
+  // where the VS Code workspace folder is a sub-directory of the west workspace
+  // root (e.g. WSL setups, nested workspaces).
+  const westTopDir = findWestTopDir(setupState.setupPath) ?? setupState.setupPath;
+
   // Verify .west/config and manifest file exist before invoking west.
   // Uses the shared west-config-parser to avoid duplicating INI parsing logic.
-  const manifest = parseWestConfigManifest(setupState.setupPath);
+  const manifest = parseWestConfigManifest(westTopDir);
   if (!manifest || !manifest.path) {
     outputError("West List", `.west/config not found or manifest section missing at: ${setupState.setupPath}. West is not initialized.`);
     return { ok: false, needsWestUpdate: false };
   }
 
   const manifestFile = manifest.file ?? "west.yml";
-  const fullManifestPath = path.join(setupState.setupPath, manifest.path, manifestFile);
+  const fullManifestPath = path.join(westTopDir, manifest.path, manifestFile);
 
   if (!fs.existsSync(fullManifestPath)) {
     outputError("West List", `Manifest file not found at: ${fullManifestPath}. West list will fail.`);
