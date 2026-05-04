@@ -25,7 +25,7 @@ import { ConfigFiles } from './config_selector';
 import { SetupState } from '../setup_utilities/types';
 import { executeShellCommandInPythonEnv, output } from "../utilities/utils";
 import { notifyError, outputCommandFailure, outputWarning, outputError } from "../utilities/output";
-import { isVersionNumberGreaterEqual, isVersionNumberGreater } from '../setup_utilities/modules';
+import { isVersionNumberGreaterEqual } from '../setup_utilities/modules';
 import { splitBuildArgs } from "./build_args";
 
 
