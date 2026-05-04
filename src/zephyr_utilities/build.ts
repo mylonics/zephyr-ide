@@ -191,7 +191,17 @@ export function assembleBuildCommand(params: BuildCommandParams): string {
     return `west build "${params.projectFolder}" --build-dir "${params.buildFolder}" ${extraWestBuildArgs}`.trimEnd();
   }
 
-  const boardSpec = params.board + (params.revision ? '@' + params.revision : "");
+  let boardSpec: string;
+  if (params.revision) {
+    const slashIdx = params.board.indexOf('/');
+    if (slashIdx !== -1) {
+      boardSpec = params.board.slice(0, slashIdx) + '@' + params.revision + params.board.slice(slashIdx);
+    } else {
+      boardSpec = params.board + '@' + params.revision;
+    }
+  } else {
+    boardSpec = params.board;
+  }
 
   const cmakeDefs = computeCMakeDefs(params);
 
