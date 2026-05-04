@@ -42,18 +42,37 @@ function getCurrentSessionToken(): string {
  * Return a short string that identifies the current platform for the purpose
  * of isolating host-tool / SDK availability state.
  *
- * Possible values: "wsl" | "windows" | "linux" | "macos" | "unknown"
+ * - Local sessions: "windows" | "linux" | "macos" | "unknown"
+ * - WSL:           "wsl"
+ * - Other remotes: "<remoteName>-<platform>" e.g. "ssh-remote-linux"
  *
- * WSL is checked before the generic platform name so that a WSL session is
- * never confused with a native Linux session that shares the same host.
+ * WSL gets its own top-level key (not "wsl-linux") for readability and
+ * backward compatibility.  All other remote environments are prefixed with
+ * `vscode.env.remoteName` so that, for example, a local Linux machine and
+ * an SSH-remote Linux machine each get a distinct storage bucket.
  *
  * Exported for unit testing.
  */
 export function getPlatformStateKey(): string {
+  // WSL has its own dedicated key to distinguish it from native Linux.
+  // isWSL() is used here (same as the rest of the codebase) so the check is
+  // consistent and centralised; it is equivalent to
+  // `vscode.env.remoteName === "wsl"`.
   if (isWSL()) {
     return "wsl";
   }
-  return getPlatformName() ?? "unknown";
+
+  const remoteName = vscode.env.remoteName;
+  const platformName = getPlatformName() ?? "unknown";
+
+  // For any other remote environment (SSH, Dev Containers, etc.), prefix the
+  // platform name with the remoteName so that remote tool state stays
+  // isolated from local state even when the OS is the same on both ends.
+  if (remoteName) {
+    return `${remoteName}-${platformName}`;
+  }
+
+  return platformName;
 }
 
 /**
