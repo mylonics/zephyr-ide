@@ -105,8 +105,13 @@ export interface GlobalConfig {
    */
   pendingRestartSessionToken?: string,
   /**
-   * Per-platform availability state keyed by platform identifier
-   * ("windows" | "linux" | "macos" | "wsl").
+   * Per-platform availability state keyed by the value returned by
+   * `getPlatformStateKey()`:
+   *   - "windows" | "linux" | "macos" (local sessions)
+   *   - "wsl" (Windows Subsystem for Linux)
+   *   - "<remoteName>-<platform>" for other remote environments
+   *     (e.g. "ssh-remote-linux", "dev-container-linux")
+   *
    * Kept on the in-memory object so that `setGlobalState` can round-trip all
    * platforms without losing data for platforms other than the current one.
    */
