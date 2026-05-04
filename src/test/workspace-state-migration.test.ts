@@ -20,7 +20,7 @@ import * as fs from "fs-extra";
 import * as os from "os";
 import * as path from "upath";
 
-import { backfillInitializedFlags } from "../setup_utilities/state-management";
+import { backfillInitializedFlags, getPlatformStateKey } from "../setup_utilities/state-management";
 import { SetupState } from "../setup_utilities/types";
 
 function makeEntry(overrides: Partial<SetupState> = {}): SetupState {
@@ -36,6 +36,25 @@ function makeEntry(overrides: Partial<SetupState> = {}): SetupState {
 }
 
 suite("Workspace State Migration Test Suite", () => {
+
+  // ---------------------------------------------------------------------------
+  // getPlatformStateKey
+  // ---------------------------------------------------------------------------
+
+  test("getPlatformStateKey returns a known platform identifier", () => {
+    const key = getPlatformStateKey();
+    const validKeys = ["windows", "linux", "macos", "wsl", "unknown"];
+    assert.ok(
+      validKeys.includes(key),
+      `Expected a valid platform state key, got: ${key}`
+    );
+  });
+
+  test("getPlatformStateKey returns a consistent value on repeated calls", () => {
+    const key1 = getPlatformStateKey();
+    const key2 = getPlatformStateKey();
+    assert.strictEqual(key1, key2, "getPlatformStateKey must be stable within the same process");
+  });
 
   test("backfillInitializedFlags sets initialized=true when .west/ exists on disk", async () => {
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-bfill-true-"));

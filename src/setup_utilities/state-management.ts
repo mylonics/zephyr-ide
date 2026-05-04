@@ -19,7 +19,7 @@ import * as vscode from "vscode";
 import * as fs from "fs-extra";
 import * as path from "upath";
 import * as crypto from "crypto";
-import { getRootPathFs, reloadEnvironmentVariables } from "../utilities/utils";
+import { getRootPathFs, reloadEnvironmentVariables, isWSL, getPlatformName } from "../utilities/utils";
 import { initializeDtsExt } from "./dts_interface";
 import { GlobalConfig, WorkspaceConfig, SetupState, generateSetupState, isActiveWorkspaceInitialized } from "./types";
 import { loadProjectsFromFile, setWorkspaceSettings, generateGitIgnore, generateExtensionsRecommendations } from "./workspace-config";
@@ -36,6 +36,24 @@ function getCurrentSessionToken(): string {
     _currentSessionToken = crypto.randomUUID();
   }
   return _currentSessionToken;
+}
+
+/**
+ * Return a short string that identifies the current platform for the purpose
+ * of isolating host-tool / SDK availability state.
+ *
+ * Possible values: "wsl" | "windows" | "linux" | "macos" | "unknown"
+ *
+ * WSL is checked before the generic platform name so that a WSL session is
+ * never confused with a native Linux session that shares the same host.
+ *
+ * Exported for unit testing.
+ */
+export function getPlatformStateKey(): string {
+  if (isWSL()) {
+    return "wsl";
+  }
+  return getPlatformName() ?? "unknown";
 }
 
 /**
@@ -80,14 +98,54 @@ export async function loadGlobalState(context: vscode.ExtensionContext): Promise
     }
   }
 
+  // Determine the platform key for this environment.
+  const platformKey = getPlatformStateKey();
+
+  // Ensure platformStates map exists.
+  if (!rawConfig.platformStates) {
+    rawConfig.platformStates = {};
+  }
+
+  // -----------------------------------------------------------------------
+  // Migration: lift legacy top-level platform-specific fields into the
+  // per-platform bucket.  This handles state saved by older versions of the
+  // extension (before per-platform isolation was introduced).
+  //
+  // NOTE: this list must stay in sync with the fields defined in the
+  // PlatformState interface (src/setup_utilities/types.ts).
+  // -----------------------------------------------------------------------
+  const legacyPlatformFields = [
+    'toolsAvailable', 'sdkInstalled', 'sdkVersion',
+    'pendingRestartPackages', 'pendingRestartSessionToken',
+  ];
+  for (const field of legacyPlatformFields) {
+    if (field in rawConfig) {
+      // Only migrate into the current platform's bucket if it doesn't already
+      // have its own value for this field — avoids overwriting a newer value
+      // that was already stored per-platform on a previous run.
+      if (!rawConfig.platformStates[platformKey]) {
+        rawConfig.platformStates[platformKey] = {};
+      }
+      if (!(field in rawConfig.platformStates[platformKey])) {
+        rawConfig.platformStates[platformKey][field] = rawConfig[field];
+      }
+      delete rawConfig[field];
+      needsSave = true;
+    }
+  }
+
+  // Read the current platform's state (may be empty on first WSL run).
+  const platformState: Record<string, any> = rawConfig.platformStates[platformKey] ?? {};
+
   // Ensure required fields exist
   const globalConfig: GlobalConfig = {
     setupStateDictionary: rawConfig.setupStateDictionary ?? {},
-    toolsAvailable: rawConfig.toolsAvailable,
-    sdkInstalled: rawConfig.sdkInstalled,
-    sdkVersion: rawConfig.sdkVersion,
-    pendingRestartPackages: rawConfig.pendingRestartPackages,
-    pendingRestartSessionToken: rawConfig.pendingRestartSessionToken,
+    platformStates: rawConfig.platformStates,
+    toolsAvailable: platformState.toolsAvailable,
+    sdkInstalled: platformState.sdkInstalled,
+    sdkVersion: platformState.sdkVersion,
+    pendingRestartPackages: platformState.pendingRestartPackages,
+    pendingRestartSessionToken: platformState.pendingRestartSessionToken,
   };
 
   // Clear pending-restart state if the persisted session token differs from
@@ -117,14 +175,38 @@ export async function loadGlobalState(context: vscode.ExtensionContext): Promise
 
   // Save migrated config if changes were made
   if (needsSave) {
-    await context.globalState.update("zephyr-ide.state", globalConfig);
+    await setGlobalState(context, globalConfig);
   }
 
   return globalConfig;
 }
 
 export async function setGlobalState(context: vscode.ExtensionContext, globalConfig: GlobalConfig) {
-  await context.globalState.update("zephyr-ide.state", globalConfig);
+  const platformKey = getPlatformStateKey();
+
+  // Sync the current platform's flat fields back into the platformStates map
+  // so that the serialised form is fully platform-aware.
+  if (!globalConfig.platformStates) {
+    globalConfig.platformStates = {};
+  }
+  globalConfig.platformStates[platformKey] = {
+    toolsAvailable: globalConfig.toolsAvailable,
+    sdkInstalled: globalConfig.sdkInstalled,
+    sdkVersion: globalConfig.sdkVersion,
+    pendingRestartPackages: globalConfig.pendingRestartPackages,
+    pendingRestartSessionToken: globalConfig.pendingRestartSessionToken,
+  };
+
+  // Persist only the fields that should live in globalState.  The flat
+  // platform-specific fields are stored exclusively inside `platformStates`
+  // so that switching between platforms (e.g. Windows ↔ WSL) never bleeds
+  // one platform's tool availability into another.
+  const storedConfig = {
+    setupStateDictionary: globalConfig.setupStateDictionary,
+    platformStates: globalConfig.platformStates,
+  };
+
+  await context.globalState.update("zephyr-ide.state", storedConfig);
 }
 
 /** Remove entries from setupStateDictionary whose paths no longer exist on disk. */

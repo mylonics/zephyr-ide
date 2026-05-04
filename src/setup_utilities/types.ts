@@ -54,7 +54,37 @@ export interface SetupState {
 
 export type SetupStateDictionary = { [name: string]: SetupState };
 
+/**
+ * Platform-specific host tool / SDK availability state.
+ * Stored per-platform so that Windows and WSL (or Linux) environments do not
+ * share the same "tools installed" marker.
+ */
+export interface PlatformState {
+  toolsAvailable?: boolean,
+  sdkInstalled?: boolean,
+  sdkVersion?: string,
+  /**
+   * Names of host packages that were installed but were not yet visible on
+   * PATH at install time.
+   */
+  pendingRestartPackages?: string[],
+  /**
+   * Opaque token used to detect full VS Code / extension-host restarts so the
+   * pending-restart list can be cleared.
+   */
+  pendingRestartSessionToken?: string,
+}
+
 export interface GlobalConfig {
+  /**
+   * Host-tool / SDK availability for the current platform.
+   * Populated at load time from `platformStates[<currentPlatformKey>]`.
+   *
+   * These fields intentionally mirror `PlatformState` so that the rest of the
+   * codebase can access them directly on `GlobalConfig` without changing call
+   * sites.  `setGlobalState` syncs them back into `platformStates` before
+   * persisting so each platform's values stay isolated.
+   */
   toolsAvailable?: boolean,
   sdkInstalled?: boolean,
   sdkVersion?: string,
@@ -74,6 +104,13 @@ export interface GlobalConfig {
    * and the pending list is cleared.
    */
   pendingRestartSessionToken?: string,
+  /**
+   * Per-platform availability state keyed by platform identifier
+   * ("windows" | "linux" | "macos" | "wsl").
+   * Kept on the in-memory object so that `setGlobalState` can round-trip all
+   * platforms without losing data for platforms other than the current one.
+   */
+  platformStates?: { [platform: string]: PlatformState },
 }
 
 export interface WorkspaceConfig {
