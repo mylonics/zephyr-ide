@@ -56,6 +56,20 @@ export async function testHelper(context: vscode.ExtensionContext, wsConfig: Wor
   }
 }
 
+/**
+ * Pure function: build the `-p` board spec string for `west twister`.
+ * Inserts `@revision` after the base board name and before any qualifier slashes,
+ * matching the format used by `assembleBuildCommand` for `west build`.
+ */
+export function assembleTwisterBoardSpec(board: string, revision: string | undefined): string {
+  if (!revision) { return board; }
+  const slashIdx = board.indexOf('/');
+  if (slashIdx !== -1) {
+    return board.slice(0, slashIdx) + '@' + revision + board.slice(slashIdx);
+  }
+  return board + '@' + revision;
+}
+
 export async function runTest(
   setupState: SetupState,
   wsConfig: WorkspaceConfig,
@@ -80,7 +94,8 @@ export async function runTest(
   if (testConfig.boardConfig) {
     const boardRootArg = resolveBoardRootArg(wsConfig, testConfig.boardConfig, setupState);
     const boardRootCmakeArg = boardRootArg ? `-- ${boardRootArg}` : "";
-    cmd = `west twister --device-testing  ${testConfig.serialPort ? "--device-serial " + testConfig.serialPort : ""} ${testConfig.serialBaud ? "--device-serial-baud " + testConfig.serialBaud : ""} -p ${testConfig.boardConfig.board} ${testString} ${boardRootCmakeArg} `;
+    const boardSpec = assembleTwisterBoardSpec(testConfig.boardConfig.board, testConfig.boardConfig.revision);
+    cmd = `west twister --device-testing  ${testConfig.serialPort ? "--device-serial " + testConfig.serialPort : ""} ${testConfig.serialBaud ? "--device-serial-baud " + testConfig.serialBaud : ""} -p ${boardSpec} ${testString} ${boardRootCmakeArg} `;
   } else {
     cmd = `west twister -p ${testConfig.platform} ${testString} `;
   }
