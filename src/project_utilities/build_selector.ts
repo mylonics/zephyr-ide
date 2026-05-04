@@ -25,7 +25,7 @@ import { ConfigFiles } from './config_selector';
 import { SetupState } from '../setup_utilities/types';
 import { executeShellCommandInPythonEnv, output } from "../utilities/utils";
 import { notifyError, outputCommandFailure, outputWarning, outputError } from "../utilities/output";
-import { isVersionNumberGreaterEqual, isVersionNumberGreater } from '../setup_utilities/modules';
+import { isVersionNumberGreaterEqual } from '../setup_utilities/modules';
 import { splitBuildArgs } from "./build_args";
 
 
@@ -90,7 +90,7 @@ async function getBoardlistWest(setupState: SetupState, folder: vscode.Uri | und
   let has_qualifiers = false;
   let has_revisions = false;
 
-  if (isVersionNumberGreater(setupState.zephyrVersion, 4, 1, 0)) {
+  if (isVersionNumberGreaterEqual(setupState.zephyrVersion, 4, 1, 0)) {
     res = await executeShellCommandInPythonEnv('west boards -f "{name};{dir};{qualifiers};{revisions};{revision_default}" ' + boardRootString, setupState.setupPath, setupState, false);
     has_qualifiers = true;
     has_revisions = true;
@@ -118,41 +118,53 @@ async function getBoardlistWest(setupState: SetupState, folder: vscode.Uri | und
     return;
   }
 
-  const allBoardData = res.stdout.split(/\r?\n/);
-  const outputData: { name: string, subdir: string, revisions?: string[], revision_default?: string }[] = [];
+  const outputData = parseBoardListOutput(res.stdout, has_qualifiers, has_revisions);
+  return outputData;
+}
+
+export type BoardListEntry = { name: string, subdir: string, revisions?: string[], revision_default?: string };
+
+/**
+ * Pure function: parse the stdout of `west boards -f "{name};{dir};..."` into a
+ * list of board entries, expanding multi-qualifier boards into separate entries and
+ * embedding single non-empty qualifiers directly into the board name.
+ */
+export function parseBoardListOutput(
+  stdout: string,
+  has_qualifiers: boolean,
+  has_revisions: boolean,
+): BoardListEntry[] {
+  const allBoardData = stdout.split(/\r?\n/);
+  const outputData: BoardListEntry[] = [];
   for (let i = 0; i < allBoardData.length; i++) {
     const boardData = allBoardData[i].replaceAll("'", "").split(";");
-    try {
-      if (boardData.length > 1) {
+    if (boardData.length <= 1) { continue; }
 
-        let qualifiers: string[] = [];
-        if (has_qualifiers && boardData.length >= 3) {
-          qualifiers = boardData[2].split(",");
-        }
-
-        let revisions: string[] | undefined;
-        let revision_default: string | undefined;
-
-        if (has_revisions && boardData.length >= 4) {
-          if (boardData[3] !== "None") {
-            revisions = boardData[3].split(/[\s,]+/).filter(r => r.length > 0);
-            revision_default = boardData.length >= 5 ? boardData[4] : undefined;
-          }
-        }
-
-        if (qualifiers.length > 1) {
-          for (let j = 0; j < qualifiers.length; j++) {
-            outputData.push({ name: boardData[0] + "/" + qualifiers[j], subdir: boardData[1], revisions: revisions, revision_default: revision_default });
-          }
-        } else {
-          outputData.push({ name: boardData[0], subdir: boardData[1], revisions: revisions, revision_default: revision_default });
-        }
-      }
-    } catch (error) {
-      outputWarning("Board Selection", `Failed to parse board entry: ${error}`);
+    let qualifiers: string[] = [];
+    if (has_qualifiers && boardData.length >= 3) {
+      qualifiers = boardData[2].split(",");
     }
 
+    let revisions: string[] | undefined;
+    let revision_default: string | undefined;
 
+    if (has_revisions && boardData.length >= 4) {
+      if (boardData[3] !== "None") {
+        revisions = boardData[3].split(/[\s,]+/).filter(r => r.length > 0);
+        revision_default = boardData.length >= 5 ? boardData[4] : undefined;
+      }
+    }
+
+    if (qualifiers.length > 1) {
+      for (let j = 0; j < qualifiers.length; j++) {
+        outputData.push({ name: boardData[0] + "/" + qualifiers[j], subdir: boardData[1], revisions, revision_default });
+      }
+    } else if (qualifiers.length === 1 && qualifiers[0] !== "") {
+      // Single non-empty qualifier: include it explicitly so the board string is unambiguous.
+      outputData.push({ name: boardData[0] + "/" + qualifiers[0], subdir: boardData[1], revisions, revision_default });
+    } else {
+      outputData.push({ name: boardData[0], subdir: boardData[1], revisions, revision_default });
+    }
   }
   return outputData;
 }
