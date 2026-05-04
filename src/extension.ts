@@ -1100,12 +1100,7 @@ export async function activate(context: vscode.ExtensionContext) {
         const resolved = resolveActiveProjectBuild(wsConfig);
         if (!resolved) { return; }
 
-        const setupState = await getSetupState(context, wsConfig);
-        if (!setupState) { return; }
-
-        // Strip qualifier (everything after the first '/') before joining as a filesystem path.
-        const baseBoardName = resolved.build.board.split('/')[0];
-        return path.join(setupState.setupPath, baseBoardName);
+        return resolved.build.board;
       }
     )
   );

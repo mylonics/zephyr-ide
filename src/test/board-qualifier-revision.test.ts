@@ -152,9 +152,8 @@ suite("board-qualifier-revision", () => {
       );
     });
 
-    test("empty string revision is still appended (treated as truthy caller's responsibility)", () => {
-      // Callers should never pass "" as a revision, but the function should
-      // not crash — it just produces an @ with nothing after it.
+    test("empty string revision is treated as no revision (board returned unchanged)", () => {
+      // Empty string is falsy, so the function treats it the same as undefined.
       assert.strictEqual(assembleTwisterBoardSpec("native_sim", ""), "native_sim");
     });
   });
