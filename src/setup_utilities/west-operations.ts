@@ -200,7 +200,7 @@ export async function westInit(context: vscode.ExtensionContext, wsConfig: Works
     }
 
     setupState.zephyrDir = "";
-    westInitRes = await executeTaskHelperInPythonEnv(setupState, "Zephyr IDE: West Init", cmd, setupState.setupPath);
+    westInitRes = await executeTaskHelperInPythonEnv(setupState, "Zephyr IDE: West Init", cmd, detectedWestTopDir);
 
     if (!westInitRes) {
       notifyError("West Init", "West Init Failed. Check the Zephyr IDE output for details.", { command: cmd });
@@ -209,8 +209,8 @@ export async function westInit(context: vscode.ExtensionContext, wsConfig: Works
       // "manifest file not found: None" errors during subsequent west commands.
       // west init -l can sometimes leave manifest.file or manifest.path empty/None.
       const manifestPath = westSelection.path ? path.basename(westSelection.path) : undefined;
-      if (ensureWestConfigManifest(setupState.setupPath, { manifestPath })) {
-        outputInfo("West Init", `Repaired .west/config manifest section (setupPath: ${setupState.setupPath})`);
+      if (ensureWestConfigManifest(detectedWestTopDir, { manifestPath })) {
+        outputInfo("West Init", `Repaired .west/config manifest section (westTopDir: ${detectedWestTopDir})`);
       }
       if (solo) {
         void vscode.window.showInformationMessage(`West workspace initialized`);
