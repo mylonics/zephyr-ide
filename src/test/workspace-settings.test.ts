@@ -122,13 +122,49 @@ suite("Workspace Settings (clangd/cpptools) Test Suite", () => {
         await resetClangdSettings();
     });
 
-    test("cpptools mode: sets C_Cpp.default.compileCommands and clears clangd.arguments", async () => {
+    test("clangd mode: preserves user-defined extra clangd.arguments alongside extension args", async function () {
+        if (!clangdInstalled) {
+            this.skip();
+        }
+        await resetClangdSettings();
+        const config = vscode.workspace.getConfiguration();
+        await config.update("zephyr-ide.useClangd", true, wsTarget);
+        await config.update("zephyr-ide.toolchainDirectory", existingToolchainDir, vscode.ConfigurationTarget.Global);
+        // Pre-set user-defined args that the extension should not overwrite
+        await config.update("clangd.arguments", ["--clang-tidy", "--pretty"], wsTarget);
+
+        await setWorkspaceSettings(true);
+
+        const updatedConfig = vscode.workspace.getConfiguration();
+        const clangdArgs = updatedConfig.inspect<string[]>("clangd.arguments")?.workspaceValue;
+        assert.ok(Array.isArray(clangdArgs) && clangdArgs.length > 0, "clangd.arguments should be set");
+        // Extension args must be present
+        assert.ok(clangdArgs?.includes("--background-index"), "--background-index should be set");
+        assert.ok(clangdArgs?.some(a => a.startsWith("--compile-commands-dir=")),
+            "--compile-commands-dir should be set");
+        assert.ok(clangdArgs?.some(a => a.startsWith("--query-driver=")),
+            "--query-driver should be set");
+        // User args must be preserved
+        assert.ok(clangdArgs?.includes("--clang-tidy"),
+            "user-defined --clang-tidy should be preserved");
+        assert.ok(clangdArgs?.includes("--pretty"),
+            "user-defined --pretty should be preserved");
+
+        await resetClangdSettings();
+    });
+
+    test("cpptools mode: sets C_Cpp.default.compileCommands and clears extension-managed clangd.arguments", async () => {
         await resetClangdSettings();
         const config = vscode.workspace.getConfiguration();
         await config.update("zephyr-ide.useClangd", false, wsTarget);
-        // Pre-populate clangd.arguments to simulate switching away from clangd mode
+        // Pre-populate with extension-managed args to simulate switching away from clangd mode
         if (clangdInstalled) {
-            await config.update("clangd.arguments", ["--some-arg"], wsTarget);
+            await config.update("clangd.arguments", [
+                "--compile-commands-dir=${workspaceFolder}/.vscode",
+                "--background-index",
+                "--completion-style=detailed",
+                "--header-insertion=never",
+            ], wsTarget);
         }
 
         await setWorkspaceSettings(true);
@@ -148,9 +184,41 @@ suite("Workspace Settings (clangd/cpptools) Test Suite", () => {
             assert.strictEqual(
                 updatedConfig.inspect("clangd.arguments")?.workspaceValue,
                 undefined,
-                "clangd.arguments should be cleared when switching to cpptools mode"
+                "clangd.arguments should be cleared when all args were extension-managed"
             );
         }
+
+        await resetClangdSettings();
+    });
+
+    test("cpptools mode: preserves user-defined clangd.arguments when switching from clangd mode", async function () {
+        if (!clangdInstalled) {
+            this.skip();
+        }
+        await resetClangdSettings();
+        const config = vscode.workspace.getConfiguration();
+        await config.update("zephyr-ide.useClangd", false, wsTarget);
+        // Mix of extension-managed and user-defined args
+        await config.update("clangd.arguments", [
+            "--compile-commands-dir=${workspaceFolder}/.vscode",
+            "--background-index",
+            "--clang-tidy",
+            "--pretty",
+        ], wsTarget);
+
+        await setWorkspaceSettings(true);
+
+        const updatedConfig = vscode.workspace.getConfiguration();
+        const clangdArgs = updatedConfig.inspect<string[]>("clangd.arguments")?.workspaceValue;
+        assert.ok(Array.isArray(clangdArgs), "clangd.arguments should still be set (user args remain)");
+        assert.ok(!clangdArgs?.some(a => a.startsWith("--compile-commands-dir=")),
+            "extension-managed --compile-commands-dir should be removed in cpptools mode");
+        assert.ok(!clangdArgs?.includes("--background-index"),
+            "extension-managed --background-index should be removed in cpptools mode");
+        assert.ok(clangdArgs?.includes("--clang-tidy"),
+            "user-defined --clang-tidy should be preserved");
+        assert.ok(clangdArgs?.includes("--pretty"),
+            "user-defined --pretty should be preserved");
 
         await resetClangdSettings();
     });

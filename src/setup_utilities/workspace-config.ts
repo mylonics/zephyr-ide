@@ -84,6 +84,21 @@ function migrateConfigFiles(confFiles: any): boolean {
   return true;
 }
 
+/**
+ * Returns true if a clangd argument is owned/managed by the extension.
+ * Only extension-managed args are replaced or cleared; user-defined args
+ * (e.g. --clang-tidy, --pretty, --log=error) are always preserved.
+ */
+function isExtensionManagedClangdArg(arg: string): boolean {
+  return (
+    arg === "--background-index" ||
+    arg.startsWith("--compile-commands-dir=") ||
+    arg.startsWith("--completion-style=") ||
+    arg.startsWith("--header-insertion=") ||
+    arg.startsWith("--query-driver=")
+  );
+}
+
 function argsMatchNormalized(value: any, normalized: string[]): boolean {
   if (!Array.isArray(value) || value.length !== normalized.length) {
     return false;
@@ -283,15 +298,19 @@ export async function setWorkspaceSettings(force = false) {
         const queryDriver = path.join(resolvedToolchainDir, "**", "*");
         clangdArgs.push(`--query-driver=${queryDriver}`);
       }
-      // Compare computed args against the current workspace value so that a
-      // toolchainDirectory change (force=false) still refreshes --query-driver.
+      // Merge extension-managed args with any user-defined args (e.g. --clang-tidy,
+      // --pretty) so user customizations survive every activation.  Only args that
+      // the extension owns are replaced; all other existing workspace args are kept.
       {
-        const currentClangdArgs = configuration.inspect<string[]>("clangd.arguments")?.workspaceValue;
-        const argsMatch = Array.isArray(currentClangdArgs) &&
-          currentClangdArgs.length === clangdArgs.length &&
-          clangdArgs.every((arg, i) => currentClangdArgs[i] === arg);
+        const currentClangdArgs = configuration.inspect<string[]>("clangd.arguments")?.workspaceValue ?? [];
+        // Keep args the extension does not manage (user-defined extras)
+        const userArgs = currentClangdArgs.filter(arg => !isExtensionManagedClangdArg(arg));
+        const mergedArgs = [...clangdArgs, ...userArgs];
+        // Avoid an unnecessary write when nothing has changed
+        const argsMatch = currentClangdArgs.length === mergedArgs.length &&
+          mergedArgs.every((arg, i) => currentClangdArgs[i] === arg);
         if (force || !argsMatch) {
-          await configuration.update("clangd.arguments", clangdArgs, target)
+          await configuration.update("clangd.arguments", mergedArgs, target)
             .then(undefined, (err: unknown) => {
               const detail = err instanceof Error ? err.message : String(err);
               outputWarning("Workspace Config", `Failed to set clangd.arguments: ${detail}`);
@@ -324,13 +343,26 @@ export async function setWorkspaceSettings(force = false) {
     }
 
     if (clangdInstalled) {
-      // Clear workspace-scoped clangd arguments left over from clangd mode
-      if (configuration.inspect("clangd.arguments")?.workspaceValue !== undefined) {
-        await configuration.update("clangd.arguments", undefined, target)
-          .then(undefined, (err: unknown) => {
-            const detail = err instanceof Error ? err.message : String(err);
-            outputWarning("Workspace Config", `Failed to clear clangd.arguments: ${detail}`);
-          });
+      // Remove only extension-managed clangd arguments left over from clangd mode;
+      // user-defined args (e.g. --clang-tidy, --pretty) are preserved.
+      const currentClangdArgs = configuration.inspect<string[]>("clangd.arguments")?.workspaceValue;
+      if (currentClangdArgs !== undefined) {
+        const userArgs = currentClangdArgs.filter(arg => !isExtensionManagedClangdArg(arg));
+        if (userArgs.length > 0) {
+          // Preserve user-defined args by writing them back without the extension-managed ones
+          await configuration.update("clangd.arguments", userArgs, target)
+            .then(undefined, (err: unknown) => {
+              const detail = err instanceof Error ? err.message : String(err);
+              outputWarning("Workspace Config", `Failed to update clangd.arguments: ${detail}`);
+            });
+        } else {
+          // All args were extension-managed — clear the workspace setting entirely
+          await configuration.update("clangd.arguments", undefined, target)
+            .then(undefined, (err: unknown) => {
+              const detail = err instanceof Error ? err.message : String(err);
+              outputWarning("Workspace Config", `Failed to clear clangd.arguments: ${detail}`);
+            });
+        }
       }
     }
   }
