@@ -85,21 +85,6 @@ function migrateConfigFiles(confFiles: any): boolean {
 }
 
 /**
- * Returns true if a clangd argument is owned/managed by the extension.
- * Only extension-managed args are removed when disabling clangd mode;
- * user-defined args (e.g. --clang-tidy, --pretty, --log=error) are always preserved.
- */
-function isExtensionManagedClangdArg(arg: string): boolean {
-  return (
-    arg === "--background-index" ||
-    arg.startsWith("--compile-commands-dir=") ||
-    arg.startsWith("--completion-style=") ||
-    arg.startsWith("--header-insertion=") ||
-    arg.startsWith("--query-driver=")
-  );
-}
-
-/**
  * Returns the "key" of a clangd argument for duplicate detection.
  * For "--key=value" args the key is "--key="; for bare flags like "--background-index"
  * the key is the full flag string.
@@ -110,6 +95,37 @@ function isExtensionManagedClangdArg(arg: string): boolean {
 function clangdArgKey(arg: string): string {
   const i = arg.indexOf("=");
   return i >= 0 ? arg.slice(0, i + 1) : arg;
+}
+
+/**
+ * Returns the exact set of clangd arguments that the extension manages.
+ * These are the only values the extension may have written, so they are
+ * the only values that should be removed on cleanup (exact-value match,
+ * not prefix match, to avoid discarding user-customized values for the
+ * same keys, e.g. --completion-style=bundled or --query-driver=/opt/**\/*).
+ *
+ * @param configuration - The VS Code workspace configuration.
+ * @returns The exact argument strings the extension would write.
+ */
+async function getExtensionClangdArgs(configuration: vscode.WorkspaceConfiguration): Promise<string[]> {
+  const toolchainDirConfig = configuration.inspect<string>("zephyr-ide.toolchainDirectory");
+  const configuredToolchainDir = [
+    toolchainDirConfig?.workspaceFolderValue,
+    toolchainDirConfig?.workspaceValue,
+    toolchainDirConfig?.globalValue,
+  ].find((value): value is string => typeof value === "string" && value.trim().length > 0);
+  const resolvedToolchainDir = configuredToolchainDir ?? getToolchainDir();
+
+  const args: string[] = [
+    "--compile-commands-dir=${workspaceFolder}/.vscode",
+    "--background-index",
+    "--completion-style=detailed",
+    "--header-insertion=never",
+  ];
+  if (resolvedToolchainDir && (await fs.pathExists(resolvedToolchainDir))) {
+    args.push(`--query-driver=${path.join(resolvedToolchainDir, "**", "*")}`);
+  }
+  return args;
 }
 
 function argsMatchNormalized(value: any, normalized: string[]): boolean {
@@ -285,31 +301,9 @@ export async function setWorkspaceSettings(force = false) {
     }
 
     if (clangdInstalled) {
-      const toolchainDirConfig = configuration.inspect<string>("zephyr-ide.toolchainDirectory");
-      const configuredToolchainDir = [
-        toolchainDirConfig?.workspaceFolderValue,
-        toolchainDirConfig?.workspaceValue,
-        toolchainDirConfig?.globalValue,
-      ].find((value): value is string => typeof value === "string" && value.trim().length > 0);
-
-      // Use the explicitly configured path when available; otherwise fall back to
-      // getToolchainDir() so that the default SDK install location is covered
-      // even when the user has not set zephyr-ide.toolchainDirectory explicitly.
-      const resolvedToolchainDir = configuredToolchainDir ?? getToolchainDir();
-
-      // Always build the base clangd arguments; --query-driver is added only
-      // when the resolved toolchain directory actually exists on disk.
-      const clangdArgs: string[] = [
-        "--compile-commands-dir=${workspaceFolder}/.vscode",
-        "--background-index",
-        "--completion-style=detailed",
-        "--header-insertion=never",
-      ];
-      if (!resolvedToolchainDir || !(await fs.pathExists(resolvedToolchainDir))) {
+      const clangdArgs = await getExtensionClangdArgs(configuration);
+      if (!clangdArgs.some(a => a.startsWith("--query-driver="))) {
         outputWarning("Workspace Config", "--query-driver will not be configured because the resolved toolchain directory is unavailable. Set 'zephyr-ide.toolchainDirectory' or install the Zephyr SDK.");
-      } else {
-        const queryDriver = path.join(resolvedToolchainDir, "**", "*");
-        clangdArgs.push(`--query-driver=${queryDriver}`);
       }
       // Write clangd args conservatively:
       // - If clangd.arguments is not yet set in the workspace (first-time / new setup),
@@ -364,20 +358,23 @@ export async function setWorkspaceSettings(force = false) {
     }
 
     if (clangdInstalled) {
-      // Remove only extension-managed clangd arguments left over from clangd mode;
-      // user-defined args (e.g. --clang-tidy, --pretty) are preserved.
+      // Remove only the exact argument values written by this extension.
+      // Comparison is by exact string value, not by key prefix, so user-customized
+      // values of extension-managed keys (e.g. --completion-style=bundled or a
+      // hand-written --query-driver=/opt/**/*) are left untouched.
+      const extensionArgs = new Set(await getExtensionClangdArgs(configuration));
       const currentClangdArgs = configuration.inspect<string[]>("clangd.arguments")?.workspaceValue;
       if (currentClangdArgs !== undefined) {
-        const userArgs = currentClangdArgs.filter(arg => !isExtensionManagedClangdArg(arg));
-        if (userArgs.length > 0) {
-          // Preserve user-defined args by writing them back without the extension-managed ones
-          await configuration.update("clangd.arguments", userArgs, target)
+        const survivingArgs = currentClangdArgs.filter(arg => !extensionArgs.has(arg));
+        if (survivingArgs.length > 0) {
+          // Preserve surviving args (user-defined or user-customized values)
+          await configuration.update("clangd.arguments", survivingArgs, target)
             .then(undefined, (err: unknown) => {
               const detail = err instanceof Error ? err.message : String(err);
               outputWarning("Workspace Config", `Failed to update clangd.arguments: ${detail}`);
             });
         } else {
-          // All args were extension-managed — clear the workspace setting entirely
+          // All args were exact extension defaults — clear the workspace setting entirely
           await configuration.update("clangd.arguments", undefined, target)
             .then(undefined, (err: unknown) => {
               const detail = err instanceof Error ? err.message : String(err);

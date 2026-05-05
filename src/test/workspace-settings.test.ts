@@ -260,7 +260,7 @@ suite("Workspace Settings (clangd/cpptools) Test Suite", () => {
         const updatedConfig = vscode.workspace.getConfiguration();
         const clangdArgs = updatedConfig.inspect<string[]>("clangd.arguments")?.workspaceValue;
         assert.ok(Array.isArray(clangdArgs), "clangd.arguments should still be set (user args remain)");
-        assert.ok(!clangdArgs?.some(a => a.startsWith("--compile-commands-dir=")),
+        assert.ok(!clangdArgs?.some(a => a === "--compile-commands-dir=${workspaceFolder}/.vscode"),
             "extension-managed --compile-commands-dir should be removed in cpptools mode");
         assert.ok(!clangdArgs?.includes("--background-index"),
             "extension-managed --background-index should be removed in cpptools mode");
@@ -268,6 +268,41 @@ suite("Workspace Settings (clangd/cpptools) Test Suite", () => {
             "user-defined --clang-tidy should be preserved");
         assert.ok(clangdArgs?.includes("--pretty"),
             "user-defined --pretty should be preserved");
+
+        await resetClangdSettings();
+    });
+
+    test("cpptools mode: preserves user-customized extension arg values (e.g. --completion-style=bundled) when disabling useClangd", async function () {
+        if (!clangdInstalled) {
+            this.skip();
+        }
+        await resetClangdSettings();
+        const config = vscode.workspace.getConfiguration();
+        // Simulate a user who had --completion-style=bundled and --query-driver to a custom path
+        // before enabling useClangd (extension never overwrote them), then disables useClangd.
+        await config.update("zephyr-ide.useClangd", false, wsTarget);
+        await config.update("zephyr-ide.toolchainDirectory", existingToolchainDir, vscode.ConfigurationTarget.Global);
+        await config.update("clangd.arguments", [
+            "--completion-style=bundled",
+            "--query-driver=/opt/cross/**/*",
+            "--background-index",
+            "--compile-commands-dir=${workspaceFolder}/.vscode",
+        ], wsTarget);
+
+        await setWorkspaceSettings(false);
+
+        const updatedConfig = vscode.workspace.getConfiguration();
+        const clangdArgs = updatedConfig.inspect<string[]>("clangd.arguments")?.workspaceValue;
+        // User-customized values of extension-managed keys must survive
+        assert.ok(clangdArgs?.includes("--completion-style=bundled"),
+            "user-customized --completion-style=bundled should survive disabling useClangd");
+        assert.ok(clangdArgs?.includes("--query-driver=/opt/cross/**/*"),
+            "user-customized --query-driver should survive disabling useClangd");
+        // Extension default values must be removed
+        assert.ok(!clangdArgs?.includes("--background-index"),
+            "extension-managed --background-index should be removed");
+        assert.ok(!clangdArgs?.includes("--compile-commands-dir=${workspaceFolder}/.vscode"),
+            "extension-managed --compile-commands-dir should be removed");
 
         await resetClangdSettings();
     });
