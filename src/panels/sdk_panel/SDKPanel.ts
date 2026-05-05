@@ -22,9 +22,11 @@ import {
   listAvailableSDKs,
   ParsedSDKList,
   onSDKProgress,
+  installSDKToolchainsInteractive,
 } from "../../setup_utilities/west_sdk";
 import { notifyError, outputError } from "../../utilities/output";
 import { generateNonce } from "../webview_shared/nonce";
+import { sdkVersions } from "../../defines";
 
 export class SDKPanel {
   public static currentPanel: SDKPanel | undefined;
@@ -137,6 +139,7 @@ export class SDKPanel {
       data: {
         hasSetupState: this.hasValidSetupState(),
         sdkInstalled: globalConfig.sdkInstalled ?? false,
+        sdkVersionMap: this.buildSdkVersionMap(),
       },
     });
 
@@ -180,6 +183,11 @@ export class SDKPanel {
       case "installSDK":
         this.installSDK();
         return;
+      case "addToolchainsForVersion":
+        if (typeof message.version === "string") {
+          this.addToolchainsForVersion(message.version);
+        }
+        return;
       case "listSDKs":
         this.listSDKs();
         return;
@@ -203,6 +211,31 @@ export class SDKPanel {
       }
     } catch (error) {
       notifyError("SDK Install", `Failed to install west SDK: ${error}`);
+    }
+  }
+
+  private async addToolchainsForVersion(version: string) {
+    try {
+      if (!this.currentWsConfig || !this.currentGlobalConfig) {
+        notifyError("SDK Install", "Configuration not available");
+        return;
+      }
+      await installSDKToolchainsInteractive(
+        this.currentWsConfig,
+        this.currentGlobalConfig,
+        this._context,
+        version,
+      );
+      // Refresh the SDK list so the newly installed toolchains appear
+      try {
+        this._cachedSDKList = undefined;
+        this.updateContent(this.currentWsConfig, this.currentGlobalConfig);
+        await this.listSDKs();
+      } catch (updateError) {
+        outputError("SDK Panel", `Failed to refresh panel after adding toolchains: ${String(updateError)}`);
+      }
+    } catch (error) {
+      notifyError("SDK Install", `Failed to add toolchains: ${error}`);
     }
   }
 
@@ -277,6 +310,17 @@ export class SDKPanel {
   // ---------------------------------------------------------------------------
   // HTML Generation
   // ---------------------------------------------------------------------------
+
+  /** Build a version→Zephyr-label lookup from the defines list. */
+  private buildSdkVersionMap(): Record<string, string> {
+    const map: Record<string, string> = {};
+    for (const item of sdkVersions) {
+      if (item.label && item.description && item.label !== "latest" && item.label !== "automatic" && item.label !== "sep") {
+        map[item.label] = item.description;
+      }
+    }
+    return map;
+  }
 
   private getHtmlForWebview(): string {
     const nonce = generateNonce();

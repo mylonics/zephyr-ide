@@ -465,6 +465,49 @@ async function selectSDKVersionAndToolchains(setupState: SetupState): Promise<{ 
 }
 
 /**
+ * Prompts the user to select toolchains only (version is pre-determined).
+ * Returns the selected toolchain array, or null if the user cancelled.
+ */
+async function selectToolchainsOnly(titlePrefix: string): Promise<string[] | null> {
+    const installAllOption = { label: "Install All Toolchains", description: "Install all available toolchains for this version" };
+    const selectSpecificOption = { label: "Select Specific Toolchains", description: "Choose which toolchains to install" };
+
+    let toolchains: string[] | null = null;
+
+    await MultiStepInput.run(async (input: MultiStepInput) => {
+        const choice = await input.showQuickPick({
+            title: titlePrefix,
+            step: 1,
+            totalSteps: 1,
+            placeholder: "Choose toolchain installation option",
+            ignoreFocusOut: true,
+            items: [installAllOption, selectSpecificOption],
+        });
+
+        if (choice.label === "Install All Toolchains") {
+            toolchains = ["all"];
+            return;
+        }
+
+        return async (inner: MultiStepInput) => {
+            const selected = await inner.showQuickPickMany({
+                title: titlePrefix,
+                step: 1,
+                totalSteps: 1,
+                placeholder: "Select toolchains to install (toggle then press Enter)",
+                ignoreFocusOut: true,
+                items: toolchainTargets.filter(item => item.kind !== vscode.QuickPickItemKind.Separator),
+            });
+            if (selected && Array.isArray(selected) && selected.length > 0) {
+                toolchains = (selected as readonly vscode.QuickPickItem[]).map(item => item.label);
+            }
+        };
+    });
+
+    return toolchains;
+}
+
+/**
  * Installs SDK with specific toolchains
  */
 export async function installSDK(
@@ -654,5 +697,86 @@ export async function installSDKInteractive(wsConfig: WorkspaceConfig, globalCon
         outputError("SDK Install", `SDK installation threw an error: ${error}`);
         tracker.fail(`Error: ${error}`);
         notifyError("SDK Install", `Failed to install SDK: ${error}`);
+    }
+}
+
+/**
+ * Adds toolchains to an already-installed SDK version.
+ * Skips the version-selection step and only prompts for toolchain selection.
+ */
+export async function installSDKToolchainsInteractive(
+    wsConfig: WorkspaceConfig,
+    globalConfig: GlobalConfig,
+    context: vscode.ExtensionContext | undefined,
+    prefilledVersion: string,
+) {
+    const tracker = new SetupProgressTracker(`SDK ${prefilledVersion} Toolchains`, [
+        { id: 'resolve', label: 'Resolving west workspace' },
+        { id: 'toolchains', label: 'Selecting toolchains' },
+        { id: 'install', label: 'Downloading and installing toolchains' },
+        { id: 'verify', label: 'Verifying installation' },
+    ], _onSDKProgress);
+
+    try {
+        outputInfo("SDK Install", `Adding toolchains to SDK ${prefilledVersion}...`);
+
+        tracker.startStep('resolve');
+        const setupState = await getWestSDKContext(wsConfig, globalConfig, context);
+        if (!setupState) {
+            tracker.failStep('resolve', 'No valid west installation found');
+            notifyError("SDK Install",
+                "No valid west installation found. Please set up a Zephyr workspace first."
+            );
+            return;
+        }
+        tracker.completeStep('resolve', `Using: ${setupState.setupPath}`);
+
+        tracker.startStep('toolchains');
+        const toolchains = await selectToolchainsOnly(`Add Toolchains — SDK ${prefilledVersion}`);
+        if (!toolchains || toolchains.length === 0) {
+            outputInfo("SDK Install", "Toolchain selection cancelled");
+            tracker.failStep('toolchains', 'Selection cancelled');
+            return;
+        }
+        tracker.completeStep('toolchains', toolchains.includes('all') ? 'All toolchains' : toolchains.join(', '));
+
+        tracker.startStep('install', 'Running west sdk install...');
+        return await vscode.window.withProgress(
+            {
+                location: vscode.ProgressLocation.Notification,
+                title: `Adding toolchains to SDK ${prefilledVersion}`,
+                cancellable: false,
+            },
+            async (progress) => {
+                progress.report({ message: "Installing toolchains..." });
+
+                const result = await installSDK(setupState, prefilledVersion, toolchains);
+                if (result) {
+                    tracker.completeStep('install');
+                    tracker.startStep('verify', 'Updating global state...');
+                    globalConfig.sdkInstalled = true;
+                    globalConfig.sdkVersion = prefilledVersion;
+                    if (context) {
+                        await setGlobalState(context, globalConfig);
+                    }
+                    tracker.completeStep('verify', `SDK ${prefilledVersion} toolchains ready`);
+                    tracker.complete(`Toolchains added to SDK ${prefilledVersion} successfully!`);
+                    void vscode.window.showInformationMessage(
+                        `Toolchains added to SDK ${prefilledVersion} successfully!`
+                    );
+                } else {
+                    tracker.failStep('install', 'west sdk install command failed');
+                    tracker.fail('Toolchain installation failed. Check the Output panel for details.');
+                    notifyError("SDK Install",
+                        `Failed to add toolchains to SDK ${prefilledVersion}`
+                    );
+                }
+                return result;
+            }
+        );
+    } catch (error) {
+        outputError("SDK Install", `SDK toolchain installation threw an error: ${error}`);
+        tracker.fail(`Error: ${error}`);
+        notifyError("SDK Install", `Failed to add toolchains: ${error}`);
     }
 }

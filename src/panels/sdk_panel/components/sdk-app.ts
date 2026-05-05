@@ -53,6 +53,49 @@ interface SetupProgressData {
 interface SDKPanelInitData {
   hasSetupState: boolean;
   sdkInstalled: boolean;
+  sdkVersionMap?: Record<string, string>;
+}
+
+// ---------------------------------------------------------------------------
+// Toolchain architecture grouping
+// ---------------------------------------------------------------------------
+
+interface ArchGroup {
+  label: string;
+  prefixes: string[];
+}
+
+const ARCH_GROUPS: ArchGroup[] = [
+  { label: "ARM / AArch64", prefixes: ["arm-", "aarch64-"] },
+  { label: "ARC", prefixes: ["arc-", "arc64-"] },
+  { label: "RISC-V", prefixes: ["riscv64-"] },
+  { label: "Xtensa", prefixes: ["xtensa-"] },
+  { label: "x86", prefixes: ["x86_64-"] },
+  { label: "MIPS", prefixes: ["mips-"] },
+  { label: "Nios II", prefixes: ["nios2-"] },
+  { label: "SPARC", prefixes: ["sparc-"] },
+  { label: "MicroBlaze", prefixes: ["microblazeel-"] },
+];
+
+/** Group an array of toolchain names by architecture family. */
+function groupToolchains(toolchains: string[]): Array<{ label: string; items: string[] }> {
+  const buckets = new Map<string, string[]>();
+  for (const tc of toolchains) {
+    let matched = false;
+    for (const group of ARCH_GROUPS) {
+      if (group.prefixes.some(p => tc.startsWith(p))) {
+        if (!buckets.has(group.label)) { buckets.set(group.label, []); }
+        buckets.get(group.label)!.push(tc);
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) {
+      if (!buckets.has("Other")) { buckets.set("Other", []); }
+      buckets.get("Other")!.push(tc);
+    }
+  }
+  return Array.from(buckets.entries()).map(([label, items]) => ({ label, items }));
 }
 
 // ---------------------------------------------------------------------------
@@ -66,6 +109,8 @@ export class SDKApp extends ZephyrLitElement {
   @state() private _sdkLoading = false;
   @state() private _progressData: SetupProgressData | undefined;
   @state() private _buttonsDisabled = false;
+  /** SDK versions (by string) whose "Not Installed" toolchains panel is expanded. */
+  @state() private _expandedUnavailable = new Set<string>();
 
   connectedCallback() {
     super.connectedCallback();
@@ -116,8 +161,23 @@ export class SDKApp extends ZephyrLitElement {
     this.vscodeApi.postMessage({ command: "listSDKs" });
   }
 
+  private _addToolchainsForVersion(version: string) {
+    this._buttonsDisabled = true;
+    this.vscodeApi.postMessage({ command: "addToolchainsForVersion", version });
+  }
+
   private _dismissProgress() {
     this._progressData = undefined;
+  }
+
+  private _toggleUnavailable(version: string) {
+    const next = new Set(this._expandedUnavailable);
+    if (next.has(version)) {
+      next.delete(version);
+    } else {
+      next.add(version);
+    }
+    this._expandedUnavailable = next;
   }
 
   render() {
@@ -154,7 +214,11 @@ export class SDKApp extends ZephyrLitElement {
           </div>
         </div>
 
-        <p class="sdk-description">The Zephyr SDK provides GNU toolchains for cross-compiling to supported target architectures. Install or update toolchains below, then refresh to see what's available.</p>
+        <p class="sdk-description">
+          The Zephyr SDK provides GNU toolchains for cross-compiling to supported target architectures.
+          Each SDK version ships with a specific set of toolchain targets.
+          Install additional toolchains for an installed SDK version using the <strong>Add Toolchains</strong> button on its card.
+        </p>
 
         ${!d.hasSetupState
         ? html`<div class="error-box">
@@ -284,34 +348,123 @@ export class SDKApp extends ZephyrLitElement {
 
     return html`
       <div class="sdk-list-container">
+        ${this._renderSDKSummary(data.versions)}
         ${data.versions.map(v => this._renderSDKVersion(v))}
       </div>
     `;
   }
 
+  /** Top-level summary bar when at least one SDK is present. */
+  private _renderSDKSummary(versions: SDKVersion[]) {
+    const totalInstalled = versions.reduce((acc, v) => acc + (v.installedToolchains?.length ?? 0), 0);
+    const totalAvailable = versions.reduce((acc, v) => acc + ((v.availableToolchains?.length ?? 0) + (v.installedToolchains?.length ?? 0)), 0);
+
+    return html`
+      <div class="sdk-summary">
+        <span class="sdk-summary-item">
+          <span class="codicon codicon-package"></span>
+          <strong>${versions.length}</strong> SDK version${versions.length !== 1 ? "s" : ""} installed
+        </span>
+        <span class="sdk-summary-sep">·</span>
+        <span class="sdk-summary-item">
+          <span class="codicon codicon-tools"></span>
+          <strong>${totalInstalled}</strong> of <strong>${totalAvailable}</strong> toolchains installed
+        </span>
+      </div>
+    `;
+  }
+
   private _renderSDKVersion(version: SDKVersion) {
+    const ver = version.version ?? "Unknown";
+    const installed = version.installedToolchains ?? [];
+    const available = version.availableToolchains ?? [];
+    const notInstalled = available.filter(tc => !installed.includes(tc));
+    const total = installed.length + notInstalled.length;
+    const isExpanded = this._expandedUnavailable.has(ver);
+    const versionMap = this._initData?.sdkVersionMap ?? {};
+    const zephyrLabel = versionMap[ver];
+
     return html`
       <div class="sdk-version-card">
+        <!-- Card header -->
         <div class="sdk-version-header">
-          <div class="sdk-version-title">Zephyr SDK ${version.version}</div>
+          <div class="sdk-version-title-row">
+            <span class="sdk-version-title">Zephyr SDK ${ver}</span>
+            ${zephyrLabel
+        ? html`<span class="sdk-zephyr-compat">${zephyrLabel}</span>`
+        : nothing}
+          </div>
+          <div class="sdk-card-actions">
+            <span class="sdk-toolchain-count ${installed.length > 0 ? "has-toolchains" : ""}">
+              ${installed.length} / ${total} toolchains
+            </span>
+            <vscode-button
+              appearance="secondary"
+              ?disabled=${this._buttonsDisabled}
+              @click=${() => this._addToolchainsForVersion(ver)}
+              title="Add toolchains to this SDK version"
+            >
+              <vscode-icon slot="start-icon" name="add"></vscode-icon>
+              Add Toolchains
+            </vscode-button>
+          </div>
         </div>
-        <div class="sdk-path">${version.path}</div>
-        ${version.installedToolchains && version.installedToolchains.length > 0
-        ? html`<div class="toolchain-section">
-              <div class="toolchain-section-title">Installed Toolchains (${version.installedToolchains.length}):</div>
-              <div class="toolchain-list">
-                ${version.installedToolchains.map(tc => html`<span class="toolchain-tag">${tc}</span>`)}
-              </div>
-            </div>`
+
+        <!-- Install path -->
+        <div class="sdk-path">
+          <span class="codicon codicon-folder"></span>
+          ${version.path ?? "—"}
+        </div>
+
+        <!-- Installed toolchains (always visible, grouped by arch) -->
+        ${installed.length > 0
+        ? html`
+          <div class="toolchain-section">
+            <div class="toolchain-section-title">
+              <span class="codicon codicon-check-all"></span>
+              Installed Toolchains (${installed.length})
+            </div>
+            ${this._renderGroupedToolchains(installed, "installed")}
+          </div>`
+        : html`
+          <div class="toolchain-section">
+            <p class="sdk-no-toolchains">No toolchains installed yet. Use <strong>Add Toolchains</strong> to install one.</p>
+          </div>`}
+
+        <!-- Available-but-not-installed toolchains (collapsible) -->
+        ${notInstalled.length > 0
+        ? html`
+          <div class="toolchain-section">
+            <button
+              class="toolchain-toggle-btn"
+              @click=${() => this._toggleUnavailable(ver)}
+              aria-expanded=${isExpanded}
+            >
+              <span class="codicon ${isExpanded ? "codicon-chevron-down" : "codicon-chevron-right"}"></span>
+              <span class="toolchain-section-title inline">Not Installed (${notInstalled.length})</span>
+            </button>
+            ${isExpanded
+          ? html`<div class="toolchain-collapsible-body">${this._renderGroupedToolchains(notInstalled, "available")}</div>`
+          : nothing}
+          </div>`
         : nothing}
-        ${version.availableToolchains && version.availableToolchains.length > 0
-        ? html`<div class="toolchain-section">
-              <div class="toolchain-section-title">Available Toolchains (${version.availableToolchains.length}):</div>
-              <div class="toolchain-list">
-                ${version.availableToolchains.map(tc => html`<span class="toolchain-tag available">${tc}</span>`)}
-              </div>
-            </div>`
-        : nothing}
+      </div>
+    `;
+  }
+
+  /** Render toolchains grouped by architecture family. */
+  private _renderGroupedToolchains(toolchains: string[], tagClass: string) {
+    const groups = groupToolchains(toolchains);
+    return html`
+      <div class="toolchain-arch-list">
+        ${groups.map(g => html`
+          <div class="toolchain-arch-group">
+            <div class="toolchain-arch-label">${g.label}</div>
+            <div class="toolchain-list">
+              ${g.items.map(tc => html`<span class="toolchain-tag ${tagClass}">${tc}</span>`)}
+            </div>
+          </div>
+        `)}
       </div>
     `;
   }
