@@ -149,10 +149,10 @@ export function parseWestConfigManifest(setupPath: string): WestManifestConfig |
  *   `null` if no such directory is found before the filesystem root.
  */
 export function findWestDir(startPath: string): string | null {
-    let current = path.normalize(startPath);
+    let current = path.resolve(startPath);
     while (true) {
         const westDir = path.join(current, ".west");
-        if (fs.existsSync(westDir)) {
+        if (fs.existsSync(westDir) && fs.statSync(westDir).isDirectory()) {
             return current;
         }
         const parent = path.dirname(current);
@@ -176,10 +176,10 @@ export function findWestDir(startPath: string): string | null {
  *   `null` if no such directory is found before the filesystem root.
  */
 export function findWestTopDir(startPath: string): string | null {
-    let current = path.normalize(startPath);
+    let current = path.resolve(startPath);
     while (true) {
         const westConfigPath = path.join(current, ".west", "config");
-        if (fs.existsSync(westConfigPath)) {
+        if (fs.existsSync(westConfigPath) && fs.statSync(westConfigPath).isFile()) {
             return current;
         }
         const parent = path.dirname(current);

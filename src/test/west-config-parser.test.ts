@@ -105,7 +105,24 @@ suite("West Config Parser Test Suite", () => {
         assert.strictEqual(result, null);
     });
 
+    test("findWestTopDir returns null when .west/config is a directory, not a file", () => {
+        // Create .west/config as a directory — should not be treated as a valid config file
+        const westConfigDir = path.join(tmpDir, ".west", "config");
+        fs.mkdirSync(westConfigDir, { recursive: true });
+
+        const result = findWestTopDir(tmpDir);
+        assert.strictEqual(result, null);
+    });
+
     test("findWestDir returns null when no .west directory exists", () => {
+        const result = findWestDir(tmpDir);
+        assert.strictEqual(result, null);
+    });
+
+    test("findWestDir returns null when .west is a file, not a directory", () => {
+        // Create a regular file named .west — should not be treated as a west workspace
+        fs.writeFileSync(path.join(tmpDir, ".west"), "not a directory");
+
         const result = findWestDir(tmpDir);
         assert.strictEqual(result, null);
     });
