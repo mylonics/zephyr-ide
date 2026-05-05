@@ -315,7 +315,8 @@ export class SDKPanel {
   private buildSdkVersionMap(): Record<string, string> {
     const map: Record<string, string> = {};
     for (const item of sdkVersions) {
-      // Only include real version number entries (e.g. "1.0.1"), skip separators and special options
+      // Match only real semantic version labels (e.g. "1.0.1", "0.17.4").
+      // Separators (kind=Separator) and special options ("latest", "automatic") are excluded.
       if (item.description && /^\d+\.\d+\.\d+/.test(item.label)) {
         map[item.label] = item.description;
       }

@@ -755,6 +755,9 @@ export async function installSDKToolchainsInteractive(
                     tracker.completeStep('install');
                     tracker.startStep('verify', 'Updating global state...');
                     globalConfig.sdkInstalled = true;
+                    // Track the most recently updated SDK version. If multiple SDK versions
+                    // are installed, the last one added/modified is recorded here, consistent
+                    // with the behavior of installSDKInteractive.
                     globalConfig.sdkVersion = prefilledVersion;
                     if (context) {
                         await setGlobalState(context, globalConfig);

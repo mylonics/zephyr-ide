@@ -92,6 +92,8 @@ function groupToolchains(toolchains: string[]): Array<{ label: string; items: st
       }
     }
     if (!matched) {
+      // Catch-all bucket for toolchains that don't match any known architecture prefix.
+      // These may be new toolchains added in a future SDK release not yet listed in ARCH_GROUPS.
       const bucket = buckets.get("Other") ?? [];
       bucket.push(tc);
       buckets.set("Other", bucket);
