@@ -19,8 +19,9 @@ import * as assert from "assert";
 import * as fs from "fs-extra";
 import * as os from "os";
 import * as path from "upath";
+import * as vscode from "vscode";
 
-import { backfillInitializedFlags } from "../setup_utilities/state-management";
+import { backfillInitializedFlags, getPlatformStateKey, loadGlobalState } from "../setup_utilities/state-management";
 import { SetupState } from "../setup_utilities/types";
 
 function makeEntry(overrides: Partial<SetupState> = {}): SetupState {
@@ -35,7 +36,171 @@ function makeEntry(overrides: Partial<SetupState> = {}): SetupState {
   };
 }
 
+/**
+ * Minimal in-memory mock for `vscode.ExtensionContext` that is sufficient for
+ * testing `loadGlobalState` / `setGlobalState`.  Only `globalState.get` and
+ * `globalState.update` are used by those functions.
+ *
+ * The state is deep-copied via JSON round-trip (intentional: VS Code's
+ * globalState persists data as JSON, so this mock accurately reflects the
+ * real serialization boundary and would surface issues with non-serializable
+ * values just as the real implementation would).
+ */
+function makeMockContext(initialState?: Record<string, any>): vscode.ExtensionContext {
+  let stored: any = initialState !== undefined ? JSON.parse(JSON.stringify(initialState)) : undefined;
+  return {
+    globalState: {
+      get: (_key: string) => stored,
+      update: (_key: string, value: any) => {
+        stored = JSON.parse(JSON.stringify(value));
+        return Promise.resolve();
+      },
+      setKeysForSync: () => { },
+      keys: () => [],
+    },
+  } as any as vscode.ExtensionContext;
+}
+
+/**
+ * Read back the value that was last written to globalState via the mock.
+ * Accesses the stored value through a fresh `get()` call so the assertion
+ * reflects exactly what would be persisted between sessions.
+ */
+function getStoredState(ctx: vscode.ExtensionContext): any {
+  return (ctx.globalState as any).get("zephyr-ide.state");
+}
+
 suite("Workspace State Migration Test Suite", () => {
+
+  // ---------------------------------------------------------------------------
+  // getPlatformStateKey
+  // ---------------------------------------------------------------------------
+
+  test("getPlatformStateKey returns a known platform identifier", () => {
+    const key = getPlatformStateKey();
+    const basePlatforms = ["windows", "linux", "macos", "unknown"];
+    // Key is either "wsl", a plain base platform, or "<remoteName>-<platform>".
+    // In the local test environment vscode.env.remoteName is undefined, so
+    // the key should be exactly one of the base platforms (no prefix).
+    // In a remote CI environment the key will have the "<remoteName>-<base>"
+    // form — we validate the suffix matches a known platform in that case.
+    const isValid =
+      key === "wsl" ||
+      basePlatforms.includes(key) ||
+      basePlatforms.some(p => key.endsWith(`-${p}`) && key.length > p.length + 1);
+    assert.ok(isValid, `Expected a valid platform state key, got: ${key}`);
+  });
+
+  test("getPlatformStateKey returns a consistent value on repeated calls", () => {
+    const key1 = getPlatformStateKey();
+    const key2 = getPlatformStateKey();
+    assert.strictEqual(key1, key2, "getPlatformStateKey must be stable within the same process");
+  });
+
+  // ---------------------------------------------------------------------------
+  // loadGlobalState – backward-compatibility migration
+  // ---------------------------------------------------------------------------
+
+  test("loadGlobalState migrates legacy flat fields into per-platform bucket", async () => {
+    const platformKey = getPlatformStateKey();
+
+    const ctx = makeMockContext({
+      toolsAvailable: true,
+      sdkInstalled: true,
+      sdkVersion: "0.17.0",
+      setupStateDictionary: {},
+    });
+
+    const config = await loadGlobalState(ctx);
+
+    // Flat convenience fields on the returned config should reflect the legacy values.
+    assert.strictEqual(config.toolsAvailable, true, "toolsAvailable should be migrated");
+    assert.strictEqual(config.sdkInstalled, true, "sdkInstalled should be migrated");
+    assert.strictEqual(config.sdkVersion, "0.17.0", "sdkVersion should be migrated");
+
+    // The per-platform bucket must contain the migrated values.
+    assert.ok(config.platformStates?.[platformKey], `platformStates["${platformKey}"] should exist`);
+    assert.strictEqual(config.platformStates![platformKey].toolsAvailable, true);
+    assert.strictEqual(config.platformStates![platformKey].sdkInstalled, true);
+    assert.strictEqual(config.platformStates![platformKey].sdkVersion, "0.17.0");
+
+    // The persisted state must NOT have legacy flat fields at the top level.
+    const persisted = getStoredState(ctx) as any;
+    assert.strictEqual(persisted.toolsAvailable, undefined, "top-level toolsAvailable must be removed after migration");
+    assert.strictEqual(persisted.sdkInstalled, undefined, "top-level sdkInstalled must be removed after migration");
+    assert.strictEqual(persisted.sdkVersion, undefined, "top-level sdkVersion must be removed after migration");
+    assert.ok(persisted.platformStates?.[platformKey], "migrated bucket must be persisted");
+  });
+
+  test("loadGlobalState preserves other platforms' state when loading", async () => {
+    const platformKey = getPlatformStateKey();
+    // Pick a key that is guaranteed to differ from the current platform.
+    const otherKey = platformKey === "windows" ? "linux" : "windows";
+
+    const ctx = makeMockContext({
+      setupStateDictionary: {},
+      platformStates: {
+        [otherKey]: {
+          toolsAvailable: true,
+          sdkInstalled: true,
+          sdkVersion: "0.16.0",
+        },
+        [platformKey]: {
+          toolsAvailable: false,
+          sdkInstalled: false,
+          sdkVersion: "0.17.0",
+        },
+      },
+    });
+
+    const config = await loadGlobalState(ctx);
+
+    // Current platform's values should be loaded into the flat convenience fields.
+    assert.strictEqual(config.toolsAvailable, false, "current platform toolsAvailable should be read");
+    assert.strictEqual(config.sdkVersion, "0.17.0", "current platform sdkVersion should be read");
+
+    // The other platform's bucket must be preserved intact.
+    assert.strictEqual(
+      config.platformStates?.[otherKey]?.toolsAvailable, true,
+      "other platform toolsAvailable must not be modified"
+    );
+    assert.strictEqual(
+      config.platformStates?.[otherKey]?.sdkVersion, "0.16.0",
+      "other platform sdkVersion must not be modified"
+    );
+
+    // The persisted state must also retain the other platform's bucket.
+    const persisted = getStoredState(ctx) as any;
+    assert.strictEqual(persisted.platformStates?.[otherKey]?.toolsAvailable, true);
+    assert.strictEqual(persisted.platformStates?.[otherKey]?.sdkVersion, "0.16.0");
+  });
+
+  test("loadGlobalState starts with empty platform state on first WSL/remote run", async () => {
+    // Simulate a globalState that only has Windows data (no current-platform bucket).
+    const platformKey = getPlatformStateKey();
+    const differentKey = platformKey === "windows" ? "linux" : "windows";
+
+    const ctx = makeMockContext({
+      setupStateDictionary: {},
+      platformStates: {
+        [differentKey]: {
+          toolsAvailable: true,
+          sdkInstalled: true,
+          sdkVersion: "0.17.0",
+        },
+      },
+    });
+
+    const config = await loadGlobalState(ctx);
+
+    // The current platform bucket doesn't exist yet — all flags should be undefined.
+    assert.strictEqual(config.toolsAvailable, undefined, "toolsAvailable should be undefined on first run");
+    assert.strictEqual(config.sdkInstalled, undefined, "sdkInstalled should be undefined on first run");
+    assert.strictEqual(config.sdkVersion, undefined, "sdkVersion should be undefined on first run");
+
+    // The other platform's data must be untouched.
+    assert.strictEqual(config.platformStates?.[differentKey]?.toolsAvailable, true);
+  });
 
   test("backfillInitializedFlags sets initialized=true when .west/ exists on disk", async () => {
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-bfill-true-"));

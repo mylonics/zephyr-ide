@@ -1100,10 +1100,7 @@ export async function activate(context: vscode.ExtensionContext) {
         const resolved = resolveActiveProjectBuild(wsConfig);
         if (!resolved) { return; }
 
-        const setupState = await getSetupState(context, wsConfig);
-        if (!setupState) { return; }
-
-        return path.join(setupState.setupPath, resolved.build.board);
+        return resolved.build.board;
       }
     )
   );
