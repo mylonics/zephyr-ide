@@ -164,7 +164,10 @@ export async function westInit(context: vscode.ExtensionContext, wsConfig: Works
     }
   }
 
-  const westPath = path.join(setupState.setupPath, ".west");
+  // Resolve the actual west workspace root (may be a parent of setupPath in WSL/nested layouts)
+  // so that "Reinitialize" removes the same .west directory that checkWestInit() detected.
+  const detectedWestTopDir = findWestTopDir(setupState.setupPath) ?? setupState.setupPath;
+  const westPath = path.join(detectedWestTopDir, ".west");
 
   setupState.westUpdated = false;
   await saveSetupState(context, wsConfig, globalConfig);

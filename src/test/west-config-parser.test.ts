@@ -20,6 +20,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { findWestTopDir } from "../setup_utilities/west-config-parser";
+import { normalizePath } from "./test-runner";
 
 suite("West Config Parser Test Suite", () => {
 
@@ -45,7 +46,7 @@ suite("West Config Parser Test Suite", () => {
         fs.writeFileSync(path.join(westDir, "config"), "[manifest]\npath = zephyr\nfile = west.yml\n");
 
         const result = findWestTopDir(tmpDir);
-        assert.strictEqual(result, path.normalize(tmpDir));
+        assert.strictEqual(result, normalizePath(tmpDir));
     });
 
     test("findWestTopDir finds .west/config in a parent directory (WSL/nested workspace scenario)", () => {
@@ -60,7 +61,7 @@ suite("West Config Parser Test Suite", () => {
 
         // Starting from the subdirectory should find .west/config in the parent
         const result = findWestTopDir(subDir);
-        assert.strictEqual(result, path.normalize(tmpDir));
+        assert.strictEqual(result, normalizePath(tmpDir));
     });
 
     test("findWestTopDir finds .west/config two levels up", () => {
@@ -74,7 +75,7 @@ suite("West Config Parser Test Suite", () => {
         fs.mkdirSync(deepDir, { recursive: true });
 
         const result = findWestTopDir(deepDir);
-        assert.strictEqual(result, path.normalize(tmpDir));
+        assert.strictEqual(result, normalizePath(tmpDir));
     });
 
     test("findWestTopDir prefers the closest .west/config", () => {
@@ -91,7 +92,7 @@ suite("West Config Parser Test Suite", () => {
 
         // Starting from subDir should find the CLOSER .west/config (in subDir)
         const result = findWestTopDir(subDir);
-        assert.strictEqual(result, path.normalize(subDir));
+        assert.strictEqual(result, normalizePath(subDir));
     });
 
     test("findWestTopDir returns null when only .west directory exists without config file", () => {

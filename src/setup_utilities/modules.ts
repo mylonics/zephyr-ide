@@ -56,7 +56,7 @@ async function executeWestList(setupState: SetupState): Promise<WestListOutcome>
   // Uses the shared west-config-parser to avoid duplicating INI parsing logic.
   const manifest = parseWestConfigManifest(westTopDir);
   if (!manifest || !manifest.path) {
-    outputError("West List", `.west/config not found or manifest section missing at: ${setupState.setupPath}. West is not initialized.`);
+    outputError("West List", `.west/config not found or manifest section missing at: ${westTopDir}. West is not initialized.`);
     return { ok: false, needsWestUpdate: false };
   }
 
