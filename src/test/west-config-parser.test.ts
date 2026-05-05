@@ -19,7 +19,7 @@ import * as assert from "assert";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { findWestTopDir } from "../setup_utilities/west-config-parser";
+import { findWestDir, findWestTopDir } from "../setup_utilities/west-config-parser";
 import { normalizePath } from "./test-runner";
 
 suite("West Config Parser Test Suite", () => {
@@ -103,5 +103,61 @@ suite("West Config Parser Test Suite", () => {
 
         const result = findWestTopDir(tmpDir);
         assert.strictEqual(result, null);
+    });
+
+    test("findWestDir returns null when no .west directory exists", () => {
+        const result = findWestDir(tmpDir);
+        assert.strictEqual(result, null);
+    });
+
+    test("findWestDir returns the directory that directly contains .west (no config file)", () => {
+        // Create .west directory without a config file — simulates a stale/partial init
+        const westDir = path.join(tmpDir, ".west");
+        fs.mkdirSync(westDir, { recursive: true });
+        // No .west/config
+
+        const result = findWestDir(tmpDir);
+        assert.strictEqual(result, normalizePath(tmpDir));
+    });
+
+    test("findWestDir detects .west in a parent directory (stale WSL home-directory scenario)", () => {
+        // Simulate /home/user/.west existing (stale or from a different workspace)
+        const westDir = path.join(tmpDir, ".west");
+        fs.mkdirSync(westDir, { recursive: true });
+
+        // VS Code workspace folder is a subdirectory
+        const subDir = path.join(tmpDir, "zidetest");
+        fs.mkdirSync(subDir, { recursive: true });
+
+        // findWestDir must detect the parent .west, preventing west init from failing
+        const result = findWestDir(subDir);
+        assert.strictEqual(result, normalizePath(tmpDir));
+    });
+
+    test("findWestDir detects .west with a config file (fully initialised workspace)", () => {
+        // .west with config is the normal post-init state
+        const westDir = path.join(tmpDir, ".west");
+        fs.mkdirSync(westDir, { recursive: true });
+        fs.writeFileSync(path.join(westDir, "config"), "[manifest]\npath = zephyr\nfile = west.yml\n");
+
+        const subDir = path.join(tmpDir, "my-project");
+        fs.mkdirSync(subDir, { recursive: true });
+
+        const result = findWestDir(subDir);
+        assert.strictEqual(result, normalizePath(tmpDir));
+    });
+
+    test("findWestDir prefers the closest .west directory", () => {
+        // Grandparent has .west
+        const gpWest = path.join(tmpDir, ".west");
+        fs.mkdirSync(gpWest, { recursive: true });
+
+        // Subdirectory also has .west (closer)
+        const subDir = path.join(tmpDir, "workspace");
+        const subWest = path.join(subDir, ".west");
+        fs.mkdirSync(subWest, { recursive: true });
+
+        const result = findWestDir(subDir);
+        assert.strictEqual(result, normalizePath(subDir));
     });
 });

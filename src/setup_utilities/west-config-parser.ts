@@ -138,6 +138,36 @@ export function parseWestConfigManifest(setupPath: string): WestManifestConfig |
 }
 
 /**
+ * Walk up the directory tree from `startPath` to find the first directory
+ * that contains a `.west` directory (with or without a `config` file inside).
+ *
+ * This mirrors west's own "already initialized" detection — west refuses to
+ * run `west init` if any `.west` directory exists in the current path or any
+ * parent path, regardless of whether `.west/config` is present.
+ *
+ * Use this for pre-flight `west init` checks.
+ * Use `findWestTopDir` (which requires `.west/config`) for config-reading.
+ *
+ * @returns The absolute path of the directory that owns `.west`, or
+ *   `null` if no such directory is found before the filesystem root.
+ */
+export function findWestDir(startPath: string): string | null {
+    let current = path.normalize(startPath);
+    while (true) {
+        const westDir = path.join(current, ".west");
+        if (fs.existsSync(westDir)) {
+            return current;
+        }
+        const parent = path.dirname(current);
+        if (parent === current) {
+            break;
+        }
+        current = parent;
+    }
+    return null;
+}
+
+/**
  * Walk up the directory tree from `startPath` to find the west workspace
  * top-level directory — the directory that contains a `.west/config` file.
  *

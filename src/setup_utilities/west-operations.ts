@@ -26,7 +26,7 @@ import { westSelector, WestLocation } from "./west_selector";
 import { WorkspaceConfig, GlobalConfig, SetupState, formatZephyrVersion } from "./types";
 import { saveSetupState, setSetupState, setWorkspaceState } from "./state-management";
 import { getSetupState, getSetupStateOrNotify, getVenvPath } from "./workspace-config";
-import { ensureWestConfigManifest, findWestTopDir } from "./west-config-parser";
+import { ensureWestConfigManifest, findWestDir, findWestTopDir } from "./west-config-parser";
 import { SetupProgressTracker } from "./setup-progress";
 import { getDefaultPythonExecutable } from "./host_tools";
 
@@ -137,10 +137,12 @@ export async function getPythonCommand(configOverride?: string | null): Promise<
 }
 
 export function checkWestInit(setupState: SetupState) {
-  // Use findWestTopDir so we detect a west workspace that was initialized in a
-  // parent directory of setupState.setupPath (common in WSL and nested-workspace
-  // layouts where the VS Code folder is a sub-directory of the west topdir).
-  return findWestTopDir(setupState.setupPath) !== null;
+  // Use findWestDir (checks for .west directory) rather than findWestTopDir
+  // (which requires .west/config) so that stale or partially-initialised .west
+  // directories are also detected.  This matches west's own "already initialized"
+  // check, preventing the extension from silently launching `west init` only to
+  // have west reject it with a fatal error.
+  return findWestDir(setupState.setupPath) !== null;
 }
 
 export async function westInit(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, solo = true, westSelection?: WestLocation) {
@@ -166,9 +168,9 @@ export async function westInit(context: vscode.ExtensionContext, wsConfig: Works
 
   // Resolve the actual west workspace root (may be a parent of setupPath in WSL/nested layouts)
   // so that "Reinitialize" removes the same .west directory that checkWestInit() detected.
-  // Falls back to setupPath when no parent west workspace exists (standard case: west init
-  // will create a new .west here).
-  const detectedWestTopDir = findWestTopDir(setupState.setupPath) ?? setupState.setupPath;
+  // Use findWestDir (not findWestTopDir) so stale .west dirs without a config file are
+  // also found and cleaned up. Falls back to setupPath when no .west exists yet.
+  const detectedWestTopDir = findWestDir(setupState.setupPath) ?? setupState.setupPath;
   const westPath = path.join(detectedWestTopDir, ".west");
 
   setupState.westUpdated = false;
