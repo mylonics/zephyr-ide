@@ -77,35 +77,32 @@ function parseWestManifestConfigFromIni(configContent: string): WestManifestConf
 
 /**
  * Parse the manifest path from .west/config file
- * Returns the full path to west.yml or null if not found.
- * Walks up the directory tree from `setupPath` to find the west topdir,
- * mirroring west's own workspace discovery so nested/WSL layouts work correctly.
+ * Returns the full path to west.yml or null if not found
  */
 export function parseWestConfigManifestPath(setupPath: string): string | null {
-    // Walk up from setupPath to locate the actual west workspace root.
-    const westTopDir = findWestTopDir(setupPath);
-    if (!westTopDir) {
-        outputWarning("West Config", `.west/config not found at or above: ${setupPath}. Run 'west init' to initialize the workspace.`);
-        return null;
-    }
-
-    const westConfigPath = path.join(westTopDir, ".west", "config");
+    const westConfigPath = path.join(setupPath, ".west", "config");
 
     try {
+        // Check if .west/config exists
+        if (!fs.existsSync(westConfigPath)) {
+            outputWarning("West Config", `.west/config not found at: ${westConfigPath} (setupPath: ${setupPath}). Run 'west init' to initialize the workspace.`);
+            return null;
+        }
+
         // Read .west/config file
         const configContent = fs.readFileSync(westConfigPath, "utf8");
         const manifest = parseWestManifestConfigFromIni(configContent);
 
         if (manifest.path) {
             const manifestFileName = manifest.file ?? "west.yml";
-            const westYmlPath = path.join(westTopDir, manifest.path, manifestFileName);
+            const westYmlPath = path.join(setupPath, manifest.path, manifestFileName);
             
             // Verify the file exists
             if (fs.existsSync(westYmlPath)) {
                 return westYmlPath;
             }
             
-            outputWarning("West Config", `${manifestFileName} not found at expected location: ${westYmlPath} (manifest.path = "${manifest.path}", westTopDir: ${westTopDir}). Verify the manifest path in .west/config is correct.`);
+            outputWarning("West Config", `${manifestFileName} not found at expected location: ${westYmlPath} (manifest.path = "${manifest.path}", setupPath: ${setupPath}). Verify the manifest path in .west/config is correct.`);
         } else {
             outputWarning("West Config", `manifest.path key not found in ${westConfigPath}. The [manifest] section may be missing or malformed.`);
         }

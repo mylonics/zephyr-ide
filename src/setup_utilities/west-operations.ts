@@ -26,7 +26,7 @@ import { westSelector, WestLocation } from "./west_selector";
 import { WorkspaceConfig, GlobalConfig, SetupState, formatZephyrVersion } from "./types";
 import { saveSetupState, setSetupState, setWorkspaceState } from "./state-management";
 import { getSetupState, getSetupStateOrNotify, getVenvPath } from "./workspace-config";
-import { ensureWestConfigManifest, findWestDir, findWestTopDir } from "./west-config-parser";
+import { ensureWestConfigManifest } from "./west-config-parser";
 import { SetupProgressTracker } from "./setup-progress";
 import { getDefaultPythonExecutable } from "./host_tools";
 
@@ -137,12 +137,9 @@ export async function getPythonCommand(configOverride?: string | null): Promise<
 }
 
 export function checkWestInit(setupState: SetupState) {
-  // Use findWestDir (checks for .west directory) rather than findWestTopDir
-  // (which requires .west/config) so that stale or partially-initialised .west
-  // directories are also detected.  This matches west's own "already initialized"
-  // check, preventing the extension from silently launching `west init` only to
-  // have west reject it with a fatal error.
-  return findWestDir(setupState.setupPath) !== null;
+  const westPath = path.join(setupState.setupPath, ".west");
+  const res = fs.pathExistsSync(westPath);
+  return res;
 }
 
 export async function westInit(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, solo = true, westSelection?: WestLocation) {
@@ -166,12 +163,7 @@ export async function westInit(context: vscode.ExtensionContext, wsConfig: Works
     }
   }
 
-  // Resolve the actual west workspace root (may be a parent of setupPath in WSL/nested layouts)
-  // so that "Reinitialize" removes the same .west directory that checkWestInit() detected.
-  // Use findWestDir (not findWestTopDir) so stale .west dirs without a config file are
-  // also found and cleaned up. Falls back to setupPath when no .west exists yet.
-  const detectedWestTopDir = findWestDir(setupState.setupPath) ?? setupState.setupPath;
-  const westPath = path.join(detectedWestTopDir, ".west");
+  const westPath = path.join(setupState.setupPath, ".west");
 
   setupState.westUpdated = false;
   await saveSetupState(context, wsConfig, globalConfig);
@@ -200,7 +192,7 @@ export async function westInit(context: vscode.ExtensionContext, wsConfig: Works
     }
 
     setupState.zephyrDir = "";
-    westInitRes = await executeTaskHelperInPythonEnv(setupState, "Zephyr IDE: West Init", cmd, detectedWestTopDir);
+    westInitRes = await executeTaskHelperInPythonEnv(setupState, "Zephyr IDE: West Init", cmd, setupState.setupPath);
 
     if (!westInitRes) {
       notifyError("West Init", "West Init Failed. Check the Zephyr IDE output for details.", { command: cmd });
@@ -209,8 +201,8 @@ export async function westInit(context: vscode.ExtensionContext, wsConfig: Works
       // "manifest file not found: None" errors during subsequent west commands.
       // west init -l can sometimes leave manifest.file or manifest.path empty/None.
       const manifestPath = westSelection.path ? path.basename(westSelection.path) : undefined;
-      if (ensureWestConfigManifest(detectedWestTopDir, { manifestPath })) {
-        outputInfo("West Init", `Repaired .west/config manifest section (westTopDir: ${detectedWestTopDir})`);
+      if (ensureWestConfigManifest(setupState.setupPath, { manifestPath })) {
+        outputInfo("West Init", `Repaired .west/config manifest section (setupPath: ${setupState.setupPath})`);
       }
       if (solo) {
         void vscode.window.showInformationMessage(`West workspace initialized`);
@@ -233,10 +225,8 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
 
   // Safety check: ensure .west/config has valid manifest entries before running west update.
   // This prevents "manifest file not found: None" errors if the config was corrupted.
-  // Walk up from setupPath to find the actual west workspace root (handles nested/WSL layouts).
-  const westUpdateTopDir = findWestTopDir(setupState.setupPath) ?? setupState.setupPath;
-  if (ensureWestConfigManifest(westUpdateTopDir)) {
-    outputInfo("West Update", `Repaired .west/config manifest section before update (westTopDir: ${westUpdateTopDir})`);
+  if (ensureWestConfigManifest(setupState.setupPath)) {
+    outputInfo("West Update", `Repaired .west/config manifest section before update (setupPath: ${setupState.setupPath})`);
   }
 
   setupState.westUpdated = false;
