@@ -98,14 +98,9 @@ function clangdArgKey(arg: string): string {
 }
 
 /**
- * Returns the exact set of clangd arguments that the extension manages.
- * These are the only values the extension may have written, so they are
- * the only values that should be removed on cleanup (exact-value match,
- * not prefix match, to avoid discarding user-customized values for the
- * same keys, e.g. --completion-style=bundled or --query-driver=/opt/**\/*).
- *
- * @param configuration - The VS Code workspace configuration.
- * @returns The exact argument strings the extension would write.
+ * Returns the current set of clangd arguments the extension would write given the
+ * active toolchain configuration.  This is used for the first-time write and for
+ * updating extension-managed args when the toolchain directory changes.
  */
 async function getExtensionClangdArgs(configuration: vscode.WorkspaceConfiguration): Promise<string[]> {
   const toolchainDirConfig = configuration.inspect<string>("zephyr-ide.toolchainDirectory");
@@ -126,6 +121,35 @@ async function getExtensionClangdArgs(configuration: vscode.WorkspaceConfigurati
     args.push(`--query-driver=${path.join(resolvedToolchainDir, "**", "*")}`);
   }
   return args;
+}
+
+/**
+ * Workspace-state key used to remember the exact clangd argument strings that the
+ * extension last wrote.  Persisting this across sessions allows the cleanup path
+ * (useClangd disabled) to remove the correct values even when the toolchain
+ * directory has changed since the args were first written.
+ */
+const CLANGD_ARGS_STATE_KEY = "zephyrIde.extensionClangdArgs";
+
+/** Module-level reference to the VS Code extension context, set by initWorkspaceConfigContext(). */
+let _context: vscode.ExtensionContext | undefined;
+
+/**
+ * Provides the extension context to this module so that setWorkspaceSettings can
+ * use workspaceState to track the clangd arguments it writes.  Call this once from
+ * activate() before the first invocation of setWorkspaceSettings.
+ */
+export function initWorkspaceConfigContext(ctx: vscode.ExtensionContext): void {
+  _context = ctx;
+}
+
+/**
+ * Clears the persisted record of extension-written clangd arguments from workspace
+ * state.  Intended for use in tests (called inside resetClangdSettings) so that
+ * each test starts with a clean slate.
+ */
+export async function clearExtensionClangdState(): Promise<void> {
+  await _context?.workspaceState.update(CLANGD_ARGS_STATE_KEY, undefined);
 }
 
 function argsMatchNormalized(value: any, normalized: string[]): boolean {
@@ -305,32 +329,48 @@ export async function setWorkspaceSettings(force = false) {
       if (!clangdArgs.some(a => a.startsWith("--query-driver="))) {
         outputWarning("Workspace Config", "--query-driver will not be configured because the resolved toolchain directory is unavailable. Set 'zephyr-ide.toolchainDirectory' or install the Zephyr SDK.");
       }
-      // Write clangd args conservatively:
-      // - If clangd.arguments is not yet set in the workspace (first-time / new setup),
-      //   write the full set of extension-required args.
-      // - If it is already set, only append extension args whose key is not yet present.
-      //   Existing values (including user-customized ones) are never overwritten.
+
+      // Merge extension args with existing workspace args using workspace-state tracking:
+      //
+      // - "storedExtensionArgs" records the exact values the extension last wrote.
+      //   This lets us distinguish extension-managed args from user-defined args even
+      //   when the toolchain directory has changed since the initial write.
+      //
+      // - "userArgs": current args NOT in the stored set → defined (or customized) by the user.
+      //   Their keys block the corresponding extension arg from being appended.
+      //
+      // - "extensionArgsToWrite": extension args whose key is not already covered by a user arg.
+      //   This includes both new args (key entirely absent) and updated args (key present but
+      //   value is extension-managed, e.g. --query-driver after a toolchain-directory change).
+      //
+      // Result: user-customized values are preserved; extension args are kept in sync with the
+      // current configuration; and the stored set is updated for accurate future cleanup.
       {
-        const currentClangdArgs = configuration.inspect<string[]>("clangd.arguments")?.workspaceValue;
-        if (currentClangdArgs === undefined) {
-          // First-time setup: write all extension args.
-          await configuration.update("clangd.arguments", clangdArgs, target)
+        const storedExtensionArgs = _context?.workspaceState.get<string[]>(CLANGD_ARGS_STATE_KEY) ?? [];
+        const storedSet = new Set(storedExtensionArgs);
+        const currentClangdArgs = configuration.inspect<string[]>("clangd.arguments")?.workspaceValue ?? [];
+
+        // Args not previously written by the extension are considered user-defined.
+        const userArgs = currentClangdArgs.filter(a => !storedSet.has(a));
+        const userArgKeys = new Set(userArgs.map(clangdArgKey));
+
+        // Extension args to write: those whose key isn't already covered by a user arg.
+        const extensionArgsToWrite = clangdArgs.filter(a => !userArgKeys.has(clangdArgKey(a)));
+
+        const newArgs = [...userArgs, ...extensionArgsToWrite];
+
+        // Only write when something actually changes.
+        const existingWorkspaceValue = configuration.inspect<string[]>("clangd.arguments")?.workspaceValue;
+        if (existingWorkspaceValue === undefined || JSON.stringify(newArgs) !== JSON.stringify(existingWorkspaceValue)) {
+          await configuration.update("clangd.arguments", newArgs, target)
             .then(undefined, (err: unknown) => {
               const detail = err instanceof Error ? err.message : String(err);
               outputWarning("Workspace Config", `Failed to set clangd.arguments: ${detail}`);
             });
-        } else {
-          // Already configured: only append args whose key is not already present.
-          const presentKeys = new Set(currentClangdArgs.map(clangdArgKey));
-          const missingArgs = clangdArgs.filter(arg => !presentKeys.has(clangdArgKey(arg)));
-          if (missingArgs.length > 0) {
-            await configuration.update("clangd.arguments", [...currentClangdArgs, ...missingArgs], target)
-              .then(undefined, (err: unknown) => {
-                const detail = err instanceof Error ? err.message : String(err);
-                outputWarning("Workspace Config", `Failed to update clangd.arguments: ${detail}`);
-              });
-          }
         }
+
+        // Always refresh the stored set so future cleanup/updates use the current values.
+        await _context?.workspaceState.update(CLANGD_ARGS_STATE_KEY, extensionArgsToWrite);
       }
     } else {
       outputWarning("Workspace Config", "zephyr-ide.useClangd is enabled but llvm-vs-code-extensions.vscode-clangd is not installed; clangd.* settings will not be applied.");
@@ -358,14 +398,16 @@ export async function setWorkspaceSettings(force = false) {
     }
 
     if (clangdInstalled) {
-      // Remove only the exact argument values written by this extension.
-      // Comparison is by exact string value, not by key prefix, so user-customized
-      // values of extension-managed keys (e.g. --completion-style=bundled or a
-      // hand-written --query-driver=/opt/**/*) are left untouched.
-      const extensionArgs = new Set(await getExtensionClangdArgs(configuration));
+      // Remove only the argument values previously written by this extension.
+      // We use the stored set (persisted in workspaceState) rather than the
+      // currently-computed extension args so that a stale --query-driver written
+      // against an older toolchain directory is still recognised and removed even
+      // when the toolchain directory has since changed.
+      const storedExtensionArgs = _context?.workspaceState.get<string[]>(CLANGD_ARGS_STATE_KEY) ?? [];
+      const storedSet = new Set(storedExtensionArgs);
       const currentClangdArgs = configuration.inspect<string[]>("clangd.arguments")?.workspaceValue;
       if (currentClangdArgs !== undefined) {
-        const survivingArgs = currentClangdArgs.filter(arg => !extensionArgs.has(arg));
+        const survivingArgs = currentClangdArgs.filter(arg => !storedSet.has(arg));
         if (survivingArgs.length > 0) {
           // Preserve surviving args (user-defined or user-customized values)
           await configuration.update("clangd.arguments", survivingArgs, target)
@@ -374,7 +416,7 @@ export async function setWorkspaceSettings(force = false) {
               outputWarning("Workspace Config", `Failed to update clangd.arguments: ${detail}`);
             });
         } else {
-          // All args were exact extension defaults — clear the workspace setting entirely
+          // All args were extension-managed — clear the workspace setting entirely
           await configuration.update("clangd.arguments", undefined, target)
             .then(undefined, (err: unknown) => {
               const detail = err instanceof Error ? err.message : String(err);
@@ -382,6 +424,8 @@ export async function setWorkspaceSettings(force = false) {
             });
         }
       }
+      // Clear the stored set: the extension is no longer managing clangd args.
+      await _context?.workspaceState.update(CLANGD_ARGS_STATE_KEY, undefined);
     }
   }
 

@@ -89,6 +89,7 @@ import {
   getToolchainPath,
   migrateSettingKeys,
   setWorkspaceSettings,
+  initWorkspaceConfigContext,
   getSetupState,
   getGdbPath,
   getArmGdbPath,
@@ -330,6 +331,10 @@ export function getWorkspaceConfig(): WorkspaceConfig {
 
 export async function activate(context: vscode.ExtensionContext) {
   context.environmentVariableCollection.persistent = false;
+
+  // Provide the extension context to workspace-config so that setWorkspaceSettings
+  // can persist the clangd arguments it writes (used for accurate cleanup/update).
+  initWorkspaceConfigContext(context);
 
   // Log detected platform information early, before any output clears
   const platformName = getPlatformName() ?? "unknown";
