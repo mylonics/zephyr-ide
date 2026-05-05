@@ -392,15 +392,14 @@ suite("Workspace Settings (clangd/cpptools) Test Suite", () => {
             this.skip();
         }
         // Simulate upgrading from a pre-tracking version of the extension:
-        // clangd.arguments is already set with extension-written args PLUS a user-customized
-        // value for an extension-managed key, but workspaceState has no CLANGD_ARGS_STATE_KEY
-        // entry (clearExtensionClangdState() was called in resetClangdSettings()).
+        // clangd.arguments contains the extension's compile-commands-dir arg (which is the
+        // migration trigger) plus other extension defaults and a user-customized value.
         await resetClangdSettings();
         const config = vscode.workspace.getConfiguration();
         await config.update("zephyr-ide.useClangd", false, wsTarget);
         await config.update("zephyr-ide.toolchainDirectory", existingToolchainDir, vscode.ConfigurationTarget.Global);
-        // Exact extension defaults (should be removed) + user-customized value for
-        // an extension-managed key (should NOT be removed — value differs from default).
+        // The presence of compile-commands-dir confirms these args came from the extension.
+        // Exact extension defaults (should be removed) + user-customized value (should stay).
         await config.update("clangd.arguments", [
             "--compile-commands-dir=${workspaceFolder}/.vscode",
             "--background-index",
@@ -423,6 +422,40 @@ suite("Workspace Settings (clangd/cpptools) Test Suite", () => {
         // User-customized value for an extension-managed key must survive.
         assert.ok(clangdArgs?.includes("--completion-style=bundled"),
             "user-customized --completion-style=bundled should survive upgrade-path disable");
+
+        await resetClangdSettings();
+    });
+
+    test("upgrade path: does not remove user-authored args matching extension defaults when compile-commands-dir is absent", async function () {
+        if (!clangdInstalled) {
+            this.skip();
+        }
+        // Simulate a user who wrote extension-default-looking args themselves, without
+        // ever having enabled Zephyr IDE's clangd mode.  The compile-commands-dir arg is
+        // absent, so the upgrade migration must NOT fire.  User args must survive disable.
+        await resetClangdSettings();
+        const config = vscode.workspace.getConfiguration();
+        await config.update("zephyr-ide.useClangd", false, wsTarget);
+        await config.update("zephyr-ide.toolchainDirectory", existingToolchainDir, vscode.ConfigurationTarget.Global);
+        // User independently wrote some args that happen to match extension defaults
+        // but did NOT include the extension's specific compile-commands-dir value.
+        await config.update("clangd.arguments", [
+            "--background-index",           // matches extension default but user-authored
+            "--header-insertion=never",     // matches extension default but user-authored
+            "--clang-tidy",                 // pure user arg
+        ], wsTarget);
+
+        // Disabling useClangd should leave all args untouched (no stored state, no migration).
+        await setWorkspaceSettings(false);
+
+        const updatedConfig = vscode.workspace.getConfiguration();
+        const clangdArgs = updatedConfig.inspect<string[]>("clangd.arguments")?.workspaceValue;
+        assert.ok(clangdArgs?.includes("--background-index"),
+            "user-authored --background-index must survive when compile-commands-dir is absent");
+        assert.ok(clangdArgs?.includes("--header-insertion=never"),
+            "user-authored --header-insertion=never must survive when compile-commands-dir is absent");
+        assert.ok(clangdArgs?.includes("--clang-tidy"),
+            "user arg --clang-tidy must survive disable");
 
         await resetClangdSettings();
     });

@@ -338,11 +338,13 @@ export async function setWorkspaceSettings(force = false) {
       //
       // - Upgrade path: if no stored state exists yet (first run after upgrading from a
       //   pre-tracking version) but clangd.arguments is already set, we perform a
-      //   one-time migration by seeding the stored state with any arg whose exact value
-      //   matches what the current extension would write.  Exact-value matching (not
-      //   key-prefix matching) is used so that user-customized values for extension-managed
-      //   keys — e.g. "--completion-style=bundled" or "--query-driver=/opt/custom/**/*" —
-      //   are never classified as extension-managed and are therefore preserved.
+      //   one-time migration.  The migration only fires when the extension-specific
+      //   compile-commands-dir arg (using the ${workspaceFolder}/.vscode placeholder) is
+      //   present — this value is Zephyr-IDE-specific and unlikely to be user-authored,
+      //   so its presence is strong evidence a pre-tracking version of this extension
+      //   originally wrote the args.  Within that set we use exact-value matching (not
+      //   key-prefix) so user-customized values like "--completion-style=bundled" are
+      //   never seeded.
       //
       // - "userArgs": current args NOT in the stored set → defined (or customized) by the user.
       //   Their keys block the corresponding extension arg from being appended.
@@ -356,18 +358,18 @@ export async function setWorkspaceSettings(force = false) {
       {
         const currentClangdArgs = configuration.inspect<string[]>("clangd.arguments")?.workspaceValue ?? [];
 
-        // Resolve stored state, performing a one-time exact-value migration when needed.
+        // Resolve stored state, performing a one-time migration when needed.
         let storedExtensionArgs: string[] | undefined = _context?.workspaceState.get<string[]>(CLANGD_ARGS_STATE_KEY);
         if (storedExtensionArgs === undefined && currentClangdArgs.length > 0) {
-          // Upgrade migration: seed stored state with args whose exact value matches what
-          // the current extension would write.  We use exact-value matching (not key-prefix
-          // matching) so that user-customized values for extension-managed keys — e.g.
-          // "--completion-style=bundled" or "--query-driver=/opt/custom/**/*" — are NOT
-          // classified as extension-managed and are therefore left untouched.
-          const extensionArgSet = new Set(clangdArgs);
-          storedExtensionArgs = currentClangdArgs.filter(a => extensionArgSet.has(a));
-          if (storedExtensionArgs.length > 0) {
-            await _context?.workspaceState.update(CLANGD_ARGS_STATE_KEY, storedExtensionArgs);
+          // Upgrade migration: only seed when the extension's compile-commands-dir arg is
+          // already present (high-confidence indicator that the extension wrote the args).
+          const compileCommandsArg = clangdArgs.find(a => a.startsWith("--compile-commands-dir="));
+          if (compileCommandsArg !== undefined && currentClangdArgs.includes(compileCommandsArg)) {
+            const extensionArgSet = new Set(clangdArgs);
+            storedExtensionArgs = currentClangdArgs.filter(a => extensionArgSet.has(a));
+            if (storedExtensionArgs.length > 0) {
+              await _context?.workspaceState.update(CLANGD_ARGS_STATE_KEY, storedExtensionArgs);
+            }
           }
         }
         const storedSet = new Set(storedExtensionArgs ?? []);
@@ -383,16 +385,22 @@ export async function setWorkspaceSettings(force = false) {
 
         // Only write when something actually changes.
         const existingWorkspaceValue = configuration.inspect<string[]>("clangd.arguments")?.workspaceValue;
+        let writeFailed = false;
         if (existingWorkspaceValue === undefined || JSON.stringify(newArgs) !== JSON.stringify(existingWorkspaceValue)) {
           await configuration.update("clangd.arguments", newArgs, target)
             .then(undefined, (err: unknown) => {
+              writeFailed = true;
               const detail = err instanceof Error ? err.message : String(err);
               outputWarning("Workspace Config", `Failed to set clangd.arguments: ${detail}`);
             });
         }
 
-        // Always refresh the stored set so future cleanup/updates use the current values.
-        await _context?.workspaceState.update(CLANGD_ARGS_STATE_KEY, extensionArgsToWrite);
+        // Only refresh the stored set when the write succeeded (or was skipped because
+        // nothing changed). A failed write must not update state, otherwise a later
+        // disable would try to remove args the extension never actually applied.
+        if (!writeFailed) {
+          await _context?.workspaceState.update(CLANGD_ARGS_STATE_KEY, extensionArgsToWrite);
+        }
       }
     } else {
       outputWarning("Workspace Config", "zephyr-ide.useClangd is enabled but llvm-vs-code-extensions.vscode-clangd is not installed; clangd.* settings will not be applied.");
@@ -427,23 +435,28 @@ export async function setWorkspaceSettings(force = false) {
       // when the toolchain directory has since changed.
       //
       // Upgrade path: if no stored state exists yet but clangd.arguments is present,
-      // perform the same one-time exact-value migration used in the enable path.
-      // Only args whose exact value matches a current extension arg are seeded, so
-      // user-defined values (e.g. "--completion-style=bundled") are never removed.
+      // perform the same one-time migration used in the enable path: only seed when
+      // the extension-specific compile-commands-dir arg is present (high-confidence
+      // indicator that a pre-tracking version of this extension wrote the args).
       const currentClangdArgs = configuration.inspect<string[]>("clangd.arguments")?.workspaceValue;
       let storedExtensionArgs: string[] | undefined = _context?.workspaceState.get<string[]>(CLANGD_ARGS_STATE_KEY);
       if (storedExtensionArgs === undefined && currentClangdArgs !== undefined && currentClangdArgs.length > 0) {
         const currentExtensionArgs = await getExtensionClangdArgs(configuration);
-        const extensionArgSet = new Set(currentExtensionArgs);
-        storedExtensionArgs = currentClangdArgs.filter(a => extensionArgSet.has(a));
+        const compileCommandsArg = currentExtensionArgs.find(a => a.startsWith("--compile-commands-dir="));
+        if (compileCommandsArg !== undefined && currentClangdArgs.includes(compileCommandsArg)) {
+          const extensionArgSet = new Set(currentExtensionArgs);
+          storedExtensionArgs = currentClangdArgs.filter(a => extensionArgSet.has(a));
+        }
       }
       const storedSet = new Set(storedExtensionArgs ?? []);
       if (currentClangdArgs !== undefined) {
         const survivingArgs = currentClangdArgs.filter(arg => !storedSet.has(arg));
+        let cleanupFailed = false;
         if (survivingArgs.length > 0) {
           // Preserve surviving args (user-defined or user-customized values)
           await configuration.update("clangd.arguments", survivingArgs, target)
             .then(undefined, (err: unknown) => {
+              cleanupFailed = true;
               const detail = err instanceof Error ? err.message : String(err);
               outputWarning("Workspace Config", `Failed to update clangd.arguments: ${detail}`);
             });
@@ -451,13 +464,18 @@ export async function setWorkspaceSettings(force = false) {
           // All args were extension-managed — clear the workspace setting entirely
           await configuration.update("clangd.arguments", undefined, target)
             .then(undefined, (err: unknown) => {
+              cleanupFailed = true;
               const detail = err instanceof Error ? err.message : String(err);
               outputWarning("Workspace Config", `Failed to clear clangd.arguments: ${detail}`);
             });
         }
+        // Only clear the stored set when cleanup succeeded. A failed write must not
+        // clear state, otherwise a later retry cannot identify which args the extension
+        // wrote and will leave stale entries behind.
+        if (!cleanupFailed) {
+          await _context?.workspaceState.update(CLANGD_ARGS_STATE_KEY, undefined);
+        }
       }
-      // Clear the stored set: the extension is no longer managing clangd args.
-      await _context?.workspaceState.update(CLANGD_ARGS_STATE_KEY, undefined);
     }
   }
 
