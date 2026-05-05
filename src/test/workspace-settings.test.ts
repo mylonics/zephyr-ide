@@ -386,55 +386,95 @@ suite("Workspace Settings (clangd/cpptools) Test Suite", () => {
         await resetClangdSettings();
     });
 
-    test("upgrade path: cleans up old extension-written args when no stored state exists (upgrade from pre-tracking version)", async function () {
+
+    test("upgrade path: cleans up only exact extension-written args when no stored state exists (upgrade from pre-tracking version)", async function () {
         if (!clangdInstalled) {
             this.skip();
         }
         // Simulate upgrading from a pre-tracking version of the extension:
-        // clangd.arguments is already set with extension-written args, but workspaceState
-        // has no CLANGD_ARGS_STATE_KEY entry (clearExtensionClangdState() was called in
-        // resetClangdSettings(), which models this upgrade scenario).
+        // clangd.arguments is already set with extension-written args PLUS a user-customized
+        // value for an extension-managed key, but workspaceState has no CLANGD_ARGS_STATE_KEY
+        // entry (clearExtensionClangdState() was called in resetClangdSettings()).
         await resetClangdSettings();
         const config = vscode.workspace.getConfiguration();
         await config.update("zephyr-ide.useClangd", false, wsTarget);
         await config.update("zephyr-ide.toolchainDirectory", existingToolchainDir, vscode.ConfigurationTarget.Global);
-        // Manually write args that the old extension would have written (no stored state).
-        if (clangdInstalled) {
-            await config.update("clangd.arguments", [
-                "--compile-commands-dir=${workspaceFolder}/.vscode",
-                "--background-index",
-                "--completion-style=detailed",
-                "--header-insertion=never",
-                `--query-driver=${existingToolchainDir}/**/*`,
-            ], wsTarget);
-        }
-        // Stored state is empty (simulates upgrade — clearExtensionClangdState() was already called).
+        // Exact extension defaults (should be removed) + user-customized value for
+        // an extension-managed key (should NOT be removed — value differs from default).
+        await config.update("clangd.arguments", [
+            "--compile-commands-dir=${workspaceFolder}/.vscode",
+            "--background-index",
+            "--completion-style=detailed",          // exact extension default → removed
+            "--header-insertion=never",
+            `--query-driver=${existingToolchainDir}/**/*`,
+            "--completion-style=bundled",           // user-customized (different value) → kept
+        ], wsTarget);
 
-        // Disabling useClangd should still remove the old extension-written args via migration.
+        // Disabling useClangd should remove only the exact extension-default args.
         await setWorkspaceSettings(false);
 
         const updatedConfig = vscode.workspace.getConfiguration();
-        if (clangdInstalled) {
-            assert.strictEqual(
-                updatedConfig.inspect("clangd.arguments")?.workspaceValue,
-                undefined,
-                "clangd.arguments should be cleared even without a stored state (upgrade migration)"
-            );
-        }
+        const clangdArgs = updatedConfig.inspect<string[]>("clangd.arguments")?.workspaceValue;
+        // Exact extension defaults should be removed.
+        assert.ok(!clangdArgs?.includes("--completion-style=detailed"),
+            "exact extension-default --completion-style=detailed should be removed");
+        assert.ok(!clangdArgs?.includes("--background-index"),
+            "exact extension-default --background-index should be removed");
+        // User-customized value for an extension-managed key must survive.
+        assert.ok(clangdArgs?.includes("--completion-style=bundled"),
+            "user-customized --completion-style=bundled should survive upgrade-path disable");
 
         await resetClangdSettings();
     });
 
-    test("upgrade path: re-enables --query-driver sync on toolchain change when no stored state exists", async function () {
+    test("upgrade path: preserves user-customized extension-managed args on enable when no stored state exists", async function () {
         if (!clangdInstalled) {
             this.skip();
         }
-        // Simulate upgrading from a pre-tracking version: existing extension args but no stored state.
+        // Simulate upgrading from a pre-tracking version where the user customized an
+        // extension-managed key (--completion-style=bundled) alongside extension defaults.
         await resetClangdSettings();
         const config = vscode.workspace.getConfiguration();
         await config.update("zephyr-ide.useClangd", true, wsTarget);
         await config.update("zephyr-ide.toolchainDirectory", existingToolchainDir, vscode.ConfigurationTarget.Global);
-        // Manually write old extension args (as a pre-tracking release would have).
+        // Pre-upgrade state: user has customized --completion-style to bundled.
+        await config.update("clangd.arguments", [
+            "--compile-commands-dir=${workspaceFolder}/.vscode",
+            "--background-index",
+            "--completion-style=bundled",           // user-customized (different from extension default)
+            "--header-insertion=never",
+            `--query-driver=${existingToolchainDir}/**/*`,
+        ], wsTarget);
+        // Stored state is empty (simulates upgrade).
+
+        // Call setWorkspaceSettings — useClangd=true is already set in config, so this
+        // triggers the enable path. The false argument is the 'force' parameter, not
+        // enable/disable. Exact-value migration seeds only the args that exactly match
+        // extension defaults. --completion-style=bundled ≠ --completion-style=detailed
+        // → treated as user-defined.
+        await setWorkspaceSettings(false);
+
+        const updatedConfig = vscode.workspace.getConfiguration();
+        const clangdArgs = updatedConfig.inspect<string[]>("clangd.arguments")?.workspaceValue;
+        assert.ok(clangdArgs?.includes("--completion-style=bundled"),
+            "user-customized --completion-style=bundled should not be overwritten on enable");
+        assert.ok(!clangdArgs?.includes("--completion-style=detailed"),
+            "extension should not write --completion-style=detailed when user has a value for that key");
+
+        await resetClangdSettings();
+    });
+
+    test("upgrade path: updates --query-driver on toolchain change when args exactly match extension defaults", async function () {
+        if (!clangdInstalled) {
+            this.skip();
+        }
+        // Simulate upgrading from a pre-tracking version: extension args exactly matching
+        // defaults written for the current toolchain, but no stored state.
+        await resetClangdSettings();
+        const config = vscode.workspace.getConfiguration();
+        await config.update("zephyr-ide.useClangd", true, wsTarget);
+        await config.update("zephyr-ide.toolchainDirectory", existingToolchainDir, vscode.ConfigurationTarget.Global);
+        // Manually write args that exactly match the current extension defaults.
         await config.update("clangd.arguments", [
             "--compile-commands-dir=${workspaceFolder}/.vscode",
             "--background-index",
@@ -444,8 +484,11 @@ suite("Workspace Settings (clangd/cpptools) Test Suite", () => {
         ], wsTarget);
         // Stored state is empty (simulates upgrade).
 
-        // Change toolchain directory — migration should recognise the old query-driver as
-        // extension-managed and update it to the new toolchain path.
+        // On first call with same toolchain: exact-value migration seeds all args.
+        // On subsequent calls with same toolchain: no change needed.
+        await setWorkspaceSettings(false);
+
+        // Now change toolchain directory.
         const newToolchainDir = os.homedir();
         await config.update("zephyr-ide.toolchainDirectory", newToolchainDir, vscode.ConfigurationTarget.Global);
         await setWorkspaceSettings(false);

@@ -338,10 +338,11 @@ export async function setWorkspaceSettings(force = false) {
       //
       // - Upgrade path: if no stored state exists yet (first run after upgrading from a
       //   pre-tracking version) but clangd.arguments is already set, we perform a
-      //   one-time migration by classifying any arg whose key matches an extension-managed
-      //   key as extension-managed and seeding the stored state with those args.  This
-      //   restores the ability to update --query-driver on toolchain changes and to clean
-      //   up extension-written args on disable, without requiring a full enable→disable cycle.
+      //   one-time migration by seeding the stored state with any arg whose exact value
+      //   matches what the current extension would write.  Exact-value matching (not
+      //   key-prefix matching) is used so that user-customized values for extension-managed
+      //   keys — e.g. "--completion-style=bundled" or "--query-driver=/opt/custom/**/*" —
+      //   are never classified as extension-managed and are therefore preserved.
       //
       // - "userArgs": current args NOT in the stored set → defined (or customized) by the user.
       //   Their keys block the corresponding extension arg from being appended.
@@ -355,12 +356,16 @@ export async function setWorkspaceSettings(force = false) {
       {
         const currentClangdArgs = configuration.inspect<string[]>("clangd.arguments")?.workspaceValue ?? [];
 
-        // Resolve stored state, performing a one-time key-based migration when needed.
+        // Resolve stored state, performing a one-time exact-value migration when needed.
         let storedExtensionArgs: string[] | undefined = _context?.workspaceState.get<string[]>(CLANGD_ARGS_STATE_KEY);
         if (storedExtensionArgs === undefined && currentClangdArgs.length > 0) {
-          // Upgrade migration: identify args matching extension-managed key prefixes.
-          const extensionArgKeys = new Set(clangdArgs.map(clangdArgKey));
-          storedExtensionArgs = currentClangdArgs.filter(a => extensionArgKeys.has(clangdArgKey(a)));
+          // Upgrade migration: seed stored state with args whose exact value matches what
+          // the current extension would write.  We use exact-value matching (not key-prefix
+          // matching) so that user-customized values for extension-managed keys — e.g.
+          // "--completion-style=bundled" or "--query-driver=/opt/custom/**/*" — are NOT
+          // classified as extension-managed and are therefore left untouched.
+          const extensionArgSet = new Set(clangdArgs);
+          storedExtensionArgs = currentClangdArgs.filter(a => extensionArgSet.has(a));
           if (storedExtensionArgs.length > 0) {
             await _context?.workspaceState.update(CLANGD_ARGS_STATE_KEY, storedExtensionArgs);
           }
@@ -422,14 +427,15 @@ export async function setWorkspaceSettings(force = false) {
       // when the toolchain directory has since changed.
       //
       // Upgrade path: if no stored state exists yet but clangd.arguments is present,
-      // perform the same one-time key-based migration used in the enable path so that
-      // disabling immediately after an upgrade still removes the old extension-written args.
+      // perform the same one-time exact-value migration used in the enable path.
+      // Only args whose exact value matches a current extension arg are seeded, so
+      // user-defined values (e.g. "--completion-style=bundled") are never removed.
       const currentClangdArgs = configuration.inspect<string[]>("clangd.arguments")?.workspaceValue;
       let storedExtensionArgs: string[] | undefined = _context?.workspaceState.get<string[]>(CLANGD_ARGS_STATE_KEY);
       if (storedExtensionArgs === undefined && currentClangdArgs !== undefined && currentClangdArgs.length > 0) {
         const currentExtensionArgs = await getExtensionClangdArgs(configuration);
-        const extensionArgKeys = new Set(currentExtensionArgs.map(clangdArgKey));
-        storedExtensionArgs = currentClangdArgs.filter(a => extensionArgKeys.has(clangdArgKey(a)));
+        const extensionArgSet = new Set(currentExtensionArgs);
+        storedExtensionArgs = currentClangdArgs.filter(a => extensionArgSet.has(a));
       }
       const storedSet = new Set(storedExtensionArgs ?? []);
       if (currentClangdArgs !== undefined) {
