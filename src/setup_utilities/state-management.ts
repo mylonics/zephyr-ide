@@ -23,7 +23,7 @@ import { getRootPathFs, reloadEnvironmentVariables } from "../utilities/utils";
 import { initializeDtsExt } from "./dts_interface";
 import { GlobalConfig, WorkspaceConfig, SetupState, generateSetupState, isActiveWorkspaceInitialized } from "./types";
 import { loadProjectsFromFile, setWorkspaceSettings, generateGitIgnore, generateExtensionsRecommendations } from "./workspace-config";
-import { parseWestConfigManifest } from "./west-config-parser";
+import { parseWestConfigManifest, findWestTopDir } from "./west-config-parser";
 
 /**
  * Per-extension-host-process token used to detect full process restarts so
@@ -280,7 +280,7 @@ export async function setSetupState(context: vscode.ExtensionContext, wsConfig: 
     // already set up (.west/config exists with a valid manifest section). During
     // initial workspace creation the venv and west init have not yet been run, so
     // calling initializeDtsExt would trigger west list errors.
-    const manifest = parseWestConfigManifest(wsConfig.activeSetupState.setupPath);
+    const manifest = parseWestConfigManifest(findWestTopDir(wsConfig.activeSetupState.setupPath) ?? wsConfig.activeSetupState.setupPath);
     if (wsConfig.activeSetupState.pythonEnvironmentSetup && manifest && manifest.path) {
       void initializeDtsExt(wsConfig.activeSetupState, wsConfig);
     }

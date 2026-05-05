@@ -231,8 +231,10 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
 
   // Safety check: ensure .west/config has valid manifest entries before running west update.
   // This prevents "manifest file not found: None" errors if the config was corrupted.
-  if (ensureWestConfigManifest(setupState.setupPath)) {
-    outputInfo("West Update", `Repaired .west/config manifest section before update (setupPath: ${setupState.setupPath})`);
+  // Walk up from setupPath to find the actual west workspace root (handles nested/WSL layouts).
+  const westUpdateTopDir = findWestTopDir(setupState.setupPath) ?? setupState.setupPath;
+  if (ensureWestConfigManifest(westUpdateTopDir)) {
+    outputInfo("West Update", `Repaired .west/config manifest section before update (westTopDir: ${westUpdateTopDir})`);
   }
 
   setupState.westUpdated = false;
