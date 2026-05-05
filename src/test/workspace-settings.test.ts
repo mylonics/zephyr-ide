@@ -385,4 +385,79 @@ suite("Workspace Settings (clangd/cpptools) Test Suite", () => {
 
         await resetClangdSettings();
     });
+
+    test("upgrade path: cleans up old extension-written args when no stored state exists (upgrade from pre-tracking version)", async function () {
+        if (!clangdInstalled) {
+            this.skip();
+        }
+        // Simulate upgrading from a pre-tracking version of the extension:
+        // clangd.arguments is already set with extension-written args, but workspaceState
+        // has no CLANGD_ARGS_STATE_KEY entry (clearExtensionClangdState() was called in
+        // resetClangdSettings(), which models this upgrade scenario).
+        await resetClangdSettings();
+        const config = vscode.workspace.getConfiguration();
+        await config.update("zephyr-ide.useClangd", false, wsTarget);
+        await config.update("zephyr-ide.toolchainDirectory", existingToolchainDir, vscode.ConfigurationTarget.Global);
+        // Manually write args that the old extension would have written (no stored state).
+        if (clangdInstalled) {
+            await config.update("clangd.arguments", [
+                "--compile-commands-dir=${workspaceFolder}/.vscode",
+                "--background-index",
+                "--completion-style=detailed",
+                "--header-insertion=never",
+                `--query-driver=${existingToolchainDir}/**/*`,
+            ], wsTarget);
+        }
+        // Stored state is empty (simulates upgrade — clearExtensionClangdState() was already called).
+
+        // Disabling useClangd should still remove the old extension-written args via migration.
+        await setWorkspaceSettings(false);
+
+        const updatedConfig = vscode.workspace.getConfiguration();
+        if (clangdInstalled) {
+            assert.strictEqual(
+                updatedConfig.inspect("clangd.arguments")?.workspaceValue,
+                undefined,
+                "clangd.arguments should be cleared even without a stored state (upgrade migration)"
+            );
+        }
+
+        await resetClangdSettings();
+    });
+
+    test("upgrade path: re-enables --query-driver sync on toolchain change when no stored state exists", async function () {
+        if (!clangdInstalled) {
+            this.skip();
+        }
+        // Simulate upgrading from a pre-tracking version: existing extension args but no stored state.
+        await resetClangdSettings();
+        const config = vscode.workspace.getConfiguration();
+        await config.update("zephyr-ide.useClangd", true, wsTarget);
+        await config.update("zephyr-ide.toolchainDirectory", existingToolchainDir, vscode.ConfigurationTarget.Global);
+        // Manually write old extension args (as a pre-tracking release would have).
+        await config.update("clangd.arguments", [
+            "--compile-commands-dir=${workspaceFolder}/.vscode",
+            "--background-index",
+            "--completion-style=detailed",
+            "--header-insertion=never",
+            `--query-driver=${existingToolchainDir}/**/*`,
+        ], wsTarget);
+        // Stored state is empty (simulates upgrade).
+
+        // Change toolchain directory — migration should recognise the old query-driver as
+        // extension-managed and update it to the new toolchain path.
+        const newToolchainDir = os.homedir();
+        await config.update("zephyr-ide.toolchainDirectory", newToolchainDir, vscode.ConfigurationTarget.Global);
+        await setWorkspaceSettings(false);
+
+        const updatedConfig = vscode.workspace.getConfiguration();
+        const clangdArgs = updatedConfig.inspect<string[]>("clangd.arguments")?.workspaceValue;
+        const queryDriverArg = clangdArgs?.find(a => a.startsWith("--query-driver="));
+        assert.ok(queryDriverArg?.includes(upath.toUnix(newToolchainDir)),
+            "--query-driver should be updated to the new toolchain directory after upgrade migration");
+        assert.ok(!queryDriverArg?.includes(upath.toUnix(existingToolchainDir)),
+            "old --query-driver should not remain after upgrade migration + toolchain change");
+
+        await resetClangdSettings();
+    });
 });

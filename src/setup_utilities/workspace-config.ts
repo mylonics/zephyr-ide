@@ -336,6 +336,13 @@ export async function setWorkspaceSettings(force = false) {
       //   This lets us distinguish extension-managed args from user-defined args even
       //   when the toolchain directory has changed since the initial write.
       //
+      // - Upgrade path: if no stored state exists yet (first run after upgrading from a
+      //   pre-tracking version) but clangd.arguments is already set, we perform a
+      //   one-time migration by classifying any arg whose key matches an extension-managed
+      //   key as extension-managed and seeding the stored state with those args.  This
+      //   restores the ability to update --query-driver on toolchain changes and to clean
+      //   up extension-written args on disable, without requiring a full enable→disable cycle.
+      //
       // - "userArgs": current args NOT in the stored set → defined (or customized) by the user.
       //   Their keys block the corresponding extension arg from being appended.
       //
@@ -346,9 +353,19 @@ export async function setWorkspaceSettings(force = false) {
       // Result: user-customized values are preserved; extension args are kept in sync with the
       // current configuration; and the stored set is updated for accurate future cleanup.
       {
-        const storedExtensionArgs = _context?.workspaceState.get<string[]>(CLANGD_ARGS_STATE_KEY) ?? [];
-        const storedSet = new Set(storedExtensionArgs);
         const currentClangdArgs = configuration.inspect<string[]>("clangd.arguments")?.workspaceValue ?? [];
+
+        // Resolve stored state, performing a one-time key-based migration when needed.
+        let storedExtensionArgs: string[] | undefined = _context?.workspaceState.get<string[]>(CLANGD_ARGS_STATE_KEY);
+        if (storedExtensionArgs === undefined && currentClangdArgs.length > 0) {
+          // Upgrade migration: identify args matching extension-managed key prefixes.
+          const extensionArgKeys = new Set(clangdArgs.map(clangdArgKey));
+          storedExtensionArgs = currentClangdArgs.filter(a => extensionArgKeys.has(clangdArgKey(a)));
+          if (storedExtensionArgs.length > 0) {
+            await _context?.workspaceState.update(CLANGD_ARGS_STATE_KEY, storedExtensionArgs);
+          }
+        }
+        const storedSet = new Set(storedExtensionArgs ?? []);
 
         // Args not previously written by the extension are considered user-defined.
         const userArgs = currentClangdArgs.filter(a => !storedSet.has(a));
@@ -403,9 +420,18 @@ export async function setWorkspaceSettings(force = false) {
       // currently-computed extension args so that a stale --query-driver written
       // against an older toolchain directory is still recognised and removed even
       // when the toolchain directory has since changed.
-      const storedExtensionArgs = _context?.workspaceState.get<string[]>(CLANGD_ARGS_STATE_KEY) ?? [];
-      const storedSet = new Set(storedExtensionArgs);
+      //
+      // Upgrade path: if no stored state exists yet but clangd.arguments is present,
+      // perform the same one-time key-based migration used in the enable path so that
+      // disabling immediately after an upgrade still removes the old extension-written args.
       const currentClangdArgs = configuration.inspect<string[]>("clangd.arguments")?.workspaceValue;
+      let storedExtensionArgs: string[] | undefined = _context?.workspaceState.get<string[]>(CLANGD_ARGS_STATE_KEY);
+      if (storedExtensionArgs === undefined && currentClangdArgs !== undefined && currentClangdArgs.length > 0) {
+        const currentExtensionArgs = await getExtensionClangdArgs(configuration);
+        const extensionArgKeys = new Set(currentExtensionArgs.map(clangdArgKey));
+        storedExtensionArgs = currentClangdArgs.filter(a => extensionArgKeys.has(clangdArgKey(a)));
+      }
+      const storedSet = new Set(storedExtensionArgs ?? []);
       if (currentClangdArgs !== undefined) {
         const survivingArgs = currentClangdArgs.filter(arg => !storedSet.has(arg));
         if (survivingArgs.length > 0) {
