@@ -465,10 +465,10 @@ async function selectSDKVersionAndToolchains(setupState: SetupState): Promise<{ 
 }
 
 /**
- * Prompts the user to select toolchains only (version is pre-determined).
+ * Prompts the user to select toolchains interactively (SDK version is pre-determined).
  * Returns the selected toolchain array, or null if the user cancelled.
  */
-async function selectToolchainsOnly(titlePrefix: string): Promise<string[] | null> {
+async function selectToolchainsWithoutVersionStep(titlePrefix: string): Promise<string[] | null> {
     const installAllOption = { label: "Install All Toolchains", description: "Install all available toolchains for this version" };
     const selectSpecificOption = { label: "Select Specific Toolchains", description: "Choose which toolchains to install" };
 
@@ -732,7 +732,7 @@ export async function installSDKToolchainsInteractive(
         tracker.completeStep('resolve', `Using: ${setupState.setupPath}`);
 
         tracker.startStep('toolchains');
-        const toolchains = await selectToolchainsOnly(`Add Toolchains — SDK ${prefilledVersion}`);
+        const toolchains = await selectToolchainsWithoutVersionStep(`Add Toolchains — SDK ${prefilledVersion}`);
         if (!toolchains || toolchains.length === 0) {
             outputInfo("SDK Install", "Toolchain selection cancelled");
             tracker.failStep('toolchains', 'Selection cancelled');

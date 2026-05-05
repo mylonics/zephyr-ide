@@ -359,7 +359,11 @@ export class SDKApp extends ZephyrLitElement {
   /** Top-level summary bar when at least one SDK is present. */
   private _renderSDKSummary(versions: SDKVersion[]) {
     const totalInstalled = versions.reduce((acc, v) => acc + (v.installedToolchains?.length ?? 0), 0);
-    const totalAvailable = versions.reduce((acc, v) => acc + ((v.availableToolchains?.length ?? 0) + (v.installedToolchains?.length ?? 0)), 0);
+    // Use a Set to deduplicate in case availableToolchains already includes installed ones
+    const totalUnique = versions.reduce((acc, v) => {
+      const unique = new Set([...(v.installedToolchains ?? []), ...(v.availableToolchains ?? [])]);
+      return acc + unique.size;
+    }, 0);
 
     return html`
       <div class="sdk-summary">
@@ -370,7 +374,7 @@ export class SDKApp extends ZephyrLitElement {
         <span class="sdk-summary-sep">·</span>
         <span class="sdk-summary-item">
           <span class="codicon codicon-tools"></span>
-          <strong>${totalInstalled}</strong> of <strong>${totalAvailable}</strong> toolchains installed
+          <strong>${totalInstalled}</strong> of <strong>${totalUnique}</strong> toolchains installed
         </span>
       </div>
     `;

@@ -311,11 +311,12 @@ export class SDKPanel {
   // HTML Generation
   // ---------------------------------------------------------------------------
 
-  /** Build a version→Zephyr-label lookup from the defines list. */
+  /** Build a version→Zephyr-label lookup from the defines list (version numbers only, e.g. "0.17.4"). */
   private buildSdkVersionMap(): Record<string, string> {
     const map: Record<string, string> = {};
     for (const item of sdkVersions) {
-      if (item.label && item.description && item.label !== "latest" && item.label !== "automatic" && item.label !== "sep") {
+      // Only include real version number entries (e.g. "1.0.1"), skip separators and special options
+      if (item.description && /^\d+\.\d+\.\d+/.test(item.label)) {
         map[item.label] = item.description;
       }
     }
