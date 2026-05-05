@@ -20,7 +20,7 @@ The following settings are available in VS Code settings (File > Preferences > S
 
 When `zephyr-ide.useClangd` is enabled, the workspace `.vscode/settings.json` is **automatically configured** with the appropriate settings — no manual command is needed.
 
-The extension manages five `clangd.arguments` entries:
+The extension manages up to five `clangd.arguments` entries (the `--query-driver` entry is only written when a valid toolchain directory is configured):
 
 ```json
 {

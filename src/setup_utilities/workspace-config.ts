@@ -152,6 +152,15 @@ export async function clearExtensionClangdState(): Promise<void> {
   await _context?.workspaceState.update(CLANGD_ARGS_STATE_KEY, undefined);
 }
 
+/**
+ * Returns the currently persisted record of extension-written clangd arguments from
+ * workspace state.  Intended for use in tests to verify that state is correctly
+ * updated or cleared after setWorkspaceSettings calls.
+ */
+export function getExtensionClangdState(): string[] | undefined {
+  return _context?.workspaceState.get<string[]>(CLANGD_ARGS_STATE_KEY);
+}
+
 function argsMatchNormalized(value: any, normalized: string[]): boolean {
   if (!Array.isArray(value) || value.length !== normalized.length) {
     return false;
@@ -475,6 +484,12 @@ export async function setWorkspaceSettings(force = false) {
         if (!cleanupFailed) {
           await _context?.workspaceState.update(CLANGD_ARGS_STATE_KEY, undefined);
         }
+      } else if (storedSet.size > 0) {
+        // clangd.arguments was already absent (e.g. user manually deleted it) but we
+        // still have a stored record from a previous enable.  Clear the record so the
+        // next enable treats all new user-authored args as user-defined rather than
+        // misclassifying them as previously-extension-managed.
+        await _context?.workspaceState.update(CLANGD_ARGS_STATE_KEY, undefined);
       }
     }
   }

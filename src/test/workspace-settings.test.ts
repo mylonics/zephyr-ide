@@ -19,7 +19,7 @@ import * as assert from "assert";
 import * as vscode from "vscode";
 import * as os from "os";
 import * as upath from "upath";
-import { setWorkspaceSettings, clearExtensionClangdState } from "../setup_utilities/workspace-config";
+import { setWorkspaceSettings, clearExtensionClangdState, getExtensionClangdState } from "../setup_utilities/workspace-config";
 
 suite("Workspace Settings (clangd/cpptools) Test Suite", () => {
 
@@ -533,6 +533,104 @@ suite("Workspace Settings (clangd/cpptools) Test Suite", () => {
             "--query-driver should be updated to the new toolchain directory after upgrade migration");
         assert.ok(!queryDriverArg?.includes(upath.toUnix(existingToolchainDir)),
             "old --query-driver should not remain after upgrade migration + toolchain change");
+
+        await resetClangdSettings();
+    });
+
+    // ── State-management tests ───────────────────────────────────────────────────
+    // These tests verify the stored CLANGD_ARGS_STATE_KEY behaviour used by the
+    // write-failure guards.  VS Code integration tests cannot force
+    // configuration.update() to reject, so we verify the success-path behaviour:
+    // state IS set after a successful enable and IS cleared after a successful
+    // disable.  Any accidental removal of the write-failure guards would not be
+    // caught here, but these tests confirm the surrounding logic is exercised and
+    // in the correct order.
+
+    test("state management: stored state is set after a successful enable write", async function () {
+        if (!clangdInstalled) {
+            this.skip();
+        }
+        await resetClangdSettings();
+        const config = vscode.workspace.getConfiguration();
+        await config.update("zephyr-ide.useClangd", true, wsTarget);
+        await config.update("zephyr-ide.toolchainDirectory", existingToolchainDir, vscode.ConfigurationTarget.Global);
+
+        await setWorkspaceSettings(false);
+
+        const storedState = getExtensionClangdState();
+        assert.ok(Array.isArray(storedState) && storedState.length > 0,
+            "stored state should be set (non-empty array) after a successful enable");
+        assert.ok(storedState?.some(a => a.startsWith("--compile-commands-dir=")),
+            "stored state should include the --compile-commands-dir arg written by the extension");
+
+        await resetClangdSettings();
+    });
+
+    test("state management: stored state is cleared after a successful disable cleanup", async function () {
+        if (!clangdInstalled) {
+            this.skip();
+        }
+        await resetClangdSettings();
+        const config = vscode.workspace.getConfiguration();
+        await config.update("zephyr-ide.useClangd", true, wsTarget);
+        await config.update("zephyr-ide.toolchainDirectory", existingToolchainDir, vscode.ConfigurationTarget.Global);
+
+        // Enable — populates stored state.
+        await setWorkspaceSettings(false);
+        const stateAfterEnable = getExtensionClangdState();
+        assert.ok(Array.isArray(stateAfterEnable) && stateAfterEnable.length > 0,
+            "stored state should be set before disable (pre-condition)");
+
+        // Disable — stored state must be cleared.
+        await config.update("zephyr-ide.useClangd", false, wsTarget);
+        await setWorkspaceSettings(false);
+
+        const stateAfterDisable = getExtensionClangdState();
+        assert.strictEqual(stateAfterDisable, undefined,
+            "stored state should be undefined after a successful disable cleanup");
+
+        await resetClangdSettings();
+    });
+
+    test("state management: stored state is cleared when clangd.arguments is absent during disable", async function () {
+        if (!clangdInstalled) {
+            this.skip();
+        }
+        await resetClangdSettings();
+        const config = vscode.workspace.getConfiguration();
+        await config.update("zephyr-ide.useClangd", true, wsTarget);
+        await config.update("zephyr-ide.toolchainDirectory", existingToolchainDir, vscode.ConfigurationTarget.Global);
+
+        // Enable — extension writes args and stores state.
+        await setWorkspaceSettings(false);
+        const stateAfterEnable = getExtensionClangdState();
+        assert.ok(Array.isArray(stateAfterEnable) && stateAfterEnable.length > 0,
+            "stored state should be set after enable (pre-condition)");
+
+        // User manually deletes clangd.arguments (e.g. removes it from settings.json).
+        await config.update("clangd.arguments", undefined, wsTarget);
+
+        // Disable useClangd while clangd.arguments is absent.
+        await config.update("zephyr-ide.useClangd", false, wsTarget);
+        await setWorkspaceSettings(false);
+
+        // The stored state must be cleared even though there were no args to remove,
+        // otherwise a future enable would misclassify user-authored args as extension-managed.
+        const stateAfterDisable = getExtensionClangdState();
+        assert.strictEqual(stateAfterDisable, undefined,
+            "stored state should be cleared even when clangd.arguments was already absent before disable");
+
+        // Verify the fix prevents stale-state misclassification:
+        // Write user-authored args that happen to share names with extension defaults,
+        // then disable again — they must survive because state was properly cleared above.
+        await config.update("clangd.arguments", ["--background-index", "--clang-tidy"], wsTarget);
+        await setWorkspaceSettings(false);   // still in cpptools (disable) mode
+
+        const finalArgs = vscode.workspace.getConfiguration().inspect<string[]>("clangd.arguments")?.workspaceValue;
+        assert.ok(finalArgs?.includes("--background-index"),
+            "user-authored --background-index must survive after stale state was cleared");
+        assert.ok(finalArgs?.includes("--clang-tidy"),
+            "user-authored --clang-tidy must survive");
 
         await resetClangdSettings();
     });
