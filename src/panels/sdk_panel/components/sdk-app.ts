@@ -84,15 +84,17 @@ function groupToolchains(toolchains: string[]): Array<{ label: string; items: st
     let matched = false;
     for (const group of ARCH_GROUPS) {
       if (group.prefixes.some(p => tc.startsWith(p))) {
-        if (!buckets.has(group.label)) { buckets.set(group.label, []); }
-        buckets.get(group.label)!.push(tc);
+        const bucket = buckets.get(group.label) ?? [];
+        bucket.push(tc);
+        buckets.set(group.label, bucket);
         matched = true;
         break;
       }
     }
     if (!matched) {
-      if (!buckets.has("Other")) { buckets.set("Other", []); }
-      buckets.get("Other")!.push(tc);
+      const bucket = buckets.get("Other") ?? [];
+      bucket.push(tc);
+      buckets.set("Other", bucket);
     }
   }
   return Array.from(buckets.entries()).map(([label, items]) => ({ label, items }));

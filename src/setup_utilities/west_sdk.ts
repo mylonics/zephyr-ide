@@ -478,7 +478,7 @@ async function selectToolchainsOnly(titlePrefix: string): Promise<string[] | nul
         const choice = await input.showQuickPick({
             title: titlePrefix,
             step: 1,
-            totalSteps: 1,
+            totalSteps: 2,
             placeholder: "Choose toolchain installation option",
             ignoreFocusOut: true,
             items: [installAllOption, selectSpecificOption],
@@ -492,8 +492,8 @@ async function selectToolchainsOnly(titlePrefix: string): Promise<string[] | nul
         return async (inner: MultiStepInput) => {
             const selected = await inner.showQuickPickMany({
                 title: titlePrefix,
-                step: 1,
-                totalSteps: 1,
+                step: 2,
+                totalSteps: 2,
                 placeholder: "Select toolchains to install (toggle then press Enter)",
                 ignoreFocusOut: true,
                 items: toolchainTargets.filter(item => item.kind !== vscode.QuickPickItemKind.Separator),
