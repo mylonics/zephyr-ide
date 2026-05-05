@@ -94,7 +94,7 @@ suite("Workspace Settings (clangd/cpptools) Test Suite", () => {
         await resetClangdSettings();
     });
 
-    test("clangd mode: refreshes --query-driver when toolchainDirectory changes (force=false)", async function () {
+    test("clangd mode: does not overwrite --query-driver when toolchainDirectory changes and args are already set", async function () {
         if (!clangdInstalled) {
             this.skip();
         }
@@ -103,26 +103,50 @@ suite("Workspace Settings (clangd/cpptools) Test Suite", () => {
         await config.update("zephyr-ide.useClangd", true, wsTarget);
         await config.update("zephyr-ide.toolchainDirectory", existingToolchainDir, vscode.ConfigurationTarget.Global);
 
-        // First apply — establishes initial clangd.arguments
+        // First apply — establishes initial clangd.arguments (first-time setup)
         await setWorkspaceSettings(false);
 
         // Change toolchain directory to a different existing path
         const newToolchainDir = os.homedir();
         await config.update("zephyr-ide.toolchainDirectory", newToolchainDir, vscode.ConfigurationTarget.Global);
 
-        // Re-apply without force — should still refresh because args are stale
+        // Re-apply — should NOT overwrite existing --query-driver (args already written)
         await setWorkspaceSettings(false);
 
         const updatedConfig = vscode.workspace.getConfiguration();
         const clangdArgs = updatedConfig.inspect<string[]>("clangd.arguments")?.workspaceValue;
         const queryDriverArg = clangdArgs?.find(a => a.startsWith("--query-driver="));
-        assert.ok(queryDriverArg?.includes(upath.toUnix(newToolchainDir)),
-            "--query-driver should be updated to new toolchain directory even with force=false");
+        assert.ok(queryDriverArg?.includes(upath.toUnix(existingToolchainDir)),
+            "--query-driver should NOT be overwritten when clangd.arguments is already set (original path preserved)");
+        assert.ok(!queryDriverArg?.includes(upath.toUnix(newToolchainDir)),
+            "--query-driver should not be changed to the new toolchain directory");
 
         await resetClangdSettings();
     });
 
-    test("clangd mode: preserves user-defined extra clangd.arguments alongside extension args", async function () {
+    test("clangd mode: writes --query-driver with current toolchainDirectory on first-time setup (args not yet present)", async function () {
+        if (!clangdInstalled) {
+            this.skip();
+        }
+        await resetClangdSettings();
+        const config = vscode.workspace.getConfiguration();
+        await config.update("zephyr-ide.useClangd", true, wsTarget);
+        // Set a toolchain directory before the first write
+        await config.update("zephyr-ide.toolchainDirectory", existingToolchainDir, vscode.ConfigurationTarget.Global);
+
+        // clangd.arguments is not yet set — this is the initial setup
+        await setWorkspaceSettings(false);
+
+        const updatedConfig = vscode.workspace.getConfiguration();
+        const clangdArgs = updatedConfig.inspect<string[]>("clangd.arguments")?.workspaceValue;
+        const queryDriverArg = clangdArgs?.find(a => a.startsWith("--query-driver="));
+        assert.ok(queryDriverArg?.includes(upath.toUnix(existingToolchainDir)),
+            "--query-driver should be written with the current toolchainDirectory on first-time setup");
+
+        await resetClangdSettings();
+    });
+
+    test("clangd mode: appends extension args alongside pre-existing user-defined clangd.arguments", async function () {
         if (!clangdInstalled) {
             this.skip();
         }
@@ -133,22 +157,47 @@ suite("Workspace Settings (clangd/cpptools) Test Suite", () => {
         // Pre-set user-defined args that the extension should not overwrite
         await config.update("clangd.arguments", ["--clang-tidy", "--pretty"], wsTarget);
 
-        await setWorkspaceSettings(true);
+        // useClangd just became true — extension appends its missing args
+        await setWorkspaceSettings(false);
 
         const updatedConfig = vscode.workspace.getConfiguration();
         const clangdArgs = updatedConfig.inspect<string[]>("clangd.arguments")?.workspaceValue;
         assert.ok(Array.isArray(clangdArgs) && clangdArgs.length > 0, "clangd.arguments should be set");
-        // Extension args must be present
-        assert.ok(clangdArgs?.includes("--background-index"), "--background-index should be set");
+        // Extension args must be appended (they were missing)
+        assert.ok(clangdArgs?.includes("--background-index"), "--background-index should be appended");
         assert.ok(clangdArgs?.some(a => a.startsWith("--compile-commands-dir=")),
-            "--compile-commands-dir should be set");
+            "--compile-commands-dir should be appended");
         assert.ok(clangdArgs?.some(a => a.startsWith("--query-driver=")),
-            "--query-driver should be set");
+            "--query-driver should be appended");
         // User args must be preserved
         assert.ok(clangdArgs?.includes("--clang-tidy"),
             "user-defined --clang-tidy should be preserved");
         assert.ok(clangdArgs?.includes("--pretty"),
             "user-defined --pretty should be preserved");
+
+        await resetClangdSettings();
+    });
+
+    test("clangd mode: does not overwrite user-customized extension arg values", async function () {
+        if (!clangdInstalled) {
+            this.skip();
+        }
+        await resetClangdSettings();
+        const config = vscode.workspace.getConfiguration();
+        await config.update("zephyr-ide.useClangd", true, wsTarget);
+        await config.update("zephyr-ide.toolchainDirectory", existingToolchainDir, vscode.ConfigurationTarget.Global);
+        // User has customized the completion-style (an extension-managed arg)
+        await config.update("clangd.arguments", ["--completion-style=bundled"], wsTarget);
+
+        await setWorkspaceSettings(false);
+
+        const updatedConfig = vscode.workspace.getConfiguration();
+        const clangdArgs = updatedConfig.inspect<string[]>("clangd.arguments")?.workspaceValue;
+        // --completion-style=bundled should be preserved (not overwritten with 'detailed')
+        assert.ok(clangdArgs?.includes("--completion-style=bundled"),
+            "user-customized --completion-style=bundled should not be overwritten");
+        assert.ok(!clangdArgs?.includes("--completion-style=detailed"),
+            "--completion-style=detailed should not be added when a different value is already set");
 
         await resetClangdSettings();
     });

@@ -86,8 +86,8 @@ function migrateConfigFiles(confFiles: any): boolean {
 
 /**
  * Returns true if a clangd argument is owned/managed by the extension.
- * Only extension-managed args are replaced or cleared; user-defined args
- * (e.g. --clang-tidy, --pretty, --log=error) are always preserved.
+ * Only extension-managed args are removed when disabling clangd mode;
+ * user-defined args (e.g. --clang-tidy, --pretty, --log=error) are always preserved.
  */
 function isExtensionManagedClangdArg(arg: string): boolean {
   return (
@@ -97,6 +97,19 @@ function isExtensionManagedClangdArg(arg: string): boolean {
     arg.startsWith("--header-insertion=") ||
     arg.startsWith("--query-driver=")
   );
+}
+
+/**
+ * Returns the "key" of a clangd argument for duplicate detection.
+ * For "--key=value" args the key is "--key="; for bare flags like "--background-index"
+ * the key is the full flag string.
+ *
+ * @param arg - The clangd argument string to extract the key from.
+ * @returns The key portion of the argument, including the trailing '=' for key-value args.
+ */
+function clangdArgKey(arg: string): string {
+  const i = arg.indexOf("=");
+  return i >= 0 ? arg.slice(0, i + 1) : arg;
 }
 
 function argsMatchNormalized(value: any, normalized: string[]): boolean {
@@ -298,23 +311,31 @@ export async function setWorkspaceSettings(force = false) {
         const queryDriver = path.join(resolvedToolchainDir, "**", "*");
         clangdArgs.push(`--query-driver=${queryDriver}`);
       }
-      // Merge extension-managed args with any user-defined args (e.g. --clang-tidy,
-      // --pretty) so user customizations survive every activation.  Only args that
-      // the extension owns are replaced; all other existing workspace args are kept.
+      // Write clangd args conservatively:
+      // - If clangd.arguments is not yet set in the workspace (first-time / new setup),
+      //   write the full set of extension-required args.
+      // - If it is already set, only append extension args whose key is not yet present.
+      //   Existing values (including user-customized ones) are never overwritten.
       {
-        const currentClangdArgs = configuration.inspect<string[]>("clangd.arguments")?.workspaceValue ?? [];
-        // Keep args the extension does not manage (user-defined extras)
-        const userArgs = currentClangdArgs.filter(arg => !isExtensionManagedClangdArg(arg));
-        const mergedArgs = [...clangdArgs, ...userArgs];
-        // Avoid an unnecessary write when nothing has changed
-        const argsMatch = currentClangdArgs.length === mergedArgs.length &&
-          mergedArgs.every((arg, i) => currentClangdArgs[i] === arg);
-        if (force || !argsMatch) {
-          await configuration.update("clangd.arguments", mergedArgs, target)
+        const currentClangdArgs = configuration.inspect<string[]>("clangd.arguments")?.workspaceValue;
+        if (currentClangdArgs === undefined) {
+          // First-time setup: write all extension args.
+          await configuration.update("clangd.arguments", clangdArgs, target)
             .then(undefined, (err: unknown) => {
               const detail = err instanceof Error ? err.message : String(err);
               outputWarning("Workspace Config", `Failed to set clangd.arguments: ${detail}`);
             });
+        } else {
+          // Already configured: only append args whose key is not already present.
+          const presentKeys = new Set(currentClangdArgs.map(clangdArgKey));
+          const missingArgs = clangdArgs.filter(arg => !presentKeys.has(clangdArgKey(arg)));
+          if (missingArgs.length > 0) {
+            await configuration.update("clangd.arguments", [...currentClangdArgs, ...missingArgs], target)
+              .then(undefined, (err: unknown) => {
+                const detail = err instanceof Error ? err.message : String(err);
+                outputWarning("Workspace Config", `Failed to update clangd.arguments: ${detail}`);
+              });
+          }
         }
       }
     } else {

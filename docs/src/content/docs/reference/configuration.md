@@ -18,9 +18,9 @@ The following settings are available in VS Code settings (File > Preferences > S
 
 ## clangd Configuration
 
-When `zephyr-ide.useClangd` is enabled, the workspace `.vscode/settings.json` is **automatically configured** with the appropriate settings — no manual command is needed. Toggling the setting applies the corresponding configuration immediately.
+When `zephyr-ide.useClangd` is enabled, the workspace `.vscode/settings.json` is **automatically configured** with the appropriate settings — no manual command is needed.
 
-The extension manages a specific set of clangd arguments required for Zephyr development:
+On the first setup (or when `clangd.arguments` is not yet present in the workspace), the extension writes its required arguments:
 
 ```json
 {
@@ -35,11 +35,11 @@ The extension manages a specific set of clangd arguments required for Zephyr dev
 }
 ```
 
-The `--query-driver` glob is derived from your configured toolchain directory (see `zephyr-ide.toolchainDirectory`), which points to the Zephyr SDK containing the cross-compilers. If that setting changes while clangd is active, the `--query-driver` path is refreshed automatically.
+The `--query-driver` glob is derived from your configured toolchain directory (see `zephyr-ide.toolchainDirectory`), which points to the Zephyr SDK containing the cross-compilers.
 
-Any extra arguments you add to `clangd.arguments` (for example `--clang-tidy`, `--pretty`, `--log=error`) are **preserved** — the extension only updates the arguments it owns (the five listed above) and leaves all other entries untouched.
+**The extension never overwrites arguments that are already set.** If `clangd.arguments` already contains an argument (e.g., a user-customized `--completion-style=bundled` or `--query-driver` pointing at a specific path), that value is left as-is. Only arguments whose key is entirely absent are appended. You can freely add extra flags (for example `--clang-tidy`, `--pretty`, `--log=error`) and they will never be removed or overwritten.
 
-To switch back to the C/C++ extension, disable `zephyr-ide.useClangd`. The extension removes only the arguments it wrote from `clangd.arguments` (preserving any user-defined ones) and clears the `C_Cpp.intelliSenseEngine` workspace override.
+To switch back to the C/C++ extension, disable `zephyr-ide.useClangd`. The extension removes only the arguments it originally wrote from `clangd.arguments` (preserving any user-defined or customized ones) and clears the `C_Cpp.intelliSenseEngine` workspace override.
 
 ## Next Steps
 
