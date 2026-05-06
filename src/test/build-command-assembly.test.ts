@@ -65,6 +65,15 @@ suite("assembleBuildCommand", () => {
     assert.ok(cmd.includes("-b native_sim@1.0.0"));
   });
 
+  test("board revision is inserted after base board name, before qualifiers", () => {
+    const cmd = assembleBuildCommand(makeParams({
+      board: "mimxrt1170_evk/mimxrt1176/cm7",
+      revision: "A",
+    }));
+    assert.ok(cmd.includes("-b mimxrt1170_evk@A/mimxrt1176/cm7"), `expected correct revision placement, got: ${cmd}`);
+    assert.ok(!cmd.includes("cm7@A"), "revision must not be appended at the end of the board string");
+  });
+
   test("west build args are included in both pristine and non-pristine builds", () => {
     const pristineCmd = assembleBuildCommand(makeParams({
       westBuildArgs: ["--sysbuild", "--pristine=always"],

@@ -835,7 +835,8 @@ export async function installPackage(pkg: PlatformPackage, resolvedManager?: { n
       postAptSteps.push(...plan.postAptSteps);
       // Use interactive sudo so password prompts work on Ubuntu setups that
       // scope sudo timestamp credentials per terminal/TTY.
-      installCommand = `sudo apt install -y --no-install-recommends ${plan.aptPackages.join(" ")}`;
+      // Run apt-get update first to ensure package lists are current.
+      installCommand = `sudo apt-get update && sudo apt install -y --no-install-recommends ${plan.aptPackages.join(" ")}`;
       break;
     }
     case "dnf":
@@ -975,7 +976,7 @@ export async function installPackagesBatch(packages: PlatformPackage[], resolved
   }
 
   outputInfo("Host Tools", `Installing ${packages.length} package(s) in a single apt command...`);
-  const installCommand = `sudo apt install -y --no-install-recommends ${aptPackages.join(" ")}`;
+  const installCommand = `sudo apt-get update && sudo apt install -y --no-install-recommends ${aptPackages.join(" ")}`;
   const installOk = await executeTaskHelper("Install missing host tools (apt)", installCommand, "");
 
   if (!installOk) {
