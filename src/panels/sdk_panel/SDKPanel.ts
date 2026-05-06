@@ -252,33 +252,45 @@ export class SDKPanel {
       return;
     }
 
+    let removeSucceeded = true;
+    let addSucceeded = true;
+
     try {
       // Uninstall first (no west context needed — filesystem only)
       if (toRemove.length > 0) {
-        const { errors } = await uninstallToolchains(version, toRemove);
+        const { notFound, errors } = await uninstallToolchains(version, toRemove);
         if (errors.length > 0) {
+          removeSucceeded = false;
           notifyError("SDK Uninstall", `Some toolchains could not be removed:\n${errors.join("\n")}`);
+        }
+        if (notFound.length > 0) {
+          outputError("SDK Panel", `Toolchain directories not found (already removed?): ${notFound.join(", ")}`);
         }
       }
 
       // Install additions
       if (toAdd.length > 0) {
-        await installToolchainsDirect(
+        const result = await installToolchainsDirect(
           this.currentWsConfig,
           this.currentGlobalConfig,
           this._context,
           version,
           toAdd,
         );
+        addSucceeded = result ?? false;
       }
     } finally {
-      // Refresh the SDK list regardless of success/failure
+      // Refresh the SDK list regardless of success/failure so installed state is up to date
       try {
         this._cachedSDKList = undefined;
         this.updateContent(this.currentWsConfig, this.currentGlobalConfig);
         await this.listSDKs();
       } catch (updateError) {
-        outputError("SDK Panel", `Failed to refresh panel after applying changes: ${String(updateError)}`);
+        const opSummary = [
+          toRemove.length > 0 ? `remove (${removeSucceeded ? "ok" : "failed"})` : null,
+          toAdd.length > 0 ? `install (${addSucceeded ? "ok" : "failed"})` : null,
+        ].filter(Boolean).join(", ");
+        outputError("SDK Panel", `Failed to refresh panel after applying changes [${opSummary}]: ${String(updateError)}`);
       }
     }
   }

@@ -770,10 +770,11 @@ export async function installToolchainsDirect(
 export async function uninstallToolchains(
     version: string,
     toolchains: string[],
-): Promise<{ removed: string[]; errors: string[] }> {
+): Promise<{ removed: string[]; notFound: string[]; errors: string[] }> {
     const toolchainsDir = getToolchainDir();
     const sdkDir = path.join(toolchainsDir, `zephyr-sdk-${version}`);
     const removed: string[] = [];
+    const notFound: string[] = [];
     const errors: string[] = [];
 
     for (const tc of toolchains) {
@@ -785,7 +786,7 @@ export async function uninstallToolchains(
                 removed.push(tc);
             } else {
                 outputWarning("SDK Uninstall", `Toolchain directory not found (already removed?): ${tcDir}`);
-                removed.push(tc); // Treat as successfully removed
+                notFound.push(tc);
             }
         } catch (error) {
             const msg = `Failed to remove ${tcDir}: ${error}`;
@@ -794,7 +795,7 @@ export async function uninstallToolchains(
         }
     }
 
-    return { removed, errors };
+    return { removed, notFound, errors };
 }
 
 /**

@@ -104,17 +104,19 @@ function groupToolchains(toolchains: string[]): Array<{ label: string; items: st
 
 /**
  * Compare two semver strings numerically, descending (newest first).
- * Falls back to locale compare for any non-semver strings.
+ * Pads the shorter version with zeros so "1.0" < "1.0.1" rather than equal.
  */
 function compareSemverDesc(a: string, b: string): number {
   const parse = (v: string) => v.split(".").map(n => parseInt(n, 10));
   const pa = parse(a);
   const pb = parse(b);
-  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+  const len = Math.max(pa.length, pb.length);
+  for (let i = 0; i < len; i++) {
     const diff = (pb[i] ?? 0) - (pa[i] ?? 0);
     if (diff !== 0) { return diff; }
   }
-  return 0;
+  // All numeric parts are equal; fall back to locale compare for stability
+  return b.localeCompare(a);
 }
 
 // ---------------------------------------------------------------------------
@@ -298,7 +300,7 @@ export class SDKApp extends ZephyrLitElement {
         <p class="sdk-description">
           The Zephyr SDK provides GNU toolchains for cross-compiling to supported target architectures.
           Click any toolchain chip to toggle it for installation or removal, then click
-          <strong>Apply Changes</strong> on the SDK version card to install or uninstall the selected toolchains.
+          <strong>Apply Changes</strong> on the SDK version card to install or remove the selected toolchains.
         </p>
 
         ${!d.hasSetupState
