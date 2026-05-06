@@ -52,6 +52,18 @@ export class SDKPanel {
     }
   }
 
+  /**
+   * Refresh all open SDK panels: clears the cached SDK list and re-fetches it so
+   * that changes made from the command palette (e.g. install-sdk) are reflected
+   * immediately without the user having to click Refresh manually.
+   */
+  public static refreshAllPanels(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
+    if (SDKPanel.currentPanel) {
+      SDKPanel.currentPanel._cachedSDKList = undefined;
+      SDKPanel.currentPanel.updateContent(wsConfig, globalConfig);
+    }
+  }
+
   public static createOrShow(
     extensionPath: string,
     context: vscode.ExtensionContext,

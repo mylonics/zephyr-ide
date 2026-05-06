@@ -1679,6 +1679,9 @@ export async function activate(context: vscode.ExtensionContext) {
         if (useClangd) {
           await setWorkspaceSettings(false);
         }
+        // Refresh the SDK panel so the newly installed toolchains appear without
+        // requiring the user to click the Refresh button manually.
+        SDKPanel.refreshAllPanels(wsConfig, globalConfig);
       }
       return ret;
     })
