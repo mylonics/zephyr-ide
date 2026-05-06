@@ -508,7 +508,7 @@ export async function westUpdateWithRequirements(context: vscode.ExtensionContex
     // setup when the SDK is already physically present on disk.
     const detectedVersion = await detectInstalledSDKVersion();
     if (detectedVersion) {
-      outputInfo("SDK Install", `SDK already installed on disk (version ${detectedVersion}), updating state`);
+      outputInfo("SDK Install", `SDK already installed on disk (version ${detectedVersion}), updating state.`);
       globalConfig.sdkInstalled = true;
       if (!globalConfig.sdkVersion) {
         globalConfig.sdkVersion = detectedVersion;
