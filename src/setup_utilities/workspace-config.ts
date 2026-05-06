@@ -84,6 +84,45 @@ function migrateConfigFiles(confFiles: any): boolean {
   return true;
 }
 
+/**
+ * Returns the "key" of a clangd argument for duplicate detection.
+ * For "--key=value" args the key is "--key="; for bare flags like "--background-index"
+ * the key is the full flag string.
+ *
+ * @param arg - The clangd argument string to extract the key from.
+ * @returns The key portion of the argument, including the trailing '=' for key-value args.
+ */
+function clangdArgKey(arg: string): string {
+  const i = arg.indexOf("=");
+  return i >= 0 ? arg.slice(0, i + 1) : arg;
+}
+
+/**
+ * Returns the current set of clangd arguments the extension would write given the
+ * active toolchain configuration.  This is used for the first-time write and for
+ * updating extension-managed args when the toolchain directory changes.
+ */
+async function getExtensionClangdArgs(configuration: vscode.WorkspaceConfiguration): Promise<string[]> {
+  const toolchainDirConfig = configuration.inspect<string>("zephyr-ide.toolchainDirectory");
+  const configuredToolchainDir = [
+    toolchainDirConfig?.workspaceFolderValue,
+    toolchainDirConfig?.workspaceValue,
+    toolchainDirConfig?.globalValue,
+  ].find((value): value is string => typeof value === "string" && value.trim().length > 0);
+  const resolvedToolchainDir = configuredToolchainDir ?? getToolchainDir();
+
+  const args: string[] = [
+    "--compile-commands-dir=${workspaceFolder}/.vscode",
+    "--background-index",
+    "--completion-style=detailed",
+    "--header-insertion=never",
+  ];
+  if (resolvedToolchainDir && (await fs.pathExists(resolvedToolchainDir))) {
+    args.push(`--query-driver=${path.join(resolvedToolchainDir, "**", "*")}`);
+  }
+  return args;
+}
+
 function argsMatchNormalized(value: any, normalized: string[]): boolean {
   if (!Array.isArray(value) || value.length !== normalized.length) {
     return false;
@@ -130,7 +169,7 @@ function projectLoader(config: WorkspaceConfig, projects: any): boolean {
 
       // Migrate build-level confFiles from old 4-array format
       if (config.projects[key].buildConfigs[build_key].confFiles &&
-          migrateConfigFiles(config.projects[key].buildConfigs[build_key].confFiles)) {
+        migrateConfigFiles(config.projects[key].buildConfigs[build_key].confFiles)) {
         requiresSave = true;
       }
 
@@ -257,46 +296,36 @@ export async function setWorkspaceSettings(force = false) {
     }
 
     if (clangdInstalled) {
-      const toolchainDirConfig = configuration.inspect<string>("zephyr-ide.toolchainDirectory");
-      const configuredToolchainDir = [
-        toolchainDirConfig?.workspaceFolderValue,
-        toolchainDirConfig?.workspaceValue,
-        toolchainDirConfig?.globalValue,
-      ].find((value): value is string => typeof value === "string" && value.trim().length > 0);
-
-      // Use the explicitly configured path when available; otherwise fall back to
-      // getToolchainDir() so that the default SDK install location is covered
-      // even when the user has not set zephyr-ide.toolchainDirectory explicitly.
-      const resolvedToolchainDir = configuredToolchainDir ?? getToolchainDir();
-
-      // Always build the base clangd arguments; --query-driver is added only
-      // when the resolved toolchain directory actually exists on disk.
-      const clangdArgs: string[] = [
-        "--compile-commands-dir=${workspaceFolder}/.vscode",
-        "--background-index",
-        "--completion-style=detailed",
-        "--header-insertion=never",
-      ];
-      if (!resolvedToolchainDir || !(await fs.pathExists(resolvedToolchainDir))) {
+      const desiredArgs = await getExtensionClangdArgs(configuration);
+      if (!desiredArgs.some(a => a.startsWith("--query-driver="))) {
         outputWarning("Workspace Config", "--query-driver will not be configured because the resolved toolchain directory is unavailable. Set 'zephyr-ide.toolchainDirectory' or install the Zephyr SDK.");
-      } else {
-        const queryDriver = path.join(resolvedToolchainDir, "**", "*");
-        clangdArgs.push(`--query-driver=${queryDriver}`);
       }
-      // Compare computed args against the current workspace value so that a
-      // toolchainDirectory change (force=false) still refreshes --query-driver.
-      {
-        const currentClangdArgs = configuration.inspect<string[]>("clangd.arguments")?.workspaceValue;
-        const argsMatch = Array.isArray(currentClangdArgs) &&
-          currentClangdArgs.length === clangdArgs.length &&
-          clangdArgs.every((arg, i) => currentClangdArgs[i] === arg);
-        if (force || !argsMatch) {
-          await configuration.update("clangd.arguments", clangdArgs, target)
-            .then(undefined, (err: unknown) => {
-              const detail = err instanceof Error ? err.message : String(err);
-              outputWarning("Workspace Config", `Failed to set clangd.arguments: ${detail}`);
-            });
-        }
+
+      // Merge rules:
+      // - For each extension arg key, append it only if no current arg shares that key
+      //   (preserving any user-defined value for that key).
+      // - --query-driver is owned by the extension: when the extension has a value to
+      //   write (toolchain dir is available), any existing --query-driver is replaced.
+      //   When the extension has no value to write, any existing --query-driver is left
+      //   alone so a user fallback isn't silently deleted.
+      const currentClangdArgs = configuration.inspect<string[]>("clangd.arguments")?.workspaceValue ?? [];
+      const QUERY_DRIVER_KEY = "--query-driver=";
+      const extensionOwnsQueryDriver = desiredArgs.some(a => clangdArgKey(a) === QUERY_DRIVER_KEY);
+      const preservedUserArgs = extensionOwnsQueryDriver
+        ? currentClangdArgs.filter(a => clangdArgKey(a) !== QUERY_DRIVER_KEY)
+        : currentClangdArgs;
+      const userKeys = new Set(preservedUserArgs.map(clangdArgKey));
+      const argsToAppend = desiredArgs.filter(a => !userKeys.has(clangdArgKey(a)));
+      const newArgs = [...preservedUserArgs, ...argsToAppend];
+
+      const argsUnchanged = newArgs.length === currentClangdArgs.length
+        && newArgs.every((a, i) => a === currentClangdArgs[i]);
+      if (force || !argsUnchanged) {
+        await configuration.update("clangd.arguments", newArgs, target)
+          .then(undefined, (err: unknown) => {
+            const detail = err instanceof Error ? err.message : String(err);
+            outputWarning("Workspace Config", `Failed to set clangd.arguments: ${detail}`);
+          });
       }
     } else {
       outputWarning("Workspace Config", "zephyr-ide.useClangd is enabled but llvm-vs-code-extensions.vscode-clangd is not installed; clangd.* settings will not be applied.");
@@ -324,13 +353,21 @@ export async function setWorkspaceSettings(force = false) {
     }
 
     if (clangdInstalled) {
-      // Clear workspace-scoped clangd arguments left over from clangd mode
-      if (configuration.inspect("clangd.arguments")?.workspaceValue !== undefined) {
-        await configuration.update("clangd.arguments", undefined, target)
-          .then(undefined, (err: unknown) => {
-            const detail = err instanceof Error ? err.message : String(err);
-            outputWarning("Workspace Config", `Failed to clear clangd.arguments: ${detail}`);
-          });
+      // Cleanup rule: only remove clangd.arguments if its current value is exactly
+      // what the extension would have written. Any modification (added flag, changed
+      // value, missing flag) is treated as user-managed and left alone.
+      const currentClangdArgs = configuration.inspect<string[]>("clangd.arguments")?.workspaceValue;
+      if (currentClangdArgs !== undefined) {
+        const desiredArgs = await getExtensionClangdArgs(configuration);
+        const matchesExactly = currentClangdArgs.length === desiredArgs.length
+          && currentClangdArgs.every((a, i) => a === desiredArgs[i]);
+        if (matchesExactly) {
+          await configuration.update("clangd.arguments", undefined, target)
+            .then(undefined, (err: unknown) => {
+              const detail = err instanceof Error ? err.message : String(err);
+              outputWarning("Workspace Config", `Failed to clear clangd.arguments: ${detail}`);
+            });
+        }
       }
     }
   }
