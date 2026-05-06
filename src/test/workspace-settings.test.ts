@@ -94,7 +94,7 @@ suite("Workspace Settings (clangd/cpptools) Test Suite", () => {
         await resetClangdSettings();
     });
 
-    test("clangd mode: refreshes --query-driver when toolchainDirectory changes (force=false)", async function () {
+    test("clangd mode: updates extension-managed --query-driver when toolchainDirectory changes", async function () {
         if (!clangdInstalled) {
             this.skip();
         }
@@ -103,34 +103,122 @@ suite("Workspace Settings (clangd/cpptools) Test Suite", () => {
         await config.update("zephyr-ide.useClangd", true, wsTarget);
         await config.update("zephyr-ide.toolchainDirectory", existingToolchainDir, vscode.ConfigurationTarget.Global);
 
-        // First apply — establishes initial clangd.arguments
+        // First apply — establishes initial clangd.arguments (first-time setup)
         await setWorkspaceSettings(false);
 
         // Change toolchain directory to a different existing path
         const newToolchainDir = os.homedir();
         await config.update("zephyr-ide.toolchainDirectory", newToolchainDir, vscode.ConfigurationTarget.Global);
 
-        // Re-apply without force — should still refresh because args are stale
+        // Re-apply — because the extension wrote the original --query-driver and now the
+        // toolchain has changed, the extension-managed arg should be updated to the new path.
         await setWorkspaceSettings(false);
 
         const updatedConfig = vscode.workspace.getConfiguration();
         const clangdArgs = updatedConfig.inspect<string[]>("clangd.arguments")?.workspaceValue;
         const queryDriverArg = clangdArgs?.find(a => a.startsWith("--query-driver="));
         assert.ok(queryDriverArg?.includes(upath.toUnix(newToolchainDir)),
-            "--query-driver should be updated to new toolchain directory even with force=false");
+            "--query-driver should be updated to the new toolchain directory when the extension originally wrote it");
+        assert.ok(!queryDriverArg?.includes(upath.toUnix(existingToolchainDir)),
+            "--query-driver should not still point to the old toolchain directory");
 
         await resetClangdSettings();
     });
 
-    test("cpptools mode: sets C_Cpp.default.compileCommands and clears clangd.arguments", async () => {
+    test("clangd mode: writes --query-driver with current toolchainDirectory on first-time setup (args not yet present)", async function () {
+        if (!clangdInstalled) {
+            this.skip();
+        }
         await resetClangdSettings();
         const config = vscode.workspace.getConfiguration();
-        await config.update("zephyr-ide.useClangd", false, wsTarget);
-        // Pre-populate clangd.arguments to simulate switching away from clangd mode
+        await config.update("zephyr-ide.useClangd", true, wsTarget);
+        // Set a toolchain directory before the first write
+        await config.update("zephyr-ide.toolchainDirectory", existingToolchainDir, vscode.ConfigurationTarget.Global);
+
+        // clangd.arguments is not yet set — this is the initial setup
+        await setWorkspaceSettings(false);
+
+        const updatedConfig = vscode.workspace.getConfiguration();
+        const clangdArgs = updatedConfig.inspect<string[]>("clangd.arguments")?.workspaceValue;
+        const queryDriverArg = clangdArgs?.find(a => a.startsWith("--query-driver="));
+        assert.ok(queryDriverArg?.includes(upath.toUnix(existingToolchainDir)),
+            "--query-driver should be written with the current toolchainDirectory on first-time setup");
+
+        await resetClangdSettings();
+    });
+
+    test("clangd mode: appends extension args alongside pre-existing user-defined clangd.arguments", async function () {
+        if (!clangdInstalled) {
+            this.skip();
+        }
+        await resetClangdSettings();
+        const config = vscode.workspace.getConfiguration();
+        await config.update("zephyr-ide.useClangd", true, wsTarget);
+        await config.update("zephyr-ide.toolchainDirectory", existingToolchainDir, vscode.ConfigurationTarget.Global);
+        // Pre-set user-defined args that the extension should not overwrite
+        await config.update("clangd.arguments", ["--clang-tidy", "--pretty"], wsTarget);
+
+        // useClangd just became true — extension appends its missing args
+        await setWorkspaceSettings(false);
+
+        const updatedConfig = vscode.workspace.getConfiguration();
+        const clangdArgs = updatedConfig.inspect<string[]>("clangd.arguments")?.workspaceValue;
+        assert.ok(Array.isArray(clangdArgs) && clangdArgs.length > 0, "clangd.arguments should be set");
+        // Extension args must be appended (they were missing)
+        assert.ok(clangdArgs?.includes("--background-index"), "--background-index should be appended");
+        assert.ok(clangdArgs?.some(a => a.startsWith("--compile-commands-dir=")),
+            "--compile-commands-dir should be appended");
+        assert.ok(clangdArgs?.some(a => a.startsWith("--query-driver=")),
+            "--query-driver should be appended");
+        // User args must be preserved
+        assert.ok(clangdArgs?.includes("--clang-tidy"),
+            "user-defined --clang-tidy should be preserved");
+        assert.ok(clangdArgs?.includes("--pretty"),
+            "user-defined --pretty should be preserved");
+
+        await resetClangdSettings();
+    });
+
+    test("clangd mode: does not overwrite user-customized extension arg values", async function () {
+        if (!clangdInstalled) {
+            this.skip();
+        }
+        await resetClangdSettings();
+        const config = vscode.workspace.getConfiguration();
+        await config.update("zephyr-ide.useClangd", true, wsTarget);
+        await config.update("zephyr-ide.toolchainDirectory", existingToolchainDir, vscode.ConfigurationTarget.Global);
+        // User has customized the completion-style (an extension-managed arg)
+        await config.update("clangd.arguments", ["--completion-style=bundled"], wsTarget);
+
+        await setWorkspaceSettings(false);
+
+        const updatedConfig = vscode.workspace.getConfiguration();
+        const clangdArgs = updatedConfig.inspect<string[]>("clangd.arguments")?.workspaceValue;
+        // --completion-style=bundled should be preserved (not overwritten with 'detailed')
+        assert.ok(clangdArgs?.includes("--completion-style=bundled"),
+            "user-customized --completion-style=bundled should not be overwritten");
+        assert.ok(!clangdArgs?.includes("--completion-style=detailed"),
+            "--completion-style=detailed should not be added when a different value is already set");
+
+        await resetClangdSettings();
+    });
+
+    test("cpptools mode: sets C_Cpp.default.compileCommands and clears extension-managed clangd.arguments", async () => {
+        await resetClangdSettings();
+        const config = vscode.workspace.getConfiguration();
+        await config.update("zephyr-ide.toolchainDirectory", existingToolchainDir, vscode.ConfigurationTarget.Global);
+
         if (clangdInstalled) {
-            await config.update("clangd.arguments", ["--some-arg"], wsTarget);
+            // First: enable clangd mode so the extension writes and stores its args.
+            await config.update("zephyr-ide.useClangd", true, wsTarget);
+            await setWorkspaceSettings(false);
+            const afterEnable = vscode.workspace.getConfiguration().inspect<string[]>("clangd.arguments")?.workspaceValue;
+            assert.ok(Array.isArray(afterEnable) && afterEnable.length > 0,
+                "clangd.arguments should be set after enabling clangd mode");
         }
 
+        // Now disable — extension should clean up what it wrote.
+        await config.update("zephyr-ide.useClangd", false, wsTarget);
         await setWorkspaceSettings(true);
 
         const updatedConfig = vscode.workspace.getConfiguration();
@@ -148,9 +236,122 @@ suite("Workspace Settings (clangd/cpptools) Test Suite", () => {
             assert.strictEqual(
                 updatedConfig.inspect("clangd.arguments")?.workspaceValue,
                 undefined,
-                "clangd.arguments should be cleared when switching to cpptools mode"
+                "clangd.arguments should be cleared when all args were extension-managed"
             );
         }
+
+        await resetClangdSettings();
+    });
+
+    test("cpptools mode: leaves clangd.arguments untouched when user added extra args (modified state)", async function () {
+        if (!clangdInstalled) {
+            this.skip();
+        }
+        await resetClangdSettings();
+        const config = vscode.workspace.getConfiguration();
+        await config.update("zephyr-ide.toolchainDirectory", existingToolchainDir, vscode.ConfigurationTarget.Global);
+        // Pre-set user-defined args before enabling clangd mode.
+        await config.update("clangd.arguments", ["--clang-tidy", "--pretty"], wsTarget);
+
+        // Enable clangd mode — extension appends its args alongside the user's.
+        await config.update("zephyr-ide.useClangd", true, wsTarget);
+        await setWorkspaceSettings(false);
+
+        // Verify extension args were appended.
+        const afterEnable = vscode.workspace.getConfiguration().inspect<string[]>("clangd.arguments")?.workspaceValue;
+        assert.ok(afterEnable?.includes("--background-index"), "extension should have written --background-index");
+
+        // Now switch to cpptools mode. Because the merged value contains user-added
+        // args, it does NOT exactly match what the extension would write, so cleanup
+        // leaves clangd.arguments alone entirely (treated as user-managed).
+        await config.update("zephyr-ide.useClangd", false, wsTarget);
+        await setWorkspaceSettings(false);
+
+        const updatedConfig = vscode.workspace.getConfiguration();
+        const clangdArgs = updatedConfig.inspect<string[]>("clangd.arguments")?.workspaceValue;
+        assert.ok(Array.isArray(clangdArgs), "clangd.arguments should still be set");
+        // The simplification: any user modification → leave the entire array alone.
+        assert.ok(clangdArgs?.includes("--clang-tidy"),
+            "user-defined --clang-tidy should be preserved");
+        assert.ok(clangdArgs?.includes("--pretty"),
+            "user-defined --pretty should be preserved");
+
+        await resetClangdSettings();
+    });
+
+    test("cpptools mode: leaves clangd.arguments untouched when user-customized values differ from extension defaults", async function () {
+        if (!clangdInstalled) {
+            this.skip();
+        }
+        await resetClangdSettings();
+        const config = vscode.workspace.getConfiguration();
+        await config.update("zephyr-ide.toolchainDirectory", existingToolchainDir, vscode.ConfigurationTarget.Global);
+        // User pre-set --completion-style=bundled before enabling.
+        await config.update("clangd.arguments", [
+            "--completion-style=bundled",
+        ], wsTarget);
+
+        // Enable clangd mode — extension appends missing args by key. --completion-style
+        // is already present so the extension's "=detailed" is not appended.
+        // --query-driver is always overwritten/appended by the extension.
+        await config.update("zephyr-ide.useClangd", true, wsTarget);
+        await setWorkspaceSettings(false);
+
+        const afterEnable = vscode.workspace.getConfiguration().inspect<string[]>("clangd.arguments")?.workspaceValue;
+        assert.ok(afterEnable?.includes("--completion-style=bundled"), "user's --completion-style=bundled should survive enable");
+        assert.ok(!afterEnable?.includes("--completion-style=detailed"), "extension should not overwrite user's completion-style");
+
+        // Disable clangd mode. Merged value contains user-customized arg, so it does
+        // not exactly match what the extension would write → cleanup leaves it alone.
+        await config.update("zephyr-ide.useClangd", false, wsTarget);
+        await setWorkspaceSettings(false);
+
+        const updatedConfig = vscode.workspace.getConfiguration();
+        const clangdArgs = updatedConfig.inspect<string[]>("clangd.arguments")?.workspaceValue;
+        assert.ok(clangdArgs?.includes("--completion-style=bundled"),
+            "user-customized --completion-style=bundled should survive disabling useClangd");
+        // Simplification trade-off: extension defaults remain too, since any modification
+        // means the array is treated as user-managed. This is acceptable — the user can
+        // edit clangd.arguments directly if they want a clean slate.
+
+        await resetClangdSettings();
+    });
+
+    test("cpptools mode: removes stale extension-managed --query-driver after toolchain directory changes", async function () {
+        if (!clangdInstalled) {
+            this.skip();
+        }
+        await resetClangdSettings();
+        const config = vscode.workspace.getConfiguration();
+        await config.update("zephyr-ide.useClangd", true, wsTarget);
+        await config.update("zephyr-ide.toolchainDirectory", existingToolchainDir, vscode.ConfigurationTarget.Global);
+
+        // First setup with toolchain A → extension writes --query-driver=A/**/*.
+        await setWorkspaceSettings(false);
+        const afterFirstWrite = vscode.workspace.getConfiguration().inspect<string[]>("clangd.arguments")?.workspaceValue;
+        assert.ok(afterFirstWrite?.some(a => a.includes(upath.toUnix(existingToolchainDir))),
+            "--query-driver should include the first toolchain dir after initial setup");
+
+        // Change toolchain directory to B → extension updates --query-driver to B.
+        const newToolchainDir = os.homedir();
+        await config.update("zephyr-ide.toolchainDirectory", newToolchainDir, vscode.ConfigurationTarget.Global);
+        await setWorkspaceSettings(false);
+        const afterUpdate = vscode.workspace.getConfiguration().inspect<string[]>("clangd.arguments")?.workspaceValue;
+        assert.ok(afterUpdate?.some(a => a.startsWith("--query-driver=") && a.includes(upath.toUnix(newToolchainDir))),
+            "--query-driver should have been updated to the new toolchain dir");
+        assert.ok(!afterUpdate?.some(a => a.startsWith("--query-driver=") && a.includes(upath.toUnix(existingToolchainDir))),
+            "old --query-driver should not remain after toolchain change");
+
+        // Disable useClangd — extension must remove the (now-current) extension-managed args.
+        await config.update("zephyr-ide.useClangd", false, wsTarget);
+        await setWorkspaceSettings(false);
+
+        const updatedConfig = vscode.workspace.getConfiguration();
+        assert.strictEqual(
+            updatedConfig.inspect("clangd.arguments")?.workspaceValue,
+            undefined,
+            "clangd.arguments should be fully cleared after disabling useClangd when only extension args were present"
+        );
 
         await resetClangdSettings();
     });
