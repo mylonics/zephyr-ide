@@ -333,8 +333,10 @@ async function detectSDKVersionFromWorkspace(setupState: SetupState): Promise<st
 /**
  * Detects the newest installed SDK version from the toolchains directory
  * by scanning for zephyr-sdk-* folders and reading their sdk_version files.
+ * Exported so that workspace-setup flows can use it to auto-heal the
+ * sdkInstalled flag when state was lost (e.g. fresh VS Code install).
  */
-async function detectInstalledSDKVersion(): Promise<string | undefined> {
+export async function detectInstalledSDKVersion(): Promise<string | undefined> {
     try {
         const toolchainsDir = getToolchainDir();
         if (!await fs.pathExists(toolchainsDir)) {

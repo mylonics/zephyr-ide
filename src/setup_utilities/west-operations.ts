@@ -29,6 +29,7 @@ import { getSetupState, getSetupStateOrNotify, getVenvPath } from "./workspace-c
 import { ensureWestConfigManifest } from "./west-config-parser";
 import { SetupProgressTracker } from "./setup-progress";
 import { getDefaultPythonExecutable } from "./host_tools";
+import { detectInstalledSDKVersion } from "./west_sdk";
 
 // Test-only override for narrow update
 let forceNarrowUpdateForTest = false;
@@ -500,7 +501,22 @@ export async function westUpdateWithRequirements(context: vscode.ExtensionContex
   progressTracker?.complete('Workspace setup completed successfully!');
 
   if (!globalConfig.sdkInstalled) {
-    return await vscode.commands.executeCommand("zephyr-ide.install-sdk");
+    // Before showing the interactive install prompt, scan the toolchains
+    // directory for an existing SDK. This handles cases where the state flag
+    // was lost (fresh VS Code install, state reset, SDK installed outside
+    // Zephyr IDE) so the user is not needlessly prompted on every workspace
+    // setup when the SDK is already physically present on disk.
+    const detectedVersion = await detectInstalledSDKVersion();
+    if (detectedVersion) {
+      outputInfo("SDK Install", `SDK already installed on disk (version ${detectedVersion}), updating state`);
+      globalConfig.sdkInstalled = true;
+      if (!globalConfig.sdkVersion) {
+        globalConfig.sdkVersion = detectedVersion;
+      }
+      await saveSetupState(context, wsConfig, globalConfig);
+    } else {
+      return await vscode.commands.executeCommand("zephyr-ide.install-sdk");
+    }
   }
   return true;
 }
