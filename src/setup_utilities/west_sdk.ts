@@ -526,8 +526,8 @@ export async function installSDK(
         // fail with "Destination path already exists".
         // Skip this check when adding specific toolchains: the SDK base already
         // exists and we intentionally want to run `west sdk install -t <tc>`.
-        const isAddingSpecificToolchains = toolchains && toolchains.length > 0 && !toolchains.includes("all");
-        if (sdkVersion && !isAddingSpecificToolchains) {
+        const isPartialToolchainInstall = toolchains && toolchains.length > 0 && !toolchains.includes("all");
+        if (sdkVersion && !isPartialToolchainInstall) {
             const sdkDir = path.join(toolchainsDir, `zephyr-sdk-${sdkVersion}`);
             const sdkVersionFile = path.join(sdkDir, "sdk_version");
             if (await fs.pathExists(sdkVersionFile)) {

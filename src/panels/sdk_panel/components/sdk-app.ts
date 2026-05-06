@@ -139,11 +139,15 @@ export class SDKApp extends ZephyrLitElement {
         this._buttonsDisabled = false;
         // Auto-expand the "Not Installed" section for any SDK version that has no
         // installed toolchains yet, so the user can immediately see what's available.
+        // Only auto-expand versions not yet tracked — preserves manual collapse state
+        // so user-collapsed sections do not re-open on subsequent list refreshes.
         if (msg.data?.versions) {
           const autoExpanded = new Set<string>(this._expandedUnavailable);
           for (const v of (msg.data.versions as SDKVersion[])) {
             const ver = v.version ?? "Unknown";
-            if ((v.installedToolchains?.length ?? 0) === 0 && (v.availableToolchains?.length ?? 0) > 0) {
+            if (!autoExpanded.has(ver) &&
+              (v.installedToolchains?.length ?? 0) === 0 &&
+              (v.availableToolchains?.length ?? 0) > 0) {
               autoExpanded.add(ver);
             }
           }
