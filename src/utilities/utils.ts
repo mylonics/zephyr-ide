@@ -568,7 +568,6 @@ const DEBUG_CAPABLE_RUNNERS = [
   "pyocd",
   "stlink",
   "blackmagicprobe",
-  "qemu",
 ];
 
 /** Prefix used to store a runner-pinned target in launchTarget / buildDebugTarget. */

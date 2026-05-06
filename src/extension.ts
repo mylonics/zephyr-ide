@@ -70,6 +70,7 @@ import {
 } from "./zephyr_utilities/build";
 import { flashActive } from "./zephyr_utilities/flash";
 import { ZephyrIdeDebugConfigurationProvider } from "./zephyr_utilities/debug-provider";
+import { getSysbuildDomains } from "./zephyr_utilities/runners-yaml";
 import { WorkspaceConfig, GlobalConfig } from "./setup_utilities/types";
 import {
   loadGlobalState,
@@ -127,7 +128,9 @@ import {
   resolveActiveProjectBuild,
   resolveActiveProject,
   getProjectFolder,
+  getBuildFolder,
 } from "./project_utilities/project";
+import { resolveEffectiveRunner } from "./project_utilities/runner_selector";
 import { testHelper, deleteTestDirs } from "./zephyr_utilities/twister";
 
 import { getModuleVersion, getModuleList } from "./setup_utilities/modules";
@@ -504,10 +507,23 @@ export async function activate(context: vscode.ExtensionContext) {
     if (resolved) {
       activeBuildDisplay.text = `$(project) ${resolved.buildName}`;
       const activeRunner = getResolvedRunnerName(wsConfig, resolved);
-      activeRunnerDisplay.text = activeRunner ? `$(chip) ${activeRunner}` : ``;
+      activeRunnerDisplay.text = activeRunner ? `$(chip) ${activeRunner}` : `$(chip)`;
+      // U6: Tooltip shows the effective (cascaded) runner type and args.
+      if (activeRunner && resolved.build.runnerConfigs[activeRunner]) {
+        const eff = resolveEffectiveRunner(
+          resolved.project.runnerConfigs ?? {},
+          resolved.build.runnerConfigs,
+          activeRunner,
+        );
+        const effDesc = eff.runner === "default" ? "default (west picks based on board)" : eff.runner;
+        activeRunnerDisplay.tooltip = `Runner: ${activeRunner}\nEffective: ${effDesc}${eff.args ? `\nArgs: ${eff.args}` : ""}\nClick to change active runner`;
+      } else {
+        activeRunnerDisplay.tooltip = "No runner set — flash will use west's default. Click to add one.";
+      }
     } else {
       activeBuildDisplay.text = ``;
       activeRunnerDisplay.text = ``;
+      activeRunnerDisplay.tooltip = "Select Active Runner";
     }
     return resolved;
   }
@@ -730,6 +746,7 @@ export async function activate(context: vscode.ExtensionContext) {
   createStatusBarButton(context, "zephyr-ide.build-pristine", `$(debug-rerun)`, "Zephyr IDE Build Pristine");
   createStatusBarButton(context, "zephyr-ide.build", `$(play)`, "Zephyr IDE Build");
   createStatusBarButton(context, "zephyr-ide.flash", `$(arrow-circle-up)`, "Zephyr IDE Flash");
+  createStatusBarButton(context, "zephyr-ide.build-flash", `$(cloud-upload)`, "Zephyr IDE Build and Flash");
   createStatusBarButton(context, "zephyr-ide.debug", `$(debug-alt)`, "Zephyr IDE Debug");
 
   context.subscriptions.push(
@@ -1078,6 +1095,51 @@ export async function activate(context: vscode.ExtensionContext) {
   registerCommandWithRefresh(context, "zephyr-ide.change-debug-attach-launch-for-build",
     () => project.selectDebugAttachLaunchConfiguration(context, wsConfig));
 
+  // U5: Single command that lets the user choose which debug target to reconfigure.
+  registerCommandWithRefresh(context, "zephyr-ide.change-launch-for-build", async () => {
+    const pick = await vscode.window.showQuickPick(
+      [
+        { label: "Debug", description: "Change launch configuration for Debug" },
+        { label: "Build and Debug", description: "Change launch configuration for Build and Debug" },
+        { label: "Attach", description: "Change launch configuration for Debug Attach" },
+      ],
+      { placeHolder: "Select debug target to configure", ignoreFocusOut: true }
+    );
+    if (!pick) { return; }
+    if (pick.label === "Debug") {
+      await project.selectDebugLaunchConfiguration(context, wsConfig);
+    } else if (pick.label === "Build and Debug") {
+      await project.selectBuildDebugLaunchConfiguration(context, wsConfig);
+    } else {
+      await project.selectDebugAttachLaunchConfiguration(context, wsConfig);
+    }
+  });
+
+  // B7: Let the user select which sysbuild image to flash/debug.
+  registerCommandWithRefresh(context, "zephyr-ide.set-sysbuild-image", async () => {
+    const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Set Sysbuild Image" });
+    if (!resolved) { return; }
+    const buildFolder = getBuildFolder(wsConfig, resolved.project, resolved.build);
+    const domains = getSysbuildDomains(buildFolder);
+    if (!domains || domains.length === 0) {
+      vscode.window.showInformationMessage(
+        "No sysbuild domains found for this build. Build the project first, or this is not a sysbuild project."
+      );
+      return;
+    }
+    const items = domains.map(d => ({ label: d.name, description: d.buildDir }));
+    const picked = await vscode.window.showQuickPick(items, {
+      placeHolder: "Select sysbuild image to use for flash/debug",
+      ignoreFocusOut: true,
+    });
+    if (!picked) { return; }
+    const bs = wsConfig.projectStates[resolved.projectName]?.buildStates[resolved.buildName];
+    if (bs) {
+      bs.sysbuildImage = picked.label;
+      await setWorkspaceState(context, wsConfig);
+    }
+  });
+
   //Debugger Helper commands
   context.subscriptions.push(
     vscode.commands.registerCommand(
@@ -1253,9 +1315,34 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.flash", async () => {
       const setupState = await getSetupState(context, wsConfig);
       if (setupState && setupState.westUpdated) {
+        // B8: Optionally build before flashing (mirrors "Build and Debug" behaviour).
+        const buildFirst = vscode.workspace.getConfiguration().get<boolean>("zephyr-ide.buildBeforeFlash") ?? false;
+        if (buildFirst) {
+          const resolved = resolveActiveProjectBuild(wsConfig);
+          if (resolved) {
+            const buildOk = await build(context, wsConfig, resolved.project, resolved.build, false);
+            if (!buildOk) { return; }
+          }
+        }
         await flashActive(context, wsConfig);
       } else {
         notifyError("Flash", "Run `Zephyr IDE: West Update` first.");
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.build-flash", async () => {
+      const setupState = await getSetupState(context, wsConfig);
+      if (!setupState || !setupState.westUpdated) {
+        notifyError("Build and Flash", "Run `Zephyr IDE: West Update` first.");
+        return;
+      }
+      const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Build and Flash" });
+      if (!resolved) { return; }
+      const buildOk = await build(context, wsConfig, resolved.project, resolved.build, false);
+      if (buildOk) {
+        await flashActive(context, wsConfig);
       }
     })
   );

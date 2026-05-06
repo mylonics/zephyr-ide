@@ -71,9 +71,14 @@
                 "description": "Arguments passed to the runner (e.g. --speed=4000)."
               }
             },
-            "required": ["name", "runner", "args"]
+            "required": ["name", "runner"]
           },
-          "description": "Global runner configurations that form the base layer for all projects and builds. A project or build runner with the same name will inherit and optionally extend these settings."
+          "description": "Global runner configurations that form the base layer for all projects and builds. A project or build runner with the same name will inherit and optionally extend these settings. The cascade order is: global → project → build; the lowest level with argsMode 'override' wins for args."
+        },
+        "zephyr-ide.buildBeforeFlash": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically build before flashing when using the 'Zephyr IDE: Flash' command. The dedicated 'Build and Flash' command always builds first regardless of this setting."
         },
         "zephyr-ide.globalDirectory": {
           "type": [
@@ -660,6 +665,18 @@
       {
         "command": "zephyr-ide.flash",
         "title": "Zephyr IDE: Flash"
+      },
+      {
+        "command": "zephyr-ide.build-flash",
+        "title": "Zephyr IDE: Build and Flash"
+      },
+      {
+        "command": "zephyr-ide.set-sysbuild-image",
+        "title": "Zephyr IDE: Set Active Sysbuild Image"
+      },
+      {
+        "command": "zephyr-ide.change-launch-for-build",
+        "title": "Zephyr IDE: Change Debug Launch Configuration"
       },
       {
         "command": "zephyr-ide.debug",

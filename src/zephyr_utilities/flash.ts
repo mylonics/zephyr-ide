@@ -20,7 +20,7 @@ import * as vscode from "vscode";
 import { executeTaskHelperInPythonEnv } from "../utilities/utils";
 import { notifyError, outputInfo } from "../utilities/output";
 
-import { ProjectConfig, resolveActiveProjectBuildRunner, getBuildFolder } from "../project_utilities/project";
+import { ProjectConfig, resolveActiveProjectBuild, resolveActiveProjectBuildRunner, getBuildFolder } from "../project_utilities/project";
 
 import { WorkspaceConfig } from '../setup_utilities/types';
 import { BuildConfig } from "../project_utilities/build_selector";
@@ -51,11 +51,33 @@ export async function flashByName(context: vscode.ExtensionContext, wsConfig: Wo
   }
 }
 
+/** Synthetic runner used when no runner is configured – delegates to west's default selection. */
+const SYNTHETIC_DEFAULT_RUNNER: RunnerConfig = { name: "default", runner: "default", args: "", argsMode: "append" };
+const SYNTHETIC_DEFAULT_EFFECTIVE = { runner: "default", args: "" };
+
 export async function flashActive(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
-  const resolved = resolveActiveProjectBuildRunner(wsConfig, { caller: "Flash" });
+  // Resolve project+build first. A runner is optional — if none is configured,
+  // fall back to a synthetic default runner so west picks the board's runner.
+  const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Flash" });
   if (!resolved) { return; }
 
-  await flash(context, wsConfig, resolved.project, resolved.build, resolved.runner, resolved.effectiveRunner);
+  const runnerName = wsConfig.projectStates?.[resolved.projectName]?.buildStates?.[resolved.buildName]?.activeRunner;
+  let runner: RunnerConfig;
+  let effectiveRunner: { runner: string; args: string };
+
+  if (runnerName && resolved.build.runnerConfigs[runnerName]) {
+    runner = resolved.build.runnerConfigs[runnerName];
+    effectiveRunner = resolveEffectiveRunner(
+      resolved.project.runnerConfigs ?? {},
+      resolved.build.runnerConfigs,
+      runnerName,
+    );
+  } else {
+    runner = SYNTHETIC_DEFAULT_RUNNER;
+    effectiveRunner = SYNTHETIC_DEFAULT_EFFECTIVE;
+  }
+
+  await flash(context, wsConfig, resolved.project, resolved.build, runner, effectiveRunner);
 }
 
 export async function flash(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, project: ProjectConfig, build: BuildConfig, runner: RunnerConfig, effectiveRunner?: { runner: string; args: string }) {
@@ -66,7 +88,8 @@ export async function flash(context: vscode.ExtensionContext, wsConfig: Workspac
   if (eff.runner !== "default") {
     cmd += ` -r ${eff.runner}`;
   }
-  cmd += ` ${eff.args ?? ""}`;
+  const args = (eff.args ?? "").trim();
+  if (args) { cmd += ` ${args}`; }
 
   const taskName = "Zephyr IDE Flash: " + project.name + " " + build.name;
 

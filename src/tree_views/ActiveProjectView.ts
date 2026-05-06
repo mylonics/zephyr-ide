@@ -28,6 +28,7 @@ export type ActiveProjectItemContext =
   | 'activeProject.buildPristine'
   | 'activeProject.build'
   | 'activeProject.flash'
+  | 'activeProject.buildFlash'
   | 'activeProject.debug'
   | 'activeProject.buildDebug'
   | 'activeProject.debugAttach'
@@ -102,6 +103,8 @@ export class ActiveProjectView implements vscode.TreeDataProvider<ActiveProjectI
         'activeProject.build', "zephyr-ide.build"),
       new ActiveProjectItem("Flash", "chip", activeRunner ? activeRunner.name : "None",
         'activeProject.flash', "zephyr-ide.flash"),
+      new ActiveProjectItem("Build and Flash", "cloud-upload", activeRunner ? activeRunner.name : "None",
+        'activeProject.buildFlash', "zephyr-ide.build-flash"),
       new ActiveProjectItem("Debug", "debug-alt", debugDisplay,
         'activeProject.debug', "zephyr-ide.debug", "zephyr-ide.change-debug-launch-for-build"),
       new ActiveProjectItem("Build and Debug", "debug-all", buildDebugDisplay,

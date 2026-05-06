@@ -72,6 +72,47 @@ const KNOWN_RUNNERS = [
 ];
 
 /**
+ * Parse a space-delimited shell-style argument string into individual tokens.
+ * Respects single- and double-quoted strings (quotes are stripped from output).
+ * Does not handle escape sequences or nested quotes.
+ */
+export function parseShellArgs(args: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let inSingle = false;
+  let inDouble = false;
+  for (let i = 0; i < args.length; i++) {
+    const c = args[i];
+    if (c === "'" && !inDouble) {
+      inSingle = !inSingle;
+    } else if (c === '"' && !inSingle) {
+      inDouble = !inDouble;
+    } else if ((c === " " || c === "\t") && !inSingle && !inDouble) {
+      if (current) { result.push(current); current = ""; }
+    } else {
+      current += c;
+    }
+  }
+  if (current) { result.push(current); }
+  return result;
+}
+
+/** Options accepted by the runner selection wizard. */
+export interface RunnerSelectorOptions {
+  /**
+   * Runners listed in this build's runners.yaml. Shown first in the picker
+   * so users can see which runners the board actually supports.
+   */
+  availableRunners?: string[];
+  /**
+   * Parent-level runners (project runners when adding a build runner).
+   * Used together with the global runners setting to decide whether to show
+   * the argsMode step — only shown when a same-named parent runner exists.
+   */
+  parentRunners?: RunnerConfigDictionary;
+}
+
+/**
  * Resolve the effective runner type and arguments by cascading:
  *   global (VS Code settings) → project → build
  *
@@ -125,16 +166,36 @@ export function resolveEffectiveRunner(
   return { runner: resolvedRunner, args: resolvedArgs };
 }
 
-export async function runnerSelector() {
+export async function runnerSelector(options?: RunnerSelectorOptions) {
   const title = 'Add Runner';
+  const parentRunners = options?.parentRunners ?? {};
+  const globalRunners = vscode.workspace.getConfiguration().get<GlobalRunnerConfig[]>("zephyr-ide.globalRunners") ?? [];
+  const globalRunnerNames = new Set(globalRunners.map(r => r.name));
+
+  /** Returns true if a runner profile with this name exists at a parent level. */
+  function hasParentWithName(name: string): boolean {
+    return (name in parentRunners) || globalRunnerNames.has(name);
+  }
 
   async function pickRunner(input: MultiStepInput, state: Partial<RunnerConfig>) {
-    const runnersQpItems: QuickPickItem[] = KNOWN_RUNNERS.map(r => ({ label: r }));
+    // U2: Show board-available runners first, then all known runners.
+    const available = options?.availableRunners ?? [];
+    const availableSet = new Set(available);
+    const runnersQpItems: QuickPickItem[] = [];
+    if (available.length > 0) {
+      runnersQpItems.push(
+        ...available.map(r => ({ label: r, description: "available for this board" })),
+        { label: "", kind: vscode.QuickPickItemKind.Separator } as QuickPickItem,
+      );
+    }
+    runnersQpItems.push(
+      ...KNOWN_RUNNERS.filter(r => !availableSet.has(r)).map(r => ({ label: r })),
+    );
 
     const pick = await input.showQuickPick({
       title,
       step: 1,
-      totalSteps: 3,
+      totalSteps: 4,
       placeholder: 'Pick Runner',
       items: runnersQpItems,
       ignoreFocusOut: true,
@@ -148,14 +209,42 @@ export async function runnerSelector() {
 
     state.runner = pick.label;
     state.name = pick.label;
-    return (input: MultiStepInput) => addRunnerArguments(input, state);
+    return (input: MultiStepInput) => addRunnerName(input, state);
   }
 
-  async function addRunnerArguments(input: MultiStepInput, state: Partial<RunnerConfig>) {
-    const args = await input.showInputBox({
+  // B2: Separate name step so two profiles of the same type can coexist.
+  async function addRunnerName(input: MultiStepInput, state: Partial<RunnerConfig>) {
+    const defaultName = state.runner ?? "";
+    // Show 4 steps if the default name already has a parent (common case).
+    // If the user changes the name the count may be off by one, which is
+    // acceptable — we recalculate accurately after this step.
+    const likelyHasParent = hasParentWithName(defaultName);
+    const name = await input.showInputBox({
       title,
       step: 2,
-      totalSteps: 3,
+      totalSteps: likelyHasParent ? 4 : 3,
+      value: defaultName,
+      prompt: 'Profile name — use an existing name to inherit global/project settings',
+      ignoreFocusOut: true,
+      validate: noOpValidate,
+    }).catch((error) => {
+      outputError("Runner Selector", String(error));
+      return undefined;
+    });
+    if (name === undefined) {
+      return;
+    }
+    state.name = name || defaultName;
+    const actualHasParent = hasParentWithName(state.name);
+    const totalSteps = actualHasParent ? 4 : 3;
+    return (input: MultiStepInput) => addRunnerArguments(input, state, totalSteps, actualHasParent);
+  }
+
+  async function addRunnerArguments(input: MultiStepInput, state: Partial<RunnerConfig>, totalSteps: number, hasParent: boolean) {
+    const args = await input.showInputBox({
+      title,
+      step: 3,
+      totalSteps,
       value: "",
       prompt: 'Runner Arguments (optional, e.g. --config board.cfg)',
       ignoreFocusOut: true,
@@ -168,7 +257,12 @@ export async function runnerSelector() {
       return;
     }
     state.args = args;
-    return (input: MultiStepInput) => pickArgsMode(input, state);
+    // U3: Only show argsMode step when a parent runner with this name exists.
+    if (hasParent) {
+      return (input: MultiStepInput) => pickArgsMode(input, state);
+    }
+    state.argsMode = "append";
+    return undefined;
   }
 
   async function pickArgsMode(input: MultiStepInput, state: Partial<RunnerConfig>) {
@@ -179,8 +273,8 @@ export async function runnerSelector() {
 
     const pick = await input.showQuickPick({
       title,
-      step: 3,
-      totalSteps: 3,
+      step: 4,
+      totalSteps: 4,
       placeholder: 'Args Mode',
       items,
       ignoreFocusOut: true,
@@ -200,7 +294,7 @@ export async function runnerSelector() {
   if (!state.name) {
     return undefined;
   }
-  // Default argsMode to "append" if not set (e.g., user backed out of step 3)
+  // Default argsMode to "append" if not set (e.g., user backed out of step 4)
   if (state.argsMode === undefined) {
     state.argsMode = "append";
   }

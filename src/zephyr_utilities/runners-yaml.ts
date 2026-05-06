@@ -62,25 +62,55 @@ export interface RunnersYaml {
   args: { [runner: string]: string[] };
 }
 
+/** A single sysbuild domain as described in domains.yaml. */
+export interface SysbuildDomain {
+  name: string;
+  buildDir: string;
+}
+
+/**
+ * Read the sysbuild `domains.yaml` in a top-level build directory and return
+ * the list of image domains. Returns undefined when `domains.yaml` does not
+ * exist (i.e. the project is not using sysbuild).
+ */
+export function getSysbuildDomains(buildDir: string): SysbuildDomain[] | undefined {
+  const domainsYamlPath = path.join(buildDir, "domains.yaml");
+  if (!fs.existsSync(domainsYamlPath)) {
+    return undefined;
+  }
+  try {
+    const doc: any = yaml.load(fs.readFileSync(domainsYamlPath, "utf-8"));
+    const domains: any[] = doc?.domains;
+    if (Array.isArray(domains)) {
+      return domains
+        .filter((d: any) => typeof d?.name === "string" && typeof d?.build_dir === "string")
+        .map((d: any) => ({ name: d.name as string, buildDir: d.build_dir as string }));
+    }
+  } catch {
+    // ignore
+  }
+  return undefined;
+}
+
 /**
  * Resolve the path to runners.yaml for a build directory. Handles sysbuild by
- * delegating to the default domain's build_dir via domains.yaml.
+ * delegating to the named domain (or default domain when omitted) via domains.yaml.
  *
  * Returns the absolute path even if the file does not exist; callers should
  * check existence themselves so they can produce a useful error.
  */
-export function resolveRunnersYamlPath(buildDir: string): string {
+export function resolveRunnersYamlPath(buildDir: string, domainName?: string): string {
   const domainsYamlPath = path.join(buildDir, "domains.yaml");
   let effectiveBuildDir = buildDir;
   if (fs.existsSync(domainsYamlPath)) {
     try {
       const domainsDoc: any = yaml.load(fs.readFileSync(domainsYamlPath, "utf-8"));
-      const defaultName = domainsDoc?.default;
+      const targetName = domainName ?? domainsDoc?.default;
       const domains: any[] = domainsDoc?.domains;
-      if (defaultName && Array.isArray(domains)) {
-        const defaultDomain = domains.find((d: any) => d?.name === defaultName);
-        if (defaultDomain?.build_dir) {
-          effectiveBuildDir = defaultDomain.build_dir;
+      if (targetName && Array.isArray(domains)) {
+        const targetDomain = domains.find((d: any) => d?.name === targetName);
+        if (targetDomain?.build_dir) {
+          effectiveBuildDir = targetDomain.build_dir;
         }
       }
     } catch {
@@ -177,6 +207,12 @@ export function findSvdFile(boardDir: string | undefined): string | undefined {
 /**
  * Translate a Zephyr runner name to a cortex-debug `servertype`. Returns
  * undefined when the runner is not natively understood by cortex-debug.
+ *
+ * Notes:
+ * - "stm32cubeprogrammer" uses STM32_Programmer_CLI, not the ST-LINK GDB
+ *   server, so it cannot be mapped to cortex-debug's "stlink" type.
+ * - "qemu" requires board-specific cpu/machine/serverpath that cannot be
+ *   inferred generically; use a manual cortex-debug config for QEMU.
  */
 export function runnerToServerType(runner: string): string | undefined {
   switch (runner) {
@@ -187,14 +223,10 @@ export function runnerToServerType(runner: string): string | undefined {
     case "pyocd":
       return "pyocd";
     case "stlink":
-    case "stm32cubeprogrammer":
-      // cortex-debug exposes ST-LINK GDB server as "stlink"
       return "stlink";
     case "blackmagicprobe":
     case "bmp":
       return "bmp";
-    case "qemu":
-      return "qemu";
     default:
       return undefined;
   }

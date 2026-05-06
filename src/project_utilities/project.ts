@@ -30,6 +30,7 @@ import { getSamples } from "../setup_utilities/modules";
 import { getSetupState } from "../setup_utilities/workspace-config";
 import { joinBuildArgs, normalizeBuildArgs, quoteCMakeDef } from "./build_args";
 import { MultiStepInput, noOpValidate } from "../utilities/multistepQuickPick";
+import { getRunnersYamlHint } from "../zephyr_utilities/runners-yaml";
 
 import { TwisterConfig, TwisterConfigDictionary, twisterSelector, TwisterStateDictionary } from "./twister_selector";
 
@@ -859,9 +860,18 @@ export async function setActiveRunner(context: vscode.ExtensionContext, wsConfig
 }
 
 export async function addRunnerToBuild(wsConfig: WorkspaceConfig, context: vscode.ExtensionContext, projectName: string, buildName: string) {
-  const build = wsConfig.projects[projectName].buildConfigs[buildName];
+  const project = wsConfig.projects[projectName];
+  const build = project.buildConfigs[buildName];
 
-  const result = await runnerSelector();
+  // U2: Show board-supported runners first in the wizard picker.
+  // U3: Pass project runners so the argsMode step is shown only when a
+  //     same-named parent runner exists.
+  const buildFolder = getBuildFolder(wsConfig, project, build);
+  const hint = getRunnersYamlHint(buildFolder);
+  const result = await runnerSelector({
+    availableRunners: hint?.availableRunners,
+    parentRunners: project.runnerConfigs ?? {},
+  });
 
   if (result && result.name !== undefined) {
     if (build.runnerConfigs[result.name]) {
@@ -900,7 +910,10 @@ export async function addRunnerToProject(wsConfig: WorkspaceConfig, context: vsc
     return;
   }
 
-  const result = await runnerSelector();
+  // U3: At project level the only parent is global runners (checked inside
+  //     runnerSelector). Pass empty parentRunners so the argsMode step shows
+  //     only when a same-named global runner exists.
+  const result = await runnerSelector({ parentRunners: {} });
   if (!result || result.name === undefined) {
     return;
   }

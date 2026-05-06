@@ -35,6 +35,7 @@ import {
   RunnersYaml,
 } from "./runners-yaml";
 import { resolveActiveProjectBuild } from "../project_utilities/project";
+import { resolveEffectiveRunner, parseShellArgs } from "../project_utilities/runner_selector";
 import { WorkspaceConfig } from "../setup_utilities/types";
 import { notifyError } from "../utilities/output";
 
@@ -53,6 +54,11 @@ interface ZephyrIdeDebugConfig extends vscode.DebugConfiguration {
  * Returns undefined when the runner cannot be mapped to a cortex-debug
  * servertype; in that case the caller should leave the config alone (or
  * notify the user).
+ *
+ * @param options.userArgs  Extra runner arguments supplied by the user's
+ *   `RunnerConfig.args` (after cascading global→project→build). These are
+ *   appended after the runners.yaml args so that user-supplied values take
+ *   precedence when a flag can appear multiple times (last wins).
  */
 export function buildCortexDebugConfig(
   runnersYaml: RunnersYaml,
@@ -62,6 +68,8 @@ export function buildCortexDebugConfig(
     request?: "launch" | "attach";
     cwd?: string;
     svdFile?: string;
+    /** Extra args from the user's RunnerConfig, merged after runners.yaml args. */
+    userArgs?: string[];
   } = {}
 ): vscode.DebugConfiguration | undefined {
   const serverType = runnerToServerType(runner);
@@ -92,7 +100,8 @@ export function buildCortexDebugConfig(
   // Per-runner argument extraction. runners.yaml stores command-line argv
   // arrays; we lift the bits cortex-debug needs into the equivalent config
   // properties when we recognize them, and fall back to a passthrough.
-  const runnerArgs = runnersYaml.args[runner] || [];
+  // User-supplied args are appended last so they can override runners.yaml values.
+  const runnerArgs = [...(runnersYaml.args[runner] || []), ...(options.userArgs ?? [])];
 
   switch (serverType) {
     case "openocd": {
@@ -174,17 +183,23 @@ export function buildCortexDebugConfig(
 /**
  * Choose which Zephyr runner to use for a debug session, in priority order:
  *   1. The runner explicitly requested in the launch.json config.
- *   2. runners.yaml's `debug-runner`.
- *   3. The first entry in runners.yaml's `runners` list.
+ *   2. runners.yaml's `debug-runner` (if it is cortex-debug-capable).
+ *   3. The first cortex-debug-capable runner in runners.yaml's `runners` list.
+ *
+ * Runners that cortex-debug cannot drive (e.g. dfu-util, nrfjprog, qemu) are
+ * skipped so the user sees a clear "cannot auto-translate" message rather than
+ * a silently broken session.
  */
 export function pickDebugRunner(
   runnersYaml: RunnersYaml,
   requested?: string
 ): string | undefined {
   if (requested) { return requested; }
-  if (runnersYaml.debugRunner) { return runnersYaml.debugRunner; }
-  if (runnersYaml.runners.length > 0) { return runnersYaml.runners[0]; }
-  return undefined;
+  if (runnersYaml.debugRunner && runnerToServerType(runnersYaml.debugRunner)) {
+    return runnersYaml.debugRunner;
+  }
+  // Fall back to the first runner that cortex-debug can actually drive.
+  return runnersYaml.runners.find(r => runnerToServerType(r) !== undefined);
 }
 
 /**
@@ -234,8 +249,10 @@ export class ZephyrIdeDebugConfigurationProvider
       return undefined;
     }
 
+    // B7: Use the active sysbuild image (if any) when resolving runners.yaml.
+    const sysbuildImage = wsConfig.projectStates?.[resolved.projectName]?.buildStates?.[resolved.buildName]?.sysbuildImage;
     const buildDir = path.join(wsConfig.rootPath, resolved.project.rel_path, resolved.buildName);
-    const runnersYamlPath = resolveRunnersYamlPath(buildDir);
+    const runnersYamlPath = resolveRunnersYamlPath(buildDir, sysbuildImage);
     const runnersYaml = parseRunnersYaml(runnersYamlPath);
     if (!runnersYaml) {
       notifyError(
@@ -247,8 +264,23 @@ export class ZephyrIdeDebugConfigurationProvider
 
     const runner = pickDebugRunner(runnersYaml, cfg.runner);
     if (!runner) {
-      notifyError("Debug", `No runner found in "${runnersYamlPath}".`);
+      notifyError("Debug", `No debug-capable runner found in "${runnersYamlPath}".\nAvailable runners: ${runnersYaml.runners.join(", ") || "(none)"}. Configure a runner that cortex-debug supports (openocd, jlink, pyocd, stlink, bmp).`);
       return undefined;
+    }
+
+    // B6: Merge user-supplied runner args (from active RunnerConfig, cascaded
+    // global→project→build) into the debug config so that settings like
+    // --speed or custom OpenOCD config files are honoured by the debugger too.
+    let userArgs: string[] | undefined;
+    const activeRunnerName = wsConfig.projectStates?.[resolved.projectName]?.buildStates?.[resolved.buildName]?.activeRunner;
+    if (activeRunnerName && resolved.build.runnerConfigs?.[activeRunnerName]) {
+      const eff = resolveEffectiveRunner(
+        resolved.project.runnerConfigs ?? {},
+        resolved.build.runnerConfigs,
+        activeRunnerName,
+      );
+      const parsed = parseShellArgs(eff.args ?? "");
+      if (parsed.length > 0) { userArgs = parsed; }
     }
 
     const cortexCfg = buildCortexDebugConfig(runnersYaml, runner, {
@@ -256,6 +288,7 @@ export class ZephyrIdeDebugConfigurationProvider
       request: cfg.request === "attach" ? "attach" : "launch",
       cwd: typeof (cfg as any).cwd === "string" ? (cfg as any).cwd : (folder ? folder.uri.fsPath : undefined),
       svdFile: typeof (cfg as any).svdFile === "string" ? (cfg as any).svdFile : undefined,
+      userArgs,
     });
 
     if (!cortexCfg) {
