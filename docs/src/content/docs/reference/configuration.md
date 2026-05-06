@@ -37,11 +37,11 @@ The extension manages up to five `clangd.arguments` entries (the `--query-driver
 
 The `--query-driver` glob is derived from your configured toolchain directory (see `zephyr-ide.toolchainDirectory`), which points to the Zephyr SDK containing the cross-compilers.
 
-**User-defined arguments are always preserved.** If `clangd.arguments` already contains an argument whose key matches one of the extension's entries (e.g., a user-customized `--completion-style=bundled` or a hand-written `--query-driver=/opt/toolchains/**/*`), the extension leaves that value as-is and does not append its own. You can freely add extra flags (for example `--clang-tidy`, `--pretty`, `--log=error`) — they will never be removed or overwritten.
+**User-defined arguments are preserved on enable.** If `clangd.arguments` already contains an argument whose key matches one of the extension's entries (e.g., a user-customized `--completion-style=bundled`), the extension leaves that value as-is and does not append its own. You can freely add extra flags (for example `--clang-tidy`, `--pretty`, `--log=error`) — they are kept alongside the extension's args.
 
-**Extension-managed arguments are kept in sync.** If you change `zephyr-ide.toolchainDirectory` after the initial write, the extension updates the `--query-driver` it originally set to point at the new location on the next workspace-settings refresh. Arguments that you defined yourself are not affected.
+**`--query-driver` is always extension-managed.** The extension overwrites any existing `--query-driver` value to keep it in sync with `zephyr-ide.toolchainDirectory`. If you want to use a custom toolchain query driver, point `zephyr-ide.toolchainDirectory` at it instead of editing `clangd.arguments` directly.
 
-To switch back to the C/C++ extension, disable `zephyr-ide.useClangd`. The extension removes only the arguments it originally wrote (identified by the values it tracked when writing them), preserving any user-defined or customized entries. The `C_Cpp.intelliSenseEngine` workspace override is also cleared.
+To switch back to the C/C++ extension, disable `zephyr-ide.useClangd`. If `clangd.arguments` is exactly the value the extension would write, it is removed entirely; otherwise (you added or modified anything) the array is left alone — assumed to be user-managed. The `C_Cpp.intelliSenseEngine` workspace override is also cleared.
 
 ## Next Steps
 

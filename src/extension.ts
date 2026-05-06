@@ -89,7 +89,6 @@ import {
   getToolchainPath,
   migrateSettingKeys,
   setWorkspaceSettings,
-  initWorkspaceConfigContext,
   getSetupState,
   getGdbPath,
   getArmGdbPath,
@@ -331,10 +330,6 @@ export function getWorkspaceConfig(): WorkspaceConfig {
 
 export async function activate(context: vscode.ExtensionContext) {
   context.environmentVariableCollection.persistent = false;
-
-  // Provide the extension context to workspace-config so that setWorkspaceSettings
-  // can persist the clangd arguments it writes (used for accurate cleanup/update).
-  initWorkspaceConfigContext(context);
 
   // Log detected platform information early, before any output clears
   const platformName = getPlatformName() ?? "unknown";
@@ -1609,8 +1604,8 @@ export async function activate(context: vscode.ExtensionContext) {
       if (e.affectsConfiguration("zephyr-ide.useClangd")) {
         await setWorkspaceSettings(false);
       } else if (e.affectsConfiguration("zephyr-ide.toolchainDirectory")) {
-        // If clangd is active and clangd.arguments has not yet been written,
-        // apply the initial configuration (which will include the new toolchain path).
+        // If toolchainDirectory changes while clangd is active, the --query-driver glob
+        // needs to be refreshed to point at the new SDK location.
         const useClangd: boolean = vscode.workspace.getConfiguration().get("zephyr-ide.useClangd") ?? false;
         if (useClangd) {
           await setWorkspaceSettings(false);
@@ -1661,10 +1656,9 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.install-sdk", async () => {
       const ret = await installSDKInteractive(wsConfig, globalConfig, context);
-      // If clangd is active and clangd.arguments has not yet been written, apply
-      // the initial configuration so --query-driver points at the newly installed SDK
-      // (the install does not write zephyr-ide.toolchainDirectory, so the
-      // onDidChangeConfiguration listener would not fire on its own).
+      // If clangd is active, refresh workspace settings so --query-driver picks up
+      // the newly installed SDK (the install does not write zephyr-ide.toolchainDirectory,
+      // so the onDidChangeConfiguration listener would not fire on its own).
       if (ret) {
         const useClangd: boolean = vscode.workspace.getConfiguration().get("zephyr-ide.useClangd") ?? false;
         if (useClangd) {
