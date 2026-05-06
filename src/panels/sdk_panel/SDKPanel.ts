@@ -23,6 +23,8 @@ import {
   ParsedSDKList,
   onSDKProgress,
   installSDKToolchainsInteractive,
+  installToolchainsDirect,
+  uninstallToolchains,
 } from "../../setup_utilities/west_sdk";
 import { notifyError, outputError } from "../../utilities/output";
 import { generateNonce } from "../webview_shared/nonce";
@@ -188,6 +190,11 @@ export class SDKPanel {
           this.addToolchainsForVersion(message.version);
         }
         return;
+      case "applyToolchainChanges":
+        if (typeof message.version === "string" && Array.isArray(message.toAdd) && Array.isArray(message.toRemove)) {
+          this.applyToolchainChanges(message.version, message.toAdd, message.toRemove);
+        }
+        return;
       case "listSDKs":
         this.listSDKs();
         return;
@@ -236,6 +243,43 @@ export class SDKPanel {
       }
     } catch (error) {
       notifyError("SDK Install", `Failed to add toolchains: ${error}`);
+    }
+  }
+
+  private async applyToolchainChanges(version: string, toAdd: string[], toRemove: string[]) {
+    if (!this.currentWsConfig || !this.currentGlobalConfig) {
+      notifyError("SDK", "Configuration not available");
+      return;
+    }
+
+    try {
+      // Uninstall first (no west context needed — filesystem only)
+      if (toRemove.length > 0) {
+        const { errors } = await uninstallToolchains(version, toRemove);
+        if (errors.length > 0) {
+          notifyError("SDK Uninstall", `Some toolchains could not be removed:\n${errors.join("\n")}`);
+        }
+      }
+
+      // Install additions
+      if (toAdd.length > 0) {
+        await installToolchainsDirect(
+          this.currentWsConfig,
+          this.currentGlobalConfig,
+          this._context,
+          version,
+          toAdd,
+        );
+      }
+    } finally {
+      // Refresh the SDK list regardless of success/failure
+      try {
+        this._cachedSDKList = undefined;
+        this.updateContent(this.currentWsConfig, this.currentGlobalConfig);
+        await this.listSDKs();
+      } catch (updateError) {
+        outputError("SDK Panel", `Failed to refresh panel after applying changes: ${String(updateError)}`);
+      }
     }
   }
 

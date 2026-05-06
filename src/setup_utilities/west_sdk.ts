@@ -706,6 +706,98 @@ export async function installSDKInteractive(wsConfig: WorkspaceConfig, globalCon
 }
 
 /**
+ * Installs a specific set of toolchains for an already-installed SDK version
+ * without any interactive QuickPick dialogs.  Used when the SDK panel applies
+ * a user's pending changes directly.
+ */
+export async function installToolchainsDirect(
+    wsConfig: WorkspaceConfig,
+    globalConfig: GlobalConfig,
+    context: vscode.ExtensionContext | undefined,
+    version: string,
+    toolchains: string[],
+): Promise<boolean> {
+    const tracker = new SetupProgressTracker(`SDK ${version} — Install Toolchains`, [
+        { id: 'install', label: 'Downloading and installing toolchains' },
+        { id: 'verify', label: 'Verifying installation' },
+    ], _onSDKProgress);
+
+    try {
+        const setupState = await getWestSDKContext(wsConfig, globalConfig, context);
+        if (!setupState) {
+            tracker.fail('No valid west installation found');
+            return false;
+        }
+
+        tracker.startStep('install', `Installing ${toolchains.join(', ')}...`);
+        const result = await vscode.window.withProgress(
+            {
+                location: vscode.ProgressLocation.Notification,
+                title: `Adding toolchains to SDK ${version}`,
+                cancellable: false,
+            },
+            async (progress) => {
+                progress.report({ message: "Installing toolchains..." });
+                return await installSDK(setupState, version, toolchains);
+            }
+        );
+
+        if (result) {
+            tracker.completeStep('install');
+            tracker.startStep('verify', 'Updating global state...');
+            globalConfig.sdkInstalled = true;
+            globalConfig.sdkVersion = version;
+            if (context) { await setGlobalState(context, globalConfig); }
+            tracker.completeStep('verify', `SDK ${version} toolchains ready`);
+            tracker.complete(`Toolchains added to SDK ${version} successfully!`);
+            void vscode.window.showInformationMessage(`Toolchains added to SDK ${version} successfully!`);
+        } else {
+            tracker.failStep('install', 'west sdk install command failed');
+            tracker.fail('Toolchain installation failed. Check the Output panel for details.');
+        }
+        return result ?? false;
+    } catch (error) {
+        outputError("SDK Install", `Toolchain install error: ${error}`);
+        tracker.fail(`Error: ${error}`);
+        return false;
+    }
+}
+
+/**
+ * Removes specific toolchain directories from an installed SDK version.
+ * Each toolchain lives at `<toolchainsDir>/zephyr-sdk-<version>/<toolchain>/`.
+ */
+export async function uninstallToolchains(
+    version: string,
+    toolchains: string[],
+): Promise<{ removed: string[]; errors: string[] }> {
+    const toolchainsDir = getToolchainDir();
+    const sdkDir = path.join(toolchainsDir, `zephyr-sdk-${version}`);
+    const removed: string[] = [];
+    const errors: string[] = [];
+
+    for (const tc of toolchains) {
+        const tcDir = path.join(sdkDir, tc);
+        try {
+            if (await fs.pathExists(tcDir)) {
+                await fs.remove(tcDir);
+                outputInfo("SDK Uninstall", `Removed toolchain directory: ${tcDir}`);
+                removed.push(tc);
+            } else {
+                outputWarning("SDK Uninstall", `Toolchain directory not found (already removed?): ${tcDir}`);
+                removed.push(tc); // Treat as successfully removed
+            }
+        } catch (error) {
+            const msg = `Failed to remove ${tcDir}: ${error}`;
+            outputError("SDK Uninstall", msg);
+            errors.push(msg);
+        }
+    }
+
+    return { removed, errors };
+}
+
+/**
  * Adds toolchains to an already-installed SDK version.
  * Skips the version-selection step and only prompts for toolchain selection.
  *

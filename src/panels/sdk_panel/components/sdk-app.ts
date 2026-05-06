@@ -102,6 +102,21 @@ function groupToolchains(toolchains: string[]): Array<{ label: string; items: st
   return Array.from(buckets.entries()).map(([label, items]) => ({ label, items }));
 }
 
+/**
+ * Compare two semver strings numerically, descending (newest first).
+ * Falls back to locale compare for any non-semver strings.
+ */
+function compareSemverDesc(a: string, b: string): number {
+  const parse = (v: string) => v.split(".").map(n => parseInt(n, 10));
+  const pa = parse(a);
+  const pb = parse(b);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const diff = (pb[i] ?? 0) - (pa[i] ?? 0);
+    if (diff !== 0) { return diff; }
+  }
+  return 0;
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -115,6 +130,13 @@ export class SDKApp extends ZephyrLitElement {
   @state() private _buttonsDisabled = false;
   /** SDK versions (by string) whose "Not Installed" toolchains panel is expanded. */
   @state() private _expandedUnavailable = new Set<string>();
+  /**
+   * Pending toolchain changes keyed by SDK version string.
+   * `adds` = toolchains the user wants to install.
+   * `removes` = installed toolchains the user wants to uninstall.
+   */
+  @state() private _pendingAdds = new Map<string, Set<string>>();
+  @state() private _pendingRemoves = new Map<string, Set<string>>();
 
   connectedCallback() {
     super.connectedCallback();
@@ -137,6 +159,9 @@ export class SDKApp extends ZephyrLitElement {
         this._sdkLoading = false;
         this._sdkList = msg.data;
         this._buttonsDisabled = false;
+        // Clear all pending changes — the list is freshly loaded from disk
+        this._pendingAdds = new Map();
+        this._pendingRemoves = new Map();
         // Auto-expand the "Not Installed" section for any SDK version that has no
         // installed toolchains yet, so the user can immediately see what's available.
         // Only auto-expand versions not yet tracked — preserves manual collapse state
@@ -200,6 +225,42 @@ export class SDKApp extends ZephyrLitElement {
     this._expandedUnavailable = next;
   }
 
+  /** Toggle a toolchain's pending state for a given SDK version. */
+  private _toggleToolchain(version: string, toolchain: string, isInstalled: boolean) {
+    if (isInstalled) {
+      // Toggle pending-remove
+      const removes = new Map(this._pendingRemoves);
+      const set = new Set(removes.get(version) ?? []);
+      if (set.has(toolchain)) {
+        set.delete(toolchain);
+      } else {
+        set.add(toolchain);
+      }
+      removes.set(version, set);
+      this._pendingRemoves = removes;
+    } else {
+      // Toggle pending-add
+      const adds = new Map(this._pendingAdds);
+      const set = new Set(adds.get(version) ?? []);
+      if (set.has(toolchain)) {
+        set.delete(toolchain);
+      } else {
+        set.add(toolchain);
+      }
+      adds.set(version, set);
+      this._pendingAdds = adds;
+    }
+  }
+
+  /** Send the pending changes for a version to the backend and clear local state. */
+  private _applyChanges(version: string) {
+    const toAdd = Array.from(this._pendingAdds.get(version) ?? []);
+    const toRemove = Array.from(this._pendingRemoves.get(version) ?? []);
+    if (toAdd.length === 0 && toRemove.length === 0) { return; }
+    this._buttonsDisabled = true;
+    this.vscodeApi.postMessage({ command: "applyToolchainChanges", version, toAdd, toRemove });
+  }
+
   render() {
     if (!this._initData) {
       return html`<div class="container"><p>Loading…</p></div>`;
@@ -236,8 +297,8 @@ export class SDKApp extends ZephyrLitElement {
 
         <p class="sdk-description">
           The Zephyr SDK provides GNU toolchains for cross-compiling to supported target architectures.
-          Each SDK version ships with a specific set of toolchain targets.
-          Install additional toolchains for an installed SDK version using the <strong>Add Toolchains</strong> button on its card.
+          Click any toolchain chip to toggle it for installation or removal, then click
+          <strong>Apply Changes</strong> on the SDK version card to install or uninstall the selected toolchains.
         </p>
 
         ${!d.hasSetupState
@@ -366,10 +427,14 @@ export class SDKApp extends ZephyrLitElement {
       `;
     }
 
+    const sorted = [...data.versions].sort((a, b) =>
+      compareSemverDesc(a.version ?? "", b.version ?? "")
+    );
+
     return html`
       <div class="sdk-list-container">
         ${this._renderSDKSummary(data.versions)}
-        ${data.versions.map(v => this._renderSDKVersion(v))}
+        ${sorted.map(v => this._renderSDKVersion(v))}
       </div>
     `;
   }
@@ -408,6 +473,10 @@ export class SDKApp extends ZephyrLitElement {
     const versionMap = this._initData?.sdkVersionMap ?? {};
     const zephyrLabel = versionMap[ver];
 
+    const pendingAdds = this._pendingAdds.get(ver) ?? new Set<string>();
+    const pendingRemoves = this._pendingRemoves.get(ver) ?? new Set<string>();
+    const hasPending = pendingAdds.size > 0 || pendingRemoves.size > 0;
+
     return html`
       <div class="sdk-version-card">
         <!-- Card header -->
@@ -422,15 +491,6 @@ export class SDKApp extends ZephyrLitElement {
             <span class="sdk-toolchain-count ${installed.length > 0 ? "has-toolchains" : ""}">
               ${installed.length} / ${total} toolchains
             </span>
-            <vscode-button
-              appearance="secondary"
-              ?disabled=${this._buttonsDisabled}
-              @click=${() => this._addToolchainsForVersion(ver)}
-              title="Add toolchains to this SDK version"
-            >
-              <vscode-icon slot="start-icon" name="add"></vscode-icon>
-              Add Toolchains
-            </vscode-button>
           </div>
         </div>
 
@@ -448,36 +508,82 @@ export class SDKApp extends ZephyrLitElement {
               <span class="codicon codicon-check-all"></span>
               Installed Toolchains (${installed.length})
             </div>
-            ${this._renderGroupedToolchains(installed, "installed")}
+            ${this._renderSelectableToolchains(installed, ver, true)}
           </div>`
         : html`
           <div class="toolchain-section">
-            <p class="sdk-no-toolchains">No toolchains installed yet. Use <strong>Add Toolchains</strong> to install one.</p>
+            <p class="sdk-no-toolchains">No toolchains installed yet. Select toolchains below and click <strong>Apply Changes</strong>.</p>
           </div>`}
 
-        <!-- Available-but-not-installed toolchains (collapsible) -->
+        <!-- Available-but-not-installed toolchains (collapsible when some are installed) -->
         ${notInstalled.length > 0
         ? html`
           <div class="toolchain-section">
-            <button
-              class="toolchain-toggle-btn"
-              @click=${() => this._toggleUnavailable(ver)}
-              aria-expanded=${isExpanded}
+            ${installed.length > 0
+            ? html`
+              <button
+                class="toolchain-toggle-btn"
+                @click=${() => this._toggleUnavailable(ver)}
+                aria-expanded=${isExpanded}
+              >
+                <span class="codicon ${isExpanded ? "codicon-chevron-down" : "codicon-chevron-right"}"></span>
+                <span class="toolchain-section-title inline">Not Installed (${notInstalled.length})</span>
+              </button>
+              ${isExpanded
+              ? html`<div class="toolchain-collapsible-body">${this._renderSelectableToolchains(notInstalled, ver, false)}</div>`
+              : nothing}`
+            : html`
+              <div class="toolchain-section-title">
+                <span class="codicon codicon-cloud-download"></span>
+                Available Toolchains (${notInstalled.length})
+              </div>
+              ${this._renderSelectableToolchains(notInstalled, ver, false)}`}
+          </div>`
+        : nothing}
+
+        <!-- Apply Changes bar -->
+        ${hasPending
+        ? html`
+          <div class="sdk-apply-bar">
+            <span class="sdk-apply-summary">
+              ${pendingAdds.size > 0 ? html`<span class="tc-pending-add-badge">+${pendingAdds.size} to install</span>` : nothing}
+              ${pendingRemoves.size > 0 ? html`<span class="tc-pending-remove-badge">−${pendingRemoves.size} to remove</span>` : nothing}
+            </span>
+            <vscode-button
+              ?disabled=${this._buttonsDisabled}
+              @click=${() => this._applyChanges(ver)}
             >
-              <span class="codicon ${isExpanded ? "codicon-chevron-down" : "codicon-chevron-right"}"></span>
-              <span class="toolchain-section-title inline">Not Installed (${notInstalled.length})</span>
-            </button>
-            ${isExpanded
-          ? html`<div class="toolchain-collapsible-body">${this._renderGroupedToolchains(notInstalled, "available")}</div>`
-          : nothing}
+              <vscode-icon slot="start-icon" name="check"></vscode-icon>
+              Apply Changes
+            </vscode-button>
+            <vscode-button
+              appearance="secondary"
+              ?disabled=${this._buttonsDisabled}
+              @click=${() => this._discardChanges(ver)}
+              title="Discard pending changes for this SDK version"
+            >
+              Discard
+            </vscode-button>
           </div>`
         : nothing}
       </div>
     `;
   }
 
-  /** Render toolchains grouped by architecture family. */
-  private _renderGroupedToolchains(toolchains: string[], tagClass: string) {
+  /** Discard all pending changes for a version without applying them. */
+  private _discardChanges(version: string) {
+    const adds = new Map(this._pendingAdds);
+    const removes = new Map(this._pendingRemoves);
+    adds.delete(version);
+    removes.delete(version);
+    this._pendingAdds = adds;
+    this._pendingRemoves = removes;
+  }
+
+  /** Render toolchains as selectable chips showing their install / pending state. */
+  private _renderSelectableToolchains(toolchains: string[], version: string, isInstalled: boolean) {
+    const pendingAdds = this._pendingAdds.get(version) ?? new Set<string>();
+    const pendingRemoves = this._pendingRemoves.get(version) ?? new Set<string>();
     const groups = groupToolchains(toolchains);
     return html`
       <div class="toolchain-arch-list">
@@ -485,7 +591,25 @@ export class SDKApp extends ZephyrLitElement {
           <div class="toolchain-arch-group">
             <div class="toolchain-arch-label">${g.label}</div>
             <div class="toolchain-list">
-              ${g.items.map(tc => html`<span class="toolchain-tag ${tagClass}">${tc}</span>`)}
+              ${g.items.map(tc => {
+      const pendingRemove = isInstalled && pendingRemoves.has(tc);
+      const pendingAdd = !isInstalled && pendingAdds.has(tc);
+      let chipClass = isInstalled ? "installed" : "available";
+      if (pendingRemove) { chipClass = "pending-remove"; }
+      if (pendingAdd) { chipClass = "pending-add"; }
+      const icon = pendingRemove ? "×" : pendingAdd ? "✓" : isInstalled ? "✓" : "+";
+      return html`
+                <button
+                  class="toolchain-chip ${chipClass}"
+                  @click=${() => this._toggleToolchain(version, tc, isInstalled)}
+                  title=${isInstalled
+          ? (pendingRemove ? "Click to keep this toolchain" : "Click to mark for removal")
+          : (pendingAdd ? "Click to deselect" : "Click to select for installation")}
+                >
+                  <span class="tc-chip-icon">${icon}</span>
+                  ${tc}
+                </button>`;
+    })}
             </div>
           </div>
         `)}
@@ -493,3 +617,4 @@ export class SDKApp extends ZephyrLitElement {
     `;
   }
 }
+

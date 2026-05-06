@@ -226,6 +226,129 @@
     opacity: 0.75;
 }
 
+/* ===================================================================
+   Selectable toolchain chips (manager mode)
+   =================================================================== */
+
+.toolchain-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 9px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-family: var(--vscode-editor-font-family);
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: opacity var(--zephyr-webview-transition-fast), filter var(--zephyr-webview-transition-fast);
+    white-space: nowrap;
+}
+
+.toolchain-chip:focus-visible {
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: 1px;
+}
+
+/* Installed — green, click marks for removal */
+.toolchain-chip.installed {
+    background-color: color-mix(in srgb, var(--vscode-terminal-ansiGreen) 15%, transparent);
+    color: var(--vscode-terminal-ansiGreen);
+    border-color: color-mix(in srgb, var(--vscode-terminal-ansiGreen) 30%, transparent);
+}
+
+.toolchain-chip.installed:hover {
+    background-color: color-mix(in srgb, var(--vscode-terminal-ansiRed) 12%, transparent);
+    color: var(--vscode-terminal-ansiRed);
+    border-color: color-mix(in srgb, var(--vscode-terminal-ansiRed) 30%, transparent);
+}
+
+/* Available (not installed) — muted gray, click selects for install */
+.toolchain-chip.available {
+    background-color: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
+    border-color: transparent;
+    opacity: 0.75;
+}
+
+.toolchain-chip.available:hover {
+    opacity: 1;
+    background-color: color-mix(in srgb, var(--vscode-terminal-ansiBlue) 12%, transparent);
+    color: var(--vscode-terminal-ansiBlue);
+    border-color: color-mix(in srgb, var(--vscode-terminal-ansiBlue) 30%, transparent);
+}
+
+/* Pending removal — red / strikethrough */
+.toolchain-chip.pending-remove {
+    background-color: color-mix(in srgb, var(--vscode-terminal-ansiRed) 15%, transparent);
+    color: var(--vscode-terminal-ansiRed);
+    border-color: color-mix(in srgb, var(--vscode-terminal-ansiRed) 35%, transparent);
+    text-decoration: line-through;
+    opacity: 0.85;
+}
+
+.toolchain-chip.pending-remove:hover {
+    opacity: 1;
+    text-decoration: none;
+}
+
+/* Pending install — blue / highlighted */
+.toolchain-chip.pending-add {
+    background-color: color-mix(in srgb, var(--vscode-terminal-ansiBlue) 18%, transparent);
+    color: var(--vscode-terminal-ansiBlue);
+    border-color: color-mix(in srgb, var(--vscode-terminal-ansiBlue) 40%, transparent);
+    opacity: 1;
+    font-weight: 600;
+}
+
+.tc-chip-icon {
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+/* ===================================================================
+   Apply Changes bar
+   =================================================================== */
+
+.sdk-apply-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 14px;
+    padding: 10px 12px;
+    background-color: color-mix(in srgb, var(--vscode-focusBorder) 6%, transparent);
+    border: 1px solid var(--vscode-focusBorder);
+    border-radius: var(--zephyr-webview-radius);
+    flex-wrap: wrap;
+}
+
+.sdk-apply-summary {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+}
+
+.tc-pending-add-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background-color: color-mix(in srgb, var(--vscode-terminal-ansiBlue) 18%, transparent);
+    color: var(--vscode-terminal-ansiBlue);
+    border: 1px solid color-mix(in srgb, var(--vscode-terminal-ansiBlue) 35%, transparent);
+}
+
+.tc-pending-remove-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background-color: color-mix(in srgb, var(--vscode-terminal-ansiRed) 15%, transparent);
+    color: var(--vscode-terminal-ansiRed);
+    border: 1px solid color-mix(in srgb, var(--vscode-terminal-ansiRed) 35%, transparent);
+}
+
 .sdk-no-toolchains {
     font-size: 12px;
     color: var(--vscode-descriptionForeground);
