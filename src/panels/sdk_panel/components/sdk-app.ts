@@ -137,6 +137,18 @@ export class SDKApp extends ZephyrLitElement {
         this._sdkLoading = false;
         this._sdkList = msg.data;
         this._buttonsDisabled = false;
+        // Auto-expand the "Not Installed" section for any SDK version that has no
+        // installed toolchains yet, so the user can immediately see what's available.
+        if (msg.data?.versions) {
+          const autoExpanded = new Set<string>(this._expandedUnavailable);
+          for (const v of (msg.data.versions as SDKVersion[])) {
+            const ver = v.version ?? "Unknown";
+            if ((v.installedToolchains?.length ?? 0) === 0 && (v.availableToolchains?.length ?? 0) > 0) {
+              autoExpanded.add(ver);
+            }
+          }
+          this._expandedUnavailable = autoExpanded;
+        }
         break;
       case "sdkListLoading":
         this._sdkLoading = true;

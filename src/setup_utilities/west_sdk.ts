@@ -522,9 +522,12 @@ export async function installSDK(
         // The upstream `west sdk install` uses CMake find_package to detect
         // installed SDKs, but it only searches standard OS paths (e.g. /opt,
         // ~/), not the custom toolchains directory used by Zephyr IDE.
-        // Without this check, repeated installs to the same base directory
+        // Without this check, repeated full installs to the same base directory
         // fail with "Destination path already exists".
-        if (sdkVersion) {
+        // Skip this check when adding specific toolchains: the SDK base already
+        // exists and we intentionally want to run `west sdk install -t <tc>`.
+        const isAddingSpecificToolchains = toolchains && toolchains.length > 0 && !toolchains.includes("all");
+        if (sdkVersion && !isAddingSpecificToolchains) {
             const sdkDir = path.join(toolchainsDir, `zephyr-sdk-${sdkVersion}`);
             const sdkVersionFile = path.join(sdkDir, "sdk_version");
             if (await fs.pathExists(sdkVersionFile)) {
@@ -703,6 +706,10 @@ export async function installSDKInteractive(wsConfig: WorkspaceConfig, globalCon
 /**
  * Adds toolchains to an already-installed SDK version.
  * Skips the version-selection step and only prompts for toolchain selection.
+ *
+ * The workspace resolution and toolchain QuickPick are performed **before** the
+ * progress tracker is created so that a user-cancelled selection does not
+ * produce a misleading "Installation Failed" banner in the SDK panel.
  */
 export async function installSDKToolchainsInteractive(
     wsConfig: WorkspaceConfig,
@@ -710,36 +717,30 @@ export async function installSDKToolchainsInteractive(
     context: vscode.ExtensionContext | undefined,
     prefilledVersion: string,
 ) {
+    // --- Pre-flight: resolve west context (no tracker active yet) ---
+    outputInfo("SDK Install", `Adding toolchains to SDK ${prefilledVersion}...`);
+    const setupState = await getWestSDKContext(wsConfig, globalConfig, context);
+    if (!setupState) {
+        notifyError("SDK Install",
+            "No valid west installation found. Please set up a Zephyr workspace first."
+        );
+        return;
+    }
+
+    // --- QuickPick: let user select toolchains (no tracker active yet) ---
+    const toolchains = await selectToolchainsWithoutVersionStep(`Add Toolchains — SDK ${prefilledVersion}`);
+    if (!toolchains || toolchains.length === 0) {
+        outputInfo("SDK Install", "Toolchain selection cancelled");
+        return; // User cancelled — no progress event fired, no banner shown
+    }
+
+    // --- Only now start the tracker (after user confirmed) ---
     const tracker = new SetupProgressTracker(`SDK ${prefilledVersion} Toolchains`, [
-        { id: 'resolve', label: 'Resolving west workspace' },
-        { id: 'toolchains', label: 'Selecting toolchains' },
         { id: 'install', label: 'Downloading and installing toolchains' },
         { id: 'verify', label: 'Verifying installation' },
     ], _onSDKProgress);
 
     try {
-        outputInfo("SDK Install", `Adding toolchains to SDK ${prefilledVersion}...`);
-
-        tracker.startStep('resolve');
-        const setupState = await getWestSDKContext(wsConfig, globalConfig, context);
-        if (!setupState) {
-            tracker.failStep('resolve', 'No valid west installation found');
-            notifyError("SDK Install",
-                "No valid west installation found. Please set up a Zephyr workspace first."
-            );
-            return;
-        }
-        tracker.completeStep('resolve', `Using: ${setupState.setupPath}`);
-
-        tracker.startStep('toolchains');
-        const toolchains = await selectToolchainsWithoutVersionStep(`Add Toolchains — SDK ${prefilledVersion}`);
-        if (!toolchains || toolchains.length === 0) {
-            outputInfo("SDK Install", "Toolchain selection cancelled");
-            tracker.failStep('toolchains', 'Selection cancelled');
-            return;
-        }
-        tracker.completeStep('toolchains', toolchains.includes('all') ? 'All toolchains' : toolchains.join(', '));
-
         tracker.startStep('install', 'Running west sdk install...');
         return await vscode.window.withProgress(
             {
