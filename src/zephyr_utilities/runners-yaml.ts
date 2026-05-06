@@ -181,27 +181,32 @@ export function parseRunnersYaml(runnersYamlPath: string): RunnersYaml | undefin
 
 /**
  * Look for an SVD file in the board directory recorded in runners.yaml.
- * Returns the absolute path to the first `.svd` file found, or undefined.
+ * Returns the absolute path to the best matching `.svd` file, or undefined.
  *
  * Zephyr boards occasionally ship an `.svd` file beside the board YAML; this
  * is a best-effort lookup so the cortex-debug peripheral viewer can be
  * populated automatically when one is present.
+ *
+ * When `hint` is provided (typically the board or SoC name), the lookup
+ * prefers a `.svd` whose basename contains the hint (case-insensitive). This
+ * disambiguates board directories that ship multiple SoC SVDs (issue #20).
  */
-export function findSvdFile(boardDir: string | undefined): string | undefined {
+export function findSvdFile(boardDir: string | undefined, hint?: string): string | undefined {
   if (!boardDir || !fs.existsSync(boardDir)) {
     return undefined;
   }
   try {
-    const entries = fs.readdirSync(boardDir);
-    for (const entry of entries) {
-      if (entry.toLowerCase().endsWith(".svd")) {
-        return path.join(boardDir, entry);
-      }
+    const entries = fs.readdirSync(boardDir).filter(e => e.toLowerCase().endsWith(".svd"));
+    if (entries.length === 0) { return undefined; }
+    if (hint) {
+      const needle = hint.toLowerCase();
+      const match = entries.find(e => e.toLowerCase().includes(needle));
+      if (match) { return path.join(boardDir, match); }
     }
+    return path.join(boardDir, entries[0]);
   } catch {
-    // ignore
+    return undefined;
   }
-  return undefined;
 }
 
 /**
@@ -213,6 +218,10 @@ export function findSvdFile(boardDir: string | undefined): string | undefined {
  *   server, so it cannot be mapped to cortex-debug's "stlink" type.
  * - "qemu" requires board-specific cpu/machine/serverpath that cannot be
  *   inferred generically; use a manual cortex-debug config for QEMU.
+ * - "linkserver" (NXP) has no native cortex-debug server-type, but it speaks
+ *   the GDB remote protocol, so we tag it as "external" — users will need to
+ *   start the LinkServer process and supply `gdbTarget` themselves. We return
+ *   undefined here so the provider falls through to the next capable runner.
  */
 export function runnerToServerType(runner: string): string | undefined {
   switch (runner) {
@@ -223,6 +232,7 @@ export function runnerToServerType(runner: string): string | undefined {
     case "pyocd":
       return "pyocd";
     case "stlink":
+    case "stm32cubeprogrammer-stlink":
       return "stlink";
     case "blackmagicprobe":
     case "bmp":

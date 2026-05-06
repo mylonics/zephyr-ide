@@ -379,16 +379,20 @@ export async function getLaunchConfigurationByName(wsConfig: WorkspaceConfig, co
     return;
   }
 
-  // When a folder is specified, try an exact name+folder match first
+  // When a folder is specified, require an exact name+folder match.
+  // Falling back to a name-only match across folders would silently start the
+  // wrong configuration in a multi-root workspace where two folders define
+  // configs of the same name (issue #17).
   if (folderName) {
     for (const config of configurations) {
       if (config.name === configName && config.workspaceFolder === folderName) {
         return config;
       }
     }
+    return undefined;
   }
 
-  // Fall back to name-only match (backward compatibility)
+  // No folder recorded — accept the first name match (workspace/global scope).
   for (const config of configurations) {
     if (config.name === configName) {
       return config;
@@ -573,7 +577,16 @@ const DEBUG_CAPABLE_RUNNERS = [
 /** Prefix used to store a runner-pinned target in launchTarget / buildDebugTarget. */
 export const RUNNER_TARGET_PREFIX = "runner:";
 
-export async function selectLaunchConfiguration(wsConfig: WorkspaceConfig, defaultLabel?: string): Promise<{ name: string; workspaceFolder?: string; isDefault?: boolean; isRunner?: boolean } | undefined> {
+export async function selectLaunchConfiguration(
+  wsConfig: WorkspaceConfig,
+  defaultLabel?: string,
+  /**
+   * Issue #23: when supplied, debug-capable runners not present in this list
+   * are demoted to "(not in board's runners.yaml)" so the user understands
+   * which runners the active build actually supports.
+   */
+  availableRunners?: string[],
+): Promise<{ name: string; workspaceFolder?: string; isDefault?: boolean; isRunner?: boolean } | undefined> {
   const configurations = await getLaunchConfigurations(wsConfig);
 
   const pickOptions: vscode.QuickPickOptions = {
@@ -589,11 +602,24 @@ export async function selectLaunchConfiguration(wsConfig: WorkspaceConfig, defau
 
   // Debug-capable runners – selecting one pins the session to that runner
   // while still going through the runners.yaml DebugConfigurationProvider.
+  // When the build's available-runners hint is known, runners NOT supported
+  // by the board are still listed (in case runners.yaml is stale) but flagged.
+  const availableSet = availableRunners ? new Set(availableRunners) : undefined;
+  const sortedRunners = availableSet
+    ? [
+      ...DEBUG_CAPABLE_RUNNERS.filter(r => availableSet.has(r)),
+      ...DEBUG_CAPABLE_RUNNERS.filter(r => !availableSet.has(r)),
+    ]
+    : DEBUG_CAPABLE_RUNNERS;
   items.push({ label: "Runners", kind: vscode.QuickPickItemKind.Separator });
-  items.push(...DEBUG_CAPABLE_RUNNERS.map(r => ({
-    label: r,
-    detail: `Use ${r} runner (runners.yaml configuration)`,
-  })));
+  items.push(...sortedRunners.map(r => {
+    const supported = !availableSet || availableSet.has(r);
+    return {
+      label: r,
+      description: supported ? undefined : "(not in board's runners.yaml)",
+      detail: `Use ${r} runner (runners.yaml configuration)`,
+    } as vscode.QuickPickItem;
+  }));
 
   if (configurations && configurations.length > 0) {
     items.push({ label: "launch.json", kind: vscode.QuickPickItemKind.Separator });

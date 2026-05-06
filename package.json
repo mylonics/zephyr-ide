@@ -57,6 +57,7 @@
           "default": [],
           "items": {
             "type": "object",
+            "additionalProperties": false,
             "properties": {
               "name": {
                 "type": "string",
@@ -429,9 +430,19 @@
           "group": "inline@1"
         },
         {
-          "command": "zephyr-ide.tree-view.delete-runner",
+          "command": "zephyr-ide.tree-view.debug",
           "when": "view == zephyrIdeProjects && viewItem == runnerItem",
           "group": "inline@2"
+        },
+        {
+          "command": "zephyr-ide.tree-view.attach",
+          "when": "view == zephyrIdeProjects && viewItem == runnerItem",
+          "group": "inline@3"
+        },
+        {
+          "command": "zephyr-ide.tree-view.delete-runner",
+          "when": "view == zephyrIdeProjects && viewItem == runnerItem",
+          "group": "inline@4"
         },
         {
           "command": "zephyr-ide.tree-view.test",
@@ -673,6 +684,10 @@
       {
         "command": "zephyr-ide.set-sysbuild-image",
         "title": "Zephyr IDE: Set Active Sysbuild Image"
+      },
+      {
+        "command": "zephyr-ide.open-runners-yaml",
+        "title": "Zephyr IDE: Open runners.yaml for Active Build"
       },
       {
         "command": "zephyr-ide.change-launch-for-build",
@@ -1044,6 +1059,16 @@
         "command": "zephyr-ide.tree-view.flash",
         "title": "Flash",
         "icon": "$(arrow-circle-up)"
+      },
+      {
+        "command": "zephyr-ide.tree-view.debug",
+        "title": "Debug",
+        "icon": "$(debug-alt)"
+      },
+      {
+        "command": "zephyr-ide.tree-view.attach",
+        "title": "Attach",
+        "icon": "$(debug-disconnect)"
       },
       {
         "command": "zephyr-ide.tree-view.delete-runner",

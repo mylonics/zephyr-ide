@@ -47,6 +47,7 @@ import {
   executeShellCommandInPythonEnv,
   reloadEnvironmentVariables,
   getLaunchConfigurationByName,
+  RUNNER_TARGET_PREFIX,
   getPlatformName,
   getPlatformArch,
   isWSL,
@@ -70,7 +71,7 @@ import {
 } from "./zephyr_utilities/build";
 import { flashActive } from "./zephyr_utilities/flash";
 import { ZephyrIdeDebugConfigurationProvider } from "./zephyr_utilities/debug-provider";
-import { getSysbuildDomains } from "./zephyr_utilities/runners-yaml";
+import { getSysbuildDomains, resolveRunnersYamlPath } from "./zephyr_utilities/runners-yaml";
 import { WorkspaceConfig, GlobalConfig } from "./setup_utilities/types";
 import {
   loadGlobalState,
@@ -286,8 +287,7 @@ async function startDebugSession(
   // (cortex-debug + runners.yaml) directly. This is the new default for
   // newly-created builds; users can still bind a named launch by using the
   // "Change ... Launch Configuration For Build" commands.
-  const RUNNER_PREFIX = "runner:";
-  const pinnedRunner = debugTarget?.startsWith(RUNNER_PREFIX) ? debugTarget.slice(RUNNER_PREFIX.length) : undefined;
+  const pinnedRunner = debugTarget?.startsWith(RUNNER_TARGET_PREFIX) ? debugTarget.slice(RUNNER_TARGET_PREFIX.length) : undefined;
 
   if (!debugTarget || pinnedRunner !== undefined) {
     if (!resolved) {
@@ -305,7 +305,7 @@ async function startDebugSession(
     if (!started) {
       const sessionLabel = mode === 'attach' ? 'attach session' : 'debug session';
       notifyError("Debug", `Failed to start ${sessionLabel} from runners.yaml.` +
-        `\nCheck the Debug Console and Output panel for more details.`);
+        `\nCheck the Debug Console and the Zephyr IDE output channel for the synthesized cortex-debug config.`);
     }
     return;
   }
@@ -336,6 +336,12 @@ async function startDebugSession(
     }
     nameOrConfig = resolvedConfig;
   }
+
+  // Issue #35: log which path we took so support can triage debug failures.
+  outputInfo(
+    "Debug",
+    `Path B (bound launch config) | mode=${mode} target="${debugTarget}" folder=${folder?.name || '(workspace)'}`
+  );
 
   const started = await vscode.debug.startDebugging(folder, nameOrConfig);
   if (!started) {
@@ -717,6 +723,12 @@ export async function activate(context: vscode.ExtensionContext) {
     }),
     vscode.commands.registerCommand("zephyr-ide.tree-view.flash", (item: any) => {
       projectTreeView.handleSharedCommand("flash", item);
+    }),
+    vscode.commands.registerCommand("zephyr-ide.tree-view.debug", (item: any) => {
+      projectTreeView.handleSharedCommand("debug", item);
+    }),
+    vscode.commands.registerCommand("zephyr-ide.tree-view.attach", (item: any) => {
+      projectTreeView.handleSharedCommand("attach", item);
     }),
     vscode.commands.registerCommand("zephyr-ide.tree-view.delete-runner", (item: any) => {
       projectTreeView.handleSharedCommand("deleteRunner", item);
@@ -1115,6 +1127,29 @@ export async function activate(context: vscode.ExtensionContext) {
     }
   });
 
+  // Issue #25: Open the active build's runners.yaml in an editor for inspection.
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.open-runners-yaml", async () => {
+      const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Open runners.yaml" });
+      if (!resolved) { return; }
+      const buildFolder = getBuildFolder(wsConfig, resolved.project, resolved.build);
+      const sysbuildImage = wsConfig.projectStates?.[resolved.projectName]?.buildStates?.[resolved.buildName]?.sysbuildImage;
+      const runnersYamlPath = resolveRunnersYamlPath(buildFolder, sysbuildImage);
+      if (!fs.existsSync(runnersYamlPath)) {
+        const choice = await vscode.window.showErrorMessage(
+          `runners.yaml not found at "${runnersYamlPath}". Build the project first.`,
+          "Build Now"
+        );
+        if (choice === "Build Now") {
+          void vscode.commands.executeCommand("zephyr-ide.build");
+        }
+        return;
+      }
+      const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(runnersYamlPath));
+      await vscode.window.showTextDocument(doc);
+    })
+  );
+
   // B7: Let the user select which sysbuild image to flash/debug.
   registerCommandWithRefresh(context, "zephyr-ide.set-sysbuild-image", async () => {
     const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Set Sysbuild Image" });
@@ -1326,7 +1361,7 @@ export async function activate(context: vscode.ExtensionContext) {
         }
         await flashActive(context, wsConfig);
       } else {
-        notifyError("Flash", "Run `Zephyr IDE: West Update` first.");
+        notifyError("Flash", "Cannot flash: this workspace is not yet initialized. Run `Zephyr IDE: West Update` first.");
       }
     })
   );
@@ -1335,7 +1370,7 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.build-flash", async () => {
       const setupState = await getSetupState(context, wsConfig);
       if (!setupState || !setupState.westUpdated) {
-        notifyError("Build and Flash", "Run `Zephyr IDE: West Update` first.");
+        notifyError("Build and Flash", "Cannot build: this workspace is not yet initialized. Run `Zephyr IDE: West Update` first.");
         return;
       }
       const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Build and Flash" });

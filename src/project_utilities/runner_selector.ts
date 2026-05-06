@@ -74,26 +74,56 @@ const KNOWN_RUNNERS = [
 /**
  * Parse a space-delimited shell-style argument string into individual tokens.
  * Respects single- and double-quoted strings (quotes are stripped from output).
- * Does not handle escape sequences or nested quotes.
+ *
+ * Backslash handling (POSIX-ish):
+ *   - Outside any quote: `\` escapes the next character literally (so `\ ` is a
+ *     literal space, `\"` is a literal double-quote).
+ *   - Inside double quotes: `\` escapes only `"`, `\`, `$`, and `` ` ``.
+ *   - Inside single quotes: `\` is literal (matches POSIX behaviour).
+ *
+ * Does NOT expand environment variables, `$()`, or globs.
  */
 export function parseShellArgs(args: string): string[] {
   const result: string[] = [];
   let current = "";
   let inSingle = false;
   let inDouble = false;
+  let started = false;
   for (let i = 0; i < args.length; i++) {
     const c = args[i];
+    if (c === "\\" && !inSingle && i + 1 < args.length) {
+      const next = args[i + 1];
+      if (!inDouble) {
+        // Outside any quote: backslash escapes any character.
+        current += next;
+        started = true;
+        i++;
+        continue;
+      } else if (next === '"' || next === "\\" || next === "$" || next === "`") {
+        current += next;
+        started = true;
+        i++;
+        continue;
+      }
+      // Inside double quotes, an unrecognized backslash sequence is literal.
+      current += c;
+      started = true;
+      continue;
+    }
     if (c === "'" && !inDouble) {
       inSingle = !inSingle;
+      started = true;
     } else if (c === '"' && !inSingle) {
       inDouble = !inDouble;
+      started = true;
     } else if ((c === " " || c === "\t") && !inSingle && !inDouble) {
-      if (current) { result.push(current); current = ""; }
+      if (started) { result.push(current); current = ""; started = false; }
     } else {
       current += c;
+      started = true;
     }
   }
-  if (current) { result.push(current); }
+  if (started) { result.push(current); }
   return result;
 }
 
@@ -177,6 +207,9 @@ export async function runnerSelector(options?: RunnerSelectorOptions) {
     return (name in parentRunners) || globalRunnerNames.has(name);
   }
 
+  /** Reserved profile name. Used internally by flashActive when no runner is configured. */
+  const RESERVED_NAMES = new Set(["default"]);
+
   async function pickRunner(input: MultiStepInput, state: Partial<RunnerConfig>) {
     // U2: Show board-available runners first, then all known runners.
     const available = options?.availableRunners ?? [];
@@ -226,7 +259,13 @@ export async function runnerSelector(options?: RunnerSelectorOptions) {
       value: defaultName,
       prompt: 'Profile name — use an existing name to inherit global/project settings',
       ignoreFocusOut: true,
-      validate: noOpValidate,
+      validate: async (v: string) => {
+        const trimmed = v.trim();
+        if (RESERVED_NAMES.has(trimmed)) {
+          return `"${trimmed}" is reserved (it represents "let west pick"). Choose another name.`;
+        }
+        return undefined;
+      },
     }).catch((error) => {
       outputError("Runner Selector", String(error));
       return undefined;

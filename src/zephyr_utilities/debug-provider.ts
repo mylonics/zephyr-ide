@@ -37,7 +37,7 @@ import {
 import { resolveActiveProjectBuild } from "../project_utilities/project";
 import { resolveEffectiveRunner, parseShellArgs } from "../project_utilities/runner_selector";
 import { WorkspaceConfig } from "../setup_utilities/types";
-import { notifyError } from "../utilities/output";
+import { notifyError, outputInfo } from "../utilities/output";
 
 /** Extra fields a user may set on a `zephyr-ide` debug configuration. */
 interface ZephyrIdeDebugConfig extends vscode.DebugConfiguration {
@@ -92,7 +92,10 @@ export function buildCortexDebugConfig(
   if (runnersYaml.gdb) {
     cfg.gdbPath = runnersYaml.gdb;
   }
-  const svdFile = options.svdFile || findSvdFile(runnersYaml.boardDir);
+  // Issue #20: prefer SVDs whose filename matches the board name so
+  // multi-SoC board folders pick the right one.
+  const boardHint = runnersYaml.boardDir ? path.basename(runnersYaml.boardDir) : undefined;
+  const svdFile = options.svdFile || findSvdFile(runnersYaml.boardDir, boardHint);
   if (svdFile) {
     cfg.svdFile = svdFile;
   }
@@ -124,15 +127,28 @@ export function buildCortexDebugConfig(
         }
       }
       if (configFiles.length) { cfg.configFiles = configFiles; }
-      if (searchDir.length) { cfg.searchDir = searchDir; }
-      if (runnersYaml.openocdSearch?.length) {
-        cfg.searchDir = (cfg.searchDir || []).concat(runnersYaml.openocdSearch);
+      // Merge args-derived and runners.yaml-derived search directories,
+      // deduping while preserving first-seen order.
+      const mergedSearch = [
+        ...searchDir,
+        ...(runnersYaml.openocdSearch ?? []),
+      ];
+      if (mergedSearch.length) {
+        const seen = new Set<string>();
+        cfg.searchDir = mergedSearch.filter(s => {
+          if (seen.has(s)) { return false; }
+          seen.add(s);
+          return true;
+        });
       }
       if (runnersYaml.openocd) { cfg.serverpath = runnersYaml.openocd; }
       break;
     }
     case "jlink": {
       // Look for --device / --speed / --interface in the args array.
+      // Speed is appended additively to any existing serverArgs so a
+      // user-supplied serverArgs is preserved (issue #11).
+      const extraServerArgs: string[] = [];
       for (let i = 0; i < runnerArgs.length; i++) {
         const a = runnerArgs[i];
         const eq = (key: string): string | undefined => {
@@ -143,9 +159,14 @@ export function buildCortexDebugConfig(
         const dev = eq("--device") ?? eq("-device");
         if (dev !== undefined && !cfg.device) { cfg.device = dev; if (a === "--device" || a === "-device") { i++; } continue; }
         const speed = eq("--speed");
-        if (speed !== undefined && !cfg.serverArgs) { cfg.serverArgs = ["-speed", speed]; if (a === "--speed") { i++; } continue; }
+        if (speed !== undefined) { extraServerArgs.push("-speed", speed); if (a === "--speed") { i++; } continue; }
         const iface = eq("--iface") ?? eq("--interface");
         if (iface !== undefined && !cfg.interface) { cfg.interface = iface; if (a === "--iface" || a === "--interface") { i++; } continue; }
+      }
+      if (extraServerArgs.length) {
+        cfg.serverArgs = Array.isArray(cfg.serverArgs)
+          ? [...cfg.serverArgs, ...extraServerArgs]
+          : extraServerArgs;
       }
       break;
     }
@@ -255,16 +276,34 @@ export class ZephyrIdeDebugConfigurationProvider
     const runnersYamlPath = resolveRunnersYamlPath(buildDir, sysbuildImage);
     const runnersYaml = parseRunnersYaml(runnersYamlPath);
     if (!runnersYaml) {
-      notifyError(
-        "Debug",
-        `runners.yaml not found at "${runnersYamlPath}". Build the project first so the Zephyr build system can generate it.`
-      );
+      // Issue #19: offer an actionable "Build Now" button instead of just a
+      // dead-end notification.
+      void vscode.window.showErrorMessage(
+        `runners.yaml not found at "${runnersYamlPath}". Build the project first so the Zephyr build system can generate it.`,
+        "Build Now"
+      ).then(choice => {
+        if (choice === "Build Now") {
+          void vscode.commands.executeCommand("zephyr-ide.build");
+        }
+      });
       return undefined;
     }
 
     const runner = pickDebugRunner(runnersYaml, cfg.runner);
     if (!runner) {
-      notifyError("Debug", `No debug-capable runner found in "${runnersYamlPath}".\nAvailable runners: ${runnersYaml.runners.join(", ") || "(none)"}. Configure a runner that cortex-debug supports (openocd, jlink, pyocd, stlink, bmp).`);
+      // Issue #15: name the runners that were found but rejected so the user
+      // understands why no debug session can be auto-translated.
+      const all = runnersYaml.runners;
+      const rejected = all.filter(r => runnerToServerType(r) === undefined);
+      const reason = rejected.length
+        ? `Found runner(s) [${rejected.join(", ")}] but cortex-debug cannot drive them.`
+        : `runners.yaml lists no runners.`;
+      notifyError(
+        "Debug",
+        `${reason}\nFile: "${runnersYamlPath}"\nAvailable runners: ${all.join(", ") || "(none)"}.\n` +
+        `Configure a runner that cortex-debug supports (openocd, jlink, pyocd, stlink, bmp), ` +
+        `or bind a hand-written launch.json entry via "Zephyr IDE: Change Debug Launch Configuration For Build".`
+      );
       return undefined;
     }
 
@@ -310,6 +349,20 @@ export class ZephyrIdeDebugConfigurationProvider
       if (v !== undefined) {
         (cortexCfg as any)[k] = v;
       }
+    }
+
+    // Issue #16/#35: log what we resolved so support can triage why a debug
+    // session ended up the way it did, and so users can copy the synthesized
+    // config into a hand-written launch.json entry if they want to tweak it.
+    try {
+      outputInfo(
+        "Debug",
+        `Path A (zephyr-ide provider) | project=${resolved.projectName} build=${resolved.buildName} ` +
+        `runner=${runner} request=${cortexCfg.request} runners.yaml=${runnersYamlPath}\n` +
+        `Synthesized cortex-debug config:\n${JSON.stringify(cortexCfg, null, 2)}`
+      );
+    } catch {
+      // logging must never block a debug session
     }
 
     return cortexCfg;

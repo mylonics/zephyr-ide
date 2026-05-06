@@ -963,9 +963,9 @@ export async function getActiveBuild(wsConfig: WorkspaceConfig) {
 }
 
 const LAUNCH_TARGET_DEFAULT_LABELS: Record<string, string> = {
-  launchTarget: 'Default: Debug',
-  buildDebugTarget: 'Default: Debug',
-  attachTarget: 'Default: Attach',
+  launchTarget: 'Auto: Debug (use runners.yaml)',
+  buildDebugTarget: 'Auto: Debug (use runners.yaml)',
+  attachTarget: 'Auto: Attach (use runners.yaml)',
 };
 
 /**
@@ -978,9 +978,17 @@ async function selectLaunchConfigForTarget(
   targetNameKey: 'launchTarget' | 'buildDebugTarget' | 'attachTarget',
   targetFolderKey: 'launchTargetFolder' | 'buildDebugTargetFolder' | 'attachTargetFolder'
 ) {
-  const activeBuild = await getActiveBuild(wsConfig);
+  const resolved = resolveActiveProjectBuild(wsConfig);
+  const activeBuild = resolved?.build;
   const defaultLabel = LAUNCH_TARGET_DEFAULT_LABELS[targetNameKey];
-  const newConfig = await selectLaunchConfiguration(wsConfig, defaultLabel);
+  // Issue #23: pass the build's available runners so the picker flags any
+  // debug-capable runner that the board's runners.yaml does not list.
+  let availableRunners: string[] | undefined;
+  if (resolved) {
+    const buildFolder = getBuildFolder(wsConfig, resolved.project, resolved.build);
+    availableRunners = getRunnersYamlHint(buildFolder)?.availableRunners;
+  }
+  const newConfig = await selectLaunchConfiguration(wsConfig, defaultLabel, availableRunners);
   if (activeBuild && newConfig !== undefined) {
     if (newConfig.isDefault) {
       // Clear target → use Zephyr IDE DebugConfigurationProvider path (auto-pick runner)

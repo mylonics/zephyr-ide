@@ -27,7 +27,7 @@ import { BuildConfig } from "../project_utilities/build_selector";
 import { RunnerConfig, resolveEffectiveRunner } from "../project_utilities/runner_selector";
 import { getSetupStateOrNotify } from "../setup_utilities/workspace-config";
 
-export async function flashByName(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName: string, buildName: string, runnerName: string) {
+export async function flashByName(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName: string, buildName: string, runnerName?: string) {
   const project = wsConfig.projects[projectName];
   if (!project) {
     notifyError("Flash", `Project not found: "${projectName}"`);
@@ -36,6 +36,12 @@ export async function flashByName(context: vscode.ExtensionContext, wsConfig: Wo
   const buildConfig = project.buildConfigs[buildName];
   if (!buildConfig) {
     notifyError("Flash", `Build configuration not found: "${buildName}" in project "${projectName}"`);
+    return;
+  }
+  // Issue #13: when no runner name is supplied, fall back to the synthetic
+  // default runner so callers can flash a build that has no runner profile.
+  if (!runnerName) {
+    await flash(context, wsConfig, project, buildConfig, SYNTHETIC_DEFAULT_RUNNER, SYNTHETIC_DEFAULT_EFFECTIVE);
     return;
   }
   const runnerConfig = buildConfig.runnerConfigs[runnerName];
