@@ -24,7 +24,7 @@ import { ProjectConfig, resolveActiveProjectBuildRunner, getBuildFolder } from "
 
 import { WorkspaceConfig } from '../setup_utilities/types';
 import { BuildConfig } from "../project_utilities/build_selector";
-import { RunnerConfig } from "../project_utilities/runner_selector";
+import { RunnerConfig, resolveEffectiveRunner } from "../project_utilities/runner_selector";
 import { getSetupStateOrNotify } from "../setup_utilities/workspace-config";
 
 export async function flashByName(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName: string, buildName: string, runnerName: string) {
@@ -40,7 +40,12 @@ export async function flashByName(context: vscode.ExtensionContext, wsConfig: Wo
   }
   const runnerConfig = buildConfig.runnerConfigs[runnerName];
   if (runnerConfig) {
-    await flash(context, wsConfig, project, buildConfig, runnerConfig);
+    const effectiveRunner = resolveEffectiveRunner(
+      project.runnerConfigs ?? {},
+      buildConfig.runnerConfigs,
+      runnerName,
+    );
+    await flash(context, wsConfig, project, buildConfig, runnerConfig, effectiveRunner);
   } else {
     notifyError("Flash", `Runner not found: "${runnerName}" in build "${buildName}"`);
   }
@@ -50,17 +55,18 @@ export async function flashActive(context: vscode.ExtensionContext, wsConfig: Wo
   const resolved = resolveActiveProjectBuildRunner(wsConfig, { caller: "Flash" });
   if (!resolved) { return; }
 
-  await flash(context, wsConfig, resolved.project, resolved.build, resolved.runner);
+  await flash(context, wsConfig, resolved.project, resolved.build, resolved.runner, resolved.effectiveRunner);
 }
 
-export async function flash(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, project: ProjectConfig, build: BuildConfig, runner: RunnerConfig) {
+export async function flash(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, project: ProjectConfig, build: BuildConfig, runner: RunnerConfig, effectiveRunner?: { runner: string; args: string }) {
+  const eff = effectiveRunner ?? { runner: runner.runner, args: runner.args ?? "" };
   // Tasks
   let cmd = `west flash --build-dir "${getBuildFolder(wsConfig, project, build)}"`;
 
-  if (runner.runner !== "default") {
-    cmd += ` -r ${runner.runner}`;
+  if (eff.runner !== "default") {
+    cmd += ` -r ${eff.runner}`;
   }
-  cmd += ` ${runner.args ?? ""}`;
+  cmd += ` ${eff.args ?? ""}`;
 
   const taskName = "Zephyr IDE Flash: " + project.name + " " + build.name;
 

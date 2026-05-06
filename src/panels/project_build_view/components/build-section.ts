@@ -190,6 +190,34 @@ export class BuildSection extends ZephyrLitElement {
     this.postCommand("updateRunner", msg);
   }
 
+  private _onProjectRunnerBlur(e: FocusEvent, runnerName: string, field: string) {
+    const input = e.target as HTMLInputElement;
+    if (!input.classList.contains("input-dirty")) { return; }
+    if (this._saveTimer) { clearTimeout(this._saveTimer); }
+    this._saveTimer = setTimeout(() => {
+      input.classList.remove("input-dirty");
+      const msg: Record<string, string> = {
+        project: this.projectName,
+        runner: runnerName,
+      };
+      msg[field] = input.value;
+      this.postCommand("updateProjectRunner", msg);
+    }, 600);
+  }
+
+  private _onProjectRunnerKeydown(e: KeyboardEvent, runnerName: string, field: string) {
+    if (e.key !== "Enter") { return; }
+    const input = e.target as HTMLInputElement;
+    if (this._saveTimer) { clearTimeout(this._saveTimer); this._saveTimer = null; }
+    input.classList.remove("input-dirty");
+    const msg: Record<string, string> = {
+      project: this.projectName,
+      runner: runnerName,
+    };
+    msg[field] = input.value;
+    this.postCommand("updateProjectRunner", msg);
+  }
+
   // --- Renderers ---
 
   /**
@@ -248,11 +276,11 @@ export class BuildSection extends ZephyrLitElement {
     const b = this.buildDetails;
     if (b.runners.length === 0) {
       return html`
-        <div class="file-list-empty">No runners configured</div>
+        <div class="file-list-empty">No build-level runners configured</div>
         <div style="margin-top:8px;">
           <vscode-button appearance="secondary" icon="add"
             @click=${() => this.postCommand("addRunner", { project: this.projectName, build: b.name })}>
-            Add Runner
+            Add Build Runner
           </vscode-button>
         </div>
       `;
@@ -262,7 +290,15 @@ export class BuildSection extends ZephyrLitElement {
       ${b.runners.map(
       (r) => html`
           <div class="runner-row">
-            <span class="runner-name"><i class="codicon codicon-debug-alt-small"></i> ${r.name}</span>
+            <span class="runner-name">
+              <i class="codicon codicon-debug-alt-small"></i> ${r.name}
+              ${r.name === b.activeRunner ? html`<span class="runner-active-badge">active</span>` : html`
+                <vscode-button appearance="icon" title="Set as active runner"
+                  @click=${() => this.postCommand("setActiveRunner", { project: this.projectName, build: b.name, runner: r.name })}>
+                  <i class="codicon codicon-circle-outline"></i>
+                </vscode-button>
+              `}
+            </span>
             <div class="runner-fields">
               <div class="runner-field-row">
                 <span class="runner-field-label">Type</span>
@@ -278,6 +314,17 @@ export class BuildSection extends ZephyrLitElement {
                   @focusout=${(e: FocusEvent) => this._onRunnerBlur(e, r.name, "runner-args")}
                   @keydown=${(e: KeyboardEvent) => this._onRunnerKeydown(e, r.name, "runner-args")} />
               </div>
+              <div class="runner-field-row">
+                <span class="runner-field-label">Args mode</span>
+                <select class="runner-input"
+                  @change=${(e: Event) => {
+          const sel = e.target as HTMLSelectElement;
+          this.postCommand("updateRunner", { project: this.projectName, build: b.name, runner: r.name, "runner-argsmode": sel.value });
+        }}>
+                  <option value="append" ?selected=${r.argsMode === "append"}>Append to parent</option>
+                  <option value="override" ?selected=${r.argsMode === "override"}>Override parent</option>
+                </select>
+              </div>
             </div>
             <div class="runner-actions">
               <vscode-button appearance="icon" icon="trash" title="Remove"
@@ -290,8 +337,86 @@ export class BuildSection extends ZephyrLitElement {
       <div class="action-row">
         <vscode-button appearance="secondary" icon="add"
           @click=${() => this.postCommand("addRunner", { project: this.projectName, build: b.name })}>
-          Add Runner
+          Add Build Runner
         </vscode-button>
+      </div>
+    `;
+  }
+
+  private _renderProjectRunners() {
+    const b = this.buildDetails;
+    const projectRunners = b.projectRunners ?? [];
+
+    const rows = projectRunners.map(
+      (r) => html`
+        <div class="runner-row">
+          <span class="runner-name"><i class="codicon codicon-package"></i> ${r.name}</span>
+          <div class="runner-fields">
+            <div class="runner-field-row">
+              <span class="runner-field-label">Type</span>
+              <input class="runner-input" type="text" .value=${r.runner}
+                @input=${this._onArgInput}
+                @focusout=${(e: FocusEvent) => this._onProjectRunnerBlur(e, r.name, "runner-type")}
+                @keydown=${(e: KeyboardEvent) => this._onProjectRunnerKeydown(e, r.name, "runner-type")} />
+            </div>
+            <div class="runner-field-row">
+              <span class="runner-field-label">Args</span>
+              <input class="runner-input" type="text" .value=${r.args}
+                @input=${this._onArgInput}
+                @focusout=${(e: FocusEvent) => this._onProjectRunnerBlur(e, r.name, "runner-args")}
+                @keydown=${(e: KeyboardEvent) => this._onProjectRunnerKeydown(e, r.name, "runner-args")} />
+            </div>
+            <div class="runner-field-row">
+              <span class="runner-field-label">Args mode</span>
+              <select class="runner-input"
+                @change=${(e: Event) => {
+          const sel = e.target as HTMLSelectElement;
+          this.postCommand("updateProjectRunner", { project: this.projectName, runner: r.name, "runner-argsmode": sel.value });
+        }}>
+                <option value="append" ?selected=${r.argsMode === "append"}>Append to parent</option>
+                <option value="override" ?selected=${r.argsMode === "override"}>Override parent</option>
+              </select>
+            </div>
+          </div>
+          <div class="runner-actions">
+            <vscode-button appearance="icon" icon="trash" title="Remove"
+              @click=${() => this.postCommand("removeProjectRunner", { project: this.projectName, runner: r.name })}>
+            </vscode-button>
+          </div>
+        </div>
+      `,
+    );
+
+    return html`
+      <div class="runner-level-header">Project runners <span class="runner-level-hint">(inherited by builds with same name)</span></div>
+      ${rows.length === 0 ? html`<div class="file-list-empty">No project-level runners configured</div>` : rows}
+      <div class="action-row">
+        <vscode-button appearance="secondary" icon="add"
+          @click=${() => this.postCommand("addProjectRunner", { project: this.projectName })}>
+          Add Project Runner
+        </vscode-button>
+      </div>
+    `;
+  }
+
+  private _renderRunnersYamlHint() {
+    const hint = this.buildDetails.runnersYamlHint;
+    if (!hint) { return html``; }
+    return html`
+      <div class="runners-yaml-hint">
+        <span class="runner-level-header">runners.yaml defaults <span class="runner-level-hint">(read-only, from last build)</span></span>
+        <div class="runner-hint-row">
+          <span class="runner-field-label">Flash</span>
+          <span class="runner-hint-value">${hint.flashRunner ?? "—"}</span>
+        </div>
+        <div class="runner-hint-row">
+          <span class="runner-field-label">Debug</span>
+          <span class="runner-hint-value">${hint.debugRunner ?? "—"}</span>
+        </div>
+        <div class="runner-hint-row">
+          <span class="runner-field-label">Available</span>
+          <span class="runner-hint-value">${hint.availableRunners.join(", ") || "—"}</span>
+        </div>
       </div>
     `;
   }
@@ -444,8 +569,13 @@ export class BuildSection extends ZephyrLitElement {
           ${this._collapsibleSection(
           "runners",
           "Runners",
-          `${b.runners.length} runner${b.runners.length !== 1 ? "s" : ""}`,
-          this._renderRunners(),
+          `${b.runners.length} build, ${(b.projectRunners ?? []).length} project`,
+          html`
+            ${this._renderRunnersYamlHint()}
+            ${this._renderProjectRunners()}
+            <div class="runner-level-header" style="margin-top:12px;">Build runners</div>
+            ${this._renderRunners()}
+          `,
         )}
         </div>
       </div>

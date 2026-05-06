@@ -561,25 +561,59 @@ export function getLaunchTargetDisplayName(targetName: string, targetFolder: str
   return `${label} (${targetFolder})`;
 }
 
-export async function selectLaunchConfiguration(wsConfig: WorkspaceConfig): Promise<{ name: string; workspaceFolder?: string } | undefined> {
+/** Runners that cortex-debug can drive and are therefore valid debug targets. */
+const DEBUG_CAPABLE_RUNNERS = [
+  "openocd",
+  "jlink",
+  "pyocd",
+  "stlink",
+  "blackmagicprobe",
+  "qemu",
+];
+
+/** Prefix used to store a runner-pinned target in launchTarget / buildDebugTarget. */
+export const RUNNER_TARGET_PREFIX = "runner:";
+
+export async function selectLaunchConfiguration(wsConfig: WorkspaceConfig, defaultLabel?: string): Promise<{ name: string; workspaceFolder?: string; isDefault?: boolean; isRunner?: boolean } | undefined> {
   const configurations = await getLaunchConfigurations(wsConfig);
-  if (!configurations) {
-    return;
-  }
 
   const pickOptions: vscode.QuickPickOptions = {
     ignoreFocusOut: true,
     placeHolder: "Select Launch Configuration",
   };
   const isMultiRoot = (vscode.workspace.workspaceFolders?.length ?? 0) > 1;
-  const items: vscode.QuickPickItem[] = configurations.map(x => ({
-    label: x.name,
-    description: isMultiRoot ? x.workspaceFolder : undefined,
-  }));
+  const items: vscode.QuickPickItem[] = [];
+
+  if (defaultLabel) {
+    items.push({ label: defaultLabel, detail: "Use Zephyr IDE automatic debug configuration (runners.yaml)" });
+  }
+
+  // Debug-capable runners – selecting one pins the session to that runner
+  // while still going through the runners.yaml DebugConfigurationProvider.
+  items.push({ label: "Runners", kind: vscode.QuickPickItemKind.Separator });
+  items.push(...DEBUG_CAPABLE_RUNNERS.map(r => ({
+    label: r,
+    detail: `Use ${r} runner (runners.yaml configuration)`,
+  })));
+
+  if (configurations && configurations.length > 0) {
+    items.push({ label: "launch.json", kind: vscode.QuickPickItemKind.Separator });
+    items.push(...configurations.map(x => ({
+      label: x.name,
+      description: isMultiRoot ? x.workspaceFolder : undefined,
+    })));
+  }
 
   const selected = await vscode.window.showQuickPick(items, pickOptions);
   if (!selected) {
     return undefined;
+  }
+
+  if (defaultLabel && selected.label === defaultLabel) {
+    return { name: "", isDefault: true };
+  }
+  if (DEBUG_CAPABLE_RUNNERS.includes(selected.label)) {
+    return { name: `${RUNNER_TARGET_PREFIX}${selected.label}`, isRunner: true };
   }
   return { name: selected.label, workspaceFolder: selected.description };
 }

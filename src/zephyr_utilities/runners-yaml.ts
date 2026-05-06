@@ -199,3 +199,23 @@ export function runnerToServerType(runner: string): string | undefined {
       return undefined;
   }
 }
+
+/**
+ * Read the `runners.yaml` in a build folder and return a lightweight hint
+ * object for display in the UI. Returns undefined when the file does not exist
+ * (i.e., the build has not been run yet).
+ */
+export function getRunnersYamlHint(buildFolder: string): {
+  flashRunner?: string;
+  debugRunner?: string;
+  availableRunners: string[];
+} | undefined {
+  const runnersYamlPath = resolveRunnersYamlPath(buildFolder);
+  const parsed = parseRunnersYaml(runnersYamlPath);
+  if (!parsed) { return undefined; }
+  return {
+    flashRunner: parsed.flashRunner,
+    debugRunner: parsed.debugRunner,
+    availableRunners: parsed.runners,
+  };
+}

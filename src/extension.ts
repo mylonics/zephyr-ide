@@ -263,9 +263,9 @@ async function startDebugSession(
   const keys = targetKeys[mode];
   // An empty-string target is treated as "unset" so newly-created builds fall
   // through to the runners.yaml-driven DebugConfigurationProvider path below.
-  const debugTarget = (activeBuild?.[keys.name] && activeBuild?.[keys.name] !== "")
-    ? activeBuild![keys.name]
-    : undefined;
+  // A "runner:xxx" prefix pins the provider to a specific runner.
+  const rawTarget = activeBuild?.[keys.name];
+  const debugTarget = (rawTarget && rawTarget !== "") ? rawTarget : undefined;
   const debugTargetFolder = activeBuild?.[keys.folder];
 
   if (mode === 'build-debug') {
@@ -283,7 +283,10 @@ async function startDebugSession(
   // (cortex-debug + runners.yaml) directly. This is the new default for
   // newly-created builds; users can still bind a named launch by using the
   // "Change ... Launch Configuration For Build" commands.
-  if (!debugTarget) {
+  const RUNNER_PREFIX = "runner:";
+  const pinnedRunner = debugTarget?.startsWith(RUNNER_PREFIX) ? debugTarget.slice(RUNNER_PREFIX.length) : undefined;
+
+  if (!debugTarget || pinnedRunner !== undefined) {
     if (!resolved) {
       notifyError("Debug", "No active project or build configuration found");
       return;
@@ -292,6 +295,7 @@ async function startDebugSession(
       type: "zephyr-ide",
       name: mode === 'attach' ? "Zephyr IDE: Attach" : "Zephyr IDE: Debug",
       request: mode === 'attach' ? "attach" : "launch",
+      ...(pinnedRunner ? { runner: pinnedRunner } : {}),
     };
     const folder = vscode.workspace.workspaceFolders?.[0];
     const started = await vscode.debug.startDebugging(folder, inlineCfg);
@@ -1055,6 +1059,15 @@ export async function activate(context: vscode.ExtensionContext) {
 
   registerCommandWithRefresh(context, "zephyr-ide.remove-runner",
     () => project.removeRunner(context, wsConfig));
+
+  registerCommandWithRefresh(context, "zephyr-ide.add-project-runner",
+    async () => {
+      if (!wsConfig.activeProject) { return; }
+      await project.addRunnerToProject(wsConfig, context, wsConfig.activeProject);
+    });
+
+  registerCommandWithRefresh(context, "zephyr-ide.remove-project-runner",
+    () => project.removeProjectRunner(context, wsConfig));
 
   registerCommandWithRefresh(context, "zephyr-ide.change-debug-launch-for-build",
     () => project.selectDebugLaunchConfiguration(context, wsConfig));

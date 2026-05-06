@@ -48,6 +48,8 @@ import {
   selectBuildDebugLaunchConfiguration,
   selectDebugAttachLaunchConfiguration,
   getProjectFolder,
+  addRunnerToProject,
+  removeProjectRunner,
 } from "../../project_utilities/project";
 import { ConfigFiles } from "../../project_utilities/config_selector";
 import { generateNonce } from "../webview_shared/nonce";
@@ -337,6 +339,26 @@ export class ProjectBuildPanel {
         case "updateRunner":
           await this.handleUpdateRunner(message);
           return;
+        case "addProjectRunner":
+          await addRunnerToProject(ws, ctx, message.project);
+          await this.refreshAfterChange();
+          return;
+        case "removeProjectRunner":
+          await removeProjectRunner(ctx, ws, message.project, message.runner);
+          await this.refreshAfterChange();
+          return;
+        case "updateProjectRunner":
+          await this.handleUpdateProjectRunner(message);
+          return;
+        case "setActiveRunner": {
+          const buildState = ws.projectStates[message.project]?.buildStates[message.build];
+          if (buildState) {
+            buildState.activeRunner = message.runner ?? undefined;
+            await setWorkspaceState(ctx, ws);
+          }
+          await this.refreshAfterChange();
+          return;
+        }
 
         // Build actions
         case "build":
@@ -560,6 +582,34 @@ export class ProjectBuildPanel {
     if (message["runner-args"] !== undefined) {
       runner.args = String(message["runner-args"]);
     }
+    if (message["runner-argsmode"] !== undefined) {
+      const mode = String(message["runner-argsmode"]);
+      runner.argsMode = (mode === "override") ? "override" : "append";
+    }
+    await setWorkspaceState(this._context, this._wsConfig);
+    await this.refreshAfterChange();
+  }
+
+  private async handleUpdateProjectRunner(message: Record<string, any>) {
+    const projectName = this._selectedProject;
+    const runnerName = String(message.runner ?? "");
+    if (!projectName || !runnerName) {
+      return;
+    }
+    const runner = this._wsConfig.projects[projectName]?.runnerConfigs?.[runnerName];
+    if (!runner) {
+      return;
+    }
+    if (message["runner-type"] !== undefined) {
+      runner.runner = String(message["runner-type"]);
+    }
+    if (message["runner-args"] !== undefined) {
+      runner.args = String(message["runner-args"]);
+    }
+    if (message["runner-argsmode"] !== undefined) {
+      const mode = String(message["runner-argsmode"]);
+      runner.argsMode = (mode === "override") ? "override" : "append";
+    }
     await setWorkspaceState(this._context, this._wsConfig);
     await this.refreshAfterChange();
   }
@@ -695,12 +745,23 @@ export class ProjectBuildPanel {
           const runners: WebviewRunnerInfo[] = details.runners.map((r) => ({
             name: r.name,
             runner: r.config.runner,
-            args: r.config.args,
+            args: r.config.args ?? "",
+            argsMode: r.config.argsMode ?? "append",
+          }));
+
+          const projectRunners: WebviewRunnerInfo[] = details.projectRunners.map((r) => ({
+            name: r.name,
+            runner: r.config.runner,
+            args: r.config.args ?? "",
+            argsMode: r.config.argsMode ?? "append",
           }));
 
           buildDetails = {
             ...details,
             runners,
+            projectRunners,
+            activeRunner: details.activeRunner,
+            runnersYamlHint: details.runnersYamlHint,
             debugDisplay: getLaunchTargetDisplayName(details.launchTarget, details.launchTargetFolder, "Zephyr IDE: Debug"),
             buildDebugDisplay: getLaunchTargetDisplayName(details.buildDebugTarget, details.buildDebugTargetFolder, "Zephyr IDE: Debug"),
             attachDisplay: getLaunchTargetDisplayName(details.attachTarget, details.attachTargetFolder, "Zephyr IDE: Attach"),

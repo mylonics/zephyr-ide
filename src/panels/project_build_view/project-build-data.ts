@@ -61,6 +61,7 @@ export interface WebviewRunnerInfo {
   name: string;
   runner: string;
   args: string;
+  argsMode: "append" | "override";
 }
 
 export interface WebviewBuildDetails {
@@ -76,6 +77,12 @@ export interface WebviewBuildDetails {
   westBuildCMakeArgs: string[];
   confFiles: WebviewConfigFiles;
   runners: WebviewRunnerInfo[];
+  /** Project-level runners (inherited by same-named build runners). */
+  projectRunners: WebviewRunnerInfo[];
+  /** Currently active runner name at build level. */
+  activeRunner: string | undefined;
+  /** Read-only hint from runners.yaml. */
+  runnersYamlHint: { flashRunner?: string; debugRunner?: string; availableRunners: string[] } | undefined;
   launchTarget: string;
   launchTargetFolder: string | undefined;
   buildDebugTarget: string;

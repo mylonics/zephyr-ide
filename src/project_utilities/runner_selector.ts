@@ -16,14 +16,25 @@ limitations under the License.
 */
 
 import { QuickPickItem } from 'vscode';
-import { MultiStepInput, noOpValidate, mapToQuickPickItems } from "../utilities/multistepQuickPick";
+import * as vscode from 'vscode';
+import { MultiStepInput, noOpValidate } from "../utilities/multistepQuickPick";
 import { outputError } from "../utilities/output";
-
-import * as path from "upath";
-import * as fs from 'fs';
 
 // Config for the extension
 export interface RunnerConfig {
+  name: string;
+  runner: string;
+  args: string;
+  /** How this level's args combine with the parent level. Default: "append". */
+  argsMode?: "append" | "override";
+}
+
+/**
+ * Global runner config as stored in `zephyr-ide.globalRunners` VS Code
+ * settings.  No `argsMode` because the global level is the base — there is no
+ * parent to combine with.
+ */
+export interface GlobalRunnerConfig {
   name: string;
   runner: string;
   args: string;
@@ -36,106 +47,162 @@ export interface RunnerState {
 export type RunnerConfigDictionary = { [name: string]: RunnerConfig };
 export type RunnerStateDictionary = { [name: string]: RunnerState };
 
-export async function runnerSelector(boardfolder: string) {
-  const title = 'Add Runner';
-  const runners = ["default"];
+/** All known west runners. "default" means let west/CMake pick based on board. */
+const KNOWN_RUNNERS = [
+  "default",
+  "openocd",
+  "jlink",
+  "pyocd",
+  "stlink",
+  "nrfjprog",
+  "nrfutil",
+  "blackmagicprobe",
+  "linkserver",
+  "dfu-util",
+  "uf2",
+  "esp32",
+  "qemu",
+  "bossac",
+  "teensy",
+  "bflb-mcu-tool",
+  "arc-jtag",
+  "dediprog",
+  "silabs_commander",
+  "xsdb",
+];
 
-  const boardcmakePath = path.join(boardfolder, 'board.cmake');
-  if (fs.existsSync(boardcmakePath)) {
-    const boardCMakeFile = fs.readFileSync(boardcmakePath, 'utf8');
-    boardCMakeFile.split(/\r?\n/).forEach(line => {
+/**
+ * Resolve the effective runner type and arguments by cascading:
+ *   global (VS Code settings) → project → build
+ *
+ * Levels that do not have a runner with the given `runnerName` are skipped.
+ * The `argsMode` on project/build levels controls whether their args are
+ * appended to or override the accumulated result from the level above.
+ */
+export function resolveEffectiveRunner(
+  projectRunners: RunnerConfigDictionary,
+  buildRunners: RunnerConfigDictionary,
+  runnerName: string,
+): { runner: string; args: string } {
+  const globalRunners = vscode.workspace.getConfiguration().get<GlobalRunnerConfig[]>("zephyr-ide.globalRunners") ?? [];
+  const globalRunner = globalRunners.find(r => r.name === runnerName);
+  const projectRunner = projectRunners[runnerName];
+  const buildRunner = buildRunners[runnerName];
 
-      if (line.includes("include(${ZEPHYR_BASE}/boards/common/") && line.includes(".board.cmake)")) {
-        runners.push(line.replace('include(${ZEPHYR_BASE}/boards/common/', '').replace(".board.cmake)", '').replace(/\s/g, ''));
-      }
-    });
+  let resolvedRunner = globalRunner?.runner ?? "";
+  let resolvedArgs = globalRunner?.args ?? "";
+
+  // Apply project level
+  if (projectRunner) {
+    const pArgsMode = projectRunner.argsMode ?? "append";
+    if (pArgsMode === "override") {
+      resolvedRunner = projectRunner.runner;
+      resolvedArgs = projectRunner.args;
+    } else {
+      if (projectRunner.runner) { resolvedRunner = projectRunner.runner; }
+      const parts = [resolvedArgs, projectRunner.args].filter(s => s.trim());
+      resolvedArgs = parts.join(" ");
+    }
   }
 
+  // Apply build level
+  if (buildRunner) {
+    const bArgsMode = buildRunner.argsMode ?? "append";
+    if (bArgsMode === "override") {
+      resolvedRunner = buildRunner.runner;
+      resolvedArgs = buildRunner.args;
+    } else {
+      if (buildRunner.runner) { resolvedRunner = buildRunner.runner; }
+      const parts = [resolvedArgs, buildRunner.args].filter(s => s.trim());
+      resolvedArgs = parts.join(" ");
+    }
+  }
+
+  if (!resolvedRunner) {
+    resolvedRunner = "default";
+  }
+
+  return { runner: resolvedRunner, args: resolvedArgs };
+}
+
+export async function runnerSelector() {
+  const title = 'Add Runner';
+
   async function pickRunner(input: MultiStepInput, state: Partial<RunnerConfig>) {
+    const runnersQpItems: QuickPickItem[] = KNOWN_RUNNERS.map(r => ({ label: r }));
 
-    // Get runners
-    const runnersQpItems: QuickPickItem[] = mapToQuickPickItems(runners);
-
-    const pickPromise = input.showQuickPick({
+    const pick = await input.showQuickPick({
       title,
       step: 1,
       totalSteps: 3,
       placeholder: 'Pick Runner',
       items: runnersQpItems,
       ignoreFocusOut: true,
-      activeItem: typeof state.runner !== 'string' ? state.runner : undefined
     }).catch((error) => {
       outputError("Runner Selector", String(error));
       return undefined;
     });
-    const pick = await pickPromise;
     if (!pick) {
       return;
     }
 
     state.runner = pick.label;
-    return (input: MultiStepInput) => inputRunnerName(input, state);
-  }
-
-  async function inputRunnerName(input: MultiStepInput, state: Partial<RunnerConfig>) {
-    if (state.runner === undefined) {
-      return;
-    }
-
-    const inputNamePromise = input.showInputBox({
-      title,
-      step: 2,
-      totalSteps: 3,
-      value: state.runner,
-      ignoreFocusOut: true,
-      prompt: 'Enter runner configuration name',
-      validate: noOpValidate
-    }).catch((error) => {
-      outputError("Runner Selector", String(error));
-      return undefined;
-    });
-
-    state.name = await inputNamePromise;
-    if (state.name === undefined) {
-      return;
-    }
+    state.name = pick.label;
     return (input: MultiStepInput) => addRunnerArguments(input, state);
   }
 
   async function addRunnerArguments(input: MultiStepInput, state: Partial<RunnerConfig>) {
-    if (state.name === undefined) {
-      return;
-    }
-
-    const inputPromise = input.showInputBox({
+    const args = await input.showInputBox({
       title,
-      step: 3,
+      step: 2,
       totalSteps: 3,
       value: "",
-      prompt: 'Add Runner Arguments',
+      prompt: 'Runner Arguments (optional, e.g. --config board.cfg)',
       ignoreFocusOut: true,
-      validate: noOpValidate
+      validate: noOpValidate,
     }).catch((error) => {
       outputError("Runner Selector", String(error));
       return undefined;
     });
-    state.args = await inputPromise;
-
-    if (state.args === undefined) {
+    if (args === undefined) {
       return;
     }
-    return;
+    state.args = args;
+    return (input: MultiStepInput) => pickArgsMode(input, state);
   }
 
-  async function collectInputs() {
-    const state = {} as Partial<RunnerConfig>;
-    await MultiStepInput.run(input => pickRunner(input, state));
-    return state;
+  async function pickArgsMode(input: MultiStepInput, state: Partial<RunnerConfig>) {
+    const items: QuickPickItem[] = [
+      { label: "append", description: "Combine this level's args with parent-level (global/project) args" },
+      { label: "override", description: "Replace parent-level args entirely with this level's args" },
+    ];
+
+    const pick = await input.showQuickPick({
+      title,
+      step: 3,
+      totalSteps: 3,
+      placeholder: 'Args Mode',
+      items,
+      ignoreFocusOut: true,
+    }).catch((error) => {
+      outputError("Runner Selector", String(error));
+      return undefined;
+    });
+    if (!pick) {
+      return;
+    }
+    state.argsMode = pick.label as "append" | "override";
   }
 
-  const state = await collectInputs();
+  const state = {} as Partial<RunnerConfig>;
+  await MultiStepInput.run(input => pickRunner(input, state));
+
   if (!state.name) {
     return undefined;
+  }
+  // Default argsMode to "append" if not set (e.g., user backed out of step 3)
+  if (state.argsMode === undefined) {
+    state.argsMode = "append";
   }
   return state as RunnerConfig;
 }

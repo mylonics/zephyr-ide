@@ -52,6 +52,29 @@
       "type": "object",
       "title": "Zephyr IDE",
       "properties": {
+        "zephyr-ide.globalRunners": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Runner name — used as the key to inherit into project/build levels with the same name."
+              },
+              "runner": {
+                "type": "string",
+                "description": "West runner type (e.g. jlink, openocd, pyocd, stlink). Use 'default' to let west pick."
+              },
+              "args": {
+                "type": "string",
+                "description": "Arguments passed to the runner (e.g. --speed=4000)."
+              }
+            },
+            "required": ["name", "runner", "args"]
+          },
+          "description": "Global runner configurations that form the base layer for all projects and builds. A project or build runner with the same name will inherit and optionally extend these settings."
+        },
         "zephyr-ide.globalDirectory": {
           "type": [
             "string",
@@ -605,6 +628,14 @@
       {
         "command": "zephyr-ide.set-active-runner",
         "title": "Zephyr IDE: Set Active Runner"
+      },
+      {
+        "command": "zephyr-ide.add-project-runner",
+        "title": "Zephyr IDE: Add Project Runner"
+      },
+      {
+        "command": "zephyr-ide.remove-project-runner",
+        "title": "Zephyr IDE: Remove Project Runner"
       },
       {
         "command": "zephyr-ide.change-debug-launch-for-build",

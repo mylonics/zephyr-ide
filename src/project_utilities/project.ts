@@ -23,7 +23,7 @@ import { notifyError, notifyWarningWithActions } from "../utilities/output";
 import { buildSelector, BuildConfig, BuildConfigDictionary, BuildStateDictionary } from "./build_selector";
 import { WorkspaceConfig } from "../setup_utilities/types";
 import { setWorkspaceState } from "../setup_utilities/state-management";
-import { runnerSelector, RunnerConfig } from "./runner_selector";
+import { runnerSelector, RunnerConfig, RunnerConfigDictionary, RunnerStateDictionary, resolveEffectiveRunner } from "./runner_selector";
 import { configSelector, configRemover, ConfigFiles, mergeConfigFiles } from "./config_selector";
 import { setDtsContext } from "../setup_utilities/dts_interface";
 import { getSamples } from "../setup_utilities/modules";
@@ -41,6 +41,8 @@ export interface ProjectConfig {
   buildConfigs: BuildConfigDictionary;
   confFiles: ConfigFiles;
   twisterConfigs: TwisterConfigDictionary;
+  /** Project-level runner configurations, inherited by builds with the same runner name. */
+  runnerConfigs: RunnerConfigDictionary;
 }
 
 // Project specific state
@@ -50,6 +52,8 @@ export interface ProjectState {
   viewOpen?: boolean;
   buildStates: BuildStateDictionary;
   twisterStates: TwisterStateDictionary;
+  /** UI state for project-level runner rows. */
+  runnerStates: RunnerStateDictionary;
 }
 
 /** Get the absolute folder path for a project */
@@ -144,6 +148,8 @@ export interface ResolvedProjectBuild extends ResolvedProject {
 export interface ResolvedProjectBuildRunner extends ResolvedProjectBuild {
   runnerName: string;
   runner: RunnerConfig;
+  /** Effective runner (type + args) after cascading global → project → build. */
+  effectiveRunner: { runner: string; args: string };
 }
 
 /** Options for resolver helpers */
@@ -225,7 +231,12 @@ export function resolveActiveProjectBuildRunner(
     if (options?.caller) { notifyError(options.caller, `Runner "${rName}" not found`); }
     return undefined;
   }
-  return { ...resolved, runnerName: rName, runner };
+  const effectiveRunner = resolveEffectiveRunner(
+    resolved.project.runnerConfigs ?? {},
+    resolved.build.runnerConfigs,
+    rName,
+  );
+  return { ...resolved, runnerName: rName, runner, effectiveRunner };
 }
 
 export async function modifyBuildArguments(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName?: string, buildName?: string) {
@@ -628,8 +639,9 @@ export async function addProject(wsConfig: WorkspaceConfig, context: vscode.Exte
       config: [],
       overlay: [],
     },
+    runnerConfigs: {},
   };
-  wsConfig.projectStates[projectName] = { buildStates: {}, viewOpen: true, twisterStates: {} };
+  wsConfig.projectStates[projectName] = { buildStates: {}, viewOpen: true, twisterStates: {}, runnerStates: {} };
   await setActiveProject(context, wsConfig, projectName);
   await setWorkspaceState(context, wsConfig);
 
@@ -849,11 +861,7 @@ export async function setActiveRunner(context: vscode.ExtensionContext, wsConfig
 export async function addRunnerToBuild(wsConfig: WorkspaceConfig, context: vscode.ExtensionContext, projectName: string, buildName: string) {
   const build = wsConfig.projects[projectName].buildConfigs[buildName];
 
-  const boardPath = resolveBoardPath(wsConfig, build, await getSetupState(context, wsConfig) ?? undefined);
-  let result;
-  if (boardPath) {
-    result = await runnerSelector(boardPath);
-  }
+  const result = await runnerSelector();
 
   if (result && result.name !== undefined) {
     if (build.runnerConfigs[result.name]) {
@@ -881,11 +889,71 @@ export async function addRunner(wsConfig: WorkspaceConfig, context: vscode.Exten
   await addRunnerToBuild(wsConfig, context, resolved.projectName, resolved.buildName);
 }
 
+export async function askUserForProjectRunner(wsConfig: WorkspaceConfig, projectName: string) {
+  return await askUserForSelection(wsConfig.projects[projectName].runnerConfigs ?? {}, "Select Project Runner");
+}
+
+export async function addRunnerToProject(wsConfig: WorkspaceConfig, context: vscode.ExtensionContext, projectName: string) {
+  const project = wsConfig.projects[projectName];
+  if (!project) {
+    notifyError("Runner Config", `Project "${projectName}" not found`);
+    return;
+  }
+
+  const result = await runnerSelector();
+  if (!result || result.name === undefined) {
+    return;
+  }
+
+  if (project.runnerConfigs[result.name]) {
+    const selection = await vscode.window.showWarningMessage(
+      `A project runner named "${result.name}" already exists`, 'Overwrite', 'Cancel');
+    if (selection !== 'Overwrite') {
+      notifyError("Runner Config", `Failed to add project runner configuration`);
+      return;
+    }
+  }
+  void vscode.window.showInformationMessage(`Creating Project Runner Configuration: ${result.name}`);
+  project.runnerConfigs[result.name] = result;
+  if (!wsConfig.projectStates[projectName].runnerStates) {
+    wsConfig.projectStates[projectName].runnerStates = {};
+  }
+  wsConfig.projectStates[projectName].runnerStates[result.name] = {};
+  await setWorkspaceState(context, wsConfig);
+}
+
+export async function removeProjectRunner(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName?: string, runnerName?: string) {
+  if (projectName === undefined) {
+    projectName = await askUserForProject(wsConfig);
+    if (projectName === undefined) { return; }
+  }
+  if (runnerName === undefined) {
+    runnerName = await askUserForProjectRunner(wsConfig, projectName);
+    if (runnerName === undefined) { return; }
+  }
+  const project = wsConfig.projects[projectName];
+  const ps = wsConfig.projectStates[projectName];
+  if (!project.runnerConfigs[runnerName]) { return; }
+  const selection = await vscode.window.showWarningMessage(
+    `Are you sure you want to remove project runner "${runnerName}"?`, 'Yes', 'Cancel');
+  if (selection !== 'Yes') { return; }
+  delete project.runnerConfigs[runnerName];
+  if (ps.runnerStates) { delete ps.runnerStates[runnerName]; }
+  await setWorkspaceState(context, wsConfig);
+  return true;
+}
+
 export async function getActiveBuild(wsConfig: WorkspaceConfig) {
   const resolved = resolveActiveProjectBuild(wsConfig);
   if (!resolved) { return; }
   return resolved.build;
 }
+
+const LAUNCH_TARGET_DEFAULT_LABELS: Record<string, string> = {
+  launchTarget: 'Default: Debug',
+  buildDebugTarget: 'Default: Debug',
+  attachTarget: 'Default: Attach',
+};
 
 /**
  * Generic helper to select a launch configuration and assign it to the given
@@ -898,10 +966,21 @@ async function selectLaunchConfigForTarget(
   targetFolderKey: 'launchTargetFolder' | 'buildDebugTargetFolder' | 'attachTargetFolder'
 ) {
   const activeBuild = await getActiveBuild(wsConfig);
-  const newConfig = await selectLaunchConfiguration(wsConfig);
-  if (activeBuild && newConfig) {
-    activeBuild[targetNameKey] = newConfig.name;
-    activeBuild[targetFolderKey] = newConfig.workspaceFolder;
+  const defaultLabel = LAUNCH_TARGET_DEFAULT_LABELS[targetNameKey];
+  const newConfig = await selectLaunchConfiguration(wsConfig, defaultLabel);
+  if (activeBuild && newConfig !== undefined) {
+    if (newConfig.isDefault) {
+      // Clear target → use Zephyr IDE DebugConfigurationProvider path (auto-pick runner)
+      activeBuild[targetNameKey] = "";
+      activeBuild[targetFolderKey] = undefined;
+    } else if (newConfig.isRunner) {
+      // Pin to a specific runner; still goes through the DebugConfigurationProvider
+      activeBuild[targetNameKey] = newConfig.name; // "runner:openocd", etc.
+      activeBuild[targetFolderKey] = undefined;
+    } else {
+      activeBuild[targetNameKey] = newConfig.name;
+      activeBuild[targetFolderKey] = newConfig.workspaceFolder;
+    }
     await setWorkspaceState(context, wsConfig);
   }
 }
