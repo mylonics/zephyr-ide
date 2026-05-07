@@ -336,7 +336,7 @@ async function runSdkSetup(
             cmd = "cmd.exe";
             args = ["/c", setupScript, ...extraArgs];
         } else {
-            cmd = "sh";
+            cmd = "bash";
             args = [setupScript, ...extraArgs];
         }
         outputInfo("SDK Setup", `Running: ${cmd} ${args.join(" ")}`);
