@@ -241,6 +241,11 @@ export class SDKPanel {
   private async installZephyrIdeToolchains() {
     try {
       await vscode.commands.executeCommand("zephyr-ide.install-zephyr-ide-toolchains");
+    } catch (error) {
+      notifyError("SDK Install", `Failed to install zephyr-ide.json toolchains: ${error}`);
+    } finally {
+      // Always refresh the panel so the buttons are re-enabled even if the
+      // command threw before any progress events fired.
       if (this.currentWsConfig && this.currentGlobalConfig) {
         try {
           this._cachedSDKList = undefined;
@@ -250,8 +255,6 @@ export class SDKPanel {
           outputError("SDK Panel", `Failed to refresh panel after installing zephyr-ide.json toolchains: ${String(updateError)}`);
         }
       }
-    } catch (error) {
-      notifyError("SDK Install", `Failed to install zephyr-ide.json toolchains: ${error}`);
     }
   }
 

@@ -45,7 +45,7 @@ import {
 } from "./zephyr_ide_json";
 import { executeShellCommandInPythonEnv, executeTaskHelperInPythonEnv } from "../utilities/utils";
 import { outputInfo, outputError, outputWarning, notifyError } from "../utilities/output";
-import { getSetupState, getSetupStateOrNotify } from "./workspace-config";
+import { getSetupStateOrNotify } from "./workspace-config";
 import { setGlobalState } from "./state-management";
 
 // ---------------------------------------------------------------------------
@@ -308,11 +308,12 @@ export async function installZephyrIdeToolchains(
  * for `west blobs fetch <module>`. Best-effort: returns an empty list if west
  * isn't available or no modules declare blobs.
  */
-async function listModulesWithBlobs(wsConfig: WorkspaceConfig, context: vscode.ExtensionContext): Promise<string[]> {
+async function listModulesWithBlobs(wsConfig: WorkspaceConfig, _context: vscode.ExtensionContext): Promise<string[]> {
     // Silent variant: don't notify the user — listing blobs is a discovery
     // step that gracefully degrades to "no available modules" when west isn't
-    // ready yet.
-    const setupState = await getSetupState(context, wsConfig);
+    // ready yet. Use activeSetupState directly to avoid the missing-environment
+    // warning that getSetupState() would surface.
+    const setupState = wsConfig.activeSetupState;
     if (!setupState) { return []; }
 
     try {

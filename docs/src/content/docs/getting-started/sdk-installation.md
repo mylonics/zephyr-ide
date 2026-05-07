@@ -53,7 +53,8 @@ in this priority order:
 
 1. The `sdkVersion` declared in `zephyr-ide.json`.
 2. The version recorded in the Zephyr source tree's `SDK_VERSION` file.
-3. The latest released SDK if neither of the above is available.
+3. Any Zephyr SDK that is already installed locally.
+4. The latest released SDK if none of the above is available.
 
 The SDK panel always exposes two buttons for managing the workspace's
 declared toolchain list:
