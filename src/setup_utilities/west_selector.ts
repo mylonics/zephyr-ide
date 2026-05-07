@@ -141,7 +141,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
         const metadataPath = path.join(vendorDir, "metadata.json");
         if (await fs.pathExists(metadataPath)) {
           try {
-            const meta = JSON.parse(fs.readFileSync(metadataPath, "utf-8"));
+            const meta = JSON.parse(await fs.readFile(metadataPath, "utf-8"));
             if (meta.displayName) { label = meta.displayName; }
             if (meta.description) { description = meta.description; }
           } catch { /* ignore malformed metadata */ }

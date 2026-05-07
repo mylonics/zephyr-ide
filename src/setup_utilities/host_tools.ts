@@ -1218,7 +1218,7 @@ export async function checkHostToolsHeadless(): Promise<boolean> {
  */
 export async function loadVendorHostToolsManifest(hostToolsPath: string): Promise<PlatformPackage[]> {
   try {
-    const raw = fs.readFileSync(hostToolsPath, "utf-8");
+    const raw = await fs.readFile(hostToolsPath, "utf-8");
     const manifest = JSON.parse(raw) as HostToolsManifest;
 
     const manager = await getPackageManagerForPlatformAsync();
