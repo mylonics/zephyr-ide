@@ -31,18 +31,22 @@ import { WorkspaceConfig, GlobalConfig } from "./types";
 import { toolchainTargets } from "../defines";
 import {
     listAvailableSDKs,
+    installSDK,
     installToolchainsDirect,
     detectInstalledSDKVersion,
+    detectSDKVersionFromZephyrDir,
 } from "./west_sdk";
 import {
     getZephyrIdeToolchains,
     setZephyrIdeToolchains,
     getZephyrIdeBlobs,
     setZephyrIdeBlobs,
+    getZephyrIdeSdkVersion,
 } from "./zephyr_ide_json";
 import { executeShellCommandInPythonEnv, executeTaskHelperInPythonEnv } from "../utilities/utils";
 import { outputInfo, outputError, outputWarning, notifyError } from "../utilities/output";
 import { getSetupState, getSetupStateOrNotify } from "./workspace-config";
+import { setGlobalState } from "./state-management";
 
 // ---------------------------------------------------------------------------
 // Toolchains
@@ -169,19 +173,47 @@ async function findMissingToolchains(declared: string[], targetSdkVersion?: stri
 }
 
 /**
+ * Resolve which Zephyr SDK version the workspace requires, in priority order:
+ *   1. `sdkVersion` declared in `.vscode/zephyr-ide.json`.
+ *   2. The version recorded in the Zephyr source tree's `SDK_VERSION` file
+ *      (when an `activeSetupState.zephyrDir` is available).
+ *   3. The version of an SDK that is already installed locally.
+ *   4. `undefined`, meaning the install path will pick the latest released
+ *      SDK from GitHub.
+ */
+async function resolveTargetSdkVersion(wsConfig: WorkspaceConfig): Promise<string | undefined> {
+    const declared = getZephyrIdeSdkVersion(wsConfig);
+    if (declared) { return declared; }
+
+    const zephyrDir = wsConfig.activeSetupState?.zephyrDir;
+    if (zephyrDir) {
+        const fromZephyr = await detectSDKVersionFromZephyrDir(zephyrDir);
+        if (fromZephyr) { return fromZephyr; }
+    }
+
+    const installed = await detectInstalledSDKVersion();
+    if (installed) { return installed; }
+
+    return undefined;
+}
+
+/**
  * Install every toolchain declared in zephyr-ide.json that isn't already
- * present in some local SDK.
+ * present in the resolved target SDK.
  *
- * When `bootstrapSdk` is true and no Zephyr SDK is installed yet, the global
- * `install-sdk` command is invoked first so the auto-install hook in
- * `westUpdateWithRequirements` can satisfy the declared list end-to-end. When
- * called interactively (`bootstrapSdk: false`), the user is instead directed
- * to run `Zephyr IDE: Install SDK` themselves.
+ * Target SDK version resolution (see `resolveTargetSdkVersion`):
+ * `zephyr-ide.json` → Zephyr `SDK_VERSION` file → installed SDK → "latest".
+ *
+ * When `bootstrapSdk` is true and the resolved target SDK is not yet
+ * installed locally, this function downloads and installs it (along with the
+ * declared toolchains) directly via `installSDK`. When called interactively
+ * (`bootstrapSdk: false`) and no SDK is installed, the user is instead
+ * directed to run `Zephyr IDE: Install SDK` themselves.
  *
  * @param silentIfEmpty   When true, don't show notifications if zephyr-ide.json
  *                        declares no toolchains. Used by the auto-install hook.
- * @param bootstrapSdk    When true, trigger `zephyr-ide.install-sdk` if no SDK
- *                        is detected. Used by the auto-install hook.
+ * @param bootstrapSdk    When true, install the resolved target SDK if it
+ *                        isn't already on disk. Used by the auto-install hook.
  */
 export async function installZephyrIdeToolchains(
     wsConfig: WorkspaceConfig,
@@ -200,41 +232,69 @@ export async function installZephyrIdeToolchains(
         return true;
     }
 
-    // Resolve the SDK version to install into. Prefer the recorded global,
-    // then auto-detect from disk.
-    let sdkVersion = globalConfig.sdkVersion;
-    if (!sdkVersion) {
-        sdkVersion = await detectInstalledSDKVersion();
-    }
-    if (!sdkVersion) {
-        if (bootstrapSdk) {
-            outputInfo("Zephyr IDE Toolchains",
-                "No Zephyr SDK installed yet — invoking 'zephyr-ide.install-sdk' to bootstrap before installing declared toolchains.");
-            await vscode.commands.executeCommand("zephyr-ide.install-sdk");
-            sdkVersion = globalConfig.sdkVersion ?? await detectInstalledSDKVersion();
-            if (!sdkVersion) {
-                outputWarning("Zephyr IDE Toolchains",
-                    "SDK installation did not complete; skipping zephyr-ide.json toolchain install.");
-                return false;
-            }
-        } else {
+    // Pick the target SDK version per the documented priority list, falling
+    // back to globalConfig.sdkVersion only when nothing else is available.
+    let targetVersion = await resolveTargetSdkVersion(wsConfig) ?? globalConfig.sdkVersion;
+
+    // Determine whether an SDK matching `targetVersion` is already on disk.
+    const installedVersions = new Set<string>();
+    try {
+        const list = await listAvailableSDKs();
+        if (list.success) {
+            for (const v of list.versions) { installedVersions.add(v.version); }
+        }
+    } catch { /* tolerated — fall through */ }
+
+    const needsBootstrap = !targetVersion || !installedVersions.has(targetVersion);
+
+    if (needsBootstrap) {
+        if (!bootstrapSdk) {
             notifyError("Zephyr IDE Toolchains",
-                "Cannot install required toolchains: no Zephyr SDK is installed. Run 'Zephyr IDE: Install SDK' first.");
+                `Cannot install required toolchains: target Zephyr SDK ${targetVersion ?? "(latest)"} is not installed. Run 'Zephyr IDE: Install SDK' first.`);
             return false;
         }
+        outputInfo("Zephyr IDE Toolchains",
+            `Installing Zephyr SDK ${targetVersion ?? "(latest)"} with declared toolchains: ${declared.join(", ")}`);
+
+        const ok = await vscode.window.withProgress(
+            {
+                location: vscode.ProgressLocation.Notification,
+                title: `Installing Zephyr SDK ${targetVersion ?? "(latest)"}`,
+                cancellable: false,
+            },
+            async (progress) => installSDK(targetVersion, declared, (msg) => progress.report({ message: msg })),
+        );
+
+        if (!ok) {
+            outputWarning("Zephyr IDE Toolchains",
+                `Failed to install Zephyr SDK ${targetVersion ?? "(latest)"} for declared toolchains.`);
+            return false;
+        }
+
+        // installSDK doesn't update globalConfig — record the install so the
+        // rest of the setup flow knows there's now an SDK to use.
+        const newInstalled = targetVersion ?? await detectInstalledSDKVersion();
+        if (newInstalled) {
+            globalConfig.sdkInstalled = true;
+            globalConfig.sdkVersion = newInstalled;
+            if (context) { await setGlobalState(context, globalConfig); }
+            targetVersion = newInstalled;
+        }
+        return true;
     }
 
-    const missing = await findMissingToolchains(declared, sdkVersion);
+    // SDK is already installed: just install any toolchains it's missing.
+    const missing = await findMissingToolchains(declared, targetVersion);
     if (missing.length === 0) {
         outputInfo("Zephyr IDE Toolchains",
-            `All declared toolchains already installed in SDK ${sdkVersion}: ${declared.join(", ")}`);
+            `All declared toolchains already installed in SDK ${targetVersion}: ${declared.join(", ")}`);
         return true;
     }
 
     outputInfo("Zephyr IDE Toolchains",
-        `Installing missing toolchains for SDK ${sdkVersion}: ${missing.join(", ")}`);
+        `Installing missing toolchains for SDK ${targetVersion}: ${missing.join(", ")}`);
 
-    return await installToolchainsDirect(globalConfig, context, sdkVersion, missing);
+    return await installToolchainsDirect(globalConfig, context, targetVersion!, missing);
 }
 
 // ---------------------------------------------------------------------------

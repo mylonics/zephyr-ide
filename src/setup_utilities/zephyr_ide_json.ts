@@ -28,6 +28,12 @@ limitations under the License.
  *                             that the workspace requires.
  *   - `blobs`: string[]       West module names whose binary blobs should be
  *                             fetched (`west blobs fetch <module>`).
+ *   - `sdkVersion`: string    Optional Zephyr SDK version to install when the
+ *                             auto-install hook needs to bootstrap an SDK. If
+ *                             omitted, the version recorded in the Zephyr
+ *                             source tree's `SDK_VERSION` file is used; if
+ *                             that's also unavailable, the latest released
+ *                             SDK is installed.
  *
  * When either array is present, the workspace setup flow installs the missing
  * items automatically; the user can also manage them via the SDK panel or via
@@ -52,7 +58,16 @@ export function readZephyrIdeJson(wsConfig: WorkspaceConfig): Record<string, any
     try {
         if (fs.pathExistsSync(filePath)) {
             const parsed = JSON.parse(fs.readFileSync(filePath, "utf8"));
-            return (parsed && typeof parsed === "object") ? parsed : {};
+            // Reject arrays, null, and other non-plain-object values: the
+            // helpers below assume the file is a JSON object so they can add
+            // / remove keys without losing data.
+            if (
+                parsed !== null &&
+                typeof parsed === "object" &&
+                !Array.isArray(parsed)
+            ) {
+                return parsed;
+            }
         }
     } catch (error) {
         outputError("Zephyr IDE JSON", `Failed to read zephyr-ide.json: ${String(error)}`);
@@ -113,6 +128,33 @@ export async function setZephyrIdeToolchains(wsConfig: WorkspaceConfig, toolchai
 /** Get the list of required blob-providing modules declared in zephyr-ide.json. */
 export function getZephyrIdeBlobs(wsConfig: WorkspaceConfig): string[] {
     return normalizeStringList(readZephyrIdeJson(wsConfig).blobs);
+}
+
+/**
+ * Get the optional Zephyr SDK version declared in zephyr-ide.json. Returns
+ * `undefined` when the key is absent or not a non-empty string.
+ */
+export function getZephyrIdeSdkVersion(wsConfig: WorkspaceConfig): string | undefined {
+    const value = readZephyrIdeJson(wsConfig).sdkVersion;
+    if (typeof value !== "string") { return undefined; }
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+}
+
+/**
+ * Replace the `sdkVersion` key in zephyr-ide.json. Pass `undefined` (or an
+ * empty / whitespace-only string) to remove the key. All other top-level
+ * keys are preserved.
+ */
+export async function setZephyrIdeSdkVersion(wsConfig: WorkspaceConfig, sdkVersion: string | undefined): Promise<void> {
+    const data = readZephyrIdeJson(wsConfig);
+    const trimmed = (typeof sdkVersion === "string") ? sdkVersion.trim() : "";
+    if (!trimmed) {
+        delete data.sdkVersion;
+    } else {
+        data.sdkVersion = trimmed;
+    }
+    await writeZephyrIdeJson(wsConfig, data);
 }
 
 /**

@@ -25,6 +25,8 @@ import {
   setZephyrIdeToolchains,
   getZephyrIdeBlobs,
   setZephyrIdeBlobs,
+  getZephyrIdeSdkVersion,
+  setZephyrIdeSdkVersion,
   readZephyrIdeJson,
 } from "../setup_utilities/zephyr_ide_json";
 import { WorkspaceConfig } from "../setup_utilities/types";
@@ -130,6 +132,76 @@ suite("zephyr-ide.json toolchains/blobs Test Suite", () => {
         toolchains: ["arm-zephyr-eabi", "", "  riscv64-zephyr-elf  ", "arm-zephyr-eabi", 42, null],
       });
       assert.deepStrictEqual(getZephyrIdeToolchains(ws), ["arm-zephyr-eabi", "riscv64-zephyr-elf"]);
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  test("readZephyrIdeJson rejects arrays and null at the top level", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-tc-"));
+    try {
+      const ws = makeWsConfig(tmpRoot);
+      const filePath = path.join(tmpRoot, ".vscode", "zephyr-ide.json");
+
+      // Top-level array — must not be returned, otherwise later writes silently lose data.
+      await fs.outputFile(filePath, JSON.stringify(["arm-zephyr-eabi"]));
+      assert.deepStrictEqual(readZephyrIdeJson(ws), {});
+      assert.deepStrictEqual(getZephyrIdeToolchains(ws), []);
+
+      // Top-level null — same risk.
+      await fs.outputFile(filePath, "null");
+      assert.deepStrictEqual(readZephyrIdeJson(ws), {});
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  test("setZephyrIdeSdkVersion round-trips and preserves other top-level keys", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-tc-"));
+    try {
+      const ws = makeWsConfig(tmpRoot);
+      const filePath = path.join(tmpRoot, ".vscode", "zephyr-ide.json");
+      await fs.outputJson(filePath, {
+        toolchains: ["arm-zephyr-eabi"],
+        projects: { app: { name: "app", rel_path: "app" } },
+      });
+
+      await setZephyrIdeSdkVersion(ws, "0.17.0");
+      assert.strictEqual(getZephyrIdeSdkVersion(ws), "0.17.0");
+
+      const onDisk = await fs.readJson(filePath);
+      assert.strictEqual(onDisk.sdkVersion, "0.17.0");
+      assert.deepStrictEqual(onDisk.toolchains, ["arm-zephyr-eabi"]);
+      assert.deepStrictEqual(onDisk.projects, { app: { name: "app", rel_path: "app" } });
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  test("setZephyrIdeSdkVersion with empty / undefined removes the key", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-tc-"));
+    try {
+      const ws = makeWsConfig(tmpRoot);
+      await setZephyrIdeSdkVersion(ws, "0.17.0");
+      await setZephyrIdeSdkVersion(ws, "  ");
+      assert.strictEqual(getZephyrIdeSdkVersion(ws), undefined);
+      assert.strictEqual(readZephyrIdeJson(ws).sdkVersion, undefined);
+
+      await setZephyrIdeSdkVersion(ws, "0.17.0");
+      await setZephyrIdeSdkVersion(ws, undefined);
+      assert.strictEqual(getZephyrIdeSdkVersion(ws), undefined);
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  test("getZephyrIdeSdkVersion ignores non-string values", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-tc-"));
+    try {
+      const ws = makeWsConfig(tmpRoot);
+      const filePath = path.join(tmpRoot, ".vscode", "zephyr-ide.json");
+      await fs.outputJson(filePath, { sdkVersion: 17 });
+      assert.strictEqual(getZephyrIdeSdkVersion(ws), undefined);
     } finally {
       await fs.remove(tmpRoot);
     }
