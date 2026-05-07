@@ -118,9 +118,8 @@ export type KconfigSessionFactory = () => Promise<KconfigSession>;
 
 /**
  * VS Code webview panel that displays the Zephyr build dashboard natively.
- * Data is produced by `resources/zephyr_dashboard_json.py` and read from a
- * JSON file on disk; no upstream HTML is loaded.  One panel is opened per
- * project/build pair.
+ * Data is read via the TypeScript build artifact reader (build-artifact-reader.ts).
+ * One panel is opened per project/build pair.
  */
 export class DashboardPanel {
   private static readonly _panels: Map<string, DashboardPanel> = new Map();

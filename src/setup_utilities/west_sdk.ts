@@ -141,13 +141,22 @@ function downloadFile(
     onProgress?: (downloaded: number, total: number) => void
 ): Promise<void> {
     return new Promise((resolve, reject) => {
+        // originHost is used to strip auth headers on cross-origin redirects
+        // (GitHub asset URLs redirect to S3/CloudFront CDN).
+        const originHost = new URL(url).hostname;
+
         const follow = (currentUrl: string) => {
             const parsed = new URL(currentUrl);
             const mod: typeof https | typeof http = parsed.protocol === "https:" ? https : http;
+            // Strip auth headers when redirected to a different hostname to
+            // avoid leaking the GitHub token to third-party CDNs.
+            const safeHeaders = parsed.hostname === originHost
+                ? { "User-Agent": "zephyr-ide-vscode", ...headers }
+                : { "User-Agent": "zephyr-ide-vscode" };
             const options = {
                 hostname: parsed.hostname,
                 path: parsed.pathname + parsed.search,
-                headers: { "User-Agent": "zephyr-ide-vscode", ...headers },
+                headers: safeHeaders,
             };
             const req = mod.get(options, (res) => {
                 if (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307 || res.statusCode === 308) {
@@ -248,7 +257,8 @@ function runProcessSync(
     return new Promise((resolve) => {
         const isWindows = os.platform() === "win32";
 
-        // Ensure 7-Zip is on PATH for Windows extraction/setup
+        // If 7-Zip is installed, add it to PATH as an optional fallback for
+        // platforms/commands that explicitly request it.
         let effectiveEnv = env ?? { ...process.env };
         if (isWindows) {
             const sevenZipDir = "C:\\Program Files\\7-Zip";
@@ -275,27 +285,30 @@ function runProcessSync(
 }
 
 async function extractArchive(archivePath: string, outDir: string): Promise<void> {
-    const isWindows = os.platform() === "win32";
-    const ext = archivePath.toLowerCase();
-
-    let cmd: string;
-    let args: string[];
-
-    if (ext.endsWith(".7z") || (isWindows && ext.endsWith(".zip"))) {
-        // 7-Zip: extract into outDir (already injected into PATH by runProcessSync)
-        cmd = "7z";
-        args = ["x", archivePath, `-o${outDir}`, "-y"];
-    } else {
-        // tar handles .tar.xz, .tar.gz, .tar.bz2 etc.
-        cmd = "tar";
-        args = ["-xf", archivePath, "-C", outDir];
-    }
-
     outputInfo("SDK Install", `Extracting ${nativePath.basename(archivePath)}...`);
-    const result = await runProcessSync(cmd, args, outDir);
-    if (result.code !== 0) {
-        throw new Error(`Archive extraction failed (exit ${result.code}):\n${result.stderr || result.stdout}`);
+
+    // Try tar first — Windows 11's built-in bsdtar (libarchive) supports
+    // .tar.xz, .tar.gz, .zip, and .7z. On Linux/macOS tar handles everything.
+    const tarResult = await runProcessSync("tar", ["-xf", archivePath, "-C", outDir], outDir);
+    if (tarResult.code === 0) {
+        return;
     }
+
+    outputInfo("SDK Install", `tar failed (exit ${tarResult.code}), trying 7z fallback...`);
+
+    // Fall back to 7-Zip if installed (older Windows or tar unavailable)
+    const ext = archivePath.toLowerCase();
+    if (ext.endsWith(".7z") || ext.endsWith(".zip")) {
+        const sevenZResult = await runProcessSync("7z", ["x", archivePath, `-o${outDir}`, "-y"], outDir);
+        if (sevenZResult.code === 0) {
+            return;
+        }
+        throw new Error(
+            `Archive extraction failed.\ntar (exit ${tarResult.code}): ${tarResult.stderr || tarResult.stdout}\n7z (exit ${sevenZResult.code}): ${sevenZResult.stderr || sevenZResult.stdout}`
+        );
+    }
+
+    throw new Error(`Archive extraction failed (exit ${tarResult.code}):\n${tarResult.stderr || tarResult.stdout}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -475,7 +488,7 @@ export async function detectInstalledSDKVersion(): Promise<string | undefined> {
         if (sdkDirs.length === 0) { return undefined; }
         const versions = sdkDirs
             .map(d => d.replace("zephyr-sdk-", ""))
-            .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+            .sort((a, b) => compareVersions(b, a));
         return versions[0];
     } catch (error) {
         outputError("SDK Install", `Error detecting installed SDK version: ${error}`);
@@ -638,10 +651,14 @@ export async function installSDK(
                 await extractArchive(archivePath, tmpDir);
 
                 // Find the single extracted directory (zephyr-sdk-x.y.z)
-                const extracted = (await fs.readdir(tmpDir))
-                    .filter(e => {
-                        try { return fs.statSync(nativePath.join(tmpDir, e)).isDirectory(); } catch { return false; }
-                    });
+                const allEntries = await fs.readdir(tmpDir);
+                const extracted: string[] = [];
+                for (const e of allEntries) {
+                    try {
+                        const stat = await fs.stat(nativePath.join(tmpDir, e));
+                        if (stat.isDirectory()) { extracted.push(e); }
+                    } catch { /* skip */ }
+                }
                 if (extracted.length !== 1) {
                     throw new Error(`Unexpected archive layout: found ${extracted.length} directories in extracted archive`);
                 }
@@ -732,7 +749,7 @@ async function selectSDKVersionAndToolchains(zephyrDir?: string): Promise<{ sdkV
         const selected = await input.showQuickPick({
             title,
             step: 2,
-            totalSteps: 2,
+            totalSteps: 3,
             placeholder: "Choose toolchain installation option",
             ignoreFocusOut: true,
             items: [installAllOption, selectSpecificOption],
@@ -748,8 +765,8 @@ async function selectSDKVersionAndToolchains(zephyrDir?: string): Promise<{ sdkV
     async function pickSpecificToolchains(input: MultiStepInput) {
         const selected = await input.showQuickPickMany({
             title,
-            step: 2,
-            totalSteps: 2,
+            step: 3,
+            totalSteps: 3,
             placeholder: "Select toolchains to install (toggle then press Enter)",
             ignoreFocusOut: true,
             items: toolchainTargets.filter(item => item.kind !== vscode.QuickPickItemKind.Separator),
@@ -838,11 +855,14 @@ export async function installSDKInteractive(wsConfig: WorkspaceConfig, globalCon
         tracker.startStep('toolchains');
         tracker.completeStep('toolchains', toolchains.includes('all') ? 'All toolchains' : toolchains.join(', '));
 
-        tracker.startStep('install', 'Downloading and installing...');
+        tracker.startStep('install', 'Starting...');
         return await vscode.window.withProgress(
             { location: vscode.ProgressLocation.Notification, title: "Installing Zephyr SDK", cancellable: false },
             async (progress) => {
-                const result = await installSDK(sdkVersion, toolchains, (msg) => progress.report({ message: msg }));
+                const result = await installSDK(sdkVersion, toolchains, (msg) => {
+                    progress.report({ message: msg });
+                    tracker.updateStep('install', msg);
+                });
                 if (result) {
                     tracker.completeStep('install');
                     tracker.startStep('verify', 'Updating global state...');
@@ -873,7 +893,6 @@ export async function installSDKInteractive(wsConfig: WorkspaceConfig, globalCon
 }
 
 export async function installToolchainsDirect(
-    wsConfig: WorkspaceConfig,
     globalConfig: GlobalConfig,
     context: vscode.ExtensionContext | undefined,
     version: string,
@@ -888,7 +907,10 @@ export async function installToolchainsDirect(
         tracker.startStep('install', `Installing ${toolchains.join(', ')}...`);
         const result = await vscode.window.withProgress(
             { location: vscode.ProgressLocation.Notification, title: `Adding toolchains to SDK ${version}`, cancellable: false },
-            async (progress) => installSDK(version, toolchains, (msg) => progress.report({ message: msg }))
+            async (progress) => installSDK(version, toolchains, (msg) => {
+                progress.report({ message: msg });
+                tracker.updateStep('install', msg);
+            })
         );
 
         if (result) {
@@ -912,6 +934,25 @@ export async function installToolchainsDirect(
     }
 }
 
+export async function uninstallSDKVersion(
+    version: string,
+): Promise<{ success: boolean; error?: string }> {
+    const toolchainsDir = getToolchainDir();
+    const sdkDir = path.join(toolchainsDir, `zephyr-sdk-${version}`);
+    try {
+        if (!await fs.pathExists(sdkDir)) {
+            return { success: false, error: `SDK directory not found: ${sdkDir}` };
+        }
+        await fs.remove(sdkDir);
+        outputInfo("SDK Uninstall", `Removed SDK directory: ${sdkDir}`);
+        return { success: true };
+    } catch (error) {
+        const msg = `Failed to remove SDK ${version}: ${error}`;
+        outputError("SDK Uninstall", msg);
+        return { success: false, error: msg };
+    }
+}
+
 export async function uninstallToolchains(
     version: string,
     toolchains: string[],
@@ -928,7 +969,10 @@ export async function uninstallToolchains(
             path.join(sdkDir, "gnu", tc),
             path.join(sdkDir, tc),
         ];
-        const tcDir = candidates.find(p => fs.existsSync(p));
+        let tcDir: string | undefined;
+        for (const candidate of candidates) {
+            if (await fs.pathExists(candidate)) { tcDir = candidate; break; }
+        }
         try {
             if (tcDir) {
                 await fs.remove(tcDir);
@@ -968,10 +1012,13 @@ export async function installSDKToolchainsInteractive(
     ], _onSDKProgress);
 
     try {
-        tracker.startStep('install', 'Downloading toolchains...');
+        tracker.startStep('install', 'Starting download...');
         const result = await vscode.window.withProgress(
             { location: vscode.ProgressLocation.Notification, title: `Adding toolchains to SDK ${prefilledVersion}`, cancellable: false },
-            async (progress) => installSDK(prefilledVersion, toolchains, (msg) => progress.report({ message: msg }))
+            async (progress) => installSDK(prefilledVersion, toolchains, (msg) => {
+                progress.report({ message: msg });
+                tracker.updateStep('install', msg);
+            })
         );
 
         if (result) {

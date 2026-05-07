@@ -21,7 +21,7 @@ import * as fs from "fs-extra";
 import * as path from "upath";
 import { output, executeTaskHelperInPythonEnv, executeTaskHelper, reloadEnvironmentVariables, getPythonVenvBinaryFolder, getPlatformNameAsync } from "../utilities/utils";
 import { outputInfo, outputWarning, notifyError, notifyWarningWithActions } from "../utilities/output";
-import { getModulePathAndVersion, getModuleVersion, isVersionNumberGreaterEqual } from "./modules";
+import { getModulePathAndVersion, getModuleVersion } from "./modules";
 import { westSelector, WestLocation } from "./west_selector";
 import { WorkspaceConfig, GlobalConfig, SetupState, formatZephyrVersion } from "./types";
 import { saveSetupState, setSetupState, setWorkspaceState } from "./state-management";
@@ -310,21 +310,9 @@ export async function installPythonRequirements(context: vscode.ExtensionContext
   setupState.packagesInstalled = false;
   await saveSetupState(context, wsConfig, globalConfig);
 
-  // Install requirements from Zephyr's requirements.txt plus additional packages needed by Zephyr IDE
-  // For Zephyr >= 3.8.0, several packages (patool, semver, tqdm) are in requirements.txt
-  // For older versions (< 3.8.0), we need to explicitly install them:
-  //   - patool: needed for west sdk command to extract SDK archives
-  //   - semver: needed by sdk.py (Zephyr IDE's custom west SDK command)
-  //   - tqdm: needed by sdk.py for progress bars during SDK downloads
-  // dtsh is always needed as it's a Zephyr IDE-specific tool
-  // Note: If zephyrVersion is not set, we default to newer behavior (no explicit packages)
-  //       to avoid conflicts, as the version should always be set after west update
-  let additionalPackages = "dtsh";
-  if (setupState.zephyrVersion && !isVersionNumberGreaterEqual(setupState.zephyrVersion, 3, 8, 0)) {
-    additionalPackages += " patool semver tqdm";
-    outputInfo("Python Requirements", `Adding patool, semver, tqdm explicitly for Zephyr < 3.8.0`);
-  }
-  
+  // Install requirements from Zephyr's requirements.txt plus additional packages needed by Zephyr IDE.
+  // dtsh is always needed as it is a Zephyr IDE-specific tool not included in Zephyr's requirements.txt.
+  const additionalPackages = "dtsh";
   const cmd = `pip install -r "${path.join(setupState.zephyrDir, "scripts", "requirements.txt")}" -U ${additionalPackages}`;
   const reqRes = await executeTaskHelperInPythonEnv(setupState, "Zephyr IDE: Install Python Requirements", cmd, setupState.setupPath, true);
 

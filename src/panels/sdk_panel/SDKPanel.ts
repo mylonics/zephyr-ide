@@ -24,6 +24,7 @@ import {
   installSDKToolchainsInteractive,
   installToolchainsDirect,
   uninstallToolchains,
+  uninstallSDKVersion,
 } from "../../setup_utilities/west_sdk";
 import { notifyError, outputError } from "../../utilities/output";
 import { generateNonce } from "../webview_shared/nonce";
@@ -150,7 +151,6 @@ export class SDKPanel {
     this._panel.webview.postMessage({
       command: "updateContent",
       data: {
-        hasSetupState: this.hasValidSetupState(),
         sdkInstalled: globalConfig.sdkInstalled ?? false,
         sdkVersionMap: this.buildSdkVersionMap(),
       },
@@ -181,11 +181,6 @@ export class SDKPanel {
   // Helpers
   // ---------------------------------------------------------------------------
 
-  private hasValidSetupState(): boolean {
-    return this.currentGlobalConfig?.setupStateDictionary !== undefined &&
-      Object.keys(this.currentGlobalConfig.setupStateDictionary).length > 0;
-  }
-
   private handleWebviewMessage(message: Record<string, any>) {
     switch (message.command) {
       case "ready":
@@ -204,6 +199,11 @@ export class SDKPanel {
       case "applyToolchainChanges":
         if (typeof message.version === "string" && Array.isArray(message.toAdd) && Array.isArray(message.toRemove)) {
           this.applyToolchainChanges(message.version, message.toAdd, message.toRemove);
+        }
+        return;
+      case "removeSDKVersion":
+        if (typeof message.version === "string") {
+          this.removeSDKVersion(message.version);
         }
         return;
       case "listSDKs":
@@ -257,6 +257,30 @@ export class SDKPanel {
     }
   }
 
+  private async removeSDKVersion(version: string) {
+    const answer = await vscode.window.showWarningMessage(
+      `Remove the entire Zephyr SDK ${version}? This will delete the SDK directory from disk and cannot be undone.`,
+      { modal: true },
+      "Remove",
+    );
+    if (answer !== "Remove") { return; }
+
+    const { success, error } = await uninstallSDKVersion(version);
+    if (!success) {
+      notifyError("SDK Uninstall", error ?? `Failed to remove SDK ${version}`);
+    }
+    // Refresh regardless — the directory may be partially removed
+    try {
+      this._cachedSDKList = undefined;
+      if (this.currentWsConfig && this.currentGlobalConfig) {
+        this.updateContent(this.currentWsConfig, this.currentGlobalConfig);
+      }
+      await this.listSDKs();
+    } catch (updateError) {
+      outputError("SDK Panel", `Failed to refresh panel after SDK removal: ${String(updateError)}`);
+    }
+  }
+
   private async applyToolchainChanges(version: string, toAdd: string[], toRemove: string[]) {
     if (!this.currentWsConfig || !this.currentGlobalConfig) {
       notifyError("SDK", "Configuration not available");
@@ -282,7 +306,6 @@ export class SDKPanel {
       // Install additions
       if (toAdd.length > 0) {
         const result = await installToolchainsDirect(
-          this.currentWsConfig,
           this.currentGlobalConfig,
           this._context,
           version,

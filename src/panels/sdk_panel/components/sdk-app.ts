@@ -51,7 +51,6 @@ interface SetupProgressData {
 }
 
 interface SDKPanelInitData {
-  hasSetupState: boolean;
   sdkInstalled: boolean;
   sdkVersionMap?: Record<string, string>;
 }
@@ -269,9 +268,9 @@ export class SDKApp extends ZephyrLitElement {
     }
 
     const d = this._initData;
-    const statusIcon = d.sdkInstalled ? "✓" : d.hasSetupState ? "⚙" : "⚠";
-    const statusLabel = d.sdkInstalled ? "Installed" : d.hasSetupState ? "Not Installed" : "Workspace Required";
-    const statusClass = d.sdkInstalled ? "status-success" : d.hasSetupState ? "status-warning" : "status-error";
+    const statusIcon = d.sdkInstalled ? "✓" : "⚙";
+    const statusLabel = d.sdkInstalled ? "Installed" : "Not Installed";
+    const statusClass = d.sdkInstalled ? "status-success" : "status-warning";
 
     return html`
       <div class="container">
@@ -286,11 +285,11 @@ export class SDKApp extends ZephyrLitElement {
             <span class="header-status-badge ${statusClass}">${statusIcon} ${statusLabel}</span>
           </div>
           <div class="header-actions">
-            <vscode-button ?disabled=${!d.hasSetupState || this._buttonsDisabled} @click=${() => this._installSDK()}>
+            <vscode-button ?disabled=${this._buttonsDisabled} @click=${() => this._installSDK()}>
               <vscode-icon slot="start-icon" name="cloud-download"></vscode-icon>
               Install / Update
             </vscode-button>
-            <vscode-button appearance="secondary" ?disabled=${!d.hasSetupState || this._buttonsDisabled} @click=${() => this._listSDKs()}>
+            <vscode-button appearance="secondary" ?disabled=${this._buttonsDisabled} @click=${() => this._listSDKs()}>
               <vscode-icon slot="start-icon" name="refresh"></vscode-icon>
               Refresh
             </vscode-button>
@@ -302,16 +301,6 @@ export class SDKApp extends ZephyrLitElement {
           Click any toolchain chip to toggle it for installation or removal, then click
           <strong>Apply Changes</strong> on the SDK version card to install or remove the selected toolchains.
         </p>
-
-        ${!d.hasSetupState
-        ? html`<div class="error-box">
-              <p class="no-margin">
-                <strong>No West Workspace Found</strong><br>
-                A west workspace must be set up before SDK toolchains can be installed or managed.
-                Set up a workspace first using the Setup panel.
-              </p>
-            </div>`
-        : nothing}
 
         ${this._renderProgress()}
         ${this._renderSDKList()}
@@ -493,6 +482,17 @@ export class SDKApp extends ZephyrLitElement {
             <span class="sdk-toolchain-count ${installed.length > 0 ? "has-toolchains" : ""}">
               ${installed.length} / ${total} toolchains
             </span>
+            ${version.path
+        ? html`
+            <vscode-button
+              appearance="icon"
+              ?disabled=${this._buttonsDisabled}
+              @click=${() => this._removeSDKVersion(ver)}
+              title="Remove entire SDK ${ver} from disk"
+            >
+              <vscode-icon name="trash"></vscode-icon>
+            </vscode-button>`
+        : nothing}
           </div>
         </div>
 
@@ -532,8 +532,8 @@ export class SDKApp extends ZephyrLitElement {
                 <span class="toolchain-section-title inline">Not Installed (${notInstalled.length})</span>
               </button>
               ${isExpanded
-              ? html`<div class="toolchain-collapsible-body">${this._renderSelectableToolchains(notInstalled, ver, false)}</div>`
-              : nothing}`
+                ? html`<div class="toolchain-collapsible-body">${this._renderSelectableToolchains(notInstalled, ver, false)}</div>`
+                : nothing}`
             : html`
               <div class="toolchain-section-title">
                 <span class="codicon codicon-cloud-download"></span>
@@ -572,6 +572,12 @@ export class SDKApp extends ZephyrLitElement {
     `;
   }
 
+  /** Remove the entire SDK version directory (after backend confirmation). */
+  private _removeSDKVersion(version: string) {
+    this._buttonsDisabled = true;
+    this.vscodeApi.postMessage({ command: "removeSDKVersion", version });
+  }
+
   /** Discard all pending changes for a version without applying them. */
   private _discardChanges(version: string) {
     const adds = new Map(this._pendingAdds);
@@ -607,6 +613,7 @@ export class SDKApp extends ZephyrLitElement {
                   title=${isInstalled
           ? (pendingRemove ? "Click to keep this toolchain" : "Click to mark for removal")
           : (pendingAdd ? "Click to deselect" : "Click to select for installation")}
+                  ?disabled=${this._buttonsDisabled}
                 >
                   <span class="tc-chip-icon">${icon}</span>
                   ${tc}
