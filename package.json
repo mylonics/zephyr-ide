@@ -498,6 +498,10 @@
         "title": "Zephyr IDE: Install Blobs from zephyr-ide.json"
       },
       {
+        "command": "zephyr-ide.modify-zephyr-ide-sample-projects",
+        "title": "Zephyr IDE: Modify Sample Projects (zephyr-ide.json)"
+      },
+      {
         "command": "zephyr-ide.west-init",
         "title": "Zephyr IDE: West Init"
       },

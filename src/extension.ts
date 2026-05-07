@@ -138,6 +138,7 @@ import {
   installZephyrIdeToolchains,
   modifyZephyrIdeBlobsInteractive,
   installZephyrIdeBlobs,
+  modifyZephyrIdeSampleProjectsInteractive,
 } from "./setup_utilities/zephyr_ide_install";
 import { getZephyrIdeSampleProjects } from "./setup_utilities/zephyr_ide_json";
 import {
@@ -1754,6 +1755,12 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.install-zephyr-ide-blobs", async () => {
       return await installZephyrIdeBlobs(wsConfig, context);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.modify-zephyr-ide-sample-projects", async () => {
+      await modifyZephyrIdeSampleProjectsInteractive(wsConfig);
     })
   );
 

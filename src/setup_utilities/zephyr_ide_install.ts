@@ -27,6 +27,7 @@ limitations under the License.
  */
 
 import * as vscode from "vscode";
+import * as path from "upath";
 import { WorkspaceConfig, GlobalConfig } from "./types";
 import { toolchainTargets } from "../defines";
 import {
@@ -42,6 +43,8 @@ import {
     getZephyrIdeBlobs,
     setZephyrIdeBlobs,
     getZephyrIdeSdkVersion,
+    getZephyrIdeSampleProjects,
+    setZephyrIdeSampleProjects,
 } from "./zephyr_ide_json";
 import { executeShellCommandInPythonEnv, executeTaskHelperInPythonEnv } from "../utilities/utils";
 import { outputInfo, outputError, outputWarning, notifyError } from "../utilities/output";
@@ -470,6 +473,125 @@ export async function installZephyrIdeBlobs(
         outputInfo("Zephyr IDE Blobs", `Fetched blobs for ${declared.length} module(s).`);
     }
     return allOk;
+}
+
+// ---------------------------------------------------------------------------
+// Sample Projects
+// ---------------------------------------------------------------------------
+
+/**
+ * Open a QuickPick that lets the user select which workspace projects should
+ * be declared as `sampleProjects` in `.vscode/zephyr-ide.json`.
+ *
+ * - Projects already in `sampleProjects` at the current path are pre-checked.
+ * - Projects that exist in `sampleProjects` under the same name but at a
+ *   different path (i.e. the project was moved) are shown with a "path
+ *   changed" indicator and pre-checked so the user can confirm the update.
+ * - Workspace projects not yet declared are shown unchecked.
+ *
+ * The selected set is saved back to `sampleProjects` in zephyr-ide.json.
+ */
+export async function modifyZephyrIdeSampleProjectsInteractive(
+    wsConfig: WorkspaceConfig,
+): Promise<string[] | undefined> {
+    if (!wsConfig.rootPath) {
+        notifyError("Zephyr IDE Sample Projects", "No active workspace folder.");
+        return undefined;
+    }
+
+    const currentPaths = new Set(getZephyrIdeSampleProjects(wsConfig));
+
+    // Build a lookup: project name (basename of stored path) → stored path,
+    // so we can detect when a project's path has changed.
+    const storedByName = new Map<string, string>();
+    for (const p of currentPaths) {
+        storedByName.set(path.basename(p), p);
+    }
+
+    const projects = Object.values(wsConfig.projects);
+    if (projects.length === 0) {
+        void vscode.window.showInformationMessage(
+            "No projects in this workspace yet. Add projects first, then use this command to promote them to sample projects."
+        );
+        return undefined;
+    }
+
+    type Item = vscode.QuickPickItem & { relPath: string };
+
+    const samePathItems: Item[] = [];
+    const changedPathItems: Item[] = [];
+    const newItems: Item[] = [];
+
+    for (const proj of projects) {
+        const relPath = proj.rel_path;
+        const projName = proj.name;
+
+        if (currentPaths.has(relPath)) {
+            // Already declared at this exact path.
+            samePathItems.push({
+                label: projName,
+                description: relPath,
+                detail: "$(check) already in sampleProjects",
+                picked: true,
+                relPath,
+            });
+        } else if (storedByName.has(projName)) {
+            // Same project name but different path — path was changed.
+            const oldPath = storedByName.get(projName)!;
+            changedPathItems.push({
+                label: projName,
+                description: relPath,
+                detail: `$(warning) path changed (was: ${oldPath})`,
+                picked: true,
+                relPath,
+            });
+        } else {
+            // Not yet in sampleProjects.
+            newItems.push({
+                label: projName,
+                description: relPath,
+                picked: false,
+                relPath,
+            });
+        }
+    }
+
+    samePathItems.sort((a, b) => a.label.localeCompare(b.label));
+    changedPathItems.sort((a, b) => a.label.localeCompare(b.label));
+    newItems.sort((a, b) => a.label.localeCompare(b.label));
+
+    const items: vscode.QuickPickItem[] = [];
+    if (changedPathItems.length > 0) {
+        items.push({ label: "Path changed — review and confirm", kind: vscode.QuickPickItemKind.Separator });
+        items.push(...changedPathItems);
+    }
+    if (samePathItems.length > 0) {
+        items.push({ label: "Already in sampleProjects", kind: vscode.QuickPickItemKind.Separator });
+        items.push(...samePathItems);
+    }
+    if (newItems.length > 0) {
+        items.push({ label: "Workspace projects not yet declared", kind: vscode.QuickPickItemKind.Separator });
+        items.push(...newItems);
+    }
+
+    const picked = await vscode.window.showQuickPick(items, {
+        canPickMany: true,
+        ignoreFocusOut: true,
+        placeHolder: "Select projects to include in sampleProjects (zephyr-ide.json)",
+        title: "Modify Sample Projects (zephyr-ide.json)",
+    });
+
+    if (!picked) {
+        outputInfo("Zephyr IDE Sample Projects", "Modify cancelled");
+        return undefined;
+    }
+
+    const relPaths = (picked as Item[])
+        .filter(i => i.kind !== vscode.QuickPickItemKind.Separator)
+        .map(i => i.relPath);
+    await setZephyrIdeSampleProjects(wsConfig, relPaths);
+    outputInfo("Zephyr IDE Sample Projects", `Saved ${relPaths.length} sample project(s) to zephyr-ide.json`);
+    return relPaths;
 }
 
 // ---------------------------------------------------------------------------
