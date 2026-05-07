@@ -32,6 +32,7 @@ import {
   readZephyrIdeJson,
 } from "../setup_utilities/zephyr_ide_json";
 import { WorkspaceConfig } from "../setup_utilities/types";
+import { ProjectConfig } from "../project_utilities/project";
 
 function makeWsConfig(rootPath: string): WorkspaceConfig {
   return {
@@ -210,7 +211,7 @@ suite("zephyr-ide.json toolchains/blobs Test Suite", () => {
   });
 
   // Helper: minimal ProjectConfig for tests.
-  function makeProjectConfig(relPath: string): ReturnType<typeof getZephyrIdeSampleProjects>[0] {
+  function makeProjectConfig(relPath: string): ProjectConfig {
     return {
       name: path.basename(relPath),
       rel_path: relPath,

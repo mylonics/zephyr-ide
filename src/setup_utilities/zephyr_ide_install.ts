@@ -484,12 +484,21 @@ export async function installZephyrIdeBlobs(
  * Compare the configuration-only fields of two ProjectConfig objects
  * (build configs, conf files, and twister configs), ignoring name and rel_path
  * which are handled separately.
+ *
+ * Keys are sorted at every level before serialization to avoid false positives
+ * from insertion-order differences.
  */
 function projectConfigContentEquals(a: ProjectConfig, b: ProjectConfig): boolean {
+    const stableStringify = (v: unknown): string =>
+        JSON.stringify(v, (_key, val) =>
+            val !== null && typeof val === "object" && !Array.isArray(val)
+                ? Object.fromEntries(Object.entries(val).sort(([ka], [kb]) => ka.localeCompare(kb)))
+                : val
+        );
     return (
-        JSON.stringify(a.buildConfigs) === JSON.stringify(b.buildConfigs) &&
-        JSON.stringify(a.confFiles) === JSON.stringify(b.confFiles) &&
-        JSON.stringify(a.twisterConfigs) === JSON.stringify(b.twisterConfigs)
+        stableStringify(a.buildConfigs) === stableStringify(b.buildConfigs) &&
+        stableStringify(a.confFiles) === stableStringify(b.confFiles) &&
+        stableStringify(a.twisterConfigs) === stableStringify(b.twisterConfigs)
     );
 }
 
@@ -565,7 +574,7 @@ export async function modifyZephyrIdeSampleProjectsInteractive(
                 changedItems.push({
                     label: projName,
                     description: relPath,
-                    detail: "$(warning) settings changed (builds, args, or conf files)",
+                    detail: "$(warning) settings changed (build configs, conf files, or twister configs)",
                     picked: true,
                     relPath,
                     projName,

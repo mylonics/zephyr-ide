@@ -679,8 +679,9 @@ export async function addSampleProjectsFromFile(wsConfig: WorkspaceConfig, conte
         continue;
       }
     }
-    // Use the stored config snapshot (which may include pre-configured build
-    // configs, conf files, and twister configs) when registering the project.
+    // Spread the stored config snapshot first (carries pre-configured buildConfigs,
+    // confFiles, twisterConfigs), then override name and rel_path with the current
+    // workspace-local values.
     wsConfig.projects[projectName] = {
       ...item.sample,
       name: projectName,
