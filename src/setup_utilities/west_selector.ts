@@ -38,6 +38,12 @@ export interface WestLocation {
   gitRepo: string;
   /** Additional west init arguments */
   additionalArgs: string;
+  /**
+   * Absolute path to a vendor-supplied host-tools.json, if the selected
+   * workspace template is a vendor entry that ships one.  Used by
+   * postWorkspaceSetup to show a consent dialog and batch-install tools.
+   */
+  vendorHostToolsPath?: string;
 }
 
 
@@ -72,15 +78,27 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
     isNcsProject?: boolean;
     versionLabel?: string;
     completed?: boolean;
+    /** Set when the user picks a vendor entry; holds the vendor's directory path. */
+    vendorDir?: string;
+    /** Path to the vendor's host-tools.json, if present. */
+    vendorHostToolsPath?: string;
   } & Partial<WestLocation>;
 
   // Compute total steps dynamically depending on whether HAL selection is required.
   // Base steps: 1) template, 2) version, 3) additional args.
   // When a minimal template is chosen we insert a HAL step between template and version.
+  // Vendor entries skip the version step entirely, giving 2 total steps.
   function totalStepsFor(state: WestInternalState): number {
+    if (state.vendorDir) {
+      return 2; // template + additional args only
+    }
     const needsHal = state.westFile === "minimal_west.yml" || state.westFile === "minimal_ble_west.yml";
     return needsHal ? 4 : 3;
   }
+
+  // GitHub README link for the "Become a Vendor" menu item
+  const VENDOR_README_URL = "https://github.com/mylonics/zephyr-ide/blob/main/resources/vendors/README.md";
+  const BECOME_VENDOR_LABEL = "$(link-external) Become a Vendor";
 
   async function pickTemplate(input: MultiStepInput, state: WestInternalState) {
     if (!wsConfig.activeSetupState) {
@@ -95,7 +113,6 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
     westOptions["Minimal Zephyr (Select Desired HALs)"] = "minimal_west.yml";
     westOptions["Minimal BLE Zephyr (Select Desired HALs)"] = "minimal_ble_west.yml";
     westOptions["Sim Only"] = "simulated_west.yml";
-    westOptions["NRF Connect Config"] = "ncs_west.yml";
 
     // Internal testing template — only visible in CI/test environments
     if (process.env.CI || process.env.ZEPHYR_IDE_TESTING) {
@@ -103,6 +120,42 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
     }
 
     const westOptionQpItems: QuickPickItem[] = Object.keys(westOptions).map(label => ({ label }));
+
+    // Scan the vendors directory for subdirs containing a west.yml
+    type VendorEntry = { dir: string; label: string; description?: string };
+    const vendorEntries: VendorEntry[] = [];
+    const vendorsDir = path.join(context.extensionPath, "resources", "vendors");
+    if (await fs.pathExists(vendorsDir)) {
+      let subdirs: string[] = [];
+      try {
+        subdirs = await fs.readdir(vendorsDir);
+      } catch { /* ignore read errors */ }
+      for (const subdir of subdirs) {
+        const vendorDir = path.join(vendorsDir, subdir);
+        const stat = await fs.stat(vendorDir).catch(() => null);
+        if (!stat?.isDirectory()) { continue; }
+        const westYml = path.join(vendorDir, "west.yml");
+        if (!(await fs.pathExists(westYml))) { continue; }
+        let label = subdir;
+        let description: string | undefined;
+        const metadataPath = path.join(vendorDir, "metadata.json");
+        if (await fs.pathExists(metadataPath)) {
+          try {
+            const meta = JSON.parse(fs.readFileSync(metadataPath, "utf-8"));
+            if (meta.displayName) { label = meta.displayName; }
+            if (meta.description) { description = meta.description; }
+          } catch { /* ignore malformed metadata */ }
+        }
+        vendorEntries.push({ dir: vendorDir, label, description });
+      }
+    }
+
+    // Append vendor entries under a separator, plus a "Become a Vendor" link
+    westOptionQpItems.push({ label: "Vendor Configurations", kind: vscode.QuickPickItemKind.Separator });
+    for (const ve of vendorEntries) {
+      westOptionQpItems.push({ label: ve.label, description: ve.description });
+    }
+    westOptionQpItems.push({ label: BECOME_VENDOR_LABEL, description: "Open contributor guide on GitHub" });
 
     const pick = await input.showQuickPick({
       title,
@@ -112,6 +165,20 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
       ignoreFocusOut: true,
       items: westOptionQpItems,
     });
+
+    // "Become a Vendor" — open the README and abort the wizard
+    if (pick.label === BECOME_VENDOR_LABEL) {
+      void vscode.env.openExternal(vscode.Uri.parse(VENDOR_README_URL));
+      state.failed = true;
+      return;
+    }
+
+    // Vendor entry selected
+    const vendorEntry = vendorEntries.find(ve => ve.label === pick.label);
+    if (vendorEntry) {
+      state.vendorDir = vendorEntry.dir;
+      return (input: MultiStepInput) => handleVendorSelection(input, state);
+    }
 
     const westFile = westOptions[pick.label];
     if (!westFile) {
@@ -126,6 +193,38 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
       return (input: MultiStepInput) => pickHals(input, state);
     }
     return (input: MultiStepInput) => pickVersion(input, state);
+  }
+
+  /**
+   * Copy the vendor's west.yml into the workspace and (optionally) record the
+   * path to the vendor's host-tools.json.  Skips the version-picker step since
+   * vendors control their own SDK revisions.
+   */
+  async function handleVendorSelection(input: MultiStepInput, state: WestInternalState) {
+    if (!state.vendorDir || !wsConfig.activeSetupState) {
+      state.failed = true;
+      return;
+    }
+
+    const vendorWestSrc = path.join(state.vendorDir, "west.yml");
+    const westDirPath = path.join(wsConfig.activeSetupState.setupPath, "west-manifest");
+    const desPath = path.join(westDirPath, "west.yml");
+
+    const exists = await fs.pathExists(westDirPath);
+    if (!exists) {
+      await fs.mkdirp(westDirPath);
+    }
+    await fs.copyFile(vendorWestSrc, desPath);
+
+    // Record vendor host-tools.json path if present
+    const hostToolsPath = path.join(state.vendorDir, "host-tools.json");
+    if (await fs.pathExists(hostToolsPath)) {
+      state.vendorHostToolsPath = hostToolsPath;
+    }
+
+    state.failed = false;
+    state.path = westDirPath;
+    return (input: MultiStepInput) => getAdditionalArguments(input, state);
   }
 
   async function pickHals(input: MultiStepInput, state: WestInternalState) {
@@ -250,7 +349,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
 
   async function getAdditionalArguments(input: MultiStepInput, state: WestInternalState) {
     const needsHal = state.westFile === "minimal_west.yml" || state.westFile === "minimal_ble_west.yml";
-    const argsStep = needsHal ? 4 : 3;
+    const argsStep = state.vendorDir ? 2 : (needsHal ? 4 : 3);
     state.additionalArgs = await input.showInputBox({
       title,
       step: argsStep,
@@ -280,6 +379,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
         failed: false,
         gitRepo: state.gitRepo ?? "",
         additionalArgs: state.additionalArgs ?? "",
+        vendorHostToolsPath: state.vendorHostToolsPath,
       };
     } catch (error) {
       outputError("West Selector", `Error in west selector: ${String(error)}`);
