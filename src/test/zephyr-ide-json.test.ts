@@ -27,6 +27,8 @@ import {
   setZephyrIdeBlobs,
   getZephyrIdeSdkVersion,
   setZephyrIdeSdkVersion,
+  getZephyrIdeSampleProjects,
+  setZephyrIdeSampleProjects,
   readZephyrIdeJson,
 } from "../setup_utilities/zephyr_ide_json";
 import { WorkspaceConfig } from "../setup_utilities/types";
@@ -202,6 +204,81 @@ suite("zephyr-ide.json toolchains/blobs Test Suite", () => {
       const filePath = path.join(tmpRoot, ".vscode", "zephyr-ide.json");
       await fs.outputJson(filePath, { sdkVersion: 17 });
       assert.strictEqual(getZephyrIdeSdkVersion(ws), undefined);
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  test("getZephyrIdeSampleProjects returns empty array when file is missing", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-sp-"));
+    try {
+      const ws = makeWsConfig(tmpRoot);
+      assert.deepStrictEqual(getZephyrIdeSampleProjects(ws), []);
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  test("setZephyrIdeSampleProjects creates file and persists list", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-sp-"));
+    try {
+      const ws = makeWsConfig(tmpRoot);
+      await setZephyrIdeSampleProjects(ws, ["samples/blinky", "samples/hello_world"]);
+      assert.deepStrictEqual(getZephyrIdeSampleProjects(ws), ["samples/blinky", "samples/hello_world"]);
+
+      const onDisk = await fs.readJson(path.join(tmpRoot, ".vscode", "zephyr-ide.json"));
+      assert.deepStrictEqual(onDisk.sampleProjects, ["samples/blinky", "samples/hello_world"]);
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  test("setZephyrIdeSampleProjects preserves other top-level keys", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-sp-"));
+    try {
+      const ws = makeWsConfig(tmpRoot);
+      const filePath = path.join(tmpRoot, ".vscode", "zephyr-ide.json");
+      await fs.outputJson(filePath, {
+        projects: { app: { name: "app", rel_path: "app" } },
+        toolchains: ["arm-zephyr-eabi"],
+        blobs: ["hal_nordic"],
+      });
+
+      await setZephyrIdeSampleProjects(ws, ["samples/blinky"]);
+
+      const onDisk = await fs.readJson(filePath);
+      assert.deepStrictEqual(onDisk.sampleProjects, ["samples/blinky"]);
+      assert.deepStrictEqual(onDisk.toolchains, ["arm-zephyr-eabi"]);
+      assert.deepStrictEqual(onDisk.blobs, ["hal_nordic"]);
+      assert.deepStrictEqual(onDisk.projects, { app: { name: "app", rel_path: "app" } });
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  test("setZephyrIdeSampleProjects with empty list removes the key", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-sp-"));
+    try {
+      const ws = makeWsConfig(tmpRoot);
+      await setZephyrIdeSampleProjects(ws, ["samples/blinky"]);
+      await setZephyrIdeSampleProjects(ws, []);
+
+      const onDisk = readZephyrIdeJson(ws);
+      assert.strictEqual(onDisk.sampleProjects, undefined);
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  test("getZephyrIdeSampleProjects normalises malformed entries", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-sp-"));
+    try {
+      const ws = makeWsConfig(tmpRoot);
+      const filePath = path.join(tmpRoot, ".vscode", "zephyr-ide.json");
+      await fs.outputJson(filePath, {
+        sampleProjects: ["samples/blinky", "", "  samples/hello_world  ", "samples/blinky", 42, null],
+      });
+      assert.deepStrictEqual(getZephyrIdeSampleProjects(ws), ["samples/blinky", "samples/hello_world"]);
     } finally {
       await fs.remove(tmpRoot);
     }

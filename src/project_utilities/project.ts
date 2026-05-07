@@ -28,6 +28,7 @@ import { configSelector, configRemover, ConfigFiles, mergeConfigFiles } from "./
 import { setDtsContext } from "../setup_utilities/dts_interface";
 import { getSamples } from "../setup_utilities/modules";
 import { getSetupState } from "../setup_utilities/workspace-config";
+import { getZephyrIdeSampleProjects } from "../setup_utilities/zephyr_ide_json";
 import { joinBuildArgs, normalizeBuildArgs, quoteCMakeDef } from "./build_args";
 import { MultiStepInput, noOpValidate } from "../utilities/multistepQuickPick";
 
@@ -572,6 +573,87 @@ export async function changeProjectNameInCMakeFile(projectPath: string, newProje
     const projectCMakeFile = fs.readFileSync(projectCmakePath, 'utf8');
     const newProjectCMakeFile = projectCMakeFile.replace(/project\([^)]*\)/i, "project(" + newProjectName + ")");
     fs.writeFileSync(projectCmakePath, newProjectCMakeFile);
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Read the `sampleProjects` list from `.vscode/zephyr-ide.json`, present the
+ * user with a multi-select picker, and add each chosen project to the
+ * workspace (without copying files — the paths must already exist on disk).
+ *
+ * Returns `true` if at least one project was added, `false` if the list was
+ * empty or the user cancelled, and `undefined` when no sample projects are
+ * declared in the file.
+ */
+export async function addSampleProjectsFromFile(wsConfig: WorkspaceConfig, context: vscode.ExtensionContext): Promise<boolean | undefined> {
+  const samplePaths = getZephyrIdeSampleProjects(wsConfig);
+  if (samplePaths.length === 0) {
+    return undefined;
+  }
+
+  const items: (vscode.QuickPickItem & { resolvedPath: string })[] = samplePaths.map(relPath => {
+    const resolvedPath = path.isAbsolute(relPath)
+      ? relPath
+      : path.join(wsConfig.rootPath, relPath);
+    const name = path.basename(resolvedPath);
+    const alreadyAdded = !!wsConfig.projects[name];
+    return {
+      label: name,
+      description: relPath,
+      detail: alreadyAdded ? "(already in workspace)" : undefined,
+      resolvedPath,
+      picked: !alreadyAdded,
+    };
+  });
+
+  const selected = await vscode.window.showQuickPick(items, {
+    canPickMany: true,
+    title: "Add Sample Projects from zephyr-ide.json",
+    placeHolder: "Select sample projects to add to the workspace",
+    ignoreFocusOut: true,
+  });
+
+  if (!selected || selected.length === 0) {
+    return false;
+  }
+
+  let addedCount = 0;
+  for (const item of selected) {
+    const projectPath = item.resolvedPath;
+    const projectName = item.label;
+    if (!fs.pathExistsSync(path.join(projectPath, "CMakeLists.txt"))) {
+      void vscode.window.showWarningMessage(`Skipping "${projectName}": no CMakeLists.txt found at ${projectPath}`);
+      continue;
+    }
+    if (wsConfig.projects[projectName]) {
+      const choice = await vscode.window.showWarningMessage(
+        `A project named "${projectName}" already exists`,
+        "Overwrite",
+        "Skip"
+      );
+      if (choice !== "Overwrite") {
+        continue;
+      }
+    }
+    wsConfig.projects[projectName] = {
+      rel_path: path.relative(wsConfig.rootPath, projectPath),
+      name: projectName,
+      buildConfigs: {},
+      twisterConfigs: {},
+      confFiles: { config: [], overlay: [] },
+    };
+    wsConfig.projectStates[projectName] = { buildStates: {}, viewOpen: true, twisterStates: {} };
+    await setActiveProject(context, wsConfig, projectName);
+    addedCount++;
+  }
+
+  if (addedCount > 0) {
+    await setWorkspaceState(context, wsConfig);
+    void vscode.window.showInformationMessage(
+      `Added ${addedCount} sample project${addedCount > 1 ? "s" : ""} from zephyr-ide.json`
+    );
     return true;
   }
   return false;
