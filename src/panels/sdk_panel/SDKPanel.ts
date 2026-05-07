@@ -209,6 +209,12 @@ export class SDKPanel {
       case "listSDKs":
         this.listSDKs();
         return;
+      case "modifyZephyrIdeToolchains":
+        void vscode.commands.executeCommand("zephyr-ide.modify-zephyr-ide-toolchains");
+        return;
+      case "installZephyrIdeToolchains":
+        void this.installZephyrIdeToolchains();
+        return;
       case "openSetupPanel":
         vscode.commands.executeCommand("zephyr-ide.open-setup-panel");
         return;
@@ -229,6 +235,23 @@ export class SDKPanel {
       }
     } catch (error) {
       notifyError("SDK Install", `Failed to install west SDK: ${error}`);
+    }
+  }
+
+  private async installZephyrIdeToolchains() {
+    try {
+      await vscode.commands.executeCommand("zephyr-ide.install-zephyr-ide-toolchains");
+      if (this.currentWsConfig && this.currentGlobalConfig) {
+        try {
+          this._cachedSDKList = undefined;
+          this.updateContent(this.currentWsConfig, this.currentGlobalConfig);
+          await this.listSDKs();
+        } catch (updateError) {
+          outputError("SDK Panel", `Failed to refresh panel after installing zephyr-ide.json toolchains: ${String(updateError)}`);
+        }
+      }
+    } catch (error) {
+      notifyError("SDK Install", `Failed to install zephyr-ide.json toolchains: ${error}`);
     }
   }
 

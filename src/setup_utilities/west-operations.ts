@@ -29,6 +29,7 @@ import { getSetupState, getSetupStateOrNotify, getVenvPath } from "./workspace-c
 import { ensureWestConfigManifest } from "./west-config-parser";
 import { SetupProgressTracker } from "./setup-progress";
 import { getDefaultPythonExecutable } from "./host_tools";
+import { installZephyrIdeRequirements } from "./zephyr_ide_install";
 
 // Test-only override for narrow update
 let forceNarrowUpdateForTest = false;
@@ -488,7 +489,20 @@ export async function westUpdateWithRequirements(context: vscode.ExtensionContex
   progressTracker?.complete('Workspace setup completed successfully!');
 
   if (!globalConfig.sdkInstalled) {
-    return await vscode.commands.executeCommand("zephyr-ide.install-sdk");
+    const sdkResult = await vscode.commands.executeCommand("zephyr-ide.install-sdk");
+    // After SDK install, attempt to install workspace-declared toolchains/blobs.
+    try {
+      await installZephyrIdeRequirements(wsConfig, globalConfig, context);
+    } catch (error) {
+      outputWarning("Workspace Setup", `Failed to install zephyr-ide.json requirements: ${error}`);
+    }
+    return sdkResult;
+  }
+  // SDK already installed — still install any toolchains/blobs the workspace declares.
+  try {
+    await installZephyrIdeRequirements(wsConfig, globalConfig, context);
+  } catch (error) {
+    outputWarning("Workspace Setup", `Failed to install zephyr-ide.json requirements: ${error}`);
   }
   return true;
 }

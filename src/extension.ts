@@ -133,6 +133,12 @@ import { getModuleVersion, getModuleList } from "./setup_utilities/modules";
 import { reconfigureTest } from "./project_utilities/twister_selector";
 import { installSDKInteractive, detectInstalledSDKVersion } from "./setup_utilities/west_sdk";
 import {
+  modifyZephyrIdeToolchainsInteractive,
+  installZephyrIdeToolchains,
+  modifyZephyrIdeBlobsInteractive,
+  installZephyrIdeBlobs,
+} from "./setup_utilities/zephyr_ide_install";
+import {
   installPackageManagerHeadless,
   installHostPackagesHeadless,
   installHostToolsHeadless,
@@ -1690,6 +1696,34 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.is-sdk-installed", async () => {
       return globalConfig.sdkInstalled;
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.modify-zephyr-ide-toolchains", async () => {
+      await modifyZephyrIdeToolchainsInteractive(wsConfig);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.install-zephyr-ide-toolchains", async () => {
+      const ok = await installZephyrIdeToolchains(wsConfig, globalConfig, context);
+      if (ok) {
+        SDKPanel.refreshAllPanels(wsConfig, globalConfig);
+      }
+      return ok;
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.modify-zephyr-ide-blobs", async () => {
+      await modifyZephyrIdeBlobsInteractive(wsConfig, context);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.install-zephyr-ide-blobs", async () => {
+      return await installZephyrIdeBlobs(wsConfig, context);
     })
   );
 
