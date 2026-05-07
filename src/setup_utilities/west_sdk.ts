@@ -17,33 +17,26 @@ limitations under the License.
 
 import * as vscode from "vscode";
 import * as path from "upath";
+import * as nativePath from "path";
 import * as fs from "fs-extra";
+import * as https from "https";
+import * as http from "http";
+import * as crypto from "crypto";
+import * as os from "os";
+import * as cp from "child_process";
 
-import { WorkspaceConfig, GlobalConfig, SetupState } from "./types";
+import { WorkspaceConfig, GlobalConfig } from "./types";
 import { getToolchainDir } from "./workspace-config";
 import { setGlobalState } from "./state-management";
-import { executeShellCommandInPythonEnv, executeTaskHelperInPythonEnv } from "../utilities/utils";
-import { outputInfo, outputWarning, outputError, notifyError, outputCommandFailure } from "../utilities/output";
+import { outputInfo, outputWarning, outputError, notifyError } from "../utilities/output";
 import { sdkVersions, toolchainTargets } from "../defines";
 import { SetupProgressTracker } from "./setup-progress";
 import { MultiStepInput, InputStep } from "../utilities/multistepQuickPick";
+import { compareVersions } from "compare-versions";
 
 /** Event emitter for SDK install progress, mirroring the workspace setup progress pattern. */
 const _onSDKProgress = new vscode.EventEmitter<import("./setup-progress").SetupProgressEvent>();
 export const onSDKProgress: vscode.Event<import("./setup-progress").SetupProgressEvent> = _onSDKProgress.event;
-
-export interface WestSDKResult {
-    success: boolean;
-    output?: string;
-    error?: string;
-}
-
-export interface SDKInfo {
-    version?: string;
-    path?: string;
-    status: "installed" | "not-installed" | "error";
-    isDefault?: boolean;
-}
 
 export interface ParsedSDKVersion {
     version: string;
@@ -58,297 +51,444 @@ export interface ParsedSDKList {
     error?: string;
 }
 
-/**
- * Determines the best west installation to use for SDK management.
- * Uses the current workspace install.
- * If no installation has the SDK command, manually inject it into the installation.
- */
-export async function getWestSDKContext(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, context?: vscode.ExtensionContext): Promise<SetupState | undefined> {
-    const candidateStates: SetupState[] = [];
+// ---------------------------------------------------------------------------
+// GitHub API types (internal)
+// ---------------------------------------------------------------------------
 
-    // Collect candidate states
-    // Current workspace install
-    if (wsConfig.activeSetupState) {
-        candidateStates.push(wsConfig.activeSetupState);
-    }
-
-    // Try to find existing installation with SDK command
-    for (const setupState of candidateStates) {
-        if (await hasWestSDKCommand(setupState)) {
-            return setupState;
-        }
-    }
-
-    // If no valid SDK installs found, try to inject SDK command manually
-    // Only consider candidates with a working Python venv so west is actually runnable
-    for (const setupState of candidateStates) {
-        if (!setupState.pythonEnvironmentSetup || !setupState.env["PATH"]) {
-            continue;
-        }
-        if (setupState.setupPath && await fs.pathExists(path.join(setupState.setupPath, ".west"))) {
-            if (await injectWestSDKCommand(setupState, context)) {
-                return setupState;
-            }
-        }
-    }
-
-    return undefined;
+interface GithubRelease {
+    tag_name: string;
+    assets: GithubAsset[];
+    assets_url: string;
 }
 
-/**
- * Checks if a setup state has the west SDK command available
- */
-async function hasWestSDKCommand(setupState: SetupState): Promise<boolean> {
-    if (!setupState.setupPath) {
-        return false;
-    }
-
-    // A working venv with west installed is required to run west commands
-    if (!setupState.pythonEnvironmentSetup || !setupState.env["PATH"]) {
-        return false;
-    }
-
-    const westConfigPath = path.join(setupState.setupPath, ".west");
-    if (!(await fs.pathExists(westConfigPath))) {
-        return false;
-    }
-
-    // Check if sdk.py exists in west_commands directory
-    const sdkPyPath = path.join(setupState.zephyrDir, "scripts", "west_commands", "sdk.py");
-    return await fs.pathExists(sdkPyPath);
+interface GithubAsset {
+    name: string;
+    browser_download_url: string;
+    size: number;
 }
 
-/**
- * Manually injects the west SDK command into a Zephyr installation
- * Copies sdk.py and listsdk.cmake to scripts/west_commands, FindZephyr-sdk.cmake to cmake/modules, and registers it in west-commands.yml
- */
-async function injectWestSDKCommand(setupState: SetupState, context?: vscode.ExtensionContext): Promise<boolean> {
-    if (!setupState.setupPath || !context) {
-        return false;
+// ---------------------------------------------------------------------------
+// Platform helpers
+// ---------------------------------------------------------------------------
+
+function getSdkPlatform(): { osname: string; arch: string } {
+    const platform = os.platform();
+    const machine = os.arch();
+
+    let osname: string;
+    if (platform === "win32") {
+        osname = "windows";
+    } else if (platform === "darwin") {
+        osname = "macos";
+    } else {
+        osname = "linux";
     }
 
-    try {
-        const extensionPath = context.extensionPath;
-        const sourceSdkPyPath = path.join(extensionPath, "resources", "sdk.py");
-
-        // Check if source sdk.py exists
-        if (!(await fs.pathExists(sourceSdkPyPath))) {
-            outputError("SDK Inject", `Source sdk.py not found at: ${sourceSdkPyPath}. The extension may not be installed correctly (extensionPath: ${extensionPath}).`);
-            return false;
-        }
-
-        // Create west_commands directory if it doesn't exist
-        const westCommandsDir = path.join(setupState.zephyrDir, "scripts", "west_commands");
-        await fs.ensureDir(westCommandsDir);
-
-        // Copy sdk.py to west_commands directory
-        const targetSdkPyPath = path.join(westCommandsDir, "sdk.py");
-        await fs.copy(sourceSdkPyPath, targetSdkPyPath);
-
-        // Create sdk subfolder and copy listsdk.cmake
-        const sourceCmakePath = path.join(extensionPath, "resources", "listsdk.cmake");
-        if (await fs.pathExists(sourceCmakePath)) {
-            const sdkSubDir = path.join(westCommandsDir, "sdk");
-            await fs.ensureDir(sdkSubDir);
-            const targetCmakePath = path.join(sdkSubDir, "listsdk.cmake");
-            await fs.copy(sourceCmakePath, targetCmakePath);
-        } else {
-            outputWarning("SDK Inject", `listsdk.cmake not found at: ${sourceCmakePath}. The extension package may be incomplete (extensionPath: ${extensionPath}).`);
-        }
-
-        // Copy FindZephyr-sdk.cmake to cmake/modules directory
-        const sourceFindZephyrCmakePath = path.join(extensionPath, "resources", "FindZephyr-sdk.cmake");
-        if (await fs.pathExists(sourceFindZephyrCmakePath)) {
-            const cmakeModulesDir = path.join(setupState.zephyrDir, "cmake", "modules");
-            await fs.ensureDir(cmakeModulesDir);
-            const targetFindZephyrCmakePath = path.join(cmakeModulesDir, "FindZephyr-sdk.cmake");
-            await fs.copy(sourceFindZephyrCmakePath, targetFindZephyrCmakePath);
-        } else {
-            outputWarning("SDK Inject", `FindZephyr-sdk.cmake not found at: ${sourceFindZephyrCmakePath}. The extension package may be incomplete (extensionPath: ${extensionPath}).`);
-        }
-
-        // Update west-commands.yml
-        const westCommandsYmlPath = path.join(setupState.zephyrDir, "scripts", "west-commands.yml");
-        const sdkCommandConfigPath = path.join(extensionPath, "resources", "west-sdk-command.yml");
-        const sdkCommandConfig = await fs.readFile(sdkCommandConfigPath, 'utf-8');
-
-        if (await fs.pathExists(westCommandsYmlPath)) {
-            // Append to existing file
-            await fs.appendFile(westCommandsYmlPath, "\n" + sdkCommandConfig);
-        } else {
-            outputError("SDK Inject", `Failed to inject SDK command: west-commands.yml not found at ${westCommandsYmlPath}. Ensure west update has been run and zephyrDir is correct (zephyrDir: ${setupState.zephyrDir}).`);
-            return false;
-        }
-
-        outputInfo("SDK Inject", `Successfully injected west SDK command into: ${setupState.zephyrDir}`);
-        return true;
-    } catch (error) {
-        outputError("SDK Inject", `Failed to inject west SDK command: ${error}`);
-        return false;
+    let arch: string;
+    if (machine === "arm64" || (machine as string) === "aarch64") {
+        arch = "aarch64";
+    } else {
+        arch = "x86_64";
     }
+
+    return { osname, arch };
 }
 
-/**
- * Parses west sdk list output into structured format
- */
-export function parseSDKListOutput(output: string): ParsedSDKVersion[] {
-    const versions: ParsedSDKVersion[] = [];
-    const lines = output.split('\n').map(line => line.trimEnd());
-
-    let currentVersion: Partial<ParsedSDKVersion> | null = null;
-    let currentSection: 'installed' | 'available' | null = null;
-
-    for (const line of lines) {
-        // Skip empty lines
-        if (!line.trim()) {
-            continue;
-        }
-
-        // Check for version line (starts with version number and colon)
-        const versionMatch = line.match(/^(\d+\.\d+\.\d+):\s*$/);
-        if (versionMatch) {
-            // Save previous version if exists
-            if (currentVersion && currentVersion.version && currentVersion.path) {
-                versions.push({
-                    version: currentVersion.version,
-                    path: currentVersion.path,
-                    installedToolchains: currentVersion.installedToolchains || [],
-                    availableToolchains: currentVersion.availableToolchains || []
-                });
-            }
-
-            // Start new version
-            currentVersion = {
-                version: versionMatch[1],
-                installedToolchains: [],
-                availableToolchains: []
-            };
-            currentSection = null;
-            continue;
-        }
-
-        // Check for path line
-        const pathMatch = line.match(/^\s+path:\s*(.+)$/);
-        if (pathMatch && currentVersion) {
-            currentVersion.path = pathMatch[1].trim();
-            continue;
-        }
-
-        // Check for installed-toolchains section
-        if (line.match(/^\s+installed-toolchains:\s*$/)) {
-            currentSection = 'installed';
-            continue;
-        }
-
-        // Check for available-toolchains section
-        if (line.match(/^\s+available-toolchains:\s*$/)) {
-            currentSection = 'available';
-            continue;
-        }
-
-        // Check for toolchain list item
-        const toolchainMatch = line.match(/^\s+-\s+(.+)$/);
-        if (toolchainMatch && currentVersion && currentSection) {
-            const toolchain = toolchainMatch[1].trim();
-            if (currentSection === 'installed') {
-                currentVersion.installedToolchains = currentVersion.installedToolchains || [];
-                currentVersion.installedToolchains.push(toolchain);
-            } else if (currentSection === 'available') {
-                currentVersion.availableToolchains = currentVersion.availableToolchains || [];
-                currentVersion.availableToolchains.push(toolchain);
-            }
-        }
+function getSdkArchiveName(version: string, osname: string, arch: string): string {
+    let ext: string;
+    if (compareVersions(version, "0.16.0") >= 0) {
+        ext = osname === "windows" ? ".7z" : ".tar.xz";
+    } else {
+        ext = osname === "windows" ? ".zip" : ".tar.gz";
     }
-
-    // Don't forget the last version
-    if (currentVersion && currentVersion.version && currentVersion.path) {
-        versions.push({
-            version: currentVersion.version,
-            path: currentVersion.path,
-            installedToolchains: currentVersion.installedToolchains || [],
-            availableToolchains: currentVersion.availableToolchains || []
-        });
-    }
-
-    return versions;
+    return `zephyr-sdk-${version}_${osname}-${arch}_minimal${ext}`;
 }
 
-/**
- * Lists available SDKs using west sdk list and parses into structured format
- */
-export async function listAvailableSDKs(
-    setupState: SetupState
-): Promise<ParsedSDKList> {
-    try {
-        const result = await executeShellCommandInPythonEnv(
-            `west sdk list`,
-            setupState.setupPath,
-            setupState
-        );
+// ---------------------------------------------------------------------------
+// HTTP helpers
+// ---------------------------------------------------------------------------
 
-        if (result.stdout) {
-            const versions = parseSDKListOutput(result.stdout);
-            return {
-                success: true,
-                versions: versions,
-            };
-        } else {
-            outputCommandFailure("SDK List", result);
-            return {
-                success: false,
-                versions: [],
-                error: result.stderr || "Failed to list SDKs",
-            };
-        }
-    } catch (error) {
-        return {
-            success: false,
-            versions: [],
-            error: `Error listing SDKs: ${error}`,
+function httpsGet(url: string, headers: Record<string, string> = {}): Promise<{ statusCode: number; body: string }> {
+    return new Promise((resolve, reject) => {
+        const parsed = new URL(url);
+        const options = {
+            hostname: parsed.hostname,
+            path: parsed.pathname + parsed.search,
+            headers: { "User-Agent": "zephyr-ide-vscode", ...headers },
         };
+
+        const req = https.get(options, (res) => {
+            if (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307 || res.statusCode === 308) {
+                const location = res.headers.location;
+                if (location) {
+                    httpsGet(location, headers).then(resolve, reject);
+                    return;
+                }
+            }
+            let body = "";
+            res.on("data", (chunk: Buffer) => body += chunk.toString());
+            res.on("end", () => resolve({ statusCode: res.statusCode ?? 0, body }));
+            res.on("error", reject);
+        });
+        req.on("error", reject);
+    });
+}
+
+function downloadFile(
+    url: string,
+    destPath: string,
+    headers: Record<string, string> = {},
+    onProgress?: (downloaded: number, total: number) => void
+): Promise<void> {
+    return new Promise((resolve, reject) => {
+        // originHost is used to strip auth headers on cross-origin redirects
+        // (GitHub asset URLs redirect to S3/CloudFront CDN).
+        const originHost = new URL(url).hostname;
+
+        const follow = (currentUrl: string) => {
+            const parsed = new URL(currentUrl);
+            const mod: typeof https | typeof http = parsed.protocol === "https:" ? https : http;
+            // Strip auth headers when redirected to a different hostname to
+            // avoid leaking the GitHub token to third-party CDNs.
+            const safeHeaders = parsed.hostname === originHost
+                ? { "User-Agent": "zephyr-ide-vscode", ...headers }
+                : { "User-Agent": "zephyr-ide-vscode" };
+            const options = {
+                hostname: parsed.hostname,
+                path: parsed.pathname + parsed.search,
+                headers: safeHeaders,
+            };
+            const req = mod.get(options, (res) => {
+                if (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307 || res.statusCode === 308) {
+                    const location = res.headers.location;
+                    if (location) { follow(location); return; }
+                }
+                if (res.statusCode !== 200) {
+                    reject(new Error(`HTTP ${res.statusCode} downloading ${currentUrl}`));
+                    return;
+                }
+                const total = parseInt(res.headers["content-length"] ?? "0", 10);
+                let downloaded = 0;
+                const out = fs.createWriteStream(destPath);
+                res.on("data", (chunk: Buffer) => {
+                    downloaded += chunk.length;
+                    if (onProgress) { onProgress(downloaded, total); }
+                });
+                res.pipe(out);
+                out.on("finish", () => resolve());
+                out.on("error", reject);
+                res.on("error", reject);
+            });
+            req.on("error", reject);
+        };
+        follow(url);
+    });
+}
+
+// ---------------------------------------------------------------------------
+// GitHub releases
+// ---------------------------------------------------------------------------
+
+async function fetchGithubReleases(
+    apiUrl: string,
+    authHeaders: Record<string, string>
+): Promise<GithubRelease[]> {
+    const releases: GithubRelease[] = [];
+    let page = 1;
+
+    while (true) {
+        const url = `${apiUrl}?page=${page}&per_page=100`;
+        const res = await httpsGet(url, authHeaders);
+        if (res.statusCode !== 200) {
+            throw new Error(`GitHub API error ${res.statusCode}: ${res.body.slice(0, 200)}`);
+        }
+        const data = JSON.parse(res.body) as GithubRelease[];
+        if (!data || data.length === 0) { break; }
+        releases.push(...data);
+        if (data.length < 100) { break; }
+        page++;
+    }
+
+    return releases;
+}
+
+async function fetchFullReleaseAssets(
+    release: GithubRelease,
+    authHeaders: Record<string, string>
+): Promise<GithubAsset[]> {
+    const embedded = release.assets ?? [];
+    // If fewer than 100 assets, we got them all in the releases listing
+    if (embedded.length < 100) { return embedded; }
+
+    // Paginate through /releases/<id>/assets
+    const assetsUrl = release.assets_url;
+    if (!assetsUrl) { return embedded; }
+
+    const all: GithubAsset[] = [];
+    let page = 1;
+
+    while (true) {
+        const url = `${assetsUrl}?page=${page}&per_page=100`;
+        const res = await httpsGet(url, authHeaders);
+        if (res.statusCode !== 200) {
+            outputWarning("SDK Install", `Could not paginate assets for ${release.tag_name} (HTTP ${res.statusCode}), using embedded list`);
+            return embedded;
+        }
+        const data = JSON.parse(res.body) as GithubAsset[];
+        if (!data || data.length === 0) { break; }
+        all.push(...data);
+        if (data.length < 100) { break; }
+        page++;
+    }
+
+    return all.length > 0 ? all : embedded;
+}
+
+// ---------------------------------------------------------------------------
+// Archive extraction
+// ---------------------------------------------------------------------------
+
+function runProcessSync(
+    cmd: string,
+    args: string[],
+    cwd: string,
+    env?: NodeJS.ProcessEnv
+): Promise<{ code: number; stdout: string; stderr: string }> {
+    return new Promise((resolve) => {
+        const isWindows = os.platform() === "win32";
+
+        // If 7-Zip is installed, add it to PATH as an optional fallback for
+        // platforms/commands that explicitly request it.
+        let effectiveEnv = env ?? { ...process.env };
+        if (isWindows) {
+            const sevenZipDir = "C:\\Program Files\\7-Zip";
+            const currentPath = (effectiveEnv["PATH"] ?? effectiveEnv["Path"] ?? "") as string;
+            if (fs.existsSync(sevenZipDir) && !currentPath.toLowerCase().includes(sevenZipDir.toLowerCase())) {
+                effectiveEnv = { ...effectiveEnv, Path: `${sevenZipDir};${currentPath}` };
+            }
+        }
+
+        const proc = cp.spawn(cmd, args, {
+            cwd,
+            env: effectiveEnv,
+            shell: false,
+            stdio: ["ignore", "pipe", "pipe"],
+        });
+
+        let stdout = "";
+        let stderr = "";
+        proc.stdout.on("data", (d: Buffer) => { stdout += d.toString(); });
+        proc.stderr.on("data", (d: Buffer) => { stderr += d.toString(); });
+        proc.on("close", (code) => resolve({ code: code ?? 1, stdout, stderr }));
+        proc.on("error", (err) => resolve({ code: 1, stdout, stderr: stderr + String(err) }));
+    });
+}
+
+async function extractArchive(archivePath: string, outDir: string): Promise<void> {
+    outputInfo("SDK Install", `Extracting ${nativePath.basename(archivePath)}...`);
+
+    // Try tar first — Windows 11's built-in bsdtar (libarchive) supports
+    // .tar.xz, .tar.gz, .zip, and .7z. On Linux/macOS tar handles everything.
+    const tarResult = await runProcessSync("tar", ["-xf", archivePath, "-C", outDir], outDir);
+    if (tarResult.code === 0) {
+        return;
+    }
+
+    outputInfo("SDK Install", `tar failed (exit ${tarResult.code}), trying 7z fallback...`);
+
+    // Fall back to 7-Zip if installed (older Windows or tar unavailable)
+    const ext = archivePath.toLowerCase();
+    if (ext.endsWith(".7z") || ext.endsWith(".zip")) {
+        const sevenZResult = await runProcessSync("7z", ["x", archivePath, `-o${outDir}`, "-y"], outDir);
+        if (sevenZResult.code === 0) {
+            return;
+        }
+        throw new Error(
+            `Archive extraction failed.\ntar (exit ${tarResult.code}): ${tarResult.stderr || tarResult.stdout}\n7z (exit ${sevenZResult.code}): ${sevenZResult.stderr || sevenZResult.stdout}`
+        );
+    }
+
+    throw new Error(`Archive extraction failed (exit ${tarResult.code}):\n${tarResult.stderr || tarResult.stdout}`);
+}
+
+// ---------------------------------------------------------------------------
+// SDK setup script
+// ---------------------------------------------------------------------------
+
+async function runSdkSetup(
+    sdkDir: string,
+    toolchains: string[],
+    onProgress?: (msg: string) => void
+): Promise<void> {
+    const isWindows = os.platform() === "win32";
+    const setupScript = nativePath.join(sdkDir, isWindows ? "setup.cmd" : "setup.sh");
+
+    if (!(await fs.pathExists(setupScript))) {
+        outputWarning("SDK Setup", `Setup script not found at ${setupScript}; skipping CMake registration`);
+        return;
+    }
+
+    const sep = isWindows ? "/" : "-";
+    const runSetup = async (extraArgs: string[]): Promise<void> => {
+        let cmd: string;
+        let args: string[];
+        if (isWindows) {
+            cmd = "cmd.exe";
+            args = ["/c", setupScript, ...extraArgs];
+        } else {
+            cmd = "bash";
+            args = [setupScript, ...extraArgs];
+        }
+        outputInfo("SDK Setup", `Running: ${cmd} ${args.join(" ")}`);
+        const result = await runProcessSync(cmd, args, sdkDir);
+        if (result.code !== 0) {
+            throw new Error(`Setup script failed (exit ${result.code}):\n${result.stderr || result.stdout}`);
+        }
+    };
+
+    // Step 1: register CMake packages
+    onProgress?.("Registering SDK with CMake...");
+    await runSetup([`${sep}c`]);
+
+    // Step 2: install toolchains (only if requested)
+    if (toolchains.length > 0) {
+        if (toolchains.includes("all")) {
+            onProgress?.("Installing all toolchains...");
+            await runSetup([`${sep}t`, "all"]);
+        } else {
+            const tcArgs: string[] = [];
+            for (const tc of toolchains) {
+                tcArgs.push(`${sep}t`, tc);
+            }
+            onProgress?.(`Installing toolchains: ${toolchains.join(", ")}...`);
+            await runSetup(tcArgs);
+        }
     }
 }
 
-/**
- * Automatically detects SDK version from workspace Zephyr directory
- */
-async function detectSDKVersionFromWorkspace(setupState: SetupState): Promise<string | undefined> {
-    try {
-        const zephyrDir = setupState.zephyrDir;
-        if (!zephyrDir) {
-            return undefined;
-        }
+// ---------------------------------------------------------------------------
+// SHA-256 verification
+// ---------------------------------------------------------------------------
 
-        const sdkVersionFile = path.join(zephyrDir, "SDK_VERSION");
-        if (await fs.pathExists(sdkVersionFile)) {
-            const content = await fs.readFile(sdkVersionFile, 'utf-8');
-            return content.trim();
+async function computeSha256(filePath: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const hash = crypto.createHash("sha256");
+        const stream = fs.createReadStream(filePath);
+        stream.on("data", (chunk: Buffer) => hash.update(chunk));
+        stream.on("end", () => resolve(hash.digest("hex")));
+        stream.on("error", reject);
+    });
+}
+
+function parseSha256File(content: string, filename: string): string | undefined {
+    for (const line of content.split("\n")) {
+        const parts = line.trim().split(/\s+/);
+        if (parts.length >= 2 && parts[1] === filename) {
+            return parts[0];
         }
-    } catch (error) {
-        outputError("SDK Install", `Error detecting SDK version from workspace: ${error}`);
     }
     return undefined;
 }
 
+// ---------------------------------------------------------------------------
+// Installed SDK filesystem scan
+// ---------------------------------------------------------------------------
+
 /**
- * Detects the newest installed SDK version from the toolchains directory
- * by scanning for zephyr-sdk-* folders and reading their sdk_version files.
+ * Scans the toolchains directory and returns structured information about every
+ * installed SDK.  No subprocess calls — pure filesystem.
  */
-async function detectInstalledSDKVersion(): Promise<string | undefined> {
+export async function listAvailableSDKs(): Promise<ParsedSDKList> {
     try {
         const toolchainsDir = getToolchainDir();
-        if (!await fs.pathExists(toolchainsDir)) {
-            return undefined;
+        if (!(await fs.pathExists(toolchainsDir))) {
+            return { success: true, versions: [] };
         }
+
         const entries = await fs.readdir(toolchainsDir);
         const sdkDirs = entries.filter(e => e.startsWith("zephyr-sdk-"));
-        if (sdkDirs.length === 0) {
-            return undefined;
+        const versions: ParsedSDKVersion[] = [];
+
+        for (const dir of sdkDirs) {
+            const sdkPath = path.join(toolchainsDir, dir);
+            const versionFile = path.join(sdkPath, "sdk_version");
+            if (!(await fs.pathExists(versionFile))) { continue; }
+
+            const version = (await fs.readFile(versionFile, "utf-8")).trim();
+
+            // Detect installed toolchains.
+            // SDK 0.x: toolchain dirs are at the SDK root (<sdk>/<tc>/bin/<tc>-gcc)
+            // SDK 1.x: toolchain dirs live under gnu/ (<sdk>/gnu/<tc>/bin/<tc>-gcc)
+            const gccSuffix = os.platform() === "win32" ? "-gcc.exe" : "-gcc";
+            const installed: string[] = [];
+            const searchRoots = [sdkPath];
+            const gnuDir = path.join(sdkPath, "gnu");
+            if (await fs.pathExists(gnuDir)) { searchRoots.push(gnuDir); }
+
+            for (const root of searchRoots) {
+                let dirEntries: string[];
+                try { dirEntries = await fs.readdir(root); } catch { continue; }
+                for (const tc of dirEntries) {
+                    const gccBin = path.join(root, tc, "bin", tc + gccSuffix);
+                    if (await fs.pathExists(gccBin) && !installed.includes(tc)) {
+                        installed.push(tc);
+                    }
+                }
+            }
+
+            // Read available toolchains from the manifest bundled with the SDK archive.
+            // SDK 1.x uses sdk_gnu_toolchains; SDK 0.x uses sdk_toolchains.
+            const available: string[] = [];
+            for (const manifestName of ["sdk_gnu_toolchains", "sdk_toolchains"]) {
+                const manifestPath = path.join(sdkPath, manifestName);
+                if (await fs.pathExists(manifestPath)) {
+                    const lines = (await fs.readFile(manifestPath, "utf-8"))
+                        .split("\n").map(l => l.trim()).filter(l => l.length > 0);
+                    available.push(...lines.filter(tc => !installed.includes(tc)));
+                    break;
+                }
+            }
+
+            versions.push({ version, path: sdkPath, installedToolchains: installed, availableToolchains: available });
         }
-        // Extract versions and sort descending to find the newest
+
+        return { success: true, versions };
+    } catch (error) {
+        return { success: false, versions: [], error: `Error listing SDKs: ${error}` };
+    }
+}
+
+// ---------------------------------------------------------------------------
+// SDK version detection helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Reads SDK_VERSION from a Zephyr source tree to auto-detect which SDK to install.
+ */
+async function detectSDKVersionFromZephyrDir(zephyrDir: string): Promise<string | undefined> {
+    try {
+        const sdkVersionFile = path.join(zephyrDir, "SDK_VERSION");
+        if (await fs.pathExists(sdkVersionFile)) {
+            return (await fs.readFile(sdkVersionFile, "utf-8")).trim();
+        }
+    } catch { /* ignore */ }
+    return undefined;
+}
+
+/**
+ * Detects the newest installed SDK version from the toolchains directory.
+ * Exported so workspace-setup flows can use it to auto-heal the sdkInstalled flag.
+ */
+export async function detectInstalledSDKVersion(): Promise<string | undefined> {
+    try {
+        const toolchainsDir = getToolchainDir();
+        if (!(await fs.pathExists(toolchainsDir))) { return undefined; }
+        const entries = await fs.readdir(toolchainsDir);
+        const sdkDirs = entries.filter(e => e.startsWith("zephyr-sdk-"));
+        if (sdkDirs.length === 0) { return undefined; }
         const versions = sdkDirs
             .map(d => d.replace("zephyr-sdk-", ""))
-            .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+            .sort((a, b) => compareVersions(b, a));
         return versions[0];
     } catch (error) {
         outputError("SDK Install", `Error detecting installed SDK version: ${error}`);
@@ -356,27 +496,219 @@ async function detectInstalledSDKVersion(): Promise<string | undefined> {
     return undefined;
 }
 
+// ---------------------------------------------------------------------------
+// Core SDK install — pure TypeScript, no west/Python required
+// ---------------------------------------------------------------------------
+
+const SDK_GITHUB_API = "https://api.github.com/repos/zephyrproject-rtos/sdk-ng/releases";
+const MIN_SUPPORTED_VERSION = "0.14.1";
+
 /**
- * Prompts user to select SDK version and toolchains as a single MultiStep
- * wizard so the user can navigate back between steps.
+ * Downloads and installs the Zephyr SDK minimal archive then runs the SDK's
+ * own setup script to register CMake packages and install the requested toolchains.
  *
- * Returns null if the user cancelled, or an object with:
- *   - sdkVersion: string for a specific version, undefined for "latest"
- *   - toolchains: string[] (["all"] for all toolchains)
+ * No Python / west / venv required — uses the GitHub REST API and system
+ * tar / 7z for extraction, both of which are installed as host tools.
+ *
+ * @param sdkVersion  Explicit semver string, or undefined to install "latest".
+ * @param toolchains  ["all"] to install all toolchains, or specific names.
+ * @param onProgress  Optional callback for progress messages (forwarded to the VS Code notification).
  */
-async function selectSDKVersionAndToolchains(setupState: SetupState): Promise<{ sdkVersion: string | undefined; toolchains: string[] } | null> {
+export async function installSDK(
+    sdkVersion: string | undefined,
+    toolchains: string[],
+    onProgress?: (msg: string) => void
+): Promise<boolean> {
+    try {
+        const toolchainsDir = getToolchainDir();
+        const { osname, arch } = getSdkPlatform();
+        const ghToken = process.env.GITHUB_TOKEN;
+        const authHeaders: Record<string, string> = ghToken
+            ? { Authorization: `Bearer ${ghToken}` }
+            : {};
+
+        if (ghToken) { outputInfo("SDK Install", "Using GITHUB_TOKEN for authenticated GitHub API access"); }
+
+        // ------------------------------------------------------------------
+        // 1. Resolve the target release
+        // ------------------------------------------------------------------
+        onProgress?.("Fetching Zephyr SDK release list...");
+        const releases = await fetchGithubReleases(SDK_GITHUB_API, authHeaders);
+        const semverReleases = releases.filter(r => {
+            const v = r.tag_name.replace(/^v/, "");
+            return /^\d+\.\d+\.\d+/.test(v);
+        });
+
+        let version: string;
+        if (sdkVersion) {
+            version = sdkVersion;
+        } else {
+            // "latest" — pick the highest semver tag
+            version = semverReleases
+                .map(r => r.tag_name.replace(/^v/, ""))
+                .sort((a, b) => compareVersions(b, a))[0];
+            outputInfo("SDK Install", `Resolved "latest" to SDK ${version}`);
+        }
+
+        if (compareVersions(version, MIN_SUPPORTED_VERSION) < 0) {
+            outputError("SDK Install", `SDK ${version} is older than minimum supported version ${MIN_SUPPORTED_VERSION}`);
+            return false;
+        }
+
+        const targetRelease = semverReleases.find(r => r.tag_name === `v${version}`);
+        if (!targetRelease) {
+            outputError("SDK Install", `SDK version ${version} not found in GitHub releases`);
+            return false;
+        }
+
+        // ------------------------------------------------------------------
+        // 2. Fetch all assets (SDK 1.x has > 100 assets)
+        // ------------------------------------------------------------------
+        onProgress?.("Fetching SDK asset list...");
+        const assets = await fetchFullReleaseAssets(targetRelease, authHeaders);
+
+        // ------------------------------------------------------------------
+        // 3. Check if SDK base is already installed; skip download if so
+        // ------------------------------------------------------------------
+        const sdkDir = path.join(toolchainsDir, `zephyr-sdk-${version}`);
+        const versionFile = path.join(sdkDir, "sdk_version");
+        const sdkBaseExists = await fs.pathExists(versionFile);
+
+        if (!sdkBaseExists) {
+            // ----------------------------------------------------------------
+            // 4. Locate archive and SHA-256 URLs
+            // ----------------------------------------------------------------
+            const archiveName = getSdkArchiveName(version, osname, arch);
+            const archiveAsset = assets.find(a => a.name === archiveName);
+            const sha256Asset = assets.find(a => a.name === "sha256.sum");
+
+            if (!archiveAsset) {
+                outputError("SDK Install", `Could not find asset "${archiveName}" in SDK ${version} release`);
+                return false;
+            }
+
+            // ----------------------------------------------------------------
+            // 5. Download SHA-256 manifest
+            // ----------------------------------------------------------------
+            onProgress?.("Fetching checksum file...");
+            outputInfo("SDK Install", `Fetching sha256.sum for SDK ${version}...`);
+            let expectedHash: string | undefined;
+            if (sha256Asset) {
+                const sha256Res = await httpsGet(sha256Asset.browser_download_url, authHeaders);
+                if (sha256Res.statusCode === 200) {
+                    expectedHash = parseSha256File(sha256Res.body, archiveName);
+                } else {
+                    outputWarning("SDK Install", `Could not download sha256.sum (HTTP ${sha256Res.statusCode}); skipping verification`);
+                }
+            }
+
+            // ----------------------------------------------------------------
+            // 6. Download the minimal archive
+            // ----------------------------------------------------------------
+            await fs.ensureDir(toolchainsDir);
+
+            // Use a temp directory inside the toolchains dir so the final move
+            // stays on the same filesystem and is atomic.
+            const tmpDir = nativePath.join(toolchainsDir, `.sdk-tmp-${Date.now()}`);
+            await fs.ensureDir(tmpDir);
+
+            try {
+                const archivePath = nativePath.join(tmpDir, archiveName);
+                const archiveSize = archiveAsset.size;
+                let lastReportedPct = -1;
+
+                outputInfo("SDK Install", `Downloading ${archiveName} (${Math.round(archiveSize / 1024 / 1024)} MB)...`);
+                await downloadFile(
+                    archiveAsset.browser_download_url,
+                    archivePath,
+                    authHeaders,
+                    (downloaded, total) => {
+                        const pct = total > 0 ? Math.floor((downloaded / total) * 100) : 0;
+                        if (pct !== lastReportedPct && pct % 5 === 0) {
+                            lastReportedPct = pct;
+                            onProgress?.(`Downloading SDK ${version}... ${pct}%`);
+                        }
+                    }
+                );
+                outputInfo("SDK Install", `Downloaded ${archiveName}`);
+
+                // ----------------------------------------------------------------
+                // 7. Verify SHA-256
+                // ----------------------------------------------------------------
+                if (expectedHash) {
+                    onProgress?.("Verifying checksum...");
+                    const actualHash = await computeSha256(archivePath);
+                    if (actualHash !== expectedHash) {
+                        throw new Error(`SHA-256 mismatch for ${archiveName}: expected ${expectedHash}, got ${actualHash}`);
+                    }
+                    outputInfo("SDK Install", "SHA-256 verification passed");
+                }
+
+                // ----------------------------------------------------------------
+                // 8. Extract archive
+                // ----------------------------------------------------------------
+                onProgress?.("Extracting SDK archive...");
+                await extractArchive(archivePath, tmpDir);
+
+                // Find the single extracted directory (zephyr-sdk-x.y.z)
+                const allEntries = await fs.readdir(tmpDir);
+                const extracted: string[] = [];
+                for (const e of allEntries) {
+                    try {
+                        const stat = await fs.stat(nativePath.join(tmpDir, e));
+                        if (stat.isDirectory()) { extracted.push(e); }
+                    } catch { /* skip */ }
+                }
+                if (extracted.length !== 1) {
+                    throw new Error(`Unexpected archive layout: found ${extracted.length} directories in extracted archive`);
+                }
+
+                // ----------------------------------------------------------------
+                // 9. Move to final destination
+                // ----------------------------------------------------------------
+                onProgress?.("Moving SDK to install directory...");
+                const extractedDir = nativePath.join(tmpDir, extracted[0]);
+                if (await fs.pathExists(sdkDir)) {
+                    await fs.remove(sdkDir);
+                }
+                await fs.move(extractedDir, sdkDir);
+                outputInfo("SDK Install", `SDK extracted to: ${sdkDir}`);
+            } finally {
+                // Clean up temp dir regardless of success/failure
+                await fs.remove(tmpDir).catch(() => { /* ignore cleanup errors */ });
+            }
+        } else {
+            outputInfo("SDK Install", `SDK ${version} base already installed at ${sdkDir}, skipping download`);
+        }
+
+        // ------------------------------------------------------------------
+        // 10. Run setup script (CMake registration + toolchain installation)
+        // ------------------------------------------------------------------
+        await runSdkSetup(sdkDir, toolchains, onProgress);
+
+        outputInfo("SDK Install", `SDK ${version} installation complete`);
+        return true;
+    } catch (error) {
+        outputError("SDK Install", `Error installing SDK: ${error}`);
+        return false;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Interactive QuickPick flows
+// ---------------------------------------------------------------------------
+
+async function selectSDKVersionAndToolchains(zephyrDir?: string): Promise<{ sdkVersion: string | undefined; toolchains: string[] } | null> {
     const title = "Install Zephyr SDK";
 
     type State = {
-        sdkVersion?: string | undefined; // undefined means "latest", not-yet-set is indicated by sdkVersionChosen
+        sdkVersion?: string | undefined;
         sdkVersionChosen?: boolean;
         toolchains?: string[];
     };
     const state: State = {};
 
     async function pickSDKVersion(input: MultiStepInput): Promise<InputStep | void> {
-        // Loop until the user picks a concrete version (or Back/Cancel bubbles up
-        // as an InputFlowAction exception and escapes the loop naturally).
         while (true) {
             const selected = await input.showQuickPick({
                 title,
@@ -388,29 +720,25 @@ async function selectSDKVersionAndToolchains(setupState: SetupState): Promise<{ 
             });
 
             if (selected.label === "automatic") {
-                const detectedVersion = await detectSDKVersionFromWorkspace(setupState);
+                const detectedVersion = zephyrDir
+                    ? await detectSDKVersionFromZephyrDir(zephyrDir)
+                    : undefined;
                 if (!detectedVersion) {
                     notifyError("SDK Install",
                         "Could not auto-detect SDK version from workspace. Please select a specific version."
                     );
-                    // Re-show the same step (continue the loop) without pushing a
-                    // new entry onto MultiStepInput's stack — avoids a spurious
-                    // Back button that would loop to the same prompt.
                     continue;
                 }
-                void vscode.window.showInformationMessage(
-                    `Auto-detected SDK version: ${detectedVersion}`
-                );
+                void vscode.window.showInformationMessage(`Auto-detected SDK version: ${detectedVersion}`);
                 state.sdkVersion = detectedVersion;
             } else if (selected.label === "latest") {
-                state.sdkVersion = undefined; // undefined means latest
+                state.sdkVersion = undefined;
             } else {
                 state.sdkVersion = selected.label;
             }
             break;
         }
         state.sdkVersionChosen = true;
-
         return (input: MultiStepInput) => pickInstallChoice(input);
     }
 
@@ -421,7 +749,7 @@ async function selectSDKVersionAndToolchains(setupState: SetupState): Promise<{ 
         const selected = await input.showQuickPick({
             title,
             step: 2,
-            totalSteps: 2,
+            totalSteps: 3,
             placeholder: "Choose toolchain installation option",
             ignoreFocusOut: true,
             items: [installAllOption, selectSpecificOption],
@@ -429,138 +757,78 @@ async function selectSDKVersionAndToolchains(setupState: SetupState): Promise<{ 
 
         if (selected.label === "Install All Toolchains") {
             state.toolchains = ["all"];
-            return; // Done
+            return;
         }
-
         return (input: MultiStepInput) => pickSpecificToolchains(input);
     }
 
     async function pickSpecificToolchains(input: MultiStepInput) {
         const selected = await input.showQuickPickMany({
             title,
-            step: 2,
-            totalSteps: 2,
+            step: 3,
+            totalSteps: 3,
             placeholder: "Select toolchains to install (toggle then press Enter)",
             ignoreFocusOut: true,
             items: toolchainTargets.filter(item => item.kind !== vscode.QuickPickItemKind.Separator),
         });
 
-        if (!selected || !Array.isArray(selected) || selected.length === 0) {
-            // Leave state.toolchains unset so caller treats as cancel
-            return;
-        }
+        if (!selected || !Array.isArray(selected) || selected.length === 0) { return; }
         state.toolchains = (selected as readonly vscode.QuickPickItem[]).map(item => item.label);
     }
 
-    // MultiStepInput.run consumes user cancel internally. We rely on the
-    // state flags (sdkVersionChosen + toolchains) to detect successful
-    // completion.
     await MultiStepInput.run(input => pickSDKVersion(input));
 
     if (!state.sdkVersionChosen || !state.toolchains || state.toolchains.length === 0) {
         return null;
     }
-
     return { sdkVersion: state.sdkVersion, toolchains: state.toolchains };
 }
 
-/**
- * Installs SDK with specific toolchains
- */
-export async function installSDK(
-    setupState: SetupState,
-    sdkVersion?: string,
-    toolchains?: string[]
-): Promise<boolean> {
-    try {
-        const toolchainsDir = getToolchainDir();
+async function selectToolchainsWithoutVersionStep(titlePrefix: string): Promise<string[] | null> {
+    const installAllOption = { label: "Install All Toolchains", description: "Install all available toolchains for this version" };
+    const selectSpecificOption = { label: "Select Specific Toolchains", description: "Choose which toolchains to install" };
 
-        // Check if SDK is already installed in the toolchains directory.
-        // The upstream `west sdk install` uses CMake find_package to detect
-        // installed SDKs, but it only searches standard OS paths (e.g. /opt,
-        // ~/), not the custom toolchains directory used by Zephyr IDE.
-        // Without this check, repeated installs to the same base directory
-        // fail with "Destination path already exists".
-        if (sdkVersion) {
-            const sdkDir = path.join(toolchainsDir, `zephyr-sdk-${sdkVersion}`);
-            const sdkVersionFile = path.join(sdkDir, "sdk_version");
-            if (await fs.pathExists(sdkVersionFile)) {
-                outputInfo("SDK Install", `SDK version ${sdkVersion} already installed at: ${sdkDir}, skipping download`);
-                return true;
+    let toolchains: string[] | null = null;
+
+    await MultiStepInput.run(async (input: MultiStepInput) => {
+        const choice = await input.showQuickPick({
+            title: titlePrefix,
+            step: 1,
+            totalSteps: 2,
+            placeholder: "Choose toolchain installation option",
+            ignoreFocusOut: true,
+            items: [installAllOption, selectSpecificOption],
+        });
+
+        if (choice.label === "Install All Toolchains") {
+            toolchains = ["all"];
+            return;
+        }
+
+        return async (inner: MultiStepInput) => {
+            const selected = await inner.showQuickPickMany({
+                title: titlePrefix,
+                step: 2,
+                totalSteps: 2,
+                placeholder: "Select toolchains to install (toggle then press Enter)",
+                ignoreFocusOut: true,
+                items: toolchainTargets.filter(item => item.kind !== vscode.QuickPickItemKind.Separator),
+            });
+            if (selected && Array.isArray(selected) && selected.length > 0) {
+                toolchains = (selected as readonly vscode.QuickPickItem[]).map(item => item.label);
             }
-        }
+        };
+    });
 
-        let command = sdkVersion
-            ? `west sdk install --version ${sdkVersion} -H `
-            : `west sdk install -H`;
-
-        command += ` -b "${toolchainsDir}"`;
-
-        // Pass GitHub token to avoid API rate limits (especially in CI).
-        // The token is read from GITHUB_TOKEN which is automatically
-        // available in GitHub Actions runners.
-        const ghToken = process.env.GITHUB_TOKEN;
-        if (ghToken) {
-            command += ` --personal-access-token ${ghToken}`;
-            outputInfo("SDK Install", "Using GITHUB_TOKEN for authenticated GitHub API access");
-        }
-
-        // Add toolchain selection if specified
-        if (toolchains && toolchains.length > 0 && !toolchains.includes("all")) {
-            const toolchainArgs = toolchains.map(tc => `-t ${tc}`).join(" ");
-            command += ` ${toolchainArgs}`;
-        }
-
-        // Redact the personal access token before logging to prevent credential leaks
-        const logCommand = ghToken ? command.replace(ghToken, '***') : command;
-        outputInfo("SDK Install", `Installing SDK using: ${logCommand}`);
-        outputInfo("SDK Install", `  cwd: ${setupState.setupPath}`);
-        outputInfo("SDK Install", `  toolchains dir: ${toolchainsDir}`);
-
-        // In CI environments, use shell command execution since VS Code task
-        // infrastructure is not reliable in headless CI environments.
-        // The venv PATH must be explicitly set so that west and its extension
-        // dependencies (patoolib, semver, etc.) are found correctly.
-        let success: boolean;
-        if (process.env.CI) {
-            const result = await executeShellCommandInPythonEnv(
-                command,
-                setupState.setupPath,
-                setupState
-            );
-            success = result.stdout !== undefined;
-            if (!success && result.stderr) {
-                outputError("SDK Install", `Command stderr: ${result.stderr}`);
-            }
-        } else {
-            success = await executeTaskHelperInPythonEnv(
-                setupState,
-                "Zephyr IDE: SDK Install",
-                command,
-                setupState.setupPath
-            );
-        }
-
-        if (success) {
-            outputInfo("SDK Install", "SDK install command completed successfully");
-            return true;
-        } else {
-            outputError("SDK Install", "SDK install command failed");
-            return false;
-        }
-    } catch (error) {
-        const errorMsg = `Error installing SDK: ${error}`;
-        outputError("SDK Install", errorMsg);
-        return false;
-    }
+    return toolchains;
 }
 
-/**
- * Main SDK installation function that handles the complete user workflow
- */
+// ---------------------------------------------------------------------------
+// Public interactive install entry points
+// ---------------------------------------------------------------------------
+
 export async function installSDKInteractive(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, context?: vscode.ExtensionContext) {
     const tracker = new SetupProgressTracker("SDK Installation", [
-        { id: 'resolve', label: 'Resolving west workspace' },
         { id: 'version', label: 'Selecting SDK version' },
         { id: 'toolchains', label: 'Selecting toolchains' },
         { id: 'install', label: 'Downloading and installing SDK' },
@@ -570,82 +838,49 @@ export async function installSDKInteractive(wsConfig: WorkspaceConfig, globalCon
     try {
         outputInfo("SDK Install", "Starting interactive SDK installation...");
 
-        tracker.startStep('resolve');
-        const setupState = await getWestSDKContext(wsConfig, globalConfig, context);
+        // Derive the Zephyr source dir for auto-detection if a workspace is active
+        const zephyrDir = wsConfig.activeSetupState?.zephyrDir;
 
-        if (!setupState) {
-            tracker.failStep('resolve', 'No valid west installation found');
-            notifyError("SDK Install",
-                "No valid west installation found. Please set up a Zephyr workspace first."
-            );
-            return;
-        }
-        outputInfo("SDK Install", `Found west SDK context (setupPath: ${setupState.setupPath})`);
-        tracker.completeStep('resolve', `Using: ${setupState.setupPath}`);
-
-        // Step 1+2 combined: select SDK version and toolchains as a single
-        // MultiStep wizard so the user can navigate back between them.
         tracker.startStep('version');
-        const selection = await selectSDKVersionAndToolchains(setupState);
+        const selection = await selectSDKVersionAndToolchains(zephyrDir);
         if (!selection) {
-            outputInfo("SDK Install", "SDK version/toolchain selection was cancelled or failed, aborting SDK install");
+            outputInfo("SDK Install", "SDK version/toolchain selection cancelled");
             tracker.failStep('version', 'Selection cancelled');
             return;
         }
         const sdkVersion = selection.sdkVersion;
         const toolchains = selection.toolchains;
-        outputInfo("SDK Install", `SDK version selection result: ${sdkVersion === undefined ? 'latest' : sdkVersion}`);
         tracker.completeStep('version', sdkVersion ?? 'latest');
 
-        outputInfo("SDK Install", `Toolchain selection result: ${toolchains.join(', ')}`);
         tracker.startStep('toolchains');
         tracker.completeStep('toolchains', toolchains.includes('all') ? 'All toolchains' : toolchains.join(', '));
 
-        // Step 3: Install with progress
-        tracker.startStep('install', 'Running west sdk install...');
+        tracker.startStep('install', 'Starting...');
         return await vscode.window.withProgress(
-            {
-                location: vscode.ProgressLocation.Notification,
-                title: "Installing Zephyr SDK",
-                cancellable: false,
-            },
+            { location: vscode.ProgressLocation.Notification, title: "Installing Zephyr SDK", cancellable: false },
             async (progress) => {
-                progress.report({
-                    message: "Installing SDK using west sdk command...",
+                const result = await installSDK(sdkVersion, toolchains, (msg) => {
+                    progress.report({ message: msg });
+                    tracker.updateStep('install', msg);
                 });
-
-                outputInfo("SDK Install", `Starting SDK install task (version: ${sdkVersion}, toolchains: ${toolchains.join(', ')})...`);
-                const result = await installSDK(setupState, sdkVersion, toolchains);
-                outputInfo("SDK Install", `SDK install task completed with result: ${result}`);
                 if (result) {
                     tracker.completeStep('install');
                     tracker.startStep('verify', 'Updating global state...');
-
                     globalConfig.sdkInstalled = true;
                     if (sdkVersion) {
                         globalConfig.sdkVersion = sdkVersion;
                     } else {
-                        // "latest" was selected — detect version from installed SDK directory
                         const detected = await detectInstalledSDKVersion();
-                        if (detected) {
-                            globalConfig.sdkVersion = detected;
-                        }
+                        if (detected) { globalConfig.sdkVersion = detected; }
                     }
-                    if (context) {
-                        await setGlobalState(context, globalConfig);
-                    }
-
+                    if (context) { await setGlobalState(context, globalConfig); }
                     tracker.completeStep('verify', `SDK ${globalConfig.sdkVersion || ''} ready`);
                     tracker.complete('Zephyr SDK installed successfully!');
-                    void vscode.window.showInformationMessage(
-                        "Zephyr SDK installed successfully!"
-                    );
+                    void vscode.window.showInformationMessage("Zephyr SDK installed successfully!");
                 } else {
-                    tracker.failStep('install', 'west sdk install command failed');
+                    tracker.failStep('install', 'SDK installation failed');
                     tracker.fail('SDK installation failed. Check the Output panel for details.');
-                    notifyError("SDK Install",
-                        `Failed to install SDK`
-                    );
+                    notifyError("SDK Install", "Failed to install SDK");
                 }
                 return result;
             }
@@ -654,5 +889,155 @@ export async function installSDKInteractive(wsConfig: WorkspaceConfig, globalCon
         outputError("SDK Install", `SDK installation threw an error: ${error}`);
         tracker.fail(`Error: ${error}`);
         notifyError("SDK Install", `Failed to install SDK: ${error}`);
+    }
+}
+
+export async function installToolchainsDirect(
+    globalConfig: GlobalConfig,
+    context: vscode.ExtensionContext | undefined,
+    version: string,
+    toolchains: string[],
+): Promise<boolean> {
+    const tracker = new SetupProgressTracker(`SDK ${version} — Install Toolchains`, [
+        { id: 'install', label: 'Downloading and installing toolchains' },
+        { id: 'verify', label: 'Verifying installation' },
+    ], _onSDKProgress);
+
+    try {
+        tracker.startStep('install', `Installing ${toolchains.join(', ')}...`);
+        const result = await vscode.window.withProgress(
+            { location: vscode.ProgressLocation.Notification, title: `Adding toolchains to SDK ${version}`, cancellable: false },
+            async (progress) => installSDK(version, toolchains, (msg) => {
+                progress.report({ message: msg });
+                tracker.updateStep('install', msg);
+            })
+        );
+
+        if (result) {
+            tracker.completeStep('install');
+            tracker.startStep('verify', 'Updating global state...');
+            globalConfig.sdkInstalled = true;
+            globalConfig.sdkVersion = version;
+            if (context) { await setGlobalState(context, globalConfig); }
+            tracker.completeStep('verify', `SDK ${version} toolchains ready`);
+            tracker.complete(`Toolchains added to SDK ${version} successfully!`);
+            void vscode.window.showInformationMessage(`Toolchains added to SDK ${version} successfully!`);
+        } else {
+            tracker.failStep('install', 'Toolchain installation failed');
+            tracker.fail('Toolchain installation failed. Check the Output panel for details.');
+        }
+        return result ?? false;
+    } catch (error) {
+        outputError("SDK Install", `Toolchain install error: ${error}`);
+        tracker.fail(`Error: ${error}`);
+        return false;
+    }
+}
+
+export async function uninstallSDKVersion(
+    version: string,
+): Promise<{ success: boolean; error?: string }> {
+    const toolchainsDir = getToolchainDir();
+    const sdkDir = path.join(toolchainsDir, `zephyr-sdk-${version}`);
+    try {
+        if (!await fs.pathExists(sdkDir)) {
+            return { success: false, error: `SDK directory not found: ${sdkDir}` };
+        }
+        await fs.remove(sdkDir);
+        outputInfo("SDK Uninstall", `Removed SDK directory: ${sdkDir}`);
+        return { success: true };
+    } catch (error) {
+        const msg = `Failed to remove SDK ${version}: ${error}`;
+        outputError("SDK Uninstall", msg);
+        return { success: false, error: msg };
+    }
+}
+
+export async function uninstallToolchains(
+    version: string,
+    toolchains: string[],
+): Promise<{ removed: string[]; notFound: string[]; errors: string[] }> {
+    const toolchainsDir = getToolchainDir();
+    const sdkDir = path.join(toolchainsDir, `zephyr-sdk-${version}`);
+    const removed: string[] = [];
+    const notFound: string[] = [];
+    const errors: string[] = [];
+
+    for (const tc of toolchains) {
+        // SDK 1.x: toolchains live under gnu/<tc>; SDK 0.x: under <sdk>/<tc>
+        const candidates = [
+            path.join(sdkDir, "gnu", tc),
+            path.join(sdkDir, tc),
+        ];
+        let tcDir: string | undefined;
+        for (const candidate of candidates) {
+            if (await fs.pathExists(candidate)) { tcDir = candidate; break; }
+        }
+        try {
+            if (tcDir) {
+                await fs.remove(tcDir);
+                outputInfo("SDK Uninstall", `Removed toolchain directory: ${tcDir}`);
+                removed.push(tc);
+            } else {
+                outputWarning("SDK Uninstall", `Toolchain directory not found (already removed?): ${tc}`);
+                notFound.push(tc);
+            }
+        } catch (error) {
+            const msg = `Failed to remove ${tc}: ${error}`;
+            outputError("SDK Uninstall", msg);
+            errors.push(msg);
+        }
+    }
+
+    return { removed, notFound, errors };
+}
+
+export async function installSDKToolchainsInteractive(
+    wsConfig: WorkspaceConfig,
+    globalConfig: GlobalConfig,
+    context: vscode.ExtensionContext | undefined,
+    prefilledVersion: string,
+) {
+    outputInfo("SDK Install", `Adding toolchains to SDK ${prefilledVersion}...`);
+
+    const toolchains = await selectToolchainsWithoutVersionStep(`Add Toolchains — SDK ${prefilledVersion}`);
+    if (!toolchains || toolchains.length === 0) {
+        outputInfo("SDK Install", "Toolchain selection cancelled");
+        return;
+    }
+
+    const tracker = new SetupProgressTracker(`SDK ${prefilledVersion} Toolchains`, [
+        { id: 'install', label: 'Downloading and installing toolchains' },
+        { id: 'verify', label: 'Verifying installation' },
+    ], _onSDKProgress);
+
+    try {
+        tracker.startStep('install', 'Starting download...');
+        const result = await vscode.window.withProgress(
+            { location: vscode.ProgressLocation.Notification, title: `Adding toolchains to SDK ${prefilledVersion}`, cancellable: false },
+            async (progress) => installSDK(prefilledVersion, toolchains, (msg) => {
+                progress.report({ message: msg });
+                tracker.updateStep('install', msg);
+            })
+        );
+
+        if (result) {
+            tracker.completeStep('install');
+            tracker.startStep('verify', 'Updating global state...');
+            globalConfig.sdkInstalled = true;
+            globalConfig.sdkVersion = prefilledVersion;
+            if (context) { await setGlobalState(context, globalConfig); }
+            tracker.completeStep('verify', `SDK ${prefilledVersion} toolchains ready`);
+            tracker.complete(`Toolchains added to SDK ${prefilledVersion} successfully!`);
+            void vscode.window.showInformationMessage(`Toolchains added to SDK ${prefilledVersion} successfully!`);
+        } else {
+            tracker.failStep('install', 'Toolchain installation failed');
+            tracker.fail('Toolchain installation failed. Check the Output panel for details.');
+            notifyError("SDK Install", `Failed to add toolchains to SDK ${prefilledVersion}`);
+        }
+    } catch (error) {
+        outputError("SDK Install", `SDK toolchain installation threw an error: ${error}`);
+        tracker.fail(`Error: ${error}`);
+        notifyError("SDK Install", `Failed to add toolchains: ${error}`);
     }
 }

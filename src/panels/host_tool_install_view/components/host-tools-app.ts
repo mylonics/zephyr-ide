@@ -32,6 +32,15 @@ export class HostToolsApp extends ZephyrLitElement {
    */
   @state() private _windowsLongPathsEnabled: boolean | undefined = undefined;
 
+  /**
+   * Optional 7-Zip status on Windows.
+   * undefined  = not Windows (section hidden)
+   * false      = Windows, 7-Zip NOT installed
+   * true       = Windows, 7-Zip IS installed
+   */
+  @state() private _sevenZipAvailable: boolean | undefined = undefined;
+  @state() private _sevenZipInstalling = false;
+
   connectedCallback() {
     super.connectedCallback();
     this._client = new HostToolsClient(this.vscodeApi, 'cards');
@@ -54,6 +63,21 @@ export class HostToolsApp extends ZephyrLitElement {
       if (typeof enabled === 'boolean') {
         this._windowsLongPathsEnabled = enabled;
       }
+      const sevenZip = msg.data.sevenZipAvailable;
+      if (typeof sevenZip === 'boolean') {
+        this._sevenZipAvailable = sevenZip;
+      } else if (sevenZip === null) {
+        // null = explicitly not-Windows, keep undefined to hide the section
+      }
+    }
+    if (msg.command === 'sevenZipInstalling') {
+      this._sevenZipInstalling = true;
+    }
+    if (msg.command === 'sevenZipInstalled') {
+      this._sevenZipInstalling = false;
+      if (typeof msg.available === 'boolean') {
+        this._sevenZipAvailable = msg.available;
+      }
     }
     this._client.handleMessage(msg);
   };
@@ -66,6 +90,47 @@ export class HostToolsApp extends ZephyrLitElement {
   private _sendCommand(cmd: string) { this.postCommand(cmd); }
   private _markComplete() { this.vscodeApi.postMessage({ command: 'markComplete' }); }
   private _enableLongPaths() { this.vscodeApi.postMessage({ command: 'enableWindowsLongPaths' }); }
+  private _install7Zip() { this.vscodeApi.postMessage({ command: 'install7zip' }); }
+
+  private _render7ZipSection() {
+    if (this._sevenZipAvailable === undefined) { return ''; }
+    const installed = this._sevenZipAvailable;
+    return html`
+      <div class="manager-section">
+        <h3>Optional: 7-Zip</h3>
+        <div class="info-box">
+          <p>
+            <strong>7-Zip is no longer required</strong> for Zephyr IDE SDK installation.
+            Windows 11's built-in <code>tar.exe</code> (libarchive) can extract
+            <code>.7z</code> archives natively, so the extension uses it by default.
+          </p>
+          <p>
+            If you plan to use the <code>west sdk</code> command-line tool directly,
+            you may want 7-Zip available on your PATH.
+            <strong>For most users, we recommend using the Zephyr IDE SDK panel
+            (<em>SDK &amp; Toolchains</em>) instead — no 7-Zip required.</strong>
+          </p>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
+            ${installed
+              ? html`<vscode-icon name="check" style="color:var(--vscode-terminal-ansiGreen)"></vscode-icon>
+                     <span>7-Zip is installed and available.</span>`
+              : html`<vscode-icon name="circle-slash" style="color:var(--vscode-descriptionForeground)"></vscode-icon>
+                     <span>7-Zip is not installed.</span>`}
+          </div>
+        </div>
+        ${!installed ? html`
+          <div class="button-group" style="margin-top:8px;">
+            <vscode-button appearance="secondary"
+              ?disabled=${this._sevenZipInstalling}
+              @click=${this._install7Zip}>
+              <vscode-icon slot="start-icon" name="cloud-download"></vscode-icon>
+              ${this._sevenZipInstalling ? 'Installing…' : 'Install 7-Zip (optional)'}
+            </vscode-button>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
 
   render() {
     const showLongPathsBanner = this._windowsLongPathsEnabled === false;
@@ -140,6 +205,8 @@ export class HostToolsApp extends ZephyrLitElement {
             </div>
           </div>
         </div>
+
+        ${this._render7ZipSection()}
 
         <div class="manager-section">
           <div class="button-group">
