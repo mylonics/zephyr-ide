@@ -46,16 +46,18 @@ declare the toolchains your workspace requires directly in
 }
 ```
 
-When this list is present:
+The SDK panel always exposes two buttons for managing the workspace's
+declared toolchain list:
 
-- The workspace setup flow installs any missing toolchains automatically once
-  the Zephyr SDK is in place.
-- The SDK panel exposes two extra buttons:
-  - **Install from zephyr-ide.json** — install every declared toolchain that
-    isn't already available locally.
-  - **Modify zephyr-ide.json** — open a quick-pick that lets you check or
-    uncheck toolchains. Toolchains already installed locally are listed
-    first; items currently declared in `zephyr-ide.json` are pre-checked.
+- **Install from zephyr-ide.json** — install every declared toolchain that
+  isn't already available locally.
+- **Modify zephyr-ide.json** — open a quick-pick that lets you check or
+  uncheck toolchains. Toolchains already installed locally are listed first;
+  items currently declared in `zephyr-ide.json` are pre-checked. Saving with
+  no items selected clears the `toolchains` field.
+
+When the `toolchains` list is non-empty, the workspace setup flow installs
+any missing toolchains automatically once the Zephyr SDK is in place.
 
 The same operations are available from the command palette:
 

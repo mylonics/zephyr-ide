@@ -488,21 +488,20 @@ export async function westUpdateWithRequirements(context: vscode.ExtensionContex
 
   progressTracker?.complete('Workspace setup completed successfully!');
 
-  if (!globalConfig.sdkInstalled) {
-    const sdkResult = await vscode.commands.executeCommand("zephyr-ide.install-sdk");
-    // After SDK install, attempt to install workspace-declared toolchains/blobs.
-    try {
-      await installZephyrIdeRequirements(wsConfig, globalConfig, context);
-    } catch (error) {
-      outputWarning("Workspace Setup", `Failed to install zephyr-ide.json requirements: ${error}`);
-    }
-    return sdkResult;
-  }
-  // SDK already installed — still install any toolchains/blobs the workspace declares.
+  // Install any toolchains/blobs declared in zephyr-ide.json. When
+  // toolchains are declared but no SDK is installed yet,
+  // installZephyrIdeRequirements bootstraps an SDK install internally.
   try {
     await installZephyrIdeRequirements(wsConfig, globalConfig, context);
   } catch (error) {
     outputWarning("Workspace Setup", `Failed to install zephyr-ide.json requirements: ${error}`);
+  }
+
+  // Fall back to the global install-sdk flow only if no SDK is present after
+  // installZephyrIdeRequirements has run (e.g. workspace declared no
+  // toolchains, so the bootstrap path didn't trigger).
+  if (!globalConfig.sdkInstalled) {
+    return await vscode.commands.executeCommand("zephyr-ide.install-sdk");
   }
   return true;
 }

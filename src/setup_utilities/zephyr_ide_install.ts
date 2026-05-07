@@ -144,16 +144,21 @@ export async function modifyZephyrIdeToolchainsInteractive(wsConfig: WorkspaceCo
 }
 
 /**
- * Determine which declared toolchains are not yet installed in any local SDK.
- * Returns the set that still needs installing.
+ * Determine which declared toolchains are not yet installed in the target SDK.
+ *
+ * If `targetSdkVersion` is provided, only toolchains installed in that
+ * specific SDK count as installed (matches the SDK that
+ * `installZephyrIdeToolchains` will actually install into). Otherwise the
+ * union across all installed SDKs is used.
  */
-async function findMissingToolchains(declared: string[]): Promise<string[]> {
+async function findMissingToolchains(declared: string[], targetSdkVersion?: string): Promise<string[]> {
     if (declared.length === 0) { return []; }
     const installed = new Set<string>();
     try {
         const sdkList = await listAvailableSDKs();
         if (sdkList.success) {
             for (const v of sdkList.versions) {
+                if (targetSdkVersion && v.version !== targetSdkVersion) { continue; }
                 for (const tc of v.installedToolchains ?? []) { installed.add(tc); }
             }
         }
@@ -165,17 +170,25 @@ async function findMissingToolchains(declared: string[]): Promise<string[]> {
 
 /**
  * Install every toolchain declared in zephyr-ide.json that isn't already
- * present in some local SDK. If no SDK is currently installed, the global
- * `install-sdk` flow is suggested first.
+ * present in some local SDK.
+ *
+ * When `bootstrapSdk` is true and no Zephyr SDK is installed yet, the global
+ * `install-sdk` command is invoked first so the auto-install hook in
+ * `westUpdateWithRequirements` can satisfy the declared list end-to-end. When
+ * called interactively (`bootstrapSdk: false`), the user is instead directed
+ * to run `Zephyr IDE: Install SDK` themselves.
  *
  * @param silentIfEmpty   When true, don't show notifications if zephyr-ide.json
  *                        declares no toolchains. Used by the auto-install hook.
+ * @param bootstrapSdk    When true, trigger `zephyr-ide.install-sdk` if no SDK
+ *                        is detected. Used by the auto-install hook.
  */
 export async function installZephyrIdeToolchains(
     wsConfig: WorkspaceConfig,
     globalConfig: GlobalConfig,
     context: vscode.ExtensionContext | undefined,
     silentIfEmpty = false,
+    bootstrapSdk = false,
 ): Promise<boolean> {
     const declared = getZephyrIdeToolchains(wsConfig);
     if (declared.length === 0) {
@@ -187,12 +200,6 @@ export async function installZephyrIdeToolchains(
         return true;
     }
 
-    const missing = await findMissingToolchains(declared);
-    if (missing.length === 0) {
-        outputInfo("Zephyr IDE Toolchains", `All declared toolchains already installed: ${declared.join(", ")}`);
-        return true;
-    }
-
     // Resolve the SDK version to install into. Prefer the recorded global,
     // then auto-detect from disk.
     let sdkVersion = globalConfig.sdkVersion;
@@ -200,9 +207,28 @@ export async function installZephyrIdeToolchains(
         sdkVersion = await detectInstalledSDKVersion();
     }
     if (!sdkVersion) {
-        notifyError("Zephyr IDE Toolchains",
-            "Cannot install required toolchains: no Zephyr SDK is installed. Run 'Zephyr IDE: Install SDK' first.");
-        return false;
+        if (bootstrapSdk) {
+            outputInfo("Zephyr IDE Toolchains",
+                "No Zephyr SDK installed yet — invoking 'zephyr-ide.install-sdk' to bootstrap before installing declared toolchains.");
+            await vscode.commands.executeCommand("zephyr-ide.install-sdk");
+            sdkVersion = globalConfig.sdkVersion ?? await detectInstalledSDKVersion();
+            if (!sdkVersion) {
+                outputWarning("Zephyr IDE Toolchains",
+                    "SDK installation did not complete; skipping zephyr-ide.json toolchain install.");
+                return false;
+            }
+        } else {
+            notifyError("Zephyr IDE Toolchains",
+                "Cannot install required toolchains: no Zephyr SDK is installed. Run 'Zephyr IDE: Install SDK' first.");
+            return false;
+        }
+    }
+
+    const missing = await findMissingToolchains(declared, sdkVersion);
+    if (missing.length === 0) {
+        outputInfo("Zephyr IDE Toolchains",
+            `All declared toolchains already installed in SDK ${sdkVersion}: ${declared.join(", ")}`);
+        return true;
     }
 
     outputInfo("Zephyr IDE Toolchains",
@@ -323,6 +349,15 @@ export async function modifyZephyrIdeBlobsInteractive(
 }
 
 /**
+ * West module names are restricted by west itself to identifier-like strings.
+ * Reject anything containing characters that could break out of the
+ * `west blobs fetch <module>` shell command we construct below — repo
+ * `.vscode/zephyr-ide.json` is contributor-controlled and should not be able
+ * to inject arbitrary commands.
+ */
+const VALID_MODULE_NAME = /^[A-Za-z0-9_][A-Za-z0-9_.\-]*$/;
+
+/**
  * Fetch every blob module declared in zephyr-ide.json by running
  * `west blobs fetch <module>` for each one.
  */
@@ -346,6 +381,13 @@ export async function installZephyrIdeBlobs(
 
     let allOk = true;
     for (const moduleName of declared) {
+        if (!VALID_MODULE_NAME.test(moduleName)) {
+            outputError("Zephyr IDE Blobs",
+                `Refusing to fetch blobs for invalid module name '${moduleName}'. ` +
+                `Module names must match ${VALID_MODULE_NAME.source}.`);
+            allOk = false;
+            continue;
+        }
         outputInfo("Zephyr IDE Blobs", `Fetching blobs for module '${moduleName}'...`);
         const ok = await executeTaskHelperInPythonEnv(
             setupState,
@@ -383,7 +425,7 @@ export async function installZephyrIdeRequirements(
 ): Promise<void> {
     try {
         if (getZephyrIdeToolchains(wsConfig).length > 0) {
-            await installZephyrIdeToolchains(wsConfig, globalConfig, context, true);
+            await installZephyrIdeToolchains(wsConfig, globalConfig, context, true, true);
         }
     } catch (error) {
         outputError("Zephyr IDE Toolchains", `Auto-install of declared toolchains failed: ${error}`);
