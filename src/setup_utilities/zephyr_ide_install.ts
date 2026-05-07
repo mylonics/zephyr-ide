@@ -284,6 +284,8 @@ export async function installZephyrIdeToolchains(
     }
 
     // SDK is already installed: just install any toolchains it's missing.
+    // (We're past the `needsBootstrap` branch, so `targetVersion` is set.)
+    if (!targetVersion) { return false; }
     const missing = await findMissingToolchains(declared, targetVersion);
     if (missing.length === 0) {
         outputInfo("Zephyr IDE Toolchains",
@@ -294,7 +296,7 @@ export async function installZephyrIdeToolchains(
     outputInfo("Zephyr IDE Toolchains",
         `Installing missing toolchains for SDK ${targetVersion}: ${missing.join(", ")}`);
 
-    return await installToolchainsDirect(globalConfig, context, targetVersion!, missing);
+    return await installToolchainsDirect(globalConfig, context, targetVersion, missing);
 }
 
 // ---------------------------------------------------------------------------
