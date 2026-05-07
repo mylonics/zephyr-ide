@@ -5,42 +5,49 @@ Vendors can submit configurations here so that users can quickly set up vendor-s
 
 ## Directory Structure
 
-Each vendor gets its own subdirectory under `resources/vendors/`:
+Each vendor gets its own subdirectory under `resources/vendors/`, and the vendor
+must be registered in `resources/vendors/vendors.json`:
 
 ```
 resources/vendors/
+  vendors.json         # Registry — list of all registered vendor configurations
   <vendor-name>/
     west.yml           # Required — west manifest for the vendor's SDK
-    metadata.json      # Required — display information for the QuickPick
     host-tools.json    # Optional — additional host tools required by the vendor SDK
 ```
 
 ## Required Files
 
-### `west.yml`
+### `vendors.json`
 
-A standard west manifest file that sets up the vendor's SDK workspace.
-See the [west manifest documentation](https://docs.zephyrproject.org/latest/develop/west/manifest.html) for details.
-
-### `metadata.json`
-
-A JSON file containing display information shown in the Zephyr IDE west workspace selector:
+The registry file that lists all vendor configurations shown in the QuickPick. Zephyr IDE
+reads this file at runtime instead of scanning the directory, so every vendor entry must
+be registered here:
 
 ```json
-{
-  "displayName": "My Vendor SDK",
-  "description": "Short description shown in the QuickPick",
-  "url": "https://vendor.example.com/sdk",
-  "maintainer": "My Company"
-}
+[
+  {
+    "id": "my-vendor",
+    "displayName": "My Vendor SDK",
+    "description": "Short description shown in the QuickPick",
+    "url": "https://vendor.example.com/sdk",
+    "maintainer": "My Company"
+  }
+]
 ```
 
 | Field         | Required | Description                                               |
 |---------------|----------|-----------------------------------------------------------|
-| `displayName` | Yes      | Label shown in the west workspace QuickPick               |
+| `id`          | Yes      | Subdirectory name under `resources/vendors/`              |
+| `displayName` | No       | Label shown in the west workspace QuickPick (defaults to `id`) |
 | `description` | No       | Short description shown next to the label                 |
 | `url`         | No       | Link to the vendor SDK documentation or homepage          |
 | `maintainer`  | No       | Name of the company or person maintaining this entry      |
+
+### `west.yml`
+
+A standard west manifest file that sets up the vendor's SDK workspace.
+See the [west manifest documentation](https://docs.zephyrproject.org/latest/develop/west/manifest.html) for details.
 
 ## Optional Files
 
@@ -59,9 +66,10 @@ When a user selects your vendor configuration, Zephyr IDE will:
 
 1. Fork the [zephyr-ide repository](https://github.com/mylonics/zephyr-ide).
 2. Create a new subdirectory under `resources/vendors/<your-vendor-name>/`.
-3. Add the required `west.yml` and `metadata.json` files.
+3. Add the required `west.yml` file.
 4. Optionally add `host-tools.json` if your SDK needs extra host tools.
-5. Open a pull request against the `develop` branch.
+5. Add an entry for your vendor to `resources/vendors/vendors.json`.
+6. Open a pull request against the `develop` branch.
 
 Please ensure your `west.yml` points to a publicly accessible repository and that the
 SDK is compatible with the Zephyr RTOS build system.

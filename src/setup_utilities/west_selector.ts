@@ -121,33 +121,27 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
 
     const westOptionQpItems: QuickPickItem[] = Object.keys(westOptions).map(label => ({ label }));
 
-    // Scan the vendors directory for subdirs containing a west.yml
+    // Load vendor configurations from the registry JSON file
     type VendorEntry = { dir: string; label: string; description?: string };
     const vendorEntries: VendorEntry[] = [];
     const vendorsDir = path.join(context.extensionPath, "resources", "vendors");
-    if (await fs.pathExists(vendorsDir)) {
-      let subdirs: string[] = [];
+    const vendorsRegistryPath = path.join(vendorsDir, "vendors.json");
+    if (await fs.pathExists(vendorsRegistryPath)) {
       try {
-        subdirs = await fs.readdir(vendorsDir);
-      } catch { /* ignore read errors */ }
-      for (const subdir of subdirs) {
-        const vendorDir = path.join(vendorsDir, subdir);
-        const stat = await fs.stat(vendorDir).catch(() => null);
-        if (!stat?.isDirectory()) { continue; }
-        const westYml = path.join(vendorDir, "west.yml");
-        if (!(await fs.pathExists(westYml))) { continue; }
-        let label = subdir;
-        let description: string | undefined;
-        const metadataPath = path.join(vendorDir, "metadata.json");
-        if (await fs.pathExists(metadataPath)) {
-          try {
-            const meta = JSON.parse(await fs.readFile(metadataPath, "utf-8"));
-            if (meta.displayName) { label = meta.displayName; }
-            if (meta.description) { description = meta.description; }
-          } catch { /* ignore malformed metadata */ }
+        type VendorRegistryEntry = { id: string; displayName?: string; description?: string };
+        const registry: VendorRegistryEntry[] = JSON.parse(await fs.readFile(vendorsRegistryPath, "utf-8"));
+        for (const entry of registry) {
+          if (!entry.id) { continue; }
+          const vendorDir = path.join(vendorsDir, entry.id);
+          const westYml = path.join(vendorDir, "west.yml");
+          if (!(await fs.pathExists(westYml))) { continue; }
+          vendorEntries.push({
+            dir: vendorDir,
+            label: entry.displayName ?? entry.id,
+            description: entry.description,
+          });
         }
-        vendorEntries.push({ dir: vendorDir, label, description });
-      }
+      } catch { /* ignore malformed registry */ }
     }
 
     // Append vendor entries under a separator, plus a "Become a Vendor" link
