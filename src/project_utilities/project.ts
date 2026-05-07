@@ -594,15 +594,15 @@ export async function addSampleProjectsFromFile(wsConfig: WorkspaceConfig, conte
   }
 
   // Reject absolute paths and paths that escape the workspace root.
-  // upath always normalises to '/', so the trailing '/' sentinel is safe cross-platform.
-  const rootNormalized = path.normalize(wsConfig.rootPath) + '/';
+  // upath always normalises to forward slashes; toUnix() makes this explicit.
+  const rootNormalized = path.toUnix(path.normalize(wsConfig.rootPath)) + '/';
   const validPaths: string[] = [];
   for (const relPath of samplePaths) {
     if (path.isAbsolute(relPath)) {
       void vscode.window.showWarningMessage(`Skipping absolute path "${relPath}" in sampleProjects — entries must be relative to the workspace root.`);
       continue;
     }
-    const resolved = path.normalize(path.join(wsConfig.rootPath, relPath)) + '/';
+    const resolved = path.toUnix(path.normalize(path.join(wsConfig.rootPath, relPath))) + '/';
     if (!resolved.startsWith(rootNormalized)) {
       void vscode.window.showWarningMessage(`Skipping "${relPath}" in sampleProjects — path resolves outside the workspace root.`);
       continue;
@@ -624,10 +624,10 @@ export async function addSampleProjectsFromFile(wsConfig: WorkspaceConfig, conte
     const bn = path.basename(relPath);
     if ((basenameCounts.get(bn) ?? 0) > 1) {
       // Include the parent segment to make the name unique.
-      // When there is no parent (single-segment path), fall back to basename.
+      // When there is no parent (single-segment path, dirname === '.'), fall back to basename.
       const dir = path.dirname(relPath);
       if (dir !== '.') {
-        return path.basename(dir) + '/' + bn;
+        return path.join(path.basename(dir), bn);
       }
     }
     return bn;

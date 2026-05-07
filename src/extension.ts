@@ -167,8 +167,10 @@ async function markWorkspaceSetupComplete(
   // offer to add them now.
   const sampleProjects = getZephyrIdeSampleProjects(wsConfig);
   if (sampleProjects.length > 0) {
-    const addedPaths = new Set(Object.values(wsConfig.projects).map(p => p.rel_path));
-    const unadded = sampleProjects.filter(p => !addedPaths.has(p));
+    const addedPaths = new Set(
+      Object.values(wsConfig.projects).map(p => path.normalize(p.rel_path))
+    );
+    const unadded = sampleProjects.filter(p => !addedPaths.has(path.normalize(p)));
     if (unadded.length > 0) {
       const choice = await vscode.window.showInformationMessage(
         `This workspace declares ${unadded.length} sample project${unadded.length > 1 ? "s" : ""} in zephyr-ide.json that haven't been added yet. Would you like to add them now?`,
