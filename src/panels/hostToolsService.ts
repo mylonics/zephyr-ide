@@ -30,6 +30,31 @@ import { WorkspaceConfig, GlobalConfig } from '../setup_utilities/types';
 import { saveSetupState } from '../setup_utilities/state-management';
 import { notifyError, notifyWarning } from '../utilities/output';
 import { isWindows, checkWindowsLongPathsEnabled, enableWindowsLongPaths } from '../utilities/utils';
+import * as cp from 'child_process';
+
+/** The 7-Zip winget package definition used for optional install. */
+const SEVEN_ZIP_PKG = {
+  name: '7-Zip',
+  package: '7zip.7zip',
+  check_command: '7z --help',
+  post_install_step: "[System.Environment]::SetEnvironmentVariable('Path', [System.Environment]::GetEnvironmentVariable('Path', 'User') + ';C:\\Program Files\\7-Zip', 'User')",
+};
+
+/** Returns true if 7z is accessible on PATH or found at the default install location. */
+function check7ZipAvailable(): boolean {
+  // Check default install dir directly (doesn't need PATH)
+  try {
+    require('fs').accessSync('C:\\Program Files\\7-Zip\\7z.exe');
+    return true;
+  } catch { /* not at default location */ }
+  // Try running it
+  try {
+    cp.execSync('7z --help', { stdio: 'ignore', timeout: 3000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Provider for the live state references the HostToolsService needs in order
@@ -167,6 +192,9 @@ export class HostToolsService {
         ? await checkWindowsLongPathsEnabled()
         : undefined;
 
+      // On Windows, check whether 7-Zip is optionally installed.
+      const sevenZipAvailable = isWindows() ? check7ZipAvailable() : undefined;
+
       // Send the full package list immediately with `checking: true` so the UI
       // can render every card with a "Checking…" spinner right away. Packages
       // marked as pending-restart from a previous install (and persisted across
@@ -186,6 +214,7 @@ export class HostToolsService {
           packages: initialStatuses,
           checking: true,
           windowsLongPathsEnabled,
+          sevenZipAvailable,
         },
       });
 
@@ -227,6 +256,22 @@ export class HostToolsService {
     }
     // Refresh status so the banner updates to reflect the new long paths state.
     await this.checkStatus();
+  }
+
+  async install7Zip(): Promise<void> {
+    this.post('sevenZipInstalling', {});
+    const success = await installPackage(SEVEN_ZIP_PKG);
+    const available = check7ZipAvailable();
+    this.post('sevenZipInstalled', { success, available });
+    if (success) {
+      if (!available) {
+        notifyWarning('Host Tools', '7-Zip was installed but may not be on PATH yet. Close and reopen VS Code for it to take effect.');
+      } else {
+        void vscode.window.showInformationMessage('7-Zip installed successfully.');
+      }
+    } else {
+      notifyError('Host Tools', 'Failed to install 7-Zip.');
+    }
   }
 
   async installPackageManager(): Promise<void> {

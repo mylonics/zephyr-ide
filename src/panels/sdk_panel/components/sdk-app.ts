@@ -312,76 +312,31 @@ export class SDKApp extends ZephyrLitElement {
     const data = this._progressData;
     if (!data) { return nothing; }
 
-    let bannerClass: string, bannerIcon: string, bannerText: string;
-    switch (data.type) {
-      case "complete":
-        bannerClass = "status-success";
-        bannerIcon = '<span class="codicon codicon-check"></span>';
-        bannerText = "Installation Complete";
-        break;
-      case "failed":
-        bannerClass = "status-error";
-        bannerIcon = '<span class="codicon codicon-error"></span>';
-        bannerText = "Installation Failed";
-        break;
-      default:
-        bannerClass = "status-info";
-        bannerIcon = "";
-        bannerText = "Installing SDK...";
-        break;
-    }
+    const isComplete = data.type === "complete";
+    const isFailed = data.type === "failed";
+    const inProgress = !isComplete && !isFailed;
 
-    const showSpinner = data.type === "start" || data.type === "step-update";
-    const showDismiss = data.type === "complete" || data.type === "failed";
+    // Find the most relevant step: current in-progress → last completed → first pending
+    const activeStep = data.steps.find(s => s.status === "in-progress")
+      ?? data.steps.slice().reverse().find(s => s.status === "completed")
+      ?? data.steps.find(s => s.status !== "pending");
+    const stepText = activeStep
+      ? `${activeStep.label}${activeStep.detail ? ` — ${activeStep.detail}` : ""}`
+      : "";
 
     return html`
-      <div class="setup-progress-panel">
-        <div class="setup-progress-header ${bannerClass}">
-          ${showSpinner ? html`<vscode-progress-ring></vscode-progress-ring>` : nothing}
-          <span class="status-icon" .innerHTML=${bannerIcon}></span>
-          <span class="setup-progress-title">${data.operationLabel} — ${bannerText}</span>
-          ${showDismiss
-        ? html`<button class="setup-progress-dismiss" @click=${() => this._dismissProgress()} title="Dismiss"><span class="codicon codicon-close"></span></button>`
-        : nothing}
-        </div>
-        <div class="setup-progress-body">
-          <div class="setup-progress-steps">
-            ${data.steps.map(step => this._renderStep(step))}
-          </div>
-          ${data.message ? html`<p class="setup-progress-message">${data.message}</p>` : nothing}
-          ${data.type === "failed"
-        ? html`<div style="margin-top: 8px;"><vscode-button appearance="secondary" @click=${() => this._installSDK()}><vscode-icon slot="start-icon" name="refresh"></vscode-icon>Retry Installation</vscode-button></div>`
-        : nothing}
-        </div>
+      <div class="progress-compact-card ${isComplete ? "is-complete" : isFailed ? "is-failed" : ""}">
+        ${inProgress ? html`<vscode-progress-ring style="--progress-ring-size:14px;flex-shrink:0"></vscode-progress-ring>` : nothing}
+        ${isComplete ? html`<span class="codicon codicon-pass-filled progress-icon-complete"></span>` : nothing}
+        ${isFailed ? html`<span class="codicon codicon-error progress-icon-failed"></span>` : nothing}
+        <span class="progress-compact-op">${data.operationLabel}</span>
+        ${stepText ? html`<span class="progress-compact-sep">—</span><span class="progress-compact-step">${stepText}</span>` : nothing}
+        ${data.message && (isComplete || isFailed) ? html`<span class="progress-compact-sep">·</span><span class="progress-compact-msg">${data.message}</span>` : nothing}
+        <div style="flex:1"></div>
+        ${isFailed ? html`<vscode-button appearance="secondary" @click=${() => this._installSDK()}><vscode-icon slot="start-icon" name="refresh"></vscode-icon>Retry</vscode-button>` : nothing}
+        ${(isComplete || isFailed) ? html`<button class="progress-dismiss-btn" @click=${() => this._dismissProgress()} title="Dismiss"><span class="codicon codicon-close"></span></button>` : nothing}
       </div>
     `;
-  }
-
-  private _renderStep(step: SetupProgressStep) {
-    return html`
-      <div class="setup-step-item ${step.status}">
-        ${this._stepIcon(step.status)}
-        <div class="setup-step-content">
-          <span class="setup-step-label">${step.label}</span>
-          ${step.detail ? html`<span class="setup-step-detail">${step.detail}</span>` : nothing}
-        </div>
-      </div>
-    `;
-  }
-
-  private _stepIcon(status: string) {
-    switch (status) {
-      case "completed":
-        return html`<span class="setup-step-icon completed"><span class="codicon codicon-check"></span></span>`;
-      case "in-progress":
-        return html`<span class="setup-step-icon in-progress"><span class="codicon codicon-sync codicon-modifier-spin"></span></span>`;
-      case "failed":
-        return html`<span class="setup-step-icon failed"><span class="codicon codicon-error"></span></span>`;
-      case "skipped":
-        return html`<span class="setup-step-icon skipped"><span class="codicon codicon-dash"></span></span>`;
-      default:
-        return html`<span class="setup-step-icon pending"><span class="codicon codicon-circle-outline"></span></span>`;
-    }
   }
 
   private _renderSDKList() {
@@ -479,6 +434,24 @@ export class SDKApp extends ZephyrLitElement {
         : nothing}
           </div>
           <div class="sdk-card-actions">
+            ${hasPending ? html`
+              ${pendingAdds.size > 0 ? html`<span class="tc-pending-add-badge">+${pendingAdds.size}</span>` : nothing}
+              ${pendingRemoves.size > 0 ? html`<span class="tc-pending-remove-badge">−${pendingRemoves.size}</span>` : nothing}
+              <vscode-button
+                ?disabled=${this._buttonsDisabled}
+                @click=${() => this._applyChanges(ver)}
+              >
+                <vscode-icon slot="start-icon" name="check"></vscode-icon>
+                Apply
+              </vscode-button>
+              <vscode-button
+                appearance="secondary"
+                ?disabled=${this._buttonsDisabled}
+                @click=${() => this._discardChanges(ver)}
+              >
+                Cancel
+              </vscode-button>
+            ` : nothing}
             <span class="sdk-toolchain-count ${installed.length > 0 ? "has-toolchains" : ""}">
               ${installed.length} / ${total} toolchains
             </span>
@@ -543,38 +516,15 @@ export class SDKApp extends ZephyrLitElement {
           </div>`
         : nothing}
 
-        <!-- Apply Changes bar -->
-        ${hasPending
-        ? html`
-          <div class="sdk-apply-bar">
-            <span class="sdk-apply-summary">
-              ${pendingAdds.size > 0 ? html`<span class="tc-pending-add-badge">+${pendingAdds.size} to install</span>` : nothing}
-              ${pendingRemoves.size > 0 ? html`<span class="tc-pending-remove-badge">−${pendingRemoves.size} to remove</span>` : nothing}
-            </span>
-            <vscode-button
-              ?disabled=${this._buttonsDisabled}
-              @click=${() => this._applyChanges(ver)}
-            >
-              <vscode-icon slot="start-icon" name="check"></vscode-icon>
-              Apply Changes
-            </vscode-button>
-            <vscode-button
-              appearance="secondary"
-              ?disabled=${this._buttonsDisabled}
-              @click=${() => this._discardChanges(ver)}
-              title="Discard pending changes for this SDK version"
-            >
-              Discard
-            </vscode-button>
-          </div>`
-        : nothing}
       </div>
     `;
   }
 
   /** Remove the entire SDK version directory (after backend confirmation). */
   private _removeSDKVersion(version: string) {
-    this._buttonsDisabled = true;
+    // Do NOT disable buttons here — the backend shows a modal first and may
+    // cancel without doing anything. Buttons lock automatically if the backend
+    // proceeds, via the sdkListLoading → sdkListResult cycle.
     this.vscodeApi.postMessage({ command: "removeSDKVersion", version });
   }
 
@@ -596,7 +546,7 @@ export class SDKApp extends ZephyrLitElement {
     return html`
       <div class="toolchain-arch-list">
         ${groups.map(g => html`
-          <div class="toolchain-arch-group">
+          <div class="toolchain-arch-group ${g.items.length > 4 ? 'span-full' : ''}">
             <div class="toolchain-arch-label">${g.label}</div>
             <div class="toolchain-list">
               ${g.items.map(tc => {
