@@ -28,7 +28,8 @@ import { saveSetupState, setSetupState, setWorkspaceState } from "./state-manage
 import { getSetupState, getSetupStateOrNotify, getVenvPath } from "./workspace-config";
 import { ensureWestConfigManifest } from "./west-config-parser";
 import { SetupProgressTracker } from "./setup-progress";
-import { getDefaultPythonExecutable } from "./host_tools";
+import { getDefaultPythonExecutable, loadVendorHostToolsManifest, confirmVendorToolsInstall, installPackagesBatch } from "./host_tools";
+import { installZephyrIdeRequirements } from "./zephyr_ide_install";
 
 // Test-only override for narrow update
 let forceNarrowUpdateForTest = false;
@@ -487,6 +488,18 @@ export async function westUpdateWithRequirements(context: vscode.ExtensionContex
 
   progressTracker?.complete('Workspace setup completed successfully!');
 
+  // Install any toolchains/blobs declared in zephyr-ide.json. When
+  // toolchains are declared but no SDK is installed yet,
+  // installZephyrIdeRequirements bootstraps an SDK install internally.
+  try {
+    await installZephyrIdeRequirements(wsConfig, globalConfig, context);
+  } catch (error) {
+    outputWarning("Workspace Setup", `Failed to install zephyr-ide.json requirements: ${error}`);
+  }
+
+  // Fall back to the global install-sdk flow only if no SDK is present after
+  // installZephyrIdeRequirements has run (e.g. workspace declared no
+  // toolchains, so the bootstrap path didn't trigger).
   if (!globalConfig.sdkInstalled) {
     return await vscode.commands.executeCommand("zephyr-ide.install-sdk");
   }
@@ -507,6 +520,20 @@ export async function postWorkspaceSetup(context: vscode.ExtensionContext, wsCon
   const venvPath = getVenvPath(setupPath);
   await setupWestEnvironment(context, wsConfig, globalConfig, fs.pathExistsSync(venvPath));
   progress.completeStep('python-env');
+
+  // Vendor host-tools consent & install — runs after the Python environment is
+  // ready (so the platform can be detected) but before west init so any
+  // required build tools are present when west first runs.
+  if (westSelection && !westSelection.failed && westSelection.vendorHostToolsPath) {
+    const vendorPackages = await loadVendorHostToolsManifest(westSelection.vendorHostToolsPath);
+    if (vendorPackages.length > 0) {
+      const confirmed = await confirmVendorToolsInstall(vendorPackages);
+      if (confirmed) {
+        outputInfo("Workspace Setup", `Installing ${vendorPackages.length} vendor tool(s)...`);
+        await installPackagesBatch(vendorPackages);
+      }
+    }
+  }
 
   if (westSelection && !westSelection.failed) {
     progress.startStep('west-init');

@@ -207,6 +207,15 @@ export class SDKApp extends ZephyrLitElement {
     this.vscodeApi.postMessage({ command: "listSDKs" });
   }
 
+  private _modifyZephyrIdeToolchains() {
+    this.vscodeApi.postMessage({ command: "modifyZephyrIdeToolchains" });
+  }
+
+  private _installZephyrIdeToolchains() {
+    this._buttonsDisabled = true;
+    this.vscodeApi.postMessage({ command: "installZephyrIdeToolchains" });
+  }
+
   private _addToolchainsForVersion(version: string) {
     this._buttonsDisabled = true;
     this.vscodeApi.postMessage({ command: "addToolchainsForVersion", version });
@@ -288,6 +297,14 @@ export class SDKApp extends ZephyrLitElement {
             <vscode-button ?disabled=${this._buttonsDisabled} @click=${() => this._installSDK()}>
               <vscode-icon slot="start-icon" name="cloud-download"></vscode-icon>
               Install / Update
+            </vscode-button>
+            <vscode-button appearance="secondary" ?disabled=${this._buttonsDisabled} @click=${() => this._installZephyrIdeToolchains()} title="Install toolchains declared in .vscode/zephyr-ide.json">
+              <vscode-icon slot="start-icon" name="symbol-array"></vscode-icon>
+              Install from zephyr-ide.json
+            </vscode-button>
+            <vscode-button appearance="secondary" @click=${() => this._modifyZephyrIdeToolchains()} title="Choose which toolchains are required by .vscode/zephyr-ide.json">
+              <vscode-icon slot="start-icon" name="edit"></vscode-icon>
+              Modify zephyr-ide.json
             </vscode-button>
             <vscode-button appearance="secondary" ?disabled=${this._buttonsDisabled} @click=${() => this._listSDKs()}>
               <vscode-icon slot="start-icon" name="refresh"></vscode-icon>

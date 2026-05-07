@@ -1,0 +1,6 @@
+{
+  "displayName": "NRF Connect SDK (Nordic Semiconductor)",
+  "description": "Nordic Semiconductor's nRF Connect SDK based on Zephyr RTOS",
+  "url": "https://www.nordicsemi.com/Products/Development-software/nrf-connect-sdk",
+  "maintainer": "Nordic Semiconductor"
+}
