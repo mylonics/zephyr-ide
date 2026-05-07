@@ -28,6 +28,7 @@ import { configSelector, configRemover, ConfigFiles, mergeConfigFiles } from "./
 import { setDtsContext } from "../setup_utilities/dts_interface";
 import { getSamples } from "../setup_utilities/modules";
 import { getSetupState } from "../setup_utilities/workspace-config";
+import { getZephyrIdeSampleProjects } from "../setup_utilities/zephyr_ide_json";
 import { joinBuildArgs, normalizeBuildArgs, quoteCMakeDef } from "./build_args";
 import { MultiStepInput, noOpValidate } from "../utilities/multistepQuickPick";
 
@@ -572,6 +573,140 @@ export async function changeProjectNameInCMakeFile(projectPath: string, newProje
     const projectCMakeFile = fs.readFileSync(projectCmakePath, 'utf8');
     const newProjectCMakeFile = projectCMakeFile.replace(/project\([^)]*\)/i, "project(" + newProjectName + ")");
     fs.writeFileSync(projectCmakePath, newProjectCMakeFile);
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Read the `sampleProjects` list from `.vscode/zephyr-ide.json`, present the
+ * user with a multi-select picker, and add each chosen project to the
+ * workspace (without copying files — the paths must already exist on disk).
+ *
+ * Returns `true` if at least one project was added, `false` if the list was
+ * empty or the user cancelled, and `undefined` when no sample projects are
+ * declared in the file.
+ */
+export async function addSampleProjectsFromFile(wsConfig: WorkspaceConfig, context: vscode.ExtensionContext): Promise<boolean | undefined> {
+  const sampleConfigs = getZephyrIdeSampleProjects(wsConfig);
+  if (sampleConfigs.length === 0) {
+    return undefined;
+  }
+
+  // Reject absolute paths and paths that escape the workspace root.
+  // upath always normalises to forward slashes; toUnix() makes this explicit.
+  const rootNormalized = path.toUnix(path.normalize(wsConfig.rootPath)) + '/';
+  const validConfigs: typeof sampleConfigs = [];
+  for (const sample of sampleConfigs) {
+    const relPath = sample.rel_path;
+    if (path.isAbsolute(relPath)) {
+      void vscode.window.showWarningMessage(`Skipping absolute path "${relPath}" in sampleProjects — entries must be relative to the workspace root.`);
+      continue;
+    }
+    const resolved = path.toUnix(path.normalize(path.join(wsConfig.rootPath, relPath))) + '/';
+    if (!resolved.startsWith(rootNormalized)) {
+      void vscode.window.showWarningMessage(`Skipping "${relPath}" in sampleProjects — path resolves outside the workspace root.`);
+      continue;
+    }
+    validConfigs.push(sample);
+  }
+
+  if (validConfigs.length === 0) {
+    return undefined;
+  }
+
+  // Count project names to detect duplicates so we can disambiguate.
+  const nameCounts = new Map<string, number>();
+  for (const sample of validConfigs) {
+    nameCounts.set(sample.name, (nameCounts.get(sample.name) ?? 0) + 1);
+  }
+  const projectNameFor = (sample: { name: string; rel_path: string }): string => {
+    if ((nameCounts.get(sample.name) ?? 0) > 1) {
+      // Include the parent segment to make the name unique.
+      // When there is no parent (single-segment path, dirname === '.'), fall back to the name.
+      const dir = path.dirname(sample.rel_path);
+      if (dir !== '.') {
+        return path.join(path.basename(dir), sample.name);
+      }
+    }
+    return sample.name;
+  };
+
+  const items = validConfigs.map(sample => {
+    const resolvedPath = path.join(wsConfig.rootPath, sample.rel_path);
+    const projectName = projectNameFor(sample);
+    const alreadyAdded = !!wsConfig.projects[projectName];
+    return {
+      label: projectName,
+      description: sample.rel_path,
+      detail: alreadyAdded ? "(already in workspace)" : undefined,
+      resolvedPath,
+      sample,
+      projectName,
+      picked: !alreadyAdded,
+    };
+  });
+
+  const selected = await vscode.window.showQuickPick(items, {
+    canPickMany: true,
+    title: "Add Sample Projects from zephyr-ide.json",
+    placeHolder: "Select sample projects to add to the workspace",
+    ignoreFocusOut: true,
+  });
+
+  if (!selected || selected.length === 0) {
+    return false;
+  }
+
+  const hadActiveProject = !!wsConfig.activeProject;
+  let addedCount = 0;
+  let lastAdded: string | undefined;
+
+  for (const item of selected) {
+    const projectPath = item.resolvedPath;
+    const projectName = item.projectName;
+    if (!fs.pathExistsSync(path.join(projectPath, "CMakeLists.txt"))) {
+      void vscode.window.showWarningMessage(`Skipping "${projectName}": no CMakeLists.txt found at ${projectPath}`);
+      continue;
+    }
+    if (wsConfig.projects[projectName]) {
+      const choice = await vscode.window.showWarningMessage(
+        `A project named "${projectName}" already exists`,
+        "Overwrite",
+        "Skip"
+      );
+      if (choice !== "Overwrite") {
+        continue;
+      }
+    }
+    // Spread the stored config snapshot first (carries pre-configured buildConfigs,
+    // confFiles, twisterConfigs), then override name and rel_path with the current
+    // workspace-local values.
+    wsConfig.projects[projectName] = {
+      name: projectName,
+      rel_path: path.relative(wsConfig.rootPath, projectPath),
+      // Explicitly copy only the configuration fields from the stored sample;
+      // do not blindly spread all properties to avoid carrying over stale data.
+      buildConfigs: item.sample.buildConfigs,
+      confFiles: item.sample.confFiles,
+      twisterConfigs: item.sample.twisterConfigs,
+    };
+    wsConfig.projectStates[projectName] = { buildStates: {}, viewOpen: true, twisterStates: {} };
+    lastAdded = projectName;
+    addedCount++;
+  }
+
+  if (addedCount > 0) {
+    // Activate the last-added project via the standard helper (which also
+    // triggers DTS context update), but only when there was no active project
+    // before so we don't displace the user's existing selection.
+    if (!hadActiveProject && lastAdded) {
+      await setActiveProject(context, wsConfig, lastAdded);
+    }
+    await setWorkspaceState(context, wsConfig);
+    void vscode.window.showInformationMessage(
+      `Added ${addedCount} sample project${addedCount > 1 ? "s" : ""} from zephyr-ide.json`
+    );
     return true;
   }
   return false;

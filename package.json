@@ -281,6 +281,11 @@
           "when": "view == zephyrIdeProjects"
         },
         {
+          "command": "zephyr-ide.add-sample-projects-from-file",
+          "group": "navigation",
+          "when": "view == zephyrIdeProjects"
+        },
+        {
           "command": "zephyr-ide.save-projects-to-file",
           "group": "navigation",
           "when": "view == zephyrIdeProjects"
@@ -493,6 +498,10 @@
         "title": "Zephyr IDE: Install Blobs from zephyr-ide.json"
       },
       {
+        "command": "zephyr-ide.modify-zephyr-ide-sample-projects",
+        "title": "Zephyr IDE: Modify Sample Projects (zephyr-ide.json)"
+      },
+      {
         "command": "zephyr-ide.west-init",
         "title": "Zephyr IDE: West Init"
       },
@@ -534,6 +543,11 @@
         "command": "zephyr-ide.load-projects-from-file",
         "title": "Zephyr IDE: Load Projects From File",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "zephyr-ide.add-sample-projects-from-file",
+        "title": "Zephyr IDE: Add Sample Projects From File",
+        "icon": "$(list-selection)"
       },
       {
         "command": "zephyr-ide.save-projects-to-file",

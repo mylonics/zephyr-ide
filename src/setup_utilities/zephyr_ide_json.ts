@@ -34,12 +34,24 @@ limitations under the License.
  *                             source tree's `SDK_VERSION` file is used; if
  *                             that's also unavailable, the latest released
  *                             SDK is installed.
+ *   - `sampleProjects`: ProjectConfig[]  Project configuration snapshots for
+ *                             project directories that can be optionally loaded
+ *                             into the workspace. Unlike `projects`, these are
+ *                             NOT loaded automatically on startup. They include
+ *                             a `rel_path` (relative to workspace root) plus any
+ *                             build configurations declared for each sample.
+ *                             A plain string entry (just a path) is also accepted
+ *                             for backward compatibility.
+ *                             Samples can be added during workspace setup or
+ *                             later via the
+ *                             `zephyr-ide.add-sample-projects-from-file` command.
  *
- * When either array is present, the workspace setup flow installs the missing
- * items automatically; the user can also manage them via the SDK panel or via
- * the command palette commands `zephyr-ide.modify-zephyr-ide-toolchains`,
- * `zephyr-ide.install-zephyr-ide-toolchains`, `zephyr-ide.modify-zephyr-ide-blobs`,
- * and `zephyr-ide.install-zephyr-ide-blobs`.
+ * When `toolchains` or `blobs` arrays are present, the workspace setup flow
+ * installs the missing items automatically; the user can also manage them via
+ * the SDK panel or via the command palette commands
+ * `zephyr-ide.modify-zephyr-ide-toolchains`, `zephyr-ide.install-zephyr-ide-toolchains`,
+ * `zephyr-ide.modify-zephyr-ide-blobs`, and `zephyr-ide.install-zephyr-ide-blobs`.
+ * `sampleProjects` entries are never loaded or installed automatically.
  */
 
 import * as fs from "fs-extra";
@@ -47,6 +59,9 @@ import * as path from "upath";
 
 import { WorkspaceConfig } from "./types";
 import { outputError } from "../utilities/output";
+// Type-only import: erased at compile time, avoiding a runtime circular
+// dependency (project.ts imports getZephyrIdeSampleProjects from this file).
+import type { ProjectConfig } from "../project_utilities/project";
 
 function getZephyrIdeJsonPath(wsConfig: WorkspaceConfig): string {
     return path.join(wsConfig.rootPath, ".vscode", "zephyr-ide.json");
@@ -153,6 +168,62 @@ export async function setZephyrIdeSdkVersion(wsConfig: WorkspaceConfig, sdkVersi
         delete data.sdkVersion;
     } else {
         data.sdkVersion = trimmed;
+    }
+    await writeZephyrIdeJson(wsConfig, data);
+}
+
+/**
+ * Get the list of optional sample project entries declared in zephyr-ide.json.
+ * Each entry is a full `ProjectConfig` snapshot (including any stored build
+ * configurations). Plain string entries (just a path) are accepted for backward
+ * compatibility and are promoted to a minimal `ProjectConfig`.
+ * Returns an empty array when the key is absent.
+ */
+export function getZephyrIdeSampleProjects(wsConfig: WorkspaceConfig): ProjectConfig[] {
+    const raw = readZephyrIdeJson(wsConfig).sampleProjects;
+    if (!Array.isArray(raw)) { return []; }
+    const out: ProjectConfig[] = [];
+    const seenPaths = new Set<string>();
+    for (const entry of raw) {
+        if (typeof entry === "string") {
+            // Legacy format: plain path string.
+            const relPath = entry.trim();
+            if (!relPath || seenPaths.has(relPath)) { continue; }
+            seenPaths.add(relPath);
+            out.push({
+                name: path.basename(relPath),
+                rel_path: relPath,
+                buildConfigs: {},
+                confFiles: { config: [], overlay: [] },
+                twisterConfigs: {},
+            });
+        } else if (
+            entry !== null &&
+            typeof entry === "object" &&
+            !Array.isArray(entry) &&
+            typeof (entry as Record<string, unknown>).rel_path === "string"
+        ) {
+            const relPath = ((entry as Record<string, unknown>).rel_path as string).trim();
+            if (!relPath || seenPaths.has(relPath)) { continue; }
+            seenPaths.add(relPath);
+            out.push(entry as ProjectConfig);
+        }
+    }
+    return out;
+}
+
+/**
+ * Replace the `sampleProjects` key in zephyr-ide.json with the provided list
+ * of `ProjectConfig` snapshots. Each entry's full configuration (build configs,
+ * conf files, etc.) is persisted so future runs can detect settings changes.
+ * If the list is empty the key is removed. All other top-level keys are preserved.
+ */
+export async function setZephyrIdeSampleProjects(wsConfig: WorkspaceConfig, projects: ProjectConfig[]): Promise<void> {
+    const data = readZephyrIdeJson(wsConfig);
+    if (projects.length === 0) {
+        delete data.sampleProjects;
+    } else {
+        data.sampleProjects = projects;
     }
     await writeZephyrIdeJson(wsConfig, data);
 }

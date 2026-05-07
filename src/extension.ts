@@ -126,6 +126,7 @@ import {
   resolveActiveProjectBuild,
   resolveActiveProject,
   getProjectFolder,
+  addSampleProjectsFromFile,
 } from "./project_utilities/project";
 import { testHelper, deleteTestDirs } from "./zephyr_utilities/twister";
 
@@ -137,7 +138,9 @@ import {
   installZephyrIdeToolchains,
   modifyZephyrIdeBlobsInteractive,
   installZephyrIdeBlobs,
+  modifyZephyrIdeSampleProjectsInteractive,
 } from "./setup_utilities/zephyr_ide_install";
+import { getZephyrIdeSampleProjects } from "./setup_utilities/zephyr_ide_json";
 import {
   installPackageManagerHeadless,
   installHostPackagesHeadless,
@@ -159,6 +162,26 @@ async function markWorkspaceSetupComplete(
   }
   await setWorkspaceState(context, wsConfig);
   void vscode.commands.executeCommand("zephyr-ide.update-web-view");
+
+  // If the workspace declares sample projects that haven't been added yet,
+  // offer to add them now.
+  const sampleProjects = getZephyrIdeSampleProjects(wsConfig);
+  if (sampleProjects.length > 0) {
+    const addedPaths = new Set(
+      Object.values(wsConfig.projects).map(p => path.normalize(p.rel_path))
+    );
+    const unadded = sampleProjects.filter(p => !addedPaths.has(path.normalize(p.rel_path)));
+    if (unadded.length > 0) {
+      const choice = await vscode.window.showInformationMessage(
+        `This workspace declares ${unadded.length} sample project${unadded.length > 1 ? "s" : ""} in zephyr-ide.json that haven't been added yet. Would you like to add them now?`,
+        "Add Sample Projects",
+        "Later"
+      );
+      if (choice === "Add Sample Projects") {
+        await vscode.commands.executeCommand("zephyr-ide.add-sample-projects-from-file");
+      }
+    }
+  }
 }
 
 /** Register a webview view provider with retained context. */
@@ -894,6 +917,21 @@ export async function activate(context: vscode.ExtensionContext) {
         await loadProjectsFromFile(wsConfig);
         void vscode.commands.executeCommand("zephyr-ide.update-web-view");
         extensionSetupView.updateWebView(wsConfig, globalConfig);
+      }
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "zephyr-ide.add-sample-projects-from-file",
+      async () => {
+        const result = await addSampleProjectsFromFile(wsConfig, context);
+        if (result === undefined) {
+          void vscode.window.showInformationMessage("No sample projects declared in .vscode/zephyr-ide.json");
+        } else if (result) {
+          extensionSetupView.updateWebView(wsConfig, globalConfig);
+          void vscode.commands.executeCommand("zephyr-ide.update-web-view");
+        }
       }
     )
   );
@@ -1724,6 +1762,12 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.install-zephyr-ide-blobs", async () => {
       return await installZephyrIdeBlobs(wsConfig, context);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.modify-zephyr-ide-sample-projects", async () => {
+      await modifyZephyrIdeSampleProjectsInteractive(wsConfig);
     })
   );
 

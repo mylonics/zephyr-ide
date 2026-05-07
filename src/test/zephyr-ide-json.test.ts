@@ -27,9 +27,12 @@ import {
   setZephyrIdeBlobs,
   getZephyrIdeSdkVersion,
   setZephyrIdeSdkVersion,
+  getZephyrIdeSampleProjects,
+  setZephyrIdeSampleProjects,
   readZephyrIdeJson,
 } from "../setup_utilities/zephyr_ide_json";
 import { WorkspaceConfig } from "../setup_utilities/types";
+import { ProjectConfig } from "../project_utilities/project";
 
 function makeWsConfig(rootPath: string): WorkspaceConfig {
   return {
@@ -202,6 +205,134 @@ suite("zephyr-ide.json toolchains/blobs Test Suite", () => {
       const filePath = path.join(tmpRoot, ".vscode", "zephyr-ide.json");
       await fs.outputJson(filePath, { sdkVersion: 17 });
       assert.strictEqual(getZephyrIdeSdkVersion(ws), undefined);
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  // Helper: minimal ProjectConfig for tests.
+  function makeProjectConfig(relPath: string): ProjectConfig {
+    return {
+      name: path.basename(relPath),
+      rel_path: relPath,
+      buildConfigs: {},
+      confFiles: { config: [], overlay: [] },
+      twisterConfigs: {},
+    };
+  }
+
+  test("getZephyrIdeSampleProjects returns empty array when file is missing", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-sp-"));
+    try {
+      const ws = makeWsConfig(tmpRoot);
+      assert.deepStrictEqual(getZephyrIdeSampleProjects(ws), []);
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  test("setZephyrIdeSampleProjects creates file and persists list", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-sp-"));
+    try {
+      const ws = makeWsConfig(tmpRoot);
+      const projects = [makeProjectConfig("samples/blinky"), makeProjectConfig("samples/hello_world")];
+      await setZephyrIdeSampleProjects(ws, projects);
+      const result = getZephyrIdeSampleProjects(ws);
+      assert.strictEqual(result.length, 2);
+      assert.strictEqual(result[0].rel_path, "samples/blinky");
+      assert.strictEqual(result[1].rel_path, "samples/hello_world");
+      // Check that the full config is persisted on disk.
+      const onDisk = await fs.readJson(path.join(tmpRoot, ".vscode", "zephyr-ide.json"));
+      assert.strictEqual(onDisk.sampleProjects[0].rel_path, "samples/blinky");
+      assert.strictEqual(onDisk.sampleProjects[1].rel_path, "samples/hello_world");
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  test("setZephyrIdeSampleProjects preserves other top-level keys", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-sp-"));
+    try {
+      const ws = makeWsConfig(tmpRoot);
+      const filePath = path.join(tmpRoot, ".vscode", "zephyr-ide.json");
+      await fs.outputJson(filePath, {
+        projects: { app: { name: "app", rel_path: "app" } },
+        toolchains: ["arm-zephyr-eabi"],
+        blobs: ["hal_nordic"],
+      });
+
+      await setZephyrIdeSampleProjects(ws, [makeProjectConfig("samples/blinky")]);
+
+      const onDisk = await fs.readJson(filePath);
+      assert.strictEqual(onDisk.sampleProjects[0].rel_path, "samples/blinky");
+      assert.deepStrictEqual(onDisk.toolchains, ["arm-zephyr-eabi"]);
+      assert.deepStrictEqual(onDisk.blobs, ["hal_nordic"]);
+      assert.deepStrictEqual(onDisk.projects, { app: { name: "app", rel_path: "app" } });
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  test("setZephyrIdeSampleProjects with empty list removes the key", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-sp-"));
+    try {
+      const ws = makeWsConfig(tmpRoot);
+      await setZephyrIdeSampleProjects(ws, [makeProjectConfig("samples/blinky")]);
+      await setZephyrIdeSampleProjects(ws, []);
+
+      const onDisk = readZephyrIdeJson(ws);
+      assert.strictEqual(onDisk.sampleProjects, undefined);
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  test("getZephyrIdeSampleProjects normalises malformed entries and drops duplicates", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-sp-"));
+    try {
+      const ws = makeWsConfig(tmpRoot);
+      const filePath = path.join(tmpRoot, ".vscode", "zephyr-ide.json");
+      // Mix of strings (legacy), empty strings, duplicates, and non-string values.
+      await fs.outputJson(filePath, {
+        sampleProjects: ["samples/blinky", "", "  samples/hello_world  ", "samples/blinky", 42, null],
+      });
+      const result = getZephyrIdeSampleProjects(ws);
+      assert.strictEqual(result.length, 2);
+      assert.strictEqual(result[0].rel_path, "samples/blinky");
+      assert.strictEqual(result[1].rel_path, "samples/hello_world");
+      // Legacy strings produce minimal ProjectConfig with basename as name.
+      assert.strictEqual(result[0].name, "blinky");
+      assert.strictEqual(result[1].name, "hello_world");
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  test("getZephyrIdeSampleProjects reads back full ProjectConfig (round-trip)", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-sp-"));
+    try {
+      const ws = makeWsConfig(tmpRoot);
+      const debugBuild = {
+        name: "debug", board: "nrf52840dk",
+        relBoardDir: "", relBoardSubDir: "", debugOptimization: "g",
+        westBuildArgs: [], westBuildCMakeArgs: ["-DCONFIG_LOG=y"],
+        runnerConfigs: {}, confFiles: { config: [], overlay: [] },
+        launchTarget: "", buildDebugTarget: "", attachTarget: "",
+      };
+      const fullConfig = {
+        name: "blinky",
+        rel_path: "samples/blinky",
+        buildConfigs: { debug: debugBuild },
+        confFiles: { config: ["prj.conf"], overlay: [] },
+        twisterConfigs: {},
+      };
+      await setZephyrIdeSampleProjects(ws, [fullConfig as any]);
+      const result = getZephyrIdeSampleProjects(ws);
+      assert.strictEqual(result.length, 1);
+      assert.strictEqual(result[0].rel_path, "samples/blinky");
+      assert.strictEqual(result[0].name, "blinky");
+      assert.deepStrictEqual(result[0].confFiles, { config: ["prj.conf"], overlay: [] });
+      assert.ok(result[0].buildConfigs["debug"], "build config 'debug' should be present");
     } finally {
       await fs.remove(tmpRoot);
     }

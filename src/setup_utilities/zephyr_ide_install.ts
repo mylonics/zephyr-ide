@@ -27,7 +27,9 @@ limitations under the License.
  */
 
 import * as vscode from "vscode";
+import * as path from "upath";
 import { WorkspaceConfig, GlobalConfig } from "./types";
+import type { ProjectConfig } from "../project_utilities/project";
 import { toolchainTargets } from "../defines";
 import {
     listAvailableSDKs,
@@ -42,6 +44,8 @@ import {
     getZephyrIdeBlobs,
     setZephyrIdeBlobs,
     getZephyrIdeSdkVersion,
+    getZephyrIdeSampleProjects,
+    setZephyrIdeSampleProjects,
 } from "./zephyr_ide_json";
 import { executeShellCommandInPythonEnv, executeTaskHelperInPythonEnv } from "../utilities/utils";
 import { outputInfo, outputError, outputWarning, notifyError } from "../utilities/output";
@@ -470,6 +474,192 @@ export async function installZephyrIdeBlobs(
         outputInfo("Zephyr IDE Blobs", `Fetched blobs for ${declared.length} module(s).`);
     }
     return allOk;
+}
+
+// ---------------------------------------------------------------------------
+// Sample Projects
+// ---------------------------------------------------------------------------
+
+/**
+ * Recursively sort object keys so that JSON.stringify produces a stable,
+ * insertion-order-independent result for deep equality comparisons.
+ */
+function canonicalize(v: unknown): unknown {
+    if (Array.isArray(v)) {
+        return v.map(canonicalize);
+    }
+    if (v !== null && typeof v === "object") {
+        return Object.fromEntries(
+            Object.entries(v as Record<string, unknown>)
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([k, val]) => [k, canonicalize(val)])
+        );
+    }
+    return v;
+}
+
+/**
+ * Compare the configuration-only fields of two ProjectConfig objects
+ * (build configs, conf files, and twister configs), ignoring name and rel_path
+ * which are handled separately.
+ *
+ * Object keys are sorted at every nesting level before serialization to avoid
+ * false positives from insertion-order differences.
+ */
+function projectConfigContentEquals(a: ProjectConfig, b: ProjectConfig): boolean {
+    const stable = (v: unknown) => JSON.stringify(canonicalize(v));
+    return (
+        stable(a.buildConfigs) === stable(b.buildConfigs) &&
+        stable(a.confFiles) === stable(b.confFiles) &&
+        stable(a.twisterConfigs) === stable(b.twisterConfigs)
+    );
+}
+
+/**
+ * Open a QuickPick that lets the user select which workspace projects should
+ * be declared as `sampleProjects` in `.vscode/zephyr-ide.json`.
+ *
+ * - Projects already in `sampleProjects` at the current path AND with no
+ *   configuration changes are pre-checked with a "already in sampleProjects"
+ *   indicator.
+ * - Projects at the same path but whose builds, args, or conf files have
+ *   changed are highlighted as "settings changed" and pre-checked.
+ * - Projects that exist in `sampleProjects` under the same name but at a
+ *   different path (i.e. the project was moved) are shown with a "path
+ *   changed" indicator and pre-checked so the user can confirm the update.
+ * - Workspace projects not yet declared are shown unchecked.
+ *
+ * When the user confirms, the full `ProjectConfig` (including build configs,
+ * args, and conf files) is saved back to `sampleProjects` in zephyr-ide.json,
+ * so subsequent runs can detect settings changes.
+ */
+export async function modifyZephyrIdeSampleProjectsInteractive(
+    wsConfig: WorkspaceConfig,
+): Promise<ProjectConfig[] | undefined> {
+    if (!wsConfig.rootPath) {
+        notifyError("Zephyr IDE Sample Projects", "No active workspace folder.");
+        return undefined;
+    }
+
+    const currentSamples = getZephyrIdeSampleProjects(wsConfig);
+
+    // Build lookups: by path (for exact match) and by name (for path-change detection).
+    const storedByPath = new Map<string, ProjectConfig>();
+    const storedByName = new Map<string, ProjectConfig>();
+    for (const s of currentSamples) {
+        storedByPath.set(s.rel_path, s);
+        storedByName.set(s.name, s);
+    }
+
+    const projects = Object.values(wsConfig.projects);
+    if (projects.length === 0) {
+        void vscode.window.showInformationMessage(
+            "No projects in this workspace yet. Add projects first, then use this command to promote them to sample projects."
+        );
+        return undefined;
+    }
+
+    type Item = vscode.QuickPickItem & { relPath: string; projName: string };
+
+    const samePathItems: Item[] = [];
+    const changedItems: Item[] = [];
+    const newItems: Item[] = [];
+
+    for (const proj of projects) {
+        const relPath = proj.rel_path;
+        const projName = proj.name;
+
+        if (storedByPath.has(relPath)) {
+            // Same path — check whether any settings changed.
+            const stored = storedByPath.get(relPath)!;
+            if (projectConfigContentEquals(proj, stored)) {
+                // Exact match: path and all settings are the same.
+                samePathItems.push({
+                    label: projName,
+                    description: relPath,
+                    detail: "$(check) already in sampleProjects",
+                    picked: true,
+                    relPath,
+                    projName,
+                });
+            } else {
+                // Same path but builds, args, or conf files changed.
+                changedItems.push({
+                    label: projName,
+                    description: relPath,
+                    detail: "$(warning) settings changed (build configs, conf files, or twister configs)",
+                    picked: true,
+                    relPath,
+                    projName,
+                });
+            }
+        } else if (storedByName.has(projName)) {
+            // Same project name but different path — project was moved.
+            const stored = storedByName.get(projName)!;
+            const settingsOk = projectConfigContentEquals(proj, stored);
+            const detail = settingsOk
+                ? `$(warning) path changed (was: ${stored.rel_path})`
+                : `$(warning) path and settings changed (was: ${stored.rel_path})`;
+            changedItems.push({
+                label: projName,
+                description: relPath,
+                detail,
+                picked: true,
+                relPath,
+                projName,
+            });
+        } else {
+            // Not yet in sampleProjects.
+            newItems.push({
+                label: projName,
+                description: relPath,
+                picked: false,
+                relPath,
+                projName,
+            });
+        }
+    }
+
+    samePathItems.sort((a, b) => a.label.localeCompare(b.label));
+    changedItems.sort((a, b) => a.label.localeCompare(b.label));
+    newItems.sort((a, b) => a.label.localeCompare(b.label));
+
+    const items: vscode.QuickPickItem[] = [];
+    if (changedItems.length > 0) {
+        items.push({ label: "Path or settings changed — review and confirm", kind: vscode.QuickPickItemKind.Separator });
+        items.push(...changedItems);
+    }
+    if (samePathItems.length > 0) {
+        items.push({ label: "Already in sampleProjects", kind: vscode.QuickPickItemKind.Separator });
+        items.push(...samePathItems);
+    }
+    if (newItems.length > 0) {
+        items.push({ label: "Workspace projects not yet declared", kind: vscode.QuickPickItemKind.Separator });
+        items.push(...newItems);
+    }
+
+    const picked = await vscode.window.showQuickPick(items, {
+        canPickMany: true,
+        ignoreFocusOut: true,
+        placeHolder: "Select projects to include in sampleProjects (zephyr-ide.json)",
+        title: "Modify Sample Projects (zephyr-ide.json)",
+    });
+
+    if (!picked) {
+        outputInfo("Zephyr IDE Sample Projects", "Modify cancelled");
+        return undefined;
+    }
+
+    // Save the full ProjectConfig for each selected project so future runs can
+    // detect settings changes (not just path changes).
+    const selectedProjects = (picked as Item[])
+        .filter(i => i.kind !== vscode.QuickPickItemKind.Separator)
+        .map(i => wsConfig.projects[i.projName])
+        .filter((p): p is ProjectConfig => p !== undefined);
+
+    await setZephyrIdeSampleProjects(wsConfig, selectedProjects);
+    outputInfo("Zephyr IDE Sample Projects", `Saved ${selectedProjects.length} sample project(s) to zephyr-ide.json`);
+    return selectedProjects;
 }
 
 // ---------------------------------------------------------------------------
