@@ -481,24 +481,37 @@ export async function installZephyrIdeBlobs(
 // ---------------------------------------------------------------------------
 
 /**
+ * Recursively sort object keys so that JSON.stringify produces a stable,
+ * insertion-order-independent result for deep equality comparisons.
+ */
+function canonicalize(v: unknown): unknown {
+    if (Array.isArray(v)) {
+        return v.map(canonicalize);
+    }
+    if (v !== null && typeof v === "object") {
+        return Object.fromEntries(
+            Object.entries(v as Record<string, unknown>)
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([k, val]) => [k, canonicalize(val)])
+        );
+    }
+    return v;
+}
+
+/**
  * Compare the configuration-only fields of two ProjectConfig objects
  * (build configs, conf files, and twister configs), ignoring name and rel_path
  * which are handled separately.
  *
- * Keys are sorted at every level before serialization to avoid false positives
- * from insertion-order differences.
+ * Object keys are sorted at every nesting level before serialization to avoid
+ * false positives from insertion-order differences.
  */
 function projectConfigContentEquals(a: ProjectConfig, b: ProjectConfig): boolean {
-    const stableStringify = (v: unknown): string =>
-        JSON.stringify(v, (_key, val) =>
-            val !== null && typeof val === "object" && !Array.isArray(val)
-                ? Object.fromEntries(Object.entries(val).sort(([ka], [kb]) => ka.localeCompare(kb)))
-                : val
-        );
+    const stable = (v: unknown) => JSON.stringify(canonicalize(v));
     return (
-        stableStringify(a.buildConfigs) === stableStringify(b.buildConfigs) &&
-        stableStringify(a.confFiles) === stableStringify(b.confFiles) &&
-        stableStringify(a.twisterConfigs) === stableStringify(b.twisterConfigs)
+        stable(a.buildConfigs) === stable(b.buildConfigs) &&
+        stable(a.confFiles) === stable(b.confFiles) &&
+        stable(a.twisterConfigs) === stable(b.twisterConfigs)
     );
 }
 

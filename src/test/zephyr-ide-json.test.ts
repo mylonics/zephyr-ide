@@ -312,10 +312,17 @@ suite("zephyr-ide.json toolchains/blobs Test Suite", () => {
     const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-sp-"));
     try {
       const ws = makeWsConfig(tmpRoot);
+      const debugBuild = {
+        name: "debug", board: "nrf52840dk",
+        relBoardDir: "", relBoardSubDir: "", debugOptimization: "g",
+        westBuildArgs: [], westBuildCMakeArgs: ["-DCONFIG_LOG=y"],
+        runnerConfigs: {}, confFiles: { config: [], overlay: [] },
+        launchTarget: "", buildDebugTarget: "", attachTarget: "",
+      };
       const fullConfig = {
         name: "blinky",
         rel_path: "samples/blinky",
-        buildConfigs: { debug: { name: "debug", board: "nrf52840dk", relBoardDir: "", relBoardSubDir: "", debugOptimization: "g", westBuildArgs: [], westBuildCMakeArgs: ["-DCONFIG_LOG=y"], runnerConfigs: {}, confFiles: { config: [], overlay: [] }, launchTarget: "", buildDebugTarget: "", attachTarget: "" } },
+        buildConfigs: { debug: debugBuild },
         confFiles: { config: ["prj.conf"], overlay: [] },
         twisterConfigs: {},
       };

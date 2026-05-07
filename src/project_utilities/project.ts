@@ -683,9 +683,13 @@ export async function addSampleProjectsFromFile(wsConfig: WorkspaceConfig, conte
     // confFiles, twisterConfigs), then override name and rel_path with the current
     // workspace-local values.
     wsConfig.projects[projectName] = {
-      ...item.sample,
       name: projectName,
       rel_path: path.relative(wsConfig.rootPath, projectPath),
+      // Explicitly copy only the configuration fields from the stored sample;
+      // do not blindly spread all properties to avoid carrying over stale data.
+      buildConfigs: item.sample.buildConfigs,
+      confFiles: item.sample.confFiles,
+      twisterConfigs: item.sample.twisterConfigs,
     };
     wsConfig.projectStates[projectName] = { buildStates: {}, viewOpen: true, twisterStates: {} };
     lastAdded = projectName;
