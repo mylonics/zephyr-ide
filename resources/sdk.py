@@ -251,6 +251,45 @@ class Sdk(WestCommand):
 
         return releases
 
+    def fetch_release_assets(self, release, req_headers):
+        """Fetch the full asset list for a release.
+
+        The release JSON returned by /releases embeds at most the first 100 assets.
+        Newer SDKs (1.x) ship more than 100 assets across host architectures and
+        toolchain archives, so fall back to /releases/<id>/assets pagination when
+        the embedded list looks truncated.
+        """
+        embedded = release.get("assets", []) or []
+        if len(embedded) < 100:
+            return embedded
+
+        assets_url = release.get("assets_url")
+        if not assets_url:
+            return embedded
+
+        all_assets = []
+        page = 1
+        while True:
+            params = {"page": page, "per_page": 100}
+            resp = requests.get(assets_url, headers=req_headers, params=params)
+            if resp.status_code != 200:
+                # Fall back to embedded list rather than failing the install entirely.
+                self.wrn(
+                    f"Failed to fetch full asset list for release "
+                    f"{release.get('tag_name')}: {resp.status_code}. "
+                    f"Using embedded list of {len(embedded)} assets."
+                )
+                return embedded
+            data = resp.json()
+            if not data:
+                break
+            all_assets.extend(data)
+            if len(data) < 100:
+                break
+            page += 1
+
+        return all_assets if all_assets else embedded
+
     def minimal_sdk_filename(self, release):
         (osname, arch) = self.os_arch_name()
         version = re.sub(r"^v", "", release["tag_name"])
@@ -422,6 +461,11 @@ class Sdk(WestCommand):
 
         target_release = [x for x in releases if x["tag_name"] == f"v{version}"][0]
 
+        # The release JSON embeds at most 100 assets. SDK 1.x ships more than that,
+        # so fetch the full asset list explicitly and substitute it into the release
+        # object before any consumer (toolchain check, download URL lookup) reads it.
+        target_release["assets"] = self.fetch_release_assets(target_release, req_headers)
+
         # checking toolchains parameters
         assets = target_release["assets"]
         self.dbg("assets: ", "\n".join([x["browser_download_url"] for x in assets]))
@@ -517,17 +561,24 @@ class Sdk(WestCommand):
             if (sdk_path / "sysroots").exists():
                 entry["hosttools"] = "installed"
 
-            # Identify toolchain directory by the existence of <toolchain>/bin/<toolchain>-gcc
+            # Identify toolchain directory by the existence of <toolchain>/bin/<toolchain>-gcc.
+            # Zephyr SDK <= 0.x stored toolchains at the SDK root; SDK 1.x moved them under
+            # a `gnu/` subdirectory. Search both locations so either layout works.
             if "Windows" == platform.system():
                 gcc_postfix = "-gcc.exe"
             else:
                 gcc_postfix = "-gcc"
 
-            toolchains = [
-                tc.name
-                for tc in sdk_path.iterdir()
-                if (sdk_path / tc / "bin" / (tc.name + gcc_postfix)).exists()
-            ]
+            toolchains = []
+            search_roots = [sdk_path]
+            gnu_dir = sdk_path / "gnu"
+            if gnu_dir.exists():
+                search_roots.append(gnu_dir)
+            for root in search_roots:
+                for tc in root.iterdir():
+                    if (root / tc.name / "bin" / (tc.name + gcc_postfix)).exists():
+                        if tc.name not in toolchains:
+                            toolchains.append(tc.name)
 
             if len(toolchains) > 0:
                 entry["toolchains"] = toolchains
@@ -548,21 +599,31 @@ class Sdk(WestCommand):
             self.inf(f"  path: {v['path']}")
             if "hosttools" in v:
                 self.inf(f"  hosttools: {v['hosttools']}")
-            if "toolchains" in v:
+            installed_tcs = v.get("toolchains", [])
+            if installed_tcs:
                 self.inf("  installed-toolchains:")
-                for tc in v["toolchains"]:
+                for tc in installed_tcs:
                     self.inf(f"    - {tc}")
 
-                # Since version 0.15.2, the sdk_toolchains file is included,
-                # so we can get information about available toolchains from there.
-                if (Path(v["path"]) / "sdk_toolchains").exists():
-                    with open(Path(v["path"]) / "sdk_toolchains") as f:
-                        all_tcs = [l.strip() for l in f.readlines()]
+            # Since version 0.15.2, a manifest of available toolchains is shipped with
+            # the SDK. The file is named `sdk_toolchains` in SDK 0.x and `sdk_gnu_toolchains`
+            # in SDK 1.x. Emit this section regardless of whether any toolchains are
+            # installed, so UIs can show what is available for installation.
+            manifest_path = None
+            for candidate in ("sdk_gnu_toolchains", "sdk_toolchains"):
+                p = Path(v["path"]) / candidate
+                if p.exists():
+                    manifest_path = p
+                    break
+            if manifest_path is not None:
+                with open(manifest_path) as f:
+                    all_tcs = [l.strip() for l in f.readlines() if l.strip()]
 
+                not_installed = [tc for tc in all_tcs if tc not in installed_tcs]
+                if not_installed:
                     self.inf("  available-toolchains:")
-                    for tc in all_tcs:
-                        if tc not in v["toolchains"]:
-                            self.inf(f"    - {tc}")
+                    for tc in not_installed:
+                        self.inf(f"    - {tc}")
 
             self.inf()
 

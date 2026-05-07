@@ -18,7 +18,6 @@ limitations under the License.
 import * as vscode from "vscode";
 import { WorkspaceConfig, GlobalConfig } from "../../setup_utilities/types";
 import {
-  getWestSDKContext,
   listAvailableSDKs,
   ParsedSDKList,
   onSDKProgress,
@@ -163,7 +162,7 @@ export class SDKPanel {
         command: "sdkListResult",
         data: this._cachedSDKList,
       });
-    } else if (this.hasValidSetupState()) {
+    } else {
       this._panel.webview.postMessage({ command: "sdkListLoading" });
       void this.fetchSDKListInBackground();
     }
@@ -308,29 +307,13 @@ export class SDKPanel {
   }
 
   private async fetchSDKListInBackground() {
-    if (this._sdkListFetching || !this.hasValidSetupState()) {
-      return;
-    }
-    if (!this.currentWsConfig || !this.currentGlobalConfig) {
-      return;
-    }
+    if (this._sdkListFetching) { return; }
 
     this._sdkListFetching = true;
     try {
-      const setupState = await getWestSDKContext(
-        this.currentWsConfig,
-        this.currentGlobalConfig,
-        this._context,
-      );
-      if (!setupState) { return; }
-      const sdkList = await listAvailableSDKs(setupState);
+      const sdkList = await listAvailableSDKs();
       this._cachedSDKList = sdkList;
-
-      // Push to webview if still open
-      this._panel.webview.postMessage({
-        command: "sdkListResult",
-        data: sdkList,
-      });
+      this._panel.webview.postMessage({ command: "sdkListResult", data: sdkList });
     } catch {
       // Silently ignore background fetch failures
     } finally {
@@ -340,37 +323,14 @@ export class SDKPanel {
 
   private async listSDKs() {
     try {
-      if (!this.currentWsConfig || !this.currentGlobalConfig) {
-        notifyError("SDK List", "Configuration not available");
-        return;
-      }
-
-      const setupState = await getWestSDKContext(
-        this.currentWsConfig,
-        this.currentGlobalConfig,
-        this._context,
-      );
-      if (!setupState) {
-        notifyError("SDK List", "No valid west installation found for SDK management");
-        return;
-      }
-
-      const sdkList = await listAvailableSDKs(setupState);
+      const sdkList = await listAvailableSDKs();
       this._cachedSDKList = sdkList;
-
-      this._panel.webview.postMessage({
-        command: "sdkListResult",
-        data: sdkList,
-      });
+      this._panel.webview.postMessage({ command: "sdkListResult", data: sdkList });
     } catch (error) {
       notifyError("SDK List", `Failed to list SDKs: ${error}`);
       this._panel.webview.postMessage({
         command: "sdkListResult",
-        data: {
-          success: false,
-          versions: [],
-          error: `Failed to list SDKs: ${error}`,
-        },
+        data: { success: false, versions: [], error: `Failed to list SDKs: ${error}` },
       });
     }
   }
