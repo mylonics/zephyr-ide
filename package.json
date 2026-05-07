@@ -477,6 +477,22 @@
         "title": "Zephyr IDE: Install SDK"
       },
       {
+        "command": "zephyr-ide.modify-zephyr-ide-toolchains",
+        "title": "Zephyr IDE: Modify zephyr-ide.json Toolchains"
+      },
+      {
+        "command": "zephyr-ide.install-zephyr-ide-toolchains",
+        "title": "Zephyr IDE: Install Toolchains from zephyr-ide.json"
+      },
+      {
+        "command": "zephyr-ide.modify-zephyr-ide-blobs",
+        "title": "Zephyr IDE: Modify zephyr-ide.json Blobs"
+      },
+      {
+        "command": "zephyr-ide.install-zephyr-ide-blobs",
+        "title": "Zephyr IDE: Install Blobs from zephyr-ide.json"
+      },
+      {
         "command": "zephyr-ide.west-init",
         "title": "Zephyr IDE: West Init"
       },

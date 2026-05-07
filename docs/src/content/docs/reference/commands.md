@@ -34,6 +34,10 @@ Zephyr IDE provides the following commands accessible via the command palette (C
 - `Zephyr IDE: Install Host Tools` - Install required host tools
 - `Zephyr IDE: Setup Check Build Dependencies Available` - Check build dependencies
 - `Zephyr IDE: Install SDK` - Install Zephyr SDK
+- `Zephyr IDE: Modify zephyr-ide.json Toolchains` - Edit the list of toolchains required by the workspace
+- `Zephyr IDE: Install Toolchains from zephyr-ide.json` - Install every toolchain declared in `.vscode/zephyr-ide.json`
+- `Zephyr IDE: Modify zephyr-ide.json Blobs` - Edit the list of west modules whose blobs are required by the workspace
+- `Zephyr IDE: Install Blobs from zephyr-ide.json` - Fetch every blob module declared in `.vscode/zephyr-ide.json`
 - `Zephyr IDE: Reinitialize DTS Language Server` - Reinitialize DTS language server
 
 ## Project Management

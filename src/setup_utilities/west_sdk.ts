@@ -465,7 +465,7 @@ export async function listAvailableSDKs(): Promise<ParsedSDKList> {
 /**
  * Reads SDK_VERSION from a Zephyr source tree to auto-detect which SDK to install.
  */
-async function detectSDKVersionFromZephyrDir(zephyrDir: string): Promise<string | undefined> {
+export async function detectSDKVersionFromZephyrDir(zephyrDir: string): Promise<string | undefined> {
     try {
         const sdkVersionFile = path.join(zephyrDir, "SDK_VERSION");
         if (await fs.pathExists(sdkVersionFile)) {

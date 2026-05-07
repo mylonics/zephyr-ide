@@ -316,7 +316,25 @@ export async function loadWorkspaceState(context: vscode.ExtensionContext): Prom
 
 export async function setWorkspaceState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
   if (isActiveWorkspaceInitialized(wsConfig)) {
-    await fs.outputFile(path.join(wsConfig.rootPath, ".vscode", "zephyr-ide.json"), JSON.stringify({ projects: wsConfig.projects }, null, 2));
+    // Merge the projects field into any existing zephyr-ide.json so we don't
+    // wipe out other top-level keys (e.g. `toolchains`, `blobs`, custom vars)
+    // that the user may have added or that other helpers manage.
+    const filePath = path.join(wsConfig.rootPath, ".vscode", "zephyr-ide.json");
+    let existing: Record<string, any> = {};
+    try {
+      if (fs.pathExistsSync(filePath)) {
+        const parsed = JSON.parse(fs.readFileSync(filePath, "utf8"));
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          existing = parsed;
+        }
+      }
+    } catch {
+      // Treat unreadable / malformed file as empty so the projects state is
+      // still written rather than silently lost.
+      existing = {};
+    }
+    existing.projects = wsConfig.projects;
+    await fs.outputFile(filePath, JSON.stringify(existing, null, 2));
   }
   await context.workspaceState.update("zephyr.env", wsConfig);
 }
