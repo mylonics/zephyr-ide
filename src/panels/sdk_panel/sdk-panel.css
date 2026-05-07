@@ -5,6 +5,129 @@
 @import url("../webview_shared/webview-base.css");
 
 /* ===================================================================
+   Compact progress card (replaces verbose setup-progress-panel for SDK)
+   =================================================================== */
+
+.progress-compact-card {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    margin-bottom: 14px;
+    background-color: var(--vscode-sideBar-background);
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: var(--zephyr-webview-radius);
+    font-size: 12px;
+    flex-wrap: wrap;
+    min-height: 36px;
+}
+
+.progress-compact-card.is-complete {
+    border-color: color-mix(in srgb, var(--vscode-terminal-ansiGreen) 45%, transparent);
+    background-color: color-mix(in srgb, var(--vscode-terminal-ansiGreen) 6%, transparent);
+}
+
+.progress-compact-card.is-failed {
+    border-color: color-mix(in srgb, var(--vscode-terminal-ansiRed) 45%, transparent);
+    background-color: color-mix(in srgb, var(--vscode-terminal-ansiRed) 6%, transparent);
+}
+
+.progress-icon-complete {
+    color: var(--vscode-terminal-ansiGreen);
+    font-size: 15px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.progress-icon-failed {
+    color: var(--vscode-terminal-ansiRed);
+    font-size: 15px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.progress-compact-op {
+    font-weight: 600;
+    color: var(--vscode-foreground);
+    white-space: nowrap;
+}
+
+.progress-compact-sep {
+    color: var(--vscode-descriptionForeground);
+    flex-shrink: 0;
+}
+
+.progress-compact-step {
+    color: var(--vscode-descriptionForeground);
+    font-style: italic;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+.progress-compact-msg {
+    color: var(--vscode-descriptionForeground);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+.progress-dismiss-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px 4px;
+    color: var(--vscode-foreground);
+    border-radius: 4px;
+    line-height: 1;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    opacity: 0.7;
+}
+
+.progress-dismiss-btn:hover {
+    background-color: var(--vscode-toolbar-hoverBackground);
+    opacity: 1;
+}
+
+/* ===================================================================
+   SDK summary bar
+   =================================================================== */
+
+.sdk-summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    background-color: var(--vscode-sideBar-background);
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: var(--zephyr-webview-radius);
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+    flex-wrap: wrap;
+}
+
+.sdk-summary-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.sdk-summary-item strong {
+    color: var(--vscode-foreground);
+    font-weight: 600;
+}
+
+.sdk-summary-sep {
+    color: var(--vscode-panel-border);
+    font-size: 14px;
+}
+
+/* ===================================================================
    SDK list
    =================================================================== */
 
@@ -16,32 +139,92 @@
     border: 1px solid var(--vscode-panel-border);
     border-radius: var(--zephyr-webview-radius);
     padding: 15px;
-    margin-bottom: 12px;
+    margin-bottom: 14px;
     background-color: var(--vscode-editor-background);
+    box-shadow: var(--zephyr-webview-surface-shadow);
+    transition: border-color var(--zephyr-webview-transition-fast), box-shadow var(--zephyr-webview-transition-fast);
+}
+
+.sdk-version-card:hover {
+    border-color: var(--vscode-focusBorder);
+    box-shadow: var(--zephyr-webview-surface-shadow-hover);
 }
 
 .sdk-version-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
+    gap: 12px;
     margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.sdk-version-title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
 }
 
 .sdk-version-title {
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--vscode-foreground);
+}
+
+.sdk-zephyr-compat {
+    display: inline-flex;
+    align-items: center;
+    font-size: 11px;
     font-weight: 600;
-    font-size: 14px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background-color: color-mix(in srgb, var(--vscode-terminal-ansiBlue) 15%, transparent);
+    color: var(--vscode-terminal-ansiBlue);
+    white-space: nowrap;
+}
+
+.sdk-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.sdk-toolchain-count {
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    padding: 2px 8px;
+    background-color: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
+    border-radius: 10px;
+}
+
+.sdk-toolchain-count.has-toolchains {
+    background-color: color-mix(in srgb, var(--vscode-terminal-ansiGreen) 15%, transparent);
+    color: var(--vscode-terminal-ansiGreen);
 }
 
 .sdk-path {
+    display: flex;
+    align-items: center;
+    gap: 5px;
     font-family: var(--vscode-editor-font-family);
     font-size: 11px;
     color: var(--vscode-descriptionForeground);
     background-color: var(--vscode-textCodeBlock-background);
-    padding: 4px 8px;
+    padding: 5px 8px;
     border-radius: 4px;
-    margin-bottom: 12px;
+    margin-bottom: 14px;
     word-break: break-all;
 }
+
+/* ===================================================================
+   Toolchain sections
+   =================================================================== */
 
 .toolchain-section {
     margin-top: 12px;
@@ -50,8 +233,70 @@
 .toolchain-section-title {
     font-size: 12px;
     font-weight: 600;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
     color: var(--vscode-foreground);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.toolchain-section-title.inline {
+    margin-bottom: 0;
+    display: inline;
+}
+
+/* Toggle button for collapsible sections */
+.toolchain-toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: none;
+    border: none;
+    padding: 2px 4px;
+    cursor: pointer;
+    color: var(--vscode-foreground);
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 4px;
+    margin-bottom: 2px;
+    width: 100%;
+    text-align: left;
+    transition: background-color var(--zephyr-webview-transition-fast);
+}
+
+.toolchain-toggle-btn:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.toolchain-collapsible-body {
+    margin-top: 6px;
+}
+
+/* Architecture group — two-column grid */
+.toolchain-arch-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px 16px;
+}
+
+.toolchain-arch-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* Large groups (> 4 chips) span both columns so chips can wrap freely */
+.toolchain-arch-group.span-full {
+    grid-column: 1 / -1;
+}
+
+.toolchain-arch-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--vscode-descriptionForeground);
+    padding: 0 2px;
 }
 
 .toolchain-list {
@@ -61,19 +306,135 @@
 }
 
 .toolchain-tag {
-    background-color: var(--vscode-badge-background);
-    color: var(--vscode-badge-foreground);
-    padding: 2px 6px;
+    background-color: color-mix(in srgb, var(--vscode-terminal-ansiGreen) 15%, transparent);
+    color: var(--vscode-terminal-ansiGreen);
+    padding: 2px 8px;
     border-radius: 4px;
     font-size: 11px;
     font-family: var(--vscode-editor-font-family);
+    border: 1px solid color-mix(in srgb, var(--vscode-terminal-ansiGreen) 30%, transparent);
 }
 
 .toolchain-tag.available {
-    background-color: var(--vscode-button-secondaryBackground);
-    color: var(--vscode-button-secondaryForeground);
-    opacity: 0.7;
+    background-color: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
+    border: 1px solid transparent;
+    opacity: 0.75;
 }
+
+/* ===================================================================
+   Selectable toolchain chips (manager mode)
+   =================================================================== */
+
+.toolchain-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 9px;
+    border-radius: 100px;
+    font-size: 11px;
+    font-family: var(--vscode-editor-font-family);
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: opacity var(--zephyr-webview-transition-fast), filter var(--zephyr-webview-transition-fast);
+    white-space: nowrap;
+}
+
+.toolchain-chip:focus-visible {
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: 1px;
+}
+
+/* Installed — green, click marks for removal */
+.toolchain-chip.installed {
+    background-color: color-mix(in srgb, var(--vscode-terminal-ansiGreen) 15%, transparent);
+    color: var(--vscode-terminal-ansiGreen);
+    border-color: color-mix(in srgb, var(--vscode-terminal-ansiGreen) 30%, transparent);
+}
+
+.toolchain-chip.installed:hover {
+    background-color: color-mix(in srgb, var(--vscode-terminal-ansiRed) 12%, transparent);
+    color: var(--vscode-terminal-ansiRed);
+    border-color: color-mix(in srgb, var(--vscode-terminal-ansiRed) 30%, transparent);
+}
+
+/* Available (not installed) — muted gray, click selects for install */
+.toolchain-chip.available {
+    background-color: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
+    border-color: transparent;
+    opacity: 0.75;
+}
+
+.toolchain-chip.available:hover {
+    opacity: 1;
+    background-color: color-mix(in srgb, var(--vscode-terminal-ansiBlue) 12%, transparent);
+    color: var(--vscode-terminal-ansiBlue);
+    border-color: color-mix(in srgb, var(--vscode-terminal-ansiBlue) 30%, transparent);
+}
+
+/* Pending removal — red / strikethrough */
+.toolchain-chip.pending-remove {
+    background-color: color-mix(in srgb, var(--vscode-terminal-ansiRed) 15%, transparent);
+    color: var(--vscode-terminal-ansiRed);
+    border-color: color-mix(in srgb, var(--vscode-terminal-ansiRed) 35%, transparent);
+    text-decoration: line-through;
+    opacity: 0.85;
+}
+
+.toolchain-chip.pending-remove:hover {
+    opacity: 1;
+    text-decoration: none;
+}
+
+/* Pending install — blue / highlighted */
+.toolchain-chip.pending-add {
+    background-color: color-mix(in srgb, var(--vscode-terminal-ansiBlue) 18%, transparent);
+    color: var(--vscode-terminal-ansiBlue);
+    border-color: color-mix(in srgb, var(--vscode-terminal-ansiBlue) 40%, transparent);
+    opacity: 1;
+    font-weight: 600;
+}
+
+.tc-chip-icon {
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+/* ===================================================================
+   Pending change badges (used in card header)
+   =================================================================== */
+
+.tc-pending-add-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background-color: color-mix(in srgb, var(--vscode-terminal-ansiBlue) 18%, transparent);
+    color: var(--vscode-terminal-ansiBlue);
+    border: 1px solid color-mix(in srgb, var(--vscode-terminal-ansiBlue) 35%, transparent);
+}
+
+.tc-pending-remove-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background-color: color-mix(in srgb, var(--vscode-terminal-ansiRed) 15%, transparent);
+    color: var(--vscode-terminal-ansiRed);
+    border: 1px solid color-mix(in srgb, var(--vscode-terminal-ansiRed) 35%, transparent);
+}
+
+.sdk-no-toolchains {
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+    margin: 4px 0;
+}
+
+/* ===================================================================
+   Loading / error / empty states
+   =================================================================== */
 
 .sdk-loading {
     display: flex;
@@ -114,11 +475,3 @@
     color: var(--vscode-descriptionForeground);
     text-align: center;
 }
-
-/* ===================================================================
-   Header status badge — styles inherited from webview-base.css
-   =================================================================== */
-
-/* ===================================================================
-   SDK install progress — styles inherited from webview-base.css
-   =================================================================== */

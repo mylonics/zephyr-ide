@@ -286,12 +286,6 @@
         "name": "wget",
         "package": "wget",
         "check_command": "wget.exe --help"
-      },
-      {
-        "name": "7-Zip",
-        "package": "7zip.7zip",
-        "check_command": "7z --help",
-        "post_install_step": "[System.Environment]::SetEnvironmentVariable('Path', [System.Environment]::GetEnvironmentVariable('Path', 'User') + ';C:\\Program Files\\7-Zip', 'User')"
       }
     ],
     "dnf": [

@@ -118,6 +118,13 @@ export class SetupProgressTracker {
     this.emit('step-update');
   }
 
+  /** Update the detail text of an in-progress step without changing its status. */
+  updateStep(id: string, detail: string) {
+    const step = this.steps.find(s => s.id === id);
+    if (step) { step.detail = detail; }
+    this.emit('step-update');
+  }
+
   complete(message?: string) {
     this.emit('complete', message);
   }

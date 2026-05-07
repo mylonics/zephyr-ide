@@ -136,7 +136,7 @@ import { testHelper, deleteTestDirs } from "./zephyr_utilities/twister";
 
 import { getModuleVersion, getModuleList } from "./setup_utilities/modules";
 import { reconfigureTest } from "./project_utilities/twister_selector";
-import { installSDKInteractive } from "./setup_utilities/west_sdk";
+import { installSDKInteractive, detectInstalledSDKVersion } from "./setup_utilities/west_sdk";
 import {
   installPackageManagerHeadless,
   installHostPackagesHeadless,
@@ -847,6 +847,21 @@ export async function activate(context: vscode.ExtensionContext) {
       );
       if (confirm !== "Reset") { return; }
       await clearWorkspaceState(context, wsConfig, globalConfig);
+      // After a workspace reset, re-check the toolchains directory so that
+      // sdkInstalled stays true when the SDK is physically present. This
+      // ensures the SDK install prompt is not shown on the next workspace
+      // setup for a user who has already installed the SDK.
+      if (!globalConfig.sdkInstalled) {
+        const detectedVersion = await detectInstalledSDKVersion();
+        if (detectedVersion) {
+          outputInfo("SDK Install", `SDK found on disk after workspace reset (version ${detectedVersion}), preserving installed state.`);
+          globalConfig.sdkInstalled = true;
+          if (!globalConfig.sdkVersion) {
+            globalConfig.sdkVersion = detectedVersion;
+          }
+          await setGlobalState(context, globalConfig);
+        }
+      }
       void vscode.commands.executeCommand("zephyr-ide.update-web-view");
     })
   );
@@ -1838,6 +1853,9 @@ export async function activate(context: vscode.ExtensionContext) {
         if (useClangd) {
           await setWorkspaceSettings(false);
         }
+        // Refresh the SDK panel so the newly installed toolchains appear without
+        // requiring the user to click the Refresh button manually.
+        SDKPanel.refreshAllPanels(wsConfig, globalConfig);
       }
       return ret;
     })

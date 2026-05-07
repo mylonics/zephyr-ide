@@ -18,13 +18,17 @@ limitations under the License.
 import * as vscode from "vscode";
 import { WorkspaceConfig, GlobalConfig } from "../../setup_utilities/types";
 import {
-  getWestSDKContext,
   listAvailableSDKs,
   ParsedSDKList,
   onSDKProgress,
+  installSDKToolchainsInteractive,
+  installToolchainsDirect,
+  uninstallToolchains,
+  uninstallSDKVersion,
 } from "../../setup_utilities/west_sdk";
 import { notifyError, outputError } from "../../utilities/output";
 import { generateNonce } from "../webview_shared/nonce";
+import { sdkVersions } from "../../defines";
 
 export class SDKPanel {
   public static currentPanel: SDKPanel | undefined;
@@ -44,6 +48,18 @@ export class SDKPanel {
   /** Update all open SDK panels with new config */
   public static updateAllPanels(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
     if (SDKPanel.currentPanel) {
+      SDKPanel.currentPanel.updateContent(wsConfig, globalConfig);
+    }
+  }
+
+  /**
+   * Refresh all open SDK panels: clears the cached SDK list and re-fetches it so
+   * that changes made from the command palette (e.g. install-sdk) are reflected
+   * immediately without the user having to click Refresh manually.
+   */
+  public static refreshAllPanels(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
+    if (SDKPanel.currentPanel) {
+      SDKPanel.currentPanel._cachedSDKList = undefined;
       SDKPanel.currentPanel.updateContent(wsConfig, globalConfig);
     }
   }
@@ -135,8 +151,8 @@ export class SDKPanel {
     this._panel.webview.postMessage({
       command: "updateContent",
       data: {
-        hasSetupState: this.hasValidSetupState(),
         sdkInstalled: globalConfig.sdkInstalled ?? false,
+        sdkVersionMap: this.buildSdkVersionMap(),
       },
     });
 
@@ -146,7 +162,7 @@ export class SDKPanel {
         command: "sdkListResult",
         data: this._cachedSDKList,
       });
-    } else if (this.hasValidSetupState()) {
+    } else {
       this._panel.webview.postMessage({ command: "sdkListLoading" });
       void this.fetchSDKListInBackground();
     }
@@ -165,11 +181,6 @@ export class SDKPanel {
   // Helpers
   // ---------------------------------------------------------------------------
 
-  private hasValidSetupState(): boolean {
-    return this.currentGlobalConfig?.setupStateDictionary !== undefined &&
-      Object.keys(this.currentGlobalConfig.setupStateDictionary).length > 0;
-  }
-
   private handleWebviewMessage(message: Record<string, any>) {
     switch (message.command) {
       case "ready":
@@ -179,6 +190,21 @@ export class SDKPanel {
         return;
       case "installSDK":
         this.installSDK();
+        return;
+      case "addToolchainsForVersion":
+        if (typeof message.version === "string") {
+          this.addToolchainsForVersion(message.version);
+        }
+        return;
+      case "applyToolchainChanges":
+        if (typeof message.version === "string" && Array.isArray(message.toAdd) && Array.isArray(message.toRemove)) {
+          this.applyToolchainChanges(message.version, message.toAdd, message.toRemove);
+        }
+        return;
+      case "removeSDKVersion":
+        if (typeof message.version === "string") {
+          this.removeSDKVersion(message.version);
+        }
         return;
       case "listSDKs":
         this.listSDKs();
@@ -206,30 +232,111 @@ export class SDKPanel {
     }
   }
 
-  private async fetchSDKListInBackground() {
-    if (this._sdkListFetching || !this.hasValidSetupState()) {
-      return;
-    }
-    if (!this.currentWsConfig || !this.currentGlobalConfig) {
-      return;
-    }
-
-    this._sdkListFetching = true;
+  private async addToolchainsForVersion(version: string) {
     try {
-      const setupState = await getWestSDKContext(
+      if (!this.currentWsConfig || !this.currentGlobalConfig) {
+        notifyError("SDK Install", "Configuration not available");
+        return;
+      }
+      await installSDKToolchainsInteractive(
         this.currentWsConfig,
         this.currentGlobalConfig,
         this._context,
+        version,
       );
-      if (!setupState) { return; }
-      const sdkList = await listAvailableSDKs(setupState);
-      this._cachedSDKList = sdkList;
+      // Refresh the SDK list so the newly installed toolchains appear
+      try {
+        this._cachedSDKList = undefined;
+        this.updateContent(this.currentWsConfig, this.currentGlobalConfig);
+        await this.listSDKs();
+      } catch (updateError) {
+        outputError("SDK Panel", `Failed to refresh panel after adding toolchains: ${String(updateError)}`);
+      }
+    } catch (error) {
+      notifyError("SDK Install", `Failed to add toolchains: ${error}`);
+    }
+  }
 
-      // Push to webview if still open
-      this._panel.webview.postMessage({
-        command: "sdkListResult",
-        data: sdkList,
-      });
+  private async removeSDKVersion(version: string) {
+    const answer = await vscode.window.showWarningMessage(
+      `Remove the entire Zephyr SDK ${version}? This will delete the SDK directory from disk and cannot be undone.`,
+      { modal: true },
+      "Remove",
+    );
+    if (answer !== "Remove") { return; }
+
+    const { success, error } = await uninstallSDKVersion(version);
+    if (!success) {
+      notifyError("SDK Uninstall", error ?? `Failed to remove SDK ${version}`);
+    }
+    // Refresh regardless — the directory may be partially removed
+    try {
+      this._cachedSDKList = undefined;
+      if (this.currentWsConfig && this.currentGlobalConfig) {
+        this.updateContent(this.currentWsConfig, this.currentGlobalConfig);
+      }
+      await this.listSDKs();
+    } catch (updateError) {
+      outputError("SDK Panel", `Failed to refresh panel after SDK removal: ${String(updateError)}`);
+    }
+  }
+
+  private async applyToolchainChanges(version: string, toAdd: string[], toRemove: string[]) {
+    if (!this.currentWsConfig || !this.currentGlobalConfig) {
+      notifyError("SDK", "Configuration not available");
+      return;
+    }
+
+    let removeSucceeded = true;
+    let addSucceeded = true;
+
+    try {
+      // Uninstall first (no west context needed — filesystem only)
+      if (toRemove.length > 0) {
+        const { notFound, errors } = await uninstallToolchains(version, toRemove);
+        if (errors.length > 0) {
+          removeSucceeded = false;
+          notifyError("SDK Uninstall", `Some toolchains could not be removed:\n${errors.join("\n")}`);
+        }
+        if (notFound.length > 0) {
+          outputError("SDK Panel", `Toolchain directories not found (already removed?): ${notFound.join(", ")}`);
+        }
+      }
+
+      // Install additions
+      if (toAdd.length > 0) {
+        const result = await installToolchainsDirect(
+          this.currentGlobalConfig,
+          this._context,
+          version,
+          toAdd,
+        );
+        addSucceeded = result ?? false;
+      }
+    } finally {
+      // Refresh the SDK list regardless of success/failure so installed state is up to date
+      try {
+        this._cachedSDKList = undefined;
+        this.updateContent(this.currentWsConfig, this.currentGlobalConfig);
+        await this.listSDKs();
+      } catch (updateError) {
+        const opSummary = [
+          toRemove.length > 0 ? `remove (${removeSucceeded ? "ok" : "failed"})` : null,
+          toAdd.length > 0 ? `install (${addSucceeded ? "ok" : "failed"})` : null,
+        ].filter(Boolean).join(", ");
+        outputError("SDK Panel", `Failed to refresh panel after applying changes [${opSummary}]: ${String(updateError)}`);
+      }
+    }
+  }
+
+  private async fetchSDKListInBackground() {
+    if (this._sdkListFetching) { return; }
+
+    this._sdkListFetching = true;
+    try {
+      const sdkList = await listAvailableSDKs();
+      this._cachedSDKList = sdkList;
+      this._panel.webview.postMessage({ command: "sdkListResult", data: sdkList });
     } catch {
       // Silently ignore background fetch failures
     } finally {
@@ -239,37 +346,14 @@ export class SDKPanel {
 
   private async listSDKs() {
     try {
-      if (!this.currentWsConfig || !this.currentGlobalConfig) {
-        notifyError("SDK List", "Configuration not available");
-        return;
-      }
-
-      const setupState = await getWestSDKContext(
-        this.currentWsConfig,
-        this.currentGlobalConfig,
-        this._context,
-      );
-      if (!setupState) {
-        notifyError("SDK List", "No valid west installation found for SDK management");
-        return;
-      }
-
-      const sdkList = await listAvailableSDKs(setupState);
+      const sdkList = await listAvailableSDKs();
       this._cachedSDKList = sdkList;
-
-      this._panel.webview.postMessage({
-        command: "sdkListResult",
-        data: sdkList,
-      });
+      this._panel.webview.postMessage({ command: "sdkListResult", data: sdkList });
     } catch (error) {
       notifyError("SDK List", `Failed to list SDKs: ${error}`);
       this._panel.webview.postMessage({
         command: "sdkListResult",
-        data: {
-          success: false,
-          versions: [],
-          error: `Failed to list SDKs: ${error}`,
-        },
+        data: { success: false, versions: [], error: `Failed to list SDKs: ${error}` },
       });
     }
   }
@@ -277,6 +361,19 @@ export class SDKPanel {
   // ---------------------------------------------------------------------------
   // HTML Generation
   // ---------------------------------------------------------------------------
+
+  /** Build a version→Zephyr-label lookup from the defines list (version numbers only, e.g. "0.17.4"). */
+  private buildSdkVersionMap(): Record<string, string> {
+    const map: Record<string, string> = {};
+    for (const item of sdkVersions) {
+      // Match only real semantic version labels (e.g. "1.0.1", "0.17.4").
+      // Separators (kind=Separator) and special options ("latest", "automatic") are excluded.
+      if (item.description && /^\d+\.\d+\.\d+/.test(item.label)) {
+        map[item.label] = item.description;
+      }
+    }
+    return map;
+  }
 
   private getHtmlForWebview(): string {
     const nonce = generateNonce();
