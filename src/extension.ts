@@ -163,16 +163,21 @@ async function markWorkspaceSetupComplete(
   await setWorkspaceState(context, wsConfig);
   void vscode.commands.executeCommand("zephyr-ide.update-web-view");
 
-  // If the workspace declares sample projects, offer to add them now.
+  // If the workspace declares sample projects that haven't been added yet,
+  // offer to add them now.
   const sampleProjects = getZephyrIdeSampleProjects(wsConfig);
   if (sampleProjects.length > 0) {
-    const choice = await vscode.window.showInformationMessage(
-      `This workspace declares ${sampleProjects.length} sample project${sampleProjects.length > 1 ? "s" : ""} in zephyr-ide.json. Would you like to add them to your workspace?`,
-      "Add Sample Projects",
-      "Later"
-    );
-    if (choice === "Add Sample Projects") {
-      await vscode.commands.executeCommand("zephyr-ide.add-sample-projects-from-file");
+    const addedPaths = new Set(Object.values(wsConfig.projects).map(p => p.rel_path));
+    const unadded = sampleProjects.filter(p => !addedPaths.has(p));
+    if (unadded.length > 0) {
+      const choice = await vscode.window.showInformationMessage(
+        `This workspace declares ${unadded.length} sample project${unadded.length > 1 ? "s" : ""} in zephyr-ide.json that haven't been added yet. Would you like to add them now?`,
+        "Add Sample Projects",
+        "Later"
+      );
+      if (choice === "Add Sample Projects") {
+        await vscode.commands.executeCommand("zephyr-ide.add-sample-projects-from-file");
+      }
     }
   }
 }

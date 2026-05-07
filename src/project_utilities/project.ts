@@ -593,17 +593,56 @@ export async function addSampleProjectsFromFile(wsConfig: WorkspaceConfig, conte
     return undefined;
   }
 
-  const items: (vscode.QuickPickItem & { resolvedPath: string })[] = samplePaths.map(relPath => {
-    const resolvedPath = path.isAbsolute(relPath)
-      ? relPath
-      : path.join(wsConfig.rootPath, relPath);
-    const name = path.basename(resolvedPath);
-    const alreadyAdded = !!wsConfig.projects[name];
+  // Reject absolute paths and paths that escape the workspace root.
+  // upath always normalises to '/', so the trailing '/' sentinel is safe cross-platform.
+  const rootNormalized = path.normalize(wsConfig.rootPath) + '/';
+  const validPaths: string[] = [];
+  for (const relPath of samplePaths) {
+    if (path.isAbsolute(relPath)) {
+      void vscode.window.showWarningMessage(`Skipping absolute path "${relPath}" in sampleProjects — entries must be relative to the workspace root.`);
+      continue;
+    }
+    const resolved = path.normalize(path.join(wsConfig.rootPath, relPath)) + '/';
+    if (!resolved.startsWith(rootNormalized)) {
+      void vscode.window.showWarningMessage(`Skipping "${relPath}" in sampleProjects — path resolves outside the workspace root.`);
+      continue;
+    }
+    validPaths.push(relPath);
+  }
+
+  if (validPaths.length === 0) {
+    return undefined;
+  }
+
+  // Count basenames to detect duplicates so we can disambiguate project names.
+  const basenameCounts = new Map<string, number>();
+  for (const relPath of validPaths) {
+    const bn = path.basename(relPath);
+    basenameCounts.set(bn, (basenameCounts.get(bn) ?? 0) + 1);
+  }
+  const projectNameFor = (relPath: string): string => {
+    const bn = path.basename(relPath);
+    if ((basenameCounts.get(bn) ?? 0) > 1) {
+      // Include the parent segment to make the name unique.
+      // When there is no parent (single-segment path), fall back to basename.
+      const dir = path.dirname(relPath);
+      if (dir !== '.') {
+        return path.basename(dir) + '/' + bn;
+      }
+    }
+    return bn;
+  };
+
+  const items: (vscode.QuickPickItem & { resolvedPath: string; projectName: string })[] = validPaths.map(relPath => {
+    const resolvedPath = path.join(wsConfig.rootPath, relPath);
+    const projectName = projectNameFor(relPath);
+    const alreadyAdded = !!wsConfig.projects[projectName];
     return {
-      label: name,
+      label: projectName,
       description: relPath,
       detail: alreadyAdded ? "(already in workspace)" : undefined,
       resolvedPath,
+      projectName,
       picked: !alreadyAdded,
     };
   });
@@ -619,10 +658,13 @@ export async function addSampleProjectsFromFile(wsConfig: WorkspaceConfig, conte
     return false;
   }
 
+  const hadActiveProject = !!wsConfig.activeProject;
   let addedCount = 0;
+  let lastAdded: string | undefined;
+
   for (const item of selected) {
     const projectPath = item.resolvedPath;
-    const projectName = item.label;
+    const projectName = item.projectName;
     if (!fs.pathExistsSync(path.join(projectPath, "CMakeLists.txt"))) {
       void vscode.window.showWarningMessage(`Skipping "${projectName}": no CMakeLists.txt found at ${projectPath}`);
       continue;
@@ -645,11 +687,17 @@ export async function addSampleProjectsFromFile(wsConfig: WorkspaceConfig, conte
       confFiles: { config: [], overlay: [] },
     };
     wsConfig.projectStates[projectName] = { buildStates: {}, viewOpen: true, twisterStates: {} };
-    await setActiveProject(context, wsConfig, projectName);
+    lastAdded = projectName;
     addedCount++;
   }
 
   if (addedCount > 0) {
+    // Activate the last-added project via the standard helper (which also
+    // triggers DTS context update), but only when there was no active project
+    // before so we don't displace the user's existing selection.
+    if (!hadActiveProject && lastAdded) {
+      await setActiveProject(context, wsConfig, lastAdded);
+    }
     await setWorkspaceState(context, wsConfig);
     void vscode.window.showInformationMessage(
       `Added ${addedCount} sample project${addedCount > 1 ? "s" : ""} from zephyr-ide.json`

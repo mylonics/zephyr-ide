@@ -41,11 +41,12 @@ limitations under the License.
  *                             added during workspace setup or later via the
  *                             `zephyr-ide.add-sample-projects-from-file` command.
  *
- * When either array is present, the workspace setup flow installs the missing
- * items automatically; the user can also manage them via the SDK panel or via
- * the command palette commands `zephyr-ide.modify-zephyr-ide-toolchains`,
- * `zephyr-ide.install-zephyr-ide-toolchains`, `zephyr-ide.modify-zephyr-ide-blobs`,
- * and `zephyr-ide.install-zephyr-ide-blobs`.
+ * When `toolchains` or `blobs` arrays are present, the workspace setup flow
+ * installs the missing items automatically; the user can also manage them via
+ * the SDK panel or via the command palette commands
+ * `zephyr-ide.modify-zephyr-ide-toolchains`, `zephyr-ide.install-zephyr-ide-toolchains`,
+ * `zephyr-ide.modify-zephyr-ide-blobs`, and `zephyr-ide.install-zephyr-ide-blobs`.
+ * `sampleProjects` entries are never loaded or installed automatically.
  */
 
 import * as fs from "fs-extra";
