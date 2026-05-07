@@ -16,6 +16,7 @@ limitations under the License.
 */
 
 import * as vscode from "vscode";
+import * as fs from "fs-extra";
 import { executeTaskHelper, getPlatformArch, getPlatformNameAsync, executeShellCommand, logDual } from "../utilities/utils";
 import { outputInfo, outputWarning, outputError, notifyWarning } from "../utilities/output";
 import manifestData from "./host-tools-manifest.json";
@@ -1200,4 +1201,59 @@ export async function checkHostToolsHeadless(): Promise<boolean> {
   }
 
   return statuses.every(s => s.available);
+}
+
+/**
+ * Load a vendor-supplied host-tools.json and return the packages applicable
+ * to the current platform and CPU architecture.
+ *
+ * The vendor file must follow the same schema as the bundled
+ * `host-tools-manifest.json` (same `HostToolsManifest` shape).  Packages
+ * whose `architectures` array does not include the current architecture are
+ * filtered out, matching the behaviour of `getPlatformPackages()`.
+ *
+ * @param hostToolsPath Absolute path to the vendor's host-tools.json.
+ * @returns Array of applicable `PlatformPackage` objects, or an empty array on
+ *   any error (parse failure, missing file, unknown platform).
+ */
+export async function loadVendorHostToolsManifest(hostToolsPath: string): Promise<PlatformPackage[]> {
+  try {
+    const raw = await fs.readFile(hostToolsPath, "utf-8");
+    const manifest = JSON.parse(raw) as HostToolsManifest;
+
+    const manager = await getPackageManagerForPlatformAsync();
+    if (!manager) {
+      return [];
+    }
+
+    const packages: PlatformPackage[] = manifest.platform_packages?.[manager.name] ?? [];
+    const arch = getPlatformArch();
+
+    return packages.filter(pkg => !pkg.architectures || pkg.architectures.includes(arch));
+  } catch (error) {
+    outputWarning("Vendor Host Tools", `Failed to load vendor host tools manifest at ${hostToolsPath}: ${error}`);
+    return [];
+  }
+}
+
+/**
+ * Show an information message listing the vendor tool names and ask the user
+ * whether to install them.
+ *
+ * @param packages The vendor packages that would be installed.
+ * @returns `true` if the user clicked **Allow**, `false` if they clicked **Skip**
+ *   or dismissed the dialog.
+ */
+export async function confirmVendorToolsInstall(packages: PlatformPackage[]): Promise<boolean> {
+  if (packages.length === 0) {
+    return false;
+  }
+
+  const toolNames = packages.map(p => p.name).join(", ");
+  const choice = await vscode.window.showInformationMessage(
+    `The selected vendor configuration requires the following additional tools: ${toolNames}. Would you like to install them now?`,
+    "Allow",
+    "Skip"
+  );
+  return choice === "Allow";
 }

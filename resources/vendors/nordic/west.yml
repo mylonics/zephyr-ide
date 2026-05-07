@@ -1,0 +1,15 @@
+manifest:
+  remotes:
+    - name: nrf
+      url-base: https://github.com/nrfconnect
+  projects:
+    - name: sdk-nrf
+      remote: nrf
+      path: nrf
+      # Pinned to the latest stable NCS release at the time of submission.
+      # Vendor maintainers should update this revision when a new stable release
+      # is available by submitting a pull request to the zephyr-ide repository.
+      revision: v2.7.0
+      import:
+        path-prefix: external
+      clone-depth: 1
