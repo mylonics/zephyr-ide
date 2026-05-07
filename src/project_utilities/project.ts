@@ -588,16 +588,17 @@ export async function changeProjectNameInCMakeFile(projectPath: string, newProje
  * declared in the file.
  */
 export async function addSampleProjectsFromFile(wsConfig: WorkspaceConfig, context: vscode.ExtensionContext): Promise<boolean | undefined> {
-  const samplePaths = getZephyrIdeSampleProjects(wsConfig);
-  if (samplePaths.length === 0) {
+  const sampleConfigs = getZephyrIdeSampleProjects(wsConfig);
+  if (sampleConfigs.length === 0) {
     return undefined;
   }
 
   // Reject absolute paths and paths that escape the workspace root.
   // upath always normalises to forward slashes; toUnix() makes this explicit.
   const rootNormalized = path.toUnix(path.normalize(wsConfig.rootPath)) + '/';
-  const validPaths: string[] = [];
-  for (const relPath of samplePaths) {
+  const validConfigs: typeof sampleConfigs = [];
+  for (const sample of sampleConfigs) {
+    const relPath = sample.rel_path;
     if (path.isAbsolute(relPath)) {
       void vscode.window.showWarningMessage(`Skipping absolute path "${relPath}" in sampleProjects — entries must be relative to the workspace root.`);
       continue;
@@ -607,41 +608,40 @@ export async function addSampleProjectsFromFile(wsConfig: WorkspaceConfig, conte
       void vscode.window.showWarningMessage(`Skipping "${relPath}" in sampleProjects — path resolves outside the workspace root.`);
       continue;
     }
-    validPaths.push(relPath);
+    validConfigs.push(sample);
   }
 
-  if (validPaths.length === 0) {
+  if (validConfigs.length === 0) {
     return undefined;
   }
 
-  // Count basenames to detect duplicates so we can disambiguate project names.
-  const basenameCounts = new Map<string, number>();
-  for (const relPath of validPaths) {
-    const bn = path.basename(relPath);
-    basenameCounts.set(bn, (basenameCounts.get(bn) ?? 0) + 1);
+  // Count project names to detect duplicates so we can disambiguate.
+  const nameCounts = new Map<string, number>();
+  for (const sample of validConfigs) {
+    nameCounts.set(sample.name, (nameCounts.get(sample.name) ?? 0) + 1);
   }
-  const projectNameFor = (relPath: string): string => {
-    const bn = path.basename(relPath);
-    if ((basenameCounts.get(bn) ?? 0) > 1) {
+  const projectNameFor = (sample: { name: string; rel_path: string }): string => {
+    if ((nameCounts.get(sample.name) ?? 0) > 1) {
       // Include the parent segment to make the name unique.
-      // When there is no parent (single-segment path, dirname === '.'), fall back to basename.
-      const dir = path.dirname(relPath);
+      // When there is no parent (single-segment path, dirname === '.'), fall back to the name.
+      const dir = path.dirname(sample.rel_path);
       if (dir !== '.') {
-        return path.join(path.basename(dir), bn);
+        return path.join(path.basename(dir), sample.name);
       }
     }
-    return bn;
+    return sample.name;
   };
 
-  const items: (vscode.QuickPickItem & { resolvedPath: string; projectName: string })[] = validPaths.map(relPath => {
-    const resolvedPath = path.join(wsConfig.rootPath, relPath);
-    const projectName = projectNameFor(relPath);
+  const items = validConfigs.map(sample => {
+    const resolvedPath = path.join(wsConfig.rootPath, sample.rel_path);
+    const projectName = projectNameFor(sample);
     const alreadyAdded = !!wsConfig.projects[projectName];
     return {
       label: projectName,
-      description: relPath,
+      description: sample.rel_path,
       detail: alreadyAdded ? "(already in workspace)" : undefined,
       resolvedPath,
+      sample,
       projectName,
       picked: !alreadyAdded,
     };
@@ -679,12 +679,12 @@ export async function addSampleProjectsFromFile(wsConfig: WorkspaceConfig, conte
         continue;
       }
     }
+    // Use the stored config snapshot (which may include pre-configured build
+    // configs, conf files, and twister configs) when registering the project.
     wsConfig.projects[projectName] = {
-      rel_path: path.relative(wsConfig.rootPath, projectPath),
+      ...item.sample,
       name: projectName,
-      buildConfigs: {},
-      twisterConfigs: {},
-      confFiles: { config: [], overlay: [] },
+      rel_path: path.relative(wsConfig.rootPath, projectPath),
     };
     wsConfig.projectStates[projectName] = { buildStates: {}, viewOpen: true, twisterStates: {} };
     lastAdded = projectName;

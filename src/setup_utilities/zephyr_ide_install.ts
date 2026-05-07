@@ -29,6 +29,7 @@ limitations under the License.
 import * as vscode from "vscode";
 import * as path from "upath";
 import { WorkspaceConfig, GlobalConfig } from "./types";
+import type { ProjectConfig } from "../project_utilities/project";
 import { toolchainTargets } from "../defines";
 import {
     listAvailableSDKs,
@@ -480,32 +481,52 @@ export async function installZephyrIdeBlobs(
 // ---------------------------------------------------------------------------
 
 /**
+ * Compare the configuration-only fields of two ProjectConfig objects
+ * (build configs, conf files, and twister configs), ignoring name and rel_path
+ * which are handled separately.
+ */
+function projectConfigContentEquals(a: ProjectConfig, b: ProjectConfig): boolean {
+    return (
+        JSON.stringify(a.buildConfigs) === JSON.stringify(b.buildConfigs) &&
+        JSON.stringify(a.confFiles) === JSON.stringify(b.confFiles) &&
+        JSON.stringify(a.twisterConfigs) === JSON.stringify(b.twisterConfigs)
+    );
+}
+
+/**
  * Open a QuickPick that lets the user select which workspace projects should
  * be declared as `sampleProjects` in `.vscode/zephyr-ide.json`.
  *
- * - Projects already in `sampleProjects` at the current path are pre-checked.
+ * - Projects already in `sampleProjects` at the current path AND with no
+ *   configuration changes are pre-checked with a "already in sampleProjects"
+ *   indicator.
+ * - Projects at the same path but whose builds, args, or conf files have
+ *   changed are highlighted as "settings changed" and pre-checked.
  * - Projects that exist in `sampleProjects` under the same name but at a
  *   different path (i.e. the project was moved) are shown with a "path
  *   changed" indicator and pre-checked so the user can confirm the update.
  * - Workspace projects not yet declared are shown unchecked.
  *
- * The selected set is saved back to `sampleProjects` in zephyr-ide.json.
+ * When the user confirms, the full `ProjectConfig` (including build configs,
+ * args, and conf files) is saved back to `sampleProjects` in zephyr-ide.json,
+ * so subsequent runs can detect settings changes.
  */
 export async function modifyZephyrIdeSampleProjectsInteractive(
     wsConfig: WorkspaceConfig,
-): Promise<string[] | undefined> {
+): Promise<ProjectConfig[] | undefined> {
     if (!wsConfig.rootPath) {
         notifyError("Zephyr IDE Sample Projects", "No active workspace folder.");
         return undefined;
     }
 
-    const currentPaths = new Set(getZephyrIdeSampleProjects(wsConfig));
+    const currentSamples = getZephyrIdeSampleProjects(wsConfig);
 
-    // Build a lookup: project name (basename of stored path) → stored path,
-    // so we can detect when a project's path has changed.
-    const storedByName = new Map<string, string>();
-    for (const p of currentPaths) {
-        storedByName.set(path.basename(p), p);
+    // Build lookups: by path (for exact match) and by name (for path-change detection).
+    const storedByPath = new Map<string, ProjectConfig>();
+    const storedByName = new Map<string, ProjectConfig>();
+    for (const s of currentSamples) {
+        storedByPath.set(s.rel_path, s);
+        storedByName.set(s.name, s);
     }
 
     const projects = Object.values(wsConfig.projects);
@@ -516,34 +537,54 @@ export async function modifyZephyrIdeSampleProjectsInteractive(
         return undefined;
     }
 
-    type Item = vscode.QuickPickItem & { relPath: string };
+    type Item = vscode.QuickPickItem & { relPath: string; projName: string };
 
     const samePathItems: Item[] = [];
-    const changedPathItems: Item[] = [];
+    const changedItems: Item[] = [];
     const newItems: Item[] = [];
 
     for (const proj of projects) {
         const relPath = proj.rel_path;
         const projName = proj.name;
 
-        if (currentPaths.has(relPath)) {
-            // Already declared at this exact path.
-            samePathItems.push({
-                label: projName,
-                description: relPath,
-                detail: "$(check) already in sampleProjects",
-                picked: true,
-                relPath,
-            });
+        if (storedByPath.has(relPath)) {
+            // Same path — check whether any settings changed.
+            const stored = storedByPath.get(relPath)!;
+            if (projectConfigContentEquals(proj, stored)) {
+                // Exact match: path and all settings are the same.
+                samePathItems.push({
+                    label: projName,
+                    description: relPath,
+                    detail: "$(check) already in sampleProjects",
+                    picked: true,
+                    relPath,
+                    projName,
+                });
+            } else {
+                // Same path but builds, args, or conf files changed.
+                changedItems.push({
+                    label: projName,
+                    description: relPath,
+                    detail: "$(warning) settings changed (builds, args, or conf files)",
+                    picked: true,
+                    relPath,
+                    projName,
+                });
+            }
         } else if (storedByName.has(projName)) {
-            // Same project name but different path — path was changed.
-            const oldPath = storedByName.get(projName)!;
-            changedPathItems.push({
+            // Same project name but different path — project was moved.
+            const stored = storedByName.get(projName)!;
+            const settingsOk = projectConfigContentEquals(proj, stored);
+            const detail = settingsOk
+                ? `$(warning) path changed (was: ${stored.rel_path})`
+                : `$(warning) path and settings changed (was: ${stored.rel_path})`;
+            changedItems.push({
                 label: projName,
                 description: relPath,
-                detail: `$(warning) path changed (was: ${oldPath})`,
+                detail,
                 picked: true,
                 relPath,
+                projName,
             });
         } else {
             // Not yet in sampleProjects.
@@ -552,18 +593,19 @@ export async function modifyZephyrIdeSampleProjectsInteractive(
                 description: relPath,
                 picked: false,
                 relPath,
+                projName,
             });
         }
     }
 
     samePathItems.sort((a, b) => a.label.localeCompare(b.label));
-    changedPathItems.sort((a, b) => a.label.localeCompare(b.label));
+    changedItems.sort((a, b) => a.label.localeCompare(b.label));
     newItems.sort((a, b) => a.label.localeCompare(b.label));
 
     const items: vscode.QuickPickItem[] = [];
-    if (changedPathItems.length > 0) {
-        items.push({ label: "Path changed — review and confirm", kind: vscode.QuickPickItemKind.Separator });
-        items.push(...changedPathItems);
+    if (changedItems.length > 0) {
+        items.push({ label: "Path or settings changed — review and confirm", kind: vscode.QuickPickItemKind.Separator });
+        items.push(...changedItems);
     }
     if (samePathItems.length > 0) {
         items.push({ label: "Already in sampleProjects", kind: vscode.QuickPickItemKind.Separator });
@@ -586,12 +628,16 @@ export async function modifyZephyrIdeSampleProjectsInteractive(
         return undefined;
     }
 
-    const relPaths = (picked as Item[])
+    // Save the full ProjectConfig for each selected project so future runs can
+    // detect settings changes (not just path changes).
+    const selectedProjects = (picked as Item[])
         .filter(i => i.kind !== vscode.QuickPickItemKind.Separator)
-        .map(i => i.relPath);
-    await setZephyrIdeSampleProjects(wsConfig, relPaths);
-    outputInfo("Zephyr IDE Sample Projects", `Saved ${relPaths.length} sample project(s) to zephyr-ide.json`);
-    return relPaths;
+        .map(i => wsConfig.projects[i.projName])
+        .filter((p): p is ProjectConfig => p !== undefined);
+
+    await setZephyrIdeSampleProjects(wsConfig, selectedProjects);
+    outputInfo("Zephyr IDE Sample Projects", `Saved ${selectedProjects.length} sample project(s) to zephyr-ide.json`);
+    return selectedProjects;
 }
 
 // ---------------------------------------------------------------------------
