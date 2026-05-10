@@ -199,5 +199,61 @@ domains:
         assert.ok(cfg);
         assert.strictEqual(cfg.servertype, "bmp");
         assert.strictEqual(cfg.BMPGDBSerialPort, "/dev/ttyACM0");
+        assert.strictEqual(cfg.interface, "swd");
+        assert.strictEqual(cfg.rtos, undefined, "BMP does not support RTOS option");
+    });
+
+    test("buildCortexDebugConfig: BMP defaults interface to swd when no args", () => {
+        const ry: any = {
+            elfFile: "/p/zephyr.elf",
+            gdb: "/sdk/gdb",
+            runners: ["blackmagicprobe"],
+            args: { blackmagicprobe: ["--gdb-serial=COM3"] },
+        };
+        const cfg: any = buildCortexDebugConfig(ry, "blackmagicprobe");
+        assert.ok(cfg);
+        assert.strictEqual(cfg.interface, "swd");
+    });
+
+    test("buildCortexDebugConfig: BMP --interface arg overrides default", () => {
+        const ry: any = {
+            elfFile: "/p/zephyr.elf",
+            gdb: "/sdk/gdb",
+            runners: ["blackmagicprobe"],
+            args: { blackmagicprobe: ["--gdb-serial=/dev/ttyACM0", "--interface=jtag"] },
+        };
+        const cfg: any = buildCortexDebugConfig(ry, "blackmagicprobe");
+        assert.ok(cfg);
+        assert.strictEqual(cfg.interface, "jtag");
+    });
+
+    test("buildCortexDebugConfig: BMP serial port from userArgs (no runners.yaml args)", () => {
+        // Simulates the case where --gdb-serial=COM3 is only in the RunnerConfig
+        // (e.g. build.runnerConfigs.blackmagicprobe.args) and runners.yaml has no args.
+        const ry: any = {
+            elfFile: "/p/zephyr.elf",
+            gdb: "/sdk/gdb",
+            runners: ["blackmagicprobe"],
+            args: {},
+        };
+        const cfg: any = buildCortexDebugConfig(ry, "blackmagicprobe", {
+            userArgs: ["--gdb-serial=COM3"],
+        });
+        assert.ok(cfg);
+        assert.strictEqual(cfg.BMPGDBSerialPort, "COM3");
+        assert.strictEqual(cfg.interface, "swd");
+        assert.strictEqual(cfg.rtos, undefined, "BMP does not support RTOS option");
+    });
+
+    test("buildCortexDebugConfig: non-BMP runners include rtos=Zephyr", () => {
+        const ry: any = {
+            elfFile: "/p/zephyr.elf",
+            gdb: "/sdk/gdb",
+            runners: ["openocd"],
+            args: {},
+        };
+        const cfg: any = buildCortexDebugConfig(ry, "openocd");
+        assert.ok(cfg);
+        assert.strictEqual(cfg.rtos, "Zephyr");
     });
 });

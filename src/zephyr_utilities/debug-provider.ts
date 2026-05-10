@@ -27,6 +27,7 @@ limitations under the License.
 
 import * as vscode from "vscode";
 import * as path from "upath";
+import * as fs from "fs";
 import {
   parseRunnersYaml,
   resolveRunnersYamlPath,
@@ -83,8 +84,13 @@ export function buildCortexDebugConfig(
     request: options.request || "launch",
     cwd: options.cwd || "${workspaceFolder}",
     servertype: serverType,
-    rtos: "Zephyr",
   };
+
+  // BMP's GDB server does not support RTOS awareness — omit the rtos field
+  // so cortex-debug doesn't attempt to load the Zephyr RTOS plugin.
+  if (serverType !== "bmp") {
+    cfg.rtos = "Zephyr";
+  }
 
   if (runnersYaml.elfFile) {
     cfg.executable = runnersYaml.elfFile;
@@ -124,6 +130,22 @@ export function buildCortexDebugConfig(
           configFiles.push(a.slice("--openocd-config=".length));
         } else if (a.startsWith("--openocd-search=")) {
           searchDir.push(a.slice("--openocd-search=".length));
+        }
+      }
+      // Fallback: use the board-level openocd.cfg when runners.yaml args
+      // don't carry any -f flags. Zephyr boards typically ship
+      // support/openocd.cfg that sources both the interface (probe) and
+      // target configs, matching what `west debug` uses at runtime.
+      if (!configFiles.length && runnersYaml.boardDir) {
+        const candidates = [
+          path.join(runnersYaml.boardDir, "support", "openocd.cfg"),
+          path.join(runnersYaml.boardDir, "openocd.cfg"),
+        ];
+        for (const candidate of candidates) {
+          if (fs.existsSync(candidate)) {
+            configFiles.push(candidate);
+            break;
+          }
         }
       }
       if (configFiles.length) { cfg.configFiles = configFiles; }
@@ -183,6 +205,9 @@ export function buildCortexDebugConfig(
       break;
     }
     case "bmp": {
+      // SWD is the overwhelmingly common interface for Black Magic Probe;
+      // default it here so cortex-debug doesn't have to guess.
+      cfg.interface = "swd";
       for (let i = 0; i < runnerArgs.length; i++) {
         const a = runnerArgs[i];
         if (a === "--gdb-serial") {
@@ -190,6 +215,13 @@ export function buildCortexDebugConfig(
           if (next) { cfg.BMPGDBSerialPort = next; i++; }
         } else if (a.startsWith("--gdb-serial=")) {
           cfg.BMPGDBSerialPort = a.slice("--gdb-serial=".length);
+        } else if (a === "--iface" || a === "--interface") {
+          const next = runnerArgs[i + 1];
+          if (next) { cfg.interface = next; i++; }
+        } else if (a.startsWith("--iface=")) {
+          cfg.interface = a.slice("--iface=".length);
+        } else if (a.startsWith("--interface=")) {
+          cfg.interface = a.slice("--interface=".length);
         }
       }
       break;
@@ -235,7 +267,7 @@ export class ZephyrIdeDebugConfigurationProvider
   /**
    * Provide an initial launch configuration when the user has no launch.json
    * yet. Kept intentionally minimal — the heavy lifting happens in
-   * resolveDebugConfigurationWithSubstitutedVariables.
+   * resolveDebugConfiguration.
    */
   provideDebugConfigurations(): vscode.ProviderResult<vscode.DebugConfiguration[]> {
     return [
@@ -248,12 +280,15 @@ export class ZephyrIdeDebugConfigurationProvider
   }
 
   /**
-   * Translate the (already variable-substituted) `zephyr-ide` config into a
-   * cortex-debug config by parsing runners.yaml. We use the
-   * "WithSubstitutedVariables" variant so any `${command:...}` / `${input:...}`
-   * are already resolved by VS Code before we run.
+   * Translate the `zephyr-ide` config into a cortex-debug config by parsing
+   * runners.yaml. Implemented in resolveDebugConfiguration (before variable
+   * substitution) so that VS Code re-runs the full cortex-debug resolver chain
+   * on the returned config — cortex-debug's own resolveDebugConfiguration sets
+   * extensionPath, gdbServerConsolePort, pvtAvoidPorts and validates the config,
+   * and its resolveDebugConfigurationWithSubstitutedVariables normalises paths.
+   * This means we don't need to fake any cortex-debug internal fields ourselves.
    */
-  resolveDebugConfigurationWithSubstitutedVariables(
+  resolveDebugConfiguration(
     folder: vscode.WorkspaceFolder | undefined,
     debugConfig: vscode.DebugConfiguration,
   ): vscode.ProviderResult<vscode.DebugConfiguration> {
@@ -310,8 +345,15 @@ export class ZephyrIdeDebugConfigurationProvider
     // B6: Merge user-supplied runner args (from active RunnerConfig, cascaded
     // global→project→build) into the debug config so that settings like
     // --speed or custom OpenOCD config files are honoured by the debugger too.
+    //
+    // Lookup order:
+    //   1. The explicitly-selected "active runner" (set via Set Active Runner UI)
+    //   2. A runnerConfig whose name matches the runner picked from runners.yaml
+    //      (so "--gdb-serial=COM3" works without having to set an active runner)
     let userArgs: string[] | undefined;
-    const activeRunnerName = wsConfig.projectStates?.[resolved.projectName]?.buildStates?.[resolved.buildName]?.activeRunner;
+    const activeRunnerName =
+      wsConfig.projectStates?.[resolved.projectName]?.buildStates?.[resolved.buildName]?.activeRunner
+      ?? (resolved.build.runnerConfigs?.[runner] ? runner : undefined);
     if (activeRunnerName && resolved.build.runnerConfigs?.[activeRunnerName]) {
       const eff = resolveEffectiveRunner(
         resolved.project.runnerConfigs ?? {},
@@ -349,6 +391,26 @@ export class ZephyrIdeDebugConfigurationProvider
       if (v !== undefined) {
         (cortexCfg as any)[k] = v;
       }
+    }
+
+    // BMP requires a serial port (BMPGDBSerialPort) for cortex-debug to open
+    // the GDB server connection. If it is still absent after merging user
+    // overrides, the session will fail immediately with an unhelpful error.
+    // Catch it here and surface an actionable message instead.
+    if (cortexCfg.servertype === "bmp" && !(cortexCfg as any).BMPGDBSerialPort) {
+      const isWindows = process.platform === "win32";
+      const examplePort = isWindows ? "COM3" : "/dev/ttyACM0";
+      void vscode.window.showErrorMessage(
+        `Black Magic Probe debug requires a GDB serial port (BMPGDBSerialPort). ` +
+        `Add "--gdb-serial=${examplePort}" to the runner args in Zephyr IDE, ` +
+        `or set "BMPGDBSerialPort": "${examplePort}" in your zephyr-ide launch.json entry.`,
+        "Open Runner Settings"
+      ).then(choice => {
+        if (choice === "Open Runner Settings") {
+          void vscode.commands.executeCommand("zephyr-ide.open-project-build-panel");
+        }
+      });
+      return undefined;
     }
 
     // Issue #16/#35: log what we resolved so support can triage why a debug

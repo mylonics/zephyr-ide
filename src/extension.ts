@@ -1487,13 +1487,6 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.debug.registerDebugConfigurationProvider("zephyr-ide", zephyrIdeDebugProvider)
   );
-  context.subscriptions.push(
-    vscode.debug.registerDebugConfigurationProvider(
-      "zephyr-ide",
-      zephyrIdeDebugProvider,
-      vscode.DebugConfigurationProviderTriggerKind.Dynamic
-    )
-  );
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.show-container", async () => {
