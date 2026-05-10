@@ -86,9 +86,9 @@ export function buildCortexDebugConfig(
     servertype: serverType,
   };
 
-  // BMP's GDB server does not support RTOS awareness — omit the rtos field
-  // so cortex-debug doesn't attempt to load the Zephyr RTOS plugin.
-  if (serverType !== "bmp") {
+  // Only openocd and jlink support the rtos field in cortex-debug.
+  // stlink, pyocd, and bmp don't support it and will error if it's set.
+  if (serverType === "openocd" || serverType === "jlink") {
     cfg.rtos = "Zephyr";
   }
 
@@ -204,6 +204,24 @@ export function buildCortexDebugConfig(
       }
       break;
     }
+    case "stlink": {
+      // Zephyr's stlink runner args rarely carry a --device flag, but a
+      // sibling jlink runner often does (e.g. --device=STM32F103C8).
+      // Fall back to that so cortex-debug can pass the target to ST-LINK GDB server.
+      const allArgs = [
+        ...runnerArgs,
+        ...(runnersYaml.args["jlink"] ?? []),
+      ];
+      for (let i = 0; i < allArgs.length; i++) {
+        const a = allArgs[i];
+        const dev =
+          a === "--device" ? allArgs[i + 1] :
+          a.startsWith("--device=") ? a.slice("--device=".length) :
+          undefined;
+        if (dev !== undefined && !cfg.device) { cfg.device = dev; if (a === "--device") { i++; } continue; }
+      }
+      break;
+    }
     case "bmp": {
       // SWD is the overwhelmingly common interface for Black Magic Probe;
       // default it here so cortex-debug doesn't have to guess.
@@ -288,10 +306,10 @@ export class ZephyrIdeDebugConfigurationProvider
    * and its resolveDebugConfigurationWithSubstitutedVariables normalises paths.
    * This means we don't need to fake any cortex-debug internal fields ourselves.
    */
-  resolveDebugConfiguration(
+  async resolveDebugConfiguration(
     folder: vscode.WorkspaceFolder | undefined,
     debugConfig: vscode.DebugConfiguration,
-  ): vscode.ProviderResult<vscode.DebugConfiguration> {
+  ): Promise<vscode.DebugConfiguration | undefined> {
     const wsConfig = this.getWorkspaceConfig();
     if (!wsConfig) {
       notifyError("Debug", "Zephyr IDE workspace is not initialized.");
@@ -411,6 +429,33 @@ export class ZephyrIdeDebugConfigurationProvider
         }
       });
       return undefined;
+    }
+
+    // Ensure cortex-debug's backend console server is ready before we return.
+    // VS Code re-runs cortex-debug's resolveDebugConfiguration after we switch the
+    // type from 'zephyr-ide' to 'cortex-debug'. That resolver rejects immediately
+    // (returning undefined) if GDBServerConsole.BackendPort <= 0. Waiting here
+    // guarantees the server is listening so cortex-debug's check passes.
+    // We also set gdbServerConsolePort ourselves as a safety net in case VS Code
+    // does not re-run cortex-debug's resolver in some edge case.
+    const cortexDebugExt = vscode.extensions.getExtension('marus25.cortex-debug');
+    if (cortexDebugExt) {
+      if (!cortexDebugExt.isActive) {
+        await cortexDebugExt.activate();
+      }
+      const extApi = cortexDebugExt.exports as any;
+      // isServerAlive() returns true only after listen() callback fires, i.e. the
+      // TCP server is actually bound. toBackendPort is set before listen() starts,
+      // so we must check isServerAlive() rather than just toBackendPort > 0.
+      const maxTries = 20; // 20 × 100 ms = 2 s
+      for (let i = 0; i < maxTries; i++) {
+        const instance = extApi?.gdbServerConsole;
+        if (typeof instance?.isServerAlive === "function" && instance.isServerAlive()) {
+          (cortexCfg as any).gdbServerConsolePort = instance.toBackendPort;
+          break;
+        }
+        await new Promise<void>(resolve => setTimeout(resolve, 100));
+      }
     }
 
     // Issue #16/#35: log what we resolved so support can triage why a debug
