@@ -566,7 +566,11 @@ export class ProjectBuildPanel {
   }
 
   private async handleUpdateRunner(message: Record<string, any>) {
-    // TODO: Update to new RunnerBind UI - stub for now
+    // TODO: Update to new RunnerBind UI - stub for now.
+    // The current build-section.ts UI sends per-field updates that the new
+    // four-bind model cannot apply. Until the Stage 2 UI is in place, drop
+    // these events silently rather than dirtying workspace state on every
+    // blur of a text input.
     const projectName = this._selectedProject;
     const buildName = String(message.build ?? "");
     const runnerName = String(message.runner ?? "");
@@ -577,12 +581,11 @@ export class ProjectBuildPanel {
     if (!runner) {
       return;
     }
-    await setWorkspaceState(this._context, this._wsConfig);
-    await this.refreshAfterChange();
+    // No state mutation yet — see TODO above.
   }
 
   private async handleUpdateProjectRunner(message: Record<string, any>) {
-    // TODO: Update to new RunnerBind UI - stub for now
+    // TODO: Update to new RunnerBind UI - stub for now. See handleUpdateRunner.
     const projectName = this._selectedProject;
     const runnerName = String(message.runner ?? "");
     if (!projectName || !runnerName) {
@@ -592,8 +595,7 @@ export class ProjectBuildPanel {
     if (!runner) {
       return;
     }
-    await setWorkspaceState(this._context, this._wsConfig);
-    await this.refreshAfterChange();
+    // No state mutation yet — see TODO above.
   }
 
   private async refreshAfterChange() {

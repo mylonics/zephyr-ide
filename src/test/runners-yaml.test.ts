@@ -145,6 +145,18 @@ domains:
         assert.strictEqual(pickDebugRunner(ry3), undefined);
     });
 
+    test("pickDebugRunner: requested-runner fallback skips non-cortex-debug debugRunner", () => {
+        // debugRunner is qemu (not cortex-debug-capable). Requested runner
+        // "pyocd" is not in runners.yaml. Fallback should not return qemu;
+        // it should walk runners.yaml.runners for the first capable one.
+        const ry: any = { runners: ["openocd", "qemu"], debugRunner: "qemu", args: {} };
+        assert.strictEqual(pickDebugRunner(ry, "pyocd"), "openocd");
+        // When no capable runner exists either, return the requested name so
+        // the caller can produce a useful "cannot translate" error.
+        const ry2: any = { runners: ["qemu"], debugRunner: "qemu", args: {} };
+        assert.strictEqual(pickDebugRunner(ry2, "pyocd"), "pyocd");
+    });
+
     test("buildCortexDebugConfig builds a jlink config with device/speed extracted", () => {
         const ry: any = {
             elfFile: "/p/zephyr.elf",

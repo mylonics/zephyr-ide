@@ -41,7 +41,9 @@ export async function flashByName(context: vscode.ExtensionContext, wsConfig: Wo
   
   let runner = "default", args = "";
   if (runnerName) {
-    const runnerConfig = buildConfig.runnerConfigs[runnerName];
+    // Fall back to project-level runners ("inherited by builds with same name")
+    // when the build doesn't define one under that name.
+    const runnerConfig = buildConfig.runnerConfigs[runnerName] ?? project.runnerConfigs?.[runnerName];
     if (runnerConfig) {
       const variants = loadRunnerVariants(wsConfig);
       const resolved = resolveBind(runnerConfig.flash, variants);
@@ -49,12 +51,15 @@ export async function flashByName(context: vscode.ExtensionContext, wsConfig: Wo
         runner = resolved.runner;
         args = resolved.args;
       }
+      if (runnerConfig.flash.kind === "launch") {
+        outputWarning("Flash", `Runner "${runnerName}" has flash bind set to launch.json config, which is not valid for flashing. Using default runner.`);
+      }
     } else {
-      notifyError("Flash", `Runner not found: "${runnerName}" in build "${buildName}"`);
+      notifyError("Flash", `Runner not found: "${runnerName}" in build "${buildName}" or project "${projectName}"`);
       return;
     }
   }
-  
+
   await flash(context, wsConfig, project, buildConfig, runner, args);
 }
 
@@ -64,9 +69,16 @@ export async function flashActive(context: vscode.ExtensionContext, wsConfig: Wo
 
   const activeRunnerName = wsConfig.projectStates?.[resolved.projectName]?.buildStates?.[resolved.buildName]?.activeRunner;
   let runner = "default", args = "";
-  
-  if (activeRunnerName && resolved.build.runnerConfigs[activeRunnerName]) {
-    const rc = resolved.build.runnerConfigs[activeRunnerName];
+
+  // Fall back to project-level runner configs when the build doesn't define one
+  // under that name (matches the "inherited by builds with same name" UI promise).
+  const activeRunnerConfig = activeRunnerName
+    ? (resolved.build.runnerConfigs[activeRunnerName]
+       ?? resolved.project.runnerConfigs?.[activeRunnerName])
+    : undefined;
+
+  if (activeRunnerName && activeRunnerConfig) {
+    const rc = activeRunnerConfig;
     const variants = loadRunnerVariants(wsConfig);
     const resolved2 = resolveBind(rc.flash, variants);
     if (resolved2) {

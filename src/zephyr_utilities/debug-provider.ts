@@ -281,9 +281,18 @@ export function pickDebugRunner(
   if (requested) { 
     // Check if requested runner is in runners.yaml
     const hasRunner = runnersYaml.runners.includes(requested) || (requested in runnersYaml.args);
-    if (!hasRunner && runnersYaml.debugRunner) {
+    if (!hasRunner && runnersYaml.debugRunner && runnerToServerType(runnersYaml.debugRunner)) {
       outputInfo("Debug", `Requested runner "${requested}" not found in runners.yaml. Falling back to debugRunner "${runnersYaml.debugRunner}".`);
       return runnersYaml.debugRunner;
+    }
+    if (!hasRunner) {
+      // Fall through to the first cortex-debug-capable runner; debugRunner
+      // (if set) cannot be driven by cortex-debug, so prefer something usable.
+      const fallback = runnersYaml.runners.find(r => runnerToServerType(r) !== undefined);
+      if (fallback) {
+        outputInfo("Debug", `Requested runner "${requested}" not found in runners.yaml. Falling back to cortex-debug-capable runner "${fallback}".`);
+        return fallback;
+      }
     }
     return requested; 
   }
@@ -365,10 +374,15 @@ export class ZephyrIdeDebugConfigurationProvider
     }
 
     // The zephyr-ide debugger type synthesizes a cortex-debug config, so
-    // cortex-debug (or a compatible fork) must be installed for the session
-    // to actually start. Surface an actionable error with marketplace +
-    // open-vsx install links before we do any further work.
-    if (!vscode.extensions.getExtension(CORTEX_DEBUG_EXTENSION_ID)) {
+    // cortex-debug (or a compatible fork such as mylonics.bmp-debug, which
+    // registers the same debugger type and is Zephyr-RTOS aware) must be
+    // installed for the session to actually start. Surface an actionable
+    // error with marketplace + open-vsx install links before we do any
+    // further work.
+    if (
+      !vscode.extensions.getExtension(CORTEX_DEBUG_EXTENSION_ID) &&
+      !vscode.extensions.getExtension(BMP_DEBUG_EXTENSION_ID)
+    ) {
       void vscode.window.showErrorMessage(
         "Zephyr IDE debug sessions require the cortex-debug extension. " +
         "Install it from your editor's marketplace and try again.",
@@ -429,12 +443,23 @@ export class ZephyrIdeDebugConfigurationProvider
     }
 
     // Merge user-supplied runner args from active RunnerConfig bind.
+    // Look up the active runner in build.runnerConfigs first, then fall back
+    // to project.runnerConfigs (which the UI promises are "inherited by builds
+    // with same name"). Without this fallback, project-level runners are
+    // orphaned at runtime.
     let userArgs: string[] | undefined;
+    const stateActiveRunner =
+      wsConfig.projectStates?.[resolved.projectName]?.buildStates?.[resolved.buildName]?.activeRunner;
+    const projectRunnerConfigs = resolved.project.runnerConfigs ?? {};
     const activeRunnerName =
-      wsConfig.projectStates?.[resolved.projectName]?.buildStates?.[resolved.buildName]?.activeRunner
-      ?? (resolved.build.runnerConfigs?.[runner] ? runner : undefined);
-    if (activeRunnerName && resolved.build.runnerConfigs?.[activeRunnerName]) {
-      const rc = resolved.build.runnerConfigs[activeRunnerName];
+      stateActiveRunner
+      ?? (resolved.build.runnerConfigs?.[runner] ? runner : undefined)
+      ?? (projectRunnerConfigs[runner] ? runner : undefined);
+    const activeRunnerConfig = activeRunnerName
+      ? (resolved.build.runnerConfigs?.[activeRunnerName] ?? projectRunnerConfigs[activeRunnerName])
+      : undefined;
+    if (activeRunnerName && activeRunnerConfig) {
+      const rc = activeRunnerConfig;
       const variants = loadRunnerVariants(wsConfig);
       // Use buildDebug for launch, attach for attach
       const bind = cfg.request === "attach" ? rc.attach : rc.buildDebug;

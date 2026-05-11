@@ -322,9 +322,10 @@ async function startDebugSession(
       notifyError("Debug", "No active project or build configuration found");
       return;
     }
+    const baseName = mode === 'attach' ? "Zephyr IDE: Attach" : "Zephyr IDE: Debug";
     const inlineCfg: vscode.DebugConfiguration = {
       type: "zephyr-ide",
-      name: mode === 'attach' ? "Zephyr IDE: Attach" : "Zephyr IDE: Debug",
+      name: pinnedRunner ? `${baseName} (${pinnedRunner})` : baseName,
       request: mode === 'attach' ? "attach" : "launch",
       ...(pinnedRunner ? { runner: pinnedRunner } : {}),
     };
