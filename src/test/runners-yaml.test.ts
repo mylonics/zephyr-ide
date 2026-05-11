@@ -133,7 +133,11 @@ domains:
 
     test("pickDebugRunner respects explicit, then debug-runner, then list head", () => {
         const ry: any = { runners: ["jlink", "openocd"], debugRunner: "openocd", args: {} };
-        assert.strictEqual(pickDebugRunner(ry, "pyocd"), "pyocd");
+        // Explicit runner that IS in runners.yaml is returned as-is.
+        assert.strictEqual(pickDebugRunner(ry, "jlink"), "jlink");
+        // Explicit runner that is NOT in runners.yaml falls back to debugRunner
+        // (with a warning logged) to avoid silently producing an empty-args config.
+        assert.strictEqual(pickDebugRunner(ry, "pyocd"), "openocd");
         assert.strictEqual(pickDebugRunner(ry), "openocd");
         const ry2: any = { runners: ["jlink"], args: {} };
         assert.strictEqual(pickDebugRunner(ry2), "jlink");

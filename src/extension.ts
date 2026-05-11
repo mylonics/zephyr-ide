@@ -1497,7 +1497,7 @@ export async function activate(context: vscode.ExtensionContext) {
   // to cortex-debug configurations using the build's runners.yaml.  Registered
   // for both Initial (provideDebugConfigurations) and Dynamic triggers so it
   // populates the "Add Configuration" menu and resolves at launch time.
-  const zephyrIdeDebugProvider = new ZephyrIdeDebugConfigurationProvider(() => wsConfig);
+  const zephyrIdeDebugProvider = new ZephyrIdeDebugConfigurationProvider(() => wsConfig, context);
   context.subscriptions.push(
     vscode.debug.registerDebugConfigurationProvider("zephyr-ide", zephyrIdeDebugProvider)
   );

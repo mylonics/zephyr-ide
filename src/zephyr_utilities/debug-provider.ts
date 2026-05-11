@@ -295,13 +295,40 @@ export function pickDebugRunner(
 }
 
 /**
+ * VS Code marketplace + open-vsx URLs for the cortex-debug extension we
+ * synthesize configurations for.
+ */
+const CORTEX_DEBUG_EXTENSION_ID = "marus25.cortex-debug";
+const CORTEX_DEBUG_MARKETPLACE_URL =
+  "https://marketplace.visualstudio.com/items?itemName=marus25.cortex-debug";
+const CORTEX_DEBUG_OPEN_VSX_URL =
+  "https://open-vsx.org/extension/marus25/cortex-debug";
+
+/**
+ * BMP-Debug is a Zephyr-aware fork of cortex-debug published by mylonics
+ * that adds Zephyr RTOS thread awareness when debugging via Black Magic Probe.
+ * We recommend it once on the first BMP debug session.
+ */
+const BMP_DEBUG_EXTENSION_ID = "mylonics.bmp-debug";
+const BMP_DEBUG_MARKETPLACE_URL =
+  "https://marketplace.visualstudio.com/items?itemName=mylonics.bmp-debug";
+const BMP_DEBUG_OPEN_VSX_URL =
+  "https://open-vsx.org/extension/mylonics/bmp-debug";
+
+/** globalState key recording that we already recommended bmp-debug. */
+const BMP_DEBUG_RECOMMENDED_KEY = "zephyr-ide.bmpDebugRecommended";
+
+/**
  * VS Code DebugConfigurationProvider implementation. Hands back a translated
  * cortex-debug configuration when the user launches a `zephyr-ide` config.
  */
 export class ZephyrIdeDebugConfigurationProvider
   implements vscode.DebugConfigurationProvider {
 
-  constructor(private readonly getWorkspaceConfig: () => WorkspaceConfig) {}
+  constructor(
+    private readonly getWorkspaceConfig: () => WorkspaceConfig,
+    private readonly context?: vscode.ExtensionContext,
+  ) {}
 
   /**
    * Provide an initial launch configuration when the user has no launch.json
@@ -334,6 +361,26 @@ export class ZephyrIdeDebugConfigurationProvider
     const wsConfig = this.getWorkspaceConfig();
     if (!wsConfig) {
       notifyError("Debug", "Zephyr IDE workspace is not initialized.");
+      return undefined;
+    }
+
+    // The zephyr-ide debugger type synthesizes a cortex-debug config, so
+    // cortex-debug (or a compatible fork) must be installed for the session
+    // to actually start. Surface an actionable error with marketplace +
+    // open-vsx install links before we do any further work.
+    if (!vscode.extensions.getExtension(CORTEX_DEBUG_EXTENSION_ID)) {
+      void vscode.window.showErrorMessage(
+        "Zephyr IDE debug sessions require the cortex-debug extension. " +
+        "Install it from your editor's marketplace and try again.",
+        "Open VS Code Marketplace",
+        "Open Open VSX",
+      ).then(choice => {
+        if (choice === "Open VS Code Marketplace") {
+          void vscode.env.openExternal(vscode.Uri.parse(CORTEX_DEBUG_MARKETPLACE_URL));
+        } else if (choice === "Open Open VSX") {
+          void vscode.env.openExternal(vscode.Uri.parse(CORTEX_DEBUG_OPEN_VSX_URL));
+        }
+      });
       return undefined;
     }
 
@@ -445,6 +492,31 @@ export class ZephyrIdeDebugConfigurationProvider
         `"args": "--gdb-serial ${examplePort}".`
       );
       return undefined;
+    }
+
+    // First-time BMP debug: recommend bmp-debug (Zephyr-aware cortex-debug
+    // fork) for RTOS thread awareness. Only fires once (gated by globalState),
+    // only for debug sessions (this provider isn't used for flash), and only
+    // when bmp-debug isn't already installed.
+    if (
+      cortexCfg.servertype === "bmp" &&
+      this.context &&
+      !this.context.globalState.get<boolean>(BMP_DEBUG_RECOMMENDED_KEY) &&
+      !vscode.extensions.getExtension(BMP_DEBUG_EXTENSION_ID)
+    ) {
+      void this.context.globalState.update(BMP_DEBUG_RECOMMENDED_KEY, true);
+      void vscode.window.showInformationMessage(
+        "Tip: install BMP-Debug for Zephyr RTOS thread awareness when debugging " +
+        "with Black Magic Probe. It is a Zephyr-aware fork of cortex-debug.",
+        "Open VS Code Marketplace",
+        "Open Open VSX",
+      ).then(choice => {
+        if (choice === "Open VS Code Marketplace") {
+          void vscode.env.openExternal(vscode.Uri.parse(BMP_DEBUG_MARKETPLACE_URL));
+        } else if (choice === "Open Open VSX") {
+          void vscode.env.openExternal(vscode.Uri.parse(BMP_DEBUG_OPEN_VSX_URL));
+        }
+      });
     }
 
     outputInfo("Debug", `Launching cortex-debug session with runner "${runner}"`);
