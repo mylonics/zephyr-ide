@@ -566,6 +566,7 @@ export class ProjectBuildPanel {
   }
 
   private async handleUpdateRunner(message: Record<string, any>) {
+    // TODO: Update to new RunnerBind UI - stub for now
     const projectName = this._selectedProject;
     const buildName = String(message.build ?? "");
     const runnerName = String(message.runner ?? "");
@@ -576,21 +577,12 @@ export class ProjectBuildPanel {
     if (!runner) {
       return;
     }
-    if (message["runner-type"] !== undefined) {
-      runner.runner = String(message["runner-type"]);
-    }
-    if (message["runner-args"] !== undefined) {
-      runner.args = String(message["runner-args"]);
-    }
-    if (message["runner-argsmode"] !== undefined) {
-      const mode = String(message["runner-argsmode"]);
-      runner.argsMode = (mode === "override") ? "override" : "append";
-    }
     await setWorkspaceState(this._context, this._wsConfig);
     await this.refreshAfterChange();
   }
 
   private async handleUpdateProjectRunner(message: Record<string, any>) {
+    // TODO: Update to new RunnerBind UI - stub for now
     const projectName = this._selectedProject;
     const runnerName = String(message.runner ?? "");
     if (!projectName || !runnerName) {
@@ -599,16 +591,6 @@ export class ProjectBuildPanel {
     const runner = this._wsConfig.projects[projectName]?.runnerConfigs?.[runnerName];
     if (!runner) {
       return;
-    }
-    if (message["runner-type"] !== undefined) {
-      runner.runner = String(message["runner-type"]);
-    }
-    if (message["runner-args"] !== undefined) {
-      runner.args = String(message["runner-args"]);
-    }
-    if (message["runner-argsmode"] !== undefined) {
-      const mode = String(message["runner-argsmode"]);
-      runner.argsMode = (mode === "override") ? "override" : "append";
     }
     await setWorkspaceState(this._context, this._wsConfig);
     await this.refreshAfterChange();
@@ -744,16 +726,24 @@ export class ProjectBuildPanel {
         if (details) {
           const runners: WebviewRunnerInfo[] = details.runners.map((r) => ({
             name: r.name,
-            runner: r.config.runner,
-            args: r.config.args ?? "",
-            argsMode: r.config.argsMode ?? "append",
+            runner: (r.config as any).runner ?? "",
+            args: (r.config as any).args ?? "",
+            argsMode: (r.config as any).argsMode ?? "append",
+            flash: r.config.flash,
+            build: r.config.build,
+            buildDebug: r.config.buildDebug,
+            attach: r.config.attach,
           }));
 
           const projectRunners: WebviewRunnerInfo[] = details.projectRunners.map((r) => ({
             name: r.name,
-            runner: r.config.runner,
-            args: r.config.args ?? "",
-            argsMode: r.config.argsMode ?? "append",
+            runner: (r.config as any).runner ?? "",
+            args: (r.config as any).args ?? "",
+            argsMode: (r.config as any).argsMode ?? "append",
+            flash: r.config.flash,
+            build: r.config.build,
+            buildDebug: r.config.buildDebug,
+            attach: r.config.attach,
           }));
 
           buildDetails = {

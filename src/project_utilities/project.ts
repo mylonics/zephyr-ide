@@ -23,7 +23,7 @@ import { notifyError, notifyWarningWithActions } from "../utilities/output";
 import { buildSelector, BuildConfig, BuildConfigDictionary, BuildStateDictionary } from "./build_selector";
 import { WorkspaceConfig } from "../setup_utilities/types";
 import { setWorkspaceState } from "../setup_utilities/state-management";
-import { runnerSelector, RunnerConfig, RunnerConfigDictionary, RunnerStateDictionary, resolveEffectiveRunner } from "./runner_selector";
+import { runnerSelector, RunnerConfig, RunnerConfigDictionary, RunnerStateDictionary } from "./runner_selector";
 import { configSelector, configRemover, ConfigFiles, mergeConfigFiles } from "./config_selector";
 import { setDtsContext } from "../setup_utilities/dts_interface";
 import { getSamples } from "../setup_utilities/modules";
@@ -150,8 +150,6 @@ export interface ResolvedProjectBuild extends ResolvedProject {
 export interface ResolvedProjectBuildRunner extends ResolvedProjectBuild {
   runnerName: string;
   runner: RunnerConfig;
-  /** Effective runner (type + args) after cascading global → project → build. */
-  effectiveRunner: { runner: string; args: string };
 }
 
 /** Options for resolver helpers */
@@ -233,12 +231,7 @@ export function resolveActiveProjectBuildRunner(
     if (options?.caller) { notifyError(options.caller, `Runner "${rName}" not found`); }
     return undefined;
   }
-  const effectiveRunner = resolveEffectiveRunner(
-    resolved.project.runnerConfigs ?? {},
-    resolved.build.runnerConfigs,
-    rName,
-  );
-  return { ...resolved, runnerName: rName, runner, effectiveRunner };
+  return { ...resolved, runnerName: rName, runner };
 }
 
 export async function modifyBuildArguments(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName?: string, buildName?: string) {
@@ -1000,13 +993,13 @@ export async function addRunnerToBuild(wsConfig: WorkspaceConfig, context: vscod
   const build = project.buildConfigs[buildName];
 
   // U2: Show board-supported runners first in the wizard picker.
-  // U3: Pass project runners so the argsMode step is shown only when a
-  //     same-named parent runner exists.
   const buildFolder = getBuildFolder(wsConfig, project, build);
   const hint = getRunnersYamlHint(buildFolder);
+  const existingNames = Object.keys(build.runnerConfigs);
   const result = await runnerSelector({
     availableRunners: hint?.availableRunners,
-    parentRunners: project.runnerConfigs ?? {},
+    existingNames,
+    wsConfig,
   });
 
   if (result && result.name !== undefined) {
@@ -1046,10 +1039,11 @@ export async function addRunnerToProject(wsConfig: WorkspaceConfig, context: vsc
     return;
   }
 
-  // U3: At project level the only parent is global runners (checked inside
-  //     runnerSelector). Pass empty parentRunners so the argsMode step shows
-  //     only when a same-named global runner exists.
-  const result = await runnerSelector({ parentRunners: {} });
+  const existingNames = Object.keys(project.runnerConfigs ?? {});
+  const result = await runnerSelector({ 
+    existingNames,
+    wsConfig,
+  });
   if (!result || result.name === undefined) {
     return;
   }

@@ -59,9 +59,15 @@ export interface WebviewProjectInfo {
 
 export interface WebviewRunnerInfo {
   name: string;
-  runner: string;
-  args: string;
-  argsMode: "append" | "override";
+  // Legacy fields for backward compatibility during UI transition
+  runner?: string;
+  args?: string;
+  argsMode?: "append" | "override";
+  // New fields - to be fully implemented later
+  flash?: any;
+  build?: any;
+  buildDebug?: any;
+  attach?: any;
 }
 
 export interface WebviewBuildDetails {

@@ -36,7 +36,7 @@ import {
   RunnersYaml,
 } from "./runners-yaml";
 import { resolveActiveProjectBuild } from "../project_utilities/project";
-import { resolveEffectiveRunner, parseShellArgs } from "../project_utilities/runner_selector";
+import { loadRunnerVariants, resolveBind } from "../project_utilities/runner_variants";
 import { WorkspaceConfig } from "../setup_utilities/types";
 import { notifyError, outputInfo } from "../utilities/output";
 
@@ -44,10 +44,12 @@ import { notifyError, outputInfo } from "../utilities/output";
 interface ZephyrIdeDebugConfig extends vscode.DebugConfiguration {
   /** Optional explicit Zephyr runner to use (e.g. "jlink", "openocd"). */
   runner?: string;
-  /** Optional override for project name. */
-  project?: string;
-  /** Optional override for build name. */
-  build?: string;
+}
+
+/** Simple argument splitter for shell-style quoted strings. */
+function splitArgs(args: string): string[] {
+  const match = args.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g);
+  return match ? match.map(s => s.replace(/^["']|["']$/g, "")) : [];
 }
 
 /**
@@ -57,9 +59,9 @@ interface ZephyrIdeDebugConfig extends vscode.DebugConfiguration {
  * notify the user).
  *
  * @param options.userArgs  Extra runner arguments supplied by the user's
- *   `RunnerConfig.args` (after cascading global→project→build). These are
- *   appended after the runners.yaml args so that user-supplied values take
- *   precedence when a flag can appear multiple times (last wins).
+ *   `RunnerConfig` bind. These are appended after the runners.yaml args so
+ *   that user-supplied values take precedence when a flag can appear multiple
+ *   times (last wins).
  */
 export function buildCortexDebugConfig(
   runnersYaml: RunnersYaml,
@@ -260,12 +262,23 @@ export function buildCortexDebugConfig(
  * Runners that cortex-debug cannot drive (e.g. dfu-util, nrfjprog, qemu) are
  * skipped so the user sees a clear "cannot auto-translate" message rather than
  * a silently broken session.
+ * 
+ * If the requested runner is not found in runners.yaml.runners or runners.yaml.args,
+ * falls back to debugRunner with a warning.
  */
 export function pickDebugRunner(
   runnersYaml: RunnersYaml,
   requested?: string
 ): string | undefined {
-  if (requested) { return requested; }
+  if (requested) { 
+    // Check if requested runner is in runners.yaml
+    const hasRunner = runnersYaml.runners.includes(requested) || (requested in runnersYaml.args);
+    if (!hasRunner && runnersYaml.debugRunner) {
+      outputInfo("Debug", `Requested runner "${requested}" not found in runners.yaml. Falling back to debugRunner "${runnersYaml.debugRunner}".`);
+      return runnersYaml.debugRunner;
+    }
+    return requested; 
+  }
   if (runnersYaml.debugRunner && runnerToServerType(runnersYaml.debugRunner)) {
     return runnersYaml.debugRunner;
   }
@@ -360,26 +373,25 @@ export class ZephyrIdeDebugConfigurationProvider
       return undefined;
     }
 
-    // B6: Merge user-supplied runner args (from active RunnerConfig, cascaded
-    // global→project→build) into the debug config so that settings like
-    // --speed or custom OpenOCD config files are honoured by the debugger too.
-    //
-    // Lookup order:
-    //   1. The explicitly-selected "active runner" (set via Set Active Runner UI)
-    //   2. A runnerConfig whose name matches the runner picked from runners.yaml
-    //      (so "--gdb-serial=COM3" works without having to set an active runner)
+    // Merge user-supplied runner args from active RunnerConfig bind.
     let userArgs: string[] | undefined;
     const activeRunnerName =
       wsConfig.projectStates?.[resolved.projectName]?.buildStates?.[resolved.buildName]?.activeRunner
       ?? (resolved.build.runnerConfigs?.[runner] ? runner : undefined);
     if (activeRunnerName && resolved.build.runnerConfigs?.[activeRunnerName]) {
-      const eff = resolveEffectiveRunner(
-        resolved.project.runnerConfigs ?? {},
-        resolved.build.runnerConfigs,
-        activeRunnerName,
-      );
-      const parsed = parseShellArgs(eff.args ?? "");
-      if (parsed.length > 0) { userArgs = parsed; }
+      const rc = resolved.build.runnerConfigs[activeRunnerName];
+      const variants = loadRunnerVariants(wsConfig);
+      // Use buildDebug for launch, attach for attach
+      const bind = cfg.request === "attach" ? rc.attach : rc.buildDebug;
+      if (bind.kind === "launch") {
+        // This provider shouldn't have been invoked for launch.json binds
+        outputInfo("Debug", `Runner "${activeRunnerName}" has ${cfg.request} bind set to launch.json config. Ignoring for auto-translation.`);
+      } else {
+        const resolved2 = resolveBind(bind, variants);
+        if (resolved2 && resolved2.args.trim()) {
+          userArgs = splitArgs(resolved2.args);
+        }
+      }
     }
 
     const cortexCfg = buildCortexDebugConfig(runnersYaml, runner, {
@@ -402,7 +414,7 @@ export class ZephyrIdeDebugConfigurationProvider
     // in their original config. User-provided keys (other than the few we
     // interpret ourselves) win over the auto-generated ones.
     const reservedKeys = new Set([
-      "type", "request", "name", "runner", "project", "build",
+      "type", "request", "name", "runner",
     ]);
     for (const [k, v] of Object.entries(cfg)) {
       if (reservedKeys.has(k)) { continue; }
@@ -418,60 +430,16 @@ export class ZephyrIdeDebugConfigurationProvider
     if (cortexCfg.servertype === "bmp" && !(cortexCfg as any).BMPGDBSerialPort) {
       const isWindows = process.platform === "win32";
       const examplePort = isWindows ? "COM3" : "/dev/ttyACM0";
-      void vscode.window.showErrorMessage(
-        `Black Magic Probe debug requires a GDB serial port (BMPGDBSerialPort). ` +
-        `Add "--gdb-serial=${examplePort}" to the runner args in Zephyr IDE, ` +
-        `or set "BMPGDBSerialPort": "${examplePort}" in your zephyr-ide launch.json entry.`,
-        "Open Runner Settings"
-      ).then(choice => {
-        if (choice === "Open Runner Settings") {
-          void vscode.commands.executeCommand("zephyr-ide.open-project-build-panel");
-        }
-      });
+      notifyError(
+        "Debug",
+        `Black Magic Probe (BMP) requires a serial port. Add "BMPGDBSerialPort": "${examplePort}" ` +
+        `to your launch.json zephyr-ide config, or configure it in the runner profile via ` +
+        `"args": "--gdb-serial ${examplePort}".`
+      );
       return undefined;
     }
 
-    // Ensure cortex-debug's backend console server is ready before we return.
-    // VS Code re-runs cortex-debug's resolveDebugConfiguration after we switch the
-    // type from 'zephyr-ide' to 'cortex-debug'. That resolver rejects immediately
-    // (returning undefined) if GDBServerConsole.BackendPort <= 0. Waiting here
-    // guarantees the server is listening so cortex-debug's check passes.
-    // We also set gdbServerConsolePort ourselves as a safety net in case VS Code
-    // does not re-run cortex-debug's resolver in some edge case.
-    const cortexDebugExt = vscode.extensions.getExtension('marus25.cortex-debug');
-    if (cortexDebugExt) {
-      if (!cortexDebugExt.isActive) {
-        await cortexDebugExt.activate();
-      }
-      const extApi = cortexDebugExt.exports as any;
-      // isServerAlive() returns true only after listen() callback fires, i.e. the
-      // TCP server is actually bound. toBackendPort is set before listen() starts,
-      // so we must check isServerAlive() rather than just toBackendPort > 0.
-      const maxTries = 20; // 20 × 100 ms = 2 s
-      for (let i = 0; i < maxTries; i++) {
-        const instance = extApi?.gdbServerConsole;
-        if (typeof instance?.isServerAlive === "function" && instance.isServerAlive()) {
-          (cortexCfg as any).gdbServerConsolePort = instance.toBackendPort;
-          break;
-        }
-        await new Promise<void>(resolve => setTimeout(resolve, 100));
-      }
-    }
-
-    // Issue #16/#35: log what we resolved so support can triage why a debug
-    // session ended up the way it did, and so users can copy the synthesized
-    // config into a hand-written launch.json entry if they want to tweak it.
-    try {
-      outputInfo(
-        "Debug",
-        `Path A (zephyr-ide provider) | project=${resolved.projectName} build=${resolved.buildName} ` +
-        `runner=${runner} request=${cortexCfg.request} runners.yaml=${runnersYamlPath}\n` +
-        `Synthesized cortex-debug config:\n${JSON.stringify(cortexCfg, null, 2)}`
-      );
-    } catch {
-      // logging must never block a debug session
-    }
-
+    outputInfo("Debug", `Launching cortex-debug session with runner "${runner}"`);
     return cortexCfg;
   }
 }

@@ -132,7 +132,6 @@ import {
   getBuildFolder,
   addSampleProjectsFromFile,
 } from "./project_utilities/project";
-import { resolveEffectiveRunner } from "./project_utilities/runner_selector";
 import { testHelper, deleteTestDirs } from "./zephyr_utilities/twister";
 
 import { getModuleVersion, getModuleList } from "./setup_utilities/modules";
@@ -329,7 +328,14 @@ async function startDebugSession(
       request: mode === 'attach' ? "attach" : "launch",
       ...(pinnedRunner ? { runner: pinnedRunner } : {}),
     };
-    const folder = vscode.workspace.workspaceFolders?.[0];
+    // Prefer the workspace folder whose uri.fsPath matches wsConfig.rootPath (case-insensitive on Windows)
+    const folders = vscode.workspace.workspaceFolders ?? [];
+    const isWindows = process.platform === "win32";
+    const folder = folders.find(f => 
+      isWindows 
+        ? f.uri.fsPath.toLowerCase() === wsConfig.rootPath.toLowerCase()
+        : f.uri.fsPath === wsConfig.rootPath
+    ) ?? folders[0];
     const started = await vscode.debug.startDebugging(folder, inlineCfg);
     if (!started) {
       const sessionLabel = mode === 'attach' ? 'attach session' : 'debug session';
@@ -543,15 +549,23 @@ export async function activate(context: vscode.ExtensionContext) {
       activeBuildDisplay.text = `$(project) ${resolved.buildName}`;
       const activeRunner = getResolvedRunnerName(wsConfig, resolved);
       activeRunnerDisplay.text = activeRunner ? `$(chip) ${activeRunner}` : `$(chip)`;
-      // U6: Tooltip shows the effective (cascaded) runner type and args.
+      // Tooltip shows the effective runner type and args
       if (activeRunner && resolved.build.runnerConfigs[activeRunner]) {
-        const eff = resolveEffectiveRunner(
-          resolved.project.runnerConfigs ?? {},
-          resolved.build.runnerConfigs,
-          activeRunner,
-        );
-        const effDesc = eff.runner === "default" ? "default (west picks based on board)" : eff.runner;
-        activeRunnerDisplay.tooltip = `Runner: ${activeRunner}\nEffective: ${effDesc}${eff.args ? `\nArgs: ${eff.args}` : ""}\nClick to change active runner`;
+        const rc = resolved.build.runnerConfigs[activeRunner];
+        // For tooltip, show flash bind info
+        const flashBind = rc.flash;
+        let effDesc = "default (west picks based on board)";
+        let effArgs = "";
+        if (flashBind.kind === "runner") {
+          effDesc = flashBind.runner;
+          effArgs = flashBind.extraArgs ?? "";
+        } else if (flashBind.kind === "variant") {
+          effDesc = `variant: ${flashBind.variant}`;
+          effArgs = flashBind.extraArgs ?? "";
+        } else if (flashBind.kind === "launch") {
+          effDesc = `launch: ${flashBind.name}`;
+        }
+        activeRunnerDisplay.tooltip = `Runner: ${activeRunner}\nFlash: ${effDesc}${effArgs ? `\nExtra Args: ${effArgs}` : ""}\nClick to change active runner`;
       } else {
         activeRunnerDisplay.tooltip = "No runner set — flash will use west's default. Click to add one.";
       }

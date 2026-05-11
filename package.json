@@ -52,30 +52,6 @@
       "type": "object",
       "title": "Zephyr IDE",
       "properties": {
-        "zephyr-ide.globalRunners": {
-          "type": "array",
-          "default": [],
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "name": {
-                "type": "string",
-                "description": "Runner name — used as the key to inherit into project/build levels with the same name."
-              },
-              "runner": {
-                "type": "string",
-                "description": "West runner type (e.g. jlink, openocd, pyocd, stlink). Use 'default' to let west pick."
-              },
-              "args": {
-                "type": "string",
-                "description": "Arguments passed to the runner (e.g. --speed=4000)."
-              }
-            },
-            "required": ["name", "runner"]
-          },
-          "description": "Global runner configurations that form the base layer for all projects and builds. A project or build runner with the same name will inherit and optionally extend these settings. The cascade order is: global → project → build; the lowest level with argsMode 'override' wins for args."
-        },
         "zephyr-ide.buildBeforeFlash": {
           "type": "boolean",
           "default": false,
@@ -273,6 +249,30 @@
           },
           "deprecationMessage": "Deprecated: Use 'zephyr-ide.buildVariableDefaults' instead. Migrated automatically on startup.",
           "description": "Deprecated. Use 'zephyr-ide.buildVariableDefaults' instead."
+        },
+        "zephyr-ide.runnerVariants": {
+          "type": "array",
+          "default": [],
+          "markdownDescription": "Reusable runner variants (name + zephyr runner + extra args). Referenced by `RunnerConfig` binds. Workspace `.vscode/zephyr-ide.json` `runnerVariants` overrides this on name collision.",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "runner"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "runner": {
+                "type": "string"
+              },
+              "args": {
+                "type": "string",
+                "default": ""
+              }
+            }
+          }
         }
       }
     },

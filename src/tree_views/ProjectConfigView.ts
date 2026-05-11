@@ -240,9 +240,14 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
         runnerItem.collapsibleState = this.projectConfigState.runnerOpenState
           ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
 
-        const runnerNameItem = new ConfigItem('Runner', 'tools', false, undefined, activeRunner.runner);
+        const runnerNameItem = new ConfigItem('Flash Bind', 'tools', false, undefined, 
+          activeRunner.flash.kind === "auto" ? "auto" :
+          activeRunner.flash.kind === "runner" ? `runner: ${activeRunner.flash.runner}` :
+          activeRunner.flash.kind === "variant" ? `variant: ${activeRunner.flash.variant}` :
+          `launch: ${activeRunner.flash.name}`);
         runnerNameItem.id = 'config-runner.name';
-        const runnerArgsItem = new ConfigItem('Args', 'file-code', false, undefined, activeRunner.args);
+        const runnerArgsItem = new ConfigItem('Extra Args', 'file-code', false, undefined, 
+          (activeRunner.flash.kind === "runner" || activeRunner.flash.kind === "variant") && activeRunner.flash.extraArgs ? activeRunner.flash.extraArgs : "");
         runnerArgsItem.id = 'config-runner.args';
         runnerItem.children = [runnerNameItem, runnerArgsItem];
         for (const child of runnerItem.children) {

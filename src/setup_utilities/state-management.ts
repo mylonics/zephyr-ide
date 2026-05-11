@@ -274,6 +274,45 @@ export async function setExternalSetupState(context: vscode.ExtensionContext, gl
   await setGlobalState(context, globalConfig);
 }
 
+/**
+ * Migrate legacy runner configs to the new bind-based shape.
+ * Handles both build-level and project-level runners.
+ *
+ * Exported for tests.
+ */
+export function migrateRunnerConfig(rc: any, buildState: any | undefined): any {
+  // If already in new shape (has flash/build/buildDebug/attach), return as-is (after stripping legacy fields).
+  if (rc && typeof rc === "object" && (rc.flash || rc.build || rc.buildDebug || rc.attach)) {
+    const migrated: any = { name: rc.name };
+    migrated.flash = rc.flash ?? { kind: "auto" };
+    migrated.build = rc.build ?? { kind: "auto" };
+    migrated.buildDebug = rc.buildDebug ?? { kind: "auto" };
+    migrated.attach = rc.attach ?? { kind: "auto" };
+    return migrated;
+  }
+  
+  // Legacy shape: {name, runner, args, argsMode?}
+  const flash: any = rc.runner
+    ? { kind: "runner", runner: rc.runner, ...(rc.args ? { extraArgs: rc.args } : {}) }
+    : { kind: "auto" };
+  
+  // Helper to map launch targets from buildState
+  const bindFromTarget = (target: string | undefined): any => {
+    if (!target || target.startsWith("Auto:") || target === "Zephyr IDE: Debug") {
+      return { kind: "auto" };
+    }
+    return { kind: "launch", name: target };
+  };
+  
+  return {
+    name: rc.name,
+    flash,
+    build: bindFromTarget(buildState?.launchTarget),
+    buildDebug: bindFromTarget(buildState?.buildDebugTarget),
+    attach: bindFromTarget(buildState?.attachTarget),
+  };
+}
+
 export async function loadWorkspaceState(context: vscode.ExtensionContext): Promise<WorkspaceConfig> {
   const config: WorkspaceConfig = await context.workspaceState.get("zephyr.env") ?? {
     rootPath: await getRootPathFs(true) ?? "",
@@ -311,6 +350,34 @@ export async function loadWorkspaceState(context: vscode.ExtensionContext): Prom
   if (isActiveWorkspaceInitialized(config)) {
     await loadProjectsFromFile(config);
   }
+  
+  // Migrate runner configs from legacy shape to new bind-based shape
+  for (const projectName in config.projects) {
+    const project = config.projects[projectName];
+    
+    // Migrate project-level runners
+    if (project.runnerConfigs) {
+      for (const runnerName in project.runnerConfigs) {
+        const rc = project.runnerConfigs[runnerName];
+        project.runnerConfigs[runnerName] = migrateRunnerConfig(rc, undefined);
+      }
+    }
+    
+    // Migrate build-level runners
+    if (project.buildConfigs) {
+      for (const buildName in project.buildConfigs) {
+        const build = project.buildConfigs[buildName];
+        const buildState = config.projectStates?.[projectName]?.buildStates?.[buildName];
+        if (build.runnerConfigs) {
+          for (const runnerName in build.runnerConfigs) {
+            const rc = build.runnerConfigs[runnerName];
+            build.runnerConfigs[runnerName] = migrateRunnerConfig(rc, buildState);
+          }
+        }
+      }
+    }
+  }
+  
   return config;
 }
 
