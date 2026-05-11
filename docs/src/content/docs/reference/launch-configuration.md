@@ -20,6 +20,10 @@ The simplest way to debug a Zephyr build with this extension is to use the `zeph
 
 You can optionally pin a specific runner (when more than one is configured) by adding a `"runner"` field — e.g. `"runner": "openocd"` or `"runner": "jlink"`. When `runner` is omitted the extension uses `debug-runner` from `runners.yaml`, falling back to the first available runner. The `Debug`, `Build and Debug`, and `Debug Attach` commands also use this provider automatically when no launch configuration is bound to the active build.
 
+The `zephyr-ide` debugger delegates the actual debug session to [`marus25.cortex-debug`](https://marketplace.visualstudio.com/items?itemName=marus25.cortex-debug). If cortex-debug is not installed, the session is aborted with a notification offering install links for the VS Code Marketplace and Open VSX. When the resolved runner is Black Magic Probe (`bmp`), a one-time recommendation suggests installing [`mylonics.bmp-debug`](https://marketplace.visualstudio.com/items?itemName=mylonics.bmp-debug) for Zephyr RTOS thread awareness.
+
+For a higher-level alternative that does not require any `launch.json` at all, configure an active [Runner Configuration](configuration.md#runner-configurations) on the build — its `buildDebug` / `attach` binds can point at a Zephyr runner, a reusable variant, or a named `launch.json` configuration.
+
 If you need finer control you can still write a `cortex-debug` configuration directly using the helper commands listed below.
 
 The following commands can be used in launch.json configurations to dynamically retrieve project and build information:

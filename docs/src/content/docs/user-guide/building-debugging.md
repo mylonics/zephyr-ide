@@ -29,6 +29,28 @@ For users who need full control, the IDE also ships several `cortex-debug` snipp
 
 ![Setting Up Launch Configuration](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/setting_up_debug.gif)
 
+## Runner Configurations (Flash + Debug)
+
+Each build can optionally have one **active Runner Configuration** that controls four targets: **Flash**, **Build & Debug**, **Debug** (launch), and **Debug Attach**. Each target is one of:
+
+| Kind | Meaning |
+|---|---|
+| `auto` | Use `runners.yaml` defaults — `flash-runner` for Flash, `debug-runner` for the debug targets. |
+| `runner` | A Zephyr runner directly (`openocd`, `jlink`, `pyocd`, `blackmagicprobe`, …) with optional `extraArgs`. |
+| `variant` | A reusable variant from `zephyr-ide.runnerVariants` (settings.json) or `runnerVariants` in `.vscode/zephyr-ide.json`. `extraArgs` are **appended** to the variant's `args`. |
+| `launch` | A `launch.json` configuration by name. Available for the three debug targets only; ignored for Flash. |
+
+When **no** runner configuration is active on a build, all four targets fall back to `auto`. This is the default for newly-created builds — `Flash` / `Debug` / `Build & Debug` / `Attach` just work using whatever Zephyr recorded in `runners.yaml`.
+
+Reusable runner variants can be defined once (e.g. a Black Magic Probe wired to `/dev/ttyACM0`, or an OpenOCD ST-Link configuration) and referenced across builds. See [Runner Configurations in the Configuration reference](../reference/configuration.md#runner-configurations) for the full data model, defining variants in user vs. workspace scope, and the legacy-config migration notes.
+
+## Debug Prerequisites: Cortex-Debug
+
+The `zephyr-ide` debugger type delegates the actual debug session to [`marus25.cortex-debug`](https://marketplace.visualstudio.com/items?itemName=marus25.cortex-debug). The first time you try to Debug:
+
+- If **cortex-debug is not installed**, the session is aborted and a notification appears with **Open VS Code Marketplace** and **Open Open VSX** buttons that link directly to its install page on each registry.
+- If the resolved runner is **Black Magic Probe** (`bmp`), the IDE also shows a one-time recommendation to install [`mylonics.bmp-debug`](https://marketplace.visualstudio.com/items?itemName=mylonics.bmp-debug) for Zephyr RTOS thread awareness. The recommendation only fires once and is silently skipped if `bmp-debug` is already installed.
+
 ## Launch Configuration Helper Commands
 
 The IDE provides commands that help a user develop launch configurations. These include the following:
