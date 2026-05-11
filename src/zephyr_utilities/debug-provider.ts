@@ -47,17 +47,85 @@ interface ZephyrIdeDebugConfig extends vscode.DebugConfiguration {
 }
 
 /**
- * Simple argument splitter for shell-style quoted strings.
+ * Argument splitter for shell-style quoted strings, used to split user-supplied
+ * `extraArgs` from `RunnerConfig` binds before they are forwarded as cortex-debug
+ * `serverArgs`. Behavior:
  *
- * Supports basic single- and double-quoted tokens. Does NOT handle escaped
- * quotes, backslash escapes, environment variable expansion, or POSIX shell
- * special syntax. For runner args this is sufficient because runners.yaml
- * args don't use those features; users supplying complex shell syntax via
- * `extraArgs` should keep it simple.
+ *  - Whitespace-separated by default.
+ *  - Single (`'`) and double (`"`) quotes group whitespace into one token. The
+ *    quote characters themselves are stripped from the resulting token, even
+ *    when they are mid-token (`--key="some path"` → `--key=some path`).
+ *  - Inside double quotes, `\\` and `\"` are recognized as escapes for literal
+ *    backslash and double-quote. Single-quoted strings are treated as literal
+ *    (matching POSIX behavior).
+ *  - Unterminated quoted strings are accepted and consumed to end-of-input
+ *    rather than dropped, so a typo in `extraArgs` doesn't silently swallow
+ *    the rest of the user's input.
+ *
+ * This is intentionally a small, dependency-free parser rather than a full
+ * POSIX shell tokenizer (no env var expansion, no globbing, no command
+ * substitution): runner extraArgs are simple key/value pairs.
+ *
+ * Exported for unit testing; not part of the public API.
  */
-function splitArgs(args: string): string[] {
-  const match = args.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g);
-  return match ? match.map(s => s.replace(/^["']|["']$/g, "")) : [];
+export function splitArgs(args: string): string[] {
+  const out: string[] = [];
+  const len = args.length;
+  let i = 0;
+  let cur = "";
+  let inToken = false;
+
+  const pushToken = () => {
+    if (inToken) {
+      out.push(cur);
+      cur = "";
+      inToken = false;
+    }
+  };
+
+  while (i < len) {
+    const c = args[i];
+
+    if (c === " " || c === "\t" || c === "\n" || c === "\r") {
+      pushToken();
+      i++;
+      continue;
+    }
+
+    if (c === '"') {
+      inToken = true;
+      i++;
+      while (i < len && args[i] !== '"') {
+        if (args[i] === "\\" && i + 1 < len && (args[i + 1] === '"' || args[i + 1] === "\\")) {
+          cur += args[i + 1];
+          i += 2;
+        } else {
+          cur += args[i];
+          i++;
+        }
+      }
+      if (i < len) { i++; } // consume closing quote
+      continue;
+    }
+
+    if (c === "'") {
+      inToken = true;
+      i++;
+      while (i < len && args[i] !== "'") {
+        cur += args[i];
+        i++;
+      }
+      if (i < len) { i++; } // consume closing quote
+      continue;
+    }
+
+    inToken = true;
+    cur += c;
+    i++;
+  }
+
+  pushToken();
+  return out;
 }
 
 /**

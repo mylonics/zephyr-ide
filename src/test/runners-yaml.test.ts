@@ -28,6 +28,7 @@ import {
 import {
     buildCortexDebugConfig,
     pickDebugRunner,
+    splitArgs,
 } from "../zephyr_utilities/debug-provider";
 
 function makeTempBuildDir(): string {
@@ -155,6 +156,64 @@ domains:
         // the caller can produce a useful "cannot translate" error.
         const ry2: any = { runners: ["qemu"], debugRunner: "qemu", args: {} };
         assert.strictEqual(pickDebugRunner(ry2, "pyocd"), "pyocd");
+    });
+
+    test("splitArgs: whitespace-separated tokens", () => {
+        assert.deepStrictEqual(splitArgs(""), []);
+        assert.deepStrictEqual(splitArgs("   "), []);
+        assert.deepStrictEqual(splitArgs("--a --b --c"), ["--a", "--b", "--c"]);
+        assert.deepStrictEqual(splitArgs("--key=value"), ["--key=value"]);
+        // Tabs and newlines also separate.
+        assert.deepStrictEqual(splitArgs("--a\t--b\n--c"), ["--a", "--b", "--c"]);
+    });
+
+    test("splitArgs: quoted strings group whitespace and strip quote characters", () => {
+        // Mid-token quotes are stripped (the legacy regex-based splitter left
+        // a stray trailing quote here, e.g. `--key=some path`+`"` ).
+        assert.deepStrictEqual(
+            splitArgs(`--key="some path"`),
+            ["--key=some path"],
+        );
+        assert.deepStrictEqual(
+            splitArgs(`'a b' "c d"`),
+            ["a b", "c d"],
+        );
+        // Adjacent quoted segments concatenate into one token.
+        assert.deepStrictEqual(
+            splitArgs(`"a"'b'"c"`),
+            ["abc"],
+        );
+    });
+
+    test("splitArgs: backslash escapes inside double quotes", () => {
+        // \" and \\ are recognized inside double quotes.
+        assert.deepStrictEqual(
+            splitArgs(`--msg="hello \\"world\\""`),
+            [`--msg=hello "world"`],
+        );
+        assert.deepStrictEqual(
+            splitArgs(`"a\\\\b"`),
+            ["a\\b"],
+        );
+        // Single quotes are literal — backslashes are preserved as-is (POSIX).
+        assert.deepStrictEqual(
+            splitArgs(`'hello \\"world\\"'`),
+            [`hello \\"world\\"`],
+        );
+    });
+
+    test("splitArgs: unterminated quotes consume to end-of-input", () => {
+        // Unterminated quotes don't silently swallow following tokens; instead
+        // they greedily consume to EOL so a typo surfaces as a single weird
+        // token rather than as missing later args.
+        assert.deepStrictEqual(
+            splitArgs(`--a "unterminated`),
+            ["--a", "unterminated"],
+        );
+        assert.deepStrictEqual(
+            splitArgs(`--a 'unterminated`),
+            ["--a", "unterminated"],
+        );
     });
 
     test("buildCortexDebugConfig builds a jlink config with device/speed extracted", () => {

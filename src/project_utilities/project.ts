@@ -977,15 +977,47 @@ export async function setActiveRunner(context: vscode.ExtensionContext, wsConfig
     }
   }
 
-  const selectedRunner = await askUserForRunner(wsConfig, wsConfig.activeProject, activeBuildName);
-
-  if (selectedRunner === undefined) {
+  // U11: surface a "(None)" entry so users can revert to the no-active-config
+  // / all-auto path without deleting their RunnerConfigs. The shared
+  // askUserForRunner helper is also used for deletion, so we build the picker
+  // inline here.
+  const buildState = wsConfig.projectStates[wsConfig.activeProject].buildStates[activeBuildName];
+  const runnerNames = Object.keys(wsConfig.projects[wsConfig.activeProject].buildConfigs[activeBuildName].runnerConfigs);
+  const NONE_LABEL = "(None) — clear active runner";
+  const items: vscode.QuickPickItem[] = [
+    {
+      label: NONE_LABEL,
+      description: buildState.activeRunner === undefined ? "current" : undefined,
+      detail: "Flash and debug fall back to runners.yaml defaults (all binds auto).",
+    },
+  ];
+  if (runnerNames.length > 0) {
+    items.push({ label: "", kind: vscode.QuickPickItemKind.Separator });
+    for (const name of runnerNames) {
+      items.push({
+        label: name,
+        description: buildState.activeRunner === name ? "current" : undefined,
+      });
+    }
+  }
+  const pick = await vscode.window.showQuickPick(items, {
+    ignoreFocusOut: true,
+    placeHolder: "Select Active Runner",
+  });
+  if (pick === undefined) {
     return;
   }
 
-  wsConfig.projectStates[wsConfig.activeProject].buildStates[activeBuildName].activeRunner = selectedRunner;
+  if (pick.label === NONE_LABEL) {
+    buildState.activeRunner = undefined;
+    await setWorkspaceState(context, wsConfig);
+    void vscode.window.showInformationMessage(`Cleared Active Runner for ${activeBuildName} of ${wsConfig.activeProject}`);
+    return;
+  }
+
+  buildState.activeRunner = pick.label;
   await setWorkspaceState(context, wsConfig);
-  void vscode.window.showInformationMessage(`Successfully Set ${selectedRunner} as Active Runner for ${activeBuildName} of ${wsConfig.activeProject}`);
+  void vscode.window.showInformationMessage(`Successfully Set ${pick.label} as Active Runner for ${activeBuildName} of ${wsConfig.activeProject}`);
 }
 
 export async function addRunnerToBuild(wsConfig: WorkspaceConfig, context: vscode.ExtensionContext, projectName: string, buildName: string) {
