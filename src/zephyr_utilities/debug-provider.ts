@@ -46,7 +46,15 @@ interface ZephyrIdeDebugConfig extends vscode.DebugConfiguration {
   runner?: string;
 }
 
-/** Simple argument splitter for shell-style quoted strings. */
+/**
+ * Simple argument splitter for shell-style quoted strings.
+ *
+ * Supports basic single- and double-quoted tokens. Does NOT handle escaped
+ * quotes, backslash escapes, environment variable expansion, or POSIX shell
+ * special syntax. For runner args this is sufficient because runners.yaml
+ * args don't use those features; users supplying complex shell syntax via
+ * `extraArgs` should keep it simple.
+ */
 function splitArgs(args: string): string[] {
   const match = args.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g);
   return match ? match.map(s => s.replace(/^["']|["']$/g, "")) : [];
