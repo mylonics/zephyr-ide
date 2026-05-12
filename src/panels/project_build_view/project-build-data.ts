@@ -54,6 +54,29 @@ export interface WebviewProjectInfo {
 }
 
 // ---------------------------------------------------------------------------
+// Runner variants (Stage 2 — variants management UI)
+// ---------------------------------------------------------------------------
+
+/** A variant entry as shown in the variants editor. */
+export interface WebviewVariantEntry {
+  name: string;
+  runner: string;
+  args: string;
+  /** True when this user-scope variant is shadowed by a same-named workspace entry. */
+  shadowed: boolean;
+}
+
+/** Variants displayed grouped by scope, plus the merged set of names referenced anywhere. */
+export interface WebviewVariantsCatalogue {
+  user: WebviewVariantEntry[];
+  workspace: WebviewVariantEntry[];
+  /** Names of variants currently referenced by any RunnerConfig bind. */
+  referencedNames: string[];
+  /** True when a workspace context is open (workspace scope is editable). */
+  hasWorkspace: boolean;
+}
+
+// ---------------------------------------------------------------------------
 // Build data
 // ---------------------------------------------------------------------------
 
@@ -185,6 +208,9 @@ export interface ProjectBuildPanelData {
 
   /** Variable command reference (static data for help) */
   variableCommands: WebviewVariableCommandInfo[];
+
+  /** Variant catalogue (Stage 2): user + workspace entries with override info. */
+  variantsCatalogue: WebviewVariantsCatalogue;
 
   /** The selected project name */
   selectedProject: string | undefined;

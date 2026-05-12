@@ -18,11 +18,12 @@ limitations under the License.
 import { html, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { ZephyrLitElement } from "../../webview_shared/lit-base";
-import type { WebviewBindInfo, WebviewBuildDetails, WebviewRunnerInfo, WebviewVariableCommandInfo } from "../project-build-data";
+import type { WebviewBindInfo, WebviewBuildDetails, WebviewRunnerInfo, WebviewVariableCommandInfo, WebviewVariantsCatalogue } from "../project-build-data";
 
 import "./config-file-group";
 import "./variables-table";
 import "./variables-help";
+import "../../webview_shared/runner-variants-editor";
 
 type BindTarget = "flash" | "build" | "buildDebug" | "attach";
 type RunnerLevel = "build" | "project";
@@ -41,6 +42,7 @@ export class BuildSection extends ZephyrLitElement {
   @property({ type: Boolean }) isActive = false;
   @property() projectName = "";
   @property({ type: Array }) variableCommands: WebviewVariableCommandInfo[] = [];
+  @property({ type: Object }) variantsCatalogue: WebviewVariantsCatalogue | undefined;
   /**
    * Build/flash/debug action currently in flight (or null when idle). When
    * set, the matching button shows a spinner and the rest are disabled to
@@ -415,6 +417,22 @@ export class BuildSection extends ZephyrLitElement {
     `;
   }
 
+  private _renderVariantsEditor() {
+    if (!this.variantsCatalogue) { return nothing; }
+    return html`
+      <div class="variant-editor-section">
+        <div class="runner-level-header" style="margin-top:12px;">
+          Runner Variants
+          <span class="runner-level-hint">(reusable runner + args presets, referenced by bind = "variant")</span>
+        </div>
+        <runner-variants-editor
+          .catalogue=${this.variantsCatalogue}
+          .knownRunners=${this.buildDetails.knownRunners ?? []}
+        ></runner-variants-editor>
+      </div>
+    `;
+  }
+
   private _renderLaunchConfigs() {
     const b = this.buildDetails;
     return html`
@@ -566,6 +584,7 @@ export class BuildSection extends ZephyrLitElement {
           `${b.runners.length} build, ${(b.projectRunners ?? []).length} project`,
           html`
             ${this._renderRunnersYamlHint()}
+            ${this._renderVariantsEditor()}
             ${this._renderProjectRunners()}
             <div class="runner-level-header" style="margin-top:12px;">Build runners</div>
             ${this._renderRunners()}

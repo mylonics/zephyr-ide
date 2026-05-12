@@ -57,7 +57,15 @@ import { generateNonce } from "../webview_shared/nonce";
 import { getLaunchTargetDisplayName, getLaunchConfigurations } from "../../utilities/utils";
 import { normalizeBuildArgs } from "../../project_utilities/build_args";
 import { KNOWN_RUNNERS, RunnerConfig } from "../../project_utilities/runner_selector";
-import { RunnerBind, formatBindLabel, loadRunnerVariants, findRunnerVariant } from "../../project_utilities/runner_variants";
+import { RunnerBind, formatBindLabel, loadRunnerVariants, findRunnerVariant, RunnerVariant } from "../../project_utilities/runner_variants";
+import {
+  readUserVariants,
+  readWorkspaceVariants,
+  writeVariantsForScope,
+  validateVariant,
+  uniqueVariantName,
+  VariantScope,
+} from "../../project_utilities/runner_variants_io";
 import { getRunnersYamlHint } from "../../zephyr_utilities/runners-yaml";
 
 import type {
@@ -360,6 +368,17 @@ export class ProjectBuildPanel {
           return;
         case "setBindExtraArgs":
           await this.handleSetBindExtraArgs(message);
+          return;
+
+        // Runner variants management (Stage 2)
+        case "addVariant":
+          await this.handleAddVariant(message);
+          return;
+        case "updateVariant":
+          await this.handleUpdateVariant(message);
+          return;
+        case "removeVariant":
+          await this.handleRemoveVariant(message);
           return;
         case "setActiveRunner": {
           const buildState = ws.projectStates[message.project]?.buildStates[message.build];
@@ -802,6 +821,134 @@ export class ProjectBuildPanel {
     await this.refreshAfterChange();
   }
 
+  // ---------------------------------------------------------------------------
+  // Runner variants management (Stage 2)
+  // ---------------------------------------------------------------------------
+
+  private parseScope(value: any): VariantScope | undefined {
+    if (value === "user" || value === "workspace") { return value; }
+    return undefined;
+  }
+
+  /** Read variants for the requested scope. Workspace scope requires a workspace. */
+  private readScope(scope: VariantScope): RunnerVariant[] {
+    if (scope === "user") { return readUserVariants(); }
+    return this._wsConfig.rootPath ? readWorkspaceVariants(this._wsConfig) : [];
+  }
+
+  /** Names of variants currently referenced by any RunnerConfig bind. */
+  private collectReferencedVariantNames(): Set<string> {
+    const referenced = new Set<string>();
+    const visit = (cfg: RunnerConfig | undefined) => {
+      if (!cfg) { return; }
+      for (const t of ["flash", "build", "buildDebug", "attach"] as const) {
+        const b: any = (cfg as any)[t];
+        if (b && b.kind === "variant" && typeof b.variant === "string") {
+          referenced.add(b.variant);
+        }
+      }
+    };
+    for (const proj of Object.values(this._wsConfig.projects ?? {})) {
+      for (const rc of Object.values(proj.runnerConfigs ?? {})) { visit(rc as RunnerConfig); }
+      for (const build of Object.values(proj.buildConfigs ?? {})) {
+        for (const rc of Object.values(build.runnerConfigs ?? {})) { visit(rc as RunnerConfig); }
+      }
+    }
+    return referenced;
+  }
+
+  /** After a variant mutation: surface a non-blocking warning for any bind that
+   *  now references a variant that no longer exists in either scope. */
+  private warnIfBindsBroken(): void {
+    const merged = new Set(loadRunnerVariants(this._wsConfig).map(v => v.name));
+    const broken: string[] = [];
+    for (const name of this.collectReferencedVariantNames()) {
+      if (!merged.has(name)) { broken.push(name); }
+    }
+    if (broken.length > 0) {
+      void vscode.window.showWarningMessage(
+        `Some runner bindings reference deleted variants: ${broken.join(", ")}. ` +
+        `Open the affected runners and pick a new bind.`,
+      );
+    }
+  }
+
+  private async handleAddVariant(message: Record<string, any>) {
+    const scope = this.parseScope(message.scope);
+    if (!scope) { notifyError("Runner Variants", "Invalid scope."); return; }
+    if (scope === "workspace" && !this._wsConfig.rootPath) {
+      notifyError("Runner Variants", "Workspace scope requires an open workspace.");
+      return;
+    }
+
+    const current = this.readScope(scope);
+    const baseName = typeof message.name === "string" && message.name.trim() ? message.name.trim() : "new-variant";
+    const candidate: RunnerVariant = {
+      name: uniqueVariantName(baseName, current.map(v => v.name)),
+      runner: typeof message.runner === "string" && message.runner.trim() ? message.runner.trim() : "openocd",
+      args: typeof message.args === "string" ? message.args : "",
+    };
+
+    await writeVariantsForScope(scope, this._wsConfig, [...current, candidate]);
+    await this.refreshAfterChange();
+  }
+
+  private async handleUpdateVariant(message: Record<string, any>) {
+    const scope = this.parseScope(message.scope);
+    if (!scope) { notifyError("Runner Variants", "Invalid scope."); return; }
+    const originalName = typeof message.originalName === "string" ? message.originalName : undefined;
+    if (!originalName) { notifyError("Runner Variants", "Missing originalName."); return; }
+
+    const current = this.readScope(scope);
+    const idx = current.findIndex(v => v.name === originalName);
+    if (idx < 0) {
+      notifyError("Runner Variants", `Variant "${originalName}" not found in ${scope} scope.`);
+      return;
+    }
+
+    const candidate: RunnerVariant = {
+      name: typeof message.name === "string" ? message.name.trim() : current[idx].name,
+      runner: typeof message.runner === "string" ? message.runner.trim() : current[idx].runner,
+      args: typeof message.args === "string" ? message.args : current[idx].args,
+    };
+
+    const error = validateVariant(candidate, current, originalName);
+    if (error) {
+      notifyError("Runner Variants", error.message);
+      // Re-post so the webview restores the persisted value.
+      await this.refreshAfterChange();
+      return;
+    }
+
+    const next = current.slice();
+    next[idx] = candidate;
+    await writeVariantsForScope(scope, this._wsConfig, next);
+
+    // If the variant was renamed, broken-bind detection runs on the merged set.
+    if (candidate.name !== originalName) {
+      this.warnIfBindsBroken();
+    }
+    await this.refreshAfterChange();
+  }
+
+  private async handleRemoveVariant(message: Record<string, any>) {
+    const scope = this.parseScope(message.scope);
+    if (!scope) { notifyError("Runner Variants", "Invalid scope."); return; }
+    const name = typeof message.name === "string" ? message.name : "";
+    if (!name) { notifyError("Runner Variants", "Missing variant name."); return; }
+
+    const current = this.readScope(scope);
+    const next = current.filter(v => v.name !== name);
+    if (next.length === current.length) {
+      // Nothing to remove (maybe the editor was stale); just refresh.
+      await this.refreshAfterChange();
+      return;
+    }
+    await writeVariantsForScope(scope, this._wsConfig, next);
+    this.warnIfBindsBroken();
+    await this.refreshAfterChange();
+  }
+
   private async refreshAfterChange() {
     await vscode.commands.executeCommand("zephyr-ide.update-web-view");
   }
@@ -1014,7 +1161,63 @@ export class ProjectBuildPanel {
       isBuildActive,
       testDetails,
       variableCommands: getAvailableVariableCommands(),
+      variantsCatalogue: this.computeVariantsCatalogue(),
       selectedProject: selected,
+    };
+  }
+
+  /**
+   * Build the variants catalogue (Stage 2): user + workspace lists with
+   * shadow markers, plus the set of variant names referenced by any
+   * existing RunnerConfig bind so the editor can warn before deleting.
+   */
+  private computeVariantsCatalogue(): import("./project-build-data").WebviewVariantsCatalogue {
+    const ws = this._wsConfig;
+    const user = readUserVariants();
+    const workspace = readWorkspaceVariants(ws);
+    const workspaceNames = new Set(workspace.map(v => v.name));
+
+    const userEntries = user.map(v => ({
+      name: v.name,
+      runner: v.runner,
+      args: v.args,
+      shadowed: workspaceNames.has(v.name),
+    }));
+    const workspaceEntries = workspace.map(v => ({
+      name: v.name,
+      runner: v.runner,
+      args: v.args,
+      shadowed: false,
+    }));
+
+    // Collect all variant names referenced by any runner bind in the workspace
+    // (project-level + every build's runners).
+    const referenced = new Set<string>();
+    const visit = (cfg: RunnerConfig | undefined) => {
+      if (!cfg) { return; }
+      for (const t of ["flash", "build", "buildDebug", "attach"] as const) {
+        const b: any = (cfg as any)[t];
+        if (b && b.kind === "variant" && typeof b.variant === "string") {
+          referenced.add(b.variant);
+        }
+      }
+    };
+    for (const proj of Object.values(ws.projects ?? {})) {
+      for (const rc of Object.values(proj.runnerConfigs ?? {})) {
+        visit(rc as RunnerConfig);
+      }
+      for (const build of Object.values(proj.buildConfigs ?? {})) {
+        for (const rc of Object.values(build.runnerConfigs ?? {})) {
+          visit(rc as RunnerConfig);
+        }
+      }
+    }
+
+    return {
+      user: userEntries,
+      workspace: workspaceEntries,
+      referencedNames: Array.from(referenced),
+      hasWorkspace: !!ws.rootPath,
     };
   }
 

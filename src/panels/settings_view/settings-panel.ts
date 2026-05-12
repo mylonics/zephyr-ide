@@ -12,3 +12,4 @@ import '@vscode-elements/elements/dist/vscode-label/index.js';
 
 // Import Lit components — side-effect registrations via @customElement
 import './components/settings-app';
+import '../webview_shared/runner-variants-editor';
