@@ -18,11 +18,21 @@ limitations under the License.
 import { html, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { ZephyrLitElement } from "../../webview_shared/lit-base";
-import type { WebviewBuildDetails, WebviewVariableCommandInfo } from "../project-build-data";
+import type { WebviewBindInfo, WebviewBuildDetails, WebviewRunnerInfo, WebviewVariableCommandInfo } from "../project-build-data";
 
 import "./config-file-group";
 import "./variables-table";
 import "./variables-help";
+
+type BindTarget = "flash" | "build" | "buildDebug" | "attach";
+type RunnerLevel = "build" | "project";
+
+const BIND_TARGET_LABELS: Record<BindTarget, string> = {
+  flash: "Flash",
+  build: "Build",
+  buildDebug: "Build & Debug",
+  attach: "Attach",
+};
 
 @customElement("build-section")
 export class BuildSection extends ZephyrLitElement {
@@ -158,64 +168,49 @@ export class BuildSection extends ZephyrLitElement {
     }
   }
 
-  // --- Runner helpers ---
+  // --- Runner bind helpers (4-bind model) ---
 
-  private _onRunnerBlur(e: FocusEvent, runnerName: string, field: string) {
+  private _onExtraArgsInput(e: InputEvent) {
+    (e.target as HTMLInputElement).classList.add("input-dirty");
+  }
+
+  private _saveExtraArgs(level: RunnerLevel, runnerName: string, target: BindTarget, value: string) {
+    const msg: Record<string, string> = {
+      project: this.projectName,
+      runner: runnerName,
+      target,
+      value,
+    };
+    if (level === "build") { msg.build = this.buildDetails.name; }
+    this.postCommand("setBindExtraArgs", msg);
+  }
+
+  private _onExtraArgsBlur(e: FocusEvent, level: RunnerLevel, runnerName: string, target: BindTarget) {
     const input = e.target as HTMLInputElement;
     if (!input.classList.contains("input-dirty")) { return; }
     if (this._saveTimer) { clearTimeout(this._saveTimer); }
     this._saveTimer = setTimeout(() => {
       input.classList.remove("input-dirty");
-      const msg: Record<string, string> = {
-        project: this.projectName,
-        build: this.buildDetails.name,
-        runner: runnerName,
-      };
-      msg[field] = input.value;
-      this.postCommand("updateRunner", msg);
+      this._saveExtraArgs(level, runnerName, target, input.value);
     }, 600);
   }
 
-  private _onRunnerKeydown(e: KeyboardEvent, runnerName: string, field: string) {
+  private _onExtraArgsKeydown(e: KeyboardEvent, level: RunnerLevel, runnerName: string, target: BindTarget) {
     if (e.key !== "Enter") { return; }
     const input = e.target as HTMLInputElement;
     if (this._saveTimer) { clearTimeout(this._saveTimer); this._saveTimer = null; }
     input.classList.remove("input-dirty");
-    const msg: Record<string, string> = {
-      project: this.projectName,
-      build: this.buildDetails.name,
-      runner: runnerName,
-    };
-    msg[field] = input.value;
-    this.postCommand("updateRunner", msg);
+    this._saveExtraArgs(level, runnerName, target, input.value);
   }
 
-  private _onProjectRunnerBlur(e: FocusEvent, runnerName: string, field: string) {
-    const input = e.target as HTMLInputElement;
-    if (!input.classList.contains("input-dirty")) { return; }
-    if (this._saveTimer) { clearTimeout(this._saveTimer); }
-    this._saveTimer = setTimeout(() => {
-      input.classList.remove("input-dirty");
-      const msg: Record<string, string> = {
-        project: this.projectName,
-        runner: runnerName,
-      };
-      msg[field] = input.value;
-      this.postCommand("updateProjectRunner", msg);
-    }, 600);
-  }
-
-  private _onProjectRunnerKeydown(e: KeyboardEvent, runnerName: string, field: string) {
-    if (e.key !== "Enter") { return; }
-    const input = e.target as HTMLInputElement;
-    if (this._saveTimer) { clearTimeout(this._saveTimer); this._saveTimer = null; }
-    input.classList.remove("input-dirty");
+  private _pickBind(level: RunnerLevel, runnerName: string, target: BindTarget) {
     const msg: Record<string, string> = {
       project: this.projectName,
       runner: runnerName,
+      target,
     };
-    msg[field] = input.value;
-    this.postCommand("updateProjectRunner", msg);
+    if (level === "build") { msg.build = this.buildDetails.name; }
+    this.postCommand("pickBind", msg);
   }
 
   // --- Renderers ---
@@ -272,12 +267,97 @@ export class BuildSection extends ZephyrLitElement {
     `;
   }
 
+  // --- Runner card renderers (unified for build- and project-level) ---
+
+  private _bindTargets(): readonly BindTarget[] {
+    return ["flash", "build", "buildDebug", "attach"];
+  }
+
+  private _renderBindRow(
+    level: RunnerLevel,
+    runnerName: string,
+    target: BindTarget,
+    bind: WebviewBindInfo,
+  ) {
+    const isAuto = bind.bind.kind === "auto";
+    const isLaunch = bind.bind.kind === "launch";
+    const showExtraArgs = bind.bind.kind === "runner" || bind.bind.kind === "variant";
+    const hint = this.buildDetails.runnersYamlHint;
+    const autoFallbackHint = isAuto && hint
+      ? (target === "flash" ? hint.flashRunner : hint.debugRunner) ?? "—"
+      : undefined;
+    const missingClass = bind.missingVariant ? " bind-display-missing" : "";
+
+    return html`
+      <div class="bind-row">
+        <span class="bind-label">${BIND_TARGET_LABELS[target]}</span>
+        <button type="button"
+          class="bind-display${missingClass}"
+          title="Click to change ${BIND_TARGET_LABELS[target]} bind"
+          @click=${() => this._pickBind(level, runnerName, target)}>
+          <span class="bind-display-text">${bind.display}</span>
+          <i class="codicon codicon-chevron-down"></i>
+        </button>
+        ${showExtraArgs
+        ? html`
+            <input class="bind-extra-args" type="text"
+              placeholder="extra args (optional)"
+              .value=${bind.extraArgs}
+              @input=${this._onExtraArgsInput}
+              @focusout=${(e: FocusEvent) => this._onExtraArgsBlur(e, level, runnerName, target)}
+              @keydown=${(e: KeyboardEvent) => this._onExtraArgsKeydown(e, level, runnerName, target)} />
+          `
+        : html`<span class="bind-extra-args-placeholder">${isLaunch ? "(launch.json)" : ""}</span>`}
+        ${autoFallbackHint
+        ? html`<span class="bind-auto-hint" title="From runners.yaml">→ ${autoFallbackHint}</span>`
+        : nothing}
+      </div>
+    `;
+  }
+
+  private _renderRunnerCard(level: RunnerLevel, r: WebviewRunnerInfo) {
+    const b = this.buildDetails;
+    const isActive = level === "build" && r.name === b.activeRunner;
+    const icon = level === "build" ? "debug-alt-small" : "package";
+    // Flash never offers the launch.json picker entries, but the four rows are
+    // always rendered regardless of level — the picker filters server-side.
+    return html`
+      <div class="runner-card">
+        <div class="runner-card-header">
+          <span class="runner-name">
+            <i class="codicon codicon-${icon}"></i> ${r.name}
+            ${level === "build"
+        ? (isActive
+          ? html`<span class="runner-active-badge">active</span>`
+          : html`
+                  <vscode-button appearance="icon" title="Set as active runner"
+                    @click=${() => this.postCommand("setActiveRunner", { project: this.projectName, build: b.name, runner: r.name })}>
+                    <i class="codicon codicon-circle-outline"></i>
+                  </vscode-button>`)
+        : nothing}
+          </span>
+          <vscode-button appearance="icon" icon="trash" title="Remove"
+            @click=${() => this.postCommand(
+          level === "build" ? "removeRunner" : "removeProjectRunner",
+          level === "build"
+            ? { project: this.projectName, build: b.name, runner: r.name }
+            : { project: this.projectName, runner: r.name },
+        )}>
+          </vscode-button>
+        </div>
+        <div class="runner-card-binds">
+          ${this._bindTargets().map(t => this._renderBindRow(level, r.name, t, r[t]))}
+        </div>
+      </div>
+    `;
+  }
+
   private _renderRunners() {
     const b = this.buildDetails;
     if (b.runners.length === 0) {
       return html`
         <div class="file-list-empty">No build-level runners configured</div>
-        <div style="margin-top:8px;">
+        <div class="action-row">
           <vscode-button appearance="secondary" icon="add"
             @click=${() => this.postCommand("addRunner", { project: this.projectName, build: b.name })}>
             Add Build Runner
@@ -285,55 +365,8 @@ export class BuildSection extends ZephyrLitElement {
         </div>
       `;
     }
-
     return html`
-      ${b.runners.map(
-      (r) => html`
-          <div class="runner-row">
-            <span class="runner-name">
-              <i class="codicon codicon-debug-alt-small"></i> ${r.name}
-              ${r.name === b.activeRunner ? html`<span class="runner-active-badge">active</span>` : html`
-                <vscode-button appearance="icon" title="Set as active runner"
-                  @click=${() => this.postCommand("setActiveRunner", { project: this.projectName, build: b.name, runner: r.name })}>
-                  <i class="codicon codicon-circle-outline"></i>
-                </vscode-button>
-              `}
-            </span>
-            <div class="runner-fields">
-              <div class="runner-field-row">
-                <span class="runner-field-label">Type</span>
-                <input class="runner-input" type="text" .value=${r.runner}
-                  @input=${this._onArgInput}
-                  @focusout=${(e: FocusEvent) => this._onRunnerBlur(e, r.name, "runner-type")}
-                  @keydown=${(e: KeyboardEvent) => this._onRunnerKeydown(e, r.name, "runner-type")} />
-              </div>
-              <div class="runner-field-row">
-                <span class="runner-field-label">Args</span>
-                <input class="runner-input" type="text" .value=${r.args}
-                  @input=${this._onArgInput}
-                  @focusout=${(e: FocusEvent) => this._onRunnerBlur(e, r.name, "runner-args")}
-                  @keydown=${(e: KeyboardEvent) => this._onRunnerKeydown(e, r.name, "runner-args")} />
-              </div>
-              <div class="runner-field-row">
-                <span class="runner-field-label">Args mode</span>
-                <select class="runner-input"
-                  @change=${(e: Event) => {
-          const sel = e.target as HTMLSelectElement;
-          this.postCommand("updateRunner", { project: this.projectName, build: b.name, runner: r.name, "runner-argsmode": sel.value });
-        }}>
-                  <option value="append" ?selected=${r.argsMode === "append"}>Append to parent</option>
-                  <option value="override" ?selected=${r.argsMode === "override"}>Override parent</option>
-                </select>
-              </div>
-            </div>
-            <div class="runner-actions">
-              <vscode-button appearance="icon" icon="trash" title="Remove"
-                @click=${() => this.postCommand("removeRunner", { project: this.projectName, build: b.name, runner: r.name })}>
-              </vscode-button>
-            </div>
-          </div>
-        `,
-    )}
+      ${b.runners.map(r => this._renderRunnerCard("build", r))}
       <div class="action-row">
         <vscode-button appearance="secondary" icon="add"
           @click=${() => this.postCommand("addRunner", { project: this.projectName, build: b.name })}>
@@ -346,50 +379,11 @@ export class BuildSection extends ZephyrLitElement {
   private _renderProjectRunners() {
     const b = this.buildDetails;
     const projectRunners = b.projectRunners ?? [];
-
-    const rows = projectRunners.map(
-      (r) => html`
-        <div class="runner-row">
-          <span class="runner-name"><i class="codicon codicon-package"></i> ${r.name}</span>
-          <div class="runner-fields">
-            <div class="runner-field-row">
-              <span class="runner-field-label">Type</span>
-              <input class="runner-input" type="text" .value=${r.runner}
-                @input=${this._onArgInput}
-                @focusout=${(e: FocusEvent) => this._onProjectRunnerBlur(e, r.name, "runner-type")}
-                @keydown=${(e: KeyboardEvent) => this._onProjectRunnerKeydown(e, r.name, "runner-type")} />
-            </div>
-            <div class="runner-field-row">
-              <span class="runner-field-label">Args</span>
-              <input class="runner-input" type="text" .value=${r.args}
-                @input=${this._onArgInput}
-                @focusout=${(e: FocusEvent) => this._onProjectRunnerBlur(e, r.name, "runner-args")}
-                @keydown=${(e: KeyboardEvent) => this._onProjectRunnerKeydown(e, r.name, "runner-args")} />
-            </div>
-            <div class="runner-field-row">
-              <span class="runner-field-label">Args mode</span>
-              <select class="runner-input"
-                @change=${(e: Event) => {
-          const sel = e.target as HTMLSelectElement;
-          this.postCommand("updateProjectRunner", { project: this.projectName, runner: r.name, "runner-argsmode": sel.value });
-        }}>
-                <option value="append" ?selected=${r.argsMode === "append"}>Append to parent</option>
-                <option value="override" ?selected=${r.argsMode === "override"}>Override parent</option>
-              </select>
-            </div>
-          </div>
-          <div class="runner-actions">
-            <vscode-button appearance="icon" icon="trash" title="Remove"
-              @click=${() => this.postCommand("removeProjectRunner", { project: this.projectName, runner: r.name })}>
-            </vscode-button>
-          </div>
-        </div>
-      `,
-    );
-
     return html`
       <div class="runner-level-header">Project runners <span class="runner-level-hint">(inherited by builds with same name)</span></div>
-      ${rows.length === 0 ? html`<div class="file-list-empty">No project-level runners configured</div>` : rows}
+      ${projectRunners.length === 0
+        ? html`<div class="file-list-empty">No project-level runners configured</div>`
+        : projectRunners.map(r => this._renderRunnerCard("project", r))}
       <div class="action-row">
         <vscode-button appearance="secondary" icon="add"
           @click=${() => this.postCommand("addProjectRunner", { project: this.projectName })}>

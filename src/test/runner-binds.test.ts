@@ -16,7 +16,7 @@ limitations under the License.
 */
 
 import * as assert from 'assert';
-import { resolveBind, RunnerBind, RunnerVariant } from '../project_utilities/runner_variants';
+import { resolveBind, RunnerBind, RunnerVariant, formatBindLabel } from '../project_utilities/runner_variants';
 import { migrateRunnerConfig } from '../setup_utilities/state-management';
 
 suite('Runner Bind Resolution', () => {
@@ -142,5 +142,67 @@ suite('Runner Config Migration', () => {
     assert.strictEqual(migrated.args, undefined);
     assert.strictEqual(migrated.argsMode, undefined);
     assert.deepStrictEqual(migrated.flash, { kind: 'runner', runner: 'openocd' });
+  });
+});
+
+suite('formatBindLabel', () => {
+  const variants: RunnerVariant[] = [
+    { name: 'bmp-acm0', runner: 'blackmagicprobe', args: '--gdb-serial /dev/ttyACM0' },
+    { name: 'jlink-fast', runner: 'jlink', args: '--speed 4000' },
+    { name: 'no-args', runner: 'pyocd', args: '' },
+  ];
+
+  test('auto label', () => {
+    assert.strictEqual(formatBindLabel({ kind: 'auto' }, variants), 'Auto (runners.yaml)');
+  });
+
+  test('undefined bind treated as auto', () => {
+    assert.strictEqual(formatBindLabel(undefined, variants), 'Auto (runners.yaml)');
+  });
+
+  test('runner without extraArgs', () => {
+    assert.strictEqual(formatBindLabel({ kind: 'runner', runner: 'openocd' }, variants), 'openocd');
+  });
+
+  test('runner with extraArgs', () => {
+    assert.strictEqual(
+      formatBindLabel({ kind: 'runner', runner: 'openocd', extraArgs: '--speed 4000' }, variants),
+      'openocd --speed 4000',
+    );
+  });
+
+  test('variant resolves to runner + args', () => {
+    assert.strictEqual(
+      formatBindLabel({ kind: 'variant', variant: 'bmp-acm0' }, variants),
+      'variant: bmp-acm0 → blackmagicprobe --gdb-serial /dev/ttyACM0',
+    );
+  });
+
+  test('variant with extraArgs appends', () => {
+    assert.strictEqual(
+      formatBindLabel({ kind: 'variant', variant: 'jlink-fast', extraArgs: '--device STM32F1' }, variants),
+      'variant: jlink-fast → jlink --speed 4000 --device STM32F1',
+    );
+  });
+
+  test('variant with no args and no extraArgs omits trailing space', () => {
+    assert.strictEqual(
+      formatBindLabel({ kind: 'variant', variant: 'no-args' }, variants),
+      'variant: no-args → pyocd',
+    );
+  });
+
+  test('missing variant marked', () => {
+    assert.strictEqual(
+      formatBindLabel({ kind: 'variant', variant: 'does-not-exist' }, variants),
+      'variant: does-not-exist (missing!)',
+    );
+  });
+
+  test('launch label', () => {
+    assert.strictEqual(
+      formatBindLabel({ kind: 'launch', name: 'My Custom Debug' }, variants),
+      'launch.json: My Custom Debug',
+    );
   });
 });

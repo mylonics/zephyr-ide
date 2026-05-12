@@ -628,9 +628,9 @@ export class ProjectBuildPanel {
    */
   private synthesizeRunnerName(bind: RunnerBind, existing: Set<string>): string {
     let base = "default";
-    if (bind.kind === "runner") { base = bind.runner || "default"; }
-    else if (bind.kind === "variant") { base = bind.variant || "default"; }
-    else if (bind.kind === "launch") { base = bind.name || "default"; }
+    if (bind.kind === "runner") { base = bind.runner; }
+    else if (bind.kind === "variant") { base = bind.variant; }
+    else if (bind.kind === "launch") { base = bind.name; }
     if (!existing.has(base)) { return base; }
     for (let i = 2; i < 1000; i++) {
       const candidate = `${base}-${i}`;
@@ -943,9 +943,11 @@ export class ProjectBuildPanel {
           const variantNames = variants.map((v) => ({ name: v.name, runner: v.runner, args: v.args }));
           const availableRunners = details.runnersYamlHint?.availableRunners ?? [];
 
-          const toBindInfo = (b: any): WebviewBindInfo => {
-            const bind: RunnerBind = (b && typeof b === "object" && typeof b.kind === "string")
-              ? b as RunnerBind
+          const toBindInfo = (b: RunnerBind | undefined): WebviewBindInfo => {
+            // RunnerConfig is loaded from persisted JSON; defensively validate
+            // the discriminator before trusting the type.
+            const bind: RunnerBind = (b && typeof (b as any).kind === "string")
+              ? b
               : { kind: "auto" };
             const display = formatBindLabel(bind, variants);
             const extraArgs = (bind.kind === "runner" || bind.kind === "variant")
