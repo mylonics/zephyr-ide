@@ -48,16 +48,21 @@ import {
   selectBuildDebugLaunchConfiguration,
   selectDebugAttachLaunchConfiguration,
   getProjectFolder,
+  getBuildFolder,
   addRunnerToProject,
   removeProjectRunner,
 } from "../../project_utilities/project";
 import { ConfigFiles } from "../../project_utilities/config_selector";
 import { generateNonce } from "../webview_shared/nonce";
-import { getLaunchTargetDisplayName } from "../../utilities/utils";
+import { getLaunchTargetDisplayName, getLaunchConfigurations } from "../../utilities/utils";
 import { normalizeBuildArgs } from "../../project_utilities/build_args";
+import { KNOWN_RUNNERS, RunnerConfig } from "../../project_utilities/runner_selector";
+import { RunnerBind, formatBindLabel, loadRunnerVariants, findRunnerVariant } from "../../project_utilities/runner_variants";
+import { getRunnersYamlHint } from "../../zephyr_utilities/runners-yaml";
 
 import type {
   ProjectBuildPanelData,
+  WebviewBindInfo,
   WebviewRunnerInfo,
 } from "./project-build-data";
 
@@ -337,7 +342,7 @@ export class ProjectBuildPanel {
           await this.refreshAfterChange();
           return;
         case "updateRunner":
-          await this.handleUpdateRunner(message);
+          // Legacy message from the pre-4-bind UI; ignored.
           return;
         case "addProjectRunner":
           await addRunnerToProject(ws, ctx, message.project);
@@ -348,7 +353,13 @@ export class ProjectBuildPanel {
           await this.refreshAfterChange();
           return;
         case "updateProjectRunner":
-          await this.handleUpdateProjectRunner(message);
+          // Legacy message from the pre-4-bind UI; ignored.
+          return;
+        case "pickBind":
+          await this.handlePickBind(message);
+          return;
+        case "setBindExtraArgs":
+          await this.handleSetBindExtraArgs(message);
           return;
         case "setActiveRunner": {
           const buildState = ws.projectStates[message.project]?.buildStates[message.build];
@@ -565,37 +576,230 @@ export class ProjectBuildPanel {
     this.updateHtml();
   }
 
-  private async handleUpdateRunner(message: Record<string, any>) {
-    // TODO: Update to new RunnerBind UI - stub for now.
-    // The current build-section.ts UI sends per-field updates that the new
-    // four-bind model cannot apply. Until the Stage 2 UI is in place, drop
-    // these events silently rather than dirtying workspace state on every
-    // blur of a text input.
-    const projectName = this._selectedProject;
-    const buildName = String(message.build ?? "");
-    const runnerName = String(message.runner ?? "");
-    if (!projectName || !buildName || !runnerName) {
-      return;
+  // ---------------------------------------------------------------------------
+  // Runner bind handlers (4-bind model: flash / build / buildDebug / attach)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Returns the live RunnerConfig dictionary for the requested level, plus
+   * helpers for persistence. For the build level the returned `setActive`
+   * function updates the build's active runner.
+   */
+  private resolveRunnerScope(message: Record<string, any>): {
+    project: string;
+    build: string | undefined;
+    runners: Record<string, RunnerConfig> | undefined;
+    setActive?: (name: string | undefined) => void;
+  } | undefined {
+    const projectName = String(message.project ?? this._selectedProject ?? "");
+    if (!projectName) { return undefined; }
+    const project = this._wsConfig.projects[projectName];
+    if (!project) { return undefined; }
+
+    const buildName = message.build ? String(message.build) : undefined;
+    if (buildName) {
+      const build = project.buildConfigs?.[buildName];
+      if (!build) { return undefined; }
+      if (!build.runnerConfigs) { build.runnerConfigs = {}; }
+      const buildState = this._wsConfig.projectStates[projectName]?.buildStates?.[buildName];
+      return {
+        project: projectName,
+        build: buildName,
+        runners: build.runnerConfigs,
+        setActive: (name) => { if (buildState) { buildState.activeRunner = name; } },
+      };
     }
-    const runner = this._wsConfig.projects[projectName]?.buildConfigs?.[buildName]?.runnerConfigs?.[runnerName];
-    if (!runner) {
-      return;
-    }
-    // No state mutation yet — see TODO above.
+    if (!project.runnerConfigs) { project.runnerConfigs = {}; }
+    return {
+      project: projectName,
+      build: undefined,
+      runners: project.runnerConfigs,
+    };
   }
 
-  private async handleUpdateProjectRunner(message: Record<string, any>) {
-    // TODO: Update to new RunnerBind UI - stub for now. See handleUpdateRunner.
-    const projectName = this._selectedProject;
+  private static readonly BIND_TARGETS = ["flash", "build", "buildDebug", "attach"] as const;
+  private static isBindTarget(t: any): t is typeof ProjectBuildPanel.BIND_TARGETS[number] {
+    return ProjectBuildPanel.BIND_TARGETS.includes(t);
+  }
+
+  /**
+   * Synthesise a sensible auto-created RunnerConfig name from the picked bind.
+   * Falls back to "default" / "default-N" if there's a collision.
+   */
+  private synthesizeRunnerName(bind: RunnerBind, existing: Set<string>): string {
+    let base = "default";
+    if (bind.kind === "runner") { base = bind.runner || "default"; }
+    else if (bind.kind === "variant") { base = bind.variant || "default"; }
+    else if (bind.kind === "launch") { base = bind.name || "default"; }
+    if (!existing.has(base)) { return base; }
+    for (let i = 2; i < 1000; i++) {
+      const candidate = `${base}-${i}`;
+      if (!existing.has(candidate)) { return candidate; }
+    }
+    return `${base}-${Date.now()}`;
+  }
+
+  private async handlePickBind(message: Record<string, any>) {
+    const target = message.target;
+    if (!ProjectBuildPanel.isBindTarget(target)) {
+      outputError("Project Build Panel", `pickBind: invalid target "${String(target)}"`);
+      return;
+    }
+
+    const scope = this.resolveRunnerScope(message);
+    if (!scope) {
+      notifyError("Runner Config", "Cannot resolve project/build for runner bind change.");
+      return;
+    }
+
+    const ws = this._wsConfig;
+    const variants = loadRunnerVariants(ws);
+    const variantNames = new Set(variants.map(v => v.name));
+
+    // Gather catalogues for the picker
+    let availableRunners: string[] = [];
+    let launchConfigs: string[] = [];
+    if (scope.build) {
+      const build = ws.projects[scope.project].buildConfigs[scope.build];
+      const buildFolder = getBuildFolder(ws, ws.projects[scope.project], build);
+      const hint = getRunnersYamlHint(buildFolder);
+      availableRunners = hint?.availableRunners ?? [];
+    }
+    if (target !== "flash") {
+      const all = await getLaunchConfigurations(ws);
+      launchConfigs = (all ?? [])
+        .map((c: any) => c?.name)
+        .filter((n: any): n is string => typeof n === "string" && n.length > 0);
+    }
+
+    // Build grouped QuickPick items
+    type Item = vscode.QuickPickItem & { _bind?: RunnerBind };
+    const items: Item[] = [];
+    items.push({ label: "Auto", description: "Use runners.yaml defaults", _bind: { kind: "auto" } });
+
+    if (variants.length > 0) {
+      items.push({ label: "Variants", kind: vscode.QuickPickItemKind.Separator });
+      for (const v of variants) {
+        items.push({
+          label: `variant: ${v.name}`,
+          description: `${v.runner} ${v.args}`.trim(),
+          _bind: { kind: "variant", variant: v.name },
+        });
+      }
+    }
+
+    const availableSet = new Set(availableRunners);
+    if (availableRunners.length > 0) {
+      items.push({ label: "Available for this board", kind: vscode.QuickPickItemKind.Separator });
+      for (const r of availableRunners) {
+        items.push({ label: r, description: "from runners.yaml", _bind: { kind: "runner", runner: r } });
+      }
+    }
+
+    const otherRunners = KNOWN_RUNNERS.filter(r => !availableSet.has(r));
+    if (otherRunners.length > 0) {
+      items.push({ label: "Other runners", kind: vscode.QuickPickItemKind.Separator });
+      for (const r of otherRunners) {
+        items.push({ label: r, _bind: { kind: "runner", runner: r } });
+      }
+    }
+
+    if (target !== "flash" && launchConfigs.length > 0) {
+      items.push({ label: "launch.json configurations", kind: vscode.QuickPickItemKind.Separator });
+      for (const name of launchConfigs) {
+        items.push({ label: `launch.json: ${name}`, _bind: { kind: "launch", name } });
+      }
+    }
+
+    const targetLabel = target === "buildDebug" ? "Build & Debug" : target.charAt(0).toUpperCase() + target.slice(1);
+    const pick = await vscode.window.showQuickPick(items, {
+      title: `Pick ${targetLabel} bind`,
+      placeHolder: `Select what runs for ${targetLabel}`,
+      ignoreFocusOut: true,
+    }).then(v => v as Item | undefined, (e) => { outputError("Runner Bind", String(e)); return undefined; });
+
+    if (!pick || !pick._bind) { return; }
+    const newBind = pick._bind;
+
+    // Validation
+    if (target === "flash" && newBind.kind === "launch") {
+      notifyError("Runner Bind", "launch.json bindings are not allowed for the Flash target.");
+      return;
+    }
+    if (newBind.kind === "variant" && !variantNames.has(newBind.variant)) {
+      notifyError("Runner Bind", `Variant "${newBind.variant}" is not defined. Add it under "zephyr-ide.runnerVariants" or .vscode/zephyr-ide.json.`);
+      return;
+    }
+
+    // Apply: either to the named runner, or auto-create one when none exist.
+    const runnerName: string | undefined = message.runner ? String(message.runner) : undefined;
+    const runners = scope.runners!;
+    let target_runner: RunnerConfig | undefined;
+    let createdNew = false;
+
+    if (runnerName) {
+      target_runner = runners[runnerName];
+      if (!target_runner) {
+        notifyError("Runner Bind", `Runner "${runnerName}" not found. The configuration may have been removed; reload the panel.`);
+        return;
+      }
+    } else if (Object.keys(runners).length === 0) {
+      // Auto-create-when-empty: synthesise a "default" RunnerConfig.
+      const newName = this.synthesizeRunnerName(newBind, new Set(Object.keys(runners)));
+      target_runner = {
+        name: newName,
+        flash: { kind: "auto" },
+        build: { kind: "auto" },
+        buildDebug: { kind: "auto" },
+        attach: { kind: "auto" },
+      };
+      runners[newName] = target_runner;
+      createdNew = true;
+      // Mark the new config active at the build level.
+      if (scope.setActive) { scope.setActive(newName); }
+    } else {
+      // Build has runners but no specific runner was named — refuse to silently mutate.
+      notifyError("Runner Bind", "No runner specified. Add a runner first or pass a runner name.");
+      return;
+    }
+
+    target_runner[target] = newBind;
+
+    await setWorkspaceState(this._context, this._wsConfig);
+    if (createdNew) {
+      void vscode.window.showInformationMessage(`Created runner configuration "${target_runner.name}".`);
+    }
+    await this.refreshAfterChange();
+  }
+
+  private async handleSetBindExtraArgs(message: Record<string, any>) {
+    const target = message.target;
+    if (!ProjectBuildPanel.isBindTarget(target)) {
+      outputError("Project Build Panel", `setBindExtraArgs: invalid target "${String(target)}"`);
+      return;
+    }
+    const scope = this.resolveRunnerScope(message);
+    if (!scope) { return; }
     const runnerName = String(message.runner ?? "");
-    if (!projectName || !runnerName) {
-      return;
-    }
-    const runner = this._wsConfig.projects[projectName]?.runnerConfigs?.[runnerName];
+    if (!runnerName) { return; }
+    const runner = scope.runners?.[runnerName];
     if (!runner) {
+      notifyError("Runner Bind", `Runner "${runnerName}" not found.`);
       return;
     }
-    // No state mutation yet — see TODO above.
+    const bind = runner[target];
+    if (!bind || (bind.kind !== "runner" && bind.kind !== "variant")) {
+      // extraArgs is only meaningful for runner/variant binds; ignore otherwise.
+      return;
+    }
+    const value = String(message.value ?? "").trim();
+    if (value) {
+      bind.extraArgs = value;
+    } else {
+      delete bind.extraArgs;
+    }
+    await setWorkspaceState(this._context, this._wsConfig);
+    await this.refreshAfterChange();
   }
 
   private async refreshAfterChange() {
@@ -653,7 +857,11 @@ export class ProjectBuildPanel {
   }
 
   private updateHtml() {
-    const data = this.generatePanelData();
+    void this._updateHtmlAsync();
+  }
+
+  private async _updateHtmlAsync() {
+    const data = await this.generatePanelData();
     if (!this._htmlInitialized) {
       this._panel.webview.html = this.getHtmlShell();
       this._htmlInitialized = true;
@@ -668,7 +876,7 @@ export class ProjectBuildPanel {
   }
 
   /** Generate the full data payload for the webview. */
-  private generatePanelData(): ProjectBuildPanelData {
+  private async generatePanelData(): Promise<ProjectBuildPanelData> {
     const projectNames = Object.keys(this._wsConfig.projects ?? {});
     const selected = this._selectedProject;
 
@@ -726,27 +934,42 @@ export class ProjectBuildPanel {
         const buildName = currentSelection.slice(6);
         const details = getBuildDetails(this._wsConfig, selected, buildName);
         if (details) {
-          const runners: WebviewRunnerInfo[] = details.runners.map((r) => ({
-            name: r.name,
-            runner: (r.config as any).runner ?? "",
-            args: (r.config as any).args ?? "",
-            argsMode: (r.config as any).argsMode ?? "append",
-            flash: r.config.flash,
-            build: r.config.build,
-            buildDebug: r.config.buildDebug,
-            attach: r.config.attach,
-          }));
+          // Catalogues used by both runner cards and the picker UX.
+          const variants = loadRunnerVariants(this._wsConfig);
+          const launchConfigs = await getLaunchConfigurations(this._wsConfig);
+          const launchConfigNames = (launchConfigs ?? [])
+            .map((c) => c?.name)
+            .filter((n): n is string => typeof n === "string" && n.length > 0);
+          const variantNames = variants.map((v) => ({ name: v.name, runner: v.runner, args: v.args }));
+          const availableRunners = details.runnersYamlHint?.availableRunners ?? [];
 
-          const projectRunners: WebviewRunnerInfo[] = details.projectRunners.map((r) => ({
+          const toBindInfo = (b: any): WebviewBindInfo => {
+            const bind: RunnerBind = (b && typeof b === "object" && typeof b.kind === "string")
+              ? b as RunnerBind
+              : { kind: "auto" };
+            const display = formatBindLabel(bind, variants);
+            const extraArgs = (bind.kind === "runner" || bind.kind === "variant")
+              ? (bind.extraArgs ?? "")
+              : "";
+            const missingVariant = bind.kind === "variant" && !findRunnerVariant(bind.variant, variants);
+            return {
+              bind: bind as WebviewBindInfo["bind"],
+              display,
+              extraArgs,
+              missingVariant,
+            };
+          };
+
+          const toRunnerInfo = (r: { name: string; config: RunnerConfig }): WebviewRunnerInfo => ({
             name: r.name,
-            runner: (r.config as any).runner ?? "",
-            args: (r.config as any).args ?? "",
-            argsMode: (r.config as any).argsMode ?? "append",
-            flash: r.config.flash,
-            build: r.config.build,
-            buildDebug: r.config.buildDebug,
-            attach: r.config.attach,
-          }));
+            flash: toBindInfo(r.config.flash),
+            build: toBindInfo(r.config.build),
+            buildDebug: toBindInfo(r.config.buildDebug),
+            attach: toBindInfo(r.config.attach),
+          });
+
+          const runners: WebviewRunnerInfo[] = details.runners.map(toRunnerInfo);
+          const projectRunners: WebviewRunnerInfo[] = details.projectRunners.map(toRunnerInfo);
 
           buildDetails = {
             ...details,
@@ -754,6 +977,10 @@ export class ProjectBuildPanel {
             projectRunners,
             activeRunner: details.activeRunner,
             runnersYamlHint: details.runnersYamlHint,
+            availableRunners,
+            knownRunners: KNOWN_RUNNERS,
+            variantNames,
+            launchConfigNames,
             debugDisplay: getLaunchTargetDisplayName(details.launchTarget, details.launchTargetFolder, "Zephyr IDE: Debug"),
             buildDebugDisplay: getLaunchTargetDisplayName(details.buildDebugTarget, details.buildDebugTargetFolder, "Zephyr IDE: Debug"),
             attachDisplay: getLaunchTargetDisplayName(details.attachTarget, details.attachTargetFolder, "Zephyr IDE: Attach"),

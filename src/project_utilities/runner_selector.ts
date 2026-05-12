@@ -39,7 +39,7 @@ export type RunnerConfigDictionary = { [name: string]: RunnerConfig };
 export type RunnerStateDictionary = { [name: string]: RunnerState };
 
 /** All known west runners. */
-const KNOWN_RUNNERS = [
+export const KNOWN_RUNNERS = [
   "openocd",
   "jlink",
   "pyocd",

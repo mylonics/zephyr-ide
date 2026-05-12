@@ -101,3 +101,37 @@ export function resolveBind(bind: RunnerBind, variants: RunnerVariant[]): { runn
       return undefined;
   }
 }
+
+/** Format a RunnerBind as a short human-readable label for the webview/UI.
+ *  - auto:    "Auto (runners.yaml)"
+ *  - runner:  "<runner>" or "<runner> <extraArgs>"
+ *  - variant: "variant: <name> → <runner> <args>" (resolved if possible) or
+ *             "variant: <name> (missing!)" if the variant is unknown.
+ *  - launch:  "launch.json: <name>"
+ */
+export function formatBindLabel(bind: RunnerBind | undefined, variants: RunnerVariant[]): string {
+  if (!bind) {
+    return "Auto (runners.yaml)";
+  }
+  switch (bind.kind) {
+    case "auto":
+      return "Auto (runners.yaml)";
+    case "runner": {
+      const extra = (bind.extraArgs ?? "").trim();
+      return extra ? `${bind.runner} ${extra}` : bind.runner;
+    }
+    case "variant": {
+      const v = findRunnerVariant(bind.variant, variants);
+      if (!v) {
+        return `variant: ${bind.variant} (missing!)`;
+      }
+      const extra = (bind.extraArgs ?? "").trim();
+      const allArgs = [v.args, extra].filter(s => s && s.trim()).join(" ");
+      return allArgs
+        ? `variant: ${bind.variant} → ${v.runner} ${allArgs}`
+        : `variant: ${bind.variant} → ${v.runner}`;
+    }
+    case "launch":
+      return `launch.json: ${bind.name}`;
+  }
+}

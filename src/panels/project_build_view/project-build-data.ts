@@ -57,17 +57,25 @@ export interface WebviewProjectInfo {
 // Build data
 // ---------------------------------------------------------------------------
 
+export interface WebviewBindInfo {
+  /** Serialised RunnerBind (kind discriminator + payload). */
+  bind: { kind: "auto" } | { kind: "runner"; runner: string; extraArgs?: string }
+       | { kind: "variant"; variant: string; extraArgs?: string }
+       | { kind: "launch"; name: string };
+  /** Pre-computed display label (e.g. "openocd --speed 4000"). */
+  display: string;
+  /** Pre-computed extra-args text for the inline editor (variant + runner kinds only). */
+  extraArgs: string;
+  /** True when the bind references a variant that no longer exists. */
+  missingVariant: boolean;
+}
+
 export interface WebviewRunnerInfo {
   name: string;
-  // Legacy fields for backward compatibility during UI transition
-  runner?: string;
-  args?: string;
-  argsMode?: "append" | "override";
-  // New fields - to be fully implemented later
-  flash?: any;
-  build?: any;
-  buildDebug?: any;
-  attach?: any;
+  flash: WebviewBindInfo;
+  build: WebviewBindInfo;
+  buildDebug: WebviewBindInfo;
+  attach: WebviewBindInfo;
 }
 
 export interface WebviewBuildDetails {
@@ -89,6 +97,14 @@ export interface WebviewBuildDetails {
   activeRunner: string | undefined;
   /** Read-only hint from runners.yaml. */
   runnersYamlHint: { flashRunner?: string; debugRunner?: string; availableRunners: string[] } | undefined;
+  /** Runner names available for this board's runners.yaml (also surfaced in the picker). */
+  availableRunners: string[];
+  /** All known west runners (for the picker's "Other runners" group). */
+  knownRunners: string[];
+  /** Variant catalogue (name + resolved runner + args) for the picker. */
+  variantNames: { name: string; runner: string; args: string }[];
+  /** launch.json configuration names (for build/buildDebug/attach picker entries). */
+  launchConfigNames: string[];
   launchTarget: string;
   launchTargetFolder: string | undefined;
   buildDebugTarget: string;
