@@ -51,6 +51,11 @@ export interface ParsedSDKList {
     error?: string;
 }
 
+interface ResolvedSDKInstallState {
+    sdkInstalled: boolean;
+    sdkVersion?: string;
+}
+
 // ---------------------------------------------------------------------------
 // GitHub API types (internal)
 // ---------------------------------------------------------------------------
@@ -494,6 +499,64 @@ export async function detectInstalledSDKVersion(): Promise<string | undefined> {
         outputError("SDK Install", `Error detecting installed SDK version: ${error}`);
     }
     return undefined;
+}
+
+function getNewestSDKVersion(versions: ParsedSDKVersion[]): string | undefined {
+    const ordered = versions
+        .map(v => v.version)
+        .filter((version): version is string => !!version)
+        .sort((a, b) => compareVersions(b, a));
+    return ordered[0];
+}
+
+function resolveSDKInstallState(sdkList: ParsedSDKList): ResolvedSDKInstallState | undefined {
+    if (!sdkList.success) { return undefined; }
+
+    const installedVersions = sdkList.versions
+        .filter(v => (v.installedToolchains?.length ?? 0) > 0);
+    const sdkVersion = getNewestSDKVersion(installedVersions) ?? getNewestSDKVersion(sdkList.versions);
+
+    return {
+        sdkInstalled: installedVersions.length > 0,
+        sdkVersion,
+    };
+}
+
+/**
+ * Refreshes the persisted SDK availability state from the filesystem scan.
+ *
+ * An SDK counts as installed only when at least one toolchain is present.
+ * When only the base SDK directory exists, `sdkInstalled` remains false but
+ * the discovered version is still retained as a fallback for follow-up
+ * toolchain installs.
+ */
+export async function syncSDKInstallState(
+    globalConfig: GlobalConfig,
+    context?: vscode.ExtensionContext,
+    sdkList?: ParsedSDKList,
+): Promise<ResolvedSDKInstallState & { changed: boolean }> {
+    const resolved = resolveSDKInstallState(sdkList ?? await listAvailableSDKs());
+    if (!resolved) {
+        return {
+            sdkInstalled: globalConfig.sdkInstalled ?? false,
+            sdkVersion: globalConfig.sdkVersion,
+            changed: false,
+        };
+    }
+
+    const nextInstalled = resolved.sdkInstalled;
+    const nextVersion = resolved.sdkVersion;
+    const changed = (globalConfig.sdkInstalled ?? false) !== nextInstalled
+        || globalConfig.sdkVersion !== nextVersion;
+
+    globalConfig.sdkInstalled = nextInstalled;
+    globalConfig.sdkVersion = nextVersion;
+
+    if (changed && context) {
+        await setGlobalState(context, globalConfig);
+    }
+
+    return { ...resolved, changed };
 }
 
 // ---------------------------------------------------------------------------

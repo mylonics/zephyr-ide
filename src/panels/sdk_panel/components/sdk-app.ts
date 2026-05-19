@@ -277,9 +277,12 @@ export class SDKApp extends ZephyrLitElement {
     }
 
     const d = this._initData;
-    const statusIcon = d.sdkInstalled ? "✓" : "⚙";
-    const statusLabel = d.sdkInstalled ? "Installed" : "Not Installed";
-    const statusClass = d.sdkInstalled ? "status-success" : "status-warning";
+    const hasInstalledToolchains = this._sdkList?.success
+      ? (this._sdkList.versions ?? []).some(v => (v.installedToolchains?.length ?? 0) > 0)
+      : d.sdkInstalled;
+    const statusIcon = hasInstalledToolchains ? "✓" : "⚙";
+    const statusLabel = hasInstalledToolchains ? "Installed" : "Not Installed";
+    const statusClass = hasInstalledToolchains ? "status-success" : "status-warning";
 
     return html`
       <div class="container">
@@ -593,4 +596,3 @@ export class SDKApp extends ZephyrLitElement {
     `;
   }
 }
-
