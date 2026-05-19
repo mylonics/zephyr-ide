@@ -60,6 +60,9 @@ export function getProjectFolder(wsConfig: WorkspaceConfig, project: ProjectConf
 
 /** Get the absolute build output folder path for a project/build pair */
 export function getBuildFolder(wsConfig: WorkspaceConfig, project: ProjectConfig, build: BuildConfig): string {
+  if (build.rel_path) {
+    return path.join(wsConfig.rootPath, build.rel_path);
+  }
   return path.join(wsConfig.rootPath, project.rel_path, build.name);
 }
 
