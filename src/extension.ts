@@ -132,7 +132,7 @@ import { testHelper, deleteTestDirs } from "./zephyr_utilities/twister";
 
 import { getModuleVersion, getModuleList } from "./setup_utilities/modules";
 import { reconfigureTest } from "./project_utilities/twister_selector";
-import { installSDKInteractive, detectInstalledSDKVersion } from "./setup_utilities/west_sdk";
+import { installSDKInteractive, syncSDKInstallState } from "./setup_utilities/west_sdk";
 import {
   modifyZephyrIdeToolchainsInteractive,
   installZephyrIdeToolchains,
@@ -403,6 +403,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
     wsConfig = await loadWorkspaceState(context);
     globalConfig = await loadGlobalState(context);
+    await syncSDKInstallState(globalConfig, context);
 
     // Guard: ensure the active workspace's setup state is registered in the
     // global dictionary before setSetupState runs. Without this, if the global
@@ -820,20 +821,11 @@ export async function activate(context: vscode.ExtensionContext) {
       );
       if (confirm !== "Reset") { return; }
       await clearWorkspaceState(context, wsConfig, globalConfig);
-      // After a workspace reset, re-check the toolchains directory so that
-      // sdkInstalled stays true when the SDK is physically present. This
-      // ensures the SDK install prompt is not shown on the next workspace
-      // setup for a user who has already installed the SDK.
-      if (!globalConfig.sdkInstalled) {
-        const detectedVersion = await detectInstalledSDKVersion();
-        if (detectedVersion) {
-          outputInfo("SDK Install", `SDK found on disk after workspace reset (version ${detectedVersion}), preserving installed state.`);
-          globalConfig.sdkInstalled = true;
-          if (!globalConfig.sdkVersion) {
-            globalConfig.sdkVersion = detectedVersion;
-          }
-          await setGlobalState(context, globalConfig);
-        }
+      // After a workspace reset, re-check the toolchains directory so the SDK
+      // state reflects whatever is actually on disk.
+      const sdkState = await syncSDKInstallState(globalConfig, context);
+      if (sdkState.sdkInstalled && sdkState.sdkVersion) {
+        outputInfo("SDK Install", `SDK found on disk after workspace reset (version ${sdkState.sdkVersion}), preserving installed state.`);
       }
       void vscode.commands.executeCommand("zephyr-ide.update-web-view");
     })
