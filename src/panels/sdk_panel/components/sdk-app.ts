@@ -18,6 +18,7 @@ limitations under the License.
 import { html, nothing } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { ZephyrLitElement } from "../../webview_shared/lit-base";
+import { hasInstalledToolchains } from "../../../utilities/sdk-install-state";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -277,12 +278,12 @@ export class SDKApp extends ZephyrLitElement {
     }
 
     const d = this._initData;
-    const hasInstalledToolchains = this._sdkList?.success
-      ? (this._sdkList.versions ?? []).some(v => (v.installedToolchains?.length ?? 0) > 0)
+    const sdkIsInstalled = this._sdkList?.success
+      ? (this._sdkList.versions ?? []).some(hasInstalledToolchains)
       : d.sdkInstalled;
-    const statusIcon = hasInstalledToolchains ? "✓" : "⚙";
-    const statusLabel = hasInstalledToolchains ? "Installed" : "Not Installed";
-    const statusClass = hasInstalledToolchains ? "status-success" : "status-warning";
+    const statusIcon = sdkIsInstalled ? "✓" : "⚙";
+    const statusLabel = sdkIsInstalled ? "Installed" : "Not Installed";
+    const statusClass = sdkIsInstalled ? "status-success" : "status-warning";
 
     return html`
       <div class="container">

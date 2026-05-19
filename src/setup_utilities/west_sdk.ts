@@ -29,6 +29,7 @@ import { WorkspaceConfig, GlobalConfig } from "./types";
 import { getToolchainDir } from "./workspace-config";
 import { setGlobalState } from "./state-management";
 import { outputInfo, outputWarning, outputError, notifyError } from "../utilities/output";
+import { hasInstalledToolchains } from "../utilities/sdk-install-state";
 import { sdkVersions, toolchainTargets } from "../defines";
 import { SetupProgressTracker } from "./setup-progress";
 import { MultiStepInput, InputStep } from "../utilities/multistepQuickPick";
@@ -513,7 +514,7 @@ function resolveSDKInstallState(sdkList: ParsedSDKList): ResolvedSDKInstallState
     if (!sdkList.success) { return undefined; }
 
     const installedVersions = sdkList.versions
-        .filter(v => (v.installedToolchains?.length ?? 0) > 0);
+        .filter(hasInstalledToolchains);
     const sdkVersion = getNewestSDKVersion(installedVersions) ?? getNewestSDKVersion(sdkList.versions);
 
     return {
