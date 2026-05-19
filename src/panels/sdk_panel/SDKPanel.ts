@@ -390,9 +390,13 @@ export class SDKPanel {
   private async syncSdkStateFromList(sdkList: ParsedSDKList) {
     if (!this.currentGlobalConfig) { return; }
 
-    const state = await syncSDKInstallState(this.currentGlobalConfig, this._context, sdkList);
-    if (state.changed) {
-      await vscode.commands.executeCommand("zephyr-ide.update-web-view");
+    try {
+      const state = await syncSDKInstallState(this.currentGlobalConfig, this._context, sdkList);
+      if (state.changed) {
+        await vscode.commands.executeCommand("zephyr-ide.update-web-view");
+      }
+    } catch (error) {
+      outputError("SDK Panel", `Failed to sync SDK state from SDK list: ${String(error)}`);
     }
   }
 
