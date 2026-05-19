@@ -79,6 +79,7 @@ suite("SDK Install State Test Suite", () => {
         const state = await syncSDKInstallState(globalConfig);
 
         assert.strictEqual(state.sdkInstalled, false);
+        assert.strictEqual(state.sdkVersion, "1.0.1");
         assert.strictEqual(globalConfig.sdkInstalled, false);
         assert.strictEqual(globalConfig.sdkVersion, "1.0.1");
     });
