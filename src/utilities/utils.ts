@@ -26,6 +26,33 @@ import * as yaml from 'js-yaml';
 
 import { SetupState, WorkspaceConfig } from "../setup_utilities/types";
 import { getToolchainDir } from "../setup_utilities/workspace-config";
+
+/**
+ * Returns true when the resolved toolchain directory actually contains an
+ * installed Zephyr SDK (a `zephyr-sdk-*` subdirectory with a `sdk_version`
+ * file).  Used to gate injection of `ZEPHYR_SDK_INSTALL_DIR` into spawned
+ * shells — we only want to override CMake's SDK discovery when the extension
+ * has actually installed an SDK at that location.  Otherwise, users who
+ * installed the Zephyr SDK manually elsewhere (and rely on CMake's
+ * `~/zephyr-sdk-*` / package-registry auto-detection) would have that
+ * discovery suppressed by an empty extension-managed directory.
+ */
+function hasInstalledSDKSync(): boolean {
+  try {
+    const dir = getToolchainDir();
+    if (!fs.existsSync(dir)) { return false; }
+    const entries = fs.readdirSync(dir);
+    for (const entry of entries) {
+      if (!entry.startsWith("zephyr-sdk-")) { continue; }
+      if (fs.existsSync(path.join(dir, entry, "sdk_version"))) {
+        return true;
+      }
+    }
+  } catch {
+    // Treat scan errors as "no SDK present" — fall back to CMake auto-detection.
+  }
+  return false;
+}
 import { initOutputChannel, getOutputChannel, outputCommand, outputError, outputInfo, outputLine, type ShellCommandResult } from "./output";
 export type { ShellCommandResult } from "./output";
 
@@ -688,7 +715,7 @@ export async function executeTaskHelperInPythonEnv(setupState: SetupState | unde
   if (setupState.zephyrDir) {
     env["ZEPHYR_BASE"] = setupState.zephyrDir;
   }
-  if (win && !process.env.ZEPHYR_SDK_INSTALL_DIR) {
+  if (win && !process.env.ZEPHYR_SDK_INSTALL_DIR && hasInstalledSDKSync()) {
     env["ZEPHYR_SDK_INSTALL_DIR"] = getToolchainDir();
   }
 
@@ -765,7 +792,11 @@ export async function executeShellCommandInPythonEnv(cmd: string, cwd: string, s
   // zephyr-ide.toolchainDirectory VS Code setting. Propagate the resolved
   // value so that cmake-based subprocesses (e.g. RAM/ROM memory reports) use
   // the correct toolchain path even when it differs from the system default.
-  if (!process.env.ZEPHYR_SDK_INSTALL_DIR) {
+  //
+  // Only inject when the extension has actually installed an SDK at that
+  // location; otherwise pointing CMake at an empty directory would suppress
+  // its built-in auto-detection of manually installed SDKs (e.g. ~/zephyr-sdk-*).
+  if (!process.env.ZEPHYR_SDK_INSTALL_DIR && hasInstalledSDKSync()) {
     env["ZEPHYR_SDK_INSTALL_DIR"] = getToolchainDir();
   }
 
