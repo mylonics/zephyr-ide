@@ -115,8 +115,6 @@ export class SDKPanel {
     this._extensionPath = extensionPath;
     this._context = context;
 
-    this.updateContent(wsConfig, globalConfig);
-
     this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
 
     this._panel.webview.onDidReceiveMessage(
@@ -134,6 +132,8 @@ export class SDKPanel {
         });
       }),
     );
+
+    this.updateContent(wsConfig, globalConfig);
 
     // Pre-fetch SDK list in the background
     void this.fetchSDKListInBackground();

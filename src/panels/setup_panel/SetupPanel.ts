@@ -84,8 +84,6 @@ export class SetupPanel {
     this._extensionPath = extensionPath;
     this._context = context;
 
-    this.updateContent(wsConfig, globalConfig);
-
     this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
 
     this._panel.webview.onDidReceiveMessage(
@@ -93,6 +91,8 @@ export class SetupPanel {
       null,
       this._disposables
     );
+
+    this.updateContent(wsConfig, globalConfig);
   }
 
   private _htmlInitialized = false;
