@@ -287,6 +287,15 @@ export function pickDebugRunner(
         outputInfo("Debug", `Requested runner "${requested}" not found in runners.yaml. Falling back to cortex-debug-capable runner "${fallback}".`);
         return fallback;
       }
+      // No usable runner in runners.yaml. Only return the requested name
+      // when cortex-debug actually knows how to drive it (i.e. it is a known
+      // runner type that just happens to be missing from this build's
+      // runners.yaml). Otherwise return undefined so the caller surfaces a
+      // clean "cannot auto-translate" error instead of forwarding a bogus
+      // server-type to cortex-debug.
+      if (runnerToServerType(requested) === undefined) {
+        return undefined;
+      }
     }
     return requested;
   }

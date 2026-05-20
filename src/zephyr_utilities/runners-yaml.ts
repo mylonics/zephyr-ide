@@ -31,6 +31,8 @@ import * as fs from "fs";
 import * as path from "upath";
 import * as yaml from "js-yaml";
 
+import { outputWarning } from "../utilities/output";
+
 /**
  * Parsed contents of runners.yaml. All fields are best-effort — the file may
  * be absent or partially populated depending on how far the build progressed.
@@ -86,8 +88,10 @@ export function getSysbuildDomains(buildDir: string): SysbuildDomain[] | undefin
         .filter((d: any) => typeof d?.name === "string" && typeof d?.build_dir === "string")
         .map((d: any) => ({ name: d.name as string, buildDir: d.build_dir as string }));
     }
-  } catch {
-    // ignore
+  } catch (e) {
+    // Malformed domains.yaml — log so the caller's "No sysbuild domains
+    // found" message has a breadcrumb in the output channel.
+    outputWarning("Runners YAML", `Failed to parse ${domainsYamlPath}: ${String(e)}`);
   }
   return undefined;
 }
@@ -113,8 +117,10 @@ export function resolveRunnersYamlPath(buildDir: string, domainName?: string): s
           effectiveBuildDir = targetDomain.build_dir;
         }
       }
-    } catch {
-      // fall through with original build dir
+    } catch (e) {
+      // Fall through with the original build dir, but log so debug sessions
+      // that suddenly resolve to the wrong runners.yaml have a breadcrumb.
+      outputWarning("Runners YAML", `Failed to parse ${domainsYamlPath}: ${String(e)}`);
     }
   }
   return path.join(effectiveBuildDir, "zephyr", "runners.yaml");
@@ -132,7 +138,8 @@ export function parseRunnersYaml(runnersYamlPath: string): RunnersYaml | undefin
   let doc: any;
   try {
     doc = yaml.load(fs.readFileSync(runnersYamlPath, "utf-8"));
-  } catch {
+  } catch (e) {
+    outputWarning("Runners YAML", `Failed to parse ${runnersYamlPath}: ${String(e)}`);
     return undefined;
   }
   if (!doc || typeof doc !== "object") {
