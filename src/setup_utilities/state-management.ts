@@ -411,7 +411,12 @@ export async function migrateLegacyRunnersToProfiles(
     if (recorded >= RUNNER_PROFILES_MIGRATION_VERSION) {
       return;
     }
-  } catch { /* fall through and attempt migration */ }
+  } catch (e) {
+    // Log so a filesystem/parse failure here is visible rather than silently
+    // masking a deeper issue, but fall through and still attempt migration —
+    // the version flag write at the end will heal a partially-corrupt file.
+    console.error("[zephyr-ide] Failed to read runner profile migration version:", e);
+  }
 
   const newProfiles: any[] = [];
   const existingNames = new Set<string>();

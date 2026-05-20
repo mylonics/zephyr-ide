@@ -305,12 +305,12 @@ export class RunnerProfilePanel {
     const newName = suggestProfileName(this._wsConfig, `${source.name} copy`);
     const profile: RunnerProfile = {
       name: newName,
-      flash: deepCloneBind(source.flash),
-      debug: deepCloneBind(source.debug),
-      attach: deepCloneBind(source.attach),
+      flash: cloneBind(source.flash),
+      debug: cloneBind(source.debug),
+      attach: cloneBind(source.attach),
     };
     if (source.buildDebug) {
-      profile.buildDebug = deepCloneBind(source.buildDebug);
+      profile.buildDebug = cloneBind(source.buildDebug);
     }
     try {
       await saveRunnerProfile(this._wsConfig, scope, profile);
@@ -453,10 +453,12 @@ function sanitizeIncomingProfile(value: unknown): RunnerProfile | undefined {
 }
 
 /**
- * Shallow-clone a `RunnerBind`, deep-copying its `extraArgs` array so two
- * profiles can mutate their bind args independently after a Duplicate.
+ * Clone a `RunnerBind`. The bind object itself is shallow-copied (kind +
+ * primitive fields), but the `extraArgs` array — the only field a profile
+ * can mutate post-clone — is deep-copied so two profiles can independently
+ * edit their args after a Duplicate.
  */
-function deepCloneBind(bind: RunnerProfile["flash"]): RunnerProfile["flash"] {
+function cloneBind(bind: RunnerProfile["flash"]): RunnerProfile["flash"] {
   if (bind.kind === "runner") {
     const copy: RunnerProfile["flash"] = { kind: "runner", runner: bind.runner };
     if (bind.extraArgs && bind.extraArgs.length > 0) {
