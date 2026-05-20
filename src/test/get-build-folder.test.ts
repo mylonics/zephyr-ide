@@ -111,7 +111,7 @@ suite("getBuildFolder Test Suite", () => {
     // resolves to /workspace/shared_builds/out — still within root
     assert.strictEqual(
       getBuildFolder(ws, project, build),
-      path.normalize(path.join("/workspace", "apps/../shared_builds/out")),
+      path.resolve("/workspace", "shared_builds/out"),
     );
   });
 
@@ -123,7 +123,7 @@ suite("getBuildFolder Test Suite", () => {
     const build = makeBuild("my_build", "shared_builds\\nrf52840");
     assert.strictEqual(
       getBuildFolder(ws, project, build),
-      path.normalize(path.join("/workspace", "shared_builds/nrf52840")),
+      path.resolve("/workspace", "shared_builds/nrf52840"),
     );
   });
 });

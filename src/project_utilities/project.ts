@@ -71,7 +71,7 @@ export function getBuildFolder(wsConfig: WorkspaceConfig, project: ProjectConfig
       // (e.g. "/workspace" matching "/workspace2").
       const rootNormalized = path.toUnix(path.normalize(wsConfig.rootPath)) + "/";
       const resolved = path.toUnix(path.normalize(path.join(wsConfig.rootPath, build.rel_path)));
-      if (resolved.startsWith(rootNormalized) || resolved + "/" === rootNormalized) {
+      if (resolved === rootNormalized.slice(0, -1) || resolved.startsWith(rootNormalized)) {
         return resolved;
       }
       outputWarning("getBuildFolder", `rel_path "${build.rel_path}" escapes workspace root — falling back to default build folder`);
