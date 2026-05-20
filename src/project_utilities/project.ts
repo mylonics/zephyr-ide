@@ -64,11 +64,14 @@ export function getBuildFolder(wsConfig: WorkspaceConfig, project: ProjectConfig
     if (path.isAbsolute(build.rel_path)) {
       outputWarning("getBuildFolder", `rel_path "${build.rel_path}" is absolute — falling back to default build folder`);
     } else {
-      // upath normalizes all separators to "/", so path.sep is always "/".
-      // Using path.sep here makes the intent explicit for future readers.
-      const normalizedRoot = path.resolve(wsConfig.rootPath);
-      const resolved = path.resolve(wsConfig.rootPath, build.rel_path);
-      if (resolved === normalizedRoot || resolved.startsWith(normalizedRoot + path.sep)) {
+      // Use the same toUnix+normalize pattern used elsewhere in this file for
+      // cross-platform correctness: upath.toUnix() converts any backslashes
+      // (Windows-style paths) to forward slashes on all host OSes, and the
+      // trailing "/" on the root sentinel prevents prefix collisions
+      // (e.g. "/workspace" matching "/workspace2").
+      const rootNormalized = path.toUnix(path.normalize(wsConfig.rootPath)) + "/";
+      const resolved = path.toUnix(path.normalize(path.join(wsConfig.rootPath, build.rel_path)));
+      if (resolved.startsWith(rootNormalized) || resolved + "/" === rootNormalized) {
         return resolved;
       }
       outputWarning("getBuildFolder", `rel_path "${build.rel_path}" escapes workspace root — falling back to default build folder`);

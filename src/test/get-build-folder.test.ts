@@ -111,7 +111,19 @@ suite("getBuildFolder Test Suite", () => {
     // resolves to /workspace/shared_builds/out — still within root
     assert.strictEqual(
       getBuildFolder(ws, project, build),
-      path.resolve("/workspace", "apps/../shared_builds/out"),
+      path.normalize(path.join("/workspace", "apps/../shared_builds/out")),
+    );
+  });
+
+  test("handles Windows-style backslash separators in rel_path", () => {
+    // Users may store rel_path with backslashes in zephyr-ide.json on Windows;
+    // upath.toUnix() converts them so the path resolves correctly on all platforms.
+    const ws = makeWs("/workspace");
+    const project = makeProject("apps/myapp");
+    const build = makeBuild("my_build", "shared_builds\\nrf52840");
+    assert.strictEqual(
+      getBuildFolder(ws, project, build),
+      path.normalize(path.join("/workspace", "shared_builds/nrf52840")),
     );
   });
 });
