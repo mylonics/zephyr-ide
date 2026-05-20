@@ -266,7 +266,7 @@ export async function installZephyrIdeToolchains(
                 title: `Installing Zephyr SDK ${targetVersion ?? "(latest)"}`,
                 cancellable: false,
             },
-            async (progress) => installSDK(targetVersion, declared, (msg) => progress.report({ message: msg })),
+            async (progress) => installSDK(targetVersion, declared, (msg) => progress.report({ message: msg }), context?.extensionPath),
         );
 
         if (!ok) {

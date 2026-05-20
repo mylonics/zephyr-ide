@@ -254,6 +254,25 @@ async function fetchFullReleaseAssets(
 // Archive extraction
 // ---------------------------------------------------------------------------
 
+/** Returns true if `7z` is available on the current PATH. */
+function is7ZipAvailable(): boolean {
+    try {
+        cp.execSync("7z --help", { stdio: "ignore", timeout: 3000 });
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Returns the path to the bundled shims directory containing `7z.cmd`.
+ * The shim delegates `7z x` to Windows bsdtar (libarchive) so that setup.cmd
+ * works on machines without a standalone 7-Zip install.
+ */
+function get7zShimDir(extensionPath: string): string {
+    return nativePath.join(extensionPath, "resources", "shims");
+}
+
 function runProcessSync(
     cmd: string,
     args: string[],
@@ -261,18 +280,7 @@ function runProcessSync(
     env?: NodeJS.ProcessEnv
 ): Promise<{ code: number; stdout: string; stderr: string }> {
     return new Promise((resolve) => {
-        const isWindows = os.platform() === "win32";
-
-        // If 7-Zip is installed, add it to PATH as an optional fallback for
-        // platforms/commands that explicitly request it.
-        let effectiveEnv = env ?? { ...process.env };
-        if (isWindows) {
-            const sevenZipDir = "C:\\Program Files\\7-Zip";
-            const currentPath = (effectiveEnv["PATH"] ?? effectiveEnv["Path"] ?? "") as string;
-            if (fs.existsSync(sevenZipDir) && !currentPath.toLowerCase().includes(sevenZipDir.toLowerCase())) {
-                effectiveEnv = { ...effectiveEnv, Path: `${sevenZipDir};${currentPath}` };
-            }
-        }
+        const effectiveEnv = env ?? { ...process.env };
 
         const proc = cp.spawn(cmd, args, {
             cwd,
@@ -324,7 +332,8 @@ async function extractArchive(archivePath: string, outDir: string): Promise<void
 async function runSdkSetup(
     sdkDir: string,
     toolchains: string[],
-    onProgress?: (msg: string) => void
+    onProgress?: (msg: string) => void,
+    extensionPath?: string,
 ): Promise<void> {
     const isWindows = os.platform() === "win32";
     const setupScript = nativePath.join(sdkDir, isWindows ? "setup.cmd" : "setup.sh");
@@ -332,6 +341,21 @@ async function runSdkSetup(
     if (!(await fs.pathExists(setupScript))) {
         outputWarning("SDK Setup", `Setup script not found at ${setupScript}; skipping CMake registration`);
         return;
+    }
+
+    // On Windows, setup.cmd uses 7-Zip internally to extract toolchain archives.
+    // If 7-Zip is not on PATH, prepend the bundled shim directory (resources/shims/7z.cmd)
+    // which delegates `7z x` to Windows bsdtar (libarchive) — available on Windows 11+.
+    let setupEnv: NodeJS.ProcessEnv | undefined;
+    if (isWindows && !is7ZipAvailable()) {
+        if (extensionPath) {
+            const shimDir = get7zShimDir(extensionPath);
+            outputInfo("SDK Setup", `7-Zip not found; using bsdtar shim at ${shimDir}`);
+            const currentPath = (process.env["Path"] ?? process.env["PATH"] ?? "") as string;
+            setupEnv = { ...process.env, Path: `${shimDir};${currentPath}` };
+        } else {
+            outputWarning("SDK Setup", "7-Zip not found and extension path unavailable; setup.cmd may fail");
+        }
     }
 
     const sep = isWindows ? "/" : "-";
@@ -346,7 +370,7 @@ async function runSdkSetup(
             args = [setupScript, ...extraArgs];
         }
         outputInfo("SDK Setup", `Running: ${cmd} ${args.join(" ")}`);
-        const result = await runProcessSync(cmd, args, sdkDir);
+        const result = await runProcessSync(cmd, args, sdkDir, setupEnv);
         if (result.code !== 0) {
             throw new Error(`Setup script failed (exit ${result.code}):\n${result.stderr || result.stdout}`);
         }
@@ -581,7 +605,8 @@ const MIN_SUPPORTED_VERSION = "0.14.1";
 export async function installSDK(
     sdkVersion: string | undefined,
     toolchains: string[],
-    onProgress?: (msg: string) => void
+    onProgress?: (msg: string) => void,
+    extensionPath?: string,
 ): Promise<boolean> {
     try {
         const toolchainsDir = getToolchainDir();
@@ -748,7 +773,7 @@ export async function installSDK(
         // ------------------------------------------------------------------
         // 10. Run setup script (CMake registration + toolchain installation)
         // ------------------------------------------------------------------
-        await runSdkSetup(sdkDir, toolchains, onProgress);
+        await runSdkSetup(sdkDir, toolchains, onProgress, extensionPath);
 
         outputInfo("SDK Install", `SDK ${version} installation complete`);
         return true;
@@ -926,7 +951,7 @@ export async function installSDKInteractive(wsConfig: WorkspaceConfig, globalCon
                 const result = await installSDK(sdkVersion, toolchains, (msg) => {
                     progress.report({ message: msg });
                     tracker.updateStep('install', msg);
-                });
+                }, context?.extensionPath);
                 if (result) {
                     tracker.completeStep('install');
                     tracker.startStep('verify', 'Updating global state...');
@@ -976,7 +1001,7 @@ export async function installToolchainsDirect(
             async (progress) => installSDK(version, toolchains, (msg) => {
                 progress.report({ message: msg });
                 tracker.updateStep('install', msg);
-            })
+            }, context?.extensionPath)
         );
 
         if (result) {
@@ -1086,7 +1111,7 @@ export async function installSDKToolchainsInteractive(
             async (progress) => installSDK(prefilledVersion, toolchains, (msg) => {
                 progress.report({ message: msg });
                 tracker.updateStep('install', msg);
-            })
+            }, context?.extensionPath)
         );
 
         if (result) {
