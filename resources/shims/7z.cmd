@@ -27,9 +27,14 @@ goto :loop
 
 :run
 if not defined ARCHIVE (echo 7z shim: no archive specified 1>&2 & exit /b 1)
+set "BSDTAR=%SystemRoot%\System32\tar.exe"
+if not exist "!BSDTAR!" (
+  echo 7z shim: Windows bsdtar not found at "!BSDTAR!" 1>&2
+  exit /b 1
+)
 if defined OUTDIR (
-  tar -xf "!ARCHIVE!" -C "!OUTDIR!"
+  "!BSDTAR!" -xf "!ARCHIVE!" -C "!OUTDIR!"
 ) else (
-  tar -xf "!ARCHIVE!"
+  "!BSDTAR!" -xf "!ARCHIVE!"
 )
 exit /b %errorlevel%

@@ -268,26 +268,35 @@ function withWindows7ZipOnPath(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
     if (os.platform() !== "win32" || !hasDefaultWindows7ZipDir()) {
         return env;
     }
-    const pathKey = Object.keys(env).find((key) => key.toLowerCase() === "path") ?? "Path";
-    const currentPath = (env[pathKey] ?? "") as string;
-    if (currentPath.toLowerCase().includes(WINDOWS_7ZIP_DIR.toLowerCase())) {
+    return prependWindowsPath(env, WINDOWS_7ZIP_DIR);
+}
+
+function prependWindowsPath(env: NodeJS.ProcessEnv, pathEntry: string): NodeJS.ProcessEnv {
+    const pathKeys = Object.keys(env).filter((key) => key.toLowerCase() === "path");
+    const existingPath = (pathKeys.map((key) => env[key] as string | undefined).find(Boolean) ?? "");
+    const pathEntries = existingPath.split(";").filter(Boolean);
+    if (pathEntries.some((entry) => entry.toLowerCase() === pathEntry.toLowerCase())) {
         return env;
     }
-    return { ...env, [pathKey]: `${WINDOWS_7ZIP_DIR};${currentPath}` };
+
+    const envWithoutPath = { ...env } as Record<string, string | undefined>;
+    for (const key of pathKeys) {
+        delete envWithoutPath[key];
+    }
+
+    envWithoutPath.PATH = existingPath ? `${pathEntry};${existingPath}` : pathEntry;
+    return envWithoutPath;
 }
 
 /** Returns true if `7z` is available on PATH (including default install dir fallback on Windows). */
 function is7ZipAvailable(): boolean {
-    try {
-        cp.execSync("7z --help", {
-            stdio: "ignore",
-            timeout: 3000,
-            env: withWindows7ZipOnPath(process.env),
-        });
-        return true;
-    } catch {
-        return false;
-    }
+    const result = cp.spawnSync("7z", ["--help"], {
+        stdio: "ignore",
+        timeout: 3000,
+        env: withWindows7ZipOnPath(process.env),
+        shell: false,
+    });
+    return !result.error && result.status === 0;
 }
 
 /**
@@ -377,8 +386,7 @@ async function runSdkSetup(
         if (extensionPath) {
             const shimDir = get7zShimDir(extensionPath);
             outputInfo("SDK Setup", `7-Zip not found; using bsdtar shim at ${shimDir}`);
-            const currentPath = (process.env["Path"] ?? process.env["PATH"] ?? "") as string;
-            setupEnv = { ...process.env, Path: `${shimDir};${currentPath}` };
+            setupEnv = prependWindowsPath(process.env, shimDir);
         } else {
             outputWarning("SDK Setup", "7-Zip not found and extension path unavailable; setup.cmd may fail");
         }
