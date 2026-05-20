@@ -715,7 +715,9 @@ export async function executeTaskHelperInPythonEnv(setupState: SetupState | unde
 export async function executeTaskHelper(taskName: string, cmd: string, cwd: string | undefined, env?: { [key: string]: string }) {
   outputCommand(taskName, cmd);
   const options: vscode.ShellExecutionOptions = {
-    cwd: cwd,
+    // Coerce empty strings to undefined — VS Code's ShellExecution rejects
+    // an empty-string cwd and emits "An unknown error occurred".
+    cwd: cwd || undefined,
     ...(env && { env }),
   };
 
