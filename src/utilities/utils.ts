@@ -715,7 +715,7 @@ export async function executeTaskHelperInPythonEnv(setupState: SetupState | unde
   if (setupState.zephyrDir) {
     env["ZEPHYR_BASE"] = setupState.zephyrDir;
   }
-  if (win && !process.env.ZEPHYR_SDK_INSTALL_DIR && hasInstalledSDKSync()) {
+  if (!process.env.ZEPHYR_SDK_INSTALL_DIR && hasInstalledSDKSync()) {
     env["ZEPHYR_SDK_INSTALL_DIR"] = getToolchainDir();
   }
 
