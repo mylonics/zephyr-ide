@@ -429,6 +429,8 @@ export async function westUpdateWithRequirements(context: vscode.ExtensionContex
   setupPath?: string;
 } = {}, progressTracker?: SetupProgressTracker) {
   const { solo = true, isWorkspaceSetup = false, setupPath } = options;
+  const operationTitle = isWorkspaceSetup ? "Workspace Setup" : "West Update";
+  const operationName = isWorkspaceSetup ? "Workspace setup" : "West update";
   try {
     // Add setup-specific output messages
     if (isWorkspaceSetup) {
@@ -440,7 +442,7 @@ export async function westUpdateWithRequirements(context: vscode.ExtensionContex
     const westUpdateResult = await westUpdate(context, wsConfig, globalConfig, false);
     if (!westUpdateResult) {
       progressTracker?.failStep('west-update', 'West update failed');
-      notifyError("Workspace Setup", "West update failed. Check the Zephyr IDE output for details.");
+      notifyError(operationTitle, "West update failed. Check the Zephyr IDE output for details.");
       return false;
     }
     progressTracker?.completeStep('west-update');
@@ -461,7 +463,7 @@ export async function westUpdateWithRequirements(context: vscode.ExtensionContex
     const pythonReqResult = await installPythonRequirements(context, wsConfig, globalConfig, false);
     if (!pythonReqResult) {
       progressTracker?.failStep('python-req', 'Installation failed');
-      notifyError("Workspace Setup", "Python requirements installation failed. Check the Zephyr IDE output for details.");
+      notifyError(operationTitle, "Python requirements installation failed. Check the Zephyr IDE output for details.");
       return false;
     }
     progressTracker?.completeStep('python-req');
@@ -506,8 +508,10 @@ export async function westUpdateWithRequirements(context: vscode.ExtensionContex
     return true;
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
-    progressTracker?.fail(`Workspace setup failed: ${detail}`);
-    notifyError("Workspace Setup", `Workspace setup failed unexpectedly: ${detail}`);
+    if (!progressTracker?.failInProgressSteps(detail)) {
+      progressTracker?.fail(`${operationName} failed: ${detail}`);
+    }
+    notifyError(operationTitle, `${operationName} failed unexpectedly: ${detail}`);
     return false;
   }
 }
