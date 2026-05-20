@@ -81,4 +81,37 @@ suite("getBuildFolder Test Suite", () => {
       path.join("/workspace", "apps/myapp", "build/debug"),
     );
   });
+
+  test("falls back to default when rel_path is an absolute path", () => {
+    const ws = makeWs("/workspace");
+    const project = makeProject("apps/myapp");
+    const build = makeBuild("my_build", "/absolute/build/path");
+    // absolute rel_path is not allowed — should fall back to default
+    assert.strictEqual(
+      getBuildFolder(ws, project, build),
+      path.join("/workspace", "apps/myapp", "my_build"),
+    );
+  });
+
+  test("falls back to default when rel_path escapes the workspace root via ../", () => {
+    const ws = makeWs("/workspace");
+    const project = makeProject("apps/myapp");
+    const build = makeBuild("my_build", "../../outside");
+    // path.resolve('/workspace', '../../outside') => '/outside', escaping root
+    assert.strictEqual(
+      getBuildFolder(ws, project, build),
+      path.join("/workspace", "apps/myapp", "my_build"),
+    );
+  });
+
+  test("allows rel_path with internal .. that still stays within workspace root", () => {
+    const ws = makeWs("/workspace");
+    const project = makeProject("apps/myapp");
+    const build = makeBuild("my_build", "apps/../shared_builds/out");
+    // resolves to /workspace/shared_builds/out — still within root
+    assert.strictEqual(
+      getBuildFolder(ws, project, build),
+      path.resolve("/workspace", "apps/../shared_builds/out"),
+    );
+  });
 });

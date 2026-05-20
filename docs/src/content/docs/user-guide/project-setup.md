@@ -29,7 +29,7 @@ The project configuration is stored in a human-readable JSON file, which allows 
 
 By default, the build output for each build configuration is placed inside the project folder at `<project_dir>/<build_config_name>`. The build config name can contain slashes (e.g. `build/nrf52840dk/nrf52840`), so the default output path in that case would be `apps/sensors/accel_polling/build/nrf52840dk/nrf52840`.
 
-If you need to place build artifacts elsewhere — for example outside the project folder or in a shared directory — you can manually add a `rel_path` field to the build configuration in `.vscode/zephyr-ide.json`. The value must be a path relative to the workspace root; absolute paths and parent-directory references (`../`) are not supported.
+If you need to place build artifacts elsewhere — for example outside the project folder or in a shared directory — you can manually add a `rel_path` field to the build configuration in `.vscode/zephyr-ide.json`. The value must be a path relative to the workspace root; absolute paths are not supported, and parent-directory references (`../`) are only permitted when the fully resolved path still lies within the workspace root.
 
 ```json
 {

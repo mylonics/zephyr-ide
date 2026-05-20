@@ -19,7 +19,7 @@ import * as vscode from "vscode";
 import * as fs from "fs-extra";
 import * as path from "upath";
 import { selectLaunchConfiguration } from "../utilities/utils";
-import { notifyError, notifyWarningWithActions } from "../utilities/output";
+import { notifyError, notifyWarningWithActions, outputWarning } from "../utilities/output";
 import { buildSelector, BuildConfig, BuildConfigDictionary, BuildStateDictionary } from "./build_selector";
 import { WorkspaceConfig } from "../setup_utilities/types";
 import { setWorkspaceState } from "../setup_utilities/state-management";
@@ -61,7 +61,18 @@ export function getProjectFolder(wsConfig: WorkspaceConfig, project: ProjectConf
 /** Get the absolute build output folder path for a project/build pair */
 export function getBuildFolder(wsConfig: WorkspaceConfig, project: ProjectConfig, build: BuildConfig): string {
   if (build.rel_path) {
-    return path.join(wsConfig.rootPath, build.rel_path);
+    if (path.isAbsolute(build.rel_path)) {
+      outputWarning("getBuildFolder", `rel_path "${build.rel_path}" is absolute — falling back to default build folder`);
+    } else {
+      // upath normalizes all separators to "/", so path.sep is always "/".
+      // Using path.sep here makes the intent explicit for future readers.
+      const normalizedRoot = path.resolve(wsConfig.rootPath);
+      const resolved = path.resolve(wsConfig.rootPath, build.rel_path);
+      if (resolved === normalizedRoot || resolved.startsWith(normalizedRoot + path.sep)) {
+        return resolved;
+      }
+      outputWarning("getBuildFolder", `rel_path "${build.rel_path}" escapes workspace root — falling back to default build folder`);
+    }
   }
   return path.join(wsConfig.rootPath, project.rel_path, build.name);
 }
