@@ -18,7 +18,7 @@ export default defineConfig({
         src: './src/assets/logo.png',
       },
       favicon: '/favicon.ico',
-      ...(() => { const d = mylonicsStarlightDefaults('IDE for Zephyr', { github: 'https://github.com/mylonics/zephyr-ide', extraCss: ['./src/styles/custom.css'], headOptions: { ogImage: 'https://raw.githubusercontent.com/mylonics/zephyr-ide/main/media/logo.png', keywords: ['Zephyr RTOS', 'VS Code extension', 'embedded development', 'Zephyr SDK', 'west tool', 'ARM Cortex-M', 'RISC-V', 'nRF Connect', 'STM32', 'ESP32', 'Raspberry Pi Pico', 'IoT development', 'firmware development', 'cross-compilation', 'devicetree', 'KConfig', 'debugging', 'flashing', 'CMake', 'embedded IDE'] } }); const { social, ...rest } = d; return { ...rest, social: { github: social[0].href } }; })(),
+      ...mylonicsStarlightDefaults('IDE for Zephyr', { github: 'https://github.com/mylonics/zephyr-ide', extraCss: ['./src/styles/custom.css'], headOptions: { ogImage: 'https://raw.githubusercontent.com/mylonics/zephyr-ide/main/media/logo.png', keywords: ['Zephyr RTOS', 'VS Code extension', 'embedded development', 'Zephyr SDK', 'west tool', 'ARM Cortex-M', 'RISC-V', 'nRF Connect', 'STM32', 'ESP32', 'Raspberry Pi Pico', 'IoT development', 'firmware development', 'cross-compilation', 'devicetree', 'KConfig', 'debugging', 'flashing', 'CMake', 'embedded IDE'] } }),
       sidebar: [
         {
           label: 'Getting Started',
