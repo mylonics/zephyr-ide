@@ -26,6 +26,7 @@ import { loadProjectsFromFile, setWorkspaceSettings, generateGitIgnore, generate
 import { parseWestConfigManifest } from "./west-config-parser";
 import { readZephyrIdeJson, writeZephyrIdeJson } from "./zephyr_ide_json";
 import { splitArgs } from "../project_utilities/runner_profiles";
+import { outputError } from "../utilities/output";
 
 /**
  * Per-extension-host-process token used to detect full process restarts so
@@ -415,7 +416,7 @@ export async function migrateLegacyRunnersToProfiles(
     // Log so a filesystem/parse failure here is visible rather than silently
     // masking a deeper issue, but fall through and still attempt migration —
     // the version flag write at the end will heal a partially-corrupt file.
-    console.error("[zephyr-ide] Failed to read runner profile migration version:", e);
+    outputError("Runner Profile Migration", `Failed to read migration version flag: ${String(e)}`);
   }
 
   const newProfiles: any[] = [];
@@ -511,7 +512,7 @@ export async function migrateLegacyRunnersToProfiles(
     data[MIGRATION_VERSION_KEY] = RUNNER_PROFILES_MIGRATION_VERSION;
     await writeZephyrIdeJson(config, data);
   } catch (e) {
-    console.error("[zephyr-ide] Failed to persist migrated runner profiles:", e);
+    outputError("Runner Profile Migration", `Failed to persist migrated runner profiles: ${String(e)}`);
   }
 
   // Persist the stripped legacy fields and any newly-set `activeProfile`
@@ -521,7 +522,7 @@ export async function migrateLegacyRunnersToProfiles(
     try {
       await setWorkspaceState(context, config);
     } catch (e) {
-      console.error("[zephyr-ide] Failed to persist migrated workspace state:", e);
+      outputError("Runner Profile Migration", `Failed to persist migrated workspace state: ${String(e)}`);
     }
   }
 }
