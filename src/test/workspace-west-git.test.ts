@@ -28,10 +28,12 @@ import {
     monitorWorkspaceSetup,
     startWorkspaceCommand,
     printWorkspaceStructure,
+    runWorkspaceSuiteTeardown,
     activateExtension,
     executeFinalBuild,
     executeTestWithErrorHandling,
-    executeWorkspaceCommand
+    executeWorkspaceCommand,
+    getTestEnvConfig
 } from "./test-runner";
 import { UIMockInterface } from "./ui-mock-interface";
 
@@ -70,9 +72,11 @@ suite("Workspace West Git Test Suite", () => {
         await printWorkspaceStructure("West Git Workspace Test");
     });
 
-    test("West Git Workspace: West Manifest → SDK Install → Add Project → Custom Board Build", async function () {
-        this.timeout(620000);
+    suiteTeardown(async () => {
+        await runWorkspaceSuiteTeardown(originalWorkspaceFolders);
+    });
 
+    test("West Git Workspace: West Manifest → SDK Install → Add Project → Custom Board Build", async function () {
         console.log("🚀 Starting west git workspace test...");
         console.log("📁 Test workspace folder:", testWorkspaceDir);
 
@@ -86,6 +90,7 @@ suite("Workspace West Git Test Suite", () => {
                 await activateExtension();
                 gitUiMock.activate();
 
+                const { toolchainTarget } = getTestEnvConfig();
                 console.log("🏗️ Step 1: Setting up workspace from West Git...");
                 const setupPromise = startWorkspaceCommand(
                     gitUiMock,
@@ -94,7 +99,7 @@ suite("Workspace West Git Test Suite", () => {
                         { type: 'input', value: '--mr west_repo', description: 'Enter additional arguments for west' },
                         { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
                         { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
-                        { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
+                        { type: 'quickpick', value: toolchainTarget, description: `Select ${toolchainTarget} toolchain`, multiSelect: true }
                     ],
                     "zephyr-ide.workspace-setup-from-west-git",
                 );

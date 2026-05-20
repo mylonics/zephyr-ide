@@ -447,9 +447,6 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
 
 async function getExistingInstallationPicks(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
   if (!globalConfig.setupStateDictionary) {
-    void vscode.window.showInformationMessage(
-      "No existing Zephyr installations found."
-    );
     return;
   }
 
@@ -482,9 +479,6 @@ async function getExistingInstallationPicks(wsConfig: WorkspaceConfig, globalCon
   }
 
   if (installOptions.length === 0) {
-    void vscode.window.showInformationMessage(
-      "No valid existing Zephyr installations found."
-    );
     return;
   }
 
@@ -505,7 +499,8 @@ export async function manageWorkspaces(context: vscode.ExtensionContext, wsConfi
   const installOptions = await getExistingInstallationPicks(wsConfig, globalConfig);
 
   if (!installOptions || installOptions.length === 0) {
-    return; // getExistingInstallationPicks already shows appropriate message
+    void vscode.window.showInformationMessage("No existing Zephyr installations found.");
+    return;
   }
 
   // Also add invalid/missing installations for cleanup
@@ -1138,7 +1133,8 @@ export async function selectExistingWestWorkspace(
   const installOptions = await getExistingInstallationPicks(wsConfig, globalConfig);
 
   if (!installOptions || installOptions.length === 0) {
-    return false; // getExistingInstallationPicks already shows appropriate message
+    void vscode.window.showInformationMessage("No existing Zephyr installations found.");
+    return false;
   }
 
   // Show quickpick to user

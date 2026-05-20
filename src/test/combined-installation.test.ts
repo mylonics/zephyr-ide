@@ -41,12 +41,14 @@ import {
     logTestEnvironment,
     monitorWorkspaceSetup,
     printWorkspaceStructure,
+    runWorkspaceSuiteTeardown,
     activateExtension,
     executeFinalBuild,
     executeTestWithErrorHandling,
     executeWorkspaceCommand,
     startWorkspaceCommand,
     CommonUIInteractions,
+    waitForBuildReady,
 } from './test-runner';
 import { UIMockInterface } from './ui-mock-interface';
 
@@ -56,6 +58,16 @@ suite('Combined Installation Test Suite', function() {
     this.timeout(1500000); // 25 minutes total
 
     let testWorkspaceDir: string;
+    let originalWorkspaceFolders: readonly vscode.WorkspaceFolder[] | undefined;
+    let shouldCleanupWorkspace = false;
+
+    suiteSetup(() => {
+        originalWorkspaceFolders = vscode.workspace.workspaceFolders;
+    });
+
+    suiteTeardown(async () => {
+        await runWorkspaceSuiteTeardown(originalWorkspaceFolders, testWorkspaceDir, shouldCleanupWorkspace);
+    });
 
     test('Install host tools and run standard workspace workflow (single process)', async function() {
         console.log('🔧 Step 0: Starting combined installation test (single process)');
@@ -98,7 +110,18 @@ suite('Combined Installation Test Suite', function() {
 
         // Step 4: Set up the test workspace directory
         console.log('🚀 Step 4: Setting up test workspace...');
-        testWorkspaceDir = process.env.ZEPHYR_BASE || path.join(os.tmpdir(), 'zephyr-test-workspace');
+        const currentWorkspace = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        if (process.env.ZEPHYR_BASE) {
+            testWorkspaceDir = process.env.ZEPHYR_BASE;
+            shouldCleanupWorkspace = false;
+        } else if (currentWorkspace) {
+            testWorkspaceDir = currentWorkspace;
+            shouldCleanupWorkspace = false;
+        } else {
+            testWorkspaceDir = path.join(os.tmpdir(), `zephyr-test-workspace-${Date.now()}`);
+            shouldCleanupWorkspace = true;
+        }
+
         if (!fs.existsSync(testWorkspaceDir)) {
             fs.mkdirSync(testWorkspaceDir, { recursive: true });
         }
@@ -180,7 +203,7 @@ suite('Combined Installation Test Suite', function() {
                     uiMock,
                     [
                         { type: 'quickpick', value: 'zephyr directory', description: 'Use Zephyr directory only' },
-                        { type: 'quickpick', value: 'rpi_pico', description: 'Select Raspberry Pi Pico board' },
+                        { type: 'quickpick', value: 'rpi_pico/rp2040', description: 'Select Raspberry Pi Pico board' },
                         { type: 'input', value: 'test_build_1', description: 'Enter build name' },
                         { type: 'quickpick', value: 'debug', description: 'Select debug optimization' },
                         { type: 'input', value: '', description: 'Additional build args' },
@@ -190,7 +213,7 @@ suite('Combined Installation Test Suite', function() {
                     'Build configuration should succeed'
                 );
 
-                await new Promise((resolve) => setTimeout(resolve, 10000));
+                await waitForBuildReady('Combined Installation Test');
                 console.log('⚡ Step 8: Executing build...');
                 await executeFinalBuild('Combined Installation Test');
             }

@@ -104,17 +104,6 @@ async function getBoardlistWest(setupState: SetupState, folder: vscode.Uri | und
 
   if (!res.stdout || res.stdout === "") {
     outputCommandFailure("Board Selection", res);
-
-    // Check if we're in CI environment and provide fallback
-    if (process.env.CI || process.env.GITHUB_ACTIONS || process.env.JENKINS_URL || process.env.BUILD_NUMBER) {
-      return [
-        { name: "nucleo_f401re", subdir: "arm/st/nucleo_f401re" },
-        { name: "native_sim", subdir: "native/native_sim" },
-        { name: "rpi_pico", subdir: "arm/raspberrypi/rpi_pico" },
-        { name: "custom_plank", subdir: path.join(folder ? folder.fsPath : "", "/vendor/custom_plank") }
-      ];
-    }
-
     notifyError("Board Selection", "Failed to run west boards command. Check the Zephyr IDE output for details.");
     return;
   }
