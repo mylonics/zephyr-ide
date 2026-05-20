@@ -86,14 +86,15 @@ Both stores are edited interactively from the Runner Profile Panel; see [Runner 
 - `Zephyr IDE: Clean` - Clean build artifacts
 - `Zephyr IDE: Flash` - Flash build to target device. When the `zephyr-ide.buildBeforeFlash` setting is `true`, the build runs first; when `false` (default) the existing image is flashed as-is. The dedicated `Build and Flash` command always builds first regardless of this setting.
 - `Zephyr IDE: Build and Flash` - Build first, then flash
-- `Zephyr IDE: Set Sysbuild Image` (`zephyr-ide.set-sysbuild-image`) - For sysbuild-enabled builds, pick which sub-image (`--domain`) Flash, Debug and Debug Attach target. The selection is persisted per-build under `projectStates[project].buildStates[build].sysbuildImage` and is forwarded as `west flash --domain <image>` and to `runners.yaml` lookup for debug. When unset, west chooses the default domain itself.
+- `Zephyr IDE: Set Active Sysbuild Image` (`zephyr-ide.set-sysbuild-image`) - For sysbuild-enabled builds, pick which sub-image (`--domain`) Flash, Debug and Debug Attach target. The selection is persisted per-build under `projectStates[project].buildStates[build].sysbuildImage` and is forwarded as `west flash --domain <image>` and to `runners.yaml` lookup for debug. When unset, west chooses the default domain itself.
 
 ## Debug Operations
 
 - `Zephyr IDE: Debug` - Start a debug session (uses the active Runner Profile's `debug` bind)
 - `Zephyr IDE: Debug Attach` - Attach the debugger to a running target (uses the `attach` bind)
 - `Zephyr IDE: Build and Debug` - Build first, then debug. By default this shares the `debug` bind with `Zephyr IDE: Debug`; when the `zephyr-ide.separateBuildDebugProfile` setting is enabled, `Build and Debug` uses the profile's separate `buildDebug` bind instead (falling back to `debug` if `buildDebug` is unset).
-- `Zephyr IDE: Open runners.yaml` (`zephyr-ide.open-runners-yaml`) - Open the active build's generated `runners.yaml` in the editor. Useful when debugging an unexpected runner choice or when looking up the values cortex-debug receives via `${runners-yaml:...}` substitutions in a `zephyr-ide` debug configuration.
+- `Zephyr IDE: Change Debug Launch Configuration` (`zephyr-ide.change-launch-for-build`) - Select a `launch.json` configuration by name for the active build's debug bind.
+- `Zephyr IDE: Open runners.yaml for Active Build` (`zephyr-ide.open-runners-yaml`) - Open the active build's generated `runners.yaml` in the editor. Useful when debugging an unexpected runner choice or when looking up the values cortex-debug receives via `${runners-yaml:...}` substitutions in a `zephyr-ide` debug configuration.
 
 ## Configuration and Analysis Tools
 
