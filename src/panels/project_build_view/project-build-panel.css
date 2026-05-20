@@ -668,6 +668,148 @@
   align-items: center;
 }
 
+/* --- 4-bind runner card (flash / build / buildDebug / attach) --- */
+
+.runner-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--zephyr-webview-radius);
+  background-color: var(--vscode-sideBar-background);
+}
+
+.runner-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.runner-card-binds {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bind-row {
+  display: grid;
+  grid-template-columns: 100px minmax(160px, 2fr) minmax(120px, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.bind-label {
+  font-size: 0.85em;
+  color: var(--vscode-descriptionForeground);
+  font-weight: 500;
+}
+
+.bind-display {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border, transparent);
+  padding: 3px 8px;
+  font-family: var(--vscode-editor-font-family);
+  font-size: var(--vscode-editor-font-size);
+  border-radius: 2px;
+  cursor: pointer;
+  text-align: left;
+  min-width: 0;
+}
+
+.bind-display:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.bind-display:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
+.bind-display-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.bind-display-missing {
+  color: var(--vscode-errorForeground);
+  border-color: var(--vscode-inputValidation-errorBorder, var(--vscode-errorForeground));
+}
+
+.bind-extra-args {
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border, transparent);
+  padding: 3px 6px;
+  font-family: var(--vscode-editor-font-family);
+  font-size: var(--vscode-editor-font-size);
+  border-radius: 2px;
+  min-width: 0;
+}
+
+.bind-extra-args:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
+.bind-extra-args-placeholder {
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.85em;
+  font-style: italic;
+}
+
+.bind-auto-hint {
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+
+/* --- Runner Profile slot grid (post-rework) --- */
+
+.runner-binds-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--vscode-panel-border);
+}
+
+.runner-bind-row {
+  display: grid;
+  grid-template-columns: 90px minmax(160px, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9em;
+}
+
+.runner-bind-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--vscode-foreground);
+}
+
+.bind-override-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 8px;
+  font-size: 0.75em;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  vertical-align: middle;
+}
+
 /* ===================================================================
    ACTION ROWS
    =================================================================== */

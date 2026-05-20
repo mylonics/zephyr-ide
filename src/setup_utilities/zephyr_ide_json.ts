@@ -196,7 +196,6 @@ export function getZephyrIdeSampleProjects(wsConfig: WorkspaceConfig): ProjectCo
                 buildConfigs: {},
                 confFiles: { config: [], overlay: [] },
                 twisterConfigs: {},
-                runnerConfigs: {},
             });
         } else if (
             entry !== null &&

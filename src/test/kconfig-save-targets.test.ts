@@ -29,7 +29,6 @@ function makeProject(confFiles: ProjectConfig["confFiles"]): ProjectConfig {
     buildConfigs: {},
     confFiles,
     twisterConfigs: {},
-    runnerConfigs: {},
   };
 }
 

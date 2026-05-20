@@ -65,11 +65,17 @@ Zephyr IDE provides the following commands accessible via the command palette (C
 - `Zephyr IDE: Remove Build Overlay Files` - Remove overlay files from build
 - `Zephyr IDE: Modify Build Arguments` - Modify build arguments
 
-## Runner Management
+## Runner Profile Management
 
-- `Zephyr IDE: Add Runner` - Add runner to build configuration
-- `Zephyr IDE: Remove Runner` - Remove runner from build configuration
-- `Zephyr IDE: Set Active Runner` - Set active runner
+- `Zephyr IDE: Select Active Runner Profile` - Choose which Runner Profile drives the active build's Flash / Debug / Attach actions, or clear it
+- `Zephyr IDE: Open Runner Profile Panel` - Open the dedicated CRUD webview to create, rename, edit, and delete Runner Profiles at workspace or user scope
+
+Runner Profiles live in two places, merged with workspace overriding user on name collision:
+
+- `zephyr-ide.runnerProfiles` user setting — shared across workspaces.
+- `.vscode/zephyr-ide.json#runnerProfiles` — committed alongside the project.
+
+Both stores are edited interactively from the Runner Profile Panel; see [Runner Profiles](configuration.md#runner-profiles) for the data model.
 
 ## Build and Flash Operations
 
@@ -77,15 +83,13 @@ Zephyr IDE provides the following commands accessible via the command palette (C
 - `Zephyr IDE: Build` - Build active project
 - `Zephyr IDE: Clean` - Clean build artifacts
 - `Zephyr IDE: Flash` - Flash build to target device
+- `Zephyr IDE: Build and Flash` - Build first, then flash
 
 ## Debug Operations
 
-- `Zephyr IDE: Debug` - Start debugging session
-- `Zephyr IDE: Debug Attach` - Attach debugger to running target
-- `Zephyr IDE: Build and Debug` - Build and start debugging
-- `Zephyr IDE: Change Debug Launch Configuration For Build` - Change debug launch configuration
-- `Zephyr IDE: Change Build and Debug Launch Configuration For Build` - Change build and debug launch configuration
-- `Zephyr IDE: Change Debug Attach Launch Configuration For Build` - Change debug attach launch configuration
+- `Zephyr IDE: Debug` - Start a debug session (uses the active Runner Profile's `debug` bind)
+- `Zephyr IDE: Debug Attach` - Attach the debugger to a running target (uses the `attach` bind)
+- `Zephyr IDE: Build and Debug` - Build first, then debug (shares the `debug` bind with `Zephyr IDE: Debug`)
 
 ## Configuration and Analysis Tools
 

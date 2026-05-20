@@ -224,6 +224,21 @@ export class SettingsPanel {
     });
 
     this._panel.webview.postMessage({ command: "updateSettings", settings });
+    this.refreshVariants();
+  }
+
+  /** Stub: variants are being replaced by Runner Profiles; the editor is gone. */
+  private refreshVariants() {
+    this._panel.webview.postMessage({
+      command: "updateVariants",
+      catalogue: {
+        user: [],
+        workspace: [],
+        referencedNames: [],
+        hasWorkspace: false,
+      },
+      knownRunners: [],
+    });
   }
 
   private async handleWebviewMessage(message: Record<string, any>) {
@@ -279,6 +294,12 @@ export class SettingsPanel {
         this.refreshSettings();
         break;
       }
+
+      // Variant editor removed — Runner Profile editor coming in Phase 4.
+      case "addVariant":
+      case "updateVariant":
+      case "removeVariant":
+        break;
     }
   }
 

@@ -498,6 +498,14 @@ export class SetupApp extends ZephyrLitElement {
               <p>Create or configure a Zephyr project with build targets and settings.</p>
             </div>
           </div>
+
+          <div class="quick-action-item" @click=${() => this._cmd("openRunnerProfilePanel")} role="button" tabindex="0" data-keyboard-command="true">
+            <span class="codicon codicon-debug-alt-small"></span>
+            <div class="quick-action-content">
+              <strong>Runner Profiles</strong>
+              <p>Create and manage reusable flash, debug, and attach profiles for your builds.</p>
+            </div>
+          </div>
         </div>
       </div>`;
   }

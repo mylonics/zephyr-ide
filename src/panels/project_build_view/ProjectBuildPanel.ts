@@ -37,28 +37,29 @@ import {
 } from "../../project_utilities/project_info";
 import {
   addBuildToProject,
-  addRunnerToBuild,
   removeBuild,
-  removeRunner,
   addConfigFiles,
   removeConfigFile,
   modifyBuildArguments,
   addTest,
-  selectDebugLaunchConfiguration,
-  selectBuildDebugLaunchConfiguration,
-  selectDebugAttachLaunchConfiguration,
   getProjectFolder,
-  addRunnerToProject,
-  removeProjectRunner,
+  getBuildFolder,
 } from "../../project_utilities/project";
 import { ConfigFiles } from "../../project_utilities/config_selector";
 import { generateNonce } from "../webview_shared/nonce";
-import { getLaunchTargetDisplayName } from "../../utilities/utils";
+import { getLaunchConfigurations as _getLaunchConfigurations } from "../../utilities/utils";
 import { normalizeBuildArgs } from "../../project_utilities/build_args";
+import { getRunnersYamlHint } from "../../zephyr_utilities/runners-yaml";
+import {
+  formatBindLabel,
+} from "../../project_utilities/runner_profiles";
+import type { RunnerBind, BindOverride } from "../../project_utilities/runner_profiles";
+import { setBindOverride } from "../../project_utilities/project";
+// Retained as a future hook for slot-launch UI; not currently used in payload.
+void _getLaunchConfigurations;
 
 import type {
   ProjectBuildPanelData,
-  WebviewRunnerInfo,
 } from "./project-build-data";
 
 export class ProjectBuildPanel {
@@ -327,38 +328,43 @@ export class ProjectBuildPanel {
           return;
         }
 
-        // Runner management
-        case "addRunner":
-          await addRunnerToBuild(ws, ctx, message.project, message.build);
+        // Runner profile actions
+        case "selectActiveProfile":
+          await vscode.commands.executeCommand("zephyr-ide.set-active-profile");
           await this.refreshAfterChange();
           return;
-        case "removeRunner":
-          await removeRunner(ctx, ws, message.project, message.build, message.runner);
-          await this.refreshAfterChange();
+
+        case "openRunnerProfilePanel":
+          await vscode.commands.executeCommand("zephyr-ide.open-runner-profile-panel");
           return;
-        case "updateRunner":
-          await this.handleUpdateRunner(message);
-          return;
-        case "addProjectRunner":
-          await addRunnerToProject(ws, ctx, message.project);
-          await this.refreshAfterChange();
-          return;
-        case "removeProjectRunner":
-          await removeProjectRunner(ctx, ws, message.project, message.runner);
-          await this.refreshAfterChange();
-          return;
-        case "updateProjectRunner":
-          await this.handleUpdateProjectRunner(message);
-          return;
-        case "setActiveRunner": {
-          const buildState = ws.projectStates[message.project]?.buildStates[message.build];
-          if (buildState) {
-            buildState.activeRunner = message.runner ?? undefined;
-            await setWorkspaceState(ctx, ws);
+
+        case "setBindExtraArgs": {
+          const slot = message.slot;
+          if (slot !== "flash" && slot !== "debug" && slot !== "attach") {
+            return;
           }
+          // `argsText` is optional: when present, write directly; otherwise prompt via input box.
+          const argsText = typeof message.value === "string" ? message.value : undefined;
+          await setBindOverride(ctx, ws, slot, argsText);
           await this.refreshAfterChange();
           return;
         }
+
+        // Legacy runner-card / variant messages — UI is gone but webview may still emit them briefly.
+        case "addRunner":
+        case "removeRunner":
+        case "updateRunner":
+        case "addProjectRunner":
+        case "removeProjectRunner":
+        case "updateProjectRunner":
+        case "pickBind":
+        case "setBindExtraArgsLegacy":
+        case "addVariant":
+        case "updateVariant":
+        case "removeVariant":
+        case "setActiveRunner":
+          notifyError("Runner Config", "Runner cards have been replaced by Runner Profiles. Use 'Change…' on the Runner Profile section, or the command palette: 'Zephyr IDE: Select Active Runner Profile'.");
+          return;
 
         // Build actions
         case "build":
@@ -378,18 +384,6 @@ export class ProjectBuildPanel {
           return;
         case "runDashboard":
           await this.runBuildAction("runDashboard", "zephyr-ide.run-dashboard");
-          return;
-
-        // Launch config
-        case "changeLaunchTarget":
-          if (message.type === "debug") {
-            await selectDebugLaunchConfiguration(ctx, ws);
-          } else if (message.type === "buildDebug") {
-            await selectBuildDebugLaunchConfiguration(ctx, ws);
-          } else if (message.type === "attach") {
-            await selectDebugAttachLaunchConfiguration(ctx, ws);
-          }
-          await this.refreshAfterChange();
           return;
 
         // Variables
@@ -565,38 +559,6 @@ export class ProjectBuildPanel {
     this.updateHtml();
   }
 
-  private async handleUpdateRunner(message: Record<string, any>) {
-    // TODO: Update to new RunnerBind UI - stub for now.
-    // The current build-section.ts UI sends per-field updates that the new
-    // four-bind model cannot apply. Until the Stage 2 UI is in place, drop
-    // these events silently rather than dirtying workspace state on every
-    // blur of a text input.
-    const projectName = this._selectedProject;
-    const buildName = String(message.build ?? "");
-    const runnerName = String(message.runner ?? "");
-    if (!projectName || !buildName || !runnerName) {
-      return;
-    }
-    const runner = this._wsConfig.projects[projectName]?.buildConfigs?.[buildName]?.runnerConfigs?.[runnerName];
-    if (!runner) {
-      return;
-    }
-    // No state mutation yet — see TODO above.
-  }
-
-  private async handleUpdateProjectRunner(message: Record<string, any>) {
-    // TODO: Update to new RunnerBind UI - stub for now. See handleUpdateRunner.
-    const projectName = this._selectedProject;
-    const runnerName = String(message.runner ?? "");
-    if (!projectName || !runnerName) {
-      return;
-    }
-    const runner = this._wsConfig.projects[projectName]?.runnerConfigs?.[runnerName];
-    if (!runner) {
-      return;
-    }
-    // No state mutation yet — see TODO above.
-  }
 
   private async refreshAfterChange() {
     await vscode.commands.executeCommand("zephyr-ide.update-web-view");
@@ -653,7 +615,11 @@ export class ProjectBuildPanel {
   }
 
   private updateHtml() {
-    const data = this.generatePanelData();
+    void this._updateHtmlAsync();
+  }
+
+  private async _updateHtmlAsync() {
+    const data = await this.generatePanelData();
     if (!this._htmlInitialized) {
       this._panel.webview.html = this.getHtmlShell();
       this._htmlInitialized = true;
@@ -668,7 +634,7 @@ export class ProjectBuildPanel {
   }
 
   /** Generate the full data payload for the webview. */
-  private generatePanelData(): ProjectBuildPanelData {
+  private async generatePanelData(): Promise<ProjectBuildPanelData> {
     const projectNames = Object.keys(this._wsConfig.projects ?? {});
     const selected = this._selectedProject;
 
@@ -726,37 +692,48 @@ export class ProjectBuildPanel {
         const buildName = currentSelection.slice(6);
         const details = getBuildDetails(this._wsConfig, selected, buildName);
         if (details) {
-          const runners: WebviewRunnerInfo[] = details.runners.map((r) => ({
-            name: r.name,
-            runner: (r.config as any).runner ?? "",
-            args: (r.config as any).args ?? "",
-            argsMode: (r.config as any).argsMode ?? "append",
-            flash: r.config.flash,
-            build: r.config.build,
-            buildDebug: r.config.buildDebug,
-            attach: r.config.attach,
-          }));
-
-          const projectRunners: WebviewRunnerInfo[] = details.projectRunners.map((r) => ({
-            name: r.name,
-            runner: (r.config as any).runner ?? "",
-            args: (r.config as any).args ?? "",
-            argsMode: (r.config as any).argsMode ?? "append",
-            flash: r.config.flash,
-            build: r.config.build,
-            buildDebug: r.config.buildDebug,
-            attach: r.config.attach,
-          }));
+          const profile = details.profile;
+          const overrides = details.bindOverrides;
+          const makeSlot = (
+            slot: "flash" | "debug" | "attach",
+            bind: RunnerBind | undefined,
+            override: BindOverride | undefined,
+          ): import("./project-build-data").WebviewSlotBind => {
+            const kind: "none" | "auto" | "runner" | "launch" = !bind ? "none" : bind.kind;
+            const runner = bind && bind.kind === "runner" ? bind.runner : undefined;
+            const profileExtra = bind && bind.kind === "runner" ? (bind.extraArgs ?? "").trim() : "";
+            const overrideExtra = (override?.extraArgs ?? "").trim();
+            const combined = [profileExtra, overrideExtra].filter(s => s.length > 0).join(" ");
+            return {
+              slot,
+              label: formatBindLabel(bind, override),
+              kind,
+              runner,
+              extraArgs: combined,
+              overrideExtraArgs: overrideExtra,
+              hasOverride: overrideExtra.length > 0,
+            };
+          };
 
           buildDetails = {
-            ...details,
-            runners,
-            projectRunners,
-            activeRunner: details.activeRunner,
+            name: details.name,
+            board: details.board,
+            revision: details.revision,
+            boardDisplayName: details.boardDisplayName,
+            relBoardDir: details.relBoardDir,
+            relBoardSubDir: details.relBoardSubDir,
+            resolvedBoardPath: details.resolvedBoardPath,
+            debugOptimization: details.debugOptimization,
+            westBuildArgs: details.westBuildArgs,
+            westBuildCMakeArgs: details.westBuildCMakeArgs,
+            confFiles: details.confFiles,
+            activeProfile: details.activeProfile,
+            slotBinds: {
+              flash: makeSlot("flash", profile?.flash, overrides?.flash),
+              debug: makeSlot("debug", profile?.debug, overrides?.debug),
+              attach: makeSlot("attach", profile?.attach, overrides?.attach),
+            },
             runnersYamlHint: details.runnersYamlHint,
-            debugDisplay: getLaunchTargetDisplayName(details.launchTarget, details.launchTargetFolder, "Zephyr IDE: Debug"),
-            buildDebugDisplay: getLaunchTargetDisplayName(details.buildDebugTarget, details.buildDebugTargetFolder, "Zephyr IDE: Debug"),
-            attachDisplay: getLaunchTargetDisplayName(details.attachTarget, details.attachTargetFolder, "Zephyr IDE: Attach"),
           };
 
           isBuildActive = buildName === activeBuild;

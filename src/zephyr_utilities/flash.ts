@@ -24,10 +24,10 @@ import { ProjectConfig, resolveActiveProjectBuild, getBuildFolder } from "../pro
 
 import { WorkspaceConfig } from '../setup_utilities/types';
 import { BuildConfig } from "../project_utilities/build_selector";
-import { loadRunnerVariants, resolveBind } from "../project_utilities/runner_variants";
+import { loadRunnerProfiles, findRunnerProfile, resolveBind } from "../project_utilities/runner_profiles";
 import { getSetupStateOrNotify } from "../setup_utilities/workspace-config";
 
-export async function flashByName(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName: string, buildName: string, runnerName?: string) {
+export async function flashByName(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName: string, buildName: string, profileName?: string) {
   const project = wsConfig.projects[projectName];
   if (!project) {
     notifyError("Flash", `Project not found: "${projectName}"`);
@@ -38,25 +38,21 @@ export async function flashByName(context: vscode.ExtensionContext, wsConfig: Wo
     notifyError("Flash", `Build configuration not found: "${buildName}" in project "${projectName}"`);
     return;
   }
-  
+
+  // Default: "default" runner + no args (west picks from runners.yaml).
   let runner = "default", args = "";
-  if (runnerName) {
-    // Fall back to project-level runners ("inherited by builds with same name")
-    // when the build doesn't define one under that name.
-    const runnerConfig = buildConfig.runnerConfigs[runnerName] ?? project.runnerConfigs?.[runnerName];
-    if (runnerConfig) {
-      const variants = loadRunnerVariants(wsConfig);
-      const resolved = resolveBind(runnerConfig.flash, variants);
-      if (resolved) {
-        runner = resolved.runner;
-        args = resolved.args;
-      }
-      if (runnerConfig.flash.kind === "launch") {
-        outputWarning("Flash", `Runner "${runnerName}" has flash bind set to launch.json config, which is not valid for flashing. Using default runner.`);
-      }
-    } else {
-      notifyError("Flash", `Runner not found: "${runnerName}" in build "${buildName}" or project "${projectName}"`);
+  const effectiveProfileName = profileName ?? buildConfig.activeProfile;
+  if (effectiveProfileName) {
+    const profile = findRunnerProfile(effectiveProfileName, loadRunnerProfiles(wsConfig));
+    if (!profile) {
+      notifyError("Flash", `Runner profile not found: "${effectiveProfileName}"`);
       return;
+    }
+    if (profile.flash.kind === "launch") {
+      outputWarning("Flash", `Profile "${effectiveProfileName}" has flash bind set to launch.json config, which is not valid for flashing. Using default runner.`);
+    } else {
+      const r = resolveBind(profile.flash, buildConfig.bindOverrides?.flash);
+      if (r) { runner = r.runner; args = r.args; }
     }
   }
 
@@ -67,27 +63,17 @@ export async function flashActive(context: vscode.ExtensionContext, wsConfig: Wo
   const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Flash" });
   if (!resolved) { return; }
 
-  const activeRunnerName = wsConfig.projectStates?.[resolved.projectName]?.buildStates?.[resolved.buildName]?.activeRunner;
   let runner = "default", args = "";
-
-  // Fall back to project-level runner configs when the build doesn't define one
-  // under that name (matches the "inherited by builds with same name" UI promise).
-  const activeRunnerConfig = activeRunnerName
-    ? (resolved.build.runnerConfigs[activeRunnerName]
-       ?? resolved.project.runnerConfigs?.[activeRunnerName])
-    : undefined;
-
-  if (activeRunnerName && activeRunnerConfig) {
-    const rc = activeRunnerConfig;
-    const variants = loadRunnerVariants(wsConfig);
-    const resolved2 = resolveBind(rc.flash, variants);
-    if (resolved2) {
-      runner = resolved2.runner;
-      args = resolved2.args;
-    }
-    // If kind is "launch", log a warning
-    if (rc.flash.kind === "launch") {
-      outputWarning("Flash", `Runner "${activeRunnerName}" has flash bind set to launch.json config, which is not valid for flashing. Using default runner.`);
+  const profileName = resolved.build.activeProfile;
+  if (profileName) {
+    const profile = findRunnerProfile(profileName, loadRunnerProfiles(wsConfig));
+    if (profile) {
+      if (profile.flash.kind === "launch") {
+        outputWarning("Flash", `Profile "${profileName}" has flash bind set to launch.json config, which is not valid for flashing. Using default runner.`);
+      } else {
+        const r = resolveBind(profile.flash, resolved.build.bindOverrides?.flash);
+        if (r) { runner = r.runner; args = r.args; }
+      }
     }
   }
 

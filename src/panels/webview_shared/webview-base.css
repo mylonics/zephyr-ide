@@ -665,6 +665,7 @@ th {
   .setting-row,
   .package-item,
   .runner-row,
+  .runner-card,
   .panel-section,
   .section-container,
   .config-group,
@@ -679,4 +680,97 @@ th {
   .card-arrow {
     transition: none;
   }
+}
+
+/* ===================================================================
+   RUNNER VARIANTS EDITOR (Stage 2 — shared by Project Build & Settings)
+   =================================================================== */
+
+.variant-editor-section {
+  margin-bottom: 8px;
+}
+
+.variant-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.variant-scope {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 4px;
+  background-color: var(--vscode-sideBar-background);
+}
+
+.variant-scope-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.variant-scope-label {
+  font-weight: 600;
+  font-size: 0.9em;
+}
+
+.variant-scope-hint {
+  font-size: 0.8em;
+  color: var(--vscode-descriptionForeground);
+  font-family: var(--vscode-editor-font-family);
+}
+
+.variant-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1.2fr) auto auto minmax(110px, 1fr) minmax(140px, 2fr) auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.variant-input {
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border, transparent);
+  padding: 3px 6px;
+  font-family: var(--vscode-editor-font-family);
+  font-size: var(--vscode-editor-font-size);
+  border-radius: 2px;
+  min-width: 0;
+}
+
+.variant-input:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
+.variant-input.input-dirty {
+  border-color: var(--vscode-inputValidation-warningBorder, var(--vscode-focusBorder));
+}
+
+.variant-shadow-badge {
+  font-size: 0.75em;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background-color: var(--vscode-inputValidation-warningBackground, var(--vscode-editorWarning-background, transparent));
+  color: var(--vscode-inputValidation-warningForeground, var(--vscode-editorWarning-foreground));
+  border: 1px solid var(--vscode-inputValidation-warningBorder, var(--vscode-editorWarning-border, transparent));
+  white-space: nowrap;
+}
+
+.variant-ref-badge {
+  font-size: 0.75em;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background-color: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  white-space: nowrap;
+}
+
+.variant-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
 }

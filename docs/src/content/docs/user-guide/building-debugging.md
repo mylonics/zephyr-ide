@@ -29,20 +29,23 @@ For users who need full control, the IDE also ships several `cortex-debug` snipp
 
 ![Setting Up Launch Configuration](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/setting_up_debug.gif)
 
-## Runner Configurations (Flash + Debug)
+## Runner Profiles (Flash + Debug)
 
-Each build can optionally have one **active Runner Configuration** that controls four targets: **Flash**, **Build & Debug**, **Debug** (launch), and **Debug Attach**. Each target is one of:
+Each build can optionally reference one **active Runner Profile** that bundles three bind slots: **Flash** (drives both `Flash` and `Build and Flash`), **Debug** (drives both `Debug` and `Build and Debug`), and **Debug Attach**. Each slot is one of:
 
 | Kind | Meaning |
 |---|---|
-| `auto` | Use `runners.yaml` defaults — `flash-runner` for Flash, `debug-runner` for the debug targets. |
+| `auto` | Use `runners.yaml` defaults — `flash-runner` for Flash, `debug-runner` for Debug and Attach. |
 | `runner` | A Zephyr runner directly (`openocd`, `jlink`, `pyocd`, `blackmagicprobe`, …) with optional `extraArgs`. |
-| `variant` | A reusable variant from `zephyr-ide.runnerVariants` (settings.json) or `runnerVariants` in `.vscode/zephyr-ide.json`. `extraArgs` are **appended** to the variant's `args`. |
-| `launch` | A `launch.json` configuration by name. Available for the three debug targets only; ignored for Flash. |
+| `launch` | A `launch.json` configuration by name. Available for the Debug and Attach slots only; ignored for Flash because flash actions never start a debug session. |
 
-When **no** runner configuration is active on a build, all four targets fall back to `auto`. This is the default for newly-created builds — `Flash` / `Debug` / `Build & Debug` / `Attach` just work using whatever Zephyr recorded in `runners.yaml`.
+When **no** profile is active on a build, all three slots fall back to `auto`. This is the default for newly-created builds — `Flash` / `Debug` / `Build and Debug` / `Debug Attach` just work using whatever Zephyr recorded in `runners.yaml`.
 
-Reusable runner variants can be defined once (e.g. a Black Magic Probe wired to `/dev/ttyACM0`, or an OpenOCD ST-Link configuration) and referenced across builds. See [Runner Configurations in the Configuration reference](../reference/configuration.md#runner-configurations) for the full data model, defining variants in user vs. workspace scope, and the legacy-config migration notes.
+Profiles can be defined once (e.g. a Black Magic Probe wired to `/dev/ttyACM0`, or an OpenOCD ST-Link configuration) and shared across builds. The dedicated **`Zephyr IDE: Open Runner Profile Panel`** command gives you a full CRUD UI for both workspace-scope (`.vscode/zephyr-ide.json#runnerProfiles`) and user-scope (`zephyr-ide.runnerProfiles` setting) profiles, including a "Use for active build" shortcut and a usage badge showing how many builds reference each profile.
+
+The faster **Change…** button (or `Zephyr IDE: Select Active Runner Profile`) in the Project Build panel opens a QuickPick limited to switching the build's active profile. Per-build extra-argument overrides can be added with the pencil icon next to any `runner`-kind slot in the Project Build panel.
+
+See [Runner Profiles in the Configuration reference](../reference/configuration.md#runner-profiles) for the full data model, scope and merge behaviour, per-build overrides, and legacy migration notes.
 
 ## Debug Prerequisites: Cortex-Debug
 

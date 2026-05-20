@@ -250,26 +250,27 @@
           "deprecationMessage": "Deprecated: Use 'zephyr-ide.buildVariableDefaults' instead. Migrated automatically on startup.",
           "description": "Deprecated. Use 'zephyr-ide.buildVariableDefaults' instead."
         },
-        "zephyr-ide.runnerVariants": {
+        "zephyr-ide.runnerProfiles": {
           "type": "array",
           "default": [],
-          "markdownDescription": "Reusable runner variants (name + zephyr runner + extra args). Referenced by `RunnerConfig` binds. Workspace `.vscode/zephyr-ide.json` `runnerVariants` overrides this on name collision.",
+          "markdownDescription": "Reusable runner profiles (name + per-slot binds for `flash`, `debug`, `attach`). Each slot bind selects `auto`, a zephyr `runner` with optional extra args, or a named VS Code `launch` configuration. Workspace `.vscode/zephyr-ide.json` `runnerProfiles` overrides this on name collision.",
           "items": {
             "type": "object",
             "required": [
-              "name",
-              "runner"
+              "name"
             ],
             "properties": {
               "name": {
                 "type": "string"
               },
-              "runner": {
-                "type": "string"
+              "flash": {
+                "type": "object"
               },
-              "args": {
-                "type": "string",
-                "default": ""
+              "debug": {
+                "type": "object"
+              },
+              "attach": {
+                "type": "object"
               }
             }
           }
@@ -420,34 +421,9 @@
           "group": "inline@3"
         },
         {
-          "command": "zephyr-ide.tree-view.add-runner",
-          "when": "view == zephyrIdeProjects && viewItem == buildItem",
-          "group": "inline@4"
-        },
-        {
           "command": "zephyr-ide.tree-view.delete-build",
           "when": "view == zephyrIdeProjects && viewItem == buildItem",
           "group": "inline@5"
-        },
-        {
-          "command": "zephyr-ide.tree-view.flash",
-          "when": "view == zephyrIdeProjects && viewItem == runnerItem",
-          "group": "inline@1"
-        },
-        {
-          "command": "zephyr-ide.tree-view.debug",
-          "when": "view == zephyrIdeProjects && viewItem == runnerItem",
-          "group": "inline@2"
-        },
-        {
-          "command": "zephyr-ide.tree-view.attach",
-          "when": "view == zephyrIdeProjects && viewItem == runnerItem",
-          "group": "inline@3"
-        },
-        {
-          "command": "zephyr-ide.tree-view.delete-runner",
-          "when": "view == zephyrIdeProjects && viewItem == runnerItem",
-          "group": "inline@4"
         },
         {
           "command": "zephyr-ide.tree-view.test",
@@ -664,36 +640,12 @@
         "title": "Zephyr IDE: Set Active Build"
       },
       {
-        "command": "zephyr-ide.add-runner",
-        "title": "Zephyr IDE: Add Runner"
+        "command": "zephyr-ide.set-active-profile",
+        "title": "Zephyr IDE: Select Active Runner Profile"
       },
       {
-        "command": "zephyr-ide.remove-runner",
-        "title": "Zephyr IDE: Remove Runner"
-      },
-      {
-        "command": "zephyr-ide.set-active-runner",
-        "title": "Zephyr IDE: Set Active Runner"
-      },
-      {
-        "command": "zephyr-ide.add-project-runner",
-        "title": "Zephyr IDE: Add Project Runner"
-      },
-      {
-        "command": "zephyr-ide.remove-project-runner",
-        "title": "Zephyr IDE: Remove Project Runner"
-      },
-      {
-        "command": "zephyr-ide.change-debug-launch-for-build",
-        "title": "Zephyr IDE: Change Debug Launch Configuration For Build"
-      },
-      {
-        "command": "zephyr-ide.change-build-debug-launch-for-build",
-        "title": "Zephyr IDE: Change Build and Debug Launch Configuration For Build"
-      },
-      {
-        "command": "zephyr-ide.change-debug-attach-launch-for-build",
-        "title": "Zephyr IDE: Change Debug Attach Launch Configuration For Build"
+        "command": "zephyr-ide.open-runner-profile-panel",
+        "title": "Zephyr IDE: Open Runner Profile Panel"
       },
       {
         "command": "zephyr-ide.build-pristine",
@@ -1076,11 +1028,6 @@
         "icon": "$(settings-gear)"
       },
       {
-        "command": "zephyr-ide.tree-view.add-runner",
-        "title": "Add Runner",
-        "icon": "$(add)"
-      },
-      {
         "command": "zephyr-ide.tree-view.delete-build",
         "title": "Delete Build",
         "icon": "$(trash)"
@@ -1099,11 +1046,6 @@
         "command": "zephyr-ide.tree-view.attach",
         "title": "Attach",
         "icon": "$(debug-disconnect)"
-      },
-      {
-        "command": "zephyr-ide.tree-view.delete-runner",
-        "title": "Delete Runner",
-        "icon": "$(trash)"
       },
       {
         "command": "zephyr-ide.tree-view.test",
@@ -1142,7 +1084,19 @@
               },
               "svdFile": {
                 "type": "string",
-                "description": "Optional path to an SVD file for the cortex-debug peripheral viewer."
+                "description": "Optional path to an SVD file for the cortex-debug peripheral viewer. When omitted, Zephyr IDE searches the board directory for a .svd file."
+              },
+              "executable": {
+                "type": "string",
+                "description": "Override the ELF file to debug. When omitted, Zephyr IDE uses elf_file from runners.yaml."
+              },
+              "gdbPath": {
+                "type": "string",
+                "description": "Override the GDB executable. When omitted, Zephyr IDE uses the gdb path from runners.yaml."
+              },
+              "cwd": {
+                "type": "string",
+                "description": "Working directory for the debug session. Defaults to the workspace folder."
               }
             }
           },
@@ -1154,7 +1108,19 @@
               },
               "svdFile": {
                 "type": "string",
-                "description": "Optional path to an SVD file for the cortex-debug peripheral viewer."
+                "description": "Optional path to an SVD file for the cortex-debug peripheral viewer. When omitted, Zephyr IDE searches the board directory for a .svd file."
+              },
+              "executable": {
+                "type": "string",
+                "description": "Override the ELF file. When omitted, Zephyr IDE uses elf_file from runners.yaml."
+              },
+              "gdbPath": {
+                "type": "string",
+                "description": "Override the GDB executable. When omitted, Zephyr IDE uses the gdb path from runners.yaml."
+              },
+              "cwd": {
+                "type": "string",
+                "description": "Working directory for the debug session. Defaults to the workspace folder."
               }
             }
           }
@@ -1164,6 +1130,11 @@
             "name": "Zephyr IDE: Debug",
             "type": "zephyr-ide",
             "request": "launch"
+          },
+          {
+            "name": "Zephyr IDE: Attach",
+            "type": "zephyr-ide",
+            "request": "attach"
           }
         ],
         "configurationSnippets": [
@@ -1183,6 +1154,16 @@
               "name": "Zephyr IDE: Attach",
               "type": "zephyr-ide",
               "request": "attach"
+            }
+          },
+          {
+            "label": "Zephyr IDE: Debug Sysbuild Image",
+            "description": "Debug a specific sysbuild image using runners.yaml. Use Zephyr IDE: Set Sysbuild Image to select the active image, or pin the runner here.",
+            "body": {
+              "name": "Zephyr IDE: Debug Sysbuild Image",
+              "type": "zephyr-ide",
+              "request": "launch",
+              "runner": "openocd"
             }
           },
           {
@@ -1315,7 +1296,7 @@
   "scripts": {
     "vscode:prepublish": "npm run esbuild-base -- --minify && npm run esbuild-webview-base -- --minify",
     "esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node",
-    "esbuild-webview-base": "esbuild ./src/panels/host_tool_install_view/host-tool-install.ts ./src/panels/setup_panel/setup-panel.ts ./src/panels/project_build_view/project-build-panel.ts ./src/panels/settings_view/settings-panel.ts ./src/panels/sdk_panel/sdk-panel.ts ./src/panels/workspace_panel/workspace-panel.ts ./src/panels/dashboard_view/dashboard-panel.ts --bundle --outdir=dist/webview --outbase=src/panels --format=iife --platform=browser --tsconfig=tsconfig.webview.json",
+    "esbuild-webview-base": "esbuild ./src/panels/host_tool_install_view/host-tool-install.ts ./src/panels/setup_panel/setup-panel.ts ./src/panels/project_build_view/project-build-panel.ts ./src/panels/settings_view/settings-panel.ts ./src/panels/sdk_panel/sdk-panel.ts ./src/panels/workspace_panel/workspace-panel.ts ./src/panels/dashboard_view/dashboard-panel.ts ./src/panels/runner_profile_view/runner-profile-panel.ts --bundle --outdir=dist/webview --outbase=src/panels --format=iife --platform=browser --tsconfig=tsconfig.webview.json",
     "esbuild": "npm run esbuild-base -- --sourcemap && npm run esbuild-webview-base -- --sourcemap",
     "esbuild-watch": "npm run esbuild-base -- --sourcemap --watch",
     "test-compile": "tsc -p ./ && tsc -p ./tsconfig.webview.json",

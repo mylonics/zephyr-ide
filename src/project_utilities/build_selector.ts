@@ -20,7 +20,7 @@ import * as vscode from "vscode";
 import * as path from "upath";
 import * as fs from "fs-extra";
 import { MultiStepInput, InputStep, noOpValidate, mapToQuickPickItems } from "../utilities/multistepQuickPick";
-import { RunnerConfigDictionary, RunnerStateDictionary } from './runner_selector';
+import { BuildBindOverrides } from './runner_profiles';
 import { ConfigFiles } from './config_selector';
 import { SetupState } from '../setup_utilities/types';
 import { executeShellCommandInPythonEnv, output } from "../utilities/utils";
@@ -46,22 +46,20 @@ export interface BuildConfig {
   debugOptimization: string;
   westBuildArgs: string[];
   westBuildCMakeArgs: string[];
-  runnerConfigs: RunnerConfigDictionary;
+  /** Name of the `RunnerProfile` this build uses (resolved via loadRunnerProfiles()).
+   *  Undefined / unknown profile name → behave as the implicit "Auto" profile
+   *  (flash/debug/attach all map to `{kind:"auto"}`). */
+  activeProfile?: string;
+  /** Per-slot extra-args overrides appended after the profile's resolved args.
+   *  Only meaningful when the profile's slot kind is `runner`. */
+  bindOverrides?: BuildBindOverrides;
   confFiles: ConfigFiles;
-  launchTarget: string;
-  launchTargetFolder?: string;
-  buildDebugTarget: string;
-  buildDebugTargetFolder?: string;
-  attachTarget: string;
-  attachTargetFolder?: string;
   revision?: string;
 }
 
 // Config for the extension
 export interface BuildState {
-  activeRunner?: string;
   viewOpen?: boolean;
-  runnerStates: RunnerStateDictionary;
   gdbPath?: string; // Cached GDB path from CMakeCache.txt (CMAKE_GDB)
   elfName?: string; // Cached kernel ELF name from CMakeCache.txt (BYPRODUCT_KERNEL_ELF_NAME)
   toolchainPath?: string; // Cached toolchain path from build_info.yml (toolchain.path)
@@ -471,16 +469,6 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       config: [],
       overlay: [],
     };
-
-    // Leave launch/debug targets unset on new builds so the Zephyr IDE
-    // DebugConfigurationProvider (driven by runners.yaml) is used by default.
-    // Users can still bind a specific named launch.json configuration via the
-    // "Change ... Launch Configuration For Build" commands; an empty string
-    // is treated as "unset" by startDebugSession and triggers the provider
-    // path. Pre-existing builds keep whatever value they already have.
-    state.launchTarget = state.launchTarget ?? "";
-    state.buildDebugTarget = state.buildDebugTarget ?? "";
-    state.attachTarget = state.attachTarget ?? "";
 
     state.completed = true;
     return;
