@@ -273,7 +273,14 @@ function withWindows7ZipOnPath(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
 
 function prependWindowsPath(env: NodeJS.ProcessEnv, pathEntry: string): NodeJS.ProcessEnv {
     const pathKeys = Object.keys(env).filter((key) => key.toLowerCase() === "path");
-    const existingPath = (pathKeys.map((key) => env[key] as string | undefined).find(Boolean) ?? "");
+    let existingPath = "";
+    for (const key of pathKeys) {
+        const value = env[key];
+        if (typeof value === "string" && value !== "") {
+            existingPath = value;
+            break;
+        }
+    }
     const pathEntries = existingPath.split(";").filter(Boolean);
     if (pathEntries.some((entry) => entry.toLowerCase() === pathEntry.toLowerCase())) {
         return env;
@@ -292,7 +299,7 @@ function prependWindowsPath(env: NodeJS.ProcessEnv, pathEntry: string): NodeJS.P
 function is7ZipAvailable(): boolean {
     const result = cp.spawnSync("7z", ["--help"], {
         stdio: "ignore",
-        timeout: 3000,
+        timeout: 1000,
         env: withWindows7ZipOnPath(process.env),
         shell: false,
     });

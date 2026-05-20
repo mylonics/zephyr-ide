@@ -27,7 +27,7 @@ goto :loop
 
 :run
 if not defined ARCHIVE (echo 7z shim: no archive specified 1>&2 & exit /b 1)
-set "BSDTAR=%SystemRoot%\System32\tar.exe"
+set "BSDTAR=%windir%\System32\tar.exe"
 if not exist "!BSDTAR!" (
   echo 7z shim: Windows bsdtar not found at "!BSDTAR!" 1>&2
   exit /b 1
