@@ -90,7 +90,7 @@ suite("Workspace Zephyr IDE Git Test Suite", () => {
                     gitUiMock,
                     [
                         { type: 'input', value: '--branch main -- https://github.com/mylonics/zephyr-ide-samples.git', description: 'Enter Zephyr IDE git repo URL' },
-                        { type: 'quickpick', value: 'use-west-folder', description: 'Use .west folder (Recommended)' },
+                        { type: 'quickpick', value: '.west folder', description: 'Use .west folder (Recommended)' },
                         { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
                         { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
                         { type: 'quickpick', value: toolchainTarget, description: `Select ${toolchainTarget} toolchain`, multiSelect: true }

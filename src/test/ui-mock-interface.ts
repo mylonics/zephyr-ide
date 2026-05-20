@@ -272,7 +272,8 @@ export class UIMockInterface {
             sortByLabel: true,
             validationMessage: "",
             hide: () => { },
-            dispose: () => { },
+            _disposed: false,
+            dispose: () => { mockQuickPick._disposed = true; },
             show: () => {
                 this.scheduleTimeout(() => {
                     this.processQuickPickSelection(mockQuickPick);
@@ -435,6 +436,11 @@ export class UIMockInterface {
             }
         } else {
             // Retry if items not populated yet, with max retry limit
+            if (mockQuickPick._disposed) {
+                // Loading-indicator QuickPicks (intentionally empty) are disposed
+                // before items are ever populated.  Stop retrying silently.
+                return;
+            }
             if (retryCount >= maxRetries) {
                 throw new Error(`QuickPick items were never populated after ${maxRetries} retries`);
             }

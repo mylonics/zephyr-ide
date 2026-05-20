@@ -89,7 +89,7 @@ suite("Workspace Local West Test Suite", () => {
                     uiMock,
                     [
                         { type: 'input', value: '--branch no_west_folder -- https://github.com/mylonics/zephyr-ide-samples.git', description: 'Enter git clone string with branch' },
-                        { type: 'quickpick', value: 'local-west', description: 'Choose Use Local West Workspace option' },
+                        { type: 'quickpick', value: 'west.yml file', description: 'Choose Use Local West Workspace option' },
                         { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
                         { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
                         { type: 'quickpick', value: toolchainTarget, description: `Select ${toolchainTarget} toolchain`, multiSelect: true }
