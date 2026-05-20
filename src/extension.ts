@@ -807,8 +807,12 @@ export async function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.west-update", async () => {
-      await westUpdateWithRequirements(context, wsConfig, globalConfig);
-      extensionSetupView.updateWebView(wsConfig, globalConfig);
+      try {
+        await westUpdateWithRequirements(context, wsConfig, globalConfig);
+      } finally {
+        extensionSetupView.updateWebView(wsConfig, globalConfig);
+        void vscode.commands.executeCommand("zephyr-ide.update-web-view");
+      }
     })
   );
 

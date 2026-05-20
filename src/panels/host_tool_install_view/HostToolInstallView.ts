@@ -88,8 +88,6 @@ export class HostToolInstallView {
     });
     this._service.setStateRefs({ context, wsConfig, globalConfig });
 
-    this.updateContent(wsConfig, globalConfig);
-
     this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
 
     this._panel.webview.onDidReceiveMessage(
@@ -99,6 +97,8 @@ export class HostToolInstallView {
       null,
       this._disposables
     );
+
+    this.updateContent(wsConfig, globalConfig);
   }
 
   public updateContent(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
