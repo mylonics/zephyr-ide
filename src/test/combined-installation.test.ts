@@ -202,7 +202,7 @@ suite('Combined Installation Test Suite', function() {
                     uiMock,
                     [
                         { type: 'quickpick', value: 'zephyr directory', description: 'Use Zephyr directory only' },
-                        { type: 'quickpick', value: 'rpi_pico', description: 'Select Raspberry Pi Pico board' },
+                        { type: 'quickpick', value: 'rpi_pico/rp2040', description: 'Select Raspberry Pi Pico board' },
                         { type: 'input', value: 'test_build_1', description: 'Enter build name' },
                         { type: 'quickpick', value: 'debug', description: 'Select debug optimization' },
                         { type: 'input', value: '', description: 'Additional build args' },

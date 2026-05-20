@@ -471,7 +471,7 @@ export const CommonUIInteractions = {
 
     // Build configuration interactions
     configureBuild: [
-        { type: 'quickpick', value: 'nucleo_f401re', description: 'Select board' },
+        { type: 'quickpick', value: 'nucleo_f401re/stm32f401xe', description: 'Select board' },
         { type: 'quickpick', value: 'auto', description: 'Select pristine option' }
     ]
 };

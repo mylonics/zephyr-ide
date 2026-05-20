@@ -166,7 +166,7 @@ suite("Workspace Standard Test Suite", () => {
                     uiMock,
                     [
                         { type: 'quickpick', value: 'zephyr directory', description: 'Use Zephyr directory only' },
-                        { type: 'quickpick', value: 'nucleo_f401re', description: 'Select Nucleo board' },
+                        { type: 'quickpick', value: 'nucleo_f401re/stm32f401xe', description: 'Select Nucleo board' },
                         { type: 'input', value: 'test_build_1', description: 'Enter build name' },
                         { type: 'quickpick', value: 'debug', description: 'Select debug optimization' },
                         { type: 'input', value: '', description: 'Additional build args' },
