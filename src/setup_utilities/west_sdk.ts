@@ -254,10 +254,27 @@ async function fetchFullReleaseAssets(
 // Archive extraction
 // ---------------------------------------------------------------------------
 
-/** Returns true if `7z` is available on the current PATH. */
+const WINDOWS_7ZIP_DIR = "C:\\Program Files\\7-Zip";
+
+function withWindows7ZipOnPath(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+    if (os.platform() !== "win32" || !fs.existsSync(WINDOWS_7ZIP_DIR)) {
+        return env;
+    }
+    const currentPath = (env["Path"] ?? env["PATH"] ?? "") as string;
+    if (currentPath.toLowerCase().includes(WINDOWS_7ZIP_DIR.toLowerCase())) {
+        return env;
+    }
+    return { ...env, Path: `${WINDOWS_7ZIP_DIR};${currentPath}` };
+}
+
+/** Returns true if `7z` is available on PATH (including default install dir fallback on Windows). */
 function is7ZipAvailable(): boolean {
     try {
-        cp.execSync("7z --help", { stdio: "ignore", timeout: 3000 });
+        cp.execSync("7z --help", {
+            stdio: "ignore",
+            timeout: 3000,
+            env: withWindows7ZipOnPath({ ...process.env }),
+        });
         return true;
     } catch {
         return false;
@@ -280,7 +297,7 @@ function runProcessSync(
     env?: NodeJS.ProcessEnv
 ): Promise<{ code: number; stdout: string; stderr: string }> {
     return new Promise((resolve) => {
-        const effectiveEnv = env ?? { ...process.env };
+        const effectiveEnv = withWindows7ZipOnPath(env ?? { ...process.env });
 
         const proc = cp.spawn(cmd, args, {
             cwd,
