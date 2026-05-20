@@ -126,4 +126,17 @@ suite("getBuildFolder Test Suite", () => {
       path.resolve("/workspace", "shared_builds/nrf52840"),
     );
   });
+
+  test("falls back to default when rel_path resolves to the workspace root", () => {
+    const ws = makeWs("/workspace");
+    const project = makeProject("apps/myapp");
+
+    for (const relPath of [".", "apps/.."]) {
+      const build = makeBuild("my_build", relPath);
+      assert.strictEqual(
+        getBuildFolder(ws, project, build),
+        path.join("/workspace", "apps/myapp", "my_build"),
+      );
+    }
+  });
 });

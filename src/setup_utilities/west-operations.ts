@@ -38,6 +38,17 @@ export function setForceNarrowUpdateForTest(value: boolean) {
   forceNarrowUpdateForTest = value;
 }
 
+export function isDangerousVenvResetTarget(setupPath: string, venvPath: string): boolean {
+  const normalizedSetupPath = path.toUnix(path.resolve(setupPath));
+  const normalizedVenvPath = path.toUnix(path.resolve(venvPath));
+  const venvRoot = path.toUnix(path.resolve(path.parse(normalizedVenvPath).root));
+  const venvPrefix = normalizedVenvPath.endsWith("/") ? normalizedVenvPath : `${normalizedVenvPath}/`;
+
+  return normalizedVenvPath === venvRoot
+    || normalizedSetupPath === normalizedVenvPath
+    || normalizedSetupPath.startsWith(venvPrefix);
+}
+
 // Python command - will be initialized on first use
 let python: string | undefined;
 
@@ -372,6 +383,10 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
 
         // Delete python env if it already exists 
         if ((await fs.pathExists(pythonenv))) {
+          if (isDangerousVenvResetTarget(currentSetupState.setupPath, pythonenv)) {
+            notifyError("West Environment", `Refusing to delete configured Python environment "${pythonenv}" because it is the workspace setup path or one of its parents.`);
+            return;
+          }
           fs.rmSync(pythonenv, { recursive: true, force: true });
         }
 

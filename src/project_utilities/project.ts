@@ -69,12 +69,17 @@ export function getBuildFolder(wsConfig: WorkspaceConfig, project: ProjectConfig
       // (Windows-style paths) to forward slashes on all host OSes, and the
       // trailing "/" on the root sentinel prevents prefix collisions
       // (e.g. "/workspace" matching "/workspace2").
-      const rootNormalized = path.toUnix(path.normalize(wsConfig.rootPath)) + "/";
-      const resolved = path.toUnix(path.normalize(path.join(wsConfig.rootPath, build.rel_path)));
-      if (resolved === rootNormalized.slice(0, -1) || resolved.startsWith(rootNormalized)) {
+      const rootNormalized = path.toUnix(path.normalize(wsConfig.rootPath));
+      const rootPrefix = rootNormalized.endsWith("/") ? rootNormalized : `${rootNormalized}/`;
+      const resolved = path.toUnix(path.resolve(wsConfig.rootPath, build.rel_path));
+      if (resolved !== rootNormalized && resolved.startsWith(rootPrefix)) {
         return resolved;
       }
-      outputWarning("getBuildFolder", `rel_path "${build.rel_path}" escapes workspace root — falling back to default build folder`);
+      if (resolved === rootNormalized) {
+        outputWarning("getBuildFolder", `rel_path "${build.rel_path}" resolves to the workspace root — falling back to default build folder`);
+      } else {
+        outputWarning("getBuildFolder", `rel_path "${build.rel_path}" escapes workspace root — falling back to default build folder`);
+      }
     }
   }
   return path.join(wsConfig.rootPath, project.rel_path, build.name);
