@@ -17,9 +17,10 @@ limitations under the License.
 
 import * as vscode from 'vscode';
 import * as path from 'upath';
-import { addConfigFiles, setActive, modifyBuildArguments, removeConfigFile, getResolvedRunnerConfig, getResolvedTestConfig, resolveActiveProject, resolveActiveProjectBuild } from '../project_utilities/project';
+import { addConfigFiles, setActive, modifyBuildArguments, removeConfigFile, getResolvedProfile, getBindOverride, getResolvedTestConfig, resolveActiveProject, resolveActiveProjectBuild } from '../project_utilities/project';
 import { ConfigFiles, ConfigFileEntry } from '../project_utilities/config_selector';
 import { joinBuildArgs } from '../project_utilities/build_args';
+import { formatBindLabel } from '../project_utilities/runner_profiles';
 
 import { WorkspaceConfig } from '../setup_utilities/types';
 import { getSetupState } from '../setup_utilities/workspace-config';
@@ -146,7 +147,7 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
     const activeProject = resolvedProject.project;
     const resolved = resolveActiveProjectBuild(this.wsConfig);
     const activeBuild = resolved?.build;
-    const activeRunner = resolved ? getResolvedRunnerConfig(this.wsConfig, resolved) : undefined;
+    const activeProfile = resolved ? getResolvedProfile(this.wsConfig, resolved) : undefined;
     const activeTest = getResolvedTestConfig(this.wsConfig, resolvedProject);
 
     const items: ConfigItem[] = [];
@@ -232,28 +233,42 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
       }
       items.push(buildItem);
 
-      // Runner group
-      if (activeRunner) {
-        const runnerItem = new ConfigItem(activeRunner.name, 'chip', true, 'configRunner');
+      // Runner Profile group
+      // Shows ALL three bind slots (Flash / Debug / Attach), each of which
+      // can independently target an auto/runner/launch destination.
+      if (activeProfile && activeBuild) {
+        const runnerItem = new ConfigItem(activeProfile.name, 'chip', true, 'configRunner');
         runnerItem.id = 'config-runner';
-        runnerItem.data = { project: activeProject.name, build: activeBuild.name, runner: activeRunner.name };
+        runnerItem.data = { project: activeProject.name, build: activeBuild.name, runner: activeProfile.name };
         runnerItem.collapsibleState = this.projectConfigState.runnerOpenState
           ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
 
-        const runnerNameItem = new ConfigItem('Flash Bind', 'tools', false, undefined, 
-          activeRunner.flash.kind === "auto" ? "auto" :
-          activeRunner.flash.kind === "runner" ? `runner: ${activeRunner.flash.runner}` :
-          activeRunner.flash.kind === "variant" ? `variant: ${activeRunner.flash.variant}` :
-          `launch: ${activeRunner.flash.name}`);
-        runnerNameItem.id = 'config-runner.name';
-        const runnerArgsItem = new ConfigItem('Extra Args', 'file-code', false, undefined, 
-          (activeRunner.flash.kind === "runner" || activeRunner.flash.kind === "variant") && activeRunner.flash.extraArgs ? activeRunner.flash.extraArgs : "");
-        runnerArgsItem.id = 'config-runner.args';
-        runnerItem.children = [runnerNameItem, runnerArgsItem];
+        const flashItem = new ConfigItem('Flash', 'zap', false, undefined,
+          formatBindLabel(activeProfile.flash, getBindOverride(activeBuild, "flash")));
+        flashItem.id = 'config-runner.flash';
+        const debugItem = new ConfigItem('Debug', 'debug-alt', false, undefined,
+          formatBindLabel(activeProfile.debug, getBindOverride(activeBuild, "debug")));
+        debugItem.id = 'config-runner.debug';
+        debugItem.tooltip = 'Drives both Debug and Build-and-Debug';
+        const attachItem = new ConfigItem('Attach', 'debug-console', false, undefined,
+          formatBindLabel(activeProfile.attach, getBindOverride(activeBuild, "attach")));
+        attachItem.id = 'config-runner.attach';
+
+        runnerItem.children = [flashItem, debugItem, attachItem];
         for (const child of runnerItem.children) {
           child.parent = runnerItem;
         }
         items.push(runnerItem);
+      } else if (activeBuild) {
+        // No profile selected — show a placeholder that opens the profile picker.
+        const placeholder = new ConfigItem('(no runner profile) — click to pick', 'chip', false);
+        placeholder.id = 'config-runner';
+        placeholder.tooltip = 'Flash/Debug/Attach fall back to runners.yaml defaults. Click to select a Runner Profile.';
+        placeholder.command = {
+          command: 'zephyr-ide.set-active-profile',
+          title: 'Select Active Runner Profile',
+        };
+        items.push(placeholder);
       }
     }
 

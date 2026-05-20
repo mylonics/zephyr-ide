@@ -773,6 +773,43 @@
   white-space: nowrap;
 }
 
+/* --- Runner Profile slot grid (post-rework) --- */
+
+.runner-binds-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--vscode-panel-border);
+}
+
+.runner-bind-row {
+  display: grid;
+  grid-template-columns: 90px minmax(160px, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9em;
+}
+
+.runner-bind-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--vscode-foreground);
+}
+
+.bind-override-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 8px;
+  font-size: 0.75em;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  vertical-align: middle;
+}
+
 /* ===================================================================
    ACTION ROWS
    =================================================================== */

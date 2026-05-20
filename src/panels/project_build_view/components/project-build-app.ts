@@ -158,7 +158,6 @@ export class ProjectBuildApp extends ZephyrLitElement {
                     .isActive=${d.isBuildActive}
                     .projectName=${d.selectedProject!}
                     .variableCommands=${d.variableCommands}
-                    .variantsCatalogue=${d.variantsCatalogue}
                     .activeAction=${this._activeBuildAction}
                   ></build-section>`
             : nothing}

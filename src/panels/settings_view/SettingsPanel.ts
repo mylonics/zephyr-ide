@@ -17,15 +17,6 @@ limitations under the License.
 
 import * as vscode from "vscode";
 import { generateNonce } from "../webview_shared/nonce";
-import {
-  readUserVariants,
-  writeUserVariants,
-  uniqueVariantName,
-  validateVariant,
-} from "../../project_utilities/runner_variants_io";
-import { RunnerVariant } from "../../project_utilities/runner_variants";
-import { KNOWN_RUNNERS } from "../../project_utilities/runner_selector";
-import { notifyError } from "../../utilities/output";
 
 interface SettingDefinition {
   key: string;
@@ -236,20 +227,17 @@ export class SettingsPanel {
     this.refreshVariants();
   }
 
-  /** Build a user-scope-only variants catalogue and post it to the webview. */
+  /** Stub: variants are being replaced by Runner Profiles; the editor is gone. */
   private refreshVariants() {
-    const user = readUserVariants();
     this._panel.webview.postMessage({
       command: "updateVariants",
       catalogue: {
-        user: user.map(v => ({ name: v.name, runner: v.runner, args: v.args, shadowed: false })),
+        user: [],
         workspace: [],
         referencedNames: [],
-        // Workspace-scope variants are managed in the Project Build panel
-        // (which has access to the WorkspaceConfig). Disable here.
         hasWorkspace: false,
       },
-      knownRunners: KNOWN_RUNNERS,
+      knownRunners: [],
     });
   }
 
@@ -307,60 +295,11 @@ export class SettingsPanel {
         break;
       }
 
-      // Runner variants management (Stage 2). Settings panel only manages
-      // the user scope; workspace scope lives in the Project Build panel.
-      case "addVariant": {
-        if (message.scope !== "user") { break; }
-        const current = readUserVariants();
-        const name = uniqueVariantName(
-          typeof message.name === "string" && message.name.trim() ? message.name.trim() : "new-variant",
-          current.map(v => v.name),
-        );
-        const next: RunnerVariant = {
-          name,
-          runner: typeof message.runner === "string" && message.runner.trim() ? message.runner.trim() : "openocd",
-          args: typeof message.args === "string" ? message.args : "",
-        };
-        await writeUserVariants([...current, next]);
-        this.refreshVariants();
+      // Variant editor removed — Runner Profile editor coming in Phase 4.
+      case "addVariant":
+      case "updateVariant":
+      case "removeVariant":
         break;
-      }
-      case "updateVariant": {
-        if (message.scope !== "user") { break; }
-        const originalName = typeof message.originalName === "string" ? message.originalName : "";
-        if (!originalName) { break; }
-        const current = readUserVariants();
-        const idx = current.findIndex(v => v.name === originalName);
-        if (idx < 0) { notifyError("Runner Variants", `Variant "${originalName}" not found.`); break; }
-        const candidate: RunnerVariant = {
-          name: typeof message.name === "string" ? message.name.trim() : current[idx].name,
-          runner: typeof message.runner === "string" ? message.runner.trim() : current[idx].runner,
-          args: typeof message.args === "string" ? message.args : current[idx].args,
-        };
-        const error = validateVariant(candidate, current, originalName);
-        if (error) {
-          notifyError("Runner Variants", error.message);
-          this.refreshVariants();
-          break;
-        }
-        const next = current.slice();
-        next[idx] = candidate;
-        await writeUserVariants(next);
-        this.refreshVariants();
-        break;
-      }
-      case "removeVariant": {
-        if (message.scope !== "user") { break; }
-        const name = typeof message.name === "string" ? message.name : "";
-        if (!name) { break; }
-        const current = readUserVariants();
-        const next = current.filter(v => v.name !== name);
-        if (next.length !== current.length) {
-          await writeUserVariants(next);
-        }
-        this.refreshVariants();
-        break;
-      }
     }
   }
 

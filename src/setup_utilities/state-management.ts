@@ -24,6 +24,7 @@ import { initializeDtsExt } from "./dts_interface";
 import { GlobalConfig, WorkspaceConfig, SetupState, generateSetupState, isActiveWorkspaceInitialized } from "./types";
 import { loadProjectsFromFile, setWorkspaceSettings, generateGitIgnore, generateExtensionsRecommendations } from "./workspace-config";
 import { parseWestConfigManifest } from "./west-config-parser";
+import { readZephyrIdeJson, writeZephyrIdeJson } from "./zephyr_ide_json";
 
 /**
  * Per-extension-host-process token used to detect full process restarts so
@@ -275,40 +276,39 @@ export async function setExternalSetupState(context: vscode.ExtensionContext, gl
 }
 
 /**
- * Migrate legacy runner configs to the new bind-based shape.
- * Handles both build-level and project-level runners.
+ * Convert a single legacy `RunnerConfig` (any of: pre-bind {name,runner,args};
+ * mid-bind {name, flash, build|buildDebug|debug, attach}) plus its old
+ * BuildState fields (launchTarget/buildDebugTarget/attachTarget) into a
+ * `RunnerProfile`-shaped object (sans scope).
  *
  * Exported for tests.
  */
 export function migrateRunnerConfig(rc: any, buildState: any | undefined): any {
-  // If already in new shape (has flash/build/buildDebug/attach), return as-is (after stripping legacy fields).
-  if (rc && typeof rc === "object" && (rc.flash || rc.build || rc.buildDebug || rc.attach)) {
-    const migrated: any = { name: rc.name };
-    migrated.flash = rc.flash ?? { kind: "auto" };
-    migrated.build = rc.build ?? { kind: "auto" };
-    migrated.buildDebug = rc.buildDebug ?? { kind: "auto" };
-    migrated.attach = rc.attach ?? { kind: "auto" };
-    return migrated;
-  }
-  
-  // Legacy shape: {name, runner, args, argsMode?}
-  const flash: any = rc.runner
-    ? { kind: "runner", runner: rc.runner, ...(rc.args ? { extraArgs: rc.args } : {}) }
-    : { kind: "auto" };
-  
-  // Helper to map launch targets from buildState
+  // Helper: fold legacy launch target string into a bind.
   const bindFromTarget = (target: string | undefined): any => {
     if (!target || target.startsWith("Auto:") || target === "Zephyr IDE: Debug") {
       return { kind: "auto" };
     }
     return { kind: "launch", name: target };
   };
-  
+
+  // Already in (mid-)bind shape: normalise field set.
+  if (rc && typeof rc === "object" && (rc.flash || rc.build || rc.buildDebug || rc.debug || rc.attach)) {
+    const flash = rc.flash ?? { kind: "auto" };
+    const debug = rc.debug ?? rc.buildDebug ?? rc.build ?? { kind: "auto" };
+    const attach = rc.attach ?? { kind: "auto" };
+    return { name: rc.name, flash, debug, attach };
+  }
+
+  // Pre-bind shape {name, runner, args, argsMode?}.
+  const flash: any = rc?.runner
+    ? { kind: "runner", runner: rc.runner, ...(rc.args ? { extraArgs: rc.args } : {}) }
+    : { kind: "auto" };
+  const debugTarget = buildState?.buildDebugTarget ?? buildState?.launchTarget;
   return {
-    name: rc.name,
+    name: rc?.name,
     flash,
-    build: bindFromTarget(buildState?.launchTarget),
-    buildDebug: bindFromTarget(buildState?.buildDebugTarget),
+    debug: bindFromTarget(debugTarget),
     attach: bindFromTarget(buildState?.attachTarget),
   };
 }
@@ -350,35 +350,119 @@ export async function loadWorkspaceState(context: vscode.ExtensionContext): Prom
   if (isActiveWorkspaceInitialized(config)) {
     await loadProjectsFromFile(config);
   }
-  
-  // Migrate runner configs from legacy shape to new bind-based shape
-  for (const projectName in config.projects) {
-    const project = config.projects[projectName];
-    
-    // Migrate project-level runners
-    if (project.runnerConfigs) {
-      for (const runnerName in project.runnerConfigs) {
-        const rc = project.runnerConfigs[runnerName];
-        project.runnerConfigs[runnerName] = migrateRunnerConfig(rc, undefined);
+
+  // Migrate legacy per-build/per-project RunnerConfigs into workspace-scope
+  // RunnerProfiles (`.vscode/zephyr-ide.json#runnerProfiles`). For each build
+  // that had an `activeRunner`, set `build.activeProfile` to the corresponding
+  // (deduped) profile name. We do not delete legacy fields off the in-memory
+  // ProjectConfig/BuildConfig objects here because they are typed as not
+  // having those keys; instead we work via `any` casts and the new shape is
+  // what subsequent saves persist.
+  await migrateLegacyRunnersToProfiles(config);
+
+  return config;
+}
+
+/**
+ * One-shot migration: scans legacy `runnerConfigs` on each project + build,
+ * extracts unique RunnerProfiles into `.vscode/zephyr-ide.json#runnerProfiles`,
+ * sets each build's `activeProfile` from the old `activeRunner`, and removes
+ * the legacy fields from the in-memory config.
+ */
+async function migrateLegacyRunnersToProfiles(config: WorkspaceConfig): Promise<void> {
+  if (!isActiveWorkspaceInitialized(config)) { return; }
+
+  const newProfiles: any[] = [];
+  const existingNames = new Set<string>();
+
+  // Seed with any already-present profiles in zephyr-ide.json so we don't collide.
+  try {
+    const data = readZephyrIdeJson(config) as Record<string, unknown>;
+    if (Array.isArray(data.runnerProfiles)) {
+      for (const p of data.runnerProfiles as any[]) {
+        if (p && typeof p.name === "string") { existingNames.add(p.name); }
       }
     }
-    
-    // Migrate build-level runners
-    if (project.buildConfigs) {
-      for (const buildName in project.buildConfigs) {
-        const build = project.buildConfigs[buildName];
-        const buildState = config.projectStates?.[projectName]?.buildStates?.[buildName];
-        if (build.runnerConfigs) {
-          for (const runnerName in build.runnerConfigs) {
-            const rc = build.runnerConfigs[runnerName];
-            build.runnerConfigs[runnerName] = migrateRunnerConfig(rc, buildState);
-          }
-        }
+  } catch { /* ignore */ }
+
+  const uniqueName = (base: string): string => {
+    if (!existingNames.has(base)) { existingNames.add(base); return base; }
+    let i = 2;
+    while (existingNames.has(`${base}-${i}`)) { i++; }
+    const n = `${base}-${i}`;
+    existingNames.add(n);
+    return n;
+  };
+
+  let migrated = false;
+
+  for (const projectName in config.projects) {
+    const project = config.projects[projectName] as any;
+    const projectState = config.projectStates?.[projectName] as any;
+
+    // Drop project-level legacy runner storage (no replacement — inheritance removed).
+    if (project.runnerConfigs) {
+      delete project.runnerConfigs;
+      migrated = true;
+    }
+    if (projectState?.runnerStates) {
+      delete projectState.runnerStates;
+      migrated = true;
+    }
+
+    if (!project.buildConfigs) { continue; }
+    for (const buildName in project.buildConfigs) {
+      const build = project.buildConfigs[buildName] as any;
+      const buildState = projectState?.buildStates?.[buildName] as any;
+      if (!build.runnerConfigs && !buildState?.activeRunner) { continue; }
+
+      // Convert each legacy runner config to a profile (if any) and remember a
+      // mapping from legacy runner name → new profile name.
+      const legacyToProfileName = new Map<string, string>();
+      for (const runnerName in (build.runnerConfigs ?? {})) {
+        const migratedShape = migrateRunnerConfig(build.runnerConfigs[runnerName], buildState);
+        const desiredName = uniqueName(migratedShape.name || runnerName || "runner");
+        legacyToProfileName.set(runnerName, desiredName);
+        newProfiles.push({
+          name: desiredName,
+          flash: migratedShape.flash,
+          debug: migratedShape.debug,
+          attach: migratedShape.attach,
+        });
       }
+
+      // Map legacy `activeRunner` → new `activeProfile`.
+      if (buildState?.activeRunner) {
+        const newName = legacyToProfileName.get(buildState.activeRunner);
+        if (newName) { build.activeProfile = newName; }
+      }
+
+      // Strip legacy fields from in-memory shape so subsequent saves are clean.
+      delete build.runnerConfigs;
+      delete build.launchTarget;
+      delete build.launchTargetFolder;
+      delete build.buildDebugTarget;
+      delete build.buildDebugTargetFolder;
+      delete build.attachTarget;
+      delete build.attachTargetFolder;
+      if (buildState) {
+        delete buildState.activeRunner;
+        delete buildState.runnerStates;
+      }
+      migrated = true;
     }
   }
-  
-  return config;
+
+  if (migrated && newProfiles.length > 0) {
+    try {
+      const data = readZephyrIdeJson(config) as Record<string, unknown>;
+      const existing = Array.isArray(data.runnerProfiles) ? (data.runnerProfiles as any[]) : [];
+      data.runnerProfiles = [...existing, ...newProfiles];
+      await writeZephyrIdeJson(config, data);
+    } catch (e) {
+      console.error("[zephyr-ide] Failed to persist migrated runner profiles:", e);
+    }
+  }
 }
 
 export async function setWorkspaceState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {

@@ -39,6 +39,7 @@ import {
 } from "./build_data/kconfig-session";
 import { SettingsPanel } from "./panels/settings_view/SettingsPanel";
 import { SDKPanel } from "./panels/sdk_panel/SDKPanel";
+import { RunnerProfilePanel } from "./panels/runner_profile_view/RunnerProfilePanel";
 import { WorkspacePanel } from "./panels/workspace_panel/WorkspacePanel";
 
 import {
@@ -72,6 +73,7 @@ import {
 import { flashActive } from "./zephyr_utilities/flash";
 import { ZephyrIdeDebugConfigurationProvider } from "./zephyr_utilities/debug-provider";
 import { getSysbuildDomains, resolveRunnersYamlPath } from "./zephyr_utilities/runners-yaml";
+import { RunnerBind, formatBindLabel } from "./project_utilities/runner_profiles";
 import { WorkspaceConfig, GlobalConfig } from "./setup_utilities/types";
 import {
   loadGlobalState,
@@ -125,11 +127,13 @@ import {
 } from "./setup_utilities/dts_interface";
 import {
   setActiveProject,
-  getResolvedRunnerName,
   resolveActiveProjectBuild,
+  resolveActiveProfile,
+  resolveActiveBuildBind,
   resolveActiveProject,
   getProjectFolder,
   getBuildFolder,
+  getBindOverride,
   addSampleProjectsFromFile,
 } from "./project_utilities/project";
 import { testHelper, deleteTestDirs } from "./zephyr_utilities/twister";
@@ -284,21 +288,36 @@ async function startDebugSession(
   mode: 'debug' | 'attach' | 'build-debug'
 ) {
   const resolved = resolveActiveProjectBuild(wsConfig);
-  const activeBuild = resolved?.build;
 
-  const targetKeys: Record<string, { name: 'buildDebugTarget' | 'launchTarget' | 'attachTarget'; folder: 'buildDebugTargetFolder' | 'launchTargetFolder' | 'attachTargetFolder' }> = {
-    'build-debug': { name: 'buildDebugTarget', folder: 'buildDebugTargetFolder' },
-    'debug': { name: 'launchTarget', folder: 'launchTargetFolder' },
-    'attach': { name: 'attachTarget', folder: 'attachTargetFolder' },
-  };
+  // 3-bind model: Flash drives both Flash and Build-and-Flash; the unified
+  // `debug` bind drives both Debug and Build-and-Debug; `attach` is dedicated.
+  const slot: 'debug' | 'attach' = mode === 'attach' ? 'attach' : 'debug';
 
-  const keys = targetKeys[mode];
-  // An empty-string target is treated as "unset" so newly-created builds fall
-  // through to the runners.yaml-driven DebugConfigurationProvider path below.
-  // A "runner:xxx" prefix pins the provider to a specific runner.
-  const rawTarget = activeBuild?.[keys.name];
-  const debugTarget = (rawTarget && rawTarget !== "") ? rawTarget : undefined;
-  const debugTargetFolder = activeBuild?.[keys.folder];
+  let activeBind: RunnerBind | undefined;
+  let pinnedRunner: string | undefined;
+
+  if (resolved) {
+    const profileName = resolved.build.activeProfile;
+    if (profileName) {
+      const profileResolved = resolveActiveProfile(wsConfig);
+      if (profileResolved) {
+        activeBind = profileResolved.profile[slot];
+        if (activeBind.kind === 'runner') {
+          pinnedRunner = activeBind.runner;
+        } else if (activeBind.kind === 'auto') {
+          // auto → let runners.yaml provider pick the runner
+        }
+      }
+    }
+  }
+
+  let debugTarget: string | undefined;
+  let debugTargetFolder: string | undefined;
+  if (activeBind && activeBind.kind === 'launch') {
+    debugTarget = activeBind.name;
+  } else if (pinnedRunner) {
+    debugTarget = `${RUNNER_TARGET_PREFIX}${pinnedRunner}`;
+  }
 
   if (mode === 'build-debug') {
     if (!resolved) {
@@ -312,11 +331,9 @@ async function startDebugSession(
   }
 
   // No bound launch.json target → synthesize a Zephyr IDE provider config
-  // (cortex-debug + runners.yaml) directly. This is the new default for
-  // newly-created builds; users can still bind a named launch by using the
-  // "Change ... Launch Configuration For Build" commands.
-  const pinnedRunner = debugTarget?.startsWith(RUNNER_TARGET_PREFIX) ? debugTarget.slice(RUNNER_TARGET_PREFIX.length) : undefined;
-
+  // (cortex-debug + runners.yaml) directly. This is the default for runner
+  // binds of kind auto/runner/variant. A bind of kind "launch" already set
+  // `debugTarget` to the launch.json entry name and falls through to Path B.
   if (!debugTarget || pinnedRunner !== undefined) {
     if (!resolved) {
       notifyError("Debug", "No active project or build configuration found");
@@ -332,8 +349,8 @@ async function startDebugSession(
     // Prefer the workspace folder whose uri.fsPath matches wsConfig.rootPath (case-insensitive on Windows)
     const folders = vscode.workspace.workspaceFolders ?? [];
     const isWindows = process.platform === "win32";
-    const folder = folders.find(f => 
-      isWindows 
+    const folder = folders.find(f =>
+      isWindows
         ? f.uri.fsPath.toLowerCase() === wsConfig.rootPath.toLowerCase()
         : f.uri.fsPath === wsConfig.rootPath
     ) ?? folders[0];
@@ -353,6 +370,24 @@ async function startDebugSession(
   // fails with "launch.json does not exist for passed workspace folder".
   // Look up the config to see where it actually lives.
   const config = await getLaunchConfigurationByName(wsConfig, debugTarget, debugTargetFolder);
+  // Item #26: when the bound launch config no longer exists (renamed/deleted),
+  // surface an actionable error with a rebind button instead of letting
+  // startDebugging fail with a generic "Cannot find launch configuration".
+  if (!config) {
+    const folderHint = debugTargetFolder ? ` (folder: ${debugTargetFolder})` : "";
+    const choice = await vscode.window.showErrorMessage(
+      `Bound launch configuration "${debugTarget}"${folderHint} was not found. ` +
+      `It may have been renamed or removed from launch.json.`,
+      "Edit Runner Profile",
+      "Open launch.json"
+    );
+    if (choice === "Edit Runner Profile") {
+      void vscode.commands.executeCommand("zephyr-ide.set-active-profile");
+    } else if (choice === "Open launch.json") {
+      void vscode.commands.executeCommand("workbench.action.debug.configure");
+    }
+    return;
+  }
   const resolvedFolderName = config?.workspaceFolder;
   const folder = resolvedFolderName
     ? vscode.workspace.workspaceFolders?.find(f => f.name === resolvedFolderName)
@@ -548,32 +583,31 @@ export async function activate(context: vscode.ExtensionContext) {
     const resolved = resolveActiveProjectBuild(wsConfig);
     if (resolved) {
       activeBuildDisplay.text = `$(project) ${resolved.buildName}`;
-      const activeRunner = getResolvedRunnerName(wsConfig, resolved);
-      activeRunnerDisplay.text = activeRunner ? `$(chip) ${activeRunner}` : `$(chip)`;
-      // Tooltip shows the effective runner type and args
-      if (activeRunner && resolved.build.runnerConfigs[activeRunner]) {
-        const rc = resolved.build.runnerConfigs[activeRunner];
-        // For tooltip, show flash bind info
-        const flashBind = rc.flash;
-        let effDesc = "default (west picks based on board)";
-        let effArgs = "";
-        if (flashBind.kind === "runner") {
-          effDesc = flashBind.runner;
-          effArgs = flashBind.extraArgs ?? "";
-        } else if (flashBind.kind === "variant") {
-          effDesc = `variant: ${flashBind.variant}`;
-          effArgs = flashBind.extraArgs ?? "";
-        } else if (flashBind.kind === "launch") {
-          effDesc = `launch: ${flashBind.name}`;
+      const profileName = resolved.build.activeProfile;
+      activeRunnerDisplay.text = profileName ? `$(chip) ${profileName}` : `$(chip)`;
+      if (profileName) {
+        const profileResolved = resolveActiveProfile(wsConfig);
+        if (profileResolved) {
+          const p = profileResolved.profile;
+          const flashLabel = formatBindLabel(p.flash, getBindOverride(resolved.build, "flash"));
+          const debugLabel = formatBindLabel(p.debug, getBindOverride(resolved.build, "debug"));
+          const attachLabel = formatBindLabel(p.attach, getBindOverride(resolved.build, "attach"));
+          activeRunnerDisplay.tooltip =
+            `Runner Profile: ${profileName}` +
+            `\nFlash: ${flashLabel}` +
+            `\nDebug: ${debugLabel}` +
+            `\nAttach: ${attachLabel}` +
+            `\nClick to change active profile`;
+        } else {
+          activeRunnerDisplay.tooltip = `Runner Profile "${profileName}" not found. Click to change.`;
         }
-        activeRunnerDisplay.tooltip = `Runner: ${activeRunner}\nFlash: ${effDesc}${effArgs ? `\nExtra Args: ${effArgs}` : ""}\nClick to change active runner`;
       } else {
-        activeRunnerDisplay.tooltip = "No runner set — flash will use west's default. Click to add one.";
+        activeRunnerDisplay.tooltip = "No runner profile set — west/runners.yaml defaults apply. Click to select one.";
       }
     } else {
       activeBuildDisplay.text = ``;
       activeRunnerDisplay.text = ``;
-      activeRunnerDisplay.tooltip = "Select Active Runner";
+      activeRunnerDisplay.tooltip = "Select Active Runner Profile";
     }
     return resolved;
   }
@@ -759,9 +793,6 @@ export async function activate(context: vscode.ExtensionContext) {
         DashboardPanel.getPanel(projectName, buildName)?.navigateTo("kconfig");
       }
     }),
-    vscode.commands.registerCommand("zephyr-ide.tree-view.add-runner", (item: any) => {
-      projectTreeView.handleSharedCommand("addRunner", item);
-    }),
     vscode.commands.registerCommand("zephyr-ide.tree-view.delete-build", (item: any) => {
       projectTreeView.handleSharedCommand("deleteBuild", item);
     }),
@@ -774,9 +805,6 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.tree-view.attach", (item: any) => {
       projectTreeView.handleSharedCommand("attach", item);
     }),
-    vscode.commands.registerCommand("zephyr-ide.tree-view.delete-runner", (item: any) => {
-      projectTreeView.handleSharedCommand("deleteRunner", item);
-    }),
     vscode.commands.registerCommand("zephyr-ide.tree-view.test", (item: any) => {
       projectTreeView.handleTest(item);
     }),
@@ -785,8 +813,8 @@ export async function activate(context: vscode.ExtensionContext) {
     }),
   );
 
-  registerCommandWithRefresh(context, "zephyr-ide.set-active-runner",
-    () => project.setActiveRunner(context, wsConfig));
+  registerCommandWithRefresh(context, "zephyr-ide.set-active-profile",
+    () => project.setActiveProfile(context, wsConfig));
 
   activeProjectDisplay = createStatusBarButton(context,
     "zephyr-ide.set-active-project", `$(folder) ${wsConfig.activeProject}`, "Zephyr IDE Select Active Project");
@@ -794,7 +822,7 @@ export async function activate(context: vscode.ExtensionContext) {
   activeBuildDisplay = createStatusBarButton(context,
     "zephyr-ide.set-active-build", ``, "Select Active Build");
   activeRunnerDisplay = createStatusBarButton(context,
-    "zephyr-ide.set-active-runner", ``, "Select Active Runner");
+    "zephyr-ide.set-active-profile", ``, "Select Active Runner Profile");
   {
     refreshStatusBar();
   }
@@ -1148,57 +1176,10 @@ export async function activate(context: vscode.ExtensionContext) {
   registerCommandWithRefresh(context, "zephyr-ide.set-active-build",
     () => project.setActiveBuild(context, wsConfig));
 
-  context.subscriptions.push(
-    vscode.commands.registerCommand("zephyr-ide.add-runner", async () => {
-      const setupState = await getSetupState(context, wsConfig);
-      if (setupState && setupState.westUpdated) {
-        await project.addRunner(wsConfig, context);
-        void vscode.commands.executeCommand("zephyr-ide.update-web-view");
-      } else {
-        notifyError("Runner Config", "Run `Zephyr IDE: West Update` first.");
-      }
-    })
-  );
-
-  registerCommandWithRefresh(context, "zephyr-ide.remove-runner",
-    () => project.removeRunner(context, wsConfig));
-
-  registerCommandWithRefresh(context, "zephyr-ide.add-project-runner",
-    async () => {
-      if (!wsConfig.activeProject) { return; }
-      await project.addRunnerToProject(wsConfig, context, wsConfig.activeProject);
-    });
-
-  registerCommandWithRefresh(context, "zephyr-ide.remove-project-runner",
-    () => project.removeProjectRunner(context, wsConfig));
-
-  registerCommandWithRefresh(context, "zephyr-ide.change-debug-launch-for-build",
-    () => project.selectDebugLaunchConfiguration(context, wsConfig));
-
-  registerCommandWithRefresh(context, "zephyr-ide.change-build-debug-launch-for-build",
-    () => project.selectBuildDebugLaunchConfiguration(context, wsConfig));
-
-  registerCommandWithRefresh(context, "zephyr-ide.change-debug-attach-launch-for-build",
-    () => project.selectDebugAttachLaunchConfiguration(context, wsConfig));
-
   // U5: Single command that lets the user choose which debug target to reconfigure.
   registerCommandWithRefresh(context, "zephyr-ide.change-launch-for-build", async () => {
-    const pick = await vscode.window.showQuickPick(
-      [
-        { label: "Debug", description: "Change launch configuration for Debug" },
-        { label: "Build and Debug", description: "Change launch configuration for Build and Debug" },
-        { label: "Attach", description: "Change launch configuration for Debug Attach" },
-      ],
-      { placeHolder: "Select debug target to configure", ignoreFocusOut: true }
-    );
-    if (!pick) { return; }
-    if (pick.label === "Debug") {
-      await project.selectDebugLaunchConfiguration(context, wsConfig);
-    } else if (pick.label === "Build and Debug") {
-      await project.selectBuildDebugLaunchConfiguration(context, wsConfig);
-    } else {
-      await project.selectDebugAttachLaunchConfiguration(context, wsConfig);
-    }
+    notifyError("Runner Profile", "Launch bindings are now configured per-slot on the active Runner Profile.");
+    void vscode.commands.executeCommand("zephyr-ide.set-active-profile");
   });
 
   // Issue #25: Open the active build's runners.yaml in an editor for inspection.
@@ -1527,6 +1508,7 @@ export async function activate(context: vscode.ExtensionContext) {
       SDKPanel.updateAllPanels(wsConfig, globalConfig);
       WorkspacePanel.updateAllPanels(wsConfig, globalConfig);
       HostToolInstallView.currentPanel?.updateContent(wsConfig, globalConfig);
+      RunnerProfilePanel.updateAllPanels(wsConfig, globalConfig);
       void vscode.commands.executeCommand("zephyr-ide.update-status");
     })
   );
@@ -2028,6 +2010,17 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.open-sdk-panel", async () => {
       SDKPanel.createOrShow(
+        context.extensionPath,
+        context,
+        wsConfig,
+        globalConfig
+      );
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.open-runner-profile-panel", async () => {
+      RunnerProfilePanel.createOrShow(
         context.extensionPath,
         context,
         wsConfig,

@@ -17,12 +17,11 @@ limitations under the License.
 
 import * as vscode from 'vscode';
 
-import { ProjectConfig, getResolvedRunnerConfig, getResolvedTestConfig, resolveActiveProject, resolveActiveProjectBuild } from '../project_utilities/project';
+import { ProjectConfig, getResolvedProfile, getBindOverride, getResolvedTestConfig, resolveActiveProject, resolveActiveProjectBuild } from '../project_utilities/project';
 import { BuildConfig } from '../project_utilities/build_selector';
-import { RunnerConfig } from '../project_utilities/runner_selector';
 import { WorkspaceConfig } from '../setup_utilities/types';
 import { TwisterConfig } from "../project_utilities/twister_selector";
-import { getLaunchTargetDisplayName } from '../utilities/utils';
+import { formatBindLabel, RunnerProfile } from '../project_utilities/runner_profiles';
 
 export type ActiveProjectItemContext =
   | 'activeProject.buildPristine'
@@ -73,7 +72,7 @@ export class ActiveProjectView implements vscode.TreeDataProvider<ActiveProjectI
   getChildren(): ActiveProjectItem[] {
     let activeProject: ProjectConfig | undefined;
     let activeBuild: BuildConfig | undefined;
-    let activeRunner: RunnerConfig | undefined;
+    let activeProfile: RunnerProfile | undefined;
     let activeTwister: TwisterConfig | undefined;
     const resolvedProject = resolveActiveProject(this.wsConfig);
     if (resolvedProject) {
@@ -81,7 +80,7 @@ export class ActiveProjectView implements vscode.TreeDataProvider<ActiveProjectI
       const resolved = resolveActiveProjectBuild(this.wsConfig);
       activeBuild = resolved?.build;
       if (resolved) {
-        activeRunner = getResolvedRunnerConfig(this.wsConfig, resolved);
+        activeProfile = getResolvedProfile(this.wsConfig, resolved);
         this.title = activeProject.name + ": " + resolved.build.name;
       } else {
         this.title = activeProject.name;
@@ -92,25 +91,34 @@ export class ActiveProjectView implements vscode.TreeDataProvider<ActiveProjectI
       return [];
     }
 
-    const debugDisplay = getLaunchTargetDisplayName(activeBuild?.launchTarget ?? "", activeBuild?.launchTargetFolder, "Zephyr IDE: Debug");
-    const buildDebugDisplay = getLaunchTargetDisplayName(activeBuild?.buildDebugTarget ?? "", activeBuild?.buildDebugTargetFolder, "Zephyr IDE: Debug");
-    const attachDisplay = getLaunchTargetDisplayName(activeBuild?.attachTarget ?? "", activeBuild?.attachTargetFolder, "Zephyr IDE: Attach");
+    // 3-bind model: Flash drives Flash + Build-and-Flash; the unified `debug`
+    // bind drives Debug + Build-and-Debug; `attach` is dedicated.
+    const flashDisplay = activeProfile
+      ? formatBindLabel(activeProfile.flash, activeBuild && getBindOverride(activeBuild, "flash"))
+      : "None";
+    const debugDisplay = activeProfile
+      ? formatBindLabel(activeProfile.debug, activeBuild && getBindOverride(activeBuild, "debug"))
+      : "None";
+    const buildDebugDisplay = debugDisplay;
+    const attachDisplay = activeProfile
+      ? formatBindLabel(activeProfile.attach, activeBuild && getBindOverride(activeBuild, "attach"))
+      : "None";
 
     const items: ActiveProjectItem[] = [
       new ActiveProjectItem("Build Pristine", "project", activeBuild ? activeBuild.name : "None",
         'activeProject.buildPristine', "zephyr-ide.build-pristine"),
       new ActiveProjectItem("Build", "project", activeBuild ? activeBuild.name : "None",
         'activeProject.build', "zephyr-ide.build"),
-      new ActiveProjectItem("Flash", "chip", activeRunner ? activeRunner.name : "None",
+      new ActiveProjectItem("Flash", "chip", flashDisplay,
         'activeProject.flash', "zephyr-ide.flash"),
-      new ActiveProjectItem("Build and Flash", "cloud-upload", activeRunner ? activeRunner.name : "None",
+      new ActiveProjectItem("Build and Flash", "cloud-upload", flashDisplay,
         'activeProject.buildFlash', "zephyr-ide.build-flash"),
       new ActiveProjectItem("Debug", "debug-alt", debugDisplay,
-        'activeProject.debug', "zephyr-ide.debug", "zephyr-ide.change-debug-launch-for-build"),
+        'activeProject.debug', "zephyr-ide.debug"),
       new ActiveProjectItem("Build and Debug", "debug-all", buildDebugDisplay,
-        'activeProject.buildDebug', "zephyr-ide.build-debug", "zephyr-ide.change-build-debug-launch-for-build"),
+        'activeProject.buildDebug', "zephyr-ide.build-debug"),
       new ActiveProjectItem("Debug Attach", "debug-console", attachDisplay,
-        'activeProject.debugAttach', "zephyr-ide.debug-attach", "zephyr-ide.change-debug-attach-launch-for-build"),
+        'activeProject.debugAttach', "zephyr-ide.debug-attach"),
     ];
 
     if (activeProject.twisterConfigs && Object.keys(activeProject.twisterConfigs).length) {

@@ -16,7 +16,7 @@ limitations under the License.
 */
 
 import * as vscode from 'vscode';
-import { addBuildToProject, addRunnerToBuild, removeBuild, removeProject, removeRunner, setActive } from '../project_utilities/project';
+import { addBuildToProject, removeBuild, removeProject, setActive } from '../project_utilities/project';
 import { buildByName, MenuConfig } from '../zephyr_utilities/build';
 import { flashByName } from '../zephyr_utilities/flash';
 import { WorkspaceConfig } from '../setup_utilities/types';
@@ -96,16 +96,6 @@ export function handleSharedProjectCommand(
     case "deleteBuild": {
       runAsync("Delete Build", `deleteBuild/${value.project}/${value.build}`, () => removeBuild(context, wsConfig, value.project, value.build),
         () => void setActive(context, wsConfig, value.project));
-      return true;
-    }
-    case "addRunner": {
-      runAsync("Add Runner", `addRunner/${value.project}/${value.build}`, () => addRunnerToBuild(wsConfig, context, value.project, value.build),
-        () => void setActive(context, wsConfig, value.project, value.build));
-      return true;
-    }
-    case "deleteRunner": {
-      runAsync("Delete Runner", `deleteRunner/${value.project}/${value.build}/${value.runner}`, () => removeRunner(context, wsConfig, value.project, value.build, value.runner),
-        () => void setActive(context, wsConfig, value.project, value.build));
       return true;
     }
     case "build": {

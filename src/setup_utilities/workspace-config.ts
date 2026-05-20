@@ -153,35 +153,17 @@ function projectLoader(config: WorkspaceConfig, projects: any): boolean {
 
     //generate project States if they don't exist
     if (config.projectStates[key] === undefined) {
-      config.projectStates[key] = { buildStates: {}, twisterStates: {}, runnerStates: {} };
+      config.projectStates[key] = { buildStates: {}, twisterStates: {} };
       if (config.activeProject === undefined) {
         config.activeProject = key;
       }
     }
 
-    // Migrate project state: ensure runnerStates exists
-    if (!config.projectStates[key].runnerStates) {
-      config.projectStates[key].runnerStates = {};
-      requiresSave = true;
-    }
-
-    // Migrate project config: ensure runnerConfigs exists
-    if (!config.projects[key].runnerConfigs) {
-      config.projects[key].runnerConfigs = {};
-      requiresSave = true;
-    }
-
-    // Migration handled in state-management.ts loadWorkspaceState
-    for (const runner_key in config.projects[key].runnerConfigs) {
-      const rc = config.projects[key].runnerConfigs[runner_key];
-      if (config.projectStates[key].runnerStates[runner_key] === undefined) {
-        config.projectStates[key].runnerStates[runner_key] = {};
-      }
-    }
+    // Runner profile migration is handled in state-management.ts loadWorkspaceState.
 
     for (const build_key in projects[key].buildConfigs) {
       if (config.projectStates[key].buildStates[build_key] === undefined) {
-        config.projectStates[key].buildStates[build_key] = { runnerStates: {} };
+        config.projectStates[key].buildStates[build_key] = {};
         if (config.projectStates[key].activeBuildConfig === undefined) {
           config.projectStates[key].activeBuildConfig = build_key;
         }
@@ -204,17 +186,6 @@ function projectLoader(config: WorkspaceConfig, projects: any): boolean {
       }
       buildConfig.westBuildArgs = normalizedWestBuildArgs;
       buildConfig.westBuildCMakeArgs = normalizedWestBuildCMakeArgs;
-
-      for (const runner_key in projects[key].buildConfigs[build_key].runnerConfigs) {
-        // Migration handled in state-management.ts loadWorkspaceState
-        const rc = projects[key].buildConfigs[build_key].runnerConfigs[runner_key];
-        if (config.projectStates[key].buildStates[build_key].runnerStates[runner_key] === undefined) {
-          config.projectStates[key].buildStates[build_key].runnerStates[runner_key] = {};
-          if (config.projectStates[key].buildStates[build_key].activeRunner === undefined) {
-            config.projectStates[key].buildStates[build_key].activeRunner = runner_key;
-          }
-        }
-      }
     }
   }
   return requiresSave;

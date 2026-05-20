@@ -18,7 +18,6 @@ limitations under the License.
 import * as vscode from 'vscode';
 import { ProjectConfig, addTest, removeTest, setActive } from '../project_utilities/project';
 import { BuildConfig } from '../project_utilities/build_selector';
-import { RunnerConfig } from '../project_utilities/runner_selector';
 import { WorkspaceConfig } from '../setup_utilities/types';
 import { TwisterConfig } from '../project_utilities/twister_selector';
 import { handleSharedProjectCommand } from './projectCommandHandler';
@@ -35,10 +34,8 @@ export function getUseGuiConfig(): boolean | undefined {
 export type ProjectTreeItemContext =
   | 'projectItem'
   | 'buildItem'
-  | 'runnerItem'
   | 'testItem'
-  | 'addBuildPlaceholder'
-  | 'addRunnerPlaceholder';
+  | 'addBuildPlaceholder';
 
 export class ProjectTreeItem extends vscode.TreeItem {
   children: ProjectTreeItem[] = [];
@@ -71,19 +68,6 @@ export class ProjectTreeView implements vscode.TreeDataProvider<ProjectTreeItem>
   constructor(public extensionPath: string, private context: vscode.ExtensionContext, private wsConfig: WorkspaceConfig) {
   }
 
-  private generateRunnerItem(projectName: string, buildName: string, runner: RunnerConfig): ProjectTreeItem {
-    const buildStates = this.wsConfig.projectStates[projectName]?.buildStates;
-    if (buildStates?.[buildName] && buildStates[buildName].runnerStates[runner.name] === undefined) {
-      buildStates[buildName].runnerStates[runner.name] = { viewOpen: true };
-    }
-
-    const item = new ProjectTreeItem(runner.name, 'chip', false, 'runnerItem');
-    item.id = `runner:${sanitizeTreeId(projectName)}:${sanitizeTreeId(buildName)}:${sanitizeTreeId(runner.name)}`;
-    item.data = { project: projectName, build: buildName, runner: runner.name };
-    item.command = { command: 'zephyr-ide.tree-view.select', title: 'Select', arguments: [item] };
-    return item;
-  }
-
   private generateBuildItem(projectName: string, build: BuildConfig): ProjectTreeItem {
     const buildState = this.wsConfig.projectStates[projectName]?.buildStates?.[build.name];
     const viewOpen = buildState?.viewOpen;
@@ -102,21 +86,6 @@ export class ProjectTreeView implements vscode.TreeDataProvider<ProjectTreeItem>
       item.iconPath = new vscode.ThemeIcon('project', new vscode.ThemeColor('textLink.foreground'));
     } else {
       item.command = { command: 'zephyr-ide.tree-view.select', title: 'Select', arguments: [item] };
-    }
-
-    for (const key in build.runnerConfigs) {
-      const runnerItem = this.generateRunnerItem(projectName, build.name, build.runnerConfigs[key]);
-      runnerItem.parent = item;
-      item.children.push(runnerItem);
-    }
-
-    if (item.children.length === 0) {
-      const placeholder = new ProjectTreeItem('Add Runner', 'add', false, 'addRunnerPlaceholder', 'Add Runner');
-      placeholder.id = `placeholder:addRunner:${sanitizeTreeId(projectName)}:${sanitizeTreeId(build.name)}`;
-      placeholder.data = { project: projectName, build: build.name, cmd: "addRunner" };
-      placeholder.command = { command: 'zephyr-ide.tree-view.add-runner', title: 'Add Runner', arguments: [placeholder] };
-      placeholder.parent = item;
-      item.children.push(placeholder);
     }
 
     return item;
@@ -240,11 +209,9 @@ export class ProjectTreeView implements vscode.TreeDataProvider<ProjectTreeItem>
     const state = this.wsConfig.projectStates[p];
     const alreadyActiveProject = this.wsConfig.activeProject === p;
     const alreadyActiveBuild = !item.data.build || state?.activeBuildConfig === item.data.build;
-    const alreadyActiveRunner = !item.data.runner ||
-      (item.data.build && state?.buildStates?.[item.data.build]?.activeRunner === item.data.runner);
     const alreadyActiveTest = !item.data.test || state?.activeTwisterConfig === item.data.test;
 
-    if (alreadyActiveProject && alreadyActiveBuild && alreadyActiveRunner && alreadyActiveTest) {
+    if (alreadyActiveProject && alreadyActiveBuild && alreadyActiveTest) {
       return;
     }
 

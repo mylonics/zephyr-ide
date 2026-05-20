@@ -15,30 +15,35 @@ The following settings are available in VS Code settings (File > Preferences > S
 | `zephyr-ide.suppressWorkspaceWarning` | boolean | false | Suppress the notification about missing `ZEPHYR_BASE` / `ZEPHYR_SDK_INSTALL_DIR` environment variables. |
 | `zephyr-ide.venvFolder` | string \| null | null | Custom Python virtual environment path. Defaults to `.venv` in the workspace setup path. |
 | `zephyr-ide.useClangd` | boolean | false | Use clangd for IntelliSense instead of the C/C++ extension. When enabled, sets `C_Cpp.intelliSenseEngine` to `disabled` and configures `clangd.arguments` with the Zephyr SDK query-driver. Requires the [clangd VS Code extension](https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.vscode-clangd). |
-| `zephyr-ide.runnerVariants` | array | `[]` | Reusable runner variants (`{ "name", "runner", "args" }`) that can be referenced by `RunnerConfig` binds across builds. Workspace `.vscode/zephyr-ide.json` `runnerVariants` overrides this setting on name collision. See [Runner Configurations](#runner-configurations) below. |
+| `zephyr-ide.runnerProfiles` | array | `[]` | User-scope Runner Profiles (`{ "name", "flash", "debug", "attach" }`) available across all your workspaces. Workspace `.vscode/zephyr-ide.json#runnerProfiles` overrides this on name collision. Edit interactively from the **Zephyr IDE: Open Runner Profile Panel** command. See [Runner Profiles](#runner-profiles) below. |
 
-## Runner Configurations
+## Runner Profiles
 
-Each build has an optional active **Runner Configuration** that controls what happens for **Flash**, **Build & Debug**, **Debug** (launch), and **Debug Attach**. Each of those four targets is one of:
+A **Runner Profile** is a named bundle of three bind slots — **flash**, **debug**, and **attach** — that a build can attach to. Each slot independently chooses one of:
 
 - `auto` — use `runners.yaml` defaults (the `debug-runner` / `flash-runner` Zephyr recorded at CMake time).
 - `runner` — a Zephyr runner by name (e.g. `openocd`, `jlink`, `pyocd`, `blackmagicprobe`) with optional extra `args`.
-- `variant` — a reference to a reusable variant defined in `zephyr-ide.runnerVariants` or `.vscode/zephyr-ide.json` `runnerVariants`; `extraArgs` are **appended** to the variant's `args`.
-- `launch` — a `launch.json` configuration by name (Debug / Build & Debug / Attach binds only; ignored for Flash).
+- `launch` — a `launch.json` configuration by name (debug and attach binds only; not valid for flash because flashing never starts a debug session).
 
-When **no** runner configuration is active on a build, all four targets fall back to `auto`. This is the default for newly-created builds.
+When **no** profile is assigned to a build, all three slots default to `auto`. This is the default for newly-created builds — `Flash` / `Debug` / `Build and Debug` / `Debug Attach` just work using whatever Zephyr recorded in `runners.yaml`.
 
-### Defining Reusable Variants
+Each build references a profile by name (`activeProfile`) and may add per-slot **extra-argument overrides** (`bindOverrides`). Overrides only have effect on `runner`-kind slots: they are appended after the profile's own `args`.
 
-Runner variants are read from **both** locations and merged, with workspace overriding user on name collision:
+### Profile Scope
+
+Profiles are stored in two places, merged on load (workspace overrides user on name collision):
 
 **User settings (`settings.json`)** — shared across all your workspaces:
 
 ```json
 {
-  "zephyr-ide.runnerVariants": [
-    { "name": "bmp-via-acm0", "runner": "blackmagicprobe", "args": "--gdb-serial /dev/ttyACM0" },
-    { "name": "openocd-stlink", "runner": "openocd", "args": "--config interface/stlink.cfg" }
+  "zephyr-ide.runnerProfiles": [
+    {
+      "name": "BMP via ttyACM0",
+      "flash":  { "kind": "runner", "runner": "blackmagicprobe", "extraArgs": "--gdb-serial /dev/ttyACM0" },
+      "debug":  { "kind": "runner", "runner": "blackmagicprobe", "extraArgs": "--gdb-serial /dev/ttyACM0" },
+      "attach": { "kind": "runner", "runner": "blackmagicprobe", "extraArgs": "--gdb-serial /dev/ttyACM0" }
+    }
   ]
 }
 ```
@@ -47,20 +52,51 @@ Runner variants are read from **both** locations and merged, with workspace over
 
 ```json
 {
-  "runnerVariants": [
-    { "name": "jlink-stm32f4", "runner": "jlink", "args": "--device=STM32F401RE --speed=4000" }
+  "runnerProfiles": [
+    {
+      "name": "jlink-stm32f4",
+      "flash":  { "kind": "runner", "runner": "jlink", "extraArgs": "--device=STM32F401RE --speed=4000" },
+      "debug":  { "kind": "launch", "name": "STM32F4 Debug" },
+      "attach": { "kind": "auto" }
+    }
   ]
 }
 ```
 
+### Editing Profiles
+
+Run **`Zephyr IDE: Open Runner Profile Panel`** (or click **Manage…** next to the Runner Profile section in the Project Build panel) for a full CRUD UI:
+
+- Create, rename, edit, and delete profiles at workspace or user scope.
+- Drop-down pickers for known Zephyr runners and detected `launch.json` configurations.
+- "Use for active build" sets the chosen profile as the current build's `activeProfile` without opening a picker.
+- Usage badge shows how many builds currently reference each profile; the delete confirmation lists them by name.
+
+The faster **`Zephyr IDE: Select Active Runner Profile`** command (also wired to the **Change…** button in the Project Build panel and the Runner Profile node in the Project Config tree) opens a QuickPick limited to switching the active profile without leaving your editor.
+
+### Per-build Overrides
+
+If you need slightly different arguments on a single build without forking a whole profile, click the pencil icon next to the slot label in the Project Build panel. The override `extraArgs` are persisted on the `BuildConfig` (`bindOverrides[slot].extraArgs`) and appended after the profile's own args:
+
+```json
+{
+  "bindOverrides": {
+    "flash": { "extraArgs": "--erase" }
+  }
+}
+```
+
+Overrides are silently ignored for `auto` and `launch` slots — they only compose with `runner`-kind binds.
+
 ### Migration from the Old Single-Runner Model
 
-Legacy `RunnerConfig` entries (`{ "name", "runner", "args" }`) are migrated automatically on workspace load:
+Legacy per-build `runnerConfigs` and per-project `runnerConfigs` (with the deprecated `RunnerVariant` settings) are migrated automatically on workspace load:
 
-- `flash` becomes `{ "kind": "runner", "runner": <old runner>, "extraArgs": <old args> }`.
-- `build` / `buildDebug` / `attach` are seeded from the build's existing `launchTarget` / `buildDebugTarget` / `attachTarget` as `{ "kind": "launch", "name": ... }`, or `{ "kind": "auto" }` when the target is unset, `"Auto:…"`, or `"Zephyr IDE: Debug"`.
+- Each legacy `RunnerConfig` becomes a `RunnerProfile`. Pre-bind shape (`{ name, runner, args }`) becomes a profile whose `flash` slot is a `runner` bind and whose `debug` / `attach` slots are seeded from the old `launchTarget` / `buildDebugTarget` / `attachTarget` (mapped to `launch` or `auto` as appropriate).
+- The build's old `activeRunner` field becomes its new `activeProfile`.
+- Migrated profiles are written to `.vscode/zephyr-ide.json#runnerProfiles`; the legacy fields are then stripped from the workspace state.
 
-You do not need to take any action — the next time the workspace opens, the migrated configs are persisted in `zephyr-ide.json`.
+You do not need to take any action — the next time the workspace opens, the migration runs once and the new shape is what subsequent saves persist. The deprecated `zephyr-ide.runnerVariants` user setting is no longer read.
 
 ## clangd Configuration
 

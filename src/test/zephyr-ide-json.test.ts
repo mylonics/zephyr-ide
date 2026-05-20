@@ -218,7 +218,6 @@ suite("zephyr-ide.json toolchains/blobs Test Suite", () => {
       buildConfigs: {},
       confFiles: { config: [], overlay: [] },
       twisterConfigs: {},
-      runnerConfigs: {},
     };
   }
 

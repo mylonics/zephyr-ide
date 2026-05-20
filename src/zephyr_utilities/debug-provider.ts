@@ -36,7 +36,7 @@ import {
   RunnersYaml,
 } from "./runners-yaml";
 import { resolveActiveProjectBuild } from "../project_utilities/project";
-import { loadRunnerVariants, resolveBind } from "../project_utilities/runner_variants";
+import { loadRunnerProfiles, findRunnerProfile, resolveBind } from "../project_utilities/runner_profiles";
 import { WorkspaceConfig } from "../setup_utilities/types";
 import { notifyError, outputInfo } from "../utilities/output";
 
@@ -294,8 +294,8 @@ export function buildCortexDebugConfig(
         const a = allArgs[i];
         const dev =
           a === "--device" ? allArgs[i + 1] :
-          a.startsWith("--device=") ? a.slice("--device=".length) :
-          undefined;
+            a.startsWith("--device=") ? a.slice("--device=".length) :
+              undefined;
         if (dev !== undefined && !cfg.device) { cfg.device = dev; if (a === "--device") { i++; } continue; }
       }
       break;
@@ -346,7 +346,7 @@ export function pickDebugRunner(
   runnersYaml: RunnersYaml,
   requested?: string
 ): string | undefined {
-  if (requested) { 
+  if (requested) {
     // Check if requested runner is in runners.yaml
     const hasRunner = runnersYaml.runners.includes(requested) || (requested in runnersYaml.args);
     if (!hasRunner && runnersYaml.debugRunner && runnerToServerType(runnersYaml.debugRunner)) {
@@ -362,7 +362,7 @@ export function pickDebugRunner(
         return fallback;
       }
     }
-    return requested; 
+    return requested;
   }
   if (runnersYaml.debugRunner && runnerToServerType(runnersYaml.debugRunner)) {
     return runnersYaml.debugRunner;
@@ -405,7 +405,7 @@ export class ZephyrIdeDebugConfigurationProvider
   constructor(
     private readonly getWorkspaceConfig: () => WorkspaceConfig,
     private readonly context?: vscode.ExtensionContext,
-  ) {}
+  ) { }
 
   /**
    * Provide an initial launch configuration when the user has no launch.json
@@ -510,34 +510,40 @@ export class ZephyrIdeDebugConfigurationProvider
       return undefined;
     }
 
-    // Merge user-supplied runner args from active RunnerConfig bind.
-    // Look up the active runner in build.runnerConfigs first, then fall back
-    // to project.runnerConfigs (which the UI promises are "inherited by builds
-    // with same name"). Without this fallback, project-level runners are
-    // orphaned at runtime.
+    // Fast-fail when runners.yaml is missing the fields cortex-debug needs.
+    // cortex-debug would otherwise fail mid-launch with an opaque error.
+    const missing: string[] = [];
+    if (!runnersYaml.elfFile) { missing.push("elf_file"); }
+    if (!runnersYaml.gdb) { missing.push("gdb"); }
+    if (missing.length) {
+      void vscode.window.showErrorMessage(
+        `runners.yaml is missing required field(s) [${missing.join(", ")}] at "${runnersYamlPath}".` +
+        ` This usually means the build did not complete successfully. Try a pristine rebuild.`,
+        "Pristine Build"
+      ).then(choice => {
+        if (choice === "Pristine Build") {
+          void vscode.commands.executeCommand("zephyr-ide.build-pristine");
+        }
+      });
+      return undefined;
+    }
+
+    // Merge user-supplied runner args from active RunnerProfile bind.
     let userArgs: string[] | undefined;
-    const stateActiveRunner =
-      wsConfig.projectStates?.[resolved.projectName]?.buildStates?.[resolved.buildName]?.activeRunner;
-    const projectRunnerConfigs = resolved.project.runnerConfigs ?? {};
-    const activeRunnerName =
-      stateActiveRunner
-      ?? (resolved.build.runnerConfigs?.[runner] ? runner : undefined)
-      ?? (projectRunnerConfigs[runner] ? runner : undefined);
-    const activeRunnerConfig = activeRunnerName
-      ? (resolved.build.runnerConfigs?.[activeRunnerName] ?? projectRunnerConfigs[activeRunnerName])
-      : undefined;
-    if (activeRunnerName && activeRunnerConfig) {
-      const rc = activeRunnerConfig;
-      const variants = loadRunnerVariants(wsConfig);
-      // Use buildDebug for launch, attach for attach
-      const bind = cfg.request === "attach" ? rc.attach : rc.buildDebug;
+    const profileName = resolved.build.activeProfile;
+    const profile = profileName ? findRunnerProfile(profileName, loadRunnerProfiles(wsConfig)) : undefined;
+    if (profile) {
+      // Pick the bind for this session kind: launch sessions use the unified
+      // debug bind; attach sessions use the dedicated attach bind.
+      const slot: "debug" | "attach" = cfg.request === "attach" ? "attach" : "debug";
+      const bind = profile[slot];
+      const override = resolved.build.bindOverrides?.[slot];
       if (bind.kind === "launch") {
-        // This provider shouldn't have been invoked for launch.json binds
-        outputInfo("Debug", `Runner "${activeRunnerName}" has ${cfg.request} bind set to launch.json config. Ignoring for auto-translation.`);
+        outputInfo("Debug", `Profile "${profileName}" has ${slot} bind set to launch.json config. Ignoring for auto-translation.`);
       } else {
-        const resolved2 = resolveBind(bind, variants);
-        if (resolved2 && resolved2.args.trim()) {
-          userArgs = splitArgs(resolved2.args);
+        const r = resolveBind(bind, override);
+        if (r && r.args.trim()) {
+          userArgs = splitArgs(r.args);
         }
       }
     }

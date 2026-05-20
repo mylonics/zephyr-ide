@@ -247,17 +247,23 @@ export function runnerToServerType(runner: string): string | undefined {
  * object for display in the UI. Returns undefined when the file does not exist
  * (i.e., the build has not been run yet).
  */
-export function getRunnersYamlHint(buildFolder: string): {
+export function getRunnersYamlHint(buildFolder: string, sysbuildImage?: string): {
   flashRunner?: string;
   debugRunner?: string;
   availableRunners: string[];
+  /** Absolute path to the runners.yaml file that was parsed. */
+  runnersYamlPath: string;
+  /** The sysbuild domain/image used to resolve the path, if any. */
+  sysbuildImage?: string;
 } | undefined {
-  const runnersYamlPath = resolveRunnersYamlPath(buildFolder);
+  const runnersYamlPath = resolveRunnersYamlPath(buildFolder, sysbuildImage);
   const parsed = parseRunnersYaml(runnersYamlPath);
   if (!parsed) { return undefined; }
   return {
     flashRunner: parsed.flashRunner,
     debugRunner: parsed.debugRunner,
     availableRunners: parsed.runners,
+    runnersYamlPath,
+    sysbuildImage,
   };
 }

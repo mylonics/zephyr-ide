@@ -54,51 +54,25 @@ export interface WebviewProjectInfo {
 }
 
 // ---------------------------------------------------------------------------
-// Runner variants (Stage 2 — variants management UI)
-// ---------------------------------------------------------------------------
-
-/** A variant entry as shown in the variants editor. */
-export interface WebviewVariantEntry {
-  name: string;
-  runner: string;
-  args: string;
-  /** True when this user-scope variant is shadowed by a same-named workspace entry. */
-  shadowed: boolean;
-}
-
-/** Variants displayed grouped by scope, plus the merged set of names referenced anywhere. */
-export interface WebviewVariantsCatalogue {
-  user: WebviewVariantEntry[];
-  workspace: WebviewVariantEntry[];
-  /** Names of variants currently referenced by any RunnerConfig bind. */
-  referencedNames: string[];
-  /** True when a workspace context is open (workspace scope is editable). */
-  hasWorkspace: boolean;
-}
-
-// ---------------------------------------------------------------------------
 // Build data
 // ---------------------------------------------------------------------------
 
-export interface WebviewBindInfo {
-  /** Serialised RunnerBind (kind discriminator + payload). */
-  bind: { kind: "auto" } | { kind: "runner"; runner: string; extraArgs?: string }
-       | { kind: "variant"; variant: string; extraArgs?: string }
-       | { kind: "launch"; name: string };
-  /** Pre-computed display label (e.g. "openocd --speed 4000"). */
-  display: string;
-  /** Pre-computed extra-args text for the inline editor (variant + runner kinds only). */
+/** Resolved view of one Runner Profile slot for the build card. */
+export interface WebviewSlotBind {
+  /** Slot identifier — "flash" | "debug" | "attach". */
+  slot: "flash" | "debug" | "attach";
+  /** Display label: "Auto (runners.yaml)" | "openocd --speed 4000" | "launch.json: <name>". */
+  label: string;
+  /** Bind discriminator from the profile, or "none" when no active profile. */
+  kind: "none" | "auto" | "runner" | "launch";
+  /** Underlying runner name (only when `kind === "runner"`). */
+  runner?: string;
+  /** Effective extra args (profile + override) shown in the inline editor. */
   extraArgs: string;
-  /** True when the bind references a variant that no longer exists. */
-  missingVariant: boolean;
-}
-
-export interface WebviewRunnerInfo {
-  name: string;
-  flash: WebviewBindInfo;
-  build: WebviewBindInfo;
-  buildDebug: WebviewBindInfo;
-  attach: WebviewBindInfo;
+  /** Per-build override extra args (separate from profile-defined extraArgs). */
+  overrideExtraArgs: string;
+  /** True when a `bindOverrides[slot]` is set for this build. */
+  hasOverride: boolean;
 }
 
 export interface WebviewBuildDetails {
@@ -113,31 +87,18 @@ export interface WebviewBuildDetails {
   westBuildArgs: string[];
   westBuildCMakeArgs: string[];
   confFiles: WebviewConfigFiles;
-  runners: WebviewRunnerInfo[];
-  /** Project-level runners (inherited by same-named build runners). */
-  projectRunners: WebviewRunnerInfo[];
-  /** Currently active runner name at build level. */
-  activeRunner: string | undefined;
+  /** Active Runner Profile name (or undefined when none selected). */
+  activeProfile: string | undefined;
+  /** Resolved bind labels for the three slots of the active profile (or "none"). */
+  slotBinds: { flash: WebviewSlotBind; debug: WebviewSlotBind; attach: WebviewSlotBind };
   /** Read-only hint from runners.yaml. */
-  runnersYamlHint: { flashRunner?: string; debugRunner?: string; availableRunners: string[] } | undefined;
-  /** Runner names available for this board's runners.yaml (also surfaced in the picker). */
-  availableRunners: string[];
-  /** All known west runners (for the picker's "Other runners" group). */
-  knownRunners: string[];
-  /** Variant catalogue (name + resolved runner + args) for the picker. */
-  variantNames: { name: string; runner: string; args: string }[];
-  /** launch.json configuration names (for build/buildDebug/attach picker entries). */
-  launchConfigNames: string[];
-  launchTarget: string;
-  launchTargetFolder: string | undefined;
-  buildDebugTarget: string;
-  buildDebugTargetFolder: string | undefined;
-  attachTarget: string;
-  attachTargetFolder: string | undefined;
-  // Pre-resolved display names (computed server-side)
-  debugDisplay: string;
-  buildDebugDisplay: string;
-  attachDisplay: string;
+  runnersYamlHint: {
+    flashRunner?: string;
+    debugRunner?: string;
+    availableRunners: string[];
+    runnersYamlPath: string;
+    sysbuildImage?: string;
+  } | undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -208,9 +169,6 @@ export interface ProjectBuildPanelData {
 
   /** Variable command reference (static data for help) */
   variableCommands: WebviewVariableCommandInfo[];
-
-  /** Variant catalogue (Stage 2): user + workspace entries with override info. */
-  variantsCatalogue: WebviewVariantsCatalogue;
 
   /** The selected project name */
   selectedProject: string | undefined;
