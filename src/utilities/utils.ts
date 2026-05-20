@@ -744,6 +744,22 @@ export async function executeShellCommandInPythonEnv(cmd: string, cwd: string, s
     env["VIRTUAL_ENV"] = setupState.env["VIRTUAL_ENV"];
   }
 
+  // ZEPHYR_BASE is required by west commands (e.g. `west boards`) that locate
+  // the Zephyr tree. It is set for integrated terminals via
+  // environmentVariableCollection but that does not reach cp.exec subprocesses,
+  // so we inject it here explicitly.
+  if (setupState.zephyrDir) {
+    env["ZEPHYR_BASE"] = setupState.zephyrDir;
+  }
+
+  // ZEPHYR_SDK_INSTALL_DIR may be overridden by the user via the
+  // zephyr-ide.toolchainDirectory VS Code setting. Propagate the resolved
+  // value so that cmake-based subprocesses (e.g. RAM/ROM memory reports) use
+  // the correct toolchain path even when it differs from the system default.
+  if (!process.env.ZEPHYR_SDK_INSTALL_DIR) {
+    env["ZEPHYR_SDK_INSTALL_DIR"] = getToolchainDir();
+  }
+
   return executeShellCommand(cmd, cwd, display_error, env);
 };
 
