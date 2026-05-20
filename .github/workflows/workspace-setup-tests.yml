@@ -148,7 +148,6 @@ jobs:
 
       - name: Run external zephyr workspace tests
         id: test_external
-        continue-on-error: true
         run: |
           ${{ matrix.xvfb }}node scripts/run-integration-tests.js external-zephyr
         env:
@@ -158,7 +157,6 @@ jobs:
 
       - name: Run standard workspace tests
         id: test_standard
-        continue-on-error: true
         run: |
           ${{ matrix.xvfb }}node scripts/run-integration-tests.js standard
         env:
@@ -168,7 +166,6 @@ jobs:
 
       - name: Run west git workspace tests
         id: test_west_git
-        continue-on-error: true
         run: |
           ${{ matrix.xvfb }}node scripts/run-integration-tests.js west-git
         env:
@@ -178,7 +175,6 @@ jobs:
 
       - name: Run zephyr ide git workspace tests
         id: test_zephyr_ide_git
-        continue-on-error: true
         run: |
           ${{ matrix.xvfb }}node scripts/run-integration-tests.js zephyr-ide-git
         env:
@@ -188,7 +184,6 @@ jobs:
 
       - name: Run local west workspace tests
         id: test_local_west
-        continue-on-error: true
         run: |
           ${{ matrix.xvfb }}node scripts/run-integration-tests.js local-west
         env:
