@@ -280,11 +280,21 @@ export async function assertWorkspaceReady(testName: string): Promise<void> {
     assert.ok(workspaceFolders && workspaceFolders.length > 0, `No workspace folder open (${testName})`);
 
     const workspaceDir = workspaceFolders[0].uri.fsPath;
-    const zephyrIdeDir = require('path').join(workspaceDir, '.zephyr-ide');
-    if (await fs.pathExists(zephyrIdeDir)) {
-        console.log(`   ✅ .zephyr-ide directory present at ${zephyrIdeDir}`);
+    const setupPath = wsConfig?.activeSetupState?.setupPath;
+    if (setupPath && setupPath !== workspaceDir) {
+        // External installation — the install directory lives outside the workspace root.
+        if (await fs.pathExists(setupPath)) {
+            console.log(`   ✅ External Zephyr installation present at ${setupPath}`);
+        } else {
+            console.log(`   ⚠️ External Zephyr installation directory not found at ${setupPath}`);
+        }
     } else {
-        console.log(`   ⚠️ .zephyr-ide directory not found at ${zephyrIdeDir} (may be stored elsewhere)`);
+        const zephyrIdeDir = require('path').join(workspaceDir, '.zephyr-ide');
+        if (await fs.pathExists(zephyrIdeDir)) {
+            console.log(`   ✅ .zephyr-ide directory present at ${zephyrIdeDir}`);
+        } else {
+            console.log(`   ⚠️ .zephyr-ide directory not found at ${zephyrIdeDir} (may be stored elsewhere)`);
+        }
     }
 }
 
