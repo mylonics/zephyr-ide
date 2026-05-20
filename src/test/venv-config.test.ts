@@ -18,6 +18,7 @@ limitations under the License.
 import * as assert from "assert";
 import * as vscode from "vscode";
 import { getVenvPath } from "../setup_utilities/workspace-config";
+import { isDangerousVenvResetTarget } from "../setup_utilities/west-operations";
 import * as path from "path";
 import { normalizePath } from "./test-runner";
 
@@ -79,5 +80,14 @@ suite("Venv Configuration Test Suite", () => {
         
         // Clean up - reset to default
         await config.update("zephyr-ide.venvFolder", undefined, vscode.ConfigurationTarget.Global);
+    });
+
+    test("Rejects venv reset targets that would delete the workspace or an ancestor", () => {
+        const setupPath = "/test/setup/path";
+        assert.strictEqual(isDangerousVenvResetTarget(setupPath, "/"), true);
+        assert.strictEqual(isDangerousVenvResetTarget(setupPath, "/test"), true);
+        assert.strictEqual(isDangerousVenvResetTarget(setupPath, setupPath), true);
+        assert.strictEqual(isDangerousVenvResetTarget(setupPath, "/opt/venv"), false);
+        assert.strictEqual(isDangerousVenvResetTarget(setupPath, "/test/setup/path/.venv"), false);
     });
 });
