@@ -21,6 +21,7 @@ import {
     monitorWorkspaceSetup,
     startWorkspaceCommand,
     printWorkspaceStructure,
+    runWorkspaceSuiteTeardown,
     activateExtension,
     executeFinalBuild,
     executeTestWithErrorHandling,
@@ -63,6 +64,10 @@ suite("Workspace Zephyr IDE Git Test Suite", () => {
 
     teardown(async () => {
         await printWorkspaceStructure("Zephyr IDE Git Workspace Test");
+    });
+
+    suiteTeardown(async () => {
+        await runWorkspaceSuiteTeardown(originalWorkspaceFolders);
     });
 
     test("Zephyr IDE Git Workspace: Git Clone → SDK Install → Build", async function () {

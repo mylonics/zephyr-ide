@@ -17,7 +17,6 @@ limitations under the License.
 
 import * as vscode from "vscode";
 import * as fs from "fs-extra";
-import { error } from "console";
 
 export interface MockInteraction {
     type: 'quickpick' | 'input' | 'opendialog';
@@ -31,6 +30,7 @@ export class UIMockInterface {
     private currentIndex: number = 0;
     private originalImplementations: any = {};
     private isActive: boolean = false;
+    private pendingTimeouts: Set<NodeJS.Timeout> = new Set();
 
     constructor() {
         this.mockQueue = [];
@@ -114,6 +114,11 @@ export class UIMockInterface {
         if (!this.isActive) { return; }
 
         try {
+            for (const timeoutId of this.pendingTimeouts) {
+                clearTimeout(timeoutId);
+            }
+            this.pendingTimeouts.clear();
+
             Object.defineProperty(vscode.window, 'createQuickPick', {
                 value: this.originalImplementations.createQuickPick,
                 writable: true,
@@ -149,6 +154,53 @@ export class UIMockInterface {
         } catch (error) {
             console.error('❌ Failed to deactivate UI Mock Interface:', error);
         }
+    }
+
+    private scheduleTimeout(callback: () => void, delayMs: number): NodeJS.Timeout {
+        const timeoutId = setTimeout(() => {
+            this.pendingTimeouts.delete(timeoutId);
+            callback();
+        }, delayMs);
+        this.pendingTimeouts.add(timeoutId);
+        return timeoutId;
+    }
+
+    private getMatchingItems(items: any[], expectedValue: string): any[] {
+        const needle = expectedValue.toLowerCase().trim();
+        const withLabel = items.map((item) => ({ item, label: this.getItemString(item).toLowerCase().trim() }));
+
+        const exact = withLabel.filter((entry) => entry.label === needle).map((entry) => entry.item);
+        if (exact.length > 0) {
+            return exact;
+        }
+
+        const startsWith = withLabel.filter((entry) => entry.label.startsWith(needle)).map((entry) => entry.item);
+        if (startsWith.length > 0) {
+            return startsWith;
+        }
+
+        const includes = withLabel.filter((entry) => entry.label.includes(needle)).map((entry) => entry.item);
+        return includes;
+    }
+
+    private selectSingleItemOrThrow(items: any[], expectedValue: string, context: string): any {
+        const matches = this.getMatchingItems(items, expectedValue);
+        if (matches.length === 1) {
+            return matches[0];
+        }
+
+        const available = items.map((item) => this.getItemString(item)).join(', ');
+        if (matches.length === 0) {
+            throw new Error(`${context}: No match for "${expectedValue}". Available: [${available}]`);
+        }
+
+        const matched = matches.map((item) => this.getItemString(item)).join(', ');
+        throw new Error(`${context}: Ambiguous match for "${expectedValue}". Matched: [${matched}]`);
+    }
+
+    private selectManyItemsOrThrow(items: any[], expectedValues: string[], context: string): any[] {
+        const selected = expectedValues.map((value) => this.selectSingleItemOrThrow(items, value, context));
+        return selected;
     }
 
     /**
@@ -202,18 +254,26 @@ export class UIMockInterface {
             hide: () => { },
             dispose: () => { },
             show: () => {
-                setTimeout(() => {
+                this.scheduleTimeout(() => {
                     this.processQuickPickSelection(mockQuickPick);
                 }, 100);
             },
             onDidTriggerButton: () => ({ dispose: () => { } }),
             onDidChangeSelection: (callback: any) => {
                 mockQuickPick._onDidChangeSelectionCallback = callback;
-                return { dispose: () => { } };
+                return {
+                    dispose: () => {
+                        mockQuickPick._onDidChangeSelectionCallback = undefined;
+                    }
+                };
             },
             onDidAccept: (callback: any) => {
                 mockQuickPick._onDidAcceptCallback = callback;
-                return { dispose: () => { } };
+                return {
+                    dispose: () => {
+                        mockQuickPick._onDidAcceptCallback = undefined;
+                    }
+                };
             },
             onDidChangeValue: () => ({ dispose: () => { } }),
             onDidChangeActive: () => ({ dispose: () => { } }),
@@ -238,17 +298,25 @@ export class UIMockInterface {
             hide: () => { },
             dispose: () => { },
             show: () => {
-                setTimeout(() => {
+                this.scheduleTimeout(() => {
                     this.processInputBoxValue(mockInputBox);
                 }, 100);
             },
             onDidAccept: (callback: any) => {
                 mockInputBox._onDidAcceptCallback = callback;
-                return { dispose: () => { } };
+                return {
+                    dispose: () => {
+                        mockInputBox._onDidAcceptCallback = undefined;
+                    }
+                };
             },
             onDidChangeValue: (callback: any) => {
                 mockInputBox._onDidChangeValueCallback = callback;
-                return { dispose: () => { } };
+                return {
+                    dispose: () => {
+                        mockInputBox._onDidChangeValueCallback = undefined;
+                    }
+                };
             },
             onDidTriggerButton: () => ({ dispose: () => { } }),
             onDidHide: () => ({ dispose: () => { } }),
@@ -262,7 +330,7 @@ export class UIMockInterface {
         const interaction = this.getNextInteraction('quickpick');
 
         if (!interaction) {
-            throw new Error('No mock interaction found');
+            throw new Error('QuickPick requested but no mock interaction was primed');
         }
 
         const value = interaction.value as string;
@@ -270,17 +338,13 @@ export class UIMockInterface {
         if (interaction.multiSelect || options?.canPickMany) {
             // Handle multiple selection
             const values = Array.isArray(interaction.value) ? interaction.value : [value];
-            const selectedItems = itemsArray.filter((item: any) =>
-                values.some(val => this.getItemString(item).toLowerCase().includes(val.toLowerCase()))
-            );
+            const selectedItems = this.selectManyItemsOrThrow(itemsArray, values, 'showQuickPickMock');
 
             console.log(`   → QuickPick (multi): Selected [${selectedItems.map((item: any) => this.getItemString(item)).join(', ')}] (${interaction.description || 'auto'})`);
-            return selectedItems.length > 0 ? selectedItems : [itemsArray[0]];
+            return selectedItems;
         } else {
             // Handle single selection
-            const selectedItem = itemsArray.find((item: any) =>
-                this.getItemString(item).toLowerCase().includes(value.toLowerCase())
-            ) || itemsArray[0];
+            const selectedItem = this.selectSingleItemOrThrow(itemsArray, value, 'showQuickPickMock');
 
             console.log(`   → QuickPick: Selected "${this.getItemString(selectedItem)}" (${interaction.description || 'auto'})`);
             return selectedItem;
@@ -291,8 +355,7 @@ export class UIMockInterface {
         const interaction = this.getNextInteraction('input');
 
         if (!interaction) {
-            console.log('   → InputBox: No mock interaction found, returning empty string');
-            return "";
+            throw new Error('InputBox requested but no mock interaction was primed');
         }
 
         const value = interaction.value as string;
@@ -304,8 +367,7 @@ export class UIMockInterface {
         const interaction = this.getNextInteraction('opendialog');
 
         if (!interaction) {
-            console.log('   → OpenDialog: No mock interaction found, returning undefined');
-            return undefined;
+            throw new Error('OpenDialog requested but no mock interaction was primed');
         }
 
         const paths = Array.isArray(interaction.value) ? interaction.value : [interaction.value as string];
@@ -332,10 +394,7 @@ export class UIMockInterface {
             const interaction = this.getNextInteraction('quickpick');
 
             if (!interaction) {
-                console.log('   → QuickPick: No mock interaction found, selecting first item');
-                const selectedItem = mockQuickPick.items[0];
-                this.triggerQuickPickCallbacks(mockQuickPick, selectedItem);
-                return;
+                throw new Error('QuickPick created but no mock interaction was primed');
             }
 
             const value = interaction.value as string;
@@ -343,17 +402,13 @@ export class UIMockInterface {
             if (interaction.multiSelect) {
                 // Handle multiple selection
                 const values = Array.isArray(interaction.value) ? interaction.value : [value];
-                const selectedItems = mockQuickPick.items.filter((item: any) =>
-                    values.some((val: string) => this.getItemString(item).toLowerCase().includes(val.toLowerCase()))
-                );
+                const selectedItems = this.selectManyItemsOrThrow(mockQuickPick.items, values, 'createQuickPickMock');
 
                 console.log(`   → QuickPick (multi): Selected [${selectedItems.map((item: any) => this.getItemString(item)).join(', ')}] (${interaction.description || 'auto'})`);
-                this.triggerQuickPickCallbacks(mockQuickPick, selectedItems.length > 0 ? selectedItems : [mockQuickPick.items[0]]);
+                this.triggerQuickPickCallbacks(mockQuickPick, selectedItems);
             } else {
                 // Handle single selection
-                const selectedItem = mockQuickPick.items.find((item: any) =>
-                    this.getItemString(item).toLowerCase().includes(value.toLowerCase())
-                ) || mockQuickPick.items[0];
+                const selectedItem = this.selectSingleItemOrThrow(mockQuickPick.items, value, 'createQuickPickMock');
 
                 console.log(`   → QuickPick: Selected "${this.getItemString(selectedItem)}" (${interaction.description || 'auto'})`);
                 this.triggerQuickPickCallbacks(mockQuickPick, selectedItem);
@@ -361,10 +416,9 @@ export class UIMockInterface {
         } else {
             // Retry if items not populated yet, with max retry limit
             if (retryCount >= maxRetries) {
-                console.log(`   → QuickPick: Giving up after ${maxRetries} retries — items never populated. Selecting nothing.`);
-                return;
+                throw new Error(`QuickPick items were never populated after ${maxRetries} retries`);
             }
-            setTimeout(() => this.processQuickPickSelection(mockQuickPick, retryCount + 1), 1000);
+            this.scheduleTimeout(() => this.processQuickPickSelection(mockQuickPick, retryCount + 1), 1000);
         }
     }
 
@@ -372,8 +426,7 @@ export class UIMockInterface {
         const interaction = this.getNextInteraction('input');
 
         if (!interaction) {
-            console.log('   → InputBox: No mock interaction found, using empty string');
-            mockInputBox.value = "";
+            throw new Error('InputBox created but no mock interaction was primed');
         } else {
             const value = interaction.value as string;
             mockInputBox.value = value;

@@ -17,6 +17,7 @@ limitations under the License.
 
 import * as vscode from 'vscode';
 import * as assert from 'assert';
+import * as fs from 'fs-extra';
 
 /**
  * Check if build tests should be skipped based on environment variables.
@@ -193,6 +194,40 @@ export async function monitorWorkspaceSetup(commandPromise: Thenable<any>, setup
  * @param testWorkspaceDir Test workspace directory to remove
  * @param originalWorkspaceFolders Original workspace folders to restore
  */
+export async function restoreWorkspaceFolders(
+    originalWorkspaceFolders: readonly vscode.WorkspaceFolder[] | undefined
+): Promise<void> {
+    if (!originalWorkspaceFolders) {
+        return;
+    }
+
+    const currentFolders = vscode.workspace.workspaceFolders;
+    const removeCount = currentFolders ? currentFolders.length : 0;
+    const foldersToRestore = originalWorkspaceFolders.map((folder) => ({ uri: folder.uri }));
+    vscode.workspace.updateWorkspaceFolders(0, removeCount, ...foldersToRestore);
+}
+
+export async function cleanupTestWorkspace(
+    workspaceDir: string | undefined,
+    shouldCleanup: boolean
+): Promise<void> {
+    if (!workspaceDir || !shouldCleanup) {
+        return;
+    }
+
+    if (await fs.pathExists(workspaceDir)) {
+        await fs.remove(workspaceDir);
+    }
+}
+
+export async function runWorkspaceSuiteTeardown(
+    originalWorkspaceFolders: readonly vscode.WorkspaceFolder[] | undefined,
+    workspaceDir?: string,
+    shouldCleanupWorkspace: boolean = false
+): Promise<void> {
+    await restoreWorkspaceFolders(originalWorkspaceFolders);
+    await cleanupTestWorkspace(workspaceDir, shouldCleanupWorkspace);
+}
 
 export async function printWorkspaceStructure(
     testName: string
@@ -267,12 +302,8 @@ export async function executeTestWithErrorHandling(
     try {
         await testFunction();
 
-        // Deactivate UI mock on success
-        uiMock.deactivate();
-
         // Dump extension output to the test stream
         await dumpExtensionOutput(`${testName} - Extension Output`);
-
     } catch (error) {
         // Dump extension output so the CI log contains the full trace
         await dumpExtensionOutput(`${testName} - Extension Output (FAILED)`);
@@ -281,6 +312,9 @@ export async function executeTestWithErrorHandling(
         await printWorkspaceStructure(testName);
         await new Promise((resolve) => setTimeout(resolve, 30000));
         throw error;
+    } finally {
+        // Always deactivate mock to prevent listener/timer leaks between tests.
+        uiMock.deactivate();
     }
 }
 

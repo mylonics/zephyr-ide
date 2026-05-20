@@ -41,6 +41,7 @@ import {
     logTestEnvironment,
     monitorWorkspaceSetup,
     printWorkspaceStructure,
+    runWorkspaceSuiteTeardown,
     activateExtension,
     executeFinalBuild,
     executeTestWithErrorHandling,
@@ -56,6 +57,16 @@ suite('Combined Installation Test Suite', function() {
     this.timeout(1500000); // 25 minutes total
 
     let testWorkspaceDir: string;
+    let originalWorkspaceFolders: readonly vscode.WorkspaceFolder[] | undefined;
+    let shouldCleanupWorkspace = false;
+
+    suiteSetup(() => {
+        originalWorkspaceFolders = vscode.workspace.workspaceFolders;
+    });
+
+    suiteTeardown(async () => {
+        await runWorkspaceSuiteTeardown(originalWorkspaceFolders, testWorkspaceDir, shouldCleanupWorkspace);
+    });
 
     test('Install host tools and run standard workspace workflow (single process)', async function() {
         console.log('🔧 Step 0: Starting combined installation test (single process)');
@@ -98,7 +109,18 @@ suite('Combined Installation Test Suite', function() {
 
         // Step 4: Set up the test workspace directory
         console.log('🚀 Step 4: Setting up test workspace...');
-        testWorkspaceDir = process.env.ZEPHYR_BASE || path.join(os.tmpdir(), 'zephyr-test-workspace');
+        const currentWorkspace = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        if (process.env.ZEPHYR_BASE) {
+            testWorkspaceDir = process.env.ZEPHYR_BASE;
+            shouldCleanupWorkspace = false;
+        } else if (currentWorkspace) {
+            testWorkspaceDir = currentWorkspace;
+            shouldCleanupWorkspace = false;
+        } else {
+            testWorkspaceDir = path.join(os.tmpdir(), `zephyr-test-workspace-${Date.now()}`);
+            shouldCleanupWorkspace = true;
+        }
+
         if (!fs.existsSync(testWorkspaceDir)) {
             fs.mkdirSync(testWorkspaceDir, { recursive: true });
         }

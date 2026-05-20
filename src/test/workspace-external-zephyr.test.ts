@@ -23,6 +23,7 @@ import {
     monitorWorkspaceSetup,
     startWorkspaceCommand,
     printWorkspaceStructure,
+    runWorkspaceSuiteTeardown,
     activateExtension,
     executeFinalBuild,
     executeTestWithErrorHandling,
@@ -66,6 +67,10 @@ suite("Workspace External Zephyr Test Suite", () => {
 
     teardown(async () => {
         await printWorkspaceStructure("External Zephyr Workspace Test");
+    });
+
+    suiteTeardown(async () => {
+        await runWorkspaceSuiteTeardown(originalWorkspaceFolders);
     });
 
     test("External Zephyr Workspace: Git Clone → Use Existing Install → West Selector → Build", async function () {

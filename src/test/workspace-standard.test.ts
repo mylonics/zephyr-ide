@@ -26,6 +26,7 @@ import {
     monitorWorkspaceSetup,
     startWorkspaceCommand,
     printWorkspaceStructure,
+    runWorkspaceSuiteTeardown,
     activateExtension,
     executeFinalBuild,
     executeTestWithErrorHandling,
@@ -79,6 +80,10 @@ suite("Workspace Standard Test Suite", () => {
 
     teardown(async () => {
         await printWorkspaceStructure("Standard Workspace Test");
+    });
+
+    suiteTeardown(async () => {
+        await runWorkspaceSuiteTeardown(originalWorkspaceFolders);
     });
 
     test("Standard Workspace: Setup → Project → Build", async function () {
@@ -161,7 +166,7 @@ suite("Workspace Standard Test Suite", () => {
                     uiMock,
                     [
                         { type: 'quickpick', value: 'zephyr directory', description: 'Use Zephyr directory only' },
-                        { type: 'quickpick', value: 'nucleo_f401', description: 'Select Nucleo board' },
+                        { type: 'quickpick', value: 'nucleo_f401re', description: 'Select Nucleo board' },
                         { type: 'input', value: 'test_build_1', description: 'Enter build name' },
                         { type: 'quickpick', value: 'debug', description: 'Select debug optimization' },
                         { type: 'input', value: '', description: 'Additional build args' },

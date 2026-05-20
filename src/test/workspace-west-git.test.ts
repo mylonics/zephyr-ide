@@ -28,6 +28,7 @@ import {
     monitorWorkspaceSetup,
     startWorkspaceCommand,
     printWorkspaceStructure,
+    runWorkspaceSuiteTeardown,
     activateExtension,
     executeFinalBuild,
     executeTestWithErrorHandling,
@@ -68,6 +69,10 @@ suite("Workspace West Git Test Suite", () => {
 
     teardown(async () => {
         await printWorkspaceStructure("West Git Workspace Test");
+    });
+
+    suiteTeardown(async () => {
+        await runWorkspaceSuiteTeardown(originalWorkspaceFolders);
     });
 
     test("West Git Workspace: West Manifest → SDK Install → Add Project → Custom Board Build", async function () {
