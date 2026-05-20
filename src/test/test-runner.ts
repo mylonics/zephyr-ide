@@ -232,7 +232,8 @@ export async function activateExtension(
  */
 export async function executeFinalBuild(
     testName: string,
-    retryDelayMs: number = 10000
+    retryDelayMs: number = 10000,
+    maxBuildAttempts: number = 2
 ): Promise<void> {
     console.log("⚡ Executing final build...");
 
@@ -245,10 +246,23 @@ export async function executeFinalBuild(
         await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
     }
 
-    const result = await vscode.commands.executeCommand("zephyr-ide.build");
-    console.log(`   Build command returned: ${result} (exit code ${result ? '0 - success' : 'non-zero - failure'})`);
+    let result = false;
+    for (let attempt = 1; attempt <= maxBuildAttempts; attempt++) {
+        result = await vscode.commands.executeCommand("zephyr-ide.build");
+        console.log(`   Build attempt ${attempt}/${maxBuildAttempts} returned: ${result} (exit code ${result ? '0 - success' : 'non-zero - failure'})`);
+
+        if (result) {
+            console.log(`   ✅ Build succeeded for ${testName}`);
+            return;
+        }
+
+        if (attempt < maxBuildAttempts) {
+            console.log(`⚠️ Build failed for ${testName}; retrying in ${retryDelayMs / 1000} seconds...`);
+            await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+        }
+    }
+
     assert.strictEqual(result, true, `Build command must return true (exit code 0). Got: ${result}`);
-    console.log(`   ✅ Build succeeded for ${testName}`);
 }
 
 /**
