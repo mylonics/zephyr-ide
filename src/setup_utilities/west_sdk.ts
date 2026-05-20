@@ -255,9 +255,17 @@ async function fetchFullReleaseAssets(
 // ---------------------------------------------------------------------------
 
 const WINDOWS_7ZIP_DIR = "C:\\Program Files\\7-Zip";
+let windows7ZipDirExists: boolean | undefined;
+
+function hasDefaultWindows7ZipDir(): boolean {
+    if (windows7ZipDirExists === undefined) {
+        windows7ZipDirExists = fs.existsSync(WINDOWS_7ZIP_DIR);
+    }
+    return windows7ZipDirExists;
+}
 
 function withWindows7ZipOnPath(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-    if (os.platform() !== "win32" || !fs.existsSync(WINDOWS_7ZIP_DIR)) {
+    if (os.platform() !== "win32" || !hasDefaultWindows7ZipDir()) {
         return env;
     }
     const pathKey = Object.keys(env).find((key) => key.toLowerCase() === "path") ?? "Path";
@@ -274,7 +282,7 @@ function is7ZipAvailable(): boolean {
         cp.execSync("7z --help", {
             stdio: "ignore",
             timeout: 3000,
-            env: withWindows7ZipOnPath({ ...process.env }),
+            env: withWindows7ZipOnPath(process.env),
         });
         return true;
     } catch {
@@ -298,7 +306,7 @@ function runProcessSync(
     env?: NodeJS.ProcessEnv
 ): Promise<{ code: number; stdout: string; stderr: string }> {
     return new Promise((resolve) => {
-        const effectiveEnv = withWindows7ZipOnPath(env ?? { ...process.env });
+        const effectiveEnv = withWindows7ZipOnPath(env ?? process.env);
 
         const proc = cp.spawn(cmd, args, {
             cwd,
