@@ -401,7 +401,7 @@ export async function executeWorkspaceCommand(
 // CommonUIInteractions
 //
 // Override any value via environment variables for local/CI flexibility:
-//   ZEPHYR_IDE_TEST_SDK_VERSION   — default: "v4.2.0"  (set to "automatic" to
+//   ZEPHYR_IDE_TEST_SDK_VERSION   — default: "v4.4.0"  (set to "automatic" to
 //                                   always pick the latest available)
 //   ZEPHYR_IDE_TEST_TOOLCHAIN     — default: "stm32"   (manifest toolchain filter)
 //   ZEPHYR_IDE_TEST_TOOLCHAIN_TARGET — default: "arm-zephyr-eabi"
@@ -409,7 +409,7 @@ export async function executeWorkspaceCommand(
 /** Read test env-var overrides. Exported for tests that build their own interaction arrays. */
 export function getTestEnvConfig() {
     return {
-        sdkVersion: process.env.ZEPHYR_IDE_TEST_SDK_VERSION ?? 'v4.2.0',
+        sdkVersion: process.env.ZEPHYR_IDE_TEST_SDK_VERSION ?? 'v4.4.0',
         toolchain: process.env.ZEPHYR_IDE_TEST_TOOLCHAIN ?? 'stm32',
         toolchainTarget: process.env.ZEPHYR_IDE_TEST_TOOLCHAIN_TARGET ?? 'arm-zephyr-eabi',
     };
