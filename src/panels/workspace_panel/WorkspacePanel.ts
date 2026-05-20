@@ -128,8 +128,6 @@ export class WorkspacePanel {
     this._context = context;
     this._setupPath = setupPath;
 
-    this.updateContent(wsConfig, globalConfig);
-
     this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
 
     this._panel.webview.onDidReceiveMessage(
@@ -147,6 +145,8 @@ export class WorkspacePanel {
         });
       }),
     );
+
+    this.updateContent(wsConfig, globalConfig);
   }
 
   /** Resolve the setup state this panel should display. */

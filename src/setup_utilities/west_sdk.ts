@@ -951,7 +951,9 @@ export async function installSDKInteractive(wsConfig: WorkspaceConfig, globalCon
         );
     } catch (error) {
         outputError("SDK Install", `SDK installation threw an error: ${error}`);
-        tracker.fail(`Error: ${error}`);
+        if (!tracker.failInProgressSteps(`Error: ${error}`)) {
+            tracker.fail(`Error: ${error}`);
+        }
         notifyError("SDK Install", `Failed to install SDK: ${error}`);
     }
 }
@@ -993,7 +995,9 @@ export async function installToolchainsDirect(
         return result ?? false;
     } catch (error) {
         outputError("SDK Install", `Toolchain install error: ${error}`);
-        tracker.fail(`Error: ${error}`);
+        if (!tracker.failInProgressSteps(`Error: ${error}`)) {
+            tracker.fail(`Error: ${error}`);
+        }
         return false;
     }
 }
@@ -1101,7 +1105,9 @@ export async function installSDKToolchainsInteractive(
         }
     } catch (error) {
         outputError("SDK Install", `SDK toolchain installation threw an error: ${error}`);
-        tracker.fail(`Error: ${error}`);
+        if (!tracker.failInProgressSteps(`Error: ${error}`)) {
+            tracker.fail(`Error: ${error}`);
+        }
         notifyError("SDK Install", `Failed to add toolchains: ${error}`);
     }
 }

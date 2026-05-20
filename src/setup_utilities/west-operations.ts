@@ -444,81 +444,91 @@ export async function westUpdateWithRequirements(context: vscode.ExtensionContex
   setupPath?: string;
 } = {}, progressTracker?: SetupProgressTracker) {
   const { solo = true, isWorkspaceSetup = false, setupPath } = options;
-
-  // Add setup-specific output messages
-  if (isWorkspaceSetup) {
-    outputInfo("Workspace Setup", "Running west update...");
-  }
-
-  // Run west update first
-  progressTracker?.startStep('west-update');
-  const westUpdateResult = await westUpdate(context, wsConfig, globalConfig, false);
-  if (!westUpdateResult) {
-    progressTracker?.failStep('west-update', 'West update failed');
-    notifyError("Workspace Setup", "West update failed. Check the Zephyr IDE output for details.");
-    return false;
-  }
-  progressTracker?.completeStep('west-update');
-
-  // Set context flag for west update completion (during workspace setup)
-  if (isWorkspaceSetup) {
-    await vscode.commands.executeCommand("setContext", "zephyr-ide.westUpdateComplete", true);
-    outputInfo("Workspace Setup", "West update completed");
-  }
-
-  // Add setup-specific output messages
-  if (isWorkspaceSetup) {
-    outputInfo("Workspace Setup", "Installing Python requirements...");
-  }
-
-  // Then install Python requirements
-  progressTracker?.startStep('python-req');
-  const pythonReqResult = await installPythonRequirements(context, wsConfig, globalConfig, false);
-  if (!pythonReqResult) {
-    progressTracker?.failStep('python-req', 'Installation failed');
-    notifyError("Workspace Setup", "Python requirements installation failed. Check the Zephyr IDE output for details.");
-    return false;
-  }
-  progressTracker?.completeStep('python-req');
-
-  // Set context flag for python requirements installation completion (during workspace setup)
-  if (isWorkspaceSetup) {
-    await vscode.commands.executeCommand("setContext", "zephyr-ide.pythonRequirementsComplete", true);
-    outputInfo("Workspace Setup", "Python requirements installation completed");
-  }
-
-  if (solo) {
-    if (isWorkspaceSetup && setupPath) {
-      // Set context flag for complete workspace setup
-      await vscode.commands.executeCommand("setContext", "zephyr-ide.workspaceSetupComplete", true);
-      outputInfo("Workspace Setup", "Workspace setup completed successfully");
-      void vscode.window.showInformationMessage(`Workspace setup completed successfully at: ${setupPath}`);
-      // Refresh the west workspace panel to show the new workspace
-      void vscode.commands.executeCommand('zephyr-ide.update-web-view');
-    } else {
-      void vscode.window.showInformationMessage("West update and Python requirements installed");
-    }
-  }
-  await saveSetupState(context, wsConfig, globalConfig);
-
-  progressTracker?.complete('Workspace setup completed successfully!');
-
-  // Install any toolchains/blobs declared in zephyr-ide.json. When
-  // toolchains are declared but no SDK is installed yet,
-  // installZephyrIdeRequirements bootstraps an SDK install internally.
+  const operationTitle = isWorkspaceSetup ? "Workspace Setup" : "West Update";
+  const operationName = isWorkspaceSetup ? "Workspace setup" : "West update";
   try {
-    await installZephyrIdeRequirements(wsConfig, globalConfig, context);
-  } catch (error) {
-    outputWarning("Workspace Setup", `Failed to install zephyr-ide.json requirements: ${error}`);
-  }
+    // Add setup-specific output messages
+    if (isWorkspaceSetup) {
+      outputInfo("Workspace Setup", "Running west update...");
+    }
 
-  // Fall back to the global install-sdk flow only if no SDK is present after
-  // installZephyrIdeRequirements has run (e.g. workspace declared no
-  // toolchains, so the bootstrap path didn't trigger).
-  if (!globalConfig.sdkInstalled) {
-    return await vscode.commands.executeCommand("zephyr-ide.install-sdk");
+    // Run west update first
+    progressTracker?.startStep('west-update');
+    const westUpdateResult = await westUpdate(context, wsConfig, globalConfig, false);
+    if (!westUpdateResult) {
+      progressTracker?.failStep('west-update', 'West update failed');
+      notifyError(operationTitle, "West update failed. Check the Zephyr IDE output for details.");
+      return false;
+    }
+    progressTracker?.completeStep('west-update');
+
+    // Set context flag for west update completion (during workspace setup)
+    if (isWorkspaceSetup) {
+      await vscode.commands.executeCommand("setContext", "zephyr-ide.westUpdateComplete", true);
+      outputInfo("Workspace Setup", "West update completed");
+    }
+
+    // Add setup-specific output messages
+    if (isWorkspaceSetup) {
+      outputInfo("Workspace Setup", "Installing Python requirements...");
+    }
+
+    // Then install Python requirements
+    progressTracker?.startStep('python-req');
+    const pythonReqResult = await installPythonRequirements(context, wsConfig, globalConfig, false);
+    if (!pythonReqResult) {
+      progressTracker?.failStep('python-req', 'Installation failed');
+      notifyError(operationTitle, "Python requirements installation failed. Check the Zephyr IDE output for details.");
+      return false;
+    }
+    progressTracker?.completeStep('python-req');
+
+    // Set context flag for python requirements installation completion (during workspace setup)
+    if (isWorkspaceSetup) {
+      await vscode.commands.executeCommand("setContext", "zephyr-ide.pythonRequirementsComplete", true);
+      outputInfo("Workspace Setup", "Python requirements installation completed");
+    }
+
+    if (solo) {
+      if (isWorkspaceSetup && setupPath) {
+        // Set context flag for complete workspace setup
+        await vscode.commands.executeCommand("setContext", "zephyr-ide.workspaceSetupComplete", true);
+        outputInfo("Workspace Setup", "Workspace setup completed successfully");
+        void vscode.window.showInformationMessage(`Workspace setup completed successfully at: ${setupPath}`);
+        // Refresh the west workspace panel to show the new workspace
+        void vscode.commands.executeCommand('zephyr-ide.update-web-view');
+      } else {
+        void vscode.window.showInformationMessage("West update and Python requirements installed");
+      }
+    }
+    await saveSetupState(context, wsConfig, globalConfig);
+
+    progressTracker?.complete('Workspace setup completed successfully!');
+
+    // Install any toolchains/blobs declared in zephyr-ide.json. When
+    // toolchains are declared but no SDK is installed yet,
+    // installZephyrIdeRequirements bootstraps an SDK install internally.
+    try {
+      await installZephyrIdeRequirements(wsConfig, globalConfig, context);
+    } catch (error) {
+      outputWarning("Workspace Setup", `Failed to install zephyr-ide.json requirements: ${error}`);
+    }
+
+    // Fall back to the global install-sdk flow only if no SDK is present after
+    // installZephyrIdeRequirements has run (e.g. workspace declared no
+    // toolchains, so the bootstrap path didn't trigger).
+    if (!globalConfig.sdkInstalled) {
+      return await vscode.commands.executeCommand("zephyr-ide.install-sdk");
+    }
+    return true;
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    if (!progressTracker?.failInProgressSteps(detail)) {
+      progressTracker?.fail(`${operationName} failed: ${detail}`);
+    }
+    notifyError(operationTitle, `${operationName} failed unexpectedly: ${detail}`);
+    return false;
   }
-  return true;
 }
 
 export async function postWorkspaceSetup(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, setupPath: string, westSelection: WestLocation | undefined, progressTracker?: SetupProgressTracker) {
