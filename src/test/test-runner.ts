@@ -425,7 +425,7 @@ export const CommonUIInteractions = {
         const { sdkVersion, toolchain, toolchainTarget } = getTestEnvConfig();
         return [
             { type: 'quickpick', value: 'create new west.yml', description: 'Create new west.yml' },
-            { type: 'quickpick', value: 'minimal', description: 'Select minimal manifest' },
+            { type: 'quickpick', value: 'minimal zephyr', description: 'Select minimal Zephyr manifest (not BLE)' },
             { type: 'quickpick', value: toolchain, description: `Select ${toolchain} toolchain` },
             { type: 'quickpick', value: sdkVersion, description: `Select ${sdkVersion} Zephyr version` },
             { type: 'input', value: '', description: 'Select additional west init args' },
