@@ -71,7 +71,7 @@ export function getBuildFolder(wsConfig: WorkspaceConfig, project: ProjectConfig
       // (e.g. "/workspace" matching "/workspace2").
       const rootNormalized = path.toUnix(path.normalize(wsConfig.rootPath));
       const rootPrefix = rootNormalized.endsWith("/") ? rootNormalized : `${rootNormalized}/`;
-      const resolved = path.toUnix(path.resolve(wsConfig.rootPath, build.rel_path));
+      const resolved = path.toUnix(path.resolve(rootNormalized, build.rel_path));
       if (resolved !== rootNormalized && resolved.startsWith(rootPrefix)) {
         return resolved;
       }

@@ -41,10 +41,9 @@ export function setForceNarrowUpdateForTest(value: boolean) {
 export function isDangerousVenvResetTarget(setupPath: string, venvPath: string): boolean {
   const normalizedSetupPath = path.toUnix(path.resolve(setupPath));
   const normalizedVenvPath = path.toUnix(path.resolve(venvPath));
-  const venvRoot = path.toUnix(path.resolve(path.parse(normalizedVenvPath).root));
   const venvPrefix = normalizedVenvPath.endsWith("/") ? normalizedVenvPath : `${normalizedVenvPath}/`;
 
-  return normalizedVenvPath === venvRoot
+  return normalizedVenvPath === path.toUnix(path.parse(normalizedVenvPath).root)
     || normalizedSetupPath === normalizedVenvPath
     || normalizedSetupPath.startsWith(venvPrefix);
 }
