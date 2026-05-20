@@ -19,6 +19,120 @@ import { html, nothing } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { ZephyrLitElement } from "../../webview_shared/lit-base";
 
+// ---------------------------------------------------------------------------
+// Common arguments catalogue
+// ---------------------------------------------------------------------------
+
+interface RunnerArgSuggestion {
+  /** Short display label shown in the picker. */
+  label: string;
+  /** The argument text that gets appended to extraArgs (include trailing space where appropriate). */
+  arg: string;
+  /** One-line description shown alongside the label. */
+  description: string;
+}
+
+const RUNNER_COMMON_ARGS: Record<string, RunnerArgSuggestion[]> = {
+  openocd: [
+    { label: "--config", arg: "--config ", description: "Extra OpenOCD config file (-f path/to.cfg)" },
+    { label: "--cmd-pre-init", arg: "--cmd-pre-init \"\"", description: "Command to run before init" },
+    { label: "--cmd-post-init", arg: "--cmd-post-init \"\"", description: "Command to run after init" },
+    { label: "--use-elf", arg: "--use-elf", description: "Flash ELF instead of HEX/BIN" },
+    { label: "--serial", arg: "--serial ", description: "Limit to specific USB serial number" },
+    { label: "--gdb-port", arg: "--gdb-port 3333", description: "Override GDB server port" },
+    { label: "--tcl-port", arg: "--tcl-port 6333", description: "Override TCL port" },
+    { label: "--telnet-port", arg: "--telnet-port 4444", description: "Override Telnet port" },
+    { label: "--tui", arg: "--tui", description: "Show OpenOCD in a text UI" },
+  ],
+  jlink: [
+    { label: "--device", arg: "--device=", description: "Target MCU name (e.g. STM32F401RE)" },
+    { label: "--speed", arg: "--speed=4000", description: "SWD/JTAG speed in kHz" },
+    { label: "--iface", arg: "--iface=SWD", description: "Debug interface: SWD or JTAG" },
+    { label: "--serial", arg: "--serial=", description: "Limit to a specific J-Link serial number" },
+    { label: "--jlink-script", arg: "--jlink-script ", description: "Path to a JLink script file" },
+    { label: "--reset-after-load", arg: "--reset-after-load", description: "Reset target after flashing" },
+    { label: "--erase", arg: "--erase", description: "Erase whole chip before flashing" },
+    { label: "--gdb-port", arg: "--gdb-port 2331", description: "Override GDB server port" },
+    { label: "--swd-dp-id", arg: "--swd-dp-id=", description: "SWD DP ID override" },
+  ],
+  pyocd: [
+    { label: "--target", arg: "--target=", description: "Target device pack name (e.g. stm32f401re)" },
+    { label: "--probe", arg: "--probe=", description: "Probe UID / serial number" },
+    { label: "--frequency", arg: "--frequency=4000000", description: "Probe clock frequency in Hz" },
+    { label: "--pack", arg: "--pack=", description: "Path to CMSIS pack to use" },
+    { label: "--port", arg: "--port=3333", description: "Override GDB server port" },
+    { label: "--reset-type", arg: "--reset-type=hw", description: "Reset type: hw, sw, or core" },
+    { label: "--erase", arg: "--erase=chip", description: "Erase policy: chip, sector, or auto" },
+    { label: "--no-debug", arg: "--no-debug", description: "Do not enable debug (flash only)" },
+  ],
+  stlink: [
+    { label: "--serial", arg: "--serial=", description: "ST-Link serial number (from st-info)" },
+    { label: "--connect-under-reset", arg: "--connect-under-reset", description: "Hold RESET while connecting" },
+    { label: "--speed", arg: "--speed=4000", description: "SWD speed in kHz" },
+    { label: "--freq", arg: "--freq=4000", description: "Alias for --speed" },
+    { label: "--port", arg: "--port=4242", description: "GDB server listen port" },
+    { label: "--no-reset", arg: "--no-reset", description: "Do not reset after flashing" },
+  ],
+  nrfjprog: [
+    { label: "--snr", arg: "--snr=", description: "J-Link serial number for nRF probe" },
+    { label: "--family", arg: "--family=NRF52", description: "Device family (NRF51, NRF52, NRF53, NRF91)" },
+    { label: "--coprocessor", arg: "--coprocessor=CP_APPLICATION", description: "Coprocessor to target on nRF53 (CP_APPLICATION or CP_NETWORK)" },
+    { label: "--sectorerase", arg: "--sectorerase", description: "Erase only sectors written during programming" },
+    { label: "--chiperase", arg: "--chiperase", description: "Erase the entire chip before programming" },
+  ],
+  nrfutil: [
+    { label: "--serial-number", arg: "--serial-number=", description: "J-Link/nRF serial number" },
+    { label: "--core", arg: "--core=\"Application\"", description: "Core to target on multi-core devices" },
+    { label: "--traits", arg: "--traits=jlink", description: "Probe traits (jlink, nrfutil-probe, etc.)" },
+  ],
+  blackmagicprobe: [
+    { label: "--gdb-serial", arg: "--gdb-serial=/dev/ttyACM0", description: "BMP GDB serial port" },
+    { label: "--connect-srst", arg: "--connect-srst", description: "Assert SRST while attaching" },
+    { label: "--bmp-product-id", arg: "--bmp-product-id=", description: "BMP USB Product ID (if multiple)" },
+    { label: "--bmp-serial", arg: "--bmp-serial=", description: "BMP serial number (if multiple)" },
+  ],
+  linkserver: [
+    { label: "--device", arg: "--device=", description: "Target MCU device string" },
+    { label: "--probe", arg: "--probe=0", description: "Probe index (0 = first)" },
+    { label: "--core-index", arg: "--core-index=0", description: "Core index on multi-core devices" },
+    { label: "--gdb-port", arg: "--gdb-port=3333", description: "Override GDB server port" },
+    { label: "--semihost-port", arg: "--semihost-port=4567", description: "Semihosting port" },
+  ],
+  "dfu-util": [
+    { label: "--alt", arg: "--alt=", description: "DFU interface alternate setting" },
+    { label: "--serial", arg: "--serial=", description: "Limit to a specific USB serial number" },
+    { label: "--pid", arg: "--pid=", description: "Target USB VID:PID (e.g. 0483:df11)" },
+    { label: "--dfuse-address", arg: "--dfuse-address=", description: "DfuSe flash start address" },
+    { label: "--reset", arg: "--reset", description: "Issue USB reset after transfer" },
+  ],
+  uf2: [
+    { label: "--mount", arg: "--mount=", description: "Path to UF2 drive mount point" },
+  ],
+  esp32: [
+    { label: "--esp-device", arg: "--esp-device=/dev/ttyUSB0", description: "Serial port for ESP32" },
+    { label: "--esp-baud-rate", arg: "--esp-baud-rate=921600", description: "Flash baud rate" },
+    { label: "--esp-flash-size", arg: "--esp-flash-size=detect", description: "Flash size: detect or size in MB" },
+    { label: "--esp-flash-freq", arg: "--esp-flash-freq=40m", description: "Flash frequency: 40m, 80m, etc." },
+    { label: "--esp-flash-mode", arg: "--esp-flash-mode=dio", description: "Flash mode: dio, dout, qio, qout" },
+    { label: "--esp-tool", arg: "--esp-tool=esptool", description: "ESP flash tool: esptool or espidf" },
+  ],
+  qemu: [
+    { label: "-machine", arg: "-machine=", description: "QEMU machine type (e.g. mps2-an385)" },
+    { label: "-cpu", arg: "-cpu=", description: "QEMU CPU type" },
+    { label: "-m", arg: "-m 256", description: "RAM size in MB" },
+    { label: "-serial stdio", arg: "-serial stdio", description: "Route serial output to host stdio" },
+    { label: "-nographic", arg: "-nographic", description: "Disable graphical output" },
+    { label: "-s", arg: "-s", description: "Enable GDB server on :1234" },
+    { label: "-S", arg: "-S", description: "Pause at startup until GDB connects" },
+  ],
+  bossac: [
+    { label: "--offset", arg: "--offset=", description: "Flash write offset" },
+    { label: "--port", arg: "--port=", description: "Serial port to use" },
+    { label: "--erase", arg: "--erase", description: "Erase flash before programming" },
+    { label: "--write", arg: "--write", description: "Write to flash" },
+  ],
+};
+
 type BindKind = "auto" | "runner" | "launch";
 
 interface ProfileBind {
@@ -62,6 +176,10 @@ export class RunnerProfileApp extends ZephyrLitElement {
   /** Local working copy of every profile keyed by `<scope>:<originalName>`.
    *  Drives "Save" / "Revert" affordances and lets users abandon edits. */
   @state() private _drafts: Map<string, Profile> = new Map();
+
+  /** Tracks which slot arg-suggestion panels are open.
+   *  Key: `<scope>:<originalName>:<slot>` */
+  @state() private _showArgPicker: Set<string> = new Set();
 
   connectedCallback() {
     super.connectedCallback();
@@ -220,6 +338,84 @@ export class RunnerProfileApp extends ZephyrLitElement {
     }));
   }
 
+  // -- Arg picker helpers --
+
+  private _argPickerKey(scope: Scope, originalName: string, slot: string): string {
+    return `${scope}:${originalName}:${slot}`;
+  }
+
+  private _toggleArgPicker(scope: Scope, originalName: string, slot: string) {
+    const key = this._argPickerKey(scope, originalName, slot);
+    const next = new Set(this._showArgPicker);
+    if (next.has(key)) { next.delete(key); } else { next.add(key); }
+    this._showArgPicker = next;
+  }
+
+  private _closeArgPicker(scope: Scope, originalName: string, slot: string) {
+    const key = this._argPickerKey(scope, originalName, slot);
+    const next = new Set(this._showArgPicker);
+    next.delete(key);
+    this._showArgPicker = next;
+  }
+
+  private _appendArg(scope: Scope, originalName: string, slot: "flash" | "debug" | "attach", arg: string) {
+    this._updateDraft(scope, originalName, (p) => {
+      const current = p[slot].extraArgs ?? "";
+      const joined = current.trim() ? `${current.trim()} ${arg}` : arg;
+      return { ...p, [slot]: { ...p[slot], kind: "runner", runner: p[slot].runner ?? "", extraArgs: joined } };
+    });
+    this._closeArgPicker(scope, originalName, slot);
+  }
+
+  /** Render the extra-args editor with a common-arg suggestion picker. */
+  private _renderArgEditor(
+    scope: Scope, originalName: string,
+    slot: "flash" | "debug" | "attach",
+    bind: ProfileBind,
+    currentRunner: string,
+  ) {
+    const key = this._argPickerKey(scope, originalName, slot);
+    const pickerOpen = this._showArgPicker.has(key);
+    const suggestions = RUNNER_COMMON_ARGS[currentRunner] ?? [];
+
+    return html`
+      <div class="arg-editor">
+        <div class="arg-editor-row">
+          <vscode-textfield class="arg-editor-input"
+            .value=${bind.extraArgs ?? ""}
+            placeholder="extra args (optional)"
+            @change=${(e: Event) => this._onExtraArgsInput(scope, originalName, slot, e)}
+            @input=${(e: Event) => this._onExtraArgsInput(scope, originalName, slot, e)}>
+          </vscode-textfield>
+          ${suggestions.length > 0 ? html`
+            <vscode-button appearance="icon" icon="chevron-down"
+              title="Browse common arguments for ${currentRunner}"
+              @click=${() => this._toggleArgPicker(scope, originalName, slot)}>
+            </vscode-button>` : nothing}
+        </div>
+        ${pickerOpen && suggestions.length > 0 ? html`
+          <div class="arg-picker-panel">
+            <div class="arg-picker-header">
+              <span>Common <strong>${currentRunner}</strong> arguments</span>
+              <vscode-button appearance="icon" icon="close"
+                @click=${() => this._closeArgPicker(scope, originalName, slot)}>
+              </vscode-button>
+            </div>
+            <div class="arg-picker-list">
+              ${suggestions.map(s => html`
+                <button class="arg-picker-item"
+                  title=${s.description}
+                  @click=${() => this._appendArg(scope, originalName, slot, s.arg)}>
+                  <code class="arg-picker-flag">${s.label}</code>
+                  <span class="arg-picker-desc">${s.description}</span>
+                </button>
+              `)}
+            </div>
+          </div>` : nothing}
+      </div>
+    `;
+  }
+
   // -- Render --
 
   render() {
@@ -329,8 +525,8 @@ export class RunnerProfileApp extends ZephyrLitElement {
           <vscode-textfield class="profile-card-name"
             .value=${draft.name}
             placeholder="Profile name"
-            @vsc-change=${(e: Event) => this._onNameInput(scope, original.name, e)}
-            @vsc-input=${(e: Event) => this._onNameInput(scope, original.name, e)}>
+            @change=${(e: Event) => this._onNameInput(scope, original.name, e)}
+            @input=${(e: Event) => this._onNameInput(scope, original.name, e)}>
           </vscode-textfield>
           ${isActive ? html`<span class="profile-active-badge" title="Active profile for the current build"><i class="codicon codicon-pin"></i> active</span>` : nothing}
           ${usage.length > 0
@@ -388,7 +584,7 @@ export class RunnerProfileApp extends ZephyrLitElement {
       </div>
       <vscode-single-select
         .value=${bind.kind}
-        @vsc-change=${(e: Event) => this._onKindChange(scope, originalName, slot, e)}>
+        @change=${(e: Event) => this._onKindChange(scope, originalName, slot, e)}>
         <vscode-option value="auto" ?selected=${bind.kind === "auto"}>Auto (runners.yaml)</vscode-option>
         <vscode-option value="runner" ?selected=${bind.kind === "runner"}>Runner</vscode-option>
         ${allowLaunch ? html`<vscode-option value="launch" ?selected=${bind.kind === "launch"}>launch.json</vscode-option>` : nothing}
@@ -413,15 +609,10 @@ export class RunnerProfileApp extends ZephyrLitElement {
       return html`
         <vscode-single-select
           .value=${currentRunner}
-          @vsc-change=${(e: Event) => this._onRunnerChange(scope, originalName, slot, e)}>
+          @change=${(e: Event) => this._onRunnerChange(scope, originalName, slot, e)}>
           ${knownRunners.map(r => html`<vscode-option value=${r} ?selected=${r === currentRunner}>${r}</vscode-option>`)}
         </vscode-single-select>
-        <vscode-textfield
-          .value=${bind.extraArgs ?? ""}
-          placeholder="extra args (optional)"
-          @vsc-change=${(e: Event) => this._onExtraArgsInput(scope, originalName, slot, e)}
-          @vsc-input=${(e: Event) => this._onExtraArgsInput(scope, originalName, slot, e)}>
-        </vscode-textfield>
+        ${this._renderArgEditor(scope, originalName, slot, bind, currentRunner)}
       `;
     }
     // launch
@@ -434,8 +625,8 @@ export class RunnerProfileApp extends ZephyrLitElement {
         <vscode-textfield
           .value=${bind.name ?? ""}
           placeholder="launch.json config name"
-          @vsc-change=${(e: Event) => this._onLaunchNameChange(scope, originalName, slot as "debug" | "attach", e)}
-          @vsc-input=${(e: Event) => this._onLaunchNameChange(scope, originalName, slot as "debug" | "attach", e)}>
+          @change=${(e: Event) => this._onLaunchNameChange(scope, originalName, slot as "debug" | "attach", e)}
+          @input=${(e: Event) => this._onLaunchNameChange(scope, originalName, slot as "debug" | "attach", e)}>
         </vscode-textfield>
         <span class="no-launch-warning">No launch.json configs detected.</span>
       `;
@@ -443,7 +634,7 @@ export class RunnerProfileApp extends ZephyrLitElement {
     return html`
       <vscode-single-select
         .value=${bind.name ?? d.launchConfigNames[0]}
-        @vsc-change=${(e: Event) => this._onLaunchNameChange(scope, originalName, slot as "debug" | "attach", e)}>
+        @change=${(e: Event) => this._onLaunchNameChange(scope, originalName, slot as "debug" | "attach", e)}>
         ${d.launchConfigNames.map(n => html`<vscode-option value=${n} ?selected=${n === bind.name}>${n}</vscode-option>`)}
       </vscode-single-select>
     `;
