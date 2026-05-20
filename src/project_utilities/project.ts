@@ -19,7 +19,7 @@ import * as vscode from "vscode";
 import * as fs from "fs-extra";
 import * as path from "upath";
 import { selectLaunchConfiguration } from "../utilities/utils";
-import { notifyError, notifyWarningWithActions } from "../utilities/output";
+import { notifyError, notifyWarningWithActions, outputWarning } from "../utilities/output";
 import { buildSelector, BuildConfig, BuildConfigDictionary, BuildStateDictionary } from "./build_selector";
 import { WorkspaceConfig } from "../setup_utilities/types";
 import { setWorkspaceState } from "../setup_utilities/state-management";
@@ -60,6 +60,28 @@ export function getProjectFolder(wsConfig: WorkspaceConfig, project: ProjectConf
 
 /** Get the absolute build output folder path for a project/build pair */
 export function getBuildFolder(wsConfig: WorkspaceConfig, project: ProjectConfig, build: BuildConfig): string {
+  if (build.rel_path) {
+    if (path.isAbsolute(build.rel_path)) {
+      outputWarning("getBuildFolder", `rel_path "${build.rel_path}" is absolute — falling back to default build folder`);
+    } else {
+      // Use the same toUnix+normalize pattern used elsewhere in this file for
+      // cross-platform correctness: upath.toUnix() converts any backslashes
+      // (Windows-style paths) to forward slashes on all host OSes, and the
+      // trailing "/" on the root sentinel prevents prefix collisions
+      // (e.g. "/workspace" matching "/workspace2").
+      const rootNormalized = path.toUnix(path.normalize(wsConfig.rootPath));
+      const rootPrefix = rootNormalized.endsWith("/") ? rootNormalized : `${rootNormalized}/`;
+      const resolved = path.toUnix(path.resolve(rootNormalized, build.rel_path));
+      if (resolved !== rootNormalized && resolved.startsWith(rootPrefix)) {
+        return resolved;
+      }
+      if (resolved === rootNormalized) {
+        outputWarning("getBuildFolder", `rel_path "${build.rel_path}" resolves to the workspace root — falling back to default build folder`);
+      } else {
+        outputWarning("getBuildFolder", `rel_path "${build.rel_path}" escapes workspace root — falling back to default build folder`);
+      }
+    }
+  }
   return path.join(wsConfig.rootPath, project.rel_path, build.name);
 }
 

@@ -1128,7 +1128,7 @@ export async function activate(context: vscode.ExtensionContext) {
       async () => {
         const resolved = resolveActiveProjectBuild(wsConfig);
         if (!resolved) { return; }
-        return path.join(wsConfig.rootPath, resolved.project.rel_path, resolved.buildName);
+        return project.getBuildFolder(wsConfig, resolved.project, resolved.build);
       }
     )
   );
@@ -1170,7 +1170,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
         const resolved = resolveActiveProjectBuild(wsConfig);
         if (!resolved) { return; }
-        return path.join(wsConfig.rootPath, resolved.project.rel_path, resolved.buildName);
+        return project.getBuildFolder(wsConfig, resolved.project, resolved.build);
       }
     )
   );
