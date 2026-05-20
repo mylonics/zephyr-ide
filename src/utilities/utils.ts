@@ -26,6 +26,8 @@ import * as yaml from 'js-yaml';
 
 import { SetupState, WorkspaceConfig } from "../setup_utilities/types";
 import { getToolchainDir } from "../setup_utilities/workspace-config";
+import { initOutputChannel, getOutputChannel, outputCommand, outputError, outputInfo, outputLine, type ShellCommandResult } from "./output";
+export type { ShellCommandResult } from "./output";
 
 /**
  * Returns true when the resolved toolchain directory actually contains an
@@ -53,8 +55,6 @@ function hasInstalledSDKSync(): boolean {
   }
   return false;
 }
-import { initOutputChannel, getOutputChannel, outputCommand, outputError, outputInfo, outputLine, type ShellCommandResult } from "./output";
-export type { ShellCommandResult } from "./output";
 
 /**
  * Set the output channel for dual logging
