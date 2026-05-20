@@ -307,6 +307,10 @@ export class RunnerProfileApp extends ZephyrLitElement {
     this.vscodeApi.postMessage({ command: "deleteProfile", scope, name });
   }
 
+  private _onDuplicate(scope: Scope, name: string) {
+    this.vscodeApi.postMessage({ command: "duplicateProfile", scope, name });
+  }
+
   private _onSelectActiveProfile() {
     // Omit `name` -> host opens the QuickPick.
     this.vscodeApi.postMessage({ command: "setActiveProfile" });
@@ -695,6 +699,9 @@ export class RunnerProfileApp extends ZephyrLitElement {
               Save
             </vscode-button>
           ` : nothing}
+          <vscode-button appearance="icon" icon="copy" title="Duplicate profile"
+            @click=${() => this._onDuplicate(scope, original.name)}>
+          </vscode-button>
           <vscode-button appearance="icon" icon="trash" title="Delete profile"
             @click=${() => this._onDelete(scope, original.name)}>
           </vscode-button>

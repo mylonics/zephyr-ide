@@ -18,7 +18,6 @@ limitations under the License.
 import * as vscode from 'vscode';
 import { addBuildToProject, removeBuild, removeProject, setActive } from '../project_utilities/project';
 import { buildByName, MenuConfig } from '../zephyr_utilities/build';
-import { flashByName } from '../zephyr_utilities/flash';
 import { WorkspaceConfig } from '../setup_utilities/types';
 import { outputError, outputWarning } from '../utilities/output';
 
@@ -112,23 +111,6 @@ export function handleSharedProjectCommand(
     }
     case "guiConfig": {
       runBuildAsync("GUI Config", `build/${value.project}/${value.build}`, () => buildByName(context, wsConfig, true, value.project, value.build, MenuConfig.GuiConfig), value.project, value.build);
-      return true;
-    }
-    case "flash": {
-      runBuildAsync("Flash", `flash/${value.project}/${value.build}/${value.runner}`, () => flashByName(context, wsConfig, value.project, value.build, value.runner), value.project, value.build, value.runner);
-      return true;
-    }
-    // Issue #27: tree-view debug/attach mirror tree-view.flash. They set the
-    // selected project/build/runner active, then dispatch the standard debug
-    // commands so the existing launch-target binding logic runs unchanged.
-    case "debug": {
-      void setActive(context, wsConfig, value.project, value.build, value.runner);
-      void vscode.commands.executeCommand("zephyr-ide.debug");
-      return true;
-    }
-    case "attach": {
-      void setActive(context, wsConfig, value.project, value.build, value.runner);
-      void vscode.commands.executeCommand("zephyr-ide.debug-attach");
       return true;
     }
     case "setActive": {

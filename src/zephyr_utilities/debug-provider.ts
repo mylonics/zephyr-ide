@@ -36,7 +36,7 @@ import {
   RunnersYaml,
 } from "./runners-yaml";
 import { resolveActiveProjectBuild } from "../project_utilities/project";
-import { loadRunnerProfiles, findRunnerProfile, resolveBind, resolveRunnerArgs } from "../project_utilities/runner_profiles";
+import { loadRunnerProfiles, findRunnerProfile, resolveBind, resolveRunnerArgs, splitArgs } from "../project_utilities/runner_profiles";
 import { WorkspaceConfig } from "../setup_utilities/types";
 import { notifyError, outputInfo } from "../utilities/output";
 
@@ -47,86 +47,12 @@ interface ZephyrIdeDebugConfig extends vscode.DebugConfiguration {
 }
 
 /**
- * Argument splitter for shell-style quoted strings, used to split user-supplied
- * `extraArgs` from `RunnerConfig` binds before they are forwarded as cortex-debug
- * `serverArgs`. Behavior:
- *
- *  - Whitespace-separated by default.
- *  - Single (`'`) and double (`"`) quotes group whitespace into one token. The
- *    quote characters themselves are stripped from the resulting token, even
- *    when they are mid-token (`--key="some path"` → `--key=some path`).
- *  - Inside double quotes, `\\` and `\"` are recognized as escapes for literal
- *    backslash and double-quote. Single-quoted strings are treated as literal
- *    (matching POSIX behavior).
- *  - Unterminated quoted strings are accepted and consumed to end-of-input
- *    rather than dropped, so a typo in `extraArgs` doesn't silently swallow
- *    the rest of the user's input.
- *
- * This is intentionally a small, dependency-free parser rather than a full
- * POSIX shell tokenizer (no env var expansion, no globbing, no command
- * substitution): runner extraArgs are simple key/value pairs.
- *
- * Exported for unit testing; not part of the public API.
+ * Re-export of {@link splitArgs} from runner_profiles for backwards
+ * compatibility — debug-provider used to own a separate copy. Both call sites
+ * (user input parsing and post-substitution serverArgs tokenisation) now
+ * share a single POSIX-style tokeniser to avoid drift.
  */
-export function splitArgs(args: string): string[] {
-  const out: string[] = [];
-  const len = args.length;
-  let i = 0;
-  let cur = "";
-  let inToken = false;
-
-  const pushToken = () => {
-    if (inToken) {
-      out.push(cur);
-      cur = "";
-      inToken = false;
-    }
-  };
-
-  while (i < len) {
-    const c = args[i];
-
-    if (c === " " || c === "\t" || c === "\n" || c === "\r") {
-      pushToken();
-      i++;
-      continue;
-    }
-
-    if (c === '"') {
-      inToken = true;
-      i++;
-      while (i < len && args[i] !== '"') {
-        if (args[i] === "\\" && i + 1 < len && (args[i + 1] === '"' || args[i + 1] === "\\")) {
-          cur += args[i + 1];
-          i += 2;
-        } else {
-          cur += args[i];
-          i++;
-        }
-      }
-      if (i < len) { i++; } // consume closing quote
-      continue;
-    }
-
-    if (c === "'") {
-      inToken = true;
-      i++;
-      while (i < len && args[i] !== "'") {
-        cur += args[i];
-        i++;
-      }
-      if (i < len) { i++; } // consume closing quote
-      continue;
-    }
-
-    inToken = true;
-    cur += c;
-    i++;
-  }
-
-  pushToken();
-  return out;
-}
+export { splitArgs };
 
 /**
  * Build a cortex-debug `vscode.DebugConfiguration` from a parsed runners.yaml.
@@ -360,6 +286,15 @@ export function pickDebugRunner(
       if (fallback) {
         outputInfo("Debug", `Requested runner "${requested}" not found in runners.yaml. Falling back to cortex-debug-capable runner "${fallback}".`);
         return fallback;
+      }
+      // No usable runner in runners.yaml. Only return the requested name
+      // when cortex-debug actually knows how to drive it (i.e. it is a known
+      // runner type that just happens to be missing from this build's
+      // runners.yaml). Otherwise return undefined so the caller surfaces a
+      // clean "cannot auto-translate" error instead of forwarding a bogus
+      // server-type to cortex-debug.
+      if (runnerToServerType(requested) === undefined) {
+        return undefined;
       }
     }
     return requested;

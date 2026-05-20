@@ -152,10 +152,19 @@ domains:
         // it should walk runners.yaml.runners for the first capable one.
         const ry: any = { runners: ["openocd", "qemu"], debugRunner: "qemu", args: {} };
         assert.strictEqual(pickDebugRunner(ry, "pyocd"), "openocd");
-        // When no capable runner exists either, return the requested name so
-        // the caller can produce a useful "cannot translate" error.
+        // When no capable runner exists in runners.yaml but the requested
+        // name is itself cortex-debug-capable (e.g. user explicitly named
+        // pyocd in launch.json against a board whose generated runners.yaml
+        // does not list it), return the requested name so cortex-debug can
+        // still try it.
         const ry2: any = { runners: ["qemu"], debugRunner: "qemu", args: {} };
         assert.strictEqual(pickDebugRunner(ry2, "pyocd"), "pyocd");
+        // When the requested runner is itself not cortex-debug-capable AND
+        // no capable runner exists in runners.yaml, return undefined so the
+        // caller surfaces a clean "cannot translate" error rather than
+        // forwarding a bogus server-type to cortex-debug.
+        const ry3: any = { runners: ["qemu"], debugRunner: "qemu", args: {} };
+        assert.strictEqual(pickDebugRunner(ry3, "dfu-util"), undefined);
     });
 
     test("splitArgs: whitespace-separated tokens", () => {

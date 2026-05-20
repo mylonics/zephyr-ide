@@ -26,6 +26,7 @@ import { loadProjectsFromFile, setWorkspaceSettings, generateGitIgnore, generate
 import { parseWestConfigManifest } from "./west-config-parser";
 import { readZephyrIdeJson, writeZephyrIdeJson } from "./zephyr_ide_json";
 import { splitArgs } from "../project_utilities/runner_profiles";
+import { outputError } from "../utilities/output";
 
 /**
  * Per-extension-host-process token used to detect full process restarts so
@@ -368,7 +369,7 @@ export async function loadWorkspaceState(context: vscode.ExtensionContext): Prom
   // ProjectConfig/BuildConfig objects here because they are typed as not
   // having those keys; instead we work via `any` casts and the new shape is
   // what subsequent saves persist.
-  await migrateLegacyRunnersToProfiles(config);
+  await migrateLegacyRunnersToProfiles(context, config);
 
   return config;
 }
@@ -378,9 +379,45 @@ export async function loadWorkspaceState(context: vscode.ExtensionContext): Prom
  * extracts unique RunnerProfiles into `.vscode/zephyr-ide.json#runnerProfiles`,
  * sets each build's `activeProfile` from the old `activeRunner`, and removes
  * the legacy fields from the in-memory config.
+ *
+ * Exported for unit testing.
+ *
+ * The migration is gated by a `runnerProfilesMigrationVersion` flag stored in
+ * `.vscode/zephyr-ide.json`. Once the file records `runnerProfilesMigrationVersion >= 1`,
+ * this function short-circuits without rescanning. This prevents duplicate
+ * `runner-2`/`runner-3` profile names from appearing on every workspace load
+ * if a previous migration partially succeeded.
+ *
+ * On any migration (even when no new profiles are added — e.g. only legacy
+ * fields stripped), the cleaned-up `wsConfig` is persisted via
+ * `setWorkspaceState` so the next load sees the same shape this one did.
  */
-async function migrateLegacyRunnersToProfiles(config: WorkspaceConfig): Promise<void> {
+export const RUNNER_PROFILES_MIGRATION_VERSION = 1;
+const MIGRATION_VERSION_KEY = "runnerProfilesMigrationVersion";
+
+export async function migrateLegacyRunnersToProfiles(
+  context: vscode.ExtensionContext,
+  config: WorkspaceConfig,
+): Promise<void> {
   if (!isActiveWorkspaceInitialized(config)) { return; }
+
+  // Idempotency guard — once we've migrated, never re-scan. This prevents
+  // duplicate `runner-2`/`runner-3` collisions from being appended on every
+  // load when (e.g.) a previous migration succeeded but write-back failed.
+  try {
+    const data = readZephyrIdeJson(config) as Record<string, unknown>;
+    const recorded = typeof data[MIGRATION_VERSION_KEY] === "number"
+      ? (data[MIGRATION_VERSION_KEY] as number)
+      : 0;
+    if (recorded >= RUNNER_PROFILES_MIGRATION_VERSION) {
+      return;
+    }
+  } catch (e) {
+    // Log so a filesystem/parse failure here is visible rather than silently
+    // masking a deeper issue, but fall through and still attempt migration —
+    // the version flag write at the end will heal a partially-corrupt file.
+    outputError("Runner Profile Migration", `Failed to read migration version flag: ${String(e)}`);
+  }
 
   const newProfiles: any[] = [];
   const existingNames = new Set<string>();
@@ -463,14 +500,29 @@ async function migrateLegacyRunnersToProfiles(config: WorkspaceConfig): Promise<
     }
   }
 
-  if (migrated && newProfiles.length > 0) {
-    try {
-      const data = readZephyrIdeJson(config) as Record<string, unknown>;
+  // Always stamp the migration version so we never re-scan on future loads
+  // — even when nothing needed migrating, since the absence of legacy fields
+  // already means the workspace is on the new shape.
+  try {
+    const data = readZephyrIdeJson(config) as Record<string, unknown>;
+    if (migrated && newProfiles.length > 0) {
       const existing = Array.isArray(data.runnerProfiles) ? (data.runnerProfiles as any[]) : [];
       data.runnerProfiles = [...existing, ...newProfiles];
-      await writeZephyrIdeJson(config, data);
+    }
+    data[MIGRATION_VERSION_KEY] = RUNNER_PROFILES_MIGRATION_VERSION;
+    await writeZephyrIdeJson(config, data);
+  } catch (e) {
+    outputError("Runner Profile Migration", `Failed to persist migrated runner profiles: ${String(e)}`);
+  }
+
+  // Persist the stripped legacy fields and any newly-set `activeProfile`
+  // values to workspace state + zephyr-ide.json#projects so the cleanup
+  // survives a session close even when the user makes no further edits.
+  if (migrated) {
+    try {
+      await setWorkspaceState(context, config);
     } catch (e) {
-      console.error("[zephyr-ide] Failed to persist migrated runner profiles:", e);
+      outputError("Runner Profile Migration", `Failed to persist migrated workspace state: ${String(e)}`);
     }
   }
 }
