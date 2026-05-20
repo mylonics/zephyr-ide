@@ -664,28 +664,37 @@ async function executeTask(task: vscode.Task) {
 }
 
 export async function executeTaskHelperInPythonEnv(setupState: SetupState | undefined, taskName: string, cmd: string, cwd: string | undefined, overrideTempOnWindows: boolean = false) {
-  if (setupState && (isMacOS() || isWSL())) {
-    // On macOS and WSL, VS Code's environmentVariableCollection doesn't
-    // reliably propagate to task shells.  Instead of rewriting the command
-    // string (which corrupts URLs via path.join), prepend the venv bin
-    // directory to PATH in the task's own environment — mirroring what
-    // executeShellCommandInPythonEnv already does for child_process calls.
-    const env: { [key: string]: string } = {};
-    const venvBin = await getPythonVenvBinaryFolder(setupState);
-    if (venvBin) {
-      env["PATH"] = venvBin + ":" + (process.env["PATH"] || "");
-    }
-    if (setupState.env["VIRTUAL_ENV"]) {
-      env["VIRTUAL_ENV"] = setupState.env["VIRTUAL_ENV"];
-    }
-    return await executeTaskHelper(taskName, cmd, cwd, env);
-  } else if (isWindows() && overrideTempOnWindows) {
-    // When installing pip packages on Windows, redirect TMPDIR/TEMP/TMP to a
-    // short path at the root of the system drive.  pip builds packages from
-    // source using a temporary directory derived from %TEMP% which — combined
-    // with the package name and pip's build-isolation subdirectories — can
-    // easily exceed the default MAX_PATH limit of 260 characters.
-    const env: { [key: string]: string } = {};
+  // VS Code's environmentVariableCollection doesn't reliably propagate to task
+  // shells in all environments (macOS, WSL, Windows CI/headless).  Inject the
+  // required env vars directly into the task shell options instead.
+  if (!setupState) {
+    return await executeTaskHelper(taskName, cmd, cwd);
+  }
+
+  const win = isWindows();
+  const pathSep = win ? ";" : ":";
+  const pathKey = win ? "Path" : "PATH";
+  const existingPath = process.env["PATH"] || process.env["Path"] || "";
+
+  const env: { [key: string]: string } = {};
+
+  const venvBin = await getPythonVenvBinaryFolder(setupState);
+  if (venvBin) {
+    env[pathKey] = venvBin + pathSep + existingPath;
+  }
+  if (setupState.env["VIRTUAL_ENV"]) {
+    env["VIRTUAL_ENV"] = setupState.env["VIRTUAL_ENV"];
+  }
+  if (setupState.zephyrDir) {
+    env["ZEPHYR_BASE"] = setupState.zephyrDir;
+  }
+  if (win && !process.env.ZEPHYR_SDK_INSTALL_DIR) {
+    env["ZEPHYR_SDK_INSTALL_DIR"] = getToolchainDir();
+  }
+
+  if (win && overrideTempOnWindows) {
+    // Redirect TMPDIR/TEMP/TMP to a short path so pip build isolation
+    // directories don't exceed the MAX_PATH (260 chars) limit.
     const systemDrive = process.env.SYSTEMDRIVE || "C:";
     const shortTempDir = `${systemDrive}\\Temp`;
     try {
@@ -696,13 +705,11 @@ export async function executeTaskHelperInPythonEnv(setupState: SetupState | unde
       env["TEMP"] = shortTempDir;
       env["TMP"] = shortTempDir;
     } catch {
-      // If the directory cannot be created, proceed without overriding TEMP so
-      // that the command still runs, even if paths may be longer than ideal.
+      // Proceed without overriding TEMP; paths may be longer than ideal.
     }
-    return await executeTaskHelper(taskName, cmd, cwd, env);
-  } else {
-    return await executeTaskHelper(taskName, cmd, cwd);
   }
+
+  return await executeTaskHelper(taskName, cmd, cwd, env);
 }
 
 export async function executeTaskHelper(taskName: string, cmd: string, cwd: string | undefined, env?: { [key: string]: string }) {
