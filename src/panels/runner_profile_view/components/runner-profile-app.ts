@@ -34,102 +34,121 @@ interface RunnerArgSuggestion {
 
 const RUNNER_COMMON_ARGS: Record<string, RunnerArgSuggestion[]> = {
   openocd: [
-    { label: "--config", arg: "--config ", description: "Extra OpenOCD config file (-f path/to.cfg)" },
-    { label: "--cmd-pre-init", arg: "--cmd-pre-init \"\"", description: "Command to run before init" },
-    { label: "--cmd-post-init", arg: "--cmd-post-init \"\"", description: "Command to run after init" },
+    { label: "--config", arg: "--config ", description: "Extra OpenOCD config file (may be given multiple times)" },
+    { label: "--cmd-pre-init", arg: "--cmd-pre-init \"\"", description: "OpenOCD command to run before calling init (may repeat)" },
+    { label: "--cmd-pre-init-flash", arg: "--cmd-pre-init-flash \"\"", description: "Command before init when flashing; overrides --cmd-pre-init during flash (may repeat)" },
+    { label: "--cmd-pre-load", arg: "--cmd-pre-load \"\"", description: "OpenOCD command to run before loading/flashing (may repeat)" },
     { label: "--use-elf", arg: "--use-elf", description: "Flash ELF instead of HEX/BIN" },
-    { label: "--serial", arg: "--serial ", description: "Limit to specific USB serial number" },
-    { label: "--gdb-port", arg: "--gdb-port 3333", description: "Override GDB server port" },
-    { label: "--tcl-port", arg: "--tcl-port 6333", description: "Override TCL port" },
-    { label: "--telnet-port", arg: "--telnet-port 4444", description: "Override Telnet port" },
-    { label: "--tui", arg: "--tui", description: "Show OpenOCD in a text UI" },
+    { label: "--serial", arg: "--serial ", description: "Limit to a specific FTDI/USB serial number" },
+    { label: "--verify", arg: "--verify", description: "Verify flash contents after programming" },
+    { label: "--gdb-port", arg: "--gdb-port 3333", description: "Override GDB server port (default: 3333)" },
+    { label: "--gdb-client-port", arg: "--gdb-client-port 3333", description: "GDB client port when multiple ports are open (default: 3333)" },
+    { label: "--tcl-port", arg: "--tcl-port 6333", description: "Override TCL port (default: 6333)" },
+    { label: "--telnet-port", arg: "--telnet-port 4444", description: "Override Telnet port (default: 4444)" },
+    { label: "--tui", arg: "--tui", description: "Use GDB -tui mode" },
+    { label: "--no-halt", arg: "--no-halt", description: "Skip halt command in GDB server startup" },
+    { label: "--rtt-port", arg: "--rtt-port 5555", description: "OpenOCD RTT server port (default: 5555)" },
+    { label: "--rtt-server", arg: "--rtt-server", description: "Start RTT server while debugging (connect with telnet)" },
   ],
   jlink: [
-    { label: "--device", arg: "--device=", description: "Target MCU name (e.g. STM32F401RE)" },
-    { label: "--speed", arg: "--speed=4000", description: "SWD/JTAG speed in kHz" },
-    { label: "--iface", arg: "--iface=SWD", description: "Debug interface: SWD or JTAG" },
-    { label: "--serial", arg: "--serial=", description: "Limit to a specific J-Link serial number" },
-    { label: "--jlink-script", arg: "--jlink-script ", description: "Path to a JLink script file" },
-    { label: "--reset-after-load", arg: "--reset-after-load", description: "Reset target after flashing" },
+    { label: "--device", arg: "--device=", description: "Target MCU name (e.g. STM32F401RE) — required" },
+    { label: "--speed", arg: "--speed=4000", description: "SWD/JTAG speed in kHz (or 'auto')" },
+    { label: "--iface", arg: "--iface=SWD", description: "Debug interface: SWD or JTAG (default: swd)" },
+    { label: "--id", arg: "--id=", description: "J-Link serial number (obsolete synonym for --dev-id)" },
+    { label: "--flash-script", arg: "--flash-script ", description: "Path to a custom J-Link Commander flash script" },
+    { label: "--loader", arg: "--loader=", description: "J-Link loader type (e.g. NorFlash)" },
+    { label: "--reset-after-load", arg: "--reset-after-load", description: "Reset target after flashing (deprecated synonym for --reset/--no-reset)" },
     { label: "--erase", arg: "--erase", description: "Erase whole chip before flashing" },
-    { label: "--gdb-port", arg: "--gdb-port 2331", description: "Override GDB server port" },
-    { label: "--swd-dp-id", arg: "--swd-dp-id=", description: "SWD DP ID override" },
+    { label: "--gdb-port", arg: "--gdb-port 2331", description: "Override GDB server port (default: 2331)" },
+    { label: "--rtt-port", arg: "--rtt-port 19021", description: "J-Link RTT telnet port (default: 19021)" },
+    { label: "--flash-sram", arg: "--flash-sram", description: "Flash image to SRAM and set PC to SRAM base address" },
+    { label: "--pre-script-cmd", arg: "--pre-script-cmd ", description: "Custom J-Link command prepended to runner.jlink (may repeat)" },
+    { label: "--tui", arg: "--tui", description: "Use GDB -tui mode" },
   ],
   pyocd: [
-    { label: "--target", arg: "--target=", description: "Target device pack name (e.g. stm32f401re)" },
-    { label: "--probe", arg: "--probe=", description: "Probe UID / serial number" },
+    { label: "--target", arg: "--target=", description: "Target device pack name (e.g. stm32f401re) — required" },
+    { label: "--board-id", arg: "--board-id=", description: "Probe board ID / serial number (alias for --dev-id)" },
     { label: "--frequency", arg: "--frequency=4000000", description: "Probe clock frequency in Hz" },
-    { label: "--pack", arg: "--pack=", description: "Path to CMSIS pack to use" },
-    { label: "--port", arg: "--port=3333", description: "Override GDB server port" },
-    { label: "--reset-type", arg: "--reset-type=hw", description: "Reset type: hw, sw, or core" },
-    { label: "--erase", arg: "--erase=chip", description: "Erase policy: chip, sector, or auto" },
-    { label: "--no-debug", arg: "--no-debug", description: "Do not enable debug (flash only)" },
+    { label: "--flash-opt", arg: "--flash-opt=", description: "Extra option for pyocd flash (e.g. --flash-opt=--pack=path/to.pack; may repeat)" },
+    { label: "--daparg", arg: "--daparg=", description: "Additional -da argument passed to the pyocd tool" },
+    { label: "--gdb-port", arg: "--gdb-port=3333", description: "Override GDB server port (default: 3333)" },
+    { label: "--telnet-port", arg: "--telnet-port=4444", description: "Override Telnet port (default: 4444)" },
+    { label: "--erase", arg: "--erase", description: "Chip-erase before flashing" },
+    { label: "--tui", arg: "--tui", description: "Use GDB -tui mode" },
   ],
-  stlink: [
-    { label: "--serial", arg: "--serial=", description: "ST-Link serial number (from st-info)" },
-    { label: "--connect-under-reset", arg: "--connect-under-reset", description: "Hold RESET while connecting" },
-    { label: "--speed", arg: "--speed=4000", description: "SWD speed in kHz" },
-    { label: "--freq", arg: "--freq=4000", description: "Alias for --speed" },
-    { label: "--port", arg: "--port=4242", description: "GDB server listen port" },
-    { label: "--no-reset", arg: "--no-reset", description: "Do not reset after flashing" },
+  stm32cubeprogrammer: [
+    { label: "--port", arg: "--port=swd", description: "Interface identifier: swd, jtag, /dev/ttyS0, usb1, etc. — required" },
+    { label: "--frequency", arg: "--frequency=4000", description: "Programmer frequency in KHz" },
+    { label: "--download-address", arg: "--download-address=", description: "Flash location address; causes .bin to be used instead of .hex" },
+    { label: "--conn-modifiers", arg: "--conn-modifiers=", description: "Additional options appended to the --connect argument" },
+    { label: "--download-modifiers", arg: "--download-modifiers=", description: "Additional options appended to the --download argument (may repeat)" },
+    { label: "--use-elf", arg: "--use-elf", description: "Flash ELF file instead of HEX file" },
+    { label: "--start-address", arg: "--start-address=", description: "Address where execution begins after flashing" },
+    { label: "--reset-type", arg: "--reset-type=sw", description: "Reset mode after flashing: sw (software), hw (hardware), or core (core reset)" },
   ],
   nrfjprog: [
-    { label: "--snr", arg: "--snr=", description: "J-Link serial number for nRF probe" },
-    { label: "--family", arg: "--family=NRF52", description: "Device family (NRF51, NRF52, NRF53, NRF91)" },
-    { label: "--coprocessor", arg: "--coprocessor=CP_APPLICATION", description: "Coprocessor to target on nRF53 (CP_APPLICATION or CP_NETWORK)" },
-    { label: "--sectorerase", arg: "--sectorerase", description: "Erase only sectors written during programming" },
-    { label: "--chiperase", arg: "--chiperase", description: "Erase the entire chip before programming" },
+    { label: "--snr", arg: "--snr=", description: "J-Link serial number for nRF probe (alias for --dev-id)" },
+    { label: "--nrf-family", arg: "--nrf-family=NRF52", description: "Device family: NRF51, NRF52, NRF53, NRF54L, NRF54H, NRF71, NRF91, NRF92" },
+    { label: "--erase", arg: "--erase", description: "Chip-erase before programming (same as --erase-mode=all)" },
+    { label: "--erase-mode", arg: "--erase-mode=ranges", description: "Erase mode for internal flash: none, ranges (sectors touched), or all (chip)" },
+    { label: "--ext-erase-mode", arg: "--ext-erase-mode=ranges", description: "Erase mode for external flash: none, ranges (sectors touched), or all (chip)" },
+    { label: "--softreset", arg: "--softreset", description: "Use soft reset instead of pin reset after flashing" },
+    { label: "--pinreset", arg: "--pinreset", description: "Use pin reset instead of soft reset after flashing" },
+    { label: "--recover", arg: "--recover", description: "Erase all and disable readback protection before flashing" },
+    { label: "--force", arg: "--force", description: "Flash even if the result cannot be guaranteed" },
+    { label: "--qspiini", arg: "--qspiini=", description: "Path to a .ini file with QSPI configuration (nrfjprog only)" },
   ],
   nrfutil: [
-    { label: "--serial-number", arg: "--serial-number=", description: "J-Link/nRF serial number" },
-    { label: "--core", arg: "--core=\"Application\"", description: "Core to target on multi-core devices" },
-    { label: "--traits", arg: "--traits=jlink", description: "Probe traits (jlink, nrfutil-probe, etc.)" },
+    { label: "--snr", arg: "--snr=", description: "J-Link serial number for nRF probe (alias for --dev-id; may repeat for bulk)" },
+    { label: "--nrf-family", arg: "--nrf-family=NRF52", description: "Device family: NRF51, NRF52, NRF53, NRF54L, NRF54H, NRF71, NRF91, NRF92" },
+    { label: "--erase", arg: "--erase", description: "Chip-erase before programming" },
+    { label: "--erase-mode", arg: "--erase-mode=ranges", description: "Erase mode: none, ranges (sectors touched), or all (chip)" },
+    { label: "--softreset", arg: "--softreset", description: "Use soft reset instead of pin reset after flashing" },
+    { label: "--pinreset", arg: "--pinreset", description: "Use pin reset instead of soft reset after flashing" },
+    { label: "--recover", arg: "--recover", description: "Erase all and disable readback protection before flashing" },
+    { label: "--force", arg: "--force", description: "Flash even if the result cannot be guaranteed" },
+    { label: "--ext-mem-config-file", arg: "--ext-mem-config-file=", description: "Path to JSON file with external memory configuration" },
   ],
   blackmagicprobe: [
-    { label: "--gdb-serial", arg: "--gdb-serial=/dev/ttyACM0", description: "BMP GDB serial port" },
-    { label: "--connect-srst", arg: "--connect-srst", description: "Assert SRST while attaching" },
-    { label: "--bmp-product-id", arg: "--bmp-product-id=", description: "BMP USB Product ID (if multiple)" },
-    { label: "--bmp-serial", arg: "--bmp-serial=", description: "BMP serial number (if multiple)" },
+    { label: "--gdb-serial", arg: "--gdb-serial=/dev/ttyACM0", description: "BMP GDB serial port (auto-detected when omitted)" },
+    { label: "--connect-srst", arg: "--connect-srst", description: "Assert SRST while connecting (also accepted as --connect-rst)" },
   ],
   linkserver: [
-    { label: "--device", arg: "--device=", description: "Target MCU device string" },
-    { label: "--probe", arg: "--probe=0", description: "Probe index (0 = first)" },
-    { label: "--core-index", arg: "--core-index=0", description: "Core index on multi-core devices" },
-    { label: "--gdb-port", arg: "--gdb-port=3333", description: "Override GDB server port" },
-    { label: "--semihost-port", arg: "--semihost-port=4567", description: "Semihosting port" },
+    { label: "--device", arg: "--device=", description: "Target MCU device string (required, e.g. MIMXRT1060xxxxx:cm7)" },
+    { label: "--probe", arg: "--probe=#1", description: "Probe index or serial number (default: #1)" },
+    { label: "--core", arg: "--core=", description: "Core to target on multi-core devices (e.g. cm33_core0)" },
+    { label: "--gdb-port", arg: "--gdb-port=3333", description: "Override GDB server port (default: 3333)" },
+    { label: "--semihost-port", arg: "--semihost-port=8888", description: "Semihosting port (default: 8888)" },
+    { label: "--override", arg: "--override=", description: "Configuration override (e.g. /device/memory/0/location=0xCAFECAFE)" },
   ],
   "dfu-util": [
-    { label: "--alt", arg: "--alt=", description: "DFU interface alternate setting" },
-    { label: "--serial", arg: "--serial=", description: "Limit to a specific USB serial number" },
-    { label: "--pid", arg: "--pid=", description: "Target USB VID:PID (e.g. 0483:df11)" },
-    { label: "--dfuse-address", arg: "--dfuse-address=", description: "DfuSe flash start address" },
-    { label: "--reset", arg: "--reset", description: "Issue USB reset after transfer" },
+    { label: "--alt", arg: "--alt=", description: "DFU interface alternate setting number or name — required" },
+    { label: "--pid", arg: "--pid=", description: "USB VID:PID of the target device (e.g. 0483:df11)" },
+    { label: "--dfuse", arg: "--dfuse", description: "Use DfuSe protocol extensions (STMicroelectronics devices)" },
+    { label: "--dfuse-modifiers", arg: "--dfuse-modifiers=leave", description: "Colon-separated DfuSe modifiers appended to -s (default: leave)" },
+    { label: "--img", arg: "--img=", description: "Binary file to flash (defaults to build-system bin file)" },
   ],
   uf2: [
-    { label: "--mount", arg: "--mount=", description: "Path to UF2 drive mount point" },
+    { label: "--board-id", arg: "--board-id=", description: "Board-ID string to match against INFO_UF2.TXT on the UF2 volume" },
   ],
   esp32: [
-    { label: "--esp-device", arg: "--esp-device=/dev/ttyUSB0", description: "Serial port for ESP32" },
-    { label: "--esp-baud-rate", arg: "--esp-baud-rate=921600", description: "Flash baud rate" },
-    { label: "--esp-flash-size", arg: "--esp-flash-size=detect", description: "Flash size: detect or size in MB" },
-    { label: "--esp-flash-freq", arg: "--esp-flash-freq=40m", description: "Flash frequency: 40m, 80m, etc." },
-    { label: "--esp-flash-mode", arg: "--esp-flash-mode=dio", description: "Flash mode: dio, dout, qio, qout" },
-    { label: "--esp-tool", arg: "--esp-tool=esptool", description: "ESP flash tool: esptool or espidf" },
-  ],
-  qemu: [
-    { label: "-machine", arg: "-machine=", description: "QEMU machine type (e.g. mps2-an385)" },
-    { label: "-cpu", arg: "-cpu=", description: "QEMU CPU type" },
-    { label: "-m", arg: "-m 256", description: "RAM size in MB" },
-    { label: "-serial stdio", arg: "-serial stdio", description: "Route serial output to host stdio" },
-    { label: "-nographic", arg: "-nographic", description: "Disable graphical output" },
-    { label: "-s", arg: "-s", description: "Enable GDB server on :1234" },
-    { label: "-S", arg: "-S", description: "Pause at startup until GDB connects" },
+    { label: "--esp-device", arg: "--esp-device=/dev/ttyUSB0", description: "Serial port for ESP32 (or set ESPTOOL_PORT env var)" },
+    { label: "--esp-baud-rate", arg: "--esp-baud-rate=921600", description: "Flash baud rate (default: 921600)" },
+    { label: "--esp-flash-size", arg: "--esp-flash-size=detect", description: "Flash size: detect or explicit size (e.g. 4MB)" },
+    { label: "--esp-flash-freq", arg: "--esp-flash-freq=40m", description: "Flash clock frequency (default: 40m)" },
+    { label: "--esp-flash-mode", arg: "--esp-flash-mode=dio", description: "Flash mode: dio, dout, qio, qout (default: dio)" },
+    { label: "--esp-idf-path", arg: "--esp-idf-path=", description: "Path to ESP-IDF installation — required" },
+    { label: "--esp-boot-address", arg: "--esp-boot-address=0x1000", description: "Bootloader load address (default: 0x1000)" },
+    { label: "--esp-partition-table-address", arg: "--esp-partition-table-address=0x8000", description: "Partition table load address (default: 0x8000)" },
+    { label: "--esp-app-address", arg: "--esp-app-address=0x10000", description: "Application load address (default: 0x10000)" },
+    { label: "--esp-encrypt", arg: "--esp-encrypt", description: "Encrypt firmware while flashing (requires correct eFuses)" },
+    { label: "--esp-no-stub", arg: "--esp-no-stub", description: "Disable launching flasher stub; use ROM bootloader only" },
   ],
   bossac: [
-    { label: "--offset", arg: "--offset=", description: "Flash write offset" },
-    { label: "--port", arg: "--port=", description: "Serial port to use" },
+    { label: "--bossac-port", arg: "--bossac-port=", description: "Serial port to use for flashing" },
+    { label: "--speed", arg: "--speed=115200", description: "Serial port speed (default: 115200)" },
     { label: "--erase", arg: "--erase", description: "Erase flash before programming" },
-    { label: "--write", arg: "--write", description: "Write to flash" },
+    { label: "--delay", arg: "--delay=0.5", description: "Delay in seconds to wait after entering bootloader mode" },
   ],
 };
 
@@ -138,13 +157,14 @@ type BindKind = "auto" | "runner" | "launch";
 interface ProfileBind {
   kind: BindKind;
   runner?: string;
-  extraArgs?: string;
+  extraArgs?: string[];
   name?: string; // launch.json configuration name
 }
 
 interface Profile {
   name: string;
   flash: ProfileBind;
+  buildDebug?: ProfileBind;
   debug: ProfileBind;
   attach: ProfileBind;
 }
@@ -161,6 +181,8 @@ interface PanelData {
   activeBuildLabel?: string;
   /** profile name -> list of "<project> / <build>" strings using it */
   usageByName?: Record<string, string[]>;
+  /** Mirror of `zephyr-ide.separateBuildDebugProfile` setting. */
+  separateBuildDebugProfile?: boolean;
 }
 
 /**
@@ -307,11 +329,11 @@ export class RunnerProfileApp extends ZephyrLitElement {
 
   private _onBindSelectChange(
     scope: Scope, originalName: string,
-    slot: "flash" | "debug" | "attach", e: Event,
+    slot: "flash" | "buildDebug" | "debug" | "attach", e: Event,
   ) {
     const value = stringFromEvent(e);
     this._updateDraft(scope, originalName, (p) => {
-      const existingBind = p[slot];
+      const existingBind: ProfileBind = p[slot] ?? { kind: "auto" };
       let newBind: ProfileBind;
       if (value === "auto") {
         newBind = { kind: "auto" };
@@ -319,7 +341,7 @@ export class RunnerProfileApp extends ZephyrLitElement {
         newBind = { kind: "launch", name: value.slice(7) };
       } else if (value.startsWith("runner:")) {
         const runnerName = value.slice(7);
-        const extraArgs = existingBind.kind === "runner" ? (existingBind.extraArgs ?? "") : "";
+        const extraArgs = existingBind.kind === "runner" ? (existingBind.extraArgs ?? []) : [];
         newBind = { kind: "runner", runner: runnerName, extraArgs };
       } else {
         newBind = { kind: "auto" };
@@ -330,41 +352,44 @@ export class RunnerProfileApp extends ZephyrLitElement {
 
   private _onArgItemChange(
     scope: Scope, originalName: string,
-    slot: "flash" | "debug" | "attach", index: number, e: Event,
+    slot: "flash" | "buildDebug" | "debug" | "attach", index: number, e: Event,
   ) {
     const value = stringFromEvent(e);
     this._updateDraft(scope, originalName, (p) => {
-      const args = parseArgs(p[slot].extraArgs ?? "");
+      const current: ProfileBind = p[slot] ?? { kind: "auto" };
+      const args = [...(current.extraArgs ?? [])];
       if (value.trim()) {
         args[index] = value.trim();
       } else {
         args.splice(index, 1);
       }
-      return { ...p, [slot]: { ...p[slot], extraArgs: joinArgs(args) } };
+      return { ...p, [slot]: { ...current, extraArgs: args } };
     });
   }
 
   private _onArgItemDelete(
     scope: Scope, originalName: string,
-    slot: "flash" | "debug" | "attach", index: number,
+    slot: "flash" | "buildDebug" | "debug" | "attach", index: number,
   ) {
     this._updateDraft(scope, originalName, (p) => {
-      const args = parseArgs(p[slot].extraArgs ?? "");
+      const current: ProfileBind = p[slot] ?? { kind: "auto" };
+      const args = [...(current.extraArgs ?? [])];
       args.splice(index, 1);
-      return { ...p, [slot]: { ...p[slot], extraArgs: joinArgs(args) } };
+      return { ...p, [slot]: { ...current, extraArgs: args } };
     });
   }
 
   private _onNewArgCommit(
     scope: Scope, originalName: string,
-    slot: "flash" | "debug" | "attach", e: Event,
+    slot: "flash" | "buildDebug" | "debug" | "attach", e: Event,
   ) {
     const value = stringFromEvent(e).trim();
     if (!value) { return; }
     this._updateDraft(scope, originalName, (p) => {
-      const args = parseArgs(p[slot].extraArgs ?? "");
+      const current: ProfileBind = p[slot] ?? { kind: "auto" };
+      const args = [...(current.extraArgs ?? [])];
       args.push(value);
-      return { ...p, [slot]: { ...p[slot], extraArgs: joinArgs(args) } };
+      return { ...p, [slot]: { ...current, extraArgs: args } };
     });
   }
 
@@ -402,13 +427,14 @@ export class RunnerProfileApp extends ZephyrLitElement {
     this._showVarHelp = next;
   }
 
-  private _appendArg(scope: Scope, originalName: string, slot: "flash" | "debug" | "attach", arg: string) {
+  private _appendArg(scope: Scope, originalName: string, slot: "flash" | "buildDebug" | "debug" | "attach", arg: string) {
     const trimmed = arg.trim();
     if (!trimmed) { return; }
     this._updateDraft(scope, originalName, (p) => {
-      const args = parseArgs(p[slot].extraArgs ?? "");
+      const current: ProfileBind = p[slot] ?? { kind: "auto" };
+      const args = [...(current.extraArgs ?? [])];
       args.push(trimmed);
-      return { ...p, [slot]: { ...p[slot], kind: "runner", runner: p[slot].runner ?? "", extraArgs: joinArgs(args) } };
+      return { ...p, [slot]: { ...current, kind: "runner", runner: (current as any).runner ?? "", extraArgs: args } };
     });
     this._closeArgPicker(scope, originalName, slot);
   }
@@ -447,7 +473,7 @@ export class RunnerProfileApp extends ZephyrLitElement {
   /** Render per-arg rows plus a generic "add argument" row and optional suggestion picker. */
   private _renderArgEditor(
     scope: Scope, originalName: string,
-    slot: "flash" | "debug" | "attach",
+    slot: "flash" | "buildDebug" | "debug" | "attach",
     bind: ProfileBind,
     currentRunner: string,
   ) {
@@ -455,7 +481,7 @@ export class RunnerProfileApp extends ZephyrLitElement {
     const pickerOpen = this._showArgPicker.has(key);
     const varHelpOpen = this._showVarHelp.has(key);
     const allSuggestions = RUNNER_COMMON_ARGS[currentRunner] ?? [];
-    const args = parseArgs(bind.extraArgs ?? "");
+    const args = bind.extraArgs ?? [];
     // Filter out suggestions whose flag is already present in the current args.
     const availableSuggestions = allSuggestions.filter(
       s => !args.some(a => a === s.label || a.startsWith(s.label + "=") || a.startsWith(s.label + " ")),
@@ -532,9 +558,12 @@ export class RunnerProfileApp extends ZephyrLitElement {
               <i class="codicon codicon-debug-alt-small"></i> Runner Profiles
             </h1>
             <p class="page-subtitle">
-              Reusable bundles of <strong>flash</strong>, <strong>debug</strong>, and <strong>attach</strong> binds.
+              Reusable bundles of <strong>flash</strong>,
+              ${d.separateBuildDebugProfile ? html`<strong>build &amp; debug</strong>, ` : nothing}<strong>debug</strong>, and <strong>attach</strong> binds.
               Workspace profiles live in <code>.vscode/zephyr-ide.json</code>; user profiles live in
               <code>zephyr-ide.runnerProfiles</code> settings. Workspace overrides user on name collision.
+              ${d.separateBuildDebugProfile ? nothing : html`
+                <br><span class="scope-section-hint">Tip: enable <code>zephyr-ide.separateBuildDebugProfile</code> to configure Build&#8202;&amp;&#8202;Debug separately from Debug.</span>`}
             </p>
           </div>
         </div>
@@ -639,6 +668,10 @@ export class RunnerProfileApp extends ZephyrLitElement {
 
         <div class="profile-slots">
           ${this._renderSlot(scope, original.name, draft, "flash", "zap")}
+          ${this._data?.separateBuildDebugProfile
+        ? this._renderSlot(scope, original.name, draft, "buildDebug", "debug-all",
+          draft.buildDebug ?? { kind: "auto" })
+        : nothing}
           ${this._renderSlot(scope, original.name, draft, "debug", "debug-alt")}
           ${this._renderSlot(scope, original.name, draft, "attach", "debug-console")}
         </div>
@@ -672,10 +705,18 @@ export class RunnerProfileApp extends ZephyrLitElement {
 
   private _renderSlot(
     scope: Scope, originalName: string, draft: Profile,
-    slot: "flash" | "debug" | "attach", icon: string,
+    slot: "flash" | "buildDebug" | "debug" | "attach", icon: string,
+    bindOverride?: ProfileBind,
   ) {
-    const bind = draft[slot];
-    const label = slot.charAt(0).toUpperCase() + slot.slice(1);
+    // For buildDebug, use the passed-in override bind (which defaults to auto when unset).
+    const bind = bindOverride ?? (draft[slot] as ProfileBind | undefined) ?? { kind: "auto" as const };
+    const labelMap: Record<string, string> = {
+      flash: "Flash",
+      buildDebug: "Build & Debug",
+      debug: "Debug",
+      attach: "Attach",
+    };
+    const label = labelMap[slot] ?? (slot.charAt(0).toUpperCase() + slot.slice(1));
     const allowLaunch = slot !== "flash";
     const d = this._data!;
     const currentValue = bindToSelectValue(bind);
@@ -720,9 +761,13 @@ export class RunnerProfileApp extends ZephyrLitElement {
           ${bind.kind === "runner"
         ? this._renderArgEditor(scope, originalName, slot, bind, bind.runner ?? "")
         : nothing}
-          ${bind.kind === "auto"
-        ? html`<span class="scope-section-hint">Uses runners.yaml defaults.</span>`
-        : nothing}
+          ${bind.kind === "auto" && slot === "buildDebug"
+        ? html`<span class="scope-section-hint">Falls back to the <strong>Debug</strong> slot.</span>`
+        : bind.kind === "auto" && slot === "debug" && !this._data?.separateBuildDebugProfile
+          ? html`<span class="scope-section-hint">Uses runners.yaml defaults. Drives both Debug and Build&#8202;&amp;&#8202;Debug.</span>`
+          : bind.kind === "auto"
+            ? html`<span class="scope-section-hint">Uses runners.yaml defaults.</span>`
+            : nothing}
           ${bind.kind === "launch" && allowLaunch && d.launchConfigNames.length === 0 && !syntheticLaunch
         ? html`<span class="no-launch-warning">No launch.json configs detected.</span>`
         : nothing}
@@ -779,12 +824,14 @@ function joinArgs(args: string[]): string {
 }
 
 function cloneProfile(p: Profile): Profile {
-  return {
+  const out: Profile = {
     name: p.name,
     flash: { ...p.flash },
     debug: { ...p.debug },
     attach: { ...p.attach },
   };
+  if (p.buildDebug) { out.buildDebug = { ...p.buildDebug }; }
+  return out;
 }
 
 function bindsEqual(a: ProfileBind, b: ProfileBind): boolean {
@@ -792,14 +839,20 @@ function bindsEqual(a: ProfileBind, b: ProfileBind): boolean {
   if (a.kind === "auto") { return true; }
   if (a.kind === "runner") {
     return (a.runner ?? "") === (b.runner ?? "")
-      && (a.extraArgs ?? "") === (b.extraArgs ?? "");
+      && JSON.stringify(a.extraArgs ?? []) === JSON.stringify(b.extraArgs ?? []);
   }
   return (a.name ?? "") === (b.name ?? "");
 }
 
 function profilesEqual(a: Profile, b: Profile): boolean {
+  // Both having undefined buildDebug counts as equal; treat undefined as auto for comparison.
+  const aBuildDebug = a.buildDebug ?? { kind: "auto" as const };
+  const bBuildDebug = b.buildDebug ?? { kind: "auto" as const };
+  // Profiles with no buildDebug are equal regardless of whether one is auto.
+  const buildDebugEqual = (!a.buildDebug && !b.buildDebug) || bindsEqual(aBuildDebug, bBuildDebug);
   return a.name === b.name
     && bindsEqual(a.flash, b.flash)
+    && buildDebugEqual
     && bindsEqual(a.debug, b.debug)
     && bindsEqual(a.attach, b.attach);
 }

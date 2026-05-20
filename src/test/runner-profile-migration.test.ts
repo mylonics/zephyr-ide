@@ -28,10 +28,11 @@ suite("Runner Profile Migration Test Suite", () => {
     assert.deepStrictEqual(profile.flash, {
       kind: "runner",
       runner: "openocd",
-      extraArgs: "--speed=4000",
+      extraArgs: ["--speed=4000"],
     });
     assert.deepStrictEqual(profile.debug, { kind: "auto" });
     assert.deepStrictEqual(profile.attach, { kind: "auto" });
+    assert.strictEqual(profile.buildDebug, undefined);
   });
 
   test("pre-bind shape with no args omits extraArgs on the flash bind", () => {
@@ -46,14 +47,28 @@ suite("Runner Profile Migration Test Suite", () => {
     assert.deepStrictEqual(profile.flash, { kind: "auto" });
   });
 
-  test("buildState launch targets fold into debug + attach launch binds", () => {
+  test("buildState buildDebugTarget becomes buildDebug slot; launchTarget becomes debug slot", () => {
+    const legacy = { name: "openocd", runner: "openocd" };
+    const buildState = {
+      buildDebugTarget: "Zephyr GDB",
+      launchTarget: "Zephyr Debug",
+      attachTarget: "Zephyr Attach",
+    };
+    const profile = migrateRunnerConfig(legacy, buildState);
+    assert.deepStrictEqual(profile.buildDebug, { kind: "launch", name: "Zephyr GDB" });
+    assert.deepStrictEqual(profile.debug, { kind: "launch", name: "Zephyr Debug" });
+    assert.deepStrictEqual(profile.attach, { kind: "launch", name: "Zephyr Attach" });
+  });
+
+  test("buildState with only buildDebugTarget: debug defaults to auto", () => {
     const legacy = { name: "openocd", runner: "openocd" };
     const buildState = {
       buildDebugTarget: "Zephyr GDB",
       attachTarget: "Zephyr Attach",
     };
     const profile = migrateRunnerConfig(legacy, buildState);
-    assert.deepStrictEqual(profile.debug, { kind: "launch", name: "Zephyr GDB" });
+    assert.deepStrictEqual(profile.buildDebug, { kind: "launch", name: "Zephyr GDB" });
+    assert.deepStrictEqual(profile.debug, { kind: "auto" });
     assert.deepStrictEqual(profile.attach, { kind: "launch", name: "Zephyr Attach" });
   });
 
@@ -68,11 +83,12 @@ suite("Runner Profile Migration Test Suite", () => {
     assert.deepStrictEqual(profile.attach, { kind: "auto" });
   });
 
-  test("debug falls back to launchTarget when buildDebugTarget is missing", () => {
+  test("debug slot comes from launchTarget when buildDebugTarget is missing", () => {
     const legacy = { name: "openocd", runner: "openocd" };
     const buildState = { launchTarget: "Custom Launch" };
     const profile = migrateRunnerConfig(legacy, buildState);
     assert.deepStrictEqual(profile.debug, { kind: "launch", name: "Custom Launch" });
+    assert.strictEqual(profile.buildDebug, undefined);
   });
 
   test("already-bind shape is normalised: missing slots default to auto", () => {
@@ -84,9 +100,10 @@ suite("Runner Profile Migration Test Suite", () => {
     assert.deepStrictEqual(profile.flash, { kind: "runner", runner: "pyocd" });
     assert.deepStrictEqual(profile.debug, { kind: "auto" });
     assert.deepStrictEqual(profile.attach, { kind: "auto" });
+    assert.strictEqual(profile.buildDebug, undefined);
   });
 
-  test("already-bind shape: legacy buildDebug or build keys fold into debug", () => {
+  test("already-bind shape: legacy buildDebug key is preserved as separate buildDebug slot", () => {
     const legacy = {
       name: "preview",
       flash: { kind: "auto" },
@@ -94,7 +111,35 @@ suite("Runner Profile Migration Test Suite", () => {
       attach: { kind: "launch", name: "ATTACH" },
     };
     const profile = migrateRunnerConfig(legacy, undefined);
-    assert.deepStrictEqual(profile.debug, { kind: "launch", name: "GDB" });
+    // buildDebug is preserved separately; debug defaults to auto (no separate debug key was set)
+    assert.deepStrictEqual(profile.buildDebug, { kind: "launch", name: "GDB" });
+    assert.deepStrictEqual(profile.debug, { kind: "auto" });
     assert.deepStrictEqual(profile.attach, { kind: "launch", name: "ATTACH" });
+  });
+
+  test("already-bind shape: explicit debug key is preserved as debug slot", () => {
+    const legacy = {
+      name: "preview",
+      flash: { kind: "auto" },
+      buildDebug: { kind: "launch", name: "Build GDB" },
+      debug: { kind: "launch", name: "Debug Only" },
+      attach: { kind: "launch", name: "ATTACH" },
+    };
+    const profile = migrateRunnerConfig(legacy, undefined);
+    assert.deepStrictEqual(profile.buildDebug, { kind: "launch", name: "Build GDB" });
+    assert.deepStrictEqual(profile.debug, { kind: "launch", name: "Debug Only" });
+    assert.deepStrictEqual(profile.attach, { kind: "launch", name: "ATTACH" });
+  });
+
+  test("already-bind shape: legacy build key is preserved as buildDebug slot", () => {
+    const legacy = {
+      name: "preview",
+      flash: { kind: "auto" },
+      build: { kind: "launch", name: "Build GDB" },
+      attach: { kind: "launch", name: "ATTACH" },
+    };
+    const profile = migrateRunnerConfig(legacy, undefined);
+    assert.deepStrictEqual(profile.buildDebug, { kind: "launch", name: "Build GDB" });
+    assert.deepStrictEqual(profile.debug, { kind: "auto" });
   });
 });

@@ -291,6 +291,10 @@ async function startDebugSession(
 
   // 3-bind model: Flash drives both Flash and Build-and-Flash; the unified
   // `debug` bind drives both Debug and Build-and-Debug; `attach` is dedicated.
+  // When `zephyr-ide.separateBuildDebugProfile` is enabled, a dedicated
+  // `buildDebug` slot (if set on the profile) is used for Build-and-Debug.
+  const separateBuildDebugProfile = !!vscode.workspace.getConfiguration().get<boolean>("zephyr-ide.separateBuildDebugProfile");
+  const useBuildDebugSlot = mode === 'build-debug' && separateBuildDebugProfile;
   const slot: 'debug' | 'attach' = mode === 'attach' ? 'attach' : 'debug';
 
   let activeBind: RunnerBind | undefined;
@@ -301,7 +305,13 @@ async function startDebugSession(
     if (profileName) {
       const profileResolved = resolveActiveProfile(wsConfig);
       if (profileResolved) {
-        activeBind = profileResolved.profile[slot];
+        // When the separate Build-and-Debug setting is on, prefer the dedicated
+        // `buildDebug` slot for build-debug mode (fall back to `debug` if unset).
+        if (useBuildDebugSlot && profileResolved.profile.buildDebug) {
+          activeBind = profileResolved.profile.buildDebug;
+        } else {
+          activeBind = profileResolved.profile[slot];
+        }
         if (activeBind.kind === 'runner') {
           pinnedRunner = activeBind.runner;
         } else if (activeBind.kind === 'auto') {

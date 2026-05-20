@@ -234,9 +234,11 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
       items.push(buildItem);
 
       // Runner Profile group
-      // Shows ALL three bind slots (Flash / Debug / Attach), each of which
-      // can independently target an auto/runner/launch destination.
+      // Shows bind slots (Flash / [Build & Debug /] Debug / Attach); the
+      // Build & Debug slot is only shown when `separateBuildDebugProfile` is enabled.
       if (activeProfile && activeBuild) {
+        const separateBuildDebug = !!vscode.workspace.getConfiguration().get<boolean>("zephyr-ide.separateBuildDebugProfile");
+
         const runnerItem = new ConfigItem(activeProfile.name, 'chip', true, 'configRunner');
         runnerItem.id = 'config-runner';
         runnerItem.data = { project: activeProject.name, build: activeBuild.name, runner: activeProfile.name };
@@ -249,12 +251,26 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
         const debugItem = new ConfigItem('Debug', 'debug-alt', false, undefined,
           formatBindLabel(activeProfile.debug, getBindOverride(activeBuild, "debug")));
         debugItem.id = 'config-runner.debug';
-        debugItem.tooltip = 'Drives both Debug and Build-and-Debug';
         const attachItem = new ConfigItem('Attach', 'debug-console', false, undefined,
           formatBindLabel(activeProfile.attach, getBindOverride(activeBuild, "attach")));
         attachItem.id = 'config-runner.attach';
 
-        runnerItem.children = [flashItem, debugItem, attachItem];
+        const children = [flashItem];
+        if (separateBuildDebug) {
+          const buildDebugItem = new ConfigItem('Build & Debug', 'debug-all', false, undefined,
+            formatBindLabel(
+              activeProfile.buildDebug ?? activeProfile.debug,
+              getBindOverride(activeBuild, "buildDebug") ?? getBindOverride(activeBuild, "debug"),
+            ));
+          buildDebugItem.id = 'config-runner.buildDebug';
+          buildDebugItem.tooltip = 'Used for Build-and-Debug (separateBuildDebugProfile is on)';
+          children.push(buildDebugItem);
+          debugItem.tooltip = 'Used for Debug only (separateBuildDebugProfile is on)';
+        } else {
+          debugItem.tooltip = 'Drives both Debug and Build-and-Debug';
+        }
+        children.push(debugItem, attachItem);
+        runnerItem.children = children;
         for (const child of runnerItem.children) {
           child.parent = runnerItem;
         }

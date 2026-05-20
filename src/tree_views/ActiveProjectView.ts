@@ -92,13 +92,18 @@ export class ActiveProjectView implements vscode.TreeDataProvider<ActiveProjectI
 
     // 3-bind model: Flash drives Flash + Build-and-Flash; the unified `debug`
     // bind drives Debug + Build-and-Debug; `attach` is dedicated.
+    // When `zephyr-ide.separateBuildDebugProfile` is on and the profile has a
+    // dedicated `buildDebug` slot, show it separately for Build-and-Debug.
+    const separateBuildDebug = !!vscode.workspace.getConfiguration().get<boolean>("zephyr-ide.separateBuildDebugProfile");
     const flashDisplay = activeProfile
       ? formatBindLabel(activeProfile.flash, activeBuild && getBindOverride(activeBuild, "flash"))
       : "None";
     const debugDisplay = activeProfile
       ? formatBindLabel(activeProfile.debug, activeBuild && getBindOverride(activeBuild, "debug"))
       : "None";
-    const buildDebugDisplay = debugDisplay;
+    const buildDebugDisplay = separateBuildDebug && activeProfile?.buildDebug
+      ? formatBindLabel(activeProfile.buildDebug, activeBuild && getBindOverride(activeBuild, "buildDebug"))
+      : debugDisplay;
     const attachDisplay = activeProfile
       ? formatBindLabel(activeProfile.attach, activeBuild && getBindOverride(activeBuild, "attach"))
       : "None";

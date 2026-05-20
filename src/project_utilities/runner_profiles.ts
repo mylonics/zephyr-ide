@@ -76,14 +76,20 @@ import { readZephyrIdeJson, writeZephyrIdeJson } from "../setup_utilities/zephyr
  */
 export type RunnerBind =
   | { kind: "auto" }
-  | { kind: "runner"; runner: string; extraArgs?: string }
+  | { kind: "runner"; runner: string; extraArgs?: string[] }
   | { kind: "launch"; name: string };
 
 export interface RunnerProfile {
   name: string;
   /** Used for both Flash and Build-and-Flash actions. `launch` is invalid here. */
   flash: RunnerBind;
-  /** Used for both Debug and Build-and-Debug actions. */
+  /**
+   * Used exclusively for Build-and-Debug when `zephyr-ide.separateBuildDebugProfile` is enabled.
+   * When the setting is disabled this field is ignored and `debug` drives both actions.
+   * Optional: omit (or leave undefined) to fall back to the `debug` bind for Build-and-Debug.
+   */
+  buildDebug?: RunnerBind;
+  /** Used for Debug (and Build-and-Debug when `buildDebug` is not set or the setting is disabled). */
   debug: RunnerBind;
   /** Used for Debug Attach. */
   attach: RunnerBind;
@@ -95,11 +101,56 @@ export type RunnerProfileDictionary = { [name: string]: RunnerProfile };
  *  profile. Only meaningful for slots whose profile kind is `runner`. */
 export interface BindOverride {
   /** Extra args appended after the profile's resolved args. */
-  extraArgs?: string;
+  extraArgs?: string[];
+}
+
+/**
+ * Split a shell-style argument string into individual tokens, respecting
+ * single- and double-quoted segments (the quote characters are preserved in
+ * the token). Used when migrating legacy string-valued `extraArgs` and when
+ * parsing user input from text boxes.
+ */
+export function splitArgs(s: string): string[] {
+  const trimmed = s.trim();
+  if (!trimmed) { return []; }
+  const result: string[] = [];
+  let current = "";
+  let inQuote = false;
+  let quoteChar = "";
+  for (const ch of trimmed) {
+    if (inQuote) {
+      current += ch;
+      if (ch === quoteChar) { inQuote = false; }
+    } else if (ch === '"' || ch === "'") {
+      inQuote = true;
+      quoteChar = ch;
+      current += ch;
+    } else if (/\s/.test(ch)) {
+      if (current) { result.push(current); current = ""; }
+    } else {
+      current += ch;
+    }
+  }
+  if (current) { result.push(current); }
+  return result;
+}
+
+/** Normalise an unknown serialised `extraArgs` value (string for legacy data,
+ *  string[] for current format) into a clean `string[]`. */
+function normalizeExtraArgs(v: unknown): string[] {
+  if (Array.isArray(v)) {
+    return v.filter((s): s is string => typeof s === "string" && s.trim().length > 0)
+            .map(s => s.trim());
+  }
+  if (typeof v === "string" && v.trim()) {
+    return splitArgs(v);
+  }
+  return [];
 }
 
 export interface BuildBindOverrides {
   flash?: BindOverride;
+  buildDebug?: BindOverride;
   debug?: BindOverride;
   attach?: BindOverride;
 }
@@ -116,12 +167,15 @@ function sanitizeProfiles(value: unknown): RunnerProfile[] {
     const obj = v as Record<string, unknown>;
     const name = typeof obj.name === "string" ? obj.name.trim() : "";
     if (!name) { continue; }
-    out.push({
+    const buildDebug = sanitizeBind(obj.buildDebug);
+    const profile: RunnerProfile = {
       name,
       flash: sanitizeBind(obj.flash) ?? { kind: "auto" },
       debug: sanitizeBind(obj.debug) ?? { kind: "auto" },
       attach: sanitizeBind(obj.attach) ?? { kind: "auto" },
-    });
+    };
+    if (buildDebug) { profile.buildDebug = buildDebug; }
+    out.push(profile);
   }
   return out;
 }
@@ -132,9 +186,8 @@ function sanitizeBind(value: unknown): RunnerBind | undefined {
   if (v.kind === "auto") { return { kind: "auto" }; }
   if (v.kind === "runner" && typeof v.runner === "string" && v.runner.trim()) {
     const out: RunnerBind = { kind: "runner", runner: v.runner.trim() };
-    if (typeof v.extraArgs === "string" && v.extraArgs.trim()) {
-      out.extraArgs = v.extraArgs;
-    }
+    const extra = normalizeExtraArgs(v.extraArgs);
+    if (extra.length > 0) { out.extraArgs = extra; }
     return out;
   }
   if (v.kind === "launch" && typeof v.name === "string" && v.name.trim()) {
@@ -180,8 +233,8 @@ export function resolveBind(
     case "auto":
       return undefined;
     case "runner": {
-      const parts = [bind.extraArgs, override?.extraArgs]
-        .map(s => (s ?? "").trim())
+      const parts = [...(bind.extraArgs ?? []), ...(override?.extraArgs ?? [])]
+        .map(s => s.trim())
         .filter(s => s.length > 0);
       return { runner: bind.runner, args: parts.join(" ") };
     }
@@ -197,8 +250,8 @@ export function formatBindLabel(bind: RunnerBind | undefined, override?: BindOve
     case "auto":
       return "Auto (runners.yaml)";
     case "runner": {
-      const parts = [bind.extraArgs, override?.extraArgs]
-        .map(s => (s ?? "").trim())
+      const parts = [...(bind.extraArgs ?? []), ...(override?.extraArgs ?? [])]
+        .map(s => s.trim())
         .filter(s => s.length > 0);
       const args = parts.join(" ");
       return args ? `${bind.runner} ${args}` : bind.runner;
@@ -210,7 +263,8 @@ export function formatBindLabel(bind: RunnerBind | undefined, override?: BindOve
 
 /** Pretty label for the override portion only (e.g. tree-view child suffix). */
 export function formatOverrideLabel(override: BindOverride | undefined): string {
-  const extra = (override?.extraArgs ?? "").trim();
+  const parts = (override?.extraArgs ?? []).filter(s => s.trim().length > 0);
+  const extra = parts.join(" ");
   return extra ? `(+ ${extra})` : "";
 }
 

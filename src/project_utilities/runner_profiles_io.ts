@@ -28,12 +28,23 @@ limitations under the License.
 import * as vscode from "vscode";
 import { WorkspaceConfig } from "../setup_utilities/types";
 import { readZephyrIdeJson, writeZephyrIdeJson } from "../setup_utilities/zephyr_ide_json";
-import { RunnerProfile, RunnerBind } from "./runner_profiles";
+import { RunnerProfile, RunnerBind, splitArgs } from "./runner_profiles";
 
 export type ProfileScope = "user" | "workspace";
 
 const USER_SETTINGS_KEY = "zephyr-ide.runnerProfiles";
 const WORKSPACE_JSON_KEY = "runnerProfiles";
+
+function normalizeExtraArgs(v: unknown): string[] {
+  if (Array.isArray(v)) {
+    return v.filter((s): s is string => typeof s === "string" && s.trim().length > 0)
+            .map(s => s.trim());
+  }
+  if (typeof v === "string" && v.trim()) {
+    return splitArgs(v);
+  }
+  return [];
+}
 
 function sanitizeBind(value: unknown): RunnerBind | undefined {
   if (!value || typeof value !== "object") { return undefined; }
@@ -41,9 +52,8 @@ function sanitizeBind(value: unknown): RunnerBind | undefined {
   if (v.kind === "auto") { return { kind: "auto" }; }
   if (v.kind === "runner" && typeof v.runner === "string" && v.runner.trim()) {
     const out: RunnerBind = { kind: "runner", runner: v.runner.trim() };
-    if (typeof v.extraArgs === "string" && v.extraArgs.trim()) {
-      out.extraArgs = v.extraArgs;
-    }
+    const extra = normalizeExtraArgs(v.extraArgs);
+    if (extra.length > 0) { out.extraArgs = extra; }
     return out;
   }
   if (v.kind === "launch" && typeof v.name === "string" && v.name.trim()) {

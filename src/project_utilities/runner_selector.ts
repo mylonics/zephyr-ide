@@ -25,7 +25,7 @@ import { QuickPickItem } from 'vscode';
 import * as vscode from 'vscode';
 import { MultiStepInput, noOpValidate } from "../utilities/multistepQuickPick";
 import { outputError } from "../utilities/output";
-import { RunnerBind } from "./runner_profiles";
+import { RunnerBind, splitArgs } from "./runner_profiles";
 
 /** All known west runners. */
 export const KNOWN_RUNNERS = [
@@ -104,7 +104,7 @@ export async function bindSelector(options: BindSelectorOptions): Promise<Runner
 
   async function step2(input: MultiStepInput) {
     const seeded = options.current && options.current.kind === "runner"
-      ? options.current.extraArgs ?? ""
+      ? (options.current.extraArgs ?? []).join(" ")
       : "";
     const args = await input.showInputBox({
       title,
@@ -121,7 +121,7 @@ export async function bindSelector(options: BindSelectorOptions): Promise<Runner
     if (args === undefined) { return; }
     const trimmed = args.trim();
     if (trimmed && pickedBind && pickedBind.kind === "runner") {
-      pickedBind = { kind: "runner", runner: pickedBind.runner, extraArgs: trimmed };
+      pickedBind = { kind: "runner", runner: pickedBind.runner, extraArgs: splitArgs(trimmed) };
     }
   }
 

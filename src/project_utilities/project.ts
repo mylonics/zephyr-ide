@@ -22,7 +22,7 @@ import { notifyError, notifyWarningWithActions } from "../utilities/output";
 import { buildSelector, BuildConfig, BuildConfigDictionary, BuildStateDictionary } from "./build_selector";
 import { WorkspaceConfig } from "../setup_utilities/types";
 import { setWorkspaceState } from "../setup_utilities/state-management";
-import { RunnerBind, RunnerProfile, BindOverride, loadRunnerProfiles, findRunnerProfile, resolveBind } from "./runner_profiles";
+import { RunnerBind, RunnerProfile, BindOverride, loadRunnerProfiles, findRunnerProfile, resolveBind, splitArgs } from "./runner_profiles";
 import { configSelector, configRemover, ConfigFiles, mergeConfigFiles } from "./config_selector";
 import { setDtsContext } from "../setup_utilities/dts_interface";
 import { getSamples } from "../setup_utilities/modules";
@@ -125,7 +125,7 @@ export function getResolvedProfile(wsConfig: WorkspaceConfig, resolved: Resolved
 }
 
 /** Get the build-level override for a specific bind slot (may be undefined). */
-export function getBindOverride(build: BuildConfig, slot: "flash" | "debug" | "attach"): BindOverride | undefined {
+export function getBindOverride(build: BuildConfig, slot: "flash" | "buildDebug" | "debug" | "attach"): BindOverride | undefined {
   return build.bindOverrides?.[slot];
 }
 
@@ -1007,24 +1007,25 @@ export async function setBindOverride(
 ) {
   const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Runner Override" });
   if (!resolved) { return; }
-  const current = resolved.build.bindOverrides?.[slot]?.extraArgs ?? "";
+  const currentArgs = resolved.build.bindOverrides?.[slot]?.extraArgs ?? [];
+  const currentStr = currentArgs.join(" ");
   const value = argsText ?? await vscode.window.showInputBox({
     title: `Extra runner args for ${slot}`,
-    value: current,
+    value: currentStr,
     ignoreFocusOut: true,
     placeHolder: "--erase --speed 4000",
     prompt: "Appended after the profile's runner args. Leave blank to clear.",
   });
   if (value === undefined) { return; }
-  const trimmed = value.trim();
+  const parsed = splitArgs(value);
   if (!resolved.build.bindOverrides) { resolved.build.bindOverrides = {}; }
-  if (trimmed.length === 0) {
+  if (parsed.length === 0) {
     delete resolved.build.bindOverrides[slot];
     if (Object.keys(resolved.build.bindOverrides).length === 0) {
       resolved.build.bindOverrides = undefined;
     }
   } else {
-    resolved.build.bindOverrides[slot] = { extraArgs: trimmed };
+    resolved.build.bindOverrides[slot] = { extraArgs: parsed };
   }
   await setWorkspaceState(context, wsConfig);
   void vscode.commands.executeCommand("zephyr-ide.update-web-view");

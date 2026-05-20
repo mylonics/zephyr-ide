@@ -701,8 +701,8 @@ export class ProjectBuildPanel {
           ): import("./project-build-data").WebviewSlotBind => {
             const kind: "none" | "auto" | "runner" | "launch" = !bind ? "none" : bind.kind;
             const runner = bind && bind.kind === "runner" ? bind.runner : undefined;
-            const profileExtra = bind && bind.kind === "runner" ? (bind.extraArgs ?? "").trim() : "";
-            const overrideExtra = (override?.extraArgs ?? "").trim();
+            const profileExtra = bind && bind.kind === "runner" ? (bind.extraArgs ?? []).join(" ") : "";
+            const overrideExtra = (override?.extraArgs ?? []).join(" ");
             const combined = [profileExtra, overrideExtra].filter(s => s.length > 0).join(" ");
             return {
               slot,

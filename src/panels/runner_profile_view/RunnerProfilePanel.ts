@@ -29,6 +29,7 @@ import {
   saveRunnerProfile,
   deleteRunnerProfile,
   suggestProfileName,
+  splitArgs,
 } from "../../project_utilities/runner_profiles";
 import { resolveActiveProjectBuild, setActiveProfile } from "../../project_utilities/project";
 
@@ -302,6 +303,8 @@ export class RunnerProfilePanel {
       }
     }
 
+    const separateBuildDebugProfile = !!vscode.workspace.getConfiguration().get<boolean>("zephyr-ide.separateBuildDebugProfile");
+
     this._panel.webview.postMessage({
       command: "updateContent",
       data: {
@@ -313,6 +316,7 @@ export class RunnerProfilePanel {
         activeProfileName,
         activeBuildLabel,
         usageByName,
+        separateBuildDebugProfile,
       },
     });
   }
@@ -360,16 +364,19 @@ function parseScope(value: unknown): RunnerProfileScope | undefined {
   return undefined;
 }
 
-function sanitizeIncomingBind(value: unknown, slot: "flash" | "debug" | "attach"):
+function sanitizeIncomingBind(value: unknown, slot: "flash" | "buildDebug" | "debug" | "attach"):
   RunnerProfile["flash"] {
   if (!value || typeof value !== "object") { return { kind: "auto" }; }
   const v = value as Record<string, unknown>;
   if (v.kind === "auto") { return { kind: "auto" }; }
   if (v.kind === "runner" && typeof v.runner === "string" && v.runner.trim()) {
     const out: RunnerProfile["flash"] = { kind: "runner", runner: v.runner.trim() };
-    if (typeof v.extraArgs === "string" && v.extraArgs.trim()) {
-      out.extraArgs = v.extraArgs.trim();
-    }
+    const extra: string[] = Array.isArray(v.extraArgs)
+      ? (v.extraArgs as unknown[]).filter((s): s is string => typeof s === "string" && s.trim().length > 0).map(s => s.trim())
+      : typeof v.extraArgs === "string" && v.extraArgs.trim()
+        ? splitArgs(v.extraArgs)
+        : [];
+    if (extra.length > 0) { out.extraArgs = extra; }
     return out;
   }
   if (v.kind === "launch" && typeof v.name === "string" && v.name.trim()) {
@@ -385,10 +392,15 @@ function sanitizeIncomingProfile(value: unknown): RunnerProfile | undefined {
   const v = value as Record<string, unknown>;
   const name = typeof v.name === "string" ? v.name.trim() : "";
   if (!name) { return undefined; }
-  return {
+  const profile: RunnerProfile = {
     name,
     flash: sanitizeIncomingBind(v.flash, "flash"),
     debug: sanitizeIncomingBind(v.debug, "debug"),
     attach: sanitizeIncomingBind(v.attach, "attach"),
   };
+  // Only preserve buildDebug when it was explicitly sent from the webview.
+  if (v.buildDebug !== undefined && v.buildDebug !== null) {
+    profile.buildDebug = sanitizeIncomingBind(v.buildDebug, "buildDebug");
+  }
+  return profile;
 }

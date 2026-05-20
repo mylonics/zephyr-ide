@@ -25,6 +25,7 @@ import { GlobalConfig, WorkspaceConfig, SetupState, generateSetupState, isActive
 import { loadProjectsFromFile, setWorkspaceSettings, generateGitIgnore, generateExtensionsRecommendations } from "./workspace-config";
 import { parseWestConfigManifest } from "./west-config-parser";
 import { readZephyrIdeJson, writeZephyrIdeJson } from "./zephyr_ide_json";
+import { splitArgs } from "../project_utilities/runner_profiles";
 
 /**
  * Per-extension-host-process token used to detect full process restarts so
@@ -295,22 +296,31 @@ export function migrateRunnerConfig(rc: any, buildState: any | undefined): any {
   // Already in (mid-)bind shape: normalise field set.
   if (rc && typeof rc === "object" && (rc.flash || rc.build || rc.buildDebug || rc.debug || rc.attach)) {
     const flash = rc.flash ?? { kind: "auto" };
-    const debug = rc.debug ?? rc.buildDebug ?? rc.build ?? { kind: "auto" };
+    // `debug` is the debug-only slot; `buildDebug` / `build` are the build-and-debug slot.
+    const debug = rc.debug ?? { kind: "auto" };
     const attach = rc.attach ?? { kind: "auto" };
-    return { name: rc.name, flash, debug, attach };
+    const out: any = { name: rc.name, flash, debug, attach };
+    // Preserve buildDebug / build as the dedicated Build-and-Debug slot.
+    const buildDebugBind = rc.buildDebug ?? rc.build;
+    if (buildDebugBind) { out.buildDebug = buildDebugBind; }
+    return out;
   }
 
   // Pre-bind shape {name, runner, args, argsMode?}.
+  // In the old model: buildDebugTarget → Build-and-Debug; launchTarget → Debug-only.
   const flash: any = rc?.runner
-    ? { kind: "runner", runner: rc.runner, ...(rc.args ? { extraArgs: rc.args } : {}) }
+    ? { kind: "runner", runner: rc.runner, ...(rc.args ? { extraArgs: splitArgs(String(rc.args)) } : {}) }
     : { kind: "auto" };
-  const debugTarget = buildState?.buildDebugTarget ?? buildState?.launchTarget;
-  return {
+  const out: any = {
     name: rc?.name,
     flash,
-    debug: bindFromTarget(debugTarget),
+    debug: bindFromTarget(buildState?.launchTarget),
     attach: bindFromTarget(buildState?.attachTarget),
   };
+  if (buildState?.buildDebugTarget) {
+    out.buildDebug = bindFromTarget(buildState.buildDebugTarget);
+  }
+  return out;
 }
 
 export async function loadWorkspaceState(context: vscode.ExtensionContext): Promise<WorkspaceConfig> {

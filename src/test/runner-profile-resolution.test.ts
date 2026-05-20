@@ -107,14 +107,14 @@ suite("runner-profile-resolution: resolveBind", () => {
   });
 
   test("runner bind with extraArgs → args forwarded", () => {
-    const result = resolveBind({ kind: "runner", runner: "jlink", extraArgs: "--speed=4000" });
+    const result = resolveBind({ kind: "runner", runner: "jlink", extraArgs: ["--speed=4000"] });
     assert.ok(result);
     assert.strictEqual(result.args, "--speed=4000");
   });
 
   test("runner bind + override → args concatenated", () => {
-    const bind: RunnerBind = { kind: "runner", runner: "openocd", extraArgs: "--config a.cfg" };
-    const override: BindOverride = { extraArgs: "--cmd-pre-init reset_config" };
+    const bind: RunnerBind = { kind: "runner", runner: "openocd", extraArgs: ["--config", "a.cfg"] };
+    const override: BindOverride = { extraArgs: ["--cmd-pre-init", "reset_config"] };
     const result = resolveBind(bind, override);
     assert.ok(result);
     assert.strictEqual(result.args, "--config a.cfg --cmd-pre-init reset_config");
@@ -122,14 +122,14 @@ suite("runner-profile-resolution: resolveBind", () => {
 
   test("runner bind with only override extraArgs → override args only", () => {
     const bind: RunnerBind = { kind: "runner", runner: "openocd" };
-    const override: BindOverride = { extraArgs: "--speed=4000" };
+    const override: BindOverride = { extraArgs: ["--speed=4000"] };
     const result = resolveBind(bind, override);
     assert.ok(result);
     assert.strictEqual(result.args, "--speed=4000");
   });
 
   test("runner bind with whitespace-only extraArgs → trimmed, treated as empty", () => {
-    const result = resolveBind({ kind: "runner", runner: "jlink", extraArgs: "   " });
+    const result = resolveBind({ kind: "runner", runner: "jlink", extraArgs: ["   "] });
     assert.ok(result);
     assert.strictEqual(result.args, "");
   });
@@ -139,7 +139,7 @@ suite("runner-profile-resolution: resolveBind", () => {
   });
 
   test("auto bind ignores override", () => {
-    const result = resolveBind({ kind: "auto" }, { extraArgs: "--should-be-ignored" });
+    const result = resolveBind({ kind: "auto" }, { extraArgs: ["--should-be-ignored"] });
     assert.strictEqual(result, undefined);
   });
 });
@@ -164,14 +164,14 @@ suite("runner-profile-resolution: formatBindLabel", () => {
 
   test("runner with extraArgs → runner name + args", () => {
     assert.strictEqual(
-      formatBindLabel({ kind: "runner", runner: "openocd", extraArgs: "--speed=4000" }),
+      formatBindLabel({ kind: "runner", runner: "openocd", extraArgs: ["--speed=4000"] }),
       "openocd --speed=4000",
     );
   });
 
   test("runner with override only → runner name + override", () => {
     assert.strictEqual(
-      formatBindLabel({ kind: "runner", runner: "openocd" }, { extraArgs: "--speed=4000" }),
+      formatBindLabel({ kind: "runner", runner: "openocd" }, { extraArgs: ["--speed=4000"] }),
       "openocd --speed=4000",
     );
   });
@@ -179,8 +179,8 @@ suite("runner-profile-resolution: formatBindLabel", () => {
   test("runner with both extraArgs and override → both appended", () => {
     assert.strictEqual(
       formatBindLabel(
-        { kind: "runner", runner: "openocd", extraArgs: "--config a.cfg" },
-        { extraArgs: "--speed=4000" },
+        { kind: "runner", runner: "openocd", extraArgs: ["--config", "a.cfg"] },
+        { extraArgs: ["--speed=4000"] },
       ),
       "openocd --config a.cfg --speed=4000",
     );
@@ -206,11 +206,11 @@ suite("runner-profile-resolution: formatOverrideLabel", () => {
   });
 
   test("override with extraArgs → parenthesised suffix", () => {
-    assert.strictEqual(formatOverrideLabel({ extraArgs: "--speed=4000" }), "(+ --speed=4000)");
+    assert.strictEqual(formatOverrideLabel({ extraArgs: ["--speed=4000"] }), "(+ --speed=4000)");
   });
 
   test("override with whitespace-only extraArgs → empty string", () => {
-    assert.strictEqual(formatOverrideLabel({ extraArgs: "   " }), "");
+    assert.strictEqual(formatOverrideLabel({ extraArgs: ["   "] }), "");
   });
 });
 
