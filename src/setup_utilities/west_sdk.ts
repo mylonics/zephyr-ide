@@ -260,11 +260,12 @@ function withWindows7ZipOnPath(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
     if (os.platform() !== "win32" || !fs.existsSync(WINDOWS_7ZIP_DIR)) {
         return env;
     }
-    const currentPath = (env["Path"] ?? env["PATH"] ?? "") as string;
+    const pathKey = Object.keys(env).find((key) => key.toLowerCase() === "path") ?? "Path";
+    const currentPath = (env[pathKey] ?? "") as string;
     if (currentPath.toLowerCase().includes(WINDOWS_7ZIP_DIR.toLowerCase())) {
         return env;
     }
-    return { ...env, Path: `${WINDOWS_7ZIP_DIR};${currentPath}` };
+    return { ...env, [pathKey]: `${WINDOWS_7ZIP_DIR};${currentPath}` };
 }
 
 /** Returns true if `7z` is available on PATH (including default install dir fallback on Windows). */
