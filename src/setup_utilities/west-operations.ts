@@ -42,10 +42,11 @@ export function isDangerousVenvResetTarget(setupPath: string, venvPath: string):
   const normalizedSetupPath = path.toUnix(path.resolve(setupPath));
   const normalizedVenvPath = path.toUnix(path.resolve(venvPath));
   const venvPrefix = normalizedVenvPath.endsWith("/") ? normalizedVenvPath : `${normalizedVenvPath}/`;
+  const isFilesystemRoot = normalizedVenvPath === path.toUnix(path.parse(normalizedVenvPath).root);
+  const isWorkspaceRoot = normalizedSetupPath === normalizedVenvPath;
+  const containsWorkspace = normalizedSetupPath.startsWith(venvPrefix);
 
-  return normalizedVenvPath === path.toUnix(path.parse(normalizedVenvPath).root)
-    || normalizedSetupPath === normalizedVenvPath
-    || normalizedSetupPath.startsWith(venvPrefix);
+  return isFilesystemRoot || isWorkspaceRoot || containsWorkspace;
 }
 
 // Python command - will be initialized on first use
