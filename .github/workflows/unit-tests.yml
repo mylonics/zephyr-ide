@@ -34,12 +34,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.branch || github.ref }}
+          # For pull_request events github.ref resolves to refs/pull/NNN/merge,
+          # a virtual ref that disappears once the PR is merged.  Using the
+          # head SHA instead gives us a stable, always-available commit ref.
+          # For workflow_dispatch with an explicit branch input we honour that.
+          # For any other trigger (push, schedule, …) github.sha is stable.
+          ref: ${{ inputs.branch || github.event.pull_request.head.sha || github.sha }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "20.x"
           cache: "npm"
