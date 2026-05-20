@@ -85,6 +85,15 @@ export async function flash(context: vscode.ExtensionContext, wsConfig: Workspac
   const buildFolder = getBuildFolder(wsConfig, project, build);
   let cmd = `west flash --build-dir "${buildFolder}"`;
 
+  // Forward the user-selected sysbuild image (set via "Zephyr IDE: Set
+  // Sysbuild Image") to `west flash --domain` so Flash targets the same image
+  // the Debug provider would (parity with debug-provider.ts:resolveRunnersYamlPath).
+  // When no sysbuild domain is selected, west chooses the default domain itself.
+  const sysbuildImage = wsConfig.projectStates?.[project.name]?.buildStates?.[build.name]?.sysbuildImage;
+  if (sysbuildImage) {
+    cmd += ` --domain ${sysbuildImage}`;
+  }
+
   if (runner !== "default") {
     cmd += ` -r ${runner}`;
   }

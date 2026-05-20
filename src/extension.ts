@@ -48,7 +48,6 @@ import {
   executeShellCommandInPythonEnv,
   reloadEnvironmentVariables,
   getLaunchConfigurationByName,
-  RUNNER_TARGET_PREFIX,
   getPlatformName,
   getPlatformArch,
   isWSL,
@@ -325,9 +324,10 @@ async function startDebugSession(
   let debugTargetFolder: string | undefined;
   if (activeBind && activeBind.kind === 'launch') {
     debugTarget = activeBind.name;
-  } else if (pinnedRunner) {
-    debugTarget = `${RUNNER_TARGET_PREFIX}${pinnedRunner}`;
   }
+  // For pinnedRunner the value would be `${RUNNER_TARGET_PREFIX}${pinnedRunner}`
+  // but the code below always falls into the inline-synthesis path when
+  // `pinnedRunner !== undefined`, so debugTarget is intentionally left unset.
 
   if (mode === 'build-debug') {
     if (!resolved) {
@@ -805,15 +805,6 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.tree-view.delete-build", (item: any) => {
       projectTreeView.handleSharedCommand("deleteBuild", item);
     }),
-    vscode.commands.registerCommand("zephyr-ide.tree-view.flash", (item: any) => {
-      projectTreeView.handleSharedCommand("flash", item);
-    }),
-    vscode.commands.registerCommand("zephyr-ide.tree-view.debug", (item: any) => {
-      projectTreeView.handleSharedCommand("debug", item);
-    }),
-    vscode.commands.registerCommand("zephyr-ide.tree-view.attach", (item: any) => {
-      projectTreeView.handleSharedCommand("attach", item);
-    }),
     vscode.commands.registerCommand("zephyr-ide.tree-view.test", (item: any) => {
       projectTreeView.handleTest(item);
     }),
@@ -1208,8 +1199,12 @@ export async function activate(context: vscode.ExtensionContext) {
     () => project.setActiveBuild(context, wsConfig));
 
   // U5: Single command that lets the user choose which debug target to reconfigure.
+  // The legacy per-target commands (change-debug-launch-for-build /
+  // change-build-debug-launch-for-build / change-debug-attach-launch-for-build)
+  // have been folded into per-slot binds on the active Runner Profile, so this
+  // command now routes directly to the profile picker.
   registerCommandWithRefresh(context, "zephyr-ide.change-launch-for-build", async () => {
-    notifyError("Runner Profile", "Launch bindings are now configured per-slot on the active Runner Profile.");
+    outputInfo("Runner Profile", "Launch bindings are now configured per-slot on the active Runner Profile.");
     void vscode.commands.executeCommand("zephyr-ide.set-active-profile");
   });
 

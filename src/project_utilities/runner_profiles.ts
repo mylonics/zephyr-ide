@@ -106,33 +106,80 @@ export interface BindOverride {
 
 /**
  * Split a shell-style argument string into individual tokens, respecting
- * single- and double-quoted segments (the quote characters are preserved in
- * the token). Used when migrating legacy string-valued `extraArgs` and when
- * parsing user input from text boxes.
+ * single- and double-quoted segments. Quote characters are stripped from the
+ * resulting token (POSIX-like), so `--key="some path"` becomes the single
+ * token `--key=some path`. Inside double quotes, `\\` and `\"` are recognised
+ * as escapes for literal backslash and double-quote.
+ *
+ * This is a small, dependency-free parser — runner extraArgs are simple
+ * key/value pairs, not arbitrary shell expressions (no env-var expansion,
+ * globbing, or command substitution). Unterminated quoted strings are
+ * consumed to end-of-input rather than dropped so a typo doesn't silently
+ * swallow the rest of the user's input.
+ *
+ * Used in three places: migrating legacy string-valued `extraArgs`, parsing
+ * user input from the profile editor text boxes, and re-tokenising args
+ * after `resolveRunnerArgs` variable substitution before they are forwarded
+ * to cortex-debug as `serverArgs` (see debug-provider).
  */
-export function splitArgs(s: string): string[] {
-  const trimmed = s.trim();
-  if (!trimmed) { return []; }
-  const result: string[] = [];
-  let current = "";
-  let inQuote = false;
-  let quoteChar = "";
-  for (const ch of trimmed) {
-    if (inQuote) {
-      current += ch;
-      if (ch === quoteChar) { inQuote = false; }
-    } else if (ch === '"' || ch === "'") {
-      inQuote = true;
-      quoteChar = ch;
-      current += ch;
-    } else if (/\s/.test(ch)) {
-      if (current) { result.push(current); current = ""; }
-    } else {
-      current += ch;
+export function splitArgs(args: string): string[] {
+  const out: string[] = [];
+  const len = args.length;
+  let i = 0;
+  let cur = "";
+  let inToken = false;
+
+  const pushToken = () => {
+    if (inToken) {
+      out.push(cur);
+      cur = "";
+      inToken = false;
     }
+  };
+
+  while (i < len) {
+    const c = args[i];
+
+    if (c === " " || c === "\t" || c === "\n" || c === "\r") {
+      pushToken();
+      i++;
+      continue;
+    }
+
+    if (c === '"') {
+      inToken = true;
+      i++;
+      while (i < len && args[i] !== '"') {
+        if (args[i] === "\\" && i + 1 < len && (args[i + 1] === '"' || args[i + 1] === "\\")) {
+          cur += args[i + 1];
+          i += 2;
+        } else {
+          cur += args[i];
+          i++;
+        }
+      }
+      if (i < len) { i++; } // consume closing quote
+      continue;
+    }
+
+    if (c === "'") {
+      inToken = true;
+      i++;
+      while (i < len && args[i] !== "'") {
+        cur += args[i];
+        i++;
+      }
+      if (i < len) { i++; } // consume closing quote
+      continue;
+    }
+
+    inToken = true;
+    cur += c;
+    i++;
   }
-  if (current) { result.push(current); }
-  return result;
+
+  pushToken();
+  return out;
 }
 
 /** Normalise an unknown serialised `extraArgs` value (string for legacy data,

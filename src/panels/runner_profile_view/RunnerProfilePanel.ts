@@ -111,14 +111,17 @@ export class RunnerProfilePanel {
     this._wsConfig = wsConfig;
     this._globalConfig = globalConfig;
 
-    this.updateContent(wsConfig, globalConfig);
-
+    // Register message handler BEFORE first updateContent / setting HTML so any
+    // early `ready` message from the webview is not lost (see "webview init"
+    // convention used by HostToolInstallView, WorkspacePanel, SetupPanel, SDKPanel).
     this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
     this._panel.webview.onDidReceiveMessage(
       (message) => { void this.handleWebviewMessage(message); },
       null,
       this._disposables,
     );
+
+    this.updateContent(wsConfig, globalConfig);
   }
 
   public updateContent(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
@@ -161,6 +164,10 @@ export class RunnerProfilePanel {
 
       case "deleteProfile":
         await this.handleDeleteProfile(message);
+        return;
+
+      case "duplicateProfile":
+        await this.handleDuplicateProfile(message);
         return;
 
       case "setActiveProfile":
@@ -269,6 +276,46 @@ export class RunnerProfilePanel {
       await deleteRunnerProfile(this._wsConfig, scope, name);
     } catch (e) {
       notifyError("Runner Profile", `Failed to delete profile: ${String(e)}`);
+    }
+    await this.pushState();
+  }
+
+  /**
+   * Duplicate an existing profile in-place. Copies the source profile's bind
+   * slots into a new profile with an auto-suggested unique name. Useful when
+   * the user wants to fork a slight variant (e.g. different `extraArgs`)
+   * without re-entering every bind by hand.
+   */
+  private async handleDuplicateProfile(message: Record<string, any>) {
+    const scope = parseScope(message.scope);
+    if (!scope) { return; }
+    if (scope === "workspace" && !this._wsConfig.rootPath) {
+      notifyError("Runner Profile", "Open a workspace folder to duplicate workspace-scoped profiles.");
+      return;
+    }
+    const sourceName = typeof message.name === "string" ? message.name.trim() : "";
+    if (!sourceName) { return; }
+    const existing = listRunnerProfilesByScope(this._wsConfig);
+    const list = scope === "user" ? existing.user : existing.workspace;
+    const source = list.find(p => p.name === sourceName);
+    if (!source) {
+      notifyError("Runner Profile", `Source profile not found in ${scope} scope: "${sourceName}"`);
+      return;
+    }
+    const newName = suggestProfileName(this._wsConfig, `${source.name} copy`);
+    const profile: RunnerProfile = {
+      name: newName,
+      flash: deepCloneBind(source.flash),
+      debug: deepCloneBind(source.debug),
+      attach: deepCloneBind(source.attach),
+    };
+    if (source.buildDebug) {
+      profile.buildDebug = deepCloneBind(source.buildDebug);
+    }
+    try {
+      await saveRunnerProfile(this._wsConfig, scope, profile);
+    } catch (e) {
+      notifyError("Runner Profile", `Failed to duplicate profile: ${String(e)}`);
     }
     await this.pushState();
   }
@@ -403,4 +450,22 @@ function sanitizeIncomingProfile(value: unknown): RunnerProfile | undefined {
     profile.buildDebug = sanitizeIncomingBind(v.buildDebug, "buildDebug");
   }
   return profile;
+}
+
+/**
+ * Shallow-clone a `RunnerBind`, deep-copying its `extraArgs` array so two
+ * profiles can mutate their bind args independently after a Duplicate.
+ */
+function deepCloneBind(bind: RunnerProfile["flash"]): RunnerProfile["flash"] {
+  if (bind.kind === "runner") {
+    const copy: RunnerProfile["flash"] = { kind: "runner", runner: bind.runner };
+    if (bind.extraArgs && bind.extraArgs.length > 0) {
+      copy.extraArgs = [...bind.extraArgs];
+    }
+    return copy;
+  }
+  if (bind.kind === "launch") {
+    return { kind: "launch", name: bind.name };
+  }
+  return { kind: "auto" };
 }

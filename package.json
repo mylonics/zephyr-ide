@@ -1045,21 +1045,6 @@
         "icon": "$(trash)"
       },
       {
-        "command": "zephyr-ide.tree-view.flash",
-        "title": "Flash",
-        "icon": "$(arrow-circle-up)"
-      },
-      {
-        "command": "zephyr-ide.tree-view.debug",
-        "title": "Debug",
-        "icon": "$(debug-alt)"
-      },
-      {
-        "command": "zephyr-ide.tree-view.attach",
-        "title": "Attach",
-        "icon": "$(debug-disconnect)"
-      },
-      {
         "command": "zephyr-ide.tree-view.test",
         "title": "Test",
         "icon": "$(play)"
@@ -1130,6 +1115,18 @@
               "cwd": {
                 "type": "string",
                 "description": "Working directory for the debug session. Defaults to the workspace folder."
+              },
+              "BMPGDBSerialPort": {
+                "type": "string",
+                "description": "Black Magic Probe GDB serial port (e.g. \"/dev/ttyACM0\" on Linux/macOS, \"COM3\" on Windows, or \"${config:bmp_serial_port}\")."
+              },
+              "interface": {
+                "type": "string",
+                "description": "Debug transport (\"swd\" or \"jtag\"). Forwarded to cortex-debug."
+              },
+              "device": {
+                "type": "string",
+                "description": "Target device identifier (e.g. \"STM32F401RE\"). Forwarded to cortex-debug."
               }
             }
           },
@@ -1154,6 +1151,18 @@
               "cwd": {
                 "type": "string",
                 "description": "Working directory for the debug session. Defaults to the workspace folder."
+              },
+              "BMPGDBSerialPort": {
+                "type": "string",
+                "description": "Black Magic Probe GDB serial port (e.g. \"/dev/ttyACM0\" on Linux/macOS, \"COM3\" on Windows, or \"${config:bmp_serial_port}\")."
+              },
+              "interface": {
+                "type": "string",
+                "description": "Debug transport (\"swd\" or \"jtag\"). Forwarded to cortex-debug."
+              },
+              "device": {
+                "type": "string",
+                "description": "Target device identifier. Forwarded to cortex-debug."
               }
             }
           }
