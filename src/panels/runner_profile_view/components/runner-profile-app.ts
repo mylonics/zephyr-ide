@@ -196,13 +196,21 @@ export class RunnerProfileApp extends ZephyrLitElement {
     const msg = event.data;
     if (msg?.command === "updateContent" && msg.data) {
       this._data = msg.data as PanelData;
-      // Drop drafts whose original profile no longer exists in the new payload.
-      const seen = new Set<string>();
-      for (const p of this._data.userProfiles) { seen.add(`user:${p.name}`); }
-      for (const p of this._data.workspaceProfiles) { seen.add(`workspace:${p.name}`); }
+      // Drop drafts whose original profile no longer exists in the new payload,
+      // and drop drafts that now match the saved server state (e.g. after a
+      // successful save the panel should revert to clean).
       const next = new Map<string, Profile>();
       for (const [k, v] of this._drafts) {
-        if (seen.has(k)) { next.set(k, v); }
+        const [scopeStr, ...nameParts] = k.split(":");
+        const pName = nameParts.join(":");
+        const serverList = scopeStr === "user"
+          ? this._data.userProfiles
+          : this._data.workspaceProfiles;
+        const serverProfile = serverList.find(p => p.name === pName);
+        // Keep draft only if profile still exists AND the draft differs from server.
+        if (serverProfile && !profilesEqual(v, serverProfile)) {
+          next.set(k, v);
+        }
       }
       this._drafts = next;
     }
@@ -293,49 +301,67 @@ export class RunnerProfileApp extends ZephyrLitElement {
     this._updateDraft(scope, originalName, (p) => ({ ...p, name: value }));
   }
 
-  private _onKindChange(
+  private _onBindSelectChange(
     scope: Scope, originalName: string,
     slot: "flash" | "debug" | "attach", e: Event,
   ) {
-    const newKind = stringFromEvent(e) as BindKind;
+    const value = stringFromEvent(e);
     this._updateDraft(scope, originalName, (p) => {
-      const nextBind: ProfileBind = newKind === "auto"
-        ? { kind: "auto" }
-        : newKind === "runner"
-          ? { kind: "runner", runner: p[slot]?.runner || (this._data?.knownRunners[0] ?? "openocd"), extraArgs: "" }
-          : { kind: "launch", name: p[slot]?.name || (this._data?.launchConfigNames[0] ?? "") };
-      return { ...p, [slot]: nextBind };
+      const existingBind = p[slot];
+      let newBind: ProfileBind;
+      if (value === "auto") {
+        newBind = { kind: "auto" };
+      } else if (value.startsWith("launch:")) {
+        newBind = { kind: "launch", name: value.slice(7) };
+      } else if (value.startsWith("runner:")) {
+        const runnerName = value.slice(7);
+        const extraArgs = existingBind.kind === "runner" ? (existingBind.extraArgs ?? "") : "";
+        newBind = { kind: "runner", runner: runnerName, extraArgs };
+      } else {
+        newBind = { kind: "auto" };
+      }
+      return { ...p, [slot]: newBind };
     });
   }
 
-  private _onRunnerChange(
+  private _onArgItemChange(
+    scope: Scope, originalName: string,
+    slot: "flash" | "debug" | "attach", index: number, e: Event,
+  ) {
+    const value = stringFromEvent(e);
+    this._updateDraft(scope, originalName, (p) => {
+      const args = parseArgs(p[slot].extraArgs ?? "");
+      if (value.trim()) {
+        args[index] = value.trim();
+      } else {
+        args.splice(index, 1);
+      }
+      return { ...p, [slot]: { ...p[slot], extraArgs: joinArgs(args) } };
+    });
+  }
+
+  private _onArgItemDelete(
+    scope: Scope, originalName: string,
+    slot: "flash" | "debug" | "attach", index: number,
+  ) {
+    this._updateDraft(scope, originalName, (p) => {
+      const args = parseArgs(p[slot].extraArgs ?? "");
+      args.splice(index, 1);
+      return { ...p, [slot]: { ...p[slot], extraArgs: joinArgs(args) } };
+    });
+  }
+
+  private _onNewArgCommit(
     scope: Scope, originalName: string,
     slot: "flash" | "debug" | "attach", e: Event,
   ) {
-    const value = stringFromEvent(e);
-    this._updateDraft(scope, originalName, (p) => ({
-      ...p, [slot]: { ...p[slot], kind: "runner", runner: value },
-    }));
-  }
-
-  private _onExtraArgsInput(
-    scope: Scope, originalName: string,
-    slot: "flash" | "debug" | "attach", e: Event,
-  ) {
-    const value = stringFromEvent(e);
-    this._updateDraft(scope, originalName, (p) => ({
-      ...p, [slot]: { ...p[slot], kind: "runner", runner: p[slot].runner ?? "", extraArgs: value },
-    }));
-  }
-
-  private _onLaunchNameChange(
-    scope: Scope, originalName: string,
-    slot: "debug" | "attach", e: Event,
-  ) {
-    const value = stringFromEvent(e);
-    this._updateDraft(scope, originalName, (p) => ({
-      ...p, [slot]: { kind: "launch", name: value },
-    }));
+    const value = stringFromEvent(e).trim();
+    if (!value) { return; }
+    this._updateDraft(scope, originalName, (p) => {
+      const args = parseArgs(p[slot].extraArgs ?? "");
+      args.push(value);
+      return { ...p, [slot]: { ...p[slot], extraArgs: joinArgs(args) } };
+    });
   }
 
   // -- Arg picker helpers --
@@ -359,15 +385,17 @@ export class RunnerProfileApp extends ZephyrLitElement {
   }
 
   private _appendArg(scope: Scope, originalName: string, slot: "flash" | "debug" | "attach", arg: string) {
+    const trimmed = arg.trim();
+    if (!trimmed) { return; }
     this._updateDraft(scope, originalName, (p) => {
-      const current = p[slot].extraArgs ?? "";
-      const joined = current.trim() ? `${current.trim()} ${arg}` : arg;
-      return { ...p, [slot]: { ...p[slot], kind: "runner", runner: p[slot].runner ?? "", extraArgs: joined } };
+      const args = parseArgs(p[slot].extraArgs ?? "");
+      args.push(trimmed);
+      return { ...p, [slot]: { ...p[slot], kind: "runner", runner: p[slot].runner ?? "", extraArgs: joinArgs(args) } };
     });
     this._closeArgPicker(scope, originalName, slot);
   }
 
-  /** Render the extra-args editor with a common-arg suggestion picker. */
+  /** Render per-arg rows plus a generic "add argument" row and optional suggestion picker. */
   private _renderArgEditor(
     scope: Scope, originalName: string,
     slot: "flash" | "debug" | "attach",
@@ -376,24 +404,41 @@ export class RunnerProfileApp extends ZephyrLitElement {
   ) {
     const key = this._argPickerKey(scope, originalName, slot);
     const pickerOpen = this._showArgPicker.has(key);
-    const suggestions = RUNNER_COMMON_ARGS[currentRunner] ?? [];
+    const allSuggestions = RUNNER_COMMON_ARGS[currentRunner] ?? [];
+    const args = parseArgs(bind.extraArgs ?? "");
+    // Filter out suggestions whose flag is already present in the current args.
+    const availableSuggestions = allSuggestions.filter(
+      s => !args.some(a => a === s.label || a.startsWith(s.label + "=") || a.startsWith(s.label + " ")),
+    );
 
     return html`
       <div class="arg-editor">
-        <div class="arg-editor-row">
-          <vscode-textfield class="arg-editor-input"
-            .value=${bind.extraArgs ?? ""}
-            placeholder="extra args (optional)"
-            @change=${(e: Event) => this._onExtraArgsInput(scope, originalName, slot, e)}
-            @input=${(e: Event) => this._onExtraArgsInput(scope, originalName, slot, e)}>
+        ${args.map((arg, i) => html`
+          <div class="arg-row">
+            <vscode-textfield class="arg-row-input"
+              .value=${arg}
+              placeholder="argument"
+              @change=${(e: Event) => this._onArgItemChange(scope, originalName, slot, i, e)}>
+            </vscode-textfield>
+            <vscode-button appearance="icon" icon="close"
+              title="Remove argument"
+              @click=${() => this._onArgItemDelete(scope, originalName, slot, i)}>
+            </vscode-button>
+          </div>
+        `)}
+        <div class="arg-row arg-row-new">
+          <vscode-textfield class="arg-row-input"
+            .value=${""}
+            placeholder="Add argument…"
+            @change=${(e: Event) => this._onNewArgCommit(scope, originalName, slot, e)}>
           </vscode-textfield>
-          ${suggestions.length > 0 ? html`
+          ${availableSuggestions.length > 0 ? html`
             <vscode-button appearance="icon" icon="chevron-down"
               title="Browse common arguments for ${currentRunner}"
               @click=${() => this._toggleArgPicker(scope, originalName, slot)}>
             </vscode-button>` : nothing}
         </div>
-        ${pickerOpen && suggestions.length > 0 ? html`
+        ${pickerOpen && availableSuggestions.length > 0 ? html`
           <div class="arg-picker-panel">
             <div class="arg-picker-header">
               <span>Common <strong>${currentRunner}</strong> arguments</span>
@@ -402,7 +447,7 @@ export class RunnerProfileApp extends ZephyrLitElement {
               </vscode-button>
             </div>
             <div class="arg-picker-list">
-              ${suggestions.map(s => html`
+              ${availableSuggestions.map(s => html`
                 <button class="arg-picker-item"
                   title=${s.description}
                   @click=${() => this._appendArg(scope, originalName, slot, s.arg)}>
@@ -537,7 +582,7 @@ export class RunnerProfileApp extends ZephyrLitElement {
         : nothing}
         </div>
 
-        <div class="profile-slot-grid">
+        <div class="profile-slots">
           ${this._renderSlot(scope, original.name, draft, "flash", "zap")}
           ${this._renderSlot(scope, original.name, draft, "debug", "debug-alt")}
           ${this._renderSlot(scope, original.name, draft, "attach", "debug-console")}
@@ -577,66 +622,57 @@ export class RunnerProfileApp extends ZephyrLitElement {
     const bind = draft[slot];
     const label = slot.charAt(0).toUpperCase() + slot.slice(1);
     const allowLaunch = slot !== "flash";
-
-    return html`
-      <div class="profile-slot-label">
-        <i class="codicon codicon-${icon}"></i> ${label}
-      </div>
-      <vscode-single-select
-        .value=${bind.kind}
-        @change=${(e: Event) => this._onKindChange(scope, originalName, slot, e)}>
-        <vscode-option value="auto" ?selected=${bind.kind === "auto"}>Auto (runners.yaml)</vscode-option>
-        <vscode-option value="runner" ?selected=${bind.kind === "runner"}>Runner</vscode-option>
-        ${allowLaunch ? html`<vscode-option value="launch" ?selected=${bind.kind === "launch"}>launch.json</vscode-option>` : nothing}
-      </vscode-single-select>
-      <div class="profile-slot-payload">
-        ${this._renderSlotPayload(scope, originalName, slot, bind)}
-      </div>
-    `;
-  }
-
-  private _renderSlotPayload(
-    scope: Scope, originalName: string,
-    slot: "flash" | "debug" | "attach", bind: ProfileBind,
-  ) {
     const d = this._data!;
-    if (bind.kind === "auto") {
-      return html`<span class="scope-section-hint">Uses runners.yaml defaults.</span>`;
-    }
-    if (bind.kind === "runner") {
-      const knownRunners = d.knownRunners.length > 0 ? d.knownRunners : [bind.runner ?? "openocd"];
-      const currentRunner = bind.runner ?? knownRunners[0];
-      return html`
-        <vscode-single-select
-          .value=${currentRunner}
-          @change=${(e: Event) => this._onRunnerChange(scope, originalName, slot, e)}>
-          ${knownRunners.map(r => html`<vscode-option value=${r} ?selected=${r === currentRunner}>${r}</vscode-option>`)}
-        </vscode-single-select>
-        ${this._renderArgEditor(scope, originalName, slot, bind, currentRunner)}
-      `;
-    }
-    // launch
-    if (slot === "flash") {
-      // shouldn't happen — guarded by select options — but render auto fallback
-      return html`<span class="scope-section-hint">launch.json is invalid for flash.</span>`;
-    }
-    if (d.launchConfigNames.length === 0) {
-      return html`
-        <vscode-textfield
-          .value=${bind.name ?? ""}
-          placeholder="launch.json config name"
-          @change=${(e: Event) => this._onLaunchNameChange(scope, originalName, slot as "debug" | "attach", e)}
-          @input=${(e: Event) => this._onLaunchNameChange(scope, originalName, slot as "debug" | "attach", e)}>
-        </vscode-textfield>
-        <span class="no-launch-warning">No launch.json configs detected.</span>
-      `;
-    }
+    const currentValue = bindToSelectValue(bind);
+    const knownRunners = d.knownRunners.length > 0 ? d.knownRunners : (bind.kind === "runner" ? [bind.runner ?? "openocd"] : ["openocd"]);
+
+    // If the saved bind is a launch config not in the known list, keep it selectable.
+    const syntheticLaunch = allowLaunch && bind.kind === "launch" && bind.name
+      && !d.launchConfigNames.includes(bind.name);
+
     return html`
-      <vscode-single-select
-        .value=${bind.name ?? d.launchConfigNames[0]}
-        @change=${(e: Event) => this._onLaunchNameChange(scope, originalName, slot as "debug" | "attach", e)}>
-        ${d.launchConfigNames.map(n => html`<vscode-option value=${n} ?selected=${n === bind.name}>${n}</vscode-option>`)}
-      </vscode-single-select>
+      <div class="profile-slot-section">
+        <div class="profile-slot-header">
+          <i class="codicon codicon-${icon}"></i>
+          <span class="profile-slot-title">${label}</span>
+        </div>
+        <div class="profile-slot-body">
+          <vscode-single-select class="profile-slot-select"
+            .value=${currentValue}
+            @change=${(e: Event) => this._onBindSelectChange(scope, originalName, slot, e)}>
+            <vscode-option value="auto" ?selected=${bind.kind === "auto"}>Auto (runners.yaml)</vscode-option>
+            ${allowLaunch && d.launchConfigNames.length > 0 ? html`
+              <vscode-option value="" disabled>─── launch.json ───</vscode-option>
+              ${d.launchConfigNames.map(n => html`
+                <vscode-option
+                  value=${"launch:" + n}
+                  ?selected=${bind.kind === "launch" && bind.name === n}>${n}</vscode-option>
+              `)}
+            ` : nothing}
+            ${syntheticLaunch ? html`
+              <vscode-option value="" disabled>─── launch.json ───</vscode-option>
+              <vscode-option
+                value=${"launch:" + bind.name}
+                ?selected=${true}>${bind.name}</vscode-option>
+            ` : nothing}
+            <vscode-option value="" disabled>─── Runners ───</vscode-option>
+            ${knownRunners.map(r => html`
+              <vscode-option
+                value=${"runner:" + r}
+                ?selected=${bind.kind === "runner" && bind.runner === r}>${r}</vscode-option>
+            `)}
+          </vscode-single-select>
+          ${bind.kind === "runner"
+        ? this._renderArgEditor(scope, originalName, slot, bind, bind.runner ?? "")
+        : nothing}
+          ${bind.kind === "auto"
+        ? html`<span class="scope-section-hint">Uses runners.yaml defaults.</span>`
+        : nothing}
+          ${bind.kind === "launch" && allowLaunch && d.launchConfigNames.length === 0 && !syntheticLaunch
+        ? html`<span class="no-launch-warning">No launch.json configs detected.</span>`
+        : nothing}
+        </div>
+      </div>
     `;
   }
 }
@@ -649,6 +685,42 @@ function stringFromEvent(e: Event): string {
   const target = e.target as { value?: unknown } | null;
   if (target && typeof target.value === "string") { return target.value; }
   return "";
+}
+
+function bindToSelectValue(bind: ProfileBind): string {
+  if (bind.kind === "auto") { return "auto"; }
+  if (bind.kind === "launch") { return `launch:${bind.name ?? ""}`; }
+  return `runner:${bind.runner ?? ""}`;
+}
+
+/** Split an extraArgs string into individual argument tokens, respecting quoted strings. */
+function parseArgs(extraArgs: string): string[] {
+  const s = extraArgs.trim();
+  if (!s) { return []; }
+  const result: string[] = [];
+  let current = "";
+  let inQuote = false;
+  let quoteChar = "";
+  for (const ch of s) {
+    if (inQuote) {
+      current += ch;
+      if (ch === quoteChar) { inQuote = false; }
+    } else if (ch === '"' || ch === "'") {
+      inQuote = true;
+      quoteChar = ch;
+      current += ch;
+    } else if (/\s/.test(ch)) {
+      if (current) { result.push(current); current = ""; }
+    } else {
+      current += ch;
+    }
+  }
+  if (current) { result.push(current); }
+  return result;
+}
+
+function joinArgs(args: string[]): string {
+  return args.join(" ");
 }
 
 function cloneProfile(p: Profile): Profile {
