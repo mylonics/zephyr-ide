@@ -15,128 +15,116 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/**
+ * Known Zephyr runners + a thin single-bind picker used by the profile editor.
+ * The old `RunnerConfig` per-build model has been replaced by `RunnerProfile`
+ * (see `runner_profiles.ts`).
+ */
+
 import { QuickPickItem } from 'vscode';
-import { MultiStepInput, noOpValidate, mapToQuickPickItems } from "../utilities/multistepQuickPick";
+import * as vscode from 'vscode';
+import { MultiStepInput, noOpValidate } from "../utilities/multistepQuickPick";
 import { outputError } from "../utilities/output";
+import { RunnerBind, splitArgs } from "./runner_profiles";
 
-import * as path from "upath";
-import * as fs from 'fs';
+/** All known west runners. */
+export const KNOWN_RUNNERS = [
+  "openocd",
+  "jlink",
+  "pyocd",
+  "stlink",
+  "nrfjprog",
+  "nrfutil",
+  "blackmagicprobe",
+  "linkserver",
+  "dfu-util",
+  "uf2",
+  "esp32",
+  "qemu",
+  "bossac",
+  "teensy",
+  "bflb-mcu-tool",
+  "arc-jtag",
+  "dediprog",
+  "silabs_commander",
+  "xsdb",
+];
 
-// Config for the extension
-export interface RunnerConfig {
-  name: string;
-  runner: string;
-  args: string;
+export interface BindSelectorOptions {
+  /** Slot being edited. Flash cannot use `launch.json` references. */
+  slot: "flash" | "debug" | "attach";
+  /** Runners listed in this build's runners.yaml (shown first). */
+  availableRunners?: string[];
+  /** Existing bind to seed extra-args on step 2. */
+  current?: RunnerBind;
 }
 
-export interface RunnerState {
-  viewOpen?: boolean;
-}
+/**
+ * Two-step wizard: pick a runner (or "auto"), then optionally enter extra args.
+ * `launch.json` entries are NOT offered here — for Debug/Attach binds the
+ * profile editor uses `selectLaunchConfiguration` directly.
+ */
+export async function bindSelector(options: BindSelectorOptions): Promise<RunnerBind | undefined> {
+  const title = `Pick runner for ${options.slot}`;
+  const availableSet = new Set(options.availableRunners ?? []);
 
-export type RunnerConfigDictionary = { [name: string]: RunnerConfig };
-export type RunnerStateDictionary = { [name: string]: RunnerState };
-
-export async function runnerSelector(boardfolder: string) {
-  const title = 'Add Runner';
-  const runners = ["default"];
-
-  const boardcmakePath = path.join(boardfolder, 'board.cmake');
-  if (fs.existsSync(boardcmakePath)) {
-    const boardCMakeFile = fs.readFileSync(boardcmakePath, 'utf8');
-    boardCMakeFile.split(/\r?\n/).forEach(line => {
-
-      if (line.includes("include(${ZEPHYR_BASE}/boards/common/") && line.includes(".board.cmake)")) {
-        runners.push(line.replace('include(${ZEPHYR_BASE}/boards/common/', '').replace(".board.cmake)", '').replace(/\s/g, ''));
-      }
-    });
+  const items: QuickPickItem[] = [
+    { label: "auto", description: "Use runners.yaml defaults" },
+    { label: "", kind: vscode.QuickPickItemKind.Separator } as QuickPickItem,
+  ];
+  if (options.availableRunners && options.availableRunners.length > 0) {
+    items.push({ label: "Available for this board", kind: vscode.QuickPickItemKind.Separator });
+    items.push(...options.availableRunners.map(r => ({ label: r, description: "available" })));
+    items.push({ label: "Other runners", kind: vscode.QuickPickItemKind.Separator });
   }
+  items.push(...KNOWN_RUNNERS.filter(r => !availableSet.has(r)).map(r => ({ label: r })));
 
-  async function pickRunner(input: MultiStepInput, state: Partial<RunnerConfig>) {
+  let pickedBind: RunnerBind | undefined;
 
-    // Get runners
-    const runnersQpItems: QuickPickItem[] = mapToQuickPickItems(runners);
-
-    const pickPromise = input.showQuickPick({
+  async function step1(input: MultiStepInput) {
+    const pick = await input.showQuickPick({
       title,
       step: 1,
-      totalSteps: 3,
-      placeholder: 'Pick Runner',
-      items: runnersQpItems,
+      totalSteps: 2,
+      placeholder: "Pick runner (or 'auto')",
+      items,
       ignoreFocusOut: true,
-      activeItem: typeof state.runner !== 'string' ? state.runner : undefined
     }).catch((error) => {
-      outputError("Runner Selector", String(error));
+      outputError("Bind Selector", String(error));
       return undefined;
     });
-    const pick = await pickPromise;
-    if (!pick) {
+    if (!pick) { return; }
+    if (pick.label === "auto") {
+      pickedBind = { kind: "auto" };
       return;
     }
-
-    state.runner = pick.label;
-    return (input: MultiStepInput) => inputRunnerName(input, state);
+    pickedBind = { kind: "runner", runner: pick.label };
+    return (input: MultiStepInput) => step2(input);
   }
 
-  async function inputRunnerName(input: MultiStepInput, state: Partial<RunnerConfig>) {
-    if (state.runner === undefined) {
-      return;
-    }
-
-    const inputNamePromise = input.showInputBox({
+  async function step2(input: MultiStepInput) {
+    const seeded = options.current && options.current.kind === "runner"
+      ? (options.current.extraArgs ?? []).join(" ")
+      : "";
+    const args = await input.showInputBox({
       title,
       step: 2,
-      totalSteps: 3,
-      value: state.runner,
+      totalSteps: 2,
+      value: seeded,
+      prompt: "Extra args (optional, e.g. --config board.cfg)",
       ignoreFocusOut: true,
-      prompt: 'Enter runner configuration name',
-      validate: noOpValidate
+      validate: noOpValidate,
     }).catch((error) => {
-      outputError("Runner Selector", String(error));
+      outputError("Bind Selector", String(error));
       return undefined;
     });
-
-    state.name = await inputNamePromise;
-    if (state.name === undefined) {
-      return;
+    if (args === undefined) { return; }
+    const trimmed = args.trim();
+    if (trimmed && pickedBind && pickedBind.kind === "runner") {
+      pickedBind = { kind: "runner", runner: pickedBind.runner, extraArgs: splitArgs(trimmed) };
     }
-    return (input: MultiStepInput) => addRunnerArguments(input, state);
   }
 
-  async function addRunnerArguments(input: MultiStepInput, state: Partial<RunnerConfig>) {
-    if (state.name === undefined) {
-      return;
-    }
-
-    const inputPromise = input.showInputBox({
-      title,
-      step: 3,
-      totalSteps: 3,
-      value: "",
-      prompt: 'Add Runner Arguments',
-      ignoreFocusOut: true,
-      validate: noOpValidate
-    }).catch((error) => {
-      outputError("Runner Selector", String(error));
-      return undefined;
-    });
-    state.args = await inputPromise;
-
-    if (state.args === undefined) {
-      return;
-    }
-    return;
-  }
-
-  async function collectInputs() {
-    const state = {} as Partial<RunnerConfig>;
-    await MultiStepInput.run(input => pickRunner(input, state));
-    return state;
-  }
-
-  const state = await collectInputs();
-  if (!state.name) {
-    return undefined;
-  }
-  return state as RunnerConfig;
+  await MultiStepInput.run((input) => step1(input));
+  return pickedBind;
 }
-

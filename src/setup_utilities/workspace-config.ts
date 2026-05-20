@@ -159,9 +159,11 @@ function projectLoader(config: WorkspaceConfig, projects: any): boolean {
       }
     }
 
+    // Runner profile migration is handled in state-management.ts loadWorkspaceState.
+
     for (const build_key in projects[key].buildConfigs) {
       if (config.projectStates[key].buildStates[build_key] === undefined) {
-        config.projectStates[key].buildStates[build_key] = { runnerStates: {} };
+        config.projectStates[key].buildStates[build_key] = {};
         if (config.projectStates[key].activeBuildConfig === undefined) {
           config.projectStates[key].activeBuildConfig = build_key;
         }
@@ -184,15 +186,6 @@ function projectLoader(config: WorkspaceConfig, projects: any): boolean {
       }
       buildConfig.westBuildArgs = normalizedWestBuildArgs;
       buildConfig.westBuildCMakeArgs = normalizedWestBuildCMakeArgs;
-
-      for (const runner_key in projects[key].buildConfigs[build_key].runnerConfigs) {
-        if (config.projectStates[key].buildStates[build_key].runnerStates[runner_key] === undefined) {
-          config.projectStates[key].buildStates[build_key].runnerStates[runner_key] = {};
-          if (config.projectStates[key].buildStates[build_key].activeRunner === undefined) {
-            config.projectStates[key].buildStates[build_key].activeRunner = runner_key;
-          }
-        }
-      }
     }
   }
   return requiresSave;

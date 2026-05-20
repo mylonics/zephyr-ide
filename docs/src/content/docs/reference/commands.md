@@ -56,6 +56,8 @@ Zephyr IDE provides the following commands accessible via the command palette (C
 
 ## Build Configuration Management
 
+- `Zephyr IDE: Manage Build Variables` - Add, edit, or delete custom key-value variables on the active build (`customVars`). Variables are available as `${buildvar:key}` in runner profile args and via the `zephyr-ide.get-active-build-variable` input command in `tasks.json`/`launch.json`.
+- `Zephyr IDE: Manage Project Variables` - Add, edit, or delete custom key-value variables on the active project (`customVars`). Variables are available as `${projectvar:key}` in runner profile args and via the `zephyr-ide.get-active-project-variable` input command.
 - `Zephyr IDE: Add Build Configuration` - Add new build configuration
 - `Zephyr IDE: Remove Build` - Remove build configuration
 - `Zephyr IDE: Set Active Build` - Set active build configuration
@@ -65,27 +67,33 @@ Zephyr IDE provides the following commands accessible via the command palette (C
 - `Zephyr IDE: Remove Build Overlay Files` - Remove overlay files from build
 - `Zephyr IDE: Modify Build Arguments` - Modify build arguments
 
-## Runner Management
+## Runner Profile Management
 
-- `Zephyr IDE: Add Runner` - Add runner to build configuration
-- `Zephyr IDE: Remove Runner` - Remove runner from build configuration
-- `Zephyr IDE: Set Active Runner` - Set active runner
+- `Zephyr IDE: Select Active Runner Profile` - Choose which Runner Profile drives the active build's Flash / Debug / Attach actions, or clear it
+- `Zephyr IDE: Open Runner Profile Panel` - Open the dedicated CRUD webview to create, rename, edit, and delete Runner Profiles at workspace or user scope
+
+Runner Profiles live in two places, merged with workspace overriding user on name collision:
+
+- `zephyr-ide.runnerProfiles` user setting — shared across workspaces.
+- `.vscode/zephyr-ide.json#runnerProfiles` — committed alongside the project.
+
+Both stores are edited interactively from the Runner Profile Panel; see [Runner Profiles](configuration.md#runner-profiles) for the data model.
 
 ## Build and Flash Operations
 
 - `Zephyr IDE: Build Pristine` - Build with pristine flag (clean build)
 - `Zephyr IDE: Build` - Build active project
 - `Zephyr IDE: Clean` - Clean build artifacts
-- `Zephyr IDE: Flash` - Flash build to target device
+- `Zephyr IDE: Flash` - Flash build to target device. When the `zephyr-ide.buildBeforeFlash` setting is `true`, the build runs first; when `false` (default) the existing image is flashed as-is. The dedicated `Build and Flash` command always builds first regardless of this setting.
+- `Zephyr IDE: Build and Flash` - Build first, then flash
+- `Zephyr IDE: Set Sysbuild Image` (`zephyr-ide.set-sysbuild-image`) - For sysbuild-enabled builds, pick which sub-image (`--domain`) Flash, Debug and Debug Attach target. The selection is persisted per-build under `projectStates[project].buildStates[build].sysbuildImage` and is forwarded as `west flash --domain <image>` and to `runners.yaml` lookup for debug. When unset, west chooses the default domain itself.
 
 ## Debug Operations
 
-- `Zephyr IDE: Debug` - Start debugging session
-- `Zephyr IDE: Debug Attach` - Attach debugger to running target
-- `Zephyr IDE: Build and Debug` - Build and start debugging
-- `Zephyr IDE: Change Debug Launch Configuration For Build` - Change debug launch configuration
-- `Zephyr IDE: Change Build and Debug Launch Configuration For Build` - Change build and debug launch configuration
-- `Zephyr IDE: Change Debug Attach Launch Configuration For Build` - Change debug attach launch configuration
+- `Zephyr IDE: Debug` - Start a debug session (uses the active Runner Profile's `debug` bind)
+- `Zephyr IDE: Debug Attach` - Attach the debugger to a running target (uses the `attach` bind)
+- `Zephyr IDE: Build and Debug` - Build first, then debug. By default this shares the `debug` bind with `Zephyr IDE: Debug`; when the `zephyr-ide.separateBuildDebugProfile` setting is enabled, `Build and Debug` uses the profile's separate `buildDebug` bind instead (falling back to `debug` if `buildDebug` is unset).
+- `Zephyr IDE: Open runners.yaml` (`zephyr-ide.open-runners-yaml`) - Open the active build's generated `runners.yaml` in the editor. Useful when debugging an unexpected runner choice or when looking up the values cortex-debug receives via `${runners-yaml:...}` substitutions in a `zephyr-ide` debug configuration.
 
 ## Configuration and Analysis Tools
 
@@ -134,5 +142,5 @@ The following commands are used in `launch.json` to dynamically retrieve project
 - `Zephyr IDE: Get Zephyr ELF Path` - Get the full path to the kernel ELF file for the active build
 - `Zephyr IDE: Get Zephyr ELF Directory` - Get the directory containing the kernel ELF file for the active build
 - `Zephyr IDE: Get Zephyr IDE JSON Variable` - Get a variable value from the zephyr-ide.json file
-- `Zephyr IDE: Get Active Project Variable` - Get a custom variable from the active project's `vars` section
-- `Zephyr IDE: Get Active Build Variable` - Get a custom variable from the active build's `vars` section
+- `Zephyr IDE: Get Active Project Variable` - Get a custom variable from the active project's `customVars` map
+- `Zephyr IDE: Get Active Build Variable` - Get a custom variable from the active build's `customVars` map

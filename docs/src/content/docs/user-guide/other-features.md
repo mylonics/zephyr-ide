@@ -7,7 +7,7 @@ description: Use MenuConfig, GuiConfig, custom west/CMake build arguments, ROM/R
 
 The Zephyr Menu Config or GUI Config may be run from the active project panel. In the project config panel, by default, a Menu Config option is available. This can be changed to GUI Config by adding `"zephyr-ide.useGuiConfig": true` to settings.json.
 
-Each debug target may be bound to a custom launch configuration (by default they use "Zephyr IDE: Debug" and "Zephyr IDE: Attach").
+Each debug target can be bound to a custom `launch.json` configuration, or left on the default (`auto`), which routes through the built-in `zephyr-ide` debugger and translates `runners.yaml` into a cortex-debug session automatically. See [Runner Profiles](building-debugging.md#runner-profiles-flash--debug) for the full bind model.
 
 ![Demonstrating MenuConfig](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/demonstrating_menu_config_debug_binding.gif)
 

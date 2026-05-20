@@ -20,8 +20,8 @@ You can read about the motivation behind the project [here](https://mylonics.com
 - **Automated SDK install** — drives `west sdk` to install and manage SDK versions and toolchains.
 - **Full Cortex-Debug integration** — built-in launch templates for ST-Link, J-Link, OpenOCD, and Black Magic Probe, plus helper commands that resolve project, build, ELF, GDB, and toolchain paths from your active build.
 - **Multiple Zephyr workspaces** — register several west workspaces and switch between them seamlessly without reopening VS Code.
-- **Team-shareable projects** — projects, builds, runners, KConfig, devicetree overlays, and per-build west/CMake args live in a human-readable `zephyr-ide.json` you can commit.
-- **Guided project + build creation** — add an existing app or copy from a Zephyr sample, then add as many builds and runners per project as you need.
+- **Team-shareable projects** — projects, builds, runner profiles, KConfig, devicetree overlays, and per-build west/CMake args live in a human-readable `zephyr-ide.json` you can commit.
+- **Guided project + build creation** — add an existing app or copy from a Zephyr sample, then add as many builds as you need and bind each to a Runner Profile.
 - **Twister test integration** — add, run, and reconfigure Twister tests from the same UI as builds.
 - **Cross-platform** — Linux, macOS, and Windows.
 
@@ -39,9 +39,9 @@ You can read about the motivation behind the project [here](https://mylonics.com
 ### Projects & builds
 
 - Add existing applications or create new ones from Zephyr samples
-- Multiple projects per workspace, multiple builds per project, multiple runners per build
+- Multiple projects per workspace, multiple builds per project, shared Runner Profiles across builds
 - Per-project and per-build KConfig and devicetree overlay files
-- Per-build board selection, runner arguments, and west / CMake argument overrides
+- Per-build board selection, Runner Profile bindings, and west / CMake argument overrides
 - Custom project / build variables surfaced through launch configurations
 - Configuration stored in human-readable `zephyr-ide.json` for version control
 
@@ -49,6 +49,9 @@ You can read about the motivation behind the project [here](https://mylonics.com
 
 - Build, build pristine, clean, and flash from the status bar or project panel
 - Concurrent builds with per-target locking
+- Built-in `zephyr-ide` debugger that auto-translates `runners.yaml` into a Cortex-Debug session — no per-runner launch.json required
+- Runner Profiles bundle Flash / Debug / Attach binds (Zephyr runner with args, or `launch.json` entry) — with auto-fallback to `runners.yaml` defaults
+- Profiles live at user scope (`zephyr-ide.runnerProfiles` setting) or workspace scope (`.vscode/zephyr-ide.json`) and are edited from a dedicated CRUD webview panel
 - Cortex-Debug launch templates for ST-Link, J-Link, OpenOCD, and Black Magic Probe
 - Launch helper commands that resolve project, build, ELF, GDB, toolchain, and board paths
 - Debug Select configuration for picking which build to debug at launch time
@@ -56,7 +59,7 @@ You can read about the motivation behind the project [here](https://mylonics.com
 
 ### Productivity
 
-- Native VS Code tree view for projects, builds, runners, and tests
+- Native VS Code tree view for projects, builds, runner profiles, and tests
 - Active project status bar control with automatic targeting based on the open file
 - MenuConfig and GuiConfig editors
 - ROM and RAM usage reports

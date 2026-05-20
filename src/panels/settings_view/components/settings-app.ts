@@ -40,9 +40,18 @@ function formatValue(value: boolean | string | null): string {
   return `"${value}"`;
 }
 
+interface VariantsCatalogue {
+  user: { name: string; runner: string; args: string; shadowed: boolean }[];
+  workspace: { name: string; runner: string; args: string; shadowed: boolean }[];
+  referencedNames: string[];
+  hasWorkspace: boolean;
+}
+
 @customElement("settings-app")
 export class SettingsApp extends ZephyrLitElement {
   @state() private _settings: SettingState[] = [];
+  @state() private _variants: VariantsCatalogue | undefined;
+  @state() private _knownRunners: string[] = [];
   /** Track which scope the user has selected per-key */
   private _targetScopes: Record<string, string> = {};
 
@@ -62,6 +71,10 @@ export class SettingsApp extends ZephyrLitElement {
     switch (msg.command) {
       case "updateSettings":
         this._settings = msg.settings;
+        break;
+      case "updateVariants":
+        this._variants = msg.catalogue;
+        if (Array.isArray(msg.knownRunners)) { this._knownRunners = msg.knownRunners; }
         break;
       case "folderSelected":
         this._handleFolderSelected(msg.key, msg.path);
@@ -183,6 +196,19 @@ export class SettingsApp extends ZephyrLitElement {
             ${this._renderEnumSetting(s)}
           `)}
         </div>
+
+        ${this._variants ? html`
+          <vscode-divider></vscode-divider>
+          <h2>Runner Variants</h2>
+          <p class="page-subtitle">
+            Reusable runner + args presets. Referenced from the Project Build panel via bind kind <code>variant</code>.
+            Workspace-scope variants (in <code>.vscode/zephyr-ide.json</code>) are managed in the Project Build panel.
+          </p>
+          <runner-variants-editor
+            .catalogue=${this._variants}
+            .knownRunners=${this._knownRunners}
+          ></runner-variants-editor>
+        ` : nothing}
       </div>
     `;
   }

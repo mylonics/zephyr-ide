@@ -16,9 +16,8 @@ limitations under the License.
 */
 
 import * as vscode from 'vscode';
-import { addBuildToProject, addRunnerToBuild, removeBuild, removeProject, removeRunner, setActive } from '../project_utilities/project';
+import { addBuildToProject, removeBuild, removeProject, setActive } from '../project_utilities/project';
 import { buildByName, MenuConfig } from '../zephyr_utilities/build';
-import { flashByName } from '../zephyr_utilities/flash';
 import { WorkspaceConfig } from '../setup_utilities/types';
 import { outputError, outputWarning } from '../utilities/output';
 
@@ -98,16 +97,6 @@ export function handleSharedProjectCommand(
         () => void setActive(context, wsConfig, value.project));
       return true;
     }
-    case "addRunner": {
-      runAsync("Add Runner", `addRunner/${value.project}/${value.build}`, () => addRunnerToBuild(wsConfig, context, value.project, value.build),
-        () => void setActive(context, wsConfig, value.project, value.build));
-      return true;
-    }
-    case "deleteRunner": {
-      runAsync("Delete Runner", `deleteRunner/${value.project}/${value.build}/${value.runner}`, () => removeRunner(context, wsConfig, value.project, value.build, value.runner),
-        () => void setActive(context, wsConfig, value.project, value.build));
-      return true;
-    }
     case "build": {
       runBuildAsync("Build", `build/${value.project}/${value.build}`, () => buildByName(context, wsConfig, false, value.project, value.build), value.project, value.build);
       return true;
@@ -122,10 +111,6 @@ export function handleSharedProjectCommand(
     }
     case "guiConfig": {
       runBuildAsync("GUI Config", `build/${value.project}/${value.build}`, () => buildByName(context, wsConfig, true, value.project, value.build, MenuConfig.GuiConfig), value.project, value.build);
-      return true;
-    }
-    case "flash": {
-      runBuildAsync("Flash", `flash/${value.project}/${value.build}/${value.runner}`, () => flashByName(context, wsConfig, value.project, value.build, value.runner), value.project, value.build, value.runner);
       return true;
     }
     case "setActive": {

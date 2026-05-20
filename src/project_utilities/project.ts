@@ -23,7 +23,7 @@ import { notifyError, notifyWarningWithActions, outputWarning } from "../utiliti
 import { buildSelector, BuildConfig, BuildConfigDictionary, BuildStateDictionary } from "./build_selector";
 import { WorkspaceConfig } from "../setup_utilities/types";
 import { setWorkspaceState } from "../setup_utilities/state-management";
-import { runnerSelector, RunnerConfig } from "./runner_selector";
+import { RunnerBind, RunnerProfile, BindOverride, loadRunnerProfiles, findRunnerProfile, resolveBind, splitArgs } from "./runner_profiles";
 import { configSelector, configRemover, ConfigFiles, mergeConfigFiles } from "./config_selector";
 import { setDtsContext } from "../setup_utilities/dts_interface";
 import { getSamples } from "../setup_utilities/modules";
@@ -31,6 +31,7 @@ import { getSetupState } from "../setup_utilities/workspace-config";
 import { getZephyrIdeSampleProjects } from "../setup_utilities/zephyr_ide_json";
 import { joinBuildArgs, normalizeBuildArgs, quoteCMakeDef } from "./build_args";
 import { MultiStepInput, noOpValidate } from "../utilities/multistepQuickPick";
+import { getRunnersYamlHint } from "../zephyr_utilities/runners-yaml";
 
 import { TwisterConfig, TwisterConfigDictionary, twisterSelector, TwisterStateDictionary } from "./twister_selector";
 
@@ -42,6 +43,10 @@ export interface ProjectConfig {
   buildConfigs: BuildConfigDictionary;
   confFiles: ConfigFiles;
   twisterConfigs: TwisterConfigDictionary;
+  /** User-defined key-value variables for this project.
+   *  Referenced in runner profile args as `${projectvar:key}` and in
+   *  tasks.json/launch.json via the `zephyr-ide.get-active-project-variable` command. */
+  customVars?: Record<string, string>;
 }
 
 // Project specific state
@@ -129,15 +134,22 @@ export function getResolvedBuildName(wsConfig: WorkspaceConfig, resolved: Resolv
   return wsConfig.projectStates[resolved.projectName]?.activeBuildConfig;
 }
 
-/** Get active runner name from an already-resolved project+build */
-export function getResolvedRunnerName(wsConfig: WorkspaceConfig, resolved: ResolvedProjectBuild): string | undefined {
-  return wsConfig.projectStates[resolved.projectName]?.buildStates[resolved.buildName]?.activeRunner;
+/**
+ * Get the `RunnerProfile` referenced by a resolved build, or `undefined` when
+ * the build has no `activeProfile` or the named profile is not defined.
+ * Callers that want to merge in `bindOverrides` should call
+ * `resolveActiveProfile` instead.
+ */
+export function getResolvedProfile(wsConfig: WorkspaceConfig, resolved: ResolvedProjectBuild): RunnerProfile | undefined {
+  const profileName = resolved.build.activeProfile;
+  if (!profileName) { return undefined; }
+  const profiles = loadRunnerProfiles(wsConfig);
+  return findRunnerProfile(profileName, profiles);
 }
 
-/** Get active runner config from an already-resolved project+build */
-export function getResolvedRunnerConfig(wsConfig: WorkspaceConfig, resolved: ResolvedProjectBuild): RunnerConfig | undefined {
-  const runnerName = getResolvedRunnerName(wsConfig, resolved);
-  return runnerName ? resolved.build.runnerConfigs[runnerName] : undefined;
+/** Get the build-level override for a specific bind slot (may be undefined). */
+export function getBindOverride(build: BuildConfig, slot: "flash" | "buildDebug" | "debug" | "attach"): BindOverride | undefined {
+  return build.bindOverrides?.[slot];
 }
 
 /** Get active test name from an already-resolved project */
@@ -163,10 +175,10 @@ export interface ResolvedProjectBuild extends ResolvedProject {
   build: BuildConfig;
 }
 
-/** Resolved active project + build + runner info */
-export interface ResolvedProjectBuildRunner extends ResolvedProjectBuild {
-  runnerName: string;
-  runner: RunnerConfig;
+/** Resolved active project + build + profile info (when build has an `activeProfile`). */
+export interface ResolvedProjectBuildProfile extends ResolvedProjectBuild {
+  profileName: string;
+  profile: RunnerProfile;
 }
 
 /** Options for resolver helpers */
@@ -226,29 +238,44 @@ export function resolveActiveProjectBuild(
 }
 
 /**
- * Resolve the active project, build, and runner.
+ * Resolve the active project, build, and its referenced `RunnerProfile`.
  * When `caller` is provided, shows error notifications on failure.
  * When `caller` is omitted, returns undefined silently.
+ *
+ * Returns undefined when no profile is set, or when the referenced profile
+ * cannot be found (caller can fall back to implicit "all auto" behaviour).
  */
-export function resolveActiveProjectBuildRunner(
+export function resolveActiveProfile(
   wsConfig: WorkspaceConfig,
   options?: ResolveOptions
-): ResolvedProjectBuildRunner | undefined {
+): ResolvedProjectBuildProfile | undefined {
   const resolved = resolveActiveProjectBuild(wsConfig, options);
   if (!resolved) {
     return undefined;
   }
-  const rName = getResolvedRunnerName(wsConfig, resolved);
-  if (!rName) {
-    if (options?.caller) { notifyError(options.caller, "Select a runner before trying to continue"); }
+  const profileName = resolved.build.activeProfile;
+  if (!profileName) {
+    if (options?.caller) { notifyError(options.caller, "Select a runner profile before trying to continue"); }
     return undefined;
   }
-  const runner = resolved.build.runnerConfigs[rName];
-  if (!runner) {
-    if (options?.caller) { notifyError(options.caller, `Runner "${rName}" not found`); }
+  const profile = findRunnerProfile(profileName, loadRunnerProfiles(wsConfig));
+  if (!profile) {
+    if (options?.caller) { notifyError(options.caller, `Runner profile "${profileName}" not found`); }
     return undefined;
   }
-  return { ...resolved, runnerName: rName, runner };
+  return { ...resolved, profileName, profile };
+}
+
+/** Resolve the effective `RunnerBind` + extra args for a slot of the active build's profile. */
+export function resolveActiveBuildBind(
+  wsConfig: WorkspaceConfig,
+  slot: "flash" | "debug" | "attach",
+  options?: ResolveOptions
+): { runner: string; args: string } | undefined {
+  const r = resolveActiveProfile(wsConfig, options);
+  if (!r) { return undefined; }
+  const override = getBindOverride(r.build, slot);
+  return resolveBind(r.profile[slot], override);
 }
 
 export async function modifyBuildArguments(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName?: string, buildName?: string) {
@@ -801,7 +828,6 @@ export async function addBuildToProject(wsConfig: WorkspaceConfig, context: vsco
   }
   const result = await buildSelector(context, setupState, wsConfig.rootPath);
   if (result && result.name !== undefined) {
-    result.runnerConfigs = {};
     if (wsConfig.projects[projectName].buildConfigs[result.name]) {
       const selection = await vscode.window.showWarningMessage('A build configuration named "' + result.name + '" already exists', 'Overwrite', 'Cancel');
       if (selection !== 'Overwrite') {
@@ -812,7 +838,7 @@ export async function addBuildToProject(wsConfig: WorkspaceConfig, context: vsco
 
     void vscode.window.showInformationMessage(`Creating Build Configuration: ${result.name}`);
     wsConfig.projects[projectName].buildConfigs[result.name] = result;
-    wsConfig.projectStates[projectName].buildStates[result.name] = { runnerStates: {}, viewOpen: true };
+    wsConfig.projectStates[projectName].buildStates[result.name] = { viewOpen: true };
     // Ensure setActiveBuild operates on the correct project, not wsConfig.activeProject
     wsConfig.activeProject = projectName;
     await setActiveBuild(context, wsConfig, result.name);
@@ -930,35 +956,108 @@ export async function removeTest(context: vscode.ExtensionContext, wsConfig: Wor
   );
 }
 
-export async function removeRunner(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName?: string, buildName?: string, runnerName?: string) {
-  if (projectName === undefined) {
-    projectName = await askUserForProject(wsConfig);
-    if (projectName === undefined) { return; }
+// =============================================================================
+// Runner Profile commands
+// =============================================================================
+
+/**
+ * Pick a `RunnerProfile` name for the active build (or clear it). Profiles
+ * live at workspace + user scope (`zephyr-ide.runnerProfiles`); this only
+ * writes the *reference* to the active build.
+ *
+ * When called with `presetName`, skips the QuickPick and sets the build's
+ * `activeProfile` directly. `null` clears the profile. `undefined` opens
+ * the picker.
+ */
+export async function setActiveProfile(
+  context: vscode.ExtensionContext,
+  wsConfig: WorkspaceConfig,
+  presetName?: string | null,
+) {
+  const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Runner Profile" });
+  if (!resolved) { return; }
+
+  if (presetName !== undefined) {
+    resolved.build.activeProfile = presetName === null ? undefined : presetName;
+    await setWorkspaceState(context, wsConfig);
+    void vscode.commands.executeCommand("zephyr-ide.update-web-view");
+    return;
   }
-  if (buildName === undefined) {
-    buildName = await askUserForBuild(wsConfig, projectName);
-    if (buildName === undefined) { return; }
+
+  const profiles = loadRunnerProfiles(wsConfig);
+  const NONE_LABEL = "(None) — clear active profile";
+  const current = resolved.build.activeProfile;
+  const items: vscode.QuickPickItem[] = [
+    {
+      label: NONE_LABEL,
+      description: current === undefined ? "current" : undefined,
+      detail: "Flash/debug fall back to runners.yaml defaults (all binds auto).",
+    },
+  ];
+  const names = profiles.map(p => p.name).sort();
+  if (names.length > 0) {
+    items.push({ label: "", kind: vscode.QuickPickItemKind.Separator });
+    for (const name of names) {
+      items.push({
+        label: name,
+        description: current === name ? "current" : undefined,
+      });
+    }
   }
-  if (runnerName === undefined) {
-    runnerName = await askUserForRunner(wsConfig, projectName, buildName);
-    if (runnerName === undefined) { return; }
+  const pick = await vscode.window.showQuickPick(items, {
+    ignoreFocusOut: true,
+    placeHolder: "Select Runner Profile for active build",
+  });
+  if (pick === undefined) { return; }
+  if (pick.label === NONE_LABEL) {
+    resolved.build.activeProfile = undefined;
+  } else {
+    resolved.build.activeProfile = pick.label;
   }
-  const build = wsConfig.projects[projectName].buildConfigs[buildName];
-  const bs = wsConfig.projectStates[projectName].buildStates[buildName];
-  return confirmAndRemoveItem(context, wsConfig, runnerName,
-    build.runnerConfigs, bs.runnerStates,
-    { get value() { return bs.activeRunner; }, set value(v) { bs.activeRunner = v; } },
-  );
+  await setWorkspaceState(context, wsConfig);
+  void vscode.commands.executeCommand("zephyr-ide.update-web-view");
 }
 
-export async function setActive(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, project: string, build?: string, runner?: string, test?: string) {
+/**
+ * Edit (or clear) the per-build `bindOverrides[slot].extraArgs` for the
+ * active build. Only meaningful when the profile slot is a `runner` bind.
+ */
+export async function setBindOverride(
+  context: vscode.ExtensionContext,
+  wsConfig: WorkspaceConfig,
+  slot: "flash" | "debug" | "attach",
+  argsText?: string,
+) {
+  const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Runner Override" });
+  if (!resolved) { return; }
+  const currentArgs = resolved.build.bindOverrides?.[slot]?.extraArgs ?? [];
+  const currentStr = currentArgs.join(" ");
+  const value = argsText ?? await vscode.window.showInputBox({
+    title: `Extra runner args for ${slot}`,
+    value: currentStr,
+    ignoreFocusOut: true,
+    placeHolder: "--erase --speed 4000",
+    prompt: "Appended after the profile's runner args. Leave blank to clear.",
+  });
+  if (value === undefined) { return; }
+  const parsed = splitArgs(value);
+  if (!resolved.build.bindOverrides) { resolved.build.bindOverrides = {}; }
+  if (parsed.length === 0) {
+    delete resolved.build.bindOverrides[slot];
+    if (Object.keys(resolved.build.bindOverrides).length === 0) {
+      resolved.build.bindOverrides = undefined;
+    }
+  } else {
+    resolved.build.bindOverrides[slot] = { extraArgs: parsed };
+  }
+  await setWorkspaceState(context, wsConfig);
+  void vscode.commands.executeCommand("zephyr-ide.update-web-view");
+}
+export async function setActive(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, project: string, build?: string, _runner?: string, test?: string) {
   if (project) {
     wsConfig.activeProject = project;
     if (build) {
       wsConfig.projectStates[wsConfig.activeProject].activeBuildConfig = build;
-      if (runner) {
-        wsConfig.projectStates[wsConfig.activeProject].buildStates[build].activeRunner = runner;
-      }
     }
     if (test) {
       wsConfig.projectStates[wsConfig.activeProject].activeTwisterConfig = test;
@@ -968,109 +1067,115 @@ export async function setActive(context: vscode.ExtensionContext, wsConfig: Work
   }
 }
 
-export async function askUserForRunner(wsConfig: WorkspaceConfig, projectName: string, buildName: string) {
-  return await askUserForSelection(wsConfig.projects[projectName].buildConfigs[buildName].runnerConfigs, "Select Runner");
-}
-
-
-export async function setActiveRunner(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
-  if (wsConfig.activeProject === undefined) {
-    await setActiveProject(context, wsConfig);
-    if (wsConfig.activeProject === undefined) {
-      notifyError("Runner Config", "Set Active Project before trying to Set Active Runner");
-      return;
-    }
-  }
-  let activeBuildName = wsConfig.projectStates[wsConfig.activeProject].activeBuildConfig;
-
-  if (activeBuildName === undefined) {
-    await setActiveBuild(context, wsConfig);
-    activeBuildName = wsConfig.projectStates[wsConfig.activeProject].activeBuildConfig;
-    if (activeBuildName === undefined) {
-      notifyError("Runner Config", "Set Active Build before trying to Set Active Runner");
-      return;
-    }
-  }
-
-  const selectedRunner = await askUserForRunner(wsConfig, wsConfig.activeProject, activeBuildName);
-
-  if (selectedRunner === undefined) {
-    return;
-  }
-
-  wsConfig.projectStates[wsConfig.activeProject].buildStates[activeBuildName].activeRunner = selectedRunner;
-  await setWorkspaceState(context, wsConfig);
-  void vscode.window.showInformationMessage(`Successfully Set ${selectedRunner} as Active Runner for ${activeBuildName} of ${wsConfig.activeProject}`);
-}
-
-export async function addRunnerToBuild(wsConfig: WorkspaceConfig, context: vscode.ExtensionContext, projectName: string, buildName: string) {
-  const build = wsConfig.projects[projectName].buildConfigs[buildName];
-
-  const boardPath = resolveBoardPath(wsConfig, build, await getSetupState(context, wsConfig) ?? undefined);
-  let result;
-  if (boardPath) {
-    result = await runnerSelector(boardPath);
-  }
-
-  if (result && result.name !== undefined) {
-    if (build.runnerConfigs[result.name]) {
-      const selection = await vscode.window.showWarningMessage('A runner named "' + result.name + '" already exists', 'Overwrite', 'Cancel');
-      if (selection !== 'Overwrite') {
-        notifyError("Runner Config", `Failed to add runner configuration`);
-        return;
-      }
-    }
-    void vscode.window.showInformationMessage(`Creating Runner Configuration: ${result.name}`);
-    build.runnerConfigs[result.name] = result;
-    wsConfig.projectStates[projectName].buildStates[buildName].activeRunner = result.name;
-    await setWorkspaceState(context, wsConfig);
-    return;
-  }
-}
-
-
-
-export async function addRunner(wsConfig: WorkspaceConfig, context: vscode.ExtensionContext) {
-  const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Runner" });
-  if (!resolved) {
-    return;
-  }
-  await addRunnerToBuild(wsConfig, context, resolved.projectName, resolved.buildName);
-}
-
 export async function getActiveBuild(wsConfig: WorkspaceConfig) {
   const resolved = resolveActiveProjectBuild(wsConfig);
   if (!resolved) { return; }
   return resolved.build;
 }
 
+// ---------------------------------------------------------------------------
+// Custom variable management
+// ---------------------------------------------------------------------------
+
 /**
- * Generic helper to select a launch configuration and assign it to the given
- * target property pair on the active build.
+ * Return the value of a named custom variable from the active build's `customVars`.
+ * Used by the `zephyr-ide.get-active-build-variable` command (tasks.json/launch.json inputs).
  */
-async function selectLaunchConfigForTarget(
+export function getActiveBuildVariable(wsConfig: WorkspaceConfig, varName: string): string | undefined {
+  const resolved = resolveActiveProjectBuild(wsConfig);
+  if (!resolved) { return undefined; }
+  return resolved.build.customVars?.[varName];
+}
+
+/**
+ * Return the value of a named custom variable from the active project's `customVars`.
+ * Used by the `zephyr-ide.get-active-project-variable` command (tasks.json/launch.json inputs).
+ */
+export function getActiveProjectVariable(wsConfig: WorkspaceConfig, varName: string): string | undefined {
+  const resolved = resolveActiveProjectBuild(wsConfig);
+  if (!resolved) { return undefined; }
+  return resolved.project.customVars?.[varName];
+}
+
+/**
+ * Interactive quick-input editor for `customVars` on a build or project.
+ * Allows the user to add, edit, and delete named variables.
+ */
+async function editCustomVars(
   context: vscode.ExtensionContext,
   wsConfig: WorkspaceConfig,
-  targetNameKey: 'launchTarget' | 'buildDebugTarget' | 'attachTarget',
-  targetFolderKey: 'launchTargetFolder' | 'buildDebugTargetFolder' | 'attachTargetFolder'
-) {
-  const activeBuild = await getActiveBuild(wsConfig);
-  const newConfig = await selectLaunchConfiguration(wsConfig);
-  if (activeBuild && newConfig) {
-    activeBuild[targetNameKey] = newConfig.name;
-    activeBuild[targetFolderKey] = newConfig.workspaceFolder;
-    await setWorkspaceState(context, wsConfig);
+  scope: "build" | "project",
+  existingVars: Record<string, string>,
+  saveVars: (updated: Record<string, string>) => Promise<void>,
+): Promise<void> {
+  const ADD = "$(add)  Add new variable…";
+  const DONE = "$(check)  Done";
+
+  let vars = { ...existingVars };
+
+  while (true) {
+    const entries = Object.keys(vars).sort().map(k => ({
+      label: k,
+      description: vars[k],
+      detail: `${scope} variable — click to edit or delete`,
+    }));
+    const pick = await vscode.window.showQuickPick(
+      [...entries, { label: ADD, description: "", detail: "" }, { label: DONE, description: "", detail: "" }],
+      { title: `Manage ${scope} variables`, placeHolder: "Select a variable to edit/delete, or add a new one", ignoreFocusOut: true }
+    );
+    if (!pick || pick.label === DONE) { break; }
+
+    if (pick.label === ADD) {
+      const key = await vscode.window.showInputBox({ prompt: "Variable name", placeHolder: "bmp_port", ignoreFocusOut: true });
+      if (!key?.trim()) { continue; }
+      const val = await vscode.window.showInputBox({ prompt: `Value for "${key.trim()}"`, ignoreFocusOut: true, value: "" });
+      if (val === undefined) { continue; }
+      vars[key.trim()] = val;
+    } else {
+      const key = pick.label;
+      const action = await vscode.window.showQuickPick(
+        [
+          { label: "$(edit)  Edit value", id: "edit" },
+          { label: "$(trash)  Delete", id: "delete" },
+          { label: "$(close)  Cancel", id: "cancel" },
+        ],
+        { title: `Variable: ${key} = ${vars[key]}`, ignoreFocusOut: true }
+      );
+      if (!action || action.id === "cancel") { continue; }
+      if (action.id === "delete") {
+        delete vars[key];
+      } else {
+        const val = await vscode.window.showInputBox({ prompt: `New value for "${key}"`, ignoreFocusOut: true, value: vars[key] });
+        if (val === undefined) { continue; }
+        vars[key] = val;
+      }
+    }
   }
+
+  await saveVars(vars);
+  await setWorkspaceState(context, wsConfig);
+  void vscode.commands.executeCommand("zephyr-ide.update-web-view");
 }
 
-export async function selectDebugLaunchConfiguration(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
-  await selectLaunchConfigForTarget(context, wsConfig, 'launchTarget', 'launchTargetFolder');
+/** Open the custom variable editor for the active build. */
+export async function manageBuildVariables(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig): Promise<void> {
+  const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Manage Build Variables" });
+  if (!resolved) { return; }
+  await editCustomVars(
+    context, wsConfig, "build",
+    resolved.build.customVars ?? {},
+    async (updated) => { resolved.build.customVars = Object.keys(updated).length ? updated : undefined; },
+  );
 }
 
-export async function selectBuildDebugLaunchConfiguration(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
-  await selectLaunchConfigForTarget(context, wsConfig, 'buildDebugTarget', 'buildDebugTargetFolder');
+/** Open the custom variable editor for the active project. */
+export async function manageProjectVariables(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig): Promise<void> {
+  const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Manage Project Variables" });
+  if (!resolved) { return; }
+  await editCustomVars(
+    context, wsConfig, "project",
+    resolved.project.customVars ?? {},
+    async (updated) => { resolved.project.customVars = Object.keys(updated).length ? updated : undefined; },
+  );
 }
 
-export async function selectDebugAttachLaunchConfiguration(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
-  await selectLaunchConfigForTarget(context, wsConfig, 'attachTarget', 'attachTargetFolder');
-}

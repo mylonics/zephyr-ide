@@ -143,6 +143,7 @@ export class SetupPanel {
     selectExistingWestWorkspace: "zephyr-ide.select-existing-west-workspace",
     openSettingsPanel: "zephyr-ide.open-settings-panel",
     openProjectBuildPanel: "zephyr-ide.open-project-build-panel",
+    openRunnerProfilePanel: "zephyr-ide.open-runner-profile-panel",
     // "New Workspace" on the overview should land on the Workspace Setup
     // page with its option grid, not dive straight into a west.yml picker.
     // That gives the user a chance to choose current-folder vs external,

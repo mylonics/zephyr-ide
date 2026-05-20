@@ -158,37 +158,7 @@ export class BuildSection extends ZephyrLitElement {
     }
   }
 
-  // --- Runner helpers ---
-
-  private _onRunnerBlur(e: FocusEvent, runnerName: string, field: string) {
-    const input = e.target as HTMLInputElement;
-    if (!input.classList.contains("input-dirty")) { return; }
-    if (this._saveTimer) { clearTimeout(this._saveTimer); }
-    this._saveTimer = setTimeout(() => {
-      input.classList.remove("input-dirty");
-      const msg: Record<string, string> = {
-        project: this.projectName,
-        build: this.buildDetails.name,
-        runner: runnerName,
-      };
-      msg[field] = input.value;
-      this.postCommand("updateRunner", msg);
-    }, 600);
-  }
-
-  private _onRunnerKeydown(e: KeyboardEvent, runnerName: string, field: string) {
-    if (e.key !== "Enter") { return; }
-    const input = e.target as HTMLInputElement;
-    if (this._saveTimer) { clearTimeout(this._saveTimer); this._saveTimer = null; }
-    input.classList.remove("input-dirty");
-    const msg: Record<string, string> = {
-      project: this.projectName,
-      build: this.buildDetails.name,
-      runner: runnerName,
-    };
-    msg[field] = input.value;
-    this.postCommand("updateRunner", msg);
-  }
+  // --- Runner bind helpers removed: replaced by Runner Profiles (see _renderRunnerProfile). ---
 
   // --- Renderers ---
 
@@ -244,83 +214,139 @@ export class BuildSection extends ZephyrLitElement {
     `;
   }
 
-  private _renderRunners() {
-    const b = this.buildDetails;
-    if (b.runners.length === 0) {
-      return html`
-        <div class="file-list-empty">No runners configured</div>
-        <div style="margin-top:8px;">
-          <vscode-button appearance="secondary" icon="add"
-            @click=${() => this.postCommand("addRunner", { project: this.projectName, build: b.name })}>
-            Add Runner
-          </vscode-button>
-        </div>
-      `;
-    }
+  // --- Runner profile renderers ---
 
+  private _renderRunnersYamlHint() {
+    const hint = this.buildDetails.runnersYamlHint;
+    if (!hint) { return html``; }
     return html`
-      ${b.runners.map(
-      (r) => html`
-          <div class="runner-row">
-            <span class="runner-name"><i class="codicon codicon-debug-alt-small"></i> ${r.name}</span>
-            <div class="runner-fields">
-              <div class="runner-field-row">
-                <span class="runner-field-label">Type</span>
-                <input class="runner-input" type="text" .value=${r.runner}
-                  @input=${this._onArgInput}
-                  @focusout=${(e: FocusEvent) => this._onRunnerBlur(e, r.name, "runner-type")}
-                  @keydown=${(e: KeyboardEvent) => this._onRunnerKeydown(e, r.name, "runner-type")} />
-              </div>
-              <div class="runner-field-row">
-                <span class="runner-field-label">Args</span>
-                <input class="runner-input" type="text" .value=${r.args}
-                  @input=${this._onArgInput}
-                  @focusout=${(e: FocusEvent) => this._onRunnerBlur(e, r.name, "runner-args")}
-                  @keydown=${(e: KeyboardEvent) => this._onRunnerKeydown(e, r.name, "runner-args")} />
-              </div>
-            </div>
-            <div class="runner-actions">
-              <vscode-button appearance="icon" icon="trash" title="Remove"
-                @click=${() => this.postCommand("removeRunner", { project: this.projectName, build: b.name, runner: r.name })}>
-              </vscode-button>
-            </div>
-          </div>
-        `,
-    )}
-      <div class="action-row">
-        <vscode-button appearance="secondary" icon="add"
-          @click=${() => this.postCommand("addRunner", { project: this.projectName, build: b.name })}>
-          Add Runner
-        </vscode-button>
+      <div class="runners-yaml-hint">
+        <span class="runner-level-header">runners.yaml defaults <span class="runner-level-hint">(read-only, from last build)</span></span>
+        <div class="runner-hint-row">
+          <span class="runner-field-label">Flash</span>
+          <span class="runner-hint-value">${hint.flashRunner ?? "—"}</span>
+        </div>
+        <div class="runner-hint-row">
+          <span class="runner-field-label">Debug</span>
+          <span class="runner-hint-value">${hint.debugRunner ?? "—"}</span>
+        </div>
+        <div class="runner-hint-row">
+          <span class="runner-field-label">Available</span>
+          <span class="runner-hint-value">${hint.availableRunners.join(", ") || "—"}</span>
+        </div>
+        ${hint.sysbuildImage
+        ? html`
+              <div class="runner-hint-row">
+                <span class="runner-field-label">Sysbuild image</span>
+                <span class="runner-hint-value">${hint.sysbuildImage}</span>
+              </div>`
+        : nothing}
+        <div class="runner-hint-row">
+          <span class="runner-field-label">File</span>
+          <span class="runner-hint-value clickable"
+            title="Open runners.yaml in editor"
+            @click=${() => this.postCommand("openFile", { file: hint.runnersYamlPath })}>
+            ${hint.runnersYamlPath}
+          </span>
+        </div>
       </div>
     `;
   }
 
-  private _renderLaunchConfigs() {
+  private _renderRunnerProfile() {
     const b = this.buildDetails;
+    const activeProfile = b.activeProfile;
+    const slots = b.slotBinds;
+    const activeLabel = activeProfile
+      ? html`<strong>${activeProfile}</strong>`
+      : html`<em>(none — using runners.yaml defaults)</em>`;
     return html`
-      <div class="launch-row">
-        <span class="launch-label">Debug</span>
-        <span class="launch-value">${b.debugDisplay}</span>
-        <vscode-button appearance="icon" icon="edit" title="Change"
-          @click=${() => this.postCommand("changeLaunchTarget", { type: "debug" })}>
-        </vscode-button>
+      <div class="launch-help">
+        <span class="runner-level-header">Runner Profile</span>
+        <span class="runner-level-hint">
+          A Runner Profile bundles three slot binds (<strong>flash</strong>, <strong>debug</strong>, <strong>attach</strong>)
+          for this build. Each bind picks Auto (runners.yaml), a Zephyr runner with extra args, or a launch.json entry
+          (debug / attach only). Per-build override args are appended after the profile's runner args.
+        </span>
       </div>
-      <div class="launch-row">
-        <span class="launch-label">Build + Debug</span>
-        <span class="launch-value">${b.buildDebugDisplay}</span>
-        <vscode-button appearance="icon" icon="edit" title="Change"
-          @click=${() => this.postCommand("changeLaunchTarget", { type: "buildDebug" })}>
-        </vscode-button>
-      </div>
-      <div class="launch-row">
-        <span class="launch-label">Attach</span>
-        <span class="launch-value">${b.attachDisplay}</span>
-        <vscode-button appearance="icon" icon="edit" title="Change"
-          @click=${() => this.postCommand("changeLaunchTarget", { type: "attach" })}>
-        </vscode-button>
+      <div class="runner-card">
+        <div class="runner-card-header">
+          <span class="runner-name">
+            <i class="codicon codicon-debug-alt-small"></i> Active profile: ${activeLabel}
+          </span>
+          <vscode-button appearance="secondary" icon="settings-gear" title="Select active Runner Profile"
+            @click=${() => this.postCommand("selectActiveProfile", { project: this.projectName, build: b.name })}>
+            Change…
+          </vscode-button>
+          <vscode-button appearance="secondary" icon="list-tree" title="Open Runner Profile management panel"
+            @click=${() => this.postCommand("openRunnerProfilePanel")}>
+            Manage…
+          </vscode-button>
+        </div>
+        <div class="runner-binds-grid">
+          ${this._renderSlotBind(slots.flash, "Flash", "zap")}
+          ${this._renderSlotBind(slots.debug, "Debug", "debug-alt")}
+          ${this._renderSlotBind(slots.attach, "Attach", "debug-console")}
+        </div>
       </div>
     `;
+  }
+
+  private _renderSlotBind(
+    slot: import("../project-build-data").WebviewSlotBind,
+    label: string,
+    icon: string,
+  ) {
+    const canOverride = slot.kind === "runner";
+    const overrideBadge = slot.hasOverride
+      ? html`<span class="bind-override-badge" title="Per-build extra args override">override</span>`
+      : nothing;
+    return html`
+      <div class="runner-bind-row">
+        <span class="runner-field-label">
+          <i class="codicon codicon-${icon}"></i> ${label}
+        </span>
+        <span class="runner-bind-value">
+          ${slot.label}
+          ${overrideBadge}
+        </span>
+        ${canOverride
+        ? html`
+              <vscode-button appearance="icon"
+                icon=${slot.hasOverride ? "edit" : "add"}
+                title=${slot.hasOverride
+            ? `Edit extra args (current: ${slot.overrideExtraArgs})`
+            : "Add per-build extra args"}
+                @click=${() => this._editSlotExtraArgs(slot)}>
+              </vscode-button>
+              ${slot.hasOverride
+            ? html`
+                    <vscode-button appearance="icon" icon="close"
+                      title="Clear per-build override"
+                      @click=${() => this._clearSlotExtraArgs(slot)}>
+                    </vscode-button>`
+            : nothing}`
+        : nothing}
+      </div>
+    `;
+  }
+
+  private _editSlotExtraArgs(slot: import("../project-build-data").WebviewSlotBind) {
+    // Omit `value` so the extension shows an input box pre-filled with the current value.
+    this.postCommand("setBindExtraArgs", {
+      project: this.projectName,
+      build: this.buildDetails.name,
+      slot: slot.slot,
+    });
+  }
+
+  private _clearSlotExtraArgs(slot: import("../project-build-data").WebviewSlotBind) {
+    this.postCommand("setBindExtraArgs", {
+      project: this.projectName,
+      build: this.buildDetails.name,
+      slot: slot.slot,
+      value: "",
+    });
   }
 
   render() {
@@ -416,14 +442,13 @@ export class BuildSection extends ZephyrLitElement {
         )}
 
           ${this._collapsibleSection(
-          "launch",
-          "Launch Configurations",
-          "",
+          "variables",
+          "Variables",
+          `${Object.keys(this.buildVars ?? {}).length} set`,
           html`
-              ${this._renderLaunchConfigs()}
-              <div class="variables-section" style="margin-top:12px;">
+              <div class="variables-section">
                 <div class="section-row-header">
-                  <span class="section-row-title">Variables</span>
+                  <span class="section-row-title">Build variables</span>
                   <vscode-button appearance="icon" icon="question" title="Variable help"
                     @click=${() => { this._varsHelpVisible = !this._varsHelpVisible; }}>
                   </vscode-button>
@@ -443,9 +468,12 @@ export class BuildSection extends ZephyrLitElement {
 
           ${this._collapsibleSection(
           "runners",
-          "Runners",
-          `${b.runners.length} runner${b.runners.length !== 1 ? "s" : ""}`,
-          this._renderRunners(),
+          "Runner Profile",
+          b.activeProfile ?? "(none)",
+          html`
+            ${this._renderRunnerProfile()}
+            ${this._renderRunnersYamlHint()}
+          `,
         )}
         </div>
       </div>

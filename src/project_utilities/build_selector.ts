@@ -20,7 +20,7 @@ import * as vscode from "vscode";
 import * as path from "upath";
 import * as fs from "fs-extra";
 import { MultiStepInput, InputStep, noOpValidate, mapToQuickPickItems } from "../utilities/multistepQuickPick";
-import { RunnerConfigDictionary, RunnerStateDictionary } from './runner_selector';
+import { BuildBindOverrides } from './runner_profiles';
 import { ConfigFiles } from './config_selector';
 import { SetupState } from '../setup_utilities/types';
 import { executeShellCommandInPythonEnv, output } from "../utilities/utils";
@@ -47,26 +47,30 @@ export interface BuildConfig {
   debugOptimization: string;
   westBuildArgs: string[];
   westBuildCMakeArgs: string[];
-  runnerConfigs: RunnerConfigDictionary;
+  /** Name of the `RunnerProfile` this build uses (resolved via loadRunnerProfiles()).
+   *  Undefined / unknown profile name → behave as the implicit "Auto" profile
+   *  (flash/debug/attach all map to `{kind:"auto"}`). */
+  activeProfile?: string;
+  /** Per-slot extra-args overrides appended after the profile's resolved args.
+   *  Only meaningful when the profile's slot kind is `runner`. */
+  bindOverrides?: BuildBindOverrides;
+  /** User-defined key-value variables for this build configuration.
+   *  Referenced in runner profile args as `${buildvar:key}` and in
+   *  tasks.json/launch.json via the `zephyr-ide.get-active-build-variable` command. */
+  customVars?: Record<string, string>;
   confFiles: ConfigFiles;
-  launchTarget: string;
-  launchTargetFolder?: string;
-  buildDebugTarget: string;
-  buildDebugTargetFolder?: string;
-  attachTarget: string;
-  attachTargetFolder?: string;
   revision?: string;
 }
 
 // Config for the extension
 export interface BuildState {
-  activeRunner?: string;
   viewOpen?: boolean;
-  runnerStates: RunnerStateDictionary;
   gdbPath?: string; // Cached GDB path from CMakeCache.txt (CMAKE_GDB)
   elfName?: string; // Cached kernel ELF name from CMakeCache.txt (BYPRODUCT_KERNEL_ELF_NAME)
   toolchainPath?: string; // Cached toolchain path from build_info.yml (toolchain.path)
   cachedPristineCmd?: string; // Pristine build command from last build, used to detect config changes
+  /** Active sysbuild domain/image (e.g. "mcuboot") for flash and debug. Only relevant for sysbuild projects. */
+  sysbuildImage?: string;
 }
 
 export interface BoardItem extends QuickPickItem {
@@ -459,11 +463,6 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       config: [],
       overlay: [],
     };
-
-    // Initialize launch/debug targets to safe defaults
-    state.launchTarget = state.launchTarget ?? "Zephyr IDE: Debug";
-    state.buildDebugTarget = state.buildDebugTarget ?? "Zephyr IDE: Debug";
-    state.attachTarget = state.attachTarget ?? "Zephyr IDE: Attach";
 
     state.completed = true;
     return;

@@ -57,10 +57,22 @@ export interface WebviewProjectInfo {
 // Build data
 // ---------------------------------------------------------------------------
 
-export interface WebviewRunnerInfo {
-  name: string;
-  runner: string;
-  args: string;
+/** Resolved view of one Runner Profile slot for the build card. */
+export interface WebviewSlotBind {
+  /** Slot identifier — "flash" | "debug" | "attach". */
+  slot: "flash" | "debug" | "attach";
+  /** Display label: "Auto (runners.yaml)" | "openocd --speed 4000" | "launch.json: <name>". */
+  label: string;
+  /** Bind discriminator from the profile, or "none" when no active profile. */
+  kind: "none" | "auto" | "runner" | "launch";
+  /** Underlying runner name (only when `kind === "runner"`). */
+  runner?: string;
+  /** Effective extra args (profile + override) shown in the inline editor. */
+  extraArgs: string;
+  /** Per-build override extra args (separate from profile-defined extraArgs). */
+  overrideExtraArgs: string;
+  /** True when a `bindOverrides[slot]` is set for this build. */
+  hasOverride: boolean;
 }
 
 export interface WebviewBuildDetails {
@@ -75,17 +87,18 @@ export interface WebviewBuildDetails {
   westBuildArgs: string[];
   westBuildCMakeArgs: string[];
   confFiles: WebviewConfigFiles;
-  runners: WebviewRunnerInfo[];
-  launchTarget: string;
-  launchTargetFolder: string | undefined;
-  buildDebugTarget: string;
-  buildDebugTargetFolder: string | undefined;
-  attachTarget: string;
-  attachTargetFolder: string | undefined;
-  // Pre-resolved display names (computed server-side)
-  debugDisplay: string;
-  buildDebugDisplay: string;
-  attachDisplay: string;
+  /** Active Runner Profile name (or undefined when none selected). */
+  activeProfile: string | undefined;
+  /** Resolved bind labels for the three slots of the active profile (or "none"). */
+  slotBinds: { flash: WebviewSlotBind; debug: WebviewSlotBind; attach: WebviewSlotBind };
+  /** Read-only hint from runners.yaml. */
+  runnersYamlHint: {
+    flashRunner?: string;
+    debugRunner?: string;
+    availableRunners: string[];
+    runnersYamlPath: string;
+    sysbuildImage?: string;
+  } | undefined;
 }
 
 // ---------------------------------------------------------------------------

@@ -24,6 +24,9 @@ import { initializeDtsExt } from "./dts_interface";
 import { GlobalConfig, WorkspaceConfig, SetupState, generateSetupState, isActiveWorkspaceInitialized } from "./types";
 import { loadProjectsFromFile, setWorkspaceSettings, generateGitIgnore, generateExtensionsRecommendations } from "./workspace-config";
 import { parseWestConfigManifest } from "./west-config-parser";
+import { readZephyrIdeJson, writeZephyrIdeJson } from "./zephyr_ide_json";
+import { splitArgs } from "../project_utilities/runner_profiles";
+import { outputError } from "../utilities/output";
 
 /**
  * Per-extension-host-process token used to detect full process restarts so
@@ -274,6 +277,53 @@ export async function setExternalSetupState(context: vscode.ExtensionContext, gl
   await setGlobalState(context, globalConfig);
 }
 
+/**
+ * Convert a single legacy `RunnerConfig` (any of: pre-bind {name,runner,args};
+ * mid-bind {name, flash, build|buildDebug|debug, attach}) plus its old
+ * BuildState fields (launchTarget/buildDebugTarget/attachTarget) into a
+ * `RunnerProfile`-shaped object (sans scope).
+ *
+ * Exported for tests.
+ */
+export function migrateRunnerConfig(rc: any, buildState: any | undefined): any {
+  // Helper: fold legacy launch target string into a bind.
+  const bindFromTarget = (target: string | undefined): any => {
+    if (!target || target.startsWith("Auto:") || target === "Zephyr IDE: Debug") {
+      return { kind: "auto" };
+    }
+    return { kind: "launch", name: target };
+  };
+
+  // Already in (mid-)bind shape: normalise field set.
+  if (rc && typeof rc === "object" && (rc.flash || rc.build || rc.buildDebug || rc.debug || rc.attach)) {
+    const flash = rc.flash ?? { kind: "auto" };
+    // `debug` is the debug-only slot; `buildDebug` / `build` are the build-and-debug slot.
+    const debug = rc.debug ?? { kind: "auto" };
+    const attach = rc.attach ?? { kind: "auto" };
+    const out: any = { name: rc.name, flash, debug, attach };
+    // Preserve buildDebug / build as the dedicated Build-and-Debug slot.
+    const buildDebugBind = rc.buildDebug ?? rc.build;
+    if (buildDebugBind) { out.buildDebug = buildDebugBind; }
+    return out;
+  }
+
+  // Pre-bind shape {name, runner, args, argsMode?}.
+  // In the old model: buildDebugTarget → Build-and-Debug; launchTarget → Debug-only.
+  const flash: any = rc?.runner
+    ? { kind: "runner", runner: rc.runner, ...(rc.args ? { extraArgs: splitArgs(String(rc.args)) } : {}) }
+    : { kind: "auto" };
+  const out: any = {
+    name: rc?.name,
+    flash,
+    debug: bindFromTarget(buildState?.launchTarget),
+    attach: bindFromTarget(buildState?.attachTarget),
+  };
+  if (buildState?.buildDebugTarget) {
+    out.buildDebug = bindFromTarget(buildState.buildDebugTarget);
+  }
+  return out;
+}
+
 export async function loadWorkspaceState(context: vscode.ExtensionContext): Promise<WorkspaceConfig> {
   const config: WorkspaceConfig = await context.workspaceState.get("zephyr.env") ?? {
     rootPath: await getRootPathFs(true) ?? "",
@@ -311,7 +361,170 @@ export async function loadWorkspaceState(context: vscode.ExtensionContext): Prom
   if (isActiveWorkspaceInitialized(config)) {
     await loadProjectsFromFile(config);
   }
+
+  // Migrate legacy per-build/per-project RunnerConfigs into workspace-scope
+  // RunnerProfiles (`.vscode/zephyr-ide.json#runnerProfiles`). For each build
+  // that had an `activeRunner`, set `build.activeProfile` to the corresponding
+  // (deduped) profile name. We do not delete legacy fields off the in-memory
+  // ProjectConfig/BuildConfig objects here because they are typed as not
+  // having those keys; instead we work via `any` casts and the new shape is
+  // what subsequent saves persist.
+  await migrateLegacyRunnersToProfiles(context, config);
+
   return config;
+}
+
+/**
+ * One-shot migration: scans legacy `runnerConfigs` on each project + build,
+ * extracts unique RunnerProfiles into `.vscode/zephyr-ide.json#runnerProfiles`,
+ * sets each build's `activeProfile` from the old `activeRunner`, and removes
+ * the legacy fields from the in-memory config.
+ *
+ * Exported for unit testing.
+ *
+ * The migration is gated by a `runnerProfilesMigrationVersion` flag stored in
+ * `.vscode/zephyr-ide.json`. Once the file records `runnerProfilesMigrationVersion >= 1`,
+ * this function short-circuits without rescanning. This prevents duplicate
+ * `runner-2`/`runner-3` profile names from appearing on every workspace load
+ * if a previous migration partially succeeded.
+ *
+ * On any migration (even when no new profiles are added — e.g. only legacy
+ * fields stripped), the cleaned-up `wsConfig` is persisted via
+ * `setWorkspaceState` so the next load sees the same shape this one did.
+ */
+export const RUNNER_PROFILES_MIGRATION_VERSION = 1;
+const MIGRATION_VERSION_KEY = "runnerProfilesMigrationVersion";
+
+export async function migrateLegacyRunnersToProfiles(
+  context: vscode.ExtensionContext,
+  config: WorkspaceConfig,
+): Promise<void> {
+  if (!isActiveWorkspaceInitialized(config)) { return; }
+
+  // Idempotency guard — once we've migrated, never re-scan. This prevents
+  // duplicate `runner-2`/`runner-3` collisions from being appended on every
+  // load when (e.g.) a previous migration succeeded but write-back failed.
+  try {
+    const data = readZephyrIdeJson(config) as Record<string, unknown>;
+    const recorded = typeof data[MIGRATION_VERSION_KEY] === "number"
+      ? (data[MIGRATION_VERSION_KEY] as number)
+      : 0;
+    if (recorded >= RUNNER_PROFILES_MIGRATION_VERSION) {
+      return;
+    }
+  } catch (e) {
+    // Log so a filesystem/parse failure here is visible rather than silently
+    // masking a deeper issue, but fall through and still attempt migration —
+    // the version flag write at the end will heal a partially-corrupt file.
+    outputError("Runner Profile Migration", `Failed to read migration version flag: ${String(e)}`);
+  }
+
+  const newProfiles: any[] = [];
+  const existingNames = new Set<string>();
+
+  // Seed with any already-present profiles in zephyr-ide.json so we don't collide.
+  try {
+    const data = readZephyrIdeJson(config) as Record<string, unknown>;
+    if (Array.isArray(data.runnerProfiles)) {
+      for (const p of data.runnerProfiles as any[]) {
+        if (p && typeof p.name === "string") { existingNames.add(p.name); }
+      }
+    }
+  } catch { /* ignore */ }
+
+  const uniqueName = (base: string): string => {
+    if (!existingNames.has(base)) { existingNames.add(base); return base; }
+    let i = 2;
+    while (existingNames.has(`${base}-${i}`)) { i++; }
+    const n = `${base}-${i}`;
+    existingNames.add(n);
+    return n;
+  };
+
+  let migrated = false;
+
+  for (const projectName in config.projects) {
+    const project = config.projects[projectName] as any;
+    const projectState = config.projectStates?.[projectName] as any;
+
+    // Drop project-level legacy runner storage (no replacement — inheritance removed).
+    if (project.runnerConfigs) {
+      delete project.runnerConfigs;
+      migrated = true;
+    }
+    if (projectState?.runnerStates) {
+      delete projectState.runnerStates;
+      migrated = true;
+    }
+
+    if (!project.buildConfigs) { continue; }
+    for (const buildName in project.buildConfigs) {
+      const build = project.buildConfigs[buildName] as any;
+      const buildState = projectState?.buildStates?.[buildName] as any;
+      if (!build.runnerConfigs && !buildState?.activeRunner) { continue; }
+
+      // Convert each legacy runner config to a profile (if any) and remember a
+      // mapping from legacy runner name → new profile name.
+      const legacyToProfileName = new Map<string, string>();
+      for (const runnerName in (build.runnerConfigs ?? {})) {
+        const migratedShape = migrateRunnerConfig(build.runnerConfigs[runnerName], buildState);
+        const desiredName = uniqueName(migratedShape.name || runnerName || "runner");
+        legacyToProfileName.set(runnerName, desiredName);
+        newProfiles.push({
+          name: desiredName,
+          flash: migratedShape.flash,
+          debug: migratedShape.debug,
+          attach: migratedShape.attach,
+        });
+      }
+
+      // Map legacy `activeRunner` → new `activeProfile`.
+      if (buildState?.activeRunner) {
+        const newName = legacyToProfileName.get(buildState.activeRunner);
+        if (newName) { build.activeProfile = newName; }
+      }
+
+      // Strip legacy fields from in-memory shape so subsequent saves are clean.
+      delete build.runnerConfigs;
+      delete build.launchTarget;
+      delete build.launchTargetFolder;
+      delete build.buildDebugTarget;
+      delete build.buildDebugTargetFolder;
+      delete build.attachTarget;
+      delete build.attachTargetFolder;
+      if (buildState) {
+        delete buildState.activeRunner;
+        delete buildState.runnerStates;
+      }
+      migrated = true;
+    }
+  }
+
+  // Always stamp the migration version so we never re-scan on future loads
+  // — even when nothing needed migrating, since the absence of legacy fields
+  // already means the workspace is on the new shape.
+  try {
+    const data = readZephyrIdeJson(config) as Record<string, unknown>;
+    if (migrated && newProfiles.length > 0) {
+      const existing = Array.isArray(data.runnerProfiles) ? (data.runnerProfiles as any[]) : [];
+      data.runnerProfiles = [...existing, ...newProfiles];
+    }
+    data[MIGRATION_VERSION_KEY] = RUNNER_PROFILES_MIGRATION_VERSION;
+    await writeZephyrIdeJson(config, data);
+  } catch (e) {
+    outputError("Runner Profile Migration", `Failed to persist migrated runner profiles: ${String(e)}`);
+  }
+
+  // Persist the stripped legacy fields and any newly-set `activeProfile`
+  // values to workspace state + zephyr-ide.json#projects so the cleanup
+  // survives a session close even when the user makes no further edits.
+  if (migrated) {
+    try {
+      await setWorkspaceState(context, config);
+    } catch (e) {
+      outputError("Runner Profile Migration", `Failed to persist migrated workspace state: ${String(e)}`);
+    }
+  }
 }
 
 export async function setWorkspaceState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {

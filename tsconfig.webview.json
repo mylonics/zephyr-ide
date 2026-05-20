@@ -31,6 +31,8 @@
     "src/panels/workspace_panel/components/**/*.ts",
     "src/panels/host_tool_install_view/components/**/*.ts",
     "src/panels/dashboard_view/dashboard-panel.ts",
-    "src/panels/dashboard_view/components/**/*.ts"
+    "src/panels/dashboard_view/components/**/*.ts",
+    "src/panels/runner_profile_view/runner-profile-panel.ts",
+    "src/panels/runner_profile_view/components/**/*.ts"
   ]
 }

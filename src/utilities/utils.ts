@@ -27,6 +27,7 @@ import * as yaml from 'js-yaml';
 import { SetupState, WorkspaceConfig } from "../setup_utilities/types";
 import { getToolchainDir, resolveToolchainDirPath } from "../setup_utilities/workspace-config";
 import { initOutputChannel, getOutputChannel, outputCommand, outputError, outputInfo, outputLine, type ShellCommandResult } from "./output";
+import { KNOWN_RUNNERS } from "../project_utilities/runner_selector";
 export type { ShellCommandResult } from "./output";
 
 /**
@@ -427,16 +428,20 @@ export async function getLaunchConfigurationByName(wsConfig: WorkspaceConfig, co
     return;
   }
 
-  // When a folder is specified, try an exact name+folder match first
+  // When a folder is specified, require an exact name+folder match.
+  // Falling back to a name-only match across folders would silently start the
+  // wrong configuration in a multi-root workspace where two folders define
+  // configs of the same name (issue #17).
   if (folderName) {
     for (const config of configurations) {
       if (config.name === configName && config.workspaceFolder === folderName) {
         return config;
       }
     }
+    return undefined;
   }
 
-  // Fall back to name-only match (backward compatibility)
+  // No folder recorded — accept the first name match (workspace/global scope).
   for (const config of configurations) {
     if (config.name === configName) {
       return config;
@@ -601,6 +606,12 @@ export async function resolveConfigInputs(
  * identically-named configurations from different folders.
  */
 export function getLaunchTargetDisplayName(targetName: string, targetFolder: string | undefined, fallback: string): string {
+  // A "runner:xxx" target is pinned to a Zephyr runner; render it as
+  // "Auto (runner: xxx)" so users don't see the raw magic prefix in the UI.
+  if (targetName && targetName.startsWith(RUNNER_TARGET_PREFIX)) {
+    const runnerName = targetName.slice(RUNNER_TARGET_PREFIX.length);
+    return `Auto via runners.yaml — runner: ${runnerName}`;
+  }
   const label = targetName || fallback;
   const folders = vscode.workspace.workspaceFolders;
   if (!folders || folders.length <= 1 || !targetFolder) {
@@ -609,25 +620,104 @@ export function getLaunchTargetDisplayName(targetName: string, targetFolder: str
   return `${label} (${targetFolder})`;
 }
 
-export async function selectLaunchConfiguration(wsConfig: WorkspaceConfig): Promise<{ name: string; workspaceFolder?: string } | undefined> {
-  const configurations = await getLaunchConfigurations(wsConfig);
-  if (!configurations) {
-    return;
-  }
+/** Runners that cortex-debug can drive and are therefore valid debug targets. */
+const DEBUG_CAPABLE_RUNNERS = [
+  "openocd",
+  "jlink",
+  "pyocd",
+  "stlink",
+  "blackmagicprobe",
+];
+
+/** Prefix used to store a runner-pinned target in a RunnerBind's `launch` slot or in the legacy launchTarget / attachTarget string. */
+export const RUNNER_TARGET_PREFIX = "runner:";
+
+export async function selectLaunchConfiguration(
+  wsConfig: WorkspaceConfig,
+  defaultLabel?: string,
+  /**
+   * Issue #23: when supplied, debug-capable runners not present in this list
+   * are demoted to "(not in board's runners.yaml)" so the user understands
+   * which runners the active build actually supports.
+   */
+  availableRunners?: string[],
+  /**
+   * Bind kind being picked. "flash" hides launch.json (not valid for flashing)
+   * and lists every known west runner (any runner can flash). "debug" (default)
+   * lists only cortex-debug-capable runners and includes launch.json entries.
+   */
+  mode: "flash" | "debug" = "debug",
+): Promise<{ name: string; workspaceFolder?: string; isDefault?: boolean; isRunner?: boolean } | undefined> {
+  const configurations = mode === "flash" ? undefined : await getLaunchConfigurations(wsConfig);
 
   const pickOptions: vscode.QuickPickOptions = {
     ignoreFocusOut: true,
-    placeHolder: "Select Launch Configuration",
+    placeHolder: mode === "flash" ? "Select Flash Runner" : "Select Launch Configuration",
   };
   const isMultiRoot = (vscode.workspace.workspaceFolders?.length ?? 0) > 1;
-  const items: vscode.QuickPickItem[] = configurations.map(x => ({
-    label: x.name,
-    description: isMultiRoot ? x.workspaceFolder : undefined,
+  const items: vscode.QuickPickItem[] = [];
+
+  if (defaultLabel) {
+    items.push({
+      label: defaultLabel, detail: mode === "flash"
+        ? "Use the default flash runner from runners.yaml"
+        : "Use Zephyr IDE automatic debug configuration (runners.yaml)"
+    });
+  }
+
+  // Runner pool depends on mode: cortex-debug-capable for debug/attach, every
+  // west runner for flash (anything can flash).
+  const runnerPool = mode === "flash" ? KNOWN_RUNNERS : DEBUG_CAPABLE_RUNNERS;
+  const availableSet = availableRunners ? new Set(availableRunners) : undefined;
+  const sortedRunners = availableSet
+    ? [
+      ...runnerPool.filter(r => availableSet.has(r)),
+      ...runnerPool.filter(r => !availableSet.has(r)),
+    ]
+    : runnerPool;
+  items.push({
+    label: mode === "flash"
+      ? "Runners (from runners.yaml)"
+      : "Runners (auto-configured from runners.yaml)",
+    kind: vscode.QuickPickItemKind.Separator,
+  });
+  items.push(...sortedRunners.map(r => {
+    const supported = !availableSet || availableSet.has(r);
+    const supportDesc = supported
+      ? (mode === "flash" ? "flash" : "auto-config")
+      : "(not in board's runners.yaml)";
+    return {
+      label: `$(plug) ${r}`,
+      description: supportDesc,
+      detail: mode === "flash"
+        ? `Use the ${r} runner for flashing.`
+        : `Pin debug sessions to the ${r} runner; cortex-debug config is generated from runners.yaml.`,
+    } as vscode.QuickPickItem;
   }));
+
+  if (configurations && configurations.length > 0) {
+    items.push({ label: "launch.json", kind: vscode.QuickPickItemKind.Separator });
+    items.push(...configurations.map(x => ({
+      label: x.name,
+      description: isMultiRoot ? x.workspaceFolder : undefined,
+    })));
+  }
 
   const selected = await vscode.window.showQuickPick(items, pickOptions);
   if (!selected) {
     return undefined;
+  }
+
+  if (defaultLabel && selected.label === defaultLabel) {
+    return { name: "", isDefault: true };
+  }
+  // Runner picks are prefixed with "$(plug) " — strip it before matching.
+  const RUNNER_LABEL_PREFIX = "$(plug) ";
+  if (selected.label.startsWith(RUNNER_LABEL_PREFIX)) {
+    const runnerName = selected.label.slice(RUNNER_LABEL_PREFIX.length);
+    if (runnerPool.includes(runnerName)) {
+      return { name: `${RUNNER_TARGET_PREFIX}${runnerName}`, isRunner: true };
+    }
   }
   return { name: selected.label, workspaceFolder: selected.description };
 }

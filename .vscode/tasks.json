@@ -257,6 +257,18 @@
       },
       "dependsOn": "compile"
     },
+    {
+      "label": "test: runner-profile-resolution",
+      "type": "shell",
+      "command": "npx vscode-test --grep runner-profile-resolution",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "dependsOn": "compile"
+    },
     // ── Integration tests (require Zephyr SDK, ~15 min each) ───────────────
     {
       "label": "integration: standard",
