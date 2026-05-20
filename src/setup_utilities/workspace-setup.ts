@@ -357,7 +357,10 @@ async function handleExternalInstallation(
 
   if (needsSetup) {
     const extWestSelection = await westSelector(context, wsConfig);
-    if (!extWestSelection || extWestSelection.failed) {
+    if (!extWestSelection || extWestSelection.userAbandoned) {
+      return false;
+    }
+    if (extWestSelection.failed) {
       notifyError("External Installation", "External installation configuration cancelled or failed.");
       return false;
     }
@@ -608,7 +611,10 @@ export async function handleReconfigureInstallation(context: vscode.ExtensionCon
 
   const westSelection = await westSelector(context, wsConfig);
 
-  if (!westSelection || westSelection.failed) {
+  if (!westSelection || westSelection.userAbandoned) {
+    return;
+  }
+  if (westSelection.failed) {
     notifyError("Manage Installations", "Reconfiguration cancelled or failed.");
     return;
   }
@@ -853,7 +859,10 @@ export async function showCreateWorkspaceMenu(context: vscode.ExtensionContext, 
       // Need to configure this installation
       outputInfo("Create Workspace", `Configuring new installation...`);
       const westSelection = await westSelector(context, wsConfig);
-      if (!westSelection || westSelection.failed) {
+      if (!westSelection || westSelection.userAbandoned) {
+        return;
+      }
+      if (westSelection.failed) {
         notifyError("Create Workspace", "Workspace configuration cancelled or failed.");
         return;
       }
@@ -1038,7 +1047,7 @@ export async function westConfig(
         await setSetupState(context, wsConfig, globalConfig, baseDir);
       }
       const westSelection = await westSelector(context, wsConfig);
-      if (!westSelection || westSelection.failed) {
+      if (!westSelection || westSelection.userAbandoned || westSelection.failed) {
         return { cancelled: true, option: null };
       }
       result.westSelection = westSelection;
