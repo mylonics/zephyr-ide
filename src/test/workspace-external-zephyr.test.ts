@@ -141,6 +141,11 @@ suite("Workspace External Zephyr Test Suite", () => {
 
                 const { sdkVersion, toolchain, toolchainTarget } = getTestEnvConfig();
                 const externalInstallDir = getExternalInstallDir();
+                // The OpenDialog mock skips real folder validation, but the workspace-setup
+                // code path requires the chosen external install dir to already exist
+                // (loadExternalSetupState returns undefined otherwise). Create it up front
+                // so it mirrors what a real user would pick from the system file picker.
+                fs.mkdirSync(externalInstallDir, { recursive: true });
                 console.log(`🏗️ Step 1: Setting up workspace from git without west folder...`);
                 console.log(`   External install directory: ${externalInstallDir}`);
                 const setupPromise = startWorkspaceCommand(
