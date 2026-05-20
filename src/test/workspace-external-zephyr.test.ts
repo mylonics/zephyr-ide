@@ -27,7 +27,8 @@ import {
     activateExtension,
     executeFinalBuild,
     executeTestWithErrorHandling,
-    executeWorkspaceCommand
+    executeWorkspaceCommand,
+    getTestEnvConfig
 } from "./test-runner";
 import { UIMockInterface } from "./ui-mock-interface";
 
@@ -88,6 +89,7 @@ suite("Workspace External Zephyr Test Suite", () => {
                 await activateExtension();
                 uiMock.activate();
 
+                const { sdkVersion, toolchain, toolchainTarget } = getTestEnvConfig();
                 console.log("🏗️ Step 1: Setting up workspace from git without west folder...");
                 const setupPromise = startWorkspaceCommand(
                     uiMock,
@@ -97,12 +99,12 @@ suite("Workspace External Zephyr Test Suite", () => {
                         { type: 'quickpick', value: 'New Installation', description: 'Choose New Installation option' },
                         { type: 'opendialog', value: path.join(os.homedir(), '.zephyr_ide'), description: 'Select ~/.zephyr_ide as installation directory' },
                         { type: 'quickpick', value: 'minimal', description: 'Select minimal manifest' },
-                        { type: 'quickpick', value: 'stm32', description: 'Select STM32 toolchain' },
-                        { type: 'quickpick', value: 'v4.2.0', description: 'Select default configuration' },
+                        { type: 'quickpick', value: toolchain, description: `Select ${toolchain} toolchain` },
+                        { type: 'quickpick', value: sdkVersion, description: `Select ${sdkVersion} Zephyr version` },
                         { type: 'input', value: '', description: 'Select additional west init args' },
                         { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
                         { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
-                        { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
+                        { type: 'quickpick', value: toolchainTarget, description: `Select ${toolchainTarget} toolchain`, multiSelect: true }
                     ],
                     "zephyr-ide.workspace-setup-from-git",
                 );

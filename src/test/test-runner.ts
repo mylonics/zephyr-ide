@@ -265,6 +265,29 @@ export async function activateExtension(
  * @param testName Name of the test for logging
  * @param retryDelayMs Delay before retry if setup not complete (default: 10000)
  */
+export async function assertWorkspaceReady(testName: string): Promise<void> {
+    const ext = vscode.extensions.getExtension("mylonics.zephyr-ide");
+    assert.ok(ext?.isActive, `Extension must be active before build (${testName})`);
+
+    const wsConfig = ext?.exports?.getWorkspaceConfig();
+    assert.ok(
+        wsConfig?.activeSetupState?.initialized,
+        `Workspace must be initialized before build (${testName}). ` +
+        `activeSetupState: ${JSON.stringify(wsConfig?.activeSetupState)}`
+    );
+
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    assert.ok(workspaceFolders && workspaceFolders.length > 0, `No workspace folder open (${testName})`);
+
+    const workspaceDir = workspaceFolders[0].uri.fsPath;
+    const zephyrIdeDir = require('path').join(workspaceDir, '.zephyr-ide');
+    if (await fs.pathExists(zephyrIdeDir)) {
+        console.log(`   ✅ .zephyr-ide directory present at ${zephyrIdeDir}`);
+    } else {
+        console.log(`   ⚠️ .zephyr-ide directory not found at ${zephyrIdeDir} (may be stored elsewhere)`);
+    }
+}
+
 export async function executeFinalBuild(
     testName: string,
     retryDelayMs: number = 10000
@@ -279,6 +302,8 @@ export async function executeFinalBuild(
         console.log(`⚠️ Setup not complete for ${testName}, retrying in ${retryDelayMs / 1000} seconds...`);
         await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
     }
+
+    await assertWorkspaceReady(testName);
 
     const result = await vscode.commands.executeCommand("zephyr-ide.build");
     console.log(`   Build command returned: ${result} (exit code ${result ? '0 - success' : 'non-zero - failure'})`);
@@ -301,6 +326,13 @@ export async function executeTestWithErrorHandling(
 ): Promise<void> {
     try {
         await testFunction();
+
+        // Surface any async errors (e.g. board not found) that were stored
+        // inside scheduled mock callbacks and couldn't propagate directly.
+        const asyncError = uiMock.getAndClearAsyncError?.();
+        if (asyncError) {
+            throw asyncError;
+        }
 
         // Dump extension output to the test stream
         await dumpExtensionOutput(`${testName} - Extension Output`);
@@ -365,43 +397,71 @@ export async function executeWorkspaceCommand(
     assert.ok(result, successMessage);
 }
 
+// ---------------------------------------------------------------------------
+// CommonUIInteractions
+//
+// Override any value via environment variables for local/CI flexibility:
+//   ZEPHYR_IDE_TEST_SDK_VERSION   — default: "v4.2.0"  (set to "automatic" to
+//                                   always pick the latest available)
+//   ZEPHYR_IDE_TEST_TOOLCHAIN     — default: "stm32"   (manifest toolchain filter)
+//   ZEPHYR_IDE_TEST_TOOLCHAIN_TARGET — default: "arm-zephyr-eabi"
+// ---------------------------------------------------------------------------
+/** Read test env-var overrides. Exported for tests that build their own interaction arrays. */
+export function getTestEnvConfig() {
+    return {
+        sdkVersion: process.env.ZEPHYR_IDE_TEST_SDK_VERSION ?? 'v4.2.0',
+        toolchain: process.env.ZEPHYR_IDE_TEST_TOOLCHAIN ?? 'stm32',
+        toolchainTarget: process.env.ZEPHYR_IDE_TEST_TOOLCHAIN_TARGET ?? 'arm-zephyr-eabi',
+    };
+}
+
 /**
- * Common UI interaction patterns for different workspace setup types
+ * Common UI interaction patterns for different workspace setup types.
+ * Values are read at call time so environment variable overrides work correctly.
  */
 export const CommonUIInteractions = {
     // Standard workspace setup interactions
-    standardWorkspace: [
-        { type: 'quickpick', value: 'create new west.yml', description: 'Create new west.yml' },
-        { type: 'quickpick', value: 'minimal', description: 'Select minimal manifest' },
-        { type: 'quickpick', value: 'stm32', description: 'Select STM32 toolchain' },
-        { type: 'quickpick', value: 'v4.2.0', description: 'Select default configuration' },
-        { type: 'input', value: '', description: 'Select additional west init args' },
-        { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
-        { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
-        { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
-    ],
+    get standardWorkspace() {
+        const { sdkVersion, toolchain, toolchainTarget } = getTestEnvConfig();
+        return [
+            { type: 'quickpick', value: 'create new west.yml', description: 'Create new west.yml' },
+            { type: 'quickpick', value: 'minimal', description: 'Select minimal manifest' },
+            { type: 'quickpick', value: toolchain, description: `Select ${toolchain} toolchain` },
+            { type: 'quickpick', value: sdkVersion, description: `Select ${sdkVersion} Zephyr version` },
+            { type: 'input', value: '', description: 'Select additional west init args' },
+            { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
+            { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
+            { type: 'quickpick', value: toolchainTarget, description: `Select ${toolchainTarget} toolchain`, multiSelect: true }
+        ];
+    },
 
     // Simulated workspace setup interactions (native_sim, no HALs)
-    simWorkspace: [
-        { type: 'quickpick', value: 'create new west.yml', description: 'Create new west.yml' },
-        { type: 'quickpick', value: 'sim only', description: 'Select simulated manifest' },
-        { type: 'quickpick', value: 'v4.2.0', description: 'Select default configuration' },
-        { type: 'input', value: '', description: 'Select additional west init args' },
-        { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
-        { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
-        { type: 'quickpick', value: 'x86_64-zephyr-elf', description: 'Select x86_64 toolchain', multiSelect: true }
-    ],
+    get simWorkspace() {
+        const { sdkVersion } = getTestEnvConfig();
+        return [
+            { type: 'quickpick', value: 'create new west.yml', description: 'Create new west.yml' },
+            { type: 'quickpick', value: 'sim only', description: 'Select simulated manifest' },
+            { type: 'quickpick', value: sdkVersion, description: `Select ${sdkVersion} Zephyr version` },
+            { type: 'input', value: '', description: 'Select additional west init args' },
+            { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
+            { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
+            { type: 'quickpick', value: 'x86_64-zephyr-elf', description: 'Select x86_64 toolchain', multiSelect: true }
+        ];
+    },
 
     // Testing workspace setup interactions (RPi Pico, ARM toolchain)
-    testingWorkspace: [
-        { type: 'quickpick', value: 'create new west.yml', description: 'Create new west.yml' },
-        { type: 'quickpick', value: 'testing', description: 'Select testing manifest' },
-        { type: 'quickpick', value: 'v4.2.0', description: 'Select default configuration' },
-        { type: 'input', value: '', description: 'Select additional west init args' },
-        { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
-        { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
-        { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
-    ],
+    get testingWorkspace() {
+        const { sdkVersion, toolchainTarget } = getTestEnvConfig();
+        return [
+            { type: 'quickpick', value: 'create new west.yml', description: 'Create new west.yml' },
+            { type: 'quickpick', value: 'testing', description: 'Select testing manifest' },
+            { type: 'quickpick', value: sdkVersion, description: `Select ${sdkVersion} Zephyr version` },
+            { type: 'input', value: '', description: 'Select additional west init args' },
+            { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
+            { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
+            { type: 'quickpick', value: toolchainTarget, description: `Select ${toolchainTarget} toolchain`, multiSelect: true }
+        ];
+    },
 
     // Project creation interactions
     createBlinkyProject: [

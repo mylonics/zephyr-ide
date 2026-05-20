@@ -31,6 +31,18 @@ export class UIMockInterface {
     private originalImplementations: any = {};
     private isActive: boolean = false;
     private pendingTimeouts: Set<NodeJS.Timeout> = new Set();
+    private lastAsyncError: Error | undefined;
+
+    /**
+     * Returns and clears any error that was thrown inside a scheduled (setTimeout)
+     * mock callback. Tests should call this before asserting success so that
+     * board-not-found and items-never-populated errors are surfaced.
+     */
+    public getAndClearAsyncError(): Error | undefined {
+        const err = this.lastAsyncError;
+        this.lastAsyncError = undefined;
+        return err;
+    }
 
     constructor() {
         this.mockQueue = [];
@@ -159,7 +171,15 @@ export class UIMockInterface {
     private scheduleTimeout(callback: () => void, delayMs: number): NodeJS.Timeout {
         const timeoutId = setTimeout(() => {
             this.pendingTimeouts.delete(timeoutId);
-            callback();
+            try {
+                callback();
+            } catch (err) {
+                // Store errors from scheduled callbacks; they cannot propagate
+                // through the event-loop boundary on their own.
+                const error = err instanceof Error ? err : new Error(String(err));
+                console.error(`❌ UI Mock async error: ${error.message}`);
+                this.lastAsyncError = error;
+            }
         }, delayMs);
         this.pendingTimeouts.add(timeoutId);
         return timeoutId;
