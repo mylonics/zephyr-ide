@@ -48,6 +48,7 @@ import {
     executeWorkspaceCommand,
     startWorkspaceCommand,
     CommonUIInteractions,
+    waitForBuildReady,
 } from './test-runner';
 import { UIMockInterface } from './ui-mock-interface';
 
@@ -212,7 +213,7 @@ suite('Combined Installation Test Suite', function() {
                     'Build configuration should succeed'
                 );
 
-                await new Promise((resolve) => setTimeout(resolve, 10000));
+                await waitForBuildReady('Combined Installation Test');
                 console.log('⚡ Step 8: Executing build...');
                 await executeFinalBuild('Combined Installation Test');
             }

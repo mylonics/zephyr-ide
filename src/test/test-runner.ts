@@ -288,21 +288,47 @@ export async function assertWorkspaceReady(testName: string): Promise<void> {
     }
 }
 
+/**
+ * Poll until workspace setup state reports SDK installed, then return.
+ * This replaces fixed-duration sleeps before executeFinalBuild.
+ * @param testName   Name of the test (for logging)
+ * @param timeoutMs  Maximum time to wait in ms (default: 60 000)
+ * @param intervalMs Poll interval in ms (default: 2 000)
+ */
+export async function waitForBuildReady(
+    testName: string,
+    timeoutMs: number = 60000,
+    intervalMs: number = 2000
+): Promise<void> {
+    const start = Date.now();
+    console.log(`⏳ Waiting for workspace to be build-ready (${testName})...`);
+
+    while (Date.now() - start < timeoutMs) {
+        const ext = vscode.extensions.getExtension("mylonics.zephyr-ide");
+        const wsConfig = ext?.isActive && ext.exports?.getWorkspaceConfig
+            ? ext.exports.getWorkspaceConfig()
+            : null;
+
+        if (wsConfig?.activeSetupState?.initialized) {
+            const sdkInstalled = await vscode.commands.executeCommand("zephyr-ide.is-sdk-installed");
+            if (sdkInstalled) {
+                console.log(`   ✅ Workspace is build-ready (${Math.round((Date.now() - start) / 1000)}s elapsed)`);
+                return;
+            }
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    }
+
+    console.log(`   ⚠️ waitForBuildReady timed out after ${timeoutMs / 1000}s for ${testName} — proceeding anyway`);
+}
+
 export async function executeFinalBuild(
     testName: string,
-    retryDelayMs: number = 10000
 ): Promise<void> {
     console.log("⚡ Executing final build...");
 
-    // Check if workspace setup is complete
-    const ext = vscode.extensions.getExtension("mylonics.zephyr-ide");
-    const wsConfig = ext?.exports?.getWorkspaceConfig();
-
-    if (!wsConfig?.activeSetupState?.initialized) {
-        console.log(`⚠️ Setup not complete for ${testName}, retrying in ${retryDelayMs / 1000} seconds...`);
-        await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
-    }
-
+    await waitForBuildReady(testName);
     await assertWorkspaceReady(testName);
 
     const result = await vscode.commands.executeCommand("zephyr-ide.build");

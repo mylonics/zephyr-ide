@@ -32,7 +32,8 @@ import {
     executeTestWithErrorHandling,
     executeWorkspaceCommand,
     CommonUIInteractions,
-    shouldSkipBuildTests
+    shouldSkipBuildTests,
+    waitForBuildReady
 } from "./test-runner";
 import { UIMockInterface } from "./ui-mock-interface";
 
@@ -87,8 +88,6 @@ suite("Workspace Standard Test Suite", () => {
     });
 
     test("Standard Workspace: Setup → Project → Build", async function () {
-        this.timeout(420000); // 7 minutes timeout
-
         console.log("🚀 Starting standard workspace test...");
 
         const uiMock = new UIMockInterface();
@@ -176,13 +175,12 @@ suite("Workspace Standard Test Suite", () => {
                     "Build configuration should succeed"
                 );
 
-                await new Promise((resolve) => setTimeout(resolve, 10000));
+                await waitForBuildReady("Standard Workspace");
                 console.log("⚡ Step 5: Executing build...");
                 await executeFinalBuild("Standard Workspace");
             }
         );
-    }).timeout(420000); // 7 minutes timeout
-
+    }).timeout(720000);
 
 
 

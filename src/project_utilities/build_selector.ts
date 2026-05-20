@@ -107,10 +107,13 @@ async function getBoardlistWest(setupState: SetupState, folder: vscode.Uri | und
 
     // Check if we're in CI environment and provide fallback
     if (process.env.CI || process.env.GITHUB_ACTIONS || process.env.JENKINS_URL || process.env.BUILD_NUMBER) {
+      // Zephyr ≥ 4.0 (hwm-v2): single-qualifier boards embed the qualifier in
+      // the name (e.g. rpi_pico/rp2040). Update this list when upgrading the
+      // default SDK version used in CI so mock values stay in sync.
       return [
-        { name: "nucleo_f401re", subdir: "arm/st/nucleo_f401re" },
-        { name: "native_sim", subdir: "native/native_sim" },
-        { name: "rpi_pico", subdir: "arm/raspberrypi/rpi_pico" },
+        { name: "nucleo_f401re/stm32f401xe", subdir: "arm/st/nucleo_f401re" },
+        { name: "native_sim/native", subdir: "native/native_sim" },
+        { name: "rpi_pico/rp2040", subdir: "arm/raspberrypi/rpi_pico" },
         { name: "custom_plank", subdir: path.join(folder ? folder.fsPath : "", "/vendor/custom_plank") }
       ];
     }

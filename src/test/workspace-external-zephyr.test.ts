@@ -75,8 +75,6 @@ suite("Workspace External Zephyr Test Suite", () => {
     });
 
     test("External Zephyr Workspace: Git Clone → Use Existing Install → West Selector → Build", async function () {
-        this.timeout(620000);
-
         console.log("🚀 Starting external zephyr workspace test...");
 
         const uiMock = new UIMockInterface();

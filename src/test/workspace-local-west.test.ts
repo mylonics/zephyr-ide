@@ -24,7 +24,8 @@ import {
     runWorkspaceSuiteTeardown,
     activateExtension,
     executeFinalBuild,
-    executeTestWithErrorHandling
+    executeTestWithErrorHandling,
+    getTestEnvConfig
 } from "./test-runner";
 import { UIMockInterface } from "./ui-mock-interface";
 
@@ -68,8 +69,6 @@ suite("Workspace Local West Test Suite", () => {
     });
 
     test("Local West Workspace: Git Clone → Detect West.yml → SDK Install → Build", async function () {
-        this.timeout(620000);
-
         console.log("🚀 Starting local west workspace test...");
 
         const uiMock = new UIMockInterface();
@@ -84,6 +83,7 @@ suite("Workspace Local West Test Suite", () => {
                 // Initialize UI Mock Interface
                 uiMock.activate();
 
+                const { toolchainTarget } = getTestEnvConfig();
                 console.log("🏗️ Step 1: Setting up workspace from git with west.yml detection...");
                 const setupPromise = startWorkspaceCommand(
                     uiMock,
@@ -92,7 +92,7 @@ suite("Workspace Local West Test Suite", () => {
                         { type: 'quickpick', value: 'local-west', description: 'Choose Use Local West Workspace option' },
                         { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
                         { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
-                        { type: 'quickpick', value: 'arm-zephyr-eabi', description: 'Select ARM toolchain', multiSelect: true }
+                        { type: 'quickpick', value: toolchainTarget, description: `Select ${toolchainTarget} toolchain`, multiSelect: true }
                     ],
                     "zephyr-ide.workspace-setup-from-git"
                 );
