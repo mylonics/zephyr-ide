@@ -537,6 +537,22 @@ export async function migrateSettingKeys(): Promise<void> {
   }
 }
 
+/**
+ * Resolve the toolchain directory path without any filesystem side effects.
+ * Use this when you only need to know where the toolchain directory *would*
+ * be, e.g. to probe for an installed SDK. Use {@link getToolchainDir} when
+ * the directory should also be created on disk.
+ */
+export function resolveToolchainDirPath(): string {
+  const configuration = vscode.workspace.getConfiguration();
+  const toolchainDir: string | undefined = configuration.get("zephyr-ide.toolchainDirectory")
+    || configuration.get("zephyr-ide.toolchain_directory");
+  if (toolchainDir && toolchainDir.trim()) {
+    return toolchainDir;
+  }
+  return path.join(os.homedir(), toolsfoldername, "toolchains");
+}
+
 export function getToolchainDir() {
   const configuration = vscode.workspace.getConfiguration();
 

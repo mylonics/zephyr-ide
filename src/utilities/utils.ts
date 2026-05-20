@@ -25,7 +25,7 @@ import * as os from "os";
 import * as yaml from 'js-yaml';
 
 import { SetupState, WorkspaceConfig } from "../setup_utilities/types";
-import { getToolchainDir } from "../setup_utilities/workspace-config";
+import { getToolchainDir, resolveToolchainDirPath } from "../setup_utilities/workspace-config";
 import { initOutputChannel, getOutputChannel, outputCommand, outputError, outputInfo, outputLine, type ShellCommandResult } from "./output";
 export type { ShellCommandResult } from "./output";
 
@@ -41,7 +41,7 @@ export type { ShellCommandResult } from "./output";
  */
 function hasInstalledSDKSync(): boolean {
   try {
-    const dir = getToolchainDir();
+    const dir = resolveToolchainDirPath();
     if (!fs.existsSync(dir)) { return false; }
     const entries = fs.readdirSync(dir);
     for (const entry of entries) {
@@ -54,6 +54,27 @@ function hasInstalledSDKSync(): boolean {
     // Treat scan errors as "no SDK present" — fall back to CMake auto-detection.
   }
   return false;
+}
+
+/**
+ * Populate VIRTUAL_ENV, ZEPHYR_BASE, and ZEPHYR_SDK_INSTALL_DIR on `env` from
+ * the given setupState. These vars are normally exposed to integrated
+ * terminals via VS Code's `environmentVariableCollection`, but that does not
+ * reliably reach child_process or task shells in all environments, so we
+ * inject them directly. ZEPHYR_SDK_INSTALL_DIR is only overridden when the
+ * extension has actually installed an SDK at the resolved toolchain dir
+ * (otherwise CMake's auto-detection of manually installed SDKs is preserved).
+ */
+function applyPythonShellEnv(env: { [key: string]: string | undefined }, setupState: SetupState): void {
+  if (setupState.env["VIRTUAL_ENV"]) {
+    env["VIRTUAL_ENV"] = setupState.env["VIRTUAL_ENV"];
+  }
+  if (setupState.zephyrDir) {
+    env["ZEPHYR_BASE"] = setupState.zephyrDir;
+  }
+  if (!process.env.ZEPHYR_SDK_INSTALL_DIR && hasInstalledSDKSync()) {
+    env["ZEPHYR_SDK_INSTALL_DIR"] = getToolchainDir();
+  }
 }
 
 /**
@@ -709,15 +730,7 @@ export async function executeTaskHelperInPythonEnv(setupState: SetupState | unde
   if (venvBin) {
     env[pathKey] = venvBin + pathSep + existingPath;
   }
-  if (setupState.env["VIRTUAL_ENV"]) {
-    env["VIRTUAL_ENV"] = setupState.env["VIRTUAL_ENV"];
-  }
-  if (setupState.zephyrDir) {
-    env["ZEPHYR_BASE"] = setupState.zephyrDir;
-  }
-  if (!process.env.ZEPHYR_SDK_INSTALL_DIR && hasInstalledSDKSync()) {
-    env["ZEPHYR_SDK_INSTALL_DIR"] = getToolchainDir();
-  }
+  applyPythonShellEnv(env, setupState);
 
   if (win && overrideTempOnWindows) {
     // Redirect TMPDIR/TEMP/TMP to a short path so pip build isolation
@@ -776,29 +789,7 @@ export async function executeShellCommandInPythonEnv(cmd: string, cwd: string, s
     env[existingKey] = setupState.env["PATH"] + existingPath;
   }
 
-  if (setupState.env["VIRTUAL_ENV"]) {
-    env["VIRTUAL_ENV"] = setupState.env["VIRTUAL_ENV"];
-  }
-
-  // ZEPHYR_BASE is required by west commands (e.g. `west boards`) that locate
-  // the Zephyr tree. It is set for integrated terminals via
-  // environmentVariableCollection but that does not reach cp.exec subprocesses,
-  // so we inject it here explicitly.
-  if (setupState.zephyrDir) {
-    env["ZEPHYR_BASE"] = setupState.zephyrDir;
-  }
-
-  // ZEPHYR_SDK_INSTALL_DIR may be overridden by the user via the
-  // zephyr-ide.toolchainDirectory VS Code setting. Propagate the resolved
-  // value so that cmake-based subprocesses (e.g. RAM/ROM memory reports) use
-  // the correct toolchain path even when it differs from the system default.
-  //
-  // Only inject when the extension has actually installed an SDK at that
-  // location; otherwise pointing CMake at an empty directory would suppress
-  // its built-in auto-detection of manually installed SDKs (e.g. ~/zephyr-sdk-*).
-  if (!process.env.ZEPHYR_SDK_INSTALL_DIR && hasInstalledSDKSync()) {
-    env["ZEPHYR_SDK_INSTALL_DIR"] = getToolchainDir();
-  }
+  applyPythonShellEnv(env, setupState);
 
   return executeShellCommand(cmd, cwd, display_error, env);
 };
