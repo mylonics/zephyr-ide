@@ -352,7 +352,7 @@
         },
         {
           "command": "zephyr-ide.active-view.change-launch-target",
-          "when": "view == zephyrIdeActiveProject && viewItem =~ /activeProject\\.(debug|buildDebug|debugAttach)$/",
+          "when": "view == zephyrIdeActiveProject && viewItem =~ /activeProject\\.(flash|buildFlash|debug|buildDebug|debugAttach)$/",
           "group": "inline"
         },
         {
@@ -434,6 +434,11 @@
           "command": "zephyr-ide.tree-view.delete-test",
           "when": "view == zephyrIdeProjects && viewItem == testItem",
           "group": "inline@2"
+        },
+        {
+          "command": "zephyr-ide.tree-view.set-build-profile",
+          "when": "view == zephyrIdeProjects && viewItem == buildProfileItem",
+          "group": "inline@1"
         }
       ]
     },
@@ -1056,6 +1061,27 @@
         "command": "zephyr-ide.tree-view.delete-test",
         "title": "Delete Test",
         "icon": "$(trash)"
+      },
+      {
+        "command": "zephyr-ide.tree-view.set-build-profile",
+        "title": "Zephyr IDE: Set Runner Profile for Build",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "zephyr-ide.manage-build-variables",
+        "title": "Zephyr IDE: Manage Build Variables"
+      },
+      {
+        "command": "zephyr-ide.manage-project-variables",
+        "title": "Zephyr IDE: Manage Project Variables"
+      },
+      {
+        "command": "zephyr-ide.get-active-build-variable",
+        "title": "Zephyr IDE: Get Active Build Variable"
+      },
+      {
+        "command": "zephyr-ide.get-active-project-variable",
+        "title": "Zephyr IDE: Get Active Project Variable"
       }
     ],
     "terminal": {

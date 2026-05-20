@@ -24,7 +24,7 @@ import { ProjectConfig, resolveActiveProjectBuild, getBuildFolder } from "../pro
 
 import { WorkspaceConfig } from '../setup_utilities/types';
 import { BuildConfig } from "../project_utilities/build_selector";
-import { loadRunnerProfiles, findRunnerProfile, resolveBind } from "../project_utilities/runner_profiles";
+import { loadRunnerProfiles, findRunnerProfile, resolveBind, resolveRunnerArgs } from "../project_utilities/runner_profiles";
 import { getSetupStateOrNotify } from "../setup_utilities/workspace-config";
 
 export async function flashByName(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName: string, buildName: string, profileName?: string) {
@@ -82,12 +82,23 @@ export async function flashActive(context: vscode.ExtensionContext, wsConfig: Wo
 
 export async function flash(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, project: ProjectConfig, build: BuildConfig, runner: string, args: string) {
   // Tasks
-  let cmd = `west flash --build-dir "${getBuildFolder(wsConfig, project, build)}"`;
+  const buildFolder = getBuildFolder(wsConfig, project, build);
+  let cmd = `west flash --build-dir "${buildFolder}"`;
 
   if (runner !== "default") {
     cmd += ` -r ${runner}`;
   }
-  const trimmedArgs = args.trim();
+  const resolvedArgs = resolveRunnerArgs(args, {
+    workspaceFolder: wsConfig.rootPath,
+    buildFolder,
+    board: build.board,
+    boardRevision: build.revision ?? "",
+    project: project.name,
+    build: build.name,
+    buildVars: build.customVars,
+    projectVars: project.customVars,
+  });
+  const trimmedArgs = resolvedArgs.trim();
   if (trimmedArgs) { cmd += ` ${trimmedArgs}`; }
 
   const taskName = "Zephyr IDE Flash: " + project.name + " " + build.name;

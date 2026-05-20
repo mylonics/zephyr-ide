@@ -42,6 +42,10 @@ export interface ProjectConfig {
   buildConfigs: BuildConfigDictionary;
   confFiles: ConfigFiles;
   twisterConfigs: TwisterConfigDictionary;
+  /** User-defined key-value variables for this project.
+   *  Referenced in runner profile args as `${projectvar:key}` and in
+   *  tasks.json/launch.json via the `zephyr-ide.get-active-project-variable` command. */
+  customVars?: Record<string, string>;
 }
 
 // Project specific state
@@ -1043,5 +1047,111 @@ export async function getActiveBuild(wsConfig: WorkspaceConfig) {
   const resolved = resolveActiveProjectBuild(wsConfig);
   if (!resolved) { return; }
   return resolved.build;
+}
+
+// ---------------------------------------------------------------------------
+// Custom variable management
+// ---------------------------------------------------------------------------
+
+/**
+ * Return the value of a named custom variable from the active build's `customVars`.
+ * Used by the `zephyr-ide.get-active-build-variable` command (tasks.json/launch.json inputs).
+ */
+export function getActiveBuildVariable(wsConfig: WorkspaceConfig, varName: string): string | undefined {
+  const resolved = resolveActiveProjectBuild(wsConfig);
+  if (!resolved) { return undefined; }
+  return resolved.build.customVars?.[varName];
+}
+
+/**
+ * Return the value of a named custom variable from the active project's `customVars`.
+ * Used by the `zephyr-ide.get-active-project-variable` command (tasks.json/launch.json inputs).
+ */
+export function getActiveProjectVariable(wsConfig: WorkspaceConfig, varName: string): string | undefined {
+  const resolved = resolveActiveProjectBuild(wsConfig);
+  if (!resolved) { return undefined; }
+  return resolved.project.customVars?.[varName];
+}
+
+/**
+ * Interactive quick-input editor for `customVars` on a build or project.
+ * Allows the user to add, edit, and delete named variables.
+ */
+async function editCustomVars(
+  context: vscode.ExtensionContext,
+  wsConfig: WorkspaceConfig,
+  scope: "build" | "project",
+  existingVars: Record<string, string>,
+  saveVars: (updated: Record<string, string>) => Promise<void>,
+): Promise<void> {
+  const ADD = "$(add)  Add new variable…";
+  const DONE = "$(check)  Done";
+
+  let vars = { ...existingVars };
+
+  while (true) {
+    const entries = Object.keys(vars).sort().map(k => ({
+      label: k,
+      description: vars[k],
+      detail: `${scope} variable — click to edit or delete`,
+    }));
+    const pick = await vscode.window.showQuickPick(
+      [...entries, { label: ADD, description: "", detail: "" }, { label: DONE, description: "", detail: "" }],
+      { title: `Manage ${scope} variables`, placeHolder: "Select a variable to edit/delete, or add a new one", ignoreFocusOut: true }
+    );
+    if (!pick || pick.label === DONE) { break; }
+
+    if (pick.label === ADD) {
+      const key = await vscode.window.showInputBox({ prompt: "Variable name", placeHolder: "bmp_port", ignoreFocusOut: true });
+      if (!key?.trim()) { continue; }
+      const val = await vscode.window.showInputBox({ prompt: `Value for "${key.trim()}"`, ignoreFocusOut: true, value: "" });
+      if (val === undefined) { continue; }
+      vars[key.trim()] = val;
+    } else {
+      const key = pick.label;
+      const action = await vscode.window.showQuickPick(
+        [
+          { label: "$(edit)  Edit value", id: "edit" },
+          { label: "$(trash)  Delete", id: "delete" },
+          { label: "$(close)  Cancel", id: "cancel" },
+        ],
+        { title: `Variable: ${key} = ${vars[key]}`, ignoreFocusOut: true }
+      );
+      if (!action || action.id === "cancel") { continue; }
+      if (action.id === "delete") {
+        delete vars[key];
+      } else {
+        const val = await vscode.window.showInputBox({ prompt: `New value for "${key}"`, ignoreFocusOut: true, value: vars[key] });
+        if (val === undefined) { continue; }
+        vars[key] = val;
+      }
+    }
+  }
+
+  await saveVars(vars);
+  await setWorkspaceState(context, wsConfig);
+  void vscode.commands.executeCommand("zephyr-ide.update-web-view");
+}
+
+/** Open the custom variable editor for the active build. */
+export async function manageBuildVariables(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig): Promise<void> {
+  const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Manage Build Variables" });
+  if (!resolved) { return; }
+  await editCustomVars(
+    context, wsConfig, "build",
+    resolved.build.customVars ?? {},
+    async (updated) => { resolved.build.customVars = Object.keys(updated).length ? updated : undefined; },
+  );
+}
+
+/** Open the custom variable editor for the active project. */
+export async function manageProjectVariables(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig): Promise<void> {
+  const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Manage Project Variables" });
+  if (!resolved) { return; }
+  await editCustomVars(
+    context, wsConfig, "project",
+    resolved.project.customVars ?? {},
+    async (updated) => { resolved.project.customVars = Object.keys(updated).length ? updated : undefined; },
+  );
 }
 

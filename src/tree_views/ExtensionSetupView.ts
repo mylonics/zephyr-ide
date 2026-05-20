@@ -64,6 +64,7 @@ export class ExtensionSetupView implements vscode.TreeDataProvider<SetupItem> {
       new SetupItem("Zephyr SDK", "desktop-download", "zephyr-ide.open-sdk-panel", sdkStatus),
       new SetupItem("Workspace Setup", "folder-opened", "zephyr-ide.open-workspace-panel", workspaceStatus),
       new SetupItem("West Update", "sync", "zephyr-ide.west-update", westUpdatedStatus),
+      new SetupItem("Runner Profiles", "chip", "zephyr-ide.open-runner-profile-panel"),
     ];
   }
 }

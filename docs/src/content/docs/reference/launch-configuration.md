@@ -22,7 +22,7 @@ You can optionally pin a specific runner (when more than one is configured) by a
 
 The `zephyr-ide` debugger delegates the actual debug session to [`marus25.cortex-debug`](https://marketplace.visualstudio.com/items?itemName=marus25.cortex-debug). If cortex-debug is not installed, the session is aborted with a notification offering install links for the VS Code Marketplace and Open VSX. When the resolved runner is Black Magic Probe (`bmp`), a one-time recommendation suggests installing [`mylonics.bmp-debug`](https://marketplace.visualstudio.com/items?itemName=mylonics.bmp-debug) for Zephyr RTOS thread awareness.
 
-For a higher-level alternative that does not require any `launch.json` at all, configure an active [Runner Configuration](configuration.md#runner-configurations) on the build — its `debug` and `attach` binds can point at a Zephyr runner, a reusable variant, or a named `launch.json` configuration. The `debug` bind drives both `Zephyr IDE: Debug` and `Zephyr IDE: Build and Debug`; `attach` drives `Zephyr IDE: Debug Attach`.
+For a higher-level alternative that does not require any `launch.json` at all, configure an active [Runner Profile](configuration.md#runner-profiles) on the build — its `debug` and `attach` binds can point at a Zephyr runner, a `launch.json` configuration by name, or be left on `auto` to use `runners.yaml` defaults. The `debug` bind drives both `Zephyr IDE: Debug` and `Zephyr IDE: Build and Debug`; `attach` drives `Zephyr IDE: Debug Attach`.
 
 If you need finer control you can still write a `cortex-debug` configuration directly using the helper commands listed below.
 
@@ -76,11 +76,11 @@ Get a variable value from the zephyr-ide.json file.
 
 ### `zephyr-ide.get-active-project-variable`
 
-Get a custom variable defined in the active project's `vars` section.
+Get a custom variable defined in the active project's `customVars` map.
 
 ### `zephyr-ide.get-active-build-variable`
 
-Get a custom variable defined in the active build configuration's `vars` section.
+Get a custom variable defined in the active build configuration's `customVars` map.
 
 ### `zephyr-ide.get-active-board-name`
 
@@ -110,23 +110,32 @@ Here's an example of using these commands in a `cortex-debug` launch.json (use t
 
 ## Custom Variables
 
-You can define custom variables in your zephyr-ide.json file and access them in your launch configurations:
+You can attach a `customVars` map to any project or build configuration and access those variables from `tasks.json`, `launch.json`, and runner profile args.
 
-**zephyr-ide.json**:
+Variables are edited interactively with the **`Zephyr IDE: Manage Build Variables`** and **`Zephyr IDE: Manage Project Variables`** commands, or written directly to `.vscode/zephyr-ide.json`.
+
+**Stored in `.vscode/zephyr-ide.json`**:
 ```json
 {
   "projects": {
     "myproject": {
-      "vars": {
+      "customVars": {
         "debug_port": "COM3",
         "jlink_device": "STM32F401RE"
+      },
+      "buildConfigs": {
+        "debug": {
+          "customVars": {
+            "bmp_port": "/dev/ttyACM0"
+          }
+        }
       }
     }
   }
 }
 ```
 
-**launch.json**:
+**Using in `launch.json`** (VS Code `input` command):
 ```json
 {
   "inputs": [
@@ -135,6 +144,12 @@ You can define custom variables in your zephyr-ide.json file and access them in 
       "type": "command",
       "command": "zephyr-ide.get-active-project-variable",
       "args": "debug_port"
+    },
+    {
+      "id": "bmpPort",
+      "type": "command",
+      "command": "zephyr-ide.get-active-build-variable",
+      "args": "bmp_port"
     }
   ],
   "configurations": [
@@ -145,6 +160,14 @@ You can define custom variables in your zephyr-ide.json file and access them in 
   ]
 }
 ```
+
+**Using in runner profile `extraArgs`** (resolved at flash/debug time):
+```
+--gdb-serial=${buildvar:bmp_port}
+--device=${projectvar:jlink_device} --speed=4000
+```
+
+See [Runner Profile variable substitution](../user-guide/building-debugging.md#runner-args-variable-substitution) for the full variable table including `${cmake:KEY}`, `${kconfig:VAR}`, and `${env:VAR}`.
 
 ## Next Steps
 

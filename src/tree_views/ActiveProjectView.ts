@@ -40,7 +40,6 @@ class ActiveProjectItem extends vscode.TreeItem {
     description: string,
     public readonly contextId: ActiveProjectItemContext,
     commandId: string,
-    public readonly launchChangeCmd?: string,
   ) {
     super(label, vscode.TreeItemCollapsibleState.None);
     this.iconPath = new vscode.ThemeIcon(icon);

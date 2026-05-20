@@ -56,6 +56,8 @@ Zephyr IDE provides the following commands accessible via the command palette (C
 
 ## Build Configuration Management
 
+- `Zephyr IDE: Manage Build Variables` - Add, edit, or delete custom key-value variables on the active build (`customVars`). Variables are available as `${buildvar:key}` in runner profile args and via the `zephyr-ide.get-active-build-variable` input command in `tasks.json`/`launch.json`.
+- `Zephyr IDE: Manage Project Variables` - Add, edit, or delete custom key-value variables on the active project (`customVars`). Variables are available as `${projectvar:key}` in runner profile args and via the `zephyr-ide.get-active-project-variable` input command.
 - `Zephyr IDE: Add Build Configuration` - Add new build configuration
 - `Zephyr IDE: Remove Build` - Remove build configuration
 - `Zephyr IDE: Set Active Build` - Set active build configuration
@@ -138,5 +140,5 @@ The following commands are used in `launch.json` to dynamically retrieve project
 - `Zephyr IDE: Get Zephyr ELF Path` - Get the full path to the kernel ELF file for the active build
 - `Zephyr IDE: Get Zephyr ELF Directory` - Get the directory containing the kernel ELF file for the active build
 - `Zephyr IDE: Get Zephyr IDE JSON Variable` - Get a variable value from the zephyr-ide.json file
-- `Zephyr IDE: Get Active Project Variable` - Get a custom variable from the active project's `vars` section
-- `Zephyr IDE: Get Active Build Variable` - Get a custom variable from the active build's `vars` section
+- `Zephyr IDE: Get Active Project Variable` - Get a custom variable from the active project's `customVars` map
+- `Zephyr IDE: Get Active Build Variable` - Get a custom variable from the active build's `customVars` map

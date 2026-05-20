@@ -36,7 +36,7 @@ import {
   RunnersYaml,
 } from "./runners-yaml";
 import { resolveActiveProjectBuild } from "../project_utilities/project";
-import { loadRunnerProfiles, findRunnerProfile, resolveBind } from "../project_utilities/runner_profiles";
+import { loadRunnerProfiles, findRunnerProfile, resolveBind, resolveRunnerArgs } from "../project_utilities/runner_profiles";
 import { WorkspaceConfig } from "../setup_utilities/types";
 import { notifyError, outputInfo } from "../utilities/output";
 
@@ -543,7 +543,17 @@ export class ZephyrIdeDebugConfigurationProvider
       } else {
         const r = resolveBind(bind, override);
         if (r && r.args.trim()) {
-          userArgs = splitArgs(r.args);
+          const resolvedArgs = resolveRunnerArgs(r.args, {
+            workspaceFolder: wsConfig.rootPath,
+            buildFolder: buildDir,
+            board: resolved.build.board,
+            boardRevision: resolved.build.revision ?? "",
+            project: resolved.projectName,
+            build: resolved.buildName,
+            buildVars: resolved.build.customVars,
+            projectVars: resolved.project.customVars,
+          });
+          userArgs = splitArgs(resolvedArgs);
         }
       }
     }

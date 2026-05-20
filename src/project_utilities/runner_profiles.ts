@@ -27,9 +27,40 @@ limitations under the License.
  * per-slot extra-argument overrides (`bindOverrides`). The override only has
  * effect when the slot's resolved bind kind is `runner` (i.e. it directly
  * names a Zephyr runner); `auto`/`launch` slots ignore the override.
+ *
+ * ## Variable substitution in runner args
+ *
+ * Both the profile's `extraArgs` and the per-build `BindOverride.extraArgs`
+ * support VS Code–style `${...}` expressions resolved by `resolveRunnerArgs`.
+ * All resolved values are plain strings; unknown expressions are left intact
+ * for VS Code's own resolver (debug-config path).
+ *
+ * | Expression              | Resolves to                                           |
+ * |-------------------------|-------------------------------------------------------|
+ * | `${workspaceFolder}`    | Workspace root path                                   |
+ * | `${buildFolder}`        | Build output directory                                |
+ * | `${board}`              | Board name (e.g. `nucleo_f401re`)                     |
+ * | `${boardRevision}`      | Board revision, or `""` when not set                  |
+ * | `${project}`            | Project name                                          |
+ * | `${build}`              | Build configuration name                              |
+ * | `${buildvar:key}`       | Per-build custom variable (see `BuildConfig.customVars`) |
+ * | `${projectvar:key}`     | Per-project custom variable (see `ProjectConfig.customVars`) |
+ * | `${cmake:VAR}`          | Value from the build's `CMakeCache.txt` (case-insensitive) |
+ * | `${kconfig:VAR}`        | Kconfig value from `zephyr/.config` (with/without `CONFIG_` prefix; strings unquoted) |
+ * | `${env:VAR}`            | `process.env` value, or `""` when unset               |
+ * | `${config:some.key}`    | VS Code workspace/user configuration value            |
+ * | anything else           | Left unchanged (VS Code resolves later)               |
+ *
+ * Custom build/project variables can be edited interactively via the
+ * `zephyr-ide.manage-build-variables` and `zephyr-ide.manage-project-variables`
+ * commands, and referenced inside `tasks.json` / `launch.json` inputs through
+ * the `zephyr-ide.get-active-build-variable` /
+ * `zephyr-ide.get-active-project-variable` input commands.
  */
 
 import * as vscode from "vscode";
+import * as fs from "fs";
+import * as path from "upath";
 import { WorkspaceConfig } from "../setup_utilities/types";
 import { readZephyrIdeJson, writeZephyrIdeJson } from "../setup_utilities/zephyr_ide_json";
 
@@ -281,5 +312,138 @@ export function suggestProfileName(wsConfig: WorkspaceConfig, base: string = "Pr
     if (!taken.has(candidate)) { return candidate; }
   }
   return `${base} ${Date.now()}`;
+}
+
+// ---------------------------------------------------------------------------
+// Variable resolution for runner args
+// ---------------------------------------------------------------------------
+
+/**
+ * Read an arbitrary key from a build's CMakeCache.txt.
+ * CMakeCache format: `KEY:TYPE=VALUE` (or occasionally `KEY=VALUE`).
+ * Matching is case-insensitive. Returns undefined when the file or key is absent.
+ */
+function readCmakeCacheVar(buildFolder: string, varName: string): string | undefined {
+  const cachePath = path.join(buildFolder, "CMakeCache.txt");
+  if (!fs.existsSync(cachePath)) { return undefined; }
+  const upper = varName.toUpperCase();
+  for (const line of fs.readFileSync(cachePath, "utf8").split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("//") || trimmed.startsWith("#")) { continue; }
+    const eqIdx = trimmed.indexOf("=");
+    if (eqIdx === -1) { continue; }
+    const keyPart = trimmed.slice(0, eqIdx).split(":")[0].trim();
+    if (keyPart.toUpperCase() === upper) {
+      return trimmed.slice(eqIdx + 1);
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Read a Kconfig value from a build's `zephyr/.config`.
+ * The variable name may be supplied with or without the `CONFIG_` prefix.
+ * String values have surrounding quotes stripped.
+ * Returns `"n"` for explicitly unset symbols, undefined when not found.
+ */
+function readKconfigVar(buildFolder: string, varName: string): string | undefined {
+  const dotConfigPath = path.join(buildFolder, "zephyr", ".config");
+  if (!fs.existsSync(dotConfigPath)) { return undefined; }
+  const key = varName.startsWith("CONFIG_") ? varName : `CONFIG_${varName}`;
+  const prefix = `${key}=`;
+  for (const line of fs.readFileSync(dotConfigPath, "utf8").split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith(prefix)) {
+      let val = trimmed.slice(prefix.length);
+      if (val.startsWith('"') && val.endsWith('"')) {
+        val = val.slice(1, -1);
+      }
+      return val;
+    }
+    if (trimmed === `# ${key} is not set`) {
+      return "n";
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Context values available for variable substitution in runner profile arguments.
+ */
+export interface RunnerVarContext {
+  /** Absolute path to the VS Code workspace root. */
+  workspaceFolder: string;
+  /** Absolute path to the build output directory (e.g. `.../myproject/myboard`). */
+  buildFolder: string;
+  /** Board name (e.g. `nucleo_f401re`). */
+  board: string;
+  /** Board revision, or empty string if not set. */
+  boardRevision: string;
+  /** Project name as shown in the Zephyr IDE Projects panel. */
+  project: string;
+  /** Build configuration name. */
+  build: string;
+  /** Custom variables from `BuildConfig.customVars`. */
+  buildVars?: Record<string, string>;
+  /** Custom variables from `ProjectConfig.customVars`. */
+  projectVars?: Record<string, string>;
+}
+
+/**
+ * Perform VS Code-style variable substitution on a runner args string.
+ *
+ * Supported variables:
+ *   - `${workspaceFolder}`  — workspace root path
+ *   - `${buildFolder}`      — build output directory
+ *   - `${board}`            — board name
+ *   - `${boardRevision}`    — board revision (empty string when not set)
+ *   - `${project}`          — project name
+ *   - `${build}`            — build configuration name
+ *   - `${buildvar:key}`     — custom build variable (defined in Zephyr IDE project settings)
+ *   - `${projectvar:key}`   — custom project variable (defined in Zephyr IDE project settings)
+ *   - `${cmake:VAR_NAME}`   — any key from the build's CMakeCache.txt
+ *   - `${kconfig:VAR}`      — Kconfig value from the build's zephyr/.config
+ *                             (accepts with or without the `CONFIG_` prefix;
+ *                              string values are unquoted automatically)
+ *   - `${env:VAR_NAME}`     — environment variable value (empty string when unset)
+ *   - `${config:some.key}`  — VS Code workspace/user configuration value
+ *
+ * Unknown `${...}` expressions are left unchanged so they can be resolved
+ * later by VS Code's own variable substitution pass (debug path only).
+ */
+export function resolveRunnerArgs(args: string, ctx: RunnerVarContext): string {
+  return args.replace(/\$\{([^}]+)\}/g, (match, expr: string) => {
+    switch (expr) {
+      case "workspaceFolder": return ctx.workspaceFolder;
+      case "buildFolder": return ctx.buildFolder;
+      case "board": return ctx.board;
+      case "boardRevision": return ctx.boardRevision;
+      case "project": return ctx.project;
+      case "build": return ctx.build;
+    }
+    if (expr.startsWith("buildvar:")) {
+      return ctx.buildVars?.[expr.slice(9)] ?? "";
+    }
+    if (expr.startsWith("projectvar:")) {
+      return ctx.projectVars?.[expr.slice(11)] ?? "";
+    }
+    if (expr.startsWith("env:")) {
+      return process.env[expr.slice(4)] ?? "";
+    }
+    if (expr.startsWith("cmake:")) {
+      return readCmakeCacheVar(ctx.buildFolder, expr.slice(6)) ?? "";
+    }
+    if (expr.startsWith("kconfig:")) {
+      return readKconfigVar(ctx.buildFolder, expr.slice(8)) ?? "";
+    }
+    if (expr.startsWith("config:")) {
+      const key = expr.slice(7);
+      const val = vscode.workspace.getConfiguration().get(key);
+      if (val === undefined || val === null) { return ""; }
+      return typeof val === "string" ? val : String(val);
+    }
+    // Leave unknown expressions intact (VS Code resolves them for debug configs).
+    return match;
+  });
 }
 

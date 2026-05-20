@@ -34,6 +34,7 @@ export function getUseGuiConfig(): boolean | undefined {
 export type ProjectTreeItemContext =
   | 'projectItem'
   | 'buildItem'
+  | 'buildProfileItem'
   | 'testItem'
   | 'addBuildPlaceholder';
 
@@ -87,6 +88,14 @@ export class ProjectTreeView implements vscode.TreeDataProvider<ProjectTreeItem>
     } else {
       item.command = { command: 'zephyr-ide.tree-view.select', title: 'Select', arguments: [item] };
     }
+
+    const profileLabel = build.activeProfile ?? '(none)';
+    const profileItem = new ProjectTreeItem(profileLabel, 'chip', false, 'buildProfileItem');
+    profileItem.id = `buildProfile:${sanitizeTreeId(projectName)}:${sanitizeTreeId(build.name)}`;
+    profileItem.data = { project: projectName, build: build.name };
+    profileItem.command = { command: 'zephyr-ide.tree-view.set-build-profile', title: 'Set Runner Profile', arguments: [profileItem] };
+    profileItem.parent = item;
+    item.children.push(profileItem);
 
     return item;
   }

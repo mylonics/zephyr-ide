@@ -47,6 +47,43 @@ The faster **Change…** button (or `Zephyr IDE: Select Active Runner Profile`) 
 
 See [Runner Profiles in the Configuration reference](../reference/configuration.md#runner-profiles) for the full data model, scope and merge behaviour, per-build overrides, and legacy migration notes.
 
+## Runner Args Variable Substitution
+
+The `extraArgs` of any `runner`-kind bind slot (and per-build overrides) support VS Code–style `${...}` expressions resolved at flash/debug time. Unknown expressions are left intact for VS Code's own resolver.
+
+| Expression | Resolves to |
+|---|---|
+| `${workspaceFolder}` | Workspace root path |
+| `${buildFolder}` | Build output directory |
+| `${board}` | Board name (e.g. `nucleo_f401re`) |
+| `${boardRevision}` | Board revision, or `""` when not set |
+| `${project}` | Project name |
+| `${build}` | Build configuration name |
+| `${buildvar:key}` | Per-build custom variable (`BuildConfig.customVars`) |
+| `${projectvar:key}` | Per-project custom variable (`ProjectConfig.customVars`) |
+| `${cmake:VAR}` | Value from `CMakeCache.txt` (case-insensitive; e.g. `${cmake:CMAKE_GDB}`) |
+| `${kconfig:VAR}` | Kconfig value from `zephyr/.config` (with or without `CONFIG_` prefix; strings unquoted; unset symbols → `"n"`) |
+| `${env:VAR}` | Environment variable, or `""` when unset |
+| `${config:some.key}` | VS Code workspace/user configuration value |
+| anything else | Left unchanged (VS Code resolves later) |
+
+Custom build and project variables are managed with **`Zephyr IDE: Manage Build Variables`** and **`Zephyr IDE: Manage Project Variables`**, and can also be used in `tasks.json`/`launch.json` via the `zephyr-ide.get-active-build-variable` and `zephyr-ide.get-active-project-variable` input commands. See [Custom Variables](../reference/launch-configuration.md#custom-variables).
+
+**Example** — Black Magic Probe serial port from a per-build variable:
+```
+--gdb-serial=${buildvar:bmp_port}
+```
+
+**Example** — J-Link device name from `CMakeCache.txt`:
+```
+--device=${cmake:JLINK_DEVICE} --speed=${cmake:JLINK_SPEED}
+```
+
+**Example** — board USB serial from Kconfig:
+```
+--gdb-serial=${kconfig:BOARD_BMP_GDB_PORT}
+```
+
 ## Debug Prerequisites: Cortex-Debug
 
 The `zephyr-ide` debugger type delegates the actual debug session to [`marus25.cortex-debug`](https://marketplace.visualstudio.com/items?itemName=marus25.cortex-debug). The first time you try to Debug:

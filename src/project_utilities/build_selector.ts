@@ -53,6 +53,10 @@ export interface BuildConfig {
   /** Per-slot extra-args overrides appended after the profile's resolved args.
    *  Only meaningful when the profile's slot kind is `runner`. */
   bindOverrides?: BuildBindOverrides;
+  /** User-defined key-value variables for this build configuration.
+   *  Referenced in runner profile args as `${buildvar:key}` and in
+   *  tasks.json/launch.json via the `zephyr-ide.get-active-build-variable` command. */
+  customVars?: Record<string, string>;
   confFiles: ConfigFiles;
   revision?: string;
 }

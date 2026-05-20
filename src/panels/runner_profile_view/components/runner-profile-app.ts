@@ -181,6 +181,10 @@ export class RunnerProfileApp extends ZephyrLitElement {
    *  Key: `<scope>:<originalName>:<slot>` */
   @state() private _showArgPicker: Set<string> = new Set();
 
+  /** Tracks which arg editors are showing the variable substitution help.
+   *  Key: `<scope>:<originalName>:<slot>` */
+  @state() private _showVarHelp: Set<string> = new Set();
+
   connectedCallback() {
     super.connectedCallback();
     window.addEventListener("message", this._onMessage);
@@ -384,6 +388,20 @@ export class RunnerProfileApp extends ZephyrLitElement {
     this._showArgPicker = next;
   }
 
+  private _toggleVarHelp(scope: Scope, originalName: string, slot: string) {
+    const key = this._argPickerKey(scope, originalName, slot);
+    const next = new Set(this._showVarHelp);
+    if (next.has(key)) { next.delete(key); } else { next.add(key); }
+    this._showVarHelp = next;
+  }
+
+  private _closeVarHelp(scope: Scope, originalName: string, slot: string) {
+    const key = this._argPickerKey(scope, originalName, slot);
+    const next = new Set(this._showVarHelp);
+    next.delete(key);
+    this._showVarHelp = next;
+  }
+
   private _appendArg(scope: Scope, originalName: string, slot: "flash" | "debug" | "attach", arg: string) {
     const trimmed = arg.trim();
     if (!trimmed) { return; }
@@ -395,6 +413,37 @@ export class RunnerProfileApp extends ZephyrLitElement {
     this._closeArgPicker(scope, originalName, slot);
   }
 
+  private _renderVarHelpPanel(scope: Scope, originalName: string, slot: string) {
+    return html`
+      <div class="var-help-panel">
+        <div class="arg-picker-header">
+          <span>Available variable substitutions</span>
+          <vscode-button appearance="icon" icon="close"
+            @click=${() => this._closeVarHelp(scope, originalName, slot)}>
+          </vscode-button>
+        </div>
+        <table class="var-help-table">
+          <thead><tr><th>Expression</th><th>Resolves to</th></tr></thead>
+          <tbody>
+            <tr><td><code>\${workspaceFolder}</code></td><td>Workspace root path</td></tr>
+            <tr><td><code>\${buildFolder}</code></td><td>Build output directory</td></tr>
+            <tr><td><code>\${board}</code></td><td>Board name (e.g. <code>nucleo_f401re</code>)</td></tr>
+            <tr><td><code>\${boardRevision}</code></td><td>Board revision, or <code>""</code> when not set</td></tr>
+            <tr><td><code>\${project}</code></td><td>Project name</td></tr>
+            <tr><td><code>\${build}</code></td><td>Build configuration name</td></tr>
+            <tr><td><code>\${buildvar:<em>key</em>}</code></td><td>Per-build custom variable (<code>BuildConfig.customVars</code>)</td></tr>
+            <tr><td><code>\${projectvar:<em>key</em>}</code></td><td>Per-project custom variable (<code>ProjectConfig.customVars</code>)</td></tr>
+            <tr><td><code>\${cmake:<em>VAR</em>}</code></td><td>Value from <code>CMakeCache.txt</code> (case-insensitive)</td></tr>
+            <tr><td><code>\${kconfig:<em>VAR</em>}</code></td><td>Kconfig value from <code>zephyr/.config</code> (strings unquoted; <code>CONFIG_</code> prefix optional)</td></tr>
+            <tr><td><code>\${env:<em>VAR</em>}</code></td><td><code>process.env</code> value, or <code>""</code> when unset</td></tr>
+            <tr><td><code>\${config:<em>some.key</em>}</code></td><td>VS Code workspace/user configuration value</td></tr>
+            <tr class="var-help-row-muted"><td><em>anything else</em></td><td>Left unchanged (VS Code resolves later)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
   /** Render per-arg rows plus a generic "add argument" row and optional suggestion picker. */
   private _renderArgEditor(
     scope: Scope, originalName: string,
@@ -404,6 +453,7 @@ export class RunnerProfileApp extends ZephyrLitElement {
   ) {
     const key = this._argPickerKey(scope, originalName, slot);
     const pickerOpen = this._showArgPicker.has(key);
+    const varHelpOpen = this._showVarHelp.has(key);
     const allSuggestions = RUNNER_COMMON_ARGS[currentRunner] ?? [];
     const args = parseArgs(bind.extraArgs ?? "");
     // Filter out suggestions whose flag is already present in the current args.
@@ -437,7 +487,12 @@ export class RunnerProfileApp extends ZephyrLitElement {
               title="Browse common arguments for ${currentRunner}"
               @click=${() => this._toggleArgPicker(scope, originalName, slot)}>
             </vscode-button>` : nothing}
+          <vscode-button appearance="icon" icon="question"
+            title="Variable substitution reference"
+            @click=${() => this._toggleVarHelp(scope, originalName, slot)}>
+          </vscode-button>
         </div>
+        ${varHelpOpen ? this._renderVarHelpPanel(scope, originalName, slot) : nothing}
         ${pickerOpen && availableSuggestions.length > 0 ? html`
           <div class="arg-picker-panel">
             <div class="arg-picker-header">

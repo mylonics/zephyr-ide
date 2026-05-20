@@ -687,10 +687,8 @@ export async function activate(context: vscode.ExtensionContext) {
         await vscode.commands.executeCommand("zephyr-ide.run-dashboard");
       }
     }),
-    vscode.commands.registerCommand("zephyr-ide.active-view.change-launch-target", (item: any) => {
-      if (item?.launchChangeCmd) {
-        void vscode.commands.executeCommand(item.launchChangeCmd);
-      }
+    vscode.commands.registerCommand("zephyr-ide.active-view.change-launch-target", () => {
+      void vscode.commands.executeCommand("zephyr-ide.set-active-profile");
     }),
     vscode.commands.registerCommand("zephyr-ide.active-view.clean-test-dirs", () => {
       const resolved = resolveActiveProject(wsConfig, { caller: "Clean Test Dirs" });
@@ -811,10 +809,37 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.tree-view.delete-test", (item: any) => {
       projectTreeView.handleDeleteTest(item);
     }),
+    vscode.commands.registerCommand("zephyr-ide.tree-view.set-build-profile", async (item: any) => {
+      const projectName: string | undefined = item?.data?.project;
+      const buildName: string | undefined = item?.data?.build;
+      if (projectName && buildName) {
+        await project.setActive(context, wsConfig, projectName, buildName);
+      }
+      await project.setActiveProfile(context, wsConfig);
+    }),
   );
 
   registerCommandWithRefresh(context, "zephyr-ide.set-active-profile",
     () => project.setActiveProfile(context, wsConfig));
+
+  registerCommandWithRefresh(context, "zephyr-ide.manage-build-variables",
+    () => project.manageBuildVariables(context, wsConfig));
+
+  registerCommandWithRefresh(context, "zephyr-ide.manage-project-variables",
+    () => project.manageProjectVariables(context, wsConfig));
+
+  // These commands are intended for use as VS Code input variables in
+  // tasks.json / launch.json: { "type": "command", "command": "zephyr-ide.get-active-build-variable", "args": "varName" }
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.get-active-build-variable", (varName?: string) => {
+      if (typeof varName !== "string") { return undefined; }
+      return project.getActiveBuildVariable(wsConfig, varName);
+    }),
+    vscode.commands.registerCommand("zephyr-ide.get-active-project-variable", (varName?: string) => {
+      if (typeof varName !== "string") { return undefined; }
+      return project.getActiveProjectVariable(wsConfig, varName);
+    }),
+  );
 
   activeProjectDisplay = createStatusBarButton(context,
     "zephyr-ide.set-active-project", `$(folder) ${wsConfig.activeProject}`, "Zephyr IDE Select Active Project");
@@ -1353,37 +1378,6 @@ export async function activate(context: vscode.ExtensionContext) {
       "zephyr-ide.get-zephyr-ide-json-variable",
       async (var_name) => {
         return getVariable(wsConfig, var_name);
-      }
-    )
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "zephyr-ide.get-active-project-variable",
-      async (var_name) => {
-        if (wsConfig.activeProject) {
-          return getVariable(wsConfig, var_name, wsConfig.activeProject);
-        }
-        return "";
-      }
-    )
-  );
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "zephyr-ide.get-active-build-variable",
-      async (var_name) => {
-        if (wsConfig.activeProject) {
-          const activeBuildConfig =
-            wsConfig.projectStates[wsConfig.activeProject]?.activeBuildConfig;
-          return getVariable(
-            wsConfig,
-            var_name,
-            wsConfig.activeProject,
-            activeBuildConfig
-          );
-        }
-        return "";
       }
     )
   );

@@ -98,6 +98,34 @@ Legacy per-build `runnerConfigs` and per-project `runnerConfigs` (with the depre
 
 You do not need to take any action — the next time the workspace opens, the migration runs once and the new shape is what subsequent saves persist. The deprecated `zephyr-ide.runnerVariants` user setting is no longer read.
 
+## Custom Variables
+
+Both `BuildConfig` and `ProjectConfig` support a `customVars` map for user-defined key-value data that needs to flow into runner profile args, `tasks.json`, or `launch.json`.
+
+```json
+{
+  "projects": {
+    "myproject": {
+      "customVars": {
+        "jlink_device": "STM32F401RE"
+      },
+      "buildConfigs": {
+        "debug": {
+          "customVars": {
+            "bmp_port": "/dev/ttyACM0"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+Variables are edited interactively with the **`Zephyr IDE: Manage Build Variables`** and **`Zephyr IDE: Manage Project Variables`** commands. They are available in two contexts:
+
+- **Runner profile `extraArgs`** — use `${buildvar:key}` or `${projectvar:key}` (see [Runner Args Variable Substitution](../user-guide/building-debugging.md#runner-args-variable-substitution) for the full substitution table including `${cmake:VAR}`, `${kconfig:VAR}`, `${env:VAR}`, etc.)
+- **`tasks.json` / `launch.json` inputs** — use the `zephyr-ide.get-active-build-variable` / `zephyr-ide.get-active-project-variable` input commands (see [Custom Variables](launch-configuration.md#custom-variables) for usage examples)
+
 ## clangd Configuration
 
 When `zephyr-ide.useClangd` is enabled, the workspace `.vscode/settings.json` is **automatically configured** with the appropriate settings — no manual command is needed.
