@@ -44,6 +44,12 @@ export interface WestLocation {
    * postWorkspaceSetup to show a consent dialog and batch-install tools.
    */
   vendorHostToolsPath?: string;
+  /**
+   * True when the user intentionally abandoned the wizard without configuring
+   * a workspace (e.g. by clicking "Become a Vendor" to read the contributor
+   * guide).  Callers should silently exit rather than showing an error.
+   */
+  userAbandoned?: boolean;
 }
 
 
@@ -82,15 +88,17 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
     vendorDir?: string;
     /** Path to the vendor's host-tools.json, if present. */
     vendorHostToolsPath?: string;
+    /** Set when the user clicks "Become a Vendor" to open the contributor guide. */
+    userAbandoned?: boolean;
   } & Partial<WestLocation>;
 
   // Compute total steps dynamically depending on whether HAL selection is required.
   // Base steps: 1) template, 2) version, 3) additional args.
   // When a minimal template is chosen we insert a HAL step between template and version.
-  // Vendor entries skip the version step entirely, giving 2 total steps.
+  // Vendor entries go through a submenu (template → vendor list → additional args = 3 steps).
   function totalStepsFor(state: WestInternalState): number {
     if (state.vendorDir) {
-      return 2; // template + additional args only
+      return 3; // step 1: template, step 2: vendor list, step 3: additional args
     }
     const needsHal = state.westFile === "minimal_west.yml" || state.westFile === "minimal_ble_west.yml";
     return needsHal ? 4 : 3;
@@ -122,34 +130,40 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
     const westOptionQpItems: QuickPickItem[] = Object.keys(westOptions).map(label => ({ label }));
 
     // Load vendor configurations from the registry JSON file
-    type VendorEntry = { dir: string; label: string; description?: string };
+    type VendorEntry = { dir: string; label: string; description?: string; detail?: string };
     const vendorEntries: VendorEntry[] = [];
     const vendorsDir = path.join(context.extensionPath, "resources", "vendors");
     const vendorsRegistryPath = path.join(vendorsDir, "vendors.json");
     if (await fs.pathExists(vendorsRegistryPath)) {
       try {
-        type VendorRegistryEntry = { id: string; displayName?: string; description?: string };
+        type VendorRegistryEntry = { id: string; displayName?: string; description?: string; url?: string; maintainer?: string };
         const registry: VendorRegistryEntry[] = JSON.parse(await fs.readFile(vendorsRegistryPath, "utf-8"));
         for (const entry of registry) {
           if (!entry.id) { continue; }
           const vendorDir = path.join(vendorsDir, entry.id);
           const westYml = path.join(vendorDir, "west.yml");
           if (!(await fs.pathExists(westYml))) { continue; }
+          const detailParts: string[] = [];
+          if (entry.maintainer) { detailParts.push(`Maintainer: ${entry.maintainer}`); }
+          if (entry.url) { detailParts.push(`URL: ${entry.url}`); }
           vendorEntries.push({
             dir: vendorDir,
             label: entry.displayName ?? entry.id,
             description: entry.description,
+            detail: detailParts.length > 0 ? detailParts.join("  |  ") : undefined,
           });
         }
       } catch { /* ignore malformed registry */ }
     }
 
-    // Append vendor entries under a separator, plus a "Become a Vendor" link
-    westOptionQpItems.push({ label: "Vendor Configurations", kind: vscode.QuickPickItemKind.Separator });
-    for (const ve of vendorEntries) {
-      westOptionQpItems.push({ label: ve.label, description: ve.description });
-    }
-    westOptionQpItems.push({ label: BECOME_VENDOR_LABEL, description: "Open contributor guide on GitHub" });
+    // Add a "Vendor Configurations" entry that opens the vendor submenu
+    westOptionQpItems.push({ label: "", kind: vscode.QuickPickItemKind.Separator });
+    westOptionQpItems.push({
+      label: "$(organization) Vendor Configurations",
+      description: vendorEntries.length > 0
+        ? `${vendorEntries.length} vendor(s) available`
+        : "No vendors available",
+    });
 
     const pick = await input.showQuickPick({
       title,
@@ -160,18 +174,9 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
       items: westOptionQpItems,
     });
 
-    // "Become a Vendor" — open the README and abort the wizard
-    if (pick.label === BECOME_VENDOR_LABEL) {
-      void vscode.env.openExternal(vscode.Uri.parse(VENDOR_README_URL));
-      state.failed = true;
-      return;
-    }
-
-    // Vendor entry selected
-    const vendorEntry = vendorEntries.find(ve => ve.label === pick.label);
-    if (vendorEntry) {
-      state.vendorDir = vendorEntry.dir;
-      return (input: MultiStepInput) => handleVendorSelection(input, state);
+    // "Vendor Configurations" entry — open the vendor submenu
+    if (pick.label === "$(organization) Vendor Configurations") {
+      return (input: MultiStepInput) => pickVendor(input, state, vendorEntries);
     }
 
     const westFile = westOptions[pick.label];
@@ -187,6 +192,48 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
       return (input: MultiStepInput) => pickHals(input, state);
     }
     return (input: MultiStepInput) => pickVersion(input, state);
+  }
+
+  /**
+   * Second step shown when the user selects "Vendor Configurations" in pickTemplate.
+   * Lists all registered vendors (with description, maintainer and URL as detail) plus a
+   * "Become a Vendor" link.  Selecting a vendor proceeds to handleVendorSelection;
+   * selecting "Become a Vendor" opens the contributor guide and exits the wizard cleanly.
+   */
+  async function pickVendor(input: MultiStepInput, state: WestInternalState, vendorEntries: { dir: string; label: string; description?: string; detail?: string }[]) {
+    const vendorQpItems: QuickPickItem[] = vendorEntries.map(ve => ({
+      label: ve.label,
+      description: ve.description,
+      detail: ve.detail,
+    }));
+    vendorQpItems.push({ label: "", kind: vscode.QuickPickItemKind.Separator });
+    vendorQpItems.push({ label: BECOME_VENDOR_LABEL, description: "Open contributor guide on GitHub" });
+
+    const pick = await input.showQuickPick({
+      title,
+      step: 2,
+      totalSteps: totalStepsFor(state),
+      placeholder: "Select a vendor configuration",
+      ignoreFocusOut: true,
+      items: vendorQpItems,
+    });
+
+    // "Become a Vendor" — open the README and exit the wizard cleanly (no error)
+    if (pick.label === BECOME_VENDOR_LABEL) {
+      void vscode.env.openExternal(vscode.Uri.parse(VENDOR_README_URL));
+      state.userAbandoned = true;
+      return;
+    }
+
+    // Vendor entry selected
+    const vendorEntry = vendorEntries.find(ve => ve.label === pick.label);
+    if (vendorEntry) {
+      state.vendorDir = vendorEntry.dir;
+      return (input: MultiStepInput) => handleVendorSelection(input, state);
+    }
+
+    notifyError("West Selector", `Failed to select vendor configuration`);
+    state.failed = true;
   }
 
   /**
@@ -343,7 +390,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
 
   async function getAdditionalArguments(input: MultiStepInput, state: WestInternalState) {
     const needsHal = state.westFile === "minimal_west.yml" || state.westFile === "minimal_ble_west.yml";
-    const argsStep = state.vendorDir ? 2 : (needsHal ? 4 : 3);
+    const argsStep = state.vendorDir ? 3 : (needsHal ? 4 : 3);
     state.additionalArgs = await input.showInputBox({
       title,
       step: argsStep,
@@ -365,6 +412,10 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
     const state: WestInternalState = { ...defaultState };
     try {
       await MultiStepInput.run(input => pickTemplate(input, state));
+      // User intentionally abandoned the wizard (e.g. clicked "Become a Vendor")
+      if (state.userAbandoned) {
+        return { ...defaultState, failed: false, userAbandoned: true };
+      }
       if (!state.completed || state.failed || !state.path) {
         return { ...defaultState, failed: true };
       }

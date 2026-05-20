@@ -170,7 +170,7 @@ export async function westInit(context: vscode.ExtensionContext, wsConfig: Works
 
   if (westSelection === undefined) {
     westSelection = await westSelector(context, wsConfig);
-    if (westSelection === undefined || westSelection.failed) {
+    if (westSelection === undefined || westSelection.userAbandoned || westSelection.failed) {
       return false;
     }
   }
