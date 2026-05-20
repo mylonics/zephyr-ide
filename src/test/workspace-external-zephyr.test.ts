@@ -98,7 +98,7 @@ suite("Workspace External Zephyr Test Suite", () => {
                         { type: 'quickpick', value: 'Use external Zephyr installation', description: 'Choose Use Existing Zephyr Installation option' },
                         { type: 'quickpick', value: 'New Installation', description: 'Choose New Installation option' },
                         { type: 'opendialog', value: path.join(os.homedir(), '.zephyr_ide'), description: 'Select ~/.zephyr_ide as installation directory' },
-                        { type: 'quickpick', value: 'minimal', description: 'Select minimal manifest' },
+                        { type: 'quickpick', value: 'minimal zephyr', description: 'Select minimal Zephyr manifest (not BLE)' },
                         { type: 'quickpick', value: toolchain, description: `Select ${toolchain} toolchain` },
                         { type: 'quickpick', value: sdkVersion, description: `Select ${sdkVersion} Zephyr version` },
                         { type: 'input', value: '', description: 'Select additional west init args' },
