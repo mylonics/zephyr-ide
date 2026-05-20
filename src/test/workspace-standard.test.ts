@@ -26,12 +26,14 @@ import {
     monitorWorkspaceSetup,
     startWorkspaceCommand,
     printWorkspaceStructure,
+    runWorkspaceSuiteTeardown,
     activateExtension,
     executeFinalBuild,
     executeTestWithErrorHandling,
     executeWorkspaceCommand,
     CommonUIInteractions,
-    shouldSkipBuildTests
+    shouldSkipBuildTests,
+    waitForBuildReady
 } from "./test-runner";
 import { UIMockInterface } from "./ui-mock-interface";
 
@@ -81,9 +83,11 @@ suite("Workspace Standard Test Suite", () => {
         await printWorkspaceStructure("Standard Workspace Test");
     });
 
-    test("Standard Workspace: Setup → Project → Build", async function () {
-        this.timeout(420000); // 7 minutes timeout
+    suiteTeardown(async () => {
+        await runWorkspaceSuiteTeardown(originalWorkspaceFolders);
+    });
 
+    test("Standard Workspace: Setup → Project → Build", async function () {
         console.log("🚀 Starting standard workspace test...");
 
         const uiMock = new UIMockInterface();
@@ -161,7 +165,7 @@ suite("Workspace Standard Test Suite", () => {
                     uiMock,
                     [
                         { type: 'quickpick', value: 'zephyr directory', description: 'Use Zephyr directory only' },
-                        { type: 'quickpick', value: 'nucleo_f401', description: 'Select Nucleo board' },
+                        { type: 'quickpick', value: 'nucleo_f401re/stm32f401xe', description: 'Select Nucleo board' },
                         { type: 'input', value: 'test_build_1', description: 'Enter build name' },
                         { type: 'quickpick', value: 'debug', description: 'Select debug optimization' },
                         { type: 'input', value: '', description: 'Additional build args' },
@@ -171,13 +175,12 @@ suite("Workspace Standard Test Suite", () => {
                     "Build configuration should succeed"
                 );
 
-                await new Promise((resolve) => setTimeout(resolve, 10000));
+                await waitForBuildReady("Standard Workspace");
                 console.log("⚡ Step 5: Executing build...");
                 await executeFinalBuild("Standard Workspace");
             }
         );
-    }).timeout(420000); // 7 minutes timeout
-
+    }).timeout(720000);
 
 
 

@@ -133,6 +133,27 @@ export class SetupProgressTracker {
     this.emit('failed', message);
   }
 
+  /**
+   * Mark every currently in-progress step as failed and emit a terminal failed
+   * event. Returns true when at least one step was transitioned.
+   */
+  failInProgressSteps(detail?: string): boolean {
+    const active = this.steps.filter(s => s.status === 'in-progress');
+    if (active.length === 0) {
+      return false;
+    }
+
+    for (const step of active) {
+      step.status = 'failed';
+      if (detail !== undefined) {
+        step.detail = detail;
+      }
+    }
+
+    this.emit('failed', detail);
+    return true;
+  }
+
   private emit(type: SetupProgressEvent['type'], message?: string) {
     const event: SetupProgressEvent = {
       type,

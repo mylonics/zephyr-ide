@@ -86,16 +86,20 @@ jobs:
             platform: macos
             xvfb: ""
             zephyr_base: /tmp/zephyr
+          - os: windows-latest
+            platform: windows
+            xvfb: ""
+            zephyr_base: D:\\zephyr
     runs-on: ${{ matrix.os }}
     name: test-workspace-${{ matrix.platform }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.branch || github.ref }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "20.x"
           cache: "npm"
@@ -113,6 +117,23 @@ jobs:
         run: |
           brew install cmake ninja gperf ccache dfu-util dtc wget python3 sdl2
 
+      # Windows runners: move TEMP/TMP to the D: drive (more space than C:).
+      # SDK downloads, 7z extraction, and venv creation use this path.
+      - name: Set TEMP to D drive (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          New-Item -ItemType Directory -Force -Path 'D:\Temp'
+          echo 'TEMP=D:\Temp' >> $env:GITHUB_ENV
+          echo 'TMP=D:\Temp'  >> $env:GITHUB_ENV
+        shell: pwsh
+
+      # 7-Zip is pre-installed on Windows runners but not always on PATH.
+      # Adding it ensures west/SDK operations that shell out to 7z work.
+      - name: Add 7-Zip to PATH (Windows)
+        if: runner.os == 'Windows'
+        run: echo "C:\Program Files\7-Zip" >> $env:GITHUB_PATH
+        shell: pwsh
+
       - name: Install dependencies
         run: npm ci
 
@@ -127,7 +148,6 @@ jobs:
 
       - name: Run external zephyr workspace tests
         id: test_external
-        continue-on-error: true
         run: |
           ${{ matrix.xvfb }}node scripts/run-integration-tests.js external-zephyr
         env:
@@ -137,7 +157,6 @@ jobs:
 
       - name: Run standard workspace tests
         id: test_standard
-        continue-on-error: true
         run: |
           ${{ matrix.xvfb }}node scripts/run-integration-tests.js standard
         env:
@@ -147,7 +166,6 @@ jobs:
 
       - name: Run west git workspace tests
         id: test_west_git
-        continue-on-error: true
         run: |
           ${{ matrix.xvfb }}node scripts/run-integration-tests.js west-git
         env:
@@ -157,7 +175,6 @@ jobs:
 
       - name: Run zephyr ide git workspace tests
         id: test_zephyr_ide_git
-        continue-on-error: true
         run: |
           ${{ matrix.xvfb }}node scripts/run-integration-tests.js zephyr-ide-git
         env:
@@ -167,7 +184,6 @@ jobs:
 
       - name: Run local west workspace tests
         id: test_local_west
-        continue-on-error: true
         run: |
           ${{ matrix.xvfb }}node scripts/run-integration-tests.js local-west
         env:
@@ -177,6 +193,7 @@ jobs:
 
       - name: Check test results
         if: always()
+        shell: bash
         run: |
           echo "external-zephyr: ${{ steps.test_external.outcome }}"
           echo "standard:        ${{ steps.test_standard.outcome }}"

@@ -23,6 +23,7 @@ import {
   onSDKProgress,
   installSDKToolchainsInteractive,
   installToolchainsDirect,
+  syncSDKInstallState,
   uninstallToolchains,
   uninstallSDKVersion,
 } from "../../setup_utilities/west_sdk";
@@ -114,8 +115,6 @@ export class SDKPanel {
     this._extensionPath = extensionPath;
     this._context = context;
 
-    this.updateContent(wsConfig, globalConfig);
-
     this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
 
     this._panel.webview.onDidReceiveMessage(
@@ -133,6 +132,8 @@ export class SDKPanel {
         });
       }),
     );
+
+    this.updateContent(wsConfig, globalConfig);
 
     // Pre-fetch SDK list in the background
     void this.fetchSDKListInBackground();
@@ -362,6 +363,7 @@ export class SDKPanel {
     try {
       const sdkList = await listAvailableSDKs();
       this._cachedSDKList = sdkList;
+      await this.syncSdkStateFromList(sdkList);
       this._panel.webview.postMessage({ command: "sdkListResult", data: sdkList });
     } catch {
       // Silently ignore background fetch failures
@@ -374,6 +376,7 @@ export class SDKPanel {
     try {
       const sdkList = await listAvailableSDKs();
       this._cachedSDKList = sdkList;
+      await this.syncSdkStateFromList(sdkList);
       this._panel.webview.postMessage({ command: "sdkListResult", data: sdkList });
     } catch (error) {
       notifyError("SDK List", `Failed to list SDKs: ${error}`);
@@ -381,6 +384,19 @@ export class SDKPanel {
         command: "sdkListResult",
         data: { success: false, versions: [], error: `Failed to list SDKs: ${error}` },
       });
+    }
+  }
+
+  private async syncSdkStateFromList(sdkList: ParsedSDKList) {
+    if (!this.currentGlobalConfig) { return; }
+
+    try {
+      const state = await syncSDKInstallState(this.currentGlobalConfig, this._context, sdkList);
+      if (state.changed) {
+        await vscode.commands.executeCommand("zephyr-ide.update-web-view");
+      }
+    } catch (error) {
+      outputError("SDK Panel", `Failed to sync SDK state from SDK list: ${String(error)}`);
     }
   }
 

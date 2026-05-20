@@ -23,7 +23,7 @@ import * as yaml from 'js-yaml';
 import { getPlatformNameAsync } from "../utilities/utils";
 import { outputInfo, outputWarning, outputError, notifyError } from "../utilities/output";
 import { WorkspaceConfig, SetupState } from "./types";
-import { resolveActiveProjectBuild } from "../project_utilities/project";
+import { resolveActiveProjectBuild, getBuildFolder } from "../project_utilities/project";
 import { normalizeBuildArgs } from "../project_utilities/build_args";
 import { ConfigFiles, ConfigFileEntry, emptyConfigFiles } from "../project_utilities/config_selector";
 
@@ -530,6 +530,22 @@ export async function migrateSettingKeys(): Promise<void> {
   }
 }
 
+/**
+ * Resolve the toolchain directory path without any filesystem side effects.
+ * Use this when you only need to know where the toolchain directory *would*
+ * be, e.g. to probe for an installed SDK. Use {@link getToolchainDir} when
+ * the directory should also be created on disk.
+ */
+export function resolveToolchainDirPath(): string {
+  const configuration = vscode.workspace.getConfiguration();
+  const toolchainDir: string | undefined = configuration.get("zephyr-ide.toolchainDirectory")
+    || configuration.get("zephyr-ide.toolchain_directory");
+  if (toolchainDir && toolchainDir.trim()) {
+    return toolchainDir;
+  }
+  return path.join(os.homedir(), toolsfoldername, "toolchains");
+}
+
 export function getToolchainDir() {
   const configuration = vscode.workspace.getConfiguration();
 
@@ -672,7 +688,7 @@ export function updateBuildCMakeInfo(wsConfig: WorkspaceConfig, projectName: str
     return;
   }
 
-  const buildDir = path.join(wsConfig.rootPath, project.rel_path, build.name);
+  const buildDir = getBuildFolder(wsConfig, project, build);
   const info = readCMakeCacheInfo(buildDir);
 
   if (info.gdbPath) {
@@ -734,7 +750,7 @@ function ensureBuildCMakeInfoCached(wsConfig: WorkspaceConfig, projectName: stri
     return;
   }
 
-  const buildDir = path.join(wsConfig.rootPath, project.rel_path, build.name);
+  const buildDir = getBuildFolder(wsConfig, project, build);
   const info = readCMakeCacheInfo(buildDir);
 
   if (buildState.gdbPath === undefined) {
@@ -772,7 +788,7 @@ export function getZephyrElfPath(wsConfig: WorkspaceConfig): string | undefined 
     return elfName;
   }
 
-  return path.join(wsConfig.rootPath, project.rel_path, buildName, "zephyr", elfName);
+  return path.join(getBuildFolder(wsConfig, project, build), "zephyr", elfName);
 }
 
 /**
@@ -785,7 +801,7 @@ export function getZephyrElfDir(wsConfig: WorkspaceConfig): string | undefined {
   const resolved = resolveActiveProjectBuild(wsConfig);
   if (!resolved) { return undefined; }
 
-  return path.join(wsConfig.rootPath, resolved.project.rel_path, resolved.buildName, "zephyr");
+  return path.join(getBuildFolder(wsConfig, resolved.project, resolved.build), "zephyr");
 }
 
 /**

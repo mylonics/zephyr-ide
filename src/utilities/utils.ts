@@ -25,10 +25,58 @@ import * as os from "os";
 import * as yaml from 'js-yaml';
 
 import { SetupState, WorkspaceConfig } from "../setup_utilities/types";
-import { getToolchainDir } from "../setup_utilities/workspace-config";
+import { getToolchainDir, resolveToolchainDirPath } from "../setup_utilities/workspace-config";
 import { initOutputChannel, getOutputChannel, outputCommand, outputError, outputInfo, outputLine, type ShellCommandResult } from "./output";
 import { KNOWN_RUNNERS } from "../project_utilities/runner_selector";
 export type { ShellCommandResult } from "./output";
+
+/**
+ * Returns true when the resolved toolchain directory actually contains an
+ * installed Zephyr SDK (a `zephyr-sdk-*` subdirectory with a `sdk_version`
+ * file).  Used to gate injection of `ZEPHYR_SDK_INSTALL_DIR` into spawned
+ * shells — we only want to override CMake's SDK discovery when the extension
+ * has actually installed an SDK at that location.  Otherwise, users who
+ * installed the Zephyr SDK manually elsewhere (and rely on CMake's
+ * `~/zephyr-sdk-*` / package-registry auto-detection) would have that
+ * discovery suppressed by an empty extension-managed directory.
+ */
+function hasInstalledSDKSync(): boolean {
+  try {
+    const dir = resolveToolchainDirPath();
+    if (!fs.existsSync(dir)) { return false; }
+    const entries = fs.readdirSync(dir);
+    for (const entry of entries) {
+      if (!entry.startsWith("zephyr-sdk-")) { continue; }
+      if (fs.existsSync(path.join(dir, entry, "sdk_version"))) {
+        return true;
+      }
+    }
+  } catch {
+    // Treat scan errors as "no SDK present" — fall back to CMake auto-detection.
+  }
+  return false;
+}
+
+/**
+ * Populate VIRTUAL_ENV, ZEPHYR_BASE, and ZEPHYR_SDK_INSTALL_DIR on `env` from
+ * the given setupState. These vars are normally exposed to integrated
+ * terminals via VS Code's `environmentVariableCollection`, but that does not
+ * reliably reach child_process or task shells in all environments, so we
+ * inject them directly. ZEPHYR_SDK_INSTALL_DIR is only overridden when the
+ * extension has actually installed an SDK at the resolved toolchain dir
+ * (otherwise CMake's auto-detection of manually installed SDKs is preserved).
+ */
+function applyPythonShellEnv(env: { [key: string]: string | undefined }, setupState: SetupState): void {
+  if (setupState.env["VIRTUAL_ENV"]) {
+    env["VIRTUAL_ENV"] = setupState.env["VIRTUAL_ENV"];
+  }
+  if (setupState.zephyrDir) {
+    env["ZEPHYR_BASE"] = setupState.zephyrDir;
+  }
+  if (!process.env.ZEPHYR_SDK_INSTALL_DIR && hasInstalledSDKSync()) {
+    env["ZEPHYR_SDK_INSTALL_DIR"] = getToolchainDir();
+  }
+}
 
 /**
  * Set the output channel for dual logging
@@ -754,28 +802,29 @@ async function executeTask(task: vscode.Task) {
 }
 
 export async function executeTaskHelperInPythonEnv(setupState: SetupState | undefined, taskName: string, cmd: string, cwd: string | undefined, overrideTempOnWindows: boolean = false) {
-  if (setupState && (isMacOS() || isWSL())) {
-    // On macOS and WSL, VS Code's environmentVariableCollection doesn't
-    // reliably propagate to task shells.  Instead of rewriting the command
-    // string (which corrupts URLs via path.join), prepend the venv bin
-    // directory to PATH in the task's own environment — mirroring what
-    // executeShellCommandInPythonEnv already does for child_process calls.
-    const env: { [key: string]: string } = {};
-    const venvBin = await getPythonVenvBinaryFolder(setupState);
-    if (venvBin) {
-      env["PATH"] = venvBin + ":" + (process.env["PATH"] || "");
-    }
-    if (setupState.env["VIRTUAL_ENV"]) {
-      env["VIRTUAL_ENV"] = setupState.env["VIRTUAL_ENV"];
-    }
-    return await executeTaskHelper(taskName, cmd, cwd, env);
-  } else if (isWindows() && overrideTempOnWindows) {
-    // When installing pip packages on Windows, redirect TMPDIR/TEMP/TMP to a
-    // short path at the root of the system drive.  pip builds packages from
-    // source using a temporary directory derived from %TEMP% which — combined
-    // with the package name and pip's build-isolation subdirectories — can
-    // easily exceed the default MAX_PATH limit of 260 characters.
-    const env: { [key: string]: string } = {};
+  // VS Code's environmentVariableCollection doesn't reliably propagate to task
+  // shells in all environments (macOS, WSL, Windows CI/headless).  Inject the
+  // required env vars directly into the task shell options instead.
+  if (!setupState) {
+    return await executeTaskHelper(taskName, cmd, cwd);
+  }
+
+  const win = isWindows();
+  const pathSep = win ? ";" : ":";
+  const pathKey = win ? "Path" : "PATH";
+  const existingPath = process.env["PATH"] || process.env["Path"] || "";
+
+  const env: { [key: string]: string } = {};
+
+  const venvBin = await getPythonVenvBinaryFolder(setupState);
+  if (venvBin) {
+    env[pathKey] = venvBin + pathSep + existingPath;
+  }
+  applyPythonShellEnv(env, setupState);
+
+  if (win && overrideTempOnWindows) {
+    // Redirect TMPDIR/TEMP/TMP to a short path so pip build isolation
+    // directories don't exceed the MAX_PATH (260 chars) limit.
     const systemDrive = process.env.SYSTEMDRIVE || "C:";
     const shortTempDir = `${systemDrive}\\Temp`;
     try {
@@ -786,19 +835,19 @@ export async function executeTaskHelperInPythonEnv(setupState: SetupState | unde
       env["TEMP"] = shortTempDir;
       env["TMP"] = shortTempDir;
     } catch {
-      // If the directory cannot be created, proceed without overriding TEMP so
-      // that the command still runs, even if paths may be longer than ideal.
+      // Proceed without overriding TEMP; paths may be longer than ideal.
     }
-    return await executeTaskHelper(taskName, cmd, cwd, env);
-  } else {
-    return await executeTaskHelper(taskName, cmd, cwd);
   }
+
+  return await executeTaskHelper(taskName, cmd, cwd, env);
 }
 
 export async function executeTaskHelper(taskName: string, cmd: string, cwd: string | undefined, env?: { [key: string]: string }) {
   outputCommand(taskName, cmd);
   const options: vscode.ShellExecutionOptions = {
-    cwd: cwd,
+    // Coerce empty strings to undefined — VS Code's ShellExecution rejects
+    // an empty-string cwd and emits "An unknown error occurred".
+    cwd: cwd || undefined,
     ...(env && { env }),
   };
 
@@ -830,9 +879,7 @@ export async function executeShellCommandInPythonEnv(cmd: string, cwd: string, s
     env[existingKey] = setupState.env["PATH"] + existingPath;
   }
 
-  if (setupState.env["VIRTUAL_ENV"]) {
-    env["VIRTUAL_ENV"] = setupState.env["VIRTUAL_ENV"];
-  }
+  applyPythonShellEnv(env, setupState);
 
   return executeShellCommand(cmd, cwd, display_error, env);
 };

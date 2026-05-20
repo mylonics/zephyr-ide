@@ -55,6 +55,41 @@ console.log('🔬 These tests execute the Zephyr IDE workflow using VS Code comm
 console.log('');
 
 try {
+    // Kill any orphaned VS Code Extension Host processes from a previous test run.
+    //
+    // HOW SPAWNING WORKS (expected behaviour):
+    //   Each invocation of this script calls `npx vscode-test` exactly once,
+    //   which starts ONE VS Code Extension Host process. When tests complete,
+    //   vscode-test exits that host cleanly. Sequential runs therefore see only
+    //   one host at a time.
+    //
+    //   Multiple hosts visible simultaneously means either:
+    //     (a) Tasks were launched concurrently in the VS Code task runner, OR
+    //     (b) A previous host didn't exit before the next run started (leak).
+    //
+    //   The cleanup below addresses (b): we kill any orphaned Code process that
+    //   has our dedicated test workspace path ('zide-spc') in its command line.
+    //   This is safe — 'zide-spc' is exclusively used by these integration tests
+    //   and will never match a user's own VS Code instance.
+    console.log('Checking for orphaned VS Code test hosts...');
+    try {
+        if (process.platform === 'win32') {
+            // PowerShell: find Code processes with 'zide-spc' in their CommandLine
+            execSync(
+                'powershell -Command "Get-CimInstance Win32_Process | ' +
+                'Where-Object { $_.Name -like \'Code*\' -and $_.CommandLine -like \'*zide-spc*\' } | ' +
+                'ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"',
+                { stdio: 'pipe' }
+            );
+        } else {
+            // Linux/macOS: pkill by command-line pattern; exit code 1 just means no match
+            execSync("pkill -f 'zide-spc' || true", { stdio: 'pipe' });
+        }
+        console.log('  Orphan check complete.');
+    } catch (_) {
+        // Non-fatal — proceed even if the cleanup command itself fails
+    }
+
     // Clean stale VS Code test state that can interfere with extension loading
     const vscodeTestDir = path.join(path.dirname(__dirname), '.vscode-test');
     const staleDirs = ['extensions', 'user-data'];
