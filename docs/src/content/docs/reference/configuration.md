@@ -108,14 +108,14 @@ When `buildDebug` is omitted (or the setting is left disabled), **Build and Debu
 
 ### Migration from the Old Single-Runner Model
 
-Legacy per-build `runnerConfigs` and per-project `runnerConfigs` (with the deprecated `RunnerVariant` settings) are migrated automatically on workspace load:
+Legacy per-build `runnerConfigs` and per-project `runnerConfigs` are migrated automatically on workspace load:
 
 - Each legacy `RunnerConfig` becomes a `RunnerProfile`. Pre-bind shape (`{ name, runner, args }`) becomes a profile whose `flash` slot is a `runner` bind and whose `debug` / `attach` slots are seeded from the old `launchTarget` / `buildDebugTarget` / `attachTarget` (mapped to `launch` or `auto` as appropriate).
 - The build's old `activeRunner` field becomes its new `activeProfile`.
 - Migrated profiles are written to `.vscode/zephyr-ide.json#runnerProfiles`; the legacy fields are then stripped from the workspace state and persisted via `setWorkspaceState`, so the cleanup survives a session close even when the user makes no further edits.
 - The migration is gated by a `runnerProfilesMigrationVersion` flag stored in `.vscode/zephyr-ide.json` (currently `1`). Once the file records `runnerProfilesMigrationVersion >= 1`, the migration short-circuits without rescanning — this prevents duplicate `runner-2` / `runner-3` profiles from being appended on every workspace load.
 
-You do not need to take any action — the next time the workspace opens, the migration runs once and the new shape is what subsequent saves persist. The deprecated `zephyr-ide.runnerVariants` user setting is no longer read.
+You do not need to take any action — the next time the workspace opens, the migration runs once and the new shape is what subsequent saves persist.
 
 ## Custom Variables
 
