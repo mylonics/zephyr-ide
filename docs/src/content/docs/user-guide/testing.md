@@ -1,6 +1,6 @@
 ---
 title: Testing Zephyr Projects with Twister
-description: Run Zephyr Twister tests directly from VS Code. Configure test parameters, execute multiple test suites, and view results in the integrated test panel with IDE for Zephyr.
+description: Run Zephyr Twister tests directly from VS Code. Configure test suites, set target platforms (native_sim, QEMU, or hardware boards), apply test filters, and view results in the integrated test panel — all without leaving the editor.
 ---
 
 The extension supports running [Twister](https://docs.zephyrproject.org/latest/develop/test/twister.html) tests. Click the beaker icon in the IDE for Zephyr sidebar to access the test panel.

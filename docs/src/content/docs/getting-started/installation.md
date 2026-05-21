@@ -1,6 +1,6 @@
 ---
 title: Installation
-description: Install the IDE for Zephyr VS Code extension from the Visual Studio Code Marketplace or Open VSX Registry. Get started with Zephyr RTOS embedded development in minutes.
+description: Install the IDE for Zephyr VS Code extension from the Visual Studio Code Marketplace or Open VSX Registry. Start building Zephyr RTOS firmware for nRF52, STM32, ESP32, Raspberry Pi Pico, and other ARM Cortex-M and RISC-V boards on Linux, macOS, or Windows.
 ---
 
 To get started, install the extension from [Visual Studio Code marketplace](https://marketplace.visualstudio.com/items?itemName=mylonics.zephyr-ide) or [Open VSX Registry](https://open-vsx.org/extension/mylonics/zephyr-ide)
