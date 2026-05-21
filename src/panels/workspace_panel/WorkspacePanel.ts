@@ -30,6 +30,7 @@ import {
   workspaceSetupStandard,
   workspaceSetupFromCurrentDirectory,
 } from "../../setup_utilities/workspace-setup";
+import { getActiveEditorColumn, disposeDisposables } from "../webview_shared/panel-utils";
 import type { WorkspacePanelData, ActivationBannerData, WorkspaceInfoData, WorkspaceReadiness, WorkspacePanelMode } from "./workspace-panel-data";
 
 export class WorkspacePanel {
@@ -76,9 +77,7 @@ export class WorkspacePanel {
     setupPath?: string,
   ) {
     const key = setupPath || "__default__";
-    const column = vscode.window.activeTextEditor
-      ? vscode.window.activeTextEditor.viewColumn
-      : undefined;
+    const column = getActiveEditorColumn();
 
     const existing = WorkspacePanel._panels.get(key);
     if (existing) {
@@ -208,10 +207,7 @@ export class WorkspacePanel {
       }
     }
     this._panel.dispose();
-    while (this._disposables.length) {
-      const x = this._disposables.pop();
-      if (x) { x.dispose(); }
-    }
+    disposeDisposables(this._disposables);
   }
 
   // ---------------------------------------------------------------------------

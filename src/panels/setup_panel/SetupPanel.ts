@@ -23,6 +23,7 @@ import { handleReconfigureInstallation } from "../../setup_utilities/workspace-s
 import { notifyError, outputError } from "../../utilities/output";
 import { compareWorkspacePathsByLocality, isWorkspaceLocal, canonicalizePath } from "../../utilities/utils";
 import { generateNonce } from "../webview_shared/nonce";
+import { getActiveEditorColumn, disposeDisposables } from "../webview_shared/panel-utils";
 import { WorkspacePanel } from "../workspace_panel/WorkspacePanel";
 import type { SetupPanelData, ActiveWorkspaceData, WorkspaceListItem, ProjectListItem } from "./setup-panel-data";
 
@@ -42,9 +43,7 @@ export class SetupPanel {
     wsConfig: WorkspaceConfig,
     globalConfig: GlobalConfig
   ) {
-    const column = vscode.window.activeTextEditor
-      ? vscode.window.activeTextEditor.viewColumn
-      : undefined;
+    const column = getActiveEditorColumn();
 
     if (SetupPanel.currentPanel) {
       SetupPanel.currentPanel._panel.reveal(column);
@@ -123,10 +122,7 @@ export class SetupPanel {
   public dispose() {
     SetupPanel.currentPanel = undefined;
     this._panel.dispose();
-    while (this._disposables.length) {
-      const x = this._disposables.pop();
-      if (x) { x.dispose(); }
-    }
+    disposeDisposables(this._disposables);
   }
 
   // ---------------------------------------------------------------------------

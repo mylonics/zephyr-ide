@@ -47,6 +47,7 @@ import {
 } from "../../project_utilities/project";
 import { ConfigFiles } from "../../project_utilities/config_selector";
 import { generateNonce } from "../webview_shared/nonce";
+import { getActiveEditorColumn, disposeDisposables } from "../webview_shared/panel-utils";
 import { getLaunchConfigurations as _getLaunchConfigurations } from "../../utilities/utils";
 import { normalizeBuildArgs } from "../../project_utilities/build_args";
 import { getRunnersYamlHint } from "../../zephyr_utilities/runners-yaml";
@@ -101,9 +102,7 @@ export class ProjectBuildPanel {
     projectName?: string,
   ) {
     const key = projectName ?? "__default__";
-    const column = vscode.window.activeTextEditor
-      ? vscode.window.activeTextEditor.viewColumn
-      : undefined;
+    const column = getActiveEditorColumn();
 
     const existing = ProjectBuildPanel._panels.get(key);
     if (existing) {
@@ -205,10 +204,7 @@ export class ProjectBuildPanel {
       }
     }
     this._panel.dispose();
-    while (this._disposables.length) {
-      const x = this._disposables.pop();
-      if (x) { x.dispose(); }
-    }
+    disposeDisposables(this._disposables);
   }
 
   // ---------------------------------------------------------------------------

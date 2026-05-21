@@ -21,6 +21,7 @@ import * as vscode from "vscode";
 
 import type { DashboardData, DashboardMemoryRefresh } from "./dashboard-data";
 import { generateNonce } from "../webview_shared/nonce";
+import { getActiveEditorColumn, disposeDisposables } from "../webview_shared/panel-utils";
 import type { KconfigSession } from "../../build_data/kconfig-session";
 
 /** Callback invoked when the user requests a memory report refresh. */
@@ -160,9 +161,7 @@ export class DashboardPanel {
   ): DashboardPanel {
     const { projectName, buildName } = data.meta;
     const key = `${projectName}/${buildName}`;
-    const column = vscode.window.activeTextEditor
-      ? vscode.window.activeTextEditor.viewColumn
-      : vscode.ViewColumn.One;
+    const column = getActiveEditorColumn() ?? vscode.ViewColumn.One;
 
     const existing = DashboardPanel._panels.get(key);
     if (existing) {
@@ -252,37 +251,43 @@ export class DashboardPanel {
   }
 
   private async handleMessage(message: Record<string, unknown>) {
-    if (message?.command === "ready") {
-      await this._postData();
-    } else if (message?.command === "refreshMemory") {
-      await this.refreshMemory();
-    } else if (message?.command === "openMemorySymbol") {
-      await this._openSymbolFile(
+    const command = typeof message?.command === "string" ? message.command : undefined;
+    if (!command) {
+      return;
+    }
+
+    const handlers: Record<string, () => Promise<void>> = {
+      ready: () => this._postData(),
+      refreshMemory: () => this.refreshMemory(),
+      openMemorySymbol: () => this._openSymbolFile(
         typeof message.path === "string" ? message.path : "",
         typeof message.line === "number" ? message.line : undefined,
-      );
-    } else if (message?.command === "kconfigSaveFragment") {
-      await this._handleKconfigSaveFragment(message);
-    } else if (message?.command === "kconfigOpenExternal") {
-      const tool = message.tool === "guiconfig" ? "guiconfig" : "menuconfig";
-      await this._kconfigCallbacks?.openExternal(tool);
-    } else if (message?.command === "build") {
-      const pristine = !!message.pristine;
-      // Build the specific project/build this dashboard was opened for, not
-      // the globally active project.  Falls back to the VS Code command if
-      // no callback was registered (should not happen in normal usage).
-      if (this._onBuild) {
-        await this._onBuild(pristine);
-      } else {
-        await vscode.commands.executeCommand(
-          pristine ? "zephyr-ide.build-pristine" : "zephyr-ide.build",
-        );
-      }
-      // Auto-rescan: reload the Kconfig session from the new .config so the
-      // editor reflects the result of the build immediately.  If the build
-      // failed, .config is unchanged and the reload is a harmless no-op.
-      await this.notifyKconfigExternalDone("build");
-    } else if (typeof message?.command === "string" && (message.command as string).startsWith("kconfig")) {
+      ),
+      kconfigSaveFragment: () => this._handleKconfigSaveFragment(message),
+      kconfigOpenExternal: async () => {
+        const tool = message.tool === "guiconfig" ? "guiconfig" : "menuconfig";
+        await this._kconfigCallbacks?.openExternal(tool);
+      },
+      build: async () => {
+        const pristine = !!message.pristine;
+        if (this._onBuild) {
+          await this._onBuild(pristine);
+        } else {
+          await vscode.commands.executeCommand(
+            pristine ? "zephyr-ide.build-pristine" : "zephyr-ide.build",
+          );
+        }
+        await this.notifyKconfigExternalDone("build");
+      },
+    };
+
+    const handler = handlers[command];
+    if (handler) {
+      await handler();
+      return;
+    }
+
+    if (command.startsWith("kconfig")) {
       await this._handleKconfigSession(message);
     }
   }
@@ -689,9 +694,6 @@ export class DashboardPanel {
       this._kconfigSessionPromise = undefined;
     }
     this._panel.dispose();
-    while (this._disposables.length) {
-      const x = this._disposables.pop();
-      if (x) { x.dispose(); }
-    }
+    disposeDisposables(this._disposables);
   }
 }

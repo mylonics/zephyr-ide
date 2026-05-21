@@ -243,6 +243,13 @@ function sanitizeBind(value: unknown): RunnerBind | undefined {
   return undefined;
 }
 
+function buildRunnerArgs(bindExtraArgs?: string[], overrideExtraArgs?: string[]): string {
+  return [...(bindExtraArgs ?? []), ...(overrideExtraArgs ?? [])]
+    .map(s => s.trim())
+    .filter(s => s.length > 0)
+    .join(" ");
+}
+
 /** Load merged profiles from user settings + workspace `.vscode/zephyr-ide.json`.
  *  Workspace overrides user settings on name collision. */
 export function loadRunnerProfiles(wsConfig: WorkspaceConfig): RunnerProfile[] {
@@ -280,10 +287,7 @@ export function resolveBind(
     case "auto":
       return undefined;
     case "runner": {
-      const parts = [...(bind.extraArgs ?? []), ...(override?.extraArgs ?? [])]
-        .map(s => s.trim())
-        .filter(s => s.length > 0);
-      return { runner: bind.runner, args: parts.join(" ") };
+      return { runner: bind.runner, args: buildRunnerArgs(bind.extraArgs, override?.extraArgs) };
     }
     case "launch":
       return undefined;
@@ -297,10 +301,7 @@ export function formatBindLabel(bind: RunnerBind | undefined, override?: BindOve
     case "auto":
       return "Auto (runners.yaml)";
     case "runner": {
-      const parts = [...(bind.extraArgs ?? []), ...(override?.extraArgs ?? [])]
-        .map(s => s.trim())
-        .filter(s => s.length > 0);
-      const args = parts.join(" ");
+      const args = buildRunnerArgs(bind.extraArgs, override?.extraArgs);
       return args ? `${bind.runner} ${args}` : bind.runner;
     }
     case "launch":
@@ -547,4 +548,3 @@ export function resolveRunnerArgs(args: string, ctx: RunnerVarContext): string {
     return match;
   });
 }
-

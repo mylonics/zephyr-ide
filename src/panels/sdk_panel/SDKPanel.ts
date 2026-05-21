@@ -29,6 +29,7 @@ import {
 } from "../../setup_utilities/west_sdk";
 import { notifyError, outputError } from "../../utilities/output";
 import { generateNonce } from "../webview_shared/nonce";
+import { getActiveEditorColumn, disposeDisposables } from "../webview_shared/panel-utils";
 import { sdkVersions } from "../../defines";
 
 export class SDKPanel {
@@ -71,9 +72,7 @@ export class SDKPanel {
     wsConfig: WorkspaceConfig,
     globalConfig: GlobalConfig,
   ) {
-    const column = vscode.window.activeTextEditor
-      ? vscode.window.activeTextEditor.viewColumn
-      : undefined;
+    const column = getActiveEditorColumn();
 
     if (SDKPanel.currentPanel) {
       SDKPanel.currentPanel._panel.reveal(column);
@@ -172,10 +171,7 @@ export class SDKPanel {
   public dispose() {
     SDKPanel.currentPanel = undefined;
     this._panel.dispose();
-    while (this._disposables.length) {
-      const x = this._disposables.pop();
-      if (x) { x.dispose(); }
-    }
+    disposeDisposables(this._disposables);
   }
 
   // ---------------------------------------------------------------------------
@@ -183,42 +179,37 @@ export class SDKPanel {
   // ---------------------------------------------------------------------------
 
   private handleWebviewMessage(message: Record<string, any>) {
-    switch (message.command) {
-      case "ready":
+    const handlers: Record<string, () => void> = {
+      ready: () => {
         if (this.currentWsConfig && this.currentGlobalConfig) {
           this.updateContent(this.currentWsConfig, this.currentGlobalConfig);
         }
-        return;
-      case "installSDK":
-        this.installSDK();
-        return;
-      case "addToolchainsForVersion":
+      },
+      installSDK: () => { void this.installSDK(); },
+      addToolchainsForVersion: () => {
         if (typeof message.version === "string") {
-          this.addToolchainsForVersion(message.version);
+          void this.addToolchainsForVersion(message.version);
         }
-        return;
-      case "applyToolchainChanges":
+      },
+      applyToolchainChanges: () => {
         if (typeof message.version === "string" && Array.isArray(message.toAdd) && Array.isArray(message.toRemove)) {
-          this.applyToolchainChanges(message.version, message.toAdd, message.toRemove);
+          void this.applyToolchainChanges(message.version, message.toAdd, message.toRemove);
         }
-        return;
-      case "removeSDKVersion":
+      },
+      removeSDKVersion: () => {
         if (typeof message.version === "string") {
-          this.removeSDKVersion(message.version);
+          void this.removeSDKVersion(message.version);
         }
-        return;
-      case "listSDKs":
-        this.listSDKs();
-        return;
-      case "modifyZephyrIdeToolchains":
-        void vscode.commands.executeCommand("zephyr-ide.modify-zephyr-ide-toolchains");
-        return;
-      case "installZephyrIdeToolchains":
-        void this.installZephyrIdeToolchains();
-        return;
-      case "openSetupPanel":
-        vscode.commands.executeCommand("zephyr-ide.open-setup-panel");
-        return;
+      },
+      listSDKs: () => { void this.listSDKs(); },
+      modifyZephyrIdeToolchains: () => { void vscode.commands.executeCommand("zephyr-ide.modify-zephyr-ide-toolchains"); },
+      installZephyrIdeToolchains: () => { void this.installZephyrIdeToolchains(); },
+      openSetupPanel: () => { void vscode.commands.executeCommand("zephyr-ide.open-setup-panel"); },
+    };
+
+    const handler = handlers[message.command];
+    if (handler) {
+      handler();
     }
   }
 

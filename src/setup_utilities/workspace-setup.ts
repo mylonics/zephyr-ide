@@ -67,6 +67,25 @@ interface WestDiscoveryResult {
   selectedWestPath?: string;
 }
 
+function requireWorkspaceDir(candidate: string | undefined, label: string): string | undefined {
+  if (candidate) {
+    return candidate;
+  }
+  notifyError(label, "No workspace folder open. Please open a folder first.");
+  return undefined;
+}
+
+async function pickSingleFolder(openLabel: string, defaultUri?: vscode.Uri): Promise<string | undefined> {
+  const folderUris = await vscode.window.showOpenDialog({
+    openLabel,
+    canSelectFiles: false,
+    canSelectFolders: true,
+    canSelectMany: false,
+    ...(defaultUri ? { defaultUri } : {}),
+  });
+  return folderUris && folderUris.length > 0 ? folderUris[0].fsPath : undefined;
+}
+
 async function discoverWestConfiguration(baseDir: string): Promise<WestDiscoveryResult> {
   // Check if .west folder exists
   const westPath = path.join(baseDir, ".west");
@@ -173,11 +192,8 @@ export async function workspaceSetupFromGit(context: vscode.ExtensionContext, ws
     return false;
   }
 
-  const currentDir = wsConfig.rootPath;
+  const currentDir = requireWorkspaceDir(wsConfig.rootPath, "Git Clone");
   if (!currentDir) {
-    notifyError("Git Clone",
-      "No workspace folder open. Please open a folder first."
-    );
     return false;
   }
 
@@ -266,11 +282,8 @@ export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext
   const gitUrl = state.gitUrl;
   const additionalArgs = state.additionalArgs;
 
-  const currentDir = installDir || wsConfig.rootPath;
+  const currentDir = requireWorkspaceDir(installDir || wsConfig.rootPath, "West Git Setup");
   if (!currentDir) {
-    notifyError("West Git Setup",
-      "No workspace folder open. Please open a folder first."
-    );
     return false;
   }
 
@@ -317,11 +330,8 @@ export async function workspaceSetupStandard(context: vscode.ExtensionContext, w
   // Clear all context flags at start
   await clearWorkspaceSetupContextFlags(context, wsConfig, globalConfig);
 
-  const currentDir = installDir || wsConfig.rootPath;
+  const currentDir = requireWorkspaceDir(installDir || wsConfig.rootPath, "Standard Setup");
   if (!currentDir) {
-    notifyError("Standard Setup",
-      "No workspace folder open. Please open a folder first."
-    );
     return false;
   }
 
@@ -724,18 +734,13 @@ export async function showWorkspaceSetupPicker(context: vscode.ExtensionContext,
 export async function workspaceSetupFromExternalDirectory(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
   showOutput();
 
-  const folderUris = await vscode.window.showOpenDialog({
-    openLabel: "Select Folder for Zephyr Installation",
-    canSelectFiles: false,
-    canSelectFolders: true,
-    canSelectMany: false,
-    defaultUri: vscode.Uri.file(getToolsDir()),
-  });
-  if (!folderUris || folderUris.length === 0) {
+  const chosenPath = await pickSingleFolder(
+    "Select Folder for Zephyr Installation",
+    vscode.Uri.file(getToolsDir()),
+  );
+  if (!chosenPath) {
     return false;
   }
-
-  const chosenPath = folderUris[0].fsPath;
   outputInfo("External Directory Setup", `Selected directory: ${chosenPath}`);
 
   // Register and activate the chosen path
@@ -781,16 +786,11 @@ export async function showCreateWorkspaceMenu(context: vscode.ExtensionContext, 
   try {
     // Case 1: Current workspace is already registered - directly open folder selector
     if (isCurrentFolderRegistered) {
-      const folderUris = await vscode.window.showOpenDialog({
-        openLabel: "Select Folder for New Zephyr Installation",
-        canSelectFiles: false,
-        canSelectFolders: true,
-        canSelectMany: false
-      });
-      if (!folderUris || folderUris.length === 0) {
+      const pickedPath = await pickSingleFolder("Select Folder for New Zephyr Installation");
+      if (!pickedPath) {
         return;
       }
-      chosenPath = folderUris[0].fsPath;
+      chosenPath = pickedPath;
       needsSetup = true;
     }
     // Case 2: Current workspace is not registered - ask user
@@ -822,31 +822,21 @@ export async function showCreateWorkspaceMenu(context: vscode.ExtensionContext, 
         needsSetup = true;
       } else {
         // Select other folder
-        const folderUris = await vscode.window.showOpenDialog({
-          openLabel: "Select Folder for New Zephyr Installation",
-          canSelectFiles: false,
-          canSelectFolders: true,
-          canSelectMany: false
-        });
-        if (!folderUris || folderUris.length === 0) {
+        const pickedPath = await pickSingleFolder("Select Folder for New Zephyr Installation");
+        if (!pickedPath) {
           return;
         }
-        chosenPath = folderUris[0].fsPath;
+        chosenPath = pickedPath;
         needsSetup = true;
       }
     }
     // Case 3: No workspace folder open - just open folder selector
     else {
-      const folderUris = await vscode.window.showOpenDialog({
-        openLabel: "Select Folder for New Zephyr Installation",
-        canSelectFiles: false,
-        canSelectFolders: true,
-        canSelectMany: false
-      });
-      if (!folderUris || folderUris.length === 0) {
+      const pickedPath = await pickSingleFolder("Select Folder for New Zephyr Installation");
+      if (!pickedPath) {
         return;
       }
-      chosenPath = folderUris[0].fsPath;
+      chosenPath = pickedPath;
       needsSetup = true;
     }
 
@@ -1093,17 +1083,14 @@ export async function westConfig(
       let chosenPath = pickedExternal.detail!;
       let needsSetup = false;
       if (chosenPath === "new-install") {
-        const folderUris = await vscode.window.showOpenDialog({
-          openLabel: "Select Folder for New Zephyr Installation",
-          canSelectFiles: false,
-          canSelectFolders: true,
-          canSelectMany: false,
-          defaultUri: vscode.Uri.file(getToolsDir()),
-        });
-        if (!folderUris || folderUris.length === 0) {
+        const pickedPath = await pickSingleFolder(
+          "Select Folder for New Zephyr Installation",
+          vscode.Uri.file(getToolsDir()),
+        );
+        if (!pickedPath) {
           return { cancelled: true, option: null };
         }
-        chosenPath = folderUris[0].fsPath;
+        chosenPath = pickedPath;
         needsSetup = true;
       } else {
         needsSetup = !(globalConfig.setupStateDictionary && globalConfig.setupStateDictionary[chosenPath]);

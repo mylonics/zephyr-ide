@@ -19,6 +19,7 @@ import * as vscode from "vscode";
 
 import { WorkspaceConfig, GlobalConfig } from "../../setup_utilities/types";
 import { generateNonce } from "../webview_shared/nonce";
+import { getActiveEditorColumn, disposeDisposables } from "../webview_shared/panel-utils";
 import { notifyError } from "../../utilities/output";
 import { getLaunchConfigurations } from "../../utilities/utils";
 import { KNOWN_RUNNERS } from "../../project_utilities/runner_selector";
@@ -67,9 +68,7 @@ export class RunnerProfilePanel {
     wsConfig: WorkspaceConfig,
     globalConfig: GlobalConfig,
   ) {
-    const column = vscode.window.activeTextEditor
-      ? vscode.window.activeTextEditor.viewColumn
-      : undefined;
+    const column = getActiveEditorColumn();
 
     if (RunnerProfilePanel.currentPanel) {
       RunnerProfilePanel.currentPanel._panel.reveal(column);
@@ -138,10 +137,7 @@ export class RunnerProfilePanel {
   public dispose() {
     RunnerProfilePanel.currentPanel = undefined;
     this._panel.dispose();
-    while (this._disposables.length) {
-      const x = this._disposables.pop();
-      if (x) { x.dispose(); }
-    }
+    disposeDisposables(this._disposables);
   }
 
   // ---------------------------------------------------------------------------
@@ -149,30 +145,18 @@ export class RunnerProfilePanel {
   // ---------------------------------------------------------------------------
 
   private async handleWebviewMessage(message: Record<string, any>) {
-    switch (message.command) {
-      case "ready":
-        await this.pushState();
-        return;
+    const handlers: Record<string, () => Promise<void>> = {
+      ready: () => this.pushState(),
+      createProfile: () => this.handleCreateProfile(message),
+      saveProfile: () => this.handleSaveProfile(message),
+      deleteProfile: () => this.handleDeleteProfile(message),
+      duplicateProfile: () => this.handleDuplicateProfile(message),
+      setActiveProfile: () => this.handleSetActiveProfile(message),
+    };
 
-      case "createProfile":
-        await this.handleCreateProfile(message);
-        return;
-
-      case "saveProfile":
-        await this.handleSaveProfile(message);
-        return;
-
-      case "deleteProfile":
-        await this.handleDeleteProfile(message);
-        return;
-
-      case "duplicateProfile":
-        await this.handleDuplicateProfile(message);
-        return;
-
-      case "setActiveProfile":
-        await this.handleSetActiveProfile(message);
-        return;
+    const handler = handlers[message.command];
+    if (handler) {
+      await handler();
     }
   }
 

@@ -19,6 +19,7 @@ import * as vscode from "vscode";
 import { WorkspaceConfig, GlobalConfig } from "../../setup_utilities/types";
 import { HostToolsService, HOST_TOOL_INSTALL_VIEW_CONFIG } from "../hostToolsService";
 import { generateNonce } from "../webview_shared/nonce";
+import { getActiveEditorColumn, disposeDisposables } from "../webview_shared/panel-utils";
 
 export class HostToolInstallView {
   public static currentPanel: HostToolInstallView | undefined;
@@ -37,9 +38,7 @@ export class HostToolInstallView {
     wsConfig: WorkspaceConfig,
     globalConfig: GlobalConfig
   ) {
-    const column = vscode.window.activeTextEditor
-      ? vscode.window.activeTextEditor.viewColumn
-      : undefined;
+    const column = getActiveEditorColumn();
 
     if (HostToolInstallView.currentPanel) {
       HostToolInstallView.currentPanel._panel.reveal(column);
@@ -126,37 +125,22 @@ export class HostToolInstallView {
   private _htmlInitialized = false;
 
   private async handleWebviewMessage(message: Record<string, any>) {
-    switch (message.command) {
-      case "hostToolsCheckStatus":
-        await this._service.checkStatus();
-        break;
-      case "hostToolsInstallPackageManager":
-        await this._service.installPackageManager();
-        break;
-      case "hostToolsInstallPackage":
-        await this._service.installSinglePackage(message.packageName);
-        break;
-      case "hostToolsInstallAllMissing":
-        await this._service.installAllMissing();
-        break;
-      case "hostToolsInstallAllMissingPackages":
-        await this._service.installAllMissingPackages(message.packageNames);
-        break;
-      case "markComplete":
-        await this._service.markComplete(this._context, this.currentWsConfig, this.currentGlobalConfig);
-        break;
-      case "hostToolsOpenManagerInstallUrl":
-        await this._service.openManagerInstallUrl();
-        break;
-      case "enableWindowsLongPaths":
-        await this._service.enableLongPaths();
-        break;
-      case "install7zip":
-        await this._service.install7Zip();
-        break;
-      case "openSetupPanel":
-        vscode.commands.executeCommand("zephyr-ide.open-setup-panel");
-        break;
+    const handlers: Record<string, () => Promise<void> | PromiseLike<void> | void> = {
+      hostToolsCheckStatus: () => this._service.checkStatus(),
+      hostToolsInstallPackageManager: () => this._service.installPackageManager(),
+      hostToolsInstallPackage: () => this._service.installSinglePackage(message.packageName),
+      hostToolsInstallAllMissing: () => this._service.installAllMissing(),
+      hostToolsInstallAllMissingPackages: () => this._service.installAllMissingPackages(message.packageNames),
+      markComplete: () => this._service.markComplete(this._context, this.currentWsConfig, this.currentGlobalConfig),
+      hostToolsOpenManagerInstallUrl: () => this._service.openManagerInstallUrl(),
+      enableWindowsLongPaths: () => this._service.enableLongPaths(),
+      install7zip: () => this._service.install7Zip(),
+      openSetupPanel: () => vscode.commands.executeCommand("zephyr-ide.open-setup-panel"),
+    };
+
+    const handler = handlers[message.command];
+    if (handler) {
+      await handler();
     }
   }
 
@@ -165,12 +149,7 @@ export class HostToolInstallView {
 
     this._panel.dispose();
 
-    while (this._disposables.length) {
-      const x = this._disposables.pop();
-      if (x) {
-        x.dispose();
-      }
-    }
+    disposeDisposables(this._disposables);
   }
 
   private getHtmlForWebview(): string {

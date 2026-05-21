@@ -17,6 +17,7 @@ limitations under the License.
 
 import * as vscode from "vscode";
 import { generateNonce } from "../webview_shared/nonce";
+import { getActiveEditorColumn, disposeDisposables } from "../webview_shared/panel-utils";
 
 interface SettingDefinition {
   key: string;
@@ -160,9 +161,7 @@ export class SettingsPanel {
   private _disposables: vscode.Disposable[] = [];
 
   public static createOrShow(extensionPath: string) {
-    const column = vscode.window.activeTextEditor
-      ? vscode.window.activeTextEditor.viewColumn
-      : undefined;
+    const column = getActiveEditorColumn();
 
     if (SettingsPanel.currentPanel) {
       SettingsPanel.currentPanel._panel.reveal(column);
@@ -276,8 +275,8 @@ export class SettingsPanel {
   }
 
   private async handleWebviewMessage(message: Record<string, any>) {
-    switch (message.command) {
-      case "updateSetting": {
+    const handlers: Record<string, () => Promise<void> | PromiseLike<void> | void> = {
+      updateSetting: async () => {
         const { key, value, scope } = message;
         const target = scope === "workspace"
           ? vscode.ConfigurationTarget.Workspace
@@ -285,25 +284,19 @@ export class SettingsPanel {
         const configuration = vscode.workspace.getConfiguration();
         await configuration.update(key, value, target);
         this.refreshSettings();
-        break;
-      }
-      case "resetSetting": {
+      },
+      resetSetting: async () => {
         const { key } = message;
         const configuration = vscode.workspace.getConfiguration();
-        // Remove from both scopes
         await configuration.update(key, undefined, vscode.ConfigurationTarget.Workspace);
         await configuration.update(key, undefined, vscode.ConfigurationTarget.Global);
         this.refreshSettings();
-        break;
-      }
-      case "openVsCodeSettings": {
-        await vscode.commands.executeCommand(
-          "workbench.action.openSettings",
-          "@ext:mylonics.zephyr-ide"
-        );
-        break;
-      }
-      case "browseFolder": {
+      },
+      openVsCodeSettings: () => vscode.commands.executeCommand(
+        "workbench.action.openSettings",
+        "@ext:mylonics.zephyr-ide",
+      ),
+      browseFolder: async () => {
         const { key } = message;
         const result = await vscode.window.showOpenDialog({
           canSelectFolders: true,
@@ -318,22 +311,17 @@ export class SettingsPanel {
             path: result[0].fsPath,
           });
         }
-        break;
-      }
-      case "openSetupPanel": {
-        await vscode.commands.executeCommand("zephyr-ide.open-setup-panel");
-        break;
-      }
-      case "ready": {
-        this.refreshSettings();
-        break;
-      }
+      },
+      openSetupPanel: () => vscode.commands.executeCommand("zephyr-ide.open-setup-panel"),
+      ready: () => this.refreshSettings(),
+      addVariant: () => undefined,
+      updateVariant: () => undefined,
+      removeVariant: () => undefined,
+    };
 
-      // Variant editor removed — Runner Profile editor coming in Phase 4.
-      case "addVariant":
-      case "updateVariant":
-      case "removeVariant":
-        break;
+    const handler = handlers[message.command];
+    if (handler) {
+      await handler();
     }
   }
 
@@ -341,12 +329,7 @@ export class SettingsPanel {
     SettingsPanel.currentPanel = undefined;
     this._panel.dispose();
 
-    while (this._disposables.length) {
-      const x = this._disposables.pop();
-      if (x) {
-        x.dispose();
-      }
-    }
+    disposeDisposables(this._disposables);
   }
 
   private getHtmlForWebview(): string {
