@@ -168,17 +168,33 @@
           "enum": [
             "dtdoctor",
             "gcc",
+            "clang",
+            "sparse",
+            "codechecker",
+            "coverity",
+            "cpptest",
+            "eclair",
+            "iar_c_stat",
+            "polyspace",
             "custom",
             "none"
           ],
           "enumDescriptions": [
             "Use dtdoctor (Zephyr's built-in devicetree SCA tool, bundled in the Zephyr repo — no extra install needed).",
             "Use GCC -fanalyzer (requires GCC 12+, already in the Zephyr SDK — no extra install needed).",
+            "Use Clang static analyzer (requires Clang to be installed).",
+            "Use Sparse (lightweight C semantic parser, requires sparse to be installed).",
+            "Use CodeChecker (open-source analysis framework, requires CodeChecker to be installed).",
+            "Use Coverity (commercial static analysis tool, requires Coverity installation and license).",
+            "Use Parasoft C/C++test (commercial, requires cpptest installation and license).",
+            "Use ECLAIR (commercial static analysis tool, requires ECLAIR installation and license).",
+            "Use IAR C-STAT (requires IAR toolchain and license).",
+            "Use Polyspace (commercial, requires MathWorks Polyspace installation and license).",
             "Use the custom variant specified in 'zephyr-ide.scaCustomVariant'.",
             "Disable SCA. No ZEPHYR_SCA_VARIANT is passed to CMake."
           ],
-          "default": "dtdoctor",
-          "description": "Static Code Analysis (SCA) tool to enable on pristine builds via -DZEPHYR_SCA_VARIANT. Defaults to dtdoctor (bundled in the Zephyr repo). Set to 'none' to disable."
+          "default": "none",
+          "description": "Static Code Analysis (SCA) tool to enable on pristine builds via -DZEPHYR_SCA_VARIANT. Defaults to none (disabled). Set to 'dtdoctor' for Zephyr's built-in DT diagnostic tool."
         },
         "zephyr-ide.scaCustomVariant": {
           "type": [

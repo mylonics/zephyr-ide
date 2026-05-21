@@ -220,7 +220,7 @@ export function assembleBuildCommand(params: BuildCommandParams): string {
  */
 export function resolveSCAVariant(): string | undefined {
   const cfg = vscode.workspace.getConfiguration();
-  const variant = cfg.get<string>("zephyr-ide.scaVariant") ?? "dtdoctor";
+  const variant = cfg.get<string>("zephyr-ide.scaVariant") ?? "none";
   if (variant === "none") { return undefined; }
   if (variant === "custom") {
     const custom = cfg.get<string | null>("zephyr-ide.scaCustomVariant") ?? "";
