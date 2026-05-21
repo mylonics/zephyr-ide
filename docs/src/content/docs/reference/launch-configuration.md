@@ -88,7 +88,7 @@ Get the board name for the currently active build configuration.
 
 ## Usage Example
 
-Here's an example of using these commands in a `cortex-debug` launch.json (use this when you need full control; otherwise prefer the simpler `zephyr-ide` launch shown at the top of this page):
+Example `cortex-debug` launch configuration (use this when you need full control; otherwise prefer the simpler `zephyr-ide` launch shown at the top of this page):
 
 ```json
 {

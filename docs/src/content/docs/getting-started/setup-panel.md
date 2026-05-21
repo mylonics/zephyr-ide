@@ -9,11 +9,7 @@ When you first open a workspace in VS Code with IDE for Zephyr installed, you ca
 - Command Palette: `Zephyr IDE: Setup Workspace`
 - The Extension Setup View panel
 
-The Setup Panel is the central hub for configuring your Zephyr development environment. It provides a card-based interface with three main areas.
-
-## Setup Panel Overview
-
-The Setup Panel presents three configuration cards:
+The Setup Panel provides a card-based interface with three configuration areas:
 
 ![Overview](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/overview.png)
 
@@ -21,7 +17,7 @@ The Setup Panel presents three configuration cards:
 2. **Zephyr SDK Management** - Install and manage Zephyr SDK for different architectures
 3. **Workspace** - Configure west workspace and Zephyr project dependencies
 
-Click on any card to access detailed configuration options for that component.
+Click any card to access detailed configuration for that component.
 
 ## Next Steps
 

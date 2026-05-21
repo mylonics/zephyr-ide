@@ -36,16 +36,6 @@ You can install the extension pack from:
 
 Or search for "Zephyr IDE Extension Pack" in the VS Code Extensions view.
 
-## Benefits
-
-Installing the extension pack provides:
-
-- Complete Zephyr development environment
-- IntelliSense for all file types used in Zephyr projects
-- Debugging support for ARM Cortex-M devices
-- Serial communication tools
-- Better syntax highlighting and validation
-
 ## Next Steps
 
 - [Learn about other features](../user-guide/other-features.md)

@@ -1,22 +1,28 @@
 ---
 title: Configuration Settings
-description: All IDE for Zephyr VS Code settings — global directory, toolchain directory, GUI config, west narrow update, virtual environment path, workspace warning suppression, and clangd support.
+description: All IDE for Zephyr VS Code settings — toolchain directory, Kconfig button behavior, west update options, virtual environment path, clangd support, runner profiles, and project variable defaults.
 ---
 
 The following settings are available in VS Code settings (File > Preferences > Settings):
 
 | Setting | Type | Default | Description |
 |---|---|---|---|
-| `zephyr-ide.globalDirectory` | string \| null | null | Root directory for west workspace setup, Python venvs, and SDK installations. Replaces the deprecated `zephyr-ide.tools_directory`. |
-| `zephyr-ide.tools_directory` | string \| null | null | **Deprecated.** Use `zephyr-ide.globalDirectory` instead. Migrated automatically on startup. |
-| `zephyr-ide.toolchainDirectory` | string \| null | null | Directory containing Zephyr SDK installations (e.g. `zephyr-sdk-0.17.0` subdirectories). Defaults to `toolchains/` inside the global directory. |
+| `zephyr-ide.toolchainDirectory` | string \| null | null | Directory containing Zephyr SDK installations (e.g. subdirectories named `zephyr-sdk-0.17.0`). Defaults to `~/.zephyr_ide/toolchains`. |
+| `zephyr-ide.globalDirectory` | string \| null | null | **Deprecated.** Use `zephyr-ide.toolchainDirectory` instead. Migrated automatically on startup. |
+| `zephyr-ide.tools_directory` | string \| null | null | **Deprecated.** Use `zephyr-ide.toolchainDirectory` instead. Migrated automatically on startup. |
 | `zephyr-ide.useGuiConfig` | boolean | false | Use the graphical Kconfig editor instead of terminal-based menuconfig. |
+| `zephyr-ide.activeViewKconfigButton` | enum | `dashboard` | Controls what the Kconfig button in the Active Project view opens: `dashboard` (main summary page), `kconfig-dashboard` (Kconfig page of the dashboard), `gui-config` (`west build -t guiconfig`), or `menu-config` (`west build -t menuconfig`). |
+| `zephyr-ide.projectViewKconfigButton` | enum | `kconfig-dashboard` | Controls what the Config button in the Projects view opens for a build: `kconfig-dashboard` (Kconfig page of the dashboard), `gui-config` (`west build -t guiconfig`), or `menu-config` (`west build -t menuconfig`). |
 | `zephyr-ide.westNarrowUpdate` | boolean | false | Pass `--narrow` to `west update` to fetch only required Git history, reducing disk usage and download time. |
+| `zephyr-ide.westKeepDescendants` | boolean | false | Pass `--keep-descendants` to `west update`. When enabled, west will not reset a project if its current HEAD is a descendant of the manifest revision. |
 | `zephyr-ide.suppressWorkspaceWarning` | boolean | false | Suppress the notification about missing `ZEPHYR_BASE` / `ZEPHYR_SDK_INSTALL_DIR` environment variables. |
 | `zephyr-ide.venvFolder` | string \| null | null | Custom Python virtual environment path. Defaults to `.venv` in the workspace setup path. |
+| `zephyr-ide.automaticProjectSelection` | boolean | true | Automatically switch the active project when editor focus changes to a file belonging to a different project. |
 | `zephyr-ide.useClangd` | boolean | false | Use clangd for IntelliSense instead of the C/C++ extension. When enabled, sets `C_Cpp.intelliSenseEngine` to `disabled` and configures `clangd.arguments` with the Zephyr SDK query-driver. Requires the [clangd VS Code extension](https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.vscode-clangd). |
 | `zephyr-ide.buildBeforeFlash` | boolean | false | Automatically build before flashing when using the **Zephyr IDE: Flash** command. The dedicated **Build and Flash** command always builds first regardless of this setting. |
 | `zephyr-ide.separateBuildDebugProfile` | boolean | false | Expose a separate **Build & Debug** bind slot (`buildDebug`) in Runner Profiles. When enabled, **Build and Debug** and **Debug** can each have an independent runner or launch configuration binding. When disabled (default), the single **Debug** slot drives both actions. See [Build-and-Debug slot](#the-builddebug-slot) below. |
+| `zephyr-ide.projectVariableDefaults` | string[] | `[]` | Default project variable names pre-populated in the Project Details panel. Variables not yet defined on a project are shown as empty. |
+| `zephyr-ide.buildVariableDefaults` | string[] | `[]` | Default build variable names pre-populated in the Project Details panel. Variables not yet defined on a build are shown as empty. |
 | `zephyr-ide.runnerProfiles` | array | `[]` | User-scope Runner Profiles (`{ "name", "flash", "debug", "attach" }`) available across all your workspaces. Workspace `.vscode/zephyr-ide.json#runnerProfiles` overrides this on name collision. Edit interactively from the **Zephyr IDE: Open Runner Profile Panel** command. See [Runner Profiles](#runner-profiles) below. |
 
 ## Runner Profiles
@@ -108,14 +114,14 @@ When `buildDebug` is omitted (or the setting is left disabled), **Build and Debu
 
 ### Migration from the Old Single-Runner Model
 
-Legacy per-build `runnerConfigs` and per-project `runnerConfigs` (with the deprecated `RunnerVariant` settings) are migrated automatically on workspace load:
+Legacy per-build `runnerConfigs` and per-project `runnerConfigs` are migrated automatically on workspace load:
 
 - Each legacy `RunnerConfig` becomes a `RunnerProfile`. Pre-bind shape (`{ name, runner, args }`) becomes a profile whose `flash` slot is a `runner` bind and whose `debug` / `attach` slots are seeded from the old `launchTarget` / `buildDebugTarget` / `attachTarget` (mapped to `launch` or `auto` as appropriate).
 - The build's old `activeRunner` field becomes its new `activeProfile`.
 - Migrated profiles are written to `.vscode/zephyr-ide.json#runnerProfiles`; the legacy fields are then stripped from the workspace state and persisted via `setWorkspaceState`, so the cleanup survives a session close even when the user makes no further edits.
 - The migration is gated by a `runnerProfilesMigrationVersion` flag stored in `.vscode/zephyr-ide.json` (currently `1`). Once the file records `runnerProfilesMigrationVersion >= 1`, the migration short-circuits without rescanning — this prevents duplicate `runner-2` / `runner-3` profiles from being appended on every workspace load.
 
-You do not need to take any action — the next time the workspace opens, the migration runs once and the new shape is what subsequent saves persist. The deprecated `zephyr-ide.runnerVariants` user setting is no longer read.
+You do not need to take any action — the next time the workspace opens, the migration runs once and the new shape is what subsequent saves persist.
 
 ## Custom Variables
 
