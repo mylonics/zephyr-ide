@@ -137,7 +137,7 @@ This is the workspace file used for projects/builds/tests, runner profiles, and 
 | `toolchains` | `string[]` | No | Required Zephyr SDK toolchain names (e.g. `arm-zephyr-eabi`). |
 | `sdkVersion` | `string` | No | Preferred SDK version used when SDK auto-install is needed. |
 | `blobs` | `string[]` | No | West modules requiring `west blobs fetch <module>`. |
-| `sampleProjects` | `ProjectConfig[]` | No | Optional project snapshots used by **Add Sample Projects from File**. |
+| `sampleProjects` | `ProjectConfig[]` | No | Optional project snapshots used by **Zephyr IDE: Add Sample Projects from File**. |
 | `runnerProfilesMigrationVersion` | `number` | No | Internal migration marker written by the extension. Keep as-is. |
 | any other key | any JSON | No | Preserved by the extension; can be read with `Zephyr IDE: Get Zephyr IDE JSON Variable`. |
 
@@ -168,7 +168,7 @@ This is the workspace file used for projects/builds/tests, runner profiles, and 
 | `activeProfile` | `string` | No | Active runner profile name for this build. |
 | `bindOverrides` | `BuildBindOverrides` | No | Per-slot extra-arg overrides appended after profile args. |
 | `customVars` | `Record<string, string>` | No | Per-build custom variables. |
-| `rel_path` | `string` | No | **Manual field (no GUI)**: build output path relative to workspace root. Absolute paths are ignored; paths escaping workspace root are rejected; empty/invalid values fall back to `{project.rel_path}/{build.name}`. |
+| `rel_path` | `string` | No | **Manual field (no GUI)**: build output path relative to workspace root. Absolute paths are ignored; paths escaping workspace root are rejected; empty/invalid values fall back to the path composed as `project.rel_path/build.name`. |
 
 ### `ConfigFiles`
 
@@ -182,7 +182,7 @@ This is the workspace file used for projects/builds/tests, runner profiles, and 
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | `path` | `string` | Yes | Relative file path. |
-| `extra` | `boolean` | No | `true` = EXTRA_* file; omitted/`false` = primary override file. |
+| `extra` | `boolean` | No | `true` = `EXTRA_CONF_FILE` or `EXTRA_DTC_OVERLAY_FILE`; omitted/`false` = primary override file (`CONF_FILE` or `DTC_OVERLAY_FILE`). |
 
 ### `TwisterConfig`
 
