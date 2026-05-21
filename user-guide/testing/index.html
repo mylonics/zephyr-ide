@@ -77,15 +77,16 @@
 <ol>
 <li>Click the beaker icon in the sidebar</li>
 <li>Click <strong>Add Twister Test</strong> and select the test suite to add</li>
-<li>Configure the test parameters (platform, test filter, extra args, etc.)</li>
+<li>Configure the test parameters (platform, selected tests, optional serial settings, and extra args)</li>
 <li>Click <strong>Run Test</strong> or use <code dir="auto">Zephyr IDE: Run Test</code> from the command palette</li>
 </ol>
 <div class="sl-heading-wrapper level-h2"><h2 id="managing-tests">Managing Tests</h2><a class="sl-anchor-link" href="#managing-tests"><span aria-hidden="true" class="sl-anchor-icon"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="currentcolor" d="m12.11 15.39-3.88 3.88a2.52 2.52 0 0 1-3.5 0 2.47 2.47 0 0 1 0-3.5l3.88-3.88a1 1 0 0 0-1.42-1.42l-3.88 3.89a4.48 4.48 0 0 0 6.33 6.33l3.89-3.88a1 1 0 1 0-1.42-1.42Zm8.58-12.08a4.49 4.49 0 0 0-6.33 0l-3.89 3.88a1 1 0 0 0 1.42 1.42l3.88-3.88a2.52 2.52 0 0 1 3.5 0 2.47 2.47 0 0 1 0 3.5l-3.88 3.88a1 1 0 1 0 1.42 1.42l3.88-3.89a4.49 4.49 0 0 0 0-6.33ZM8.83 15.17a1 1 0 0 0 1.1.22 1 1 0 0 0 .32-.22l4.92-4.92a1 1 0 0 0-1.42-1.42l-4.92 4.92a1 1 0 0 0 0 1.42Z"></path></svg></span><span class="sr-only" data-pagefind-ignore="">Section titled “Managing Tests”</span></a></div>
 <p>Tests are stored in <code dir="auto">.vscode/zephyr-ide.json</code> alongside project and build configurations. Each test entry specifies:</p>
 <ul>
-<li><strong>Platform</strong> — target board or <code dir="auto">native_sim</code> for host execution</li>
-<li><strong>Test filter</strong> — optional filter to run a subset of test cases</li>
+<li><strong>Platform</strong> — <code dir="auto">native_sim</code>, <code dir="auto">qemu</code>, or <code dir="auto">hardware</code></li>
+<li><strong>Tests</strong> — one or more test IDs (or <code dir="auto">All</code>)</li>
 <li><strong>Extra args</strong> — additional Twister arguments</li>
+<li><strong>Serial settings</strong> — optional <code dir="auto">serialPort</code> and <code dir="auto">serialBaud</code> for hardware targets</li>
 </ul>
 <p>Multiple test configurations can be added per project. Use <code dir="auto">Zephyr IDE: Set Active Test</code> to switch the active test, and <code dir="auto">Zephyr IDE: Reconfigure Active Test</code> to adjust parameters.</p>
 <p>Use <code dir="auto">Zephyr IDE: Delete Test Output Directories</code> to clean up Twister output between runs.</p>
