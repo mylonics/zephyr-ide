@@ -13,7 +13,7 @@ export default defineConfig({
     starlight({
       title: 'IDE for Zephyr',
       description:
-        'VS Code extension for Zephyr RTOS firmware development. Automates host tools, SDK install, west workspace setup, and Cortex-Debug integration for nRF52, STM32, ESP32, Raspberry Pi Pico, and any Zephyr-supported board.',,
+        'VS Code extension for Zephyr RTOS firmware development. Automates host tools, SDK install, west workspace setup, and Cortex-Debug integration for nRF52, STM32, ESP32, Raspberry Pi Pico, and any Zephyr-supported board.',
       logo: {
         src: './src/assets/logo.png',
       },
