@@ -33,7 +33,7 @@ In general, you should commit everything in your workspace folder except for bui
 
 If you are trying to share a non-local workspace, then committing settings.json is not advisable as some variables may change between machines.
 
-Unfortunately, VSCode does not provide a way for having user-specific settings/configurations per workspace. See this [issue](https://github.com/Microsoft/vscode/issues/15909) on the VSCode repo.
+VS Code does not provide per-user workspace settings — see this [issue](https://github.com/Microsoft/vscode/issues/15909) on the VS Code repo.
 
 ### Using Code Workspace Files
 

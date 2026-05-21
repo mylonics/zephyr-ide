@@ -4,8 +4,6 @@
 
 A Visual Studio Code extension for [Zephyr RTOS](https://zephyrproject.org/) development. Set up host tools and the Zephyr SDK, manage west workspaces, and build, flash, and debug projects from one window.
 
-*Formerly known as Zephyr IDE.*
-
 Install from the [Visual Studio Code Marketplace](https://marketplace.visualstudio.com/items?itemName=mylonics.zephyr-ide) or the [Open VSX Registry](https://open-vsx.org/extension/mylonics/zephyr-ide).
 
 Works either as your full setup or alongside an existing Zephyr install (Docker, devcontainer, manual `west` setup) via `ZEPHYR_BASE` detection. An [extension pack](https://marketplace.visualstudio.com/items?itemName=mylonics.zephyr-ide-extension-pack) bundles Cortex-Debug, C/C++, Serial Monitor, Devicetree LSP, and CMake support.

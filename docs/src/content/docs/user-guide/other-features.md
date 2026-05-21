@@ -7,8 +7,6 @@ description: Use MenuConfig, GuiConfig, custom west/CMake build arguments, ROM/R
 
 The Zephyr Menu Config or GUI Config may be run from the active project panel. In the project config panel, by default, a Menu Config option is available. This can be changed to GUI Config by adding `"zephyr-ide.useGuiConfig": true` to settings.json.
 
-Each debug target can be bound to a custom `launch.json` configuration, or left on the default (`auto`), which routes through the built-in `zephyr-ide` debugger and translates `runners.yaml` into a cortex-debug session automatically. See [Runner Profiles](building-debugging.md#runner-profiles-flash--debug) for the full bind model.
-
 ![Demonstrating MenuConfig](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/demonstrating_menu_config_debug_binding.gif)
 
 ## Build Customization
@@ -16,6 +14,13 @@ Each debug target can be bound to a custom `launch.json` configuration, or left 
 The IDE allows modifying the west and cmake arguments per build. It allows the user to provide runner arguments, and specify DTS overlay and KConfig files per project or build.
 
 ![Demonstrating KConfig](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/kConfig_dtc.gif)
+
+## Automatic Project Targeting
+
+When you open a file, the extension can automatically switch the active project to the one that owns the file. This is enabled by default and controlled with the `zephyr-ide.automaticProjectSelection` setting, or via:
+
+- `Zephyr IDE: Enable Automatic Active Project Targeting`
+- `Zephyr IDE: Disable Automatic Active Project Targeting`
 
 ## West Terminal
 
@@ -25,13 +30,9 @@ Custom west commands may be run using the inbuilt Zephyr IDE Terminal.
 
 ## Analysis Tools
 
-You can also run the following commands:
-
 - **ROM Report** - `Zephyr IDE: Run ROM Report`
 - **RAM Report** - `Zephyr IDE: Run RAM Report`
 - **DTSh Shell** - `Zephyr IDE: Start DTSh Shell`
-
-These tools help you analyze your build and optimize resource usage.
 
 ## Next Steps
 

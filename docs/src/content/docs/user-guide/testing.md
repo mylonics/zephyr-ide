@@ -3,34 +3,28 @@ title: Testing Zephyr Projects with Twister
 description: Run Zephyr Twister tests directly from VS Code. Configure test parameters, execute multiple test suites, and view results in the integrated test panel with IDE for Zephyr.
 ---
 
-The extension supports testing with twister. Look for the beaker icon to get started. Test configurations are handled similarly to build configurations.
+The extension supports running [Twister](https://docs.zephyrproject.org/latest/develop/test/twister.html) tests. Click the beaker icon in the IDE for Zephyr sidebar to access the test panel.
 
 ![IDE for Zephyr Twister Testing](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/adding_twister_test.gif)
 
-## Adding Tests
+## Adding a Test
 
-To add a Twister test:
+1. Click the beaker icon in the sidebar
+2. Click **Add Twister Test** and select the test suite to add
+3. Configure the test parameters (platform, test filter, extra args, etc.)
+4. Click **Run Test** or use `Zephyr IDE: Run Test` from the command palette
 
-1. Click the beaker icon in the IDE for Zephyr sidebar
-2. Select the test configuration you want to add
-3. Configure the test parameters
-4. Run the test
+## Managing Tests
 
-## Test Configuration
+Tests are stored in `.vscode/zephyr-ide.json` alongside project and build configurations. Each test entry specifies:
 
-Test configurations work similarly to build configurations:
+- **Platform** — target board or `native_sim` for host execution
+- **Test filter** — optional filter to run a subset of test cases
+- **Extra args** — additional Twister arguments
 
-- Multiple test configurations per project
-- Configurable test parameters
-- Results displayed in the test panel
+Multiple test configurations can be added per project. Use `Zephyr IDE: Set Active Test` to switch the active test, and `Zephyr IDE: Reconfigure Active Test` to adjust parameters.
 
-## Running Tests
-
-You can run tests using:
-
-- The beaker icon in the sidebar
-- Command Palette: `Zephyr IDE: Run Test`
-- The Active Project Panel
+Use `Zephyr IDE: Delete Test Output Directories` to clean up Twister output between runs.
 
 ## Next Steps
 

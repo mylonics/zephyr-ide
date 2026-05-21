@@ -9,8 +9,6 @@ Click the Workspace card to configure your west workspace. Choose to set up a wo
 
 ![Workspace Setup Options](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/unconfigured_workspace_panel.png)
 
-You have several options for setting up your Zephyr development environment.
-
 ## Workspace Setup Methods
 
 ### 1. IDE for Zephyr Workspace from Git
@@ -57,16 +55,6 @@ workspace/
 +-- modules/            # Zephyr modules and dependencies
 +-- your-app/           # Your application folder (with west.yml)
 ```
-
-## Workspace Setup Options
-
-During workspace initialization, you can choose:
-
-- **Installation type**: Minimal (recommended, faster) or Full (all features)
-- **Board support**: Select specific board vendors (e.g., STM32, Nordic, ESP32, Raspberry Pi Pico)
-- **Path prefix**: Where Zephyr and modules will be installed relative to your application
-
-The west.yml file controls what gets installed. A minimal configuration only includes Zephyr and essential HALs, while a full installation includes all available modules.
 
 ## Configured Workspace
 

@@ -7,8 +7,6 @@ To get started, install the extension from [Visual Studio Code marketplace](http
 
 ## Next Steps
 
-After installation, you'll want to:
-
 1. [Open the Setup Panel](setup-panel.md) to configure your environment
 2. [Install Host Tools](host-tools.md) required for Zephyr development
 3. [Configure your Workspace](workspace-configuration.md) to manage Zephyr projects
