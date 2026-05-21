@@ -19,7 +19,7 @@ The following settings are available in VS Code settings (File > Preferences > S
 | `zephyr-ide.venvFolder` | string \| null | null | Custom Python virtual environment path. Defaults to `.venv` in the workspace setup path. |
 | `zephyr-ide.automaticProjectSelection` | boolean | true | Automatically switch the active project when editor focus changes to a file belonging to a different project. |
 | `zephyr-ide.useClangd` | boolean | false | Use clangd for IntelliSense instead of the C/C++ extension. When enabled, sets `C_Cpp.intelliSenseEngine` to `disabled` and configures `clangd.arguments` with the Zephyr SDK query-driver. Requires the [clangd VS Code extension](https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.vscode-clangd). |
-| `zephyr-ide.scaVariant` | string (enum) | `"dtdoctor"` | Static Code Analysis tool enabled on pristine builds via `-DZEPHYR_SCA_VARIANT`. See [Static Code Analysis](#static-code-analysis-sca) below. |
+| `zephyr-ide.scaVariant` | string (enum) | `"none"` | Static Code Analysis tool enabled on pristine builds via `-DZEPHYR_SCA_VARIANT`. See [Static Code Analysis](#static-code-analysis-sca) below. |
 | `zephyr-ide.scaCustomVariant` | string \| null | null | Custom SCA variant name used when `zephyr-ide.scaVariant` is `"custom"`. Must match a `cmake/sca/<name>/sca.cmake` entry in your Zephyr tree (e.g. `sparse`, `codechecker`). |
 | `zephyr-ide.buildBeforeFlash` | boolean | false | Automatically build before flashing when using the **Zephyr IDE: Flash** command. The dedicated **Build and Flash** command always builds first regardless of this setting. |
 | `zephyr-ide.separateBuildDebugProfile` | boolean | false | Expose a separate **Build & Debug** bind slot (`buildDebug`) in Runner Profiles. When enabled, **Build and Debug** and **Debug** can each have an independent runner or launch configuration binding. When disabled (default), the single **Debug** slot drives both actions. See [Build-and-Debug slot](#the-builddebug-slot) below. |
@@ -170,7 +170,7 @@ If the SCA variant setting changes between builds, the extension detects the dif
 | **Custom** | `"custom"` | Whatever the variant needs. Set the name in `zephyr-ide.scaCustomVariant`. |
 | **None (disabled)** | `"none"` | — |
 
-The default is `"dtdoctor"`.
+The default is `"none"` (disabled).
 
 ### dtdoctor
 
