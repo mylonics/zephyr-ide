@@ -1,6 +1,6 @@
 ---
 title: Configuration Settings
-description: All IDE for Zephyr VS Code settings — toolchain directory, Kconfig button behavior, west update options, virtual environment path, clangd support, runner profiles, and project variable defaults.
+description: All IDE for Zephyr VS Code settings — toolchain directory, Kconfig button behavior, west update options, virtual environment path, clangd support, runner profiles, and full `.vscode/zephyr-ide.json` schema reference.
 ---
 
 The following settings are available in VS Code settings (File > Preferences > Settings):
@@ -27,17 +27,212 @@ The following settings are available in VS Code settings (File > Preferences > S
 | `zephyr-ide.buildVariableDefaults` | string[] | `[]` | Default build variable names pre-populated in the Project Details panel. Variables not yet defined on a build are shown as empty. |
 | `zephyr-ide.runnerProfiles` | array | `[]` | User-scope Runner Profiles (`{ "name", "flash", "debug", "attach" }`) available across all your workspaces. Workspace `.vscode/zephyr-ide.json#runnerProfiles` overrides this on name collision. Edit interactively from the **Zephyr IDE: Open Runner Profile Panel** command. See [Runner Profiles](#runner-profiles) below. |
 
+## `.vscode/zephyr-ide.json` Reference
+
+This is the workspace file used for projects/builds/tests, runner profiles, and SDK/blob requirements. The extension preserves unknown top-level keys, so you can also keep your own custom top-level metadata in the file.
+
+### Full Example
+
+```json
+{
+  "projects": {
+    "blinky": {
+      "name": "blinky",
+      "rel_path": "apps/blinky",
+      "customVars": {
+        "jlink_device": "STM32F401RE"
+      },
+      "confFiles": {
+        "config": [
+          { "path": "apps/blinky/prj.conf" },
+          { "path": "apps/blinky/debug.conf", "extra": true }
+        ],
+        "overlay": [
+          { "path": "apps/blinky/boards/nucleo_f401re.overlay" }
+        ]
+      },
+      "buildConfigs": {
+        "build/nucleo_f401re": {
+          "name": "build/nucleo_f401re",
+          "rel_path": "out/blinky/nucleo_f401re",
+          "board": "nucleo_f401re",
+          "relBoardDir": "zephyr/boards/st",
+          "relBoardSubDir": "nucleo_f401re",
+          "revision": "",
+          "debugOptimization": "Debug",
+          "westBuildArgs": ["--pristine"],
+          "westBuildCMakeArgs": ["-DCONFIG_DEBUG_OPTIMIZATIONS=y"],
+          "activeProfile": "jlink-stm32f4",
+          "bindOverrides": {
+            "flash": { "extraArgs": ["--erase"] }
+          },
+          "customVars": {
+            "bmp_port": "/dev/ttyACM0"
+          },
+          "confFiles": {
+            "config": [],
+            "overlay": []
+          }
+        }
+      },
+      "twisterConfigs": {
+        "smoke_hardware": {
+          "name": "smoke_hardware",
+          "platform": "hardware",
+          "tests": ["sample.basic.blinky"],
+          "args": "--inline-logs",
+          "serialPort": "COM3",
+          "serialBaud": "115200",
+          "boardConfig": {
+            "board": "nucleo_f401re",
+            "relBoardDir": "zephyr/boards/st",
+            "relBoardSubDir": "nucleo_f401re"
+          }
+        }
+      }
+    }
+  },
+  "runnerProfiles": [
+    {
+      "name": "jlink-stm32f4",
+      "flash": {
+        "kind": "runner",
+        "runner": "jlink",
+        "extraArgs": ["--device=STM32F401RE", "--speed=4000"]
+      },
+      "debug": {
+        "kind": "launch",
+        "name": "STM32F4 Debug"
+      },
+      "attach": {
+        "kind": "auto"
+      }
+    }
+  ],
+  "toolchains": ["arm-zephyr-eabi"],
+  "sdkVersion": "0.17.0",
+  "blobs": ["hal_nordic"],
+  "sampleProjects": [
+    {
+      "name": "hello_world",
+      "rel_path": "zephyr/samples/hello_world",
+      "buildConfigs": {},
+      "confFiles": { "config": [], "overlay": [] },
+      "twisterConfigs": {}
+    }
+  ],
+  "runnerProfilesMigrationVersion": 1,
+  "my-team-metadata": {
+    "owner": "firmware-team"
+  }
+}
+```
+
+### Top-level Fields
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `projects` | `Record<string, ProjectConfig>` | Yes | Primary workspace project/build/test data. |
+| `runnerProfiles` | `RunnerProfile[]` | No | Workspace-scope profiles. Edited from Runner Profile panel. |
+| `toolchains` | `string[]` | No | Required Zephyr SDK toolchain names (e.g. `arm-zephyr-eabi`). |
+| `sdkVersion` | `string` | No | Preferred SDK version used when SDK auto-install is needed. |
+| `blobs` | `string[]` | No | West modules requiring `west blobs fetch <module>`. |
+| `sampleProjects` | `ProjectConfig[]` | No | Optional project snapshots used by **Add Sample Projects from File**. |
+| `runnerProfilesMigrationVersion` | `number` | No | Internal migration marker written by the extension. Keep as-is. |
+| any other key | any JSON | No | Preserved by the extension; can be read with `Zephyr IDE: Get Zephyr IDE JSON Variable`. |
+
+### `ProjectConfig`
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `name` | `string` | Yes | Project display name/key. |
+| `rel_path` | `string` | Yes | Project path relative to workspace root. |
+| `buildConfigs` | `Record<string, BuildConfig>` | Yes | Build configurations keyed by build name. |
+| `confFiles` | `ConfigFiles` | Yes | Project-level Kconfig/devicetree file entries. |
+| `twisterConfigs` | `Record<string, TwisterConfig>` | Yes | Twister test configurations. |
+| `customVars` | `Record<string, string>` | No | Per-project custom variables. |
+
+### `BuildConfig`
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `name` | `string` | Yes | Build config name. |
+| `board` | `string` | Yes | Zephyr board identifier. |
+| `relBoardDir` | `string` | Yes | Board directory relative path used by board resolution. |
+| `relBoardSubDir` | `string` | Yes | Board subdirectory name/path. |
+| `debugOptimization` | `string` | Yes | Selected optimization preset label. |
+| `westBuildArgs` | `string[]` | Yes | Additional non-CMake `west build` args. |
+| `westBuildCMakeArgs` | `string[]` | Yes | Additional CMake args passed to `west build`. |
+| `confFiles` | `ConfigFiles` | Yes | Build-level Kconfig/devicetree file entries. |
+| `revision` | `string` | No | Board revision (if used). |
+| `activeProfile` | `string` | No | Active runner profile name for this build. |
+| `bindOverrides` | `BuildBindOverrides` | No | Per-slot extra-arg overrides appended after profile args. |
+| `customVars` | `Record<string, string>` | No | Per-build custom variables. |
+| `rel_path` | `string` | No | **Manual field (no GUI)**: build output path relative to workspace root. Absolute paths are ignored; paths escaping workspace root are rejected; empty/invalid values fall back to `<project.rel_path>/<build.name>`. |
+
+### `ConfigFiles`
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `config` | `ConfigFileEntry[]` | Yes | Kconfig file entries. |
+| `overlay` | `ConfigFileEntry[]` | Yes | Devicetree overlay entries. |
+
+`ConfigFileEntry` shape:
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `path` | `string` | Yes | Relative file path. |
+| `extra` | `boolean` | No | `true` = EXTRA_* file; omitted/`false` = primary override file. |
+
+### `TwisterConfig`
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `name` | `string` | Yes | Twister config name. |
+| `platform` | `string` | Yes | `native_sim`, `qemu`, or `hardware`. |
+| `tests` | `string[]` | Yes | Test IDs or `"All"`. |
+| `args` | `string` | Yes | Extra Twister arguments. |
+| `serialPort` | `string` | No | Hardware serial port for `platform: "hardware"`. |
+| `serialBaud` | `string` | No | Hardware serial baud for `platform: "hardware"`. |
+| `boardConfig` | `BoardConfig` | No | Required for hardware platform flows. |
+
+`BoardConfig` shape:
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `board` | `string` | Yes | Board identifier. |
+| `relBoardDir` | `string` | No | Additional board dir, relative to workspace root. |
+| `relBoardSubDir` | `string` | Yes | Board subdirectory path. |
+| `revision` | `string` | No | Board revision. |
+
+### `RunnerProfile`
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `name` | `string` | Yes | Profile name. |
+| `flash` | `RunnerBind` | Yes | Used by Flash/Build-and-Flash. |
+| `debug` | `RunnerBind` | Yes | Used by Debug and (default) Build-and-Debug. |
+| `attach` | `RunnerBind` | Yes | Used by Debug Attach. |
+| `buildDebug` | `RunnerBind` | No | Optional dedicated Build-and-Debug bind when `zephyr-ide.separateBuildDebugProfile` is enabled. |
+
+`RunnerBind` variants:
+
+- `{ "kind": "auto" }`
+- `{ "kind": "runner", "runner": "openocd", "extraArgs": ["--foo", "bar"] }`
+- `{ "kind": "launch", "name": "My Launch Config" }` (debug/attach slots only)
+
+`BuildBindOverrides` shape:
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `flash` | `{ extraArgs?: string[] }` | No | Appended only if slot resolves to `runner` kind. |
+| `buildDebug` | `{ extraArgs?: string[] }` | No | Same rule. |
+| `debug` | `{ extraArgs?: string[] }` | No | Same rule. |
+| `attach` | `{ extraArgs?: string[] }` | No | Same rule. |
+
 ## Runner Profiles
 
-A **Runner Profile** is a named bundle of three bind slots — **flash**, **debug**, and **attach** — that a build can attach to. Each slot independently chooses one of:
-
-- `auto` — use `runners.yaml` defaults (the `debug-runner` / `flash-runner` Zephyr recorded at CMake time).
-- `runner` — a Zephyr runner by name (e.g. `openocd`, `jlink`, `pyocd`, `blackmagicprobe`) with optional extra `args`.
-- `launch` — a `launch.json` configuration by name (debug and attach binds only; not valid for flash because flashing never starts a debug session).
-
-When **no** profile is assigned to a build, all three slots default to `auto`. This is the default for newly-created builds — `Flash` / `Debug` / `Build and Debug` / `Debug Attach` just work using whatever Zephyr recorded in `runners.yaml`.
-
-Each build references a profile by name (`activeProfile`) and may add per-slot **extra-argument overrides** (`bindOverrides`). Overrides only have effect on `runner`-kind slots: they are appended after the profile's own `args`.
+A **Runner Profile** is a named bundle of three bind slots — **flash**, **debug**, and **attach** — that a build can attach to.
 
 ### Profile Scope
 
@@ -50,9 +245,21 @@ Profiles are stored in two places, merged on load (workspace overrides user on n
   "zephyr-ide.runnerProfiles": [
     {
       "name": "BMP via ttyACM0",
-      "flash":  { "kind": "runner", "runner": "blackmagicprobe", "extraArgs": "--gdb-serial /dev/ttyACM0" },
-      "debug":  { "kind": "runner", "runner": "blackmagicprobe", "extraArgs": "--gdb-serial /dev/ttyACM0" },
-      "attach": { "kind": "runner", "runner": "blackmagicprobe", "extraArgs": "--gdb-serial /dev/ttyACM0" }
+      "flash": {
+        "kind": "runner",
+        "runner": "blackmagicprobe",
+        "extraArgs": ["--gdb-serial", "/dev/ttyACM0"]
+      },
+      "debug": {
+        "kind": "runner",
+        "runner": "blackmagicprobe",
+        "extraArgs": ["--gdb-serial", "/dev/ttyACM0"]
+      },
+      "attach": {
+        "kind": "runner",
+        "runner": "blackmagicprobe",
+        "extraArgs": ["--gdb-serial", "/dev/ttyACM0"]
+      }
     }
   ]
 }
@@ -65,8 +272,12 @@ Profiles are stored in two places, merged on load (workspace overrides user on n
   "runnerProfiles": [
     {
       "name": "jlink-stm32f4",
-      "flash":  { "kind": "runner", "runner": "jlink", "extraArgs": "--device=STM32F401RE --speed=4000" },
-      "debug":  { "kind": "launch", "name": "STM32F4 Debug" },
+      "flash": {
+        "kind": "runner",
+        "runner": "jlink",
+        "extraArgs": ["--device=STM32F401RE", "--speed=4000"]
+      },
+      "debug": { "kind": "launch", "name": "STM32F4 Debug" },
       "attach": { "kind": "auto" }
     }
   ]
@@ -75,18 +286,13 @@ Profiles are stored in two places, merged on load (workspace overrides user on n
 
 ### Editing Profiles
 
-Run **`Zephyr IDE: Open Runner Profile Panel`** (or click **Manage…** next to the Runner Profile section in the Project Build panel) for a full CRUD UI:
-
-- Create, rename, edit, **duplicate** (the copy icon next to each profile creates a new profile with the same binds and an auto-suggested unique name), and delete profiles at workspace or user scope.
-- Drop-down pickers for known Zephyr runners and detected `launch.json` configurations.
-- "Use for active build" sets the chosen profile as the current build's `activeProfile` without opening a picker.
-- Usage badge shows how many builds currently reference each profile; the delete confirmation lists them by name.
+Run **`Zephyr IDE: Open Runner Profile Panel`** (or click **Manage…** next to the Runner Profile section in the Project Build panel) for a full CRUD UI.
 
 The faster **`Zephyr IDE: Select Active Runner Profile`** command (also wired to the **Change…** button in the Project Build panel and the Runner Profile node in the Project Config tree) opens a QuickPick limited to switching the active profile without leaving your editor.
 
 ### Per-build Overrides
 
-If you need slightly different arguments on a single build without forking a whole profile, edit the build's entry in `.vscode/zephyr-ide.json` directly. The override `extraArgs` are persisted on the `BuildConfig` (`bindOverrides[slot].extraArgs`) and appended after the profile's own args:
+If you need slightly different arguments on a single build without forking a whole profile, edit the build's entry in `.vscode/zephyr-ide.json` directly:
 
 ```json
 {
@@ -96,34 +302,21 @@ If you need slightly different arguments on a single build without forking a who
 }
 ```
 
-Overrides are silently ignored for `auto` and `launch` slots — they only compose with `runner`-kind binds. There is intentionally no per-build override UI in the Project Build panel; fork a profile (Duplicate) when you find yourself reaching for these overrides routinely.
-
 ### The `buildDebug` Slot
 
-By default a Runner Profile has three slots — `flash`, `debug`, `attach` — and **Build and Debug** reuses the `debug` bind. When you need different runner args for a from-source debug session than for an attach-to-running-target session (for example, JLink with `--reset` for `buildDebug` but no reset for plain `debug`), enable the `zephyr-ide.separateBuildDebugProfile` setting. The Runner Profile panel then exposes a fourth **Build & Debug** slot that maps to the optional `buildDebug` field:
+By default a Runner Profile has three slots — `flash`, `debug`, `attach` — and **Build and Debug** reuses `debug`.
 
 ```json
 {
   "name": "jlink-stm32f4",
-  "flash":      { "kind": "runner", "runner": "jlink", "extraArgs": ["--device=STM32F401RE", "--speed=4000"] },
+  "flash": { "kind": "runner", "runner": "jlink", "extraArgs": ["--device=STM32F401RE", "--speed=4000"] },
   "buildDebug": { "kind": "runner", "runner": "jlink", "extraArgs": ["--device=STM32F401RE", "--reset"] },
-  "debug":      { "kind": "launch", "name": "STM32F4 Debug (attach)" },
-  "attach":     { "kind": "auto" }
+  "debug": { "kind": "launch", "name": "STM32F4 Debug (attach)" },
+  "attach": { "kind": "auto" }
 }
 ```
 
-When `buildDebug` is omitted (or the setting is left disabled), **Build and Debug** silently falls back to the `debug` bind. To remove a `buildDebug` value once you've set one, delete the field from `.vscode/zephyr-ide.json` directly — there is no in-panel "clear" button for this slot.
-
-### Migration from the Old Single-Runner Model
-
-Legacy per-build `runnerConfigs` and per-project `runnerConfigs` are migrated automatically on workspace load:
-
-- Each legacy `RunnerConfig` becomes a `RunnerProfile`. Pre-bind shape (`{ name, runner, args }`) becomes a profile whose `flash` slot is a `runner` bind and whose `debug` / `attach` slots are seeded from the old `launchTarget` / `buildDebugTarget` / `attachTarget` (mapped to `launch` or `auto` as appropriate).
-- The build's old `activeRunner` field becomes its new `activeProfile`.
-- Migrated profiles are written to `.vscode/zephyr-ide.json#runnerProfiles`; the legacy fields are then stripped from the workspace state and persisted via `setWorkspaceState`, so the cleanup survives a session close even when the user makes no further edits.
-- The migration is gated by a `runnerProfilesMigrationVersion` flag stored in `.vscode/zephyr-ide.json` (currently `1`). Once the file records `runnerProfilesMigrationVersion >= 1`, the migration short-circuits without rescanning — this prevents duplicate `runner-2` / `runner-3` profiles from being appended on every workspace load.
-
-You do not need to take any action — the next time the workspace opens, the migration runs once and the new shape is what subsequent saves persist.
+When `buildDebug` is omitted (or the setting is left disabled), **Build and Debug** falls back to `debug`.
 
 ## Custom Variables
 
@@ -133,25 +326,34 @@ Both `BuildConfig` and `ProjectConfig` support a `customVars` map for user-defin
 {
   "projects": {
     "myproject": {
-      "customVars": {
-        "jlink_device": "STM32F401RE"
-      },
+      "name": "myproject",
+      "rel_path": "apps/myproject",
       "buildConfigs": {
         "debug": {
+          "name": "debug",
+          "board": "nucleo_f401re",
+          "relBoardDir": "zephyr/boards/st",
+          "relBoardSubDir": "nucleo_f401re",
+          "debugOptimization": "Debug",
+          "westBuildArgs": [],
+          "westBuildCMakeArgs": [],
+          "confFiles": { "config": [], "overlay": [] },
           "customVars": {
             "bmp_port": "/dev/ttyACM0"
           }
         }
+      },
+      "confFiles": { "config": [], "overlay": [] },
+      "twisterConfigs": {},
+      "customVars": {
+        "jlink_device": "STM32F401RE"
       }
     }
   }
 }
 ```
 
-Variables are edited interactively with the **`Zephyr IDE: Manage Build Variables`** and **`Zephyr IDE: Manage Project Variables`** commands. They are available in two contexts:
-
-- **Runner profile `extraArgs`** — use `${buildvar:key}` or `${projectvar:key}` (see [Runner Args Variable Substitution](../user-guide/building-debugging.md#runner-args-variable-substitution) for the full substitution table including `${cmake:VAR}`, `${kconfig:VAR}`, `${env:VAR}`, etc.)
-- **`tasks.json` / `launch.json` inputs** — use the `zephyr-ide.get-active-build-variable` / `zephyr-ide.get-active-project-variable` input commands (see [Custom Variables](launch-configuration.md#custom-variables) for usage examples)
+Variables are edited interactively with the **`Zephyr IDE: Manage Build Variables`** and **`Zephyr IDE: Manage Project Variables`** commands.
 
 ## Static Code Analysis (SCA)
 
@@ -174,27 +376,19 @@ The default is `"dtdoctor"`.
 
 ### dtdoctor
 
-dtdoctor is Zephyr's built-in Devicetree diagnostic tool. It wraps the C compiler as `CMAKE_C_COMPILER_LAUNCHER` and, when a build fails with `__device_dts_ord_*` or `DT_N_NODELABEL_*` undeclared symbol errors, runs `dtdoctor_analyzer.py` and appends human-readable devicetree diagnostics to the build output explaining *why* the DT symbol couldn't be resolved — e.g. a node is disabled, a label is missing, or a GPIO controller is not present in the overlay.
-
-Output appears inline in the build terminal immediately after the failing GCC errors. With parallel ninja builds (`-j > 1`) the lines may be interleaved with progress output from other jobs — scroll up to the failing `platform.c` error block to find them.
-
-**Requirements:** Zephyr 3.7 or later (the `cmake/sca/dtdoctor/sca.cmake` file must exist in `ZEPHYR_BASE`). Uses the workspace's existing Python venv — no extra install.
-
-To verify dtdoctor is active after a pristine build, search `build.ninja` in the build directory for `dtdoctor_sca_wrapper.py` — it should appear in every `C_COMPILER` rule.
+dtdoctor is Zephyr's built-in Devicetree diagnostic tool. It wraps the C compiler as `CMAKE_C_COMPILER_LAUNCHER` and, when a build fails with `__device_dts_ord_*` or `DT_N_NODELABEL_*` undeclared symbol errors, runs `dtdoctor_analyzer.py` and appends human-readable devicetree diagnostics to the build output.
 
 ### GCC `-fanalyzer`
 
-Enables GCC's built-in inter-procedural static analyzer. Output is standard GCC diagnostic format (file, line, column, message with execution path traces) and appears inline in the build output alongside normal compiler warnings/errors. No extra tooling required — the Zephyr SDK ships GCC 12+.
+Enables GCC's built-in inter-procedural static analyzer. Output is standard GCC diagnostic format and appears inline in build output.
 
 ### Custom Variant
 
-Set `zephyr-ide.scaVariant` to `"custom"` and `zephyr-ide.scaCustomVariant` to the variant name (e.g. `"sparse"`, `"codechecker"`). The extension passes `-DZEPHYR_SCA_VARIANT=<name>` to CMake. The corresponding `cmake/sca/<name>/sca.cmake` must exist in your Zephyr tree and any required tools must be installed separately.
+Set `zephyr-ide.scaVariant` to `"custom"` and `zephyr-ide.scaCustomVariant` to the variant name (e.g. `"sparse"`, `"codechecker"`).
 
 ## clangd Configuration
 
-When `zephyr-ide.useClangd` is enabled, the workspace `.vscode/settings.json` is **automatically configured** with the appropriate settings — no manual command is needed.
-
-The extension manages up to five `clangd.arguments` entries (the `--query-driver` entry is only written when a valid toolchain directory is configured):
+When `zephyr-ide.useClangd` is enabled, the workspace `.vscode/settings.json` is automatically configured with the appropriate settings.
 
 ```json
 {
@@ -209,13 +403,7 @@ The extension manages up to five `clangd.arguments` entries (the `--query-driver
 }
 ```
 
-The `--query-driver` glob is derived from your configured toolchain directory (see `zephyr-ide.toolchainDirectory`), which points to the Zephyr SDK containing the cross-compilers.
-
-**User-defined arguments are preserved on enable.** If `clangd.arguments` already contains an argument whose key matches one of the extension's entries (e.g., a user-customized `--completion-style=bundled`), the extension leaves that value as-is and does not append its own. You can freely add extra flags (for example `--clang-tidy`, `--pretty`, `--log=error`) — they are kept alongside the extension's args.
-
-**`--query-driver` is always extension-managed.** The extension overwrites any existing `--query-driver` value to keep it in sync with `zephyr-ide.toolchainDirectory`. If you want to use a custom toolchain query driver, point `zephyr-ide.toolchainDirectory` at it instead of editing `clangd.arguments` directly.
-
-To switch back to the C/C++ extension, disable `zephyr-ide.useClangd`. If `clangd.arguments` is exactly the value the extension would write, it is removed entirely; otherwise (you added or modified anything) the array is left alone — assumed to be user-managed. The `C_Cpp.intelliSenseEngine` workspace override is also cleared.
+The `--query-driver` glob is derived from your configured toolchain directory (`zephyr-ide.toolchainDirectory`).
 
 ## Next Steps
 

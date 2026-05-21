@@ -11,16 +11,17 @@ The extension supports running [Twister](https://docs.zephyrproject.org/latest/d
 
 1. Click the beaker icon in the sidebar
 2. Click **Add Twister Test** and select the test suite to add
-3. Configure the test parameters (platform, test filter, extra args, etc.)
+3. Configure the test parameters (platform, selected tests, optional serial settings, and extra args)
 4. Click **Run Test** or use `Zephyr IDE: Run Test` from the command palette
 
 ## Managing Tests
 
 Tests are stored in `.vscode/zephyr-ide.json` alongside project and build configurations. Each test entry specifies:
 
-- **Platform** — target board or `native_sim` for host execution
-- **Test filter** — optional filter to run a subset of test cases
+- **Platform** — `native_sim`, `qemu`, or `hardware`
+- **Tests** — one or more test IDs (or `All`)
 - **Extra args** — additional Twister arguments
+- **Serial settings** — optional `serialPort` and `serialBaud` for hardware targets
 
 Multiple test configurations can be added per project. Use `Zephyr IDE: Set Active Test` to switch the active test, and `Zephyr IDE: Reconfigure Active Test` to adjust parameters.
 

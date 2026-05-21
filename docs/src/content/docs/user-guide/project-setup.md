@@ -37,11 +37,19 @@ If you need to place build artifacts elsewhere — for example outside the proje
     "accel_polling": {
       "rel_path": "apps/sensors/accel_polling",
       "name": "accel_polling",
+      "confFiles": { "config": [], "overlay": [] },
+      "twisterConfigs": {},
       "buildConfigs": {
         "build/nrf52840dk/nrf52840": {
           "name": "build/nrf52840dk/nrf52840",
           "rel_path": "shared_builds/accel_polling/nrf52840",
-          "board": "nrf52840dk/nrf52840"
+          "board": "nrf52840dk/nrf52840",
+          "relBoardDir": "zephyr/boards/nordic",
+          "relBoardSubDir": "nrf52840dk",
+          "debugOptimization": "Debug",
+          "westBuildArgs": [],
+          "westBuildCMakeArgs": [],
+          "confFiles": { "config": [], "overlay": [] }
         }
       }
     }
@@ -50,6 +58,8 @@ If you need to place build artifacts elsewhere — for example outside the proje
 ```
 
 In this example the build output will be placed at `<workspace_root>/shared_builds/accel_polling/nrf52840` instead of the default location inside the project folder. This field is not exposed in the UI and must be set manually.
+
+For the complete file schema, see [`.vscode/zephyr-ide.json` reference](../reference/configuration.md#vscodezephyr-idejson-reference).
 
 ## Next Steps
 
