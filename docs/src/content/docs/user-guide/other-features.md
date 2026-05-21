@@ -1,6 +1,6 @@
 ---
 title: Advanced Features
-description: Use MenuConfig, GuiConfig, custom west/CMake build arguments, ROM/RAM usage reports, DTSh devicetree shell, and the integrated West Terminal in IDE for Zephyr.
+description: Use the Build Dashboard (memory, Kconfig, devicetree), MenuConfig, GuiConfig, custom west/CMake build arguments, DTSh devicetree shell, and the integrated West Terminal in IDE for Zephyr.
 ---
 
 ## Menu Config and GUI Config
@@ -30,9 +30,29 @@ Custom west commands may be run using the inbuilt Zephyr IDE Terminal.
 
 ## Analysis Tools
 
-- **ROM Report** - `Zephyr IDE: Run ROM Report`
-- **RAM Report** - `Zephyr IDE: Run RAM Report`
-- **DTSh Shell** - `Zephyr IDE: Start DTSh Shell`
+### Build Dashboard
+
+The Build Dashboard (`Zephyr IDE: Open Build Dashboard`) is the primary analysis tool. It provides an interactive panel with:
+
+- **Memory analysis** — ROM and RAM usage with section-level breakdown and symbol tables
+- **Kconfig viewer** — browse and search all Kconfig symbols and their current values
+- **Devicetree viewer** — explore the compiled devicetree nodes and properties
+- **ELF stats** — binary size information from the linked ELF
+
+After each build, run `Zephyr IDE: Zephyr Dashboard Report` to refresh the dashboard data for the active build. The Kconfig button in the Active Project view opens the dashboard directly by default (`zephyr-ide.activeViewKconfigButton`).
+
+> **Screenshot opportunity**: Build Dashboard — memory, Kconfig, and devicetree panels
+
+### ROM / RAM Reports
+
+Stand-alone text reports generated in the terminal:
+
+- `Zephyr IDE: Run ROM Report`
+- `Zephyr IDE: Run RAM Report`
+
+### DTSh Shell
+
+- `Zephyr IDE: Start DTSh Shell` — interactive devicetree shell for querying nodes, bindings, and properties
 
 ## Next Steps
 

@@ -6,6 +6,8 @@ A Visual Studio Code extension for [Zephyr RTOS](https://zephyrproject.org/) dev
 
 Install from the [Visual Studio Code Marketplace](https://marketplace.visualstudio.com/items?itemName=mylonics.zephyr-ide) or the [Open VSX Registry](https://open-vsx.org/extension/mylonics/zephyr-ide).
 
+*Formerly known as Zephyr IDE.*
+
 Works either as your full setup or alongside an existing Zephyr install (Docker, devcontainer, manual `west` setup) via `ZEPHYR_BASE` detection. An [extension pack](https://marketplace.visualstudio.com/items?itemName=mylonics.zephyr-ide-extension-pack) bundles Cortex-Debug, C/C++, Serial Monitor, Devicetree LSP, and CMake support.
 
 You can read about the motivation behind the project [here](https://mylonics.com/blog/zephyr-ide/).
@@ -59,6 +61,7 @@ You can read about the motivation behind the project [here](https://mylonics.com
 
 - Native VS Code tree view for projects, builds, runner profiles, and tests
 - Active project status bar control with automatic targeting based on the open file
+- Build Dashboard — interactive memory explorer, Kconfig viewer, and devicetree viewer
 - MenuConfig and GuiConfig editors
 - ROM and RAM usage reports
 - DTSh devicetree shell
