@@ -10,7 +10,7 @@ In general, you should commit everything in your workspace folder except for bui
 **Recommended to commit**:
 
 - Project source code
-- `.vscode/zephyr-ide.json` - Project and build configurations, plus the `toolchains` and `blobs` lists declaring which Zephyr SDK toolchains and west blobs the workspace requires (auto-installed during workspace setup)
+- `.vscode/zephyr-ide.json` - Project/build/test configurations, runner profiles, and optional `toolchains` / `sdkVersion` / `blobs` workspace requirements (auto-installed during workspace setup)
 - `west.yml` / `.west/` - Workspace manifest and west configuration
 
 **Consider case-by-case**:
@@ -51,6 +51,8 @@ You can have a look at this [sample directory](https://github.com/mylonics/zephy
 2. **Document setup steps**: Include a README with setup instructions
 3. **Use relative paths**: Avoid absolute paths in configuration files when possible
 4. **Test on clean checkout**: Verify that your project works on a fresh clone
+
+For the complete field reference (including non-GUI fields like build `rel_path`), see [`.vscode/zephyr-ide.json` reference](../reference/configuration.md#vscodezephyr-idejson-reference).
 
 ## Next Steps
 

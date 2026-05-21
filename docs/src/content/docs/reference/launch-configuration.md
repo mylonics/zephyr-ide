@@ -119,17 +119,29 @@ Variables are edited interactively with the **`Zephyr IDE: Manage Build Variable
 {
   "projects": {
     "myproject": {
+      "name": "myproject",
+      "rel_path": "apps/myproject",
       "customVars": {
         "debug_port": "COM3",
         "jlink_device": "STM32F401RE"
       },
       "buildConfigs": {
         "debug": {
+          "name": "debug",
+          "board": "nucleo_f401re",
+          "relBoardDir": "zephyr/boards/st",
+          "relBoardSubDir": "nucleo_f401re",
+          "debugOptimization": "Debug",
+          "westBuildArgs": [],
+          "westBuildCMakeArgs": [],
+          "confFiles": { "config": [], "overlay": [] },
           "customVars": {
             "bmp_port": "/dev/ttyACM0"
           }
         }
-      }
+      },
+      "confFiles": { "config": [], "overlay": [] },
+      "twisterConfigs": {}
     }
   }
 }

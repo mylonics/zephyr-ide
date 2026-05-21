@@ -37,6 +37,15 @@ Use the current folder as a west workspace. When selected, you can choose how to
 - **Create new west.yml** - Create a new manifest file for a fresh workspace
 - **Use external Zephyr installation** - Link to an externally managed Zephyr installation
 
+### Vendor Configurations
+
+When you choose **Create new west.yml**, the west selector also includes **Vendor Configurations**. Vendor entries are registered by ID and metadata, and each vendor template provides:
+
+- `west.yml` (required) — copied into your workspace as the manifest
+- `host-tools.json` (optional) — additional host tools prompted during setup
+
+This vendor data is provided by the extension (`resources/vendors/vendors.json` and `resources/vendors/<vendor-id>/`) and is not stored in `.vscode/zephyr-ide.json`.
+
 ## Workspace Setup Process
 
 When setting up a new workspace, the extension will:

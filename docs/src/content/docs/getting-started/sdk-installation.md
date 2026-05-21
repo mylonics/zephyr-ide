@@ -43,7 +43,7 @@ declare the toolchains your workspace requires directly in
 {
   "toolchains": ["arm-zephyr-eabi", "riscv64-zephyr-elf"],
   "sdkVersion": "0.17.0",
-  "projects": { ... }
+  "projects": {}
 }
 ```
 
@@ -74,6 +74,8 @@ The same operations are available from the command palette:
 - `Zephyr IDE: Modify zephyr-ide.json Toolchains`
 - `Zephyr IDE: Install Toolchains from zephyr-ide.json`
 
+See the full field reference at [`.vscode/zephyr-ide.json` schema](../reference/configuration.md#vscodezephyr-idejson-reference).
+
 ## Declaring Required Blobs in `zephyr-ide.json`
 
 Some Zephyr modules ship binary blobs (e.g. wireless firmware) that must be
@@ -83,7 +85,8 @@ requires can be listed under the `blobs` key:
 ```json
 {
   "blobs": ["hal_nordic", "hal_st"],
-  "toolchains": ["arm-zephyr-eabi"]
+  "toolchains": ["arm-zephyr-eabi"],
+  "projects": {}
 }
 ```
 
