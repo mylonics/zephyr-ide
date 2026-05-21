@@ -202,9 +202,15 @@ export class SDKPanel {
         }
       },
       listSDKs: () => { void this.listSDKs(); },
-      modifyZephyrIdeToolchains: () => { void vscode.commands.executeCommand("zephyr-ide.modify-zephyr-ide-toolchains"); },
-      installZephyrIdeToolchains: () => { void this.installZephyrIdeToolchains(); },
-      openSetupPanel: () => { void vscode.commands.executeCommand("zephyr-ide.open-setup-panel"); },
+      modifyZephyrIdeToolchains: () => {
+        void vscode.commands.executeCommand("zephyr-ide.modify-zephyr-ide-toolchains");
+      },
+      installZephyrIdeToolchains: () => {
+        void this.installZephyrIdeToolchains();
+      },
+      openSetupPanel: () => {
+        void vscode.commands.executeCommand("zephyr-ide.open-setup-panel");
+      },
     };
 
     const handler = handlers[message.command];
