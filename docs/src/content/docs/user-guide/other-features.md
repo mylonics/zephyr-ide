@@ -12,7 +12,7 @@ The Build Dashboard (`Zephyr IDE: Open Build Dashboard`) is the central analysis
 - **Devicetree viewer** — explore the compiled devicetree nodes and properties
 - **ELF stats** — binary size information from the linked ELF
 
-After each build, run `Zephyr IDE: Zephyr Dashboard Report` to regenerate the dashboard data for the active build. The Kconfig button in the Active Project view opens the dashboard directly by default (`zephyr-ide.activeViewKconfigButton`).
+After each build, run `Zephyr IDE: Zephyr Dashboard Report` to refresh the dashboard data for the active build. The Kconfig button in the Active Project view opens the dashboard directly by default (`zephyr-ide.activeViewKconfigButton`).
 
 > **Screenshot opportunity**: Build Dashboard — memory, Kconfig, and devicetree panels
 
