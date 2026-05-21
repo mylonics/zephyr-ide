@@ -13,12 +13,12 @@ export default defineConfig({
     starlight({
       title: 'IDE for Zephyr',
       description:
-        'Professional VS Code extension for Zephyr RTOS development. Streamline setup, building, flashing, and debugging of Zephyr projects.',
+        'VS Code extension for Zephyr RTOS firmware development. Automates host tools, SDK install, west workspace setup, and Cortex-Debug integration for nRF52, STM32, ESP32, Raspberry Pi Pico, and any Zephyr-supported board.',,
       logo: {
         src: './src/assets/logo.png',
       },
       favicon: '/favicon.ico',
-      ...mylonicsStarlightDefaults('IDE for Zephyr', { github: 'https://github.com/mylonics/zephyr-ide', extraCss: ['./src/styles/custom.css'], headOptions: { ogImage: 'https://raw.githubusercontent.com/mylonics/zephyr-ide/main/media/logo.png', keywords: ['Zephyr RTOS', 'VS Code extension', 'embedded development', 'Zephyr SDK', 'west tool', 'ARM Cortex-M', 'RISC-V', 'nRF Connect', 'STM32', 'ESP32', 'Raspberry Pi Pico', 'IoT development', 'firmware development', 'cross-compilation', 'devicetree', 'KConfig', 'debugging', 'flashing', 'CMake', 'embedded IDE'] } }),
+      ...mylonicsStarlightDefaults('IDE for Zephyr', { github: 'https://github.com/mylonics/zephyr-ide', extraCss: ['./src/styles/custom.css'], headOptions: { ogImage: 'https://raw.githubusercontent.com/mylonics/zephyr-ide/main/media/logo.png', keywords: ['Zephyr RTOS', 'VS Code extension', 'embedded development', 'Zephyr SDK', 'west tool', 'ARM Cortex-M', 'RISC-V', 'nRF Connect SDK', 'nRF52', 'nRF5340', 'Nordic Semiconductor', 'STM32', 'ESP32', 'Raspberry Pi Pico', 'RP2040', 'IoT development', 'firmware development', 'cross-compilation', 'devicetree', 'KConfig', 'debugging', 'flashing', 'CMake', 'embedded IDE', 'microcontroller', 'MCU', 'Bluetooth', 'BLE firmware', 'QEMU', 'native_sim', 'Twister', 'OpenOCD', 'J-Link', 'Cortex-Debug', 'west workspace', 'build system'] } }),
       sidebar: [
         {
           label: 'Getting Started',
@@ -50,7 +50,7 @@ export default defineConfig({
             },
             { label: 'Testing with Twister', slug: 'user-guide/testing' },
             { label: 'Sharing Projects', slug: 'user-guide/sharing' },
-            { label: 'Advanced Features', slug: 'user-guide/other-features' },
+            { label: 'Build Dashboard & Advanced Tools', slug: 'user-guide/other-features' },
           ],
         },
         {

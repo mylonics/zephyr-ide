@@ -1,6 +1,6 @@
 ---
 title: External Environments
-description: Use IDE for Zephyr with Docker, DevContainers, CI/CD, or pre-installed Zephyr setups. Automatic ZEPHYR_BASE detection for externally managed embedded development environments.
+description: Use IDE for Zephyr with Docker, DevContainers, CI/CD pipelines, nRF Connect SDK, or any pre-installed Zephyr setup. Automatic ZEPHYR_BASE detection lets the extension work with any externally managed embedded development environment.
 ---
 
 IDE for Zephyr automatically detects and works with externally managed Zephyr environments.

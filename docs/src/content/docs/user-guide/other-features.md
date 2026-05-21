@@ -1,6 +1,6 @@
 ---
-title: Advanced Features
-description: Use the Build Dashboard (memory, Kconfig, devicetree), custom west/CMake build arguments, DTSh devicetree shell, and the integrated West Terminal in IDE for Zephyr.
+title: Build Dashboard, Memory Analysis & Advanced Tools
+description: Explore ROM and RAM usage, browse Kconfig symbols, and inspect the compiled devicetree in the IDE for Zephyr Build Dashboard. Also covers custom west and CMake build arguments, the DTSh devicetree shell, and the integrated west terminal.
 ---
 
 ## Build Dashboard
