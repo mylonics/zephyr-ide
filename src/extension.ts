@@ -558,6 +558,26 @@ export async function activate(context: vscode.ExtensionContext) {
     reloadEnvironmentVariables(context, wsConfig?.activeSetupState);
   }
 
+  // Show a one-time upgrade notification when the user first runs v4.x.
+  // Uses globalState so it fires once per user (not per workspace).
+  const V4_NOTIFICATION_KEY = "zephyr-ide.v4UpgradeNotificationShown";
+  if (!context.globalState.get<boolean>(V4_NOTIFICATION_KEY)) {
+    await context.globalState.update(V4_NOTIFICATION_KEY, true);
+    const choice = await vscode.window.showInformationMessage(
+      "IDE for Zephyr 4.0 introduces Runner Profiles and the Build Dashboard. " +
+      "Runner Profiles let you define reusable flash/debug/attach configurations " +
+      "and share them across builds. The Build Dashboard shows memory usage, " +
+      "Kconfig settings, and build controls in one place.",
+      "Learn What's New",
+      "Dismiss"
+    );
+    if (choice === "Learn What's New") {
+      void vscode.env.openExternal(
+        vscode.Uri.parse("https://zephyr-ide.mylonics.com/whats-new-4-0/")
+      );
+    }
+  }
+
   const activeProjectView = new ActiveProjectView(
     context.extensionPath,
     context,
