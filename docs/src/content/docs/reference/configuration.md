@@ -19,6 +19,8 @@ The following settings are available in VS Code settings (File > Preferences > S
 | `zephyr-ide.venvFolder` | string \| null | null | Custom Python virtual environment path. Defaults to `.venv` in the workspace setup path. |
 | `zephyr-ide.automaticProjectSelection` | boolean | true | Automatically switch the active project when editor focus changes to a file belonging to a different project. |
 | `zephyr-ide.useClangd` | boolean | false | Use clangd for IntelliSense instead of the C/C++ extension. When enabled, sets `C_Cpp.intelliSenseEngine` to `disabled` and configures `clangd.arguments` with the Zephyr SDK query-driver. Requires the [clangd VS Code extension](https://marketplace.visualstudio.com/items?itemName=llvm-vs-code-extensions.vscode-clangd). |
+| `zephyr-ide.scaVariant` | string (enum) | `"dtdoctor"` | Static Code Analysis tool enabled on pristine builds via `-DZEPHYR_SCA_VARIANT`. See [Static Code Analysis](#static-code-analysis-sca) below. |
+| `zephyr-ide.scaCustomVariant` | string \| null | null | Custom SCA variant name used when `zephyr-ide.scaVariant` is `"custom"`. Must match a `cmake/sca/<name>/sca.cmake` entry in your Zephyr tree (e.g. `sparse`, `codechecker`). |
 | `zephyr-ide.buildBeforeFlash` | boolean | false | Automatically build before flashing when using the **Zephyr IDE: Flash** command. The dedicated **Build and Flash** command always builds first regardless of this setting. |
 | `zephyr-ide.separateBuildDebugProfile` | boolean | false | Expose a separate **Build & Debug** bind slot (`buildDebug`) in Runner Profiles. When enabled, **Build and Debug** and **Debug** can each have an independent runner or launch configuration binding. When disabled (default), the single **Debug** slot drives both actions. See [Build-and-Debug slot](#the-builddebug-slot) below. |
 | `zephyr-ide.projectVariableDefaults` | string[] | `[]` | Default project variable names pre-populated in the Project Details panel. Variables not yet defined on a project are shown as empty. |
@@ -150,6 +152,43 @@ Variables are edited interactively with the **`Zephyr IDE: Manage Build Variable
 
 - **Runner profile `extraArgs`** — use `${buildvar:key}` or `${projectvar:key}` (see [Runner Args Variable Substitution](../user-guide/building-debugging.md#runner-args-variable-substitution) for the full substitution table including `${cmake:VAR}`, `${kconfig:VAR}`, `${env:VAR}`, etc.)
 - **`tasks.json` / `launch.json` inputs** — use the `zephyr-ide.get-active-build-variable` / `zephyr-ide.get-active-project-variable` input commands (see [Custom Variables](launch-configuration.md#custom-variables) for usage examples)
+
+## Static Code Analysis (SCA)
+
+Zephyr's SCA framework lets a static analysis tool wrap every C compiler invocation during a build. The tool is selected per-build via `-DZEPHYR_SCA_VARIANT=<name>` at CMake configure time.
+
+Zephyr IDE passes this flag automatically on every **pristine** build based on the `zephyr-ide.scaVariant` setting. Incremental (non-pristine) builds reuse the `build.ninja` that was generated during the last pristine configure, so the selected variant stays active without needing to be re-passed.
+
+If the SCA variant setting changes between builds, the extension detects the difference in the cached pristine command and automatically triggers a pristine rebuild.
+
+### Available Variants
+
+| Variant | Setting value | Install required |
+|---|---|---|
+| **dtdoctor** | `"dtdoctor"` | None — bundled in the Zephyr repo at `scripts/dts/dtdoctor_sca_wrapper.py`. Requires Zephyr 3.7+. |
+| **GCC `-fanalyzer`** | `"gcc"` | None — GCC 12+ is already in the Zephyr SDK. |
+| **Custom** | `"custom"` | Whatever the variant needs. Set the name in `zephyr-ide.scaCustomVariant`. |
+| **None (disabled)** | `"none"` | — |
+
+The default is `"dtdoctor"`.
+
+### dtdoctor
+
+dtdoctor is Zephyr's built-in Devicetree diagnostic tool. It wraps the C compiler as `CMAKE_C_COMPILER_LAUNCHER` and, when a build fails with `__device_dts_ord_*` or `DT_N_NODELABEL_*` undeclared symbol errors, runs `dtdoctor_analyzer.py` and appends human-readable devicetree diagnostics to the build output explaining *why* the DT symbol couldn't be resolved — e.g. a node is disabled, a label is missing, or a GPIO controller is not present in the overlay.
+
+Output appears inline in the build terminal immediately after the failing GCC errors. With parallel ninja builds (`-j > 1`) the lines may be interleaved with progress output from other jobs — scroll up to the failing `platform.c` error block to find them.
+
+**Requirements:** Zephyr 3.7 or later (the `cmake/sca/dtdoctor/sca.cmake` file must exist in `ZEPHYR_BASE`). Uses the workspace's existing Python venv — no extra install.
+
+To verify dtdoctor is active after a pristine build, search `build.ninja` in the build directory for `dtdoctor_sca_wrapper.py` — it should appear in every `C_COMPILER` rule.
+
+### GCC `-fanalyzer`
+
+Enables GCC's built-in inter-procedural static analyzer. Output is standard GCC diagnostic format (file, line, column, message with execution path traces) and appears inline in the build output alongside normal compiler warnings/errors. No extra tooling required — the Zephyr SDK ships GCC 12+.
+
+### Custom Variant
+
+Set `zephyr-ide.scaVariant` to `"custom"` and `zephyr-ide.scaCustomVariant` to the variant name (e.g. `"sparse"`, `"codechecker"`). The extension passes `-DZEPHYR_SCA_VARIANT=<name>` to CMake. The corresponding `cmake/sca/<name>/sca.cmake` must exist in your Zephyr tree and any required tools must be installed separately.
 
 ## clangd Configuration
 

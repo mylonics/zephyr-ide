@@ -111,11 +111,45 @@ const SETTINGS: SettingDefinition[] = [
     defaultValue: true,
   },
   {
+    key: "zephyr-ide.buildBeforeFlash",
+    label: "Build Before Flash",
+    description: "Automatically build before flashing when using the 'Zephyr IDE: Flash' command. The dedicated 'Build and Flash' command always builds first regardless of this setting.",
+    type: "boolean",
+    defaultValue: false,
+  },
+  {
+    key: "zephyr-ide.separateBuildDebugProfile",
+    label: "Separate Build & Debug Profile",
+    description: "Expose a separate 'Build & Debug' bind slot in Runner Profiles. When enabled, 'Build and Debug' and 'Debug' can each have an independent runner or launch configuration binding. When disabled (default), the single 'Debug' slot drives both actions.",
+    type: "boolean",
+    defaultValue: false,
+  },
+  {
     key: "zephyr-ide.useClangd",
     label: "Use clangd IntelliSense",
     description: "Use clangd for IntelliSense instead of the C/C++ extension. When enabled, disables C_Cpp.intelliSenseEngine and configures clangd.arguments with the Zephyr SDK query-driver. Workspace settings are applied automatically when this setting changes. Requires the clangd VS Code extension (llvm-vs-code-extensions.vscode-clangd).",
     type: "boolean",
     defaultValue: false,
+  },
+  {
+    key: "zephyr-ide.scaVariant",
+    label: "SCA Variant",
+    description: "Static Code Analysis (SCA) tool enabled on pristine builds via -DZEPHYR_SCA_VARIANT. 'dtdoctor' is bundled in the Zephyr repo (no install needed). 'gcc' uses GCC -fanalyzer (already in the Zephyr SDK). 'custom' reads the variant name from the SCA Custom Variant setting. 'none' disables SCA entirely.",
+    type: "enum",
+    defaultValue: "dtdoctor",
+    options: [
+      { value: "dtdoctor", label: "dtdoctor (Zephyr built-in DT SCA, no install needed)" },
+      { value: "gcc", label: "gcc (-fanalyzer, already in Zephyr SDK)" },
+      { value: "custom", label: "Custom (set SCA Custom Variant below)" },
+      { value: "none", label: "None (disabled)" },
+    ],
+  },
+  {
+    key: "zephyr-ide.scaCustomVariant",
+    label: "SCA Custom Variant",
+    description: "Custom SCA variant name used when 'SCA Variant' is set to 'custom'. Must match a cmake/sca/<name>/sca.cmake entry in your Zephyr tree (e.g. 'sparse', 'codechecker').",
+    type: "string",
+    defaultValue: null,
   },
 ];
 

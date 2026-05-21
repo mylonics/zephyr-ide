@@ -163,6 +163,31 @@
           "default": false,
           "description": "Use clangd for IntelliSense instead of the C/C++ extension. When enabled, sets 'C_Cpp.intelliSenseEngine' to 'disabled' and configures 'clangd.arguments' with the compile-commands directory and Zephyr SDK query-driver. Workspace settings are applied automatically when this setting changes. Requires the clangd VS Code extension (llvm-vs-code-extensions.vscode-clangd)."
         },
+        "zephyr-ide.scaVariant": {
+          "type": "string",
+          "enum": [
+            "dtdoctor",
+            "gcc",
+            "custom",
+            "none"
+          ],
+          "enumDescriptions": [
+            "Use dtdoctor (Zephyr's built-in devicetree SCA tool, bundled in the Zephyr repo — no extra install needed).",
+            "Use GCC -fanalyzer (requires GCC 12+, already in the Zephyr SDK — no extra install needed).",
+            "Use the custom variant specified in 'zephyr-ide.scaCustomVariant'.",
+            "Disable SCA. No ZEPHYR_SCA_VARIANT is passed to CMake."
+          ],
+          "default": "dtdoctor",
+          "description": "Static Code Analysis (SCA) tool to enable on pristine builds via -DZEPHYR_SCA_VARIANT. Defaults to dtdoctor (bundled in the Zephyr repo). Set to 'none' to disable."
+        },
+        "zephyr-ide.scaCustomVariant": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "description": "Custom SCA variant name passed as -DZEPHYR_SCA_VARIANT when 'zephyr-ide.scaVariant' is set to 'custom'. Must match a cmake/sca/<name>/sca.cmake entry in the Zephyr tree."
+        },
         "zephyr-ide.projectVariableDefaults": {
           "type": [
             "array"
