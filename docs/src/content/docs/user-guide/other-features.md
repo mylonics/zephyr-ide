@@ -14,7 +14,17 @@ The Build Dashboard (`Zephyr IDE: Open Build Dashboard`) is the central analysis
 
 After each build, run `Zephyr IDE: Zephyr Dashboard Report` to refresh the dashboard data for the active build. The Kconfig button in the Active Project view opens the dashboard directly by default (`zephyr-ide.activeViewKconfigButton`).
 
-> **Screenshot opportunity**: Build Dashboard — memory, Kconfig, and devicetree panels
+**Build Summary** — key build attributes (Zephyr version, board, toolchain, `west build` command), a Memory Summary table, and a colour-coded Memory Breakdown bar chart:
+
+![Build Dashboard — Build Summary](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/build_dashboard_summary.png)
+
+**Memory Report** — interactive sunburst chart that drills down into RAM and ROM usage by source-tree path. Switch between Total, RAM, ROM, and region-specific tabs; hover or click any segment to inspect the symbol hierarchy and exact byte counts:
+
+![Build Dashboard — Memory Report](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/build_dashboard_memory_report.png)
+
+**Kconfig** — interactive browser for the build's resolved Kconfig tree. Filter by symbol name, toggle between Tree and Changes modes, and click any symbol to see its type, value, help text, and defining file. Use **Save fragment** to export a `.conf` snippet of your changes:
+
+![Build Dashboard — Kconfig](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/build_dashboard_kconfig.png)
 
 ### ROM / RAM Reports
 
