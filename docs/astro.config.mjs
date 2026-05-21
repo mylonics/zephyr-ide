@@ -66,7 +66,7 @@ export default defineConfig({
             { label: 'Known Issues', slug: 'reference/known-issues' },
           ],
         },
-        { label: "What's New in 3.0", slug: 'whats-new-3-0' },
+        { label: "What's New in 4.0", slug: 'whats-new-4-0' },
         { label: 'Changelog', slug: 'changelog' },
         { label: 'Developer Guide', slug: 'developer-guide' },
       ],
