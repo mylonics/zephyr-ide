@@ -559,10 +559,11 @@ export async function activate(context: vscode.ExtensionContext) {
   }
 
   // Show a one-time upgrade notification when the user first runs v4.x.
-  // Uses globalState so it fires once per user (not per workspace).
+  // Runs unconditionally after the try/catch so it fires even when workspace
+  // init only partially succeeded (e.g. no open folder). Uses globalState so
+  // it fires once per user, not per workspace.
   const V4_NOTIFICATION_KEY = "zephyr-ide.v4UpgradeNotificationShown";
   if (!context.globalState.get<boolean>(V4_NOTIFICATION_KEY)) {
-    await context.globalState.update(V4_NOTIFICATION_KEY, true);
     const choice = await vscode.window.showInformationMessage(
       "IDE for Zephyr 4.0 introduces Runner Profiles and the Build Dashboard. " +
       "Runner Profiles let you define reusable flash/debug/attach configurations " +
@@ -571,6 +572,9 @@ export async function activate(context: vscode.ExtensionContext) {
       "Learn What's New",
       "Dismiss"
     );
+    // Mark as shown only after the dialog resolves so the user sees it even
+    // if something interrupted the previous display attempt.
+    await context.globalState.update(V4_NOTIFICATION_KEY, true);
     if (choice === "Learn What's New") {
       void vscode.env.openExternal(
         vscode.Uri.parse("https://zephyr-ide.mylonics.com/whats-new-4-0/")
