@@ -152,19 +152,24 @@ export interface BuildCommandParams {
   extraOverlayFiles: string[];
   boardRootArg: string;
   isPristine: boolean;
+  /** Resolved SCA variant name (e.g. 'dtdoctor', 'gcc'). Empty/undefined means no SCA. */
+  scaVariant?: string;
 }
 
 /**
  * Pure function: compute the CMake -D definitions that would be passed after `--`
  * in a pristine build. Used by assembleBuildCommand and for cache comparison.
  */
-export function computeCMakeDefs(params: Pick<BuildCommandParams, 'boardRootArg' | 'westBuildCMakeArgs' | 'primaryConfFiles' | 'secondaryConfFiles' | 'overlayFiles' | 'extraOverlayFiles'>): string[] {
+export function computeCMakeDefs(params: Pick<BuildCommandParams, 'boardRootArg' | 'westBuildCMakeArgs' | 'primaryConfFiles' | 'secondaryConfFiles' | 'overlayFiles' | 'extraOverlayFiles' | 'scaVariant'>): string[] {
   const extraWestBuildCMakeArgs = normalizeBuildArgs(params.westBuildCMakeArgs)
     .map((arg) => quoteUserCMakeArgForShell(normalizeCMakeArg(arg)));
 
   const cmakeDefs: string[] = [params.boardRootArg, ...extraWestBuildCMakeArgs]
     .filter(s => s.trim().length > 0);
 
+  if (params.scaVariant) {
+    cmakeDefs.push(quoteCMakeDef('ZEPHYR_SCA_VARIANT', params.scaVariant));
+  }
   if (params.primaryConfFiles.length) {
     cmakeDefs.push(quoteCMakeDef('CONF_FILE', params.primaryConfFiles.join(";")));
   }
@@ -209,6 +214,21 @@ export function assembleBuildCommand(params: BuildCommandParams): string {
   return `west build -b ${boardSpec} "${params.projectFolder}" -p --build-dir "${params.buildFolder}" ${extraWestBuildArgs}${cmakeSection}`.trimEnd();
 }
 
+/**
+ * Read the SCA variant from VS Code settings and resolve to a concrete variant
+ * name, or undefined if SCA is disabled.
+ */
+export function resolveSCAVariant(): string | undefined {
+  const cfg = vscode.workspace.getConfiguration();
+  const variant = cfg.get<string>("zephyr-ide.scaVariant") ?? "dtdoctor";
+  if (variant === "none") { return undefined; }
+  if (variant === "custom") {
+    const custom = cfg.get<string | null>("zephyr-ide.scaCustomVariant") ?? "";
+    return custom.trim() || undefined;
+  }
+  return variant;
+}
+
 export async function build(
   context: vscode.ExtensionContext,
   wsConfig: WorkspaceConfig,
@@ -245,6 +265,8 @@ export async function build(
   const resolvedOverlay = primaryPaths(allOverlay).map(x => path.join(wsConfig.rootPath, x));
   const resolvedExtraOverlay = extraPaths(allOverlay).map(x => path.join(wsConfig.rootPath, x));
 
+  const scaVariant = resolveSCAVariant();
+
   // Always compute the pristine command so we can compare against the cache
   const pristineCmd = assembleBuildCommand({
     board: build.board,
@@ -259,6 +281,7 @@ export async function build(
     extraOverlayFiles: resolvedExtraOverlay,
     boardRootArg,
     isPristine: true,
+    scaVariant,
   });
 
   // If the pristine command changed since last build, force pristine

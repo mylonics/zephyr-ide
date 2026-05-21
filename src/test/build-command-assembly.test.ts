@@ -189,6 +189,32 @@ suite("assembleBuildCommand", () => {
     assert.ok(!cmd.includes(" -- "));
   });
 
+  test("scaVariant produces -DZEPHYR_SCA_VARIANT in cmake defs", () => {
+    const cmd = assembleBuildCommand(makeParams({ scaVariant: "dtdoctor" }));
+    assert.ok(cmd.includes("-DZEPHYR_SCA_VARIANT='dtdoctor'"), `expected SCA variant in cmd: ${cmd}`);
+  });
+
+  test("scaVariant gcc produces correct cmake def", () => {
+    const cmd = assembleBuildCommand(makeParams({ scaVariant: "gcc" }));
+    assert.ok(cmd.includes("-DZEPHYR_SCA_VARIANT='gcc'"), `expected gcc SCA variant: ${cmd}`);
+  });
+
+  test("undefined scaVariant produces no ZEPHYR_SCA_VARIANT", () => {
+    const cmd = assembleBuildCommand(makeParams({ scaVariant: undefined }));
+    assert.ok(!cmd.includes("ZEPHYR_SCA_VARIANT"), `expected no SCA variant: ${cmd}`);
+  });
+
+  test("scaVariant appears before CONF_FILE in cmake defs", () => {
+    const cmd = assembleBuildCommand(makeParams({
+      scaVariant: "dtdoctor",
+      primaryConfFiles: ["/home/user/prj.conf"],
+    }));
+    const cmakeSection = cmd.split(" -- ")[1];
+    const scaPos = cmakeSection.indexOf("ZEPHYR_SCA_VARIANT");
+    const confPos = cmakeSection.indexOf("CONF_FILE");
+    assert.ok(scaPos < confPos, `SCA should appear before CONF_FILE, got: ${cmakeSection}`);
+  });
+
   test("cmake arg with environment variable path preserves the variable reference", () => {
     const cmd = assembleBuildCommand(makeParams({
       westBuildCMakeArgs: ["-DKCONFIG_ROOT='${CUSTOM_VAR}/../../src/bl/Kconfig'"],
