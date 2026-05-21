@@ -98,7 +98,7 @@ This is the workspace file used for projects/builds/tests, runner profiles, and 
       "flash": {
         "kind": "runner",
         "runner": "jlink",
-        "extraArgs": ["--device=STM32F401RE", "--speed=4000"]
+        "extraArgs": ["--device", "STM32F401RE", "--speed", "4000"]
       },
       "debug": {
         "kind": "launch",
@@ -275,7 +275,7 @@ Profiles are stored in two places, merged on load (workspace overrides user on n
       "flash": {
         "kind": "runner",
         "runner": "jlink",
-        "extraArgs": ["--device=STM32F401RE", "--speed=4000"]
+        "extraArgs": ["--device", "STM32F401RE", "--speed", "4000"]
       },
       "debug": { "kind": "launch", "name": "STM32F4 Debug" },
       "attach": { "kind": "auto" }
@@ -309,8 +309,8 @@ By default a Runner Profile has three slots — `flash`, `debug`, `attach` — a
 ```json
 {
   "name": "jlink-stm32f4",
-  "flash": { "kind": "runner", "runner": "jlink", "extraArgs": ["--device=STM32F401RE", "--speed=4000"] },
-  "buildDebug": { "kind": "runner", "runner": "jlink", "extraArgs": ["--device=STM32F401RE", "--reset"] },
+  "flash": { "kind": "runner", "runner": "jlink", "extraArgs": ["--device", "STM32F401RE", "--speed", "4000"] },
+  "buildDebug": { "kind": "runner", "runner": "jlink", "extraArgs": ["--device", "STM32F401RE", "--reset"] },
   "debug": { "kind": "launch", "name": "STM32F4 Debug (attach)" },
   "attach": { "kind": "auto" }
 }
