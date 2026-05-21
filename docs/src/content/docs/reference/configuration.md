@@ -168,7 +168,7 @@ This is the workspace file used for projects/builds/tests, runner profiles, and 
 | `activeProfile` | `string` | No | Active runner profile name for this build. |
 | `bindOverrides` | `BuildBindOverrides` | No | Per-slot extra-arg overrides appended after profile args. |
 | `customVars` | `Record<string, string>` | No | Per-build custom variables. |
-| `rel_path` | `string` | No | **Manual field (no GUI)**: build output path relative to workspace root. Absolute paths are ignored; paths escaping workspace root are rejected; empty/invalid values fall back to `<project.rel_path>/<build.name>`. |
+| `rel_path` | `string` | No | **Manual field (no GUI)**: build output path relative to workspace root. Absolute paths are ignored; paths escaping workspace root are rejected; empty/invalid values fall back to `{project.rel_path}/{build.name}`. |
 
 ### `ConfigFiles`
 
