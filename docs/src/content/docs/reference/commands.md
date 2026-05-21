@@ -98,10 +98,12 @@ Both stores are edited interactively from the Runner Profile Panel; see [Runner 
 
 ## Configuration and Analysis Tools
 
+- `Zephyr IDE: Open Build Dashboard` - Open the Build Dashboard panel (interactive memory explorer, Kconfig viewer, devicetree viewer, and ELF stats) for the active build
+- `Zephyr IDE: Zephyr Dashboard Report` - Generate RAM/ROM reports and symbol-table data for the active build, refreshing any open Build Dashboard
 - `Zephyr IDE: Start Menu Config` - Start Kconfig menu configuration
 - `Zephyr IDE: Start GUI Config` - Start Kconfig GUI configuration
-- `Zephyr IDE: Run ROM Report` - Generate ROM usage report
-- `Zephyr IDE: Run RAM Report` - Generate RAM usage report
+- `Zephyr IDE: Run ROM Report` - Generate ROM usage report (terminal output)
+- `Zephyr IDE: Run RAM Report` - Generate RAM usage report (terminal output)
 - `Zephyr IDE: Start DTSh Shell` - Start devicetree shell
 
 ## Testing with Twister
