@@ -325,7 +325,7 @@
         "zephyr-ide.runnerProfiles": {
           "type": "array",
           "default": [],
-          "markdownDescription": "Reusable runner profiles (name + per-slot binds for `flash`, `debug`, `attach`). Each slot bind selects `auto`, a zephyr `runner` with optional extra args, or a named VS Code `launch` configuration. Workspace `.vscode/zephyr-ide.json` `runnerProfiles` overrides this on name collision.",
+          "markdownDescription": "Reusable runner profiles (name + per-slot binds for `flash`, `debug`, `attach`). Each slot bind selects `auto` or a named VS Code `launch` configuration. Workspace `.vscode/zephyr-ide.json` `runnerProfiles` overrides this on name collision.",
           "items": {
             "type": "object",
             "required": [
@@ -1192,6 +1192,17 @@
               "device": {
                 "type": "string",
                 "description": "Target device identifier (e.g. \"STM32F401RE\"). Forwarded to cortex-debug."
+              },
+              "westArgs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Flash-only west arguments appended after west flash -r <runner>. Supports Zephyr IDE variable substitution."
+              },
+              "sysbuildDomain": {
+                "type": "string",
+                "description": "Optional sysbuild domain/image override. Defaults to the active build sysbuild image."
               }
             }
           },
@@ -1199,7 +1210,7 @@
             "properties": {
               "runner": {
                 "type": "string",
-                "description": "Optional Zephyr runner to use. When omitted, the runner is read from runners.yaml."
+                "description": "Optional Zephyr runner to use (e.g. \"jlink\", \"openocd\", \"pyocd\", \"stlink\", \"bmp\"). When omitted, the runner is read from runners.yaml."
               },
               "svdFile": {
                 "type": "string",
@@ -1228,6 +1239,36 @@
               "device": {
                 "type": "string",
                 "description": "Target device identifier. Forwarded to cortex-debug."
+              },
+              "westArgs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Flash-only west arguments appended after west flash -r <runner>. Supports Zephyr IDE variable substitution."
+              },
+              "sysbuildDomain": {
+                "type": "string",
+                "description": "Optional sysbuild domain/image override. Defaults to the active build sysbuild image."
+              }
+            }
+          },
+          "flash": {
+            "properties": {
+              "runner": {
+                "type": "string",
+                "description": "Optional Zephyr runner to use (e.g. \"jlink\", \"openocd\", \"pyocd\", \"stlink\", \"bmp\"). When omitted, the runner is read from runners.yaml."
+              },
+              "westArgs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Flash-only west arguments appended after west flash -r <runner>. Supports Zephyr IDE variable substitution."
+              },
+              "sysbuildDomain": {
+                "type": "string",
+                "description": "Optional sysbuild domain/image override. Defaults to the active build sysbuild image."
               }
             }
           }
@@ -1242,6 +1283,12 @@
             "name": "Zephyr IDE: Attach",
             "type": "zephyr-ide",
             "request": "attach"
+          },
+          {
+            "name": "Zephyr IDE: Flash",
+            "type": "zephyr-ide",
+            "request": "flash",
+            "westArgs": []
           }
         ],
         "configurationSnippets": [

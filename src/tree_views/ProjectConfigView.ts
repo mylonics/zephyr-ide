@@ -17,7 +17,7 @@ limitations under the License.
 
 import * as vscode from 'vscode';
 import * as path from 'upath';
-import { addConfigFiles, setActive, modifyBuildArguments, removeConfigFile, getResolvedProfile, getBindOverride, getResolvedTestConfig, resolveActiveProject, resolveActiveProjectBuild } from '../project_utilities/project';
+import { addConfigFiles, setActive, modifyBuildArguments, removeConfigFile, getResolvedProfile, getResolvedTestConfig, resolveActiveProject, resolveActiveProjectBuild } from '../project_utilities/project';
 import { ConfigFiles, ConfigFileEntry } from '../project_utilities/config_selector';
 import { joinBuildArgs } from '../project_utilities/build_args';
 import { formatBindLabel } from '../project_utilities/runner_profiles';
@@ -246,22 +246,19 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
           ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
 
         const flashItem = new ConfigItem('Flash', 'zap', false, undefined,
-          formatBindLabel(activeProfile.flash, getBindOverride(activeBuild, "flash")));
+          formatBindLabel(activeProfile.flash));
         flashItem.id = 'config-runner.flash';
         const debugItem = new ConfigItem('Debug', 'debug-alt', false, undefined,
-          formatBindLabel(activeProfile.debug, getBindOverride(activeBuild, "debug")));
+          formatBindLabel(activeProfile.debug));
         debugItem.id = 'config-runner.debug';
         const attachItem = new ConfigItem('Attach', 'debug-console', false, undefined,
-          formatBindLabel(activeProfile.attach, getBindOverride(activeBuild, "attach")));
+          formatBindLabel(activeProfile.attach));
         attachItem.id = 'config-runner.attach';
 
         const children = [flashItem];
         if (separateBuildDebug) {
           const buildDebugItem = new ConfigItem('Build & Debug', 'debug-all', false, undefined,
-            formatBindLabel(
-              activeProfile.buildDebug ?? activeProfile.debug,
-              getBindOverride(activeBuild, "buildDebug") ?? getBindOverride(activeBuild, "debug"),
-            ));
+            formatBindLabel(activeProfile.buildDebug ?? activeProfile.debug));
           buildDebugItem.id = 'config-runner.buildDebug';
           buildDebugItem.tooltip = 'Used for Build-and-Debug (separateBuildDebugProfile is on)';
           children.push(buildDebugItem);

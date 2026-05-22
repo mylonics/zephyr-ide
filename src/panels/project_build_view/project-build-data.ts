@@ -64,60 +64,7 @@ export interface WebviewSlotBind {
   /** Display label: "Auto (runners.yaml)" | "openocd --speed 4000" | "launch.json: <name>". */
   label: string;
   /** Bind discriminator from the profile, or "none" when no active profile. */
-  kind: "none" | "auto" | "runner" | "launch";
-  /** Underlying runner name (only when `kind === "runner"`). */
-  runner?: string;
-  /** Effective extra args (profile + override) shown in the inline editor. */
-  extraArgs: string;
-  /** Per-build override extra args (separate from profile-defined extraArgs). */
-  overrideExtraArgs: string;
-  /** True when a `bindOverrides[slot]` is set for this build. */
-  hasOverride: boolean;
-  /**
-   * Resolved structured args with provenance. Present only when the active
-   * profile bind (kind=runner) has structured args (`bind.args` is set).
-   * Undefined for legacy extraArgs-only profiles and non-runner binds.
-   */
-  resolvedArgs?: WebviewArgEntry[];
-  /**
-   * Arg ids currently in the removed set (build override `removed[]`).
-   * Only meaningful when `resolvedArgs` is present.
-   */
-  removedArgIds?: string[];
-  /**
-   * Schema-known arg ids for this runner (the full list, for the "add" dialog).
-   * Undefined when no schema exists for the runner.
-   */
-  schemaArgIds?: string[];
-}
-
-/**
- * A single arg entry in the resolved + provenance-annotated output.
- * Sent from extension host to webview for rendering in the structured editor.
- */
-export interface WebviewArgEntry {
-  /** Schema arg id (e.g. "interface-cfg", "gdb-port"). */
-  id: string;
-  /** Current resolved value (undefined for boolean flags). */
-  value?: string;
-  /** Source layer: where this arg was last set. */
-  source: "profile" | "yaml" | "build";
-  /** Human-readable label (from ArgDef). */
-  label: string;
-  /** Tooltip/description (from ArgDef). */
-  description: string;
-  /** Control type hint (from ArgDef). */
-  type: "bool" | "string" | "int" | "enum" | "combo" | "path";
-  /** Enum option values (only when type === "enum"). */
-  enumOptions?: string[];
-  /** Combo box suggestion values (only when type === "combo" or "string"). */
-  suggestions?: string[];
-  /** True when this arg is currently removed by the build-level override. */
-  isRemoved: boolean;
-  /** Schema group (e.g. "Interface", "RTT"). */
-  group?: string;
-  /** Flag indicating the arg can be removed (yaml or profile source). */
-  canRemove: boolean;
+  kind: "none" | "auto" | "launch";
 }
 
 export interface WebviewBuildDetails {

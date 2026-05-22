@@ -29,7 +29,6 @@ import {
   saveRunnerProfile,
   deleteRunnerProfile,
   suggestProfileName,
-  splitArgs,
 } from "../../project_utilities/runner_profiles";
 import { resolveActiveProjectBuild, setActiveProfile } from "../../project_utilities/project";
 
@@ -412,47 +411,16 @@ function parseScope(value: unknown): RunnerProfileScope | undefined {
   return undefined;
 }
 
-function sanitizeIncomingArgValue(v: unknown): import("../../project_utilities/runner_arg_resolver").ArgValue | undefined {
-  if (!v || typeof v !== "object") { return undefined; }
-  const obj = v as Record<string, unknown>;
-  if (typeof obj.id !== "string" || !obj.id) { return undefined; }
-  return { id: obj.id, ...(typeof obj.value === "string" ? { value: obj.value } : {}) };
-}
-
-function sanitizeIncomingRunnerArgs(v: unknown): import("../../project_utilities/runner_profiles").RunnerArgs | undefined {
-  if (!v || typeof v !== "object") { return undefined; }
-  const obj = v as Record<string, unknown>;
-  const structured = Array.isArray(obj.structured)
-    ? obj.structured.map(sanitizeIncomingArgValue).filter((x): x is import("../../project_utilities/runner_arg_resolver").ArgValue => x !== undefined)
-    : [];
-  const raw = Array.isArray(obj.raw)
-    ? (obj.raw as unknown[]).filter((s): s is string => typeof s === "string" && s.trim().length > 0)
-    : [];
-  if (structured.length === 0 && raw.length === 0) { return undefined; }
-  return { structured, ...(raw.length > 0 ? { raw } : {}) };
-}
-
-function sanitizeIncomingBind(value: unknown, slot: "flash" | "buildDebug" | "debug" | "attach"):
-  RunnerProfile["flash"] {
+function sanitizeIncomingBind(value: unknown): RunnerProfile["flash"] {
   if (!value || typeof value !== "object") { return { kind: "auto" }; }
   const v = value as Record<string, unknown>;
   if (v.kind === "auto") { return { kind: "auto" }; }
-  if (v.kind === "runner" && typeof v.runner === "string" && v.runner.trim()) {
-    const out: RunnerProfile["flash"] = { kind: "runner", runner: v.runner.trim() };
-    const extra: string[] = Array.isArray(v.extraArgs)
-      ? (v.extraArgs as unknown[]).filter((s): s is string => typeof s === "string" && s.trim().length > 0).map(s => s.trim())
-      : typeof v.extraArgs === "string" && v.extraArgs.trim()
-        ? splitArgs(v.extraArgs)
-        : [];
-    if (extra.length > 0) { out.extraArgs = extra; }
-    const args = sanitizeIncomingRunnerArgs(v.args);
-    if (args) { out.args = args; }
-    return out;
-  }
   if (v.kind === "launch" && typeof v.name === "string" && v.name.trim()) {
-    // launch is invalid for flash; coerce to auto in that case
-    if (slot === "flash") { return { kind: "auto" }; }
-    return { kind: "launch", name: v.name.trim() };
+    const out: RunnerProfile["flash"] = { kind: "launch", name: v.name.trim() };
+    if (typeof v.workspaceFolder === "string" && v.workspaceFolder.trim()) {
+      out.workspaceFolder = v.workspaceFolder.trim();
+    }
+    return out;
   }
   return { kind: "auto" };
 }
@@ -464,39 +432,20 @@ function sanitizeIncomingProfile(value: unknown): RunnerProfile | undefined {
   if (!name) { return undefined; }
   const profile: RunnerProfile = {
     name,
-    flash: sanitizeIncomingBind(v.flash, "flash"),
-    debug: sanitizeIncomingBind(v.debug, "debug"),
-    attach: sanitizeIncomingBind(v.attach, "attach"),
+    flash: sanitizeIncomingBind(v.flash),
+    debug: sanitizeIncomingBind(v.debug),
+    attach: sanitizeIncomingBind(v.attach),
   };
   // Only preserve buildDebug when it was explicitly sent from the webview.
   if (v.buildDebug !== undefined && v.buildDebug !== null) {
-    profile.buildDebug = sanitizeIncomingBind(v.buildDebug, "buildDebug");
+    profile.buildDebug = sanitizeIncomingBind(v.buildDebug);
   }
   return profile;
 }
 
-/**
- * Clone a `RunnerBind`. The bind object itself is shallow-copied (kind +
- * primitive fields), but the `extraArgs` array — the only field a profile
- * can mutate post-clone — is deep-copied so two profiles can independently
- * edit their args after a Duplicate.
- */
 function cloneBind(bind: RunnerProfile["flash"]): RunnerProfile["flash"] {
-  if (bind.kind === "runner") {
-    const copy: RunnerProfile["flash"] = { kind: "runner", runner: bind.runner };
-    if (bind.extraArgs && bind.extraArgs.length > 0) {
-      copy.extraArgs = [...bind.extraArgs];
-    }
-    if (bind.args) {
-      copy.args = {
-        structured: bind.args.structured.map(a => ({ ...a })),
-        ...(bind.args.raw ? { raw: [...bind.args.raw] } : {}),
-      };
-    }
-    return copy;
-  }
   if (bind.kind === "launch") {
-    return { kind: "launch", name: bind.name };
+    return { kind: "launch", name: bind.name, ...(bind.workspaceFolder ? { workspaceFolder: bind.workspaceFolder } : {}) };
   }
   return { kind: "auto" };
 }

@@ -18,12 +18,11 @@ limitations under the License.
 import * as vscode from "vscode";
 import * as fs from "fs-extra";
 import * as path from "upath";
-import { selectLaunchConfiguration } from "../utilities/utils";
 import { notifyError, notifyWarningWithActions, outputWarning } from "../utilities/output";
 import { buildSelector, BuildConfig, BuildConfigDictionary, BuildStateDictionary } from "./build_selector";
 import { WorkspaceConfig } from "../setup_utilities/types";
 import { setWorkspaceState } from "../setup_utilities/state-management";
-import { RunnerBind, RunnerProfile, BindOverride, loadRunnerProfiles, findRunnerProfile, resolveBind, splitArgs } from "./runner_profiles";
+import { RunnerBind, RunnerProfile, loadRunnerProfiles, findRunnerProfile } from "./runner_profiles";
 import { configSelector, configRemover, ConfigFiles, mergeConfigFiles } from "./config_selector";
 import { setDtsContext } from "../setup_utilities/dts_interface";
 import { getSamples } from "../setup_utilities/modules";
@@ -137,8 +136,6 @@ export function getResolvedBuildName(wsConfig: WorkspaceConfig, resolved: Resolv
 /**
  * Get the `RunnerProfile` referenced by a resolved build, or `undefined` when
  * the build has no `activeProfile` or the named profile is not defined.
- * Callers that want to merge in `bindOverrides` should call
- * `resolveActiveProfile` instead.
  */
 export function getResolvedProfile(wsConfig: WorkspaceConfig, resolved: ResolvedProjectBuild): RunnerProfile | undefined {
   const profileName = resolved.build.activeProfile;
@@ -147,10 +144,6 @@ export function getResolvedProfile(wsConfig: WorkspaceConfig, resolved: Resolved
   return findRunnerProfile(profileName, profiles);
 }
 
-/** Get the build-level override for a specific bind slot (may be undefined). */
-export function getBindOverride(build: BuildConfig, slot: "flash" | "buildDebug" | "debug" | "attach"): BindOverride | undefined {
-  return build.bindOverrides?.[slot];
-}
 
 /** Get active test name from an already-resolved project */
 export function getResolvedTestName(wsConfig: WorkspaceConfig, resolved: ResolvedProject): string | undefined {
@@ -266,17 +259,6 @@ export function resolveActiveProfile(
   return { ...resolved, profileName, profile };
 }
 
-/** Resolve the effective `RunnerBind` + extra args for a slot of the active build's profile. */
-export function resolveActiveBuildBind(
-  wsConfig: WorkspaceConfig,
-  slot: "flash" | "debug" | "attach",
-  options?: ResolveOptions
-): { runner: string; args: string } | undefined {
-  const r = resolveActiveProfile(wsConfig, options);
-  if (!r) { return undefined; }
-  const override = getBindOverride(r.build, slot);
-  return resolveBind(r.profile[slot], override);
-}
 
 export async function modifyBuildArguments(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName?: string, buildName?: string) {
   const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Project", projectName, buildName });
@@ -1031,41 +1013,6 @@ export async function setActiveProfile(
   void vscode.commands.executeCommand("zephyr-ide.update-web-view");
 }
 
-/**
- * Edit (or clear) the per-build `bindOverrides[slot].extraArgs` for the
- * active build. Only meaningful when the profile slot is a `runner` bind.
- */
-export async function setBindOverride(
-  context: vscode.ExtensionContext,
-  wsConfig: WorkspaceConfig,
-  slot: "flash" | "debug" | "attach",
-  argsText?: string,
-) {
-  const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Runner Override" });
-  if (!resolved) { return; }
-  const currentArgs = resolved.build.bindOverrides?.[slot]?.extraArgs ?? [];
-  const currentStr = currentArgs.join(" ");
-  const value = argsText ?? await vscode.window.showInputBox({
-    title: `Extra runner args for ${slot}`,
-    value: currentStr,
-    ignoreFocusOut: true,
-    placeHolder: "--erase --speed 4000",
-    prompt: "Appended after the profile's runner args. Leave blank to clear.",
-  });
-  if (value === undefined) { return; }
-  const parsed = splitArgs(value);
-  if (!resolved.build.bindOverrides) { resolved.build.bindOverrides = {}; }
-  if (parsed.length === 0) {
-    delete resolved.build.bindOverrides[slot];
-    if (Object.keys(resolved.build.bindOverrides).length === 0) {
-      resolved.build.bindOverrides = undefined;
-    }
-  } else {
-    resolved.build.bindOverrides[slot] = { extraArgs: parsed };
-  }
-  await setWorkspaceState(context, wsConfig);
-  void vscode.commands.executeCommand("zephyr-ide.update-web-view");
-}
 export async function setActive(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, project: string, build?: string, _runner?: string, test?: string) {
   if (project) {
     wsConfig.activeProject = project;

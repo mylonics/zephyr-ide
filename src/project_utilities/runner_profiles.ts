@@ -16,46 +16,17 @@ limitations under the License.
 */
 
 /**
- * Runner Profile model (replaces the old RunnerConfig + RunnerVariant pair).
+ * Runner Profile model.
  *
  * A `RunnerProfile` is a named `{flash, debug, attach}` triplet of bind slots.
  * Profiles live at workspace scope (`.vscode/zephyr-ide.json` -> `runnerProfiles`)
  * with optional user scope (`zephyr-ide.runnerProfiles` setting) for sharing
  * across workspaces. Workspace overrides user on name collision.
  *
- * A `BuildConfig` references a profile by name (`activeProfile`) and may add
- * per-slot extra-argument overrides (`bindOverrides`). The override only has
- * effect when the slot's resolved bind kind is `runner` (i.e. it directly
- * names a Zephyr runner); `auto`/`launch` slots ignore the override.
- *
- * ## Variable substitution in runner args
- *
- * Both the profile's `extraArgs` and the per-build `BindOverride.extraArgs`
- * support VS Code–style `${...}` expressions resolved by `resolveRunnerArgs`.
- * All resolved values are plain strings; unknown expressions are left intact
- * for VS Code's own resolver (debug-config path).
- *
- * | Expression              | Resolves to                                           |
- * |-------------------------|-------------------------------------------------------|
- * | `${workspaceFolder}`    | Workspace root path                                   |
- * | `${buildFolder}`        | Build output directory                                |
- * | `${board}`              | Board name (e.g. `nucleo_f401re`)                     |
- * | `${boardRevision}`      | Board revision, or `""` when not set                  |
- * | `${project}`            | Project name                                          |
- * | `${build}`              | Build configuration name                              |
- * | `${buildvar:key}`       | Per-build custom variable (see `BuildConfig.customVars`) |
- * | `${projectvar:key}`     | Per-project custom variable (see `ProjectConfig.customVars`) |
- * | `${cmake:VAR}`          | Value from the build's `CMakeCache.txt` (case-insensitive) |
- * | `${kconfig:VAR}`        | Kconfig value from `zephyr/.config` (with/without `CONFIG_` prefix; strings unquoted) |
- * | `${env:VAR}`            | `process.env` value, or `""` when unset               |
- * | `${config:some.key}`    | VS Code workspace/user configuration value            |
- * | anything else           | Left unchanged (VS Code resolves later)               |
- *
- * Custom build/project variables can be edited interactively via the
- * `zephyr-ide.manage-build-variables` and `zephyr-ide.manage-project-variables`
- * commands, and referenced inside `tasks.json` / `launch.json` inputs through
- * the `zephyr-ide.get-active-build-variable` /
- * `zephyr-ide.get-active-project-variable` input commands.
+ * Bind slots are intentionally thin: either use runners.yaml auto-detection or
+ * reference a launch.json entry by name. Legacy runner-shaped binds are still
+ * accepted while loading so the workspace migration can convert them to launch
+ * entries.
  */
 
 import * as vscode from "vscode";
@@ -63,53 +34,23 @@ import * as fs from "fs";
 import * as path from "upath";
 import { WorkspaceConfig } from "../setup_utilities/types";
 import { readZephyrIdeJson, writeZephyrIdeJson } from "../setup_utilities/zephyr_ide_json";
-import type { RunnerArgs, BuildSlotOverride } from "./runner_arg_resolver";
 
-// Re-export for single-import convenience.
-export type { RunnerArgs, BuildSlotOverride } from "./runner_arg_resolver";
-
-/**
- * RunnerBind kinds:
- *   - "auto":    use defaults from runners.yaml (the cmake-generated file).
- *   - "runner":  name a specific Zephyr west runner (e.g. "openocd").
- *                `extraArgs` is appended after runners.yaml args.
- *   - "launch":  reference a `launch.json` configuration by name (Debug / Attach only).
- *
- * The old "variant" kind has been folded into named RunnerProfiles, which are
- * the new unit of sharing across builds.
- */
 export type RunnerBind =
   | { kind: "auto" }
-  | {
-    kind: "runner";
-    runner: string;
-    /**
-     * Structured + raw args in the neutral canonical form.
-     * When present, drives the structured arg editor and the three-layer
-     * merge resolver. Takes precedence over `extraArgs` for the structured
-     * portion; `extraArgs` is treated as additional raw args when both exist.
-     */
-    args?: RunnerArgs;
-    /**
-     * Legacy free-text arg tokens (back-compat with profiles created before
-     * the structured editor). Treated as raw args by the resolver — appended
-     * verbatim after `args.raw`. New profiles should use `args` instead.
-     */
-    extraArgs?: string[];
-  }
-  | { kind: "launch"; name: string };
+  | { kind: "launch"; name: string; workspaceFolder?: string };
+
+interface LegacyRunnerArgs {
+  structured?: { id: string; value?: string }[];
+  raw?: string[];
+}
 
 export interface RunnerProfile {
   name: string;
-  /** Used for both Flash and Build-and-Flash actions. `launch` is invalid here. */
+  /** Used for both Flash and Build-and-Flash actions. */
   flash: RunnerBind;
-  /**
-   * Used exclusively for Build-and-Debug when `zephyr-ide.separateBuildDebugProfile` is enabled.
-   * When the setting is disabled this field is ignored and `debug` drives both actions.
-   * Optional: omit (or leave undefined) to fall back to the `debug` bind for Build-and-Debug.
-   */
+  /** Optional Build-and-Debug bind when `zephyr-ide.separateBuildDebugProfile` is enabled. */
   buildDebug?: RunnerBind;
-  /** Used for Debug (and Build-and-Debug when `buildDebug` is not set or the setting is disabled). */
+  /** Used for Debug (and Build-and-Debug when buildDebug is unset/disabled). */
   debug: RunnerBind;
   /** Used for Debug Attach. */
   attach: RunnerBind;
@@ -118,51 +59,9 @@ export interface RunnerProfile {
 export type RunnerProfileDictionary = { [name: string]: RunnerProfile };
 
 /**
- * Per-slot override that a `BuildConfig` may add on top of its referenced
- * profile. Only meaningful for slots whose profile kind is `runner`.
- *
- * The structured fields (`overrides`, `removed`, `additions`, `rawAdditions`)
- * are used by the new three-layer resolver. `extraArgs` is the legacy field
- * and is treated as `rawAdditions` when both are present.
- */
-export interface BindOverride {
-  /** Legacy: raw arg tokens appended after the profile's args. Use `rawAdditions` for new profiles. */
-  extraArgs?: string[];
-  /**
-   * Override the *value* of a structured arg already set by the profile or
-   * runners.yaml. Key = ArgDef.id, value = replacement string.
-   * Set to `undefined` to disable a value-bearing arg (equivalent to removing
-   * the value without removing the flag — see `removed` to suppress entirely).
-   */
-  overrides?: Record<string, string | undefined>;
-  /**
-   * Arg ids to suppress from the profile and yaml layers.
-   * The arg will not appear in the resolved west command or cortex-debug config.
-   */
-  removed?: string[];
-  /** New schema-known structured args added at build level. */
-  additions?: import("./runner_arg_resolver").ArgValue[];
-  /** Raw (unknown) flag tokens added at build level. */
-  rawAdditions?: string[];
-}
-
-/**
  * Split a shell-style argument string into individual tokens, respecting
  * single- and double-quoted segments. Quote characters are stripped from the
- * resulting token (POSIX-like), so `--key="some path"` becomes the single
- * token `--key=some path`. Inside double quotes, `\\` and `\"` are recognised
- * as escapes for literal backslash and double-quote.
- *
- * This is a small, dependency-free parser — runner extraArgs are simple
- * key/value pairs, not arbitrary shell expressions (no env-var expansion,
- * globbing, or command substitution). Unterminated quoted strings are
- * consumed to end-of-input rather than dropped so a typo doesn't silently
- * swallow the rest of the user's input.
- *
- * Used in three places: migrating legacy string-valued `extraArgs`, parsing
- * user input from the profile editor text boxes, and re-tokenising args
- * after `resolveRunnerArgs` variable substitution before they are forwarded
- * to cortex-debug as `serverArgs` (see debug-provider).
+ * resulting token (POSIX-like), so `--key="some path"` becomes one token.
  */
 export function splitArgs(args: string): string[] {
   const out: string[] = [];
@@ -200,7 +99,7 @@ export function splitArgs(args: string): string[] {
           i++;
         }
       }
-      if (i < len) { i++; } // consume closing quote
+      if (i < len) { i++; }
       continue;
     }
 
@@ -211,7 +110,7 @@ export function splitArgs(args: string): string[] {
         cur += args[i];
         i++;
       }
-      if (i < len) { i++; } // consume closing quote
+      if (i < len) { i++; }
       continue;
     }
 
@@ -224,8 +123,7 @@ export function splitArgs(args: string): string[] {
   return out;
 }
 
-/** Normalise an unknown serialised `extraArgs` value (string for legacy data,
- *  string[] for current format) into a clean `string[]`. */
+/** Normalise an unknown serialised `extraArgs` value into a clean `string[]`. */
 function normalizeExtraArgs(v: unknown): string[] {
   if (Array.isArray(v)) {
     return v.filter((s): s is string => typeof s === "string" && s.trim().length > 0)
@@ -235,13 +133,6 @@ function normalizeExtraArgs(v: unknown): string[] {
     return splitArgs(v);
   }
   return [];
-}
-
-export interface BuildBindOverrides {
-  flash?: BindOverride;
-  buildDebug?: BindOverride;
-  debug?: BindOverride;
-  attach?: BindOverride;
 }
 
 const USER_SETTINGS_KEY = "zephyr-ide.runnerProfiles";
@@ -269,18 +160,18 @@ function sanitizeProfiles(value: unknown): RunnerProfile[] {
   return out;
 }
 
-function sanitizeArgValue(v: unknown): import("./runner_arg_resolver").ArgValue | undefined {
+function sanitizeArgValue(v: unknown): { id: string; value?: string } | undefined {
   if (!v || typeof v !== "object") { return undefined; }
   const obj = v as Record<string, unknown>;
   if (typeof obj.id !== "string" || !obj.id) { return undefined; }
   return { id: obj.id, ...(typeof obj.value === "string" ? { value: obj.value } : {}) };
 }
 
-function sanitizeRunnerArgs(v: unknown): RunnerArgs | undefined {
+function sanitizeRunnerArgs(v: unknown): LegacyRunnerArgs | undefined {
   if (!v || typeof v !== "object") { return undefined; }
   const obj = v as Record<string, unknown>;
   const structured = Array.isArray(obj.structured)
-    ? obj.structured.map(sanitizeArgValue).filter((x): x is import("./runner_arg_resolver").ArgValue => x !== undefined)
+    ? obj.structured.map(sanitizeArgValue).filter((x): x is { id: string; value?: string } => x !== undefined)
     : [];
   const raw = Array.isArray(obj.raw)
     ? obj.raw.filter((s): s is string => typeof s === "string" && s.trim().length > 0)
@@ -294,15 +185,22 @@ function sanitizeBind(value: unknown): RunnerBind | undefined {
   const v = value as Record<string, unknown>;
   if (v.kind === "auto") { return { kind: "auto" }; }
   if (v.kind === "runner" && typeof v.runner === "string" && v.runner.trim()) {
-    const out: RunnerBind = { kind: "runner", runner: v.runner.trim() };
+    const out: any = { kind: "legacyRunner", runner: v.runner.trim() };
     const extra = normalizeExtraArgs(v.extraArgs);
     if (extra.length > 0) { out.extraArgs = extra; }
     const args = sanitizeRunnerArgs(v.args);
     if (args) { out.args = args; }
-    return out;
+    return out as RunnerBind;
+  }
+  if (v.kind === "legacyRunner" && typeof v.runner === "string" && v.runner.trim()) {
+    return v as any;
   }
   if (v.kind === "launch" && typeof v.name === "string" && v.name.trim()) {
-    return { kind: "launch", name: v.name.trim() };
+    const out: RunnerBind = { kind: "launch", name: v.name.trim() };
+    if (typeof v.workspaceFolder === "string" && v.workspaceFolder.trim()) {
+      out.workspaceFolder = v.workspaceFolder.trim();
+    }
+    return out;
   }
   return undefined;
 }
@@ -327,68 +225,10 @@ export function findRunnerProfile(name: string, profiles: RunnerProfile[]): Runn
   return profiles.find(p => p.name === name);
 }
 
-/**
- * Resolve a `RunnerBind` (plus optional per-build override) to a concrete
- * `{runner, args}` pair, or `undefined` when the caller should use defaults.
- *
- *   - "auto":   returns undefined (caller uses runners.yaml defaults).
- *   - "runner": { runner, args } combining all legacy extraArgs + raw from structured args.
- *   - "launch": returns undefined (caller routes to launch.json).
- *
- * NOTE: For the full three-layer merge (structured + yaml + build override),
- * use `runner_arg_resolver.mergeArgLayers` instead. This function is the
- * lightweight path used when only the combined west args string is needed
- * (e.g. flash command assembly for profiles without structured args).
- */
-export function resolveBind(
-  bind: RunnerBind | undefined,
-  override?: BindOverride,
-): { runner: string; args: string } | undefined {
-  if (!bind) { return undefined; }
-  switch (bind.kind) {
-    case "auto":
-      return undefined;
-    case "runner": {
-      // Collect raw/legacy args from all sources.
-      const parts: string[] = [
-        ...(bind.args?.structured
-          ? [] // structured args are handled by the resolver; skip here
-          : []),
-        ...(bind.args?.raw ?? []),
-        ...(bind.extraArgs ?? []),
-        ...(override?.rawAdditions ?? []),
-        ...(override?.extraArgs ?? []),
-      ].map(s => s.trim()).filter(s => s.length > 0);
-      return { runner: bind.runner, args: parts.join(" ") };
-    }
-    case "launch":
-      return undefined;
-  }
-}
-
 /** Short human-readable label for the bind (used by tree view / status bar / panel). */
-export function formatBindLabel(bind: RunnerBind | undefined, override?: BindOverride): string {
-  if (!bind) { return "Auto (runners.yaml)"; }
-  switch (bind.kind) {
-    case "auto":
-      return "Auto (runners.yaml)";
-    case "runner": {
-      const parts = [...(bind.extraArgs ?? []), ...(override?.extraArgs ?? [])]
-        .map(s => s.trim())
-        .filter(s => s.length > 0);
-      const args = parts.join(" ");
-      return args ? `${bind.runner} ${args}` : bind.runner;
-    }
-    case "launch":
-      return `launch.json: ${bind.name}`;
-  }
-}
-
-/** Pretty label for the override portion only (e.g. tree-view child suffix). */
-export function formatOverrideLabel(override: BindOverride | undefined): string {
-  const parts = (override?.extraArgs ?? []).filter(s => s.trim().length > 0);
-  const extra = parts.join(" ");
-  return extra ? `(+ ${extra})` : "";
+export function formatBindLabel(bind: RunnerBind | undefined): string {
+  if (!bind || bind.kind === "auto") { return "Auto (runners.yaml)"; }
+  return `launch.json: ${bind.name}`;
 }
 
 // ---------------------------------------------------------------------------

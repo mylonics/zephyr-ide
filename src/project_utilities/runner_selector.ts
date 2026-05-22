@@ -1,5 +1,5 @@
 /*
-Copyright 2024-2026 mylonics 
+Copyright 2026 mylonics 
 Author Rijesh Augustine
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,132 +15,75 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-/**
- * Known Zephyr runners + a thin single-bind picker used by the profile editor.
- * The old `RunnerConfig` per-build model has been replaced by `RunnerProfile`
- * (see `runner_profiles.ts`).
- */
-
-import { QuickPickItem } from 'vscode';
 import * as vscode from 'vscode';
-import { MultiStepInput, noOpValidate } from "../utilities/multistepQuickPick";
-import { outputError } from "../utilities/output";
-import { RunnerBind, splitArgs } from "./runner_profiles";
+import { getLaunchConfigurations } from "../utilities/utils";
+import { RunnerBind } from "./runner_profiles";
+import { WorkspaceConfig } from "../setup_utilities/types";
 
 /** All known west runners. */
 export const KNOWN_RUNNERS = [
-  "openocd",
-  "jlink",
-  "pyocd",
-  "stlink",
-  "nrfjprog",
-  "nrfutil",
-  "blackmagicprobe",
-  "linkserver",
-  "dfu-util",
-  "uf2",
-  "esp32",
-  "qemu",
-  "bossac",
-  "teensy",
-  "bflb-mcu-tool",
-  "arc-jtag",
-  "dediprog",
-  "silabs_commander",
-  "xsdb",
+  "openocd", "jlink", "pyocd", "stlink", "nrfjprog", "nrfutil", "blackmagicprobe",
+  "linkserver", "dfu-util", "uf2", "esp32", "qemu", "bossac", "teensy", "bflb-mcu-tool",
+  "arc-jtag", "dediprog", "silabs_commander", "xsdb",
 ];
 
 /** Subset of KNOWN_RUNNERS that support debug/attach (GDB server capable). */
 export const DEBUG_CAPABLE_RUNNERS = [
-  "openocd",
-  "jlink",
-  "pyocd",
-  "stlink",
-  "blackmagicprobe",
-  "linkserver",
-  "nrfjprog",
-  "nrfutil",
-  "esp32",
-  "qemu",
-  "arc-jtag",
-  "xsdb",
+  "openocd", "jlink", "pyocd", "stlink", "blackmagicprobe", "linkserver", "nrfjprog",
+  "nrfutil", "esp32", "qemu", "arc-jtag", "xsdb",
 ];
 
 export interface BindSelectorOptions {
-  /** Slot being edited. Flash cannot use `launch.json` references. */
-  slot: "flash" | "debug" | "attach";
-  /** Runners listed in this build's runners.yaml (shown first). */
-  availableRunners?: string[];
-  /** Existing bind to seed extra-args on step 2. */
+  slot: "flash" | "debug" | "attach" | "buildDebug";
   current?: RunnerBind;
+  wsConfig?: WorkspaceConfig;
 }
 
-/**
- * Two-step wizard: pick a runner (or "auto"), then optionally enter extra args.
- * `launch.json` entries are NOT offered here — for Debug/Attach binds the
- * profile editor uses `selectLaunchConfiguration` directly.
- */
+async function appendLaunchTemplate(runner: string, request: "flash" | "launch" | "attach"): Promise<RunnerBind | undefined> {
+  const folder = vscode.workspace.workspaceFolders?.[0];
+  const name = `Zephyr IDE: ${runner}`;
+  const entry: vscode.DebugConfiguration = { type: "zephyr-ide", request, name, runner };
+  const cfg = vscode.workspace.getConfiguration("launch", folder?.uri);
+  const current = cfg.inspect<vscode.DebugConfiguration[]>("configurations")?.workspaceFolderValue
+    ?? cfg.get<vscode.DebugConfiguration[]>("configurations")
+    ?? [];
+  const next = [...current, entry];
+  await cfg.update("configurations", next, folder ? vscode.ConfigurationTarget.WorkspaceFolder : vscode.ConfigurationTarget.Workspace);
+  await vscode.commands.executeCommand("workbench.action.debug.configure");
+  return { kind: "launch", name, ...(folder ? { workspaceFolder: folder.name } : {}) };
+}
+
 export async function bindSelector(options: BindSelectorOptions): Promise<RunnerBind | undefined> {
-  const title = `Pick runner for ${options.slot}`;
-  const availableSet = new Set(options.availableRunners ?? []);
-
-  const items: QuickPickItem[] = [
-    { label: "auto", description: "Use runners.yaml defaults" },
-    { label: "", kind: vscode.QuickPickItemKind.Separator } as QuickPickItem,
+  const wsConfig = options.wsConfig ?? { rootPath: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? "", projects: {}, projectStates: {} } as WorkspaceConfig;
+  const configs = await getLaunchConfigurations(wsConfig) ?? [];
+  const isMultiRoot = (vscode.workspace.workspaceFolders?.length ?? 0) > 1;
+  const items: (vscode.QuickPickItem & { bind?: RunnerBind; create?: boolean })[] = [
+    { label: "Auto (runners.yaml defaults)", bind: { kind: "auto" } },
   ];
-  if (options.availableRunners && options.availableRunners.length > 0) {
-    items.push({ label: "Available for this board", kind: vscode.QuickPickItemKind.Separator });
-    items.push(...options.availableRunners.map(r => ({ label: r, description: "available" })));
-    items.push({ label: "Other runners", kind: vscode.QuickPickItemKind.Separator });
-  }
-  items.push(...KNOWN_RUNNERS.filter(r => !availableSet.has(r)).map(r => ({ label: r })));
-
-  let pickedBind: RunnerBind | undefined;
-
-  async function step1(input: MultiStepInput) {
-    const pick = await input.showQuickPick({
-      title,
-      step: 1,
-      totalSteps: 2,
-      placeholder: "Pick runner (or 'auto')",
-      items,
-      ignoreFocusOut: true,
-    }).catch((error) => {
-      outputError("Bind Selector", String(error));
-      return undefined;
-    });
-    if (!pick) { return; }
-    if (pick.label === "auto") {
-      pickedBind = { kind: "auto" };
-      return;
-    }
-    pickedBind = { kind: "runner", runner: pick.label };
-    return (input: MultiStepInput) => step2(input);
-  }
-
-  async function step2(input: MultiStepInput) {
-    const seeded = options.current && options.current.kind === "runner"
-      ? (options.current.extraArgs ?? []).join(" ")
-      : "";
-    const args = await input.showInputBox({
-      title,
-      step: 2,
-      totalSteps: 2,
-      value: seeded,
-      prompt: "Extra args (optional, e.g. --config board.cfg)",
-      ignoreFocusOut: true,
-      validate: noOpValidate,
-    }).catch((error) => {
-      outputError("Bind Selector", String(error));
-      return undefined;
-    });
-    if (args === undefined) { return; }
-    const trimmed = args.trim();
-    if (trimmed && pickedBind && pickedBind.kind === "runner") {
-      pickedBind = { kind: "runner", runner: pickedBind.runner, extraArgs: splitArgs(trimmed) };
+  if (configs.length > 0) {
+    items.push({ label: "launch.json", kind: vscode.QuickPickItemKind.Separator });
+    for (const cfg of configs) {
+      if (cfg.type !== "zephyr-ide" && cfg.type !== "cortex-debug" && cfg.type !== "bmp-debug") { continue; }
+      items.push({
+        label: cfg.name,
+        description: isMultiRoot ? cfg.workspaceFolder : undefined,
+        bind: { kind: "launch", name: cfg.name, ...(cfg.workspaceFolder ? { workspaceFolder: cfg.workspaceFolder } : {}) },
+      });
     }
   }
+  items.push({ label: "$(add) Create new launch entry from template…", create: true });
 
-  await MultiStepInput.run((input) => step1(input));
-  return pickedBind;
+  const picked = await vscode.window.showQuickPick(items, { ignoreFocusOut: true, placeHolder: `Select ${options.slot} launch binding` });
+  if (!picked) { return undefined; }
+  if (picked.bind) { return picked.bind; }
+  if (!picked.create) { return undefined; }
+
+  const runnerPool = options.slot === "flash" ? KNOWN_RUNNERS : DEBUG_CAPABLE_RUNNERS;
+  const runnerPick = await vscode.window.showQuickPick(runnerPool.map(label => ({ label })), {
+    ignoreFocusOut: true,
+    placeHolder: "Select runner for the new zephyr-ide launch entry",
+  });
+  if (!runnerPick) { return undefined; }
+  const request = options.slot === "flash" ? "flash" : (options.slot === "attach" ? "attach" : "launch");
+  return appendLaunchTemplate(runnerPick.label, request);
 }

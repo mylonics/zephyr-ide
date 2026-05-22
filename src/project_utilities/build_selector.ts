@@ -20,7 +20,6 @@ import * as vscode from "vscode";
 import * as path from "upath";
 import * as fs from "fs-extra";
 import { MultiStepInput, InputStep, noOpValidate, mapToQuickPickItems } from "../utilities/multistepQuickPick";
-import { BuildBindOverrides } from './runner_profiles';
 import { ConfigFiles } from './config_selector';
 import { SetupState } from '../setup_utilities/types';
 import { executeShellCommandInPythonEnv, output } from "../utilities/utils";
@@ -51,9 +50,6 @@ export interface BuildConfig {
    *  Undefined / unknown profile name → behave as the implicit "Auto" profile
    *  (flash/debug/attach all map to `{kind:"auto"}`). */
   activeProfile?: string;
-  /** Per-slot extra-args overrides appended after the profile's resolved args.
-   *  Only meaningful when the profile's slot kind is `runner`. */
-  bindOverrides?: BuildBindOverrides;
   /** User-defined key-value variables for this build configuration.
    *  Referenced in runner profile args as `${buildvar:key}` and in
    *  tasks.json/launch.json via the `zephyr-ide.get-active-build-variable` command. */

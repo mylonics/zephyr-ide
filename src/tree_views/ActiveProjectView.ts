@@ -17,7 +17,7 @@ limitations under the License.
 
 import * as vscode from 'vscode';
 
-import { ProjectConfig, getResolvedProfile, getBindOverride, getResolvedTestConfig, resolveActiveProject, resolveActiveProjectBuild } from '../project_utilities/project';
+import { ProjectConfig, getResolvedProfile, getResolvedTestConfig, resolveActiveProject, resolveActiveProjectBuild } from '../project_utilities/project';
 import { BuildConfig } from '../project_utilities/build_selector';
 import { WorkspaceConfig } from '../setup_utilities/types';
 import { TwisterConfig } from "../project_utilities/twister_selector";
@@ -96,16 +96,16 @@ export class ActiveProjectView implements vscode.TreeDataProvider<ActiveProjectI
     // dedicated `buildDebug` slot, show it separately for Build-and-Debug.
     const separateBuildDebug = !!vscode.workspace.getConfiguration().get<boolean>("zephyr-ide.separateBuildDebugProfile");
     const flashDisplay = activeProfile
-      ? formatBindLabel(activeProfile.flash, activeBuild && getBindOverride(activeBuild, "flash"))
+      ? formatBindLabel(activeProfile.flash)
       : "None";
     const debugDisplay = activeProfile
-      ? formatBindLabel(activeProfile.debug, activeBuild && getBindOverride(activeBuild, "debug"))
+      ? formatBindLabel(activeProfile.debug)
       : "None";
     const buildDebugDisplay = separateBuildDebug && activeProfile?.buildDebug
-      ? formatBindLabel(activeProfile.buildDebug, activeBuild && getBindOverride(activeBuild, "buildDebug"))
+      ? formatBindLabel(activeProfile.buildDebug)
       : debugDisplay;
     const attachDisplay = activeProfile
-      ? formatBindLabel(activeProfile.attach, activeBuild && getBindOverride(activeBuild, "attach"))
+      ? formatBindLabel(activeProfile.attach)
       : "None";
 
     const items: ActiveProjectItem[] = [

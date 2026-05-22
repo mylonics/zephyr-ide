@@ -143,3 +143,42 @@ suite("Runner Profile Migration Test Suite", () => {
     assert.deepStrictEqual(profile.debug, { kind: "auto" });
   });
 });
+
+suite("Runner Profile Migration v2 launch-entry translation", () => {
+  test("openocd configs, unknown flags, jlink device, and bmp serial are translated", () => {
+    const { legacyBindToLaunchConfig } = require("../setup_utilities/state-management") as typeof import("../setup_utilities/state-management");
+
+    const openocd: any = legacyBindToLaunchConfig("Profile", "debug", {
+      runner: "openocd",
+      extraArgs: ["-f", "interface/jlink.cfg", "--mystery", "1", "--enable-rtt"],
+    });
+    assert.deepStrictEqual(openocd.configFiles, ["interface/jlink.cfg"]);
+    assert.deepStrictEqual(openocd.westArgs, ["--mystery", "1"]);
+    assert.strictEqual(openocd.rttConfig.enabled, true);
+
+    const jlink: any = legacyBindToLaunchConfig("Profile", "debug", {
+      runner: "jlink",
+      extraArgs: ["--device=nrf", "--speed", "4000"],
+    });
+    assert.strictEqual(jlink.device, "nrf");
+    assert.deepStrictEqual(jlink.serverArgs, ["-speed", "4000"]);
+
+    const bmp: any = legacyBindToLaunchConfig("Profile", "attach", {
+      runner: "blackmagicprobe",
+      extraArgs: ["--gdb-serial", "/dev/ttyACM0"],
+    });
+    assert.strictEqual(bmp.BMPGDBSerialPort, "/dev/ttyACM0");
+  });
+
+  test("flash entries preserve legacy args as westArgs", () => {
+    const { legacyBindToLaunchConfig } = require("../setup_utilities/state-management") as typeof import("../setup_utilities/state-management");
+    const flash: any = legacyBindToLaunchConfig("Profile", "flash", {
+      runner: "jlink",
+      extraArgs: ["--erase"],
+      args: { raw: ["--reset"] },
+    });
+    assert.strictEqual(flash.request, "flash");
+    assert.strictEqual(flash.runner, "jlink");
+    assert.deepStrictEqual(flash.westArgs, ["--erase", "--reset"]);
+  });
+});

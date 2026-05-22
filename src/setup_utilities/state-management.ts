@@ -26,7 +26,7 @@ import { loadProjectsFromFile, setWorkspaceSettings, generateGitIgnore, generate
 import { parseWestConfigManifest } from "./west-config-parser";
 import { readZephyrIdeJson, writeZephyrIdeJson } from "./zephyr_ide_json";
 import { splitArgs } from "../project_utilities/runner_profiles";
-import { outputError } from "../utilities/output";
+import { outputError, outputWarning } from "../utilities/output";
 
 /**
  * Per-extension-host-process token used to detect full process restarts so
@@ -460,6 +460,7 @@ export async function loadWorkspaceState(context: vscode.ExtensionContext): Prom
   // having those keys; instead we work via `any` casts and the new shape is
   // what subsequent saves persist.
   await migrateLegacyRunnersToProfiles(context, config);
+  await migrateRunnerBindsToLaunchEntries(context, config);
 
   return config;
 }
@@ -483,7 +484,7 @@ export async function loadWorkspaceState(context: vscode.ExtensionContext): Prom
  * fields stripped), the cleaned-up `wsConfig` is persisted via
  * `setWorkspaceState` so the next load sees the same shape this one did.
  */
-export const RUNNER_PROFILES_MIGRATION_VERSION = 1;
+export const RUNNER_PROFILES_MIGRATION_VERSION = 2;
 const MIGRATION_VERSION_KEY = "runnerProfilesMigrationVersion";
 
 export async function migrateLegacyRunnersToProfiles(
@@ -502,7 +503,7 @@ export async function migrateLegacyRunnersToProfiles(
     const recorded = typeof data[MIGRATION_VERSION_KEY] === "number"
       ? (data[MIGRATION_VERSION_KEY] as number)
       : 0;
-    if (recorded >= RUNNER_PROFILES_MIGRATION_VERSION) {
+    if (recorded >= 1) {
       return;
     }
   } catch (e) {
@@ -600,7 +601,7 @@ export async function migrateLegacyRunnersToProfiles(
     if (migrated && newProfiles.length > 0) {
       data.runnerProfiles = [...existingProfiles, ...newProfiles];
     }
-    data[MIGRATION_VERSION_KEY] = RUNNER_PROFILES_MIGRATION_VERSION;
+    data[MIGRATION_VERSION_KEY] = 1;
     await writeZephyrIdeJson(config, data);
   } catch (e) {
     outputError("Runner Profile Migration", `Failed to persist migrated runner profiles: ${String(e)}`);
@@ -615,6 +616,243 @@ export async function migrateLegacyRunnersToProfiles(
     } catch (e) {
       outputError("Runner Profile Migration", `Failed to persist migrated workspace state: ${String(e)}`);
     }
+  }
+}
+
+type RunnerSlot = "flash" | "buildDebug" | "debug" | "attach";
+interface LegacyRunnerBindRecord extends Record<string, unknown> {
+  kind?: unknown;
+  runner?: unknown;
+  extraArgs?: unknown;
+  args?: unknown;
+  workspaceFolder?: unknown;
+}
+
+function collectLegacyArgTokens(bind: LegacyRunnerBindRecord): string[] {
+  const tokens: string[] = [];
+  const push = (v: unknown) => {
+    if (typeof v === "string" && v.trim()) { tokens.push(v.trim()); }
+  };
+  if (Array.isArray(bind?.extraArgs)) { bind.extraArgs.forEach(push); }
+  else if (typeof bind?.extraArgs === "string") { splitArgs(bind.extraArgs).forEach(push); }
+  const args = bind?.args;
+  if (args && typeof args === "object") {
+    const argsRec = args as Record<string, unknown>;
+    if (Array.isArray(argsRec.structured)) {
+      for (const entry of argsRec.structured) {
+        if (!entry || typeof entry !== "object") { continue; }
+        const entryRec = entry as Record<string, unknown>;
+        if (typeof entryRec.value === "string" && entryRec.value.trim()) {
+          tokens.push(entryRec.value.trim());
+        } else if (typeof entryRec.id === "string" && entryRec.id.trim()) {
+          tokens.push(entryRec.id.trim());
+        }
+      }
+    }
+    if (Array.isArray(argsRec.raw)) { argsRec.raw.forEach(push); }
+  }
+  return tokens;
+}
+
+function takeFlag(tokens: string[], i: number, flags: string[]): { value?: string; consumed: number } | undefined {
+  const token = tokens[i];
+  for (const flag of flags) {
+    if (token === flag) {
+      return { value: tokens[i + 1], consumed: tokens[i + 1] ? 2 : 1 };
+    }
+    if (token.startsWith(`${flag}=`)) {
+      return { value: token.slice(flag.length + 1), consumed: 1 };
+    }
+  }
+  return undefined;
+}
+
+export function legacyBindToLaunchConfig(profileName: string, slot: RunnerSlot, bind: LegacyRunnerBindRecord): vscode.DebugConfiguration {
+  if (!bind || typeof bind.runner !== "string" || !bind.runner.trim()) {
+    throw new Error("Legacy runner bind is missing a runner name.");
+  }
+  const runner = bind.runner.trim();
+  const request = slot === "flash" ? "flash" : slot === "attach" ? "attach" : "launch";
+  const cfg: any = {
+    type: "zephyr-ide",
+    request,
+    name: `Zephyr IDE — ${runner} (${profileName} / ${slot})`,
+    runner,
+  };
+  const westArgs: string[] = [];
+  const tokens = collectLegacyArgTokens(bind);
+
+  if (slot === "flash") {
+    cfg.westArgs = tokens;
+    return cfg;
+  }
+
+  for (let i = 0; i < tokens.length;) {
+    const token = tokens[i];
+    let match = takeFlag(tokens, i, ["--device"]);
+    if (match) { if (match.value) { cfg.device = match.value; } i += match.consumed; continue; }
+    match = takeFlag(tokens, i, ["--speed"]);
+    if (match) { if (match.value) { cfg.serverArgs = [...(cfg.serverArgs ?? []), "-speed", match.value]; } i += match.consumed; continue; }
+    match = takeFlag(tokens, i, ["--iface", "--interface"]);
+    if (match) { if (match.value) { cfg.interface = match.value; } i += match.consumed; continue; }
+    match = takeFlag(tokens, i, ["--gdb-serial"]);
+    if (match) { if (match.value) { cfg.BMPGDBSerialPort = match.value; } i += match.consumed; continue; }
+    match = takeFlag(tokens, i, ["-f", "--openocd-config"]);
+    if (match) { if (match.value) { cfg.configFiles = [...(cfg.configFiles ?? []), match.value]; } i += match.consumed; continue; }
+    match = takeFlag(tokens, i, ["-s", "--openocd-search"]);
+    if (match) { if (match.value) { cfg.searchDir = [...(cfg.searchDir ?? []), match.value]; } i += match.consumed; continue; }
+    if (token === "--enable-rtt") {
+      if (runner === "openocd") {
+        cfg.rttConfig = { enabled: true, address: "auto", decoders: [{ port: 0, type: "console", label: "RTT Channel 0" }] };
+      } else if (runner === "blackmagicprobe" || runner === "bmp") {
+        cfg.rttEnabled = true;
+      }
+      i++;
+      continue;
+    }
+    westArgs.push(token);
+    i++;
+  }
+  if (westArgs.length > 0) { cfg.westArgs = westArgs; }
+  return cfg;
+}
+
+function sameLaunchConfig(a: vscode.DebugConfiguration, b: vscode.DebugConfiguration): boolean {
+  const clean = (x: vscode.DebugConfiguration) => JSON.stringify(Object.keys(x).sort().reduce((out: Record<string, unknown>, key) => {
+    if (key !== "name") { out[key] = x[key]; }
+    return out;
+  }, {}));
+  return clean(a) === clean(b);
+}
+
+async function appendLaunchEntries(config: WorkspaceConfig, entries: vscode.DebugConfiguration[]): Promise<Map<string, string>> {
+  const result = new Map<string, string>();
+  if (entries.length === 0) { return result; }
+  const folder = vscode.workspace.workspaceFolders?.find(f => f.uri.fsPath === config.rootPath) ?? vscode.workspace.workspaceFolders?.[0];
+  const launchCfg = vscode.workspace.getConfiguration("launch", folder?.uri);
+  const existing = launchCfg.inspect<vscode.DebugConfiguration[]>("configurations")?.workspaceFolderValue
+    ?? launchCfg.get<vscode.DebugConfiguration[]>("configurations")
+    ?? [];
+  const next = [...existing];
+
+  for (const entry of entries) {
+    const found = next.find(existingEntry => sameLaunchConfig(existingEntry, entry));
+    if (found?.name) {
+      result.set(entry.name, found.name);
+      continue;
+    }
+    let name = entry.name;
+    let i = 2;
+    const names = new Set(next.map(e => e.name).filter(Boolean));
+    while (names.has(name)) {
+      name = `${entry.name} ${i++}`;
+    }
+    const toAdd = { ...entry, name };
+    next.push(toAdd);
+    result.set(entry.name, name);
+  }
+
+  try {
+    await launchCfg.update("configurations", next, folder ? vscode.ConfigurationTarget.WorkspaceFolder : vscode.ConfigurationTarget.Workspace);
+  } catch (e) {
+    outputWarning("Runner Profile Migration", `Failed to write launch.json entries: ${String(e)}`);
+  }
+  return result;
+}
+
+function migrateProfileBinds(profile: Record<string, unknown>, entries: vscode.DebugConfiguration[], defaultWorkspaceFolder?: string): boolean {
+  let changed = false;
+  for (const slot of ["flash", "buildDebug", "debug", "attach"] as RunnerSlot[]) {
+    const bindValue = profile?.[slot];
+    if (!bindValue || typeof bindValue !== "object") { continue; }
+    const bind = bindValue as LegacyRunnerBindRecord;
+    if ((bind.kind === "runner" || bind.kind === "legacyRunner") && typeof bind.runner === "string" && bind.runner.trim()) {
+      const profileName = typeof profile.name === "string" ? profile.name : "Profile";
+      const entry = legacyBindToLaunchConfig(profileName, slot, bind);
+      entries.push(entry);
+      const workspaceFolder = typeof bind.workspaceFolder === "string" && bind.workspaceFolder.trim()
+        ? bind.workspaceFolder.trim()
+        : defaultWorkspaceFolder;
+      profile[slot] = { kind: "launch", name: entry.name, ...(workspaceFolder ? { workspaceFolder } : {}) };
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+export async function migrateRunnerBindsToLaunchEntries(
+  context: vscode.ExtensionContext,
+  config: WorkspaceConfig,
+): Promise<void> {
+  if (!isActiveWorkspaceInitialized(config)) { return; }
+  let data: Record<string, any> = {};
+  try {
+    data = readZephyrIdeJson(config) as Record<string, any>;
+    const recorded = typeof data[MIGRATION_VERSION_KEY] === "number" ? data[MIGRATION_VERSION_KEY] : 0;
+    if (recorded >= 2) { return; }
+  } catch (e) {
+    outputError("Runner Profile Migration", `Failed to read v2 migration state: ${String(e)}`);
+  }
+
+  const entries: vscode.DebugConfiguration[] = [];
+  const defaultFolder = vscode.workspace.workspaceFolders?.find(f => f.uri.fsPath === config.rootPath) ?? vscode.workspace.workspaceFolders?.[0];
+  let changed = false;
+  const workspaceProfiles = Array.isArray(data.runnerProfiles) ? data.runnerProfiles : [];
+  for (const profile of workspaceProfiles) {
+    changed = migrateProfileBinds(profile, entries, defaultFolder?.name) || changed;
+  }
+
+  const cfg = vscode.workspace.getConfiguration();
+  const userProfiles = cfg.get<any[]>("zephyr-ide.runnerProfiles") ?? [];
+  let userChanged = false;
+  for (const profile of userProfiles) {
+    userChanged = migrateProfileBinds(profile, entries, defaultFolder?.name) || userChanged;
+  }
+
+  const nameMap = await appendLaunchEntries(config, entries);
+  const applyNames = (profiles: any[]) => {
+    for (const profile of profiles) {
+      for (const slot of ["flash", "buildDebug", "debug", "attach"] as RunnerSlot[]) {
+        const bind = profile?.[slot];
+        if (bind?.kind === "launch" && nameMap.has(bind.name)) {
+          bind.name = nameMap.get(bind.name);
+        }
+      }
+    }
+  };
+  applyNames(workspaceProfiles);
+  applyNames(userProfiles);
+
+  const overrideTuples: string[] = [];
+  for (const projectName in config.projects) {
+    const project = config.projects[projectName] as any;
+    for (const buildName in project.buildConfigs ?? {}) {
+      const build = project.buildConfigs[buildName] as any;
+      if (build.bindOverrides) {
+        for (const slot of Object.keys(build.bindOverrides)) {
+          overrideTuples.push(`${projectName}/${buildName}/${slot}: ${JSON.stringify(build.bindOverrides[slot])}`);
+        }
+        delete build.bindOverrides;
+        changed = true;
+      }
+    }
+  }
+  if (overrideTuples.length > 0) {
+    outputWarning("Runner Profile Migration", `Per-build runner bind overrides were removed. Create a second profile + launch entry for these overrides if needed:\n${overrideTuples.join("\n")}`);
+  }
+
+  data.runnerProfiles = workspaceProfiles;
+  data[MIGRATION_VERSION_KEY] = 2;
+  try {
+    await writeZephyrIdeJson(config, data);
+    if (userChanged) {
+      await cfg.update("zephyr-ide.runnerProfiles", userProfiles, vscode.ConfigurationTarget.Global);
+    }
+    if (changed || userChanged) {
+      await setWorkspaceState(context, config);
+    }
+  } catch (e) {
+    outputError("Runner Profile Migration", `Failed to persist v2 migration: ${String(e)}`);
   }
 }
 

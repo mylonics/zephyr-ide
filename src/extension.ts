@@ -128,11 +128,9 @@ import {
   setActiveProject,
   resolveActiveProjectBuild,
   resolveActiveProfile,
-  resolveActiveBuildBind,
   resolveActiveProject,
   getProjectFolder,
   getBuildFolder,
-  getBindOverride,
   addSampleProjectsFromFile,
 } from "./project_utilities/project";
 import { testHelper, deleteTestDirs } from "./zephyr_utilities/twister";
@@ -287,47 +285,19 @@ async function startDebugSession(
   mode: 'debug' | 'attach' | 'build-debug'
 ) {
   const resolved = resolveActiveProjectBuild(wsConfig);
-
-  // 3-bind model: Flash drives both Flash and Build-and-Flash; the unified
-  // `debug` bind drives both Debug and Build-and-Debug; `attach` is dedicated.
-  // When `zephyr-ide.separateBuildDebugProfile` is enabled, a dedicated
-  // `buildDebug` slot (if set on the profile) is used for Build-and-Debug.
   const separateBuildDebugProfile = !!vscode.workspace.getConfiguration().get<boolean>("zephyr-ide.separateBuildDebugProfile");
   const useBuildDebugSlot = mode === 'build-debug' && separateBuildDebugProfile;
   const slot: 'debug' | 'attach' = mode === 'attach' ? 'attach' : 'debug';
 
   let activeBind: RunnerBind | undefined;
-  let pinnedRunner: string | undefined;
-
-  if (resolved) {
-    const profileName = resolved.build.activeProfile;
-    if (profileName) {
-      const profileResolved = resolveActiveProfile(wsConfig);
-      if (profileResolved) {
-        // When the separate Build-and-Debug setting is on, prefer the dedicated
-        // `buildDebug` slot for build-debug mode (fall back to `debug` if unset).
-        if (useBuildDebugSlot && profileResolved.profile.buildDebug) {
-          activeBind = profileResolved.profile.buildDebug;
-        } else {
-          activeBind = profileResolved.profile[slot];
-        }
-        if (activeBind.kind === 'runner') {
-          pinnedRunner = activeBind.runner;
-        } else if (activeBind.kind === 'auto') {
-          // auto → let runners.yaml provider pick the runner
-        }
-      }
+  if (resolved?.build.activeProfile) {
+    const profileResolved = resolveActiveProfile(wsConfig);
+    if (profileResolved) {
+      activeBind = useBuildDebugSlot && profileResolved.profile.buildDebug
+        ? profileResolved.profile.buildDebug
+        : profileResolved.profile[slot];
     }
   }
-
-  let debugTarget: string | undefined;
-  let debugTargetFolder: string | undefined;
-  if (activeBind && activeBind.kind === 'launch') {
-    debugTarget = activeBind.name;
-  }
-  // For pinnedRunner the value would be `${RUNNER_TARGET_PREFIX}${pinnedRunner}`
-  // but the code below always falls into the inline-synthesis path when
-  // `pinnedRunner !== undefined`, so debugTarget is intentionally left unset.
 
   if (mode === 'build-debug') {
     if (!resolved) {
@@ -335,54 +305,40 @@ async function startDebugSession(
       return;
     }
     const res = await build(context, wsConfig, resolved.project, resolved.build, false);
-    if (!res) {
-      return;
-    }
+    if (!res) { return; }
   }
 
-  // No bound launch.json target → synthesize a Zephyr IDE provider config
-  // (cortex-debug + runners.yaml) directly. This is the default for runner
-  // binds of kind auto/runner/variant. A bind of kind "launch" already set
-  // `debugTarget` to the launch.json entry name and falls through to Path B.
-  if (!debugTarget || pinnedRunner !== undefined) {
+  const folders = vscode.workspace.workspaceFolders ?? [];
+  const isWindows = process.platform === "win32";
+  const defaultFolder = folders.find(f =>
+    isWindows
+      ? f.uri.fsPath.toLowerCase() === wsConfig.rootPath.toLowerCase()
+      : f.uri.fsPath === wsConfig.rootPath
+  ) ?? folders[0];
+
+  if (!activeBind || activeBind.kind === 'auto') {
     if (!resolved) {
       notifyError("Debug", "No active project or build configuration found");
       return;
     }
-    const baseName = mode === 'attach' ? "Zephyr IDE: Attach" : "Zephyr IDE: Debug";
     const inlineCfg: vscode.DebugConfiguration = {
       type: "zephyr-ide",
-      name: pinnedRunner ? `${baseName} (${pinnedRunner})` : baseName,
+      name: mode === 'attach' ? "Zephyr IDE: Attach" : "Zephyr IDE: Debug",
       request: mode === 'attach' ? "attach" : "launch",
-      ...(pinnedRunner ? { runner: pinnedRunner } : {}),
     };
-    // Prefer the workspace folder whose uri.fsPath matches wsConfig.rootPath (case-insensitive on Windows)
-    const folders = vscode.workspace.workspaceFolders ?? [];
-    const isWindows = process.platform === "win32";
-    const folder = folders.find(f =>
-      isWindows
-        ? f.uri.fsPath.toLowerCase() === wsConfig.rootPath.toLowerCase()
-        : f.uri.fsPath === wsConfig.rootPath
-    ) ?? folders[0];
-    const started = await vscode.debug.startDebugging(folder, inlineCfg);
+    const started = await vscode.debug.startDebugging(defaultFolder, inlineCfg);
     if (!started) {
       const sessionLabel = mode === 'attach' ? 'attach session' : 'debug session';
       notifyError("Debug", `Failed to start ${sessionLabel} from runners.yaml.` +
-        `\nCheck the Debug Console and the Zephyr IDE output channel for the synthesized cortex-debug config.`);
+        `
+Check the Debug Console and the Zephyr IDE output channel for the synthesized cortex-debug config.`);
     }
     return;
   }
 
-  // Determine the correct folder to pass to startDebugging.
-  // When a name (string) is passed, VS Code searches only the given folder's
-  // .vscode/launch.json.  If the config lives at workspace level (e.g. in a
-  // .code-workspace file) there is no per-folder launch.json and VS Code
-  // fails with "launch.json does not exist for passed workspace folder".
-  // Look up the config to see where it actually lives.
+  const debugTarget = activeBind.name;
+  const debugTargetFolder = activeBind.workspaceFolder;
   const config = await getLaunchConfigurationByName(wsConfig, debugTarget, debugTargetFolder);
-  // Item #26: when the bound launch config no longer exists (renamed/deleted),
-  // surface an actionable error with a rebind button instead of letting
-  // startDebugging fail with a generic "Cannot find launch configuration".
   if (!config) {
     const folderHint = debugTargetFolder ? ` (folder: ${debugTargetFolder})` : "";
     const choice = await vscode.window.showErrorMessage(
@@ -398,27 +354,20 @@ async function startDebugSession(
     }
     return;
   }
-  const resolvedFolderName = config?.workspaceFolder;
+
+  const resolvedFolderName = config.workspaceFolder;
   const folder = resolvedFolderName
     ? vscode.workspace.workspaceFolders?.find(f => f.name === resolvedFolderName)
     : undefined;
 
-  // When the config lives at workspace level (.code-workspace) rather than in
-  // a folder's launch.json, pass the full config object so VS Code doesn't
-  // attempt a folder-scoped name lookup that would fail.  We also need to
-  // resolve ${input:...} variables ourselves since VS Code only does that for
-  // configs it looks up by name from a settings source.
   let nameOrConfig: string | vscode.DebugConfiguration = debugTarget;
-  if (config && !resolvedFolderName) {
+  if (!resolvedFolderName) {
     const { workspaceFolder: _wf, ...debugConfig } = config;
     const resolvedConfig = await resolveConfigInputs(debugConfig as vscode.DebugConfiguration);
-    if (!resolvedConfig) {
-      return; // user cancelled an input prompt or an input was undefined
-    }
+    if (!resolvedConfig) { return; }
     nameOrConfig = resolvedConfig;
   }
 
-  // Issue #35: log which path we took so support can triage debug failures.
   outputInfo(
     "Debug",
     `Path B (bound launch config) | mode=${mode} target="${debugTarget}" folder=${folder?.name || '(workspace)'}`
@@ -428,8 +377,10 @@ async function startDebugSession(
   if (!started) {
     const sessionLabel = mode === 'attach' ? 'attach session' : 'debug session';
     notifyError("Debug", `Failed to start ${sessionLabel}: "${debugTarget}"` +
-      `\nWorkspace folder: ${folder?.name || '(default)'}` +
-      `\nCheck the Debug Console and Output panel for more details.`);
+      `
+Workspace folder: ${folder?.name || '(default)'}` +
+      `
+Check the Debug Console and Output panel for more details.`);
   }
 }
 
@@ -643,9 +594,9 @@ export async function activate(context: vscode.ExtensionContext) {
         const profileResolved = resolveActiveProfile(wsConfig);
         if (profileResolved) {
           const p = profileResolved.profile;
-          const flashLabel = formatBindLabel(p.flash, getBindOverride(resolved.build, "flash"));
-          const debugLabel = formatBindLabel(p.debug, getBindOverride(resolved.build, "debug"));
-          const attachLabel = formatBindLabel(p.attach, getBindOverride(resolved.build, "attach"));
+          const flashLabel = formatBindLabel(p.flash);
+          const debugLabel = formatBindLabel(p.debug);
+          const attachLabel = formatBindLabel(p.attach);
           activeRunnerDisplay.tooltip =
             `Runner Profile: ${profileName}` +
             `\nFlash: ${flashLabel}` +

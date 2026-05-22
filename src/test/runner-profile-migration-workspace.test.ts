@@ -32,7 +32,6 @@ import * as vscode from "vscode";
 
 import {
   migrateLegacyRunnersToProfiles,
-  RUNNER_PROFILES_MIGRATION_VERSION,
 } from "../setup_utilities/state-management";
 import { WorkspaceConfig } from "../setup_utilities/types";
 
@@ -105,7 +104,7 @@ suite("Runner Profile Workspace Migration", () => {
       await migrateLegacyRunnersToProfiles(makeFakeContext(), ws);
 
       const written = await fs.readJson(path.join(tmpRoot, ".vscode", "zephyr-ide.json"));
-      assert.strictEqual(written.runnerProfilesMigrationVersion, RUNNER_PROFILES_MIGRATION_VERSION);
+      assert.strictEqual(written.runnerProfilesMigrationVersion, 1);
 
       const profiles: any[] = written.runnerProfiles ?? [];
       // Two distinct profiles: openocd (shared across three builds) and jlink.
@@ -254,7 +253,7 @@ suite("Runner Profile Workspace Migration", () => {
       await migrateLegacyRunnersToProfiles(makeFakeContext(), ws);
 
       const after1 = await fs.readJson(path.join(tmpRoot, ".vscode", "zephyr-ide.json"));
-      assert.strictEqual(after1.runnerProfilesMigrationVersion, RUNNER_PROFILES_MIGRATION_VERSION);
+      assert.strictEqual(after1.runnerProfilesMigrationVersion, 1);
       assert.strictEqual((after1.runnerProfiles as any[]).length, 1);
 
       // Simulate a stale legacy field reappearing on the in-memory config
@@ -281,7 +280,7 @@ suite("Runner Profile Workspace Migration", () => {
     try {
       await migrateLegacyRunnersToProfiles(makeFakeContext(), ws);
       const written = await fs.readJson(path.join(tmpRoot, ".vscode", "zephyr-ide.json"));
-      assert.strictEqual(written.runnerProfilesMigrationVersion, RUNNER_PROFILES_MIGRATION_VERSION);
+      assert.strictEqual(written.runnerProfilesMigrationVersion, 1);
       assert.ok(!written.runnerProfiles || (written.runnerProfiles as any[]).length === 0);
     } finally {
       await fs.remove(tmpRoot);
