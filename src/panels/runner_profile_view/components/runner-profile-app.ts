@@ -18,10 +18,17 @@ limitations under the License.
 import { html, nothing } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { ZephyrLitElement } from "../../webview_shared/lit-base";
+import "../../webview_shared/runner-args-editor";
+import type { ArgValue } from "../../webview_shared/runner-args-editor";
+import { getSchemaFor, hasSchema } from "../../../project_utilities/runner_arg_schema";
 
 // ---------------------------------------------------------------------------
 // Common arguments catalogue
 // ---------------------------------------------------------------------------
+
+type RunnerArgChoice =
+  | { separator: true; label: string }
+  | { label: string; arg: string; description?: string };
 
 interface RunnerArgSuggestion {
   /** Short display label shown in the picker. */
@@ -30,51 +37,102 @@ interface RunnerArgSuggestion {
   arg: string;
   /** One-line description shown alongside the label. */
   description: string;
+  /**
+   * Which bind slots this suggestion applies to. Omit (or leave undefined)
+   * to show in all slots (flash, debug, attach, buildDebug).
+   * Use this to hide flash-only args from debug slots and vice-versa.
+   */
+  slots?: ("flash" | "debug" | "attach" | "buildDebug")[];
+  /**
+   * When present the suggestion row becomes expandable: clicking it reveals
+   * these sub-choices instead of immediately appending `arg`. Each choice
+   * can be a separator header or a concrete value the user can pick.
+   */
+  choices?: RunnerArgChoice[];
 }
 
 const RUNNER_COMMON_ARGS: Record<string, RunnerArgSuggestion[]> = {
   openocd: [
-    { label: "--config", arg: "--config ", description: "Extra OpenOCD config file (may be given multiple times)" },
+    // ── Common (flash + debug) ────────────────────────────────────────────────
+    // Note: --openocd-config is translated to `configFiles` in the cortex-debug launch config.
+    // Multiple can be added (one for interface, one for target).
+    {
+      label: "--openocd-config", arg: "--openocd-config ",
+      description: "OpenOCD config file → configFiles in cortex-debug (may be given multiple times; pick or type a path)",
+      choices: [
+        // ── Interfaces ──────────────────────────────────────────────────────
+        { separator: true, label: "Interfaces" },
+        { label: "interface/stlink.cfg", arg: "--openocd-config interface/stlink.cfg", description: "ST-LINK v2/v3 (most common for STM32 / nRF52 with SWD)" },
+        { label: "interface/cmsis-dap.cfg", arg: "--openocd-config interface/cmsis-dap.cfg", description: "CMSIS-DAP (DAPLink, ULINK2, MCU-Link, …)" },
+        { label: "interface/jlink.cfg", arg: "--openocd-config interface/jlink.cfg", description: "SEGGER J-Link via OpenOCD" },
+        { label: "interface/ftdi.cfg", arg: "--openocd-config interface/ftdi.cfg", description: "FTDI-based probe (generic)" },
+        { label: "interface/picoprobe.cfg", arg: "--openocd-config interface/picoprobe.cfg", description: "Raspberry Pi Pico used as SWD/JTAG probe" },
+        { label: "interface/raspberrypi-swd.cfg", arg: "--openocd-config interface/raspberrypi-swd.cfg", description: "Raspberry Pi GPIO bit-banged SWD" },
+        { label: "interface/buspirate.cfg", arg: "--openocd-config interface/buspirate.cfg", description: "Bus Pirate USB probe" },
+        // ── Targets ─────────────────────────────────────────────────────────
+        { separator: true, label: "Targets" },
+        { label: "target/nrf52.cfg", arg: "--openocd-config target/nrf52.cfg", description: "Nordic nRF52xxx (nRF52832, nRF52840, …)" },
+        { label: "target/nrf5340.cfg", arg: "--openocd-config target/nrf5340.cfg", description: "Nordic nRF5340" },
+        { label: "target/rp2040.cfg", arg: "--openocd-config target/rp2040.cfg", description: "Raspberry Pi RP2040 (Pico)" },
+        { label: "target/stm32f1x.cfg", arg: "--openocd-config target/stm32f1x.cfg", description: "STM32F1xx series" },
+        { label: "target/stm32f4x.cfg", arg: "--openocd-config target/stm32f4x.cfg", description: "STM32F4xx series" },
+        { label: "target/stm32g0x.cfg", arg: "--openocd-config target/stm32g0x.cfg", description: "STM32G0xx series" },
+        { label: "target/stm32g4x.cfg", arg: "--openocd-config target/stm32g4x.cfg", description: "STM32G4xx series" },
+        { label: "target/stm32h7x.cfg", arg: "--openocd-config target/stm32h7x.cfg", description: "STM32H7xx series" },
+        { label: "target/stm32l4x.cfg", arg: "--openocd-config target/stm32l4x.cfg", description: "STM32L4xx series" },
+        { label: "target/esp32s3.cfg", arg: "--openocd-config target/esp32s3.cfg", description: "Espressif ESP32-S3" },
+      ],
+    },
     { label: "--cmd-pre-init", arg: "--cmd-pre-init \"\"", description: "OpenOCD command to run before calling init (may repeat)" },
-    { label: "--cmd-pre-init-flash", arg: "--cmd-pre-init-flash \"\"", description: "Command before init when flashing; overrides --cmd-pre-init during flash (may repeat)" },
-    { label: "--cmd-pre-load", arg: "--cmd-pre-load \"\"", description: "OpenOCD command to run before loading/flashing (may repeat)" },
-    { label: "--use-elf", arg: "--use-elf", description: "Flash ELF instead of HEX/BIN" },
     { label: "--serial", arg: "--serial ", description: "Limit to a specific FTDI/USB serial number" },
-    { label: "--verify", arg: "--verify", description: "Verify flash contents after programming" },
-    { label: "--gdb-port", arg: "--gdb-port 3333", description: "Override GDB server port (default: 3333)" },
-    { label: "--gdb-client-port", arg: "--gdb-client-port 3333", description: "GDB client port when multiple ports are open (default: 3333)" },
     { label: "--tcl-port", arg: "--tcl-port 6333", description: "Override TCL port (default: 6333)" },
     { label: "--telnet-port", arg: "--telnet-port 4444", description: "Override Telnet port (default: 4444)" },
-    { label: "--tui", arg: "--tui", description: "Use GDB -tui mode" },
-    { label: "--no-halt", arg: "--no-halt", description: "Skip halt command in GDB server startup" },
-    { label: "--rtt-port", arg: "--rtt-port 5555", description: "OpenOCD RTT server port (default: 5555)" },
-    { label: "--rtt-server", arg: "--rtt-server", description: "Start RTT server while debugging (connect with telnet)" },
+    // ── Flash-only ───────────────────────────────────────────────────────────
+    { label: "--cmd-pre-init-flash", arg: "--cmd-pre-init-flash \"\"", description: "Command before init when flashing; overrides --cmd-pre-init during flash (may repeat)", slots: ["flash"] },
+    { label: "--cmd-pre-load", arg: "--cmd-pre-load \"\"", description: "OpenOCD command to run before loading/flashing (may repeat)", slots: ["flash"] },
+    { label: "--use-elf", arg: "--use-elf", description: "Flash ELF instead of HEX/BIN", slots: ["flash"] },
+    { label: "--verify", arg: "--verify", description: "Verify flash contents after programming", slots: ["flash"] },
+    // ── Debug/attach-only ────────────────────────────────────────────────────
+    { label: "--gdb-port", arg: "--gdb-port 3333", description: "Override GDB server port (default: 3333)", slots: ["debug", "attach", "buildDebug"] },
+    { label: "--gdb-client-port", arg: "--gdb-client-port 3333", description: "GDB client port when multiple ports are open (default: 3333)", slots: ["debug", "attach", "buildDebug"] },
+    { label: "--tui", arg: "--tui", description: "Use GDB -tui mode", slots: ["debug", "attach", "buildDebug"] },
+    { label: "--no-halt", arg: "--no-halt", description: "Skip halt command in GDB server startup", slots: ["debug", "attach", "buildDebug"] },
+    { label: "--rtt-port", arg: "--rtt-port 5555", description: "OpenOCD RTT server port (default: 5555)", slots: ["debug", "attach", "buildDebug"] },
+    { label: "--rtt-server", arg: "--rtt-server", description: "Start RTT server while debugging (connect with telnet)", slots: ["debug", "attach", "buildDebug"] },
+    // Zephyr IDE translation: sets rttConfig in the cortex-debug launch config.
+    { label: "--enable-rtt", arg: "--enable-rtt", description: "Enable RTT → rttConfig in cortex-debug (address: auto, rtt_start_retry: 1000, channel 0 console decoder)", slots: ["debug", "attach", "buildDebug"] },
   ],
   jlink: [
+    // ── Common ───────────────────────────────────────────────────────────────
     { label: "--device", arg: "--device=", description: "Target MCU name (e.g. STM32F401RE) — required" },
     { label: "--speed", arg: "--speed=4000", description: "SWD/JTAG speed in kHz (or 'auto')" },
     { label: "--iface", arg: "--iface=SWD", description: "Debug interface: SWD or JTAG (default: swd)" },
     { label: "--id", arg: "--id=", description: "J-Link serial number (obsolete synonym for --dev-id)" },
-    { label: "--flash-script", arg: "--flash-script ", description: "Path to a custom J-Link Commander flash script" },
-    { label: "--loader", arg: "--loader=", description: "J-Link loader type (e.g. NorFlash)" },
-    { label: "--reset-after-load", arg: "--reset-after-load", description: "Reset target after flashing (deprecated synonym for --reset/--no-reset)" },
-    { label: "--erase", arg: "--erase", description: "Erase whole chip before flashing" },
-    { label: "--gdb-port", arg: "--gdb-port 2331", description: "Override GDB server port (default: 2331)" },
-    { label: "--rtt-port", arg: "--rtt-port 19021", description: "J-Link RTT telnet port (default: 19021)" },
-    { label: "--flash-sram", arg: "--flash-sram", description: "Flash image to SRAM and set PC to SRAM base address" },
     { label: "--pre-script-cmd", arg: "--pre-script-cmd ", description: "Custom J-Link command prepended to runner.jlink (may repeat)" },
-    { label: "--tui", arg: "--tui", description: "Use GDB -tui mode" },
+    // ── Flash-only ───────────────────────────────────────────────────────────
+    { label: "--flash-script", arg: "--flash-script ", description: "Path to a custom J-Link Commander flash script", slots: ["flash"] },
+    { label: "--loader", arg: "--loader=", description: "J-Link loader type (e.g. NorFlash)", slots: ["flash"] },
+    { label: "--reset-after-load", arg: "--reset-after-load", description: "Reset target after flashing (deprecated synonym for --reset/--no-reset)", slots: ["flash"] },
+    { label: "--erase", arg: "--erase", description: "Erase whole chip before flashing", slots: ["flash"] },
+    { label: "--flash-sram", arg: "--flash-sram", description: "Flash image to SRAM and set PC to SRAM base address", slots: ["flash"] },
+    // ── Debug/attach-only ────────────────────────────────────────────────────
+    { label: "--gdb-port", arg: "--gdb-port 2331", description: "Override GDB server port (default: 2331)", slots: ["debug", "attach", "buildDebug"] },
+    { label: "--rtt-port", arg: "--rtt-port 19021", description: "J-Link RTT telnet port (default: 19021)", slots: ["debug", "attach", "buildDebug"] },
+    { label: "--tui", arg: "--tui", description: "Use GDB -tui mode", slots: ["debug", "attach", "buildDebug"] },
   ],
   pyocd: [
+    // ── Common ───────────────────────────────────────────────────────────────
     { label: "--target", arg: "--target=", description: "Target device pack name (e.g. stm32f401re) — required" },
     { label: "--board-id", arg: "--board-id=", description: "Probe board ID / serial number (alias for --dev-id)" },
     { label: "--frequency", arg: "--frequency=4000000", description: "Probe clock frequency in Hz" },
-    { label: "--flash-opt", arg: "--flash-opt=", description: "Extra option for pyocd flash (e.g. --flash-opt=--pack=path/to.pack; may repeat)" },
     { label: "--daparg", arg: "--daparg=", description: "Additional -da argument passed to the pyocd tool" },
-    { label: "--gdb-port", arg: "--gdb-port=3333", description: "Override GDB server port (default: 3333)" },
-    { label: "--telnet-port", arg: "--telnet-port=4444", description: "Override Telnet port (default: 4444)" },
-    { label: "--erase", arg: "--erase", description: "Chip-erase before flashing" },
-    { label: "--tui", arg: "--tui", description: "Use GDB -tui mode" },
+    // ── Flash-only ───────────────────────────────────────────────────────────
+    { label: "--flash-opt", arg: "--flash-opt=", description: "Extra option for pyocd flash (e.g. --flash-opt=--pack=path/to.pack; may repeat)", slots: ["flash"] },
+    { label: "--erase", arg: "--erase", description: "Chip-erase before flashing", slots: ["flash"] },
+    // ── Debug/attach-only ────────────────────────────────────────────────────
+    { label: "--gdb-port", arg: "--gdb-port=3333", description: "Override GDB server port (default: 3333)", slots: ["debug", "attach", "buildDebug"] },
+    { label: "--telnet-port", arg: "--telnet-port=4444", description: "Override Telnet port (default: 4444)", slots: ["debug", "attach", "buildDebug"] },
+    { label: "--tui", arg: "--tui", description: "Use GDB -tui mode", slots: ["debug", "attach", "buildDebug"] },
   ],
   stm32cubeprogrammer: [
     { label: "--port", arg: "--port=swd", description: "Interface identifier: swd, jtag, /dev/ttyS0, usb1, etc. — required" },
@@ -110,8 +168,17 @@ const RUNNER_COMMON_ARGS: Record<string, RunnerArgSuggestion[]> = {
     { label: "--ext-mem-config-file", arg: "--ext-mem-config-file=", description: "Path to JSON file with external memory configuration" },
   ],
   blackmagicprobe: [
-    { label: "--gdb-serial", arg: "--gdb-serial=/dev/ttyACM0", description: "BMP GDB serial port (auto-detected when omitted)" },
+    // ── Common ───────────────────────────────────────────────────────────────
+    // Note: BMP uses GDB for both flash and debug, so --gdb-serial applies to both.
+    // bmp-debug (mylonics.bmp-debug) auto-discovers the probe; cortex-debug requires this.
+    { label: "--gdb-serial", arg: "--gdb-serial=/dev/ttyACM0", description: "BMP GDB serial port → BMPGDBSerialPort in cortex-debug (auto-discovered by bmp-debug)" },
     { label: "--connect-srst", arg: "--connect-srst", description: "Assert SRST while connecting (also accepted as --connect-rst)" },
+    // ── Debug/attach-only (cortex-debug / bmp-debug translations) ────────────
+    // These are Zephyr IDE-specific flags that are translated to cortex-debug/bmp-debug
+    // launch config properties when the debug session is started. They have no effect
+    // on west flash.
+    { label: "--enable-rtt", arg: "--enable-rtt", description: "Enable RTT → rttEnabled: true in bmp-debug launch config", slots: ["debug", "attach", "buildDebug"] },
+    { label: "--rtt-port", arg: "--rtt-port=0", description: "RTT channel port → rttConfig decoder port in cortex-debug/bmp-debug (default: 0)", slots: ["debug", "attach", "buildDebug"] },
   ],
   linkserver: [
     { label: "--device", arg: "--device=", description: "Target MCU device string (required, e.g. MIMXRT1060xxxxx:cm7)" },
@@ -158,6 +225,8 @@ interface ProfileBind {
   kind: BindKind;
   runner?: string;
   extraArgs?: string[];
+  /** Structured args (new schema-driven editor). When present, takes precedence over `extraArgs`. */
+  args?: { structured: ArgValue[]; raw?: string[] };
   name?: string; // launch.json configuration name
 }
 
@@ -176,6 +245,7 @@ interface PanelData {
   workspaceProfiles: Profile[];
   hasWorkspace: boolean;
   knownRunners: string[];
+  knownDebugRunners: string[];
   launchConfigNames: string[];
   activeProfileName?: string;
   activeBuildLabel?: string;
@@ -202,6 +272,10 @@ export class RunnerProfileApp extends ZephyrLitElement {
   /** Tracks which slot arg-suggestion panels are open.
    *  Key: `<scope>:<originalName>:<slot>` */
   @state() private _showArgPicker: Set<string> = new Set();
+
+  /** Tracks which suggestion choices sub-lists are expanded.
+   *  Key: `<scope>:<originalName>:<slot>|<suggestionLabel>` */
+  @state() private _expandedArgSuggestion: Set<string> = new Set();
 
   /** Tracks which arg editors are showing the variable substitution help.
    *  Key: `<scope>:<originalName>:<slot>` */
@@ -431,6 +505,80 @@ export class RunnerProfileApp extends ZephyrLitElement {
     this._showVarHelp = next;
   }
 
+  private _toggleChoices(pickerKey: string, suggestionLabel: string) {
+    const k = `${pickerKey}|${suggestionLabel}`;
+    const next = new Set(this._expandedArgSuggestion);
+    if (next.has(k)) { next.delete(k); } else { next.add(k); }
+    this._expandedArgSuggestion = next;
+  }
+
+  private _onSecondarySelectChange(
+    scope: Scope, originalName: string,
+    slot: "flash" | "buildDebug" | "debug" | "attach",
+    runner: string, cfgIndex: number, e: Event,
+  ) {
+    const value = stringFromEvent(e);
+    const cfg = RUNNER_SECONDARY_SELECTS[runner]?.[cfgIndex];
+    if (!cfg) { return; }
+    this._updateDraft(scope, originalName, (p) => {
+      const current: ProfileBind = p[slot] ?? { kind: "auto" };
+      const filtered = cfg.filterOut(current.extraArgs ?? []);
+      const newArg = cfg.buildArg(value);
+      const args = newArg ? [...filtered, newArg] : filtered;
+      return { ...p, [slot]: { ...current, extraArgs: args } };
+    });
+  }
+
+  private _renderSecondarySelect(
+    scope: Scope, originalName: string,
+    slot: "flash" | "buildDebug" | "debug" | "attach",
+    runner: string, bind: ProfileBind,
+  ) {
+    const configs = RUNNER_SECONDARY_SELECTS[runner];
+    if (!configs?.length) { return nothing; }
+    return html`${configs.map((cfg, idx) => {
+      const current = cfg.detect(bind.extraArgs ?? []);
+      const isCustom = !!current && !cfg.options.some(o => o.value === current);
+      return html`
+        <div class="slot-secondary-select">
+          <span class="slot-secondary-label" title=${cfg.hint}>
+            ${cfg.label}
+            ${cfg.required && !current
+          ? html`<i class="codicon codicon-warning slot-secondary-req-icon"></i>`
+          : nothing}
+          </span>
+          <vscode-single-select class="profile-slot-select slot-secondary-dropdown"
+            .value=${current}
+            @change=${(e: Event) => this._onSecondarySelectChange(scope, originalName, slot, runner, idx, e)}>
+            <vscode-option value="" ?selected=${!current}>${cfg.placeholder}</vscode-option>
+            ${cfg.options.map(o => html`
+              <vscode-option
+                value=${o.value}
+                ?selected=${current === o.value}
+                title=${o.description ?? o.label}>${o.label}</vscode-option>
+            `)}
+            ${isCustom ? html`
+              <vscode-option value=${current} ?selected=${true}>${current} (custom)</vscode-option>
+            ` : nothing}
+          </vscode-single-select>
+        </div>
+      `;
+    })}`;
+  }
+
+  private _copySlot(
+    scope: Scope, originalName: string,
+    fromSlot: "flash" | "buildDebug" | "debug" | "attach",
+    toSlot: "flash" | "buildDebug" | "debug" | "attach",
+    draft: Profile,
+  ) {
+    const sourceBind = (draft[fromSlot] as ProfileBind | undefined) ?? { kind: "auto" as const };
+    this._updateDraft(scope, originalName, (p) => ({
+      ...p,
+      [toSlot]: JSON.parse(JSON.stringify(sourceBind)),
+    }));
+  }
+
   private _appendArg(scope: Scope, originalName: string, slot: "flash" | "buildDebug" | "debug" | "attach", arg: string) {
     const trimmed = arg.trim();
     if (!trimmed) { return; }
@@ -474,6 +622,18 @@ export class RunnerProfileApp extends ZephyrLitElement {
     `;
   }
 
+  private _onStructuredArgsChanged(
+    scope: Scope, originalName: string,
+    slot: "flash" | "buildDebug" | "debug" | "attach",
+    e: CustomEvent,
+  ) {
+    const newArgs = e.detail as { structured: ArgValue[]; raw?: string[] };
+    this._updateDraft(scope, originalName, (p) => {
+      const current: ProfileBind = p[slot] ?? { kind: "auto" };
+      return { ...p, [slot]: { ...current, args: newArgs } };
+    });
+  }
+
   /** Render per-arg rows plus a generic "add argument" row and optional suggestion picker. */
   private _renderArgEditor(
     scope: Scope, originalName: string,
@@ -481,13 +641,33 @@ export class RunnerProfileApp extends ZephyrLitElement {
     bind: ProfileBind,
     currentRunner: string,
   ) {
+    // If the runner has a known schema, use the structured editor.
+    if (hasSchema(currentRunner)) {
+      const schema = getSchemaFor(currentRunner);
+      const profileArgs = bind.args?.structured ?? [];
+      return html`
+        <runner-args-editor
+          mode="profile"
+          runner=${currentRunner}
+          slot=${slot}
+          .schema=${schema}
+          .profileArgs=${profileArgs}
+          @args-changed=${(e: CustomEvent) => this._onStructuredArgsChanged(scope, originalName, slot, e)}>
+        </runner-args-editor>
+      `;
+    }
+
+    // Legacy free-text editor for runners without a known schema.
     const key = this._argPickerKey(scope, originalName, slot);
     const pickerOpen = this._showArgPicker.has(key);
     const varHelpOpen = this._showVarHelp.has(key);
-    const allSuggestions = RUNNER_COMMON_ARGS[currentRunner] ?? [];
+    // Filter suggestions by slot first (flash-only args hidden in debug slots, etc.),
+    // then filter out suggestions whose flag is already present in the current args.
+    const slotSuggestions = (RUNNER_COMMON_ARGS[currentRunner] ?? []).filter(
+      s => !s.slots || s.slots.includes(slot),
+    );
     const args = bind.extraArgs ?? [];
-    // Filter out suggestions whose flag is already present in the current args.
-    const availableSuggestions = allSuggestions.filter(
+    const availableSuggestions = slotSuggestions.filter(
       s => !args.some(a => a === s.label || a.startsWith(s.label + "=") || a.startsWith(s.label + " ")),
     );
 
@@ -532,14 +712,39 @@ export class RunnerProfileApp extends ZephyrLitElement {
               </vscode-button>
             </div>
             <div class="arg-picker-list">
-              ${availableSuggestions.map(s => html`
-                <button class="arg-picker-item"
-                  title=${s.description}
-                  @click=${() => this._appendArg(scope, originalName, slot, s.arg)}>
-                  <code class="arg-picker-flag">${s.label}</code>
-                  <span class="arg-picker-desc">${s.description}</span>
-                </button>
-              `)}
+              ${availableSuggestions.map(s => {
+      if (!s.choices?.length) {
+        return html`
+                    <button class="arg-picker-item"
+                      title=${s.description}
+                      @click=${() => this._appendArg(scope, originalName, slot, s.arg)}>
+                      <code class="arg-picker-flag">${s.label}</code>
+                      <span class="arg-picker-desc">${s.description}</span>
+                    </button>`;
+      }
+      const choicesKey = `${key}|${s.label}`;
+      const choicesOpen = this._expandedArgSuggestion.has(choicesKey);
+      return html`
+                  <button class="arg-picker-item arg-picker-item--expandable"
+                    title=${s.description}
+                    @click=${() => this._toggleChoices(key, s.label)}>
+                    <code class="arg-picker-flag">${s.label}</code>
+                    <span class="arg-picker-desc">${s.description}</span>
+                    <i class="codicon codicon-chevron-${choicesOpen ? 'up' : 'right'} arg-picker-expand-icon"></i>
+                  </button>
+                  ${choicesOpen ? html`
+                    <div class="arg-picker-choices">
+                      ${s.choices.map(c => 'separator' in c
+        ? html`<div class="arg-picker-choice-sep">${c.label}</div>`
+        : html`
+                          <button class="arg-picker-item arg-picker-choice-item"
+                            title=${c.description ?? c.label}
+                            @click=${() => this._appendArg(scope, originalName, slot, c.arg)}>
+                            <code class="arg-picker-flag">${c.label}</code>
+                            ${c.description ? html`<span class="arg-picker-desc">${c.description}</span>` : nothing}
+                          </button>`)}
+                    </div>` : nothing}`;
+    })}
             </div>
           </div>` : nothing}
       </div>
@@ -727,7 +932,9 @@ export class RunnerProfileApp extends ZephyrLitElement {
     const allowLaunch = slot !== "flash";
     const d = this._data!;
     const currentValue = bindToSelectValue(bind);
-    const knownRunners = d.knownRunners.length > 0 ? d.knownRunners : (bind.kind === "runner" ? [bind.runner ?? "openocd"] : ["openocd"]);
+    const isDebugSlot = slot === "debug" || slot === "attach" || slot === "buildDebug";
+    const runnerPool = isDebugSlot ? (d.knownDebugRunners ?? d.knownRunners) : d.knownRunners;
+    const knownRunners = runnerPool.length > 0 ? runnerPool : (bind.kind === "runner" ? [bind.runner ?? "openocd"] : ["openocd"]);
 
     // If the saved bind is a launch config not in the known list, keep it selectable.
     const syntheticLaunch = allowLaunch && bind.kind === "launch" && bind.name
@@ -738,6 +945,16 @@ export class RunnerProfileApp extends ZephyrLitElement {
         <div class="profile-slot-header">
           <i class="codicon codicon-${icon}"></i>
           <span class="profile-slot-title">${label}</span>
+          ${slot === "debug" ? html`
+            <vscode-button appearance="icon" icon="arrow-down"
+              title="Copy Debug → Attach"
+              @click=${() => this._copySlot(scope, originalName, "debug", "attach", draft)}>
+            </vscode-button>` : nothing}
+          ${slot === "attach" ? html`
+            <vscode-button appearance="icon" icon="arrow-up"
+              title="Copy Attach → Debug"
+              @click=${() => this._copySlot(scope, originalName, "attach", "debug", draft)}>
+            </vscode-button>` : nothing}
         </div>
         <div class="profile-slot-body">
           <vscode-single-select class="profile-slot-select"
@@ -765,6 +982,9 @@ export class RunnerProfileApp extends ZephyrLitElement {
                 ?selected=${bind.kind === "runner" && bind.runner === r}>${r}</vscode-option>
             `)}
           </vscode-single-select>
+          ${bind.kind === "runner" && bind.runner
+        ? this._renderSecondarySelect(scope, originalName, slot, bind.runner, bind)
+        : nothing}
           ${bind.kind === "runner"
         ? this._renderArgEditor(scope, originalName, slot, bind, bind.runner ?? "")
         : nothing}
@@ -783,6 +1003,158 @@ export class RunnerProfileApp extends ZephyrLitElement {
     `;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Runner secondary selects (interface / probe / target dropdowns)
+// ---------------------------------------------------------------------------
+
+interface SecondarySelectOption {
+  value: string;
+  label: string;
+  description?: string;
+}
+
+interface SecondarySelectConfig {
+  /** Label shown to the left of the dropdown. */
+  label: string;
+  /** Tooltip shown on the label. */
+  hint: string;
+  /** When true, a warning icon appears if nothing is selected. */
+  required: boolean;
+  /** Label for the empty / "none" option. */
+  placeholder: string;
+  options: SecondarySelectOption[];
+  /** Extract the currently-active secondary value from extraArgs (return "" when absent). */
+  detect(args: string[]): string;
+  /** Return args with this selection's arg removed. */
+  filterOut(args: string[]): string[];
+  /** Build the extraArgs entry for the given value (return "" for the placeholder). */
+  buildArg(value: string): string;
+}
+
+const RUNNER_SECONDARY_SELECTS: Partial<Record<string, SecondarySelectConfig[]>> = {
+  openocd: [
+    {
+      label: "Interface / Probe",
+      hint: "OpenOCD interface config. Leave blank if runners.yaml already specifies one.",
+      required: false,
+      placeholder: "runners.yaml / auto-detect",
+      options: [
+        { value: "interface/stlink.cfg", label: "ST-LINK v2/v3", description: "Most common for STM32 / nRF52 with SWD" },
+        { value: "interface/cmsis-dap.cfg", label: "CMSIS-DAP", description: "DAPLink, ULINK2, MCU-Link, …" },
+        { value: "interface/jlink.cfg", label: "SEGGER J-Link", description: "J-Link via OpenOCD" },
+        { value: "interface/ftdi.cfg", label: "FTDI", description: "FTDI-based probe (generic)" },
+        { value: "interface/picoprobe.cfg", label: "Raspberry Pi Pico (probe)", description: "RP2040 Pico used as SWD/JTAG probe" },
+        { value: "interface/raspberrypi-swd.cfg", label: "Raspberry Pi GPIO SWD", description: "Bit-banged SWD via RPi GPIO" },
+        { value: "interface/buspirate.cfg", label: "Bus Pirate", description: "Bus Pirate USB probe" },
+      ],
+      detect(args) {
+        for (let i = 0; i < args.length; i++) {
+          const a = args[i];
+          // Matches: "-- -f interface/x.cfg", "--openocd-config interface/x.cfg", "-f interface/x.cfg"
+          const m = a.match(/^(?:--\s+-f|--openocd-config|-f)\s+(interface\/\S+)/);
+          if (m) { return m[1]; }
+          if ((a === "--openocd-config" || a === "-f") && i + 1 < args.length && args[i + 1].startsWith("interface/")) {
+            return args[i + 1];
+          }
+          if (a.startsWith("interface/") && a.endsWith(".cfg")) { return a; }
+        }
+        return "";
+      },
+      filterOut(args) {
+        const result: string[] = [];
+        for (let i = 0; i < args.length; i++) {
+          const a = args[i];
+          if (/^(?:--\s+-f|--openocd-config|-f)\s+interface\//.test(a)) { continue; }
+          if ((a === "--openocd-config" || a === "-f") && i + 1 < args.length && args[i + 1].startsWith("interface/")) {
+            i++; continue;
+          }
+          if (a.startsWith("interface/") && a.endsWith(".cfg")) { continue; }
+          result.push(a);
+        }
+        return result;
+      },
+      buildArg(value) { return value ? `--openocd-config ${value}` : ""; },
+    },
+  ],
+  pyocd: [
+    {
+      label: "Probe / Interface",
+      hint: "pyOCD probe selection. Specify the probe type or leave blank to auto-detect the first available.",
+      required: true,
+      placeholder: "— select probe (required) —",
+      options: [
+        { value: "cmsis_dap", label: "CMSIS-DAP (generic)", description: "Any CMSIS-DAP probe — STLink, DAPLink, MCU-Link, ULINK2, …" },
+        { value: "jlink", label: "SEGGER J-Link", description: "First J-Link probe (requires pyocd-jlink plugin)" },
+        { value: "picoprobe", label: "Raspberry Pi Pico (picoprobe)", description: "RP2040 Pico running picoprobe firmware" },
+      ],
+      detect(args) {
+        for (let i = 0; i < args.length; i++) {
+          const a = args[i];
+          // Matches: "-- --probe stlink", "-- --probe=stlink", "--probe=stlink"
+          const m = a.match(/^(?:--\s+)?--probe[= ](\S+)/);
+          if (m) { return m[1]; }
+          if (a === "--probe" && i + 1 < args.length) { return args[i + 1]; }
+        }
+        return "";
+      },
+      filterOut(args) {
+        const result: string[] = [];
+        for (let i = 0; i < args.length; i++) {
+          const a = args[i];
+          if (/^(?:--\s+)?--probe[= ]\S+/.test(a)) { continue; }
+          if (a === "--probe" && i + 1 < args.length) { i++; continue; }
+          result.push(a);
+        }
+        return result;
+      },
+      buildArg(value) { return value ? `--probe=${value}` : ""; },
+    },
+    {
+      label: "Target (MCU)",
+      hint: "pyOCD target device name. Usually auto-detected from the Zephyr build — only set if auto-detection fails.",
+      required: false,
+      placeholder: "auto (from build)",
+      options: [
+        { value: "nrf52840", label: "Nordic nRF52840" },
+        { value: "nrf52833", label: "Nordic nRF52833" },
+        { value: "nrf52832", label: "Nordic nRF52832" },
+        { value: "nrf52820", label: "Nordic nRF52820" },
+        { value: "nrf5340_application", label: "Nordic nRF5340 (App Core)" },
+        { value: "nrf9160", label: "Nordic nRF9160" },
+        { value: "rp2040", label: "Raspberry Pi RP2040" },
+        { value: "stm32f401re", label: "STM32F401RE" },
+        { value: "stm32f429zi", label: "STM32F429ZI" },
+        { value: "stm32g474re", label: "STM32G474RE" },
+        { value: "stm32h743xx", label: "STM32H743xx" },
+        { value: "stm32l4r5zi", label: "STM32L4R5ZI" },
+        { value: "stm32l552ze", label: "STM32L552ZE" },
+        { value: "mimxrt1060evk", label: "NXP MIMXRT1060-EVK" },
+        { value: "lpc55s69", label: "NXP LPC55S69" },
+      ],
+      detect(args) {
+        for (let i = 0; i < args.length; i++) {
+          const a = args[i];
+          if (a.startsWith("--target=")) { return a.slice(9); }
+          if (a.startsWith("--target ")) { return a.slice(9); }
+          if (a === "--target" && i + 1 < args.length) { return args[i + 1]; }
+        }
+        return "";
+      },
+      filterOut(args) {
+        const result: string[] = [];
+        for (let i = 0; i < args.length; i++) {
+          const a = args[i];
+          if (a.startsWith("--target=") || a.startsWith("--target ")) { continue; }
+          if (a === "--target" && i + 1 < args.length) { i++; continue; }
+          result.push(a);
+        }
+        return result;
+      },
+      buildArg(value) { return value ? `--target=${value}` : ""; },
+    },
+  ],
+};
 
 // ---------------------------------------------------------------------------
 // Helpers

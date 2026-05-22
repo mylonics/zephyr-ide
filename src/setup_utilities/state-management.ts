@@ -277,15 +277,105 @@ export async function setExternalSetupState(context: vscode.ExtensionContext, gl
   await setGlobalState(context, globalConfig);
 }
 
+function readLegacyString(source: any, key: string): string | undefined {
+  if (!source || typeof source !== "object") { return undefined; }
+  const value = source[key];
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function getLegacyTargetBindings(build: any, buildState: any | undefined): any {
+  return {
+    launchTarget: readLegacyString(build, "launchTarget") ?? readLegacyString(buildState, "launchTarget"),
+    buildDebugTarget: readLegacyString(build, "buildDebugTarget") ?? readLegacyString(buildState, "buildDebugTarget"),
+    attachTarget: readLegacyString(build, "attachTarget") ?? readLegacyString(buildState, "attachTarget"),
+  };
+}
+
+function pickLegacyActiveRunner(build: any, buildState: any | undefined): string | undefined {
+  const activeRunner = readLegacyString(build, "activeRunner") ?? readLegacyString(buildState, "activeRunner");
+  if (activeRunner) {
+    return activeRunner;
+  }
+
+  const runnerConfigs = build?.runnerConfigs;
+  if (!runnerConfigs || typeof runnerConfigs !== "object") {
+    return undefined;
+  }
+
+  for (const runnerName of Object.keys(runnerConfigs)) {
+    return runnerName;
+  }
+  return undefined;
+}
+
+function hasLegacyRunnerProfileData(build: any, buildState: any | undefined): boolean {
+  const targets = getLegacyTargetBindings(build, buildState);
+  return !!(
+    (build?.runnerConfigs && typeof build.runnerConfigs === "object") ||
+    pickLegacyActiveRunner(build, buildState) ||
+    targets.launchTarget ||
+    targets.buildDebugTarget ||
+    targets.attachTarget ||
+    buildState?.runnerStates
+  );
+}
+
+function normalizeBindForSignature(bind: any): any {
+  if (!bind || typeof bind !== "object") {
+    return { kind: "auto" };
+  }
+  if (bind.kind === "runner" && typeof bind.runner === "string" && bind.runner.trim().length > 0) {
+    const out: any = { kind: "runner", runner: bind.runner.trim() };
+    if (Array.isArray(bind.extraArgs)) {
+      const extraArgs = bind.extraArgs
+        .filter((arg: unknown): arg is string => typeof arg === "string" && arg.trim().length > 0)
+        .map((arg: string) => arg.trim());
+      if (extraArgs.length > 0) {
+        out.extraArgs = extraArgs;
+      }
+    }
+    return out;
+  }
+  if (bind.kind === "launch" && typeof bind.name === "string" && bind.name.trim().length > 0) {
+    return { kind: "launch", name: bind.name.trim() };
+  }
+  return { kind: "auto" };
+}
+
+function buildRunnerProfileSignature(profile: any): string {
+  const normalized: any = {
+    flash: normalizeBindForSignature(profile?.flash),
+    debug: normalizeBindForSignature(profile?.debug),
+    attach: normalizeBindForSignature(profile?.attach),
+  };
+  if (profile?.buildDebug !== undefined) {
+    normalized.buildDebug = normalizeBindForSignature(profile.buildDebug);
+  }
+  return JSON.stringify(normalized);
+}
+
+function buildPersistedRunnerProfile(name: string, profile: any): any {
+  const persisted: any = {
+    name,
+    flash: normalizeBindForSignature(profile?.flash),
+    debug: normalizeBindForSignature(profile?.debug),
+    attach: normalizeBindForSignature(profile?.attach),
+  };
+  if (profile?.buildDebug !== undefined) {
+    persisted.buildDebug = normalizeBindForSignature(profile.buildDebug);
+  }
+  return persisted;
+}
+
 /**
  * Convert a single legacy `RunnerConfig` (any of: pre-bind {name,runner,args};
- * mid-bind {name, flash, build|buildDebug|debug, attach}) plus its old
- * BuildState fields (launchTarget/buildDebugTarget/attachTarget) into a
+ * mid-bind {name, flash, build|buildDebug|debug, attach}) plus legacy
+ * build target fields (launchTarget/buildDebugTarget/attachTarget) into a
  * `RunnerProfile`-shaped object (sans scope).
  *
  * Exported for tests.
  */
-export function migrateRunnerConfig(rc: any, buildState: any | undefined): any {
+export function migrateRunnerConfig(rc: any, legacyBuild: any | undefined): any {
   // Helper: fold legacy launch target string into a bind.
   const bindFromTarget = (target: string | undefined): any => {
     if (!target || target.startsWith("Auto:") || target === "Zephyr IDE: Debug") {
@@ -315,11 +405,11 @@ export function migrateRunnerConfig(rc: any, buildState: any | undefined): any {
   const out: any = {
     name: rc?.name,
     flash,
-    debug: bindFromTarget(buildState?.launchTarget),
-    attach: bindFromTarget(buildState?.attachTarget),
+    debug: bindFromTarget(legacyBuild?.launchTarget),
+    attach: bindFromTarget(legacyBuild?.attachTarget),
   };
-  if (buildState?.buildDebugTarget) {
-    out.buildDebug = bindFromTarget(buildState.buildDebugTarget);
+  if (legacyBuild?.buildDebugTarget) {
+    out.buildDebug = bindFromTarget(legacyBuild.buildDebugTarget);
   }
   return out;
 }
@@ -362,10 +452,10 @@ export async function loadWorkspaceState(context: vscode.ExtensionContext): Prom
     await loadProjectsFromFile(config);
   }
 
-  // Migrate legacy per-build/per-project RunnerConfigs into workspace-scope
+  // Migrate legacy per-build/per-project runner state into workspace-scope
   // RunnerProfiles (`.vscode/zephyr-ide.json#runnerProfiles`). For each build
-  // that had an `activeRunner`, set `build.activeProfile` to the corresponding
-  // (deduped) profile name. We do not delete legacy fields off the in-memory
+  // that still has legacy runner or target-binding data, migrate its effective
+  // selection into a single deduped `activeProfile`. We do not delete legacy fields off the in-memory
   // ProjectConfig/BuildConfig objects here because they are typed as not
   // having those keys; instead we work via `any` casts and the new shape is
   // what subsequent saves persist.
@@ -375,10 +465,11 @@ export async function loadWorkspaceState(context: vscode.ExtensionContext): Prom
 }
 
 /**
- * One-shot migration: scans legacy `runnerConfigs` on each project + build,
- * extracts unique RunnerProfiles into `.vscode/zephyr-ide.json#runnerProfiles`,
- * sets each build's `activeProfile` from the old `activeRunner`, and removes
- * the legacy fields from the in-memory config.
+ * One-shot migration: scans each project build for legacy runner and target
+ * bindings, extracts a single effective RunnerProfile per build into
+ * `.vscode/zephyr-ide.json#runnerProfiles`, dedupes identical profiles by
+ * content, sets `build.activeProfile`, and removes the legacy fields from the
+ * in-memory config.
  *
  * Exported for unit testing.
  *
@@ -401,11 +492,13 @@ export async function migrateLegacyRunnersToProfiles(
 ): Promise<void> {
   if (!isActiveWorkspaceInitialized(config)) { return; }
 
+  let data: Record<string, unknown> = {};
+
   // Idempotency guard — once we've migrated, never re-scan. This prevents
   // duplicate `runner-2`/`runner-3` collisions from being appended on every
   // load when (e.g.) a previous migration succeeded but write-back failed.
   try {
-    const data = readZephyrIdeJson(config) as Record<string, unknown>;
+    data = readZephyrIdeJson(config) as Record<string, unknown>;
     const recorded = typeof data[MIGRATION_VERSION_KEY] === "number"
       ? (data[MIGRATION_VERSION_KEY] as number)
       : 0;
@@ -419,18 +512,22 @@ export async function migrateLegacyRunnersToProfiles(
     outputError("Runner Profile Migration", `Failed to read migration version flag: ${String(e)}`);
   }
 
-  const newProfiles: any[] = [];
   const existingNames = new Set<string>();
+  const signatureToName = new Map<string, string>();
+  const existingProfiles = Array.isArray(data.runnerProfiles) ? (data.runnerProfiles as any[]) : [];
+  const newProfiles: any[] = [];
 
-  // Seed with any already-present profiles in zephyr-ide.json so we don't collide.
-  try {
-    const data = readZephyrIdeJson(config) as Record<string, unknown>;
-    if (Array.isArray(data.runnerProfiles)) {
-      for (const p of data.runnerProfiles as any[]) {
-        if (p && typeof p.name === "string") { existingNames.add(p.name); }
-      }
+  for (const profile of existingProfiles) {
+    if (!profile || typeof profile.name !== "string" || profile.name.trim().length === 0) {
+      continue;
     }
-  } catch { /* ignore */ }
+    const profileName = profile.name.trim();
+    existingNames.add(profileName);
+    const signature = buildRunnerProfileSignature(profile);
+    if (!signatureToName.has(signature)) {
+      signatureToName.set(signature, profileName);
+    }
+  }
 
   const uniqueName = (base: string): string => {
     if (!existingNames.has(base)) { existingNames.add(base); return base; }
@@ -461,31 +558,27 @@ export async function migrateLegacyRunnersToProfiles(
     for (const buildName in project.buildConfigs) {
       const build = project.buildConfigs[buildName] as any;
       const buildState = projectState?.buildStates?.[buildName] as any;
-      if (!build.runnerConfigs && !buildState?.activeRunner) { continue; }
+      if (!hasLegacyRunnerProfileData(build, buildState)) { continue; }
 
-      // Convert each legacy runner config to a profile (if any) and remember a
-      // mapping from legacy runner name → new profile name.
-      const legacyToProfileName = new Map<string, string>();
-      for (const runnerName in (build.runnerConfigs ?? {})) {
-        const migratedShape = migrateRunnerConfig(build.runnerConfigs[runnerName], buildState);
-        const desiredName = uniqueName(migratedShape.name || runnerName || "runner");
-        legacyToProfileName.set(runnerName, desiredName);
-        newProfiles.push({
-          name: desiredName,
-          flash: migratedShape.flash,
-          debug: migratedShape.debug,
-          attach: migratedShape.attach,
-        });
+      const legacyBindings = getLegacyTargetBindings(build, buildState);
+      const legacyRunnerName = pickLegacyActiveRunner(build, buildState);
+      const legacyRunner = legacyRunnerName && build.runnerConfigs?.[legacyRunnerName]
+        ? build.runnerConfigs[legacyRunnerName]
+        : undefined;
+      const migratedShape = migrateRunnerConfig(legacyRunner, legacyBindings);
+      const signature = buildRunnerProfileSignature(migratedShape);
+      let profileName = signatureToName.get(signature);
+      if (!profileName) {
+        const desiredBaseName = String(migratedShape.name || legacyRunnerName || buildName || "runner");
+        profileName = uniqueName(desiredBaseName);
+        newProfiles.push(buildPersistedRunnerProfile(profileName, migratedShape));
+        signatureToName.set(signature, profileName);
       }
-
-      // Map legacy `activeRunner` → new `activeProfile`.
-      if (buildState?.activeRunner) {
-        const newName = legacyToProfileName.get(buildState.activeRunner);
-        if (newName) { build.activeProfile = newName; }
-      }
+      build.activeProfile = profileName;
 
       // Strip legacy fields from in-memory shape so subsequent saves are clean.
       delete build.runnerConfigs;
+      delete build.activeRunner;
       delete build.launchTarget;
       delete build.launchTargetFolder;
       delete build.buildDebugTarget;
@@ -504,10 +597,8 @@ export async function migrateLegacyRunnersToProfiles(
   // — even when nothing needed migrating, since the absence of legacy fields
   // already means the workspace is on the new shape.
   try {
-    const data = readZephyrIdeJson(config) as Record<string, unknown>;
     if (migrated && newProfiles.length > 0) {
-      const existing = Array.isArray(data.runnerProfiles) ? (data.runnerProfiles as any[]) : [];
-      data.runnerProfiles = [...existing, ...newProfiles];
+      data.runnerProfiles = [...existingProfiles, ...newProfiles];
     }
     data[MIGRATION_VERSION_KEY] = RUNNER_PROFILES_MIGRATION_VERSION;
     await writeZephyrIdeJson(config, data);

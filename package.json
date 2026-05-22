@@ -1183,7 +1183,7 @@
               },
               "BMPGDBSerialPort": {
                 "type": "string",
-                "description": "Black Magic Probe GDB serial port (e.g. \"/dev/ttyACM0\" on Linux/macOS, \"COM3\" on Windows, or \"${config:bmp_serial_port}\")."
+                "description": "Black Magic Probe GDB serial port (e.g. \"/dev/ttyACM0\" on Linux/macOS, \"COM3\" on Windows, or \"${config:bmp_serial_port}\"). Required when using marus25.cortex-debug; optional when using mylonics.bmp-debug (auto-discovers the probe)."
               },
               "interface": {
                 "type": "string",
@@ -1219,7 +1219,7 @@
               },
               "BMPGDBSerialPort": {
                 "type": "string",
-                "description": "Black Magic Probe GDB serial port (e.g. \"/dev/ttyACM0\" on Linux/macOS, \"COM3\" on Windows, or \"${config:bmp_serial_port}\")."
+                "description": "Black Magic Probe GDB serial port (e.g. \"/dev/ttyACM0\" on Linux/macOS, \"COM3\" on Windows, or \"${config:bmp_serial_port}\"). Required when using marus25.cortex-debug; optional when using mylonics.bmp-debug (auto-discovers the probe)."
               },
               "interface": {
                 "type": "string",

@@ -146,9 +146,19 @@ export class SettingsApp extends ZephyrLitElement {
       return html`<div class="container"><p>Loading…</p></div>`;
     }
 
-    const dirSettings = this._settings.filter(s => s.type === "string");
-    const boolSettings = this._settings.filter(s => s.type === "boolean");
-    const enumSettings = this._settings.filter(s => s.type === "enum");
+    const dirSettings = this._settings.filter(s => s.type === "string" && s.key !== "zephyr-ide.scaCustomVariant");
+    // Build behavior settings in declaration order; scaCustomVariant is injected
+    // right after scaVariant instead of appearing in the Directory Settings section.
+    const scaCustom = this._settings.find(s => s.key === "zephyr-ide.scaCustomVariant");
+    const behaviorSettings: SettingState[] = [];
+    for (const s of this._settings) {
+      if (s.type === "boolean" || s.type === "enum") {
+        behaviorSettings.push(s);
+      }
+      if (s.key === "zephyr-ide.scaVariant" && scaCustom) {
+        behaviorSettings.push(scaCustom);
+      }
+    }
 
     return html`
       <div class="container">
@@ -186,14 +196,11 @@ export class SettingsApp extends ZephyrLitElement {
 
         <h2>Behavior Settings</h2>
         <div class="settings-group">
-          ${boolSettings.map((s, i) => html`
+          ${behaviorSettings.map((s, i) => html`
             ${i > 0 ? html`<vscode-divider></vscode-divider>` : nothing}
-            ${this._renderBoolSetting(s)}
-          `)}
-          ${boolSettings.length > 0 && enumSettings.length > 0 ? html`<vscode-divider></vscode-divider>` : nothing}
-          ${enumSettings.map((s, i) => html`
-            ${i > 0 ? html`<vscode-divider></vscode-divider>` : nothing}
-            ${this._renderEnumSetting(s)}
+            ${s.type === "boolean" ? this._renderBoolSetting(s) :
+              s.type === "string" ? this._renderTextSetting(s) :
+              this._renderEnumSetting(s)}
           `)}
         </div>
 
@@ -259,6 +266,40 @@ export class SettingsApp extends ZephyrLitElement {
             <vscode-button class="setting-browse-button" appearance="secondary" title="Browse for folder"
               @click=${() => this._onBrowse(setting.key)}>Browse</vscode-button>
           </div>
+          <vscode-single-select class="setting-scope-select"
+            .value=${targetScope}
+            @vsc-change=${(e: Event) => this._onScopeChanged(setting.key, e)}>
+            <vscode-option value="workspace">Workspace</vscode-option>
+            <vscode-option value="user">User</vscode-option>
+          </vscode-single-select>
+          <vscode-button class="setting-reset-button" appearance="secondary" title="Reset to default"
+            style=${setting.scope === "default" ? "display:none" : ""}
+            @click=${() => this._onReset(setting.key)}>Reset</vscode-button>
+        </div>
+      </div>
+    `;
+  }
+
+  /** Render a plain text input setting (no folder-browse button). Used for non-path string fields. */
+  private _renderTextSetting(setting: SettingState) {
+    const targetScope = this._getTargetScope(setting.key, setting.scope !== "default" ? setting.scope : "workspace");
+    const isOverridden = targetScope === "user" && setting.hasWorkspaceValue;
+    const currentVal = setting.currentValue !== null && setting.currentValue !== undefined ? String(setting.currentValue) : "";
+
+    return html`
+      <div class="setting-row ${isOverridden ? "setting-row-overridden" : ""}" data-key="${setting.key}" data-type="string">
+        <div class="setting-header">
+          <vscode-label class="setting-label">${setting.label}</vscode-label>
+          <div class="setting-scope-badge scope-${setting.scope}">${setting.scope}</div>
+        </div>
+        <div class="setting-description">${setting.description}</div>
+        ${this._renderOverrideWarning(setting)}
+        <div class="setting-controls">
+          <vscode-textfield
+            .value=${currentVal}
+            placeholder="Not set"
+            @vsc-change=${(e: Event) => this._onStringInput(setting.key, e)}
+          ></vscode-textfield>
           <vscode-single-select class="setting-scope-select"
             .value=${targetScope}
             @vsc-change=${(e: Event) => this._onScopeChanged(setting.key, e)}>

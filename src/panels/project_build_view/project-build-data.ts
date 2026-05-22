@@ -59,8 +59,8 @@ export interface WebviewProjectInfo {
 
 /** Resolved view of one Runner Profile slot for the build card. */
 export interface WebviewSlotBind {
-  /** Slot identifier — "flash" | "debug" | "attach". */
-  slot: "flash" | "debug" | "attach";
+  /** Slot identifier. */
+  slot: "flash" | "debug" | "attach" | "buildDebug";
   /** Display label: "Auto (runners.yaml)" | "openocd --speed 4000" | "launch.json: <name>". */
   label: string;
   /** Bind discriminator from the profile, or "none" when no active profile. */
@@ -73,6 +73,51 @@ export interface WebviewSlotBind {
   overrideExtraArgs: string;
   /** True when a `bindOverrides[slot]` is set for this build. */
   hasOverride: boolean;
+  /**
+   * Resolved structured args with provenance. Present only when the active
+   * profile bind (kind=runner) has structured args (`bind.args` is set).
+   * Undefined for legacy extraArgs-only profiles and non-runner binds.
+   */
+  resolvedArgs?: WebviewArgEntry[];
+  /**
+   * Arg ids currently in the removed set (build override `removed[]`).
+   * Only meaningful when `resolvedArgs` is present.
+   */
+  removedArgIds?: string[];
+  /**
+   * Schema-known arg ids for this runner (the full list, for the "add" dialog).
+   * Undefined when no schema exists for the runner.
+   */
+  schemaArgIds?: string[];
+}
+
+/**
+ * A single arg entry in the resolved + provenance-annotated output.
+ * Sent from extension host to webview for rendering in the structured editor.
+ */
+export interface WebviewArgEntry {
+  /** Schema arg id (e.g. "interface-cfg", "gdb-port"). */
+  id: string;
+  /** Current resolved value (undefined for boolean flags). */
+  value?: string;
+  /** Source layer: where this arg was last set. */
+  source: "profile" | "yaml" | "build";
+  /** Human-readable label (from ArgDef). */
+  label: string;
+  /** Tooltip/description (from ArgDef). */
+  description: string;
+  /** Control type hint (from ArgDef). */
+  type: "bool" | "string" | "int" | "enum" | "combo" | "path";
+  /** Enum option values (only when type === "enum"). */
+  enumOptions?: string[];
+  /** Combo box suggestion values (only when type === "combo" or "string"). */
+  suggestions?: string[];
+  /** True when this arg is currently removed by the build-level override. */
+  isRemoved: boolean;
+  /** Schema group (e.g. "Interface", "RTT"). */
+  group?: string;
+  /** Flag indicating the arg can be removed (yaml or profile source). */
+  canRemove: boolean;
 }
 
 export interface WebviewBuildDetails {
@@ -90,7 +135,7 @@ export interface WebviewBuildDetails {
   /** Active Runner Profile name (or undefined when none selected). */
   activeProfile: string | undefined;
   /** Resolved bind labels for the three slots of the active profile (or "none"). */
-  slotBinds: { flash: WebviewSlotBind; debug: WebviewSlotBind; attach: WebviewSlotBind };
+  slotBinds: { flash: WebviewSlotBind; debug: WebviewSlotBind; attach: WebviewSlotBind; buildDebug?: WebviewSlotBind };
   /** Read-only hint from runners.yaml. */
   runnersYamlHint: {
     flashRunner?: string;

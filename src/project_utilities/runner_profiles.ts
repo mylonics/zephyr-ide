@@ -63,6 +63,10 @@ import * as fs from "fs";
 import * as path from "upath";
 import { WorkspaceConfig } from "../setup_utilities/types";
 import { readZephyrIdeJson, writeZephyrIdeJson } from "../setup_utilities/zephyr_ide_json";
+import type { RunnerArgs, BuildSlotOverride } from "./runner_arg_resolver";
+
+// Re-export for single-import convenience.
+export type { RunnerArgs, BuildSlotOverride } from "./runner_arg_resolver";
 
 /**
  * RunnerBind kinds:
@@ -76,7 +80,23 @@ import { readZephyrIdeJson, writeZephyrIdeJson } from "../setup_utilities/zephyr
  */
 export type RunnerBind =
   | { kind: "auto" }
-  | { kind: "runner"; runner: string; extraArgs?: string[] }
+  | {
+    kind: "runner";
+    runner: string;
+    /**
+     * Structured + raw args in the neutral canonical form.
+     * When present, drives the structured arg editor and the three-layer
+     * merge resolver. Takes precedence over `extraArgs` for the structured
+     * portion; `extraArgs` is treated as additional raw args when both exist.
+     */
+    args?: RunnerArgs;
+    /**
+     * Legacy free-text arg tokens (back-compat with profiles created before
+     * the structured editor). Treated as raw args by the resolver — appended
+     * verbatim after `args.raw`. New profiles should use `args` instead.
+     */
+    extraArgs?: string[];
+  }
   | { kind: "launch"; name: string };
 
 export interface RunnerProfile {
@@ -97,11 +117,33 @@ export interface RunnerProfile {
 
 export type RunnerProfileDictionary = { [name: string]: RunnerProfile };
 
-/** Per-slot override that a `BuildConfig` may add on top of its referenced
- *  profile. Only meaningful for slots whose profile kind is `runner`. */
+/**
+ * Per-slot override that a `BuildConfig` may add on top of its referenced
+ * profile. Only meaningful for slots whose profile kind is `runner`.
+ *
+ * The structured fields (`overrides`, `removed`, `additions`, `rawAdditions`)
+ * are used by the new three-layer resolver. `extraArgs` is the legacy field
+ * and is treated as `rawAdditions` when both are present.
+ */
 export interface BindOverride {
-  /** Extra args appended after the profile's resolved args. */
+  /** Legacy: raw arg tokens appended after the profile's args. Use `rawAdditions` for new profiles. */
   extraArgs?: string[];
+  /**
+   * Override the *value* of a structured arg already set by the profile or
+   * runners.yaml. Key = ArgDef.id, value = replacement string.
+   * Set to `undefined` to disable a value-bearing arg (equivalent to removing
+   * the value without removing the flag — see `removed` to suppress entirely).
+   */
+  overrides?: Record<string, string | undefined>;
+  /**
+   * Arg ids to suppress from the profile and yaml layers.
+   * The arg will not appear in the resolved west command or cortex-debug config.
+   */
+  removed?: string[];
+  /** New schema-known structured args added at build level. */
+  additions?: import("./runner_arg_resolver").ArgValue[];
+  /** Raw (unknown) flag tokens added at build level. */
+  rawAdditions?: string[];
 }
 
 /**
@@ -187,7 +229,7 @@ export function splitArgs(args: string): string[] {
 function normalizeExtraArgs(v: unknown): string[] {
   if (Array.isArray(v)) {
     return v.filter((s): s is string => typeof s === "string" && s.trim().length > 0)
-            .map(s => s.trim());
+      .map(s => s.trim());
   }
   if (typeof v === "string" && v.trim()) {
     return splitArgs(v);
@@ -227,6 +269,26 @@ function sanitizeProfiles(value: unknown): RunnerProfile[] {
   return out;
 }
 
+function sanitizeArgValue(v: unknown): import("./runner_arg_resolver").ArgValue | undefined {
+  if (!v || typeof v !== "object") { return undefined; }
+  const obj = v as Record<string, unknown>;
+  if (typeof obj.id !== "string" || !obj.id) { return undefined; }
+  return { id: obj.id, ...(typeof obj.value === "string" ? { value: obj.value } : {}) };
+}
+
+function sanitizeRunnerArgs(v: unknown): RunnerArgs | undefined {
+  if (!v || typeof v !== "object") { return undefined; }
+  const obj = v as Record<string, unknown>;
+  const structured = Array.isArray(obj.structured)
+    ? obj.structured.map(sanitizeArgValue).filter((x): x is import("./runner_arg_resolver").ArgValue => x !== undefined)
+    : [];
+  const raw = Array.isArray(obj.raw)
+    ? obj.raw.filter((s): s is string => typeof s === "string" && s.trim().length > 0)
+    : [];
+  if (structured.length === 0 && raw.length === 0) { return undefined; }
+  return { structured, ...(raw.length > 0 ? { raw } : {}) };
+}
+
 function sanitizeBind(value: unknown): RunnerBind | undefined {
   if (!value || typeof value !== "object") { return undefined; }
   const v = value as Record<string, unknown>;
@@ -235,6 +297,8 @@ function sanitizeBind(value: unknown): RunnerBind | undefined {
     const out: RunnerBind = { kind: "runner", runner: v.runner.trim() };
     const extra = normalizeExtraArgs(v.extraArgs);
     if (extra.length > 0) { out.extraArgs = extra; }
+    const args = sanitizeRunnerArgs(v.args);
+    if (args) { out.args = args; }
     return out;
   }
   if (v.kind === "launch" && typeof v.name === "string" && v.name.trim()) {
@@ -268,8 +332,13 @@ export function findRunnerProfile(name: string, profiles: RunnerProfile[]): Runn
  * `{runner, args}` pair, or `undefined` when the caller should use defaults.
  *
  *   - "auto":   returns undefined (caller uses runners.yaml defaults).
- *   - "runner": { runner: bind.runner, args: bind.extraArgs + override.extraArgs }
+ *   - "runner": { runner, args } combining all legacy extraArgs + raw from structured args.
  *   - "launch": returns undefined (caller routes to launch.json).
+ *
+ * NOTE: For the full three-layer merge (structured + yaml + build override),
+ * use `runner_arg_resolver.mergeArgLayers` instead. This function is the
+ * lightweight path used when only the combined west args string is needed
+ * (e.g. flash command assembly for profiles without structured args).
  */
 export function resolveBind(
   bind: RunnerBind | undefined,
@@ -280,9 +349,16 @@ export function resolveBind(
     case "auto":
       return undefined;
     case "runner": {
-      const parts = [...(bind.extraArgs ?? []), ...(override?.extraArgs ?? [])]
-        .map(s => s.trim())
-        .filter(s => s.length > 0);
+      // Collect raw/legacy args from all sources.
+      const parts: string[] = [
+        ...(bind.args?.structured
+          ? [] // structured args are handled by the resolver; skip here
+          : []),
+        ...(bind.args?.raw ?? []),
+        ...(bind.extraArgs ?? []),
+        ...(override?.rawAdditions ?? []),
+        ...(override?.extraArgs ?? []),
+      ].map(s => s.trim()).filter(s => s.length > 0);
       return { runner: bind.runner, args: parts.join(" ") };
     }
     case "launch":

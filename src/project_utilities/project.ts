@@ -1004,10 +1004,23 @@ export async function setActiveProfile(
       });
     }
   }
-  const pick = await vscode.window.showQuickPick(items, {
-    ignoreFocusOut: true,
-    placeHolder: "Select Runner Profile for active build",
+
+  // Use createQuickPick so we can pre-highlight the currently active item.
+  const qp = vscode.window.createQuickPick();
+  qp.ignoreFocusOut = true;
+  qp.placeholder = "Select Runner Profile for active build";
+  qp.items = items;
+  const defaultItem = current !== undefined
+    ? items.find(i => i.label === current)
+    : items[0];
+  if (defaultItem) { qp.activeItems = [defaultItem]; }
+
+  const pick = await new Promise<vscode.QuickPickItem | undefined>(resolve => {
+    qp.onDidAccept(() => { resolve(qp.selectedItems[0]); qp.hide(); });
+    qp.onDidHide(() => { resolve(undefined); qp.dispose(); });
+    qp.show();
   });
+
   if (pick === undefined) { return; }
   if (pick.label === NONE_LABEL) {
     resolved.build.activeProfile = undefined;

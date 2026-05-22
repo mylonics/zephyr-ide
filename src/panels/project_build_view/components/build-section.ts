@@ -19,6 +19,8 @@ import { html, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { ZephyrLitElement } from "../../webview_shared/lit-base";
 import type { WebviewBuildDetails, WebviewVariableCommandInfo } from "../project-build-data";
+import "../../webview_shared/runner-args-editor";
+import { getSchemaFor, hasSchema } from "../../../project_utilities/runner_arg_schema";
 
 import "./config-file-group";
 import "./variables-table";
@@ -285,6 +287,9 @@ export class BuildSection extends ZephyrLitElement {
         </div>
         <div class="runner-binds-grid">
           ${this._renderSlotBind(slots.flash, "Flash", "zap")}
+          ${slots.buildDebug
+        ? this._renderSlotBind(slots.buildDebug, "Build & Debug", "run-all")
+        : nothing}
           ${this._renderSlotBind(slots.debug, "Debug", "debug-alt")}
           ${this._renderSlotBind(slots.attach, "Attach", "debug-console")}
         </div>
@@ -301,6 +306,31 @@ export class BuildSection extends ZephyrLitElement {
     const overrideBadge = slot.hasOverride
       ? html`<span class="bind-override-badge" title="Per-build extra args override">override</span>`
       : nothing;
+
+    // Show structured runner-args-editor when the profile bind has resolved args.
+    const structuredEditor = (canOverride && slot.resolvedArgs && slot.resolvedArgs.length > 0 && slot.runner)
+      ? (() => {
+        const runner = slot.runner!;
+        const schema = hasSchema(runner) ? getSchemaFor(runner) : [];
+        const slotName = slot.slot as "flash" | "debug" | "attach" | "buildDebug";
+        return html`
+            <runner-args-editor
+              class="slot-args-editor"
+              mode="build-override"
+              runner=${runner}
+              slot=${slotName}
+              .schema=${schema}
+              .resolvedArgs=${slot.resolvedArgs}
+              .schemaArgIds=${slot.schemaArgIds ?? []}
+              @runner-arg-update=${(e: CustomEvent) => this._onArgUpdate(slotName, e)}
+              @runner-arg-remove=${(e: CustomEvent) => this._onArgRemove(slotName, e)}
+              @runner-arg-add=${(e: CustomEvent) => this._onArgAdd(slotName, e)}
+              @runner-arg-reset=${() => this._onArgReset(slotName)}>
+            </runner-args-editor>
+          `;
+      })()
+      : nothing;
+
     return html`
       <div class="runner-bind-row">
         <span class="runner-field-label">
@@ -310,7 +340,7 @@ export class BuildSection extends ZephyrLitElement {
           ${slot.label}
           ${overrideBadge}
         </span>
-        ${canOverride
+        ${canOverride && !slot.resolvedArgs
         ? html`
               <vscode-button appearance="icon"
                 icon=${slot.hasOverride ? "edit" : "add"}
@@ -328,7 +358,45 @@ export class BuildSection extends ZephyrLitElement {
             : nothing}`
         : nothing}
       </div>
+      ${structuredEditor}
     `;
+  }
+
+  private _onArgUpdate(slot: string, e: CustomEvent) {
+    this.postCommand("updateBuildArgOverride", {
+      project: this.projectName,
+      build: this.buildDetails.name,
+      slot,
+      argId: e.detail.argId,
+      value: e.detail.value,
+    });
+  }
+
+  private _onArgRemove(slot: string, e: CustomEvent) {
+    this.postCommand("removeBuildArgOverride", {
+      project: this.projectName,
+      build: this.buildDetails.name,
+      slot,
+      argId: e.detail.argId,
+    });
+  }
+
+  private _onArgAdd(slot: string, e: CustomEvent) {
+    this.postCommand("addBuildArgOverride", {
+      project: this.projectName,
+      build: this.buildDetails.name,
+      slot,
+      argId: e.detail.argId,
+      value: e.detail.value,
+    });
+  }
+
+  private _onArgReset(slot: string) {
+    this.postCommand("resetBuildArgOverrides", {
+      project: this.projectName,
+      build: this.buildDetails.name,
+      slot,
+    });
   }
 
   private _editSlotExtraArgs(slot: import("../project-build-data").WebviewSlotBind) {

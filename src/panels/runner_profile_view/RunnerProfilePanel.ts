@@ -21,7 +21,7 @@ import { WorkspaceConfig, GlobalConfig } from "../../setup_utilities/types";
 import { generateNonce } from "../webview_shared/nonce";
 import { notifyError } from "../../utilities/output";
 import { getLaunchConfigurations } from "../../utilities/utils";
-import { KNOWN_RUNNERS } from "../../project_utilities/runner_selector";
+import { KNOWN_RUNNERS, DEBUG_CAPABLE_RUNNERS } from "../../project_utilities/runner_selector";
 import {
   RunnerProfile,
   RunnerProfileScope,
@@ -359,6 +359,7 @@ export class RunnerProfilePanel {
         workspaceProfiles: workspace,
         hasWorkspace: !!this._wsConfig.rootPath,
         knownRunners: KNOWN_RUNNERS.slice(),
+        knownDebugRunners: DEBUG_CAPABLE_RUNNERS.slice(),
         launchConfigNames,
         activeProfileName,
         activeBuildLabel,
@@ -411,6 +412,26 @@ function parseScope(value: unknown): RunnerProfileScope | undefined {
   return undefined;
 }
 
+function sanitizeIncomingArgValue(v: unknown): import("../../project_utilities/runner_arg_resolver").ArgValue | undefined {
+  if (!v || typeof v !== "object") { return undefined; }
+  const obj = v as Record<string, unknown>;
+  if (typeof obj.id !== "string" || !obj.id) { return undefined; }
+  return { id: obj.id, ...(typeof obj.value === "string" ? { value: obj.value } : {}) };
+}
+
+function sanitizeIncomingRunnerArgs(v: unknown): import("../../project_utilities/runner_profiles").RunnerArgs | undefined {
+  if (!v || typeof v !== "object") { return undefined; }
+  const obj = v as Record<string, unknown>;
+  const structured = Array.isArray(obj.structured)
+    ? obj.structured.map(sanitizeIncomingArgValue).filter((x): x is import("../../project_utilities/runner_arg_resolver").ArgValue => x !== undefined)
+    : [];
+  const raw = Array.isArray(obj.raw)
+    ? (obj.raw as unknown[]).filter((s): s is string => typeof s === "string" && s.trim().length > 0)
+    : [];
+  if (structured.length === 0 && raw.length === 0) { return undefined; }
+  return { structured, ...(raw.length > 0 ? { raw } : {}) };
+}
+
 function sanitizeIncomingBind(value: unknown, slot: "flash" | "buildDebug" | "debug" | "attach"):
   RunnerProfile["flash"] {
   if (!value || typeof value !== "object") { return { kind: "auto" }; }
@@ -424,6 +445,8 @@ function sanitizeIncomingBind(value: unknown, slot: "flash" | "buildDebug" | "de
         ? splitArgs(v.extraArgs)
         : [];
     if (extra.length > 0) { out.extraArgs = extra; }
+    const args = sanitizeIncomingRunnerArgs(v.args);
+    if (args) { out.args = args; }
     return out;
   }
   if (v.kind === "launch" && typeof v.name === "string" && v.name.trim()) {
@@ -463,6 +486,12 @@ function cloneBind(bind: RunnerProfile["flash"]): RunnerProfile["flash"] {
     const copy: RunnerProfile["flash"] = { kind: "runner", runner: bind.runner };
     if (bind.extraArgs && bind.extraArgs.length > 0) {
       copy.extraArgs = [...bind.extraArgs];
+    }
+    if (bind.args) {
+      copy.args = {
+        structured: bind.args.structured.map(a => ({ ...a })),
+        ...(bind.args.raw ? { raw: [...bind.args.raw] } : {}),
+      };
     }
     return copy;
   }

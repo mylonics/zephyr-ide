@@ -1009,3 +1009,183 @@ vscode-table-cell code {
     gap: 4px;
   }
 }
+
+/* ===================================================================
+   RUNNER-ARGS-EDITOR (structured arg editor component)
+   =================================================================== */
+
+.slot-args-editor {
+  margin-top: 6px;
+  padding: 6px 4px 4px;
+  border-top: 1px dashed var(--vscode-panel-border);
+  grid-column: 1 / -1;
+}
+
+.runner-args-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+}
+
+.arg-group-label {
+  font-size: 0.75em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--vscode-descriptionForeground);
+  padding: 6px 0 2px;
+  margin-top: 4px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.arg-label {
+  font-weight: 500;
+  color: var(--vscode-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.arg-west-flag {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.78em;
+  color: var(--vscode-descriptionForeground);
+  background: color-mix(in srgb, var(--vscode-badge-background) 60%, transparent);
+  padding: 1px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.arg-control-input {
+  width: 100%;
+  min-width: 80px;
+}
+
+.arg-control-int {
+  max-width: 100px;
+}
+
+.arg-editor-empty {
+  font-size: 0.85em;
+  color: var(--vscode-descriptionForeground);
+  font-style: italic;
+  padding: 4px 0;
+}
+
+/* Build-override mode rows */
+
+.runner-args-editor--build .arg-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px;
+  border-radius: 3px;
+  transition: background 0.1s;
+}
+
+.runner-args-editor--build .arg-row:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.arg-row-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.arg-row-control {
+  display: flex;
+  align-items: center;
+  min-width: 100px;
+}
+
+.arg-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.arg-row--removed {
+  opacity: 0.6;
+}
+
+.arg-label--strikethrough {
+  text-decoration: line-through;
+}
+
+/* Source provenance badges */
+
+.arg-source-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 0.7em;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.arg-source-badge--profile {
+  background: color-mix(in srgb, var(--vscode-terminal-ansiBlue) 20%, transparent);
+  color: var(--vscode-terminal-ansiBlue);
+}
+
+.arg-source-badge--yaml {
+  background: color-mix(in srgb, var(--vscode-terminal-ansiGreen) 20%, transparent);
+  color: var(--vscode-terminal-ansiGreen);
+}
+
+.arg-source-badge--build {
+  background: color-mix(in srgb, var(--vscode-terminal-ansiYellow) 20%, transparent);
+  color: var(--vscode-terminal-ansiYellow);
+}
+
+.arg-badge--removed {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 0.7em;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--vscode-errorForeground) 20%, transparent);
+  color: var(--vscode-errorForeground);
+}
+
+/* Bool arg "active" indicator in build-override mode */
+.arg-bool-present {
+  display: inline-block;
+  font-size: 0.75em;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  color: var(--vscode-terminal-ansiGreen);
+  background: color-mix(in srgb, var(--vscode-terminal-ansiGreen) 15%, transparent);
+}
+
+.arg-editor-footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--vscode-panel-border);
+  flex-wrap: wrap;
+}
+
+.add-arg-picker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  margin-top: 4px;
+  background: var(--vscode-editorWidget-background, var(--vscode-sideBar-background));
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 4px;
+  flex-wrap: wrap;
+}

@@ -25,7 +25,58 @@ import { ProjectConfig, resolveActiveProjectBuild, getBuildFolder } from "../pro
 import { WorkspaceConfig } from '../setup_utilities/types';
 import { BuildConfig } from "../project_utilities/build_selector";
 import { loadRunnerProfiles, findRunnerProfile, resolveBind, resolveRunnerArgs } from "../project_utilities/runner_profiles";
+import { parseYamlArgs, mergeArgLayers, toWestArgs } from "../project_utilities/runner_arg_resolver";
+import { parseRunnersYaml, resolveRunnersYamlPath } from "./runners-yaml";
 import { getSetupStateOrNotify } from "../setup_utilities/workspace-config";
+
+/**
+ * Resolve the west runner name and final args string for a flash operation,
+ * using the three-layer merge when the bind has structured args.
+ */
+function resolveFlashRunnerAndArgs(
+  wsConfig: WorkspaceConfig,
+  build: BuildConfig,
+  buildFolder: string,
+  profileFlashBind: import("../project_utilities/runner_profiles").RunnerBind,
+  bindOverride: import("../project_utilities/runner_profiles").BindOverride | undefined,
+  sysbuildImage: string | undefined,
+): { runner: string; args: string } {
+  if (profileFlashBind.kind !== "runner") {
+    return { runner: "default", args: "" };
+  }
+  const bind = profileFlashBind;
+  const runnerName = bind.runner;
+
+  // If the bind has structured args, use the three-layer resolver.
+  if (bind.args) {
+    // Parse runners.yaml for the yaml layer.
+    const runnersYamlPath = resolveRunnersYamlPath(buildFolder, sysbuildImage);
+    const runnersYaml = parseRunnersYaml(runnersYamlPath);
+    const yamlArgs = runnersYaml
+      ? parseYamlArgs(runnerName, runnersYaml.args[runnerName] ?? [])
+      : undefined;
+
+    // Build override: promote BindOverride to the resolver's BuildSlotOverride shape.
+    const buildOverride = bindOverride ? {
+      overrides: bindOverride.overrides,
+      removed: bindOverride.removed,
+      additions: bindOverride.additions,
+      rawAdditions: [...(bindOverride.rawAdditions ?? []), ...(bindOverride.extraArgs ?? [])],
+    } : undefined;
+
+    const resolved = mergeArgLayers(runnerName, bind.args, yamlArgs, buildOverride, { slot: "flash" });
+    const westArgTokens = toWestArgs(resolved);
+    return { runner: runnerName, args: westArgTokens.join(" ") };
+  }
+
+  // Legacy path: combine extraArgs + override extraArgs as a plain string.
+  const parts = [
+    ...(bind.extraArgs ?? []),
+    ...(bindOverride?.rawAdditions ?? []),
+    ...(bindOverride?.extraArgs ?? []),
+  ].map(s => s.trim()).filter(s => s.length > 0);
+  return { runner: runnerName, args: parts.join(" ") };
+}
 
 export async function flashByName(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName: string, buildName: string, profileName?: string) {
   const project = wsConfig.projects[projectName];
@@ -39,6 +90,9 @@ export async function flashByName(context: vscode.ExtensionContext, wsConfig: Wo
     return;
   }
 
+  const buildFolder = getBuildFolder(wsConfig, project, buildConfig);
+  const sysbuildImage = wsConfig.projectStates?.[projectName]?.buildStates?.[buildName]?.sysbuildImage;
+
   // Default: "default" runner + no args (west picks from runners.yaml).
   let runner = "default", args = "";
   const effectiveProfileName = profileName ?? buildConfig.activeProfile;
@@ -51,8 +105,12 @@ export async function flashByName(context: vscode.ExtensionContext, wsConfig: Wo
     if (profile.flash.kind === "launch") {
       outputWarning("Flash", `Profile "${effectiveProfileName}" has flash bind set to launch.json config, which is not valid for flashing. Using default runner.`);
     } else {
-      const r = resolveBind(profile.flash, buildConfig.bindOverrides?.flash);
-      if (r) { runner = r.runner; args = r.args; }
+      const resolved = resolveFlashRunnerAndArgs(
+        wsConfig, buildConfig, buildFolder,
+        profile.flash, buildConfig.bindOverrides?.flash, sysbuildImage,
+      );
+      runner = resolved.runner;
+      args = resolved.args;
     }
   }
 
@@ -63,6 +121,9 @@ export async function flashActive(context: vscode.ExtensionContext, wsConfig: Wo
   const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Flash" });
   if (!resolved) { return; }
 
+  const buildFolder = getBuildFolder(wsConfig, resolved.project, resolved.build);
+  const sysbuildImage = wsConfig.projectStates?.[resolved.projectName]?.buildStates?.[resolved.buildName]?.sysbuildImage;
+
   let runner = "default", args = "";
   const profileName = resolved.build.activeProfile;
   if (profileName) {
@@ -71,8 +132,12 @@ export async function flashActive(context: vscode.ExtensionContext, wsConfig: Wo
       if (profile.flash.kind === "launch") {
         outputWarning("Flash", `Profile "${profileName}" has flash bind set to launch.json config, which is not valid for flashing. Using default runner.`);
       } else {
-        const r = resolveBind(profile.flash, resolved.build.bindOverrides?.flash);
-        if (r) { runner = r.runner; args = r.args; }
+        const r = resolveFlashRunnerAndArgs(
+          wsConfig, resolved.build, buildFolder,
+          profile.flash, resolved.build.bindOverrides?.flash, sysbuildImage,
+        );
+        runner = r.runner;
+        args = r.args;
       }
     }
   }

@@ -162,6 +162,80 @@ suite("Runner Profile Workspace Migration", () => {
     }
   });
 
+  test("build-only debug bindings still migrate into a bound auto profile", async () => {
+    const { tmpRoot, ws } = await setup({}, {
+      app: {
+        name: "app",
+        buildConfigs: {
+          dbg: {
+            name: "dbg",
+            launchTarget: "Debug Config",
+            buildDebugTarget: "Build Debug Config",
+            attachTarget: "Attach Config",
+          },
+        },
+      },
+    });
+
+    try {
+      await migrateLegacyRunnersToProfiles(makeFakeContext(), ws);
+
+      const written = await fs.readJson(path.join(tmpRoot, ".vscode", "zephyr-ide.json"));
+      const profiles: any[] = written.runnerProfiles ?? [];
+      assert.strictEqual(profiles.length, 1, `expected one migrated profile, got ${JSON.stringify(profiles)}`);
+      assert.deepStrictEqual(profiles[0], {
+        name: profiles[0].name,
+        flash: { kind: "auto" },
+        buildDebug: { kind: "launch", name: "Build Debug Config" },
+        debug: { kind: "launch", name: "Debug Config" },
+        attach: { kind: "launch", name: "Attach Config" },
+      });
+      assert.strictEqual(ws.projects.app.buildConfigs.dbg.activeProfile, profiles[0].name);
+      assert.strictEqual((ws.projects.app.buildConfigs.dbg as any).launchTarget, undefined);
+      assert.strictEqual((ws.projects.app.buildConfigs.dbg as any).buildDebugTarget, undefined);
+      assert.strictEqual((ws.projects.app.buildConfigs.dbg as any).attachTarget, undefined);
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  test("duplicate migrated profiles are combined by content even when legacy names differ", async () => {
+    const { tmpRoot, ws } = await setup({}, {
+      app1: {
+        name: "app1",
+        buildConfigs: {
+          dbg: {
+            name: "dbg",
+            runnerConfigs: { probeA: { name: "probeA", runner: "openocd", args: "--speed=4000" } },
+            activeRunner: "probeA",
+          },
+        },
+      },
+      app2: {
+        name: "app2",
+        buildConfigs: {
+          dbg: {
+            name: "dbg",
+            runnerConfigs: { probeB: { name: "probeB", runner: "openocd", args: "--speed=4000" } },
+            activeRunner: "probeB",
+          },
+        },
+      },
+    });
+
+    try {
+      await migrateLegacyRunnersToProfiles(makeFakeContext(), ws);
+
+      const written = await fs.readJson(path.join(tmpRoot, ".vscode", "zephyr-ide.json"));
+      const profiles: any[] = written.runnerProfiles ?? [];
+      assert.strictEqual(profiles.length, 1, `expected one deduped profile, got ${JSON.stringify(profiles)}`);
+      assert.strictEqual(ws.projects.app1.buildConfigs.dbg.activeProfile, profiles[0].name);
+      assert.strictEqual(ws.projects.app2.buildConfigs.dbg.activeProfile, profiles[0].name);
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
   test("idempotent: a second migration after the version flag is set is a no-op", async () => {
     const { tmpRoot, ws } = await setup({}, {
       app: {

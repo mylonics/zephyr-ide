@@ -50,6 +50,22 @@ export const KNOWN_RUNNERS = [
   "xsdb",
 ];
 
+/** Subset of KNOWN_RUNNERS that support debug/attach (GDB server capable). */
+export const DEBUG_CAPABLE_RUNNERS = [
+  "openocd",
+  "jlink",
+  "pyocd",
+  "stlink",
+  "blackmagicprobe",
+  "linkserver",
+  "nrfjprog",
+  "nrfutil",
+  "esp32",
+  "qemu",
+  "arc-jtag",
+  "xsdb",
+];
+
 export interface BindSelectorOptions {
   /** Slot being edited. Flash cannot use `launch.json` references. */
   slot: "flash" | "debug" | "attach";
