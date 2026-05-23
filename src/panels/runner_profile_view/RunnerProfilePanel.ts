@@ -327,7 +327,12 @@ export class RunnerProfilePanel {
   private async pushState() {
     const { user, workspace } = listRunnerProfilesByScope(this._wsConfig);
     const launchConfigs = await getLaunchConfigurations(this._wsConfig);
-    const launchConfigNames = (launchConfigs ?? [])
+    const zephyrLaunchConfigNames = (launchConfigs ?? [])
+      .filter(c => c?.type === "zephyr-ide")
+      .map(c => c?.name)
+      .filter((n): n is string => typeof n === "string" && n.length > 0);
+    const customLaunchConfigNames = (launchConfigs ?? [])
+      .filter(c => c?.type !== "zephyr-ide")
       .map(c => c?.name)
       .filter((n): n is string => typeof n === "string" && n.length > 0);
 
@@ -360,7 +365,8 @@ export class RunnerProfilePanel {
         hasWorkspace: !!this._wsConfig.rootPath,
         knownRunners: KNOWN_RUNNERS.slice(),
         knownDebugRunners: DEBUG_CAPABLE_RUNNERS.slice(),
-        launchConfigNames,
+        zephyrLaunchConfigNames,
+        customLaunchConfigNames,
         activeProfileName,
         activeBuildLabel,
         usageByName,
@@ -412,26 +418,6 @@ function parseScope(value: unknown): RunnerProfileScope | undefined {
   return undefined;
 }
 
-function sanitizeIncomingArgValue(v: unknown): import("../../project_utilities/runner_arg_resolver").ArgValue | undefined {
-  if (!v || typeof v !== "object") { return undefined; }
-  const obj = v as Record<string, unknown>;
-  if (typeof obj.id !== "string" || !obj.id) { return undefined; }
-  return { id: obj.id, ...(typeof obj.value === "string" ? { value: obj.value } : {}) };
-}
-
-function sanitizeIncomingRunnerArgs(v: unknown): import("../../project_utilities/runner_profiles").RunnerArgs | undefined {
-  if (!v || typeof v !== "object") { return undefined; }
-  const obj = v as Record<string, unknown>;
-  const structured = Array.isArray(obj.structured)
-    ? obj.structured.map(sanitizeIncomingArgValue).filter((x): x is import("../../project_utilities/runner_arg_resolver").ArgValue => x !== undefined)
-    : [];
-  const raw = Array.isArray(obj.raw)
-    ? (obj.raw as unknown[]).filter((s): s is string => typeof s === "string" && s.trim().length > 0)
-    : [];
-  if (structured.length === 0 && raw.length === 0) { return undefined; }
-  return { structured, ...(raw.length > 0 ? { raw } : {}) };
-}
-
 function sanitizeIncomingBind(value: unknown, slot: "flash" | "buildDebug" | "debug" | "attach"):
   RunnerProfile["flash"] {
   if (!value || typeof value !== "object") { return { kind: "auto" }; }
@@ -445,14 +431,16 @@ function sanitizeIncomingBind(value: unknown, slot: "flash" | "buildDebug" | "de
         ? splitArgs(v.extraArgs)
         : [];
     if (extra.length > 0) { out.extraArgs = extra; }
-    const args = sanitizeIncomingRunnerArgs(v.args);
-    if (args) { out.args = args; }
     return out;
   }
   if (v.kind === "launch" && typeof v.name === "string" && v.name.trim()) {
-    // launch is invalid for flash; coerce to auto in that case
+    // launch and zephyr-launch are invalid for flash; coerce to auto
     if (slot === "flash") { return { kind: "auto" }; }
     return { kind: "launch", name: v.name.trim() };
+  }
+  if (v.kind === "zephyr-launch" && typeof v.name === "string" && v.name.trim()) {
+    if (slot === "flash") { return { kind: "auto" }; }
+    return { kind: "zephyr-launch", name: v.name.trim() };
   }
   return { kind: "auto" };
 }
@@ -487,16 +475,13 @@ function cloneBind(bind: RunnerProfile["flash"]): RunnerProfile["flash"] {
     if (bind.extraArgs && bind.extraArgs.length > 0) {
       copy.extraArgs = [...bind.extraArgs];
     }
-    if (bind.args) {
-      copy.args = {
-        structured: bind.args.structured.map(a => ({ ...a })),
-        ...(bind.args.raw ? { raw: [...bind.args.raw] } : {}),
-      };
-    }
     return copy;
   }
   if (bind.kind === "launch") {
     return { kind: "launch", name: bind.name };
+  }
+  if (bind.kind === "zephyr-launch") {
+    return { kind: "zephyr-launch", name: bind.name };
   }
   return { kind: "auto" };
 }

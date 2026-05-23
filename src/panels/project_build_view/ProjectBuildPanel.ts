@@ -49,15 +49,12 @@ import { ConfigFiles } from "../../project_utilities/config_selector";
 import { generateNonce } from "../webview_shared/nonce";
 import { getLaunchConfigurations as _getLaunchConfigurations } from "../../utilities/utils";
 import { normalizeBuildArgs } from "../../project_utilities/build_args";
-import { getRunnersYamlHint, parseRunnersYaml, resolveRunnersYamlPath } from "../../zephyr_utilities/runners-yaml";
+import { getRunnersYamlHint } from "../../zephyr_utilities/runners-yaml";
 import {
   formatBindLabel,
 } from "../../project_utilities/runner_profiles";
 import type { RunnerBind, BindOverride } from "../../project_utilities/runner_profiles";
 import { setBindOverride } from "../../project_utilities/project";
-import { parseYamlArgs, mergeArgLayers, getYamlOnlyIds } from "../../project_utilities/runner_arg_resolver";
-import { getSchemaFor, hasSchema } from "../../project_utilities/runner_arg_schema";
-import type { WebviewArgEntry } from "./project-build-data";
 // Retained as a future hook for slot-launch UI; not currently used in payload.
 void _getLaunchConfigurations;
 
@@ -353,40 +350,6 @@ export class ProjectBuildPanel {
           return;
         }
 
-        // Structured arg build-override actions.
-        case "updateBuildArgOverride": {
-          const slot = message.slot as "flash" | "debug" | "attach";
-          const argId = String(message.argId ?? "");
-          const value = message.value as string | undefined;
-          if (!slot || !argId) { return; }
-          await this.handleUpdateBuildArgOverride(slot, argId, value);
-          return;
-        }
-
-        case "removeBuildArgOverride": {
-          const slot = message.slot as "flash" | "debug" | "attach";
-          const argId = String(message.argId ?? "");
-          if (!slot || !argId) { return; }
-          await this.handleRemoveBuildArgOverride(slot, argId);
-          return;
-        }
-
-        case "addBuildArgOverride": {
-          const slot = message.slot as "flash" | "debug" | "attach";
-          const argId = String(message.argId ?? "");
-          const value = message.value as string | undefined;
-          if (!slot || !argId) { return; }
-          await this.handleAddBuildArgOverride(slot, argId, value);
-          return;
-        }
-
-        case "resetBuildArgOverrides": {
-          const slot = message.slot as "flash" | "debug" | "attach";
-          if (!slot) { return; }
-          await this.handleResetBuildArgOverrides(slot);
-          return;
-        }
-
         // Legacy runner-card / variant messages — UI is gone but webview may still emit them briefly.
         case "addRunner":
         case "removeRunner":
@@ -602,92 +565,8 @@ export class ProjectBuildPanel {
   }
 
   // ---------------------------------------------------------------------------
-  // Structured runner arg build-override handlers
+  // (Structured runner arg build-override handlers removed)
   // ---------------------------------------------------------------------------
-
-  private async handleUpdateBuildArgOverride(
-    slot: "flash" | "debug" | "attach",
-    argId: string,
-    value: string | undefined,
-  ) {
-    const projectName = this._selectedProject;
-    const buildName = this.getSelectedBuildName();
-    if (!projectName || !buildName) { return; }
-    const build = this._wsConfig.projects[projectName]?.buildConfigs?.[buildName];
-    if (!build) { return; }
-    if (!build.bindOverrides) { build.bindOverrides = {}; }
-    if (!build.bindOverrides[slot]) { build.bindOverrides[slot] = {}; }
-    const override = build.bindOverrides[slot]!;
-    if (!override.overrides) { override.overrides = {}; }
-    override.overrides[argId] = value;
-    await setWorkspaceState(this._context, this._wsConfig);
-    this.updateHtml();
-  }
-
-  private async handleRemoveBuildArgOverride(
-    slot: "flash" | "debug" | "attach",
-    argId: string,
-  ) {
-    const projectName = this._selectedProject;
-    const buildName = this.getSelectedBuildName();
-    if (!projectName || !buildName) { return; }
-    const build = this._wsConfig.projects[projectName]?.buildConfigs?.[buildName];
-    if (!build) { return; }
-    if (!build.bindOverrides) { build.bindOverrides = {}; }
-    if (!build.bindOverrides[slot]) { build.bindOverrides[slot] = {}; }
-    const override = build.bindOverrides[slot]!;
-    if (!override.removed) { override.removed = []; }
-    if (!override.removed.includes(argId)) { override.removed.push(argId); }
-    // Clear any value override for this arg too (suppress wins).
-    if (override.overrides) { delete override.overrides[argId]; }
-    await setWorkspaceState(this._context, this._wsConfig);
-    this.updateHtml();
-  }
-
-  private async handleAddBuildArgOverride(
-    slot: "flash" | "debug" | "attach",
-    argId: string,
-    value: string | undefined,
-  ) {
-    const projectName = this._selectedProject;
-    const buildName = this.getSelectedBuildName();
-    if (!projectName || !buildName) { return; }
-    const build = this._wsConfig.projects[projectName]?.buildConfigs?.[buildName];
-    if (!build) { return; }
-    if (!build.bindOverrides) { build.bindOverrides = {}; }
-    if (!build.bindOverrides[slot]) { build.bindOverrides[slot] = {}; }
-    const override = build.bindOverrides[slot]!;
-    if (!override.additions) { override.additions = []; }
-    // Avoid duplicating a non-multi arg.
-    const existing = override.additions.findIndex(a => a.id === argId);
-    if (existing >= 0) {
-      override.additions[existing] = { id: argId, value };
-    } else {
-      override.additions.push({ id: argId, value });
-    }
-    // Remove from removed list if it was there.
-    if (override.removed) {
-      override.removed = override.removed.filter(id => id !== argId);
-    }
-    await setWorkspaceState(this._context, this._wsConfig);
-    this.updateHtml();
-  }
-
-  private async handleResetBuildArgOverrides(slot: "flash" | "debug" | "attach") {
-    const projectName = this._selectedProject;
-    const buildName = this.getSelectedBuildName();
-    if (!projectName || !buildName) { return; }
-    const build = this._wsConfig.projects[projectName]?.buildConfigs?.[buildName];
-    if (!build?.bindOverrides?.[slot]) { return; }
-    // Clear structured override fields, preserving legacy extraArgs.
-    const override = build.bindOverrides[slot]!;
-    delete override.overrides;
-    delete override.removed;
-    delete override.additions;
-    delete override.rawAdditions;
-    await setWorkspaceState(this._context, this._wsConfig);
-    this.updateHtml();
-  }
 
   private getDefaultVariableKeys(level: "project" | "build"): string[] {
     const configKey = level === "project"
@@ -831,69 +710,21 @@ export class ProjectBuildPanel {
             bind: RunnerBind | undefined,
             override: BindOverride | undefined,
           ): import("./project-build-data").WebviewSlotBind => {
-            const kind: "none" | "auto" | "runner" | "launch" = !bind ? "none" : bind.kind;
+            const kind: "none" | "auto" | "runner" | "launch" | "zephyr-launch" = !bind ? "none" : bind.kind;
             const runner = bind && bind.kind === "runner" ? bind.runner : undefined;
             const profileExtra = bind && bind.kind === "runner" ? (bind.extraArgs ?? []).join(" ") : "";
             const overrideExtra = (override?.extraArgs ?? []).join(" ");
             const combined = [profileExtra, overrideExtra].filter(s => s.length > 0).join(" ");
 
-            const base = {
+            return {
               slot,
               label: formatBindLabel(bind, override),
               kind,
               runner,
               extraArgs: combined,
               overrideExtraArgs: overrideExtra,
-              hasOverride: overrideExtra.length > 0 || !!(override?.overrides) || !!(override?.removed?.length),
+              hasOverride: overrideExtra.length > 0,
             };
-
-            // Populate structured arg fields when the bind has structured args.
-            if (bind && bind.kind === "runner" && bind.args) {
-              const runnerName = bind.runner;
-              const runnersYamlPath = resolveRunnersYamlPath(buildFolder, sysbuildImage);
-              const runnersYaml = parseRunnersYaml(runnersYamlPath);
-              const yamlArgsParsed = runnersYaml
-                ? parseYamlArgs(runnerName, runnersYaml.args[runnerName] ?? [])
-                : undefined;
-
-              const buildOverride = override ? {
-                overrides: override.overrides,
-                removed: override.removed,
-                additions: override.additions,
-                rawAdditions: [...(override.rawAdditions ?? []), ...(override.extraArgs ?? [])],
-              } : undefined;
-
-              const mergedSlot = slot === "flash" ? "flash" : slot === "debug" ? "debug" : slot === "buildDebug" ? "buildDebug" : "attach";
-              const merged = mergeArgLayers(runnerName, bind.args, yamlArgsParsed, buildOverride, { slot: mergedSlot });
-              const schema = getSchemaFor(runnerName);
-              const removedIds = override?.removed ?? [];
-
-              const resolvedArgs: WebviewArgEntry[] = merged.structured.map(entry => {
-                const def = schema.find(d => d.id === entry.id);
-                return {
-                  id: entry.id,
-                  value: entry.value,
-                  source: entry.source,
-                  label: def?.label ?? entry.id,
-                  description: def?.description ?? "",
-                  type: def?.type ?? "string",
-                  enumOptions: def?.enumOptions,
-                  suggestions: def?.suggestions,
-                  isRemoved: removedIds.includes(entry.id),
-                  group: def?.group,
-                  canRemove: entry.source === "yaml" || entry.source === "profile",
-                };
-              });
-
-              return {
-                ...base,
-                resolvedArgs,
-                removedArgIds: removedIds.length > 0 ? removedIds : undefined,
-                schemaArgIds: hasSchema(runnerName) ? schema.map(d => d.id) : undefined,
-              };
-            }
-
-            return base;
           };
 
           buildDetails = {

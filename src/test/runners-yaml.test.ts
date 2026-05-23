@@ -24,6 +24,8 @@ import {
     parseRunnersYaml,
     resolveRunnersYamlPath,
     runnerToServerType,
+    runnerNeedsBridge,
+    BRIDGED_RUNNERS,
 } from "../zephyr_utilities/runners-yaml";
 import {
     buildCortexDebugConfig,
@@ -47,9 +49,29 @@ suite("runners.yaml parser & DebugConfigurationProvider translation", () => {
         assert.strictEqual(runnerToServerType("openocd"), "openocd");
         assert.strictEqual(runnerToServerType("pyocd"), "pyocd");
         assert.strictEqual(runnerToServerType("stlink"), "stlink");
+        assert.strictEqual(runnerToServerType("stm32cubeprogrammer-stlink"), "stlink");
         assert.strictEqual(runnerToServerType("blackmagicprobe"), "bmp");
         assert.strictEqual(runnerToServerType("bmp"), "bmp");
+        assert.strictEqual(runnerToServerType("qemu"), "qemu");
         assert.strictEqual(runnerToServerType("totally-unknown"), undefined);
+    });
+
+    test("runnerToServerType maps bridged runners to external", () => {
+        assert.strictEqual(runnerToServerType("nrfjprog"), "external");
+        assert.strictEqual(runnerToServerType("linkserver"), "external");
+        assert.strictEqual(runnerToServerType("esp32"), "external");
+        assert.strictEqual(runnerToServerType("stm32cubeprogrammer"), "external");
+    });
+
+    test("runnerNeedsBridge agrees with BRIDGED_RUNNERS membership", () => {
+        for (const r of BRIDGED_RUNNERS) {
+            assert.strictEqual(runnerNeedsBridge(r), true, `${r} should need bridge`);
+            assert.strictEqual(runnerToServerType(r), "external", `${r} should map to external`);
+        }
+        // Native servertypes must not be flagged as bridged.
+        for (const r of ["jlink", "openocd", "pyocd", "stlink", "bmp", "qemu"]) {
+            assert.strictEqual(runnerNeedsBridge(r), false, `${r} should not need bridge`);
+        }
     });
 
     test("parseRunnersYaml returns undefined for missing file", () => {

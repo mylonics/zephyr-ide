@@ -323,8 +323,8 @@ export async function installPythonRequirements(context: vscode.ExtensionContext
   await saveSetupState(context, wsConfig, globalConfig);
 
   // Install requirements from Zephyr's requirements.txt plus additional packages needed by Zephyr IDE.
-  // dtsh is always needed as it is a Zephyr IDE-specific tool not included in Zephyr's requirements.txt.
-  const additionalPackages = "dtsh";
+  // dtsh and pyocd are Zephyr IDE-specific tools not included in Zephyr's requirements.txt.
+  const additionalPackages = "dtsh pyocd";
   const cmd = `pip install -r "${path.join(setupState.zephyrDir, "scripts", "requirements.txt")}" -U ${additionalPackages}`;
   const reqRes = await executeTaskHelperInPythonEnv(setupState, "Zephyr IDE: Install Python Requirements", cmd, setupState.setupPath, true);
 

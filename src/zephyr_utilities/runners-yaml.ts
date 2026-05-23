@@ -217,18 +217,48 @@ export function findSvdFile(boardDir: string | undefined, hint?: string): string
 }
 
 /**
- * Translate a Zephyr runner name to a cortex-debug `servertype`. Returns
- * undefined when the runner is not natively understood by cortex-debug.
+ * The set of Zephyr runners that Zephyr IDE drives via the **external bridge**:
+ * the runner has no native cortex-debug `servertype` of its own, but it can
+ * be launched as a GDB-remote-speaking server by `west debug-server`. The
+ * debug provider spawns `west debug-server --runner <runner>`, parses the
+ * listening host/port out of its stdout, then hands cortex-debug a
+ * `servertype: "external"` + `gdbTarget: <host>:<port>` configuration that
+ * connects to that server. The server is killed when the debug session ends.
  *
- * Notes:
- * - "stm32cubeprogrammer" uses STM32_Programmer_CLI, not the ST-LINK GDB
- *   server, so it cannot be mapped to cortex-debug's "stlink" type.
- * - "qemu" requires board-specific cpu/machine/serverpath that cannot be
- *   inferred generically; use a manual cortex-debug config for QEMU.
- * - "linkserver" (NXP) has no native cortex-debug server-type, but it speaks
- *   the GDB remote protocol, so we tag it as "external" — users will need to
- *   start the LinkServer process and supply `gdbTarget` themselves. We return
- *   undefined here so the provider falls through to the next capable runner.
+ * See {@link runnerToServerType} for how this maps to cortex-debug, and
+ * `debug-server-bridge.ts` for the lifecycle implementation.
+ */
+export const BRIDGED_RUNNERS = new Set<string>([
+  "nrfjprog",
+  "linkserver",
+  "esp32",
+  "stm32cubeprogrammer",
+]);
+
+/**
+ * Translate a Zephyr runner name to a cortex-debug `servertype`. Returns
+ * undefined when the runner cannot be driven by cortex-debug at all.
+ *
+ * Mappings fall into three groups:
+ *
+ * 1. **Native servertypes** — cortex-debug ships a built-in server for the
+ *    runner (jlink, openocd, pyocd, stlink, bmp, qemu).
+ * 2. **External bridge** — runner has no native cortex-debug servertype but
+ *    speaks the GDB remote protocol when launched via `west debug-server`.
+ *    Returns `"external"`; callers check {@link runnerNeedsBridge} and then
+ *    spawn the server before connecting. Currently: nrfjprog, linkserver,
+ *    esp32, stm32cubeprogrammer.
+ * 3. **Unsupported** — flash-only runners (dfu-util, uf2, bossac, teensy, …)
+ *    return `undefined`; the debug provider surfaces an actionable error.
+ *
+ * Notes on specific runners:
+ * - `stm32cubeprogrammer-stlink` aliases the STM32_Programmer_CLI variant
+ *   that does speak the ST-LINK GDB protocol; we map it to `"stlink"`.
+ * - `stm32cubeprogrammer` (no `-stlink` suffix) is bridged so the user gets
+ *   a debug session via `STM32_Programmer_CLI` + `west debug-server`.
+ * - `qemu` is mapped to cortex-debug's `"qemu"` servertype; cortex-debug
+ *   forwards to QEMU's built-in GDB stub. Board-specific cpu/machine still
+ *   need to come from the user's launch.json passthrough.
  */
 export function runnerToServerType(runner: string): string | undefined {
   switch (runner) {
@@ -244,9 +274,22 @@ export function runnerToServerType(runner: string): string | undefined {
     case "blackmagicprobe":
     case "bmp":
       return "bmp";
+    case "qemu":
+      return "qemu";
     default:
+      if (BRIDGED_RUNNERS.has(runner)) { return "external"; }
       return undefined;
   }
+}
+
+/**
+ * True when {@link runnerToServerType} maps `runner` to cortex-debug's
+ * `"external"` servertype via the `west debug-server` bridge. Callers that
+ * synthesize cortex-debug configurations must spawn the bridge server and
+ * inject the resulting `gdbTarget` before handing the config to cortex-debug.
+ */
+export function runnerNeedsBridge(runner: string): boolean {
+  return BRIDGED_RUNNERS.has(runner);
 }
 
 /**

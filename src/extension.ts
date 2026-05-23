@@ -322,7 +322,7 @@ async function startDebugSession(
 
   let debugTarget: string | undefined;
   let debugTargetFolder: string | undefined;
-  if (activeBind && activeBind.kind === 'launch') {
+  if (activeBind && (activeBind.kind === 'launch' || activeBind.kind === 'zephyr-launch')) {
     debugTarget = activeBind.name;
   }
   // For pinnedRunner the value would be `${RUNNER_TARGET_PREFIX}${pinnedRunner}`
@@ -366,9 +366,7 @@ async function startDebugSession(
     ) ?? folders[0];
     const started = await vscode.debug.startDebugging(folder, inlineCfg);
     if (!started) {
-      const sessionLabel = mode === 'attach' ? 'attach session' : 'debug session';
-      notifyError("Debug", `Failed to start ${sessionLabel} from runners.yaml.` +
-        `\nCheck the Debug Console and the Zephyr IDE output channel for the synthesized cortex-debug config.`);
+      outputInfo("Debug", `${mode === 'attach' ? 'Attach' : 'Debug'} session did not start. Check the Debug Console and the Zephyr IDE output channel for details.`);
     }
     return;
   }

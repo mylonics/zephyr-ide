@@ -23,6 +23,39 @@ limitations under the License.
  * into a fully-formed `cortex-debug` configuration by reading the active
  * build's `runners.yaml`. This eliminates the need for users to maintain
  * runner-specific cortex-debug launch.json entries by hand.
+ *
+ * # Runner → servertype mapping
+ *
+ * - **Native** (jlink, openocd, pyocd, stlink, stm32cubeprogrammer-stlink,
+ *   blackmagicprobe/bmp, qemu) — cortex-debug's built-in server is used;
+ *   per-runner argument parsing lifts `runners.yaml` flags into the
+ *   matching cortex-debug fields.
+ * - **External bridge** (nrfjprog, linkserver, esp32, stm32cubeprogrammer)
+ *   — Zephyr IDE spawns `west debug-server`, parses the listening port
+ *   from its output (see `debug-server-bridge.ts`), and configures
+ *   cortex-debug with `servertype: "external"` + `gdbTarget`. The server
+ *   is terminated on `onDidTerminateDebugSession`.
+ * - **Unsupported** (dfu-util, uf2, bossac, teensy, …) — the provider
+ *   surfaces an actionable error listing the rejected runners.
+ *
+ * # Field precedence (last wins)
+ *
+ *   1. Defaults from `runners.yaml` (build-system source of truth).
+ *   2. Active runner profile's `extraArgs`.
+ *   3. Per-build `bindOverrides[debug/attach].extraArgs`.
+ *   4. User's `launch.json` entry — overrides ALL of the above except for
+ *      the reserved keys: `type`, `request`, `name`, `runner`, `rtos`
+ *      (Zephyr IDE controls these to avoid invalid configurations).
+ *
+ * # Probe overrides
+ *
+ * The runner-profile editor lets users pin a specific probe for `openocd`
+ * (writes `--openocd-config interface/<probe>.cfg`) and `pyocd` (writes
+ * `--probe=<type>`). Any conflicting `interface/*.cfg` from `runners.yaml`
+ * is filtered out so the chosen probe is not double-loaded. See
+ * `RUNNER_SECONDARY_SELECTS` in `runner-profile-app.ts` for the dropdown
+ * data and the openocd/pyocd switch arms in `buildCortexDebugConfig`
+ * below for the override semantics.
  */
 
 import * as vscode from "vscode";
@@ -33,18 +66,49 @@ import {
   resolveRunnersYamlPath,
   findSvdFile,
   runnerToServerType,
+  runnerNeedsBridge,
   RunnersYaml,
 } from "./runners-yaml";
-import { resolveActiveProjectBuild } from "../project_utilities/project";
+import { startWestDebugServer, disposeOnSessionEnd } from "./debug-server-bridge";
+import { resolveActiveProjectBuild, askUserForProject, askUserForBuild } from "../project_utilities/project";
 import { loadRunnerProfiles, findRunnerProfile, resolveBind, resolveRunnerArgs, splitArgs } from "../project_utilities/runner_profiles";
-import { parseYamlArgs, mergeArgLayers, toCortexDebugPatch, applyCortexDebugPatch } from "../project_utilities/runner_arg_resolver";
 import { WorkspaceConfig } from "../setup_utilities/types";
-import { notifyError, outputInfo } from "../utilities/output";
+import { getVenvPath } from "../setup_utilities/workspace-config";
+import { notifyError, outputInfo, outputWarning } from "../utilities/output";
+
+/**
+ * Controls whether the provider asks the user to pick a project/build at
+ * session start, or silently uses the currently active ones.
+ *
+ * - `"auto"` (default) — use the active project and active build, no prompt.
+ * - `"askBoth"` — prompt for project first, then prompt for build.
+ * - `"askProject"` — prompt for project; use that project's active build.
+ * - `"askBuild"` — use the active project; prompt for which build to debug.
+ */
+type AskMode = "auto" | "askBoth" | "askProject" | "askBuild";
 
 /** Extra fields a user may set on a `zephyr-ide` debug configuration. */
 interface ZephyrIdeDebugConfig extends vscode.DebugConfiguration {
   /** Optional explicit Zephyr runner to use (e.g. "jlink", "openocd"). */
   runner?: string;
+  /**
+   * Pin the debug session to a specific project by name. When set together
+   * with `build`, Zephyr IDE skips the active-project/build look-up
+   * entirely. When set alone, the project's active build is used.
+   */
+  project?: string;
+  /**
+   * Pin the debug session to a specific build configuration name. When set
+   * together with `project`, both are used as-is. When set alone (without
+   * `project`), the active project is used with this build name.
+   */
+  build?: string;
+  /**
+   * Whether to ask the user to choose a project and/or build at launch time.
+   * Has no effect when `project` or `build` are already specified.
+   * Defaults to `"auto"`.
+   */
+  ask?: AskMode;
 }
 
 /**
@@ -76,6 +140,8 @@ export function buildCortexDebugConfig(
     svdFile?: string;
     /** Extra args from the user's RunnerConfig, merged after runners.yaml args. */
     userArgs?: string[];
+    /** Workspace venv setup path, used to resolve tool executables (e.g. pyocd). */
+    setupPath?: string;
   } = {}
 ): vscode.DebugConfiguration | undefined {
   const serverType = runnerToServerType(runner);
@@ -92,7 +158,9 @@ export function buildCortexDebugConfig(
   };
 
   // Only openocd and jlink support the rtos field in cortex-debug.
-  // stlink, pyocd, and bmp don't support it and will error if it's set.
+  // stlink, pyocd, bmp, qemu, and external don't support it and will error if it's set.
+  // (For the BMP path, `rtos: "zephyr"` is set later by resolveDebugConfiguration
+  //  when the mylonics.bmp-debug fork is installed — that fork *does* accept it.)
   if (serverType === "openocd" || serverType === "jlink") {
     cfg.rtos = "Zephyr";
   }
@@ -124,6 +192,8 @@ export function buildCortexDebugConfig(
       const searchDir: string[] = [];
       let enableRtt = false;
       let rttPort: number | undefined;
+      let rttAddress: string | undefined;
+      let rttSearchSize: number | undefined;
       // Parse runners.yaml args first, then user args, keeping them separate
       // so the board-level fallback can be applied correctly when userArgs
       // override just the interface (probe) but runners.yaml has no -f flags.
@@ -165,6 +235,16 @@ export function buildCortexDebugConfig(
             if (next) { rttPort = parseInt(next, 10); i++; }
           } else if (a.startsWith("--rtt-port=")) {
             rttPort = parseInt(a.slice("--rtt-port=".length), 10);
+          } else if (a === "--rtt-address") {
+            const next = args[i + 1];
+            if (next) { rttAddress = next; i++; }
+          } else if (a.startsWith("--rtt-address=")) {
+            rttAddress = a.slice("--rtt-address=".length);
+          } else if (a === "--rtt-search-size") {
+            const next = args[i + 1];
+            if (next) { rttSearchSize = parseInt(next, 10); i++; }
+          } else if (a.startsWith("--rtt-search-size=")) {
+            rttSearchSize = parseInt(a.slice("--rtt-search-size=".length), 10);
           }
         }
       };
@@ -267,8 +347,9 @@ export function buildCortexDebugConfig(
         // rtt_start_retry: 1000 gives OpenOCD up to 1 s to find the RTT block.
         cfg.rttConfig = {
           enabled: true,
-          address: "auto",
+          address: rttAddress ?? "auto",
           rtt_start_retry: 1000,
+          ...(rttSearchSize !== undefined ? { searchSize: rttSearchSize } : {}),
           decoders: [{ port: rttPort ?? 0, type: "console", label: "RTT Channel 0" }],
         };
       }
@@ -301,13 +382,92 @@ export function buildCortexDebugConfig(
       break;
     }
     case "pyocd": {
+      // Args consumed here (mapped to cortex-debug fields or dropped as
+      // west-runner-specific) — everything else is forwarded to serverArgs.
+      const WEST_PYOCD_META = new Set([
+        "--dt-flash", "--skip-rebuild", "--runner", "--build-dir",
+      ]);
+      const extraServerArgs: string[] = [];
+      let enableRtt = false;
+      let rttPort: number | undefined;
+      let rttAddress: string | undefined;
+      let rttSearchSize: number | undefined;
       for (let i = 0; i < runnerArgs.length; i++) {
         const a = runnerArgs[i];
-        if (a === "--target" || a === "-t") {
-          const next = runnerArgs[i + 1];
-          if (next) { cfg.targetId = next; i++; }
-        } else if (a.startsWith("--target=")) {
-          cfg.targetId = a.slice("--target=".length);
+        const eq = (key: string): string | undefined => {
+          if (a === key) { return runnerArgs[i + 1]; }
+          if (a.startsWith(`${key}=`)) { return a.slice(key.length + 1); }
+          return undefined;
+        };
+        const target = eq("--target") ?? eq("-t");
+        if (target !== undefined) {
+          cfg.targetId = target;
+          if (a === "--target" || a === "-t") { i++; }
+          continue;
+        }
+        // Zephyr IDE RTT flags — translate to rttConfig, not serverArgs.
+        if (a === "--enable-rtt") { enableRtt = true; continue; }
+        const rttPortVal = eq("--rtt-port");
+        if (rttPortVal !== undefined) {
+          rttPort = parseInt(rttPortVal, 10);
+          if (a === "--rtt-port") { i++; }
+          continue;
+        }
+        const rttAddrVal = eq("--rtt-address");
+        if (rttAddrVal !== undefined) {
+          rttAddress = rttAddrVal;
+          if (a === "--rtt-address") { i++; }
+          continue;
+        }
+        const rttSearchVal = eq("--rtt-search-size");
+        if (rttSearchVal !== undefined) {
+          rttSearchSize = parseInt(rttSearchVal, 10);
+          if (a === "--rtt-search-size") { i++; }
+          continue;
+        }
+        // Normalize --probe <type> → --probe <type>: so pyocd selects by probe
+        // type rather than treating the value as a UID filter. pyocd's probe URL
+        // syntax requires a trailing colon to indicate a type selector
+        // (e.g. "stlink:" vs "stlink"). Only append the colon when the value
+        // looks like a type name (all-lowercase letters / digits / underscores);
+        // raw UIDs are uppercase hex and are left untouched.
+        const probeVal = eq("--probe");
+        if (probeVal !== undefined) {
+          const normalized = /^[a-z][a-z0-9_]*$/.test(probeVal) ? `${probeVal}:` : probeVal;
+          extraServerArgs.push(`--probe=${normalized}`);
+          if (a === "--probe") { i++; }
+          continue;
+        }
+        // Drop west-only flags (with optional =value or separate value token).
+        if (WEST_PYOCD_META.has(a.split("=")[0])) {
+          if (a.indexOf("=") === -1 && i + 1 < runnerArgs.length && !runnerArgs[i + 1].startsWith("-")) { i++; }
+          continue;
+        }
+        // Forward everything else to pyocd gdbserver as-is.
+        extraServerArgs.push(a);
+      }
+      if (extraServerArgs.length) {
+        cfg.serverArgs = Array.isArray(cfg.serverArgs)
+          ? [...cfg.serverArgs, ...extraServerArgs]
+          : extraServerArgs;
+      }
+      if (enableRtt) {
+        cfg.rttConfig = {
+          enabled: true,
+          address: rttAddress ?? "auto",
+          rtt_start_retry: 1000,
+          ...(rttSearchSize !== undefined ? { searchSize: rttSearchSize } : {}),
+          decoders: [{ port: rttPort ?? 0, type: "console", label: "RTT Channel 0" }],
+        };
+      }
+      // Resolve pyocd executable from the workspace venv so cortex-debug can
+      // find it without requiring it on the system PATH.
+      if (options.setupPath) {
+        const venvPath = getVenvPath(options.setupPath);
+        const isWin = process.platform === "win32";
+        const pyocdExe = path.join(venvPath, isWin ? "Scripts" : "bin", isWin ? "pyocd.exe" : "pyocd");
+        if (fs.existsSync(pyocdExe)) {
+          cfg.serverpath = pyocdExe;
         }
       }
       break;
@@ -367,6 +527,30 @@ export function buildCortexDebugConfig(
         // bmp-debug uses a flat `rttEnabled` boolean, not the rttConfig object
         // used by cortex-debug for openocd/jlink.
         cfg.rttEnabled = true;
+      }
+      break;
+    }
+    case "qemu": {
+      // QEMU's built-in GDB stub speaks the remote protocol. cortex-debug's
+      // "qemu" servertype expects `cpu` and `machine` to be supplied; these
+      // are board-specific and cannot be inferred from runners.yaml, so we
+      // leave them empty and let the user fill them via launch.json. Any
+      // runner args are forwarded to QEMU verbatim via serverArgs.
+      if (runnerArgs.length) {
+        cfg.serverArgs = Array.isArray(cfg.serverArgs)
+          ? [...cfg.serverArgs, ...runnerArgs]
+          : [...runnerArgs];
+      }
+      break;
+    }
+    case "external": {
+      // The actual `gdbTarget` is filled in by the provider after spawning
+      // `west debug-server` (see `runnerNeedsBridge` / `startWestDebugServer`).
+      // Forward any runner args to the bridge command line via a hidden field
+      // that resolveDebugConfiguration consumes — these are bridge args, NOT
+      // cortex-debug serverArgs.
+      if (runnerArgs.length) {
+        (cfg as any).__zephyrIdeBridgeArgs = runnerArgs;
       }
       break;
     }
@@ -511,10 +695,59 @@ export class ZephyrIdeDebugConfigurationProvider
     }
 
     const cfg = debugConfig as ZephyrIdeDebugConfig;
-    const resolved = resolveActiveProjectBuild(wsConfig);
-    if (!resolved) {
-      notifyError("Debug", "No active project/build configured. Set one before launching the Zephyr IDE debugger.");
-      return undefined;
+
+    // -------------------------------------------------------------------------
+    // Project / build selection
+    // -------------------------------------------------------------------------
+    // Priority:
+    //   1. Explicit `project` / `build` fields in launch.json — used as-is.
+    //   2. `ask` mode — prompt the user interactively (askBoth / askProject /
+    //      askBuild).
+    //   3. "auto" (default) — silently use the active project and active build.
+    // -------------------------------------------------------------------------
+    let resolved: Awaited<ReturnType<typeof resolveActiveProjectBuild>>;
+
+    if (cfg.project !== undefined || cfg.build !== undefined) {
+      // Explicit override: at least one of project/build is pinned.
+      const r = resolveActiveProjectBuild(wsConfig, {
+        projectName: cfg.project,
+        buildName: cfg.build,
+      });
+      if (!r) {
+        notifyError("Debug",
+          `Cannot resolve project "${cfg.project ?? "(active)"}" / build "${cfg.build ?? "(active)"}"` +
+          `. Check that both exist in the workspace.`);
+        return undefined;
+      }
+      resolved = r;
+    } else {
+      const askMode: AskMode = cfg.ask ?? "auto";
+      let projectName: string | undefined;
+      let buildName: string | undefined;
+
+      if (askMode === "askBoth" || askMode === "askProject") {
+        projectName = await askUserForProject(wsConfig);
+        if (projectName === undefined) { return undefined; } // user cancelled
+      } else {
+        // "auto" or "askBuild" — use the active project.
+        projectName = wsConfig.activeProject;
+      }
+
+      if (askMode === "askBoth" || askMode === "askBuild") {
+        if (projectName === undefined) {
+          notifyError("Debug", "No active project configured. Set one before launching the Zephyr IDE debugger.");
+          return undefined;
+        }
+        buildName = await askUserForBuild(wsConfig, projectName);
+        if (buildName === undefined) { return undefined; } // user cancelled
+      }
+
+      const r = resolveActiveProjectBuild(wsConfig, { projectName, buildName });
+      if (!r) {
+        notifyError("Debug", "No active project/build configured. Set one before launching the Zephyr IDE debugger.");
+        return undefined;
+      }
+      resolved = r;
     }
 
     // B7: Use the active sysbuild image (if any) when resolving runners.yaml.
@@ -543,7 +776,6 @@ export class ZephyrIdeDebugConfigurationProvider
     // args (e.g. flash: blackmagicprobe, debug: blackmagicprobe --enable-rtt).
     let userArgs: string[] | undefined;
     let profileRunner: string | undefined;
-    let resolvedStructuredArgs: import("../project_utilities/runner_arg_resolver").ResolvedArgs | undefined;
     const profileName = resolved.build.activeProfile;
     const profile = profileName ? findRunnerProfile(profileName, loadRunnerProfiles(wsConfig)) : undefined;
     if (profile) {
@@ -553,41 +785,26 @@ export class ZephyrIdeDebugConfigurationProvider
       const bind = profile[slot];
       const override = resolved.build.bindOverrides?.[slot];
       if (bind.kind === "launch") {
-        outputInfo("Debug", `Profile "${profileName}" has ${slot} bind set to launch.json config. Ignoring for auto-translation.`);
+        outputInfo("Debug", `Profile "${profileName}" has ${slot} bind set to custom launch.json config. Starting it directly without auto-translation.`);
+      } else if (bind.kind === "zephyr-launch") {
+        outputInfo("Debug", `Profile "${profileName}" has ${slot} bind set to Zephyr-IDE launch config "${bind.name}". Auto-resolution of elf, gdb, and target will be applied.`);
       } else if (bind.kind === "runner") {
         profileRunner = bind.runner;
 
-        // If the bind has structured args, use the three-layer merge resolver.
-        // buildCortexDebugConfig will later be called WITHOUT userArgs so that
-        // the patch from toCortexDebugPatch drives all arg-derived fields.
-        if (bind.args) {
-          const yamlFlags = runnersYaml.args[bind.runner] ?? [];
-          const yamlArgsParsed = parseYamlArgs(bind.runner, yamlFlags);
-          const buildOverride = override ? {
-            overrides: override.overrides,
-            removed: override.removed,
-            additions: override.additions,
-            rawAdditions: [...(override.rawAdditions ?? []), ...(override.extraArgs ?? [])],
-          } : undefined;
-          resolvedStructuredArgs = mergeArgLayers(
-            bind.runner, bind.args, yamlArgsParsed, buildOverride, { slot },
-          );
-        } else {
-          // Legacy path: combine extraArgs + override extraArgs as raw args.
-          const r = resolveBind(bind, override);
-          if (r?.args.trim()) {
-            const resolvedArgs = resolveRunnerArgs(r.args, {
-              workspaceFolder: wsConfig.rootPath,
-              buildFolder: buildDir,
-              board: resolved.build.board,
-              boardRevision: resolved.build.revision ?? "",
-              project: resolved.projectName,
-              build: resolved.buildName,
-              buildVars: resolved.build.customVars,
-              projectVars: resolved.project.customVars,
-            });
-            userArgs = splitArgs(resolvedArgs);
-          }
+        // Combine extraArgs + override extraArgs as raw args.
+        const r = resolveBind(bind, override);
+        if (r?.args.trim()) {
+          const resolvedArgs = resolveRunnerArgs(r.args, {
+            workspaceFolder: wsConfig.rootPath,
+            buildFolder: buildDir,
+            board: resolved.build.board,
+            boardRevision: resolved.build.revision ?? "",
+            project: resolved.projectName,
+            build: resolved.buildName,
+            buildVars: resolved.build.customVars,
+            projectVars: resolved.project.customVars,
+          });
+          userArgs = splitArgs(resolvedArgs);
         }
       }
     }
@@ -635,9 +852,9 @@ export class ZephyrIdeDebugConfigurationProvider
       request: cfg.request === "attach" ? "attach" : "launch",
       cwd: typeof (cfg as any).cwd === "string" ? (cfg as any).cwd : (folder ? folder.uri.fsPath : undefined),
       svdFile: typeof (cfg as any).svdFile === "string" ? (cfg as any).svdFile : undefined,
-      // Only pass userArgs for the legacy (non-structured) path.
-      // Structured args are applied via toCortexDebugPatch below.
-      userArgs: resolvedStructuredArgs ? undefined : userArgs,
+      // Pass userArgs from the extraArgs path.
+      userArgs: userArgs,
+      setupPath: wsConfig.activeSetupState?.setupPath,
     });
 
     if (!cortexCfg) {
@@ -646,16 +863,6 @@ export class ZephyrIdeDebugConfigurationProvider
         `Runner "${runner}" cannot be auto-translated to a cortex-debug configuration. Set "runner" in launch.json or use a cortex-debug config directly.`
       );
       return undefined;
-    }
-
-    // Apply the structured-args patch on top of the baseline cortex-debug config.
-    // This replaces the per-runner switch/case arg parsing that buildCortexDebugConfig
-    // would otherwise do for userArgs (we passed undefined above for the structured path).
-    let rttEnabled = false;
-    if (resolvedStructuredArgs) {
-      const patch = toCortexDebugPatch(resolvedStructuredArgs);
-      applyCortexDebugPatch(cortexCfg, patch);
-      rttEnabled = patch.rttEnable;
     }
 
     // When bmp-debug (mylonics.bmp-debug) is installed and the runner is BMP,
@@ -671,8 +878,19 @@ export class ZephyrIdeDebugConfigurationProvider
     // Allow user to override individual cortex-debug fields by including them
     // in their original config. User-provided keys (other than the few we
     // interpret ourselves) win over the auto-generated ones.
+    //
+    // `rtos` is reserved because:
+    //   - For openocd/jlink we hard-set `"Zephyr"` (the only value cortex-debug
+    //     accepts for Zephyr); allowing override would let users typo it.
+    //   - For pyocd/stlink/bmp/qemu/external it is unsupported and would cause
+    //     cortex-debug to error out at session start.
+    //   - For the bmp-debug fork, we set `"zephyr"` ourselves on the BMP path.
     const reservedKeys = new Set([
-      "type", "request", "name", "runner",
+      "type", "request", "name", "runner", "rtos",
+      // Project/build selection fields — consumed above, not forwarded to cortex-debug.
+      "project", "build", "ask",
+      // Internal bridge hand-off; never exposed in launch.json.
+      "__zephyrIdeBridgeArgs",
     ]);
     for (const [k, v] of Object.entries(cfg)) {
       if (reservedKeys.has(k)) { continue; }
@@ -727,11 +945,61 @@ export class ZephyrIdeDebugConfigurationProvider
       });
     }
 
+    // External bridge: spawn `west debug-server` for runners that cortex-debug
+    // cannot drive natively (nrfjprog, linkserver, esp32, stm32cubeprogrammer).
+    // The bridge prints a listening host:port that we plug into
+    // cortex-debug's `gdbTarget`. The server child is killed when the debug
+    // session ends. A user-supplied `gdbTarget` in launch.json (which
+    // survived the reservedKeys merge above) suppresses the spawn entirely.
+    if (cortexCfg.servertype === "external" && runnerNeedsBridge(runner)) {
+      const userSuppliedGdbTarget = typeof (cortexCfg as any).gdbTarget === "string"
+        && (cortexCfg as any).gdbTarget.length > 0;
+      if (!userSuppliedGdbTarget) {
+        const setupState = wsConfig.activeSetupState;
+        if (!setupState) {
+          notifyError("Debug",
+            `Runner "${runner}" needs the west debug-server bridge, but no active Zephyr IDE setup state was found. ` +
+            `Complete workspace setup (Zephyr IDE: Setup Workspace) and try again.`);
+          return undefined;
+        }
+        const bridgeArgs = (cortexCfg as any).__zephyrIdeBridgeArgs as string[] | undefined;
+        delete (cortexCfg as any).__zephyrIdeBridgeArgs;
+        try {
+          const handle = await startWestDebugServer({
+            setupState,
+            cwd: path.join(wsConfig.rootPath, resolved.project.rel_path),
+            buildDir,
+            runner,
+            extraArgs: bridgeArgs,
+          });
+          (cortexCfg as any).gdbTarget = `${handle.host}:${handle.port}`;
+          if (!handle.portDetected) {
+            outputWarning("Debug",
+              `west debug-server did not announce its listening port; using default ${handle.host}:${handle.port}. ` +
+              `If the session fails to connect, set "gdbTarget" explicitly in launch.json.`);
+          }
+          // Tear the bridge down when this debug session ends. cortexCfg.name
+          // is the unique session identifier we registered above.
+          const sub = disposeOnSessionEnd(handle, cortexCfg.name);
+          if (this.context) { this.context.subscriptions.push(sub); }
+        } catch (err) {
+          notifyError("Debug",
+            `Failed to start west debug-server for runner "${runner}": ${err instanceof Error ? err.message : String(err)}`);
+          return undefined;
+        }
+      } else {
+        // User provided their own gdbTarget — leave the hidden bridge args
+        // out of the config they actually want to launch with.
+        delete (cortexCfg as any).__zephyrIdeBridgeArgs;
+      }
+    }
+
     outputInfo("Debug", `Launching ${cortexCfg.type} session with runner "${runner}"\n${JSON.stringify(cortexCfg, null, 2)}`);
 
     // RTT auto-launch: register a one-shot listener so that after the debug
     // session starts, the RTT terminal is opened automatically.
-    // Only applies to structured-arg profiles that explicitly enable RTT.
+    // Triggered when --enable-rtt is in extraArgs (parsed by buildCortexDebugConfig).
+    const rttEnabled = !!(cortexCfg.rttConfig || (cortexCfg as any).rttEnabled);
     if (rttEnabled && this.context) {
       const disposable = vscode.debug.onDidStartDebugSession(session => {
         // Match by name to avoid auto-launching RTT for unrelated sessions.
