@@ -1,5 +1,5 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://json-schema.org/draft-07/schema#",
   "title": "Zephyr IDE Configuration",
   "description": "Workspace configuration file for the IDE for Zephyr VS Code extension (.vscode/zephyr-ide.json). Stores project configurations, runner profiles, and workspace requirements.",
   "type": "object",
@@ -41,7 +41,7 @@
     "sdkVersion": {
       "type": "string",
       "description": "Zephyr SDK version to install when bootstrapping (e.g. '0.17.0'). If omitted, the version from the Zephyr tree's SDK_VERSION file is used; if that is unavailable, the latest released SDK is installed.",
-      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(-.+)?$"
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(-[a-zA-Z0-9]+(\\.[a-zA-Z0-9]+)*)?$"
     },
     "sampleProjects": {
       "type": "array",

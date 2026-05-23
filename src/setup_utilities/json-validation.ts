@@ -28,6 +28,13 @@ import * as vscode from "vscode";
 import * as path from "upath";
 import { outputInfo, outputWarning } from "../utilities/output";
 
+/** Shape of an entry in the VS Code `json.schemas` workspace setting. */
+interface JsonSchemaEntry {
+  fileMatch?: string[];
+  url?: string;
+  schema?: unknown;
+}
+
 /** fileMatch pattern used to associate the schema with zephyr-ide.json files. */
 const ZEPHYR_IDE_JSON_FILE_MATCH = "**/.vscode/zephyr-ide.json";
 
@@ -56,15 +63,15 @@ export async function setZephyrIdeJsonValidation(
     path.join(context.extensionPath, "resources", "zephyr-ide-schema.json")
   ).toString();
 
-  const currentSchemas: any[] =
-    configuration.inspect<any[]>("json.schemas")?.workspaceValue ?? [];
+  const currentSchemas: JsonSchemaEntry[] =
+    configuration.inspect<JsonSchemaEntry[]>("json.schemas")?.workspaceValue ?? [];
 
   // Remove any existing zephyr-ide.json entry added by this extension.
   const filtered = currentSchemas.filter(
     (s) => !Array.isArray(s?.fileMatch) || !s.fileMatch.includes(ZEPHYR_IDE_JSON_FILE_MATCH)
   );
 
-  let newSchemas: any[];
+  let newSchemas: JsonSchemaEntry[];
   if (enable) {
     newSchemas = [
       ...filtered,
