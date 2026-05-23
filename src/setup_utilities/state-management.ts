@@ -308,7 +308,31 @@ function pickLegacyActiveRunner(build: any, buildState: any | undefined): string
   return undefined;
 }
 
+/**
+ * Returns true if a runner config object is in "already-bind" (pre-release) shape,
+ * i.e. it already has `flash`, `debug`, `attach`, `build`, or `buildDebug` keys.
+ * These configs originate from the pre-release branch and must NOT be migrated.
+ */
+function isAlreadyBindRunnerConfig(rc: any): boolean {
+  if (!rc || typeof rc !== "object") { return false; }
+  return !!(rc.flash !== undefined || rc.debug !== undefined || rc.attach !== undefined ||
+    rc.build !== undefined || rc.buildDebug !== undefined);
+}
+
+/**
+ * Returns true only when the build/buildState contains legacy data from the
+ * main branch (pre-bind format: runner configs with a `runner` string field, or
+ * raw `launchTarget`/`attachTarget` strings). Already-bind (pre-release) runner
+ * configs are NOT treated as legacy data — those users have no migration path.
+ */
 function hasLegacyRunnerProfileData(build: any, buildState: any | undefined): boolean {
+  // If runnerConfigs has any already-bind (pre-release) entry, skip the whole build.
+  if (build?.runnerConfigs && typeof build.runnerConfigs === "object") {
+    for (const rc of Object.values(build.runnerConfigs)) {
+      if (isAlreadyBindRunnerConfig(rc)) { return false; }
+    }
+  }
+
   const targets = getLegacyTargetBindings(build, buildState);
   return !!(
     (build?.runnerConfigs && typeof build.runnerConfigs === "object") ||
@@ -391,50 +415,30 @@ function buildPersistedRunnerProfile(name: string, profile: any): any {
 }
 
 /**
- * Convert a single legacy `RunnerConfig` (any of: pre-bind {name,runner,args};
- * mid-bind {name, flash, build|buildDebug|debug, attach}) plus legacy
- * build target fields (launchTarget/buildDebugTarget/attachTarget) into a
- * `RunnerProfile`-shaped object (sans scope).
+ * Convert a single legacy pre-bind `RunnerConfig` ({name, runner, args}) from
+ * the main branch into a `RunnerProfile`-shaped object (sans scope).
+ *
+ * Only the flash slot is derived from the legacy data. The debug and attach
+ * slots are always set to `{ kind: "auto" }` — the corresponding legacy
+ * `launchTarget` / `attachTarget` values are instead stored as per-build
+ * `localBinds` by the caller (`migrateLegacyRunnersToProfiles`).
+ *
+ * Already-bind (pre-release) runner configs must never reach this function;
+ * `hasLegacyRunnerProfileData` guards against that before the call.
  *
  * Exported for tests.
  */
-export function migrateRunnerConfig(rc: any, legacyBuild: any | undefined): any {
-  // Helper: fold legacy launch target string into a bind.
-  const bindFromTarget = (target: string | undefined): any => {
-    if (!target || target.startsWith("Auto:") || target === "Zephyr IDE: Debug") {
-      return { kind: "auto" };
-    }
-    return { kind: "launch", name: target };
-  };
-
-  // Already in (mid-)bind shape: normalise field set.
-  if (rc && typeof rc === "object" && (rc.flash || rc.build || rc.buildDebug || rc.debug || rc.attach)) {
-    const flash = rc.flash ?? { kind: "auto" };
-    // `debug` is the debug-only slot; `buildDebug` / `build` are the build-and-debug slot.
-    const debug = rc.debug ?? { kind: "auto" };
-    const attach = rc.attach ?? { kind: "auto" };
-    const out: any = { name: rc.name, flash, debug, attach };
-    // Preserve buildDebug / build as the dedicated Build-and-Debug slot.
-    const buildDebugBind = rc.buildDebug ?? rc.build;
-    if (buildDebugBind) { out.buildDebug = buildDebugBind; }
-    return out;
-  }
-
+export function migrateRunnerConfig(rc: any): any {
   // Pre-bind shape {name, runner, args, argsMode?}.
-  // In the old model: buildDebugTarget → Build-and-Debug; launchTarget → Debug-only.
   const flash: any = rc?.runner
     ? { kind: "west-flash", runner: rc.runner, ...(rc.args ? { extraArgs: splitArgs(String(rc.args)) } : {}) }
     : { kind: "auto" };
-  const out: any = {
+  return {
     name: rc?.name,
     flash,
-    debug: bindFromTarget(legacyBuild?.launchTarget),
-    attach: bindFromTarget(legacyBuild?.attachTarget),
+    debug: { kind: "auto" },
+    attach: { kind: "auto" },
   };
-  if (legacyBuild?.buildDebugTarget) {
-    out.buildDebug = bindFromTarget(legacyBuild.buildDebugTarget);
-  }
-  return out;
 }
 
 export async function loadWorkspaceState(context: vscode.ExtensionContext): Promise<WorkspaceConfig> {
@@ -488,27 +492,27 @@ export async function loadWorkspaceState(context: vscode.ExtensionContext): Prom
 }
 
 /**
- * One-shot migration: scans each project build for legacy runner and target
- * bindings, extracts a single effective RunnerProfile per build into
- * `.vscode/zephyr-ide.json#runnerProfiles`, dedupes identical profiles by
- * content, sets `build.activeProfile`, and removes the legacy fields from the
- * in-memory config.
+ * One-shot migration: scans each project build for legacy runner bindings from
+ * the main branch (pre-bind format: `runnerConfigs` with `runner` string fields,
+ * or raw `launchTarget`/`attachTarget` strings). For each such build:
+ *
+ *   - Extracts the flash-only `RunnerProfile` (deduped by content) into
+ *     `.vscode/zephyr-ide.json#runnerProfiles` and sets `build.activeProfile`.
+ *   - Migrates `launchTarget` / `attachTarget` to per-build `localBinds.debug`
+ *     / `localBinds.attach` in the workspace state so they are not lost.
+ *   - Removes all legacy fields from the in-memory config so subsequent saves
+ *     are clean.
+ *
+ * Already-bind (pre-release) runner configs are silently skipped — users who
+ * were on the pre-release branch have no migration path and their data is left
+ * untouched.
+ *
+ * The migration is naturally idempotent: once the legacy fields are stripped
+ * from `build` and `buildState`, `hasLegacyRunnerProfileData` returns false and
+ * the build is skipped on the next load.
  *
  * Exported for unit testing.
- *
- * The migration is gated by a `runnerProfilesMigrationVersion` flag stored in
- * `.vscode/zephyr-ide.json`. Once the file records `runnerProfilesMigrationVersion >= 1`,
- * this function short-circuits without rescanning. This prevents duplicate
- * `runner-2`/`runner-3` profile names from appearing on every workspace load
- * if a previous migration partially succeeded.
- *
- * On any migration (even when no new profiles are added — e.g. only legacy
- * fields stripped), the cleaned-up `wsConfig` is persisted via
- * `setWorkspaceState` so the next load sees the same shape this one did.
  */
-export const RUNNER_PROFILES_MIGRATION_VERSION = 1;
-const MIGRATION_VERSION_KEY = "runnerProfilesMigrationVersion";
-
 export async function migrateLegacyRunnersToProfiles(
   context: vscode.ExtensionContext,
   config: WorkspaceConfig,
@@ -516,23 +520,10 @@ export async function migrateLegacyRunnersToProfiles(
   if (!isActiveWorkspaceInitialized(config)) { return; }
 
   let data: Record<string, unknown> = {};
-
-  // Idempotency guard — once we've migrated, never re-scan. This prevents
-  // duplicate `runner-2`/`runner-3` collisions from being appended on every
-  // load when (e.g.) a previous migration succeeded but write-back failed.
   try {
     data = readZephyrIdeJson(config) as Record<string, unknown>;
-    const recorded = typeof data[MIGRATION_VERSION_KEY] === "number"
-      ? (data[MIGRATION_VERSION_KEY] as number)
-      : 0;
-    if (recorded >= RUNNER_PROFILES_MIGRATION_VERSION) {
-      return;
-    }
   } catch (e) {
-    // Log so a filesystem/parse failure here is visible rather than silently
-    // masking a deeper issue, but fall through and still attempt migration —
-    // the version flag write at the end will heal a partially-corrupt file.
-    outputError("Runner Profile Migration", `Failed to read migration version flag: ${String(e)}`);
+    outputError("Runner Profile Migration", `Failed to read zephyr-ide.json: ${String(e)}`);
   }
 
   const existingNames = new Set<string>();
@@ -588,7 +579,7 @@ export async function migrateLegacyRunnersToProfiles(
       const legacyRunner = legacyRunnerName && build.runnerConfigs?.[legacyRunnerName]
         ? build.runnerConfigs[legacyRunnerName]
         : undefined;
-      const migratedShape = migrateRunnerConfig(legacyRunner, legacyBindings);
+      const migratedShape = migrateRunnerConfig(legacyRunner);
       const signature = buildRunnerProfileSignature(migratedShape);
       let profileName = signatureToName.get(signature);
       if (!profileName) {
@@ -598,6 +589,34 @@ export async function migrateLegacyRunnersToProfiles(
         signatureToName.set(signature, profileName);
       }
       build.activeProfile = profileName;
+
+      // Migrate launchTarget / attachTarget to per-build localBinds so the
+      // user's existing launch.json references are not lost.  Auto-like
+      // placeholders are dropped (the profile's auto slot already handles them).
+      const isAutoTarget = (t: string | undefined) =>
+        !t || t.startsWith("Auto:") || t === "Zephyr IDE: Debug";
+
+      if (!isAutoTarget(legacyBindings.launchTarget)) {
+        if (!config.projectStates) { config.projectStates = {}; }
+        if (!config.projectStates[projectName]) { (config.projectStates as any)[projectName] = {}; }
+        const ps = config.projectStates[projectName] as any;
+        if (!ps.buildStates) { ps.buildStates = {}; }
+        if (!ps.buildStates[buildName]) { ps.buildStates[buildName] = {}; }
+        const bs = ps.buildStates[buildName] as any;
+        if (!bs.localBinds) { bs.localBinds = {}; }
+        bs.localBinds.debug = legacyBindings.launchTarget;
+      }
+
+      if (!isAutoTarget(legacyBindings.attachTarget)) {
+        if (!config.projectStates) { config.projectStates = {}; }
+        if (!config.projectStates[projectName]) { (config.projectStates as any)[projectName] = {}; }
+        const ps = config.projectStates[projectName] as any;
+        if (!ps.buildStates) { ps.buildStates = {}; }
+        if (!ps.buildStates[buildName]) { ps.buildStates[buildName] = {}; }
+        const bs = ps.buildStates[buildName] as any;
+        if (!bs.localBinds) { bs.localBinds = {}; }
+        bs.localBinds.attach = legacyBindings.attachTarget;
+      }
 
       // Strip legacy fields from in-memory shape so subsequent saves are clean.
       delete build.runnerConfigs;
@@ -611,27 +630,27 @@ export async function migrateLegacyRunnersToProfiles(
       if (buildState) {
         delete buildState.activeRunner;
         delete buildState.runnerStates;
+        delete buildState.launchTarget;
+        delete buildState.buildDebugTarget;
+        delete buildState.attachTarget;
       }
       migrated = true;
     }
   }
 
-  // Always stamp the migration version so we never re-scan on future loads
-  // — even when nothing needed migrating, since the absence of legacy fields
-  // already means the workspace is on the new shape.
-  try {
-    if (migrated && newProfiles.length > 0) {
+  // Write new profiles to the workspace JSON file if any were created.
+  if (migrated && newProfiles.length > 0) {
+    try {
       data.runnerProfiles = [...existingProfiles, ...newProfiles];
+      await writeZephyrIdeJson(config, data);
+    } catch (e) {
+      outputError("Runner Profile Migration", `Failed to persist migrated runner profiles: ${String(e)}`);
     }
-    data[MIGRATION_VERSION_KEY] = RUNNER_PROFILES_MIGRATION_VERSION;
-    await writeZephyrIdeJson(config, data);
-  } catch (e) {
-    outputError("Runner Profile Migration", `Failed to persist migrated runner profiles: ${String(e)}`);
   }
 
-  // Persist the stripped legacy fields and any newly-set `activeProfile`
-  // values to workspace state + zephyr-ide.json#projects so the cleanup
-  // survives a session close even when the user makes no further edits.
+  // Persist the stripped legacy fields and any newly-set `activeProfile` /
+  // `localBinds` values to workspace state + zephyr-ide.json#projects so the
+  // cleanup survives a session close even when the user makes no further edits.
   if (migrated) {
     try {
       await setWorkspaceState(context, config);
