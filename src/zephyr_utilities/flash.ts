@@ -24,8 +24,65 @@ import { ProjectConfig, resolveActiveProjectBuild, getBuildFolder } from "../pro
 
 import { WorkspaceConfig } from '../setup_utilities/types';
 import { BuildConfig } from "../project_utilities/build_selector";
-import { loadRunnerProfiles, findRunnerProfile, resolveBind, resolveRunnerArgs } from "../project_utilities/runner_profiles";
+import { loadRunnerProfiles, findRunnerProfile, resolveRunnerArgs, RunnerVarContext, FlashBind, BindOverride } from "../project_utilities/runner_profiles";
 import { getSetupStateOrNotify } from "../setup_utilities/workspace-config";
+
+/**
+ * Resolve the west runner name and final (already-substituted) args string
+ * for a flash operation. Per-token substitution is applied so that variables
+ * expanding to paths with spaces stay as single tokens.
+ */
+function resolveFlashRunnerAndArgs(
+  profileFlashBind: FlashBind,
+  bindOverride: BindOverride | undefined,
+  ctx?: RunnerVarContext,
+): { runner: string; args: string } {
+  if (profileFlashBind.kind !== "west-flash") {
+    return { runner: "default", args: "" };
+  }
+  const bind = profileFlashBind;
+  const allTokens = [
+    ...(bind.extraArgs ?? []),
+    ...(bindOverride?.extraArgs ?? []),
+  ];
+  const parts = ctx
+    ? allTokens.map(t => resolveRunnerArgs(t, ctx)).filter(t => t.trim().length > 0)
+    : allTokens.map(s => s.trim()).filter(s => s.length > 0);
+  return { runner: bind.runner, args: parts.join(" ") };
+}
+
+/**
+ * Shared helper: look up the active runner profile for a build and resolve
+ * the flash runner + (already-substituted) args string.
+ */
+function resolveFlashFromProfile(
+  profileName: string | undefined,
+  project: import("../project_utilities/project").ProjectConfig,
+  buildConfig: import("../project_utilities/build_selector").BuildConfig,
+  wsConfig: WorkspaceConfig,
+): { runner: string; args: string } {
+  const effectiveName = profileName ?? buildConfig.activeProfile;
+  if (!effectiveName) { return { runner: "default", args: "" }; }
+
+  const profile = findRunnerProfile(effectiveName, loadRunnerProfiles(wsConfig));
+  if (!profile) {
+    notifyError("Flash", `Runner profile not found: "${effectiveName}"`);
+    return { runner: "default", args: "" };
+  }
+  // FlashBind only allows "auto" and "west-flash" — no launch kinds.
+  const buildFolder = getBuildFolder(wsConfig, project, buildConfig);
+  const ctx: RunnerVarContext = {
+    workspaceFolder: wsConfig.rootPath,
+    buildFolder,
+    board: buildConfig.board,
+    boardRevision: buildConfig.revision ?? "",
+    project: project.name,
+    build: buildConfig.name,
+    buildVars: buildConfig.customVars,
+    projectVars: project.customVars,
+  };
+  return resolveFlashRunnerAndArgs(profile.flash, buildConfig.bindOverrides?.flash, ctx);
+}
 
 export async function flashByName(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName: string, buildName: string, profileName?: string) {
   const project = wsConfig.projects[projectName];
@@ -38,45 +95,14 @@ export async function flashByName(context: vscode.ExtensionContext, wsConfig: Wo
     notifyError("Flash", `Build configuration not found: "${buildName}" in project "${projectName}"`);
     return;
   }
-
-  // Default: "default" runner + no args (west picks from runners.yaml).
-  let runner = "default", args = "";
-  const effectiveProfileName = profileName ?? buildConfig.activeProfile;
-  if (effectiveProfileName) {
-    const profile = findRunnerProfile(effectiveProfileName, loadRunnerProfiles(wsConfig));
-    if (!profile) {
-      notifyError("Flash", `Runner profile not found: "${effectiveProfileName}"`);
-      return;
-    }
-    if (profile.flash.kind === "launch") {
-      outputWarning("Flash", `Profile "${effectiveProfileName}" has flash bind set to launch.json config, which is not valid for flashing. Using default runner.`);
-    } else {
-      const r = resolveBind(profile.flash, buildConfig.bindOverrides?.flash);
-      if (r) { runner = r.runner; args = r.args; }
-    }
-  }
-
+  const { runner, args } = resolveFlashFromProfile(profileName, project, buildConfig, wsConfig);
   await flash(context, wsConfig, project, buildConfig, runner, args);
 }
 
 export async function flashActive(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
   const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Flash" });
   if (!resolved) { return; }
-
-  let runner = "default", args = "";
-  const profileName = resolved.build.activeProfile;
-  if (profileName) {
-    const profile = findRunnerProfile(profileName, loadRunnerProfiles(wsConfig));
-    if (profile) {
-      if (profile.flash.kind === "launch") {
-        outputWarning("Flash", `Profile "${profileName}" has flash bind set to launch.json config, which is not valid for flashing. Using default runner.`);
-      } else {
-        const r = resolveBind(profile.flash, resolved.build.bindOverrides?.flash);
-        if (r) { runner = r.runner; args = r.args; }
-      }
-    }
-  }
-
+  const { runner, args } = resolveFlashFromProfile(undefined, resolved.project, resolved.build, wsConfig);
   await flash(context, wsConfig, resolved.project, resolved.build, runner, args);
 }
 
@@ -97,17 +123,8 @@ export async function flash(context: vscode.ExtensionContext, wsConfig: Workspac
   if (runner !== "default") {
     cmd += ` -r ${runner}`;
   }
-  const resolvedArgs = resolveRunnerArgs(args, {
-    workspaceFolder: wsConfig.rootPath,
-    buildFolder,
-    board: build.board,
-    boardRevision: build.revision ?? "",
-    project: project.name,
-    build: build.name,
-    buildVars: build.customVars,
-    projectVars: project.customVars,
-  });
-  const trimmedArgs = resolvedArgs.trim();
+  // args are already substituted by resolveFlashFromProfile (per-token).
+  const trimmedArgs = args.trim();
   if (trimmedArgs) { cmd += ` ${trimmedArgs}`; }
 
   const taskName = "Zephyr IDE Flash: " + project.name + " " + build.name;

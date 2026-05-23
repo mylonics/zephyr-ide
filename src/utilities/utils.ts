@@ -27,7 +27,7 @@ import * as yaml from 'js-yaml';
 import { SetupState, WorkspaceConfig } from "../setup_utilities/types";
 import { getToolchainDir, resolveToolchainDirPath } from "../setup_utilities/workspace-config";
 import { initOutputChannel, getOutputChannel, outputCommand, outputError, outputInfo, outputLine, type ShellCommandResult } from "./output";
-import { KNOWN_RUNNERS } from "../project_utilities/runner_selector";
+import { KNOWN_RUNNERS, DEBUG_CAPABLE_RUNNERS } from "../project_utilities/runner_selector";
 export type { ShellCommandResult } from "./output";
 
 /**
@@ -619,15 +619,6 @@ export function getLaunchTargetDisplayName(targetName: string, targetFolder: str
   }
   return `${label} (${targetFolder})`;
 }
-
-/** Runners that cortex-debug can drive and are therefore valid debug targets. */
-const DEBUG_CAPABLE_RUNNERS = [
-  "openocd",
-  "jlink",
-  "pyocd",
-  "stlink",
-  "blackmagicprobe",
-];
 
 /** Prefix used to store a runner-pinned target in a RunnerBind's `launch` slot or in the legacy launchTarget / attachTarget string. */
 export const RUNNER_TARGET_PREFIX = "runner:";

@@ -59,13 +59,13 @@ export interface WebviewProjectInfo {
 
 /** Resolved view of one Runner Profile slot for the build card. */
 export interface WebviewSlotBind {
-  /** Slot identifier — "flash" | "debug" | "attach". */
-  slot: "flash" | "debug" | "attach";
+  /** Slot identifier. */
+  slot: "flash" | "debug" | "attach" | "buildDebug";
   /** Display label: "Auto (runners.yaml)" | "openocd --speed 4000" | "launch.json: <name>". */
   label: string;
   /** Bind discriminator from the profile, or "none" when no active profile. */
-  kind: "none" | "auto" | "runner" | "launch";
-  /** Underlying runner name (only when `kind === "runner"`). */
+  kind: "none" | "auto" | "west-flash" | "west-debug" | "cortex-debug" | "launch";
+  /** Underlying runner name (when kind is west-flash / west-debug / cortex-debug). */
   runner?: string;
   /** Effective extra args (profile + override) shown in the inline editor. */
   extraArgs: string;
@@ -90,7 +90,7 @@ export interface WebviewBuildDetails {
   /** Active Runner Profile name (or undefined when none selected). */
   activeProfile: string | undefined;
   /** Resolved bind labels for the three slots of the active profile (or "none"). */
-  slotBinds: { flash: WebviewSlotBind; debug: WebviewSlotBind; attach: WebviewSlotBind };
+  slotBinds: { flash: WebviewSlotBind; debug: WebviewSlotBind; attach: WebviewSlotBind; buildDebug?: WebviewSlotBind };
   /** Read-only hint from runners.yaml. */
   runnersYamlHint: {
     flashRunner?: string;

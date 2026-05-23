@@ -65,42 +65,104 @@ import { WorkspaceConfig } from "../setup_utilities/types";
 import { readZephyrIdeJson, writeZephyrIdeJson } from "../setup_utilities/zephyr_ide_json";
 
 /**
- * RunnerBind kinds:
- *   - "auto":    use defaults from runners.yaml (the cmake-generated file).
- *   - "runner":  name a specific Zephyr west runner (e.g. "openocd").
- *                `extraArgs` is appended after runners.yaml args.
- *   - "launch":  reference a `launch.json` configuration by name (Debug / Attach only).
+ * FlashBind — selects how the Flash / Build-and-Flash action is executed.
  *
- * The old "variant" kind has been folded into named RunnerProfiles, which are
- * the new unit of sharing across builds.
+ *   - "auto":        use `runners.yaml` defaults (west picks the runner).
+ *   - "west-flash":  invoke `west flash -r <runner> [extraArgs]`.
+ *                    `extraArgs` tokens are appended verbatim after runners.yaml
+ *                    args and any per-build `BindOverride.extraArgs`.
  */
-export type RunnerBind =
+export type FlashBind =
   | { kind: "auto" }
-  | { kind: "runner"; runner: string; extraArgs?: string[] }
-  | { kind: "launch"; name: string };
+  | {
+    kind: "west-flash";
+    runner: string;
+    /** Free-text arg tokens appended verbatim to the west flash command. */
+    extraArgs?: string[];
+  };
+
+/**
+ * DebugBind — selects how a Debug / Attach / Build-and-Debug action is run.
+ *
+ *   - "auto":          use `runners.yaml` defaults, auto-translated to cortex-debug
+ *                      by the `zephyr-ide` debug provider.
+ *   - "launch":        reference a `launch.json` configuration by name.
+ *                      Any `type` is accepted (`cortex-debug`, `zephyr-ide`, …);
+ *                      the config is used as-is with no modification.
+ *   - "cortex-debug":  name a Zephyr runner and configure structured options.
+ *                      The `zephyr-ide` debug provider auto-fills elf/gdb/target
+ *                      from `runners.yaml` and applies `enableRtt` / `probe` on
+ *                      top. For advanced overrides (e.g. custom serverArgs, extra
+ *                      cortex-debug fields) create a `launch.json` config instead.
+ *   - "west-debug":    invoke `west debug-server` and connect cortex-debug as an
+ *                      external GDB server. `extraArgs` are forwarded to the
+ *                      `west debug-server` command line.
+ */
+export type DebugBind =
+  | { kind: "auto" }
+  | { kind: "launch"; name: string }
+  | {
+    kind: "cortex-debug";
+    runner: string;
+    /**
+     * When `true`, `--enable-rtt` is injected into the west runner args so
+     * that the RTT terminal is opened automatically after the session starts.
+     * Only valid for runners that support RTT (openocd, jlink, bmp).
+     */
+    enableRtt?: boolean;
+    /**
+     * Probe / interface selection.
+     * - For `openocd`: path to an OpenOCD interface config (e.g. `interface/stlink.cfg`).
+     *   Injected as `--openocd-config <probe>` and any conflicting `interface/*.cfg`
+     *   already present in `runners.yaml` args is removed.
+     * - For `pyocd`: probe identifier (e.g. `stlink`, `cmsis_dap`).
+     *   Injected as `--probe=<probe>`.
+     * Ignored for all other runners.
+     */
+    probe?: string;
+  }
+  | {
+    kind: "west-debug";
+    runner: string;
+    /** Free-text arg tokens forwarded to `west debug-server` after the runner name. */
+    extraArgs?: string[];
+  };
+
+/**
+ * Backward-compat alias — the old single `RunnerBind` union is the union of
+ * both bind kinds. Callers that hold a field of type `RunnerBind` should be
+ * migrated to use `FlashBind` or `DebugBind` directly; this alias only exists
+ * to smooth the compiler errors during the transition.
+ * @deprecated Use `FlashBind` (for flash) or `DebugBind` (for debug/attach).
+ */
+export type RunnerBind = FlashBind | DebugBind;
 
 export interface RunnerProfile {
   name: string;
-  /** Used for both Flash and Build-and-Flash actions. `launch` is invalid here. */
-  flash: RunnerBind;
+  /** Used for both Flash and Build-and-Flash actions. */
+  flash: FlashBind;
   /**
    * Used exclusively for Build-and-Debug when `zephyr-ide.separateBuildDebugProfile` is enabled.
    * When the setting is disabled this field is ignored and `debug` drives both actions.
    * Optional: omit (or leave undefined) to fall back to the `debug` bind for Build-and-Debug.
    */
-  buildDebug?: RunnerBind;
+  buildDebug?: DebugBind;
   /** Used for Debug (and Build-and-Debug when `buildDebug` is not set or the setting is disabled). */
-  debug: RunnerBind;
+  debug: DebugBind;
   /** Used for Debug Attach. */
-  attach: RunnerBind;
+  attach: DebugBind;
 }
 
 export type RunnerProfileDictionary = { [name: string]: RunnerProfile };
 
-/** Per-slot override that a `BuildConfig` may add on top of its referenced
- *  profile. Only meaningful for slots whose profile kind is `runner`. */
+/**
+ * Per-slot override that a `BuildConfig` may add on top of its referenced
+ * profile. Only meaningful for slots whose profile kind is `west-flash` or
+ * `west-debug` (i.e. the kinds that carry free-text `extraArgs`).
+ * `cortex-debug`, `launch`, and `auto` slots ignore overrides.
+ */
 export interface BindOverride {
-  /** Extra args appended after the profile's resolved args. */
+  /** Raw arg tokens appended after the profile's extraArgs. */
   extraArgs?: string[];
 }
 
@@ -187,7 +249,7 @@ export function splitArgs(args: string): string[] {
 function normalizeExtraArgs(v: unknown): string[] {
   if (Array.isArray(v)) {
     return v.filter((s): s is string => typeof s === "string" && s.trim().length > 0)
-            .map(s => s.trim());
+      .map(s => s.trim());
   }
   if (typeof v === "string" && v.trim()) {
     return splitArgs(v);
@@ -214,12 +276,12 @@ function sanitizeProfiles(value: unknown): RunnerProfile[] {
     const obj = v as Record<string, unknown>;
     const name = typeof obj.name === "string" ? obj.name.trim() : "";
     if (!name) { continue; }
-    const buildDebug = sanitizeBind(obj.buildDebug);
+    const buildDebug = sanitizeDebugBind(obj.buildDebug);
     const profile: RunnerProfile = {
       name,
-      flash: sanitizeBind(obj.flash) ?? { kind: "auto" },
-      debug: sanitizeBind(obj.debug) ?? { kind: "auto" },
-      attach: sanitizeBind(obj.attach) ?? { kind: "auto" },
+      flash: sanitizeFlashBind(obj.flash) ?? { kind: "auto" },
+      debug: sanitizeDebugBind(obj.debug) ?? { kind: "auto" },
+      attach: sanitizeDebugBind(obj.attach) ?? { kind: "auto" },
     };
     if (buildDebug) { profile.buildDebug = buildDebug; }
     out.push(profile);
@@ -227,20 +289,63 @@ function sanitizeProfiles(value: unknown): RunnerProfile[] {
   return out;
 }
 
-function sanitizeBind(value: unknown): RunnerBind | undefined {
+function sanitizeFlashBind(value: unknown): FlashBind | undefined {
   if (!value || typeof value !== "object") { return undefined; }
   const v = value as Record<string, unknown>;
   if (v.kind === "auto") { return { kind: "auto" }; }
-  if (v.kind === "runner" && typeof v.runner === "string" && v.runner.trim()) {
-    const out: RunnerBind = { kind: "runner", runner: v.runner.trim() };
+  if (v.kind === "west-flash" && typeof v.runner === "string" && v.runner.trim()) {
+    const out: FlashBind = { kind: "west-flash", runner: v.runner.trim() };
     const extra = normalizeExtraArgs(v.extraArgs);
     if (extra.length > 0) { out.extraArgs = extra; }
     return out;
   }
+  // Legacy: "runner" kind maps to "west-flash".
+  if (v.kind === "runner" && typeof v.runner === "string" && v.runner.trim()) {
+    const out: FlashBind = { kind: "west-flash", runner: v.runner.trim() };
+    const extra = normalizeExtraArgs(v.extraArgs);
+    if (extra.length > 0) { out.extraArgs = extra; }
+    return out;
+  }
+  return undefined;
+}
+
+function sanitizeDebugBind(value: unknown): DebugBind | undefined {
+  if (!value || typeof value !== "object") { return undefined; }
+  const v = value as Record<string, unknown>;
+  if (v.kind === "auto") { return { kind: "auto" }; }
   if (v.kind === "launch" && typeof v.name === "string" && v.name.trim()) {
     return { kind: "launch", name: v.name.trim() };
   }
+  // Legacy: "zephyr-launch" maps to "launch" (merged).
+  if (v.kind === "zephyr-launch" && typeof v.name === "string" && v.name.trim()) {
+    return { kind: "launch", name: v.name.trim() };
+  }
+  if (v.kind === "cortex-debug" && typeof v.runner === "string" && v.runner.trim()) {
+    const out: DebugBind = { kind: "cortex-debug", runner: v.runner.trim() };
+    if (v.enableRtt === true) { out.enableRtt = true; }
+    if (typeof v.probe === "string" && v.probe.trim()) { out.probe = v.probe.trim(); }
+    return out;
+  }
+  if (v.kind === "west-debug" && typeof v.runner === "string" && v.runner.trim()) {
+    const out: DebugBind = { kind: "west-debug", runner: v.runner.trim() };
+    const extra = normalizeExtraArgs(v.extraArgs);
+    if (extra.length > 0) { out.extraArgs = extra; }
+    return out;
+  }
+  // Legacy: "runner" kind in a debug slot maps to "cortex-debug".
+  if (v.kind === "runner" && typeof v.runner === "string" && v.runner.trim()) {
+    const out: DebugBind = { kind: "cortex-debug", runner: v.runner.trim() };
+    // Migrate --enable-rtt from extraArgs to structured field.
+    const rawArgs = normalizeExtraArgs(v.extraArgs);
+    if (rawArgs.includes("--enable-rtt")) { out.enableRtt = true; }
+    return out;
+  }
   return undefined;
+}
+
+/** @deprecated Use sanitizeFlashBind / sanitizeDebugBind. */
+function sanitizeBind(value: unknown): RunnerBind | undefined {
+  return sanitizeFlashBind(value) ?? sanitizeDebugBind(value);
 }
 
 /** Load merged profiles from user settings + workspace `.vscode/zephyr-ide.json`.
@@ -264,47 +369,102 @@ export function findRunnerProfile(name: string, profiles: RunnerProfile[]): Runn
 }
 
 /**
- * Resolve a `RunnerBind` (plus optional per-build override) to a concrete
- * `{runner, args}` pair, or `undefined` when the caller should use defaults.
+ * Resolve a `FlashBind` or `DebugBind` (plus optional per-build override) to
+ * a concrete `{runner, args}` pair, or `undefined` when the caller should use
+ * defaults or launch a named config.
  *
- *   - "auto":   returns undefined (caller uses runners.yaml defaults).
- *   - "runner": { runner: bind.runner, args: bind.extraArgs + override.extraArgs }
- *   - "launch": returns undefined (caller routes to launch.json).
+ *   - "auto":         returns undefined (caller uses runners.yaml defaults).
+ *   - "west-flash":   returns { runner, args } combining profile extraArgs + override.
+ *   - "west-debug":   returns { runner, args } combining profile extraArgs + override.
+ *   - "cortex-debug": returns { runner, args: "" } (structured fields, no free args).
+ *   - "launch":       returns undefined (caller routes to launch.json).
+ *
+ * NOTE: For the full three-layer merge (structured + yaml + build override),
+ * use `runner_arg_resolver.mergeArgLayers` instead. This function is the
+ * lightweight path used when only the combined west args string is needed
+ * (e.g. flash command assembly).
  */
 export function resolveBind(
-  bind: RunnerBind | undefined,
+  bind: FlashBind | DebugBind | undefined,
   override?: BindOverride,
 ): { runner: string; args: string } | undefined {
   if (!bind) { return undefined; }
   switch (bind.kind) {
     case "auto":
       return undefined;
-    case "runner": {
-      const parts = [...(bind.extraArgs ?? []), ...(override?.extraArgs ?? [])]
-        .map(s => s.trim())
-        .filter(s => s.length > 0);
+    case "west-flash": {
+      const parts: string[] = [
+        ...(bind.extraArgs ?? []),
+        ...(override?.extraArgs ?? []),
+      ].map(s => s.trim()).filter(s => s.length > 0);
       return { runner: bind.runner, args: parts.join(" ") };
     }
+    case "west-debug": {
+      const parts: string[] = [
+        ...(bind.extraArgs ?? []),
+        ...(override?.extraArgs ?? []),
+      ].map(s => s.trim()).filter(s => s.length > 0);
+      return { runner: bind.runner, args: parts.join(" ") };
+    }
+    case "cortex-debug":
+      return { runner: bind.runner, args: "" };
     case "launch":
       return undefined;
   }
 }
 
-/** Short human-readable label for the bind (used by tree view / status bar / panel). */
-export function formatBindLabel(bind: RunnerBind | undefined, override?: BindOverride): string {
+/** Short human-readable label for a flash bind (used by tree view / status bar / panel). */
+export function formatFlashBindLabel(bind: FlashBind | undefined, override?: BindOverride): string {
   if (!bind) { return "Auto (runners.yaml)"; }
   switch (bind.kind) {
     case "auto":
       return "Auto (runners.yaml)";
-    case "runner": {
+    case "west-flash": {
       const parts = [...(bind.extraArgs ?? []), ...(override?.extraArgs ?? [])]
         .map(s => s.trim())
         .filter(s => s.length > 0);
       const args = parts.join(" ");
       return args ? `${bind.runner} ${args}` : bind.runner;
     }
+  }
+}
+
+/** Short human-readable label for a debug/attach bind. */
+export function formatDebugBindLabel(bind: DebugBind | undefined, override?: BindOverride): string {
+  if (!bind) { return "Auto (runners.yaml)"; }
+  switch (bind.kind) {
+    case "auto":
+      return "Auto (runners.yaml)";
     case "launch":
       return `launch.json: ${bind.name}`;
+    case "cortex-debug": {
+      const extras: string[] = [];
+      if (bind.enableRtt) { extras.push("RTT"); }
+      if (bind.probe) { extras.push(`probe: ${bind.probe}`); }
+      return extras.length > 0 ? `${bind.runner} (${extras.join(", ")})` : bind.runner;
+    }
+    case "west-debug": {
+      const parts = [...(bind.extraArgs ?? []), ...(override?.extraArgs ?? [])]
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
+      const args = parts.join(" ");
+      return args ? `west-debug: ${bind.runner} ${args}` : `west-debug: ${bind.runner}`;
+    }
+  }
+}
+
+/**
+ * Short human-readable label for any bind (flash or debug).
+ * Delegates to the appropriate typed helper.
+ */
+export function formatBindLabel(bind: FlashBind | DebugBind | undefined, override?: BindOverride): string {
+  if (!bind) { return "Auto (runners.yaml)"; }
+  switch (bind.kind) {
+    case "auto": return "Auto (runners.yaml)";
+    case "west-flash": return formatFlashBindLabel(bind, override);
+    case "west-debug": return formatDebugBindLabel(bind, override);
+    case "cortex-debug": return formatDebugBindLabel(bind, override);
+    case "launch": return formatDebugBindLabel(bind, override);
   }
 }
 
@@ -383,9 +543,18 @@ export async function saveRunnerProfile(
   const byScope = listRunnerProfilesByScope(wsConfig);
   const list = scope === "user" ? byScope.user : byScope.workspace;
   const removeName = originalName ?? profile.name;
+  // Find the position of the entry being replaced (rename or in-place save).
+  const existingIdx = list.findIndex(p => p.name === removeName);
+  // Remove both the old-named entry and any accidental duplicate with the new name.
   const next = list.filter(p => p.name !== removeName && p.name !== profile.name);
-  next.push(profile);
-  next.sort((a, b) => a.name.localeCompare(b.name));
+  if (existingIdx >= 0) {
+    // In-place update or rename: preserve original list position.
+    const insertAt = Math.min(existingIdx, next.length);
+    next.splice(insertAt, 0, profile);
+  } else {
+    // New profile: append at the end so the user sees it at the bottom.
+    next.push(profile);
+  }
   await writeProfilesForScope(wsConfig, scope, next);
 }
 

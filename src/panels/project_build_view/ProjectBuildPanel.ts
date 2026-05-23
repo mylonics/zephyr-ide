@@ -564,6 +564,10 @@ export class ProjectBuildPanel {
     await vscode.commands.executeCommand("zephyr-ide.update-web-view");
   }
 
+  // ---------------------------------------------------------------------------
+  // (Structured runner arg build-override handlers removed)
+  // ---------------------------------------------------------------------------
+
   private getDefaultVariableKeys(level: "project" | "build"): string[] {
     const configKey = level === "project"
       ? ProjectBuildPanel.PROJECT_VARIABLE_DEFAULTS_CONFIG_KEY
@@ -694,16 +698,24 @@ export class ProjectBuildPanel {
         if (details) {
           const profile = details.profile;
           const overrides = details.bindOverrides;
+          const buildFolder = getBuildFolder(this._wsConfig,
+            this._wsConfig.projects[selected],
+            this._wsConfig.projects[selected].buildConfigs[buildName]);
+          const sysbuildImage = this._wsConfig.projectStates?.[selected]?.buildStates?.[buildName]?.sysbuildImage;
+
+          const separateBuildDebugProfile = !!vscode.workspace.getConfiguration().get<boolean>("zephyr-ide.separateBuildDebugProfile");
+
           const makeSlot = (
-            slot: "flash" | "debug" | "attach",
+            slot: "flash" | "debug" | "attach" | "buildDebug",
             bind: RunnerBind | undefined,
             override: BindOverride | undefined,
           ): import("./project-build-data").WebviewSlotBind => {
-            const kind: "none" | "auto" | "runner" | "launch" = !bind ? "none" : bind.kind;
-            const runner = bind && bind.kind === "runner" ? bind.runner : undefined;
-            const profileExtra = bind && bind.kind === "runner" ? (bind.extraArgs ?? []).join(" ") : "";
+            const kind: "none" | "auto" | "west-flash" | "west-debug" | "cortex-debug" | "launch" = !bind ? "none" : bind.kind;
+            const runner = bind && (bind.kind === "west-flash" || bind.kind === "west-debug" || bind.kind === "cortex-debug") ? bind.runner : undefined;
+            const profileExtra = bind && (bind.kind === "west-flash" || bind.kind === "west-debug") ? (bind.extraArgs ?? []).join(" ") : "";
             const overrideExtra = (override?.extraArgs ?? []).join(" ");
             const combined = [profileExtra, overrideExtra].filter(s => s.length > 0).join(" ");
+
             return {
               slot,
               label: formatBindLabel(bind, override),
@@ -732,6 +744,9 @@ export class ProjectBuildPanel {
               flash: makeSlot("flash", profile?.flash, overrides?.flash),
               debug: makeSlot("debug", profile?.debug, overrides?.debug),
               attach: makeSlot("attach", profile?.attach, overrides?.attach),
+              ...(separateBuildDebugProfile && profile?.buildDebug
+                ? { buildDebug: makeSlot("buildDebug", profile.buildDebug, overrides?.buildDebug) }
+                : {}),
             },
             runnersYamlHint: details.runnersYamlHint,
           };

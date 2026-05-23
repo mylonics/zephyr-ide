@@ -21,8 +21,10 @@ import { WorkspaceConfig, GlobalConfig } from "../../setup_utilities/types";
 import { generateNonce } from "../webview_shared/nonce";
 import { notifyError } from "../../utilities/output";
 import { getLaunchConfigurations } from "../../utilities/utils";
-import { KNOWN_RUNNERS } from "../../project_utilities/runner_selector";
+import { KNOWN_RUNNERS, DEBUG_CAPABLE_RUNNERS } from "../../project_utilities/runner_selector";
 import {
+  FlashBind,
+  DebugBind,
   RunnerProfile,
   RunnerProfileScope,
   listRunnerProfilesByScope,
@@ -53,6 +55,8 @@ export class RunnerProfilePanel {
   private _wsConfig: WorkspaceConfig;
   private _globalConfig: GlobalConfig;
   private _htmlInitialized = false;
+  /** Profile name to scroll into view on the next pushState (cleared after use). */
+  private _pendingScrollTo: string | undefined;
 
   /** Refresh the open panel after external state changes. */
   public static updateAllPanels(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
@@ -197,10 +201,15 @@ export class RunnerProfilePanel {
       notifyError("Runner Profile", "Open a workspace folder to add workspace-scoped profiles.");
       return;
     }
-    const baseName = typeof message.baseName === "string" && message.baseName.trim()
-      ? message.baseName.trim()
-      : "Profile";
-    const name = suggestProfileName(this._wsConfig, baseName);
+    const suggested = suggestProfileName(this._wsConfig);
+    const inputName = await vscode.window.showInputBox({
+      title: "New Runner Profile",
+      prompt: "Enter a name for the new runner profile",
+      value: suggested,
+      validateInput: (v) => v.trim() ? undefined : "Profile name cannot be empty.",
+    });
+    if (!inputName) { return; } // user cancelled
+    const name = suggestProfileName(this._wsConfig, inputName.trim());
     const profile: RunnerProfile = {
       name,
       flash: { kind: "auto" },
@@ -211,7 +220,9 @@ export class RunnerProfilePanel {
       await saveRunnerProfile(this._wsConfig, scope, profile);
     } catch (e) {
       notifyError("Runner Profile", `Failed to create profile: ${String(e)}`);
+      return;
     }
+    this._pendingScrollTo = name;
     await this.pushState();
   }
 
@@ -316,7 +327,9 @@ export class RunnerProfilePanel {
       await saveRunnerProfile(this._wsConfig, scope, profile);
     } catch (e) {
       notifyError("Runner Profile", `Failed to duplicate profile: ${String(e)}`);
+      return;
     }
+    this._pendingScrollTo = newName;
     await this.pushState();
   }
 
@@ -327,6 +340,8 @@ export class RunnerProfilePanel {
   private async pushState() {
     const { user, workspace } = listRunnerProfilesByScope(this._wsConfig);
     const launchConfigs = await getLaunchConfigurations(this._wsConfig);
+    // All launch config names in a single flat list; the webview displays them
+    // in one combined dropdown for the "launch" bind kind.
     const launchConfigNames = (launchConfigs ?? [])
       .map(c => c?.name)
       .filter((n): n is string => typeof n === "string" && n.length > 0);
@@ -359,13 +374,16 @@ export class RunnerProfilePanel {
         workspaceProfiles: workspace,
         hasWorkspace: !!this._wsConfig.rootPath,
         knownRunners: KNOWN_RUNNERS.slice(),
+        knownDebugRunners: DEBUG_CAPABLE_RUNNERS.slice(),
         launchConfigNames,
         activeProfileName,
         activeBuildLabel,
         usageByName,
         separateBuildDebugProfile,
+        scrollToProfile: this._pendingScrollTo,
       },
     });
+    this._pendingScrollTo = undefined;
   }
 
   // ---------------------------------------------------------------------------
@@ -411,13 +429,55 @@ function parseScope(value: unknown): RunnerProfileScope | undefined {
   return undefined;
 }
 
+function sanitizeIncomingBind(value: unknown, slot: "flash"): FlashBind;
+function sanitizeIncomingBind(value: unknown, slot: "debug" | "attach" | "buildDebug"): DebugBind;
 function sanitizeIncomingBind(value: unknown, slot: "flash" | "buildDebug" | "debug" | "attach"):
-  RunnerProfile["flash"] {
+  FlashBind | DebugBind {
   if (!value || typeof value !== "object") { return { kind: "auto" }; }
   const v = value as Record<string, unknown>;
   if (v.kind === "auto") { return { kind: "auto" }; }
+
+  // Flash slot: only west-flash (and legacy "runner" → west-flash)
+  if (slot === "flash") {
+    if ((v.kind === "west-flash" || v.kind === "runner") && typeof v.runner === "string" && v.runner.trim()) {
+      const out: RunnerProfile["flash"] = { kind: "west-flash", runner: v.runner.trim() };
+      const extra: string[] = Array.isArray(v.extraArgs)
+        ? (v.extraArgs as unknown[]).filter((s): s is string => typeof s === "string" && s.trim().length > 0).map(s => s.trim())
+        : typeof v.extraArgs === "string" && v.extraArgs.trim()
+          ? splitArgs(v.extraArgs)
+          : [];
+      if (extra.length > 0) { out.extraArgs = extra; }
+      return out;
+    }
+    return { kind: "auto" };
+  }
+
+  // Debug slots: launch, cortex-debug, west-debug
+  if (v.kind === "launch" && typeof v.name === "string" && v.name.trim()) {
+    return { kind: "launch", name: v.name.trim() };
+  }
+  // Legacy: zephyr-launch → launch
+  if (v.kind === "zephyr-launch" && typeof v.name === "string" && v.name.trim()) {
+    return { kind: "launch", name: v.name.trim() };
+  }
+  if (v.kind === "cortex-debug" && typeof v.runner === "string" && v.runner.trim()) {
+    const out: RunnerProfile["debug"] = { kind: "cortex-debug", runner: v.runner.trim() };
+    if (v.enableRtt === true) { out.enableRtt = true; }
+    if (typeof v.probe === "string" && v.probe.trim()) { out.probe = v.probe.trim(); }
+    return out;
+  }
+  // Legacy: "runner" in debug slot → cortex-debug
   if (v.kind === "runner" && typeof v.runner === "string" && v.runner.trim()) {
-    const out: RunnerProfile["flash"] = { kind: "runner", runner: v.runner.trim() };
+    const out: RunnerProfile["debug"] = { kind: "cortex-debug", runner: v.runner.trim() };
+    // Migrate --enable-rtt from extraArgs to structured field.
+    const rawArgs: string[] = Array.isArray(v.extraArgs)
+      ? (v.extraArgs as unknown[]).filter((s): s is string => typeof s === "string").map(s => s.trim())
+      : [];
+    if (rawArgs.includes("--enable-rtt")) { out.enableRtt = true; }
+    return out;
+  }
+  if (v.kind === "west-debug" && typeof v.runner === "string" && v.runner.trim()) {
+    const out: RunnerProfile["debug"] = { kind: "west-debug", runner: v.runner.trim() };
     const extra: string[] = Array.isArray(v.extraArgs)
       ? (v.extraArgs as unknown[]).filter((s): s is string => typeof s === "string" && s.trim().length > 0).map(s => s.trim())
       : typeof v.extraArgs === "string" && v.extraArgs.trim()
@@ -425,11 +485,6 @@ function sanitizeIncomingBind(value: unknown, slot: "flash" | "buildDebug" | "de
         : [];
     if (extra.length > 0) { out.extraArgs = extra; }
     return out;
-  }
-  if (v.kind === "launch" && typeof v.name === "string" && v.name.trim()) {
-    // launch is invalid for flash; coerce to auto in that case
-    if (slot === "flash") { return { kind: "auto" }; }
-    return { kind: "launch", name: v.name.trim() };
   }
   return { kind: "auto" };
 }
@@ -453,21 +508,28 @@ function sanitizeIncomingProfile(value: unknown): RunnerProfile | undefined {
 }
 
 /**
- * Clone a `RunnerBind`. The bind object itself is shallow-copied (kind +
- * primitive fields), but the `extraArgs` array — the only field a profile
- * can mutate post-clone — is deep-copied so two profiles can independently
- * edit their args after a Duplicate.
+ * Clone any bind. Primitive fields are shallow-copied; `extraArgs` array is
+ * deep-copied so two profiles can independently edit their args after a Duplicate.
  */
-function cloneBind(bind: RunnerProfile["flash"]): RunnerProfile["flash"] {
-  if (bind.kind === "runner") {
-    const copy: RunnerProfile["flash"] = { kind: "runner", runner: bind.runner };
-    if (bind.extraArgs && bind.extraArgs.length > 0) {
-      copy.extraArgs = [...bind.extraArgs];
-    }
+function cloneBind(bind: FlashBind): FlashBind;
+function cloneBind(bind: DebugBind): DebugBind;
+function cloneBind(bind: FlashBind | DebugBind): FlashBind | DebugBind {
+  if (bind.kind === "west-flash") {
+    const copy: FlashBind = { kind: "west-flash", runner: bind.runner };
+    if (bind.extraArgs && bind.extraArgs.length > 0) { copy.extraArgs = [...bind.extraArgs]; }
     return copy;
   }
-  if (bind.kind === "launch") {
-    return { kind: "launch", name: bind.name };
+  if (bind.kind === "launch") { return { kind: "launch", name: bind.name }; }
+  if (bind.kind === "cortex-debug") {
+    const copy: DebugBind = { kind: "cortex-debug", runner: bind.runner };
+    if (bind.enableRtt) { copy.enableRtt = true; }
+    if (bind.probe) { copy.probe = bind.probe; }
+    return copy;
+  }
+  if (bind.kind === "west-debug") {
+    const copy: DebugBind = { kind: "west-debug", runner: bind.runner };
+    if (bind.extraArgs && bind.extraArgs.length > 0) { copy.extraArgs = [...bind.extraArgs]; }
+    return copy;
   }
   return { kind: "auto" };
 }

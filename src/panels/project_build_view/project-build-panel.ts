@@ -19,6 +19,7 @@ limitations under the License.
 // Registers @vscode-elements custom elements and Lit components.
 
 import "@vscode-elements/elements/dist/vscode-button/index.js";
+import "@vscode-elements/elements/dist/vscode-checkbox/index.js";
 import "@vscode-elements/elements/dist/vscode-icon/index.js";
 import "@vscode-elements/elements/dist/vscode-badge/index.js";
 import "@vscode-elements/elements/dist/vscode-single-select/index.js";

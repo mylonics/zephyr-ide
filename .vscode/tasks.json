@@ -269,6 +269,30 @@
       },
       "dependsOn": "compile"
     },
+    {
+      "label": "test: runner-arg-schema",
+      "type": "shell",
+      "command": "npx vscode-test --grep runner-arg-schema",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "dependsOn": "compile"
+    },
+    {
+      "label": "test: runner-arg-resolver",
+      "type": "shell",
+      "command": "npx vscode-test --grep runner-arg-resolver",
+      "problemMatcher": [],
+      "group": "test",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "dependsOn": "compile"
+    },
     // ── Integration tests (require Zephyr SDK, ~15 min each) ───────────────
     {
       "label": "integration: standard",

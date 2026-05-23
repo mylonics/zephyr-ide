@@ -285,6 +285,9 @@ export class BuildSection extends ZephyrLitElement {
         </div>
         <div class="runner-binds-grid">
           ${this._renderSlotBind(slots.flash, "Flash", "zap")}
+          ${slots.buildDebug
+        ? this._renderSlotBind(slots.buildDebug, "Build & Debug", "run-all")
+        : nothing}
           ${this._renderSlotBind(slots.debug, "Debug", "debug-alt")}
           ${this._renderSlotBind(slots.attach, "Attach", "debug-console")}
         </div>
@@ -297,10 +300,11 @@ export class BuildSection extends ZephyrLitElement {
     label: string,
     icon: string,
   ) {
-    const canOverride = slot.kind === "runner";
+    const canOverride = slot.kind === "west-flash" || slot.kind === "west-debug";
     const overrideBadge = slot.hasOverride
       ? html`<span class="bind-override-badge" title="Per-build extra args override">override</span>`
       : nothing;
+
     return html`
       <div class="runner-bind-row">
         <span class="runner-field-label">

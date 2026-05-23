@@ -199,6 +199,34 @@
   font-style: italic;
 }
 
+/* ── Runner secondary dropdown (interface / target) ─────────────────────── */
+
+.slot-secondary-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.slot-secondary-label {
+  font-size: 0.85em;
+  color: var(--vscode-descriptionForeground);
+  white-space: nowrap;
+  min-width: 110px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.slot-secondary-req-icon {
+  color: var(--vscode-editorWarning-foreground);
+  font-size: 0.9em;
+}
+
+.slot-secondary-dropdown {
+  flex: 1;
+}
+
 /* ── Arg editor ─────────────────────────────────────────────────────────── */
 
 .arg-editor {
@@ -285,6 +313,38 @@
   line-height: 1.3;
 }
 
+.arg-picker-item--expandable {
+  /* chevron sits at the far right */
+}
+
+.arg-picker-expand-icon {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 0.85em;
+  opacity: 0.6;
+}
+
+.arg-picker-choices {
+  border-left: 2px solid var(--vscode-panel-border);
+  margin-left: 10px;
+}
+
+.arg-picker-choice-item {
+  padding-left: 16px;
+}
+
+.arg-picker-choice-sep {
+  padding: 4px 10px 2px 16px;
+  font-size: 0.75em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--vscode-descriptionForeground);
+  opacity: 0.75;
+  pointer-events: none;
+  user-select: none;
+}
+
 /* ── Variable help panel ─────────────────────────────────────────────────── */
 
 .var-help-panel {
@@ -334,4 +394,133 @@
 .var-help-row-muted td {
   color: var(--vscode-descriptionForeground);
   font-style: italic;
+}
+
+/* ── Structured runner-args-editor component ─────────────────────────── */
+
+.runner-args-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+}
+
+.arg-group-label {
+  font-size: 0.75em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--vscode-descriptionForeground);
+  padding: 8px 0 2px;
+  margin-top: 4px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.arg-label {
+  font-weight: 500;
+  color: var(--vscode-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.arg-west-flag {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.78em;
+  color: var(--vscode-descriptionForeground);
+  background: color-mix(in srgb, var(--vscode-badge-background) 60%, transparent);
+  padding: 1px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.arg-control-input {
+  width: 100%;
+}
+
+.arg-control-int {
+  max-width: 100px;
+}
+
+.arg-editor-empty {
+  font-size: 0.85em;
+  color: var(--vscode-descriptionForeground);
+  font-style: italic;
+  padding: 4px 0;
+}
+
+/* Profile-mode rows — compact 2-column grid */
+
+.runner-args-editor--profile .arg-row {
+  display: grid;
+  grid-template-columns: 1fr minmax(90px, 38%);
+  align-items: center;
+  gap: 6px;
+  padding: 1px 2px;
+  border-radius: 3px;
+  min-height: 26px;
+}
+
+.runner-args-editor--profile .arg-row:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+/* Bool and multi-value args span both columns */
+.runner-args-editor--profile .arg-row--bool,
+.runner-args-editor--profile .arg-row--multi {
+  grid-template-columns: 1fr;
+}
+
+.arg-row-bool-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  width: 100%;
+}
+
+.arg-row-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.arg-row-enable {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+  min-width: 0;
+}
+
+/* Controls in the value column fill the available space */
+.runner-args-editor--profile .arg-row vscode-textfield,
+.runner-args-editor--profile .arg-row vscode-single-select {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Multi-value arg layout */
+.arg-multi-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.arg-row--multi .arg-multi-values {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 2px;
+  padding-left: 4px;
+}
+
+.arg-multi-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }

@@ -72,7 +72,7 @@ import {
 import { flashActive } from "./zephyr_utilities/flash";
 import { ZephyrIdeDebugConfigurationProvider } from "./zephyr_utilities/debug-provider";
 import { getSysbuildDomains, resolveRunnersYamlPath } from "./zephyr_utilities/runners-yaml";
-import { RunnerBind, formatBindLabel } from "./project_utilities/runner_profiles";
+import { DebugBind, formatBindLabel } from "./project_utilities/runner_profiles";
 import { WorkspaceConfig, GlobalConfig } from "./setup_utilities/types";
 import {
   loadGlobalState,
@@ -296,7 +296,7 @@ async function startDebugSession(
   const useBuildDebugSlot = mode === 'build-debug' && separateBuildDebugProfile;
   const slot: 'debug' | 'attach' = mode === 'attach' ? 'attach' : 'debug';
 
-  let activeBind: RunnerBind | undefined;
+  let activeBind: DebugBind | undefined;
   let pinnedRunner: string | undefined;
 
   if (resolved) {
@@ -311,7 +311,7 @@ async function startDebugSession(
         } else {
           activeBind = profileResolved.profile[slot];
         }
-        if (activeBind.kind === 'runner') {
+        if (activeBind.kind === 'cortex-debug' || activeBind.kind === 'west-debug') {
           pinnedRunner = activeBind.runner;
         } else if (activeBind.kind === 'auto') {
           // auto → let runners.yaml provider pick the runner
@@ -366,9 +366,7 @@ async function startDebugSession(
     ) ?? folders[0];
     const started = await vscode.debug.startDebugging(folder, inlineCfg);
     if (!started) {
-      const sessionLabel = mode === 'attach' ? 'attach session' : 'debug session';
-      notifyError("Debug", `Failed to start ${sessionLabel} from runners.yaml.` +
-        `\nCheck the Debug Console and the Zephyr IDE output channel for the synthesized cortex-debug config.`);
+      outputInfo("Debug", `${mode === 'attach' ? 'Attach' : 'Debug'} session did not start. Check the Debug Console and the Zephyr IDE output channel for details.`);
     }
     return;
   }

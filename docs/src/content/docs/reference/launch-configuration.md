@@ -20,9 +20,34 @@ The simplest way to debug a Zephyr build with this extension is to use the `zeph
 
 You can optionally pin a specific runner (when more than one is configured) by adding a `"runner"` field — e.g. `"runner": "openocd"` or `"runner": "jlink"`. When `runner` is omitted the extension uses `debug-runner` from `runners.yaml`, falling back to the first available runner. The `Debug`, `Build and Debug`, and `Debug Attach` commands also use this provider automatically when no launch configuration is bound to the active build.
 
-The `zephyr-ide` debugger delegates the actual debug session to [`marus25.cortex-debug`](https://marketplace.visualstudio.com/items?itemName=marus25.cortex-debug). If cortex-debug is not installed, the session is aborted with a notification offering install links for the VS Code Marketplace and Open VSX. When the resolved runner is Black Magic Probe (`bmp`), a one-time recommendation suggests installing [`mylonics.bmp-debug`](https://marketplace.visualstudio.com/items?itemName=mylonics.bmp-debug) for Zephyr RTOS thread awareness.
+Use the `ask` field to control build selection at launch time:
+
+| Value | Behaviour |
+|---|---|
+| `"auto"` (default) | Use the active project and build silently. |
+| `"askBuild"` | Use the active project; prompt for which build to debug. |
+| `"askProject"` | Prompt for project; use that project's active build. |
+| `"askBoth"` | Prompt for both project and build. |
+
+The `zephyr-ide` debugger delegates the actual debug session to [`marus25.cortex-debug`](https://marketplace.visualstudio.com/items?itemName=marus25.cortex-debug). If cortex-debug is not installed, the session is aborted with a notification offering install links for the VS Code Marketplace and Open VSX. When the resolved runner is Black Magic Probe (`blackmagicprobe`), a one-time recommendation suggests installing [`mylonics.bmp-debug`](https://marketplace.visualstudio.com/items?itemName=mylonics.bmp-debug) for Zephyr RTOS thread awareness.
 
 For a higher-level alternative that does not require any `launch.json` at all, configure an active [Runner Profile](configuration.md#runner-profiles) on the build — its `debug` and `attach` binds can point at a Zephyr runner, a `launch.json` configuration by name, or be left on `auto` to use `runners.yaml` defaults. The `debug` bind drives both `Zephyr IDE: Debug` and `Zephyr IDE: Build and Debug`; `attach` drives `Zephyr IDE: Debug Attach`.
+
+### Bridged runners and external GDB servers
+
+Some runners (nrfjprog, linkserver, esp32, stm32cubeprogrammer) have no native cortex-debug servertype. Zephyr IDE automatically spawns `west debug-server --runner <runner>` in the background, reads the GDB port it announces on stdout, and connects cortex-debug as `servertype: "external"`. If the port is not detected within 10 seconds, Zephyr IDE falls back to the runner's default port and emits a warning.
+
+To connect to an **already-running** GDB server (Segger Ozone, a vendor IDE, or a manually started server) instead of having Zephyr IDE spawn one, add `"gdbTarget": "host:port"` to the configuration. This suppresses the bridge auto-spawn for bridged runners and passes the address directly to cortex-debug.
+
+```json
+{
+  "name": "Zephyr IDE: External GDB (nrfjprog)",
+  "type": "zephyr-ide",
+  "request": "launch",
+  "runner": "nrfjprog",
+  "gdbTarget": "127.0.0.1:2331"
+}
+```
 
 If you need finer control you can still write a `cortex-debug` configuration directly using the helper commands listed below.
 
@@ -86,9 +111,9 @@ Get a custom variable defined in the active build configuration's `customVars` m
 
 Get the board name for the currently active build configuration.
 
-## Usage Example
+## Legacy / Advanced: Direct cortex-debug Configuration
 
-Example `cortex-debug` launch configuration (use this when you need full control; otherwise prefer the simpler `zephyr-ide` launch shown at the top of this page):
+Example `cortex-debug` configuration (use this when you need full control over GDB server arguments; otherwise prefer the simpler `zephyr-ide` launch shown above, which reads `runners.yaml` automatically):
 
 ```json
 {

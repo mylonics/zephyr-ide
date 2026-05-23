@@ -90,6 +90,61 @@ If Zephyr is already installed on your machine (including nRF Connect SDK, Zephy
 
 Any board supported by Zephyr RTOS, including: Nordic nRF52832/nRF52840/nRF5340, STM32 (all families), ESP32/ESP32-S3, Raspberry Pi Pico (RP2040), i.MX RT, NXP LPC, Microchip SAM, TI CC13xx/CC26xx, and hundreds more. Simulation targets including `native_sim` and QEMU are also fully supported.
 
+## Debug architecture
+
+The `zephyr-ide` debug type synthesizes a `cortex-debug` configuration from
+the build's `runners.yaml`, so most boards work with no debug config beyond
+`{ "type": "zephyr-ide", "request": "launch" }`. The Zephyr runner is mapped
+to a cortex-debug `servertype` via one of three paths:
+
+| Path | Runners | How it works |
+| --- | --- | --- |
+| **Native** | `jlink`, `openocd`, `pyocd`, `stlink`, `stm32cubeprogrammer-stlink`, `blackmagicprobe`/`bmp`, `qemu` | cortex-debug speaks the GDB protocol to its built-in server. Zephyr IDE lifts `runners.yaml` args into the matching cortex-debug fields (`configFiles`, `device`, `speed`, `interface`, `BMPGDBSerialPort`, …). |
+| **External bridge** | `nrfjprog`, `linkserver`, `esp32`, `stm32cubeprogrammer` | Zephyr IDE spawns `west debug-server --runner <r> --build-dir <b>`, parses the listening `host:port` from its stdout, and hands cortex-debug a `servertype: "external"` config pointing at it. The server child is killed when the debug session ends. |
+| **Unsupported** | flash-only runners (`dfu-util`, `uf2`, `bossac`, `teensy`, …) | The provider surfaces an actionable error listing the rejected runners. Switch to a debug-capable runner or write a hand-rolled cortex-debug config. |
+
+### Field precedence
+
+When the same cortex-debug field can come from multiple sources, the
+following order applies (last wins):
+
+1. `runners.yaml` (the build-system source of truth).
+2. The active runner profile's `extraArgs`.
+3. The runner profile's `bindOverrides[debug].extraArgs` (per-build override).
+4. The user's `launch.json` entry — any cortex-debug field set there
+   overrides everything except: `type`, `request`, `name`, `runner`, and
+   `rtos` (Zephyr IDE controls these).
+
+### Probe overrides for OpenOCD and pyOCD
+
+The runner-profile editor exposes a **Probe / Interface** dropdown for the
+`openocd` and `pyocd` runners. Selecting a probe writes the corresponding
+override into the profile's `extraArgs` (`--openocd-config interface/<probe>.cfg`
+for OpenOCD, `--probe=<type>` for pyOCD), and Zephyr IDE filters any
+conflicting `interface/*.cfg` entry that came from `runners.yaml` so the
+chosen probe is not double-loaded. To use a probe not in the dropdown,
+type its full cfg path or pyOCD probe URL into the **Extra args** field
+directly — the override semantics are identical.
+
+### External GDB servers
+
+To connect to an already-running GDB server (Segger Ozone, a vendor IDE,
+a manually-started `west debug-server`, …) supply `gdbTarget` in
+`launch.json`:
+
+```jsonc
+{
+  "name": "Zephyr IDE: External GDB",
+  "type": "zephyr-ide",
+  "request": "launch",
+  "runner": "nrfjprog",
+  "gdbTarget": "127.0.0.1:2331"
+}
+```
+
+When `gdbTarget` is present, Zephyr IDE suppresses its own bridge spawn
+and uses the user-supplied endpoint directly.
+
 ## Known Issues
 
 - **Dev containers in WSL with Windows folders**: keep your workspace inside the Linux file system (e.g. `/home/user/project`) rather than `/mnt/c/...`. This is a `west boards` limitation.

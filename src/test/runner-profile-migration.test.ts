@@ -26,7 +26,7 @@ suite("Runner Profile Migration Test Suite", () => {
     const profile = migrateRunnerConfig(legacy, undefined);
     assert.strictEqual(profile.name, "openocd-fast");
     assert.deepStrictEqual(profile.flash, {
-      kind: "runner",
+      kind: "west-flash",
       runner: "openocd",
       extraArgs: ["--speed=4000"],
     });
@@ -38,7 +38,7 @@ suite("Runner Profile Migration Test Suite", () => {
   test("pre-bind shape with no args omits extraArgs on the flash bind", () => {
     const legacy = { name: "jlink", runner: "jlink" };
     const profile = migrateRunnerConfig(legacy, undefined);
-    assert.deepStrictEqual(profile.flash, { kind: "runner", runner: "jlink" });
+    assert.deepStrictEqual(profile.flash, { kind: "west-flash", runner: "jlink" });
   });
 
   test("missing runner falls back to auto flash bind", () => {
@@ -97,6 +97,9 @@ suite("Runner Profile Migration Test Suite", () => {
       flash: { kind: "runner", runner: "pyocd" },
     };
     const profile = migrateRunnerConfig(legacy, undefined);
+    // migrateRunnerConfig passes the already-bind flash through unchanged;
+    // the outer sanitizeFlashBind (called by sanitizeProfiles at load time)
+    // converts kind:"runner" → kind:"west-flash".
     assert.deepStrictEqual(profile.flash, { kind: "runner", runner: "pyocd" });
     assert.deepStrictEqual(profile.debug, { kind: "auto" });
     assert.deepStrictEqual(profile.attach, { kind: "auto" });
