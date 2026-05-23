@@ -16,7 +16,7 @@ limitations under the License.
 */
 
 import * as vscode from 'vscode';
-import { ProjectConfig, addTest, removeTest, setActive } from '../project_utilities/project';
+import { ProjectConfig, addTest, removeTest, setActive, getEffectiveActiveProfileName } from '../project_utilities/project';
 import { BuildConfig } from '../project_utilities/build_selector';
 import { WorkspaceConfig } from '../setup_utilities/types';
 import { TwisterConfig } from '../project_utilities/twister_selector';
@@ -89,8 +89,17 @@ export class ProjectTreeView implements vscode.TreeDataProvider<ProjectTreeItem>
       item.command = { command: 'zephyr-ide.tree-view.select', title: 'Select', arguments: [item] };
     }
 
-    const profileLabel = build.activeProfile ?? '(none)';
-    const profileItem = new ProjectTreeItem(profileLabel, 'chip', false, 'buildProfileItem');
+    const resolvedBuild = {
+      projectName,
+      buildName: build.name,
+      project: this.wsConfig.projects[projectName],
+      build,
+    };
+    const { name: effectiveProfileName, scope: profileScope } = getEffectiveActiveProfileName(this.wsConfig, resolvedBuild);
+    const profileLabelText = effectiveProfileName
+      ? (profileScope === "local" ? `${effectiveProfileName} (local)` : effectiveProfileName)
+      : '(none)';
+    const profileItem = new ProjectTreeItem(profileLabelText, 'chip', false, 'buildProfileItem');
     profileItem.id = `buildProfile:${sanitizeTreeId(projectName)}:${sanitizeTreeId(build.name)}`;
     profileItem.data = { project: projectName, build: build.name };
     profileItem.command = { command: 'zephyr-ide.tree-view.set-build-profile', title: 'Set Runner Profile', arguments: [profileItem] };

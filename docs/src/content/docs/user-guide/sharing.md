@@ -35,6 +35,16 @@ If you are trying to share a non-local workspace, then committing settings.json 
 
 VS Code does not provide per-user workspace settings — see this [issue](https://github.com/Microsoft/vscode/issues/15909) on the VS Code repo.
 
+### Per-developer Runner Profile Overrides
+
+Even when `.vscode/zephyr-ide.json` is committed, each developer may need to use a different probe or runner (e.g. one person has a J-Link, another has an OpenOCD ST-Link). Zephyr IDE supports this with a **local override** layer that is stored only in VS Code's per-workspace state and is never written to any file on disk:
+
+1. Click **Profile…** in the Project Build panel (or run `Zephyr IDE: Select Active Runner Profile`) to choose your own profile without touching the committed JSON. The status bar adds a `*` suffix and tree views show `(local)` so it is always clear when a local override is active.
+2. If only a specific slot needs a different runner, click **Local Bind…** next to that slot and pick a runner directly. This takes priority over the active profile's slot bind.
+3. When you want to share your configuration with the team, open the **Runner Profile Panel** (**Manage…** button) and choose **Update profile with local changes** or **Create new profile from local changes**.
+
+See [Local Overrides](building-debugging.md#local-overrides-per-developer) for the full workflow.
+
 ### Using Code Workspace Files
 
 You can also use a `.code-workspace` file to help manage projects across different machines. The workspace folder containing your project must be added to the workspace via the `.code-workspace` file for the extension to detect it correctly.

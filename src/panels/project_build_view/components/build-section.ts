@@ -274,12 +274,16 @@ export class BuildSection extends ZephyrLitElement {
           <span class="runner-name">
             <i class="codicon codicon-debug-alt-small"></i> Active profile: ${activeLabel}
           </span>
-          <vscode-button appearance="secondary" icon="settings-gear" title="Select active Runner Profile"
+          <vscode-button appearance="secondary" icon="chip" title="Select a named Runner Profile (stored as local override; does not modify zephyr-ide.json)"
             @click=${() => this.postCommand("selectActiveProfile", { project: this.projectName, build: b.name })}>
-            Change…
+            Profile…
+          </vscode-button>
+          <vscode-button appearance="secondary" icon="target" title="Set a local per-slot runner without using a profile (stored locally, not committed)"
+            @click=${() => this.postCommand("selectLocalBind", { project: this.projectName, build: b.name })}>
+            Local Bind…
           </vscode-button>
           <vscode-button appearance="secondary" icon="list-tree" title="Open Runner Profile management panel"
-            @click=${() => this.postCommand("openRunnerProfilePanel")}>
+            @click=${() => this.postCommand("openRunnerProfilePanel")}}>
             Manage…
           </vscode-button>
         </div>
@@ -304,6 +308,9 @@ export class BuildSection extends ZephyrLitElement {
     const overrideBadge = slot.hasOverride
       ? html`<span class="bind-override-badge" title="Per-build extra args override">override</span>`
       : nothing;
+    const localBadge = slot.localOverride != null
+      ? html`<span class="bind-local-badge" title="Local bind — not committed; use Local Bind… to change or clear">(local)</span>`
+      : nothing;
 
     return html`
       <div class="runner-bind-row">
@@ -312,8 +319,16 @@ export class BuildSection extends ZephyrLitElement {
         </span>
         <span class="runner-bind-value">
           ${slot.label}
+          ${localBadge}
           ${overrideBadge}
         </span>
+        ${slot.localOverride != null
+        ? html`
+              <vscode-button appearance="icon" icon="close"
+                title="Clear local bind — revert ${label} to profile / runners.yaml default"
+                @click=${() => this.postCommand("clearLocalBind", { slot: slot.slot })}>
+              </vscode-button>`
+        : nothing}
         ${canOverride
         ? html`
               <vscode-button appearance="icon"

@@ -49,6 +49,18 @@
   color: var(--vscode-foreground);
 }
 
+.scope-local-badge {
+  display: inline-block;
+  padding: 0 5px;
+  border-radius: 3px;
+  font-size: 0.8em;
+  font-weight: 600;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+  vertical-align: middle;
+  margin-left: 4px;
+}
+
 .scope-section {
   margin-top: 24px;
 }

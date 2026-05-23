@@ -17,10 +17,10 @@ limitations under the License.
 
 import * as vscode from "vscode";
 
-import { executeTaskHelperInPythonEnv } from "../utilities/utils";
+import { executeTaskHelperInPythonEnv, RUNNER_TARGET_PREFIX, WEST_FLASH_PREFIX } from "../utilities/utils";
 import { notifyError, outputInfo, outputWarning } from "../utilities/output";
 
-import { ProjectConfig, resolveActiveProjectBuild, getBuildFolder } from "../project_utilities/project";
+import { ProjectConfig, ResolvedProjectBuild, resolveActiveProjectBuild, getBuildFolder, getEffectiveActiveProfileName } from "../project_utilities/project";
 
 import { WorkspaceConfig } from '../setup_utilities/types';
 import { BuildConfig } from "../project_utilities/build_selector";
@@ -54,14 +54,28 @@ function resolveFlashRunnerAndArgs(
 /**
  * Shared helper: look up the active runner profile for a build and resolve
  * the flash runner + (already-substituted) args string.
+ *
+ * When `resolved` is provided the effective profile name is determined via
+ * `getEffectiveActiveProfileName` (respects the local per-developer override
+ * stored in BuildState). When only `profileName` is given (e.g. flashByName)
+ * that explicit name is used directly. When neither is provided the function
+ * returns the "auto" defaults.
  */
 function resolveFlashFromProfile(
   profileName: string | undefined,
-  project: import("../project_utilities/project").ProjectConfig,
-  buildConfig: import("../project_utilities/build_selector").BuildConfig,
+  project: ProjectConfig,
+  buildConfig: BuildConfig,
   wsConfig: WorkspaceConfig,
+  resolved?: ResolvedProjectBuild,
 ): { runner: string; args: string } {
-  const effectiveName = profileName ?? buildConfig.activeProfile;
+  let effectiveName: string | undefined;
+  if (profileName !== undefined) {
+    effectiveName = profileName;
+  } else if (resolved) {
+    effectiveName = getEffectiveActiveProfileName(wsConfig, resolved).name;
+  } else {
+    effectiveName = buildConfig.activeProfile;
+  }
   if (!effectiveName) { return { runner: "default", args: "" }; }
 
   const profile = findRunnerProfile(effectiveName, loadRunnerProfiles(wsConfig));
@@ -102,7 +116,19 @@ export async function flashByName(context: vscode.ExtensionContext, wsConfig: Wo
 export async function flashActive(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
   const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Flash" });
   if (!resolved) { return; }
-  const { runner, args } = resolveFlashFromProfile(undefined, resolved.project, resolved.build, wsConfig);
+  // Check per-developer local bind first — takes priority over profile.
+  const localFlashRunner = wsConfig.projectStates?.[resolved.projectName]?.buildStates?.[resolved.buildName]?.localBinds?.flash;
+  if (localFlashRunner != null) {
+    // Strip "west-flash:" (new) or "runner:" (legacy) prefix before passing runner name to west.
+    const runnerName = localFlashRunner.startsWith(WEST_FLASH_PREFIX)
+      ? localFlashRunner.slice(WEST_FLASH_PREFIX.length)
+      : localFlashRunner.startsWith(RUNNER_TARGET_PREFIX)
+        ? localFlashRunner.slice(RUNNER_TARGET_PREFIX.length)
+        : localFlashRunner; // very old format without prefix (backward compat)
+    await flash(context, wsConfig, resolved.project, resolved.build, runnerName, "");
+    return;
+  }
+  const { runner, args } = resolveFlashFromProfile(undefined, resolved.project, resolved.build, wsConfig, resolved);
   await flash(context, wsConfig, resolved.project, resolved.build, runner, args);
 }
 

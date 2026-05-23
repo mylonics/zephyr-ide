@@ -621,21 +621,34 @@ export function getLaunchTargetDisplayName(targetName: string, targetFolder: str
 }
 
 /** Prefix used to store a runner-pinned target in a RunnerBind's `launch` slot or in the legacy launchTarget / attachTarget string. */
+/** Legacy prefix, kept for backward-compat with old stored local-bind values. */
 export const RUNNER_TARGET_PREFIX = "runner:";
+/** Prefix for flash local-bind values (mirrors RunnerProfile "west-flash" kind). */
+export const WEST_FLASH_PREFIX = "west-flash:";
+/** Prefix for cortex-debug (auto-config) local-bind values. */
+export const CORTEX_DEBUG_PREFIX = "cortex-debug:";
+/** Prefix for west debug-server bridge local-bind values. */
+export const WEST_DEBUG_PREFIX = "west-debug:";
+
+const _RUNNER_ICON_PREFIX = "$(plug) ";
+const _WEST_LABEL_SUFFIX = " (west)";
 
 export async function selectLaunchConfiguration(
   wsConfig: WorkspaceConfig,
   defaultLabel?: string,
   /**
-   * Issue #23: when supplied, debug-capable runners not present in this list
-   * are demoted to "(not in board's runners.yaml)" so the user understands
-   * which runners the active build actually supports.
+   * Issue #23: when supplied, runners not present in this list are demoted to
+   * "(not in board's runners.yaml)" so the user understands which runners the
+   * active build actually supports.
    */
   availableRunners?: string[],
   /**
-   * Bind kind being picked. "flash" hides launch.json (not valid for flashing)
-   * and lists every known west runner (any runner can flash). "debug" (default)
-   * lists only cortex-debug-capable runners and includes launch.json entries.
+   * Bind kind being picked.
+   * - "flash": lists every known west runner under a "west flash" section.
+   *   No launch.json (not valid for flashing).
+   * - "debug" (default): shows launch.json configs first, then all
+   *   debug-capable runners under both "cortex-debug (auto-config)" and
+   *   "west debug-server bridge" sections — matching the Runner Profiles editor.
    */
   mode: "flash" | "debug" = "debug",
 ): Promise<{ name: string; workspaceFolder?: string; isDefault?: boolean; isRunner?: boolean } | undefined> {
@@ -650,66 +663,76 @@ export async function selectLaunchConfiguration(
 
   if (defaultLabel) {
     items.push({
-      label: defaultLabel, detail: mode === "flash"
+      label: defaultLabel,
+      detail: mode === "flash"
         ? "Use the default flash runner from runners.yaml"
-        : "Use Zephyr IDE automatic debug configuration (runners.yaml)"
+        : "Use Zephyr IDE automatic debug configuration (runners.yaml)",
     });
   }
 
-  // Runner pool depends on mode: cortex-debug-capable for debug/attach, every
-  // west runner for flash (anything can flash).
-  const runnerPool = mode === "flash" ? KNOWN_RUNNERS : DEBUG_CAPABLE_RUNNERS;
   const availableSet = availableRunners ? new Set(availableRunners) : undefined;
-  const sortedRunners = availableSet
-    ? [
-      ...runnerPool.filter(r => availableSet.has(r)),
-      ...runnerPool.filter(r => !availableSet.has(r)),
-    ]
-    : runnerPool;
-  items.push({
-    label: mode === "flash"
-      ? "Runners (from runners.yaml)"
-      : "Runners (auto-configured from runners.yaml)",
-    kind: vscode.QuickPickItemKind.Separator,
-  });
-  items.push(...sortedRunners.map(r => {
-    const supported = !availableSet || availableSet.has(r);
-    const supportDesc = supported
-      ? (mode === "flash" ? "flash" : "auto-config")
-      : "(not in board's runners.yaml)";
-    return {
-      label: `$(plug) ${r}`,
-      description: supportDesc,
-      detail: mode === "flash"
-        ? `Use the ${r} runner for flashing.`
-        : `Pin debug sessions to the ${r} runner; cortex-debug config is generated from runners.yaml.`,
-    } as vscode.QuickPickItem;
-  }));
 
-  if (configurations && configurations.length > 0) {
-    items.push({ label: "launch.json", kind: vscode.QuickPickItemKind.Separator });
-    items.push(...configurations.map(x => ({
-      label: x.name,
-      description: isMultiRoot ? x.workspaceFolder : undefined,
-    })));
+  if (mode === "flash") {
+    // All west runners, categorised under "west flash".
+    const sortedRunners = availableSet
+      ? [...KNOWN_RUNNERS.filter(r => availableSet.has(r)), ...KNOWN_RUNNERS.filter(r => !availableSet.has(r))]
+      : KNOWN_RUNNERS;
+    items.push({ label: "west flash", kind: vscode.QuickPickItemKind.Separator });
+    items.push(...sortedRunners.map(r => ({
+      label: `${_RUNNER_ICON_PREFIX}${r}`,
+      description: !availableSet || availableSet.has(r) ? "flash" : "(not in board's runners.yaml)",
+      detail: `Use the ${r} runner for flashing.`,
+    } as vscode.QuickPickItem)));
+  } else {
+    // Debug/Attach: launch.json first, then two runner sections mirroring the
+    // Runner Profile editor (cortex-debug auto-config + west debug-server bridge).
+    const sortedRunners = availableSet
+      ? [...DEBUG_CAPABLE_RUNNERS.filter(r => availableSet.has(r)), ...DEBUG_CAPABLE_RUNNERS.filter(r => !availableSet.has(r))]
+      : DEBUG_CAPABLE_RUNNERS;
+
+    if (configurations && configurations.length > 0) {
+      items.push({ label: "launch.json", kind: vscode.QuickPickItemKind.Separator });
+      items.push(...configurations.map(x => ({
+        label: x.name,
+        description: isMultiRoot ? x.workspaceFolder : undefined,
+      })));
+    }
+
+    items.push({ label: "cortex-debug (auto-config)", kind: vscode.QuickPickItemKind.Separator });
+    items.push(...sortedRunners.map(r => ({
+      label: `${_RUNNER_ICON_PREFIX}${r}`,
+      description: !availableSet || availableSet.has(r) ? "auto-config" : "(not in board's runners.yaml)",
+      detail: `Pin to the ${r} runner; cortex-debug config is generated from runners.yaml.`,
+    } as vscode.QuickPickItem)));
+
+    items.push({ label: "west debug-server bridge", kind: vscode.QuickPickItemKind.Separator });
+    items.push(...sortedRunners.map(r => ({
+      label: `${_RUNNER_ICON_PREFIX}${r}${_WEST_LABEL_SUFFIX}`,
+      description: !availableSet || availableSet.has(r) ? "west debug-server" : "(not in board's runners.yaml)",
+      detail: `Always use west debug-server bridge with the ${r} runner.`,
+    } as vscode.QuickPickItem)));
   }
 
   const selected = await vscode.window.showQuickPick(items, pickOptions);
-  if (!selected) {
-    return undefined;
-  }
+  if (!selected) { return undefined; }
 
   if (defaultLabel && selected.label === defaultLabel) {
     return { name: "", isDefault: true };
   }
-  // Runner picks are prefixed with "$(plug) " — strip it before matching.
-  const RUNNER_LABEL_PREFIX = "$(plug) ";
-  if (selected.label.startsWith(RUNNER_LABEL_PREFIX)) {
-    const runnerName = selected.label.slice(RUNNER_LABEL_PREFIX.length);
-    if (runnerPool.includes(runnerName)) {
-      return { name: `${RUNNER_TARGET_PREFIX}${runnerName}`, isRunner: true };
+
+  if (selected.label.startsWith(_RUNNER_ICON_PREFIX)) {
+    const withoutIcon = selected.label.slice(_RUNNER_ICON_PREFIX.length);
+    if (mode === "flash") {
+      return { name: `${WEST_FLASH_PREFIX}${withoutIcon}`, isRunner: true };
     }
+    if (withoutIcon.endsWith(_WEST_LABEL_SUFFIX)) {
+      const runnerName = withoutIcon.slice(0, -_WEST_LABEL_SUFFIX.length);
+      return { name: `${WEST_DEBUG_PREFIX}${runnerName}`, isRunner: true };
+    }
+    return { name: `${CORTEX_DEBUG_PREFIX}${withoutIcon}`, isRunner: true };
   }
+
+  // launch.json pick — name is the label; description is the folder in multi-root.
   return { name: selected.label, workspaceFolder: selected.description };
 }
 

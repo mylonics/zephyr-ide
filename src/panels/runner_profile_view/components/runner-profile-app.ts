@@ -53,6 +53,8 @@ interface PanelData {
   /** All launch.json config names (any type); shown in a combined dropdown for the "launch" bind kind. */
   launchConfigNames: string[];
   activeProfileName?: string;
+  /** "local" = BuildState override wins; "workspace" = JSON value; "none" = no profile set. */
+  activeProfileScope?: "local" | "workspace" | "none";
   activeBuildLabel?: string;
   /** profile name -> list of "<project> / <build>" strings using it */
   usageByName?: Record<string, string[]>;
@@ -521,7 +523,9 @@ export class RunnerProfileApp extends ZephyrLitElement {
             ? html`Active build: <strong>${d.activeBuildLabel}</strong>`
             : html`No active build`}
                   ${d.activeProfileName
-            ? html` &mdash; using profile <strong>${d.activeProfileName}</strong>`
+            ? html` &mdash; using profile <strong>${d.activeProfileName}</strong>${d.activeProfileScope === "local"
+              ? html` <span class="scope-local-badge" title="Local override — not committed to zephyr-ide.json">(local)</span>`
+              : nothing}`
             : html` &mdash; <em>no profile selected (auto / runners.yaml defaults)</em>`}
                 </span>
                 <vscode-button appearance="secondary" icon="settings-gear"

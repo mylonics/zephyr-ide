@@ -810,6 +810,18 @@
   vertical-align: middle;
 }
 
+.bind-local-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 8px;
+  font-size: 0.75em;
+  background: var(--vscode-inputValidation-warningBackground, #8a6d3b);
+  color: var(--vscode-inputValidation-warningForeground, #fff);
+  border: 1px solid var(--vscode-inputValidation-warningBorder, #b5a642);
+  vertical-align: middle;
+}
+
 /* ===================================================================
    ACTION ROWS
    =================================================================== */

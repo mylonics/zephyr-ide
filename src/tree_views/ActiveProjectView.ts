@@ -17,11 +17,12 @@ limitations under the License.
 
 import * as vscode from 'vscode';
 
-import { ProjectConfig, getResolvedProfile, getBindOverride, getResolvedTestConfig, resolveActiveProject, resolveActiveProjectBuild } from '../project_utilities/project';
+import { ProjectConfig, getResolvedProfile, getBindOverride, getResolvedTestConfig, resolveActiveProject, resolveActiveProjectBuild, getEffectiveActiveProfileName } from '../project_utilities/project';
 import { BuildConfig } from '../project_utilities/build_selector';
 import { WorkspaceConfig } from '../setup_utilities/types';
 import { TwisterConfig } from "../project_utilities/twister_selector";
 import { formatBindLabel, RunnerProfile } from '../project_utilities/runner_profiles';
+import { RUNNER_TARGET_PREFIX, WEST_FLASH_PREFIX, CORTEX_DEBUG_PREFIX, WEST_DEBUG_PREFIX } from '../utilities/utils';
 
 export type ActiveProjectItemContext =
   | 'activeProject.buildPristine'
@@ -73,14 +74,15 @@ export class ActiveProjectView implements vscode.TreeDataProvider<ActiveProjectI
     let activeBuild: BuildConfig | undefined;
     let activeProfile: RunnerProfile | undefined;
     let activeTwister: TwisterConfig | undefined;
+    let resolvedBuild: ReturnType<typeof resolveActiveProjectBuild> | undefined;
     const resolvedProject = resolveActiveProject(this.wsConfig);
     if (resolvedProject) {
       activeProject = resolvedProject.project;
-      const resolved = resolveActiveProjectBuild(this.wsConfig);
-      activeBuild = resolved?.build;
-      if (resolved) {
-        activeProfile = getResolvedProfile(this.wsConfig, resolved);
-        this.title = activeProject.name + ": " + resolved.build.name;
+      resolvedBuild = resolveActiveProjectBuild(this.wsConfig);
+      activeBuild = resolvedBuild?.build;
+      if (resolvedBuild) {
+        activeProfile = getResolvedProfile(this.wsConfig, resolvedBuild);
+        this.title = activeProject.name + ": " + resolvedBuild.build.name;
       } else {
         this.title = activeProject.name;
       }
@@ -95,18 +97,42 @@ export class ActiveProjectView implements vscode.TreeDataProvider<ActiveProjectI
     // When `zephyr-ide.separateBuildDebugProfile` is on and the profile has a
     // dedicated `buildDebug` slot, show it separately for Build-and-Debug.
     const separateBuildDebug = !!vscode.workspace.getConfiguration().get<boolean>("zephyr-ide.separateBuildDebugProfile");
-    const flashDisplay = activeProfile
-      ? formatBindLabel(activeProfile.flash, activeBuild && getBindOverride(activeBuild, "flash"))
+    const profileScope = resolvedBuild ? getEffectiveActiveProfileName(this.wsConfig, resolvedBuild).scope : "none";
+    const localSuffix = profileScope === "local" ? " (local)" : "";
+
+    // Local bind overrides take priority over profile display per slot.
+    const localBinds = resolvedBuild
+      ? this.wsConfig.projectStates[resolvedBuild.projectName]?.buildStates?.[resolvedBuild.buildName]?.localBinds
+      : undefined;
+    const slotDesc = (slot: "flash" | "debug" | "attach", profileDisplay: string): string => {
+      const lb = localBinds?.[slot];
+      if (lb === null) { return "auto (local bind)"; }
+      if (typeof lb === "string") {
+        const prefixes = [WEST_FLASH_PREFIX, CORTEX_DEBUG_PREFIX, WEST_DEBUG_PREFIX, RUNNER_TARGET_PREFIX];
+        const matchedPrefix = prefixes.find(p => lb.startsWith(p));
+        const displayName = matchedPrefix ? lb.slice(matchedPrefix.length) : lb;
+        return `${displayName} (local bind)`;
+      }
+      return profileDisplay;
+    };
+
+    const flashProfile = activeProfile
+      ? formatBindLabel(activeProfile.flash, activeBuild && getBindOverride(activeBuild, "flash")) + localSuffix
       : "None";
-    const debugDisplay = activeProfile
-      ? formatBindLabel(activeProfile.debug, activeBuild && getBindOverride(activeBuild, "debug"))
+    const debugProfile = activeProfile
+      ? formatBindLabel(activeProfile.debug, activeBuild && getBindOverride(activeBuild, "debug")) + localSuffix
       : "None";
-    const buildDebugDisplay = separateBuildDebug && activeProfile?.buildDebug
-      ? formatBindLabel(activeProfile.buildDebug, activeBuild && getBindOverride(activeBuild, "buildDebug"))
-      : debugDisplay;
-    const attachDisplay = activeProfile
-      ? formatBindLabel(activeProfile.attach, activeBuild && getBindOverride(activeBuild, "attach"))
+    const buildDebugProfile = separateBuildDebug && activeProfile?.buildDebug
+      ? formatBindLabel(activeProfile.buildDebug, activeBuild && getBindOverride(activeBuild, "buildDebug")) + localSuffix
+      : debugProfile;
+    const attachProfile = activeProfile
+      ? formatBindLabel(activeProfile.attach, activeBuild && getBindOverride(activeBuild, "attach")) + localSuffix
       : "None";
+
+    const flashDisplay = slotDesc("flash", flashProfile);
+    const debugDisplay = slotDesc("debug", debugProfile);
+    const buildDebugDisplay = slotDesc("debug", buildDebugProfile);
+    const attachDisplay = slotDesc("attach", attachProfile);
 
     const items: ActiveProjectItem[] = [
       new ActiveProjectItem("Build Pristine", "project", activeBuild ? activeBuild.name : "None",

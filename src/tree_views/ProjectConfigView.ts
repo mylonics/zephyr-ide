@@ -17,7 +17,7 @@ limitations under the License.
 
 import * as vscode from 'vscode';
 import * as path from 'upath';
-import { addConfigFiles, setActive, modifyBuildArguments, removeConfigFile, getResolvedProfile, getBindOverride, getResolvedTestConfig, resolveActiveProject, resolveActiveProjectBuild } from '../project_utilities/project';
+import { addConfigFiles, setActive, modifyBuildArguments, removeConfigFile, getResolvedProfile, getBindOverride, getResolvedTestConfig, resolveActiveProject, resolveActiveProjectBuild, getEffectiveActiveProfileName } from '../project_utilities/project';
 import { ConfigFiles, ConfigFileEntry } from '../project_utilities/config_selector';
 import { joinBuildArgs } from '../project_utilities/build_args';
 import { formatBindLabel } from '../project_utilities/runner_profiles';
@@ -236,14 +236,21 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
       // Runner Profile group
       // Shows bind slots (Flash / [Build & Debug /] Debug / Attach); the
       // Build & Debug slot is only shown when `separateBuildDebugProfile` is enabled.
-      if (activeProfile && activeBuild) {
+      if (activeProfile && activeBuild && resolved) {
         const separateBuildDebug = !!vscode.workspace.getConfiguration().get<boolean>("zephyr-ide.separateBuildDebugProfile");
+        const { scope: profileScope } = getEffectiveActiveProfileName(this.wsConfig, resolved);
+        const profileLabelText = profileScope === "local"
+          ? `${activeProfile.name} (local)`
+          : activeProfile.name;
 
-        const runnerItem = new ConfigItem(activeProfile.name, 'chip', true, 'configRunner');
+        const runnerItem = new ConfigItem(profileLabelText, 'chip', true, 'configRunner');
         runnerItem.id = 'config-runner';
         runnerItem.data = { project: activeProject.name, build: activeBuild.name, runner: activeProfile.name };
         runnerItem.collapsibleState = this.projectConfigState.runnerOpenState
           ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
+        if (profileScope === "local") {
+          runnerItem.tooltip = `Local override — not committed to zephyr-ide.json.\nWorkspace default: ${resolved.build.activeProfile ?? '(none)'}`;
+        }
 
         const flashItem = new ConfigItem('Flash', 'zap', false, undefined,
           formatBindLabel(activeProfile.flash, getBindOverride(activeBuild, "flash")));

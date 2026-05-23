@@ -44,10 +44,11 @@ import {
   addTest,
   getProjectFolder,
   getBuildFolder,
+  setLocalBind,
 } from "../../project_utilities/project";
 import { ConfigFiles } from "../../project_utilities/config_selector";
 import { generateNonce } from "../webview_shared/nonce";
-import { getLaunchConfigurations as _getLaunchConfigurations } from "../../utilities/utils";
+import { getLaunchConfigurations as _getLaunchConfigurations, RUNNER_TARGET_PREFIX, WEST_FLASH_PREFIX, CORTEX_DEBUG_PREFIX, WEST_DEBUG_PREFIX } from "../../utilities/utils";
 import { normalizeBuildArgs } from "../../project_utilities/build_args";
 import { getRunnersYamlHint } from "../../zephyr_utilities/runners-yaml";
 import {
@@ -337,6 +338,22 @@ export class ProjectBuildPanel {
         case "openRunnerProfilePanel":
           await vscode.commands.executeCommand("zephyr-ide.open-runner-profile-panel");
           return;
+
+        case "selectLocalBind": {
+          const slot = message.slot as "flash" | "debug" | "attach" | undefined;
+          await setLocalBind(ctx, ws, slot);
+          await this.refreshAfterChange();
+          return;
+        }
+
+        case "clearLocalBind": {
+          const slot = message.slot as "flash" | "debug" | "attach";
+          if (slot === "flash" || slot === "debug" || slot === "attach") {
+            await setLocalBind(ctx, ws, slot, null);
+            await this.refreshAfterChange();
+          }
+          return;
+        }
 
         case "setBindExtraArgs": {
           const slot = message.slot;
@@ -705,25 +722,34 @@ export class ProjectBuildPanel {
 
           const separateBuildDebugProfile = !!vscode.workspace.getConfiguration().get<boolean>("zephyr-ide.separateBuildDebugProfile");
 
+          const localBinds = this._wsConfig.projectStates?.[selected]?.buildStates?.[buildName]?.localBinds ?? {};
+
           const makeSlot = (
             slot: "flash" | "debug" | "attach" | "buildDebug",
             bind: RunnerBind | undefined,
             override: BindOverride | undefined,
           ): import("./project-build-data").WebviewSlotBind => {
+            const localSlot = slot === "buildDebug" ? undefined : (localBinds as Record<string, string | null | undefined>)[slot];
             const kind: "none" | "auto" | "west-flash" | "west-debug" | "cortex-debug" | "launch" = !bind ? "none" : bind.kind;
             const runner = bind && (bind.kind === "west-flash" || bind.kind === "west-debug" || bind.kind === "cortex-debug") ? bind.runner : undefined;
             const profileExtra = bind && (bind.kind === "west-flash" || bind.kind === "west-debug") ? (bind.extraArgs ?? []).join(" ") : "";
             const overrideExtra = (override?.extraArgs ?? []).join(" ");
             const combined = [profileExtra, overrideExtra].filter(s => s.length > 0).join(" ");
+            const localBindPrefixes = [WEST_FLASH_PREFIX, CORTEX_DEBUG_PREFIX, WEST_DEBUG_PREFIX, RUNNER_TARGET_PREFIX];
+            const localBindPrefix = localSlot != null ? localBindPrefixes.find(p => localSlot.startsWith(p)) : undefined;
+            const displayLabel = localSlot != null
+              ? `${localBindPrefix ? localSlot.slice(localBindPrefix.length) : localSlot} (local)`
+              : formatBindLabel(bind, override);
 
             return {
               slot,
-              label: formatBindLabel(bind, override),
+              label: displayLabel,
               kind,
               runner,
               extraArgs: combined,
               overrideExtraArgs: overrideExtra,
               hasOverride: overrideExtra.length > 0,
+              localOverride: localSlot != null ? localSlot : undefined,
             };
           };
 
@@ -747,6 +773,11 @@ export class ProjectBuildPanel {
               ...(separateBuildDebugProfile && profile?.buildDebug
                 ? { buildDebug: makeSlot("buildDebug", profile.buildDebug, overrides?.buildDebug) }
                 : {}),
+            },
+            localBinds: {
+              flash: localBinds.flash,
+              debug: localBinds.debug,
+              attach: localBinds.attach,
             },
             runnersYamlHint: details.runnersYamlHint,
           };

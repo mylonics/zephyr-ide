@@ -127,22 +127,79 @@ export function resolveRunnersYamlPath(buildDir: string, domainName?: string): s
 }
 
 /**
+ * In-memory cache for parsed runners.yaml files, keyed by absolute path.
+ *
+ * Validity is checked against the on-disk file's `mtimeMs` and `size`: if
+ * either changes (e.g. the build system regenerated runners.yaml), the cache
+ * entry is discarded and the file is re-parsed. A pristine build deletes the
+ * build folder entirely, so the next stat() will either fail (entry dropped)
+ * or report a fresh mtime (entry refreshed). For belt-and-suspenders against
+ * filesystems with coarse mtime resolution, callers can also explicitly drop
+ * entries via {@link invalidateRunnersYamlCache}.
+ *
+ * The cached object is frozen so accidental mutation by a caller cannot
+ * corrupt the entry for the next caller.
+ */
+interface RunnersYamlCacheEntry {
+  mtimeMs: number;
+  size: number;
+  parsed: RunnersYaml;
+}
+const runnersYamlCache = new Map<string, RunnersYamlCacheEntry>();
+
+/**
+ * Drop cached runners.yaml entries. Pass a build directory to invalidate only
+ * entries underneath it (e.g. on pristine build); pass nothing to clear the
+ * entire cache (e.g. on workspace reload).
+ */
+export function invalidateRunnersYamlCache(buildDir?: string): void {
+  if (!buildDir) {
+    runnersYamlCache.clear();
+    return;
+  }
+  const prefix = path.normalize(buildDir);
+  for (const key of runnersYamlCache.keys()) {
+    if (path.normalize(key).startsWith(prefix)) {
+      runnersYamlCache.delete(key);
+    }
+  }
+}
+
+/**
  * Parse a runners.yaml file. Returns undefined when the file does not exist or
  * cannot be parsed. Relative file paths inside `config.*_file` are resolved
  * against `config.build_dir/zephyr` to produce absolute paths.
+ *
+ * Results are cached in-process keyed by path, with `mtimeMs`+`size` used as
+ * the validity check so a regenerated runners.yaml is picked up automatically
+ * on the next call. The hot path is a single `fs.statSync` (no YAML re-parse,
+ * no file read) which keeps repeated debug-config resolution and UI refreshes
+ * cheap.
  */
 export function parseRunnersYaml(runnersYamlPath: string): RunnersYaml | undefined {
-  if (!fs.existsSync(runnersYamlPath)) {
+  let stat: fs.Stats;
+  try {
+    stat = fs.statSync(runnersYamlPath);
+  } catch {
+    // File missing (or otherwise unreadable) — drop any stale cache entry so
+    // a subsequent post-build read parses fresh content.
+    runnersYamlCache.delete(runnersYamlPath);
     return undefined;
+  }
+  const cached = runnersYamlCache.get(runnersYamlPath);
+  if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
+    return cached.parsed;
   }
   let doc: any;
   try {
     doc = yaml.load(fs.readFileSync(runnersYamlPath, "utf-8"));
   } catch (e) {
     outputWarning("Runners YAML", `Failed to parse ${runnersYamlPath}: ${String(e)}`);
+    runnersYamlCache.delete(runnersYamlPath);
     return undefined;
   }
   if (!doc || typeof doc !== "object") {
+    runnersYamlCache.delete(runnersYamlPath);
     return undefined;
   }
 
@@ -168,7 +225,7 @@ export function parseRunnersYaml(runnersYamlPath: string): RunnersYaml | undefin
     ? doc.runners.filter((r: any): r is string => typeof r === "string")
     : [];
 
-  return {
+  const parsed: RunnersYaml = Object.freeze({
     buildDir,
     boardDir: typeof config.board_dir === "string" ? config.board_dir : undefined,
     elfFile: resolveFile(config.elf_file),
@@ -183,7 +240,14 @@ export function parseRunnersYaml(runnersYamlPath: string): RunnersYaml | undefin
     flashRunner: typeof doc["flash-runner"] === "string" ? doc["flash-runner"] : undefined,
     debugRunner: typeof doc["debug-runner"] === "string" ? doc["debug-runner"] : undefined,
     args: argsObj,
-  };
+  });
+
+  runnersYamlCache.set(runnersYamlPath, {
+    mtimeMs: stat.mtimeMs,
+    size: stat.size,
+    parsed,
+  });
+  return parsed;
 }
 
 /**
@@ -198,22 +262,49 @@ export function parseRunnersYaml(runnersYamlPath: string): RunnersYaml | undefin
  * prefers a `.svd` whose basename contains the hint (case-insensitive). This
  * disambiguates board directories that ship multiple SoC SVDs (issue #20).
  */
+/**
+ * In-memory cache for {@link findSvdFile}. Board directories change very
+ * rarely (only when the user edits the Zephyr tree or switches modules), so
+ * caching the directory listing per (boardDir, hint) avoids a `readdirSync`
+ * on every debug session. Invalidated by the board directory's `mtimeMs`,
+ * which Zephyr's build system bumps when files are added/removed.
+ */
+interface SvdCacheEntry {
+  mtimeMs: number;
+  result: string | undefined;
+}
+const svdCache = new Map<string, SvdCacheEntry>();
+
 export function findSvdFile(boardDir: string | undefined, hint?: string): string | undefined {
-  if (!boardDir || !fs.existsSync(boardDir)) {
-    return undefined;
-  }
+  if (!boardDir) { return undefined; }
+  let stat: fs.Stats;
   try {
-    const entries = fs.readdirSync(boardDir).filter(e => e.toLowerCase().endsWith(".svd"));
-    if (entries.length === 0) { return undefined; }
-    if (hint) {
-      const needle = hint.toLowerCase();
-      const match = entries.find(e => e.toLowerCase().includes(needle));
-      if (match) { return path.join(boardDir, match); }
-    }
-    return path.join(boardDir, entries[0]);
+    stat = fs.statSync(boardDir);
   } catch {
     return undefined;
   }
+  const cacheKey = `${boardDir}|${hint ?? ""}`;
+  const cached = svdCache.get(cacheKey);
+  if (cached && cached.mtimeMs === stat.mtimeMs) {
+    return cached.result;
+  }
+  let result: string | undefined;
+  try {
+    const entries = fs.readdirSync(boardDir).filter(e => e.toLowerCase().endsWith(".svd"));
+    if (entries.length === 0) {
+      result = undefined;
+    } else if (hint) {
+      const needle = hint.toLowerCase();
+      const match = entries.find(e => e.toLowerCase().includes(needle));
+      result = path.join(boardDir, match ?? entries[0]);
+    } else {
+      result = path.join(boardDir, entries[0]);
+    }
+  } catch {
+    result = undefined;
+  }
+  svdCache.set(cacheKey, { mtimeMs: stat.mtimeMs, result });
+  return result;
 }
 
 /**

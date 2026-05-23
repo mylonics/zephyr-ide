@@ -25,6 +25,7 @@ import {
     resolveRunnersYamlPath,
     runnerToServerType,
     runnerNeedsBridge,
+    invalidateRunnersYamlCache,
     BRIDGED_RUNNERS,
 } from "../zephyr_utilities/runners-yaml";
 import {
@@ -80,6 +81,92 @@ suite("runners.yaml parser & DebugConfigurationProvider translation", () => {
         assert.strictEqual(result, undefined);
     });
 
+    test("parseRunnersYaml caches parsed result and re-reads when file changes", () => {
+        const buildDir = makeTempBuildDir();
+        const yamlPath = path.join(buildDir, "zephyr", "runners.yaml");
+        const mkYaml = (runner: string) => `
+config:
+  build_dir: ${buildDir}
+  gdb: /opt/sdk/gdb
+runners:
+  - ${runner}
+flash-runner: ${runner}
+debug-runner: ${runner}
+args:
+  ${runner}: []
+`;
+        invalidateRunnersYamlCache();
+        writeFile(yamlPath, mkYaml("jlink"));
+
+        const first = parseRunnersYaml(yamlPath);
+        assert.ok(first);
+        assert.deepStrictEqual(first!.runners, ["jlink"]);
+
+        // Same call returns the same (frozen) instance from cache — proves no re-parse.
+        const second = parseRunnersYaml(yamlPath);
+        assert.strictEqual(second, first, "cached call should return identical object reference");
+
+        // Rewrite the file with different content AND bump mtime so the
+        // cache's stat-based validity check fails. (Use a future mtime since
+        // some filesystems have second-level resolution.)
+        writeFile(yamlPath, mkYaml("openocd"));
+        const future = new Date(Date.now() + 2000);
+        fs.utimesSync(yamlPath, future, future);
+
+        const third = parseRunnersYaml(yamlPath);
+        assert.ok(third);
+        assert.notStrictEqual(third, first, "stale cache entry must be replaced");
+        assert.deepStrictEqual(third!.runners, ["openocd"]);
+    });
+
+    test("invalidateRunnersYamlCache drops entries under a build folder", () => {
+        const buildDir = makeTempBuildDir();
+        const yamlPath = path.join(buildDir, "zephyr", "runners.yaml");
+        writeFile(yamlPath, `
+config:
+  build_dir: ${buildDir}
+runners: [jlink]
+flash-runner: jlink
+debug-runner: jlink
+args: { jlink: [] }
+`);
+        const first = parseRunnersYaml(yamlPath);
+        assert.ok(first);
+        const cachedHit = parseRunnersYaml(yamlPath);
+        assert.strictEqual(cachedHit, first);
+
+        invalidateRunnersYamlCache(buildDir);
+        const afterInvalidate = parseRunnersYaml(yamlPath);
+        assert.ok(afterInvalidate);
+        assert.notStrictEqual(afterInvalidate, first);
+        assert.deepStrictEqual(afterInvalidate!.runners, first!.runners);
+    });
+
+    test("parseRunnersYaml drops cache entry when file is deleted then recreated", () => {
+        const buildDir = makeTempBuildDir();
+        const yamlPath = path.join(buildDir, "zephyr", "runners.yaml");
+        writeFile(yamlPath, `
+config: { build_dir: ${buildDir} }
+runners: [jlink]
+flash-runner: jlink
+debug-runner: jlink
+args: { jlink: [] }
+`);
+        assert.ok(parseRunnersYaml(yamlPath));
+        fs.unlinkSync(yamlPath);
+        assert.strictEqual(parseRunnersYaml(yamlPath), undefined);
+        writeFile(yamlPath, `
+config: { build_dir: ${buildDir} }
+runners: [openocd]
+flash-runner: openocd
+debug-runner: openocd
+args: { openocd: [] }
+`);
+        const reparsed = parseRunnersYaml(yamlPath);
+        assert.ok(reparsed);
+        assert.deepStrictEqual(reparsed!.runners, ["openocd"]);
+    });
+
     test("parseRunnersYaml extracts elf, gdb, runners and args", () => {
         const buildDir = makeTempBuildDir();
         const yamlPath = path.join(buildDir, "zephyr", "runners.yaml");
@@ -114,8 +201,9 @@ args:
         assert.strictEqual(parsed!.flashRunner, "jlink");
         assert.strictEqual(parsed!.debugRunner, "jlink");
         assert.strictEqual(parsed!.gdb, "/opt/sdk/arm-zephyr-eabi-gdb");
-        // Resolved against build_dir/zephyr
-        assert.ok(parsed!.elfFile && parsed!.elfFile.endsWith(path.join("zephyr", "zephyr.elf")),
+        // Resolved against build_dir/zephyr. runners-yaml.ts uses upath which
+        // always produces POSIX separators, so check with a forward-slash literal.
+        assert.ok(parsed!.elfFile && parsed!.elfFile.endsWith("zephyr/zephyr.elf"),
             `elfFile should be absolute and end in zephyr/zephyr.elf, got ${parsed!.elfFile}`);
         assert.deepStrictEqual(parsed!.args["jlink"], [
             "--device=nRF52840_xxAA",

@@ -52,6 +52,9 @@ import {
   getPlatformArch,
   isWSL,
   resolveConfigInputs,
+  RUNNER_TARGET_PREFIX,
+  CORTEX_DEBUG_PREFIX,
+  WEST_DEBUG_PREFIX,
 } from "./utilities/utils";
 import { notifyError, outputInfo, outputError, outputLine, outputCommandFailure, getDebugOutput, clearDebugOutput } from "./utilities/output";
 import * as project from "./project_utilities/project";
@@ -133,6 +136,7 @@ import {
   getProjectFolder,
   getBuildFolder,
   getBindOverride,
+  getEffectiveActiveProfileName,
   addSampleProjectsFromFile,
 } from "./project_utilities/project";
 import { testHelper, deleteTestDirs } from "./zephyr_utilities/twister";
@@ -325,9 +329,29 @@ async function startDebugSession(
   if (activeBind && activeBind.kind === 'launch') {
     debugTarget = activeBind.name;
   }
-  // For pinnedRunner the value would be `${RUNNER_TARGET_PREFIX}${pinnedRunner}`
-  // but the code below always falls into the inline-synthesis path when
-  // `pinnedRunner !== undefined`, so debugTarget is intentionally left unset.
+
+  // Local bind has highest priority — overrides any profile-derived bind.
+  const buildState = resolved
+    ? wsConfig.projectStates?.[resolved.projectName]?.buildStates?.[resolved.buildName]
+    : undefined;
+  const localBind = buildState?.localBinds?.[slot];
+  if (localBind != null) {
+    // Clear profile-derived values so only the local bind applies.
+    pinnedRunner = undefined;
+    activeBind = undefined;
+    debugTargetFolder = undefined;
+    if (localBind.startsWith(CORTEX_DEBUG_PREFIX)) {
+      pinnedRunner = localBind.slice(CORTEX_DEBUG_PREFIX.length);
+    } else if (localBind.startsWith(WEST_DEBUG_PREFIX)) {
+      pinnedRunner = localBind.slice(WEST_DEBUG_PREFIX.length);
+    } else if (localBind.startsWith(RUNNER_TARGET_PREFIX)) {
+      // Legacy "runner:X" format (old local bind storage).
+      pinnedRunner = localBind.slice(RUNNER_TARGET_PREFIX.length);
+    } else {
+      // No recognized prefix → treat as a launch.json config name.
+      debugTarget = localBind;
+    }
+  }
 
   if (mode === 'build-debug') {
     if (!resolved) {
@@ -635,8 +659,9 @@ export async function activate(context: vscode.ExtensionContext) {
     const resolved = resolveActiveProjectBuild(wsConfig);
     if (resolved) {
       activeBuildDisplay.text = `$(project) ${resolved.buildName}`;
-      const profileName = resolved.build.activeProfile;
-      activeRunnerDisplay.text = profileName ? `$(chip) ${profileName}` : `$(chip)`;
+      const { name: profileName, scope: profileScope } = getEffectiveActiveProfileName(wsConfig, resolved);
+      const localIndicator = profileScope === "local" ? " *" : "";
+      activeRunnerDisplay.text = profileName ? `$(chip) ${profileName}${localIndicator}` : `$(chip)`;
       if (profileName) {
         const profileResolved = resolveActiveProfile(wsConfig);
         if (profileResolved) {
@@ -644,8 +669,11 @@ export async function activate(context: vscode.ExtensionContext) {
           const flashLabel = formatBindLabel(p.flash, getBindOverride(resolved.build, "flash"));
           const debugLabel = formatBindLabel(p.debug, getBindOverride(resolved.build, "debug"));
           const attachLabel = formatBindLabel(p.attach, getBindOverride(resolved.build, "attach"));
+          const scopeNote = profileScope === "local"
+            ? `\n⚠ Local override (workspace default: ${resolved.build.activeProfile ?? "(none)"})`
+            : "";
           activeRunnerDisplay.tooltip =
-            `Runner Profile: ${profileName}` +
+            `Runner Profile: ${profileName}${scopeNote}` +
             `\nFlash: ${flashLabel}` +
             `\nDebug: ${debugLabel}` +
             `\nAttach: ${attachLabel}` +
@@ -741,6 +769,17 @@ export async function activate(context: vscode.ExtensionContext) {
     }),
     vscode.commands.registerCommand("zephyr-ide.active-view.change-launch-target", () => {
       void vscode.commands.executeCommand("zephyr-ide.set-active-profile");
+    }),
+    vscode.commands.registerCommand("zephyr-ide.active-view.set-local-bind", (item: any) => {
+      const contextToSlot: Record<string, "flash" | "debug" | "attach"> = {
+        "activeProject.flash": "flash",
+        "activeProject.buildFlash": "flash",
+        "activeProject.debug": "debug",
+        "activeProject.buildDebug": "debug",
+        "activeProject.debugAttach": "attach",
+      };
+      const slot = contextToSlot[item?.contextValue as string];
+      void project.setLocalBind(context, wsConfig, slot);
     }),
     vscode.commands.registerCommand("zephyr-ide.active-view.clean-test-dirs", () => {
       const resolved = resolveActiveProject(wsConfig, { caller: "Clean Test Dirs" });
@@ -864,6 +903,9 @@ export async function activate(context: vscode.ExtensionContext) {
 
   registerCommandWithRefresh(context, "zephyr-ide.set-active-profile",
     () => project.setActiveProfile(context, wsConfig));
+
+  registerCommandWithRefresh(context, "zephyr-ide.set-local-bind",
+    () => project.setLocalBind(context, wsConfig));
 
   registerCommandWithRefresh(context, "zephyr-ide.manage-build-variables",
     () => project.manageBuildVariables(context, wsConfig));

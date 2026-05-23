@@ -33,7 +33,7 @@ import {
   suggestProfileName,
   splitArgs,
 } from "../../project_utilities/runner_profiles";
-import { resolveActiveProjectBuild, setActiveProfile } from "../../project_utilities/project";
+import { resolveActiveProjectBuild, setActiveProfile, getEffectiveActiveProfileName } from "../../project_utilities/project";
 
 /**
  * Webview panel for managing Runner Profiles (the post-rework replacement for
@@ -347,10 +347,12 @@ export class RunnerProfilePanel {
       .filter((n): n is string => typeof n === "string" && n.length > 0);
 
     const resolved = resolveActiveProjectBuild(this._wsConfig);
-    const activeProfileName = resolved?.build.activeProfile;
     const activeBuildLabel = resolved
       ? `${resolved.project.name} / ${resolved.build.name}`
       : undefined;
+    const effectiveProfile = resolved ? getEffectiveActiveProfileName(this._wsConfig, resolved) : undefined;
+    const activeProfileName = effectiveProfile?.name;
+    const activeProfileScope = effectiveProfile?.scope ?? "none";
 
     // Count builds that reference each profile name (workspace-wide).
     // Useful for showing usage and warning users before deleting a profile.
@@ -377,6 +379,7 @@ export class RunnerProfilePanel {
         knownDebugRunners: DEBUG_CAPABLE_RUNNERS.slice(),
         launchConfigNames,
         activeProfileName,
+        activeProfileScope,
         activeBuildLabel,
         usageByName,
         separateBuildDebugProfile,
