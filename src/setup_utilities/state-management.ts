@@ -315,8 +315,13 @@ function pickLegacyActiveRunner(build: any, buildState: any | undefined): string
  */
 function isAlreadyBindRunnerConfig(rc: any): boolean {
   if (!rc || typeof rc !== "object") { return false; }
-  return !!(rc.flash !== undefined || rc.debug !== undefined || rc.attach !== undefined ||
-    rc.build !== undefined || rc.buildDebug !== undefined);
+  return !!(
+    rc.flash !== undefined ||
+    rc.debug !== undefined ||
+    rc.attach !== undefined ||
+    rc.build !== undefined ||
+    rc.buildDebug !== undefined
+  );
 }
 
 /**
