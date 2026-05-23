@@ -23,13 +23,15 @@ import { ZephyrLitElement } from "../../webview_shared/lit-base";
 // Types
 // ---------------------------------------------------------------------------
 
-type BindKind = "auto" | "runner" | "launch" | "zephyr-launch";
+type BindKind = "auto" | "west-flash" | "launch" | "cortex-debug" | "west-debug";
 
 interface ProfileBind {
   kind: BindKind;
   runner?: string;
-  extraArgs?: string[];
-  name?: string; // launch.json configuration name
+  extraArgs?: string[];   // west-flash and west-debug only
+  name?: string;         // launch only
+  enableRtt?: boolean;   // cortex-debug only
+  probe?: string;        // cortex-debug only
 }
 
 interface Profile {
@@ -48,16 +50,19 @@ interface PanelData {
   hasWorkspace: boolean;
   knownRunners: string[];
   knownDebugRunners: string[];
-  /** launch.json configs with type:"zephyr-ide" — auto-resolve elf/gdb/target from runners.yaml */
-  zephyrLaunchConfigNames: string[];
-  /** launch.json configs of any other type — used as-is, no auto-resolution */
-  customLaunchConfigNames: string[];
+  /** All launch.json config names (any type); shown in a combined dropdown for the "launch" bind kind. */
+  launchConfigNames: string[];
   activeProfileName?: string;
   activeBuildLabel?: string;
   /** profile name -> list of "<project> / <build>" strings using it */
   usageByName?: Record<string, string[]>;
   /** Mirror of `zephyr-ide.separateBuildDebugProfile` setting. */
   separateBuildDebugProfile?: boolean;
+  /**
+   * When set, the webview should scroll the named profile card into view after
+   * the next render. Typically set after profile creation or duplication.
+   */
+  scrollToProfile?: string;
 }
 
 /**
@@ -110,6 +115,16 @@ export class RunnerProfileApp extends ZephyrLitElement {
         }
       }
       this._drafts = next;
+      // Scroll newly created / duplicated profile into view after render.
+      const scrollTo = this._data.scrollToProfile;
+      if (scrollTo) {
+        this.updateComplete.then(() => {
+          const id = "profile-card--" + CSS.escape(scrollTo);
+          const el = this.renderRoot?.querySelector(`#${id}`) as HTMLElement | null;
+          el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          el?.focus();
+        });
+      }
     }
   };
 
@@ -214,12 +229,22 @@ export class RunnerProfileApp extends ZephyrLitElement {
         newBind = { kind: "auto" };
       } else if (value.startsWith("launch:")) {
         newBind = { kind: "launch", name: value.slice(7) };
-      } else if (value.startsWith("zephyr-launch:")) {
-        newBind = { kind: "zephyr-launch", name: value.slice("zephyr-launch:".length) };
-      } else if (value.startsWith("runner:")) {
-        const runnerName = value.slice(7);
-        const extraArgs = existingBind.kind === "runner" ? (existingBind.extraArgs ?? []) : [];
-        newBind = { kind: "runner", runner: runnerName, extraArgs };
+      } else if (value.startsWith("west-flash:")) {
+        const runnerName = value.slice("west-flash:".length);
+        const extraArgs = existingBind.kind === "west-flash" ? (existingBind.extraArgs ?? []) : [];
+        newBind = { kind: "west-flash", runner: runnerName, extraArgs };
+      } else if (value.startsWith("cortex-debug:")) {
+        const runnerName = value.slice("cortex-debug:".length);
+        // Preserve RTT and probe when switching between runners of the same kind.
+        const prevEnableRtt = existingBind.kind === "cortex-debug" ? existingBind.enableRtt : undefined;
+        const prevProbe = existingBind.kind === "cortex-debug" ? existingBind.probe : undefined;
+        newBind = { kind: "cortex-debug", runner: runnerName };
+        if (prevEnableRtt) { newBind.enableRtt = true; }
+        if (prevProbe) { newBind.probe = prevProbe; }
+      } else if (value.startsWith("west-debug:")) {
+        const runnerName = value.slice("west-debug:".length);
+        const extraArgs = existingBind.kind === "west-debug" ? (existingBind.extraArgs ?? []) : [];
+        newBind = { kind: "west-debug", runner: runnerName, extraArgs };
       } else {
         newBind = { kind: "auto" };
       }
@@ -290,60 +315,6 @@ export class RunnerProfileApp extends ZephyrLitElement {
     this._showVarHelp = next;
   }
 
-  private _onSecondarySelectChange(
-    scope: Scope, originalName: string,
-    slot: "flash" | "buildDebug" | "debug" | "attach",
-    runner: string, cfgIndex: number, e: Event,
-  ) {
-    const value = stringFromEvent(e);
-    const cfg = RUNNER_SECONDARY_SELECTS[runner]?.[cfgIndex];
-    if (!cfg) { return; }
-    this._updateDraft(scope, originalName, (p) => {
-      const current: ProfileBind = p[slot] ?? { kind: "auto" };
-      const filtered = cfg.filterOut(current.extraArgs ?? []);
-      const newArg = cfg.buildArg(value);
-      const args = newArg ? [...filtered, newArg] : filtered;
-      return { ...p, [slot]: { ...current, extraArgs: args } };
-    });
-  }
-
-  private _renderSecondarySelect(
-    scope: Scope, originalName: string,
-    slot: "flash" | "buildDebug" | "debug" | "attach",
-    runner: string, bind: ProfileBind,
-  ) {
-    const configs = RUNNER_SECONDARY_SELECTS[runner];
-    if (!configs?.length) { return nothing; }
-    return html`${configs.map((cfg, idx) => {
-      const current = cfg.detect(bind.extraArgs ?? []);
-      const isCustom = !!current && !cfg.options.some(o => o.value === current);
-      return html`
-        <div class="slot-secondary-select">
-          <span class="slot-secondary-label" title=${cfg.hint}>
-            ${cfg.label}
-            ${cfg.required && !current
-          ? html`<i class="codicon codicon-warning slot-secondary-req-icon"></i>`
-          : nothing}
-          </span>
-          <vscode-single-select class="profile-slot-select slot-secondary-dropdown"
-            .value=${current}
-            @change=${(e: Event) => this._onSecondarySelectChange(scope, originalName, slot, runner, idx, e)}>
-            <vscode-option value="" ?selected=${!current}>${cfg.placeholder}</vscode-option>
-            ${cfg.options.map(o => html`
-              <vscode-option
-                value=${o.value}
-                ?selected=${current === o.value}
-                title=${o.description ?? o.label}>${o.label}</vscode-option>
-            `)}
-            ${isCustom ? html`
-              <vscode-option value=${current} ?selected=${true}>${current} (custom)</vscode-option>
-            ` : nothing}
-          </vscode-single-select>
-        </div>
-      `;
-    })}`;
-  }
-
   private _copySlot(
     scope: Scope, originalName: string,
     fromSlot: "flash" | "buildDebug" | "debug" | "attach",
@@ -364,9 +335,30 @@ export class RunnerProfileApp extends ZephyrLitElement {
   ) {
     this._updateDraft(scope, originalName, (p) => {
       const current: ProfileBind = p[slot] ?? { kind: "auto" };
-      const args = (current.extraArgs ?? []).filter(a => a !== "--enable-rtt");
-      if (checked) { args.push("--enable-rtt"); }
-      return { ...p, [slot]: { ...current, extraArgs: args } };
+      // enableRtt is a structured field on cortex-debug bind only.
+      if (current.kind === "cortex-debug") {
+        const updated = { ...current };
+        if (checked) { updated.enableRtt = true; } else { delete updated.enableRtt; }
+        return { ...p, [slot]: updated };
+      }
+      return p;
+    });
+  }
+
+  private _onProbeChange(
+    scope: Scope, originalName: string,
+    slot: "flash" | "buildDebug" | "debug" | "attach",
+    e: Event,
+  ) {
+    const value = stringFromEvent(e);
+    this._updateDraft(scope, originalName, (p) => {
+      const current: ProfileBind = p[slot] ?? { kind: "auto" };
+      if (current.kind === "cortex-debug") {
+        const updated = { ...current };
+        if (value) { updated.probe = value; } else { delete updated.probe; }
+        return { ...p, [slot]: updated };
+      }
+      return p;
     });
   }
 
@@ -401,7 +393,7 @@ export class RunnerProfileApp extends ZephyrLitElement {
     `;
   }
 
-  /** Render RTT checkbox + per-arg rows + add-argument row. */
+  /** Render per-arg rows + add-argument row for west-flash / west-debug binds. */
   private _renderArgEditor(
     scope: Scope, originalName: string,
     slot: "flash" | "buildDebug" | "debug" | "attach",
@@ -411,18 +403,10 @@ export class RunnerProfileApp extends ZephyrLitElement {
     const key = this._argPickerKey(scope, originalName, slot);
     const varHelpOpen = this._showVarHelp.has(key);
     const allArgs = bind.extraArgs ?? [];
-    const rttEnabled = allArgs.includes("--enable-rtt");
 
     return html`
       <div class="arg-editor">
-        <div class="arg-row arg-row--rtt">
-          <vscode-checkbox
-            ?checked=${rttEnabled}
-            @change=${(e: Event) => this._onRttToggle(scope, originalName, slot, (e.target as HTMLInputElement).checked)}>
-            Enable RTT
-          </vscode-checkbox>
-        </div>
-        ${allArgs.map((arg, realIdx) => arg === "--enable-rtt" ? nothing : html`
+        ${allArgs.map((arg, realIdx) => html`
           <div class="arg-row">
             <vscode-textfield class="arg-row-input"
               .value=${arg}
@@ -447,6 +431,57 @@ export class RunnerProfileApp extends ZephyrLitElement {
           </vscode-button>
         </div>
         ${varHelpOpen ? this._renderVarHelpPanel(scope, originalName, slot) : nothing}
+      </div>
+    `;
+  }
+
+  /** Render RTT checkbox + probe dropdown for a cortex-debug bind. */
+  private _renderCortexDebugOptions(
+    scope: Scope, originalName: string,
+    slot: "flash" | "buildDebug" | "debug" | "attach",
+    bind: ProfileBind,
+  ) {
+    if (bind.kind !== "cortex-debug" || !bind.runner) { return nothing; }
+    const runner = bind.runner;
+    const rttEnabled = bind.enableRtt === true;
+    const currentProbe = bind.probe ?? "";
+    const probeCfgs = RUNNER_SECONDARY_SELECTS[runner];
+    const isCustomProbe = !!currentProbe && probeCfgs && !probeCfgs[0].options.some(o => o.value === currentProbe);
+
+    return html`
+      <div class="arg-editor">
+        ${RTT_CAPABLE_RUNNERS.has(runner) ? html`
+        <div class="arg-row arg-row--rtt">
+          <vscode-checkbox
+            ?checked=${rttEnabled}
+            @change=${(e: Event) => this._onRttToggle(scope, originalName, slot, (e.target as HTMLInputElement).checked)}>
+            Enable RTT
+          </vscode-checkbox>
+        </div>` : nothing}
+        ${probeCfgs ? probeCfgs.map(cfg => html`
+          <div class="slot-secondary-select">
+            <span class="slot-secondary-label" title=${cfg.hint}>
+              ${cfg.label}
+              ${cfg.required && !currentProbe
+          ? html`<i class="codicon codicon-warning slot-secondary-req-icon"></i>`
+          : nothing}
+            </span>
+            <vscode-single-select class="profile-slot-select slot-secondary-dropdown"
+              .value=${currentProbe}
+              @change=${(e: Event) => this._onProbeChange(scope, originalName, slot, e)}>
+              <vscode-option value="" ?selected=${!currentProbe}>${cfg.placeholder}</vscode-option>
+              ${cfg.options.map(o => html`
+                <vscode-option
+                  value=${o.value}
+                  ?selected=${currentProbe === o.value}
+                  title=${o.description ?? o.label}>${o.label}</vscode-option>
+              `)}
+              ${isCustomProbe ? html`
+                <vscode-option value=${currentProbe} ?selected=${true}>${currentProbe} (custom)</vscode-option>
+              ` : nothing}
+            </vscode-single-select>
+          </div>
+        `) : nothing}
       </div>
     `;
   }
@@ -558,7 +593,9 @@ export class RunnerProfileApp extends ZephyrLitElement {
     const hasActiveBuild = !!this._data?.activeBuildLabel;
 
     return html`
-      <div class="profile-card ${isActive ? "active" : ""}">
+      <div class="profile-card ${isActive ? "active" : ""}"
+        id=${"profile-card--" + original.name}
+        tabindex="-1">
         <div class="profile-card-header">
           <vscode-textfield class="profile-card-name"
             .value=${draft.name}
@@ -620,7 +657,6 @@ export class RunnerProfileApp extends ZephyrLitElement {
     slot: "flash" | "buildDebug" | "debug" | "attach", icon: string,
     bindOverride?: ProfileBind,
   ) {
-    // For buildDebug, use the passed-in override bind (which defaults to auto when unset).
     const bind = bindOverride ?? (draft[slot] as ProfileBind | undefined) ?? { kind: "auto" as const };
     const labelMap: Record<string, string> = {
       flash: "Flash",
@@ -629,20 +665,65 @@ export class RunnerProfileApp extends ZephyrLitElement {
       attach: "Attach",
     };
     const label = labelMap[slot] ?? (slot.charAt(0).toUpperCase() + slot.slice(1));
-    const d = this._data!;
-    const currentValue = bindToSelectValue(bind);
-    const isDebugSlot = slot === "debug" || slot === "attach" || slot === "buildDebug";
-    const allowLaunch = isDebugSlot; // custom launch.json configs only valid for debug slots
-    const allowZephyrLaunch = isDebugSlot; // zephyr-ide configs only valid for debug slots
-    const runnerPool = isDebugSlot ? (d.knownDebugRunners ?? d.knownRunners) : d.knownRunners;
-    const knownRunners = runnerPool.length > 0 ? runnerPool : (bind.kind === "runner" ? [bind.runner ?? "openocd"] : ["openocd"]);
+    const isFlashSlot = slot === "flash";
+    return isFlashSlot
+      ? this._renderFlashSlotBody(scope, originalName, draft, slot, icon, label, bind)
+      : this._renderDebugSlotBody(scope, originalName, draft, slot, icon, label, bind);
+  }
 
-    // If the saved bind is a launch config not in the known list, keep it selectable.
-    const allKnownLaunchNames = [...(d.zephyrLaunchConfigNames ?? []), ...(d.customLaunchConfigNames ?? [])];
-    const syntheticZephyrLaunch = allowZephyrLaunch && bind.kind === "zephyr-launch" && bind.name
-      && !(d.zephyrLaunchConfigNames ?? []).includes(bind.name);
-    const syntheticCustomLaunch = allowLaunch && bind.kind === "launch" && bind.name
-      && !(d.customLaunchConfigNames ?? []).includes(bind.name);
+  private _renderFlashSlotBody(
+    scope: Scope, originalName: string, _draft: Profile,
+    slot: "flash", icon: string, label: string, bind: ProfileBind,
+  ) {
+    const d = this._data!;
+    const knownRunners = d.knownRunners.length > 0 ? d.knownRunners : ["openocd"];
+    const currentValue = bindToSelectValue(bind);
+
+    return html`
+      <div class="profile-slot-section">
+        <div class="profile-slot-header">
+          <i class="codicon codicon-${icon}"></i>
+          <span class="profile-slot-title">${label}</span>
+        </div>
+        <div class="profile-slot-body">
+          <vscode-single-select class="profile-slot-select"
+            .value=${currentValue}
+            @change=${(e: Event) => this._onBindSelectChange(scope, originalName, slot, e)}>
+            <vscode-option value="auto" ?selected=${bind.kind === "auto"}>Auto (runners.yaml)</vscode-option>
+            <vscode-option value="" disabled>─── West Flash ───</vscode-option>
+            ${knownRunners.map(r => html`
+              <vscode-option
+                value=${"west-flash:" + r}
+                ?selected=${bind.kind === "west-flash" && bind.runner === r}>${r}</vscode-option>
+            `)}
+            ${bind.kind === "west-flash" && bind.runner && !knownRunners.includes(bind.runner) ? html`
+              <vscode-option value=${"west-flash:" + bind.runner} ?selected=${true}>${bind.runner} (custom)</vscode-option>
+            ` : nothing}
+          </vscode-single-select>
+          ${bind.kind === "west-flash" && bind.runner
+        ? this._renderArgEditor(scope, originalName, slot, bind, bind.runner)
+        : nothing}
+          ${bind.kind === "auto"
+        ? html`<span class="scope-section-hint">Uses runners.yaml defaults.</span>`
+        : nothing}
+        </div>
+      </div>
+    `;
+  }
+
+  private _renderDebugSlotBody(
+    scope: Scope, originalName: string, draft: Profile,
+    slot: "buildDebug" | "debug" | "attach", icon: string, label: string, bind: ProfileBind,
+  ) {
+    const d = this._data!;
+    const knownDebugRunners = (d.knownDebugRunners ?? d.knownRunners);
+    const debugRunners = knownDebugRunners.length > 0 ? knownDebugRunners : ["openocd"];
+    const currentValue = bindToSelectValue(bind);
+    const launchConfigNames = d.launchConfigNames ?? [];
+
+    // When the saved bind is a launch config not in the known list, keep it selectable.
+    const syntheticLaunch = bind.kind === "launch" && bind.name
+      && !launchConfigNames.includes(bind.name);
 
     return html`
       <div class="profile-slot-section">
@@ -665,61 +746,55 @@ export class RunnerProfileApp extends ZephyrLitElement {
             .value=${currentValue}
             @change=${(e: Event) => this._onBindSelectChange(scope, originalName, slot, e)}>
             <vscode-option value="auto" ?selected=${bind.kind === "auto"}>Auto (runners.yaml)</vscode-option>
-            ${allowZephyrLaunch ? html`
-              <vscode-option value="" disabled>─── Zephyr-IDE configs ───</vscode-option>
-              ${(d.zephyrLaunchConfigNames ?? []).map(n => html`
-                <vscode-option
-                  value=${"zephyr-launch:" + n}
-                  ?selected=${bind.kind === "zephyr-launch" && bind.name === n}>${n}</vscode-option>
-              `)}
-              ${syntheticZephyrLaunch ? html`
-                <vscode-option
-                  value=${"zephyr-launch:" + bind.name}
-                  ?selected=${true}>${bind.name} (not found)</vscode-option>
-              ` : nothing}
-              <vscode-option value="" disabled style="font-style:italic;font-size:0.85em;opacity:0.75">elf, gdb, target auto-resolved from runners.yaml</vscode-option>
-            ` : nothing}
-            ${allowLaunch ? html`
-              <vscode-option value="" disabled>─── Custom launch.json ───</vscode-option>
-              ${(d.customLaunchConfigNames ?? []).map(n => html`
-                <vscode-option
-                  value=${"launch:" + n}
-                  ?selected=${bind.kind === "launch" && bind.name === n}>${n}</vscode-option>
-              `)}
-              ${syntheticCustomLaunch ? html`
-                <vscode-option
-                  value=${"launch:" + bind.name}
-                  ?selected=${true}>${bind.name} (not found)</vscode-option>
-              ` : nothing}
-            ` : nothing}
-            <vscode-option value="" disabled>─── Runners ───</vscode-option>
-            ${knownRunners.map(r => html`
+            <vscode-option value="" disabled>─── launch.json ───</vscode-option>
+            ${launchConfigNames.map(n => html`
               <vscode-option
-                value=${"runner:" + r}
-                ?selected=${bind.kind === "runner" && bind.runner === r}>${r}</vscode-option>
+                value=${"launch:" + n}
+                ?selected=${bind.kind === "launch" && bind.name === n}>${n}</vscode-option>
             `)}
+            ${syntheticLaunch ? html`
+              <vscode-option
+                value=${"launch:" + bind.name}
+                ?selected=${true}>${bind.name} (not found)</vscode-option>
+            ` : nothing}
+            <vscode-option value="" disabled>─── cortex-debug (auto-config) ───</vscode-option>
+            ${debugRunners.map(r => html`
+              <vscode-option
+                value=${"cortex-debug:" + r}
+                ?selected=${bind.kind === "cortex-debug" && bind.runner === r}>${r}</vscode-option>
+            `)}
+            ${bind.kind === "cortex-debug" && bind.runner && !debugRunners.includes(bind.runner) ? html`
+              <vscode-option value=${"cortex-debug:" + bind.runner} ?selected=${true}>${bind.runner} (custom)</vscode-option>
+            ` : nothing}
+            <vscode-option value="" disabled>─── west debug-server bridge ───</vscode-option>
+            ${debugRunners.map(r => html`
+              <vscode-option
+                value=${"west-debug:" + r}
+                ?selected=${bind.kind === "west-debug" && bind.runner === r}>${r} (west)</vscode-option>
+            `)}
+            ${bind.kind === "west-debug" && bind.runner && !debugRunners.includes(bind.runner) ? html`
+              <vscode-option value=${"west-debug:" + bind.runner} ?selected=${true}>${bind.runner} (custom, west)</vscode-option>
+            ` : nothing}
           </vscode-single-select>
-          ${bind.kind === "runner" && bind.runner
-        ? this._renderSecondarySelect(scope, originalName, slot, bind.runner, bind)
+          ${bind.kind === "cortex-debug" && bind.runner
+        ? this._renderCortexDebugOptions(scope, originalName, slot, bind)
         : nothing}
-          ${bind.kind === "runner"
-        ? this._renderArgEditor(scope, originalName, slot, bind, bind.runner ?? "")
+          ${bind.kind === "west-debug" && bind.runner
+        ? this._renderArgEditor(scope, originalName, slot, bind, bind.runner)
         : nothing}
           ${bind.kind === "auto" && slot === "buildDebug"
         ? html`<span class="scope-section-hint">Falls back to the <strong>Debug</strong> slot.</span>`
-        : bind.kind === "auto" && slot === "debug" && !this._data?.separateBuildDebugProfile
+        : bind.kind === "auto" && slot === "debug" && !d.separateBuildDebugProfile
           ? html`<span class="scope-section-hint">Uses runners.yaml defaults. Drives both Debug and Build&#8202;&amp;&#8202;Debug.</span>`
           : bind.kind === "auto"
             ? html`<span class="scope-section-hint">Uses runners.yaml defaults.</span>`
-            : bind.kind === "zephyr-launch"
-              ? html`<span class="scope-section-hint">Zephyr IDE will auto-fill elf, gdb, and target from runners.yaml. Explicit fields in the launch.json config override the auto-filled values.</span>`
-              : nothing}
-          ${bind.kind === "launch" && allowLaunch && (d.customLaunchConfigNames ?? []).length === 0 && !syntheticCustomLaunch
-        ? html`<span class="no-launch-warning">No custom launch.json configs detected.</span>`
-        : nothing}
-          ${bind.kind === "zephyr-launch" && allowZephyrLaunch && (d.zephyrLaunchConfigNames ?? []).length === 0 && !syntheticZephyrLaunch
-        ? html`<span class="no-launch-warning">No <code>type: "zephyr-ide"</code> configs detected in launch.json.</span>`
-        : nothing}
+            : bind.kind === "launch" && launchConfigNames.length === 0 && !syntheticLaunch
+              ? html`<span class="no-launch-warning">No launch.json configs detected.</span>`
+              : bind.kind === "cortex-debug"
+                ? html`<span class="scope-section-hint">elf, gdb, and target auto-resolved from runners.yaml. RTT and probe selections are structured fields applied on top.</span>`
+                : bind.kind === "west-debug"
+                  ? html`<span class="scope-section-hint">Always uses <code>west debug-server</code> bridge — connects cortex-debug as external GDB server.</span>`
+                  : nothing}
         </div>
       </div>
     `;
@@ -746,13 +821,14 @@ interface SecondarySelectConfig {
   /** Label for the empty / "none" option. */
   placeholder: string;
   options: SecondarySelectOption[];
-  /** Extract the currently-active secondary value from extraArgs (return "" when absent). */
-  detect(args: string[]): string;
-  /** Return args with this selection's arg removed. */
-  filterOut(args: string[]): string[];
-  /** Build the extraArgs entry for the given value (return "" for the placeholder). */
-  buildArg(value: string): string;
 }
+
+/**
+ * Runners that support RTT via `--enable-rtt` (translated to cortex-debug's
+ * `rttConfig` or `rttEnabled`). JLink, stlink, qemu, and others are NOT
+ * included because their debug-provider cases do not handle the flag.
+ */
+const RTT_CAPABLE_RUNNERS = new Set(["openocd", "pyocd", "bmp", "blackmagicprobe"]);
 
 const RUNNER_SECONDARY_SELECTS: Partial<Record<string, SecondarySelectConfig[]>> = {
   openocd: [
@@ -770,33 +846,6 @@ const RUNNER_SECONDARY_SELECTS: Partial<Record<string, SecondarySelectConfig[]>>
         { value: "interface/raspberrypi-swd.cfg", label: "Raspberry Pi GPIO SWD", description: "Bit-banged SWD via RPi GPIO" },
         { value: "interface/buspirate.cfg", label: "Bus Pirate", description: "Bus Pirate USB probe" },
       ],
-      detect(args) {
-        for (let i = 0; i < args.length; i++) {
-          const a = args[i];
-          // Matches: "-- -f interface/x.cfg", "--openocd-config interface/x.cfg", "-f interface/x.cfg"
-          const m = a.match(/^(?:--\s+-f|--openocd-config|-f)\s+(interface\/\S+)/);
-          if (m) { return m[1]; }
-          if ((a === "--openocd-config" || a === "-f") && i + 1 < args.length && args[i + 1].startsWith("interface/")) {
-            return args[i + 1];
-          }
-          if (a.startsWith("interface/") && a.endsWith(".cfg")) { return a; }
-        }
-        return "";
-      },
-      filterOut(args) {
-        const result: string[] = [];
-        for (let i = 0; i < args.length; i++) {
-          const a = args[i];
-          if (/^(?:--\s+-f|--openocd-config|-f)\s+interface\//.test(a)) { continue; }
-          if ((a === "--openocd-config" || a === "-f") && i + 1 < args.length && args[i + 1].startsWith("interface/")) {
-            i++; continue;
-          }
-          if (a.startsWith("interface/") && a.endsWith(".cfg")) { continue; }
-          result.push(a);
-        }
-        return result;
-      },
-      buildArg(value) { return value ? `--openocd-config ${value}` : ""; },
     },
   ],
   pyocd: [
@@ -813,27 +862,6 @@ const RUNNER_SECONDARY_SELECTS: Partial<Record<string, SecondarySelectConfig[]>>
         { value: "xds110", label: "TI XDS110", description: "Texas Instruments XDS110 debug probe" },
         { value: "cmsisdap", label: "cmsisdap (alternate ID)", description: "Alternate CMSIS-DAP probe ID for some targets" },
       ],
-      detect(args) {
-        for (let i = 0; i < args.length; i++) {
-          const a = args[i];
-          // Matches: "-- --probe stlink", "-- --probe=stlink", "--probe=stlink"
-          const m = a.match(/^(?:--\s+)?--probe[= ](\S+)/);
-          if (m) { return m[1]; }
-          if (a === "--probe" && i + 1 < args.length) { return args[i + 1]; }
-        }
-        return "";
-      },
-      filterOut(args) {
-        const result: string[] = [];
-        for (let i = 0; i < args.length; i++) {
-          const a = args[i];
-          if (/^(?:--\s+)?--probe[= ]\S+/.test(a)) { continue; }
-          if (a === "--probe" && i + 1 < args.length) { i++; continue; }
-          result.push(a);
-        }
-        return result;
-      },
-      buildArg(value) { return value ? `--probe=${value}` : ""; },
     },
   ],
 };
@@ -850,8 +878,10 @@ function stringFromEvent(e: Event): string {
 function bindToSelectValue(bind: ProfileBind): string {
   if (bind.kind === "auto") { return "auto"; }
   if (bind.kind === "launch") { return `launch:${bind.name ?? ""}`; }
-  if (bind.kind === "zephyr-launch") { return `zephyr-launch:${bind.name ?? ""}`; }
-  return `runner:${bind.runner ?? ""}`;
+  if (bind.kind === "west-flash") { return `west-flash:${bind.runner ?? ""}`; }
+  if (bind.kind === "cortex-debug") { return `cortex-debug:${bind.runner ?? ""}`; }
+  if (bind.kind === "west-debug") { return `west-debug:${bind.runner ?? ""}`; }
+  return "auto";
 }
 
 /** Split an extraArgs string into individual argument tokens, respecting quoted strings. */
@@ -898,12 +928,19 @@ function cloneProfile(p: Profile): Profile {
 function bindsEqual(a: ProfileBind, b: ProfileBind): boolean {
   if (a.kind !== b.kind) { return false; }
   if (a.kind === "auto") { return true; }
-  if (a.kind === "runner") {
+  if (a.kind === "launch") {
+    return (a.name ?? "") === (b.name ?? "");
+  }
+  if (a.kind === "west-flash" || a.kind === "west-debug") {
     return (a.runner ?? "") === (b.runner ?? "")
       && JSON.stringify(a.extraArgs ?? []) === JSON.stringify(b.extraArgs ?? []);
   }
-  // "launch" and "zephyr-launch" — compare by name
-  return (a.name ?? "") === ((b as ProfileBind & { name?: string }).name ?? "");
+  if (a.kind === "cortex-debug") {
+    return (a.runner ?? "") === (b.runner ?? "")
+      && !!a.enableRtt === !!b.enableRtt
+      && (a.probe ?? "") === (b.probe ?? "");
+  }
+  return false;
 }
 
 function profilesEqual(a: Profile, b: Profile): boolean {

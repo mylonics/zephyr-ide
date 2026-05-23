@@ -300,7 +300,7 @@ export class BuildSection extends ZephyrLitElement {
     label: string,
     icon: string,
   ) {
-    const canOverride = slot.kind === "runner";
+    const canOverride = slot.kind === "west-flash" || slot.kind === "west-debug";
     const overrideBadge = slot.hasOverride
       ? html`<span class="bind-override-badge" title="Per-build extra args override">override</span>`
       : nothing;

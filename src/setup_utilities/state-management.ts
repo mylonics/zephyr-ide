@@ -324,8 +324,27 @@ function normalizeBindForSignature(bind: any): any {
   if (!bind || typeof bind !== "object") {
     return { kind: "auto" };
   }
-  if (bind.kind === "runner" && typeof bind.runner === "string" && bind.runner.trim().length > 0) {
-    const out: any = { kind: "runner", runner: bind.runner.trim() };
+  // west-flash (and legacy "runner" → west-flash for signature purposes)
+  if ((bind.kind === "west-flash" || bind.kind === "runner") && typeof bind.runner === "string" && bind.runner.trim().length > 0) {
+    const out: any = { kind: "west-flash", runner: bind.runner.trim() };
+    if (Array.isArray(bind.extraArgs)) {
+      const extraArgs = bind.extraArgs
+        .filter((arg: unknown): arg is string => typeof arg === "string" && arg.trim().length > 0)
+        .map((arg: string) => arg.trim());
+      if (extraArgs.length > 0) {
+        out.extraArgs = extraArgs;
+      }
+    }
+    return out;
+  }
+  if (bind.kind === "cortex-debug" && typeof bind.runner === "string" && bind.runner.trim().length > 0) {
+    const out: any = { kind: "cortex-debug", runner: bind.runner.trim() };
+    if (bind.enableRtt === true) { out.enableRtt = true; }
+    if (typeof bind.probe === "string" && bind.probe.trim()) { out.probe = bind.probe.trim(); }
+    return out;
+  }
+  if (bind.kind === "west-debug" && typeof bind.runner === "string" && bind.runner.trim().length > 0) {
+    const out: any = { kind: "west-debug", runner: bind.runner.trim() };
     if (Array.isArray(bind.extraArgs)) {
       const extraArgs = bind.extraArgs
         .filter((arg: unknown): arg is string => typeof arg === "string" && arg.trim().length > 0)
@@ -337,6 +356,10 @@ function normalizeBindForSignature(bind: any): any {
     return out;
   }
   if (bind.kind === "launch" && typeof bind.name === "string" && bind.name.trim().length > 0) {
+    return { kind: "launch", name: bind.name.trim() };
+  }
+  // Legacy: zephyr-launch → launch for signature purposes
+  if (bind.kind === "zephyr-launch" && typeof bind.name === "string" && bind.name.trim().length > 0) {
     return { kind: "launch", name: bind.name.trim() };
   }
   return { kind: "auto" };
@@ -400,7 +423,7 @@ export function migrateRunnerConfig(rc: any, legacyBuild: any | undefined): any 
   // Pre-bind shape {name, runner, args, argsMode?}.
   // In the old model: buildDebugTarget → Build-and-Debug; launchTarget → Debug-only.
   const flash: any = rc?.runner
-    ? { kind: "runner", runner: rc.runner, ...(rc.args ? { extraArgs: splitArgs(String(rc.args)) } : {}) }
+    ? { kind: "west-flash", runner: rc.runner, ...(rc.args ? { extraArgs: splitArgs(String(rc.args)) } : {}) }
     : { kind: "auto" };
   const out: any = {
     name: rc?.name,

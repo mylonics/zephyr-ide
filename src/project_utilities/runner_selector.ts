@@ -25,7 +25,7 @@ import { QuickPickItem } from 'vscode';
 import * as vscode from 'vscode';
 import { MultiStepInput, noOpValidate } from "../utilities/multistepQuickPick";
 import { outputError } from "../utilities/output";
-import { RunnerBind, splitArgs } from "./runner_profiles";
+import { FlashBind, DebugBind, splitArgs } from "./runner_profiles";
 
 /** All known west runners. */
 export const KNOWN_RUNNERS = [
@@ -50,20 +50,26 @@ export const KNOWN_RUNNERS = [
   "xsdb",
 ];
 
-/** Subset of KNOWN_RUNNERS that support debug/attach (GDB server capable). */
+/**
+ * Subset of KNOWN_RUNNERS that support debug/attach (GDB server capable).
+ * Must stay in sync with `runnerToServerType` in `runners-yaml.ts`:
+ *   - Native servertypes: jlink, openocd, pyocd, stlink, stm32cubeprogrammer-stlink, bmp/blackmagicprobe, qemu
+ *   - Bridged runners (west debug-server):  nrfjprog, linkserver, esp32, stm32cubeprogrammer
+ * Runners absent from `runnerToServerType` (dfu-util, nrfutil, arc-jtag, xsdb …) are omitted.
+ */
 export const DEBUG_CAPABLE_RUNNERS = [
   "openocd",
   "jlink",
   "pyocd",
   "stlink",
+  "stm32cubeprogrammer-stlink",
   "blackmagicprobe",
+  "bmp",
   "linkserver",
   "nrfjprog",
-  "nrfutil",
   "esp32",
+  "stm32cubeprogrammer",
   "qemu",
-  "arc-jtag",
-  "xsdb",
 ];
 
 export interface BindSelectorOptions {
@@ -72,7 +78,7 @@ export interface BindSelectorOptions {
   /** Runners listed in this build's runners.yaml (shown first). */
   availableRunners?: string[];
   /** Existing bind to seed extra-args on step 2. */
-  current?: RunnerBind;
+  current?: FlashBind | DebugBind;
 }
 
 /**
@@ -80,7 +86,7 @@ export interface BindSelectorOptions {
  * `launch.json` entries are NOT offered here — for Debug/Attach binds the
  * profile editor uses `selectLaunchConfiguration` directly.
  */
-export async function bindSelector(options: BindSelectorOptions): Promise<RunnerBind | undefined> {
+export async function bindSelector(options: BindSelectorOptions): Promise<FlashBind | DebugBind | undefined> {
   const title = `Pick runner for ${options.slot}`;
   const availableSet = new Set(options.availableRunners ?? []);
 
@@ -95,7 +101,7 @@ export async function bindSelector(options: BindSelectorOptions): Promise<Runner
   }
   items.push(...KNOWN_RUNNERS.filter(r => !availableSet.has(r)).map(r => ({ label: r })));
 
-  let pickedBind: RunnerBind | undefined;
+  let pickedBind: FlashBind | DebugBind | undefined;
 
   async function step1(input: MultiStepInput) {
     const pick = await input.showQuickPick({
@@ -114,13 +120,16 @@ export async function bindSelector(options: BindSelectorOptions): Promise<Runner
       pickedBind = { kind: "auto" };
       return;
     }
-    pickedBind = { kind: "runner", runner: pick.label };
+    pickedBind = options.slot === "flash"
+      ? { kind: "west-flash", runner: pick.label }
+      : { kind: "cortex-debug", runner: pick.label };
     return (input: MultiStepInput) => step2(input);
   }
 
   async function step2(input: MultiStepInput) {
-    const seeded = options.current && options.current.kind === "runner"
-      ? (options.current.extraArgs ?? []).join(" ")
+    const cur = options.current;
+    const seeded = cur && (cur.kind === "west-flash" || cur.kind === "west-debug")
+      ? (cur.extraArgs ?? []).join(" ")
       : "";
     const args = await input.showInputBox({
       title,
@@ -136,8 +145,8 @@ export async function bindSelector(options: BindSelectorOptions): Promise<Runner
     });
     if (args === undefined) { return; }
     const trimmed = args.trim();
-    if (trimmed && pickedBind && pickedBind.kind === "runner") {
-      pickedBind = { kind: "runner", runner: pickedBind.runner, extraArgs: splitArgs(trimmed) };
+    if (trimmed && pickedBind && pickedBind.kind === "west-flash") {
+      pickedBind = { kind: "west-flash", runner: pickedBind.runner, extraArgs: splitArgs(trimmed) };
     }
   }
 

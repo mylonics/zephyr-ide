@@ -64,8 +64,8 @@ export interface WebviewSlotBind {
   /** Display label: "Auto (runners.yaml)" | "openocd --speed 4000" | "launch.json: <name>". */
   label: string;
   /** Bind discriminator from the profile, or "none" when no active profile. */
-  kind: "none" | "auto" | "runner" | "launch" | "zephyr-launch";
-  /** Underlying runner name (only when `kind === "runner"`). */
+  kind: "none" | "auto" | "west-flash" | "west-debug" | "cortex-debug" | "launch";
+  /** Underlying runner name (when kind is west-flash / west-debug / cortex-debug). */
   runner?: string;
   /** Effective extra args (profile + override) shown in the inline editor. */
   extraArgs: string;

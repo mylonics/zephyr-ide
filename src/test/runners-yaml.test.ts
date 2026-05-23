@@ -30,8 +30,8 @@ import {
 import {
     buildCortexDebugConfig,
     pickDebugRunner,
-    splitArgs,
 } from "../zephyr_utilities/debug-provider";
+import { splitArgs } from "../project_utilities/runner_profiles";
 
 function makeTempBuildDir(): string {
     return fs.mkdtempSync(path.join(os.tmpdir(), "zide-runners-"));

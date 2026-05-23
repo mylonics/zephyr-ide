@@ -19,8 +19,8 @@ limitations under the License.
  * Unit tests for runner profile resolution logic in runner_profiles.ts.
  *
  * Coverage:
- *   - resolveBind: all three bind kinds (auto / runner / launch), with and
- *     without per-build overrides.
+ *   - resolveBind: all bind kinds (auto / west-flash / west-debug / cortex-debug / launch),
+ *     with and without per-build overrides.
  *   - formatBindLabel / formatOverrideLabel: human-readable label helpers.
  *   - resolveRunnerArgs: every supported variable kind:
  *       ${workspaceFolder}, ${buildFolder}, ${board}, ${boardRevision},
@@ -45,7 +45,8 @@ import {
   formatBindLabel,
   formatOverrideLabel,
   resolveRunnerArgs,
-  RunnerBind,
+  FlashBind,
+  DebugBind,
   BindOverride,
   RunnerVarContext,
 } from "../project_utilities/runner_profiles";
@@ -99,37 +100,52 @@ suite("runner-profile-resolution: resolveBind", () => {
     assert.strictEqual(result, undefined);
   });
 
-  test("runner bind with no extraArgs → empty args string", () => {
-    const result = resolveBind({ kind: "runner", runner: "openocd" });
+  test("cortex-debug bind → runner name returned, no args", () => {
+    const result = resolveBind({ kind: "cortex-debug", runner: "openocd" });
     assert.ok(result);
     assert.strictEqual(result.runner, "openocd");
     assert.strictEqual(result.args, "");
   });
 
-  test("runner bind with extraArgs → args forwarded", () => {
-    const result = resolveBind({ kind: "runner", runner: "jlink", extraArgs: ["--speed=4000"] });
+  test("west-flash bind with no extraArgs → empty args string", () => {
+    const result = resolveBind({ kind: "west-flash", runner: "openocd" });
+    assert.ok(result);
+    assert.strictEqual(result.runner, "openocd");
+    assert.strictEqual(result.args, "");
+  });
+
+  test("west-flash bind with extraArgs → args forwarded", () => {
+    const result = resolveBind({ kind: "west-flash", runner: "jlink", extraArgs: ["--speed=4000"] });
     assert.ok(result);
     assert.strictEqual(result.args, "--speed=4000");
   });
 
-  test("runner bind + override → args concatenated", () => {
-    const bind: RunnerBind = { kind: "runner", runner: "openocd", extraArgs: ["--config", "a.cfg"] };
+  test("west-flash bind + override → args concatenated", () => {
+    const bind: FlashBind = { kind: "west-flash", runner: "openocd", extraArgs: ["--config", "a.cfg"] };
     const override: BindOverride = { extraArgs: ["--cmd-pre-init", "reset_config"] };
     const result = resolveBind(bind, override);
     assert.ok(result);
     assert.strictEqual(result.args, "--config a.cfg --cmd-pre-init reset_config");
   });
 
-  test("runner bind with only override extraArgs → override args only", () => {
-    const bind: RunnerBind = { kind: "runner", runner: "openocd" };
+  test("west-flash bind with only override extraArgs → override args only", () => {
+    const bind: FlashBind = { kind: "west-flash", runner: "openocd" };
     const override: BindOverride = { extraArgs: ["--speed=4000"] };
     const result = resolveBind(bind, override);
     assert.ok(result);
     assert.strictEqual(result.args, "--speed=4000");
   });
 
-  test("runner bind with whitespace-only extraArgs → trimmed, treated as empty", () => {
-    const result = resolveBind({ kind: "runner", runner: "jlink", extraArgs: ["   "] });
+  test("west-debug bind with extraArgs → runner + args", () => {
+    const bind: DebugBind = { kind: "west-debug", runner: "nrfjprog", extraArgs: ["--snr", "12345"] };
+    const result = resolveBind(bind);
+    assert.ok(result);
+    assert.strictEqual(result.runner, "nrfjprog");
+    assert.strictEqual(result.args, "--snr 12345");
+  });
+
+  test("west-flash bind with whitespace-only extraArgs → trimmed, treated as empty", () => {
+    const result = resolveBind({ kind: "west-flash", runner: "jlink", extraArgs: ["   "] });
     assert.ok(result);
     assert.strictEqual(result.args, "");
   });
@@ -158,31 +174,70 @@ suite("runner-profile-resolution: formatBindLabel", () => {
     assert.strictEqual(formatBindLabel({ kind: "auto" }), "Auto (runners.yaml)");
   });
 
-  test("runner with no args → runner name only", () => {
-    assert.strictEqual(formatBindLabel({ kind: "runner", runner: "jlink" }), "jlink");
+  test("west-flash with no args → runner name only", () => {
+    assert.strictEqual(formatBindLabel({ kind: "west-flash", runner: "jlink" }), "jlink");
   });
 
-  test("runner with extraArgs → runner name + args", () => {
+  test("west-flash with extraArgs → runner name + args", () => {
     assert.strictEqual(
-      formatBindLabel({ kind: "runner", runner: "openocd", extraArgs: ["--speed=4000"] }),
+      formatBindLabel({ kind: "west-flash", runner: "openocd", extraArgs: ["--speed=4000"] }),
       "openocd --speed=4000",
     );
   });
 
-  test("runner with override only → runner name + override", () => {
+  test("west-flash with override only → runner name + override", () => {
     assert.strictEqual(
-      formatBindLabel({ kind: "runner", runner: "openocd" }, { extraArgs: ["--speed=4000"] }),
+      formatBindLabel({ kind: "west-flash", runner: "openocd" }, { extraArgs: ["--speed=4000"] }),
       "openocd --speed=4000",
     );
   });
 
-  test("runner with both extraArgs and override → both appended", () => {
+  test("west-flash with both extraArgs and override → both appended", () => {
     assert.strictEqual(
       formatBindLabel(
-        { kind: "runner", runner: "openocd", extraArgs: ["--config", "a.cfg"] },
+        { kind: "west-flash", runner: "openocd", extraArgs: ["--config", "a.cfg"] },
         { extraArgs: ["--speed=4000"] },
       ),
       "openocd --config a.cfg --speed=4000",
+    );
+  });
+
+  test("cortex-debug → runner name", () => {
+    assert.strictEqual(formatBindLabel({ kind: "cortex-debug", runner: "openocd" }), "openocd");
+  });
+
+  test("cortex-debug with RTT → runner name + RTT note", () => {
+    assert.strictEqual(
+      formatBindLabel({ kind: "cortex-debug", runner: "openocd", enableRtt: true }),
+      "openocd (RTT)",
+    );
+  });
+
+  test("cortex-debug with probe → runner name + probe note", () => {
+    assert.strictEqual(
+      formatBindLabel({ kind: "cortex-debug", runner: "openocd", probe: "interface/stlink.cfg" }),
+      "openocd (probe: interface/stlink.cfg)",
+    );
+  });
+
+  test("cortex-debug with RTT + probe → both in label", () => {
+    assert.strictEqual(
+      formatBindLabel({ kind: "cortex-debug", runner: "openocd", enableRtt: true, probe: "interface/stlink.cfg" }),
+      "openocd (RTT, probe: interface/stlink.cfg)",
+    );
+  });
+
+  test("west-debug → west-debug: prefix + runner", () => {
+    assert.strictEqual(
+      formatBindLabel({ kind: "west-debug", runner: "nrfjprog" }),
+      "west-debug: nrfjprog",
+    );
+  });
+
+  test("west-debug with extraArgs → runner + args", () => {
+    assert.strictEqual(
+      formatBindLabel({ kind: "west-debug", runner: "nrfjprog", extraArgs: ["--snr", "12345"] }),
+      "west-debug: nrfjprog --snr 12345",
     );
   });
 

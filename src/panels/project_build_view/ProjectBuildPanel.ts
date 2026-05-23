@@ -710,9 +710,9 @@ export class ProjectBuildPanel {
             bind: RunnerBind | undefined,
             override: BindOverride | undefined,
           ): import("./project-build-data").WebviewSlotBind => {
-            const kind: "none" | "auto" | "runner" | "launch" | "zephyr-launch" = !bind ? "none" : bind.kind;
-            const runner = bind && bind.kind === "runner" ? bind.runner : undefined;
-            const profileExtra = bind && bind.kind === "runner" ? (bind.extraArgs ?? []).join(" ") : "";
+            const kind: "none" | "auto" | "west-flash" | "west-debug" | "cortex-debug" | "launch" = !bind ? "none" : bind.kind;
+            const runner = bind && (bind.kind === "west-flash" || bind.kind === "west-debug" || bind.kind === "cortex-debug") ? bind.runner : undefined;
+            const profileExtra = bind && (bind.kind === "west-flash" || bind.kind === "west-debug") ? (bind.extraArgs ?? []).join(" ") : "";
             const overrideExtra = (override?.extraArgs ?? []).join(" ");
             const combined = [profileExtra, overrideExtra].filter(s => s.length > 0).join(" ");
 
