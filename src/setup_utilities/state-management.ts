@@ -415,6 +415,29 @@ function buildPersistedRunnerProfile(name: string, profile: any): any {
 }
 
 /**
+ * Returns true when `target` is an auto-like placeholder that should not be
+ * stored in `localBinds` (the profile's `auto` slot already covers these).
+ */
+function isAutoLikeTarget(target: string | undefined): boolean {
+  return !target || target.startsWith("Auto:") || target === "Zephyr IDE: Debug";
+}
+
+/**
+ * Ensure the `localBinds` object for `projectName`/`buildName` exists inside
+ * `config.projectStates` and return it so the caller can set individual slots.
+ */
+function ensureLocalBinds(config: WorkspaceConfig, projectName: string, buildName: string): any {
+  if (!config.projectStates) { config.projectStates = {}; }
+  const ps = config.projectStates as any;
+  if (!ps[projectName]) { ps[projectName] = {}; }
+  if (!ps[projectName].buildStates) { ps[projectName].buildStates = {}; }
+  if (!ps[projectName].buildStates[buildName]) { ps[projectName].buildStates[buildName] = {}; }
+  const bs = ps[projectName].buildStates[buildName] as any;
+  if (!bs.localBinds) { bs.localBinds = {}; }
+  return bs.localBinds;
+}
+
+/**
  * Convert a single legacy pre-bind `RunnerConfig` ({name, runner, args}) from
  * the main branch into a `RunnerProfile`-shaped object (sans scope).
  *
@@ -593,29 +616,11 @@ export async function migrateLegacyRunnersToProfiles(
       // Migrate launchTarget / attachTarget to per-build localBinds so the
       // user's existing launch.json references are not lost.  Auto-like
       // placeholders are dropped (the profile's auto slot already handles them).
-      const isAutoTarget = (t: string | undefined) =>
-        !t || t.startsWith("Auto:") || t === "Zephyr IDE: Debug";
-
-      if (!isAutoTarget(legacyBindings.launchTarget)) {
-        if (!config.projectStates) { config.projectStates = {}; }
-        if (!config.projectStates[projectName]) { (config.projectStates as any)[projectName] = {}; }
-        const ps = config.projectStates[projectName] as any;
-        if (!ps.buildStates) { ps.buildStates = {}; }
-        if (!ps.buildStates[buildName]) { ps.buildStates[buildName] = {}; }
-        const bs = ps.buildStates[buildName] as any;
-        if (!bs.localBinds) { bs.localBinds = {}; }
-        bs.localBinds.debug = legacyBindings.launchTarget;
+      if (!isAutoLikeTarget(legacyBindings.launchTarget)) {
+        ensureLocalBinds(config, projectName, buildName).debug = legacyBindings.launchTarget;
       }
-
-      if (!isAutoTarget(legacyBindings.attachTarget)) {
-        if (!config.projectStates) { config.projectStates = {}; }
-        if (!config.projectStates[projectName]) { (config.projectStates as any)[projectName] = {}; }
-        const ps = config.projectStates[projectName] as any;
-        if (!ps.buildStates) { ps.buildStates = {}; }
-        if (!ps.buildStates[buildName]) { ps.buildStates[buildName] = {}; }
-        const bs = ps.buildStates[buildName] as any;
-        if (!bs.localBinds) { bs.localBinds = {}; }
-        bs.localBinds.attach = legacyBindings.attachTarget;
+      if (!isAutoLikeTarget(legacyBindings.attachTarget)) {
+        ensureLocalBinds(config, projectName, buildName).attach = legacyBindings.attachTarget;
       }
 
       // Strip legacy fields from in-memory shape so subsequent saves are clean.
