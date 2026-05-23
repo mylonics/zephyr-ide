@@ -34,6 +34,7 @@ import { joinBuildArgsForShell, normalizeBuildArgs, normalizeCMakeArg, quoteBuil
 import { updateDtsContext } from "../setup_utilities/dts_interface";
 import { getSetupState, getSetupStateOrNotify, updateBuildCMakeInfo, clearBuildCMakeInfo } from "../setup_utilities/workspace-config";
 import { setWorkspaceState } from "../setup_utilities/state-management";
+import { invalidateRunnersYamlCache } from "./runners-yaml";
 
 
 export interface BuildInfo {
@@ -296,6 +297,12 @@ export async function build(
   if (isPristine) {
     // Clear cached CMake info on pristine build
     clearBuildCMakeInfo(wsConfig, project.name, build.name);
+    // Drop any cached runners.yaml entries for this build directory. The
+    // in-memory cache normally self-invalidates via mtime+size, but the build
+    // folder is about to be wiped and regenerated; clearing eagerly avoids
+    // any chance of serving a stale entry on filesystems with coarse mtime
+    // resolution (e.g. some Windows / network shares).
+    invalidateRunnersYamlCache(buildFolder);
   }
 
   const cmd = isPristine ? pristineCmd : assembleBuildCommand({
@@ -569,7 +576,11 @@ export async function clean(wsConfig: WorkspaceConfig, projectName: string | und
   const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Clean", projectName });
   if (!resolved) { return; }
 
-  await fs.remove(getBuildFolder(wsConfig, resolved.project, resolved.build));
+  const buildFolder = getBuildFolder(wsConfig, resolved.project, resolved.build);
+  await fs.remove(buildFolder);
+  // Drop cached runners.yaml entries — the file is gone, and stat-based
+  // invalidation would only fire on the next debug session.
+  invalidateRunnersYamlCache(buildFolder);
   void vscode.window.showInformationMessage(`Cleaning ${resolved.project.rel_path}`);
 }
 

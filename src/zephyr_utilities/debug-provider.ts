@@ -579,36 +579,53 @@ export function buildCortexDebugConfig(
  * skipped so the user sees a clear "cannot auto-translate" message rather than
  * a silently broken session.
  */
+/** True when `runner` can serve as a fallback target when the explicitly
+ * requested runner is not available in runners.yaml. QEMU is excluded because
+ * debugging via QEMU requires fundamentally different configuration from
+ * hardware JTAG/SWD runners and must always be opted into explicitly. */
+function isFallbackEligibleRunner(runner: string): boolean {
+  return runnerToServerType(runner) !== undefined && runner !== "qemu";
+}
+
 export function pickDebugRunner(
   runnersYaml: RunnersYaml,
   requested?: string
 ): string | undefined {
   if (requested) {
-    // If cortex-debug (or bmp-debug) can drive the requested runner, honour
-    // the user's explicit choice without consulting runners.yaml at all.
-    // runners.yaml may simply not list a runner the board supports — that is
-    // not a reason to silently override what the user asked for.
-    if (runnerToServerType(requested) !== undefined) {
-      // Warn when the runner is cortex-debug-capable but NOT in runners.yaml,
-      // since the board was not built with that runner and the debug session
-      // will likely fail to connect.
-      if (runnersYaml.runners.length > 0 && !runnersYaml.runners.includes(requested)) {
+    // Happy path: runner is listed in runners.yaml and cortex-debug can drive it.
+    if (runnersYaml.runners.includes(requested) && runnerToServerType(requested) !== undefined) {
+      return requested;
+    }
+
+    // requested is not in runners.yaml (or not cortex-debug-capable).
+    // Prefer debugRunner when eligible, then first eligible runner in the list.
+    const fallback =
+      (runnersYaml.debugRunner && isFallbackEligibleRunner(runnersYaml.debugRunner)
+        ? runnersYaml.debugRunner
+        : runnersYaml.runners.find(r => isFallbackEligibleRunner(r)));
+
+    if (fallback) {
+      if (runnerToServerType(requested) !== undefined) {
         outputWarning(
           "Debug",
           `Runner "${requested}" is not listed in runners.yaml for this build ` +
           `(available: ${runnersYaml.runners.join(", ")}). ` +
           `The debug session may fail. Rebuild with the correct runner or update the Runner Profile.`
         );
+      } else {
+        outputInfo("Debug", `Requested runner "${requested}" cannot be driven by cortex-debug. Falling back to runners.yaml defaults.`);
       }
+      return fallback;
+    }
+
+    // No usable hardware runner found in runners.yaml. If the requested runner
+    // is itself cortex-debug-capable, return it so cortex-debug can still try
+    // (the board may support it even when not listed in this build's runners.yaml).
+    if (runnerToServerType(requested) !== undefined) {
       return requested;
     }
-    // Requested runner is not cortex-debug-capable. Fall back to something
-    // usable rather than producing an opaque error.
-    outputInfo("Debug", `Requested runner "${requested}" cannot be driven by cortex-debug. Falling back to runners.yaml defaults.`);
-    if (runnersYaml.debugRunner && runnerToServerType(runnersYaml.debugRunner)) {
-      return runnersYaml.debugRunner;
-    }
-    return runnersYaml.runners.find(r => runnerToServerType(r) !== undefined);
+
+    return undefined;
   }
   if (runnersYaml.debugRunner && runnerToServerType(runnersYaml.debugRunner)) {
     return runnersYaml.debugRunner;
