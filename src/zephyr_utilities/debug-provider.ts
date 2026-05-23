@@ -70,11 +70,12 @@ import {
   RunnersYaml,
 } from "./runners-yaml";
 import { startWestDebugServer, disposeOnSessionEnd } from "./debug-server-bridge";
-import { resolveActiveProjectBuild, askUserForProject, askUserForBuild } from "../project_utilities/project";
+import { resolveActiveProjectBuild, askUserForProject, askUserForBuild, getEffectiveActiveProfileName } from "../project_utilities/project";
 import { loadRunnerProfiles, findRunnerProfile, resolveRunnerArgs } from "../project_utilities/runner_profiles";
 import { WorkspaceConfig } from "../setup_utilities/types";
 import { getVenvPath } from "../setup_utilities/workspace-config";
 import { notifyError, outputInfo, outputWarning } from "../utilities/output";
+import { RUNNER_TARGET_PREFIX, CORTEX_DEBUG_PREFIX, WEST_DEBUG_PREFIX } from "../utilities/utils";
 
 /**
  * Controls whether the provider asks the user to pick a project/build at
@@ -878,54 +879,80 @@ export class ZephyrIdeDebugConfigurationProvider
     let userArgs: string[] | undefined;
     let profileRunner: string | undefined;
     let forceWestDebugBridge = false;
-    const profileName = resolved.build.activeProfile;
-    const profile = profileName ? findRunnerProfile(profileName, loadRunnerProfiles(wsConfig)) : undefined;
-    if (profile) {
-      // Pick the bind for this session kind: launch sessions use the unified
-      // debug bind; attach sessions use the dedicated attach bind.
-      const slot: "debug" | "attach" = cfg.request === "attach" ? "attach" : "debug";
-      const bind = profile[slot];
-      const override = resolved.build.bindOverrides?.[slot];
-      if (bind.kind === "launch") {
-        outputInfo("Debug", `Profile "${profileName}" has ${slot} bind set to launch.json config "${bind.name}". Starting it directly.`);
-      } else if (bind.kind === "cortex-debug") {
-        profileRunner = bind.runner;
-        // Convert structured fields (enableRtt, probe) to the userArgs token
-        // list that buildCortexDebugConfig parses internally.
-        const injected: string[] = [];
-        if (bind.enableRtt) { injected.push("--enable-rtt"); }
-        if (bind.probe) {
-          const stype = runnerToServerType(bind.runner);
-          if (stype === "openocd") {
-            injected.push("--openocd-config", bind.probe);
-          } else if (stype === "pyocd") {
-            injected.push(`--probe=${bind.probe}`);
-          }
-        }
-        userArgs = injected.length > 0 ? injected : undefined;
-      } else if (bind.kind === "west-debug") {
-        profileRunner = bind.runner;
+
+    // Pick the bind for this session kind: launch sessions use the unified
+    // debug bind; attach sessions use the dedicated attach bind.
+    const slot: "debug" | "attach" = cfg.request === "attach" ? "attach" : "debug";
+
+    // Per-developer local bind has the highest priority, above any profile.
+    const buildState = wsConfig.projectStates?.[resolved.projectName]?.buildStates?.[resolved.buildName];
+    const localSlotRunner = buildState?.localBinds?.[slot];
+    if (localSlotRunner != null) {
+      // Local bind: launch-config binds are intercepted upstream in startDebugSession before
+      // reaching here, so only runner-prefixed binds arrive at this point.
+      if (localSlotRunner.startsWith(CORTEX_DEBUG_PREFIX)) {
+        // Cortex-debug (auto-config): use native cortex-debug server; runnerNeedsBridge() at
+        // line 1107 still handles naturally-bridged runners (nrfjprog, linkserver, …) automatically.
+        profileRunner = localSlotRunner.slice(CORTEX_DEBUG_PREFIX.length);
+        // forceWestDebugBridge stays false
+      } else if (localSlotRunner.startsWith(WEST_DEBUG_PREFIX)) {
+        // West debug-server bridge: force bridge regardless of runner type.
+        profileRunner = localSlotRunner.slice(WEST_DEBUG_PREFIX.length);
         forceWestDebugBridge = true;
-        // Resolve extraArgs per-token so variables expanding to paths with
-        // spaces remain as single tokens.
-        const varCtx = {
-          workspaceFolder: wsConfig.rootPath,
-          buildFolder: buildDir,
-          board: resolved.build.board,
-          boardRevision: resolved.build.revision ?? "",
-          project: resolved.projectName,
-          build: resolved.buildName,
-          buildVars: resolved.build.customVars,
-          projectVars: resolved.project.customVars,
-        };
-        const allTokens = [
-          ...(bind.extraArgs ?? []),
-          ...(override?.extraArgs ?? []),
-        ];
-        if (allTokens.length > 0) {
-          userArgs = allTokens
-            .map(token => resolveRunnerArgs(token, varCtx))
-            .filter(t => t.trim().length > 0);
+      } else {
+        // Legacy "runner:X" or bare runner name (old local bind storage) → treat as forced bridge.
+        profileRunner = localSlotRunner.startsWith(RUNNER_TARGET_PREFIX)
+          ? localSlotRunner.slice(RUNNER_TARGET_PREFIX.length)
+          : localSlotRunner;
+        forceWestDebugBridge = true;
+      }
+    } else {
+      const profileName = getEffectiveActiveProfileName(wsConfig, resolved).name;
+      const profile = profileName ? findRunnerProfile(profileName, loadRunnerProfiles(wsConfig)) : undefined;
+      if (profile) {
+        const bind = profile[slot];
+        const override = resolved.build.bindOverrides?.[slot];
+        if (bind.kind === "launch") {
+          outputInfo("Debug", `Profile "${profileName}" has ${slot} bind set to launch.json config "${bind.name}". Starting it directly.`);
+        } else if (bind.kind === "cortex-debug") {
+          profileRunner = bind.runner;
+          // Convert structured fields (enableRtt, probe) to the userArgs token
+          // list that buildCortexDebugConfig parses internally.
+          const injected: string[] = [];
+          if (bind.enableRtt) { injected.push("--enable-rtt"); }
+          if (bind.probe) {
+            const stype = runnerToServerType(bind.runner);
+            if (stype === "openocd") {
+              injected.push("--openocd-config", bind.probe);
+            } else if (stype === "pyocd") {
+              injected.push(`--probe=${bind.probe}`);
+            }
+          }
+          userArgs = injected.length > 0 ? injected : undefined;
+        } else if (bind.kind === "west-debug") {
+          profileRunner = bind.runner;
+          forceWestDebugBridge = true;
+          // Resolve extraArgs per-token so variables expanding to paths with
+          // spaces remain as single tokens.
+          const varCtx = {
+            workspaceFolder: wsConfig.rootPath,
+            buildFolder: buildDir,
+            board: resolved.build.board,
+            boardRevision: resolved.build.revision ?? "",
+            project: resolved.projectName,
+            build: resolved.buildName,
+            buildVars: resolved.build.customVars,
+            projectVars: resolved.project.customVars,
+          };
+          const allTokens = [
+            ...(bind.extraArgs ?? []),
+            ...(override?.extraArgs ?? []),
+          ];
+          if (allTokens.length > 0) {
+            userArgs = allTokens
+              .map(token => resolveRunnerArgs(token, varCtx))
+              .filter(t => t.trim().length > 0);
+          }
         }
       }
     }

@@ -71,6 +71,25 @@ export interface BuildState {
   cachedPristineCmd?: string; // Pristine build command from last build, used to detect config changes
   /** Active sysbuild domain/image (e.g. "mcuboot") for flash and debug. Only relevant for sysbuild projects. */
   sysbuildImage?: string;
+  /**
+   * Per-developer local override for which runner profile this build should use.
+   * - `string`    — override name (wins over `BuildConfig.activeProfile`).
+   * - `null`      — explicit local "(none)" (suppresses the committed profile).
+   * - `undefined` — no override; `BuildConfig.activeProfile` is the effective value.
+   * Stored only in VS Code workspace state; never written to `zephyr-ide.json`.
+   */
+  localActiveProfile?: string | null;
+  /**
+   * Per-developer local per-slot runner overrides. Stored in workspaceState only.
+   * Each slot: `string` = runner name to use (e.g. "openocd"); `null` = force auto
+   * (skip the profile slot, fall back to runners.yaml); `undefined` = use the profile.
+   * Takes priority over the active profile's slot bind.
+   */
+  localBinds?: {
+    flash?: string | null;
+    debug?: string | null;
+    attach?: string | null;
+  };
 }
 
 export interface BoardItem extends QuickPickItem {

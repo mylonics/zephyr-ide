@@ -56,9 +56,25 @@ Each build can optionally reference one **active Runner Profile** that bundles t
 
 When **no** profile is active on a build, all three slots fall back to `auto`. This is the default for newly-created builds — `Flash` / `Debug` / `Build and Debug` / `Debug Attach` just work using whatever Zephyr recorded in `runners.yaml`.
 
-Profiles can be defined once (e.g. a Black Magic Probe wired to `/dev/ttyACM0`, or an OpenOCD ST-Link configuration) and shared across builds. The dedicated **`Zephyr IDE: Open Runner Profile Panel`** command gives you a full CRUD UI for both workspace-scope (`.vscode/zephyr-ide.json#runnerProfiles`) and user-scope (`zephyr-ide.runnerProfiles` setting) profiles, including a "Use for active build" shortcut and a usage badge showing how many builds reference each profile.
+Profiles can be defined once (e.g. a Black Magic Probe wired to `/dev/ttyACM0`, or an OpenOCD ST-Link configuration) and shared across builds. The dedicated **`Zephyr IDE: Open Runner Profile Panel`** command gives you a full CRUD UI for both workspace-scope (`.vscode/zephyr-ide.json#runnerProfiles`) and user-scope (`zephyr-ide.runnerProfiles` setting) profiles.
 
-The faster **Change…** button (or `Zephyr IDE: Select Active Runner Profile`) in the Project Build panel opens a QuickPick limited to switching the build's active profile. Per-build extra-argument overrides can be added with the pencil icon next to any `runner`-kind slot in the Project Build panel.
+The **Profile…** button in the Project Build panel opens a QuickPick to select the active profile for the build. Per-build extra-argument overrides can be added with the pencil icon next to any `runner`-kind slot in the Project Build panel.
+
+### Local Overrides (Per-developer)
+
+When a project is shared with a team, the committed `activeProfile` in `.vscode/zephyr-ide.json` acts as the workspace default. Individual developers often need a different probe or runner without touching the committed file — for example, one developer uses J-Link while another uses OpenOCD.
+
+Zephyr IDE supports this with a two-level **local override** system stored entirely in VS Code workspace state (never written to any file on disk):
+
+**1. Select a profile locally** — Click **Profile…** in the Project Build panel (or run `Zephyr IDE: Select Active Runner Profile`) to choose a named profile as a local override. The committed `.vscode/zephyr-ide.json` is never modified. The status bar shows a `*` suffix (e.g. `$(chip) openocd *`) and tree views show `(local)` next to the profile name.
+
+**2. Override individual slots** — Click **Local Bind…** next to a slot in the Project Build panel (or run `Zephyr IDE: Set Local Slot Runner Bind`) to pick a runner for that slot directly, without switching profiles. An amber `(local)` badge and a clear button (✕) appear on the slot row. Slot-level local binds take priority over the active profile's slot bind.
+
+**3. Share your configuration** — When you're happy with your local setup, open the **Runner Profile Panel** (**Manage…** button) and choose:
+- **Update profile with local changes** — saves your local slot runners back into the named profile.
+- **Create new profile from local changes** — creates a new named profile from your current local configuration and binds it to the build.
+
+The local overrides are preserved across VS Code restarts but never written to any file on disk — they live in VS Code's per-workspace `workspaceState`.
 
 See [Runner Profiles in the Configuration reference](../reference/configuration.md#runner-profiles) for the full data model, scope and merge behaviour, per-build overrides, and legacy migration notes.
 

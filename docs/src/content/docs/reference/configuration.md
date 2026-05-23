@@ -288,7 +288,26 @@ Profiles are stored in two places, merged on load (workspace overrides user on n
 
 Run **`Zephyr IDE: Open Runner Profile Panel`** (or click **Manage…** next to the Runner Profile section in the Project Build panel) for a full CRUD UI.
 
-The faster **`Zephyr IDE: Select Active Runner Profile`** command (also wired to the **Change…** button in the Project Build panel and the Runner Profile node in the Project Config tree) opens a QuickPick limited to switching the active profile without leaving your editor.
+The **Profile…** button in the Project Build panel opens a QuickPick that sets a **local override** for the active build — stored in VS Code workspace state only, never in `.vscode/zephyr-ide.json`.
+
+### Active Profile Scope (Local Override)
+
+The active profile for a build is resolved from these layers (highest priority first):
+
+| Priority | Layer | Storage | Committed? |
+|---|---|---|---|
+| 1 | **Local slot bind** — `localBinds[slot]` in `BuildState` (per-slot runner) | VS Code `workspaceState` | No |
+| 2 | **Local profile override** — `localActiveProfile` in `BuildState` | VS Code `workspaceState` | No |
+| 3 | **Workspace JSON** — `buildConfigs[build].activeProfile` | `.vscode/zephyr-ide.json` | Yes |
+| 4 | **None** — all bind slots fall back to `runners.yaml` defaults | — | — |
+
+When a local override is active, the status bar chip shows a `*` suffix (e.g. `$(chip) openocd *`) and tree views label the profile as `(local)`. Slot-level local binds show an amber `(local)` badge in the Project Build panel.
+
+The typical per-developer workflow:
+
+1. Click **Profile…** in the Project Build panel to choose a named profile locally (no JSON changes).
+2. Click **Local Bind…** next to any slot to override just that slot's runner locally.
+3. Open the **Runner Profile Panel** to publish: **Update profile with local changes** or **Create new profile from local changes**.
 
 ### Per-build Overrides
 

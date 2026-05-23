@@ -73,6 +73,8 @@ export interface WebviewSlotBind {
   overrideExtraArgs: string;
   /** True when a `bindOverrides[slot]` is set for this build. */
   hasOverride: boolean;
+  /** Set when `buildState.localBinds[slot]` has an active local runner override. */
+  localOverride?: string;
 }
 
 export interface WebviewBuildDetails {
@@ -91,6 +93,8 @@ export interface WebviewBuildDetails {
   activeProfile: string | undefined;
   /** Resolved bind labels for the three slots of the active profile (or "none"). */
   slotBinds: { flash: WebviewSlotBind; debug: WebviewSlotBind; attach: WebviewSlotBind; buildDebug?: WebviewSlotBind };
+  /** Per-slot local runner overrides from buildState.localBinds. */
+  localBinds: { flash?: string | null; debug?: string | null; attach?: string | null };
   /** Read-only hint from runners.yaml. */
   runnersYamlHint: {
     flashRunner?: string;

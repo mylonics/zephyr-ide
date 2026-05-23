@@ -69,15 +69,22 @@ Zephyr IDE provides the following commands accessible via the command palette (C
 
 ## Runner Profile Management
 
-- `Zephyr IDE: Select Active Runner Profile` - Choose which Runner Profile drives the active build's Flash / Debug / Attach actions, or clear it
-- `Zephyr IDE: Open Runner Profile Panel` - Open the dedicated CRUD webview to create, rename, edit, and delete Runner Profiles at workspace or user scope
+- `Zephyr IDE: Select Active Runner Profile (Local)` (`zephyr-ide.set-active-profile`) — Choose a Runner Profile for the active build. The selection is stored **locally** (VS Code workspace state; `.vscode/zephyr-ide.json` is never modified). The status bar chip shows a `*` suffix and tree views show `(local)` when a local override is active. Also accessible via the **Profile…** button in the Project Build panel.
+- `Zephyr IDE: Set Local Slot Runner Bind` (`zephyr-ide.set-local-bind`) — Override the runner for a single slot (Flash, Debug, or Attach) without switching profiles. The chosen runner is stored locally and takes priority over the active profile's slot bind. Use this when only one slot needs a different probe — e.g., your J-Link works for flash but you prefer OpenOCD for live debugging. Also accessible via the **Local Bind…** button next to each slot in the Project Build panel.
+- `Zephyr IDE: Open Runner Profile Panel` — Open the dedicated CRUD webview to create, rename, edit, and delete Runner Profiles at workspace or user scope. From the panel you can also **update the current profile with local changes** or **create a new profile from your local configuration and bind it to the active build**.
 
 Runner Profiles live in two places, merged with workspace overriding user on name collision:
 
 - `zephyr-ide.runnerProfiles` user setting — shared across workspaces.
 - `.vscode/zephyr-ide.json#runnerProfiles` — committed alongside the project.
 
-Both stores are edited interactively from the Runner Profile Panel; see [Runner Profiles](configuration.md#runner-profiles) for the data model.
+**Typical per-developer workflow:**
+
+1. Click **Profile…** in the Project Build panel (or run `Zephyr IDE: Select Active Runner Profile`) to choose a named profile. The choice is stored locally — the committed JSON is never touched.
+2. If individual slots need a different probe (e.g., a different runner for Flash only), click **Local Bind…** next to that slot and pick a runner. Slot-level local binds take priority over the active profile for that slot, and are also stored locally only.
+3. When satisfied, open the **Runner Profile Panel** to share your configuration: choose **Update profile with local changes** to edit the named profile in-place, or **Create new profile from local changes** to save it as a new named profile and bind it to the build.
+
+Both stores are edited interactively from the Runner Profile Panel; see [Runner Profiles](configuration.md#runner-profiles) for the data model and [Per-developer Overrides](../user-guide/building-debugging.md#local-overrides-per-developer) for the collaboration workflow.
 
 ## Build and Flash Operations
 

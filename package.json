@@ -425,7 +425,12 @@
         {
           "command": "zephyr-ide.active-view.change-launch-target",
           "when": "view == zephyrIdeActiveProject && viewItem =~ /activeProject\\.(flash|buildFlash|debug|buildDebug|debugAttach)$/",
-          "group": "inline"
+          "group": "inline@1"
+        },
+        {
+          "command": "zephyr-ide.active-view.set-local-bind",
+          "when": "view == zephyrIdeActiveProject && viewItem =~ /activeProject\\.(flash|buildFlash|debug|buildDebug|debugAttach)$/",
+          "group": "inline@2"
         },
         {
           "command": "zephyr-ide.active-view.clean-test-dirs",
@@ -509,7 +514,7 @@
         },
         {
           "command": "zephyr-ide.tree-view.set-build-profile",
-          "when": "view == zephyrIdeProjects && viewItem == buildProfileItem",
+          "when": "view == zephyrIdeProjects && viewItem =~ /^buildProfileItem/",
           "group": "inline@1"
         }
       ]
@@ -718,7 +723,11 @@
       },
       {
         "command": "zephyr-ide.set-active-profile",
-        "title": "Zephyr IDE: Select Active Runner Profile"
+        "title": "Zephyr IDE: Select Active Runner Profile (Local)"
+      },
+      {
+        "command": "zephyr-ide.set-local-bind",
+        "title": "Zephyr IDE: Set Local Slot Runner Bind"
       },
       {
         "command": "zephyr-ide.open-runner-profile-panel",
@@ -1007,8 +1016,13 @@
       },
       {
         "command": "zephyr-ide.active-view.change-launch-target",
-        "title": "Change Launch Target",
+        "title": "Change Runner Profile",
         "icon": "$(arrow-swap)"
+      },
+      {
+        "command": "zephyr-ide.active-view.set-local-bind",
+        "title": "Set Local Bind",
+        "icon": "$(target)"
       },
       {
         "command": "zephyr-ide.active-view.clean-test-dirs",

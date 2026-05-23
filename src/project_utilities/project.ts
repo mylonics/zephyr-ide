@@ -18,7 +18,7 @@ limitations under the License.
 import * as vscode from "vscode";
 import * as fs from "fs-extra";
 import * as path from "upath";
-import { selectLaunchConfiguration } from "../utilities/utils";
+import { selectLaunchConfiguration, RUNNER_TARGET_PREFIX } from "../utilities/utils";
 import { notifyError, notifyWarningWithActions, outputWarning } from "../utilities/output";
 import { buildSelector, BuildConfig, BuildConfigDictionary, BuildStateDictionary } from "./build_selector";
 import { WorkspaceConfig } from "../setup_utilities/types";
@@ -32,6 +32,7 @@ import { getZephyrIdeSampleProjects } from "../setup_utilities/zephyr_ide_json";
 import { joinBuildArgs, normalizeBuildArgs, quoteCMakeDef } from "./build_args";
 import { MultiStepInput, noOpValidate } from "../utilities/multistepQuickPick";
 import { getRunnersYamlHint } from "../zephyr_utilities/runners-yaml";
+
 
 import { TwisterConfig, TwisterConfigDictionary, twisterSelector, TwisterStateDictionary } from "./twister_selector";
 
@@ -135,13 +136,49 @@ export function getResolvedBuildName(wsConfig: WorkspaceConfig, resolved: Resolv
 }
 
 /**
+ * Return the effective runner profile name for a build, merging the local
+ * per-developer override with the committed workspace value.
+ *
+ * - `string`    — the local `BuildState.localActiveProfile` override wins.
+ * - `undefined` — falls back to `BuildConfig.activeProfile` (the JSON value).
+ * - The local value `null` explicitly clears the profile ("none locally").
+ *
+ * The second return value `scope` tells callers whether the effective name
+ * came from the local layer (`"local"`), the workspace JSON (`"workspace"`),
+ * or neither (`"none"`).  This is used for UI labels.
+ */
+export function getEffectiveActiveProfileName(
+  wsConfig: WorkspaceConfig,
+  resolved: ResolvedProjectBuild,
+): { name: string | undefined; scope: "local" | "workspace" | "none" } {
+  const buildState = wsConfig.projectStates[resolved.projectName]?.buildStates?.[resolved.buildName];
+  if (buildState && "localActiveProfile" in buildState) {
+    // local override is explicitly set (string or null)
+    const local = buildState.localActiveProfile;
+    if (local === null) {
+      return { name: undefined, scope: "local" };
+    }
+    if (typeof local === "string") {
+      return { name: local, scope: "local" };
+    }
+  }
+  const workspaceName = resolved.build.activeProfile;
+  if (workspaceName) {
+    return { name: workspaceName, scope: "workspace" };
+  }
+  return { name: undefined, scope: "none" };
+}
+
+/**
  * Get the `RunnerProfile` referenced by a resolved build, or `undefined` when
- * the build has no `activeProfile` or the named profile is not defined.
+ * the build has no effective `activeProfile` or the named profile is not defined.
+ * The local per-developer override (`BuildState.localActiveProfile`) takes
+ * precedence over the committed workspace value (`BuildConfig.activeProfile`).
  * Callers that want to merge in `bindOverrides` should call
  * `resolveActiveProfile` instead.
  */
 export function getResolvedProfile(wsConfig: WorkspaceConfig, resolved: ResolvedProjectBuild): RunnerProfile | undefined {
-  const profileName = resolved.build.activeProfile;
+  const { name: profileName } = getEffectiveActiveProfileName(wsConfig, resolved);
   if (!profileName) { return undefined; }
   const profiles = loadRunnerProfiles(wsConfig);
   return findRunnerProfile(profileName, profiles);
@@ -253,7 +290,7 @@ export function resolveActiveProfile(
   if (!resolved) {
     return undefined;
   }
-  const profileName = resolved.build.activeProfile;
+  const { name: profileName } = getEffectiveActiveProfileName(wsConfig, resolved);
   if (!profileName) {
     if (options?.caller) { notifyError(options.caller, "Select a runner profile before trying to continue"); }
     return undefined;
@@ -961,13 +998,13 @@ export async function removeTest(context: vscode.ExtensionContext, wsConfig: Wor
 // =============================================================================
 
 /**
- * Pick a `RunnerProfile` name for the active build (or clear it). Profiles
- * live at workspace + user scope (`zephyr-ide.runnerProfiles`); this only
- * writes the *reference* to the active build.
+ * Pick a `RunnerProfile` name for the active build and store it as a
+ * **local** per-developer override (`BuildState.localActiveProfile`) so the
+ * committed `.vscode/zephyr-ide.json` is never modified.
  *
- * When called with `presetName`, skips the QuickPick and sets the build's
- * `activeProfile` directly. `null` clears the profile. `undefined` opens
- * the picker.
+ * - `null`        → clear the local override (revert to workspace default).
+ * - `string`      → set the local override to that profile name.
+ * - `undefined`   → open an interactive QuickPick (default behavior).
  */
 export async function setActiveProfile(
   context: vscode.ExtensionContext,
@@ -976,16 +1013,88 @@ export async function setActiveProfile(
 ) {
   const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Runner Profile" });
   if (!resolved) { return; }
+  const buildState = wsConfig.projectStates[resolved.projectName]?.buildStates?.[resolved.buildName];
 
   if (presetName !== undefined) {
-    resolved.build.activeProfile = presetName === null ? undefined : presetName;
+    // Preset: write directly to local layer (null = "none locally").
+    if (buildState) { buildState.localActiveProfile = presetName; }
     await setWorkspaceState(context, wsConfig);
     void vscode.commands.executeCommand("zephyr-ide.update-web-view");
     return;
   }
 
   const profiles = loadRunnerProfiles(wsConfig);
-  const NONE_LABEL = "(None) — clear active profile";
+  const NONE_LABEL = "(None) — clear local profile override";
+  const { name: currentEffective, scope: currentScope } = getEffectiveActiveProfileName(wsConfig, resolved);
+  const items: vscode.QuickPickItem[] = [
+    {
+      label: NONE_LABEL,
+      description: currentEffective === undefined ? "current" : undefined,
+      detail: "Flash/debug fall back to runners.yaml defaults (all binds auto).",
+    },
+  ];
+  const names = profiles.map(p => p.name).sort();
+  if (names.length > 0) {
+    items.push({ label: "", kind: vscode.QuickPickItemKind.Separator });
+    for (const name of names) {
+      items.push({
+        label: name,
+        description: currentEffective === name ? `current (${currentScope})` : undefined,
+      });
+    }
+  }
+
+  const qp = vscode.window.createQuickPick();
+  qp.ignoreFocusOut = true;
+  qp.placeholder = "Select Runner Profile for active build (saved as local override)";
+  qp.items = items;
+  const defaultItem = currentEffective !== undefined
+    ? items.find(i => i.label === currentEffective)
+    : items[0];
+  if (defaultItem) { qp.activeItems = [defaultItem]; }
+
+  const pick = await new Promise<vscode.QuickPickItem | undefined>(resolve => {
+    qp.onDidAccept(() => { resolve(qp.selectedItems[0]); qp.hide(); });
+    qp.onDidHide(() => { resolve(undefined); qp.dispose(); });
+    qp.show();
+  });
+
+  if (pick === undefined) { return; }
+  if (buildState) {
+    buildState.localActiveProfile = pick.label === NONE_LABEL ? null : pick.label;
+  }
+  await setWorkspaceState(context, wsConfig);
+  void vscode.commands.executeCommand("zephyr-ide.update-web-view");
+}
+
+/**
+ * Set the active runner profile for the active build directly in
+ * `.vscode/zephyr-ide.json` (workspace scope), bypassing the local override.
+ * Any existing local override for this build is cleared so the JSON value
+ * immediately becomes the effective profile.
+ *
+ * This is the "shared / committed" path. `setActiveProfile` is the
+ * per-developer (local) path.
+ */
+export async function setWorkspaceActiveProfile(
+  context: vscode.ExtensionContext,
+  wsConfig: WorkspaceConfig,
+  presetName?: string | null,
+) {
+  const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Runner Profile" });
+  if (!resolved) { return; }
+  const buildState = wsConfig.projectStates[resolved.projectName]?.buildStates?.[resolved.buildName];
+
+  if (presetName !== undefined) {
+    resolved.build.activeProfile = presetName === null ? undefined : presetName;
+    if (buildState) { delete buildState.localActiveProfile; }
+    await setWorkspaceState(context, wsConfig);
+    void vscode.commands.executeCommand("zephyr-ide.update-web-view");
+    return;
+  }
+
+  const profiles = loadRunnerProfiles(wsConfig);
+  const NONE_LABEL = "(None) — clear workspace profile";
   const current = resolved.build.activeProfile;
   const items: vscode.QuickPickItem[] = [
     {
@@ -1000,15 +1109,14 @@ export async function setActiveProfile(
     for (const name of names) {
       items.push({
         label: name,
-        description: current === name ? "current" : undefined,
+        description: current === name ? "current (workspace)" : undefined,
       });
     }
   }
 
-  // Use createQuickPick so we can pre-highlight the currently active item.
   const qp = vscode.window.createQuickPick();
   qp.ignoreFocusOut = true;
-  qp.placeholder = "Select Runner Profile for active build";
+  qp.placeholder = "Select Runner Profile to save into zephyr-ide.json (workspace default)";
   qp.items = items;
   const defaultItem = current !== undefined
     ? items.find(i => i.label === current)
@@ -1022,11 +1130,121 @@ export async function setActiveProfile(
   });
 
   if (pick === undefined) { return; }
-  if (pick.label === NONE_LABEL) {
-    resolved.build.activeProfile = undefined;
-  } else {
-    resolved.build.activeProfile = pick.label;
+  resolved.build.activeProfile = pick.label === NONE_LABEL ? undefined : pick.label;
+  if (buildState) { delete buildState.localActiveProfile; }
+  await setWorkspaceState(context, wsConfig);
+  void vscode.commands.executeCommand("zephyr-ide.update-web-view");
+}
+
+/**
+ * Promote the currently effective (local or workspace) active profile for the
+ * active build into `.vscode/zephyr-ide.json` and clear the local override.
+ * After this call the JSON becomes the source of truth and the local layer is gone.
+ */
+export async function saveActiveProfileToWorkspace(
+  context: vscode.ExtensionContext,
+  wsConfig: WorkspaceConfig,
+) {
+  const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Save Runner Profile" });
+  if (!resolved) { return; }
+  const buildState = wsConfig.projectStates[resolved.projectName]?.buildStates?.[resolved.buildName];
+  const { name: effectiveName } = getEffectiveActiveProfileName(wsConfig, resolved);
+  resolved.build.activeProfile = effectiveName;
+  if (buildState) { delete buildState.localActiveProfile; }
+  await setWorkspaceState(context, wsConfig);
+  void vscode.commands.executeCommand("zephyr-ide.update-web-view");
+  const label = effectiveName ?? "(none)";
+  void vscode.window.showInformationMessage(`Runner profile "${label}" saved to workspace (zephyr-ide.json).`);
+}
+
+/**
+ * Discard the local per-developer active-profile override for the active build
+ * so the committed `.vscode/zephyr-ide.json` value becomes effective again.
+ */
+export async function resetActiveProfileToWorkspace(
+  context: vscode.ExtensionContext,
+  wsConfig: WorkspaceConfig,
+) {
+  const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Reset Runner Profile" });
+  if (!resolved) { return; }
+  const buildState = wsConfig.projectStates[resolved.projectName]?.buildStates?.[resolved.buildName];
+  if (!buildState || !("localActiveProfile" in buildState)) {
+    void vscode.window.showInformationMessage("No local runner profile override to reset.");
+    return;
   }
+  delete buildState.localActiveProfile;
+  await setWorkspaceState(context, wsConfig);
+  void vscode.commands.executeCommand("zephyr-ide.update-web-view");
+  const workspaceName = resolved.build.activeProfile ?? "(none)";
+  void vscode.window.showInformationMessage(`Local override cleared. Active runner profile is now workspace default: "${workspaceName}".`);
+}
+
+// Common Zephyr runners offered in the local-bind picker — sourced from
+// runner_selector.ts (same lists used by the Runner Profile editor).
+
+/**
+ * Set (or clear) a per-developer local runner binding for one or all slots of
+ * the active build. The local bind takes priority over the active Runner
+ * Profile's slot bind when executing Flash, Debug, or Attach.
+ *
+ * When `presetSlot` and `presetRunner` are both provided the selection is
+ * applied directly without showing any QuickPick UI. `presetRunner === null`
+ * clears the local bind for the slot (reverts to profile).
+ */
+export async function setLocalBind(
+  context: vscode.ExtensionContext,
+  wsConfig: WorkspaceConfig,
+  presetSlot?: "flash" | "debug" | "attach",
+  presetRunner?: string | null,
+) {
+  const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Local Bind" });
+  if (!resolved) { return; }
+  const buildState = wsConfig.projectStates[resolved.projectName]?.buildStates?.[resolved.buildName];
+  if (!buildState) { return; }
+
+  // --- Pick slot ---
+  type Slot = "flash" | "debug" | "attach";
+  let slot: Slot | undefined = presetSlot;
+  if (!slot) {
+    const slotItems: vscode.QuickPickItem[] = [
+      { label: "flash",  iconPath: new vscode.ThemeIcon("zap"),           description: "West flash / Build and Flash" },
+      { label: "debug",  iconPath: new vscode.ThemeIcon("debug-alt"),     description: "Debug / Build and Debug" },
+      { label: "attach", iconPath: new vscode.ThemeIcon("debug-console"), description: "Debug Attach" },
+    ];
+    const slotPick = await vscode.window.showQuickPick(slotItems, {
+      title: "Local Bind — pick a slot",
+      placeHolder: "Which slot should use a locally overridden runner?",
+      ignoreFocusOut: true,
+    });
+    if (!slotPick) { return; }
+    slot = slotPick.label as Slot;
+  }
+
+  // --- Pick runner / launch config ---
+  let runner: string | null | undefined = presetRunner;
+  if (runner === undefined) {
+    const result = await selectLaunchConfiguration(
+      wsConfig,
+      "$(discard) Clear local bind — revert to profile",
+      undefined,
+      slot === "flash" ? "flash" : "debug",
+    );
+    if (result === undefined) { return; } // user cancelled
+    runner = result.isDefault ? null : result.name;
+    // result.name is already "runner:X" for runners, or the launch config name for launch.json picks
+  }
+
+  // --- Apply ---
+  if (!buildState.localBinds) { buildState.localBinds = {}; }
+  if (runner === null) {
+    delete buildState.localBinds[slot];
+    if (Object.keys(buildState.localBinds).length === 0) {
+      delete buildState.localBinds;
+    }
+  } else {
+    buildState.localBinds[slot] = runner;
+  }
+
   await setWorkspaceState(context, wsConfig);
   void vscode.commands.executeCommand("zephyr-ide.update-web-view");
 }
