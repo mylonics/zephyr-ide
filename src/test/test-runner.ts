@@ -449,10 +449,10 @@ async function cleanupVscodeSettingsForGitSetup(commandId: string): Promise<void
         return;
     }
 
-    const vscodeSettingsFile = path.join(workspaceDir, ".vscode", "settings.json");
-    if (await fs.pathExists(vscodeSettingsFile)) {
-        await fs.remove(vscodeSettingsFile);
-        console.log(`🧹 Removed ${vscodeSettingsFile} before git clone setup to avoid non-empty workspace clone failure`);
+    const vscodeSettingsPath = path.join(workspaceDir, ".vscode", "settings.json");
+    if (await fs.pathExists(vscodeSettingsPath)) {
+        await fs.remove(vscodeSettingsPath);
+        console.log(`🧹 Removed ${vscodeSettingsPath} before git clone setup to avoid non-empty workspace clone failure`);
     }
 }
 
