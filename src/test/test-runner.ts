@@ -406,16 +406,7 @@ export async function startWorkspaceCommand(
     commandId: string,
 ): Promise<Thenable<any>> {
     await vscode.commands.executeCommand("zephyr-ide.update-with-narrow");
-    if (commandId === "zephyr-ide.workspace-setup-from-git") {
-        const workspaceDir = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-        if (workspaceDir) {
-            const vscodeSettingsDir = path.join(workspaceDir, ".vscode");
-            if (await fs.pathExists(vscodeSettingsDir)) {
-                await fs.remove(vscodeSettingsDir);
-                console.log(`🧹 Removed ${vscodeSettingsDir} before git clone setup to keep workspace empty`);
-            }
-        }
-    }
+    await cleanupVscodeSettingsForGitSetup(commandId);
     uiMock.primeInteractions(interactions);
 
     // Start the command but do NOT await it — return the thenable
@@ -438,20 +429,28 @@ export async function executeWorkspaceCommand(
     successMessage: string
 ): Promise<void> {
     await vscode.commands.executeCommand("zephyr-ide.update-with-narrow");
-    if (commandId === "zephyr-ide.workspace-setup-from-git") {
-        const workspaceDir = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-        if (workspaceDir) {
-            const vscodeSettingsDir = path.join(workspaceDir, ".vscode");
-            if (await fs.pathExists(vscodeSettingsDir)) {
-                await fs.remove(vscodeSettingsDir);
-                console.log(`🧹 Removed ${vscodeSettingsDir} before git clone setup to keep workspace empty`);
-            }
-        }
-    }
+    await cleanupVscodeSettingsForGitSetup(commandId);
     uiMock.primeInteractions(interactions);
 
     const result = await vscode.commands.executeCommand(commandId);
     assert.ok(result, successMessage);
+}
+
+async function cleanupVscodeSettingsForGitSetup(commandId: string): Promise<void> {
+    if (commandId !== "zephyr-ide.workspace-setup-from-git") {
+        return;
+    }
+
+    const workspaceDir = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    if (!workspaceDir) {
+        return;
+    }
+
+    const vscodeSettingsDir = path.join(workspaceDir, ".vscode");
+    if (await fs.pathExists(vscodeSettingsDir)) {
+        await fs.remove(vscodeSettingsDir);
+        console.log(`🧹 Removed ${vscodeSettingsDir} before git clone setup to keep workspace empty`);
+    }
 }
 
 // ---------------------------------------------------------------------------
