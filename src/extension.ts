@@ -104,6 +104,7 @@ import {
   getAutomaticProjectSelection,
 } from "./setup_utilities/workspace-config";
 import { checkIfToolsAvailable } from "./setup_utilities/tools-validation";
+import { setZephyrIdeJsonValidation } from "./setup_utilities/json-validation";
 import {
   westInit,
   setForceNarrowUpdateForTest,
@@ -579,6 +580,11 @@ export async function activate(context: vscode.ExtensionContext) {
     // so terminals opened after activation pick up the correct (or cleared) variables.
     reloadEnvironmentVariables(context, wsConfig?.activeSetupState);
   }
+
+  // Apply JSON schema validation for zephyr-ide.json files based on the current setting.
+  const enableJsonValidation: boolean =
+    vscode.workspace.getConfiguration().get("zephyr-ide.enableJsonValidation") ?? true;
+  void setZephyrIdeJsonValidation(context, enableJsonValidation);
 
   // Show a one-time upgrade notification when an existing user first runs v4.x.
   // Fresh installs (no lastKnownVersion) skip the notification because there is
@@ -1911,6 +1917,10 @@ export async function activate(context: vscode.ExtensionContext) {
         if (useClangd) {
           await setWorkspaceSettings(false);
         }
+      } else if (e.affectsConfiguration("zephyr-ide.enableJsonValidation")) {
+        const enable: boolean =
+          vscode.workspace.getConfiguration().get("zephyr-ide.enableJsonValidation") ?? true;
+        await setZephyrIdeJsonValidation(context, enable);
       }
     })
   );

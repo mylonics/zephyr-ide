@@ -322,6 +322,13 @@
           "deprecationMessage": "Deprecated: Use 'zephyr-ide.buildVariableDefaults' instead. Migrated automatically on startup.",
           "description": "Deprecated. Use 'zephyr-ide.buildVariableDefaults' instead."
         },
+        "zephyr-ide.enableJsonValidation": {
+          "type": [
+            "boolean"
+          ],
+          "default": true,
+          "description": "Enable JSON schema validation and IntelliSense for zephyr-ide.json files. When enabled, VS Code's built-in JSON language server validates the file and provides completions, hover documentation, and error diagnostics. Requires the workspace to be open in a folder."
+        },
         "zephyr-ide.runnerProfiles": {
           "type": "array",
           "default": [],

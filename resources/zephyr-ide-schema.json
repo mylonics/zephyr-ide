@@ -1,0 +1,459 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "Zephyr IDE Configuration",
+  "description": "Workspace configuration file for the IDE for Zephyr VS Code extension (zephyr-ide.json). Stores project configurations, runner profiles, and workspace requirements.",
+  "type": "object",
+  "properties": {
+    "projects": {
+      "type": "object",
+      "description": "Project configurations keyed by project name.",
+      "additionalProperties": {
+        "$ref": "#/definitions/ProjectConfig"
+      }
+    },
+    "activeProject": {
+      "type": "string",
+      "description": "Name of the currently active project."
+    },
+    "runnerProfiles": {
+      "type": "array",
+      "description": "Workspace-level runner profiles for flash/debug/attach operations. Profiles defined here override user-level profiles with the same name.",
+      "items": {
+        "$ref": "#/definitions/RunnerProfile"
+      }
+    },
+    "toolchains": {
+      "type": "array",
+      "description": "Zephyr SDK toolchain names required by this workspace (e.g. 'arm-zephyr-eabi', 'riscv64-zephyr-elf'). Missing toolchains are installed automatically during workspace setup.",
+      "items": {
+        "type": "string",
+        "description": "Toolchain name (e.g. 'arm-zephyr-eabi', 'riscv64-zephyr-elf', 'x86_64-zephyr-elf')"
+      }
+    },
+    "blobs": {
+      "type": "array",
+      "description": "West module names whose binary blobs should be fetched via 'west blobs fetch <module>'.",
+      "items": {
+        "type": "string",
+        "description": "West module name (e.g. 'hal_espressif')"
+      }
+    },
+    "sdkVersion": {
+      "type": "string",
+      "description": "Zephyr SDK version to install when bootstrapping (e.g. '0.17.0'). If omitted, the version from the Zephyr tree's SDK_VERSION file is used; if that is unavailable, the latest released SDK is installed.",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(-[a-zA-Z0-9]+(\\.[a-zA-Z0-9]+)*)?$"
+    },
+    "sampleProjects": {
+      "type": "array",
+      "description": "Optional sample project configurations. Not loaded automatically on startup — use 'Zephyr IDE: Add Sample Projects From File' to load them interactively.",
+      "items": {
+        "oneOf": [
+          {
+            "type": "string",
+            "description": "Legacy format: relative path to the project directory from the workspace root."
+          },
+          {
+            "$ref": "#/definitions/ProjectConfig"
+          }
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "ProjectConfig": {
+      "type": "object",
+      "description": "Configuration for a Zephyr IDE project.",
+      "required": ["name", "rel_path", "buildConfigs", "confFiles", "twisterConfigs"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Display name for the project."
+        },
+        "rel_path": {
+          "type": "string",
+          "description": "Path to the project directory, relative to the workspace root."
+        },
+        "buildConfigs": {
+          "type": "object",
+          "description": "Build configurations for this project, keyed by build name.",
+          "additionalProperties": {
+            "$ref": "#/definitions/BuildConfig"
+          }
+        },
+        "confFiles": {
+          "$ref": "#/definitions/ConfigFiles",
+          "description": "Project-level Kconfig (.conf) and devicetree overlay (.overlay) files applied to all builds."
+        },
+        "twisterConfigs": {
+          "type": "object",
+          "description": "Twister (test runner) configurations for this project, keyed by configuration name.",
+          "additionalProperties": {
+            "$ref": "#/definitions/TwisterConfig"
+          }
+        },
+        "customVars": {
+          "type": "object",
+          "description": "User-defined key-value variables for this project. Accessible in runner profile args as '${projectvar:key}' and via the 'zephyr-ide.get-active-project-variable' command.",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "BuildConfig": {
+      "type": "object",
+      "description": "A single build configuration within a project.",
+      "required": ["name", "board", "relBoardDir", "relBoardSubDir", "debugOptimization", "westBuildArgs", "westBuildCMakeArgs", "confFiles"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Display name for this build configuration."
+        },
+        "rel_path": {
+          "type": "string",
+          "description": "Custom build output directory, relative to the workspace root. If omitted, defaults to '<project_rel_path>/<build_name>'."
+        },
+        "board": {
+          "type": "string",
+          "description": "Zephyr board target (e.g. 'nucleo_f401re', 'nrf52840dk/nrf52840', 'esp32_devkitc_wroom')."
+        },
+        "relBoardDir": {
+          "type": "string",
+          "description": "Relative path (from workspace root) to a custom board directory. The parent of this path is passed as BOARD_ROOT to CMake. Leave empty to use Zephyr's built-in boards."
+        },
+        "relBoardSubDir": {
+          "type": "string",
+          "description": "Board subdirectory within the board root (e.g. 'vendor/my_board'). Used to construct the full board path."
+        },
+        "debugOptimization": {
+          "type": "string",
+          "description": "Build optimization preset used by the build wizard (e.g. 'Debug', 'Speed', 'Size', 'No Optimizations').",
+          "examples": ["Debug", "Speed", "Size", "No Optimizations", "Don't set. Will be configured in included KConfig file"]
+        },
+        "westBuildArgs": {
+          "type": "array",
+          "description": "Additional arguments passed to 'west build' (e.g. ['--sysbuild']).",
+          "items": {
+            "type": "string"
+          }
+        },
+        "westBuildCMakeArgs": {
+          "type": "array",
+          "description": "Additional CMake definitions passed to 'west build' via '--' (e.g. ['-DCONFIG_FOO=y']).",
+          "items": {
+            "type": "string"
+          }
+        },
+        "activeProfile": {
+          "type": "string",
+          "description": "Name of the runner profile to use for flash/debug/attach. Must match a profile name in 'runnerProfiles' (workspace or user). When omitted, 'Auto' mode is used (runners.yaml picks the runner)."
+        },
+        "bindOverrides": {
+          "type": "object",
+          "description": "Per-slot extra-argument overrides appended after the active runner profile's resolved args. Only applies to slots whose profile bind kind is 'west-flash' or 'west-debug'.",
+          "properties": {
+            "flash": {
+              "$ref": "#/definitions/BindOverride"
+            },
+            "debug": {
+              "$ref": "#/definitions/BindOverride"
+            },
+            "attach": {
+              "$ref": "#/definitions/BindOverride"
+            },
+            "buildDebug": {
+              "$ref": "#/definitions/BindOverride"
+            }
+          },
+          "additionalProperties": false
+        },
+        "customVars": {
+          "type": "object",
+          "description": "User-defined key-value variables for this build. Accessible in runner profile args as '${buildvar:key}' and via the 'zephyr-ide.get-active-build-variable' command.",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "confFiles": {
+          "$ref": "#/definitions/ConfigFiles",
+          "description": "Build-level Kconfig (.conf) and devicetree overlay (.overlay) files, merged with the project-level confFiles."
+        },
+        "revision": {
+          "type": "string",
+          "description": "Board revision string appended to the board target (e.g. '1.0.0')."
+        }
+      },
+      "additionalProperties": false
+    },
+    "ConfigFiles": {
+      "type": "object",
+      "description": "Kconfig (.conf) and devicetree overlay (.overlay) configuration files.",
+      "required": ["config", "overlay"],
+      "properties": {
+        "config": {
+          "type": "array",
+          "description": "Kconfig configuration files (.conf). Entries without 'extra: true' are passed as CONF_FILE; entries with 'extra: true' are passed as EXTRA_CONF_FILE.",
+          "items": {
+            "$ref": "#/definitions/ConfigFileEntry"
+          }
+        },
+        "overlay": {
+          "type": "array",
+          "description": "Devicetree overlay files (.overlay). Entries without 'extra: true' are passed as DTC_OVERLAY_FILE; entries with 'extra: true' are passed as EXTRA_DTC_OVERLAY_FILE.",
+          "items": {
+            "$ref": "#/definitions/ConfigFileEntry"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "ConfigFileEntry": {
+      "type": "object",
+      "description": "A single configuration file entry.",
+      "required": ["path"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Path to the configuration file, relative to the workspace root."
+        },
+        "extra": {
+          "type": "boolean",
+          "description": "When true, the file is passed as EXTRA_CONF_FILE or EXTRA_DTC_OVERLAY_FILE. When false or omitted, it is passed as CONF_FILE or DTC_OVERLAY_FILE."
+        }
+      },
+      "additionalProperties": false
+    },
+    "TwisterConfig": {
+      "type": "object",
+      "description": "A Twister (test runner) configuration.",
+      "required": ["name", "platform", "tests", "args"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Display name for this Twister configuration."
+        },
+        "platform": {
+          "type": "string",
+          "description": "Target platform string passed to Twister (e.g. 'native_sim', 'qemu_x86')."
+        },
+        "tests": {
+          "type": "array",
+          "description": "Test case identifiers to run (from testcase.yaml or sample.yaml).",
+          "items": {
+            "type": "string"
+          }
+        },
+        "args": {
+          "type": "string",
+          "description": "Additional arguments passed to the Twister command."
+        },
+        "serialPort": {
+          "type": "string",
+          "description": "Serial port for hardware testing (e.g. '/dev/ttyUSB0', 'COM3')."
+        },
+        "serialBaud": {
+          "type": "string",
+          "description": "Serial baud rate for hardware testing (e.g. '115200')."
+        },
+        "boardConfig": {
+          "$ref": "#/definitions/BoardConfig",
+          "description": "Board configuration for hardware Twister runs."
+        }
+      },
+      "additionalProperties": false
+    },
+    "BoardConfig": {
+      "type": "object",
+      "description": "Board selection for a build or Twister configuration.",
+      "required": ["board", "relBoardSubDir"],
+      "properties": {
+        "board": {
+          "type": "string",
+          "description": "Zephyr board target string."
+        },
+        "relBoardDir": {
+          "type": "string",
+          "description": "Relative path to a custom board directory. Leave empty to use Zephyr's built-in boards."
+        },
+        "relBoardSubDir": {
+          "type": "string",
+          "description": "Board subdirectory within the board root."
+        },
+        "revision": {
+          "type": "string",
+          "description": "Board revision string."
+        }
+      },
+      "additionalProperties": false
+    },
+    "RunnerProfile": {
+      "type": "object",
+      "description": "A named set of flash/debug/attach bindings for use across build configurations.",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Profile name referenced by BuildConfig.activeProfile."
+        },
+        "flash": {
+          "$ref": "#/definitions/FlashBind",
+          "description": "How to perform 'Flash' and 'Build and Flash' actions."
+        },
+        "debug": {
+          "$ref": "#/definitions/DebugBind",
+          "description": "How to perform 'Debug' actions (and 'Build and Debug' when 'buildDebug' is not set)."
+        },
+        "attach": {
+          "$ref": "#/definitions/DebugBind",
+          "description": "How to perform 'Debug Attach' actions."
+        },
+        "buildDebug": {
+          "$ref": "#/definitions/DebugBind",
+          "description": "How to perform 'Build and Debug' when 'zephyr-ide.separateBuildDebugProfile' is enabled. Falls back to 'debug' when omitted or when the setting is disabled."
+        }
+      },
+      "additionalProperties": false
+    },
+    "FlashBind": {
+      "description": "Selects how a Flash / Build-and-Flash action is executed.",
+      "oneOf": [
+        {
+          "type": "object",
+          "description": "Use runners.yaml defaults — west picks the runner automatically.",
+          "required": ["kind"],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "auto",
+              "description": "Use runners.yaml defaults."
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Invoke 'west flash -r <runner>' with optional extra arguments.",
+          "required": ["kind", "runner"],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "west-flash",
+              "description": "Invoke 'west flash' with a specific runner."
+            },
+            "runner": {
+              "type": "string",
+              "description": "Zephyr runner name (e.g. 'openocd', 'jlink', 'pyocd', 'nrfjprog')."
+            },
+            "extraArgs": {
+              "type": "array",
+              "description": "Extra argument tokens appended after the runner name.",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "DebugBind": {
+      "description": "Selects how a Debug / Attach / Build-and-Debug action is run.",
+      "oneOf": [
+        {
+          "type": "object",
+          "description": "Use runners.yaml defaults, auto-translated to a cortex-debug configuration.",
+          "required": ["kind"],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "auto",
+              "description": "Use runners.yaml defaults."
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Reference a launch.json configuration by name.",
+          "required": ["kind", "name"],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "launch",
+              "description": "Use a named launch.json configuration."
+            },
+            "name": {
+              "type": "string",
+              "description": "Name of the launch.json configuration to use."
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Name a Zephyr runner and configure structured cortex-debug options. The zephyr-ide debug provider auto-fills ELF/GDB/target from runners.yaml.",
+          "required": ["kind", "runner"],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "cortex-debug",
+              "description": "Use cortex-debug with a specific Zephyr runner."
+            },
+            "runner": {
+              "type": "string",
+              "description": "Zephyr runner name (e.g. 'openocd', 'jlink', 'pyocd', 'blackmagicprobe')."
+            },
+            "enableRtt": {
+              "type": "boolean",
+              "description": "When true, '--enable-rtt' is injected so the RTT terminal opens automatically. Only valid for runners that support RTT (openocd, jlink, bmp)."
+            },
+            "probe": {
+              "type": "string",
+              "description": "Probe/interface selection. For openocd: path to an OpenOCD interface config (e.g. 'interface/stlink.cfg'). For pyocd: probe identifier (e.g. 'stlink', 'cmsis_dap'). Ignored for other runners."
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Invoke 'west debug-server' and connect cortex-debug as an external GDB server.",
+          "required": ["kind", "runner"],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "west-debug",
+              "description": "Use 'west debug-server' with a specific runner."
+            },
+            "runner": {
+              "type": "string",
+              "description": "Zephyr runner name forwarded to 'west debug-server' (e.g. 'nrfjprog', 'linkserver', 'esp32')."
+            },
+            "extraArgs": {
+              "type": "array",
+              "description": "Extra argument tokens forwarded to 'west debug-server' after the runner name.",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "BindOverride": {
+      "type": "object",
+      "description": "Per-build extra-argument override appended after a runner profile's slot extraArgs. Only effective for 'west-flash' and 'west-debug' slot kinds.",
+      "properties": {
+        "extraArgs": {
+          "type": "array",
+          "description": "Extra arg tokens appended after the profile's extraArgs.",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
