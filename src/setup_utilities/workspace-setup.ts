@@ -207,20 +207,14 @@ export async function workspaceSetupFromGit(context: vscode.ExtensionContext, ws
     const unexpectedEntries = entries.filter(e => !extensionManagedEntries.has(e));
     if (unexpectedEntries.length > 0) {
       notifyError("Git Clone",
-        `The workspace directory is not empty. Please choose an empty folder for a git clone setup. Unexpected files: ${unexpectedEntries.join(', ')}`
+        `The workspace directory contains unexpected files that prevent cloning. Please choose an empty folder for a git clone setup. Unexpected files: ${unexpectedEntries.join(', ')}`
       );
       return false;
     }
-    if (entries.length > 0) {
-      // Only extension-managed entries present — remove them so git clone can proceed.
-      if (fs.pathExistsSync(path.join(currentDir, '.vscode'))) {
-        await fs.remove(path.join(currentDir, '.vscode'));
-        outputInfo("Git Clone", "Removed extension-created .vscode directory before git clone.");
-      }
-      if (fs.pathExistsSync(path.join(currentDir, '.gitignore'))) {
-        await fs.remove(path.join(currentDir, '.gitignore'));
-        outputInfo("Git Clone", "Removed extension-created .gitignore before git clone.");
-      }
+    // Only extension-managed entries present — remove them so git clone can proceed.
+    for (const entry of entries) {
+      await fs.remove(path.join(currentDir, entry));
+      outputInfo("Git Clone", `Removed extension-created ${entry} before git clone.`);
     }
   } catch (err) {
     outputError("Git Clone", `Failed to inspect workspace directory: ${String(err)}`);
