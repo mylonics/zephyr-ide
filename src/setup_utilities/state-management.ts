@@ -424,7 +424,12 @@ function buildPersistedRunnerProfile(name: string, profile: any): any {
  * stored in `localBinds` (the profile's `auto` slot already covers these).
  */
 function isAutoLikeTarget(target: string | undefined): boolean {
-  return !target || target.startsWith("Auto:") || target === "Zephyr IDE: Debug";
+  if (!target) {
+    return true;
+  }
+  const normalized = target.trim();
+  return normalized.startsWith("Auto:")
+    || /^Zephyr IDE: (Debug|Attach)( \(.+\))?$/.test(normalized);
 }
 
 /**

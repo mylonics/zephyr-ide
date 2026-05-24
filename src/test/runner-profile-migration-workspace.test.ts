@@ -98,6 +98,7 @@ suite("Runner Profile Workspace Migration", () => {
         },
       },
     });
+
     (ws.projects.app1.buildConfigs.dbg as any).activeRunner = "openocd";
     (ws.projects.app2.buildConfigs.rel as any).activeRunner = "openocd";
     (ws.projects.app2.buildConfigs.dbg as any).activeRunner = "jlink";
@@ -205,7 +206,7 @@ suite("Runner Profile Workspace Migration", () => {
     }
   });
 
-  test("Auto:/Zephyr IDE: Debug launchTarget/attachTarget placeholders are NOT stored in localBinds", async () => {
+  test("Auto/Zephyr IDE default and pinned launch/attach placeholders are NOT stored in localBinds", async () => {
     const { tmpRoot, ws } = await setup({}, {
       app: {
         name: "app",
@@ -214,8 +215,22 @@ suite("Runner Profile Workspace Migration", () => {
             name: "dbg",
             runnerConfigs: { openocd: { name: "openocd", runner: "openocd" } },
             activeRunner: "openocd",
+            launchTarget: "Zephyr IDE: Debug",
+            attachTarget: "Zephyr IDE: Attach",
+          },
+          dbgPinned: {
+            name: "dbgPinned",
+            runnerConfigs: { openocd: { name: "openocd", runner: "openocd" } },
+            activeRunner: "openocd",
+            launchTarget: "Zephyr IDE: Debug (openocd)",
+            attachTarget: "Zephyr IDE: Attach (openocd)",
+          },
+          dbgAuto: {
+            name: "dbgAuto",
+            runnerConfigs: { openocd: { name: "openocd", runner: "openocd" } },
+            activeRunner: "openocd",
             launchTarget: "Auto: openocd",
-            attachTarget: "Zephyr IDE: Debug",
+            attachTarget: "Auto: openocd",
           },
         },
       },
@@ -225,9 +240,15 @@ suite("Runner Profile Workspace Migration", () => {
       await migrateLegacyRunnersToProfiles(makeFakeContext(), ws);
 
       const localBinds = (ws as any).projectStates?.app?.buildStates?.dbg?.localBinds;
+      const localBindsPinned = (ws as any).projectStates?.app?.buildStates?.dbgPinned?.localBinds;
+      const localBindsAuto = (ws as any).projectStates?.app?.buildStates?.dbgAuto?.localBinds;
       // Auto-like placeholders must not be stored in localBinds — undefined is correct.
       assert.ok(!localBinds?.debug, `expected no localBinds.debug, got ${localBinds?.debug}`);
       assert.ok(!localBinds?.attach, `expected no localBinds.attach, got ${localBinds?.attach}`);
+      assert.ok(!localBindsPinned?.debug, `expected no localBindsPinned.debug, got ${localBindsPinned?.debug}`);
+      assert.ok(!localBindsPinned?.attach, `expected no localBindsPinned.attach, got ${localBindsPinned?.attach}`);
+      assert.ok(!localBindsAuto?.debug, `expected no localBindsAuto.debug, got ${localBindsAuto?.debug}`);
+      assert.ok(!localBindsAuto?.attach, `expected no localBindsAuto.attach, got ${localBindsAuto?.attach}`);
     } finally {
       await fs.remove(tmpRoot);
     }
@@ -407,4 +428,3 @@ suite("Runner Profile Workspace Migration", () => {
     }
   });
 });
-
