@@ -33,8 +33,11 @@ export const KNOWN_RUNNERS = [
   "jlink",
   "pyocd",
   "stlink",
+  "stlink_gdbserver",
   "nrfjprog",
   "nrfutil",
+  "nxp_s32dbg",
+  "probe-rs",
   "blackmagicprobe",
   "linkserver",
   "dfu-util",
@@ -45,32 +48,52 @@ export const KNOWN_RUNNERS = [
   "teensy",
   "bflb-mcu-tool",
   "arc-jtag",
+  "arc-nsim",
+  "native",
   "dediprog",
   "silabs_commander",
   "xsdb",
 ];
 
 /**
- * Subset of KNOWN_RUNNERS that support debug/attach (GDB server capable).
- * Must stay in sync with `runnerToServerType` in `runners-yaml.ts`:
- *   - Native servertypes: jlink, openocd, pyocd, stlink, stm32cubeprogrammer-stlink, bmp/blackmagicprobe, qemu
- *   - Bridged runners (west debug-server):  nrfjprog, linkserver, esp32, stm32cubeprogrammer
- * Runners absent from `runnerToServerType` (dfu-util, nrfutil, arc-jtag, xsdb …) are omitted.
+ * Runners that cortex-debug can drive natively (no west bridge needed).
+ * Must stay in sync with the native cases in `runnerToServerType` in `runners-yaml.ts`.
+ * `bmp` is the shorter alias for `blackmagicprobe`; both are kept because either
+ * can appear as the runner name in a board's runners.yaml depending on Zephyr version.
  */
-export const DEBUG_CAPABLE_RUNNERS = [
+export const CORTEX_DEBUG_RUNNERS = [
   "openocd",
   "jlink",
   "pyocd",
+  // Represents the whole stlink family (stlink, stlink_gdbserver, stm32cubeprogrammer-stlink).
+  // resolveCanonicalRunner() picks the correct variant from runners.yaml at debug time.
   "stlink",
-  "stm32cubeprogrammer-stlink",
-  "blackmagicprobe",
+  // Represents both "blackmagicprobe" and "bmp" runner names.
+  // resolveCanonicalRunner() picks the correct variant from runners.yaml at debug time.
   "bmp",
-  "linkserver",
-  "nrfjprog",
-  "esp32",
-  "stm32cubeprogrammer",
   "qemu",
 ];
+
+/**
+ * Runners that require the `west debugserver` bridge (no native cortex-debug servertype).
+ * These are mapped to cortex-debug `servertype: "external"` in `runners-yaml.ts`.
+ * Source of truth: `west debugserver --context` plus manual audit.
+ */
+export const WEST_DEBUG_RUNNERS = [
+  "nrfjprog",
+  "nxp_s32dbg",
+  "linkserver",
+  "esp32",
+  "stm32cubeprogrammer",
+  "probe-rs",
+  "teensy",
+  "xsdb",
+  "arc-nsim",
+  "native",
+];
+
+/** @deprecated Use {@link CORTEX_DEBUG_RUNNERS} and {@link WEST_DEBUG_RUNNERS} separately. */
+export const DEBUG_CAPABLE_RUNNERS = [...CORTEX_DEBUG_RUNNERS, ...WEST_DEBUG_RUNNERS];
 
 export interface BindSelectorOptions {
   /** Slot being edited. Flash cannot use `launch.json` references. */

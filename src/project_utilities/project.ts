@@ -1196,8 +1196,9 @@ export async function setLocalBind(
   wsConfig: WorkspaceConfig,
   presetSlot?: "flash" | "debug" | "attach",
   presetRunner?: string | null,
+  targetOptions?: { projectName?: string; buildName?: string },
 ) {
-  const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Local Bind" });
+  const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Local Bind", ...targetOptions });
   if (!resolved) { return; }
   const buildState = wsConfig.projectStates[resolved.projectName]?.buildStates?.[resolved.buildName];
   if (!buildState) { return; }
@@ -1207,8 +1208,8 @@ export async function setLocalBind(
   let slot: Slot | undefined = presetSlot;
   if (!slot) {
     const slotItems: vscode.QuickPickItem[] = [
-      { label: "flash",  iconPath: new vscode.ThemeIcon("zap"),           description: "West flash / Build and Flash" },
-      { label: "debug",  iconPath: new vscode.ThemeIcon("debug-alt"),     description: "Debug / Build and Debug" },
+      { label: "flash", iconPath: new vscode.ThemeIcon("zap"), description: "West flash / Build and Flash" },
+      { label: "debug", iconPath: new vscode.ThemeIcon("debug-alt"), description: "Debug / Build and Debug" },
       { label: "attach", iconPath: new vscode.ThemeIcon("debug-console"), description: "Debug Attach" },
     ];
     const slotPick = await vscode.window.showQuickPick(slotItems, {

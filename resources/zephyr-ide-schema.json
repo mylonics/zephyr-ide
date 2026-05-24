@@ -417,21 +417,21 @@
         },
         {
           "type": "object",
-          "description": "Invoke 'west debug-server' and connect cortex-debug as an external GDB server.",
+          "description": "Invoke 'west debugserver' and connect cortex-debug as an external GDB server.",
           "required": ["kind", "runner"],
           "properties": {
             "kind": {
               "type": "string",
               "const": "west-debug",
-              "description": "Use 'west debug-server' with a specific runner."
+              "description": "Use 'west debugserver' with a specific runner."
             },
             "runner": {
               "type": "string",
-              "description": "Zephyr runner name forwarded to 'west debug-server' (e.g. 'nrfjprog', 'linkserver', 'esp32')."
+              "description": "Zephyr runner name forwarded to 'west debugserver' (e.g. 'nrfjprog', 'linkserver', 'esp32')."
             },
             "extraArgs": {
               "type": "array",
-              "description": "Extra argument tokens forwarded to 'west debug-server' after the runner name.",
+              "description": "Extra argument tokens forwarded to 'west debugserver' after the runner name.",
               "items": {
                 "type": "string"
               }

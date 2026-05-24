@@ -49,7 +49,8 @@ interface PanelData {
   workspaceProfiles: Profile[];
   hasWorkspace: boolean;
   knownRunners: string[];
-  knownDebugRunners: string[];
+  knownCortexDebugRunners: string[];
+  knownWestDebugRunners: string[];
   /** All launch.json config names (any type); shown in a combined dropdown for the "launch" bind kind. */
   launchConfigNames: string[];
   activeProfileName?: string;
@@ -720,8 +721,12 @@ export class RunnerProfileApp extends ZephyrLitElement {
     slot: "buildDebug" | "debug" | "attach", icon: string, label: string, bind: ProfileBind,
   ) {
     const d = this._data!;
-    const knownDebugRunners = (d.knownDebugRunners ?? d.knownRunners);
-    const debugRunners = knownDebugRunners.length > 0 ? knownDebugRunners : ["openocd"];
+    const cortexRunners = (d.knownCortexDebugRunners ?? d.knownRunners).length > 0
+      ? (d.knownCortexDebugRunners ?? d.knownRunners)
+      : ["openocd"];
+    const westRunners = (d.knownWestDebugRunners ?? []).length > 0
+      ? (d.knownWestDebugRunners ?? [])
+      : [];
     const currentValue = bindToSelectValue(bind);
     const launchConfigNames = d.launchConfigNames ?? [];
 
@@ -762,21 +767,21 @@ export class RunnerProfileApp extends ZephyrLitElement {
                 ?selected=${true}>${bind.name} (not found)</vscode-option>
             ` : nothing}
             <vscode-option value="" disabled>─── cortex-debug (auto-config) ───</vscode-option>
-            ${debugRunners.map(r => html`
+            ${cortexRunners.map(r => html`
               <vscode-option
                 value=${"cortex-debug:" + r}
                 ?selected=${bind.kind === "cortex-debug" && bind.runner === r}>${r}</vscode-option>
             `)}
-            ${bind.kind === "cortex-debug" && bind.runner && !debugRunners.includes(bind.runner) ? html`
+            ${bind.kind === "cortex-debug" && bind.runner && !cortexRunners.includes(bind.runner) ? html`
               <vscode-option value=${"cortex-debug:" + bind.runner} ?selected=${true}>${bind.runner} (custom)</vscode-option>
             ` : nothing}
-            <vscode-option value="" disabled>─── west debug-server bridge ───</vscode-option>
-            ${debugRunners.map(r => html`
+            <vscode-option value="" disabled>─── west debugserver bridge ───</vscode-option>
+            ${westRunners.map(r => html`
               <vscode-option
                 value=${"west-debug:" + r}
                 ?selected=${bind.kind === "west-debug" && bind.runner === r}>${r} (west)</vscode-option>
             `)}
-            ${bind.kind === "west-debug" && bind.runner && !debugRunners.includes(bind.runner) ? html`
+            ${bind.kind === "west-debug" && bind.runner && !westRunners.includes(bind.runner) ? html`
               <vscode-option value=${"west-debug:" + bind.runner} ?selected=${true}>${bind.runner} (custom, west)</vscode-option>
             ` : nothing}
           </vscode-single-select>
@@ -797,7 +802,7 @@ export class RunnerProfileApp extends ZephyrLitElement {
               : bind.kind === "cortex-debug"
                 ? html`<span class="scope-section-hint">elf, gdb, and target auto-resolved from runners.yaml. RTT and probe selections are structured fields applied on top.</span>`
                 : bind.kind === "west-debug"
-                  ? html`<span class="scope-section-hint">Always uses <code>west debug-server</code> bridge — connects cortex-debug as external GDB server.</span>`
+                  ? html`<span class="scope-section-hint">Always uses <code>west debugserver</code> bridge — connects cortex-debug as external GDB server.</span>`
                   : nothing}
         </div>
       </div>

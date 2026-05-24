@@ -27,9 +27,9 @@ The provider picks the runner from `runners.yaml` (preferring `debug-runner`), l
 
 The extension ships `zephyr-ide` configuration snippets for the most common runners: **J-Link**, **pyOCD**, **ST-Link**, **Black Magic Probe** (launch and attach), **nrfjprog** and **LinkServer** bridges, a sysbuild-image variant, and an explicit-probe OpenOCD override. A **"Debug (ask build at launch)"** snippet uses the `ask` field to prompt for a build configuration each time F5 is pressed — set `ask: "askBoth"` to prompt for project as well. One **"Cortex Debug (Legacy): Manual debug configuration"** snippet is also provided for advanced cases where you need full control over GDB server arguments; its label begins with `Cortex Debug (Legacy)` so it is easy to distinguish.
 
-### Runners via West Debug-Server Bridge
+### Runners via West Debugserver Bridge
 
-Some Zephyr runners have no native cortex-debug servertype. For these runners Zephyr IDE automatically spawns `west debug-server --runner <runner>` in the background, reads the GDB port it announces on stdout, and connects cortex-debug as `servertype: "external"` pointing at that port. If the port announcement is not detected within 10 seconds, Zephyr IDE falls back to the runner's known default port and emits a warning.
+Some Zephyr runners have no native cortex-debug servertype. For these runners Zephyr IDE automatically spawns `west debugserver --runner <runner>` in the background, reads the GDB port it announces on stdout, and connects cortex-debug as `servertype: "external"` pointing at that port. If the port announcement is not detected within 10 seconds, Zephyr IDE falls back to the runner's known default port and emits a warning.
 
 Bridged runners:
 

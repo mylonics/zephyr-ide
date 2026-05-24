@@ -326,7 +326,7 @@ export class BuildSection extends ZephyrLitElement {
         ? html`
               <vscode-button appearance="icon" icon="close"
                 title="Clear local bind — revert ${label} to profile / runners.yaml default"
-                @click=${() => this.postCommand("clearLocalBind", { slot: slot.slot })}>
+                @click=${() => this.postCommand("clearLocalBind", { slot: slot.slot, project: this.projectName, build: this.buildDetails.name })}>
               </vscode-button>`
         : nothing}
         ${canOverride

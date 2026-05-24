@@ -31,7 +31,7 @@ limitations under the License.
  *   per-runner argument parsing lifts `runners.yaml` flags into the
  *   matching cortex-debug fields.
  * - **External bridge** (nrfjprog, linkserver, esp32, stm32cubeprogrammer)
- *   — Zephyr IDE spawns `west debug-server`, parses the listening port
+ *   — Zephyr IDE spawns `west debugserver`, parses the listening port
  *   from its output (see `debug-server-bridge.ts`), and configures
  *   cortex-debug with `servertype: "external"` + `gdbTarget`. The server
  *   is terminated on `onDidTerminateDebugSession`.
@@ -67,6 +67,7 @@ import {
   findSvdFile,
   runnerToServerType,
   runnerNeedsBridge,
+  resolveCanonicalRunner,
   RunnersYaml,
 } from "./runners-yaml";
 import { startWestDebugServer, disposeOnSessionEnd } from "./debug-server-bridge";
@@ -112,14 +113,14 @@ interface ZephyrIdeDebugConfig extends vscode.DebugConfiguration {
   ask?: AskMode;
   /**
    * When true, skip the auto-translation pipeline entirely and spawn
-   * `west debug-server --runner <runner> [westArgs]` directly. cortex-debug
+   * `west debugserver --runner <runner> [westArgs]` directly. cortex-debug
    * connects as `servertype: "external"`. ELF and GDB path are still read from
    * runners.yaml. Only `runner` and `westArgs` are consumed in this mode; all
    * runner-specific translation fields (configFiles, serverArgs, etc.) are ignored.
    */
   useWestDebugServer?: boolean;
   /**
-   * Raw arguments appended verbatim to `west debug-server` when
+   * Raw arguments appended verbatim to `west debugserver` when
    * `useWestDebugServer` is true. Inserted after
    * `--runner <runner> --build-dir <buildDir>`, so runner-specific flags go
    * here (e.g. `["--dev-id", "12345"]` for nrfjprog).
@@ -553,7 +554,7 @@ export function buildCortexDebugConfig(
     }
     case "external": {
       // The actual `gdbTarget` is filled in by the provider after spawning
-      // `west debug-server` (see `runnerNeedsBridge` / `startWestDebugServer`).
+      // `west debugserver` (see `runnerNeedsBridge` / `startWestDebugServer`).
       // Forward any runner args to the bridge command line via a hidden field
       // that resolveDebugConfiguration consumes — these are bridge args, NOT
       // cortex-debug serverArgs.
@@ -593,37 +594,42 @@ export function pickDebugRunner(
   requested?: string
 ): string | undefined {
   if (requested) {
-    // Happy path: runner is listed in runners.yaml and cortex-debug can drive it.
-    if (runnersYaml.runners.includes(requested) && runnerToServerType(requested) !== undefined) {
-      return requested;
+    // Resolve canonical name → actual variant present in runners.yaml.
+    // e.g. "stlink" → "stlink_gdbserver" when only the latter is available.
+    const resolved = resolveCanonicalRunner(requested, runnersYaml.runners);
+
+    // Happy path: resolved runner is listed in runners.yaml and cortex-debug can drive it.
+    if (runnersYaml.runners.includes(resolved) && runnerToServerType(resolved) !== undefined) {
+      return resolved;
     }
 
-    // requested is not in runners.yaml (or not cortex-debug-capable).
-    // Prefer debugRunner when eligible, then first eligible runner in the list.
+    // If the requested runner is cortex-debug-capable, honour the explicit user
+    // choice even when it is not listed in runners.yaml. The build may have been
+    // compiled with a different default runner but the hardware probe the user
+    // has attached (e.g. ST-LINK when the board defaults to JLink) still works
+    // at the debug level without a rebuild. Show a warning so the user is
+    // aware, but do not swap it out for a different runner behind their back.
+    if (runnerToServerType(resolved) !== undefined) {
+      outputWarning(
+        "Debug",
+        `Runner "${requested}" is not listed in runners.yaml for this build ` +
+        `(available: ${runnersYaml.runners.join(", ")}). ` +
+        `The debug session may fail. Rebuild with the correct runner or update the Runner Profile.`
+      );
+      return resolved;
+    }
+
+    // requested is NOT cortex-debug-capable (e.g. nrfjprog, dfu-util).
+    // Fall back to a cortex-debug-capable runner from runners.yaml so the
+    // user still gets a debug session rather than a silent failure.
     const fallback =
       (runnersYaml.debugRunner && isFallbackEligibleRunner(runnersYaml.debugRunner)
         ? runnersYaml.debugRunner
         : runnersYaml.runners.find(r => isFallbackEligibleRunner(r)));
 
     if (fallback) {
-      if (runnerToServerType(requested) !== undefined) {
-        outputWarning(
-          "Debug",
-          `Runner "${requested}" is not listed in runners.yaml for this build ` +
-          `(available: ${runnersYaml.runners.join(", ")}). ` +
-          `The debug session may fail. Rebuild with the correct runner or update the Runner Profile.`
-        );
-      } else {
-        outputInfo("Debug", `Requested runner "${requested}" cannot be driven by cortex-debug. Falling back to runners.yaml defaults.`);
-      }
+      outputInfo("Debug", `Requested runner "${requested}" cannot be driven by cortex-debug. Falling back to runners.yaml defaults.`);
       return fallback;
-    }
-
-    // No usable hardware runner found in runners.yaml. If the requested runner
-    // is itself cortex-debug-capable, return it so cortex-debug can still try
-    // (the board may support it even when not listed in this build's runners.yaml).
-    if (runnerToServerType(requested) !== undefined) {
-      return requested;
     }
 
     return undefined;
@@ -806,7 +812,7 @@ export class ZephyrIdeDebugConfigurationProvider
     }
 
     // useWestDebugServer mode: skip the runner-translation pipeline entirely.
-    // Spawn `west debug-server --runner <runner> [westArgs]` and connect
+    // Spawn `west debugserver --runner <runner> [westArgs]` and connect
     // cortex-debug as servertype "external". ELF and GDB path are read from
     // runners.yaml so the user only needs to specify the runner and any
     // runner-specific flags via westArgs.
@@ -866,7 +872,7 @@ export class ZephyrIdeDebugConfigurationProvider
       );
       if (!spawnOk) { return undefined; }
       outputInfo("Debug",
-        `Launching external session via west debug-server (runner "${cfg.runner}")\n` +
+        `Launching external session via west debugserver (runner "${cfg.runner}")\n` +
         `${JSON.stringify(westDebugCfg, null, 2)}`);
       return westDebugCfg as vscode.DebugConfiguration;
     }
@@ -896,7 +902,7 @@ export class ZephyrIdeDebugConfigurationProvider
         profileRunner = localSlotRunner.slice(CORTEX_DEBUG_PREFIX.length);
         // forceWestDebugBridge stays false
       } else if (localSlotRunner.startsWith(WEST_DEBUG_PREFIX)) {
-        // West debug-server bridge: force bridge regardless of runner type.
+        // West debugserver bridge: force bridge regardless of runner type.
         profileRunner = localSlotRunner.slice(WEST_DEBUG_PREFIX.length);
         forceWestDebugBridge = true;
       } else {
@@ -1104,7 +1110,7 @@ export class ZephyrIdeDebugConfigurationProvider
       });
     }
 
-    // External bridge: spawn `west debug-server` for runners that cortex-debug
+    // External bridge: spawn `west debugserver` for runners that cortex-debug
     // cannot drive natively (nrfjprog, linkserver, esp32, stm32cubeprogrammer),
     // OR when the profile bind is "west-debug" (explicit user choice to always
     // go through the bridge regardless of native driver support).
@@ -1123,7 +1129,7 @@ export class ZephyrIdeDebugConfigurationProvider
         const setupState = wsConfig.activeSetupState;
         if (!setupState) {
           notifyError("Debug",
-            `Runner "${runner}" needs the west debug-server bridge, but no active Zephyr IDE setup state was found. ` +
+            `Runner "${runner}" needs the west debugserver bridge, but no active Zephyr IDE setup state was found. ` +
             `Complete workspace setup (Zephyr IDE: Setup Workspace) and try again.`);
           return undefined;
         }
@@ -1176,7 +1182,7 @@ export class ZephyrIdeDebugConfigurationProvider
   }
 
   /**
-   * Spawn `west debug-server`, write the resulting `host:port` into
+   * Spawn `west debugserver`, write the resulting `host:port` into
    * `targetCfg.gdbTarget`, and register the session-end lifecycle cleanup.
    * Shared by the `useWestDebugServer` launch-config path and the runner
    * bridge path so the server spawn logic lives in exactly one place.
@@ -1194,7 +1200,7 @@ export class ZephyrIdeDebugConfigurationProvider
       targetCfg.gdbTarget = `${handle.host}:${handle.port}`;
       if (!handle.portDetected) {
         outputWarning("Debug",
-          `west debug-server did not announce its listening port; using default ` +
+          `west debugserver did not announce its listening port; using default ` +
           `${handle.host}:${handle.port}. ` +
           `If the session fails to connect, set "gdbTarget" explicitly in launch.json.`);
       }
@@ -1212,9 +1218,24 @@ export class ZephyrIdeDebugConfigurationProvider
       if (this.context) { this.context.subscriptions.push(startSub); }
       return true;
     } catch (err) {
-      notifyError("Debug",
-        `Failed to start west debug-server for runner "${options.runner}": ` +
-        `${err instanceof Error ? err.message : String(err)}`);
+      const msg = err instanceof Error ? err.message : String(err);
+      if (/unknown command/i.test(msg)) {
+        // west debugserver is not available — show a notification with a
+        // direct action to switch to the native cortex-debug mode.
+        void vscode.window.showErrorMessage(
+          `"west debugserver" is not available in this Zephyr installation. ` +
+          `Switch the debug bind to "cortex-debug (auto-config)" so the session ` +
+          `connects directly to ${options.runner} without the west bridge.`,
+          "Change Debug Bind"
+        ).then(choice => {
+          if (choice === "Change Debug Bind") {
+            void vscode.commands.executeCommand("zephyr-ide.set-active-profile");
+          }
+        });
+      } else {
+        notifyError("Debug",
+          `Failed to start west debugserver for runner "${options.runner}": ${msg}`);
+      }
       return false;
     }
   }
