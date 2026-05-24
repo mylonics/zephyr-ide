@@ -153,7 +153,7 @@ and uses the user-supplied endpoint directly.
 
 ## Release Notes
 
-See [CHANGELOG.md](CHANGELOG.md) for the full release history. Highlights for the 4.0 series are summarized in [What's New in 4.0](https://zephyr-ide.mylonics.com/whats-new-4-0/), and for the 3.0 series in [What's New in 3.0](https://zephyr-ide.mylonics.com/whats-new-3-0/).
+See [CHANGELOG.md](CHANGELOG.md) for the full release history. Highlights for the 4.0 series are summarized in [What's New in 4.0](https://zephyr-ide.mylonics.com/whats-new-4-0/).
 
 ## Development
 
