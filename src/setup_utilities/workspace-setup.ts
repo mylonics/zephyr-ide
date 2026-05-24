@@ -195,6 +195,37 @@ export async function workspaceSetupFromGit(context: vscode.ExtensionContext, ws
 
   outputInfo("Git Clone", "Workspace type selected: Zephyr IDE Workspace from Git");
 
+  // git clone requires an empty target directory. The extension may have written
+  // workspace-scoped files (e.g. .vscode/settings.json via setDefaultTerminal,
+  // .vscode/extensions.json, or .gitignore) during activation before the user
+  // started the git clone flow. Clean those up so the clone can proceed.
+  // Any other pre-existing files that the extension did not create mean the
+  // workspace is genuinely non-empty, which is an error the user needs to resolve.
+  const extensionManagedEntries = new Set(['.vscode', '.gitignore']);
+  try {
+    const entries = fs.readdirSync(currentDir);
+    const unexpectedEntries = entries.filter(e => !extensionManagedEntries.has(e));
+    if (unexpectedEntries.length > 0) {
+      notifyError("Git Clone",
+        `The workspace directory is not empty. Please choose an empty folder for a git clone setup. Unexpected files: ${unexpectedEntries.join(', ')}`
+      );
+      return false;
+    }
+    if (entries.length > 0) {
+      // Only extension-managed entries present — remove them so git clone can proceed.
+      if (fs.pathExistsSync(path.join(currentDir, '.vscode'))) {
+        await fs.remove(path.join(currentDir, '.vscode'));
+        outputInfo("Git Clone", "Removed extension-created .vscode directory before git clone.");
+      }
+      if (fs.pathExistsSync(path.join(currentDir, '.gitignore'))) {
+        await fs.remove(path.join(currentDir, '.gitignore'));
+        outputInfo("Git Clone", "Removed extension-created .gitignore before git clone.");
+      }
+    }
+  } catch (err) {
+    outputError("Git Clone", `Failed to inspect workspace directory: ${String(err)}`);
+  }
+
   progress.startStep('git-clone', gitUrl);
   const cmd = `git clone ${gitUrl} .`;
   const gitCloneRes = await executeTaskHelper("Zephyr IDE: Git Clone", cmd, currentDir);
