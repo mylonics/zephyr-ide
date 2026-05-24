@@ -206,7 +206,7 @@ suite("Runner Profile Workspace Migration", () => {
     }
   });
 
-  test("Auto/Zephyr IDE default and pinned launch/attach placeholders are NOT stored in localBinds", async () => {
+  test("Zephyr IDE debug/attach names are migrated to localBinds; Auto:* is not", async () => {
     const { tmpRoot, ws } = await setup({}, {
       app: {
         name: "app",
@@ -242,11 +242,12 @@ suite("Runner Profile Workspace Migration", () => {
       const localBinds = (ws as any).projectStates?.app?.buildStates?.dbg?.localBinds;
       const localBindsPinned = (ws as any).projectStates?.app?.buildStates?.dbgPinned?.localBinds;
       const localBindsAuto = (ws as any).projectStates?.app?.buildStates?.dbgAuto?.localBinds;
-      // Auto-like placeholders must not be stored in localBinds — undefined is correct.
-      assert.ok(!localBinds?.debug, `expected no localBinds.debug, got ${localBinds?.debug}`);
-      assert.ok(!localBinds?.attach, `expected no localBinds.attach, got ${localBinds?.attach}`);
-      assert.ok(!localBindsPinned?.debug, `expected no localBindsPinned.debug, got ${localBindsPinned?.debug}`);
-      assert.ok(!localBindsPinned?.attach, `expected no localBindsPinned.attach, got ${localBindsPinned?.attach}`);
+      // Zephyr IDE debug/attach names are preserved as explicit local binds.
+      assert.strictEqual(localBinds?.debug, "Zephyr IDE: Debug");
+      assert.strictEqual(localBinds?.attach, "Zephyr IDE: Attach");
+      assert.strictEqual(localBindsPinned?.debug, "Zephyr IDE: Debug (openocd)");
+      assert.strictEqual(localBindsPinned?.attach, "Zephyr IDE: Attach (openocd)");
+      // Auto:* placeholders stay implicit via profile auto binds and are not stored locally.
       assert.ok(!localBindsAuto?.debug, `expected no localBindsAuto.debug, got ${localBindsAuto?.debug}`);
       assert.ok(!localBindsAuto?.attach, `expected no localBindsAuto.attach, got ${localBindsAuto?.attach}`);
     } finally {

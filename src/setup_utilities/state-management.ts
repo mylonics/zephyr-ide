@@ -427,9 +427,7 @@ function isAutoLikeTarget(target: string | undefined): boolean {
   if (!target) {
     return true;
   }
-  const normalized = target.trim();
-  return normalized.startsWith("Auto:")
-    || /^Zephyr IDE: (Debug|Attach)( \(.+\))?$/.test(normalized);
+  return target.trim().startsWith("Auto:");
 }
 
 /**
