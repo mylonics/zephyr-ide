@@ -51,6 +51,7 @@ WorkspaceSetupFromWestGit
 import * as vscode from "vscode";
 import * as fs from "fs-extra";
 import * as path from "upath";
+import { isDeepStrictEqual } from "node:util";
 import { executeTaskHelper, validateGitUrl, compareWorkspacePathsByLocality, isWorkspaceLocal } from "../utilities/utils";
 import { outputInfo, outputError, notifyError, showOutput } from "../utilities/output";
 import { MultiStepInput } from "../utilities/multistepQuickPick";
@@ -65,6 +66,166 @@ interface WestDiscoveryResult {
   hasWestFolder: boolean;
   westYmlFiles: string[];
   selectedWestPath?: string;
+}
+
+interface GitCloneWorkspaceInspection {
+  removableEntries: string[];
+  unexpectedEntries: string[];
+}
+
+const EXTENSION_MANAGED_WORKSPACE_SETTINGS_KEYS = new Set([
+  "terminal.integrated.defaultProfile.windows",
+  "terminal.integrated.defaultProfile.linux",
+  "terminal.integrated.defaultProfile.osx",
+  "C_Cpp.intelliSenseEngine",
+  "C_Cpp.default.compileCommands",
+  "clangd.arguments",
+  "cmake.configureOnOpen",
+]);
+
+const EXTENSION_MANAGED_CLANGD_ARG_KEYS = new Set([
+  "--compile-commands-dir=",
+  "--background-index",
+  "--completion-style=",
+  "--header-insertion=",
+  "--query-driver=",
+]);
+
+const EXTENSION_MANAGED_VSCODE_FILES = new Set([
+  "settings.json",
+  "extensions.json",
+]);
+
+async function isExtensionManagedGitIgnore(rootPath: string, extensionPath: string): Promise<boolean> {
+  const workspaceGitIgnorePath = path.join(rootPath, ".gitignore");
+  const extensionTemplatePath = path.join(extensionPath, "resources", "git_ignores", "gitignore_workspace_install");
+  if (!await fs.pathExists(workspaceGitIgnorePath) || !await fs.pathExists(extensionTemplatePath)) {
+    return false;
+  }
+  const workspaceGitIgnore = await fs.readFile(workspaceGitIgnorePath, "utf8");
+  const extensionGitIgnore = await fs.readFile(extensionTemplatePath, "utf8");
+  return workspaceGitIgnore.replace(/\r\n/g, "\n") === extensionGitIgnore.replace(/\r\n/g, "\n");
+}
+
+async function isExtensionManagedSettingsJson(vscodeDirPath: string): Promise<boolean> {
+  const settingsPath = path.join(vscodeDirPath, "settings.json");
+  if (!await fs.pathExists(settingsPath)) {
+    return true;
+  }
+  try {
+    const settings = await fs.readJson(settingsPath);
+    if (!settings || typeof settings !== "object" || Array.isArray(settings)) {
+      return false;
+    }
+    const keys = Object.keys(settings);
+    if (keys.length === 0) {
+      return false;
+    }
+    return keys.every((key) => {
+      if (!EXTENSION_MANAGED_WORKSPACE_SETTINGS_KEYS.has(key)) {
+        return false;
+      }
+      const value = (settings as Record<string, unknown>)[key];
+      if (key === "terminal.integrated.defaultProfile.windows" || key === "terminal.integrated.defaultProfile.linux" || key === "terminal.integrated.defaultProfile.osx") {
+        return value === "Zephyr IDE Terminal";
+      }
+      if (key === "C_Cpp.intelliSenseEngine") {
+        return value === "disabled";
+      }
+      if (key === "C_Cpp.default.compileCommands") {
+        return value === "${workspaceFolder}/.vscode/compile_commands.json";
+      }
+      if (key === "cmake.configureOnOpen") {
+        return value === false;
+      }
+      if (key === "clangd.arguments") {
+        if (!Array.isArray(value) || value.some(v => typeof v !== "string")) {
+          return false;
+        }
+        return value.every((arg) => {
+          const key = arg.includes("=") ? arg.slice(0, arg.indexOf("=") + 1) : arg;
+          return EXTENSION_MANAGED_CLANGD_ARG_KEYS.has(key);
+        });
+      }
+      return false;
+    });
+  } catch {
+    return false;
+  }
+}
+
+async function isExtensionManagedExtensionsJson(vscodeDirPath: string, extensionPath: string): Promise<boolean> {
+  const workspaceExtensionsPath = path.join(vscodeDirPath, "extensions.json");
+  if (!await fs.pathExists(workspaceExtensionsPath)) {
+    return true;
+  }
+  const extensionTemplatePath = path.join(extensionPath, "resources", "recommendations", "extensions.json");
+  if (!await fs.pathExists(extensionTemplatePath)) {
+    return false;
+  }
+  try {
+    const workspaceExtensions = await fs.readJson(workspaceExtensionsPath);
+    const extensionRecommendations = await fs.readJson(extensionTemplatePath);
+    return isDeepStrictEqual(workspaceExtensions, extensionRecommendations);
+  } catch {
+    return false;
+  }
+}
+
+async function inspectWorkspaceVscodeOwnership(rootPath: string, extensionPath: string): Promise<boolean> {
+  const vscodeDirPath = path.join(rootPath, ".vscode");
+  if (!await fs.pathExists(vscodeDirPath)) {
+    return true;
+  }
+  const stat = await fs.stat(vscodeDirPath);
+  if (!stat.isDirectory()) {
+    return false;
+  }
+  const vscodeEntries = await fs.readdir(vscodeDirPath);
+  if (vscodeEntries.length === 0) {
+    return false;
+  }
+  const unexpectedVscodeEntries = vscodeEntries.filter((entry) => !EXTENSION_MANAGED_VSCODE_FILES.has(entry));
+  if (unexpectedVscodeEntries.length > 0) {
+    return false;
+  }
+  const settingsManaged = await isExtensionManagedSettingsJson(vscodeDirPath);
+  if (!settingsManaged) {
+    return false;
+  }
+  const extensionsManaged = await isExtensionManagedExtensionsJson(vscodeDirPath, extensionPath);
+  if (!extensionsManaged) {
+    return false;
+  }
+  return true;
+}
+
+export async function inspectWorkspaceForGitClone(rootPath: string, extensionPath: string): Promise<GitCloneWorkspaceInspection> {
+  const entries = await fs.readdir(rootPath);
+  const removableEntries: string[] = [];
+  const unexpectedEntries: string[] = [];
+  for (const entry of entries) {
+    if (entry === ".vscode") {
+      const isManagedVscodeDir = await inspectWorkspaceVscodeOwnership(rootPath, extensionPath);
+      if (isManagedVscodeDir) {
+        removableEntries.push(entry);
+      } else {
+        unexpectedEntries.push(".vscode");
+      }
+      continue;
+    }
+    if (entry === ".gitignore") {
+      const isManagedGitIgnore = await isExtensionManagedGitIgnore(rootPath, extensionPath);
+      if (isManagedGitIgnore) {
+        removableEntries.push(entry);
+      } else {
+        unexpectedEntries.push(".gitignore");
+      }
+      continue;
+    }
+    unexpectedEntries.push(entry);
+  }
+  return { removableEntries, unexpectedEntries };
 }
 
 async function discoverWestConfiguration(baseDir: string): Promise<WestDiscoveryResult> {
@@ -201,23 +362,23 @@ export async function workspaceSetupFromGit(context: vscode.ExtensionContext, ws
   // started the git clone flow. Clean those up so the clone can proceed.
   // Any other pre-existing files that the extension did not create mean the
   // workspace is genuinely non-empty, which is an error the user needs to resolve.
-  const extensionManagedEntries = new Set(['.vscode', '.gitignore']);
   try {
-    const entries = fs.readdirSync(currentDir);
-    const unexpectedEntries = entries.filter(e => !extensionManagedEntries.has(e));
-    if (unexpectedEntries.length > 0) {
+    const inspection = await inspectWorkspaceForGitClone(currentDir, context.extensionPath);
+    if (inspection.unexpectedEntries.length > 0) {
       notifyError("Git Clone",
-        `The workspace directory contains unexpected files that prevent cloning. Please choose an empty folder for a git clone setup. Unexpected files: ${unexpectedEntries.join(', ')}`
+        `The workspace directory contains files that were not created by the extension. Please choose an empty folder for a git clone setup. Unexpected files: ${inspection.unexpectedEntries.join(', ')}`
       );
       return false;
     }
     // Only extension-managed entries present — remove them so git clone can proceed.
-    for (const entry of entries) {
+    for (const entry of inspection.removableEntries) {
       await fs.remove(path.join(currentDir, entry));
       outputInfo("Git Clone", `Removed extension-created ${entry} before git clone.`);
     }
   } catch (err) {
     outputError("Git Clone", `Failed to inspect workspace directory: ${String(err)}`);
+    notifyError("Git Clone", `Failed to inspect or clean extension-created files before clone: ${String(err)}`);
+    return false;
   }
 
   progress.startStep('git-clone', gitUrl);
