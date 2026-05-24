@@ -19,6 +19,7 @@ import * as assert from "assert";
 import * as fs from "fs-extra";
 import * as os from "os";
 import * as path from "path";
+import { pathToFileURL } from "url";
 import { inspectWorkspaceForGitClone } from "../setup_utilities/workspace-setup";
 
 suite("Workspace Git Clone cleanup inspection test suite", () => {
@@ -99,6 +100,42 @@ suite("Workspace Git Clone cleanup inspection test suite", () => {
   test("treats modified extension-managed settings values as unexpected", async () => {
     await fs.writeJson(path.join(tmpRoot, ".vscode", "settings.json"), {
       "terminal.integrated.defaultProfile.linux": "bash",
+    }, { spaces: 2 });
+
+    const inspection = await inspectWorkspaceForGitClone(tmpRoot, extensionPath);
+    assert.deepStrictEqual(inspection.removableEntries, []);
+    assert.deepStrictEqual(inspection.unexpectedEntries, [".vscode"]);
+  });
+
+  test("allows removing .vscode/settings.json with extension-managed json.schemas entry", async () => {
+    const schemaUrl = pathToFileURL(path.join(extensionPath, "resources", "zephyr-ide-schema.json")).toString();
+    await fs.writeJson(path.join(tmpRoot, ".vscode", "settings.json"), {
+      "json.schemas": [
+        {
+          fileMatch: ["zephyr-ide.json", "**/zephyr-ide.json"],
+          url: schemaUrl,
+        },
+      ],
+    }, { spaces: 2 });
+
+    const inspection = await inspectWorkspaceForGitClone(tmpRoot, extensionPath);
+    assert.deepStrictEqual(inspection.unexpectedEntries, []);
+    assert.deepStrictEqual(inspection.removableEntries, [".vscode"]);
+  });
+
+  test("treats .vscode/settings.json with extra json.schemas entries as unexpected", async () => {
+    const schemaUrl = pathToFileURL(path.join(extensionPath, "resources", "zephyr-ide-schema.json")).toString();
+    await fs.writeJson(path.join(tmpRoot, ".vscode", "settings.json"), {
+      "json.schemas": [
+        {
+          fileMatch: ["zephyr-ide.json", "**/zephyr-ide.json"],
+          url: schemaUrl,
+        },
+        {
+          fileMatch: ["custom.json"],
+          url: "https://example.com/custom-schema.json",
+        },
+      ],
     }, { spaces: 2 });
 
     const inspection = await inspectWorkspaceForGitClone(tmpRoot, extensionPath);

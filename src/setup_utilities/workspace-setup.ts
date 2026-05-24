@@ -81,6 +81,7 @@ const EXTENSION_MANAGED_WORKSPACE_SETTINGS_KEYS = new Set([
   "C_Cpp.default.compileCommands",
   "clangd.arguments",
   "cmake.configureOnOpen",
+  "json.schemas",
 ]);
 
 const EXTENSION_MANAGED_CLANGD_ARG_KEYS = new Set([
@@ -95,6 +96,22 @@ const EXTENSION_MANAGED_VSCODE_FILES = new Set([
   "settings.json",
   "extensions.json",
 ]);
+
+function isExtensionManagedJsonSchemaEntry(entry: unknown): boolean {
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+    return false;
+  }
+  const schemaEntry = entry as { fileMatch?: unknown; url?: unknown };
+  if (!Array.isArray(schemaEntry.fileMatch) || !schemaEntry.fileMatch.every((f) => typeof f === "string")) {
+    return false;
+  }
+  const fileMatch = new Set(schemaEntry.fileMatch);
+  if (fileMatch.size !== 2 || !fileMatch.has("zephyr-ide.json") || !fileMatch.has("**/zephyr-ide.json")) {
+    return false;
+  }
+  return typeof schemaEntry.url === "string"
+    && schemaEntry.url.endsWith("/resources/zephyr-ide-schema.json");
+}
 
 async function isExtensionManagedGitIgnore(rootPath: string, extensionPath: string): Promise<boolean> {
   const workspaceGitIgnorePath = path.join(rootPath, ".gitignore");
@@ -149,6 +166,11 @@ async function isExtensionManagedSettingsJson(vscodeDirPath: string): Promise<bo
           const argKey = arg.includes("=") ? arg.slice(0, arg.indexOf("=") + 1) : arg;
           return EXTENSION_MANAGED_CLANGD_ARG_KEYS.has(argKey);
         });
+      }
+      if (key === "json.schemas") {
+        return Array.isArray(value)
+          && value.length === 1
+          && isExtensionManagedJsonSchemaEntry(value[0]);
       }
       return false;
     });
