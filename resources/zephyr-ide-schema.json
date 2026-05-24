@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft-07/schema#",
   "title": "Zephyr IDE Configuration",
-  "description": "Workspace configuration file for the IDE for Zephyr VS Code extension (.vscode/zephyr-ide.json). Stores project configurations, runner profiles, and workspace requirements.",
+  "description": "Workspace configuration file for the IDE for Zephyr VS Code extension (zephyr-ide.json). Stores project configurations, runner profiles, and workspace requirements.",
   "type": "object",
   "properties": {
     "projects": {
@@ -128,8 +128,8 @@
         },
         "debugOptimization": {
           "type": "string",
-          "description": "CMake build type / debug optimization level (e.g. 'Debug', 'Release', 'RelWithDebInfo', 'MinSizeRel').",
-          "examples": ["Debug", "Release", "RelWithDebInfo", "MinSizeRel"]
+          "description": "Build optimization preset used by the build wizard (e.g. 'Debug', 'Speed', 'Size', 'No Optimizations').",
+          "examples": ["Debug", "Speed", "Size", "No Optimizations", "Don't set. Will be configured in included KConfig file"]
         },
         "westBuildArgs": {
           "type": "array",

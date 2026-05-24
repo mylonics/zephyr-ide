@@ -581,7 +581,7 @@ export async function activate(context: vscode.ExtensionContext) {
     reloadEnvironmentVariables(context, wsConfig?.activeSetupState);
   }
 
-  // Apply JSON schema validation for .vscode/zephyr-ide.json based on the current setting.
+  // Apply JSON schema validation for zephyr-ide.json files based on the current setting.
   const enableJsonValidation: boolean =
     vscode.workspace.getConfiguration().get("zephyr-ide.enableJsonValidation") ?? true;
   void setZephyrIdeJsonValidation(context, enableJsonValidation);

@@ -16,7 +16,7 @@ limitations under the License.
 */
 
 /**
- * Manages the JSON schema association for `.vscode/zephyr-ide.json` via the
+ * Manages the JSON schema association for `zephyr-ide.json` via the
  * `json.schemas` workspace setting.  When enabled, VS Code's built-in JSON
  * language server validates the file against the bundled schema and provides
  * IntelliSense (completions, hover docs, diagnostics).
@@ -25,7 +25,7 @@ limitations under the License.
  */
 
 import * as vscode from "vscode";
-import * as path from "upath";
+import * as path from "path";
 import { outputInfo, outputWarning } from "../utilities/output";
 
 /** Shape of an entry in the VS Code `json.schemas` workspace setting. */
@@ -35,11 +35,12 @@ interface JsonSchemaEntry {
   schema?: unknown;
 }
 
-/** fileMatch pattern used to associate the schema with zephyr-ide.json files. */
-const ZEPHYR_IDE_JSON_FILE_MATCH = "**/.vscode/zephyr-ide.json";
+/** fileMatch patterns used to associate the schema with zephyr-ide.json files. */
+const ZEPHYR_IDE_JSON_FILE_MATCHES = ["zephyr-ide.json", "**/zephyr-ide.json"] as const;
+const LEGACY_ZEPHYR_IDE_JSON_FILE_MATCH = "**/.vscode/zephyr-ide.json";
 
 /**
- * Enable or disable JSON schema validation for `.vscode/zephyr-ide.json`.
+ * Enable or disable JSON schema validation for `zephyr-ide.json`.
  *
  * When `enable` is true, an entry is added to the `json.schemas` workspace
  * setting pointing at the bundled schema file. When false, any previously
@@ -63,19 +64,27 @@ export async function setZephyrIdeJsonValidation(
     path.join(context.extensionPath, "resources", "zephyr-ide-schema.json")
   ).toString();
 
-  const currentSchemas: JsonSchemaEntry[] =
-    configuration.inspect<JsonSchemaEntry[]>("json.schemas")?.workspaceValue ?? [];
+  const currentSchemasValue = configuration.get<JsonSchemaEntry[]>("json.schemas");
+  const currentSchemas: JsonSchemaEntry[] = Array.isArray(currentSchemasValue) ? currentSchemasValue : [];
 
   // Remove any existing zephyr-ide.json entry added by this extension.
   const filtered = currentSchemas.filter(
-    (s) => !Array.isArray(s?.fileMatch) || !s.fileMatch.includes(ZEPHYR_IDE_JSON_FILE_MATCH)
+    (s) => {
+      const hasLegacyMatch =
+        Array.isArray(s?.fileMatch) &&
+        s.fileMatch.includes(LEGACY_ZEPHYR_IDE_JSON_FILE_MATCH);
+      const isExtensionSchema =
+        typeof s?.url === "string" &&
+        (s.url === schemaUrl || s.url.endsWith("/resources/zephyr-ide-schema.json"));
+      return !hasLegacyMatch && !isExtensionSchema;
+    }
   );
 
   let newSchemas: JsonSchemaEntry[];
   if (enable) {
     newSchemas = [
       ...filtered,
-      { fileMatch: [ZEPHYR_IDE_JSON_FILE_MATCH], url: schemaUrl },
+      { fileMatch: [...ZEPHYR_IDE_JSON_FILE_MATCHES], url: schemaUrl },
     ];
   } else {
     newSchemas = filtered;

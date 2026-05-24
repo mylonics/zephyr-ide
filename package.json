@@ -327,7 +327,7 @@
             "boolean"
           ],
           "default": true,
-          "description": "Enable JSON schema validation and IntelliSense for .vscode/zephyr-ide.json. When enabled, VS Code's built-in JSON language server validates the file and provides completions, hover documentation, and error diagnostics. Requires the workspace to be open in a folder."
+          "description": "Enable JSON schema validation and IntelliSense for zephyr-ide.json files. When enabled, VS Code's built-in JSON language server validates the file and provides completions, hover documentation, and error diagnostics. Requires the workspace to be open in a folder."
         },
         "zephyr-ide.runnerProfiles": {
           "type": "array",
