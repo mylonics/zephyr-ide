@@ -2,7 +2,7 @@
   "name": "zephyr-ide",
   "displayName": "IDE for Zephyr",
   "description": "Streamline Zephyr RTOS development in VS Code — automated SDK installation, west workspace management, project building, flashing, and debugging for ARM, RISC-V, and more",
-  "version": "3.3.2",
+  "version": "3.3.3",
   "license": "Apache-2.0",
   "publisher": "mylonics",
   "icon": "media/logo.png",
@@ -1196,7 +1196,12 @@
               },
               "ask": {
                 "type": "string",
-                "enum": ["auto", "askBoth", "askProject", "askBuild"],
+                "enum": [
+                  "auto",
+                  "askBoth",
+                  "askProject",
+                  "askBuild"
+                ],
                 "enumDescriptions": [
                   "Use the active project and active build silently (default).",
                   "Prompt for both project and build at every launch.",
@@ -1228,7 +1233,11 @@
               },
               "interface": {
                 "type": "string",
-                "enum": ["swd", "jtag", "cjtag"],
+                "enum": [
+                  "swd",
+                  "jtag",
+                  "cjtag"
+                ],
                 "description": "Debug transport. Forwarded to cortex-debug."
               },
               "device": {
@@ -1237,12 +1246,16 @@
               },
               "configFiles": {
                 "type": "array",
-                "items": { "type": "string" },
+                "items": {
+                  "type": "string"
+                },
                 "description": "OpenOCD .cfg files. Auto-derived from runners.yaml's --openocd-config / --cmd-pre-init args; supply here to override."
               },
               "searchDir": {
                 "type": "array",
-                "items": { "type": "string" },
+                "items": {
+                  "type": "string"
+                },
                 "description": "OpenOCD search directories (--openocd-search). Auto-derived from runners.yaml; supply here to extend."
               },
               "serverpath": {
@@ -1251,7 +1264,9 @@
               },
               "serverArgs": {
                 "type": "array",
-                "items": { "type": "string" },
+                "items": {
+                  "type": "string"
+                },
                 "description": "Extra arguments appended to the GDB server's command line. Zephyr IDE forwards unrecognised pyocd/jlink args here automatically; use this field to add more."
               },
               "gdbTarget": {
@@ -1292,57 +1307,79 @@
               },
               "preLaunchCommands": {
                 "type": "array",
-                "items": { "type": "string" },
+                "items": {
+                  "type": "string"
+                },
                 "description": "GDB commands executed before the program is loaded."
               },
               "postLaunchCommands": {
                 "type": "array",
-                "items": { "type": "string" },
+                "items": {
+                  "type": "string"
+                },
                 "description": "GDB commands executed after the program is loaded but before it runs."
               },
               "preAttachCommands": {
                 "type": "array",
-                "items": { "type": "string" },
+                "items": {
+                  "type": "string"
+                },
                 "description": "GDB commands executed before attaching."
               },
               "postAttachCommands": {
                 "type": "array",
-                "items": { "type": "string" },
+                "items": {
+                  "type": "string"
+                },
                 "description": "GDB commands executed after attaching."
               },
               "preResetCommands": {
                 "type": "array",
-                "items": { "type": "string" },
+                "items": {
+                  "type": "string"
+                },
                 "description": "GDB commands executed before reset/restart."
               },
               "postResetCommands": {
                 "type": "array",
-                "items": { "type": "string" },
+                "items": {
+                  "type": "string"
+                },
                 "description": "GDB commands executed after reset/restart."
               },
               "postRestartCommands": {
                 "type": "array",
-                "items": { "type": "string" },
+                "items": {
+                  "type": "string"
+                },
                 "description": "Alias of postResetCommands honoured by cortex-debug."
               },
               "overrideLaunchCommands": {
                 "type": "array",
-                "items": { "type": "string" },
+                "items": {
+                  "type": "string"
+                },
                 "description": "If set, REPLACES the standard cortex-debug launch sequence (file/load/break/run)."
               },
               "overrideAttachCommands": {
                 "type": "array",
-                "items": { "type": "string" },
+                "items": {
+                  "type": "string"
+                },
                 "description": "If set, REPLACES the standard cortex-debug attach sequence."
               },
               "overrideResetCommands": {
                 "type": "array",
-                "items": { "type": "string" },
+                "items": {
+                  "type": "string"
+                },
                 "description": "If set, REPLACES the standard cortex-debug reset sequence."
               },
               "overrideRestartCommands": {
                 "type": "array",
-                "items": { "type": "string" },
+                "items": {
+                  "type": "string"
+                },
                 "description": "If set, REPLACES the standard cortex-debug restart sequence."
               },
               "liveWatch": {
@@ -1351,7 +1388,13 @@
               },
               "showDevDebugOutput": {
                 "type": "string",
-                "enum": ["none", "parsed", "raw", "both", "vscode"],
+                "enum": [
+                  "none",
+                  "parsed",
+                  "raw",
+                  "both",
+                  "vscode"
+                ],
                 "description": "cortex-debug developer log verbosity."
               },
               "objdumpPath": {
@@ -1369,7 +1412,9 @@
               },
               "westArgs": {
                 "type": "array",
-                "items": { "type": "string" },
+                "items": {
+                  "type": "string"
+                },
                 "description": "Raw arguments appended to `west debugserver` when `useWestDebugServer` is true, inserted after `--runner <runner> --build-dir <buildDir>`. Use for runner-specific flags (e.g. [\"--dev-id\", \"12345\"] for nrfjprog, [\"--config\", \"interface/stlink.cfg\"] for openocd)."
               }
             }
@@ -1390,7 +1435,12 @@
               },
               "ask": {
                 "type": "string",
-                "enum": ["auto", "askBoth", "askProject", "askBuild"],
+                "enum": [
+                  "auto",
+                  "askBoth",
+                  "askProject",
+                  "askBuild"
+                ],
                 "enumDescriptions": [
                   "Use the active project and active build silently (default).",
                   "Prompt for both project and build at every launch.",
@@ -1422,7 +1472,11 @@
               },
               "interface": {
                 "type": "string",
-                "enum": ["swd", "jtag", "cjtag"],
+                "enum": [
+                  "swd",
+                  "jtag",
+                  "cjtag"
+                ],
                 "description": "Debug transport. Forwarded to cortex-debug."
               },
               "device": {
@@ -1431,12 +1485,16 @@
               },
               "configFiles": {
                 "type": "array",
-                "items": { "type": "string" },
+                "items": {
+                  "type": "string"
+                },
                 "description": "OpenOCD .cfg files. See `launch.configFiles`."
               },
               "searchDir": {
                 "type": "array",
-                "items": { "type": "string" },
+                "items": {
+                  "type": "string"
+                },
                 "description": "OpenOCD search directories. See `launch.searchDir`."
               },
               "serverpath": {
@@ -1445,7 +1503,9 @@
               },
               "serverArgs": {
                 "type": "array",
-                "items": { "type": "string" },
+                "items": {
+                  "type": "string"
+                },
                 "description": "Extra arguments appended to the GDB server's command line."
               },
               "gdbTarget": {
@@ -1456,49 +1516,91 @@
                 "type": "string",
                 "description": "pyocd target. See `launch.targetId`."
               },
-              "speed": { "type": "number", "description": "J-Link speed (kHz)." },
-              "ipAddress": { "type": "string", "description": "Remote server IP." },
-              "port": { "type": "number", "description": "GDB server port." },
-              "rttConfig": { "type": "object", "description": "RTT decoder configuration." },
-              "swoConfig": { "type": "object", "description": "SWO/SWV configuration." },
+              "speed": {
+                "type": "number",
+                "description": "J-Link speed (kHz)."
+              },
+              "ipAddress": {
+                "type": "string",
+                "description": "Remote server IP."
+              },
+              "port": {
+                "type": "number",
+                "description": "GDB server port."
+              },
+              "rttConfig": {
+                "type": "object",
+                "description": "RTT decoder configuration."
+              },
+              "swoConfig": {
+                "type": "object",
+                "description": "SWO/SWV configuration."
+              },
               "preAttachCommands": {
                 "type": "array",
-                "items": { "type": "string" },
+                "items": {
+                  "type": "string"
+                },
                 "description": "GDB commands executed before attaching."
               },
               "postAttachCommands": {
                 "type": "array",
-                "items": { "type": "string" },
+                "items": {
+                  "type": "string"
+                },
                 "description": "GDB commands executed after attaching."
               },
               "preResetCommands": {
                 "type": "array",
-                "items": { "type": "string" },
+                "items": {
+                  "type": "string"
+                },
                 "description": "GDB commands executed before reset/restart."
               },
               "postResetCommands": {
                 "type": "array",
-                "items": { "type": "string" },
+                "items": {
+                  "type": "string"
+                },
                 "description": "GDB commands executed after reset/restart."
               },
               "overrideAttachCommands": {
                 "type": "array",
-                "items": { "type": "string" },
+                "items": {
+                  "type": "string"
+                },
                 "description": "If set, REPLACES the standard cortex-debug attach sequence."
               },
               "overrideResetCommands": {
                 "type": "array",
-                "items": { "type": "string" },
+                "items": {
+                  "type": "string"
+                },
                 "description": "If set, REPLACES the standard cortex-debug reset sequence."
               },
-              "liveWatch": { "type": "object", "description": "Live-watch configuration." },
+              "liveWatch": {
+                "type": "object",
+                "description": "Live-watch configuration."
+              },
               "showDevDebugOutput": {
                 "type": "string",
-                "enum": ["none", "parsed", "raw", "both", "vscode"],
+                "enum": [
+                  "none",
+                  "parsed",
+                  "raw",
+                  "both",
+                  "vscode"
+                ],
                 "description": "cortex-debug developer log verbosity."
               },
-              "objdumpPath": { "type": "string", "description": "Path to objdump." },
-              "nmPath": { "type": "string", "description": "Path to nm." }
+              "objdumpPath": {
+                "type": "string",
+                "description": "Path to objdump."
+              },
+              "nmPath": {
+                "type": "string",
+                "description": "Path to nm."
+              }
             }
           }
         },
@@ -1571,7 +1673,10 @@
               "type": "zephyr-ide",
               "request": "launch",
               "runner": "pyocd",
-              "serverArgs": ["--probe", "stlink"]
+              "serverArgs": [
+                "--probe",
+                "stlink"
+              ]
             }
           },
           {
