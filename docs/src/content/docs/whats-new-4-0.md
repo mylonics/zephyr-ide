@@ -21,6 +21,8 @@ Runner Profiles replace that model. A **Runner Profile** is a named, reusable `{
 - **Dedicated Runner Profile panel.** The **`Zephyr IDE: Open Runner Profile Panel`** command opens a full CRUD UI listing workspace-scope and user-scope profiles side by side, with a usage badge on each card showing how many builds reference it.
 - **No `launch.json` required.** The built-in `zephyr-ide` debugger type reads `runners.yaml` from the active build and starts a `cortex-debug` session automatically. A Runner Profile is optional — builds without one continue to use `runners.yaml` defaults.
 
+> **Note on test coverage:** Not all debug runner paths and hardware combinations have been exercised. As a general rule — if you can start a debug session using a hand-written Cortex-Debug `launch.json`, the `zephyr-ide` debug type should work for that same setup. If a runner path that should work gives you trouble, you can always create a manual Cortex-Debug launch configuration in your `launch.json` as a fallback. Please [raise an issue on GitHub](https://github.com/mylonics/zephyr-ide/issues) so it can be tracked and fixed.
+
 ## Build Dashboard
 
 ### Why this change?
