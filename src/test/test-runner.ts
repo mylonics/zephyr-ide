@@ -18,6 +18,7 @@ limitations under the License.
 import * as vscode from 'vscode';
 import * as assert from 'assert';
 import * as fs from 'fs-extra';
+import * as path from 'path';
 
 /**
  * Check if build tests should be skipped based on environment variables.
@@ -405,6 +406,16 @@ export async function startWorkspaceCommand(
     commandId: string,
 ): Promise<Thenable<any>> {
     await vscode.commands.executeCommand("zephyr-ide.update-with-narrow");
+    if (commandId === "zephyr-ide.workspace-setup-from-git") {
+        const workspaceDir = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        if (workspaceDir) {
+            const vscodeSettingsDir = path.join(workspaceDir, ".vscode");
+            if (await fs.pathExists(vscodeSettingsDir)) {
+                await fs.remove(vscodeSettingsDir);
+                console.log(`🧹 Removed ${vscodeSettingsDir} before git clone setup to keep workspace empty`);
+            }
+        }
+    }
     uiMock.primeInteractions(interactions);
 
     // Start the command but do NOT await it — return the thenable
@@ -427,6 +438,16 @@ export async function executeWorkspaceCommand(
     successMessage: string
 ): Promise<void> {
     await vscode.commands.executeCommand("zephyr-ide.update-with-narrow");
+    if (commandId === "zephyr-ide.workspace-setup-from-git") {
+        const workspaceDir = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        if (workspaceDir) {
+            const vscodeSettingsDir = path.join(workspaceDir, ".vscode");
+            if (await fs.pathExists(vscodeSettingsDir)) {
+                await fs.remove(vscodeSettingsDir);
+                console.log(`🧹 Removed ${vscodeSettingsDir} before git clone setup to keep workspace empty`);
+            }
+        }
+    }
     uiMock.primeInteractions(interactions);
 
     const result = await vscode.commands.executeCommand(commandId);
