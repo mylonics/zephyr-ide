@@ -70,6 +70,22 @@ suite("Workspace Git Clone cleanup inspection test suite", () => {
     assert.deepStrictEqual(inspection.unexpectedEntries, [".vscode"]);
   });
 
+  test("allows removing an empty .vscode directory", async () => {
+    await fs.ensureDir(path.join(tmpRoot, ".vscode"));
+
+    const inspection = await inspectWorkspaceForGitClone(tmpRoot, extensionPath);
+    assert.deepStrictEqual(inspection.unexpectedEntries, []);
+    assert.deepStrictEqual(inspection.removableEntries, [".vscode"]);
+  });
+
+  test("allows removing .vscode/settings.json when it is empty", async () => {
+    await fs.writeJson(path.join(tmpRoot, ".vscode", "settings.json"), {}, { spaces: 2 });
+
+    const inspection = await inspectWorkspaceForGitClone(tmpRoot, extensionPath);
+    assert.deepStrictEqual(inspection.unexpectedEntries, []);
+    assert.deepStrictEqual(inspection.removableEntries, [".vscode"]);
+  });
+
   test("treats non-extension settings keys in .vscode/settings.json as unexpected", async () => {
     await fs.writeJson(path.join(tmpRoot, ".vscode", "settings.json"), {
       "files.trimTrailingWhitespace": true,

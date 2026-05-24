@@ -99,8 +99,11 @@ const EXTENSION_MANAGED_VSCODE_FILES = new Set([
 async function isExtensionManagedGitIgnore(rootPath: string, extensionPath: string): Promise<boolean> {
   const workspaceGitIgnorePath = path.join(rootPath, ".gitignore");
   const extensionTemplatePath = path.join(extensionPath, "resources", "git_ignores", "gitignore_workspace_install");
-  if (!await fs.pathExists(workspaceGitIgnorePath) || !await fs.pathExists(extensionTemplatePath)) {
+  if (!await fs.pathExists(workspaceGitIgnorePath)) {
     return false;
+  }
+  if (!await fs.pathExists(extensionTemplatePath)) {
+    throw new Error(`Git clone cleanup template missing: ${extensionTemplatePath}`);
   }
   const workspaceGitIgnore = await fs.readFile(workspaceGitIgnorePath, "utf8");
   const extensionGitIgnore = await fs.readFile(extensionTemplatePath, "utf8");
@@ -119,7 +122,7 @@ async function isExtensionManagedSettingsJson(vscodeDirPath: string): Promise<bo
     }
     const keys = Object.keys(settings);
     if (keys.length === 0) {
-      return false;
+      return true;
     }
     return keys.every((key) => {
       if (!EXTENSION_MANAGED_WORKSPACE_SETTINGS_KEYS.has(key)) {
@@ -143,8 +146,8 @@ async function isExtensionManagedSettingsJson(vscodeDirPath: string): Promise<bo
           return false;
         }
         return value.every((arg) => {
-          const key = arg.includes("=") ? arg.slice(0, arg.indexOf("=") + 1) : arg;
-          return EXTENSION_MANAGED_CLANGD_ARG_KEYS.has(key);
+          const argKey = arg.includes("=") ? arg.slice(0, arg.indexOf("=") + 1) : arg;
+          return EXTENSION_MANAGED_CLANGD_ARG_KEYS.has(argKey);
         });
       }
       return false;
@@ -161,7 +164,7 @@ async function isExtensionManagedExtensionsJson(vscodeDirPath: string, extension
   }
   const extensionTemplatePath = path.join(extensionPath, "resources", "recommendations", "extensions.json");
   if (!await fs.pathExists(extensionTemplatePath)) {
-    return false;
+    throw new Error(`Extensions recommendations template missing: ${extensionTemplatePath}`);
   }
   try {
     const workspaceExtensions = await fs.readJson(workspaceExtensionsPath);
@@ -183,7 +186,7 @@ async function inspectWorkspaceVscodeOwnership(rootPath: string, extensionPath: 
   }
   const vscodeEntries = await fs.readdir(vscodeDirPath);
   if (vscodeEntries.length === 0) {
-    return false;
+    return true;
   }
   const unexpectedVscodeEntries = vscodeEntries.filter((entry) => !EXTENSION_MANAGED_VSCODE_FILES.has(entry));
   if (unexpectedVscodeEntries.length > 0) {
@@ -377,7 +380,7 @@ export async function workspaceSetupFromGit(context: vscode.ExtensionContext, ws
     }
   } catch (err) {
     outputError("Git Clone", `Failed to inspect workspace directory: ${String(err)}`);
-    notifyError("Git Clone", `Failed to inspect or clean extension-created files before clone: ${String(err)}`);
+    notifyError("Git Clone", `Failed to inspect or clean extension-created files before clone: ${String(err)}. Please choose a different empty folder or remove the files manually and try again.`);
     return false;
   }
 
