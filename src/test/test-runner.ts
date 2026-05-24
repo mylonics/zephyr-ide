@@ -15,10 +15,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import * as vscode from 'vscode';
 import * as assert from 'assert';
-import * as fs from 'fs-extra';
 import * as path from 'path';
+import * as vscode from 'vscode';
+import * as fs from 'fs-extra';
 
 /**
  * Check if build tests should be skipped based on environment variables.
