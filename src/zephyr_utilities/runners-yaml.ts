@@ -32,6 +32,7 @@ import * as path from "upath";
 import * as yaml from "js-yaml";
 
 import { outputWarning } from "../utilities/output";
+import { WEST_DEBUG_RUNNERS } from "../project_utilities/runner_selector";
 
 /**
  * Parsed contents of runners.yaml. All fields are best-effort — the file may
@@ -308,23 +309,36 @@ export function findSvdFile(boardDir: string | undefined, hint?: string): string
 }
 
 /**
- * The set of Zephyr runners that Zephyr IDE drives via the **external bridge**:
- * the runner has no native cortex-debug `servertype` of its own, but it can
- * be launched as a GDB-remote-speaking server by `west debug-server`. The
- * debug provider spawns `west debug-server --runner <runner>`, parses the
- * listening host/port out of its stdout, then hands cortex-debug a
- * `servertype: "external"` + `gdbTarget: <host>:<port>` configuration that
- * connects to that server. The server is killed when the debug session ends.
- *
- * See {@link runnerToServerType} for how this maps to cortex-debug, and
- * `debug-server-bridge.ts` for the lifecycle implementation.
+ * Stlink runner variants in priority order (highest preference first).
+ * All three expose the ST-LINK GDB server and map to cortex-debug servertype `"stlink"`.
+ * The user-facing canonical name is `"stlink"`; use {@link resolveCanonicalRunner}
+ * to pick the right variant when consulting a build's runners.yaml.
  */
-export const BRIDGED_RUNNERS = new Set<string>([
-  "nrfjprog",
-  "linkserver",
-  "esp32",
-  "stm32cubeprogrammer",
-]);
+const STLINK_VARIANTS = ["stlink", "stlink_gdbserver", "stm32cubeprogrammer-stlink"] as const;
+
+/** BMP runner variants in priority order. The canonical user-facing name is `"bmp"`. */
+const BMP_VARIANTS = ["blackmagicprobe", "bmp"] as const;
+
+/**
+ * Resolve a canonical user-facing runner name to the actual Zephyr runner name
+ * present in a build's runner list.
+ *
+ * - **stlink family**: `"stlink"` → first of `[stlink, stlink_gdbserver, stm32cubeprogrammer-stlink]` found.
+ * - **bmp family**: `"bmp"` → first of `[blackmagicprobe, bmp]` found.
+ * - All other names pass through unchanged.
+ */
+export function resolveCanonicalRunner(runner: string, available: string[]): string {
+  if (runner === "stlink") {
+    for (const variant of STLINK_VARIANTS) {
+      if (available.includes(variant)) { return variant; }
+    }
+  } else if (runner === "bmp") {
+    for (const variant of BMP_VARIANTS) {
+      if (available.includes(variant)) { return variant; }
+    }
+  }
+  return runner;
+}
 
 /**
  * Translate a Zephyr runner name to a cortex-debug `servertype`. Returns
@@ -335,21 +349,19 @@ export const BRIDGED_RUNNERS = new Set<string>([
  * 1. **Native servertypes** — cortex-debug ships a built-in server for the
  *    runner (jlink, openocd, pyocd, stlink, bmp, qemu).
  * 2. **External bridge** — runner has no native cortex-debug servertype but
- *    speaks the GDB remote protocol when launched via `west debug-server`.
+ *    speaks the GDB remote protocol when launched via `west debugserver`.
  *    Returns `"external"`; callers check {@link runnerNeedsBridge} and then
- *    spawn the server before connecting. Currently: nrfjprog, linkserver,
- *    esp32, stm32cubeprogrammer.
- * 3. **Unsupported** — flash-only runners (dfu-util, uf2, bossac, teensy, …)
+ *    spawn the server before connecting. See {@link WEST_DEBUG_RUNNERS} for
+ *    the full list.
+ * 3. **Unsupported** — flash-only runners (dfu-util, uf2, bossac, …)
  *    return `undefined`; the debug provider surfaces an actionable error.
  *
  * Notes on specific runners:
- * - `stm32cubeprogrammer-stlink` aliases the STM32_Programmer_CLI variant
- *   that does speak the ST-LINK GDB protocol; we map it to `"stlink"`.
- * - `stm32cubeprogrammer` (no `-stlink` suffix) is bridged so the user gets
- *   a debug session via `STM32_Programmer_CLI` + `west debug-server`.
- * - `qemu` is mapped to cortex-debug's `"qemu"` servertype; cortex-debug
- *   forwards to QEMU's built-in GDB stub. Board-specific cpu/machine still
- *   need to come from the user's launch.json passthrough.
+ * - `stlink`, `stlink_gdbserver`, and `stm32cubeprogrammer-stlink` all map to
+ *   the `"stlink"` servertype. The canonical user-facing name is `"stlink"`;
+ *   use {@link resolveCanonicalRunner} to pick the right variant at debug time.
+ * - `stm32cubeprogrammer` (no `-stlink` suffix) is bridged via `west debugserver`.
+ * - `qemu` is mapped to cortex-debug's `"qemu"` servertype.
  */
 export function runnerToServerType(runner: string): string | undefined {
   switch (runner) {
@@ -360,6 +372,7 @@ export function runnerToServerType(runner: string): string | undefined {
     case "pyocd":
       return "pyocd";
     case "stlink":
+    case "stlink_gdbserver":
     case "stm32cubeprogrammer-stlink":
       return "stlink";
     case "blackmagicprobe":
@@ -368,19 +381,19 @@ export function runnerToServerType(runner: string): string | undefined {
     case "qemu":
       return "qemu";
     default:
-      if (BRIDGED_RUNNERS.has(runner)) { return "external"; }
+      if (WEST_DEBUG_RUNNERS.includes(runner)) { return "external"; }
       return undefined;
   }
 }
 
 /**
  * True when {@link runnerToServerType} maps `runner` to cortex-debug's
- * `"external"` servertype via the `west debug-server` bridge. Callers that
+ * `"external"` servertype via the `west debugserver` bridge. Callers that
  * synthesize cortex-debug configurations must spawn the bridge server and
  * inject the resulting `gdbTarget` before handing the config to cortex-debug.
  */
 export function runnerNeedsBridge(runner: string): boolean {
-  return BRIDGED_RUNNERS.has(runner);
+  return WEST_DEBUG_RUNNERS.includes(runner);
 }
 
 /**

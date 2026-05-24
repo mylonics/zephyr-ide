@@ -100,7 +100,7 @@ to a cortex-debug `servertype` via one of three paths:
 | Path | Runners | How it works |
 | --- | --- | --- |
 | **Native** | `jlink`, `openocd`, `pyocd`, `stlink`, `stm32cubeprogrammer-stlink`, `blackmagicprobe`/`bmp`, `qemu` | cortex-debug speaks the GDB protocol to its built-in server. Zephyr IDE lifts `runners.yaml` args into the matching cortex-debug fields (`configFiles`, `device`, `speed`, `interface`, `BMPGDBSerialPort`, …). |
-| **External bridge** | `nrfjprog`, `linkserver`, `esp32`, `stm32cubeprogrammer` | Zephyr IDE spawns `west debug-server --runner <r> --build-dir <b>`, parses the listening `host:port` from its stdout, and hands cortex-debug a `servertype: "external"` config pointing at it. The server child is killed when the debug session ends. |
+| **External bridge** | `nrfjprog`, `linkserver`, `esp32`, `stm32cubeprogrammer` | Zephyr IDE spawns `west debugserver --runner <r> --build-dir <b>`, parses the listening `host:port` from its stdout, and hands cortex-debug a `servertype: "external"` config pointing at it. The server child is killed when the debug session ends. |
 | **Unsupported** | flash-only runners (`dfu-util`, `uf2`, `bossac`, `teensy`, …) | The provider surfaces an actionable error listing the rejected runners. Switch to a debug-capable runner or write a hand-rolled cortex-debug config. |
 
 > **Note on test coverage:** Not all debug runner paths and hardware combinations have been exercised. As a general rule — if you can start a debug session using a hand-written Cortex-Debug `launch.json`, the `zephyr-ide` debug type should also work for that same setup. If a runner path that should work gives you trouble, you can always fall back to a manual Cortex-Debug configuration in your `launch.json` in the meantime. Please [raise an issue on GitHub](https://github.com/mylonics/zephyr-ide/issues) so it can be tracked and fixed.
@@ -131,7 +131,7 @@ directly — the override semantics are identical.
 ### External GDB servers
 
 To connect to an already-running GDB server (Segger Ozone, a vendor IDE,
-a manually-started `west debug-server`, …) supply `gdbTarget` in
+a manually-started `west debugserver`, …) supply `gdbTarget` in
 `launch.json`:
 
 ```jsonc

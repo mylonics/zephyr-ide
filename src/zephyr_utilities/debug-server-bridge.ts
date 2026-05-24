@@ -17,11 +17,11 @@ limitations under the License.
 
 /**
  * West-debug-server lifecycle for the `zephyr-ide` debug provider's
- * **external bridge**. See {@link BRIDGED_RUNNERS} in `runners-yaml.ts`.
+ * **external bridge**. See {@link WEST_DEBUG_RUNNERS} in `runner_selector.ts`.
  *
- * A bridged runner (nrfjprog, linkserver, esp32, stm32cubeprogrammer, …) has
+ * A bridged runner (nrfjprog, linkserver, esp32, stm32cubeprogrammer, probe-rs, …) has
  * no native cortex-debug `servertype` but can be launched as a GDB-remote
- * server by `west debug-server`. The debug provider:
+ * server by `west debugserver`. The debug provider:
  *
  *   1. Calls {@link startWestDebugServer} to spawn the server child process,
  *      parse its stdout for the listening `host:port`, and resolve a handle
@@ -112,15 +112,15 @@ export interface StartWestDebugServerOptions {
   cwd: string;
   /** Absolute path to the build directory passed to `west --build-dir`. */
   buildDir: string;
-  /** Zephyr runner name (must be a bridged runner; see `BRIDGED_RUNNERS`). */
+  /** Zephyr runner name (must be a bridged runner; see `WEST_DEBUG_RUNNERS`). */
   runner: string;
-  /** Extra args appended to `west debug-server` after the runner name. */
+  /** Extra args appended to `west debugserver` after the runner name. */
   extraArgs?: string[];
   /** Override the default listen timeout (test hook). */
   listenTimeoutMs?: number;
   /**
    * Test hook: replace the spawned child with a pre-made one. When supplied,
-   * `west debug-server` is NOT invoked — useful for unit testing the stdout
+   * `west debugserver` is NOT invoked — useful for unit testing the stdout
    * parsing without a real Zephyr install.
    */
   spawnOverride?: () => ChildProcess;
@@ -150,7 +150,7 @@ export function matchPortAnnouncement(
 }
 
 /**
- * Spawn `west debug-server --runner <runner> --build-dir <buildDir> [extraArgs]`
+ * Spawn `west debugserver --runner <runner> --build-dir <buildDir> [extraArgs]`
  * and resolve once a listening port is detected on stdout/stderr, or once
  * `listenTimeoutMs` elapses (resolving with a runner-default port and
  * `portDetected: false`).
@@ -167,7 +167,7 @@ export async function startWestDebugServer(
   const timeoutMs = options.listenTimeoutMs ?? DEFAULT_LISTEN_TIMEOUT_MS;
 
   const args = [
-    "debug-server",
+    "debugserver",
     "--runner", runner,
     "--build-dir", buildDir,
     ...(options.extraArgs ?? []),
@@ -190,7 +190,7 @@ export async function startWestDebugServer(
     env.ZEPHYR_SDK_INSTALL_DIR = setupState.env["ZEPHYR_SDK_INSTALL_DIR"];
   }
 
-  outputInfo("Debug", `Starting west debug-server for runner "${runner}"\n  cwd: ${cwd}\n  args: ${args.join(" ")}`);
+  outputInfo("Debug", `Starting west debugserver for runner "${runner}"\n  cwd: ${cwd}\n  args: ${args.join(" ")}`);
 
   const child = options.spawnOverride
     ? options.spawnOverride()
@@ -207,6 +207,8 @@ export async function startWestDebugServer(
     let resolved = false;
     let stdoutBuffer = "";
     let stderrBuffer = "";
+    /** Full stderr/stdout accumulated for use in the exit-error message. */
+    let fullOutput = "";
 
     const settle = (host: string, port: number, portDetected: boolean) => {
       if (resolved) { return; }
@@ -215,8 +217,8 @@ export async function startWestDebugServer(
       outputInfo(
         "Debug",
         portDetected
-          ? `west debug-server listening on ${host}:${port}`
-          : `west debug-server port not detected within ${timeoutMs}ms; falling back to default ${host}:${port}. ` +
+          ? `west debugserver listening on ${host}:${port}`
+          : `west debugserver port not detected within ${timeoutMs}ms; falling back to default ${host}:${port}. ` +
           `If cortex-debug fails to connect, supply "gdbTarget" explicitly in launch.json.`,
       );
       resolve({ host, port, portDetected, dispose, child });
@@ -242,12 +244,13 @@ export async function startWestDebugServer(
           }
         }
       } catch (e) {
-        outputWarning("Debug", `Failed to terminate west debug-server child: ${String(e)}`);
+        outputWarning("Debug", `Failed to terminate west debugserver child: ${String(e)}`);
       }
     };
 
     const consumeChunk = (chunk: Buffer | string, isStderr: boolean) => {
       const text = chunk.toString();
+      fullOutput += text;
       if (isStderr) { stderrBuffer += text; } else { stdoutBuffer += text; }
       const buffer = isStderr ? stderrBuffer : stdoutBuffer;
       const lines = buffer.split(/\r?\n/);
@@ -271,7 +274,7 @@ export async function startWestDebugServer(
       if (resolved) { return; }
       resolved = true;
       clearTimeout(timeoutHandle);
-      outputError("Debug", `Failed to spawn west debug-server: ${err.message}`);
+      outputError("Debug", `Failed to spawn west debugserver: ${err.message}`);
       reject(err);
     });
 
@@ -279,10 +282,28 @@ export async function startWestDebugServer(
       if (resolved) { return; }
       resolved = true;
       clearTimeout(timeoutHandle);
-      const detail = stderrBuffer.trim() || stdoutBuffer.trim() || "(no output)";
-      const msg = `west debug-server exited before announcing a port (code=${code}, signal=${signal})\n${detail}`;
-      outputError("Debug", msg);
-      reject(new Error(msg));
+      // The full accumulated output is logged to the output channel; the Error
+      // message is kept short so VS Code's notification popup is not bloated.
+      // The caller in debug-provider.ts shows a "Show Output" button for details.
+      const detail = fullOutput.trim() || "(no output)";
+      if (code !== 0 && /unknown command/i.test(detail)) {
+        // west does not know "debugserver" — the command was added in Zephyr 3.6.
+        // Older releases (including some nRF Connect SDK versions) don't have it.
+        outputError("Debug",
+          `"west debugserver" is not available in this Zephyr installation. ` +
+          `The command was introduced in Zephyr 3.6; older releases (including some ` +
+          `nRF Connect SDK versions) do not have it.\n` +
+          `To debug with openocd or jlink natively via cortex-debug (no west bridge needed), ` +
+          `change the debug slot bind to "cortex-debug (auto-config)" in the ` +
+          `Zephyr IDE Active Project view.\n` +
+          `west output: ${detail}`);
+        // "unknown command" in the message is the detection key for debug-provider.ts.
+        reject(new Error("west debugserver: unknown command"));
+      } else {
+        const shortMsg = `west debugserver exited before announcing a port (code=${code}, signal=${signal})`;
+        outputError("Debug", `${shortMsg}\n${detail}`);
+        reject(new Error(shortMsg));
+      }
     });
 
     const timeoutHandle = setTimeout(() => {
@@ -292,9 +313,9 @@ export async function startWestDebugServer(
         settle("127.0.0.1", fallbackPort, false);
       } else {
         resolved = true;
-        outputError("Debug", `west debug-server did not announce a port within ${timeoutMs}ms and no default is known for runner "${runner}".`);
+        outputError("Debug", `west debugserver did not announce a port within ${timeoutMs}ms and no default is known for runner "${runner}".`);
         void dispose();
-        reject(new Error(`Timed out waiting for west debug-server (runner: ${runner}) to start.`));
+        reject(new Error(`Timed out waiting for west debugserver (runner: ${runner}) to start.`));
       }
     }, timeoutMs);
   });

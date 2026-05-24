@@ -25,9 +25,10 @@ import {
     resolveRunnersYamlPath,
     runnerToServerType,
     runnerNeedsBridge,
+    resolveCanonicalRunner,
     invalidateRunnersYamlCache,
-    BRIDGED_RUNNERS,
 } from "../zephyr_utilities/runners-yaml";
+import { WEST_DEBUG_RUNNERS } from "../project_utilities/runner_selector";
 import {
     buildCortexDebugConfig,
     pickDebugRunner,
@@ -50,6 +51,7 @@ suite("runners.yaml parser & DebugConfigurationProvider translation", () => {
         assert.strictEqual(runnerToServerType("openocd"), "openocd");
         assert.strictEqual(runnerToServerType("pyocd"), "pyocd");
         assert.strictEqual(runnerToServerType("stlink"), "stlink");
+        assert.strictEqual(runnerToServerType("stlink_gdbserver"), "stlink");
         assert.strictEqual(runnerToServerType("stm32cubeprogrammer-stlink"), "stlink");
         assert.strictEqual(runnerToServerType("blackmagicprobe"), "bmp");
         assert.strictEqual(runnerToServerType("bmp"), "bmp");
@@ -62,10 +64,12 @@ suite("runners.yaml parser & DebugConfigurationProvider translation", () => {
         assert.strictEqual(runnerToServerType("linkserver"), "external");
         assert.strictEqual(runnerToServerType("esp32"), "external");
         assert.strictEqual(runnerToServerType("stm32cubeprogrammer"), "external");
+        assert.strictEqual(runnerToServerType("probe-rs"), "external");
+        assert.strictEqual(runnerToServerType("nxp_s32dbg"), "external");
     });
 
-    test("runnerNeedsBridge agrees with BRIDGED_RUNNERS membership", () => {
-        for (const r of BRIDGED_RUNNERS) {
+    test("runnerNeedsBridge agrees with WEST_DEBUG_RUNNERS membership", () => {
+        for (const r of WEST_DEBUG_RUNNERS) {
             assert.strictEqual(runnerNeedsBridge(r), true, `${r} should need bridge`);
             assert.strictEqual(runnerToServerType(r), "external", `${r} should map to external`);
         }
@@ -73,6 +77,50 @@ suite("runners.yaml parser & DebugConfigurationProvider translation", () => {
         for (const r of ["jlink", "openocd", "pyocd", "stlink", "bmp", "qemu"]) {
             assert.strictEqual(runnerNeedsBridge(r), false, `${r} should not need bridge`);
         }
+    });
+
+    test("resolveCanonicalRunner: picks stlink variant in priority order", () => {
+        // All three present → prefer "stlink"
+        assert.strictEqual(
+            resolveCanonicalRunner("stlink", ["stm32cubeprogrammer-stlink", "stlink_gdbserver", "stlink"]),
+            "stlink"
+        );
+        // Only stlink_gdbserver present → fall back to it
+        assert.strictEqual(
+            resolveCanonicalRunner("stlink", ["stlink_gdbserver", "openocd"]),
+            "stlink_gdbserver"
+        );
+        // Only stm32cubeprogrammer-stlink present → last resort
+        assert.strictEqual(
+            resolveCanonicalRunner("stlink", ["stm32cubeprogrammer-stlink"]),
+            "stm32cubeprogrammer-stlink"
+        );
+        // No stlink variant at all → returns "stlink" unchanged
+        assert.strictEqual(
+            resolveCanonicalRunner("stlink", ["openocd", "jlink"]),
+            "stlink"
+        );
+        // Non-stlink runner → always unchanged
+        assert.strictEqual(resolveCanonicalRunner("jlink", ["openocd"]), "jlink");
+        assert.strictEqual(resolveCanonicalRunner("probe-rs", ["probe-rs"]), "probe-rs");
+    });
+
+    test("resolveCanonicalRunner: picks bmp variant in priority order", () => {
+        // blackmagicprobe preferred over bmp
+        assert.strictEqual(
+            resolveCanonicalRunner("bmp", ["bmp", "blackmagicprobe"]),
+            "blackmagicprobe"
+        );
+        // Only bmp present → use it
+        assert.strictEqual(
+            resolveCanonicalRunner("bmp", ["bmp", "openocd"]),
+            "bmp"
+        );
+        // No bmp variant → returns "bmp" unchanged
+        assert.strictEqual(
+            resolveCanonicalRunner("bmp", ["openocd"]),
+            "bmp"
+        );
     });
 
     test("parseRunnersYaml returns undefined for missing file", () => {
@@ -246,9 +294,9 @@ domains:
         const ry: any = { runners: ["jlink", "openocd"], debugRunner: "openocd", args: {} };
         // Explicit runner that IS in runners.yaml is returned as-is.
         assert.strictEqual(pickDebugRunner(ry, "jlink"), "jlink");
-        // Explicit runner that is NOT in runners.yaml falls back to debugRunner
-        // (with a warning logged) to avoid silently producing an empty-args config.
-        assert.strictEqual(pickDebugRunner(ry, "pyocd"), "openocd");
+        // Explicit runner that is NOT in runners.yaml but IS cortex-debug-capable
+        // is returned as-is (with a warning) so the user's explicit choice is honoured.
+        assert.strictEqual(pickDebugRunner(ry, "pyocd"), "pyocd");
         assert.strictEqual(pickDebugRunner(ry), "openocd");
         const ry2: any = { runners: ["jlink"], args: {} };
         assert.strictEqual(pickDebugRunner(ry2), "jlink");
@@ -257,16 +305,12 @@ domains:
     });
 
     test("pickDebugRunner: requested-runner fallback skips non-cortex-debug debugRunner", () => {
-        // debugRunner is qemu (not cortex-debug-capable). Requested runner
-        // "pyocd" is not in runners.yaml. Fallback should not return qemu;
-        // it should walk runners.yaml.runners for the first capable one.
+        // Requested runner "pyocd" is not in runners.yaml but IS cortex-debug-capable.
+        // The explicit choice is returned as-is (with a warning) regardless of debugRunner.
         const ry: any = { runners: ["openocd", "qemu"], debugRunner: "qemu", args: {} };
-        assert.strictEqual(pickDebugRunner(ry, "pyocd"), "openocd");
-        // When no capable runner exists in runners.yaml but the requested
-        // name is itself cortex-debug-capable (e.g. user explicitly named
-        // pyocd in launch.json against a board whose generated runners.yaml
-        // does not list it), return the requested name so cortex-debug can
-        // still try it.
+        assert.strictEqual(pickDebugRunner(ry, "pyocd"), "pyocd");
+        // Same: even when the only available runner is qemu, if the requested
+        // runner is cortex-debug-capable it is returned directly.
         const ry2: any = { runners: ["qemu"], debugRunner: "qemu", args: {} };
         assert.strictEqual(pickDebugRunner(ry2, "pyocd"), "pyocd");
         // When the requested runner is itself not cortex-debug-capable AND

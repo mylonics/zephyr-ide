@@ -1184,7 +1184,7 @@
             "properties": {
               "runner": {
                 "type": "string",
-                "description": "Optional Zephyr runner to use. Native cortex-debug servertypes: jlink, openocd, pyocd, stlink, blackmagicprobe/bmp, qemu. Bridged via `west debug-server` (cortex-debug servertype \"external\"): nrfjprog, linkserver, esp32, stm32cubeprogrammer. When omitted, the runner is read from runners.yaml's debug-runner."
+                "description": "Optional Zephyr runner to use. Native cortex-debug servertypes: jlink, openocd, pyocd, stlink, blackmagicprobe/bmp, qemu. Bridged via `west debugserver` (cortex-debug servertype \"external\"): nrfjprog, linkserver, esp32, stm32cubeprogrammer. When omitted, the runner is read from runners.yaml's debug-runner."
               },
               "project": {
                 "type": "string",
@@ -1256,7 +1256,7 @@
               },
               "gdbTarget": {
                 "type": "string",
-                "description": "host:port the GDB client connects to. Only meaningful for servertype \"external\". When set, Zephyr IDE skips spawning `west debug-server` for bridged runners and uses your value directly."
+                "description": "host:port the GDB client connects to. Only meaningful for servertype \"external\". When set, Zephyr IDE skips spawning `west debugserver` for bridged runners and uses your value directly."
               },
               "targetId": {
                 "type": "string",
@@ -1365,12 +1365,12 @@
               "useWestDebugServer": {
                 "type": "boolean",
                 "default": false,
-                "description": "When true, skip runner auto-translation and spawn `west debug-server --runner <runner> [westArgs]` directly. cortex-debug connects as servertype \"external\". ELF and GDB path are read from runners.yaml automatically. Only `runner` and `westArgs` are consumed; all other runner-specific fields are ignored."
+                "description": "When true, skip runner auto-translation and spawn `west debugserver --runner <runner> [westArgs]` directly. cortex-debug connects as servertype \"external\". ELF and GDB path are read from runners.yaml automatically. Only `runner` and `westArgs` are consumed; all other runner-specific fields are ignored."
               },
               "westArgs": {
                 "type": "array",
                 "items": { "type": "string" },
-                "description": "Raw arguments appended to `west debug-server` when `useWestDebugServer` is true, inserted after `--runner <runner> --build-dir <buildDir>`. Use for runner-specific flags (e.g. [\"--dev-id\", \"12345\"] for nrfjprog, [\"--config\", \"interface/stlink.cfg\"] for openocd)."
+                "description": "Raw arguments appended to `west debugserver` when `useWestDebugServer` is true, inserted after `--runner <runner> --build-dir <buildDir>`. Use for runner-specific flags (e.g. [\"--dev-id\", \"12345\"] for nrfjprog, [\"--config\", \"interface/stlink.cfg\"] for openocd)."
               }
             }
           },
@@ -1615,7 +1615,7 @@
           },
           {
             "label": "Zephyr IDE: Debug (nrfjprog bridge)",
-            "description": "Debug a Nordic nRF target via the west debug-server bridge. Zephyr IDE spawns `west debug-server --runner nrfjprog`, reads the listening GDB port from its stdout, and connects cortex-debug as servertype \"external\".",
+            "description": "Debug a Nordic nRF target via the west debugserver bridge. Zephyr IDE spawns `west debugserver --runner nrfjprog`, reads the listening GDB port from its stdout, and connects cortex-debug as servertype \"external\".",
             "body": {
               "name": "Zephyr IDE: Debug nRF",
               "type": "zephyr-ide",
@@ -1625,7 +1625,7 @@
           },
           {
             "label": "Zephyr IDE: Debug (linkserver bridge)",
-            "description": "Debug an NXP target via LinkServer through the west debug-server bridge. Zephyr IDE spawns `west debug-server --runner linkserver`, parses the listening port, and connects cortex-debug as servertype \"external\".",
+            "description": "Debug an NXP target via LinkServer through the west debugserver bridge. Zephyr IDE spawns `west debugserver --runner linkserver`, parses the listening port, and connects cortex-debug as servertype \"external\".",
             "body": {
               "name": "Zephyr IDE: Debug LinkServer",
               "type": "zephyr-ide",
@@ -1648,7 +1648,7 @@
           },
           {
             "label": "Zephyr IDE: Debug (external GDB server, manual)",
-            "description": "Connect to an already-running GDB server at a fixed address (Segger Ozone, vendor IDE, or a server you started manually). Setting `gdbTarget` suppresses Zephyr IDE's automatic west debug-server spawn. Use `useWestDebugServer: true` instead if you want Zephyr IDE to spawn and manage the server lifecycle automatically.",
+            "description": "Connect to an already-running GDB server at a fixed address (Segger Ozone, vendor IDE, or a server you started manually). Setting `gdbTarget` suppresses Zephyr IDE's automatic west debugserver spawn. Use `useWestDebugServer: true` instead if you want Zephyr IDE to spawn and manage the server lifecycle automatically.",
             "body": {
               "name": "Zephyr IDE: External GDB",
               "type": "zephyr-ide",
@@ -1658,10 +1658,10 @@
             }
           },
           {
-            "label": "Zephyr IDE: Debug (west debug-server)",
-            "description": "Spawn `west debug-server --runner <runner>` and connect cortex-debug as servertype \"external\". ELF and GDB path are read from runners.yaml automatically. Add westArgs for runner-specific flags (e.g. probe selection, config files).",
+            "label": "Zephyr IDE: Debug (west debugserver)",
+            "description": "Spawn `west debugserver --runner <runner>` and connect cortex-debug as servertype \"external\". ELF and GDB path are read from runners.yaml automatically. Add westArgs for runner-specific flags (e.g. probe selection, config files).",
             "body": {
-              "name": "Zephyr IDE: Debug (west debug-server)",
+              "name": "Zephyr IDE: Debug (west debugserver)",
               "type": "zephyr-ide",
               "request": "launch",
               "useWestDebugServer": true,

@@ -35,7 +35,7 @@ For a higher-level alternative that does not require any `launch.json` at all, c
 
 ### Bridged runners and external GDB servers
 
-Some runners (nrfjprog, linkserver, esp32, stm32cubeprogrammer) have no native cortex-debug servertype. Zephyr IDE automatically spawns `west debug-server --runner <runner>` in the background, reads the GDB port it announces on stdout, and connects cortex-debug as `servertype: "external"`. If the port is not detected within 10 seconds, Zephyr IDE falls back to the runner's default port and emits a warning.
+Some runners (nrfjprog, linkserver, esp32, stm32cubeprogrammer) have no native cortex-debug servertype. Zephyr IDE automatically spawns `west debugserver --runner <runner>` in the background, reads the GDB port it announces on stdout, and connects cortex-debug as `servertype: "external"`. If the port is not detected within 10 seconds, Zephyr IDE falls back to the runner's default port and emits a warning.
 
 To connect to an **already-running** GDB server (Segger Ozone, a vendor IDE, or a manually started server) instead of having Zephyr IDE spawn one, add `"gdbTarget": "host:port"` to the configuration. This suppresses the bridge auto-spawn for bridged runners and passes the address directly to cortex-debug.
 

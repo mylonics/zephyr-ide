@@ -341,15 +341,19 @@ export class ProjectBuildPanel {
 
         case "selectLocalBind": {
           const slot = message.slot as "flash" | "debug" | "attach" | undefined;
-          await setLocalBind(ctx, ws, slot);
+          const selProject = typeof message.project === "string" ? message.project : undefined;
+          const selBuild = typeof message.build === "string" ? message.build : undefined;
+          await setLocalBind(ctx, ws, slot, undefined, { projectName: selProject, buildName: selBuild });
           await this.refreshAfterChange();
           return;
         }
 
         case "clearLocalBind": {
           const slot = message.slot as "flash" | "debug" | "attach";
+          const clrProject = typeof message.project === "string" ? message.project : undefined;
+          const clrBuild = typeof message.build === "string" ? message.build : undefined;
           if (slot === "flash" || slot === "debug" || slot === "attach") {
-            await setLocalBind(ctx, ws, slot, null);
+            await setLocalBind(ctx, ws, slot, null, { projectName: clrProject, buildName: clrBuild });
             await this.refreshAfterChange();
           }
           return;

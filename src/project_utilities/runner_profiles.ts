@@ -94,9 +94,9 @@ export type FlashBind =
  *                      from `runners.yaml` and applies `enableRtt` / `probe` on
  *                      top. For advanced overrides (e.g. custom serverArgs, extra
  *                      cortex-debug fields) create a `launch.json` config instead.
- *   - "west-debug":    invoke `west debug-server` and connect cortex-debug as an
+ *   - "west-debug":    invoke `west debugserver` and connect cortex-debug as an
  *                      external GDB server. `extraArgs` are forwarded to the
- *                      `west debug-server` command line.
+ *                      `west debugserver` command line.
  */
 export type DebugBind =
   | { kind: "auto" }
@@ -124,7 +124,7 @@ export type DebugBind =
   | {
     kind: "west-debug";
     runner: string;
-    /** Free-text arg tokens forwarded to `west debug-server` after the runner name. */
+    /** Free-text arg tokens forwarded to `west debugserver` after the runner name. */
     extraArgs?: string[];
   };
 

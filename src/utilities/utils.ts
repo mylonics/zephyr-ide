@@ -27,7 +27,7 @@ import * as yaml from 'js-yaml';
 import { SetupState, WorkspaceConfig } from "../setup_utilities/types";
 import { getToolchainDir, resolveToolchainDirPath } from "../setup_utilities/workspace-config";
 import { initOutputChannel, getOutputChannel, outputCommand, outputError, outputInfo, outputLine, type ShellCommandResult } from "./output";
-import { KNOWN_RUNNERS, DEBUG_CAPABLE_RUNNERS } from "../project_utilities/runner_selector";
+import { KNOWN_RUNNERS, CORTEX_DEBUG_RUNNERS, WEST_DEBUG_RUNNERS } from "../project_utilities/runner_selector";
 export type { ShellCommandResult } from "./output";
 
 /**
@@ -627,7 +627,7 @@ export const RUNNER_TARGET_PREFIX = "runner:";
 export const WEST_FLASH_PREFIX = "west-flash:";
 /** Prefix for cortex-debug (auto-config) local-bind values. */
 export const CORTEX_DEBUG_PREFIX = "cortex-debug:";
-/** Prefix for west debug-server bridge local-bind values. */
+/** Prefix for west debugserver bridge local-bind values. */
 export const WEST_DEBUG_PREFIX = "west-debug:";
 
 const _RUNNER_ICON_PREFIX = "$(plug) ";
@@ -648,7 +648,7 @@ export async function selectLaunchConfiguration(
    *   No launch.json (not valid for flashing).
    * - "debug" (default): shows launch.json configs first, then all
    *   debug-capable runners under both "cortex-debug (auto-config)" and
-   *   "west debug-server bridge" sections — matching the Runner Profiles editor.
+   *   "west debugserver bridge" sections — matching the Runner Profiles editor.
    */
   mode: "flash" | "debug" = "debug",
 ): Promise<{ name: string; workspaceFolder?: string; isDefault?: boolean; isRunner?: boolean } | undefined> {
@@ -685,10 +685,13 @@ export async function selectLaunchConfiguration(
     } as vscode.QuickPickItem)));
   } else {
     // Debug/Attach: launch.json first, then two runner sections mirroring the
-    // Runner Profile editor (cortex-debug auto-config + west debug-server bridge).
-    const sortedRunners = availableSet
-      ? [...DEBUG_CAPABLE_RUNNERS.filter(r => availableSet.has(r)), ...DEBUG_CAPABLE_RUNNERS.filter(r => !availableSet.has(r))]
-      : DEBUG_CAPABLE_RUNNERS;
+    // Runner Profile editor (cortex-debug auto-config + west debugserver bridge).
+    // Sort available runners first, then runners not listed in this build's runners.yaml.
+    const sortList = (list: string[]) => availableSet
+      ? [...list.filter(r => availableSet.has(r)), ...list.filter(r => !availableSet.has(r))]
+      : list;
+    const sortedCortexRunners = sortList(CORTEX_DEBUG_RUNNERS);
+    const sortedWestRunners = sortList(WEST_DEBUG_RUNNERS);
 
     if (configurations && configurations.length > 0) {
       items.push({ label: "launch.json", kind: vscode.QuickPickItemKind.Separator });
@@ -699,17 +702,17 @@ export async function selectLaunchConfiguration(
     }
 
     items.push({ label: "cortex-debug (auto-config)", kind: vscode.QuickPickItemKind.Separator });
-    items.push(...sortedRunners.map(r => ({
+    items.push(...sortedCortexRunners.map(r => ({
       label: `${_RUNNER_ICON_PREFIX}${r}`,
       description: !availableSet || availableSet.has(r) ? "auto-config" : "(not in board's runners.yaml)",
       detail: `Pin to the ${r} runner; cortex-debug config is generated from runners.yaml.`,
     } as vscode.QuickPickItem)));
 
-    items.push({ label: "west debug-server bridge", kind: vscode.QuickPickItemKind.Separator });
-    items.push(...sortedRunners.map(r => ({
+    items.push({ label: "west debugserver bridge", kind: vscode.QuickPickItemKind.Separator });
+    items.push(...sortedWestRunners.map(r => ({
       label: `${_RUNNER_ICON_PREFIX}${r}${_WEST_LABEL_SUFFIX}`,
-      description: !availableSet || availableSet.has(r) ? "west debug-server" : "(not in board's runners.yaml)",
-      detail: `Always use west debug-server bridge with the ${r} runner.`,
+      description: !availableSet || availableSet.has(r) ? "west debugserver" : "(not in board's runners.yaml)",
+      detail: `Always use west debugserver bridge with the ${r} runner.`,
     } as vscode.QuickPickItem)));
   }
 
