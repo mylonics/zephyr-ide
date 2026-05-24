@@ -440,16 +440,19 @@ async function cleanupVscodeSettingsForGitSetup(commandId: string): Promise<void
     if (commandId !== "zephyr-ide.workspace-setup-from-git") {
         return;
     }
+    if (process.env.ZEPHYR_IDE_TESTING !== "true") {
+        return;
+    }
 
     const workspaceDir = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     if (!workspaceDir) {
         return;
     }
 
-    const vscodeSettingsDir = path.join(workspaceDir, ".vscode");
-    if (await fs.pathExists(vscodeSettingsDir)) {
-        await fs.remove(vscodeSettingsDir);
-        console.log(`🧹 Removed ${vscodeSettingsDir} before git clone setup to keep workspace empty`);
+    const vscodeSettingsFile = path.join(workspaceDir, ".vscode", "settings.json");
+    if (await fs.pathExists(vscodeSettingsFile)) {
+        await fs.remove(vscodeSettingsFile);
+        console.log(`🧹 Removed ${vscodeSettingsFile} before git clone setup to avoid non-empty workspace clone failure`);
     }
 }
 
