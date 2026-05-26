@@ -223,7 +223,7 @@ def _resolve_module_kconfig_vars() -> None:
         _log("info", f"Resolved {len(resolved)} module Kconfig paths from ZEPHYR_MODULES")
 
 
-def _seed_module_kconfig_vars() -> None:
+def _seed_module_kconfig_vars(seeded_out: Optional[Set[str]] = None) -> None:
     """Pre-populate unset $(VAR) references found in generated Kconfig files.
 
     Zephyr's CMake generates ``KCONFIG_BINARY_DIR/Kconfig.modules`` (and
@@ -245,6 +245,9 @@ def _seed_module_kconfig_vars() -> None:
 
     Seeding any unset variable with a path that is guaranteed not to exist
     as a file causes ``osource``/``orsource`` to skip them correctly.
+
+    If ``seeded_out`` is provided it is populated with the names of variables
+    that were seeded so the caller can clear them before the next reload.
     """
     kconfig_bin_dir = os.environ.get("KCONFIG_BINARY_DIR", "")
     if not kconfig_bin_dir or not os.path.isdir(kconfig_bin_dir):
@@ -271,6 +274,8 @@ def _seed_module_kconfig_vars() -> None:
                 if var not in os.environ:
                     os.environ[var] = sentinel
                     patched.append(var)
+                    if seeded_out is not None:
+                        seeded_out.add(var)
     except OSError:
         return
 
@@ -317,6 +322,11 @@ class Session:
         # intentionally excluded because Kconfig will recompute them when the
         # fragment is applied to a fresh build.
         self.user_set_syms: Set[str] = set()
+        # Vars that were seeded with the sentinel by _seed_module_kconfig_vars
+        # during the last init.  Cleared at the start of each reload so that
+        # new modules added between builds get correctly resolved rather than
+        # being stuck with the sentinel value.
+        self._seeded_sentinel_vars: Set[str] = set()
 
     # -- Loading ----------------------------------------------------------
 
@@ -367,7 +377,27 @@ class Session:
         # after the resolution pass above (e.g. external modules not listed in
         # ZEPHYR_MODULES, or non-module vars).  Without this, empty expansions
         # resolve to `srctree/` causing _KconfigIOError in osource.
-        _seed_module_kconfig_vars()
+        # Track which vars are seeded so reload() can clear them and allow
+        # re-resolution (important when new modules are added between builds).
+        self._seeded_sentinel_vars = set()
+        _seed_module_kconfig_vars(self._seeded_sentinel_vars)
+
+        # Diagnostic: log KCONFIG_BINARY_DIR and whether Kconfig.dts exists so
+        # issues with DT-derived symbols (DT_HAS_*) are easy to diagnose.
+        kconfig_bin_dir = os.environ.get("KCONFIG_BINARY_DIR", "")
+        if kconfig_bin_dir:
+            kconfig_dts = os.path.join(kconfig_bin_dir, "Kconfig.dts")
+            if os.path.isfile(kconfig_dts):
+                _log("info", f"KCONFIG_BINARY_DIR={kconfig_bin_dir!r} (Kconfig.dts found)")
+            else:
+                _log("warn",
+                     f"KCONFIG_BINARY_DIR={kconfig_bin_dir!r} but Kconfig.dts not found — "
+                     "DT_HAS_* symbols will be missing. "
+                     "Re-run a clean build and reload the Kconfig view.")
+        else:
+            _log("warn",
+                 "KCONFIG_BINARY_DIR is not set — DT_HAS_* symbols will be missing. "
+                 "Re-run a clean build and reload the Kconfig view.")
 
         # warn=False keeps the helper quiet; warnings would otherwise be
         # written to stderr and the IDE has no use for them today.
@@ -394,6 +424,12 @@ class Session:
     def reload(self) -> Dict[str, Any]:
         if self.kconfig_root is None:
             raise RuntimeError("reload called before init")
+        # Clear any sentinel values that were injected during the previous init
+        # so _resolve_module_kconfig_vars() can re-resolve them with real paths.
+        # This matters when new Zephyr modules are added between builds.
+        for var in self._seeded_sentinel_vars:
+            os.environ.pop(var, None)
+        self._seeded_sentinel_vars = set()
         return self.init(
             {
                 "kconfig_root": self.kconfig_root,
