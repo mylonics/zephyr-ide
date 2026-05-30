@@ -137,6 +137,7 @@ export function getKconfigHelperPath(extensionPath: string): string {
 const CMAKE_TO_ENV: Array<[cacheKey: string, envName: string]> = [
   ["ZEPHYR_BASE", "ZEPHYR_BASE"],
   ["BOARD", "BOARD"],
+  ["BOARD_QUALIFIERS", "BOARD_QUALIFIERS"],
   ["BOARD_DIR", "BOARD_DIR"],
   ["BOARD_REVISION", "BOARD_REVISION"],
   ["ARCH", "ARCH"],
@@ -192,6 +193,52 @@ export function buildEnvFromCMakeCache(buildFolder: string): Record<string, stri
   // expands to an empty prefix and kconfiglib cannot find the generated files.
   if (!env["KCONFIG_BINARY_DIR"]) {
     env["KCONFIG_BINARY_DIR"] = path.join(buildFolder, "Kconfig");
+  }
+
+  // KCONFIG_BOARD_DIR is a regular (non-cache) CMake variable in Zephyr:
+  //   set(KCONFIG_BOARD_DIR ${KCONFIG_BINARY_DIR}/boards)
+  // It is never written to CMakeCache.txt.  Without it the statement
+  //   osource "$(KCONFIG_BOARD_DIR)/Kconfig.$(BOARD)"
+  // (in ${ZEPHYR_BASE}/boards/Kconfig.v2) expands to an empty prefix, so the
+  // generated board Kconfig is never sourced.  That leaves promptless,
+  // select-driven symbols (BOARD_*, SOC_*, CPU_*, ARM/ARM64/RISCV, ...) at
+  // their default 'n', because kconfiglib ignores `.config` values for
+  // promptless symbols.  The arch "... Options" menus then all evaluate as
+  // hidden, breaking the architecture-specific menu filtering.
+  if (!env["KCONFIG_BOARD_DIR"]) {
+    env["KCONFIG_BOARD_DIR"] = path.join(env["KCONFIG_BINARY_DIR"], "boards");
+  }
+
+  // CMakeCache stores BOARD as the full board target, which Zephyr formats as
+  //   <name>[@<revision>][/<qualifiers>]
+  // e.g. "myl_rp_usb/rp2350a/m33" or "stm32f411e_disco@D/stm32f411xe".
+  // Zephyr's kconfig.cmake passes the components as SEPARATE env vars:
+  //   BOARD=stm32f411e_disco  BOARD_REVISION=D  BOARD_QUALIFIERS=stm32f411xe
+  // boards/Kconfig.v2 builds the board symbol name from $(BOARD) via
+  //   config BOARD_$(normalize_upper,$(BOARD))
+  // so a combined value would yield an invalid symbol name containing '/' or
+  // '@' (e.g. BOARD_STM32F411E_DISCO@D) and the board symbol would never be
+  // defined, breaking the BOARD -> SOC -> CPU -> ARM select chain.  Decompose
+  // the target: qualifiers follow the first '/', the revision follows '@'.
+  if (env["BOARD"]) {
+    let board = env["BOARD"];
+    const slash = board.indexOf("/");
+    if (slash !== -1) {
+      const qualifiers = board.slice(slash + 1);
+      board = board.slice(0, slash);
+      if (!env["BOARD_QUALIFIERS"]) {
+        env["BOARD_QUALIFIERS"] = qualifiers;
+      }
+    }
+    const at = board.indexOf("@");
+    if (at !== -1) {
+      const revision = board.slice(at + 1);
+      board = board.slice(0, at);
+      if (!env["BOARD_REVISION"]) {
+        env["BOARD_REVISION"] = revision;
+      }
+    }
+    env["BOARD"] = board;
   }
 
   // EDT_PICKLE is set by Zephyr's dts.cmake but is NOT a CACHE variable, so

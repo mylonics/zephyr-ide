@@ -148,7 +148,8 @@ def _ensure_zephyr_kconfiglib() -> None:
             kconfiglib = _kc
         _log("info", f"Using Zephyr kconfiglib from {kconfig_scripts}")
     except Exception as exc:  # noqa: BLE001
-        _log("warn", f"Could not load Zephyr kconfiglib from {kconfig_scripts}: {exc}")
+        _log(
+            "warn", f"Could not load Zephyr kconfiglib from {kconfig_scripts}: {exc}")
 
 
 def _find_module_kconfig(module_dir: str) -> Optional[str]:
@@ -161,9 +162,11 @@ def _find_module_kconfig(module_dir: str) -> Optional[str]:
         yml_path = os.path.join(module_dir, yml_rel)
         if os.path.isfile(yml_path):
             try:
-                content = open(yml_path, encoding="utf-8", errors="replace").read()
+                content = open(yml_path, encoding="utf-8",
+                               errors="replace").read()
                 # Simple line-based extraction; avoids a YAML dependency.
-                m = re.search(r'^\s*kconfig:\s*[\'"]?([^\s\'"#]+)', content, re.MULTILINE)
+                m = re.search(
+                    r'^\s*kconfig:\s*[\'"]?([^\s\'"#]+)', content, re.MULTILINE)
                 if m:
                     rel = m.group(1).strip("\'\"")
                     full = os.path.normpath(os.path.join(module_dir, rel))
@@ -220,7 +223,8 @@ def _resolve_module_kconfig_vars() -> None:
             resolved.append(var_name)
 
     if resolved:
-        _log("info", f"Resolved {len(resolved)} module Kconfig paths from ZEPHYR_MODULES")
+        _log(
+            "info", f"Resolved {len(resolved)} module Kconfig paths from ZEPHYR_MODULES")
 
 
 def _seed_module_kconfig_vars(seeded_out: Optional[Set[str]] = None) -> None:
@@ -267,7 +271,8 @@ def _seed_module_kconfig_vars(seeded_out: Optional[Set[str]] = None) -> None:
             if not os.path.isfile(fpath):
                 continue
             try:
-                content = open(fpath, encoding="utf-8", errors="replace").read()
+                content = open(fpath, encoding="utf-8",
+                               errors="replace").read()
             except OSError:
                 continue
             for var in re.findall(r'\$\(([A-Z][A-Z0-9_]+)\)', content):
@@ -284,7 +289,8 @@ def _seed_module_kconfig_vars(seeded_out: Optional[Set[str]] = None) -> None:
         summary = ", ".join(unique[:6])
         if len(unique) > 6:
             summary += f" … (+{len(unique) - 6} more)"
-        _log("info", f"Seeded {len(unique)} unset Kconfig module vars with sentinel: {summary}")
+        _log(
+            "info", f"Seeded {len(unique)} unset Kconfig module vars with sentinel: {summary}")
 
 
 # ---------------------------------------------------------------------------
@@ -388,7 +394,8 @@ class Session:
         if kconfig_bin_dir:
             kconfig_dts = os.path.join(kconfig_bin_dir, "Kconfig.dts")
             if os.path.isfile(kconfig_dts):
-                _log("info", f"KCONFIG_BINARY_DIR={kconfig_bin_dir!r} (Kconfig.dts found)")
+                _log(
+                    "info", f"KCONFIG_BINARY_DIR={kconfig_bin_dir!r} (Kconfig.dts found)")
             else:
                 _log("warn",
                      f"KCONFIG_BINARY_DIR={kconfig_bin_dir!r} but Kconfig.dts not found — "
@@ -495,6 +502,14 @@ class Session:
             item_name = node.item.name or ""
             item_type = "choice"
             value = node.item.selection.name if node.item.selection else ""
+            # Choice visibility: the choice itself has a .visibility property.
+            visible = node.item.visibility != 0
+        elif is_menu:
+            # MenuNode for a `menu` block does NOT have a .visibility attribute
+            # in kconfiglib — getattr would silently return the default 1 and
+            # make every menu appear visible regardless of its `depends on`.
+            # Evaluate the node's immediate dependency expression instead.
+            visible = bool(node.prompt) and kconfiglib.expr_value(node.dep) > 0
 
         out: Dict[str, Any] = {
             "id": id(node),
@@ -532,7 +547,8 @@ class Session:
                         child = child.next
                         continue
                     seen_sym_names.add(item.name)
-                children.append(self._serialize_node(child, depth - 1 if depth > 0 else -1))
+                children.append(self._serialize_node(
+                    child, depth - 1 if depth > 0 else -1))
                 child = child.next
             out["children"] = children
         return out
@@ -750,9 +766,12 @@ class Session:
             })
 
         hits.sort(key=lambda h: (h["rank"], h["name"]))
+        # Determine truncation from the pre-slice count so an exact-`limit`
+        # result set is not falsely reported as truncated.
+        truncated = limit > 0 and len(hits) > limit
         if limit > 0:
             hits = hits[:limit]
-        return {"hits": hits, "truncated": len(hits) >= limit}
+        return {"hits": hits, "truncated": truncated}
 
 
 # ---------------------------------------------------------------------------
