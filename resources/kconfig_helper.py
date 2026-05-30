@@ -507,6 +507,13 @@ class Session:
             "is_choice": is_choice,
             "is_symbol": is_symbol,
         }
+        # For choices and menus expose the immediate dependency expression so
+        # the UI can auto-enable guarding symbols when the user interacts with
+        # a hidden node (e.g. selecting a C++ standard enables CONFIG_CPP).
+        if is_choice or is_menu:
+            dep_str = kconfiglib.expr_str(node.dep)
+            if dep_str and dep_str != "y":
+                out["direct_dep"] = dep_str
 
         if depth != 0 and node.list:
             children = []

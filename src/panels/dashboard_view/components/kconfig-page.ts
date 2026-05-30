@@ -56,6 +56,7 @@ interface KconfigNode {
   is_choice: boolean;
   is_symbol: boolean;
   children?: KconfigNode[];
+  direct_dep?: string;
 }
 
 interface KconfigSymbolDetail {
@@ -178,6 +179,9 @@ export class KconfigPage extends ZephyrLitElement {
   /** True while a reload (discard + re-parse) is in progress — disables all
    * interactive controls so the user cannot edit while the tree is stale. */
   @state() private _reloading = false;
+  /** True from when the "Build & Re-parse" button is clicked until the
+   * extension posts back `kconfigExternalDone` after the build finishes. */
+  @state() private _building = false;
   /** Floating right-click context menu for tree rows. */
   @state() private _contextMenu?: {
     x: number;
@@ -678,10 +682,19 @@ export class KconfigPage extends ZephyrLitElement {
     this.postCommand("kconfigOpenExternal", { tool });
   }
 
+  /** Build the project then re-parse Kconfig so DT_HAS_* and other
+   * build-derived symbols reflect the new build output. */
+  private _onBuildAndReparse(): void {
+    this._building = true;
+    this._onBuild(false);
+    // _building is cleared in _reloadAfterExternal when kconfigExternalDone arrives.
+  }
+
   /** Phase 3: re-run `kconfigReload` after the user exits an external
    * menuconfig/guiconfig session and surface a transient banner so they
    * know the dashboard has caught up. */
   private async _reloadAfterExternal(tool: string): Promise<void> {
+    this._building = false;
     await this._onReload();
     this._saveStatus = {
       kind: "info",
@@ -1069,7 +1082,15 @@ export class KconfigPage extends ZephyrLitElement {
         </div>
         <vscode-button
           appearance="icon"
-          ?disabled=${reloading}
+          ?disabled=${reloading || this._building}
+          @click=${this._onBuildAndReparse}
+          title="Build project and re-parse Kconfig"
+        >
+          <span class="codicon ${this._building ? "codicon-loading codicon-modifier-spin" : "codicon-play"}"></span>
+        </vscode-button>
+        <vscode-button
+          appearance="icon"
+          ?disabled=${reloading || this._building}
           @click=${this._onReload}
           title="Discard in-memory edits and re-parse the build's .config"
         >
@@ -1409,7 +1430,10 @@ export class KconfigPage extends ZephyrLitElement {
    * visible in the tree (respects `_showHidden` via caller context). */
   private _hasVisibleContent(node: KconfigNode): boolean {
     if (node.is_symbol) { return node.visible; }
-    if (node.is_choice || node.is_menu) {
+    // Choices are always shown (even when invisible) so they always count as
+    // having content — prevents their parent menu from collapsing.
+    if (node.is_choice) { return true; }
+    if (node.is_menu) {
       if (!node.visible) { return false; }
       return (node.children ?? []).some((c) => this._hasVisibleContent(c));
     }
@@ -1420,10 +1444,12 @@ export class KconfigPage extends ZephyrLitElement {
     if (!this._showHidden) {
       // Hide invisible leaf symbols.
       if (!node.visible && !node.is_menu && !node.is_choice) { return nothing; }
-      // Hide menus/choices whose own `depends on` condition is false.
-      if ((node.is_menu || node.is_choice) && !node.visible) { return nothing; }
-      // Hide menus/choices that contain no visible descendants.
-      if ((node.is_menu || node.is_choice) && !this._hasVisibleContent(node)) { return nothing; }
+      // Hide menus whose own `depends on` condition is false.
+      if (node.is_menu && !node.visible) { return nothing; }
+      // Hide menus that contain no visible descendants.
+      // Choices are always shown even when invisible so the user can select an
+      // option and have the guarding dependency auto-enabled.
+      if (node.is_menu && !this._hasVisibleContent(node)) { return nothing; }
     }
     const hasChildren = !!(node.children && node.children.length);
     const expanded = this._expanded.has(node.id);
@@ -1583,55 +1609,90 @@ export class KconfigPage extends ZephyrLitElement {
     `;
   }
 
+  /** Extract Kconfig symbol names from a dependency expression string.
+   * Heuristic: uppercase identifiers — covers "A", "A && B", "(A || B) && C".
+   */
+  private _extractDepSymbols(expr: string): string[] {
+    if (!expr || expr === "y") { return []; }
+    const matches = expr.match(/\b([A-Z][A-Z0-9_]+)\b/g);
+    return matches ? [...new Set(matches)] : [];
+  }
+
+  /** Enable all symbols found in directDep (if assignable), then set the
+   * target symbol.  Used when the user picks a choice option whose parent
+   * choice has an unmet `depends on`. */
+  private async _enableDepsAndSet(directDep: string | undefined, name: string, value: string): Promise<void> {
+    if (directDep) {
+      for (const dep of this._extractDepSymbols(directDep)) {
+        const depNode = this._findNodeByName(dep);
+        if (depNode?.is_symbol
+          && (depNode.type === "bool" || depNode.type === "tristate")
+          && depNode.value !== "y") {
+          try { await this._setSymbol(dep, "y"); } catch { /* non-assignable — skip */ }
+        }
+      }
+    }
+    await this._setSymbol(name, value);
+  }
+
   private _renderChoiceNode(node: KconfigNode, depth: number): TemplateResult {
-    // Render as a single radio cluster; each child symbol becomes one option.
-    const expanded = this._expanded.has(node.id);
     const options = (node.children ?? []).filter((c) => c.is_symbol);
     const selected = options.find((o) => o.value === "y");
-    // Prefer the choice's prompt text; fall back to its identifier name; then generic label.
     const choiceLabel = node.prompt || node.name || "(choice)";
-    // Show the selected option's human-readable prompt rather than raw symbol name.
-    const selectedLabel = selected ? (selected.prompt || selected.name) : null;
+    const locked = !node.visible;
+    const modified = options.some((o) => this._isModified(o.name));
+
     return html`
-      <li class="kconfig-tree-menu kconfig-tree-choice" role="treeitem" aria-expanded=${expanded}>
+      <li
+        class="kconfig-tree-leaf ${locked ? "kconfig-tree-hidden" : ""} ${modified ? "kconfig-tree-modified" : ""}"
+        role="treeitem"
+      >
         <div
-          class="kconfig-tree-row kconfig-tree-row-menu"
-          style="padding-left:${depth * 14}px"
-          @click=${() => this._toggleExpand(node.id)}
+          class="kconfig-tree-row"
+          style="padding-left:${(depth + 1) * 14}px"
+          @click=${() => selected && void this._selectSymbol(selected.name)}
           @contextmenu=${(e: MouseEvent) => this._openContextMenu(e, node)}
         >
-          <span class="codicon ${expanded ? "codicon-chevron-down" : "codicon-chevron-right"}"></span>
-          <span class="kconfig-tree-label" title=${choiceLabel}>${choiceLabel}</span>
-          <span class="kconfig-tree-value" title=${selectedLabel ?? ""}>
-            ${selectedLabel ? html`<code>${selectedLabel}</code>` : html`<em class="kconfig-bool-label">none</em>`}
+          ${modified
+        ? html`<span class="kconfig-modified-dot" title="Modified from on-disk .config">●</span>`
+        : nothing}
+          <span class="kconfig-tree-label" title=${choiceLabel}>
+            ${choiceLabel}
+            ${locked && node.direct_dep
+        ? html`<span class="badge badge-muted" title="Requires: ${node.direct_dep}. Selecting an option will enable it.">requires: ${node.direct_dep}</span>`
+        : nothing}
+          </span>
+          <span class="kconfig-tree-value" @click=${(e: Event) => e.stopPropagation()}>
+            <vscode-single-select
+              .value=${selected?.name ?? ""}
+              @change=${(e: Event) => {
+        const t = e.currentTarget as { value?: string } | null;
+        const optName = t?.value;
+        if (!optName) { return; }
+        void (locked
+          ? this._enableDepsAndSet(node.direct_dep, optName, "y")
+          : this._setSymbol(optName, "y"));
+      }}
+              aria-label=${choiceLabel}
+            >
+              ${!selected ? html`<vscode-option value="">—</vscode-option>` : nothing}
+              ${options.map((opt) => html`
+                <vscode-option value=${opt.name}>${opt.prompt || opt.name}</vscode-option>
+              `)}
+            </vscode-single-select>
+          </span>
+          <span class="kconfig-row-actions" @click=${(e: Event) => e.stopPropagation()}>
+            ${selected
+        ? html`<vscode-button
+                  appearance="icon"
+                  title="Go to definition"
+                  @click=${() => void this._jumpToDefinition(selected.name)}
+                >
+                  <span class="codicon codicon-go-to-file"></span>
+                </vscode-button>`
+        : nothing}
           </span>
         </div>
-        ${expanded
-        ? html`<ul role="group">
-              ${options.map((opt) => html`
-                <li class="kconfig-tree-leaf ${this._selectedName === opt.name ? "kconfig-tree-selected" : ""}">
-                  <div
-                    class="kconfig-tree-row"
-                    style="padding-left:${(depth + 1) * 14}px"
-                  >
-                    <vscode-radio
-                      name=${`choice-${node.id}`}
-                      ?checked=${opt.value === "y"}
-                      @change=${(e: Event) => {
-            const t = e.currentTarget as { checked?: boolean } | null;
-            if (t?.checked) { void this._setSymbol(opt.name, "y"); }
-          }}
-                    ></vscode-radio>
-                    <span
-                      class="kconfig-tree-label kconfig-tree-link"
-                      title=${opt.prompt || opt.name}
-                      @click=${() => this._selectSymbol(opt.name)}
-                    >${opt.prompt || html`<code>${opt.name}</code>`}</span>
-                  </div>
-                </li>
-              `)}
-            </ul>`
-        : nothing}
       </li>
     `;
   }

@@ -68,6 +68,10 @@ export interface KconfigNode {
   is_choice: boolean;
   is_symbol: boolean;
   children?: KconfigNode[];
+  /** Immediate `depends on` expression for choice/menu nodes.  Present only
+   * when the dependency is non-trivial (not "y").  Used by the UI to
+   * auto-enable guarding symbols when the user interacts with a hidden node. */
+  direct_dep?: string;
 }
 
 export interface KconfigSymbolDetail {
@@ -188,6 +192,17 @@ export function buildEnvFromCMakeCache(buildFolder: string): Record<string, stri
   // expands to an empty prefix and kconfiglib cannot find the generated files.
   if (!env["KCONFIG_BINARY_DIR"]) {
     env["KCONFIG_BINARY_DIR"] = path.join(buildFolder, "Kconfig");
+  }
+
+  // EDT_PICKLE is set by Zephyr's dts.cmake but is NOT a CACHE variable, so
+  // it never appears in CMakeCache.txt.  Without it kconfiglib cannot load the
+  // devicetree state, causing all DT_HAS_*_ENABLED symbols to evaluate false
+  // and hiding any symbol whose `depends on` includes a DT_HAS_* condition.
+  if (!env["EDT_PICKLE"]) {
+    const edtPickle = path.join(buildFolder, "zephyr", "edt.pickle");
+    if (fs.existsSync(edtPickle)) {
+      env["EDT_PICKLE"] = edtPickle;
+    }
   }
 
   return env;
