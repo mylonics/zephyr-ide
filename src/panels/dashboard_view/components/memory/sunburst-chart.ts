@@ -64,7 +64,10 @@ export class MemorySunburst extends ZephyrLitElement {
 
   connectedCallback() {
     super.connectedCallback();
-    queueMicrotask(() => this._setupResizeObserver());
+  }
+
+  protected firstUpdated(): void {
+    this._setupResizeObserver();
   }
 
   disconnectedCallback() {
@@ -81,6 +84,9 @@ export class MemorySunburst extends ZephyrLitElement {
 
   private _setupResizeObserver() {
     if (typeof ResizeObserver === "undefined") { return; }
+    // Observe the SVG wrap div (which may be narrower than this element due to max-width),
+    // so _size always matches the actual rendered SVG width and SVG units stay 1:1 with CSS px.
+    const target = this.querySelector<HTMLElement>('.sunburst-svg-wrap') ?? this;
     this._resizeObs = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const w = entry.contentRect.width;
@@ -90,7 +96,7 @@ export class MemorySunburst extends ZephyrLitElement {
         }
       }
     });
-    this._resizeObs.observe(this);
+    this._resizeObs.observe(target);
   }
 
   private _resetFocus() {
@@ -177,6 +183,12 @@ export class MemorySunburst extends ZephyrLitElement {
     const holeR = Math.min(radius - 2, (focusNode.y1 - focusNode.y0) / (1 - focusNode.y0) * radius * yScale);
     const tipX = this._mx + 14;
     const tipY = this._my;
+    // Flip tooltip to avoid clipping at chart edges.
+    // 308 = 14px cursor gap + 280px max-width + 14px safety margin.
+    const flipX = this._mx + 308 > this._size;
+    const flipY = this._my < 70;
+    const tipTransX = flipX ? 'calc(-100% - 14px)' : '0';
+    const tipTransY = flipY ? '14px' : 'calc(-100% - 8px)';
 
     return html`
       <div class="sunburst-svg-wrap"
@@ -240,7 +252,7 @@ export class MemorySunburst extends ZephyrLitElement {
             pointer-events="none"
           >${formatBytes(centerSize)}</text>
         </svg>
-        ${hovered ? html`<div class="sunburst-tooltip" style="left:${tipX}px;top:${tipY}px">
+        ${hovered ? html`<div class="sunburst-tooltip" style="left:${tipX}px;top:${tipY}px;transform:translate(${tipTransX},${tipTransY})">
           <div class="sunburst-tooltip-path">${hovered.ancestors.concat(hovered.name).join(" \u203a ")}</div>
           <div class="sunburst-tooltip-meta">
             <span class="sunburst-tooltip-size">${formatBytes(hovered.size)}</span>

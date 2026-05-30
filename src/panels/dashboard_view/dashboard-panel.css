@@ -502,7 +502,6 @@ memory-tree-table {
   position: absolute;
   pointer-events: none;
   z-index: 10;
-  transform: translate(0, calc(-100% - 8px));
   background: #16161e;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 6px;
