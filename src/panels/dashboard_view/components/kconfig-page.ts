@@ -149,6 +149,7 @@ export class KconfigPage extends ZephyrLitElement {
   @state() private _selectedName?: string;
   @state() private _selectedDetail?: KconfigSymbolDetail;
   @state() private _selectedDetailLoading = false;
+  @state() private _selectedChoiceNode?: KconfigNode;
   @state() private _changes: KconfigChangeRow[] = [];
   @state() private _viewMode: ViewMode = "tree";
   @state() private _showHidden = false;
@@ -421,6 +422,18 @@ export class KconfigPage extends ZephyrLitElement {
     return undefined;
   }
 
+  /** Find any node by its stable Python id (DFS). */
+  private _findNodeById(id: number): KconfigNode | undefined {
+    if (!this._treeRoot) { return undefined; }
+    const stack: KconfigNode[] = [this._treeRoot];
+    while (stack.length) {
+      const n = stack.pop()!;
+      if (n.id === id) { return n; }
+      if (n.children) { for (const c of n.children) { stack.push(c); } }
+    }
+    return undefined;
+  }
+
   /** Expand all ancestors of a node so it becomes visible. */
   private _revealNode(target: KconfigNode): void {
     if (!this._treeRoot) { return; }
@@ -455,6 +468,16 @@ export class KconfigPage extends ZephyrLitElement {
       const byName = new Map<string, string>();
       for (const c of result.changed) { byName.set(c.name, c.new); }
       this._patchTreeValues(byName);
+      // Re-fetch the full tree so visibility changes (symbols becoming
+      // visible/hidden due to dependency changes) are reflected immediately,
+      // without requiring a full reload.  Node IDs are stable within a
+      // Python session so the _expanded set remains valid.
+      const freshTree = await this._request<{ top_menu: KconfigNode }>("kconfigTree");
+      this._treeRoot = freshTree.top_menu;
+      // Refresh selected-choice node reference to point into the new tree.
+      if (this._selectedChoiceNode) {
+        this._selectedChoiceNode = this._findNodeById(this._selectedChoiceNode.id) ?? this._selectedChoiceNode;
+      }
       // If the changed symbol is selected, refresh its detail.
       if (this._selectedName && byName.has(this._selectedName)) {
         void this._loadDetail(this._selectedName, /*silent*/ true);
@@ -483,6 +506,7 @@ export class KconfigPage extends ZephyrLitElement {
       this._historyIndex = this._history.length - 1;
     }
     this._selectedName = name;
+    this._selectedChoiceNode = undefined;
     await this._loadDetail(name);
   }
 
@@ -1082,9 +1106,9 @@ export class KconfigPage extends ZephyrLitElement {
         </div>
         <vscode-button
           appearance="icon"
-          ?disabled=${reloading || this._building}
+          ?disabled=${reloading || this._building || dirty > 0}
           @click=${this._onBuildAndReparse}
-          title="Build project and re-parse Kconfig"
+          title=${dirty > 0 ? "Save changes before building" : "Build project and re-parse Kconfig"}
         >
           <span class="codicon ${this._building ? "codicon-loading codicon-modifier-spin" : "codicon-play"}"></span>
         </vscode-button>
@@ -1641,16 +1665,19 @@ export class KconfigPage extends ZephyrLitElement {
     const choiceLabel = node.prompt || node.name || "(choice)";
     const locked = !node.visible;
     const modified = options.some((o) => this._isModified(o.name));
+    const isSelected = this._selectedChoiceNode?.id === node.id;
+
+    const handleClick = () => { this._selectChoice(node); };
 
     return html`
       <li
-        class="kconfig-tree-leaf ${locked ? "kconfig-tree-hidden" : ""} ${modified ? "kconfig-tree-modified" : ""}"
+        class="kconfig-tree-leaf ${locked ? "kconfig-tree-hidden" : ""} ${modified ? "kconfig-tree-modified" : ""} ${isSelected ? "kconfig-tree-selected" : ""}"
         role="treeitem"
       >
         <div
           class="kconfig-tree-row"
-          style="padding-left:${(depth + 1) * 14}px"
-          @click=${() => selected && void this._selectSymbol(selected.name)}
+          style="padding-left:${(depth + 1) * 14}px; cursor:pointer"
+          @click=${handleClick}
           @contextmenu=${(e: MouseEvent) => this._openContextMenu(e, node)}
         >
           ${modified
@@ -1662,24 +1689,8 @@ export class KconfigPage extends ZephyrLitElement {
         ? html`<span class="badge badge-muted" title="Requires: ${node.direct_dep}. Selecting an option will enable it.">requires: ${node.direct_dep}</span>`
         : nothing}
           </span>
-          <span class="kconfig-tree-value" @click=${(e: Event) => e.stopPropagation()}>
-            <vscode-single-select
-              .value=${selected?.name ?? ""}
-              @change=${(e: Event) => {
-        const t = e.currentTarget as { value?: string } | null;
-        const optName = t?.value;
-        if (!optName) { return; }
-        void (locked
-          ? this._enableDepsAndSet(node.direct_dep, optName, "y")
-          : this._setSymbol(optName, "y"));
-      }}
-              aria-label=${choiceLabel}
-            >
-              ${!selected ? html`<vscode-option value="">—</vscode-option>` : nothing}
-              ${options.map((opt) => html`
-                <vscode-option value=${opt.name}>${opt.prompt || opt.name}</vscode-option>
-              `)}
-            </vscode-single-select>
+          <span class="kconfig-tree-value">
+            <code class="kconfig-bool-label">${selected ? (selected.prompt || selected.name) : "—"}</code>
           </span>
           <span class="kconfig-row-actions" @click=${(e: Event) => e.stopPropagation()}>
             ${selected
@@ -1751,7 +1762,36 @@ export class KconfigPage extends ZephyrLitElement {
   // Render: detail pane
   // ------------------------------------------------------------------
 
+  private _selectChoice(node: KconfigNode): void {
+    this._selectedChoiceNode = node;
+    this._selectedName = undefined;
+    this._selectedDetail = undefined;
+  }
+
+  private _renderChoiceDetail(node: KconfigNode): TemplateResult {
+    const options = (node.children ?? []).filter((c) => c.is_symbol);
+    const selected = options.find((o) => o.value === "y");
+    const locked = !node.visible;
+    return html`
+      <div class="kconfig-detail">
+        <div class="kconfig-detail-header">
+          <h2><code>CONFIG_${node.name}</code></h2>
+          ${node.prompt ? html`<p class="kconfig-detail-prompt">${node.prompt}</p>` : nothing}
+        </div>
+        <dl class="kconfig-detail-grid">
+          <dt>Type</dt><dd>choice</dd>
+          ${selected ? html`<dt>Selected</dt><dd><code>${selected.prompt || selected.name}</code></dd>` : nothing}
+          ${locked && node.direct_dep ? html`<dt>Depends on</dt><dd>${this._renderExpr(node.direct_dep)}</dd>` : nothing}
+        </dl>
+        ${this._renderChoiceDetailEditor(node)}
+      </div>
+    `;
+  }
+
   private _renderDetail() {
+    if (this._selectedChoiceNode) {
+      return this._renderChoiceDetail(this._selectedChoiceNode);
+    }
     if (!this._selectedName) {
       return html`<p class="kconfig-info">Select a symbol to see its details.</p>`;
     }
@@ -1824,7 +1864,38 @@ export class KconfigPage extends ZephyrLitElement {
   }
 
   private _renderDetailEditor(d: KconfigSymbolDetail): TemplateResult | typeof nothing {
-    if (d.is_constant || !d.visible) { return nothing; }
+    if (d.is_constant) { return nothing; }
+
+    // Choice members: show a dropdown for the whole choice group rather than
+    // a single-symbol bool editor.  Works even when the choice is locked
+    // (depends on not met) so the user can pick an option and auto-enable
+    // the guarding dependency.
+    if (d.choice !== null) {
+      const choiceNode = this._findChoiceForSymbol(d.name);
+      if (choiceNode) { return this._renderChoiceDetailEditor(choiceNode); }
+    }
+
+    if (!d.visible) {
+      // For bool/tristate symbols hidden due to an unmet dependency, offer a
+      // one-click "enable with dependencies" action rather than a dead end.
+      if ((d.type === "bool" || d.type === "tristate") && d.direct_dependencies && d.direct_dependencies !== "y") {
+        return html`
+          <section class="kconfig-detail-editor">
+            <h3>Set value</h3>
+            <p class="kconfig-info" style="margin:0 0 6px">
+              <span class="codicon codicon-lock" style="margin-right:4px"></span>
+              Hidden — dependency not met: ${this._renderExpr(d.direct_dependencies)}
+            </p>
+            <div class="kconfig-detail-editor-row">
+              <vscode-button @click=${() => void this._enableDepsAndSet(d.direct_dependencies, d.name, "y")}>
+                Enable (auto-enable dependencies)
+              </vscode-button>
+            </div>
+          </section>
+        `;
+      }
+      return nothing;
+    }
     const node: KconfigNode = {
       id: -1,
       prompt: d.prompt,
@@ -1853,6 +1924,59 @@ export class KconfigPage extends ZephyrLitElement {
           ${this._renderInlineEditor(node)}
         </div>
         ${rangeHint}
+      </section>
+    `;
+  }
+
+  /** Find the choice node in the tree that owns the given symbol as a child. */
+  private _findChoiceForSymbol(name: string): KconfigNode | undefined {
+    const search = (node: KconfigNode): KconfigNode | undefined => {
+      if (node.is_choice && node.children?.some((c) => c.name === name)) {
+        return node;
+      }
+      for (const child of node.children ?? []) {
+        const found = search(child);
+        if (found) { return found; }
+      }
+      return undefined;
+    };
+    return this._treeRoot ? search(this._treeRoot) : undefined;
+  }
+
+  /** Detail-pane editor for a choice: a single `<vscode-single-select>` that
+   * replaces the per-option bool toggles with one compact dropdown. */
+  private _renderChoiceDetailEditor(choiceNode: KconfigNode): TemplateResult {
+    const options = (choiceNode.children ?? []).filter((c) => c.is_symbol);
+    const selected = options.find((o) => o.value === "y");
+    const locked = !choiceNode.visible;
+    return html`
+      <section class="kconfig-detail-editor">
+        <h3>Select</h3>
+        ${locked && choiceNode.direct_dep
+        ? html`<p class="kconfig-info" style="margin:0 0 6px">
+            <span class="codicon codicon-lock" style="margin-right:4px"></span>
+            Requires <strong>${choiceNode.direct_dep}</strong> — selecting an option will enable it.
+          </p>`
+        : nothing}
+        <div class="kconfig-detail-editor-row">
+          <vscode-single-select
+            .value=${selected?.name ?? ""}
+            @change=${(e: Event) => {
+        const t = e.currentTarget as { value?: string } | null;
+        const optName = t?.value;
+        if (!optName) { return; }
+        void (locked
+          ? this._enableDepsAndSet(choiceNode.direct_dep, optName, "y")
+          : this._setSymbol(optName, "y"));
+      }}
+            aria-label=${choiceNode.prompt || "choice"}
+          >
+            ${!selected ? html`<vscode-option value="">—</vscode-option>` : nothing}
+            ${options.map((opt) => html`
+              <vscode-option value=${opt.name}>${opt.prompt || opt.name}</vscode-option>
+            `)}
+          </vscode-single-select>
+        </div>
       </section>
     `;
   }
