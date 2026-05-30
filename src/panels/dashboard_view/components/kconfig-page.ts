@@ -1640,8 +1640,25 @@ export class KconfigPage extends ZephyrLitElement {
    */
   private _extractDepSymbols(expr: string): string[] {
     if (!expr || expr === "y") { return []; }
-    const matches = expr.match(/\b([A-Z][A-Z0-9_]+)\b/g);
-    return matches ? [...new Set(matches)] : [];
+    const symbolPattern = /\b([A-Z_][A-Z0-9_]*)\b/g;
+    const comparisonPattern = /(?:==|!=|<=|>=|=|<|>)/;
+    const prevOperatorPattern = /(?:==|!=|<=|>=|=|<|>|!)$/;
+    const nextOperatorPattern = /^(?:==|!=|<=|>=|=|<|>|!)/;
+    const matches = expr.matchAll(symbolPattern);
+    const deps = new Set<string>();
+    const isComparisonToken = (token?: string): boolean => token !== undefined && comparisonPattern.test(token);
+    for (const m of matches) {
+      const symbol = m[1];
+      const idx = m.index ?? -1;
+      if (idx < 0) { continue; }
+      const before = expr.slice(0, idx).trimEnd();
+      const after = expr.slice(idx + symbol.length).trimStart();
+      const prevToken = before.match(prevOperatorPattern)?.[0];
+      const nextToken = after.match(nextOperatorPattern)?.[0];
+      if (prevToken === "!" || isComparisonToken(prevToken) || isComparisonToken(nextToken)) { continue; }
+      deps.add(symbol);
+    }
+    return [...deps];
   }
 
   /** Enable all symbols found in directDep (if assignable), then set the
@@ -1774,10 +1791,12 @@ export class KconfigPage extends ZephyrLitElement {
     const options = (node.children ?? []).filter((c) => c.is_symbol);
     const selected = options.find((o) => o.value === "y");
     const locked = !node.visible;
+    const choiceName = node.name.trim();
+    const choiceHeader = choiceName ? `CONFIG_${choiceName}` : (node.prompt || "(choice)");
     return html`
       <div class="kconfig-detail">
         <div class="kconfig-detail-header">
-          <h2><code>CONFIG_${node.name}</code></h2>
+          <h2><code>${choiceHeader}</code></h2>
           ${node.prompt ? html`<p class="kconfig-detail-prompt">${node.prompt}</p>` : nothing}
         </div>
         <dl class="kconfig-detail-grid">
