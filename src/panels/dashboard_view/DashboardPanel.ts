@@ -323,6 +323,32 @@ export class DashboardPanel {
     const requestId = typeof message.requestId === "number" ? message.requestId : undefined;
     const replyCommand = `${command}Result`;
     try {
+      // kconfigReload resets the entire session (disposes the old one and
+      // creates a fresh one via the factory so CMakeCache.txt is re-read from
+      // disk).  Handle it before obtaining a session reference to avoid
+      // creating a session only to discard it immediately.
+      if (command === "kconfigReload") {
+        // Dispose the cached session so the factory re-reads CMakeCache.txt
+        // and re-parses the Kconfig tree from disk.  This picks up updated
+        // Kconfig.dts files after a rebuild (e.g. new DT-derived symbols
+        // like DT_HAS_GPIO_KEYS_ENABLED after adding a gpio_keys node), as
+        // well as any new CMake cache variables produced by the latest
+        // configure run.  The webview separately fetches the tree via
+        // kconfigTree after this resolves.
+        if (this._kconfigSessionPromise) {
+          this._kconfigSessionPromise.then((s) => s.dispose()).catch(() => {});
+          this._kconfigSessionPromise = undefined;
+        }
+        await this._getOrInitSession();
+        await this._panel.webview.postMessage({
+          command: replyCommand,
+          ok: true,
+          requestId,
+          result: { ok: true },
+        });
+        return;
+      }
+
       const session = await this._getOrInitSession();
       let result: unknown;
       switch (command) {
@@ -410,9 +436,6 @@ export class DashboardPanel {
           result = { targets };
           break;
         }
-        case "kconfigReload":
-          result = await session.reload();
-          break;
         default:
           // Unknown kconfig* message - swallow silently; the existing fragment
           // handler upstream already deals with kconfigSaveFragment / Open.

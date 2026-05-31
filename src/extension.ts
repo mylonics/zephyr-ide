@@ -1491,13 +1491,29 @@ export async function activate(context: vscode.ExtensionContext) {
   //Board commands
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.build-pristine", async () => {
-      return await buildHelper(context, wsConfig, true);
+      // Capture the active build before the build runs so we can notify its
+      // dashboard panel (if open) to reload the Kconfig view afterwards.
+      const preResolved = resolveActiveProjectBuild(wsConfig);
+      const success = await buildHelper(context, wsConfig, true);
+      if (success && preResolved) {
+        await DashboardPanel.getPanel(preResolved.project.name, preResolved.build.name)
+          ?.notifyKconfigExternalDone("build");
+      }
+      return success;
     })
   );
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.build", async () => {
-      return await buildHelper(context, wsConfig, false);
+      // Capture the active build before the build runs so we can notify its
+      // dashboard panel (if open) to reload the Kconfig view afterwards.
+      const preResolved = resolveActiveProjectBuild(wsConfig);
+      const success = await buildHelper(context, wsConfig, false);
+      if (success && preResolved) {
+        await DashboardPanel.getPanel(preResolved.project.name, preResolved.build.name)
+          ?.notifyKconfigExternalDone("build");
+      }
+      return success;
     })
   );
 

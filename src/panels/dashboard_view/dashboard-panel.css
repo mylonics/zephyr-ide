@@ -99,9 +99,18 @@ dashboard-app {
 
 .dashboard-content {
   flex: 1;
+  /* Prevent the flex item from being forced wider than the available space
+     by a child element's min-content-width (e.g. the memory grid). */
+  min-width: 0;
+  min-height: 0;
   padding: 20px 28px 32px;
   overflow-y: auto;
   overflow-x: hidden;
+  /* Flex column so kconfig-page (flex:1) can fill the remaining height
+     without causing the outer content area to scroll. All other page
+     components use the default flex: 0 1 auto and size to their content. */
+  display: flex;
+  flex-direction: column;
 }
 
 .dashboard-content h1 {
@@ -194,11 +203,38 @@ dashboard-app {
 /* Ensure page components render as block elements (custom elements default to inline). */
 memory-page,
 summary-page,
-kconfig-page,
-sysinit-page,
+sysinit-page {
+  display: block;
+}
+
+/* dts-page and elfstats-page fill the content area and scroll internally,
+   so the outer .dashboard-content never shows a competing scrollbar. */
 dts-page,
 elfstats-page {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+dts-page pre.text-viewer,
+elfstats-page pre.text-viewer {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  overflow: auto;
+}
+
+/* kconfig-page fills the entire content-area height and handles its own
+   vertical scrolling (fallback table mode), so the outer .dashboard-content
+   never shows a competing scrollbar for the tree editor mode. */
+kconfig-page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 memory-sunburst,
 memory-tree-table {
@@ -430,7 +466,10 @@ memory-tree-table {
 /* ---- Sunburst chart ---- */
 .sunburst-svg-wrap {
   width: 100%;
+  /* Cap the square SVG so it never exceeds the viewport height on wide screens */
+  max-width: calc(100vh - 120px);
   position: relative;
+  margin: 0 auto;
 }
 
 .sunburst-arc {
@@ -463,7 +502,6 @@ memory-tree-table {
   position: absolute;
   pointer-events: none;
   z-index: 10;
-  transform: translate(0, calc(-100% - 8px));
   background: #16161e;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 6px;
@@ -954,8 +992,9 @@ pre.text-viewer {
 }
 
 .dts-tree-wrap {
+  flex: 1;
+  min-height: 0;
   overflow: auto;
-  max-height: calc(100vh - 210px);
   border: 1px solid var(--vscode-panel-border);
   border-radius: var(--zephyr-webview-radius);
 }
@@ -1156,7 +1195,11 @@ pre.text-viewer {
   gap: 12px;
   align-items: stretch;
   margin-top: 8px;
-  min-height: 480px;
+  /* Fill the remaining height inside kconfig-page (which is flex: 1 itself).
+     min-height: 0 allows the grid to shrink below its content height so the
+     panes do not escape the visible area and cause a double scrollbar. */
+  flex: 1;
+  min-height: 0;
 }
 
 .kconfig-pane {
@@ -1165,7 +1208,9 @@ pre.text-viewer {
   background-color: var(--vscode-editor-background);
   overflow: auto;
   padding: 6px 4px;
-  max-height: calc(100vh - 240px);
+  /* No max-height: the pane height is determined by the grid row height,
+     which fills kconfig-split's flex-1 height. Pane scrolls internally. */
+  min-height: 0;
 }
 
 .kconfig-pane-detail {
