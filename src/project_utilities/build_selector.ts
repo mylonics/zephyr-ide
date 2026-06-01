@@ -25,7 +25,7 @@ import { ConfigFiles } from './config_selector';
 import { SetupState } from '../setup_utilities/types';
 import { executeShellCommandInPythonEnv, output } from "../utilities/utils";
 import { notifyError, outputCommandFailure, outputWarning, outputError } from "../utilities/output";
-import { isVersionNumberGreaterEqual } from '../setup_utilities/modules';
+import { isVersionNumberGreaterEqual, getModuleBoardRoots, ModuleBoardRoot } from '../setup_utilities/modules';
 import { splitBuildArgs } from "./build_args";
 
 
@@ -210,23 +210,33 @@ export function pickBoardSteps(
   setupState: SetupState,
   rootPath: string,
   state: PickBoardState,
-  options: { startStep: number; totalSteps: number; next?: InputStep }
+  options: { startStep: number; totalSteps: number; next?: InputStep; moduleBoardRoots?: ModuleBoardRoot[] }
 ): InputStep {
   const title = "Board Picker";
-  const { startStep, totalSteps, next } = options;
+  const { startStep, totalSteps, next, moduleBoardRoots } = options;
 
   // Build the list of candidate board directories once; it doesn't depend on
   // any user input.
-  const boardDirectories: string[] = [];
+  const boardDirItems: QuickPickItem[] = [];
   const boardDir = path.join(rootPath, `boards`);
   if (fs.pathExistsSync(boardDir)) {
-    boardDirectories.push(boardDir);
+    boardDirItems.push({ label: boardDir });
   }
+
+  // Map from label → absPath for module board root entries.
+  const moduleBoardRootMap = new Map<string, string>();
+  if (moduleBoardRoots && moduleBoardRoots.length > 0) {
+    boardDirItems.push({ label: "Modules", kind: vscode.QuickPickItemKind.Separator });
+    for (const mod of moduleBoardRoots) {
+      boardDirItems.push({ label: mod.name, description: mod.absPath });
+      moduleBoardRootMap.set(mod.name, mod.absPath);
+    }
+  }
+
   if (setupState.zephyrDir) {
-    boardDirectories.push('Zephyr Directory Only');
+    boardDirItems.push({ label: 'Zephyr Directory Only' });
   }
-  boardDirectories.push("Select Other Folder");
-  const boardDirectoriesQpItems: QuickPickItem[] = mapToQuickPickItems(boardDirectories);
+  boardDirItems.push({ label: "Select Other Folder" });
 
   async function pickBoardDir(input: MultiStepInput): Promise<InputStep | void> {
     const pick = await input.showQuickPick({
@@ -235,12 +245,21 @@ export function pickBoardSteps(
       totalSteps,
       placeholder: 'Pick Additional Board Directory',
       ignoreFocusOut: true,
-      items: boardDirectoriesQpItems,
+      items: boardDirItems,
       activeItem: undefined,
     });
 
-    let relBoardDir: string | undefined = path.relative(rootPath, pick.label);
-    if (pick.label === "Select Other Folder") {
+    const modAbsPath = moduleBoardRootMap.get(pick.label);
+    let relBoardDir: string | undefined;
+    let boardRootFolder: vscode.Uri | undefined;
+
+    if (modAbsPath) {
+      // Module board root: the board_root value from module.yml is the directory
+      // west uses as --board-root (it expects a boards/ subdir inside).
+      const boardsFolder = path.join(modAbsPath, "boards");
+      relBoardDir = path.relative(rootPath, boardsFolder);
+      boardRootFolder = vscode.Uri.file(boardsFolder);
+    } else if (pick.label === "Select Other Folder") {
       const boarddir = await vscode.window.showOpenDialog({
         canSelectFiles: false,
         canSelectFolders: true,
@@ -248,18 +267,23 @@ export function pickBoardSteps(
       });
       if (boarddir) {
         relBoardDir = path.relative(rootPath, boarddir[0].fsPath);
+        boardRootFolder = boarddir[0];
       } else {
         void vscode.window.showInformationMessage(`Failed to select board directory`);
         return;
       }
     } else if (pick.label === 'Zephyr Directory Only') {
       relBoardDir = undefined;
+      boardRootFolder = undefined;
+    } else {
+      relBoardDir = path.relative(rootPath, pick.label);
+      boardRootFolder = vscode.Uri.file(pick.label);
     }
 
     state.relBoardDir = relBoardDir;
 
-    const boardList = relBoardDir
-      ? await getBoardlistWest(setupState, vscode.Uri.file(path.join(rootPath, relBoardDir)))
+    const boardList = boardRootFolder
+      ? await getBoardlistWest(setupState, boardRootFolder)
       : await getBoardlistWest(setupState, undefined);
 
     if (!boardList) {
@@ -368,8 +392,9 @@ function finalizeBoardConfig(
  */
 export async function pickBoard(setupState: SetupState, rootPath: string): Promise<BoardConfig | undefined> {
   const state: PickBoardState = {};
+  const moduleBoardRoots = await getModuleBoardRoots(setupState);
   try {
-    await MultiStepInput.run(pickBoardSteps(setupState, rootPath, state, { startStep: 1, totalSteps: 3 }));
+    await MultiStepInput.run(pickBoardSteps(setupState, rootPath, state, { startStep: 1, totalSteps: 3, moduleBoardRoots }));
   } catch (error) {
     handleSelectorError(error);
     return undefined;
@@ -381,8 +406,10 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
   const title = 'Add Build Configuration';
   const TOTAL_STEPS = 7;
 
-  const state: Partial<BuildConfig> & { completed?: boolean } = {};
+  const state: Partial<BuildConfig> = {};
+  let completed = false;
   const boardState: PickBoardState = {};
+  const moduleBoardRoots = await getModuleBoardRoots(setupState);
 
   async function inputBuildName(input: MultiStepInput): Promise<InputStep | void> {
     const boardConfig = boardState.boardConfig;
@@ -483,7 +510,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       overlay: [],
     };
 
-    state.completed = true;
+    completed = true;
     return;
   }
 
@@ -494,6 +521,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
     startStep: 1,
     totalSteps: TOTAL_STEPS,
     next: inputBuildName,
+    moduleBoardRoots,
   });
 
   try {
@@ -503,7 +531,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
     return undefined;
   }
 
-  if (!state.completed || !state.name || !boardState.boardConfig) {
+  if (!completed || !state.name || !boardState.boardConfig) {
     return undefined;
   }
   return state as BuildConfig;

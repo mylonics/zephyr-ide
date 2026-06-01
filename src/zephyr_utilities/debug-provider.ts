@@ -1029,6 +1029,36 @@ export class ZephyrIdeDebugConfigurationProvider
     if (cortexCfg.servertype === "bmp" && vscode.extensions.getExtension(BMP_DEBUG_EXTENSION_ID)) {
       cortexCfg.type = "bmp-debug";
       cortexCfg.rtos = "zephyr";
+      // bmp-debug sources zephyr_gdb.py for RTOS thread awareness and therefore
+      // requires the Python-enabled GDB variant (arm-zephyr-eabi-gdb-py).
+      // runners.yaml typically records the plain arm-zephyr-eabi-gdb; upgrade
+      // it here if the -py sibling exists on disk.
+      if (cortexCfg.gdbPath && typeof cortexCfg.gdbPath === "string") {
+        const pyGdbPath = cortexCfg.gdbPath.replace(/gdb(?!-py)(\.exe)?$/i, "gdb-py$1");
+        if (pyGdbPath !== cortexCfg.gdbPath && fs.existsSync(pyGdbPath)) {
+          cortexCfg.gdbPath = pyGdbPath;
+          // bmp-debug derives objdump/nm paths from gdbPath by substituting
+          // "gdb" → "objdump" / "nm". Upgrading to gdb-py would cause it to
+          // look for non-existent *-py binaries, so pin the plain variants.
+          cortexCfg.objdumpPath = pyGdbPath.replace(/gdb-py(\.exe)?$/i, "objdump$1");
+          cortexCfg.nmPath = pyGdbPath.replace(/gdb-py(\.exe)?$/i, "nm$1");
+        }
+      }
+      // Populate pythonPath from the workspace venv so bmp-debug can configure
+      // gdb-py's embedded Python runtime (sets PYTHONHOME and, on Windows, adds
+      // the correct pythonXY.dll directory to the DLL search path before GDB
+      // starts). Override with "pythonPath" in launch.json if a different Python
+      // interpreter is needed (e.g. when the SDK gdb-py was compiled against a
+      // Python version that differs from the workspace venv).
+      const setupPath = wsConfig.activeSetupState?.setupPath;
+      if (setupPath) {
+        const venvPath = getVenvPath(setupPath);
+        const isWin = process.platform === "win32";
+        const pyExe = path.join(venvPath, isWin ? "Scripts/python.exe" : "bin/python");
+        if (fs.existsSync(pyExe)) {
+          cortexCfg.pythonPath = pyExe;
+        }
+      }
     }
 
     // Allow user to override individual cortex-debug fields by including them

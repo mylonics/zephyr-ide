@@ -1026,6 +1026,7 @@ export async function setActiveProfile(
   const profiles = loadRunnerProfiles(wsConfig);
   const NONE_LABEL = "(None) — clear local profile override";
   const { name: currentEffective, scope: currentScope } = getEffectiveActiveProfileName(wsConfig, resolved);
+  const OPEN_PANEL_LABEL = "$(gear)  Open Runner Profiles Page…";
   const items: vscode.QuickPickItem[] = [
     {
       label: NONE_LABEL,
@@ -1043,6 +1044,8 @@ export async function setActiveProfile(
       });
     }
   }
+  items.push({ label: "", kind: vscode.QuickPickItemKind.Separator });
+  items.push({ label: OPEN_PANEL_LABEL, detail: "Open the Runner Profiles editor panel to create or modify profiles." });
 
   const qp = vscode.window.createQuickPick();
   qp.ignoreFocusOut = true;
@@ -1060,6 +1063,10 @@ export async function setActiveProfile(
   });
 
   if (pick === undefined) { return; }
+  if (pick.label === OPEN_PANEL_LABEL) {
+    void vscode.commands.executeCommand("zephyr-ide.open-runner-profile-panel");
+    return;
+  }
   if (buildState) {
     buildState.localActiveProfile = pick.label === NONE_LABEL ? null : pick.label;
   }
@@ -1095,6 +1102,7 @@ export async function setWorkspaceActiveProfile(
 
   const profiles = loadRunnerProfiles(wsConfig);
   const NONE_LABEL = "(None) — clear workspace profile";
+  const OPEN_PANEL_LABEL = "$(gear)  Open Runner Profiles Page…";
   const current = resolved.build.activeProfile;
   const items: vscode.QuickPickItem[] = [
     {
@@ -1113,6 +1121,8 @@ export async function setWorkspaceActiveProfile(
       });
     }
   }
+  items.push({ label: "", kind: vscode.QuickPickItemKind.Separator });
+  items.push({ label: OPEN_PANEL_LABEL, detail: "Open the Runner Profiles editor panel to create or modify profiles." });
 
   const qp = vscode.window.createQuickPick();
   qp.ignoreFocusOut = true;
@@ -1130,6 +1140,10 @@ export async function setWorkspaceActiveProfile(
   });
 
   if (pick === undefined) { return; }
+  if (pick.label === OPEN_PANEL_LABEL) {
+    void vscode.commands.executeCommand("zephyr-ide.open-runner-profile-panel");
+    return;
+  }
   resolved.build.activeProfile = pick.label === NONE_LABEL ? undefined : pick.label;
   if (buildState) { delete buildState.localActiveProfile; }
   await setWorkspaceState(context, wsConfig);
