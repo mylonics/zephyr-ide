@@ -543,7 +543,28 @@ export function resolveToolchainDirPath(): string {
   if (toolchainDir && toolchainDir.trim()) {
     return toolchainDir;
   }
+  const sdkInstallDir = resolveToolchainDirFromEnv();
+  if (sdkInstallDir) {
+    return sdkInstallDir;
+  }
   return path.join(os.homedir(), toolsfoldername, "toolchains");
+}
+
+function resolveToolchainDirFromEnv(): string | undefined {
+  const envDir = process.env.ZEPHYR_SDK_INSTALL_DIR;
+  if (!envDir || !envDir.trim()) {
+    return undefined;
+  }
+
+  const trimmed = path.normalize(envDir.trim()).replace(/[\\/]+$/, "");
+  // Return the parent when the path points directly at an SDK installation:
+  // either by versioned basename convention (e.g. zephyr-sdk-0.16.8) or by
+  // the presence of an sdk_version file inside the directory.
+  const baseName = path.basename(trimmed);
+  if (/^zephyr-sdk-\d/.test(baseName) || fs.existsSync(path.join(trimmed, "sdk_version"))) {
+    return path.dirname(trimmed);
+  }
+  return trimmed;
 }
 
 export function getToolchainDir() {
@@ -555,6 +576,11 @@ export function getToolchainDir() {
   if (toolchainDir && toolchainDir.trim()) {
     // Return configured path without creating it - user is responsible for ensuring it exists
     return toolchainDir;
+  }
+
+  const sdkInstallDir = resolveToolchainDirFromEnv();
+  if (sdkInstallDir) {
+    return sdkInstallDir;
   }
 
   // Fall back to toolchains subdirectory in tools directory

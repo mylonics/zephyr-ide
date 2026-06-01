@@ -16,6 +16,7 @@ limitations under the License.
 */
 
 import * as assert from "assert";
+import * as fs from "fs-extra";
 import * as vscode from "vscode";
 import { getToolchainDir, getToolsDir, migrateSettingKeys } from "../setup_utilities/workspace-config";
 import * as path from "path";
@@ -23,6 +24,19 @@ import * as os from "os";
 import { normalizePath } from "./test-runner";
 
 suite("Toolchain Configuration Test Suite", () => {
+    let originalZephyrSdkInstallDir: string | undefined;
+
+    setup(() => {
+        originalZephyrSdkInstallDir = process.env.ZEPHYR_SDK_INSTALL_DIR;
+    });
+
+    teardown(() => {
+        if (originalZephyrSdkInstallDir === undefined) {
+            delete process.env.ZEPHYR_SDK_INSTALL_DIR;
+        } else {
+            process.env.ZEPHYR_SDK_INSTALL_DIR = originalZephyrSdkInstallDir;
+        }
+    });
 
     async function resetAllSettings(config: vscode.WorkspaceConfiguration) {
         await config.update("zephyr-ide.toolchainDirectory", undefined, vscode.ConfigurationTarget.Global);
@@ -151,6 +165,67 @@ suite("Toolchain Configuration Test Suite", () => {
         assert.strictEqual(result, customToolchainPath);
         
         await resetAllSettings(config);
+    });
+
+    test("Uses ZEPHYR_SDK_INSTALL_DIR when setting is not defined", async () => {
+        const envToolchainPath = "/opt/zephyr/toolchains";
+        const config = vscode.workspace.getConfiguration();
+        await resetAllSettings(config);
+        process.env.ZEPHYR_SDK_INSTALL_DIR = envToolchainPath;
+
+        const result = getToolchainDir();
+
+        assert.strictEqual(result, envToolchainPath);
+
+        await resetAllSettings(config);
+    });
+
+    test("Prioritizes toolchainDirectory over ZEPHYR_SDK_INSTALL_DIR", async () => {
+        const customToolchainPath = "/opt/zephyr-sdk";
+        process.env.ZEPHYR_SDK_INSTALL_DIR = "/opt/zephyr/from-env";
+        const config = vscode.workspace.getConfiguration();
+        await resetAllSettings(config);
+        await config.update("zephyr-ide.toolchainDirectory", customToolchainPath, vscode.ConfigurationTarget.Global);
+
+        const result = getToolchainDir();
+
+        assert.strictEqual(result, customToolchainPath);
+
+        await resetAllSettings(config);
+    });
+
+    test("Uses parent directory when ZEPHYR_SDK_INSTALL_DIR points to a specific SDK", async () => {
+        const envSdkPath = "/opt/toolchains/zephyr-sdk-1.0.1";
+        const config = vscode.workspace.getConfiguration();
+        await resetAllSettings(config);
+        process.env.ZEPHYR_SDK_INSTALL_DIR = envSdkPath;
+
+        const result = getToolchainDir();
+
+        assert.strictEqual(result, normalizePath(path.dirname(envSdkPath)));
+
+        await resetAllSettings(config);
+    });
+
+    test("Uses parent directory when ZEPHYR_SDK_INSTALL_DIR points to a non-versioned SDK root", async () => {
+        // Create a temporary directory that acts as a direct (non-versioned) SDK root.
+        const testSdkDir = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-sdk-test-"));
+        try {
+            await fs.writeFile(path.join(testSdkDir, "sdk_version"), "0.16.8\n");
+            const config = vscode.workspace.getConfiguration();
+            await resetAllSettings(config);
+            process.env.ZEPHYR_SDK_INSTALL_DIR = testSdkDir;
+
+            const result = getToolchainDir();
+
+            // ZEPHYR_SDK_INSTALL_DIR points at the SDK root itself, so the parent is
+            // returned so that the SDK version scanner can find it as a child entry.
+            assert.strictEqual(result, normalizePath(path.dirname(testSdkDir)));
+
+            await resetAllSettings(config);
+        } finally {
+            await fs.remove(testSdkDir);
+        }
     });
 
     test("migrateSettingKeys migrates tools_directory to toolchainDirectory", async () => {
