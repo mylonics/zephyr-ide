@@ -104,7 +104,7 @@
     "BuildConfig": {
       "type": "object",
       "description": "A single build configuration within a project.",
-      "required": ["name", "board", "relBoardDir", "relBoardSubDir", "debugOptimization", "westBuildArgs", "westBuildCMakeArgs", "confFiles"],
+      "required": ["name", "board", "relBoardSubDir", "debugOptimization", "westBuildArgs", "westBuildCMakeArgs", "confFiles"],
       "properties": {
         "name": {
           "type": "string",

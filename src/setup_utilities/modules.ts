@@ -377,4 +377,57 @@ export async function getSamples(setupState: SetupState) {
   return sampleList;
 }
 
+export interface ModuleBoardRoot {
+  /** Display name derived from the module directory (e.g. "myl_boards") */
+  name: string;
+  /** Absolute path to pass as `--board-root` to `west boards`.
+   *  West expects a `boards/` subdirectory inside this path. */
+  absPath: string;
+}
+
+/**
+ * Return the list of modules (and the manifest, when non-Zephyr) that declare
+ * a `build.settings.board_root` in their `zephyr/module.yml`.
+ *
+ * Zephyr itself is excluded; its boards are already covered by the
+ * "Zephyr Directory Only" option in the board picker.
+ */
+export async function getModuleBoardRoots(setupState: SetupState): Promise<ModuleBoardRoot[]> {
+  const outcome = await executeWestList(setupState);
+  if (!outcome.ok) {
+    return [];
+  }
+
+  const modules: string[][] = [];
+  let manifestEntry: string[] | undefined;
+
+  for (const line of outcome.lines) {
+    if (!line.trim()) { continue; }
+    const data = line.split('|').map(s => s.trim());
+    if (data[0] === "manifest") {
+      manifestEntry = data;
+    } else if (data[0] !== "") {
+      modules.push(data);
+    }
+  }
+
+  const result: ModuleBoardRoot[] = [];
+
+  // Include the manifest repo when it is a custom module (not Zephyr itself).
+  const entriesToCheck: string[][] = [...modules];
+  if (manifestEntry && manifestEntry[1] && !isZephyrRepository(manifestEntry[1])) {
+    entriesToCheck.push([path.basename(manifestEntry[1]), manifestEntry[1]]);
+  }
+
+  for (const entry of entriesToCheck) {
+    if (isZephyrRepository(entry[1])) { continue; }
+    const yamlFile = getModuleYamlFile(entry[1]);
+    const boardRoot: string | undefined = yamlFile?.build?.settings?.board_root;
+    if (boardRoot !== undefined) {
+      result.push({ name: entry[0], absPath: path.join(entry[1], boardRoot) });
+    }
+  }
+
+  return result;
+}
 

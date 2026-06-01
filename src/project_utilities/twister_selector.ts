@@ -21,6 +21,7 @@ import { notifyError } from "../utilities/output";
 import { loadYamlFile } from "../utilities/utils";
 import { SetupState } from '../setup_utilities/types';
 import { pickBoardSteps, BoardConfig, PickBoardState } from './build_selector';
+import { getModuleBoardRoots } from '../setup_utilities/modules';
 
 // Config for the extension
 export interface TwisterConfig {
@@ -150,9 +151,11 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
     // this wizard so Back navigates between board picker sub-steps as well
     // as back to platform/tests. The picker writes into boardPickState; the
     // returned starting step continues to inputComPort when revision accepts.
+    const moduleBoardRoots = await getModuleBoardRoots(setupState);
     const startStep = pickBoardSteps(setupState, rootPath, boardPickState, {
       startStep: 3,
       totalSteps: totalStepsFor(),
+      moduleBoardRoots,
       next: (input) => {
         if (boardPickState.boardConfig) {
           twisterConfig.boardConfig = boardPickState.boardConfig;
