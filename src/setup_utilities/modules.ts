@@ -258,12 +258,21 @@ export async function getModuleSampleFolders(setupState: SetupState) {
     samplefolders.push(["zephyr", path.join(manifestEntry[1], 'samples')]);
   }
 
-  for (const module of modules) {
-    const yamlFile = await getModuleYamlFile(module[1]);
-    if (yamlFile && yamlFile.samples) {
-      for (const samplePath of yamlFile.samples) {
-        const sampleFolder: [string, string] = [module[0], path.join(module[1], samplePath)];
-        samplefolders.push(sampleFolder);
+  // Scan all non-Zephyr entries for module.yml sample declarations.
+  // Include the manifest when it is a custom module repo (e.g. a board library used as the
+  // west manifest).  West always reports the manifest project name as the literal string
+  // "manifest", so use path.basename to recover the real name for display.
+  const entriesToCheck: string[][] = [...modules];
+  if (manifestEntry && manifestEntry[1] && !isZephyrRepository(manifestEntry[1])) {
+    entriesToCheck.push([path.basename(manifestEntry[1]), manifestEntry[1]]);
+  }
+
+  for (const entry of entriesToCheck) {
+    const yamlFile = getModuleYamlFile(entry[1]);
+    const moduleSamples: string[] | undefined = yamlFile?.build?.samples ?? yamlFile?.samples;
+    if (moduleSamples) {
+      for (const samplePath of moduleSamples) {
+        samplefolders.push([entry[0], path.join(entry[1], samplePath)]);
       }
     }
   }
