@@ -556,13 +556,9 @@ function resolveToolchainDirFromEnv(): string | undefined {
     return undefined;
   }
 
-  const trimmed = envDir.trim().replace(/[\\/]+$/, "");
-  if (!trimmed) {
-    return undefined;
-  }
-
+  const trimmed = path.normalize(envDir.trim()).replace(/[\\/]+$/, "");
   const baseName = path.basename(trimmed);
-  if (baseName.startsWith("zephyr-sdk-")) {
+  if (/^zephyr-sdk-\d+\.\d+(?:\.\d+)?(?:[.-][0-9A-Za-z-]+)*$/.test(baseName)) {
     return path.dirname(trimmed);
   }
   return trimmed;
