@@ -208,20 +208,23 @@ suite("Toolchain Configuration Test Suite", () => {
     });
 
     test("Uses parent directory when ZEPHYR_SDK_INSTALL_DIR points to a non-versioned SDK root", async () => {
-        const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-sdk-test-"));
+        // Create a temporary directory that acts as a direct (non-versioned) SDK root.
+        const testSdkDir = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-sdk-test-"));
         try {
-            await fs.writeFile(path.join(tmpDir, "sdk_version"), "0.16.8\n");
+            await fs.writeFile(path.join(testSdkDir, "sdk_version"), "0.16.8\n");
             const config = vscode.workspace.getConfiguration();
             await resetAllSettings(config);
-            process.env.ZEPHYR_SDK_INSTALL_DIR = tmpDir;
+            process.env.ZEPHYR_SDK_INSTALL_DIR = testSdkDir;
 
             const result = getToolchainDir();
 
-            assert.strictEqual(result, normalizePath(path.dirname(tmpDir)));
+            // ZEPHYR_SDK_INSTALL_DIR points at the SDK root itself, so the parent is
+            // returned so that the SDK version scanner can find it as a child entry.
+            assert.strictEqual(result, normalizePath(path.dirname(testSdkDir)));
 
             await resetAllSettings(config);
         } finally {
-            await fs.remove(tmpDir);
+            await fs.remove(testSdkDir);
         }
     });
 
