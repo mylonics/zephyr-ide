@@ -395,6 +395,7 @@ export interface ModuleBoardRoot {
 export async function getModuleBoardRoots(setupState: SetupState): Promise<ModuleBoardRoot[]> {
   const outcome = await executeWestList(setupState);
   if (!outcome.ok) {
+    notifyWestListFailure(outcome.needsWestUpdate);
     return [];
   }
 
