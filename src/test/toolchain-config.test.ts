@@ -16,6 +16,7 @@ limitations under the License.
 */
 
 import * as assert from "assert";
+import * as fs from "fs-extra";
 import * as vscode from "vscode";
 import { getToolchainDir, getToolsDir, migrateSettingKeys } from "../setup_utilities/workspace-config";
 import * as path from "path";
@@ -204,6 +205,24 @@ suite("Toolchain Configuration Test Suite", () => {
         assert.strictEqual(result, normalizePath(path.dirname(envSdkPath)));
 
         await resetAllSettings(config);
+    });
+
+    test("Uses parent directory when ZEPHYR_SDK_INSTALL_DIR points to a non-versioned SDK root", async () => {
+        const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-sdk-test-"));
+        try {
+            await fs.writeFile(path.join(tmpDir, "sdk_version"), "0.16.8\n");
+            const config = vscode.workspace.getConfiguration();
+            await resetAllSettings(config);
+            process.env.ZEPHYR_SDK_INSTALL_DIR = tmpDir;
+
+            const result = getToolchainDir();
+
+            assert.strictEqual(result, normalizePath(path.dirname(tmpDir)));
+
+            await resetAllSettings(config);
+        } finally {
+            await fs.remove(tmpDir);
+        }
     });
 
     test("migrateSettingKeys migrates tools_directory to toolchainDirectory", async () => {

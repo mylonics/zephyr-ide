@@ -557,8 +557,11 @@ function resolveToolchainDirFromEnv(): string | undefined {
   }
 
   const trimmed = path.normalize(envDir.trim()).replace(/[\\/]+$/, "");
+  // Return the parent when the path points directly at an SDK installation:
+  // either by versioned basename convention (e.g. zephyr-sdk-0.16.8) or by
+  // the presence of an sdk_version file inside the directory.
   const baseName = path.basename(trimmed);
-  if (/^zephyr-sdk-\d+\.\d+(?:\.\d+)?(?:[.-][0-9A-Za-z-]+)*$/.test(baseName)) {
+  if (/^zephyr-sdk-\d/.test(baseName) || fs.existsSync(path.join(trimmed, "sdk_version"))) {
     return path.dirname(trimmed);
   }
   return trimmed;
