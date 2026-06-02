@@ -963,6 +963,11 @@ export class ZephyrIdeDebugConfigurationProvider
       }
     }
 
+    // For debugging when no runner is specified, default to west debugserver.
+    if (!cfg.runner && !profileRunner) {
+      forceWestDebugBridge = true;
+    }
+
     // launch.json `runner` field wins over profile runner; profile runner wins
     // over runners.yaml auto-detection.
     const runner = pickDebugRunner(runnersYaml, cfg.runner ?? profileRunner);

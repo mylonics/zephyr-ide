@@ -219,7 +219,7 @@ suite("Debug Provider Integration Test Suite", () => {
             const provider = new ZephyrIdeDebugConfigurationProvider(() => fixture.wsConfig, makeFakeContext());
             const result = await provider.resolveDebugConfiguration(
                 undefined,
-                { name: "Zephyr IDE: Debug", type: "zephyr-ide", request: "launch" } as vscode.DebugConfiguration,
+                { name: "Zephyr IDE: Debug", type: "zephyr-ide", request: "launch", runner: "jlink" } as vscode.DebugConfiguration,
             ) as any;
 
             assert.ok(result, "provider must return a resolved cortex-debug config");
@@ -264,7 +264,7 @@ suite("Debug Provider Integration Test Suite", () => {
             const provider = new ZephyrIdeDebugConfigurationProvider(() => fixture.wsConfig, makeFakeContext());
             const result = await provider.resolveDebugConfiguration(
                 undefined,
-                { name: "Zephyr IDE: Debug", type: "zephyr-ide", request: "launch" } as vscode.DebugConfiguration,
+                { name: "Zephyr IDE: Debug", type: "zephyr-ide", request: "launch", runner: "openocd" } as vscode.DebugConfiguration,
             ) as any;
 
             assert.ok(result);
@@ -305,7 +305,7 @@ suite("Debug Provider Integration Test Suite", () => {
             const provider = new ZephyrIdeDebugConfigurationProvider(() => fixture.wsConfig, makeFakeContext());
             const result = await provider.resolveDebugConfiguration(
                 undefined,
-                { name: "Zephyr IDE: Debug", type: "zephyr-ide", request: "launch" } as vscode.DebugConfiguration,
+                { name: "Zephyr IDE: Debug", type: "zephyr-ide", request: "launch", runner: "blackmagicprobe" } as vscode.DebugConfiguration,
             );
             assert.strictEqual(result, undefined,
                 "BMP debug without a serial port must NOT produce a half-baked cortex-debug config");
@@ -334,7 +334,7 @@ suite("Debug Provider Integration Test Suite", () => {
             const provider = new ZephyrIdeDebugConfigurationProvider(() => fixture.wsConfig, makeFakeContext());
             const result = await provider.resolveDebugConfiguration(
                 undefined,
-                { name: "Zephyr IDE: Debug", type: "zephyr-ide", request: "launch" } as vscode.DebugConfiguration,
+                { name: "Zephyr IDE: Debug", type: "zephyr-ide", request: "launch", runner: "blackmagicprobe" } as vscode.DebugConfiguration,
             ) as any;
 
             assert.ok(result, "BMP with a serial port must produce a usable cortex-debug config");
@@ -360,6 +360,47 @@ suite("Debug Provider Integration Test Suite", () => {
             );
             assert.strictEqual(result, undefined,
                 "Missing runners.yaml must abort the debug session cleanly, not yield a broken cortex-debug config");
+        } finally {
+            fixture.cleanup();
+        }
+    });
+
+    test("no runner specified -> defaults to west debugserver (servertype: external)", async function () {
+        if (!isCortexDebugInstalled) { this.skip(); }
+        const fixture = setupRealWorkspace({
+            runnersYamlContents: [
+                "elf_file: zephyr/zephyr.elf",
+                "gdb: /sdk/arm-zephyr-eabi-gdb",
+                "runners:",
+                "  - jlink",
+                "debug-runner: jlink",
+                "args:",
+                "  jlink:",
+                "    - --device=nRF52840_xxAA",
+                "    - --speed=4000",
+                "",
+            ].join("\n"),
+        });
+        try {
+            // Provide activeSetupState so the setup state check passes
+            (fixture.wsConfig as any).activeSetupState = { setupPath: "/sdk" };
+
+            const provider = new ZephyrIdeDebugConfigurationProvider(() => fixture.wsConfig, makeFakeContext());
+            // Mock spawnAndAttachDebugServer to return true so the launch succeeds
+            (provider as any).spawnAndAttachDebugServer = async (opts: any, cfg: any) => {
+                // Assert that the servertype is external because of west debugserver choice
+                cfg.gdbTarget = "localhost:1234"; // mock what spawnAndAttachDebugServer does
+                return true;
+            };
+
+            const result = await provider.resolveDebugConfiguration(
+                undefined,
+                { name: "Zephyr IDE: Debug", type: "zephyr-ide", request: "launch" } as vscode.DebugConfiguration,
+            ) as any;
+
+            assert.ok(result, "provider must return a resolved cortex-debug config");
+            assert.strictEqual(result.servertype, "external");
+            assert.strictEqual(result.gdbTarget, "localhost:1234");
         } finally {
             fixture.cleanup();
         }
