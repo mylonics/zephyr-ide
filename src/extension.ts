@@ -347,18 +347,19 @@ async function startDebugSession(
     ? wsConfig.projectStates?.[resolved.projectName]?.buildStates?.[resolved.buildName]
     : undefined;
   const localBind = buildState?.localBinds?.[slot];
-  if (localBind != null) {
+  if (localBind !== null && localBind !== undefined) {
     // Clear profile-derived values so only the local bind applies.
     pinnedRunner = undefined;
     activeBind = undefined;
     debugTargetFolder = undefined;
-    if (localBind.startsWith(CORTEX_DEBUG_PREFIX)) {
-      pinnedRunner = localBind.slice(CORTEX_DEBUG_PREFIX.length);
-    } else if (localBind.startsWith(WEST_DEBUG_PREFIX)) {
-      pinnedRunner = localBind.slice(WEST_DEBUG_PREFIX.length);
-    } else if (localBind.startsWith(RUNNER_TARGET_PREFIX)) {
+    const [runnerStr] = localBind.split('?');
+    if (runnerStr.startsWith(CORTEX_DEBUG_PREFIX)) {
+      pinnedRunner = runnerStr.slice(CORTEX_DEBUG_PREFIX.length);
+    } else if (runnerStr.startsWith(WEST_DEBUG_PREFIX)) {
+      pinnedRunner = runnerStr.slice(WEST_DEBUG_PREFIX.length);
+    } else if (runnerStr.startsWith(RUNNER_TARGET_PREFIX)) {
       // Legacy "runner:X" format (old local bind storage).
-      pinnedRunner = localBind.slice(RUNNER_TARGET_PREFIX.length);
+      pinnedRunner = runnerStr.slice(RUNNER_TARGET_PREFIX.length);
     } else {
       // No recognized prefix → treat as a launch.json config name.
       debugTarget = localBind;

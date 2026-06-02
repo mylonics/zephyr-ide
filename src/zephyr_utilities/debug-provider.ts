@@ -164,6 +164,7 @@ export function buildCortexDebugConfig(
     request: options.request || "launch",
     cwd: options.cwd || "${workspaceFolder}",
     servertype: serverType,
+    showDevDebugOutput: "raw",
   };
 
   // Only openocd and jlink support the rtos field in cortex-debug.
@@ -893,24 +894,40 @@ export class ZephyrIdeDebugConfigurationProvider
     // Per-developer local bind has the highest priority, above any profile.
     const buildState = wsConfig.projectStates?.[resolved.projectName]?.buildStates?.[resolved.buildName];
     const localSlotRunner = buildState?.localBinds?.[slot];
-    if (localSlotRunner != null) {
+    if (localSlotRunner !== null && localSlotRunner !== undefined) {
       // Local bind: launch-config binds are intercepted upstream in startDebugSession before
       // reaching here, so only runner-prefixed binds arrive at this point.
-      if (localSlotRunner.startsWith(CORTEX_DEBUG_PREFIX)) {
+      const [runnerStr, queryStr] = localSlotRunner.split('?');
+      let localProbe: string | undefined;
+      if (queryStr) {
+        const parts = queryStr.split('&');
+        for (const p of parts) {
+          const [k, v] = p.split('=');
+          if (k === "probe") {
+            localProbe = decodeURIComponent(v);
+          }
+        }
+      }
+
+      if (runnerStr.startsWith(CORTEX_DEBUG_PREFIX)) {
         // Cortex-debug (auto-config): use native cortex-debug server; runnerNeedsBridge() at
         // line 1107 still handles naturally-bridged runners (nrfjprog, linkserver, …) automatically.
-        profileRunner = localSlotRunner.slice(CORTEX_DEBUG_PREFIX.length);
+        profileRunner = runnerStr.slice(CORTEX_DEBUG_PREFIX.length);
         // forceWestDebugBridge stays false
-      } else if (localSlotRunner.startsWith(WEST_DEBUG_PREFIX)) {
+      } else if (runnerStr.startsWith(WEST_DEBUG_PREFIX)) {
         // West debugserver bridge: force bridge regardless of runner type.
-        profileRunner = localSlotRunner.slice(WEST_DEBUG_PREFIX.length);
+        profileRunner = runnerStr.slice(WEST_DEBUG_PREFIX.length);
         forceWestDebugBridge = true;
       } else {
         // Legacy "runner:X" or bare runner name (old local bind storage) → treat as forced bridge.
-        profileRunner = localSlotRunner.startsWith(RUNNER_TARGET_PREFIX)
-          ? localSlotRunner.slice(RUNNER_TARGET_PREFIX.length)
-          : localSlotRunner;
+        profileRunner = runnerStr.startsWith(RUNNER_TARGET_PREFIX)
+          ? runnerStr.slice(RUNNER_TARGET_PREFIX.length)
+          : runnerStr;
         forceWestDebugBridge = true;
+      }
+
+      if (localProbe && profileRunner === "openocd") {
+        userArgs = ["--openocd-config", localProbe];
       }
     } else {
       const profileName = getEffectiveActiveProfileName(wsConfig, resolved).name;

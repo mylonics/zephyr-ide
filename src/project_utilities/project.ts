@@ -18,7 +18,7 @@ limitations under the License.
 import * as vscode from "vscode";
 import * as fs from "fs-extra";
 import * as path from "upath";
-import { selectLaunchConfiguration, RUNNER_TARGET_PREFIX } from "../utilities/utils";
+import { selectLaunchConfiguration, RUNNER_TARGET_PREFIX, CORTEX_DEBUG_PREFIX } from "../utilities/utils";
 import { notifyError, notifyWarningWithActions, outputWarning } from "../utilities/output";
 import { buildSelector, BuildConfig, BuildConfigDictionary, BuildStateDictionary } from "./build_selector";
 import { WorkspaceConfig } from "../setup_utilities/types";
@@ -1247,6 +1247,29 @@ export async function setLocalBind(
     if (result === undefined) { return; } // user cancelled
     runner = result.isDefault ? null : result.name;
     // result.name is already "runner:X" for runners, or the launch config name for launch.json picks
+
+    if (runner && runner.startsWith(CORTEX_DEBUG_PREFIX + "openocd")) {
+      const probeItems: vscode.QuickPickItem[] = [
+        { label: "runners.yaml / auto-detect", description: "Use runners.yaml probe configuration" },
+        { label: "ST-LINK v2/v3", detail: "interface/stlink.cfg", description: "Most common for STM32 / nRF52 with SWD" } as vscode.QuickPickItem,
+        { label: "CMSIS-DAP", detail: "interface/cmsis-dap.cfg", description: "DAPLink, ULINK2, MCU-Link, …" } as vscode.QuickPickItem,
+        { label: "SEGGER J-Link", detail: "interface/jlink.cfg", description: "J-Link via OpenOCD" } as vscode.QuickPickItem,
+        { label: "FTDI", detail: "interface/ftdi.cfg", description: "FTDI-based probe (generic)" } as vscode.QuickPickItem,
+        { label: "Raspberry Pi Pico (probe)", detail: "interface/picoprobe.cfg", description: "RP2040 Pico used as SWD/JTAG probe" } as vscode.QuickPickItem,
+        { label: "Raspberry Pi GPIO SWD", detail: "interface/raspberrypi-swd.cfg", description: "Bit-banged SWD via RPi GPIO" } as vscode.QuickPickItem,
+        { label: "Bus Pirate", detail: "interface/buspirate.cfg", description: "Bus Pirate USB probe" } as vscode.QuickPickItem,
+      ];
+      const probePick = await vscode.window.showQuickPick(probeItems, {
+        title: "Select OpenOCD Probe",
+        placeHolder: "Pick probe/interface config to override runners.yaml (or keep default)",
+        ignoreFocusOut: true,
+      });
+      if (probePick === undefined) { return; } // user cancelled
+      const probeDetail = (probePick as any).detail;
+      if (probeDetail) {
+        runner = `${runner}?probe=${encodeURIComponent(probeDetail)}`;
+      }
+    }
   }
 
   // --- Apply ---
@@ -1357,7 +1380,7 @@ async function editCustomVars(
   const ADD = "$(add)  Add new variable…";
   const DONE = "$(check)  Done";
 
-  let vars = { ...existingVars };
+  const vars = { ...existingVars };
 
   while (true) {
     const entries = Object.keys(vars).sort().map(k => ({

@@ -739,10 +739,26 @@ export class ProjectBuildPanel {
             const profileExtra = bind && (bind.kind === "west-flash" || bind.kind === "west-debug") ? (bind.extraArgs ?? []).join(" ") : "";
             const overrideExtra = (override?.extraArgs ?? []).join(" ");
             const combined = [profileExtra, overrideExtra].filter(s => s.length > 0).join(" ");
-            const localBindPrefixes = [WEST_FLASH_PREFIX, CORTEX_DEBUG_PREFIX, WEST_DEBUG_PREFIX, RUNNER_TARGET_PREFIX];
-            const localBindPrefix = localSlot != null ? localBindPrefixes.find(p => localSlot.startsWith(p)) : undefined;
-            const displayLabel = localSlot != null
-              ? `${localBindPrefix ? localSlot.slice(localBindPrefix.length) : localSlot} (local)`
+            const formatLocalSlotLabel = (rawSlot: string): string => {
+              const [runnerPart, queryPart] = rawSlot.split('?');
+              const localBindPrefixes = [WEST_FLASH_PREFIX, CORTEX_DEBUG_PREFIX, WEST_DEBUG_PREFIX, RUNNER_TARGET_PREFIX];
+              const localBindPrefix = localBindPrefixes.find(p => runnerPart.startsWith(p));
+              let name = localBindPrefix ? runnerPart.slice(localBindPrefix.length) : runnerPart;
+              if (queryPart) {
+                const parts = queryPart.split('&');
+                for (const p of parts) {
+                  const [k, v] = p.split('=');
+                  if (k === "probe") {
+                    const probeVal = decodeURIComponent(v);
+                    const probeName = probeVal.startsWith("interface/") ? probeVal.slice("interface/".length) : probeVal;
+                    name = `${name} (${probeName})`;
+                  }
+                }
+              }
+              return `${name} (local)`;
+            };
+            const displayLabel = localSlot !== null && localSlot !== undefined
+              ? formatLocalSlotLabel(localSlot)
               : formatBindLabel(bind, override);
 
             return {
@@ -753,7 +769,7 @@ export class ProjectBuildPanel {
               extraArgs: combined,
               overrideExtraArgs: overrideExtra,
               hasOverride: overrideExtra.length > 0,
-              localOverride: localSlot != null ? localSlot : undefined,
+              localOverride: localSlot !== null && localSlot !== undefined ? localSlot : undefined,
             };
           };
 
