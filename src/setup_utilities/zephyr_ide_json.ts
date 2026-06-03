@@ -243,3 +243,8 @@ export async function setZephyrIdeBlobs(wsConfig: WorkspaceConfig, blobs: string
     }
     await writeZephyrIdeJson(wsConfig, data);
 }
+
+/** Get the list of additional pip packages declared in zephyr-ide.json. */
+export function getZephyrIdePipPackages(wsConfig: WorkspaceConfig): string[] {
+    return normalizeStringList(readZephyrIdeJson(wsConfig).pipPackages);
+}
