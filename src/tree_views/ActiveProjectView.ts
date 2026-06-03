@@ -108,14 +108,29 @@ export class ActiveProjectView implements vscode.TreeDataProvider<ActiveProjectI
       const lb = localBinds?.[slot];
       if (lb === null) { return "auto (local bind)"; }
       if (typeof lb === "string") {
+        const [runnerPart, queryPart] = lb.split('?');
+        let localProbe: string | undefined;
+        if (queryPart) {
+          const parts = queryPart.split('&');
+          for (const p of parts) {
+            const [k, v] = p.split('=');
+            if (k === "probe") {
+              localProbe = decodeURIComponent(v);
+            }
+          }
+        }
         const prefixTypeMap: [string, string][] = [
           [WEST_FLASH_PREFIX, "flash"],
           [CORTEX_DEBUG_PREFIX, "cortex-debug"],
           [WEST_DEBUG_PREFIX, "west debugserver"],
           [RUNNER_TARGET_PREFIX, "west debugserver"],  // legacy prefix
         ];
-        const matched = prefixTypeMap.find(([p]) => lb.startsWith(p));
-        const runnerName = matched ? lb.slice(matched[0].length) : lb;
+        const matched = prefixTypeMap.find(([p]) => runnerPart.startsWith(p));
+        let runnerName = matched ? runnerPart.slice(matched[0].length) : runnerPart;
+        if (localProbe) {
+          const probeName = localProbe.startsWith("interface/") ? localProbe.slice("interface/".length) : localProbe;
+          runnerName = `${runnerName} (${probeName})`;
+        }
         const typeLabel = matched ? matched[1] : "";
         return typeLabel
           ? `${runnerName} [${typeLabel}] (local bind)`

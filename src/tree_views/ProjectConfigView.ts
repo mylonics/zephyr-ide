@@ -17,6 +17,7 @@ limitations under the License.
 
 import * as vscode from 'vscode';
 import * as path from 'upath';
+import * as fs from 'fs-extra';
 import { addConfigFiles, setActive, modifyBuildArguments, removeConfigFile, getResolvedProfile, getBindOverride, getResolvedTestConfig, resolveActiveProject, resolveActiveProjectBuild, getEffectiveActiveProfileName } from '../project_utilities/project';
 import { ConfigFiles, ConfigFileEntry } from '../project_utilities/config_selector';
 import { joinBuildArgs } from '../project_utilities/build_args';
@@ -202,8 +203,10 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
       boardItem.data = { project: activeProject.name, build: activeBuild.name };
       boardItem.command = { command: 'zephyr-ide.config-view.open-board-dtc', title: 'Open Board DTS', arguments: [boardItem] };
 
-      const boardDirItem = new ConfigItem('Board Dir', 'file-submodule', false, undefined, activeBuild.relBoardSubDir);
+      const boardDirItem = new ConfigItem('Board Dir', 'file-submodule', false, 'configClickable', activeBuild.relBoardSubDir);
       boardDirItem.id = 'config-build.boarddir';
+      boardDirItem.data = { project: activeProject.name, build: activeBuild.name };
+      boardDirItem.command = { command: 'zephyr-ide.config-view.open-board-dir', title: 'Open Board Directory', arguments: [boardDirItem] };
 
       const buildKConfig = this.makeConfigGroup(activeProject.name, activeBuild.name, activeBuild.confFiles, true);
       if (buildKConfig.children.length > 0) {
@@ -410,12 +413,63 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
     }
 
     if (boardPath) {
-      const filePath = vscode.Uri.file(path.join(boardPath, build.board + ".dts"));
+      // Find the DTS file using several common candidate formats:
+      // 1. Slash replaced with underscore: e.g. "myl_nrf_usb/nrf52840" -> "myl_nrf_usb_nrf52840.dts"
+      // 2. Just the board name directly: e.g. "myl_nrf_usb/nrf52840.dts"
+      // 3. Just the basename: e.g. "nrf52840.dts"
+      // 4. Default fallback: build.board + ".dts"
+      const boardWithUnderscores = build.board.replace(/\//g, "_");
+      const candidates = [
+        path.join(boardPath, `${boardWithUnderscores}.dts`),
+        path.join(boardPath, `${build.board}.dts`),
+        path.join(boardPath, `${path.basename(build.board)}.dts`),
+      ];
+
+      let resolvedDtsPath: string | undefined = undefined;
+      for (const cand of candidates) {
+        if (fs.existsSync(cand)) {
+          resolvedDtsPath = cand;
+          break;
+        }
+      }
+
+      const filePath = vscode.Uri.file(resolvedDtsPath ?? candidates[0]);
       try {
-        const document = await vscode.workspace.openTextDocument(filePath);
-        await vscode.window.showTextDocument(document);
+        await vscode.commands.executeCommand('vscode.open', filePath);
       } catch {
-        outputInfo("Project Config", `Board DTS file not found: ${filePath.fsPath}`);
+        outputInfo("Project Config", `Board DTS file not found at any of candidate locations: ${candidates.join(", ")}`);
+      }
+      void setActive(this.context, this.wsConfig, item.data.project!, item.data.build);
+    }
+  }
+
+  async handleOpenBoardDir(item: ConfigItem) {
+    const project = this.wsConfig.projects[item.data.project!];
+    if (!project || !item.data.build || !project.buildConfigs[item.data.build]) {
+      return;
+    }
+    const build = project.buildConfigs[item.data.build];
+
+    let boardPath: string | undefined = undefined;
+    if (path.isAbsolute(build.relBoardSubDir)) {
+      boardPath = build.relBoardSubDir;
+    } else {
+      if (build.relBoardDir) {
+        boardPath = path.join(this.wsConfig.rootPath, build.relBoardDir, build.relBoardSubDir);
+      } else {
+        const setupState = await getSetupState(this.context, this.wsConfig);
+        if (setupState) {
+          boardPath = path.join(setupState.zephyrDir, 'boards', build.relBoardSubDir);
+        }
+      }
+    }
+
+    if (boardPath) {
+      const uri = vscode.Uri.file(boardPath);
+      try {
+        await vscode.commands.executeCommand('vscode.open', uri);
+      } catch {
+        outputInfo("Project Config", `Board directory not found: ${boardPath}`);
       }
       void setActive(this.context, this.wsConfig, item.data.project!, item.data.build);
     }
@@ -426,13 +480,11 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
     const mainCPath = vscode.Uri.file(path.join(this.wsConfig.rootPath, project.rel_path, "src", "main.c"));
 
     try {
-      const document = await vscode.workspace.openTextDocument(mainCPath);
-      await vscode.window.showTextDocument(document);
+      await vscode.commands.executeCommand('vscode.open', mainCPath);
     } catch {
       try {
         const mainCppPath = vscode.Uri.file(path.join(this.wsConfig.rootPath, project.rel_path, "src", "main.cpp"));
-        const document = await vscode.workspace.openTextDocument(mainCppPath);
-        await vscode.window.showTextDocument(document);
+        await vscode.commands.executeCommand('vscode.open', mainCppPath);
       } catch {
         outputInfo("Project Config", `Neither main.c nor main.cpp found in ${project.rel_path}/src`);
       }
@@ -445,8 +497,7 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
     const filePath = vscode.Uri.file(path.join(this.wsConfig.rootPath, project.rel_path, "CMakeLists.txt"));
 
     try {
-      const document = await vscode.workspace.openTextDocument(filePath);
-      await vscode.window.showTextDocument(document);
+      await vscode.commands.executeCommand('vscode.open', filePath);
     } catch {
       outputInfo("Project Config", `CMakeLists.txt not found in ${project.rel_path}`);
     }

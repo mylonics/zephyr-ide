@@ -22,12 +22,12 @@ suite("debug-server-bridge port announcement parser", () => {
 
   test("nrfjprog: JLink-style 'Listening on TCP/IP port'", () => {
     const r = matchPortAnnouncement("nrfjprog", "Listening on TCP/IP port 2331");
-    assert.deepStrictEqual(r, { host: "127.0.0.1", port: 2331 });
+    assert.deepStrictEqual(r, { host: "localhost", port: 2331 });
   });
 
   test("linkserver: 'GDB server listening on port'", () => {
     const r = matchPortAnnouncement("linkserver", "GDB server listening on port 3333");
-    assert.deepStrictEqual(r, { host: "127.0.0.1", port: 3333 });
+    assert.deepStrictEqual(r, { host: "localhost", port: 3333 });
   });
 
   test("esp32: openocd-style 'Info : Listening on port N for gdb'", () => {
@@ -35,7 +35,7 @@ suite("debug-server-bridge port announcement parser", () => {
       "esp32",
       "Info : Listening on port 3333 for gdb connections",
     );
-    assert.deepStrictEqual(r, { host: "127.0.0.1", port: 3333 });
+    assert.deepStrictEqual(r, { host: "localhost", port: 3333 });
   });
 
   test("stm32cubeprogrammer: 'listening at host:port' with host", () => {
@@ -46,12 +46,30 @@ suite("debug-server-bridge port announcement parser", () => {
     assert.deepStrictEqual(r, { host: "127.0.0.1", port: 61234 });
   });
 
+  test("probe-rs: 'Firing up GDB stub' line triggers port detection", () => {
+    const r = matchPortAnnouncement(
+      "probe-rs",
+      "Firing up GDB stub for Armv7em cores at [[::1]:1337, 127.0.0.1:1337]",
+    );
+    assert.deepStrictEqual(r, { host: "localhost", port: 1337 });
+  });
+
+  test("probe-rs: early west relay line does NOT trigger (server not yet ready)", () => {
+    // This line appears ~100ms before probe-rs is actually listening.
+    // Triggering on it causes 'could not connect' errors in cortex-debug.
+    const r = matchPortAnnouncement(
+      "probe-rs",
+      "-- runners.probe-rs: probe-rs GDB server running on port 1337",
+    );
+    assert.strictEqual(r, undefined);
+  });
+
   test("generic fallback for unknown runner that announces a port", () => {
     const r = matchPortAnnouncement(
       "unknown-runner",
       "gdbserver started listening on port 4444",
     );
-    assert.deepStrictEqual(r, { host: "127.0.0.1", port: 4444 });
+    assert.deepStrictEqual(r, { host: "localhost", port: 4444 });
   });
 
   test("returns undefined for irrelevant log lines", () => {

@@ -347,18 +347,19 @@ async function startDebugSession(
     ? wsConfig.projectStates?.[resolved.projectName]?.buildStates?.[resolved.buildName]
     : undefined;
   const localBind = buildState?.localBinds?.[slot];
-  if (localBind != null) {
+  if (localBind !== null && localBind !== undefined) {
     // Clear profile-derived values so only the local bind applies.
     pinnedRunner = undefined;
     activeBind = undefined;
     debugTargetFolder = undefined;
-    if (localBind.startsWith(CORTEX_DEBUG_PREFIX)) {
-      pinnedRunner = localBind.slice(CORTEX_DEBUG_PREFIX.length);
-    } else if (localBind.startsWith(WEST_DEBUG_PREFIX)) {
-      pinnedRunner = localBind.slice(WEST_DEBUG_PREFIX.length);
-    } else if (localBind.startsWith(RUNNER_TARGET_PREFIX)) {
+    const [runnerStr] = localBind.split('?');
+    if (runnerStr.startsWith(CORTEX_DEBUG_PREFIX)) {
+      pinnedRunner = runnerStr.slice(CORTEX_DEBUG_PREFIX.length);
+    } else if (runnerStr.startsWith(WEST_DEBUG_PREFIX)) {
+      pinnedRunner = runnerStr.slice(WEST_DEBUG_PREFIX.length);
+    } else if (runnerStr.startsWith(RUNNER_TARGET_PREFIX)) {
       // Legacy "runner:X" format (old local bind storage).
-      pinnedRunner = localBind.slice(RUNNER_TARGET_PREFIX.length);
+      pinnedRunner = runnerStr.slice(RUNNER_TARGET_PREFIX.length);
     } else {
       // No recognized prefix → treat as a launch.json config name.
       debugTarget = localBind;
@@ -829,6 +830,9 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.config-view.open-board-dtc", (item: any) => {
       projectConfigView.handleOpenBoardDtc(item);
     }),
+    vscode.commands.registerCommand("zephyr-ide.config-view.open-board-dir", (item: any) => {
+      projectConfigView.handleOpenBoardDir(item);
+    }),
     vscode.commands.registerCommand("zephyr-ide.config-view.open-main", (item: any) => {
       projectConfigView.handleOpenMain(item);
     }),
@@ -959,11 +963,27 @@ export async function activate(context: vscode.ExtensionContext) {
     refreshStatusBar();
   }
 
-  createStatusBarButton(context, "zephyr-ide.build-pristine", `$(debug-rerun)`, "Zephyr IDE Build Pristine");
-  createStatusBarButton(context, "zephyr-ide.build", `$(play)`, "Zephyr IDE Build");
-  createStatusBarButton(context, "zephyr-ide.flash", `$(arrow-circle-up)`, "Zephyr IDE Flash");
-  createStatusBarButton(context, "zephyr-ide.build-flash", `$(cloud-upload)`, "Zephyr IDE Build and Flash");
-  createStatusBarButton(context, "zephyr-ide.debug", `$(debug-alt)`, "Zephyr IDE Debug");
+  {
+    const cfg = vscode.workspace.getConfiguration();
+    if (cfg.get<boolean>("zephyr-ide.statusBar.showBuildPristine") ?? true) {
+      createStatusBarButton(context, "zephyr-ide.build-pristine", `$(debug-rerun)`, "Zephyr IDE Build Pristine");
+    }
+    if (cfg.get<boolean>("zephyr-ide.statusBar.showBuild") ?? true) {
+      createStatusBarButton(context, "zephyr-ide.build", `$(play)`, "Zephyr IDE Build");
+    }
+    if (cfg.get<boolean>("zephyr-ide.statusBar.showFlash") ?? false) {
+      createStatusBarButton(context, "zephyr-ide.flash", `$(arrow-circle-up)`, "Zephyr IDE Flash");
+    }
+    if (cfg.get<boolean>("zephyr-ide.statusBar.showBuildFlash") ?? true) {
+      createStatusBarButton(context, "zephyr-ide.build-flash", `$(cloud-upload)`, "Zephyr IDE Build and Flash");
+    }
+    if (cfg.get<boolean>("zephyr-ide.statusBar.showDebug") ?? false) {
+      createStatusBarButton(context, "zephyr-ide.debug", `$(debug-alt)`, "Zephyr IDE Debug");
+    }
+    if (cfg.get<boolean>("zephyr-ide.statusBar.showBuildDebug") ?? true) {
+      createStatusBarButton(context, "zephyr-ide.build-debug", `$(debug-all)`, "Zephyr IDE Build and Debug");
+    }
+  }
 
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor((handleChange) => {

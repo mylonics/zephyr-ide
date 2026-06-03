@@ -76,6 +76,36 @@
       "type": "object",
       "title": "Zephyr IDE",
       "properties": {
+        "zephyr-ide.statusBar.showBuildPristine": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the 'Build Pristine' button in the status bar. Restart to take effect."
+        },
+        "zephyr-ide.statusBar.showBuild": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the 'Build' button in the status bar. Restart to take effect."
+        },
+        "zephyr-ide.statusBar.showFlash": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show the 'Flash' button in the status bar. Restart to take effect."
+        },
+        "zephyr-ide.statusBar.showBuildFlash": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the 'Build and Flash' button in the status bar. Restart to take effect."
+        },
+        "zephyr-ide.statusBar.showDebug": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show the 'Debug' button in the status bar. Restart to take effect."
+        },
+        "zephyr-ide.statusBar.showBuildDebug": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the 'Build and Debug' button in the status bar. Restart to take effect."
+        },
         "zephyr-ide.buildBeforeFlash": {
           "type": "boolean",
           "default": false,
@@ -1064,6 +1094,10 @@
       {
         "command": "zephyr-ide.config-view.open-board-dtc",
         "title": "Open Board DTS"
+      },
+      {
+        "command": "zephyr-ide.config-view.open-board-dir",
+        "title": "Open Board Directory"
       },
       {
         "command": "zephyr-ide.config-view.open-main",

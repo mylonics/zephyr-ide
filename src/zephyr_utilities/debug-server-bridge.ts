@@ -57,6 +57,7 @@ const RUNNER_DEFAULT_PORTS: Record<string, number> = {
   linkserver: 3333,          // NXP LinkServer GDB default
   esp32: 3333,               // OpenOCD (esp32 uses openocd under the hood)
   stm32cubeprogrammer: 61234, // STM32_Programmer_CLI gdbserver default
+  "probe-rs": 1337,          // probe-rs GDB stub default
 };
 
 /**
@@ -71,6 +72,13 @@ const RUNNER_DEFAULT_PORTS: Record<string, number> = {
  *   - `GDB server listening at 127.0.0.1:61234`  (STM32CubeProgrammer)
  */
 const PORT_PATTERNS: Record<string, RegExp[]> = {
+  "probe-rs": [
+    // Emitted by probe-rs when the GDB stub is actually listening.
+    // "Firing up GDB stub for Armv7em cores at [[::1]:1337, 127.0.0.1:1337]"
+    // We extract only the port; host defaults to "localhost" so GDB connects
+    // correctly on Windows systems where 127.0.0.1 fails with error 138.
+    /Firing up GDB stub.*\d{1,3}(?:\.\d{1,3}){3}:(\d{2,5})/i,
+  ],
   nrfjprog: [
     /Listening on TCP\/IP port\s+(\d{2,5})/i,
     /port[:\s]+(\d{2,5})/i,
@@ -143,7 +151,7 @@ export function matchPortAnnouncement(
     const hostStr = m[2] ? m[1] : undefined;
     const port = parseInt(portStr, 10);
     if (Number.isFinite(port) && port > 0 && port < 65536) {
-      return { host: hostStr || "127.0.0.1", port };
+      return { host: hostStr || "localhost", port };
     }
   }
   return undefined;
@@ -210,7 +218,7 @@ export async function startWestDebugServer(
     /** Full stderr/stdout accumulated for use in the exit-error message. */
     let fullOutput = "";
 
-    const settle = (host: string, port: number, portDetected: boolean) => {
+    const settle = (host: string, port: number, portDetected: boolean): void => {
       if (resolved) { return; }
       resolved = true;
       clearTimeout(timeoutHandle);
