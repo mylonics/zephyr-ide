@@ -10,7 +10,7 @@ In general, you should commit everything in your workspace folder except for bui
 **Recommended to commit**:
 
 - Project source code
-- `.vscode/zephyr-ide.json` - Project/build/test configurations, runner profiles, and optional `toolchains` / `sdkVersion` / `blobs` workspace requirements (auto-installed during workspace setup)
+- `.vscode/zephyr-ide.json` - Project/build/test configurations, runner profiles, and optional `toolchains` / `sdkVersion` / `blobs` / `pipPackages` workspace requirements (auto-installed during workspace setup)
 - `west.yml` / `.west/` - Workspace manifest and west configuration
 
 **Consider case-by-case**:

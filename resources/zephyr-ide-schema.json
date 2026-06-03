@@ -38,6 +38,14 @@
         "description": "West module name (e.g. 'hal_espressif')"
       }
     },
+    "pipPackages": {
+      "type": "array",
+      "description": "Python packages to be installed in the workspace's virtual environment.",
+      "items": {
+        "type": "string",
+        "description": "Python package name (e.g. 'dtsh', 'pyocd')"
+      }
+    },
     "sdkVersion": {
       "type": "string",
       "description": "Zephyr SDK version to install when bootstrapping (e.g. '0.17.0'). If omitted, the version from the Zephyr tree's SDK_VERSION file is used; if that is unavailable, the latest released SDK is installed.",

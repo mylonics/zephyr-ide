@@ -112,6 +112,7 @@ This is the workspace file used for projects/builds/tests, runner profiles, and 
   "toolchains": ["arm-zephyr-eabi"],
   "sdkVersion": "0.17.0",
   "blobs": ["hal_nordic"],
+  "pipPackages": ["dtsh", "pyocd"],
   "sampleProjects": [
     {
       "name": "hello_world",
@@ -137,6 +138,7 @@ This is the workspace file used for projects/builds/tests, runner profiles, and 
 | `toolchains` | `string[]` | No | Required Zephyr SDK toolchain names (e.g. `arm-zephyr-eabi`). |
 | `sdkVersion` | `string` | No | Preferred SDK version used when SDK auto-install is needed. |
 | `blobs` | `string[]` | No | West modules requiring `west blobs fetch <module>`. |
+| `pipPackages` | `string[]` | No | Additional Python packages installed into the workspace virtual environment during setup (e.g. `dtsh`, `pyocd`). The extension always installs `dtsh` and `pyocd`; packages listed here are added on top. |
 | `sampleProjects` | `ProjectConfig[]` | No | Optional project snapshots used by **Zephyr IDE: Add Sample Projects from File**. |
 | `runnerProfilesMigrationVersion` | `number` | No | Internal migration marker written by the extension. Keep as-is. |
 | any other key | any JSON | No | Preserved by the extension; can be read with `Zephyr IDE: Get Zephyr IDE JSON Variable`. |

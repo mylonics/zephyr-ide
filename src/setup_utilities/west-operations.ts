@@ -30,6 +30,7 @@ import { ensureWestConfigManifest } from "./west-config-parser";
 import { SetupProgressTracker } from "./setup-progress";
 import { getDefaultPythonExecutable, loadVendorHostToolsManifest, confirmVendorToolsInstall, installPackagesBatch } from "./host_tools";
 import { installZephyrIdeRequirements } from "./zephyr_ide_install";
+import { getZephyrIdePipPackages } from "./zephyr_ide_json";
 
 // Test-only override for narrow update
 let forceNarrowUpdateForTest = false;
@@ -322,14 +323,35 @@ export async function installPythonRequirements(context: vscode.ExtensionContext
   setupState.packagesInstalled = false;
   await saveSetupState(context, wsConfig, globalConfig);
 
-  // Install requirements from Zephyr's requirements.txt plus additional packages needed by Zephyr IDE.
-  // dtsh and pyocd are Zephyr IDE-specific tools not included in Zephyr's requirements.txt.
+  // Install requirements using west packages --pip install (preferred), falling back
+  // to direct pip install of Zephyr's requirements.txt plus additional packages.
+  // dtsh and pyocd are Zephyr IDE-specific tools always installed. Additional pip
+  // packages can be declared in zephyr-ide.json under "pipPackages".
   const additionalPackages = "dtsh pyocd";
-  const cmd = `pip install -r "${path.join(setupState.zephyrDir, "scripts", "requirements.txt")}" -U ${additionalPackages}`;
-  const reqRes = await executeTaskHelperInPythonEnv(setupState, "Zephyr IDE: Install Python Requirements", cmd, setupState.setupPath, true);
+  const extraPackages = getZephyrIdePipPackages(wsConfig);
+  const allPackages = extraPackages.length > 0
+    ? `${additionalPackages} ${extraPackages.join(" ")}`
+    : additionalPackages;
+  const requirementsTxt = path.join(setupState.zephyrDir, "scripts", "requirements.txt");
+
+  // Try west packages --pip install first
+  let reqRes = await executeTaskHelperInPythonEnv(setupState, "Zephyr IDE: Install Python Requirements", "west packages --pip install", setupState.setupPath, true);
+
+  // Fall back to direct pip install if west packages --pip install fails
+  if (!reqRes) {
+    outputInfo("Python Requirements", "west packages --pip install failed, falling back to pip install -r requirements.txt");
+    reqRes = await executeTaskHelperInPythonEnv(setupState, "Zephyr IDE: Install Python Requirements", `pip install -r "${requirementsTxt}" -U ${allPackages}`, setupState.setupPath, true);
+  } else {
+    // west packages --pip install succeeded, but additional packages are not in
+    // requirements.txt, so install them separately
+    const additionalRes = await executeTaskHelperInPythonEnv(setupState, "Zephyr IDE: Install pip packages", `pip install ${allPackages}`, setupState.setupPath, true);
+    if (!additionalRes) {
+      notifyError("Python Requirements", `Failed to install pip packages: ${allPackages}. Check the Zephyr IDE output for details.`);
+    }
+  }
 
   if (!reqRes) {
-    notifyError("Python Requirements", "Python Requirement Installation Failed. Check the Zephyr IDE output for details.", { command: cmd });
+    notifyError("Python Requirements", "Python Requirement Installation Failed. Check the Zephyr IDE output for details.", { command: `west packages --pip install || pip install -r "${requirementsTxt}" -U ${allPackages}` });
   } else {
     setupState.packagesInstalled = true;
     await saveSetupState(context, wsConfig, globalConfig);

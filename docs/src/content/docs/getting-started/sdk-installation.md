@@ -99,6 +99,28 @@ each declared module. You can also manage blobs interactively via:
 - `Zephyr IDE: Install Blobs from zephyr-ide.json` — fetches any blobs declared
   in `zephyr-ide.json`.
 
+## Declaring Required Pip Packages in `zephyr-ide.json`
+
+Additional Python packages can be declared under the `pipPackages` key. These are
+installed into the workspace's virtual environment during workspace setup, after
+Zephyr's own `requirements.txt` is satisfied:
+
+```json
+{
+  "pipPackages": ["dtsh", "pyocd"],
+  "toolchains": ["arm-zephyr-eabi"],
+  "projects": {}
+}
+```
+
+The extension always installs `dtsh` and `pyocd` (used for devicetree shell
+and CMSIS-DAP flashing/debugging). Packages listed under `pipPackages` are
+installed in addition to those defaults.
+
+During setup the extension first tries `west packages --pip install` and falls
+back to `pip install -r <zephyr>/scripts/requirements.txt` followed by
+`pip install <packages>`.
+
 ## Next Steps
 
 After installing the SDK, you're ready to:
