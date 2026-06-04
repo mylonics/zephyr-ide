@@ -475,3 +475,94 @@
     color: var(--vscode-descriptionForeground);
     text-align: center;
 }
+
+/* ===================================================================
+   Section header row (shared with setup panel pattern)
+   =================================================================== */
+
+.section-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.section-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+/* ===================================================================
+   West Blobs section
+   =================================================================== */
+
+.blobs-section {
+    margin-top: 28px;
+    padding: 16px;
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: var(--zephyr-webview-radius);
+    background-color: var(--vscode-editor-background);
+    box-shadow: var(--zephyr-webview-surface-shadow);
+}
+
+.blob-chip-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 4px 0;
+}
+
+.blob-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 12px;
+    border-radius: 100px;
+    font-size: 12px;
+    font-family: var(--vscode-editor-font-family);
+    border: 1px solid var(--vscode-panel-border);
+    cursor: pointer;
+    background-color: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
+    transition: background-color var(--zephyr-webview-transition-fast),
+                border-color var(--zephyr-webview-transition-fast),
+                color var(--zephyr-webview-transition-fast);
+    white-space: nowrap;
+    opacity: 0.75;
+}
+
+.blob-chip:hover {
+    opacity: 1;
+    background-color: color-mix(in srgb, var(--vscode-terminal-ansiBlue) 10%, transparent);
+    color: var(--vscode-terminal-ansiBlue);
+    border-color: color-mix(in srgb, var(--vscode-terminal-ansiBlue) 30%, transparent);
+}
+
+.blob-chip.selected {
+    background-color: color-mix(in srgb, var(--vscode-terminal-ansiBlue) 18%, transparent);
+    color: var(--vscode-terminal-ansiBlue);
+    border-color: color-mix(in srgb, var(--vscode-terminal-ansiBlue) 40%, transparent);
+    opacity: 1;
+    font-weight: 600;
+}
+
+.blob-chip-icon {
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.blob-progress-message {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+    background-color: var(--vscode-sideBar-background);
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: var(--zephyr-webview-radius);
+}
