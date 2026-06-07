@@ -17,6 +17,7 @@ limitations under the License.
 
 import * as assert from "assert";
 import * as path from "path";
+import * as vscode from "vscode";
 import { getEnvironmentSetupState } from "../setup_utilities/workspace-config";
 
 suite("Environment Variable Detection Test Suite", () => {
@@ -79,11 +80,15 @@ suite("Environment Variable Detection Test Suite", () => {
         }
     });
 
-    test("getEnvironmentSetupState returns SetupState when ZEPHYR_BASE is set", () => {
+    test("getEnvironmentSetupState returns SetupState when ZEPHYR_BASE is set", async () => {
         // Save original value
         const originalZephyrBase = process.env.ZEPHYR_BASE;
+        const config = vscode.workspace.getConfiguration();
+        const venvConfigInspect = config.inspect<string | null>("zephyr-ide.venvFolder");
+        const originalVenvConfig = venvConfigInspect?.globalValue;
         
         try {
+            await config.update("zephyr-ide.venvFolder", undefined, vscode.ConfigurationTarget.Global);
             // Set test value
             const testZephyrBase = "/test/zephyr/path";
             process.env.ZEPHYR_BASE = testZephyrBase;
@@ -97,6 +102,7 @@ suite("Environment Variable Detection Test Suite", () => {
             assert.strictEqual(setupState?.setupPath, path.dirname(testZephyrBase), "setupPath should be parent directory of ZEPHYR_BASE");
             assert.strictEqual(setupState?.westUpdated, true, "westUpdated should be true for external environment");
             assert.strictEqual(setupState?.packagesInstalled, true, "packagesInstalled should be true for external environment");
+            assert.strictEqual(setupState?.env?.VIRTUAL_ENV, path.join(path.dirname(testZephyrBase), ".venv"), "VIRTUAL_ENV should default to .venv under setupPath");
         } finally {
             // Restore original value
             if (originalZephyrBase !== undefined) {
@@ -104,6 +110,7 @@ suite("Environment Variable Detection Test Suite", () => {
             } else {
                 delete process.env.ZEPHYR_BASE;
             }
+            await config.update("zephyr-ide.venvFolder", originalVenvConfig, vscode.ConfigurationTarget.Global);
         }
     });
 

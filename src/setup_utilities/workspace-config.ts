@@ -894,12 +894,24 @@ export function getArmGdbPath(wsConfig: WorkspaceConfig): string | undefined {
  */
 export function getVenvPath(setupPath: string): string {
   const configuration = vscode.workspace.getConfiguration();
-  const venvPath: string | undefined = configuration.get("zephyr-ide.venvFolder")
+  const configuredVenvPath: string | undefined = configuration.get("zephyr-ide.venvFolder")
     || configuration.get("zephyr-ide.venv-folder");
 
   // Use configured path if it's a non-empty string
-  if (venvPath && venvPath.trim()) {
-    return venvPath;
+  if (configuredVenvPath && configuredVenvPath.trim()) {
+    let resolvedVenvPath = configuredVenvPath.trim();
+    resolvedVenvPath = resolvedVenvPath.replace(/\$\{workspaceFolder\}/g, setupPath);
+
+    if (resolvedVenvPath === "~") {
+      resolvedVenvPath = os.homedir();
+    } else if (resolvedVenvPath.startsWith("~/")) {
+      resolvedVenvPath = path.join(os.homedir(), resolvedVenvPath.substring(2));
+    }
+
+    if (!path.isAbsolute(resolvedVenvPath)) {
+      resolvedVenvPath = path.join(setupPath, resolvedVenvPath);
+    }
+    return path.normalize(resolvedVenvPath);
   }
 
   // Default to .venv in the setup path
@@ -927,6 +939,9 @@ export function getEnvironmentSetupState(): SetupState | undefined {
     return undefined;
   }
 
+  const setupPath = path.dirname(zephyrBase);
+  const venvPath = getVenvPath(setupPath);
+
   // Create a setup state based on environment variables
   const setupState: SetupState = {
     pythonEnvironmentSetup: true,
@@ -934,8 +949,8 @@ export function getEnvironmentSetupState(): SetupState | undefined {
     packagesInstalled: true, // Assume packages are already installed in external environment
     zephyrDir: zephyrBase,
     zephyrVersion: undefined, // Will be determined later if needed
-    env: {},
-    setupPath: path.dirname(zephyrBase), // Use parent directory of ZEPHYR_BASE
+    env: { VIRTUAL_ENV: venvPath },
+    setupPath, // Use parent directory of ZEPHYR_BASE
   };
 
   return setupState;
