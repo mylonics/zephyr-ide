@@ -901,6 +901,8 @@ export function getVenvPath(setupPath: string): string {
   if (configuredVenvPath && configuredVenvPath.trim()) {
     let resolvedVenvPath = configuredVenvPath.trim();
     resolvedVenvPath = resolvedVenvPath.replace(/\$\{workspaceFolder\}/g, setupPath);
+    resolvedVenvPath = resolvedVenvPath.replace(/\$\{workspaceFolderBasename\}/g, path.basename(setupPath));
+    resolvedVenvPath = resolvedVenvPath.replace(/\$\{userHome\}/g, os.homedir());
 
     if (resolvedVenvPath === "~") {
       resolvedVenvPath = os.homedir();

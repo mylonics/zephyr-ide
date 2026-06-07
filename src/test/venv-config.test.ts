@@ -20,6 +20,7 @@ import * as vscode from "vscode";
 import { getVenvPath } from "../setup_utilities/workspace-config";
 import { isDangerousVenvResetTarget } from "../setup_utilities/west-operations";
 import * as path from "path";
+import * as os from "os";
 import { normalizePath } from "./test-runner";
 
 suite("Venv Configuration Test Suite", () => {
@@ -87,6 +88,42 @@ suite("Venv Configuration Test Suite", () => {
         const result = getVenvPath(setupPath);
 
         assert.strictEqual(result, normalizePath(path.join(setupPath, ".venv")));
+
+        await config.update("zephyr-ide.venvFolder", undefined, vscode.ConfigurationTarget.Global);
+    });
+
+    test("Expands ${workspaceFolderBasename} in configured venv path", async () => {
+        const config = vscode.workspace.getConfiguration();
+        await config.update("zephyr-ide.venvFolder", "${workspaceFolderBasename}/.venv", vscode.ConfigurationTarget.Global);
+
+        const setupPath = "/test/setup/path";
+        const result = getVenvPath(setupPath);
+
+        assert.strictEqual(result, normalizePath(path.join(setupPath, path.basename(setupPath), ".venv")));
+
+        await config.update("zephyr-ide.venvFolder", undefined, vscode.ConfigurationTarget.Global);
+    });
+
+    test("Expands ${userHome} in configured venv path", async () => {
+        const config = vscode.workspace.getConfiguration();
+        await config.update("zephyr-ide.venvFolder", "${userHome}/.venv", vscode.ConfigurationTarget.Global);
+
+        const setupPath = "/test/setup/path";
+        const result = getVenvPath(setupPath);
+
+        assert.strictEqual(result, normalizePath(path.join(os.homedir(), ".venv")));
+
+        await config.update("zephyr-ide.venvFolder", undefined, vscode.ConfigurationTarget.Global);
+    });
+
+    test("Expands ~ in configured venv path", async () => {
+        const config = vscode.workspace.getConfiguration();
+        await config.update("zephyr-ide.venvFolder", "~/.venv", vscode.ConfigurationTarget.Global);
+
+        const setupPath = "/test/setup/path";
+        const result = getVenvPath(setupPath);
+
+        assert.strictEqual(result, normalizePath(path.join(os.homedir(), ".venv")));
 
         await config.update("zephyr-ide.venvFolder", undefined, vscode.ConfigurationTarget.Global);
     });
