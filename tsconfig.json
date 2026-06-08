@@ -37,6 +37,8 @@
     "src/panels/dashboard_view/dashboard-panel.ts",
     "src/panels/dashboard_view/components",
     "src/panels/runner_profile_view/runner-profile-panel.ts",
-    "src/panels/runner_profile_view/components"
+    "src/panels/runner_profile_view/components",
+    "src/panels/zephyr_ide_manager/zephyr-ide-manager.ts",
+    "src/panels/zephyr_ide_manager/components"
   ]
 }

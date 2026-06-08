@@ -632,6 +632,14 @@
         "title": "Zephyr IDE: Install Blobs from zephyr-ide.json"
       },
       {
+        "command": "zephyr-ide.modify-zephyr-ide-pip-packages",
+        "title": "Zephyr IDE: Modify zephyr-ide.json Pip Packages"
+      },
+      {
+        "command": "zephyr-ide.install-zephyr-ide-pip-packages",
+        "title": "Zephyr IDE: Install Pip Packages from zephyr-ide.json"
+      },
+      {
         "command": "zephyr-ide.modify-zephyr-ide-sample-projects",
         "title": "Zephyr IDE: Modify Sample Projects (zephyr-ide.json)"
       },
@@ -949,6 +957,10 @@
       {
         "command": "zephyr-ide.open-sdk-panel",
         "title": "Zephyr IDE: SDK Management"
+      },
+      {
+        "command": "zephyr-ide.open-zephyr-ide-manager",
+        "title": "Zephyr IDE: Zephyr IDE Manager"
       },
       {
         "command": "zephyr-ide.open-workspace-panel",
@@ -1877,7 +1889,7 @@
   "scripts": {
     "vscode:prepublish": "npm run esbuild-base -- --minify && npm run esbuild-webview-base -- --minify",
     "esbuild-base": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node",
-    "esbuild-webview-base": "esbuild ./src/panels/host_tool_install_view/host-tool-install.ts ./src/panels/setup_panel/setup-panel.ts ./src/panels/project_build_view/project-build-panel.ts ./src/panels/settings_view/settings-panel.ts ./src/panels/sdk_panel/sdk-panel.ts ./src/panels/workspace_panel/workspace-panel.ts ./src/panels/dashboard_view/dashboard-panel.ts ./src/panels/runner_profile_view/runner-profile-panel.ts --bundle --outdir=dist/webview --outbase=src/panels --format=iife --platform=browser --tsconfig=tsconfig.webview.json",
+    "esbuild-webview-base": "esbuild ./src/panels/host_tool_install_view/host-tool-install.ts ./src/panels/setup_panel/setup-panel.ts ./src/panels/project_build_view/project-build-panel.ts ./src/panels/settings_view/settings-panel.ts ./src/panels/sdk_panel/sdk-panel.ts ./src/panels/workspace_panel/workspace-panel.ts ./src/panels/dashboard_view/dashboard-panel.ts ./src/panels/runner_profile_view/runner-profile-panel.ts ./src/panels/zephyr_ide_manager/zephyr-ide-manager.ts --bundle --outdir=dist/webview --outbase=src/panels --format=iife --platform=browser --tsconfig=tsconfig.webview.json",
     "esbuild": "npm run esbuild-base -- --sourcemap && npm run esbuild-webview-base -- --sourcemap",
     "esbuild-watch": "npm run esbuild-base -- --sourcemap --watch",
     "test-compile": "tsc -p ./ && tsc -p ./tsconfig.webview.json",

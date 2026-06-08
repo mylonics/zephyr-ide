@@ -474,6 +474,14 @@ export class SetupApp extends ZephyrLitElement {
             </div>
           </div>
 
+          <div class="quick-action-item" @click=${() => this._cmd("openZephyrIDEManager")} role="button" tabindex="0" data-keyboard-command="true">
+            <span class="codicon codicon-package"></span>
+            <div class="quick-action-content">
+              <strong>Zephyr IDE Manager</strong>
+              <p>Manage zephyr-ide.json requirements including blobs, pip packages, sample projects, and install workflows.</p>
+            </div>
+          </div>
+
           <div class="quick-action-item" @click=${() => this._cmd("westUpdate")} role="button" tabindex="0" data-keyboard-command="true">
             <span class="codicon codicon-sync"></span>
             <div class="quick-action-content">

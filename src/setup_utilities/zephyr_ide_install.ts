@@ -46,6 +46,8 @@ import {
     getZephyrIdeSdkVersion,
     getZephyrIdeSampleProjects,
     setZephyrIdeSampleProjects,
+    getZephyrIdePipPackages,
+    setZephyrIdePipPackages,
 } from "./zephyr_ide_json";
 import { executeShellCommandInPythonEnv, executeTaskHelperInPythonEnv } from "../utilities/utils";
 import { outputInfo, outputError, outputWarning, notifyError } from "../utilities/output";
@@ -308,33 +310,47 @@ export async function installZephyrIdeToolchains(
 // ---------------------------------------------------------------------------
 
 /**
- * Discover west modules that ship binary blobs. Returns module names suitable
- * for `west blobs fetch <module>`. Best-effort: returns an empty list if west
- * isn't available or no modules declare blobs.
+ * Describes a west blob module and whether its blobs have already been fetched.
  */
-async function listModulesWithBlobs(wsConfig: WorkspaceConfig, _context: vscode.ExtensionContext): Promise<string[]> {
-    // Silent variant: don't notify the user — listing blobs is a discovery
-    // step that gracefully degrades to "no available modules" when west isn't
-    // ready yet. Use activeSetupState directly to avoid the missing-environment
-    // warning that getSetupState() would surface.
+export interface BlobModuleInfo {
+    moduleName: string;
+    isFetched: boolean;
+    /** The module path (populated from `west blobs list` when available). */
+    path?: string;
+}
+
+/**
+ * Discover west modules that ship binary blobs, along with their fetch status.
+ * Uses `west blobs list -f "{module}\t{status}\t{path}"` to detect whether each
+ * blob module has already been fetched.
+ *
+ * Best-effort: returns an empty array if west isn't available or no modules
+ * declare blobs. Uses activeSetupState directly to avoid the missing-environment
+ * warning that getSetupState() would surface.
+ */
+export async function listModulesWithBlobs(wsConfig: WorkspaceConfig, _context: vscode.ExtensionContext): Promise<BlobModuleInfo[]> {
     const setupState = wsConfig.activeSetupState;
     if (!setupState) { return []; }
 
     try {
+        // Format: {module}\t{status}\t{path} where status is usually "Fetched" or empty
+        // for modules that haven't been fetched yet.
         const res = await executeShellCommandInPythonEnv(
-            `west blobs list -f "{module}"`,
+            `west blobs list -f "{module}\t{status}\t{path}"`,
             setupState.setupPath,
             setupState,
             false,
         );
         if (!res.stdout) { return []; }
         const seen = new Set<string>();
-        const out: string[] = [];
+        const out: BlobModuleInfo[] = [];
         for (const line of res.stdout.split(/\r?\n/)) {
-            const name = line.trim();
-            if (!name || seen.has(name)) { continue; }
-            seen.add(name);
-            out.push(name);
+            const [moduleName, rawStatus = "", blobPath] = line.trim().split("\t");
+            if (!moduleName || seen.has(moduleName)) { continue; }
+            seen.add(moduleName);
+            const status = rawStatus.toLowerCase();
+            const isFetched = status === "fetched" || status === "y";
+            out.push({ moduleName, isFetched, path: blobPath || undefined });
         }
         return out;
     } catch (error) {
@@ -362,9 +378,9 @@ export async function modifyZephyrIdeBlobsInteractive(
     const installed: string[] = [];
     const others: string[] = [];
     for (const m of available) {
-        if (seen.has(m)) { continue; }
-        seen.add(m);
-        installed.push(m);
+        if (seen.has(m.moduleName)) { continue; }
+        seen.add(m.moduleName);
+        installed.push(m.moduleName);
     }
     for (const m of current) {
         if (seen.has(m)) { continue; }
@@ -472,6 +488,170 @@ export async function installZephyrIdeBlobs(
         notifyError("Zephyr IDE Blobs", "One or more blob modules failed to fetch. Check the Zephyr IDE output for details.");
     } else {
         outputInfo("Zephyr IDE Blobs", `Fetched blobs for ${declared.length} module(s).`);
+    }
+    return allOk;
+}
+
+// ---------------------------------------------------------------------------
+// Pip Packages
+// ---------------------------------------------------------------------------
+
+/**
+ * Package specifiers accepted for direct insertion into `pip install <specs...>`.
+ *
+ * This intentionally rejects whitespace and shell metacharacters because
+ * `.vscode/zephyr-ide.json` can be edited by contributors and must not be able
+ * to inject arbitrary shell content.
+ */
+const VALID_PIP_SPEC = /^(?!-)[A-Za-z0-9_.\-\[\],<>=!~]+$/;
+
+function parsePipPackageInput(value: string): string[] {
+    if (!value.trim()) { return []; }
+    const parts = value
+        .split(/[\r\n,\s]+/)
+        .map(v => v.trim())
+        .filter(v => v.length > 0);
+    return Array.from(new Set(parts));
+}
+
+/** Open the modify-pip-packages input and persist the result. */
+export async function modifyZephyrIdePipPackagesInteractive(wsConfig: WorkspaceConfig): Promise<string[] | undefined> {
+    if (!wsConfig.rootPath) {
+        notifyError("Zephyr IDE Pip Packages", "No active workspace folder.");
+        return undefined;
+    }
+
+    const current = getZephyrIdePipPackages(wsConfig);
+    const value = await vscode.window.showInputBox({
+        title: "Modify Pip Packages (zephyr-ide.json)",
+        prompt: "Enter package specifiers separated by spaces, commas, or new lines.",
+        placeHolder: "west pyelftools==0.31 cryptography>=42",
+        value: current.join(" "),
+        ignoreFocusOut: true,
+    });
+
+    if (value === undefined) {
+        outputInfo("Zephyr IDE Pip Packages", "Modify cancelled");
+        return undefined;
+    }
+
+    const packages = parsePipPackageInput(value);
+    const invalid = packages.filter(p => !VALID_PIP_SPEC.test(p));
+    if (invalid.length > 0) {
+        notifyError(
+            "Zephyr IDE Pip Packages",
+            `Invalid package specifier(s): ${invalid.join(", ")}. Allowed pattern: ${VALID_PIP_SPEC.source}`,
+        );
+        return undefined;
+    }
+
+    await setZephyrIdePipPackages(wsConfig, packages);
+    outputInfo("Zephyr IDE Pip Packages", `Saved ${packages.length} pip package(s) to zephyr-ide.json`);
+    return packages;
+}
+
+/**
+ * Install every pip package declared in zephyr-ide.json via `pip install ...`.
+ */
+export async function installZephyrIdePipPackages(
+    wsConfig: WorkspaceConfig,
+    context: vscode.ExtensionContext,
+    silentIfEmpty = false,
+): Promise<boolean> {
+    const declared = getZephyrIdePipPackages(wsConfig);
+    if (declared.length === 0) {
+        if (!silentIfEmpty) {
+            void vscode.window.showInformationMessage(
+                "No pip packages declared in .vscode/zephyr-ide.json. Run 'Modify zephyr-ide.json pip packages' first.",
+            );
+        }
+        return true;
+    }
+
+    const invalid = declared.filter(p => !VALID_PIP_SPEC.test(p));
+    if (invalid.length > 0) {
+        notifyError(
+            "Zephyr IDE Pip Packages",
+            `Refusing to install invalid package specifier(s): ${invalid.join(", ")}`,
+        );
+        return false;
+    }
+
+    const setupState = await getSetupStateOrNotify(context, wsConfig, "Zephyr IDE Pip Packages");
+    if (!setupState) { return false; }
+
+    const command = `pip install ${declared.join(" ")}`;
+    outputInfo("Zephyr IDE Pip Packages", `Installing ${declared.length} package(s): ${declared.join(", ")}`);
+    const ok = await executeTaskHelperInPythonEnv(
+        setupState,
+        "Zephyr IDE: Install pip packages",
+        command,
+        setupState.setupPath,
+        true,
+    );
+
+    if (!ok) {
+        notifyError("Zephyr IDE Pip Packages", "Failed to install one or more pip packages. Check output for details.");
+        return false;
+    }
+
+    outputInfo("Zephyr IDE Pip Packages", "Installed pip packages declared in zephyr-ide.json.");
+    return true;
+}
+
+/**
+ * Event emitter for blob install progress, mirroring the SDK toolchain pattern.
+ * Used by the SDK panel webview to show real-time progress.
+ */
+const _onBlobProgress = new vscode.EventEmitter<string>();
+export const onBlobProgress: vscode.Event<string> = _onBlobProgress.event;
+
+/**
+ * Interactive blob installation: runs `west blobs fetch <module>` for each
+ * selected module name, emitting progress events for the SDK panel webview.
+ *
+ * @returns true if all modules succeeded, false if any failed.
+ */
+export async function installBlobModulesInteractive(
+    wsConfig: WorkspaceConfig,
+    context: vscode.ExtensionContext,
+    modules: string[],
+): Promise<boolean> {
+    if (modules.length === 0) {
+        return true;
+    }
+
+    const setupState = await getSetupStateOrNotify(context, wsConfig, "Zephyr IDE Blobs");
+    if (!setupState) { return false; }
+
+    let allOk = true;
+    for (const moduleName of modules) {
+        if (!VALID_MODULE_NAME.test(moduleName)) {
+            outputError("Zephyr IDE Blobs",
+                `Refusing to fetch blobs for invalid module name '${moduleName}'. ` +
+                `Module names must match ${VALID_MODULE_NAME.source}.`);
+            allOk = false;
+            continue;
+        }
+        _onBlobProgress.fire(`Fetching blobs for ${moduleName}...`);
+        outputInfo("Zephyr IDE Blobs", `Fetching blobs for module '${moduleName}'...`);
+        const ok = await executeTaskHelperInPythonEnv(
+            setupState,
+            `Zephyr IDE: Fetch Blobs (${moduleName})`,
+            `west blobs fetch ${moduleName}`,
+            setupState.setupPath,
+        );
+        if (!ok) {
+            outputError("Zephyr IDE Blobs", `Failed to fetch blobs for module '${moduleName}'`);
+            allOk = false;
+        }
+    }
+
+    if (!allOk) {
+        notifyError("Zephyr IDE Blobs", "One or more blob modules failed to fetch. Check the Zephyr IDE output for details.");
+    } else {
+        _onBlobProgress.fire(`Fetched blobs for ${modules.length} module(s).`);
+        outputInfo("Zephyr IDE Blobs", `Fetched blobs for ${modules.length} module(s).`);
     }
     return allOk;
 }
@@ -689,5 +869,12 @@ export async function installZephyrIdeRequirements(
         }
     } catch (error) {
         outputError("Zephyr IDE Blobs", `Auto-install of declared blobs failed: ${error}`);
+    }
+    try {
+        if (getZephyrIdePipPackages(wsConfig).length > 0 && wsConfig.activeSetupState?.packagesInstalled !== true) {
+            await installZephyrIdePipPackages(wsConfig, context, true);
+        }
+    } catch (error) {
+        outputError("Zephyr IDE Pip Packages", `Auto-install of declared pip packages failed: ${error}`);
     }
 }

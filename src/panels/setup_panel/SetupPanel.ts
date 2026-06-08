@@ -136,6 +136,7 @@ export class SetupPanel {
   private readonly commandPassthroughMap: Record<string, string> = {
     openHostToolsPanel: "zephyr-ide.open-host-tools-panel",
     openSDKPanel: "zephyr-ide.open-sdk-panel",
+    openZephyrIDEManager: "zephyr-ide.open-zephyr-ide-manager",
     openWorkspacePanel: "zephyr-ide.open-workspace-panel",
     openFolder: "vscode.openFolder",
     westUpdate: "zephyr-ide.west-update",

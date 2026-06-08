@@ -39,6 +39,7 @@ import {
 } from "./build_data/kconfig-session";
 import { SettingsPanel } from "./panels/settings_view/SettingsPanel";
 import { SDKPanel } from "./panels/sdk_panel/SDKPanel";
+import { ZephyrIDEManagerPanel } from "./panels/zephyr_ide_manager/ZephyrIDEManagerPanel";
 import { RunnerProfilePanel } from "./panels/runner_profile_view/RunnerProfilePanel";
 import { WorkspacePanel } from "./panels/workspace_panel/WorkspacePanel";
 
@@ -151,6 +152,8 @@ import {
   modifyZephyrIdeBlobsInteractive,
   installZephyrIdeBlobs,
   modifyZephyrIdeSampleProjectsInteractive,
+  modifyZephyrIdePipPackagesInteractive,
+  installZephyrIdePipPackages,
 } from "./setup_utilities/zephyr_ide_install";
 import { getZephyrIdeSampleProjects } from "./setup_utilities/zephyr_ide_json";
 import {
@@ -1642,6 +1645,7 @@ export async function activate(context: vscode.ExtensionContext) {
       }
       ProjectBuildPanel.updateAllPanels(wsConfig, globalConfig);
       SDKPanel.updateAllPanels(wsConfig, globalConfig);
+      ZephyrIDEManagerPanel.updateAllPanels(wsConfig, globalConfig);
       WorkspacePanel.updateAllPanels(wsConfig, globalConfig);
       HostToolInstallView.currentPanel?.updateContent(wsConfig, globalConfig);
       RunnerProfilePanel.updateAllPanels(wsConfig, globalConfig);
@@ -2084,6 +2088,18 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.modify-zephyr-ide-pip-packages", async () => {
+      await modifyZephyrIdePipPackagesInteractive(wsConfig);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.install-zephyr-ide-pip-packages", async () => {
+      return await installZephyrIdePipPackages(wsConfig, context);
+    })
+  );
+
+  context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.modify-zephyr-ide-sample-projects", async () => {
       await modifyZephyrIdeSampleProjectsInteractive(wsConfig);
     })
@@ -2168,6 +2184,17 @@ export async function activate(context: vscode.ExtensionContext) {
         context,
         wsConfig,
         globalConfig
+      );
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.open-zephyr-ide-manager", async () => {
+      ZephyrIDEManagerPanel.createOrShow(
+        context.extensionPath,
+        context,
+        wsConfig,
+        globalConfig,
       );
     })
   );
