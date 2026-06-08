@@ -505,7 +505,7 @@ export async function installZephyrIdeBlobs(
  * `.vscode/zephyr-ide.json` can be edited by contributors and must not be able
  * to inject arbitrary shell content.
  */
-const VALID_PIP_SPEC = /^[A-Za-z0-9_.\-\[\],<>=!~]+$/;
+const VALID_PIP_SPEC = /^(?!-)[A-Za-z0-9_.\-\[\],<>=!~]+$/;
 
 function parsePipPackageInput(value: string): string[] {
     if (!value.trim()) { return []; }
