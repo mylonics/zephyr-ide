@@ -56,12 +56,6 @@ interface SDKPanelInitData {
   sdkVersionMap?: Record<string, string>;
 }
 
-interface BlobModuleInfo {
-  moduleName: string;
-  isFetched: boolean;
-  path?: string;
-}
-
 // ---------------------------------------------------------------------------
 // Toolchain architecture grouping
 // ---------------------------------------------------------------------------
@@ -146,15 +140,6 @@ export class SDKApp extends ZephyrLitElement {
   @state() private _pendingAdds = new Map<string, Set<string>>();
   @state() private _pendingRemoves = new Map<string, Set<string>>();
 
-  // ---------------------------------------------------------------------------
-  // Blob state
-  // ---------------------------------------------------------------------------
-  @state() private _blobModules: BlobModuleInfo[] | undefined = undefined;
-  @state() private _selectedBlobs = new Set<string>();
-  @state() private _blobsLoading = false;
-  @state() private _blobInstallMessage = "";
-  @state() private _blobInstalling = false;
-
   connectedCallback() {
     super.connectedCallback();
     window.addEventListener("message", this._onMessage);
@@ -195,26 +180,12 @@ export class SDKApp extends ZephyrLitElement {
           }
           this._expandedUnavailable = autoExpanded;
         }
-        // Auto-fetch blob list when SDK info loads (page load or refresh)
-        this._refreshBlobs();
         break;
       case "sdkListLoading":
         this._sdkLoading = true;
         break;
       case "sdkInstallProgress":
         this._handleProgress(msg.data);
-        break;
-      case "blobListResult":
-        this._blobsLoading = false;
-        this._blobModules = msg.data;
-        break;
-      case "blobInstallProgress":
-        this._blobInstallMessage = msg.data;
-        break;
-      case "blobInstallResult":
-        this._blobInstalling = false;
-        this._blobInstallMessage = msg.data ? "Blob installation completed." : "Blob installation failed.";
-        this._selectedBlobs = new Set();
         break;
     }
   };
@@ -244,6 +215,10 @@ export class SDKApp extends ZephyrLitElement {
   private _installZephyrIdeToolchains() {
     this._buttonsDisabled = true;
     this.vscodeApi.postMessage({ command: "installZephyrIdeToolchains" });
+  }
+
+  private _openZephyrIdeManager() {
+    this.vscodeApi.postMessage({ command: "openZephyrIDEManager" });
   }
 
   private _addToolchainsForVersion(version: string) {
@@ -339,6 +314,10 @@ export class SDKApp extends ZephyrLitElement {
               <vscode-icon slot="start-icon" name="edit"></vscode-icon>
               Modify zephyr-ide.json
             </vscode-button>
+            <vscode-button appearance="secondary" @click=${() => this._openZephyrIdeManager()} title="Open Zephyr IDE Manager for blobs, pip packages, and sample projects">
+              <vscode-icon slot="start-icon" name="package"></vscode-icon>
+              Open Zephyr IDE Manager
+            </vscode-button>
             <vscode-button appearance="secondary" ?disabled=${this._buttonsDisabled} @click=${() => this._listSDKs()}>
               <vscode-icon slot="start-icon" name="refresh"></vscode-icon>
               Refresh
@@ -350,11 +329,12 @@ export class SDKApp extends ZephyrLitElement {
           The Zephyr SDK provides GNU toolchains for cross-compiling to supported target architectures.
           Click any toolchain chip to toggle it for installation or removal, then click
           <strong>Apply Changes</strong> on the SDK version card to install or remove the selected toolchains.
+          For west blobs, pip packages, host tools, and sample project management, use
+          <strong>Open Zephyr IDE Manager</strong>.
         </p>
 
         ${this._renderProgress()}
         ${this._renderSDKList()}
-        ${this._renderBlobsSection()}
       </div>
     `;
   }
@@ -587,148 +567,6 @@ export class SDKApp extends ZephyrLitElement {
     removes.delete(version);
     this._pendingAdds = adds;
     this._pendingRemoves = removes;
-  }
-
-  // ---------------------------------------------------------------------------
-  // Blob UI
-  // ---------------------------------------------------------------------------
-
-  /** Trigger blob list refresh from backend */
-  private _refreshBlobs() {
-    this._blobsLoading = true;
-    this.vscodeApi.postMessage({ command: "listBlobs" });
-  }
-
-  /** Toggle a blob module for install */
-  private _toggleBlob(moduleName: string) {
-    const next = new Set(this._selectedBlobs);
-    if (next.has(moduleName)) {
-      next.delete(moduleName);
-    } else {
-      next.add(moduleName);
-    }
-    this._selectedBlobs = next;
-  }
-
-  /** Send selected blobs to backend for installation */
-  private _installSelectedBlobs() {
-    const modules = Array.from(this._selectedBlobs);
-    if (modules.length === 0) { return; }
-    this._blobInstalling = true;
-    this._blobInstallMessage = "";
-    this.vscodeApi.postMessage({ command: "installBlobs", modules });
-  }
-
-  /** Render the West Blobs section below the SDK list, using toolchain chip styles. */
-  private _renderBlobsSection() {
-    const blobModules = this._blobModules;
-    const hasBlobs = blobModules !== undefined && blobModules.length > 0;
-    const fetchedCount = blobModules ? blobModules.filter(m => m.isFetched).length : 0;
-    const totalCount = blobModules ? blobModules.length : 0;
-    const selectedCount = this._selectedBlobs.size;
-
-    // Count un-fetched modules available for selection
-    const availableToFetch = blobModules ? blobModules.filter(m => !m.isFetched).map(m => m.moduleName) : [];
-    // Prevent selecting already-fetched blobs — they are already installed
-    const effectiveSelected = Array.from(this._selectedBlobs).filter(n => availableToFetch.includes(n));
-    const canInstall = effectiveSelected.length > 0;
-
-    return html`
-      <div class="blobs-section">
-        <div class="section-header-row" style="margin-bottom: 8px;">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <span class="codicon codicon-package" style="font-size:16px;"></span>
-            <h2 style="margin:0;font-size:14px;">West Blobs</h2>
-            ${totalCount > 0 ? html`
-              <span class="sdk-toolchain-count ${fetchedCount > 0 ? 'has-toolchains' : ''}">
-                ${fetchedCount} / ${totalCount} fetched
-              </span>
-            ` : nothing}
-          </div>
-          <div class="section-header-actions">
-            <vscode-button
-              appearance="secondary"
-              ?disabled=${this._buttonsDisabled || this._blobInstalling}
-              @click=${() => this._refreshBlobs()}
-              title="Refresh blob list from west"
-            >
-              <vscode-icon slot="start-icon" name="refresh"></vscode-icon>
-              Refresh
-            </vscode-button>
-          </div>
-        </div>
-
-        <p class="sdk-description" style="margin-bottom:12px;">
-          Binary blobs (firmware, HALs, etc.) provided by west modules. Click an available blob chip to fetch it
-          via <code>west blobs fetch</code>. Already-fetched blobs are shown in green.
-        </p>
-
-        ${this._blobInstallMessage ? html`
-          <div class="blob-progress-message">
-            ${this._blobInstalling ? html`<vscode-progress-ring style="--progress-ring-size:12px;flex-shrink:0"></vscode-progress-ring>` : nothing}
-            <span>${this._blobInstallMessage}</span>
-          </div>
-        ` : nothing}
-
-        ${this._blobsLoading ? html`
-          <div class="sdk-loading"><vscode-progress-ring></vscode-progress-ring><span>Listing available blobs...</span></div>
-        ` : hasBlobs ? html`
-          <div class="blob-chip-list">
-            ${blobModules!.map(m => {
-      const isFetched = m.isFetched;
-      const chipClass = isFetched
-        ? "toolchain-chip installed"
-        : this._selectedBlobs.has(m.moduleName)
-          ? "toolchain-chip pending-add"
-          : "toolchain-chip available";
-      const icon = isFetched ? "✓" : this._selectedBlobs.has(m.moduleName) ? "✓" : "+";
-      const title = isFetched
-        ? `Blobs for ${m.moduleName} already fetched`
-        : this._selectedBlobs.has(m.moduleName)
-          ? "Click to deselect"
-          : "Click to select for fetch";
-      return html`
-                <button
-                  class="${chipClass}"
-                  @click=${() => {
-          if (!m.isFetched) { this._toggleBlob(m.moduleName); }
-        }}
-                  ?disabled=${this._buttonsDisabled || this._blobInstalling || m.isFetched}
-                  title=${title}
-                >
-                  <span class="tc-chip-icon">${icon}</span>
-                  ${m.moduleName}
-                </button>`;
-    })}
-          </div>
-        ` : blobModules !== undefined ? html`
-          <div class="sdk-empty-box" style="text-align:left;padding:10px;font-size:12px;">
-            No blob modules found. Run <strong>west update</strong> first, or check that your west manifest declares modules with blobs.
-          </div>
-        ` : html`
-          <div class="sdk-loading"><vscode-progress-ring></vscode-progress-ring><span>Loading blob information...</span></div>
-        `}
-
-        ${canInstall ? html`
-          <div style="margin-top:12px;display:flex;align-items:center;gap:10px;">
-            <vscode-button
-              ?disabled=${this._buttonsDisabled || this._blobInstalling}
-              @click=${() => this._installSelectedBlobs()}
-            >
-              <vscode-icon slot="start-icon" name="cloud-download"></vscode-icon>
-              Fetch ${effectiveSelected.length} blob module${effectiveSelected.length !== 1 ? "s" : ""}
-            </vscode-button>
-            <vscode-button
-              appearance="secondary"
-              ?disabled=${this._buttonsDisabled || this._blobInstalling}
-              @click=${() => this._selectedBlobs = new Set()}
-            >
-              Clear Selection
-            </vscode-button>
-          </div>
-        ` : nothing}
-      </div>
-    `;
   }
 
   /** Render toolchains as selectable chips showing their install / pending state. */

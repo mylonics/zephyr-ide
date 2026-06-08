@@ -1,0 +1,121 @@
+@import url("../webview_shared/webview-base.css");
+
+.manager-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.manager-card {
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--zephyr-webview-radius);
+  background-color: var(--vscode-editor-background);
+  padding: 14px;
+  box-shadow: var(--zephyr-webview-surface-shadow);
+}
+
+.manager-card.full-width {
+  grid-column: 1 / -1;
+}
+
+.manager-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.manager-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.manager-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.manager-subtext {
+  margin-top: 0;
+  margin-bottom: 10px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+}
+
+.token-list {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.token {
+  font-size: 11px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 999px;
+  padding: 2px 8px;
+  color: var(--vscode-foreground);
+  background-color: var(--vscode-badge-background);
+}
+
+.token.success {
+  background-color: color-mix(in srgb, var(--vscode-terminal-ansiGreen) 16%, transparent);
+  color: var(--vscode-terminal-ansiGreen);
+  border-color: color-mix(in srgb, var(--vscode-terminal-ansiGreen) 32%, transparent);
+}
+
+.token.warning {
+  background-color: color-mix(in srgb, var(--vscode-terminal-ansiYellow) 16%, transparent);
+  color: var(--vscode-terminal-ansiYellow);
+  border-color: color-mix(in srgb, var(--vscode-terminal-ansiYellow) 32%, transparent);
+}
+
+.blob-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.blob-chip {
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 11px;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-foreground);
+  cursor: pointer;
+}
+
+.blob-chip.fetched {
+  background-color: color-mix(in srgb, var(--vscode-terminal-ansiGreen) 16%, transparent);
+  color: var(--vscode-terminal-ansiGreen);
+  border-color: color-mix(in srgb, var(--vscode-terminal-ansiGreen) 32%, transparent);
+}
+
+.blob-chip.selected {
+  background-color: color-mix(in srgb, var(--vscode-terminal-ansiBlue) 16%, transparent);
+  color: var(--vscode-terminal-ansiBlue);
+  border-color: color-mix(in srgb, var(--vscode-terminal-ansiBlue) 30%, transparent);
+}
+
+.blob-chip:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.inline-status {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .manager-grid {
+    grid-template-columns: 1fr;
+  }
+}

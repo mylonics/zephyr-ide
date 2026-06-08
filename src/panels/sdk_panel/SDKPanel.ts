@@ -27,12 +27,6 @@ import {
   uninstallToolchains,
   uninstallSDKVersion,
 } from "../../setup_utilities/west_sdk";
-import {
-  listModulesWithBlobs,
-  installBlobModulesInteractive,
-  onBlobProgress,
-  BlobModuleInfo,
-} from "../../setup_utilities/zephyr_ide_install";
 import { notifyError, outputError } from "../../utilities/output";
 import { generateNonce } from "../webview_shared/nonce";
 import { sdkVersions } from "../../defines";
@@ -139,16 +133,6 @@ export class SDKPanel {
       }),
     );
 
-    // Subscribe to blob install progress events and forward to webview
-    this._disposables.push(
-      onBlobProgress((message) => {
-        this._panel.webview.postMessage({
-          command: 'blobInstallProgress',
-          data: message,
-        });
-      }),
-    );
-
     this.updateContent(wsConfig, globalConfig);
 
     // Pre-fetch SDK list in the background
@@ -235,13 +219,8 @@ export class SDKPanel {
       case "openSetupPanel":
         vscode.commands.executeCommand("zephyr-ide.open-setup-panel");
         return;
-      case "listBlobs":
-        this.listBlobs();
-        return;
-      case "installBlobs":
-        if (Array.isArray(message.modules)) {
-          this.installBlobs(message.modules);
-        }
+      case "openZephyrIDEManager":
+        vscode.commands.executeCommand("zephyr-ide.open-zephyr-ide-manager");
         return;
     }
   }
@@ -421,43 +400,6 @@ export class SDKPanel {
       }
     } catch (error) {
       outputError("SDK Panel", `Failed to sync SDK state from SDK list: ${String(error)}`);
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Blob operations
-  // ---------------------------------------------------------------------------
-
-  private async listBlobs() {
-    if (!this.currentWsConfig) {
-      this._panel.webview.postMessage({ command: "blobListResult", data: [] });
-      return;
-    }
-    try {
-      const modules = await listModulesWithBlobs(this.currentWsConfig, this._context);
-      this._panel.webview.postMessage({ command: "blobListResult", data: modules });
-    } catch (error) {
-      outputError("SDK Panel", `Failed to list blobs: ${String(error)}`);
-      this._panel.webview.postMessage({ command: "blobListResult", data: [] });
-    }
-  }
-
-  private async installBlobs(modules: string[]) {
-    if (!this.currentWsConfig) {
-      notifyError("Zephyr IDE Blobs", "No active workspace configuration.");
-      this._panel.webview.postMessage({ command: "blobInstallResult", data: false });
-      return;
-    }
-    try {
-      // Disable buttons by sending loading state
-      this._panel.webview.postMessage({ command: "blobInstallProgress", data: "Starting blob installation..." });
-      const result = await installBlobModulesInteractive(this.currentWsConfig, this._context, modules);
-      this._panel.webview.postMessage({ command: "blobInstallResult", data: result });
-      // Refresh blob list after installation
-      await this.listBlobs();
-    } catch (error) {
-      outputError("SDK Panel", `Failed to install blobs: ${String(error)}`);
-      this._panel.webview.postMessage({ command: "blobInstallResult", data: false });
     }
   }
 

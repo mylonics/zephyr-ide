@@ -45,6 +45,8 @@ limitations under the License.
  *                             Samples can be added during workspace setup or
  *                             later via the
  *                             `zephyr-ide.add-sample-projects-from-file` command.
+ *   - `pipPackages`: string[] Additional Python package specifiers that should
+ *                             be installed in the workspace's Python environment.
  *
  * When `toolchains` or `blobs` arrays are present, the workspace setup flow
  * installs the missing items automatically; the user can also manage them via
@@ -247,4 +249,20 @@ export async function setZephyrIdeBlobs(wsConfig: WorkspaceConfig, blobs: string
 /** Get the list of additional pip packages declared in zephyr-ide.json. */
 export function getZephyrIdePipPackages(wsConfig: WorkspaceConfig): string[] {
     return normalizeStringList(readZephyrIdeJson(wsConfig).pipPackages);
+}
+
+/**
+ * Replace the `pipPackages` key in zephyr-ide.json with `packages`.
+ * If `packages` is empty the key is removed. All other top-level keys are
+ * preserved.
+ */
+export async function setZephyrIdePipPackages(wsConfig: WorkspaceConfig, packages: string[]): Promise<void> {
+    const data = readZephyrIdeJson(wsConfig);
+    const normalized = normalizeStringList(packages);
+    if (normalized.length === 0) {
+        delete data.pipPackages;
+    } else {
+        data.pipPackages = normalized;
+    }
+    await writeZephyrIdeJson(wsConfig, data);
 }

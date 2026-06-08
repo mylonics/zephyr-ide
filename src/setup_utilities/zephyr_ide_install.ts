@@ -46,6 +46,8 @@ import {
     getZephyrIdeSdkVersion,
     getZephyrIdeSampleProjects,
     setZephyrIdeSampleProjects,
+    getZephyrIdePipPackages,
+    setZephyrIdePipPackages,
 } from "./zephyr_ide_json";
 import { executeShellCommandInPythonEnv, executeTaskHelperInPythonEnv } from "../utilities/utils";
 import { outputInfo, outputError, outputWarning, notifyError } from "../utilities/output";
@@ -492,6 +494,113 @@ export async function installZephyrIdeBlobs(
     return allOk;
 }
 
+// ---------------------------------------------------------------------------
+// Pip Packages
+// ---------------------------------------------------------------------------
+
+/**
+ * Package specifiers accepted for direct insertion into `pip install <specs...>`.
+ *
+ * This intentionally rejects whitespace and shell metacharacters because
+ * `.vscode/zephyr-ide.json` can be edited by contributors and must not be able
+ * to inject arbitrary shell content.
+ */
+const VALID_PIP_SPEC = /^[A-Za-z0-9_.\-\[\],<>=!~]+$/;
+
+function parsePipPackageInput(value: string): string[] {
+    if (!value.trim()) { return []; }
+    const parts = value
+        .split(/[\r\n,\s]+/)
+        .map(v => v.trim())
+        .filter(v => v.length > 0);
+    return Array.from(new Set(parts));
+}
+
+/** Open the modify-pip-packages input and persist the result. */
+export async function modifyZephyrIdePipPackagesInteractive(wsConfig: WorkspaceConfig): Promise<string[] | undefined> {
+    if (!wsConfig.rootPath) {
+        notifyError("Zephyr IDE Pip Packages", "No active workspace folder.");
+        return undefined;
+    }
+
+    const current = getZephyrIdePipPackages(wsConfig);
+    const value = await vscode.window.showInputBox({
+        title: "Modify Pip Packages (zephyr-ide.json)",
+        prompt: "Enter package specifiers separated by spaces, commas, or new lines.",
+        placeHolder: "west pyelftools==0.31 cryptography>=42",
+        value: current.join(" "),
+        ignoreFocusOut: true,
+    });
+
+    if (value === undefined) {
+        outputInfo("Zephyr IDE Pip Packages", "Modify cancelled");
+        return undefined;
+    }
+
+    const packages = parsePipPackageInput(value);
+    const invalid = packages.filter(p => !VALID_PIP_SPEC.test(p));
+    if (invalid.length > 0) {
+        notifyError(
+            "Zephyr IDE Pip Packages",
+            `Invalid package specifier(s): ${invalid.join(", ")}. Allowed pattern: ${VALID_PIP_SPEC.source}`,
+        );
+        return undefined;
+    }
+
+    await setZephyrIdePipPackages(wsConfig, packages);
+    outputInfo("Zephyr IDE Pip Packages", `Saved ${packages.length} pip package(s) to zephyr-ide.json`);
+    return packages;
+}
+
+/**
+ * Install every pip package declared in zephyr-ide.json via `pip install ...`.
+ */
+export async function installZephyrIdePipPackages(
+    wsConfig: WorkspaceConfig,
+    context: vscode.ExtensionContext,
+    silentIfEmpty = false,
+): Promise<boolean> {
+    const declared = getZephyrIdePipPackages(wsConfig);
+    if (declared.length === 0) {
+        if (!silentIfEmpty) {
+            void vscode.window.showInformationMessage(
+                "No pip packages declared in .vscode/zephyr-ide.json. Run 'Modify zephyr-ide.json pip packages' first.",
+            );
+        }
+        return true;
+    }
+
+    const invalid = declared.filter(p => !VALID_PIP_SPEC.test(p));
+    if (invalid.length > 0) {
+        notifyError(
+            "Zephyr IDE Pip Packages",
+            `Refusing to install invalid package specifier(s): ${invalid.join(", ")}`,
+        );
+        return false;
+    }
+
+    const setupState = await getSetupStateOrNotify(context, wsConfig, "Zephyr IDE Pip Packages");
+    if (!setupState) { return false; }
+
+    const command = `pip install ${declared.join(" ")}`;
+    outputInfo("Zephyr IDE Pip Packages", `Installing ${declared.length} package(s): ${declared.join(", ")}`);
+    const ok = await executeTaskHelperInPythonEnv(
+        setupState,
+        "Zephyr IDE: Install pip packages",
+        command,
+        setupState.setupPath,
+        true,
+    );
+
+    if (!ok) {
+        notifyError("Zephyr IDE Pip Packages", "Failed to install one or more pip packages. Check output for details.");
+        return false;
+    }
+
+    outputInfo("Zephyr IDE Pip Packages", "Installed pip packages declared in zephyr-ide.json.");
+    return true;
+}
+
 /**
  * Event emitter for blob install progress, mirroring the SDK toolchain pattern.
  * Used by the SDK panel webview to show real-time progress.
@@ -762,5 +871,12 @@ export async function installZephyrIdeRequirements(
         }
     } catch (error) {
         outputError("Zephyr IDE Blobs", `Auto-install of declared blobs failed: ${error}`);
+    }
+    try {
+        if (getZephyrIdePipPackages(wsConfig).length > 0) {
+            await installZephyrIdePipPackages(wsConfig, context, true);
+        }
+    } catch (error) {
+        outputError("Zephyr IDE Pip Packages", `Auto-install of declared pip packages failed: ${error}`);
     }
 }
