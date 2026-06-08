@@ -321,7 +321,7 @@ export interface BlobModuleInfo {
 
 /**
  * Discover west modules that ship binary blobs, along with their fetch status.
- * Uses `west blobs list -f "{module} {status} {path}"` to detect whether each
+ * Uses `west blobs list -f "{module}\t{status}\t{path}"` to detect whether each
  * blob module has already been fetched.
  *
  * Best-effort: returns an empty array if west isn't available or no modules
@@ -333,10 +333,10 @@ export async function listModulesWithBlobs(wsConfig: WorkspaceConfig, _context: 
     if (!setupState) { return []; }
 
     try {
-        // Format: {module} {status} {path} where status is usually "Fetched" or empty
+        // Format: {module}\t{status}\t{path} where status is usually "Fetched" or empty
         // for modules that haven't been fetched yet.
         const res = await executeShellCommandInPythonEnv(
-            `west blobs list -f "{module} {status} {path}"`,
+            `west blobs list -f "{module}\t{status}\t{path}"`,
             setupState.setupPath,
             setupState,
             false,
@@ -345,13 +345,11 @@ export async function listModulesWithBlobs(wsConfig: WorkspaceConfig, _context: 
         const seen = new Set<string>();
         const out: BlobModuleInfo[] = [];
         for (const line of res.stdout.split(/\r?\n/)) {
-            const parts = line.trim().split(/\s+/);
-            const moduleName = parts[0];
+            const [moduleName, rawStatus = "", blobPath] = line.trim().split("\t");
             if (!moduleName || seen.has(moduleName)) { continue; }
             seen.add(moduleName);
-            const status = parts.length > 1 ? parts[1].toLowerCase() : "";
+            const status = rawStatus.toLowerCase();
             const isFetched = status === "fetched" || status === "y";
-            const blobPath = parts.length > 2 ? parts.slice(2).join(" ") : undefined;
             out.push({ moduleName, isFetched, path: blobPath || undefined });
         }
         return out;
