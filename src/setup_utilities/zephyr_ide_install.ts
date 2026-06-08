@@ -873,7 +873,7 @@ export async function installZephyrIdeRequirements(
         outputError("Zephyr IDE Blobs", `Auto-install of declared blobs failed: ${error}`);
     }
     try {
-        if (getZephyrIdePipPackages(wsConfig).length > 0) {
+        if (getZephyrIdePipPackages(wsConfig).length > 0 && wsConfig.activeSetupState?.packagesInstalled !== true) {
             await installZephyrIdePipPackages(wsConfig, context, true);
         }
     } catch (error) {
