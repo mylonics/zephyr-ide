@@ -210,9 +210,6 @@ export class SDKPanel {
       case "listSDKs":
         this.listSDKs();
         return;
-      case "modifyZephyrIdeToolchains":
-        void vscode.commands.executeCommand("zephyr-ide.modify-zephyr-ide-toolchains");
-        return;
       case "installZephyrIdeToolchains":
         void this.installZephyrIdeToolchains();
         return;

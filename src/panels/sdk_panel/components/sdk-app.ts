@@ -208,10 +208,6 @@ export class SDKApp extends ZephyrLitElement {
     this.vscodeApi.postMessage({ command: "listSDKs" });
   }
 
-  private _modifyZephyrIdeToolchains() {
-    this.vscodeApi.postMessage({ command: "modifyZephyrIdeToolchains" });
-  }
-
   private _installZephyrIdeToolchains() {
     this._buttonsDisabled = true;
     this.vscodeApi.postMessage({ command: "installZephyrIdeToolchains" });
@@ -310,10 +306,6 @@ export class SDKApp extends ZephyrLitElement {
               <vscode-icon slot="start-icon" name="symbol-array"></vscode-icon>
               Install from zephyr-ide.json
             </vscode-button>
-            <vscode-button appearance="secondary" @click=${() => this._modifyZephyrIdeToolchains()} title="Choose which toolchains are required by .vscode/zephyr-ide.json">
-              <vscode-icon slot="start-icon" name="edit"></vscode-icon>
-              Modify zephyr-ide.json
-            </vscode-button>
             <vscode-button appearance="secondary" @click=${() => this._openZephyrIdeManager()} title="Open Zephyr IDE Manager for blobs, pip packages, and sample projects">
               <vscode-icon slot="start-icon" name="package"></vscode-icon>
               Open Zephyr IDE Manager
@@ -323,6 +315,12 @@ export class SDKApp extends ZephyrLitElement {
               Refresh
             </vscode-button>
           </div>
+        </div>
+
+        <div class="info-box" style="margin-bottom: 10px;">
+          SDK search location priority: zephyr-ide.toolchainDirectory (settings.json), then
+          ZEPHYR_SDK_INSTALL_DIR (environment), then ~/.zephyr_ide/toolchains.
+          If your SDKs are not visible here, set zephyr-ide.toolchainDirectory in settings.json.
         </div>
 
         <p class="sdk-description">
