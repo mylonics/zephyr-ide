@@ -49,7 +49,7 @@ You can read about the motivation behind the project [here](https://mylonics.com
 
 - Build, build pristine, clean, and flash from the status bar or project panel
 - Concurrent builds with per-target locking
-- Built-in `zephyr-ide` debugger that auto-translates `runners.yaml` into a Cortex-Debug session — no per-runner launch.json required
+- Built-in split debug providers: `zephyr-ide-cortex` (cortex-debug/bmp-debug translation) and `zephyr-ide-west` (west debugserver bridge) — no per-runner launch.json required
 - Runner Profiles bundle Flash / Debug / Attach binds (Zephyr runner with args, or `launch.json` entry) — with auto-fallback to `runners.yaml` defaults
 - Profiles live at user scope (`zephyr-ide.runnerProfiles` setting) or workspace scope (`.vscode/zephyr-ide.json`) and are edited from a dedicated CRUD webview panel
 - Cortex-Debug launch templates for ST-Link, J-Link, OpenOCD, and Black Magic Probe
@@ -92,15 +92,23 @@ Any board supported by Zephyr RTOS, including: Nordic nRF52832/nRF52840/nRF5340,
 
 ## Debug architecture
 
-The `zephyr-ide` debug type synthesizes a `cortex-debug` configuration from
-the build's `runners.yaml`, so most boards work with no debug config beyond
-`{ "type": "zephyr-ide", "request": "launch" }`. The Zephyr runner is mapped
-to a cortex-debug `servertype` via one of three paths:
+The extension now exposes two explicit debug types:
+
+- `zephyr-ide-cortex` — translates `runners.yaml` to a `cortex-debug`/`bmp-debug` session for native cortex-debug runners.
+- `zephyr-ide-west` — spawns `west debugserver` and connects cortex-debug as `servertype: "external"`.
+
+Most boards work with no custom fields beyond:
+
+```jsonc
+{ "type": "zephyr-ide-cortex", "request": "launch" }
+```
+
+The Zephyr runner is mapped via one of three paths:
 
 | Path | Runners | How it works |
 | --- | --- | --- |
 | **Native** | `jlink`, `openocd`, `pyocd`, `stlink`, `stm32cubeprogrammer-stlink`, `blackmagicprobe`/`bmp`, `qemu` | cortex-debug speaks the GDB protocol to its built-in server. Zephyr IDE lifts `runners.yaml` args into the matching cortex-debug fields (`configFiles`, `device`, `speed`, `interface`, `BMPGDBSerialPort`, …). |
-| **External bridge** | `nrfjprog`, `linkserver`, `esp32`, `stm32cubeprogrammer` | Zephyr IDE spawns `west debugserver --runner <r> --build-dir <b>`, parses the listening `host:port` from its stdout, and hands cortex-debug a `servertype: "external"` config pointing at it. The server child is killed when the debug session ends. |
+| **External bridge** | `nrfjprog`, `linkserver`, `esp32`, `stm32cubeprogrammer`, `probe-rs` | Zephyr IDE spawns `west debugserver --runner <r> --build-dir <b>`, parses the listening `host:port` from its stdout, and hands cortex-debug a `servertype: "external"` config pointing at it. The server child is killed when the debug session ends. |
 | **Unsupported** | flash-only runners (`dfu-util`, `uf2`, `bossac`, `teensy`, …) | The provider surfaces an actionable error listing the rejected runners. Switch to a debug-capable runner or write a hand-rolled cortex-debug config. |
 
 > **Note on test coverage:** Not all debug runner paths and hardware combinations have been exercised. As a general rule — if you can start a debug session using a hand-written Cortex-Debug `launch.json`, the `zephyr-ide` debug type should also work for that same setup. If a runner path that should work gives you trouble, you can always fall back to a manual Cortex-Debug configuration in your `launch.json` in the meantime. Please [raise an issue on GitHub](https://github.com/mylonics/zephyr-ide/issues) so it can be tracked and fixed.
@@ -128,6 +136,24 @@ chosen probe is not double-loaded. To use a probe not in the dropdown,
 type its full cfg path or pyOCD probe URL into the **Extra args** field
 directly — the override semantics are identical.
 
+### West debugserver curated args + passthrough
+
+`zephyr-ide-west` provides curated fields for common west flags. Runner-specific options use unprefixed names (e.g. `device`, `speed`, `config`) while older common fields keep the `west` prefix for backward compatibility.
+
+**Common / Global:**
+`westPort`, `westDevId`, `westToolOpt`, `westDomain`, `westFile`, `westElfFile`, `westHexFile`, `westBinFile`, `westGdbPort`, `westTclPort`, `westTelnetPort`, `westNoLoad`, `westNoReset`, `westRebuild`, `westNoRebuild`, `serial`, `interface`, `frequency`, `connectUnderReset`, `erase`, `noErase`, `reset`, `rttAddress`, `tui`
+
+**openocd:**
+`config`, `flashAddress`, `verify`, `verifyOnly`, `noHalt`, `noInit`, `noTargets`, `targetHandle`, `rttPort`, `rttServer`, `gdbClientPort`, `gdbInit`
+
+**probe-rs:**
+`chip`, `protocol`, `speed`, `gdbHost`
+
+**jlink:**
+`batch`, `device`, `loader`, `dtFlash`, `resetType`, `protocol`, `speed`, `gdbHost`
+
+For full CLI coverage, `westArgs` is still appended verbatim after curated args.
+
 ### External GDB servers
 
 To connect to an already-running GDB server (Segger Ozone, a vendor IDE,
@@ -137,7 +163,7 @@ a manually-started `west debugserver`, …) supply `gdbTarget` in
 ```jsonc
 {
   "name": "Zephyr IDE: External GDB",
-  "type": "zephyr-ide",
+  "type": "zephyr-ide-west",
   "request": "launch",
   "runner": "nrfjprog",
   "gdbTarget": "127.0.0.1:2331"

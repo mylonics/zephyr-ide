@@ -74,9 +74,15 @@ import {
   build,
 } from "./zephyr_utilities/build";
 import { flashActive } from "./zephyr_utilities/flash";
-import { ZephyrIdeDebugConfigurationProvider } from "./zephyr_utilities/debug-provider";
+import {
+  ZephyrIdeCortexDebugConfigurationProvider,
+  ZephyrIdeWestDebugConfigurationProvider,
+  ZEPHYR_IDE_CORTEX_DEBUG_TYPE,
+  ZEPHYR_IDE_WEST_DEBUG_TYPE,
+} from "./zephyr_utilities/debug-provider";
 import { getSysbuildDomains, resolveRunnersYamlPath } from "./zephyr_utilities/runners-yaml";
 import { DebugBind, formatBindLabel } from "./project_utilities/runner_profiles";
+import { WEST_DEBUG_RUNNERS } from "./project_utilities/runner_selector";
 import { WorkspaceConfig, GlobalConfig } from "./setup_utilities/types";
 import {
   loadGlobalState,
@@ -317,6 +323,7 @@ async function startDebugSession(
 
   let activeBind: DebugBind | undefined;
   let pinnedRunner: string | undefined;
+  let debugType: string = ZEPHYR_IDE_CORTEX_DEBUG_TYPE;
 
   if (resolved) {
     const profileName = resolved.build.activeProfile;
@@ -332,8 +339,12 @@ async function startDebugSession(
         }
         if (activeBind.kind === 'cortex-debug' || activeBind.kind === 'west-debug') {
           pinnedRunner = activeBind.runner;
+          debugType = activeBind.kind === 'west-debug'
+            ? ZEPHYR_IDE_WEST_DEBUG_TYPE
+            : ZEPHYR_IDE_CORTEX_DEBUG_TYPE;
         } else if (activeBind.kind === 'auto') {
           // auto → let runners.yaml provider pick the runner
+          debugType = ZEPHYR_IDE_WEST_DEBUG_TYPE;
         }
       }
     }
@@ -358,11 +369,16 @@ async function startDebugSession(
     const [runnerStr] = localBind.split('?');
     if (runnerStr.startsWith(CORTEX_DEBUG_PREFIX)) {
       pinnedRunner = runnerStr.slice(CORTEX_DEBUG_PREFIX.length);
+      debugType = ZEPHYR_IDE_CORTEX_DEBUG_TYPE;
     } else if (runnerStr.startsWith(WEST_DEBUG_PREFIX)) {
       pinnedRunner = runnerStr.slice(WEST_DEBUG_PREFIX.length);
+      debugType = ZEPHYR_IDE_WEST_DEBUG_TYPE;
     } else if (runnerStr.startsWith(RUNNER_TARGET_PREFIX)) {
       // Legacy "runner:X" format (old local bind storage).
       pinnedRunner = runnerStr.slice(RUNNER_TARGET_PREFIX.length);
+      debugType = WEST_DEBUG_RUNNERS.includes(pinnedRunner)
+        ? ZEPHYR_IDE_WEST_DEBUG_TYPE
+        : ZEPHYR_IDE_CORTEX_DEBUG_TYPE;
     } else {
       // No recognized prefix → treat as a launch.json config name.
       debugTarget = localBind;
@@ -391,7 +407,7 @@ async function startDebugSession(
     }
     const baseName = mode === 'attach' ? "Zephyr IDE: Attach" : "Zephyr IDE: Debug";
     const inlineCfg: vscode.DebugConfiguration = {
-      type: "zephyr-ide",
+      type: debugType,
       name: pinnedRunner ? `${baseName} (${pinnedRunner})` : baseName,
       request: mode === 'attach' ? "attach" : "launch",
       ...(pinnedRunner ? { runner: pinnedRunner } : {}),
@@ -1618,9 +1634,13 @@ export async function activate(context: vscode.ExtensionContext) {
   // to cortex-debug configurations using the build's runners.yaml.  Registered
   // for both Initial (provideDebugConfigurations) and Dynamic triggers so it
   // populates the "Add Configuration" menu and resolves at launch time.
-  const zephyrIdeDebugProvider = new ZephyrIdeDebugConfigurationProvider(() => wsConfig, context);
+  const zephyrIdeCortexDebugProvider = new ZephyrIdeCortexDebugConfigurationProvider(() => wsConfig, context);
+  const zephyrIdeWestDebugProvider = new ZephyrIdeWestDebugConfigurationProvider(() => wsConfig, context);
   context.subscriptions.push(
-    vscode.debug.registerDebugConfigurationProvider("zephyr-ide", zephyrIdeDebugProvider)
+    vscode.debug.registerDebugConfigurationProvider(ZEPHYR_IDE_CORTEX_DEBUG_TYPE, zephyrIdeCortexDebugProvider)
+  );
+  context.subscriptions.push(
+    vscode.debug.registerDebugConfigurationProvider(ZEPHYR_IDE_WEST_DEBUG_TYPE, zephyrIdeWestDebugProvider)
   );
 
   context.subscriptions.push(
