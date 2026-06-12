@@ -160,6 +160,27 @@ function makeFakeContext(): vscode.ExtensionContext {
 suite("Debug Provider Integration Test Suite", () => {
     const isCortexDebugInstalled = !!vscode.extensions.getExtension(CORTEX_DEBUG_EXTENSION_ID);
 
+    test("provideDebugConfigurations uses distinct defaults for cortex and west providers", () => {
+        const fixture = setupRealWorkspace({ runnersYamlContents: "runners: []" });
+        try {
+            const cortexProvider = new ZephyrIdeCortexDebugConfigurationProvider(() => fixture.wsConfig, makeFakeContext());
+            const westProvider = new ZephyrIdeWestDebugConfigurationProvider(() => fixture.wsConfig, makeFakeContext());
+
+            assert.deepStrictEqual(cortexProvider.provideDebugConfigurations(), [{
+                name: "Zephyr IDE: Debug",
+                type: ZEPHYR_IDE_CORTEX_DEBUG_TYPE,
+                request: "launch",
+            }]);
+            assert.deepStrictEqual(westProvider.provideDebugConfigurations(), [{
+                name: "Zephyr IDE: Debug (west debugserver)",
+                type: ZEPHYR_IDE_WEST_DEBUG_TYPE,
+                request: "launch",
+            }]);
+        } finally {
+            fixture.cleanup();
+        }
+    });
+
     test("missing cortex-debug returns undefined with actionable error (no silent failure)", async function () {
         if (isCortexDebugInstalled) {
             // The marketplace-install path is only reachable when cortex-debug
@@ -406,6 +427,51 @@ suite("Debug Provider Integration Test Suite", () => {
             assert.ok(result, "provider must return a resolved cortex-debug config");
             assert.strictEqual(result.servertype, "external");
             assert.strictEqual(result.gdbTarget, "localhost:1234");
+        } finally {
+            fixture.cleanup();
+        }
+    });
+
+    test("west provider appends westArgs after curated flags", async function () {
+        if (!isCortexDebugInstalled) { this.skip(); }
+        const fixture = setupRealWorkspace({
+            runnersYamlContents: [
+                "elf_file: zephyr/zephyr.elf",
+                "gdb: /sdk/arm-zephyr-eabi-gdb",
+                "runners:",
+                "  - jlink",
+                "debug-runner: jlink",
+                "args:",
+                "  jlink:",
+                "    - --device=nRF52840_xxAA",
+                "",
+            ].join("\n"),
+        });
+        try {
+            (fixture.wsConfig as any).activeSetupState = { setupPath: "/sdk" };
+
+            const provider = new ZephyrIdeWestDebugConfigurationProvider(() => fixture.wsConfig, makeFakeContext());
+            let capturedArgs: string[] | undefined;
+            (provider as any).spawnAndAttachDebugServer = async (opts: any, cfg: any) => {
+                capturedArgs = opts.extraArgs;
+                cfg.gdbTarget = "localhost:1234";
+                return true;
+            };
+
+            const result = await provider.resolveDebugConfiguration(
+                undefined,
+                {
+                    name: "Zephyr IDE: Debug (west debugserver)",
+                    type: ZEPHYR_IDE_WEST_DEBUG_TYPE,
+                    request: "launch",
+                    runner: "jlink",
+                    westNoReset: true,
+                    westArgs: ["--gdb-port", "9999"],
+                } as vscode.DebugConfiguration,
+            ) as any;
+
+            assert.ok(result, "provider must return a resolved cortex-debug config");
+            assert.deepStrictEqual(capturedArgs, ["--no-reset", "--gdb-port", "9999"]);
         } finally {
             fixture.cleanup();
         }
