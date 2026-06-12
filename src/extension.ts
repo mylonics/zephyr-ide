@@ -111,7 +111,6 @@ import {
   getAutomaticProjectSelection,
 } from "./setup_utilities/workspace-config";
 import { checkIfToolsAvailable } from "./setup_utilities/tools-validation";
-import { setZephyrIdeJsonValidation } from "./setup_utilities/json-validation";
 import {
   westInit,
   setForceNarrowUpdateForTest,
@@ -168,17 +167,6 @@ import {
   installHostToolsHeadless,
   checkHostToolsHeadless,
 } from "./setup_utilities/host_tools";
-
-export function isZephyrIdeJsonDocument(document: vscode.TextDocument): boolean {
-  const uri = document.uri;
-  const rawPath =
-    uri.scheme === "untitled" ? uri.path : (uri.fsPath || uri.path);
-  return rawPath.length > 0 && path.basename(rawPath).toLowerCase() === "zephyr-ide.json";
-}
-
-export function hasOpenZephyrIdeJsonDocument(): boolean {
-  return vscode.workspace.textDocuments.some(isZephyrIdeJsonDocument);
-}
 
 // Helper function to mark workspace setup as complete and refresh UI
 async function markWorkspaceSetupComplete(
@@ -610,16 +598,6 @@ export async function activate(context: vscode.ExtensionContext) {
     // Always sync the environment variable collection regardless of init success/failure
     // so terminals opened after activation pick up the correct (or cleared) variables.
     reloadEnvironmentVariables(context, wsConfig?.activeSetupState);
-  }
-
-  // Apply JSON schema validation lazily so we only write json.schemas after
-  // a zephyr-ide.json file is actually opened in this workspace.
-  const enableJsonValidation: boolean =
-    vscode.workspace.getConfiguration().get("zephyr-ide.enableJsonValidation") ?? true;
-  if (enableJsonValidation && hasOpenZephyrIdeJsonDocument()) {
-    void setZephyrIdeJsonValidation(context, true);
-  } else {
-    void setZephyrIdeJsonValidation(context, false);
   }
 
   // Show a one-time upgrade notification when an existing user first runs v4.x.
@@ -1993,25 +1971,7 @@ export async function activate(context: vscode.ExtensionContext) {
         if (useClangd) {
           await setWorkspaceSettings(false);
         }
-      } else if (e.affectsConfiguration("zephyr-ide.enableJsonValidation")) {
-        const enable: boolean =
-          vscode.workspace.getConfiguration().get("zephyr-ide.enableJsonValidation") ?? true;
-        await setZephyrIdeJsonValidation(context, enable && hasOpenZephyrIdeJsonDocument());
       }
-    })
-  );
-
-  context.subscriptions.push(
-    vscode.workspace.onDidOpenTextDocument(async (document) => {
-      if (!isZephyrIdeJsonDocument(document)) {
-        return;
-      }
-      const enable: boolean =
-        vscode.workspace.getConfiguration().get("zephyr-ide.enableJsonValidation") ?? true;
-      if (!enable) {
-        return;
-      }
-      await setZephyrIdeJsonValidation(context, true);
     })
   );
 
