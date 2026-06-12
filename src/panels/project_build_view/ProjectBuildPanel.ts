@@ -781,7 +781,7 @@ export class ProjectBuildPanel {
             relBoardDir: details.relBoardDir,
             relBoardSubDir: details.relBoardSubDir,
             resolvedBoardPath: details.resolvedBoardPath,
-            debugOptimization: details.debugOptimization,
+            compilerOptimization: details.compilerOptimization,
             westBuildArgs: details.westBuildArgs,
             westBuildCMakeArgs: details.westBuildCMakeArgs,
             confFiles: details.confFiles,

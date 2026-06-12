@@ -91,7 +91,7 @@ export interface BuildDetails {
   relBoardDir: string;
   relBoardSubDir: string;
   resolvedBoardPath: string | undefined;
-  debugOptimization: string;
+  compilerOptimization: string | undefined;
   westBuildArgs: string[];
   westBuildCMakeArgs: string[];
   confFiles: ConfigFiles;
@@ -149,7 +149,7 @@ export function getBuildDetails(wsConfig: WorkspaceConfig, projectName: string, 
     relBoardDir: build.relBoardDir ?? "",
     relBoardSubDir: build.relBoardSubDir,
     resolvedBoardPath: resolvedPath,
-    debugOptimization: build.debugOptimization,
+    compilerOptimization: build.compilerOptimization,
     westBuildArgs: normalizeBuildArgs(build.westBuildArgs),
     westBuildCMakeArgs: normalizeBuildArgs(build.westBuildCMakeArgs),
     confFiles: build.confFiles ?? emptyConfigFiles(),

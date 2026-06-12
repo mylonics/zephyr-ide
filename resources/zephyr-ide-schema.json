@@ -112,7 +112,7 @@
     "BuildConfig": {
       "type": "object",
       "description": "A single build configuration within a project.",
-      "required": ["name", "board", "relBoardSubDir", "debugOptimization", "westBuildArgs", "westBuildCMakeArgs", "confFiles"],
+      "required": ["name", "board", "relBoardSubDir", "westBuildArgs", "westBuildCMakeArgs", "confFiles"],
       "properties": {
         "name": {
           "type": "string",
@@ -134,10 +134,15 @@
           "type": "string",
           "description": "Board subdirectory within the board root (e.g. 'vendor/my_board'). Used to construct the full board path."
         },
+        "compilerOptimization": {
+          "type": "string",
+          "description": "Compiler optimization level preset. When omitted, no optimization flag is passed (configured via KConfig).",
+          "enum": ["debug", "speed", "size", "none"]
+        },
         "debugOptimization": {
           "type": "string",
-          "description": "Build optimization preset used by the build wizard (e.g. 'Debug', 'Speed', 'Size', 'No Optimizations').",
-          "examples": ["Debug", "Speed", "Size", "No Optimizations", "Don't set. Will be configured in included KConfig file"]
+          "description": "Deprecated: use 'compilerOptimization' instead.",
+          "deprecated": true
         },
         "westBuildArgs": {
           "type": "array",

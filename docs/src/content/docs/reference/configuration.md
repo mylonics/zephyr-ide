@@ -59,7 +59,7 @@ This is the workspace file used for projects/builds/tests, runner profiles, and 
           "relBoardDir": "zephyr/boards/st",
           "relBoardSubDir": "nucleo_f401re",
           "revision": "",
-          "debugOptimization": "Debug",
+          "compilerOptimization": "debug",
           "westBuildArgs": ["--pristine"],
           "westBuildCMakeArgs": ["-DCONFIG_DEBUG_OPTIMIZATIONS=y"],
           "activeProfile": "jlink-stm32f4",
@@ -162,7 +162,7 @@ This is the workspace file used for projects/builds/tests, runner profiles, and 
 | `board` | `string` | Yes | Zephyr board identifier. |
 | `relBoardDir` | `string` | Yes | Board directory relative path used by board resolution. |
 | `relBoardSubDir` | `string` | Yes | Board subdirectory name/path. |
-| `debugOptimization` | `string` | Yes | Selected optimization preset label. |
+| `compilerOptimization` | `string` | No | Compiler optimization preset. One of `debug`, `speed`, `size`, `none`. When omitted, no optimization flag is passed (configured via KConfig). |
 | `westBuildArgs` | `string[]` | Yes | Additional non-CMake `west build` args. |
 | `westBuildCMakeArgs` | `string[]` | Yes | Additional CMake args passed to `west build`. |
 | `confFiles` | `ConfigFiles` | Yes | Build-level Kconfig/devicetree file entries. |
@@ -355,7 +355,7 @@ Both `BuildConfig` and `ProjectConfig` support a `customVars` map for user-defin
           "board": "nucleo_f401re",
           "relBoardDir": "zephyr/boards/st",
           "relBoardSubDir": "nucleo_f401re",
-          "debugOptimization": "Debug",
+          "compilerOptimization": "debug",
           "westBuildArgs": [],
           "westBuildCMakeArgs": [],
           "confFiles": { "config": [], "overlay": [] },

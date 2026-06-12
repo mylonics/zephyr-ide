@@ -332,4 +332,102 @@ suite("Build Args Migration Test Suite", () => {
       await fs.remove(tmpRoot);
     }
   });
+
+  test("loadProjectsFromFile migrates debugOptimization to compilerOptimization with lowercase values", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-opt-migration-"));
+    try {
+      const configDir = path.join(tmpRoot, ".vscode");
+      await fs.ensureDir(configDir);
+      const configPath = path.join(configDir, "zephyr-ide.json");
+      await fs.writeJson(configPath, {
+        projects: {
+          app: {
+            name: "app",
+            rel_path: "app",
+            confFiles: { config: [], overlay: [] },
+            twisterConfigs: {},
+            buildConfigs: {
+              debug: {
+                name: "build/debug",
+                board: "native_sim",
+                relBoardDir: "",
+                relBoardSubDir: "native/native_sim",
+                debugOptimization: "Debug",
+                westBuildArgs: [],
+                westBuildCMakeArgs: [],
+                confFiles: { config: [], overlay: [] },
+              },
+              speed: {
+                name: "build/speed",
+                board: "native_sim",
+                relBoardDir: "",
+                relBoardSubDir: "native/native_sim",
+                debugOptimization: "Speed",
+                westBuildArgs: [],
+                westBuildCMakeArgs: [],
+                confFiles: { config: [], overlay: [] },
+              },
+              size: {
+                name: "build/size",
+                board: "native_sim",
+                relBoardDir: "",
+                relBoardSubDir: "native/native_sim",
+                debugOptimization: "Size",
+                westBuildArgs: [],
+                westBuildCMakeArgs: [],
+                confFiles: { config: [], overlay: [] },
+              },
+              none: {
+                name: "build/none",
+                board: "native_sim",
+                relBoardDir: "",
+                relBoardSubDir: "native/native_sim",
+                debugOptimization: "No Optimizations",
+                westBuildArgs: [],
+                westBuildCMakeArgs: [],
+                confFiles: { config: [], overlay: [] },
+              },
+              notset: {
+                name: "build/notset",
+                board: "native_sim",
+                relBoardDir: "",
+                relBoardSubDir: "native/native_sim",
+                debugOptimization: "Don't set. Will be configured in included KConfig file",
+                westBuildArgs: [],
+                westBuildCMakeArgs: [],
+                confFiles: { config: [], overlay: [] },
+              },
+            },
+          },
+        },
+      }, { spaces: 2 });
+
+      const wsConfig: WorkspaceConfig = {
+        rootPath: tmpRoot,
+        projects: {},
+        initialSetupComplete: true,
+        projectStates: {},
+      };
+
+      await loadProjectsFromFile(wsConfig);
+
+      const builds = wsConfig.projects.app.buildConfigs;
+      assert.strictEqual((builds.debug as any).debugOptimization, undefined, "debugOptimization should be removed");
+      assert.strictEqual(builds.debug.compilerOptimization, "debug");
+      assert.strictEqual(builds.speed.compilerOptimization, "speed");
+      assert.strictEqual(builds.size.compilerOptimization, "size");
+      assert.strictEqual(builds.none.compilerOptimization, "none");
+      assert.strictEqual(builds.notset.compilerOptimization, undefined, "'Don't set' should produce no compilerOptimization");
+
+      // Persisted file should also reflect the migration
+      const persisted = await fs.readJson(configPath);
+      const pBuilds = persisted.projects.app.buildConfigs;
+      assert.strictEqual(pBuilds.debug.debugOptimization, undefined);
+      assert.strictEqual(pBuilds.debug.compilerOptimization, "debug");
+      assert.strictEqual(pBuilds.notset.compilerOptimization, undefined);
+      assert.strictEqual(pBuilds.notset.debugOptimization, undefined);
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
 });

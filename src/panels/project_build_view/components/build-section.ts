@@ -420,7 +420,7 @@ export class BuildSection extends ZephyrLitElement {
         : nothing}
           <span class="info-item">
             <span class="info-item-label">Optimization:</span>
-            <span class="info-item-value">${b.debugOptimization}</span>
+            <span class="info-item-value">${b.compilerOptimization ?? "not set"}</span>
           </span>
         </div>
 

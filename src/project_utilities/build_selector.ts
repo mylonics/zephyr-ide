@@ -44,7 +44,7 @@ export interface BuildConfig {
   board: string;
   relBoardDir: string;
   relBoardSubDir: string;
-  debugOptimization: string;
+  compilerOptimization?: string;
   westBuildArgs: string[];
   westBuildCMakeArgs: string[];
   /** Name of the `RunnerProfile` this build uses (resolved via loadRunnerProfiles()).
@@ -438,7 +438,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
   }
 
   async function setBuildOptimization(input: MultiStepInput): Promise<InputStep | void> {
-    const buildOptimizations = ["Debug", "Speed", "Size", "No Optimizations", "Don't set. Will be configured in included KConfig file"];
+    const buildOptimizations = ["debug", "speed", "size", "none", "Not set (configured in KConfig)"];
     const buildOptimizationsQpItems: QuickPickItem[] = mapToQuickPickItems(buildOptimizations);
 
     const pick = await input.showQuickPick({
@@ -448,9 +448,10 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       placeholder: 'Select Build Optimization',
       ignoreFocusOut: true,
       items: buildOptimizationsQpItems,
-      activeItem: typeof state.debugOptimization !== 'string' ? state.debugOptimization : undefined,
+      activeItem: typeof state.compilerOptimization !== 'string' ? state.compilerOptimization : undefined,
     });
-    state.debugOptimization = pick.label;
+    // Store "Not set" as undefined (omit the field)
+    state.compilerOptimization = pick.label === "Not set (configured in KConfig)" ? undefined : pick.label;
     return (input: MultiStepInput) => inputWestArgs(input);
   }
 
@@ -474,17 +475,17 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
 
   async function inputCMakeArgs(input: MultiStepInput): Promise<InputStep | void> {
     let cmakeArg = "";
-    switch (state.debugOptimization) {
-      case "Debug":
+    switch (state.compilerOptimization) {
+      case "debug":
         cmakeArg = ` -DCONFIG_DEBUG_OPTIMIZATIONS=y -DCONFIG_DEBUG_THREAD_INFO=y `;
         break;
-      case "Speed":
+      case "speed":
         cmakeArg = ` -DCONFIG_SPEED_OPTIMIZATIONS=y `;
         break;
-      case "Size":
+      case "size":
         cmakeArg = ` -DCONFIG_SIZE_OPTIMIZATIONS=y `;
         break;
-      case "No Optimizations":
+      case "none":
         cmakeArg = ` -DCONFIG_NO_OPTIMIZATIONS=y`;
         break;
       default:

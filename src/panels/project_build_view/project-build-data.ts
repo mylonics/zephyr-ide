@@ -85,7 +85,7 @@ export interface WebviewBuildDetails {
   relBoardDir: string;
   relBoardSubDir: string;
   resolvedBoardPath: string | undefined;
-  debugOptimization: string;
+  compilerOptimization: string | undefined;
   westBuildArgs: string[];
   westBuildCMakeArgs: string[];
   confFiles: WebviewConfigFiles;
