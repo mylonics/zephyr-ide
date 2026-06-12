@@ -805,7 +805,7 @@ class Session:
                     elif cur == "m":
                         lines.append(f"CONFIG_{s.name}=m\n")
                     else:
-                        lines.append(f"# CONFIG_{s.name} is not set\n")
+                        lines.append(f"CONFIG_{s.name}=n\n")
                 elif s.type == kconfiglib.HEX:
                     lines.append(f"CONFIG_{s.name}={cur}\n")
                 else:
