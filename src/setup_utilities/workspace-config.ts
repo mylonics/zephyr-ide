@@ -144,6 +144,7 @@ function migrateDebugOptimization(buildConfig: RawBuildConfig): boolean {
     "Size": "size",
     "No Optimizations": "none",
     "Don't set. Will be configured in included KConfig file": undefined,
+    // Accept already-migrated lowercase enum values from hand-edited legacy configs.
     debug: "debug",
     speed: "speed",
     size: "size",
