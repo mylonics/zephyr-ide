@@ -19,9 +19,18 @@ Runner Profiles replace that model. A **Runner Profile** is a named, reusable `{
 - **Three slots per profile: Flash, Debug, Attach.** Each slot independently chooses between `auto` (use `runners.yaml` defaults), `runner` (name a specific Zephyr runner with optional `extraArgs`), or `launch` (reference a `launch.json` config by name — Debug and Attach only).
 - **Variable substitution in runner args.** `extraArgs` supports `${workspaceFolder}`, `${buildFolder}`, `${board}`, `${cmake:VAR}`, `${kconfig:VAR}`, `${env:VAR}`, and custom build/project variables, so a profile can be truly portable across boards and environments.
 - **Dedicated Runner Profile panel.** The **`Zephyr IDE: Open Runner Profile Panel`** command opens a full CRUD UI listing workspace-scope and user-scope profiles side by side, with a usage badge on each card showing how many builds reference it.
-- **No `launch.json` required.** The built-in `zephyr-ide` debugger type reads `runners.yaml` from the active build and starts a `cortex-debug` session automatically. A Runner Profile is optional — builds without one continue to use `runners.yaml` defaults.
+- **No `launch.json` required.** The built-in debug providers (`zephyr-ide-cortex` for cortex-debug/bmp-debug and `zephyr-ide-west` for west debugserver) read `runners.yaml` from the active build and start debug sessions automatically. A Runner Profile is optional — builds without one continue to use `runners.yaml` defaults.
 
-> **Note on test coverage:** Not all debug runner paths and hardware combinations have been exercised. As a general rule — if you can start a debug session using a hand-written Cortex-Debug `launch.json`, the `zephyr-ide` debug type should work for that same setup. If a runner path that should work gives you trouble, you can always create a manual Cortex-Debug launch configuration in your `launch.json` as a fallback. Please [raise an issue on GitHub](https://github.com/mylonics/zephyr-ide/issues) so it can be tracked and fixed.
+### West debugserver options expanded
+
+The `zephyr-ide-west` provider now exposes a broader curated option surface for common `west debugserver` flags, including context/domain selection, file overrides, explicit port controls, and skip/reset/load toggles.
+
+- Curated fields now include options such as `westDomain`, `westFile`, `westElfFile`, `westHexFile`, `westBinFile`, `westGdbPort`, `westTclPort`, `westTelnetPort`, `westNoLoad`, `westNoReset`, `westRebuild`, and `westNoRebuild`.
+- Existing curated fields like `westDevId`, `westToolOpt`, and `westPort` remain supported.
+- Runner-specific options use unprefixed names: `serial`, `interface`, `frequency`, `connectUnderReset`, `erase`, `noErase`, `reset`, `rttAddress`, `tui`, `config`, `flashAddress`, `verify`, `verifyOnly`, `noHalt`, `noInit`, `noTargets`, `targetHandle`, `rttPort`, `rttServer`, `gdbHost`, `gdbClientPort`, `gdbInit`, `chip`, `protocol`, `speed`, `batch`, `device`, `loader`, `dtFlash`, and `resetType`.
+- `westArgs` is still preserved as a raw passthrough array so any unsupported or future runner-specific flags can be supplied without waiting for schema updates.
+
+> **Note on test coverage:** Not all debug runner paths and hardware combinations have been exercised. As a general rule — if you can start a debug session using a hand-written Cortex-Debug `launch.json`, the `zephyr-ide-cortex` or `zephyr-ide-west` debug type should work for that same setup. If a runner path that should work gives you trouble, you can always create a manual Cortex-Debug launch configuration in your `launch.json` as a fallback. Please [raise an issue on GitHub](https://github.com/mylonics/zephyr-ide/issues) so it can be tracked and fixed.
 
 ## Build Dashboard
 

@@ -3,7 +3,7 @@ title: Launch Configuration Helpers
 description: Dynamic launch.json helper commands for Zephyr debugging — get active project paths, GDB paths, toolchain paths, ELF file paths, board names, and custom build variables with IDE for Zephyr.
 ---
 
-The simplest way to debug a Zephyr build with this extension is to use the `zephyr-ide` debugger type, which reads `runners.yaml` from the active build and translates it to a `cortex-debug` configuration automatically:
+The simplest way to debug a Zephyr build with this extension is to use the `zephyr-ide-cortex` debugger type, which reads `runners.yaml` from the active build and translates it to a `cortex-debug` configuration automatically:
 
 ```json
 {
@@ -11,7 +11,7 @@ The simplest way to debug a Zephyr build with this extension is to use the `zeph
   "configurations": [
     {
       "name": "Zephyr IDE: Debug",
-      "type": "zephyr-ide",
+      "type": "zephyr-ide-cortex",
       "request": "launch"
     }
   ]
@@ -29,20 +29,22 @@ Use the `ask` field to control build selection at launch time:
 | `"askProject"` | Prompt for project; use that project's active build. |
 | `"askBoth"` | Prompt for both project and build. |
 
-The `zephyr-ide` debugger delegates the actual debug session to [`marus25.cortex-debug`](https://marketplace.visualstudio.com/items?itemName=marus25.cortex-debug). If cortex-debug is not installed, the session is aborted with a notification offering install links for the VS Code Marketplace and Open VSX. When the resolved runner is Black Magic Probe (`blackmagicprobe`), a one-time recommendation suggests installing [`mylonics.bmp-debug`](https://marketplace.visualstudio.com/items?itemName=mylonics.bmp-debug) for Zephyr RTOS thread awareness.
+The `zephyr-ide-cortex` and `zephyr-ide-west` debuggers delegate the actual debug session to [`marus25.cortex-debug`](https://marketplace.visualstudio.com/items?itemName=marus25.cortex-debug). If cortex-debug is not installed, the session is aborted with a notification offering install links for the VS Code Marketplace and Open VSX. When the resolved runner is Black Magic Probe (`blackmagicprobe`), a one-time recommendation suggests installing [`mylonics.bmp-debug`](https://marketplace.visualstudio.com/items?itemName=mylonics.bmp-debug) for Zephyr RTOS thread awareness.
 
 For a higher-level alternative that does not require any `launch.json` at all, configure an active [Runner Profile](configuration.md#runner-profiles) on the build — its `debug` and `attach` binds can point at a Zephyr runner, a `launch.json` configuration by name, or be left on `auto` to use `runners.yaml` defaults. The `debug` bind drives both `Zephyr IDE: Debug` and `Zephyr IDE: Build and Debug`; `attach` drives `Zephyr IDE: Debug Attach`.
 
 ### Bridged runners and external GDB servers
 
-Some runners (nrfjprog, linkserver, esp32, stm32cubeprogrammer) have no native cortex-debug servertype. Zephyr IDE automatically spawns `west debugserver --runner <runner>` in the background, reads the GDB port it announces on stdout, and connects cortex-debug as `servertype: "external"`. If the port is not detected within 10 seconds, Zephyr IDE falls back to the runner's default port and emits a warning.
+Some runners (nrfjprog, linkserver, esp32, stm32cubeprogrammer, probe-rs) have no native cortex-debug servertype. Use `zephyr-ide-west` for these flows: it spawns `west debugserver --runner <runner>` in the background, reads the GDB port it announces on stdout, and connects cortex-debug as `servertype: "external"`. If the port is not detected within 10 seconds, Zephyr IDE falls back to the runner's default port and emits a warning.
+
+`zephyr-ide-west` includes curated launch fields for common west arguments. Runner-specific options use unprefixed names (e.g. `device`, `speed`, `config`, `chip`) while older common fields keep the `west` prefix for backward compatibility. `westArgs` is preserved for full passthrough coverage of any flag not yet modeled.
 
 To connect to an **already-running** GDB server (Segger Ozone, a vendor IDE, or a manually started server) instead of having Zephyr IDE spawn one, add `"gdbTarget": "host:port"` to the configuration. This suppresses the bridge auto-spawn for bridged runners and passes the address directly to cortex-debug.
 
 ```json
 {
   "name": "Zephyr IDE: External GDB (nrfjprog)",
-  "type": "zephyr-ide",
+  "type": "zephyr-ide-west",
   "request": "launch",
   "runner": "nrfjprog",
   "gdbTarget": "127.0.0.1:2331"
@@ -113,7 +115,7 @@ Get the board name for the currently active build configuration.
 
 ## Legacy / Advanced: Direct cortex-debug Configuration
 
-Example `cortex-debug` configuration (use this when you need full control over GDB server arguments; otherwise prefer the simpler `zephyr-ide` launch shown above, which reads `runners.yaml` automatically):
+Example `cortex-debug` configuration (use this when you need full control over GDB server arguments; otherwise prefer the simpler `zephyr-ide-cortex` launch shown above, which reads `runners.yaml` automatically):
 
 ```json
 {

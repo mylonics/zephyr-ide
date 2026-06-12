@@ -78,6 +78,9 @@ import { getVenvPath } from "../setup_utilities/workspace-config";
 import { notifyError, outputInfo, outputWarning } from "../utilities/output";
 import { RUNNER_TARGET_PREFIX, CORTEX_DEBUG_PREFIX, WEST_DEBUG_PREFIX } from "../utilities/utils";
 
+export const ZEPHYR_IDE_CORTEX_DEBUG_TYPE = "zephyr-ide-cortex";
+export const ZEPHYR_IDE_WEST_DEBUG_TYPE = "zephyr-ide-west";
+
 /**
  * Controls whether the provider asks the user to pick a project/build at
  * session start, or silently uses the currently active ones.
@@ -126,7 +129,55 @@ interface ZephyrIdeDebugConfig extends vscode.DebugConfiguration {
    * here (e.g. `["--dev-id", "12345"]` for nrfjprog).
    */
   westArgs?: string[];
+  westToolOpt?: string[];
+  westDomain?: string;
+  westFile?: string;
+  westElfFile?: string;
+  westHexFile?: string;
+  westBinFile?: string;
+  westGdbPort?: number;
+  westTclPort?: number;
+  westTelnetPort?: number;
+  westNoLoad?: boolean;
+  westNoReset?: boolean;
+  westRebuild?: boolean;
+  westNoRebuild?: boolean;
+  westExtraServerArgs?: string[];
+  westDevId?: string;
+  serial?: string;
+  interface?: string;
+  frequency?: string | number;
+  westPort?: string | number;
+  connectUnderReset?: boolean;
+  erase?: boolean;
+  noErase?: boolean;
+  reset?: boolean;
+  rttAddress?: string;
+  tui?: boolean;
+  config?: string[];
+  flashAddress?: string | number;
+  verify?: boolean;
+  verifyOnly?: boolean;
+  noHalt?: boolean;
+  noInit?: boolean;
+  noTargets?: boolean;
+  targetHandle?: string;
+  rttPort?: number;
+  rttServer?: boolean;
+  gdbHost?: string;
+  gdbClientPort?: number;
+  gdbInit?: string[];
+  chip?: string;
+  protocol?: string;
+  speed?: string | number;
+  batch?: boolean;
+  device?: string;
+  loader?: string;
+  dtFlash?: boolean;
+  resetType?: string;
 }
+
+type ProviderMode = "cortex" | "west";
 
 /**
  * Build a cortex-debug `vscode.DebugConfiguration` from a parsed runners.yaml.
@@ -676,6 +727,7 @@ export class ZephyrIdeDebugConfigurationProvider
   constructor(
     private readonly getWorkspaceConfig: () => WorkspaceConfig,
     private readonly context?: vscode.ExtensionContext,
+    private readonly mode: ProviderMode = "cortex",
   ) { }
 
   /**
@@ -684,10 +736,16 @@ export class ZephyrIdeDebugConfigurationProvider
    * resolveDebugConfiguration.
    */
   provideDebugConfigurations(): vscode.ProviderResult<vscode.DebugConfiguration[]> {
+    const debuggerType = this.mode === "west"
+      ? ZEPHYR_IDE_WEST_DEBUG_TYPE
+      : ZEPHYR_IDE_CORTEX_DEBUG_TYPE;
+    const name = this.mode === "west"
+      ? "Zephyr IDE: Debug (west debugserver)"
+      : "Zephyr IDE: Debug";
     return [
       {
-        name: "Zephyr IDE: Debug",
-        type: "zephyr-ide",
+        name,
+        type: debuggerType,
         request: "launch",
       },
     ];
@@ -706,6 +764,10 @@ export class ZephyrIdeDebugConfigurationProvider
     folder: vscode.WorkspaceFolder | undefined,
     debugConfig: vscode.DebugConfiguration,
   ): Promise<vscode.DebugConfiguration | undefined> {
+    if (this.mode === "west") {
+      return this.resolveWestDebugConfiguration(folder, debugConfig);
+    }
+
     const wsConfig = this.getWorkspaceConfig();
     if (!wsConfig) {
       notifyError("Debug", "Zephyr IDE workspace is not initialized.");
@@ -820,62 +882,14 @@ export class ZephyrIdeDebugConfigurationProvider
     if (cfg.useWestDebugServer === true) {
       if (!cfg.runner) {
         notifyError("Debug",
-          `"useWestDebugServer" requires a "runner" field (e.g. "runner": "openocd"). ` +
-          `Set it in the launch configuration to the Zephyr runner west should use.`);
+          `"useWestDebugServer" is only supported by the ${ZEPHYR_IDE_WEST_DEBUG_TYPE} debugger type. ` +
+          `Change your launch config type and retry.`);
         return undefined;
       }
-      const wdsMissing: string[] = [];
-      if (!runnersYaml.elfFile) { wdsMissing.push("elf_file"); }
-      if (!runnersYaml.gdb) { wdsMissing.push("gdb"); }
-      if (wdsMissing.length) {
-        void vscode.window.showErrorMessage(
-          `runners.yaml is missing required field(s) [${wdsMissing.join(", ")}] at "${runnersYamlPath}".` +
-          ` This usually means the build did not complete successfully. Try a pristine rebuild.`,
-          "Pristine Build"
-        ).then(choice => {
-          if (choice === "Pristine Build") {
-            void vscode.commands.executeCommand("zephyr-ide.build-pristine");
-          }
-        });
-        return undefined;
-      }
-      const wdsSetupState = wsConfig.activeSetupState;
-      if (!wdsSetupState) {
-        notifyError("Debug",
-          `"useWestDebugServer" requires an active Zephyr IDE setup. ` +
-          `Complete workspace setup (Zephyr IDE: Setup Workspace) and try again.`);
-        return undefined;
-      }
-      const westDebugCfg: any = {
-        type: "cortex-debug",
-        request: cfg.request === "attach" ? "attach" : "launch",
-        name: cfg.name,
-        servertype: "external",
-        executable: runnersYaml.elfFile,
-        gdbPath: runnersYaml.gdb,
-        cwd: typeof (cfg as any).cwd === "string"
-          ? (cfg as any).cwd
-          : (folder ? folder.uri.fsPath : undefined),
-      };
-      if (typeof (cfg as any).svdFile === "string") {
-        westDebugCfg.svdFile = (cfg as any).svdFile;
-      }
-      const spawnOk = await this.spawnAndAttachDebugServer(
-        {
-          setupState: wdsSetupState,
-          cwd: path.join(wsConfig.rootPath, resolved.project.rel_path),
-          buildDir,
-          runner: cfg.runner,
-          extraArgs: cfg.westArgs,
-        },
-        westDebugCfg,
-        cfg.name,
-      );
-      if (!spawnOk) { return undefined; }
-      outputInfo("Debug",
-        `Launching external session via west debugserver (runner "${cfg.runner}")\n` +
-        `${JSON.stringify(westDebugCfg, null, 2)}`);
-      return westDebugCfg as vscode.DebugConfiguration;
+      notifyError("Debug",
+        `"useWestDebugServer" is only supported by the ${ZEPHYR_IDE_WEST_DEBUG_TYPE} debugger type. ` +
+        `Change your launch config type and retry.`);
+      return undefined;
     }
 
     // Resolve the active runner profile's debug/attach bind first so its
@@ -978,11 +992,6 @@ export class ZephyrIdeDebugConfigurationProvider
           }
         }
       }
-    }
-
-    // For debugging when no runner is specified, default to west debugserver.
-    if (!cfg.runner && !profileRunner) {
-      forceWestDebugBridge = true;
     }
 
     // launch.json `runner` field wins over profile runner; profile runner wins
@@ -1162,48 +1171,16 @@ export class ZephyrIdeDebugConfigurationProvider
       });
     }
 
-    // External bridge: spawn `west debugserver` for runners that cortex-debug
-    // cannot drive natively (nrfjprog, linkserver, esp32, stm32cubeprogrammer),
-    // OR when the profile bind is "west-debug" (explicit user choice to always
-    // go through the bridge regardless of native driver support).
-    // The bridge prints a listening host:port that we plug into
-    // cortex-debug's `gdbTarget`. The server child is killed when the debug
-    // session ends. A user-supplied `gdbTarget` in launch.json (which
-    // survived the reservedKeys merge above) suppresses the spawn entirely.
-    if (forceWestDebugBridge) {
-      // Force external servertype so cortex-debug connects via gdbTarget.
-      cortexCfg.servertype = "external";
-    }
-    if (cortexCfg.servertype === "external" && (runnerNeedsBridge(runner) || forceWestDebugBridge)) {
-      const userSuppliedGdbTarget = typeof (cortexCfg as any).gdbTarget === "string"
-        && (cortexCfg as any).gdbTarget.length > 0;
-      if (!userSuppliedGdbTarget) {
-        const setupState = wsConfig.activeSetupState;
-        if (!setupState) {
-          notifyError("Debug",
-            `Runner "${runner}" needs the west debugserver bridge, but no active Zephyr IDE setup state was found. ` +
-            `Complete workspace setup (Zephyr IDE: Setup Workspace) and try again.`);
-          return undefined;
-        }
-        const bridgeArgs = (cortexCfg as any).__zephyrIdeBridgeArgs as string[] | undefined;
-        delete (cortexCfg as any).__zephyrIdeBridgeArgs;
-        const spawnOk = await this.spawnAndAttachDebugServer(
-          {
-            setupState,
-            cwd: path.join(wsConfig.rootPath, resolved.project.rel_path),
-            buildDir,
-            runner,
-            extraArgs: bridgeArgs,
-          },
-          cortexCfg,
-          cortexCfg.name,
-        );
-        if (!spawnOk) { return undefined; }
-      } else {
-        // User provided their own gdbTarget — leave the hidden bridge args
-        // out of the config they actually want to launch with.
-        delete (cortexCfg as any).__zephyrIdeBridgeArgs;
-      }
+    // The cortex provider handles cortex-debug / bmp-debug only.
+    // Runners requiring west debugserver are handled by zephyr-ide-west.
+    if (forceWestDebugBridge || runnerNeedsBridge(runner)) {
+      notifyError(
+        "Debug",
+        `Runner "${runner}" requires the ${ZEPHYR_IDE_WEST_DEBUG_TYPE} debugger type. ` +
+        `Use the west debug provider for this configuration.`
+      );
+      delete (cortexCfg as any).__zephyrIdeBridgeArgs;
+      return undefined;
     }
 
     outputInfo("Debug", `Launching ${cortexCfg.type} session with runner "${runner}"\n${JSON.stringify(cortexCfg, null, 2)}`);
@@ -1290,5 +1267,361 @@ export class ZephyrIdeDebugConfigurationProvider
       }
       return false;
     }
+  }
+
+  private async resolveWestDebugConfiguration(
+    folder: vscode.WorkspaceFolder | undefined,
+    debugConfig: vscode.DebugConfiguration,
+  ): Promise<vscode.DebugConfiguration | undefined> {
+    const wsConfig = this.getWorkspaceConfig();
+    if (!wsConfig) {
+      notifyError("Debug", "Zephyr IDE workspace is not initialized.");
+      return undefined;
+    }
+
+    if (
+      !vscode.extensions.getExtension(CORTEX_DEBUG_EXTENSION_ID) &&
+      !vscode.extensions.getExtension(BMP_DEBUG_EXTENSION_ID)
+    ) {
+      void vscode.window.showErrorMessage(
+        "Zephyr IDE debug sessions require the cortex-debug extension. " +
+        "Install it from your editor's marketplace and try again.",
+        "Open VS Code Marketplace",
+        "Open Open VSX",
+      ).then(choice => {
+        if (choice === "Open VS Code Marketplace") {
+          void vscode.env.openExternal(vscode.Uri.parse(CORTEX_DEBUG_MARKETPLACE_URL));
+        } else if (choice === "Open Open VSX") {
+          void vscode.env.openExternal(vscode.Uri.parse(CORTEX_DEBUG_OPEN_VSX_URL));
+        }
+      });
+      return undefined;
+    }
+
+    const cfg = debugConfig as ZephyrIdeDebugConfig;
+    let resolved: Awaited<ReturnType<typeof resolveActiveProjectBuild>>;
+
+    if (cfg.project !== undefined || cfg.build !== undefined) {
+      const r = resolveActiveProjectBuild(wsConfig, {
+        projectName: cfg.project,
+        buildName: cfg.build,
+      });
+      if (!r) {
+        notifyError("Debug",
+          `Cannot resolve project "${cfg.project ?? "(active)"}" / build "${cfg.build ?? "(active)"}".` +
+          ` Check that both exist in the workspace.`);
+        return undefined;
+      }
+      resolved = r;
+    } else {
+      const askMode: AskMode = cfg.ask ?? "auto";
+      let projectName: string | undefined;
+      let buildName: string | undefined;
+
+      if (askMode === "askBoth" || askMode === "askProject") {
+        projectName = await askUserForProject(wsConfig);
+        if (projectName === undefined) { return undefined; }
+      } else {
+        projectName = wsConfig.activeProject;
+      }
+
+      if (askMode === "askBoth" || askMode === "askBuild") {
+        if (projectName === undefined) {
+          notifyError("Debug", "No active project configured. Set one before launching the Zephyr IDE debugger.");
+          return undefined;
+        }
+        buildName = await askUserForBuild(wsConfig, projectName);
+        if (buildName === undefined) { return undefined; }
+      }
+
+      const r = resolveActiveProjectBuild(wsConfig, { projectName, buildName });
+      if (!r) {
+        notifyError("Debug", "No active project/build configured. Set one before launching the Zephyr IDE debugger.");
+        return undefined;
+      }
+      resolved = r;
+    }
+
+    const sysbuildImage = wsConfig.projectStates?.[resolved.projectName]?.buildStates?.[resolved.buildName]?.sysbuildImage;
+    const buildDir = path.join(wsConfig.rootPath, resolved.project.rel_path, resolved.buildName);
+    const runnersYamlPath = resolveRunnersYamlPath(buildDir, sysbuildImage);
+    const runnersYaml = parseRunnersYaml(runnersYamlPath);
+    if (!runnersYaml) {
+      void vscode.window.showErrorMessage(
+        `runners.yaml not found at "${runnersYamlPath}". Build the project first so the Zephyr build system can generate it.`,
+        "Build Now"
+      ).then(choice => {
+        if (choice === "Build Now") {
+          void vscode.commands.executeCommand("zephyr-ide.build");
+        }
+      });
+      return undefined;
+    }
+
+    const requestedRunner = cfg.runner ?? runnersYaml.debugRunner ?? runnersYaml.runners[0];
+    if (!requestedRunner) {
+      notifyError("Debug", `No runner is available in "${runnersYamlPath}".`);
+      return undefined;
+    }
+
+    const missing: string[] = [];
+    if (!runnersYaml.elfFile) { missing.push("elf_file"); }
+    if (!runnersYaml.gdb) { missing.push("gdb"); }
+    if (missing.length) {
+      void vscode.window.showErrorMessage(
+        `runners.yaml is missing required field(s) [${missing.join(", ")}] at "${runnersYamlPath}".` +
+        ` This usually means the build did not complete successfully. Try a pristine rebuild.`,
+        "Pristine Build"
+      ).then(choice => {
+        if (choice === "Pristine Build") {
+          void vscode.commands.executeCommand("zephyr-ide.build-pristine");
+        }
+      });
+      return undefined;
+    }
+
+    const setupState = wsConfig.activeSetupState;
+    if (!setupState) {
+      notifyError("Debug",
+        `${ZEPHYR_IDE_WEST_DEBUG_TYPE} requires an active Zephyr IDE setup. ` +
+        `Complete workspace setup (Zephyr IDE: Setup Workspace) and try again.`);
+      return undefined;
+    }
+
+    const westArgs: string[] = [];
+    if (cfg.westDomain) {
+      westArgs.push("--domain", cfg.westDomain);
+    }
+    if (cfg.westFile) {
+      westArgs.push("--file", cfg.westFile);
+    }
+    if (cfg.westElfFile) {
+      westArgs.push("--elf-file", cfg.westElfFile);
+    }
+    if (cfg.westHexFile) {
+      westArgs.push("--hex-file", cfg.westHexFile);
+    }
+    if (cfg.westBinFile) {
+      westArgs.push("--bin-file", cfg.westBinFile);
+    }
+    if (cfg.westGdbPort !== undefined) {
+      westArgs.push("--gdb-port", String(cfg.westGdbPort));
+    }
+    if (cfg.westTclPort !== undefined) {
+      westArgs.push("--tcl-port", String(cfg.westTclPort));
+    }
+    if (cfg.westTelnetPort !== undefined) {
+      westArgs.push("--telnet-port", String(cfg.westTelnetPort));
+    }
+    if (cfg.westNoLoad) {
+      westArgs.push("--no-load");
+    }
+    if (cfg.westNoReset) {
+      westArgs.push("--no-reset");
+    }
+    // west --rebuild/--no-rebuild are mutually exclusive.
+    const hasRebuild = cfg.westRebuild === true;
+    const hasNoRebuild = cfg.westNoRebuild === true;
+    const rebuildFlagsSet = [hasRebuild, hasNoRebuild].filter(Boolean).length;
+    if (rebuildFlagsSet > 1) {
+      notifyError("Debug",
+        "Conflicting west rebuild options: choose only one of westRebuild or westNoRebuild.");
+      return undefined;
+    }
+    if (hasRebuild) {
+      westArgs.push("--rebuild");
+    } else if (hasNoRebuild) {
+      westArgs.push("--no-rebuild");
+    }
+    if (cfg.westExtraServerArgs?.length) {
+      westArgs.push(...cfg.westExtraServerArgs);
+    }
+    if (cfg.westToolOpt?.length) {
+      for (const t of cfg.westToolOpt) {
+        westArgs.push("--tool-opt", t);
+      }
+    }
+    if (cfg.westDevId) {
+      westArgs.push("--dev-id", cfg.westDevId);
+    }
+    if (cfg.serial) {
+      westArgs.push("--serial", cfg.serial);
+    }
+    if (cfg.interface) {
+      westArgs.push("--iface", cfg.interface);
+    }
+    if (cfg.frequency !== undefined) {
+      westArgs.push("--frequency", String(cfg.frequency));
+    }
+    if (cfg.westPort !== undefined) {
+      westArgs.push("--port", String(cfg.westPort));
+    }
+    if (cfg.connectUnderReset) {
+      westArgs.push("--connect-under-reset");
+    }
+    if (cfg.erase) {
+      westArgs.push("--erase");
+    }
+    if (cfg.noErase) {
+      westArgs.push("--no-erase");
+    }
+    if (cfg.reset) {
+      westArgs.push("--reset");
+    }
+    if (cfg.rttAddress) {
+      westArgs.push("--rtt-address", cfg.rttAddress);
+    }
+    if (cfg.tui) {
+      westArgs.push("--tui");
+    }
+    if (cfg.config?.length) {
+      for (const c of cfg.config) {
+        westArgs.push("--config", c);
+      }
+    }
+    if (cfg.flashAddress !== undefined) {
+      westArgs.push("--flash-address", String(cfg.flashAddress));
+    }
+    if (cfg.verify) {
+      westArgs.push("--verify");
+    }
+    if (cfg.verifyOnly) {
+      westArgs.push("--verify-only");
+    }
+    if (cfg.noHalt) {
+      westArgs.push("--no-halt");
+    }
+    if (cfg.noInit) {
+      westArgs.push("--no-init");
+    }
+    if (cfg.noTargets) {
+      westArgs.push("--no-targets");
+    }
+    if (cfg.targetHandle) {
+      westArgs.push("--target-handle", cfg.targetHandle);
+    }
+    if (cfg.rttPort !== undefined) {
+      westArgs.push("--rtt-port", String(cfg.rttPort));
+    }
+    if (cfg.rttServer) {
+      westArgs.push("--rtt-server");
+    }
+    if (cfg.gdbHost) {
+      westArgs.push("--gdb-host", cfg.gdbHost);
+    }
+    if (cfg.gdbClientPort !== undefined) {
+      westArgs.push("--gdb-client-port", String(cfg.gdbClientPort));
+    }
+    if (cfg.gdbInit?.length) {
+      for (const g of cfg.gdbInit) {
+        westArgs.push("--gdb-init", g);
+      }
+    }
+    if (cfg.chip) {
+      westArgs.push("--chip", cfg.chip);
+    }
+    if (cfg.protocol) {
+      westArgs.push("--protocol", cfg.protocol);
+    }
+    if (cfg.speed !== undefined) {
+      westArgs.push("--speed", String(cfg.speed));
+    }
+    if (cfg.batch) {
+      westArgs.push("--batch");
+    }
+    if (cfg.device) {
+      westArgs.push("--device", cfg.device);
+    }
+    if (cfg.loader) {
+      westArgs.push("--loader", cfg.loader);
+    }
+    if (cfg.dtFlash) {
+      westArgs.push("--dt-flash", "y");
+    }
+    if (cfg.resetType) {
+      westArgs.push("--reset-type", cfg.resetType);
+    }
+    if (cfg.westArgs) {
+      westArgs.push(...cfg.westArgs);
+    }
+
+    const westDebugCfg: any = {
+      type: "cortex-debug",
+      request: cfg.request === "attach" ? "attach" : "launch",
+      name: cfg.name,
+      servertype: "external",
+      executable: runnersYaml.elfFile,
+      gdbPath: runnersYaml.gdb,
+      cwd: typeof (cfg as any).cwd === "string"
+        ? (cfg as any).cwd
+        : (folder ? folder.uri.fsPath : undefined),
+    };
+    if (typeof (cfg as any).svdFile === "string") {
+      westDebugCfg.svdFile = (cfg as any).svdFile;
+    }
+
+    const userSuppliedTarget = typeof (cfg as any).gdbTarget === "string" && (cfg as any).gdbTarget.length > 0;
+    if (userSuppliedTarget) {
+      westDebugCfg.gdbTarget = (cfg as any).gdbTarget;
+    } else {
+      const spawnOk = await this.spawnAndAttachDebugServer(
+        {
+          setupState,
+          cwd: path.join(wsConfig.rootPath, resolved.project.rel_path),
+          buildDir,
+          runner: requestedRunner,
+          extraArgs: westArgs,
+        },
+        westDebugCfg,
+        cfg.name,
+      );
+      if (!spawnOk) { return undefined; }
+    }
+
+    const reservedKeys = new Set([
+      "type", "request", "name", "runner", "project", "build", "ask",
+      "useWestDebugServer",
+      "westArgs", "westToolOpt", "westDomain",
+      "westFile", "westElfFile", "westHexFile", "westBinFile", "westGdbPort",
+      "westTclPort", "westTelnetPort", "westNoLoad", "westNoReset",
+      "westRebuild", "westNoRebuild",
+      "westExtraServerArgs", "westDevId", "westPort",
+      "serial", "interface", "frequency",
+      "connectUnderReset", "erase", "noErase", "reset",
+      "rttAddress", "tui", "config", "flashAddress",
+      "verify", "verifyOnly", "noHalt", "noInit", "noTargets",
+      "targetHandle", "rttPort", "rttServer", "gdbHost",
+      "gdbClientPort", "gdbInit", "chip", "protocol", "speed",
+      "batch", "device", "loader", "dtFlash", "resetType",
+    ]);
+    for (const [k, v] of Object.entries(cfg)) {
+      if (reservedKeys.has(k)) { continue; }
+      if (v !== undefined) {
+        (westDebugCfg as any)[k] = v;
+      }
+    }
+
+    outputInfo("Debug",
+      `Launching external session via west debugserver (runner "${requestedRunner}")\n` +
+      `${JSON.stringify(westDebugCfg, null, 2)}`);
+    return westDebugCfg as vscode.DebugConfiguration;
+  }
+}
+
+export class ZephyrIdeCortexDebugConfigurationProvider extends ZephyrIdeDebugConfigurationProvider {
+  constructor(
+    getWorkspaceConfig: () => WorkspaceConfig,
+    context?: vscode.ExtensionContext,
+  ) {
+    super(getWorkspaceConfig, context, "cortex");
+  }
+}
+
+export class ZephyrIdeWestDebugConfigurationProvider extends ZephyrIdeDebugConfigurationProvider {
+  constructor(
+    getWorkspaceConfig: () => WorkspaceConfig,
+    context?: vscode.ExtensionContext,
+  ) {
+    super(getWorkspaceConfig, context, "west");
   }
 }

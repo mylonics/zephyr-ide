@@ -11,21 +11,26 @@ Build, flash, and debug commands are available from the Active Project Panel, th
 
 ## Setting Up Debug Configuration
 
-The IDE for Zephyr ships with a built-in `zephyr-ide` debugger type that reads `runners.yaml` from the active build and translates it into a `cortex-debug` session automatically. With this provider in place, the **Debug**, **Build and Debug**, and **Debug Attach** buttons work out of the box on a freshly-created build — no `launch.json` entries are required.
+The IDE for Zephyr ships with two built-in debugger types:
+
+- `zephyr-ide-cortex` reads `runners.yaml` from the active build and translates it into a `cortex-debug` / `bmp-debug` session automatically.
+- `zephyr-ide-west` starts `west debugserver` and attaches cortex-debug as an external GDB client.
+
+With these providers in place, the **Debug**, **Build and Debug**, and **Debug Attach** buttons work out of the box on a freshly-created build — no `launch.json` entries are required.
 
 If you do create a `launch.json`, the simplest possible configuration is:
 
 ```json
 {
   "name": "Zephyr IDE: Debug",
-  "type": "zephyr-ide",
+  "type": "zephyr-ide-cortex",
   "request": "launch"
 }
 ```
 
 The provider picks the runner from `runners.yaml` (preferring `debug-runner`), looks up the ELF and GDB paths recorded there, sets `"rtos": "Zephyr"`, and passes the result to cortex-debug. To pin a specific runner explicitly, add a `"runner"` field (`"jlink"`, `"openocd"`, `"pyocd"`, `"stlink"`, `"bmp"`, etc.).
 
-The extension ships `zephyr-ide` configuration snippets for the most common runners: **J-Link**, **pyOCD**, **ST-Link**, **Black Magic Probe** (launch and attach), **nrfjprog** and **LinkServer** bridges, a sysbuild-image variant, and an explicit-probe OpenOCD override. A **"Debug (ask build at launch)"** snippet uses the `ask` field to prompt for a build configuration each time F5 is pressed — set `ask: "askBoth"` to prompt for project as well. One **"Cortex Debug (Legacy): Manual debug configuration"** snippet is also provided for advanced cases where you need full control over GDB server arguments; its label begins with `Cortex Debug (Legacy)` so it is easy to distinguish.
+The extension ships snippets for the most common runners: **J-Link**, **pyOCD**, **ST-Link**, **Black Magic Probe** (launch and attach), **nrfjprog** and **LinkServer** bridges, a sysbuild-image variant, and an explicit-probe OpenOCD override. A **"Debug (ask build at launch)"** snippet uses the `ask` field to prompt for a build configuration each time F5 is pressed — set `ask: "askBoth"` to prompt for project as well. One **"Cortex Debug (Legacy): Manual debug configuration"** snippet is also provided for advanced cases where you need full control over GDB server arguments; its label begins with `Cortex Debug (Legacy)` so it is easy to distinguish.
 
 ### Runners via West Debugserver Bridge
 
@@ -40,7 +45,11 @@ Bridged runners:
 | `esp32` | 3333 | ESP32 OpenOCD |
 | `stm32cubeprogrammer` | 61234 | STM32_Programmer_CLI gdbserver |
 
-To connect to an **already-running** GDB server instead of having Zephyr IDE spawn one, add `"gdbTarget": "host:port"` to your `zephyr-ide` launch configuration. This suppresses the bridge auto-spawn and passes the address directly to cortex-debug. See the **"Zephyr IDE: Debug (external GDB server, manual)"** snippet in the *Add Configuration* picker for an example.
+To connect to an **already-running** GDB server instead of having Zephyr IDE spawn one, add `"gdbTarget": "host:port"` to your `zephyr-ide-west` launch configuration. This suppresses the bridge auto-spawn and passes the address directly to cortex-debug. See the **"Zephyr IDE: Debug (external GDB server, manual)"** snippet in the *Add Configuration* picker for an example.
+
+`zephyr-ide-west` also exposes curated west debugserver flags. Unprefixed names are used for runner-specific options (e.g. `device`, `speed`, `config`) while older common fields keep the `west` prefix for backward compatibility.
+
+Use `westArgs` to pass through any additional runner-specific flags that are not modeled explicitly. Old `west`-prefixed aliases remain supported but are deprecated.
 
 ![Setting Up Launch Configuration](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/setting_up_debug.gif)
 
@@ -117,7 +126,7 @@ Custom build and project variables are managed with **`Zephyr IDE: Manage Build 
 
 ## Debug Prerequisites: Cortex-Debug
 
-The `zephyr-ide` debugger type delegates the actual debug session to [`marus25.cortex-debug`](https://marketplace.visualstudio.com/items?itemName=marus25.cortex-debug). The first time you try to Debug:
+The `zephyr-ide-cortex` and `zephyr-ide-west` debugger types delegate the actual debug session to [`marus25.cortex-debug`](https://marketplace.visualstudio.com/items?itemName=marus25.cortex-debug). The first time you try to Debug:
 
 - If **cortex-debug is not installed**, the session is aborted and a notification appears with **Open VS Code Marketplace** and **Open Open VSX** buttons that link directly to its install page on each registry.
 - If the resolved runner is **Black Magic Probe** (`bmp`), the IDE also shows a one-time recommendation to install [`mylonics.bmp-debug`](https://marketplace.visualstudio.com/items?itemName=mylonics.bmp-debug) for Zephyr RTOS thread awareness. The recommendation only fires once and is silently skipped if `bmp-debug` is already installed.
@@ -142,7 +151,7 @@ The IDE provides commands that help a user develop launch configurations. These 
 - `zephyr-ide.get-active-build-variable`
 - `zephyr-ide.get-active-board-name`
 
-The `ask` field on a `zephyr-ide` configuration controls build selection at launch. Set `ask: "askBuild"` to prompt for a build configuration each time the session starts, or `ask: "askBoth"` to prompt for project and build. The default (`ask: "auto"`) silently uses the active project and build shown in the taskbar and Active Project panel. Alternatively, the `zephyr-ide.select-active-build-path` input command can be used in a `cortex-debug` configuration's `executable` field to get the same build-picker behaviour.
+The `ask` field on `zephyr-ide-cortex` / `zephyr-ide-west` configurations controls build selection at launch. Set `ask: "askBuild"` to prompt for a build configuration each time the session starts, or `ask: "askBoth"` to prompt for project and build. The default (`ask: "auto"`) silently uses the active project and build shown in the taskbar and Active Project panel. Alternatively, the `zephyr-ide.select-active-build-path` input command can be used in a `cortex-debug` configuration's `executable` field to get the same build-picker behaviour.
 
 ![IDE for Zephyr Debug Commands](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/setting_up_debug2.gif)
 
