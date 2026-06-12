@@ -30,7 +30,7 @@ The `zephyr-ide-west` provider now exposes a broader curated option surface for 
 - Runner-specific options use unprefixed names: `serial`, `interface`, `frequency`, `connectUnderReset`, `erase`, `noErase`, `reset`, `rttAddress`, `tui`, `config`, `flashAddress`, `verify`, `verifyOnly`, `noHalt`, `noInit`, `noTargets`, `targetHandle`, `rttPort`, `rttServer`, `gdbHost`, `gdbClientPort`, `gdbInit`, `chip`, `protocol`, `speed`, `batch`, `device`, `loader`, `dtFlash`, and `resetType`.
 - `westArgs` is still preserved as a raw passthrough array so any unsupported or future runner-specific flags can be supplied without waiting for schema updates.
 
-> **Note on test coverage:** Not all debug runner paths and hardware combinations have been exercised. As a general rule — if you can start a debug session using a hand-written Cortex-Debug `launch.json`, the `zephyr-ide` debug type should work for that same setup. If a runner path that should work gives you trouble, you can always create a manual Cortex-Debug launch configuration in your `launch.json` as a fallback. Please [raise an issue on GitHub](https://github.com/mylonics/zephyr-ide/issues) so it can be tracked and fixed.
+> **Note on test coverage:** Not all debug runner paths and hardware combinations have been exercised. As a general rule — if you can start a debug session using a hand-written Cortex-Debug `launch.json`, the `zephyr-ide-cortex` or `zephyr-ide-west` debug type should work for that same setup. If a runner path that should work gives you trouble, you can always create a manual Cortex-Debug launch configuration in your `launch.json` as a fallback. Please [raise an issue on GitHub](https://github.com/mylonics/zephyr-ide/issues) so it can be tracked and fixed.
 
 ## Build Dashboard
 

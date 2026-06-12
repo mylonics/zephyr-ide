@@ -739,9 +739,12 @@ export class ZephyrIdeDebugConfigurationProvider
     const debuggerType = this.mode === "west"
       ? ZEPHYR_IDE_WEST_DEBUG_TYPE
       : ZEPHYR_IDE_CORTEX_DEBUG_TYPE;
+    const name = this.mode === "west"
+      ? "Zephyr IDE: Debug (west debugserver)"
+      : "Zephyr IDE: Debug";
     return [
       {
-        name: "Zephyr IDE: Debug",
+        name,
         type: debuggerType,
         request: "launch",
       },
@@ -1385,7 +1388,7 @@ export class ZephyrIdeDebugConfigurationProvider
       return undefined;
     }
 
-    const westArgs: string[] = [...(cfg.westArgs ?? [])];
+    const westArgs: string[] = [];
     if (cfg.westDomain) {
       westArgs.push("--domain", cfg.westDomain);
     }
@@ -1537,6 +1540,9 @@ export class ZephyrIdeDebugConfigurationProvider
     }
     if (cfg.resetType) {
       westArgs.push("--reset-type", cfg.resetType);
+    }
+    if (cfg.westArgs) {
+      westArgs.push(...cfg.westArgs);
     }
 
     const westDebugCfg: any = {

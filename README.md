@@ -111,7 +111,7 @@ The Zephyr runner is mapped via one of three paths:
 | **External bridge** | `nrfjprog`, `linkserver`, `esp32`, `stm32cubeprogrammer`, `probe-rs` | Zephyr IDE spawns `west debugserver --runner <r> --build-dir <b>`, parses the listening `host:port` from its stdout, and hands cortex-debug a `servertype: "external"` config pointing at it. The server child is killed when the debug session ends. |
 | **Unsupported** | flash-only runners (`dfu-util`, `uf2`, `bossac`, `teensy`, …) | The provider surfaces an actionable error listing the rejected runners. Switch to a debug-capable runner or write a hand-rolled cortex-debug config. |
 
-> **Note on test coverage:** Not all debug runner paths and hardware combinations have been exercised. As a general rule — if you can start a debug session using a hand-written Cortex-Debug `launch.json`, the `zephyr-ide` debug type should also work for that same setup. If a runner path that should work gives you trouble, you can always fall back to a manual Cortex-Debug configuration in your `launch.json` in the meantime. Please [raise an issue on GitHub](https://github.com/mylonics/zephyr-ide/issues) so it can be tracked and fixed.
+> **Note on test coverage:** Not all debug runner paths and hardware combinations have been exercised. As a general rule — if you can start a debug session using a hand-written Cortex-Debug `launch.json`, the `zephyr-ide-cortex` or `zephyr-ide-west` debug type should also work for that same setup. If a runner path that should work gives you trouble, you can always fall back to a manual Cortex-Debug configuration in your `launch.json` in the meantime. Please [raise an issue on GitHub](https://github.com/mylonics/zephyr-ide/issues) so it can be tracked and fixed.
 
 ### Field precedence
 

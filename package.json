@@ -1757,7 +1757,7 @@
             "description": "Debug a Nordic nRF target via the west debugserver bridge. Zephyr IDE spawns `west debugserver --runner nrfjprog`, reads the listening GDB port from its stdout, and connects cortex-debug as servertype \"external\".",
             "body": {
               "name": "Zephyr IDE: Debug nRF",
-              "type": "zephyr-ide-cortex",
+              "type": "zephyr-ide-west",
               "request": "launch",
               "runner": "nrfjprog"
             }
@@ -1767,7 +1767,7 @@
             "description": "Debug an NXP target via LinkServer through the west debugserver bridge. Zephyr IDE spawns `west debugserver --runner linkserver`, parses the listening port, and connects cortex-debug as servertype \"external\".",
             "body": {
               "name": "Zephyr IDE: Debug LinkServer",
-              "type": "zephyr-ide-cortex",
+              "type": "zephyr-ide-west",
               "request": "launch",
               "runner": "linkserver"
             }
@@ -1790,7 +1790,7 @@
             "description": "Connect to an already-running GDB server at a fixed address (Segger Ozone, vendor IDE, or a server you started manually). Setting `gdbTarget` suppresses Zephyr IDE's automatic west debugserver spawn. Use the `zephyr-ide-west` debugger type if you want Zephyr IDE to spawn and manage west debugserver automatically.",
             "body": {
               "name": "Zephyr IDE: External GDB",
-              "type": "zephyr-ide-cortex",
+              "type": "zephyr-ide-west",
               "request": "launch",
               "runner": "nrfjprog",
               "gdbTarget": "127.0.0.1:2331"
@@ -1880,9 +1880,6 @@
         ],
         "configurationAttributes": {
           "launch": {
-            "required": [
-              "runner"
-            ],
             "properties": {
               "runner": {
                 "type": "string",
@@ -2117,9 +2114,6 @@
             }
           },
           "attach": {
-            "required": [
-              "runner"
-            ],
             "properties": {
               "runner": {
                 "type": "string"
