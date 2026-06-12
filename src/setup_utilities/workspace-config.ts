@@ -123,12 +123,18 @@ async function getExtensionClangdArgs(configuration: vscode.WorkspaceConfigurati
   return args;
 }
 
+/** Shape of a raw BuildConfig JSON object that may use either the legacy or current field. */
+interface RawBuildConfig {
+  debugOptimization?: string;
+  compilerOptimization?: string;
+}
+
 /**
  * Migrate a BuildConfig from the old `debugOptimization` field (with verbose string values)
  * to the new `compilerOptimization` field (with short lowercase values).
  * Returns true if a migration was performed.
  */
-function migrateDebugOptimization(buildConfig: any): boolean {
+function migrateDebugOptimization(buildConfig: RawBuildConfig): boolean {
   if (!buildConfig) { return false; }
 
   // Map old verbose values to new short values
