@@ -46,7 +46,7 @@ If you need to place build artifacts elsewhere — for example outside the proje
           "board": "nrf52840dk/nrf52840",
           "relBoardDir": "zephyr/boards/nordic",
           "relBoardSubDir": "nrf52840dk",
-          "debugOptimization": "Debug",
+          "compilerOptimization": "debug",
           "westBuildArgs": [],
           "westBuildCMakeArgs": [],
           "confFiles": { "config": [], "overlay": [] }

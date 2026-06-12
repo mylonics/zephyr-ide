@@ -158,7 +158,7 @@ Variables are edited interactively with the **`Zephyr IDE: Manage Build Variable
           "board": "nucleo_f401re",
           "relBoardDir": "zephyr/boards/st",
           "relBoardSubDir": "nucleo_f401re",
-          "debugOptimization": "Debug",
+          "compilerOptimization": "debug",
           "westBuildArgs": [],
           "westBuildCMakeArgs": [],
           "confFiles": { "config": [], "overlay": [] },

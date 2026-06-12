@@ -123,6 +123,57 @@ async function getExtensionClangdArgs(configuration: vscode.WorkspaceConfigurati
   return args;
 }
 
+/** Shape of a raw BuildConfig JSON object that may use either the legacy or current field. */
+interface RawBuildConfig {
+  debugOptimization?: string;
+  compilerOptimization?: string;
+}
+
+/**
+ * Migrate a BuildConfig from the old `debugOptimization` field (with verbose string values)
+ * to the new `compilerOptimization` field (with short lowercase values).
+ * Returns true if a migration was performed.
+ */
+function migrateDebugOptimization(buildConfig: RawBuildConfig): boolean {
+  if (!buildConfig) { return false; }
+
+  // Map old verbose values to new short values
+  const valueMap: Record<string, string | undefined> = {
+    "Debug": "debug",
+    "Speed": "speed",
+    "Size": "size",
+    "No Optimizations": "none",
+    "Don't set. Will be configured in included KConfig file": undefined,
+    // Accept already-migrated lowercase enum values from hand-edited legacy configs.
+    debug: "debug",
+    speed: "speed",
+    size: "size",
+    none: "none",
+  };
+
+  let migrated = false;
+
+  // If compilerOptimization is already set, only remove the legacy field if present
+  if (buildConfig.compilerOptimization === undefined && buildConfig.debugOptimization !== undefined) {
+    const oldValue: string = buildConfig.debugOptimization;
+    if (oldValue in valueMap) {
+      const newValue = valueMap[oldValue];
+      if (newValue !== undefined) {
+        buildConfig.compilerOptimization = newValue;
+      }
+      // else: omit (no optimization set)
+    }
+    migrated = true;
+  }
+
+  if (buildConfig.debugOptimization !== undefined) {
+    delete buildConfig.debugOptimization;
+    migrated = true;
+  }
+
+  return migrated;
+}
+
 function argsMatchNormalized(value: any, normalized: string[]): boolean {
   if (!Array.isArray(value) || value.length !== normalized.length) {
     return false;
@@ -176,6 +227,12 @@ function projectLoader(config: WorkspaceConfig, projects: any): boolean {
       }
 
       const buildConfig = config.projects[key].buildConfigs[build_key];
+
+      // Migrate debugOptimization → compilerOptimization
+      if (migrateDebugOptimization(buildConfig)) {
+        requiresSave = true;
+      }
+
       const westBuildArgsRaw = buildConfig.westBuildArgs;
       const westBuildCMakeArgsRaw = buildConfig.westBuildCMakeArgs;
       const normalizedWestBuildArgs = normalizeBuildArgs(buildConfig.westBuildArgs);
