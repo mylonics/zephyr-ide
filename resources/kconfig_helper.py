@@ -308,6 +308,60 @@ def _log(level: str, message: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Board defconfig path resolution
+# ---------------------------------------------------------------------------
+
+def _resolve_board_defconfig() -> Optional[str]:
+    """Resolve the path to the board's defconfig file.
+
+    Zephyr stores board defconfig files at::
+
+        <BOARD_DIR>/<BOARD>_defconfig
+
+    where BOARD_DIR is a CACHE INTERNAL variable set by Zephyr's boards.cmake.
+    If BOARD_DIR is not available in the environment, we attempt to locate
+    the defconfig by scanning the board directories under ZEPHYR_BASE.
+
+    Returns the absolute path to the defconfig file, or None if it cannot
+    be resolved.
+    """
+    board = os.environ.get("BOARD")
+    if not board:
+        return None
+
+    # Fast path: BOARD_DIR is extracted from CMakeCache.txt by
+    # buildEnvFromCMakeCache and set in the env dict passed to init.
+    board_dir = os.environ.get("BOARD_DIR")
+    if board_dir and os.path.isdir(board_dir):
+        candidate = os.path.join(board_dir, f"{board}_defconfig")
+        if os.path.isfile(candidate):
+            return os.path.normpath(candidate)
+
+    # Fallback: scan the <board>/<board>_defconfig convention under
+    # ZEPHYR_BASE/boards/<arch>/.
+    zephyr_base = os.environ.get("ZEPHYR_BASE")
+    if not zephyr_base:
+        return None
+
+    boards_dir = os.path.join(zephyr_base, "boards")
+    if not os.path.isdir(boards_dir):
+        return None
+
+    try:
+        for arch in sorted(os.listdir(boards_dir)):
+            arch_dir = os.path.join(boards_dir, arch)
+            if not os.path.isdir(arch_dir):
+                continue
+            candidate = os.path.join(arch_dir, board, f"{board}_defconfig")
+            if os.path.isfile(candidate):
+                return os.path.normpath(candidate)
+    except OSError:
+        pass
+
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Session state
 # ---------------------------------------------------------------------------
 
@@ -333,6 +387,41 @@ class Session:
         # new modules added between builds get correctly resolved rather than
         # being stuck with the sentinel value.
         self._seeded_sentinel_vars: Set[str] = set()
+        # Path to the board defconfig file that was loaded during init.
+        self._board_defconfig_path: Optional[str] = None
+
+    def _load_board_defconfig(self) -> None:
+        """Load the board's defconfig file as the base configuration.
+
+        In Zephyr's standard build flow, the board defconfig is loaded FIRST
+        as the baseline.  Application-level fragments (prj.conf, EXTRA_CONF_FILE)
+        are layered on top of it, and the final merged result is written to
+        .config.
+
+        By loading the board defconfig before .config, we ensure that:
+        1. Board-specific symbol values are always present in the editor tree,
+           even when no .config exists yet (pre-build or cleaned build).
+        2. The in-memory state accurately reflects what the Zephyr build system
+           would produce: board defaults are the baseline, with .config values
+           (which include application fragments and previous menuconfig edits)
+           overlaying on top.
+
+        Uses replace=False so the board defconfig values are merged into the
+        fresh Kconfig tree without resetting any previously loaded state.
+        Since this is called immediately after parsing (there are no user_values
+        yet), replace=False is equivalent to replace=True in effect — it sets
+        user_values from the defconfig file without clearing anything first.
+        """
+        assert self.kconf is not None
+        board_def = _resolve_board_defconfig()
+        if not board_def:
+            _log("info",
+                 "Board defconfig not found — using Kconfig defaults and .config only")
+            return
+
+        self._board_defconfig_path = board_def
+        _log("info", f"Loading board defconfig: {board_def}")
+        self.kconf.load_config(board_def, replace=False)
 
     # -- Loading ----------------------------------------------------------
 
@@ -410,12 +499,25 @@ class Session:
         # written to stderr and the IDE has no use for them today.
         self.kconf = kconfiglib.Kconfig(kconfig_root, warn=False)
 
-        # Load the existing .config (if any) so the in-memory model matches
-        # what the build last produced.  If no .config is available, defaults
-        # remain in effect.
-        if self.dot_config and os.path.isfile(self.dot_config):
-            self.kconf.load_config(self.dot_config, replace=True)
+        # -------------------------------------------------------------------
+        # Configuration loading order (mirrors Zephyr's kconfig.cmake)
+        # -------------------------------------------------------------------
+        # 1. Load board defconfig as the baseline configuration.  This ensures
+        #    board-specific values (BOARD_*, SOC_*, etc.) are set even when
+        #    .config does not yet exist (pre-build scenario).
+        self._load_board_defconfig()
 
+        # 2. Load the existing .config (if any) on top of the board defconfig.
+        #    .config represents the merged output of a previous build, including
+        #    prj.conf, EXTRA_CONF_FILE fragments, and any previous menuconfig
+        #    edits.
+        #
+        #    Use replace=False so values loaded from the board defconfig remain
+        #    in effect for any symbols not mentioned in .config (e.g. symbols
+        #    that disappeared between builds). Explicit settings in .config,
+        #    including "# CONFIG_FOO is not set", will still override.
+        if self.dot_config and os.path.isfile(self.dot_config):
+            self.kconf.load_config(self.dot_config, replace=False)
         self._snapshot_values()
 
         return {
@@ -426,6 +528,7 @@ class Session:
             "dot_config_loaded": bool(
                 self.dot_config and os.path.isfile(self.dot_config)
             ),
+            "board_defconfig_loaded": self._board_defconfig_path is not None,
         }
 
     def reload(self) -> Dict[str, Any]:
@@ -655,7 +758,7 @@ class Session:
         assert self.kconf is not None
         changes: List[Dict[str, str]] = []
         for s in self.kconf.unique_defined_syms:
-            # Only report symbols the user explicitly set \u2014 same set that save()
+            # Only report symbols the user explicitly set — same set that save()
             # will write.  Cascade side-effects are excluded so the UI change
             # count stays in sync with the saved fragment entry count.
             if s.name not in self.user_set_syms:

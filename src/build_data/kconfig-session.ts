@@ -55,6 +55,8 @@ export interface KconfigInitResult {
   top_menu: KconfigNode;
   kconfig_root: string;
   dot_config_loaded: boolean;
+  /** True when the board defconfig file was found and loaded. */
+  board_defconfig_loaded?: boolean;
 }
 
 export interface KconfigNode {
