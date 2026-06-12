@@ -510,14 +510,14 @@ class Session:
         # 2. Load the existing .config (if any) on top of the board defconfig.
         #    .config represents the merged output of a previous build, including
         #    prj.conf, EXTRA_CONF_FILE fragments, and any previous menuconfig
-        #    edits.  Using replace=True here ensures that all symbols are
-        #    reset to their Kconfig defaults first, then the .config values
-        #    are applied.  This correctly handles symbols that were removed
-        #    from .config between builds (they fall back to board defconfig
-        #    values, not Kconfig defaults).
+        #    edits.
+        #
+        #    Use replace=False so values loaded from the board defconfig remain
+        #    in effect for any symbols not mentioned in .config (e.g. symbols
+        #    that disappeared between builds). Explicit settings in .config,
+        #    including "# CONFIG_FOO is not set", will still override.
         if self.dot_config and os.path.isfile(self.dot_config):
-            self.kconf.load_config(self.dot_config, replace=True)
-
+            self.kconf.load_config(self.dot_config, replace=False)
         self._snapshot_values()
 
         return {
