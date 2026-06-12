@@ -144,6 +144,10 @@ function migrateDebugOptimization(buildConfig: RawBuildConfig): boolean {
     "Size": "size",
     "No Optimizations": "none",
     "Don't set. Will be configured in included KConfig file": undefined,
+    debug: "debug",
+    speed: "speed",
+    size: "size",
+    none: "none",
   };
 
   let migrated = false;
@@ -157,9 +161,6 @@ function migrateDebugOptimization(buildConfig: RawBuildConfig): boolean {
         buildConfig.compilerOptimization = newValue;
       }
       // else: omit (no optimization set)
-    } else {
-      // Unknown/custom value: preserve as-is under the new key
-      buildConfig.compilerOptimization = oldValue;
     }
     migrated = true;
   }

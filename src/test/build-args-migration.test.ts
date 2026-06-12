@@ -333,7 +333,7 @@ suite("Build Args Migration Test Suite", () => {
     }
   });
 
-  test("loadProjectsFromFile migrates debugOptimization to compilerOptimization with lowercase values", async () => {
+  test("loadProjectsFromFile migrates known debugOptimization values and omits unknown legacy values", async () => {
     const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-opt-migration-"));
     try {
       const configDir = path.join(tmpRoot, ".vscode");
@@ -397,6 +397,16 @@ suite("Build Args Migration Test Suite", () => {
                 westBuildCMakeArgs: [],
                 confFiles: { config: [], overlay: [] },
               },
+              unknown: {
+                name: "build/unknown",
+                board: "native_sim",
+                relBoardDir: "",
+                relBoardSubDir: "native/native_sim",
+                debugOptimization: "Release",
+                westBuildArgs: [],
+                westBuildCMakeArgs: [],
+                confFiles: { config: [], overlay: [] },
+              },
             },
           },
         },
@@ -418,6 +428,8 @@ suite("Build Args Migration Test Suite", () => {
       assert.strictEqual(builds.size.compilerOptimization, "size");
       assert.strictEqual(builds.none.compilerOptimization, "none");
       assert.strictEqual(builds.notset.compilerOptimization, undefined, "'Don't set' should produce no compilerOptimization");
+      assert.strictEqual((builds.unknown as any).debugOptimization, undefined, "unknown debugOptimization should be removed");
+      assert.strictEqual(builds.unknown.compilerOptimization, undefined, "unknown debugOptimization should not produce compilerOptimization");
 
       // Persisted file should also reflect the migration
       const persisted = await fs.readJson(configPath);
@@ -426,6 +438,8 @@ suite("Build Args Migration Test Suite", () => {
       assert.strictEqual(pBuilds.debug.compilerOptimization, "debug");
       assert.strictEqual(pBuilds.notset.compilerOptimization, undefined);
       assert.strictEqual(pBuilds.notset.debugOptimization, undefined);
+      assert.strictEqual(pBuilds.unknown.debugOptimization, undefined);
+      assert.strictEqual(pBuilds.unknown.compilerOptimization, undefined);
     } finally {
       await fs.remove(tmpRoot);
     }
