@@ -28,6 +28,7 @@ import {
   getZephyrIdeBlobs,
   getZephyrIdePipPackages,
   getZephyrIdeSampleProjects,
+  getZephyrIdeCommands,
 } from "../../setup_utilities/zephyr_ide_json";
 import { outputError, notifyError } from "../../utilities/output";
 import { generateNonce } from "../webview_shared/nonce";
@@ -138,6 +139,7 @@ export class ZephyrIDEManagerPanel {
           name: project.name,
           rel_path: project.rel_path,
         })),
+        commands: getZephyrIdeCommands(wsConfig),
       },
     });
   }
@@ -197,6 +199,13 @@ export class ZephyrIDEManagerPanel {
       case "modifySampleProjects":
         await vscode.commands.executeCommand("zephyr-ide.modify-zephyr-ide-sample-projects");
         await this.refreshAll();
+        return;
+      case "modifyCommands":
+        await vscode.commands.executeCommand("zephyr-ide.modify-zephyr-ide-commands");
+        await this.refreshAll();
+        return;
+      case "runCommands":
+        await vscode.commands.executeCommand("zephyr-ide.run-zephyr-ide-commands");
         return;
       case "openHostToolsPanel":
         void vscode.commands.executeCommand("zephyr-ide.open-host-tools-panel");

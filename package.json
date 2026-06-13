@@ -643,6 +643,14 @@
         "title": "Zephyr IDE: Modify Sample Projects (zephyr-ide.json)"
       },
       {
+        "command": "zephyr-ide.modify-zephyr-ide-commands",
+        "title": "Zephyr IDE: Modify Commands (zephyr-ide.json)"
+      },
+      {
+        "command": "zephyr-ide.run-zephyr-ide-commands",
+        "title": "Zephyr IDE: Run Commands from zephyr-ide.json"
+      },
+      {
         "command": "zephyr-ide.west-init",
         "title": "Zephyr IDE: West Init"
       },

@@ -159,6 +159,8 @@ import {
   modifyZephyrIdeSampleProjectsInteractive,
   modifyZephyrIdePipPackagesInteractive,
   installZephyrIdePipPackages,
+  modifyZephyrIdeCommandsInteractive,
+  runZephyrIdeCommandsInteractive,
 } from "./setup_utilities/zephyr_ide_install";
 import { getZephyrIdeSampleProjects } from "./setup_utilities/zephyr_ide_json";
 import {
@@ -2082,6 +2084,18 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.modify-zephyr-ide-sample-projects", async () => {
       await modifyZephyrIdeSampleProjectsInteractive(wsConfig);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.modify-zephyr-ide-commands", async () => {
+      await modifyZephyrIdeCommandsInteractive(wsConfig);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.run-zephyr-ide-commands", async () => {
+      return await runZephyrIdeCommandsInteractive(wsConfig, context);
     })
   );
 

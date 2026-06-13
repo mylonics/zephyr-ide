@@ -48,8 +48,11 @@ import {
     setZephyrIdeSampleProjects,
     getZephyrIdePipPackages,
     setZephyrIdePipPackages,
+    getZephyrIdeCommands,
+    setZephyrIdeCommands,
+    ZephyrIdeCommands,
 } from "./zephyr_ide_json";
-import { executeShellCommandInPythonEnv, executeTaskHelperInPythonEnv } from "../utilities/utils";
+import { executeShellCommandInPythonEnv, executeTaskHelper, executeTaskHelperInPythonEnv, getPlatformNameAsync } from "../utilities/utils";
 import { outputInfo, outputError, outputWarning, notifyError } from "../utilities/output";
 import { getSetupStateOrNotify } from "./workspace-config";
 import { setGlobalState } from "./state-management";
@@ -843,13 +846,152 @@ export async function modifyZephyrIdeSampleProjectsInteractive(
 }
 
 // ---------------------------------------------------------------------------
+// Commands
+// ---------------------------------------------------------------------------
+
+/**
+ * Return the platform-specific command list from the `commands` key of
+ * zephyr-ide.json for the current host operating system.
+ */
+export function getPlatformSpecificCommands(wsConfig: WorkspaceConfig): string[] {
+    const commands = getZephyrIdeCommands(wsConfig);
+    const plat = process.platform;
+    if (plat === "win32") {
+        return commands.windows ?? [];
+    } else if (plat === "darwin") {
+        return commands.mac ?? [];
+    } else {
+        return commands.linux ?? [];
+    }
+}
+
+/**
+ * Interactive editor for the `commands` object in zephyr-ide.json.
+ * Shows three sequential input boxes (one per platform) so the user can
+ * enter commands as a comma- or newline-separated list.
+ */
+export async function modifyZephyrIdeCommandsInteractive(wsConfig: WorkspaceConfig): Promise<ZephyrIdeCommands | undefined> {
+    if (!wsConfig.rootPath) {
+        notifyError("Zephyr IDE Commands", "No active workspace folder.");
+        return undefined;
+    }
+
+    const current = getZephyrIdeCommands(wsConfig);
+
+    const platformLabels: Array<{ key: keyof ZephyrIdeCommands; label: string }> = [
+        { key: "linux", label: "Linux" },
+        { key: "windows", label: "Windows" },
+        { key: "mac", label: "macOS" },
+    ];
+
+    const updated: ZephyrIdeCommands = { ...current };
+
+    for (let i = 0; i < platformLabels.length; i++) {
+        const { key, label } = platformLabels[i];
+        const existing = (current[key] ?? []).join("\n");
+        const value = await vscode.window.showInputBox({
+            title: `Modify zephyr-ide.json Commands — ${label} (step ${i + 1} / ${platformLabels.length})`,
+            prompt: `Enter terminal commands for ${label}, one per line (or comma-separated). Leave empty to remove.`,
+            placeHolder: "echo Hello\ncmake --version",
+            value: existing,
+            ignoreFocusOut: true,
+        });
+
+        if (value === undefined) {
+            outputInfo("Zephyr IDE Commands", "Modify cancelled");
+            return undefined;
+        }
+
+        const parsed = value
+            .split(/[\r\n,]+/)
+            .map(v => v.trim())
+            .filter(v => v.length > 0);
+
+        if (parsed.length === 0) {
+            delete updated[key];
+        } else {
+            updated[key] = parsed;
+        }
+    }
+
+    await setZephyrIdeCommands(wsConfig, updated);
+    const total = (updated.linux?.length ?? 0) + (updated.windows?.length ?? 0) + (updated.mac?.length ?? 0);
+    outputInfo("Zephyr IDE Commands", `Saved ${total} command(s) to zephyr-ide.json`);
+    return updated;
+}
+
+/**
+ * Prompt the user via a multiselect quickpick to choose which platform-specific
+ * commands from zephyr-ide.json they approve running, then execute the selected
+ * commands in order using VS Code's task execution (ShellExecution).
+ *
+ * Commands are run one at a time in the workspace root, maintaining the order
+ * from the JSON file.  Returns true if all selected commands succeeded.
+ */
+export async function runZephyrIdeCommandsInteractive(
+    wsConfig: WorkspaceConfig,
+    context: vscode.ExtensionContext,
+): Promise<boolean> {
+    const platformCmds = getPlatformSpecificCommands(wsConfig);
+    if (platformCmds.length === 0) {
+        outputInfo("Zephyr IDE Commands", "No commands declared for this platform in zephyr-ide.json.");
+        return true;
+    }
+
+    const items: vscode.QuickPickItem[] = platformCmds.map(cmd => ({
+        label: cmd,
+        picked: true,
+    }));
+
+    const picked = await vscode.window.showQuickPick(items, {
+        canPickMany: true,
+        ignoreFocusOut: true,
+        placeHolder: "Toggle with spacebar, confirm with Enter — or press Escape to skip all",
+        title: "Run zephyr-ide.json Commands (select commands to approve)",
+    });
+
+    if (!picked || picked.length === 0) {
+        outputInfo("Zephyr IDE Commands", "No commands selected; skipping.");
+        return true;
+    }
+
+    // Maintain JSON-file order by filtering against the original ordered list.
+    const selectedSet = new Set(picked.map(p => p.label));
+    const toRun = platformCmds.filter(cmd => selectedSet.has(cmd));
+
+    const cwd = wsConfig.rootPath;
+    let allOk = true;
+
+    for (const cmd of toRun) {
+        outputInfo("Zephyr IDE Commands", `Running: ${cmd}`);
+        const ok = await executeTaskHelper(
+            `Zephyr IDE: Run Command`,
+            cmd,
+            cwd || undefined,
+        );
+        if (!ok) {
+            outputError("Zephyr IDE Commands", `Command failed: ${cmd}`);
+            allOk = false;
+        }
+    }
+
+    if (!allOk) {
+        notifyError("Zephyr IDE Commands", "One or more commands failed. Check the Zephyr IDE output for details.");
+    } else {
+        outputInfo("Zephyr IDE Commands", `Ran ${toRun.length} command(s) successfully.`);
+    }
+    return allOk;
+}
+
+// ---------------------------------------------------------------------------
 // Workspace setup hook
 // ---------------------------------------------------------------------------
 
 /**
  * Called at the end of the workspace setup flow to install any toolchains and
- * blobs declared in zephyr-ide.json. Failures are logged but don't fail the
- * overall setup — the user can re-run via the command palette.
+ * blobs declared in zephyr-ide.json. Toolchains and blobs are installed
+ * automatically. Pip packages and commands prompt the user for approval before
+ * running, for security reasons.
  */
 export async function installZephyrIdeRequirements(
     wsConfig: WorkspaceConfig,
@@ -871,10 +1013,26 @@ export async function installZephyrIdeRequirements(
         outputError("Zephyr IDE Blobs", `Auto-install of declared blobs failed: ${error}`);
     }
     try {
-        if (getZephyrIdePipPackages(wsConfig).length > 0 && wsConfig.activeSetupState?.packagesInstalled !== true) {
-            await installZephyrIdePipPackages(wsConfig, context, true);
+        const packages = getZephyrIdePipPackages(wsConfig);
+        if (packages.length > 0 && wsConfig.activeSetupState?.packagesInstalled !== true) {
+            const answer = await vscode.window.showInformationMessage(
+                `zephyr-ide.json declares ${packages.length} pip package(s) to install: ${packages.join(", ")}. Install them now?`,
+                { modal: false },
+                "Install",
+                "Skip",
+            );
+            if (answer === "Install") {
+                await installZephyrIdePipPackages(wsConfig, context, true);
+            } else {
+                outputInfo("Zephyr IDE Pip Packages", "User skipped pip package installation.");
+            }
         }
     } catch (error) {
-        outputError("Zephyr IDE Pip Packages", `Auto-install of declared pip packages failed: ${error}`);
+        outputError("Zephyr IDE Pip Packages", `Pip package installation failed: ${error}`);
+    }
+    try {
+        await runZephyrIdeCommandsInteractive(wsConfig, context);
+    } catch (error) {
+        outputError("Zephyr IDE Commands", `Failed to run zephyr-ide.json commands: ${error}`);
     }
 }

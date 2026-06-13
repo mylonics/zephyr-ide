@@ -47,6 +47,12 @@ limitations under the License.
  *                             `zephyr-ide.add-sample-projects-from-file` command.
  *   - `pipPackages`: string[] Additional Python package specifiers that should
  *                             be installed in the workspace's Python environment.
+ *                             The user is prompted before installation for security.
+ *   - `commands`: { linux?: string[], windows?: string[], mac?: string[] }
+ *                             Platform-specific terminal commands to run after
+ *                             workspace setup. The user is prompted via a
+ *                             multiselect quickpick to choose which commands to
+ *                             run, maintaining the order from the JSON file.
  *
  * When `toolchains` or `blobs` arrays are present, the workspace setup flow
  * installs the missing items automatically; the user can also manage them via
@@ -263,6 +269,63 @@ export async function setZephyrIdePipPackages(wsConfig: WorkspaceConfig, package
         delete data.pipPackages;
     } else {
         data.pipPackages = normalized;
+    }
+    await writeZephyrIdeJson(wsConfig, data);
+}
+
+/**
+ * Platform-specific terminal command lists declared in zephyr-ide.json.
+ * Each key maps to an ordered array of shell commands to run after workspace
+ * setup completes.  The user is prompted via a multiselect quickpick to
+ * choose which commands to execute, so no command runs without consent.
+ */
+export interface ZephyrIdeCommands {
+    linux?: string[];
+    windows?: string[];
+    mac?: string[];
+}
+
+/**
+ * Get the platform-specific commands object declared in zephyr-ide.json.
+ * Returns an empty object when the key is absent or not a plain object.
+ */
+export function getZephyrIdeCommands(wsConfig: WorkspaceConfig): ZephyrIdeCommands {
+    const value = readZephyrIdeJson(wsConfig).commands;
+    if (value === null || typeof value !== "object" || Array.isArray(value)) {
+        return {};
+    }
+    const result: ZephyrIdeCommands = {};
+    const raw = value as Record<string, unknown>;
+    if (Array.isArray(raw.linux)) {
+        result.linux = normalizeStringList(raw.linux);
+    }
+    if (Array.isArray(raw.windows)) {
+        result.windows = normalizeStringList(raw.windows);
+    }
+    if (Array.isArray(raw.mac)) {
+        result.mac = normalizeStringList(raw.mac);
+    }
+    return result;
+}
+
+/**
+ * Replace the `commands` key in zephyr-ide.json.
+ * Empty platform lists are omitted; if all platforms are empty the key is
+ * removed entirely. All other top-level keys are preserved.
+ */
+export async function setZephyrIdeCommands(wsConfig: WorkspaceConfig, commands: ZephyrIdeCommands): Promise<void> {
+    const data = readZephyrIdeJson(wsConfig);
+    const linux = normalizeStringList(commands.linux ?? []);
+    const windows = normalizeStringList(commands.windows ?? []);
+    const mac = normalizeStringList(commands.mac ?? []);
+    if (linux.length === 0 && windows.length === 0 && mac.length === 0) {
+        delete data.commands;
+    } else {
+        const entry: Record<string, string[]> = {};
+        if (linux.length > 0) { entry.linux = linux; }
+        if (windows.length > 0) { entry.windows = windows; }
+        if (mac.length > 0) { entry.mac = mac; }
+        data.commands = entry;
     }
     await writeZephyrIdeJson(wsConfig, data);
 }

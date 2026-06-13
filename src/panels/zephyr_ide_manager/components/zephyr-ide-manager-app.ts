@@ -30,11 +30,18 @@ interface SampleProjectInfo {
   rel_path: string;
 }
 
+interface ZephyrIdeCommandsInfo {
+  linux?: string[];
+  windows?: string[];
+  mac?: string[];
+}
+
 interface ManagerData {
   toolchains: string[];
   blobs: string[];
   pipPackages: string[];
   sampleProjects: SampleProjectInfo[];
+  commands: ZephyrIdeCommandsInfo;
 }
 
 @customElement("zephyr-ide-manager-app")
@@ -103,6 +110,32 @@ export class ZephyrIDEManagerApp extends ZephyrLitElement {
     this._blobInstalling = true;
     this._blobProgress = "";
     this.vscodeApi.postMessage({ command: "installBlobModules", modules });
+  }
+
+  private _renderCommandsSection(commands: ZephyrIdeCommandsInfo) {
+    const platforms: Array<{ key: keyof ZephyrIdeCommandsInfo; label: string }> = [
+      { key: "linux", label: "Linux" },
+      { key: "windows", label: "Windows" },
+      { key: "mac", label: "macOS" },
+    ];
+    const hasAny = platforms.some(p => (commands[p.key]?.length ?? 0) > 0);
+    if (!hasAny) {
+      return html`<div class="info-box">No commands declared in zephyr-ide.json.</div>`;
+    }
+    return html`
+      ${platforms.map(({ key, label }) => {
+        const cmds = commands[key];
+        if (!cmds || cmds.length === 0) { return html``; }
+        return html`
+          <div class="commands-platform">
+            <span class="commands-platform-label">${label}</span>
+            <div class="token-list">
+              ${cmds.map(cmd => html`<span class="token">${cmd}</span>`)}
+            </div>
+          </div>
+        `;
+      })}
+    `;
   }
 
   render() {
@@ -220,6 +253,18 @@ export class ZephyrIDEManagerApp extends ZephyrLitElement {
             ${this._data.sampleProjects.length > 0
               ? html`<div class="token-list">${this._data.sampleProjects.map(p => html`<span class="token warning">${p.name}: ${p.rel_path}</span>`)}</div>`
               : html`<div class="info-box">No sample projects declared in zephyr-ide.json.</div>`}
+          </section>
+
+          <section class="manager-card full-width">
+            <div class="manager-card-header">
+              <h2 class="manager-title">Terminal Commands</h2>
+              <div class="manager-actions">
+                <vscode-button appearance="secondary" @click=${() => this.postCommand("modifyCommands")}>Modify</vscode-button>
+                <vscode-button @click=${() => this.postCommand("runCommands")}>Run Commands</vscode-button>
+              </div>
+            </div>
+            <p class="manager-subtext">Platform-specific terminal commands run after workspace setup or when manually triggered. Users are prompted to approve before execution.</p>
+            ${this._renderCommandsSection(this._data.commands)}
           </section>
         </div>
       </div>
