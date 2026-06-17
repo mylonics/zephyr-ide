@@ -15,6 +15,7 @@ The following settings are available in VS Code settings (File > Preferences > S
 | `zephyr-ide.projectViewKconfigButton` | enum | `kconfig-dashboard` | Controls what the Config button in the Projects view opens for a build: `kconfig-dashboard` (Kconfig page of the dashboard), `gui-config` (`west build -t guiconfig`), or `menu-config` (`west build -t menuconfig`). |
 | `zephyr-ide.westNarrowUpdate` | boolean | false | Pass `--narrow` to `west update` to fetch only required Git history, reducing disk usage and download time. |
 | `zephyr-ide.westKeepDescendants` | boolean | false | Pass `--keep-descendants` to `west update`. When enabled, west will not reset a project if its current HEAD is a descendant of the manifest revision. |
+| `zephyr-ide.westZephyrExport` | boolean | false | Run `west zephyr-export` after a successful `west update`. This registers the Zephyr CMake package so that out-of-tree applications can find Zephyr with `find_package(Zephyr)`. |
 | `zephyr-ide.suppressWorkspaceWarning` | boolean | false | Suppress the notification about missing `ZEPHYR_BASE` / `ZEPHYR_SDK_INSTALL_DIR` environment variables. |
 | `zephyr-ide.venvFolder` | string \| null | null | Custom Python virtual environment path. Defaults to `.venv` in the workspace setup path. |
 | `zephyr-ide.automaticProjectSelection` | boolean | true | Automatically switch the active project when editor focus changes to a file belonging to a different project. |

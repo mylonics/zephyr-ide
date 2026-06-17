@@ -290,6 +290,16 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
 
     reloadEnvironmentVariables(context, setupState);
     await saveSetupState(context, wsConfig, globalConfig);
+
+    const useZephyrExport = configuration.get<boolean>('westZephyrExport', false);
+    if (useZephyrExport) {
+      outputInfo("West Update", "Running 'west zephyr-export'...");
+      const exportRes = await executeTaskHelperInPythonEnv(setupState, "Zephyr IDE: West Zephyr Export", "west zephyr-export", setupState.setupPath, true);
+      if (!exportRes) {
+        notifyError("West Update", "west zephyr-export failed. Check the Zephyr IDE output for details.");
+      }
+    }
+
     if (solo) {
       void vscode.window.showInformationMessage(`West update complete`);
     }

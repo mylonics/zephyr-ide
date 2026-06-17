@@ -187,6 +187,13 @@
           "default": false,
           "description": "Use 'west update --keep-descendants' to preserve local commits on top of the manifest revision. When enabled, west will not reset a project if its current HEAD is a descendant of the manifest revision."
         },
+        "zephyr-ide.westZephyrExport": {
+          "type": [
+            "boolean"
+          ],
+          "default": false,
+          "description": "Run 'west zephyr-export' after a successful west update. This registers the Zephyr CMake package so that out-of-tree applications can find Zephyr with 'find_package(Zephyr)'."
+        },
         "zephyr-ide.suppressWorkspaceWarning": {
           "type": [
             "boolean"
