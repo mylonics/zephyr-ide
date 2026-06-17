@@ -46,8 +46,7 @@ export function renderFragment(changes: KconfigChange[]): string {
       if (v === "y" || v === "m") {
         out.push(`${c.name}=${v}`);
       } else {
-        // Canonical "n" representation in Kconfig fragments.
-        out.push(`# ${c.name} is not set`);
+        out.push(`${c.name}=n`);
       }
     } else if (t === "int" || t === "hex") {
       out.push(`${c.name}=${c.value.trim()}`);
@@ -195,7 +194,7 @@ function renderLine(c: KconfigChange): string {
   const t = c.type;
   if (t === "bool" || t === "tristate") {
     const v = c.value.trim().toLowerCase();
-    return (v === "y" || v === "m") ? `${c.name}=${v}` : `# ${c.name} is not set`;
+    return (v === "y" || v === "m") ? `${c.name}=${v}` : `${c.name}=n`;
   } else if (t === "int" || t === "hex") {
     return `${c.name}=${c.value.trim()}`;
   } else {
