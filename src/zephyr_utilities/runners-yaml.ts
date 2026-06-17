@@ -351,8 +351,7 @@ export function resolveCanonicalRunner(runner: string, available: string[]): str
  * 2. **External bridge** — runner has no native cortex-debug servertype but
  *    speaks the GDB remote protocol when launched via `west debugserver`.
  *    Returns `"external"`; callers check {@link runnerNeedsBridge} and then
- *    spawn the server before connecting. See {@link WEST_DEBUG_RUNNERS} for
- *    the full list.
+ *    spawn the server before connecting.
  * 3. **Unsupported** — flash-only runners (dfu-util, uf2, bossac, …)
  *    return `undefined`; the debug provider surfaces an actionable error.
  *
@@ -375,9 +374,15 @@ export function runnerToServerType(runner: string): string | undefined {
     case "stlink_gdbserver":
     case "stm32cubeprogrammer-stlink":
       return "stlink";
+    case "stutil":
+      return "stutil";
+    case "pe":
+      return "pe";
     case "blackmagicprobe":
     case "bmp":
       return "bmp";
+    case "external":
+      return "external";
     case "qemu":
       return "qemu";
     default:
@@ -387,13 +392,44 @@ export function runnerToServerType(runner: string): string | undefined {
 }
 
 /**
- * True when {@link runnerToServerType} maps `runner` to cortex-debug's
- * `"external"` servertype via the `west debugserver` bridge. Callers that
- * synthesize cortex-debug configurations must spawn the bridge server and
- * inject the resulting `gdbTarget` before handing the config to cortex-debug.
+ * Map a cortex-debug `servertype` back to the canonical Zephyr runner name that
+ * `buildCortexDebugConfig` should use to read args from runners.yaml. This is
+ * the inverse of {@link runnerToServerType} for the native servertypes and lets
+ * a launch config specify `servertype` instead of `runner`.
+ *
+ * The stlink/bmp family aliasing is left to {@link resolveCanonicalRunner},
+ * which picks the concrete variant present in a given build's runner list.
+ * Returns undefined for `"external"` (bridged — handled by the west debugger)
+ * and for any unknown value.
+ */
+export function serverTypeToRunner(servertype: string | undefined): string | undefined {
+  switch (servertype) {
+    case "jlink":
+      return "jlink";
+    case "openocd":
+      return "openocd";
+    case "pyocd":
+      return "pyocd";
+    case "stlink":
+      return "stlink";
+    case "bmp":
+      return "bmp";
+    case "qemu":
+      return "qemu";
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * True when the runner requires west debugserver bridging because there is no
+ * native cortex-debug servertype for it.
+ *
+ * Runners that are supported by both west debugserver and cortex-debug native
+ * servertypes (for example `bmp`) return false here.
  */
 export function runnerNeedsBridge(runner: string): boolean {
-  return WEST_DEBUG_RUNNERS.includes(runner);
+  return runnerToServerType(runner) === "external";
 }
 
 /**

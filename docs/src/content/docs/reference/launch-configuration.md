@@ -10,7 +10,7 @@ The simplest way to debug a Zephyr build with this extension is to use the `zeph
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Zephyr IDE: Debug",
+      "name": "Zephyr IDE Cortex: Debug",
       "type": "zephyr-ide-cortex",
       "request": "launch"
     }
@@ -18,7 +18,7 @@ The simplest way to debug a Zephyr build with this extension is to use the `zeph
 }
 ```
 
-You can optionally pin a specific runner (when more than one is configured) by adding a `"runner"` field — e.g. `"runner": "openocd"` or `"runner": "jlink"`. When `runner` is omitted the extension uses `debug-runner` from `runners.yaml`, falling back to the first available runner. The `Debug`, `Build and Debug`, and `Debug Attach` commands also use this provider automatically when no launch configuration is bound to the active build.
+You can optionally pin a specific cortex-debug server by adding a `"servertype"` field — e.g. `"servertype": "openocd"` or `"servertype": "jlink"` (one of `jlink`, `openocd`, `pyocd`, `stlink`, `bmp`, `qemu`). Zephyr IDE maps it back to the matching runner and reads that runner's args from `runners.yaml`. The `"runner"` field is still accepted and is mainly intended for bridged targets; when both are omitted the extension uses `debug-runner` from `runners.yaml`, falling back to the first available runner. The `Debug`, `Build and Debug`, and `Debug Attach` commands also use this provider automatically when no launch configuration is bound to the active build.
 
 Use the `ask` field to control build selection at launch time:
 
@@ -37,16 +37,16 @@ For a higher-level alternative that does not require any `launch.json` at all, c
 
 Some runners (nrfjprog, linkserver, esp32, stm32cubeprogrammer, probe-rs) have no native cortex-debug servertype. Use `zephyr-ide-west` for these flows: it spawns `west debugserver --runner <runner>` in the background, reads the GDB port it announces on stdout, and connects cortex-debug as `servertype: "external"`. If the port is not detected within 10 seconds, Zephyr IDE falls back to the runner's default port and emits a warning.
 
-`zephyr-ide-west` includes curated launch fields for common west arguments. Runner-specific options use unprefixed names (e.g. `device`, `speed`, `config`, `chip`) while older common fields keep the `west` prefix for backward compatibility. `westArgs` is preserved for full passthrough coverage of any flag not yet modeled.
+`zephyr-ide-west` includes curated launch fields for common west arguments. Each field name mirrors its `west debugserver` flag (e.g. `port` → `--port`, `gdbPort` → `--gdb-port`, `device`, `speed`, `config`, `chip`), and its description is tagged with the runner(s) it applies to. `westArgs` is preserved for full passthrough coverage of any flag not yet modeled.
 
 To connect to an **already-running** GDB server (Segger Ozone, a vendor IDE, or a manually started server) instead of having Zephyr IDE spawn one, add `"gdbTarget": "host:port"` to the configuration. This suppresses the bridge auto-spawn for bridged runners and passes the address directly to cortex-debug.
 
 ```json
 {
-  "name": "Zephyr IDE: External GDB (nrfjprog)",
+  "name": "Zephyr IDE West: Attach to external GDB server",
   "type": "zephyr-ide-west",
   "request": "launch",
-  "runner": "nrfjprog",
+  "runner": "openocd",
   "gdbTarget": "127.0.0.1:2331"
 }
 ```

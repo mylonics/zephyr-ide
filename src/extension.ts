@@ -606,7 +606,7 @@ export async function activate(context: vscode.ExtensionContext) {
   // activation or view/command registration.
   void (async () => {
     const LAST_VERSION_KEY = "zephyr-ide.lastKnownVersion";
-    const V4_NOTIFICATION_KEY = "zephyr-ide.v4UpgradeNotificationShown";
+    const V4_NOTIFICATION_KEY = "zephyr-ide.v4UpgradeNotificationShown2";
     const currentVersion: string = context.extension.packageJSON.version ?? "";
     const lastVersion: string | undefined = context.globalState.get<string>(LAST_VERSION_KEY);
 
@@ -622,11 +622,16 @@ export async function activate(context: vscode.ExtensionContext) {
       !lastVersion.startsWith("4.");
 
     if (isUpgradeToV4) {
+      const whatsNewMessage = [
+        "IDE for Zephyr 4.0 introduces Runner Profiles and the Build Dashboard.",
+        "",
+        "Runner Profiles let you define reusable flash/debug/attach configurations and share them across builds.",
+        "The Build Dashboard shows memory usage, Kconfig settings, and build controls in one place.",
+        "New debug providers zephyr-ide-cortex and zephyr-ide-west help streamline launch configurations.",
+      ].join("\n");
+
       const choice = await vscode.window.showInformationMessage(
-        "IDE for Zephyr 4.0 introduces Runner Profiles and the Build Dashboard. " +
-        "Runner Profiles let you define reusable flash/debug/attach configurations " +
-        "and share them across builds. The Build Dashboard shows memory usage, " +
-        "Kconfig settings, and build controls in one place.",
+        whatsNewMessage,
         "Learn What's New",
         "Dismiss"
       );

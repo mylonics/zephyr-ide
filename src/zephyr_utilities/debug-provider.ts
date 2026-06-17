@@ -66,6 +66,7 @@ import {
   resolveRunnersYamlPath,
   findSvdFile,
   runnerToServerType,
+  serverTypeToRunner,
   runnerNeedsBridge,
   resolveCanonicalRunner,
   RunnersYaml,
@@ -129,25 +130,25 @@ interface ZephyrIdeDebugConfig extends vscode.DebugConfiguration {
    * here (e.g. `["--dev-id", "12345"]` for nrfjprog).
    */
   westArgs?: string[];
-  westToolOpt?: string[];
-  westDomain?: string;
-  westFile?: string;
-  westElfFile?: string;
-  westHexFile?: string;
-  westBinFile?: string;
-  westGdbPort?: number;
-  westTclPort?: number;
-  westTelnetPort?: number;
-  westNoLoad?: boolean;
-  westNoReset?: boolean;
-  westRebuild?: boolean;
-  westNoRebuild?: boolean;
+  toolOpt?: string[];
+  domain?: string;
+  file?: string;
+  elfFile?: string;
+  hexFile?: string;
+  binFile?: string;
+  gdbPort?: number;
+  tclPort?: number;
+  telnetPort?: number;
+  noLoad?: boolean;
+  noReset?: boolean;
+  rebuild?: boolean;
+  noRebuild?: boolean;
   westExtraServerArgs?: string[];
-  westDevId?: string;
+  devId?: string;
   serial?: string;
   interface?: string;
   frequency?: string | number;
-  westPort?: string | number;
+  port?: string | number;
   connectUnderReset?: boolean;
   erase?: boolean;
   noErase?: boolean;
@@ -994,9 +995,13 @@ export class ZephyrIdeDebugConfigurationProvider
       }
     }
 
-    // launch.json `runner` field wins over profile runner; profile runner wins
-    // over runners.yaml auto-detection.
-    const runner = pickDebugRunner(runnersYaml, cfg.runner ?? profileRunner);
+    // launch.json `runner` wins over a `servertype`-derived runner, which wins
+    // over the profile bind's runner, which wins over runners.yaml auto-detection.
+    // `servertype` lets a config name the cortex-debug server directly; we map it
+    // back to the canonical runner so the right arg-extraction branch runs and the
+    // matching runners.yaml args are read.
+    const requestedRunner = cfg.runner ?? serverTypeToRunner((cfg as any).servertype) ?? profileRunner;
+    const runner = pickDebugRunner(runnersYaml, requestedRunner);
     if (!runner) {
       // Issue #15: name the runners that were found but rejected so the user
       // understands why no debug session can be auto-translated.
@@ -1389,43 +1394,43 @@ export class ZephyrIdeDebugConfigurationProvider
     }
 
     const westArgs: string[] = [];
-    if (cfg.westDomain) {
-      westArgs.push("--domain", cfg.westDomain);
+    if (cfg.domain) {
+      westArgs.push("--domain", cfg.domain);
     }
-    if (cfg.westFile) {
-      westArgs.push("--file", cfg.westFile);
+    if (cfg.file) {
+      westArgs.push("--file", cfg.file);
     }
-    if (cfg.westElfFile) {
-      westArgs.push("--elf-file", cfg.westElfFile);
+    if (cfg.elfFile) {
+      westArgs.push("--elf-file", cfg.elfFile);
     }
-    if (cfg.westHexFile) {
-      westArgs.push("--hex-file", cfg.westHexFile);
+    if (cfg.hexFile) {
+      westArgs.push("--hex-file", cfg.hexFile);
     }
-    if (cfg.westBinFile) {
-      westArgs.push("--bin-file", cfg.westBinFile);
+    if (cfg.binFile) {
+      westArgs.push("--bin-file", cfg.binFile);
     }
-    if (cfg.westGdbPort !== undefined) {
-      westArgs.push("--gdb-port", String(cfg.westGdbPort));
+    if (cfg.gdbPort !== undefined) {
+      westArgs.push("--gdb-port", String(cfg.gdbPort));
     }
-    if (cfg.westTclPort !== undefined) {
-      westArgs.push("--tcl-port", String(cfg.westTclPort));
+    if (cfg.tclPort !== undefined) {
+      westArgs.push("--tcl-port", String(cfg.tclPort));
     }
-    if (cfg.westTelnetPort !== undefined) {
-      westArgs.push("--telnet-port", String(cfg.westTelnetPort));
+    if (cfg.telnetPort !== undefined) {
+      westArgs.push("--telnet-port", String(cfg.telnetPort));
     }
-    if (cfg.westNoLoad) {
+    if (cfg.noLoad) {
       westArgs.push("--no-load");
     }
-    if (cfg.westNoReset) {
+    if (cfg.noReset) {
       westArgs.push("--no-reset");
     }
     // west --rebuild/--no-rebuild are mutually exclusive.
-    const hasRebuild = cfg.westRebuild === true;
-    const hasNoRebuild = cfg.westNoRebuild === true;
+    const hasRebuild = cfg.rebuild === true;
+    const hasNoRebuild = cfg.noRebuild === true;
     const rebuildFlagsSet = [hasRebuild, hasNoRebuild].filter(Boolean).length;
     if (rebuildFlagsSet > 1) {
       notifyError("Debug",
-        "Conflicting west rebuild options: choose only one of westRebuild or westNoRebuild.");
+        "Conflicting west rebuild options: choose only one of rebuild or noRebuild.");
       return undefined;
     }
     if (hasRebuild) {
@@ -1436,13 +1441,13 @@ export class ZephyrIdeDebugConfigurationProvider
     if (cfg.westExtraServerArgs?.length) {
       westArgs.push(...cfg.westExtraServerArgs);
     }
-    if (cfg.westToolOpt?.length) {
-      for (const t of cfg.westToolOpt) {
+    if (cfg.toolOpt?.length) {
+      for (const t of cfg.toolOpt) {
         westArgs.push("--tool-opt", t);
       }
     }
-    if (cfg.westDevId) {
-      westArgs.push("--dev-id", cfg.westDevId);
+    if (cfg.devId) {
+      westArgs.push("--dev-id", cfg.devId);
     }
     if (cfg.serial) {
       westArgs.push("--serial", cfg.serial);
@@ -1453,8 +1458,8 @@ export class ZephyrIdeDebugConfigurationProvider
     if (cfg.frequency !== undefined) {
       westArgs.push("--frequency", String(cfg.frequency));
     }
-    if (cfg.westPort !== undefined) {
-      westArgs.push("--port", String(cfg.westPort));
+    if (cfg.port !== undefined) {
+      westArgs.push("--port", String(cfg.port));
     }
     if (cfg.connectUnderReset) {
       westArgs.push("--connect-under-reset");
@@ -1581,11 +1586,11 @@ export class ZephyrIdeDebugConfigurationProvider
     const reservedKeys = new Set([
       "type", "request", "name", "runner", "project", "build", "ask",
       "useWestDebugServer",
-      "westArgs", "westToolOpt", "westDomain",
-      "westFile", "westElfFile", "westHexFile", "westBinFile", "westGdbPort",
-      "westTclPort", "westTelnetPort", "westNoLoad", "westNoReset",
-      "westRebuild", "westNoRebuild",
-      "westExtraServerArgs", "westDevId", "westPort",
+      "westArgs", "toolOpt", "domain",
+      "file", "elfFile", "hexFile", "binFile", "gdbPort",
+      "tclPort", "telnetPort", "noLoad", "noReset",
+      "rebuild", "noRebuild",
+      "westExtraServerArgs", "devId", "port",
       "serial", "interface", "frequency",
       "connectUnderReset", "erase", "noErase", "reset",
       "rttAddress", "tui", "config", "flashAddress",

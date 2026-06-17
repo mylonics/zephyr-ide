@@ -138,10 +138,10 @@ directly — the override semantics are identical.
 
 ### West debugserver curated args + passthrough
 
-`zephyr-ide-west` provides curated fields for common west flags. Runner-specific options use unprefixed names (e.g. `device`, `speed`, `config`) while older common fields keep the `west` prefix for backward compatibility.
+`zephyr-ide-west` provides curated fields for common west flags. Each field name mirrors its `west debugserver` flag (e.g. `port` → `--port`, `gdbPort` → `--gdb-port`), and every field's description is tagged with the runner(s) it applies to (`[Common]`, `[openocd]`, `[probe-rs, jlink]`, `[jlink]`).
 
 **Common / Global:**
-`westPort`, `westDevId`, `westToolOpt`, `westDomain`, `westFile`, `westElfFile`, `westHexFile`, `westBinFile`, `westGdbPort`, `westTclPort`, `westTelnetPort`, `westNoLoad`, `westNoReset`, `westRebuild`, `westNoRebuild`, `serial`, `interface`, `frequency`, `connectUnderReset`, `erase`, `noErase`, `reset`, `rttAddress`, `tui`
+`port`, `devId`, `toolOpt`, `domain`, `file`, `elfFile`, `hexFile`, `binFile`, `gdbPort`, `tclPort`, `telnetPort`, `noLoad`, `noReset`, `rebuild`, `noRebuild`, `westExtraServerArgs`, `serial`, `interface`, `frequency`, `connectUnderReset`, `erase`, `noErase`, `reset`, `rttAddress`, `tui`
 
 **openocd:**
 `config`, `flashAddress`, `verify`, `verifyOnly`, `noHalt`, `noInit`, `noTargets`, `targetHandle`, `rttPort`, `rttServer`, `gdbClientPort`, `gdbInit`
@@ -162,10 +162,10 @@ a manually-started `west debugserver`, …) supply `gdbTarget` in
 
 ```jsonc
 {
-  "name": "Zephyr IDE: External GDB",
+  "name": "Zephyr IDE West: Attach to external GDB server",
   "type": "zephyr-ide-west",
   "request": "launch",
-  "runner": "nrfjprog",
+  "runner": "openocd",
   "gdbTarget": "127.0.0.1:2331"
 }
 ```

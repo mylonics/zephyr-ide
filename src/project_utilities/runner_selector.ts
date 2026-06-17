@@ -27,8 +27,8 @@ import { MultiStepInput, noOpValidate } from "../utilities/multistepQuickPick";
 import { outputError } from "../utilities/output";
 import { FlashBind, DebugBind, splitArgs } from "./runner_profiles";
 
-/** All known west runners. */
-export const KNOWN_RUNNERS = [
+/** All known west runners (used for flash runner pickers). */
+export const WEST_RUNNERS = [
   "openocd",
   "jlink",
   "pyocd",
@@ -58,8 +58,7 @@ export const KNOWN_RUNNERS = [
 /**
  * Runners that cortex-debug can drive natively (no west bridge needed).
  * Must stay in sync with the native cases in `runnerToServerType` in `runners-yaml.ts`.
- * `bmp` is the shorter alias for `blackmagicprobe`; both are kept because either
- * can appear as the runner name in a board's runners.yaml depending on Zephyr version.
+ * `blackmagicprobe` is the canonical name; `bmp` is kept as an alias for compatibility.
  */
 export const CORTEX_DEBUG_RUNNERS = [
   "openocd",
@@ -68,16 +67,20 @@ export const CORTEX_DEBUG_RUNNERS = [
   // Represents the whole stlink family (stlink, stlink_gdbserver, stm32cubeprogrammer-stlink).
   // resolveCanonicalRunner() picks the correct variant from runners.yaml at debug time.
   "stlink",
+  "stutil",
+  "pe",
   // Represents both "blackmagicprobe" and "bmp" runner names.
   // resolveCanonicalRunner() picks the correct variant from runners.yaml at debug time.
-  "bmp",
+  "blackmagicprobe",
+  "external",
   "qemu",
 ];
 
 /**
- * Runners that require the `west debugserver` bridge (no native cortex-debug servertype).
- * These are mapped to cortex-debug `servertype: "external"` in `runners-yaml.ts`.
- * Source of truth: `west debugserver --context` plus manual audit.
+ * Runners supported by the west-debugserver path.
+ *
+ * Some runners are also supported natively by cortex-debug (for example `bmp`).
+ * Keep this list as "supported by west" (not strictly "bridge-only").
  */
 export const WEST_DEBUG_RUNNERS = [
   "nrfjprog",
@@ -85,15 +88,13 @@ export const WEST_DEBUG_RUNNERS = [
   "linkserver",
   "esp32",
   "stm32cubeprogrammer",
+  "openocd",
   "probe-rs",
   "teensy",
   "xsdb",
   "arc-nsim",
   "native",
 ];
-
-/** @deprecated Use {@link CORTEX_DEBUG_RUNNERS} and {@link WEST_DEBUG_RUNNERS} separately. */
-export const DEBUG_CAPABLE_RUNNERS = [...CORTEX_DEBUG_RUNNERS, ...WEST_DEBUG_RUNNERS];
 
 export interface BindSelectorOptions {
   /** Slot being edited. Flash cannot use `launch.json` references. */
@@ -122,7 +123,7 @@ export async function bindSelector(options: BindSelectorOptions): Promise<FlashB
     items.push(...options.availableRunners.map(r => ({ label: r, description: "available" })));
     items.push({ label: "Other runners", kind: vscode.QuickPickItemKind.Separator });
   }
-  items.push(...KNOWN_RUNNERS.filter(r => !availableSet.has(r)).map(r => ({ label: r })));
+  items.push(...WEST_RUNNERS.filter(r => !availableSet.has(r)).map(r => ({ label: r })));
 
   let pickedBind: FlashBind | DebugBind | undefined;
 

@@ -1219,7 +1219,7 @@
     "debuggers": [
       {
         "type": "zephyr-ide-cortex",
-        "label": "Zephyr IDE",
+        "label": "Zephyr IDE Cortex",
         "languages": [
           "c",
           "cpp"
@@ -1227,9 +1227,22 @@
         "configurationAttributes": {
           "launch": {
             "properties": {
+              "servertype": {
+                "type": "string",
+                "enum": [
+                  "jlink",
+                  "openocd",
+                  "pyocd",
+                  "stlink",
+                  "bmp",
+                  "qemu",
+                  "external"
+                ],
+                "description": "cortex-debug server type. Preferred over `runner` for native debuggers; Zephyr IDE reads the matching runner's args from runners.yaml automatically. For bridged targets (nrfjprog, linkserver, esp32, stm32cubeprogrammer, …) use the Zephyr IDE West debugger instead."
+              },
               "runner": {
                 "type": "string",
-                "description": "Optional Zephyr runner to use. Native cortex-debug servertypes: jlink, openocd, pyocd, stlink, blackmagicprobe/bmp, qemu. Bridged via `west debugserver` (cortex-debug servertype \"external\"): nrfjprog, linkserver, esp32, stm32cubeprogrammer. When omitted, the runner is read from runners.yaml's debug-runner."
+                "description": "Optional Zephyr runner to use. Prefer `servertype` for native cortex-debug servers (jlink, openocd, pyocd, stlink, bmp, qemu). `runner` is mainly for bridged targets driven via `west debugserver` (cortex-debug servertype \"external\"): nrfjprog, linkserver, esp32, stm32cubeprogrammer. When both are omitted, the runner is read from runners.yaml's debug-runner."
               },
               "project": {
                 "type": "string",
@@ -1454,9 +1467,22 @@
           },
           "attach": {
             "properties": {
+              "servertype": {
+                "type": "string",
+                "enum": [
+                  "jlink",
+                  "openocd",
+                  "pyocd",
+                  "stlink",
+                  "bmp",
+                  "qemu",
+                  "external"
+                ],
+                "description": "cortex-debug server type. Preferred over `runner` for native debuggers. See `launch.servertype`."
+              },
               "runner": {
                 "type": "string",
-                "description": "Optional Zephyr runner. See `launch.runner` for the list of supported runners."
+                "description": "Optional Zephyr runner. Prefer `servertype` for native cortex-debug servers. See `launch.runner` for the full list."
               },
               "project": {
                 "type": "string",
@@ -1639,73 +1665,73 @@
         },
         "initialConfigurations": [
           {
-            "name": "Zephyr IDE: Debug",
+            "name": "Zephyr IDE Cortex: Debug",
             "type": "zephyr-ide-cortex",
             "request": "launch"
           },
           {
-            "name": "Zephyr IDE: Attach",
+            "name": "Zephyr IDE Cortex: Attach",
             "type": "zephyr-ide-cortex",
             "request": "attach"
           }
         ],
         "configurationSnippets": [
           {
-            "label": "Zephyr IDE: Debug",
+            "label": "Zephyr IDE Cortex: Debug",
             "description": "Debug the active build using runners.yaml (no runner-specific config required).",
             "body": {
-              "name": "Zephyr IDE: Debug",
+              "name": "Zephyr IDE Cortex: Debug",
               "type": "zephyr-ide-cortex",
               "request": "launch"
             }
           },
           {
-            "label": "Zephyr IDE: Attach",
+            "label": "Zephyr IDE Cortex: Attach",
             "description": "Attach to the active build using runners.yaml.",
             "body": {
-              "name": "Zephyr IDE: Attach",
+              "name": "Zephyr IDE Cortex: Attach",
               "type": "zephyr-ide-cortex",
               "request": "attach"
             }
           },
           {
-            "label": "Zephyr IDE: Debug (ask build at launch)",
+            "label": "Zephyr IDE Cortex: Debug (ask build at launch)",
             "description": "Debug the active project but prompt the user to select a build configuration each time F5 is pressed. Change ask to \"askBoth\" to prompt for project as well.",
             "body": {
-              "name": "Zephyr IDE: Debug (select build)",
+              "name": "Zephyr IDE Cortex: Debug (ask build at launch)",
               "type": "zephyr-ide-cortex",
               "request": "launch",
               "ask": "askBuild"
             }
           },
           {
-            "label": "Zephyr IDE: Debug (J-Link)",
+            "label": "Zephyr IDE Cortex: Debug (J-Link)",
             "description": "Debug using J-Link. Zephyr IDE reads --device, --speed, and --iface from runners.yaml and translates them to cortex-debug fields automatically.",
             "body": {
-              "name": "Zephyr IDE: Debug (J-Link)",
+              "name": "Zephyr IDE Cortex: Debug (J-Link)",
               "type": "zephyr-ide-cortex",
               "request": "launch",
-              "runner": "jlink"
+              "servertype": "jlink"
             }
           },
           {
-            "label": "Zephyr IDE: Debug (pyOCD)",
+            "label": "Zephyr IDE Cortex: Debug (pyOCD)",
             "description": "Debug using pyOCD. Zephyr IDE reads --target and --probe from runners.yaml and translates them to cortex-debug fields. Uses the workspace venv pyocd when available.",
             "body": {
-              "name": "Zephyr IDE: Debug (pyOCD)",
+              "name": "Zephyr IDE Cortex: Debug (pyOCD)",
               "type": "zephyr-ide-cortex",
               "request": "launch",
-              "runner": "pyocd"
+              "servertype": "pyocd"
             }
           },
           {
-            "label": "Zephyr IDE: Debug (pyOCD with ST-Link probe)",
+            "label": "Zephyr IDE Cortex: Debug (pyOCD with ST-Link probe)",
             "description": "Debug using pyOCD with an ST-Link probe explicitly selected. pyOCD matches --probe as a substring against the probe description, so \"stlink\" selects any connected ST-Link. Other runners.yaml args (--target, etc.) are still applied automatically.",
             "body": {
-              "name": "Zephyr IDE: Debug (pyOCD ST-Link)",
+              "name": "Zephyr IDE Cortex: Debug (pyOCD with ST-Link probe)",
               "type": "zephyr-ide-cortex",
               "request": "launch",
-              "runner": "pyocd",
+              "servertype": "pyocd",
               "serverArgs": [
                 "--probe",
                 "stlink"
@@ -1713,104 +1739,62 @@
             }
           },
           {
-            "label": "Zephyr IDE: Debug (ST-Link)",
+            "label": "Zephyr IDE Cortex: Debug (ST-Link)",
             "description": "Debug using ST-Link. Zephyr IDE reads --device from runners.yaml and passes it to cortex-debug servertype \"stlink\".",
             "body": {
-              "name": "Zephyr IDE: Debug (ST-Link)",
+              "name": "Zephyr IDE Cortex: Debug (ST-Link)",
               "type": "zephyr-ide-cortex",
               "request": "launch",
-              "runner": "stlink"
+              "servertype": "stlink"
             }
           },
           {
-            "label": "Zephyr IDE: Debug (Black Magic Probe)",
+            "label": "Zephyr IDE Cortex: Debug (Black Magic Probe)",
             "description": "Debug using Black Magic Probe. Zephyr IDE reads --gdb-serial from runners.yaml and translates it to BMPGDBSerialPort. Add a BMPGDBSerialPort field here to override. Install mylonics.bmp-debug for Zephyr RTOS thread awareness — it auto-discovers the probe so BMPGDBSerialPort is not required.",
             "body": {
-              "name": "Zephyr IDE: Debug (BMP)",
+              "name": "Zephyr IDE Cortex: Debug (Black Magic Probe)",
               "type": "zephyr-ide-cortex",
               "request": "launch",
-              "runner": "blackmagicprobe"
+              "servertype": "bmp"
             }
           },
           {
-            "label": "Zephyr IDE: Attach (Black Magic Probe)",
+            "label": "Zephyr IDE Cortex: Attach (Black Magic Probe)",
             "description": "Attach to a running target via Black Magic Probe. Zephyr IDE reads --gdb-serial from runners.yaml. Add a BMPGDBSerialPort field here to override if runners.yaml does not include --gdb-serial.",
             "body": {
-              "name": "Zephyr IDE: Attach (BMP)",
+              "name": "Zephyr IDE Cortex: Attach (Black Magic Probe)",
               "type": "zephyr-ide-cortex",
               "request": "attach",
-              "runner": "blackmagicprobe"
+              "servertype": "bmp"
             }
           },
           {
-            "label": "Zephyr IDE: Debug Sysbuild Image",
-            "description": "Debug a specific sysbuild domain. Select the active sysbuild image in the Project Build panel first; this configuration will use the runners.yaml for that domain automatically.",
+            "label": "Zephyr IDE Cortex: Debug Sysbuild Image",
+            "description": "Debug a sysbuild domain. Identical to \"Zephyr IDE Cortex: Debug\" — the active sysbuild image (selected in the Project Build panel) determines which domain's runners.yaml is used. No per-domain field is written into launch.json; switch the active image to switch domains.",
             "body": {
-              "name": "Zephyr IDE: Debug Sysbuild Image",
+              "name": "Zephyr IDE Cortex: Debug Sysbuild Image",
               "type": "zephyr-ide-cortex",
               "request": "launch"
             }
           },
           {
-            "label": "Zephyr IDE: Debug (nrfjprog bridge)",
-            "description": "Debug a Nordic nRF target via the west debugserver bridge. Zephyr IDE spawns `west debugserver --runner nrfjprog`, reads the listening GDB port from its stdout, and connects cortex-debug as servertype \"external\".",
-            "body": {
-              "name": "Zephyr IDE: Debug nRF",
-              "type": "zephyr-ide-west",
-              "request": "launch",
-              "runner": "nrfjprog"
-            }
-          },
-          {
-            "label": "Zephyr IDE: Debug (linkserver bridge)",
-            "description": "Debug an NXP target via LinkServer through the west debugserver bridge. Zephyr IDE spawns `west debugserver --runner linkserver`, parses the listening port, and connects cortex-debug as servertype \"external\".",
-            "body": {
-              "name": "Zephyr IDE: Debug LinkServer",
-              "type": "zephyr-ide-west",
-              "request": "launch",
-              "runner": "linkserver"
-            }
-          },
-          {
-            "label": "Zephyr IDE: Debug (openocd with explicit probe)",
+            "label": "Zephyr IDE Cortex: Debug (openocd with explicit probe)",
             "description": "Override runners.yaml's interface config to use a specific probe (e.g. switch from the board-default J-Link to an ST-Link). Supplying an interface/ cfg file automatically filters out the interface/ entry from runners.yaml so the two do not conflict.",
             "body": {
-              "name": "Zephyr IDE: Debug (ST-Link via OpenOCD)",
+              "name": "Zephyr IDE Cortex: Debug (openocd with explicit probe)",
               "type": "zephyr-ide-cortex",
               "request": "launch",
-              "runner": "openocd",
+              "servertype": "openocd",
               "configFiles": [
                 "interface/stlink.cfg"
               ]
             }
           },
           {
-            "label": "Zephyr IDE: Debug (external GDB server, manual)",
-            "description": "Connect to an already-running GDB server at a fixed address (Segger Ozone, vendor IDE, or a server you started manually). Setting `gdbTarget` suppresses Zephyr IDE's automatic west debugserver spawn. Use the `zephyr-ide-west` debugger type if you want Zephyr IDE to spawn and manage west debugserver automatically.",
-            "body": {
-              "name": "Zephyr IDE: External GDB",
-              "type": "zephyr-ide-west",
-              "request": "launch",
-              "runner": "nrfjprog",
-              "gdbTarget": "127.0.0.1:2331"
-            }
-          },
-          {
-            "label": "Zephyr IDE: Debug (west debugserver)",
-            "description": "Spawn `west debugserver --runner <runner>` and connect cortex-debug as servertype \"external\". ELF and GDB path are read from runners.yaml automatically. Add westArgs for runner-specific flags (e.g. probe selection, config files).",
-            "body": {
-              "name": "Zephyr IDE: Debug (west debugserver)",
-              "type": "zephyr-ide-west",
-              "request": "launch",
-              "runner": "${1:openocd}",
-              "westArgs": []
-            }
-          },
-          {
-            "label": "Zephyr IDE: Debug (fully manual)",
+            "label": "Zephyr IDE Cortex: Debug (fully manual)",
             "description": "Manually specify all debug server settings while letting Zephyr IDE auto-fill the ELF, GDB path, and project context from runners.yaml. Use when the auto-translation does not produce the cortex-debug config you need. `servertype` overrides the runner-derived value; `configFiles`/`searchDir`/`rttConfig` override any runners.yaml args.",
             "body": {
-              "name": "Zephyr IDE: Debug (manual)",
+              "name": "Zephyr IDE Cortex: Debug (fully manual)",
               "type": "zephyr-ide-cortex",
               "request": "launch",
               "servertype": "openocd",
@@ -1836,10 +1820,10 @@
             }
           },
           {
-            "label": "Cortex Debug (Legacy): Manual debug configuration",
+            "label": "Zephyr IDE Cortex (Legacy): Manual debug configuration",
             "description": "Advanced: write a cortex-debug configuration directly using Zephyr IDE helper commands. Prefer the `zephyr-ide` type above — it reads runners.yaml automatically. Use this only when you need features not exposed by the zephyr-ide provider.",
             "body": {
-              "name": "Cortex Debug: Zephyr IDE (manual)",
+              "name": "Cortex Debug (Legacy): Manual debug configuration",
               "cwd": "^\"\\${workspaceFolder}\"",
               "gdbPath": "^\"\\${command:zephyr-ide.get-gdb-path}\"",
               "executable": "^\"\\${command:zephyr-ide.get-zephyr-elf}\"",
@@ -1903,204 +1887,217 @@
                 "default": "auto",
                 "description": "Controls whether Zephyr IDE asks the user to pick a project and/or build at session start."
               },
-              "westPort": {
+              "port": {
                 "type": "number",
-                "description": "[Common] Curated west debugserver argument: --port"
+                "description": "[Common] GDB server / connection port (west debugserver flag: --port)."
               },
-              "westDevId": {
+              "devId": {
                 "type": "string",
-                "description": "[Common] Curated west debugserver argument: --dev-id"
+                "description": "[Common] Device/probe identifier to select a specific connected probe (west debugserver flag: --dev-id)."
               },
-              "westToolOpt": {
+              "toolOpt": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "[Common] Curated west debugserver arguments: repeated --tool-opt values."
+                "description": "[Common] Extra options passed through to the underlying tool, repeated per value (west debugserver flag: --tool-opt)."
               },
-              "westDomain": {
+              "domain": {
                 "type": "string",
-                "description": "[Common] Curated west argument: --domain (select sysbuild domain/image)."
+                "description": "[Common] Sysbuild domain/image to debug (west debugserver flag: --domain)."
               },
-              "westFile": {
+              "file": {
                 "type": "string",
-                "description": "[Common] Curated west argument: --file (runner-specific input file)."
+                "description": "[Common] Runner-specific input file (west debugserver flag: --file)."
               },
-              "westElfFile": {
+              "elfFile": {
                 "type": "string",
-                "description": "[Common] Curated west argument: --elf-file."
+                "description": "[Common] ELF file to debug (west debugserver flag: --elf-file)."
               },
-              "westHexFile": {
+              "hexFile": {
                 "type": "string",
-                "description": "[Common] Curated west argument: --hex-file."
+                "description": "[Common] HEX file to load (west debugserver flag: --hex-file)."
               },
-              "westBinFile": {
+              "binFile": {
                 "type": "string",
-                "description": "[Common] Curated west argument: --bin-file."
+                "description": "[Common] BIN file to load (west debugserver flag: --bin-file)."
               },
-              "westGdbPort": {
+              "gdbPort": {
                 "type": "number",
-                "description": "[Common] Curated west argument: --gdb-port."
+                "description": "[Common] Port the GDB server listens on (west debugserver flag: --gdb-port)."
               },
-              "westTclPort": {
+              "tclPort": {
                 "type": "number",
-                "description": "[Common] Curated west argument: --tcl-port."
+                "description": "[Common] Port for the server's TCL/RPC interface (west debugserver flag: --tcl-port)."
               },
-              "westTelnetPort": {
+              "telnetPort": {
                 "type": "number",
-                "description": "[Common] Curated west argument: --telnet-port."
+                "description": "[Common] Port for the server's telnet interface (west debugserver flag: --telnet-port)."
               },
-              "westNoLoad": {
+              "noLoad": {
                 "type": "boolean",
-                "description": "[Common] Curated west argument: --no-load."
+                "description": "[Common] Do not load the image before debugging (west debugserver flag: --no-load)."
               },
-              "westNoReset": {
+              "noReset": {
                 "type": "boolean",
-                "description": "[Common] Curated west argument: --no-reset."
+                "description": "[Common] Do not reset the target (west debugserver flag: --no-reset)."
               },
-              "westRebuild": {
+              "rebuild": {
                 "type": "boolean",
-                "description": "[Common] Curated west argument: --rebuild (mutually exclusive with westNoRebuild)."
+                "description": "[Common] Rebuild the application before debugging; mutually exclusive with noRebuild (west debugserver flag: --rebuild)."
               },
-              "westNoRebuild": {
+              "noRebuild": {
                 "type": "boolean",
-                "description": "[Common] Curated west argument: --no-rebuild."
+                "description": "[Common] Skip rebuilding the application before debugging (west debugserver flag: --no-rebuild)."
               },
               "westExtraServerArgs": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "[Common] Additional curated server args appended before westArgs passthrough."
+                "description": "[Common] Additional curated server args appended before the westArgs passthrough."
               },
               "serial": {
                 "type": "string",
-                "description": "[Common] Curated west argument: --serial (e.g. FTDI serial number)."
+                "description": "[Common] Probe serial number, e.g. an FTDI serial (west debugserver flag: --serial)."
               },
               "interface": {
                 "type": "string",
-                "description": "[Common] Curated west argument: --iface (debug interface, e.g. swd, jtag)."
+                "description": "[Common] Debug interface, e.g. swd or jtag (west debugserver flag: --iface)."
               },
               "frequency": {
-                "type": ["string", "number"],
-                "description": "[Common] Curated west argument: --frequency (interface frequency)."
+                "type": [
+                  "string",
+                  "number"
+                ],
+                "description": "[Common] Debug interface frequency (west debugserver flag: --frequency)."
               },
               "connectUnderReset": {
                 "type": "boolean",
-                "description": "[Common] Curated west argument: --connect-under-reset."
+                "description": "[Common] Connect to the target while holding reset asserted (west debugserver flag: --connect-under-reset)."
               },
               "erase": {
                 "type": "boolean",
-                "description": "[Common] Curated west argument: --erase (mass erase before loading)."
+                "description": "[Common] Mass-erase the target before loading (west debugserver flag: --erase)."
               },
               "noErase": {
                 "type": "boolean",
-                "description": "[Common] Curated west argument: --no-erase."
+                "description": "[Common] Do not erase the target before loading (west debugserver flag: --no-erase)."
               },
               "reset": {
                 "type": "boolean",
-                "description": "[Common] Curated west argument: --reset (reset after flashing)."
+                "description": "[Common] Reset the target after flashing (west debugserver flag: --reset)."
               },
               "rttAddress": {
                 "type": "string",
-                "description": "[Common] Curated west argument: --rtt-address (RTT control block address)."
+                "description": "[Common] RTT control-block address (west debugserver flag: --rtt-address)."
               },
               "tui": {
                 "type": "boolean",
-                "description": "[Common] Curated west argument: --tui (GDB uses -tui)."
+                "description": "[Common] Launch GDB with its text UI (west debugserver flag: --tui)."
               },
               "config": {
                 "type": "array",
-                "items": { "type": "string" },
-                "description": "[openocd] Curated west argument: repeated --config values."
+                "items": {
+                  "type": "string"
+                },
+                "description": "[openocd] OpenOCD config commands/files, repeated per value (west debugserver flag: --config)."
               },
               "flashAddress": {
-                "type": ["string", "number"],
-                "description": "[openocd] Curated west argument: --flash-address (flash address for BIN files)."
+                "type": [
+                  "string",
+                  "number"
+                ],
+                "description": "[openocd] Flash address used for BIN files (west debugserver flag: --flash-address)."
               },
               "verify": {
                 "type": "boolean",
-                "description": "[openocd] Curated west argument: --verify (verify after flash)."
+                "description": "[openocd] Verify after flashing (west debugserver flag: --verify)."
               },
               "verifyOnly": {
                 "type": "boolean",
-                "description": "[openocd] Curated west argument: --verify-only (verify without flashing)."
+                "description": "[openocd] Verify without flashing (west debugserver flag: --verify-only)."
               },
               "noHalt": {
                 "type": "boolean",
-                "description": "[openocd] Curated west argument: --no-halt (no halt in gdb server cmd)."
+                "description": "[openocd] Omit the halt command from the GDB server startup (west debugserver flag: --no-halt)."
               },
               "noInit": {
                 "type": "boolean",
-                "description": "[openocd] Curated west argument: --no-init (no init in gdb server cmd)."
+                "description": "[openocd] Omit the init command from the GDB server startup (west debugserver flag: --no-init)."
               },
               "noTargets": {
                 "type": "boolean",
-                "description": "[openocd] Curated west argument: --no-targets (no target in gdb server cmd)."
+                "description": "[openocd] Omit the target command from the GDB server startup (west debugserver flag: --no-targets)."
               },
               "targetHandle": {
                 "type": "string",
-                "description": "[openocd] Curated west argument: --target-handle (internal openocd target handle)."
+                "description": "[openocd] Internal OpenOCD target handle (west debugserver flag: --target-handle)."
               },
               "rttPort": {
                 "type": "number",
-                "description": "[openocd] Curated west argument: --rtt-port."
+                "description": "[openocd] Port for the OpenOCD RTT server (west debugserver flag: --rtt-port)."
               },
               "rttServer": {
                 "type": "boolean",
-                "description": "[openocd] Curated west argument: --rtt-server (start RTT server while debugging)."
+                "description": "[openocd] Start an RTT server while debugging (west debugserver flag: --rtt-server)."
               },
               "gdbClientPort": {
                 "type": "number",
-                "description": "[openocd] Curated west argument: --gdb-client-port."
+                "description": "[openocd] Port the GDB client connects to (west debugserver flag: --gdb-client-port)."
               },
               "gdbInit": {
                 "type": "array",
-                "items": { "type": "string" },
-                "description": "[openocd] Curated west argument: repeated --gdb-init values."
+                "items": {
+                  "type": "string"
+                },
+                "description": "[openocd] GDB init commands, repeated per value (west debugserver flag: --gdb-init)."
               },
               "gdbHost": {
                 "type": "string",
-                "description": "[probe-rs/jlink] Curated west argument: --gdb-host (GDB server host)."
+                "description": "[probe-rs, jlink] Host the GDB server binds to (west debugserver flag: --gdb-host)."
               },
               "chip": {
                 "type": "string",
-                "description": "[probe-rs] Curated west argument: --chip (chip name)."
+                "description": "[probe-rs] Target chip name (west debugserver flag: --chip)."
               },
               "protocol": {
                 "type": "string",
-                "description": "[probe-rs/jlink] Curated west argument: --protocol (swd or jtag)."
+                "description": "[probe-rs, jlink] Debug protocol, swd or jtag (west debugserver flag: --protocol)."
               },
               "speed": {
-                "type": ["string", "number"],
-                "description": "[probe-rs/jlink] Curated west argument: --speed (protocol speed in kHz)."
+                "type": [
+                  "string",
+                  "number"
+                ],
+                "description": "[probe-rs, jlink] Protocol speed in kHz (west debugserver flag: --speed)."
               },
               "batch": {
                 "type": "boolean",
-                "description": "[jlink] Curated west argument: --batch (enable west debug batch mode)."
+                "description": "[jlink] Enable J-Link batch mode (west debugserver flag: --batch)."
               },
               "device": {
                 "type": "string",
-                "description": "[jlink] Curated west argument: --device (device name)."
+                "description": "[jlink] J-Link device name (west debugserver flag: --device)."
               },
               "loader": {
                 "type": "string",
-                "description": "[jlink] Curated west argument: --loader (loader type)."
+                "description": "[jlink] J-Link loader type (west debugserver flag: --loader)."
               },
               "dtFlash": {
                 "type": "boolean",
-                "description": "[jlink] Curated west argument: --dt-flash=y (use devicetree flash address info)."
+                "description": "[jlink] Use devicetree flash address info (west debugserver flag: --dt-flash=y)."
               },
               "resetType": {
                 "type": "string",
-                "description": "[jlink] Curated west argument: --reset-type."
+                "description": "[jlink] J-Link reset type (west debugserver flag: --reset-type)."
               },
               "westArgs": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "[Passthrough] Additional west debugserver arguments for full CLI coverage (runner-specific options, --cmd-* flags, etc.)."
+                "description": "Raw passthrough: additional west debugserver arguments for full CLI coverage (runner-specific options, --cmd-* flags, etc.). Appended after all curated options."
               },
               "svdFile": {
                 "type": "string",
@@ -2115,13 +2112,16 @@
           "attach": {
             "properties": {
               "runner": {
-                "type": "string"
+                "type": "string",
+                "description": "Zephyr runner used by west debugserver (for example: nrfjprog, linkserver, openocd)."
               },
               "project": {
-                "type": "string"
+                "type": "string",
+                "description": "Pin this debug configuration to a specific Zephyr IDE project name."
               },
               "build": {
-                "type": "string"
+                "type": "string",
+                "description": "Pin this debug configuration to a specific build configuration name."
               },
               "ask": {
                 "type": "string",
@@ -2131,178 +2131,241 @@
                   "askProject",
                   "askBuild"
                 ],
-                "default": "auto"
+                "default": "auto",
+                "description": "Controls whether Zephyr IDE asks the user to pick a project and/or build at session start."
               },
-              "westPort": {
-                "type": "number"
+              "port": {
+                "type": "number",
+                "description": "[Common] GDB server / connection port (west debugserver flag: --port)."
               },
-              "westDevId": {
-                "type": "string"
+              "devId": {
+                "type": "string",
+                "description": "[Common] Device/probe identifier to select a specific connected probe (west debugserver flag: --dev-id)."
               },
-              "westToolOpt": {
+              "toolOpt": {
                 "type": "array",
                 "items": {
                   "type": "string"
-                }
+                },
+                "description": "[Common] Extra options passed through to the underlying tool, repeated per value (west debugserver flag: --tool-opt)."
               },
-              "westDomain": {
-                "type": "string"
+              "domain": {
+                "type": "string",
+                "description": "[Common] Sysbuild domain/image to debug (west debugserver flag: --domain)."
               },
-              "westFile": {
-                "type": "string"
+              "file": {
+                "type": "string",
+                "description": "[Common] Runner-specific input file (west debugserver flag: --file)."
               },
-              "westElfFile": {
-                "type": "string"
+              "elfFile": {
+                "type": "string",
+                "description": "[Common] ELF file to debug (west debugserver flag: --elf-file)."
               },
-              "westHexFile": {
-                "type": "string"
+              "hexFile": {
+                "type": "string",
+                "description": "[Common] HEX file to load (west debugserver flag: --hex-file)."
               },
-              "westBinFile": {
-                "type": "string"
+              "binFile": {
+                "type": "string",
+                "description": "[Common] BIN file to load (west debugserver flag: --bin-file)."
               },
-              "westGdbPort": {
-                "type": "number"
+              "gdbPort": {
+                "type": "number",
+                "description": "[Common] Port the GDB server listens on (west debugserver flag: --gdb-port)."
               },
-              "westTclPort": {
-                "type": "number"
+              "tclPort": {
+                "type": "number",
+                "description": "[Common] Port for the server's TCL/RPC interface (west debugserver flag: --tcl-port)."
               },
-              "westTelnetPort": {
-                "type": "number"
+              "telnetPort": {
+                "type": "number",
+                "description": "[Common] Port for the server's telnet interface (west debugserver flag: --telnet-port)."
               },
-              "westNoLoad": {
-                "type": "boolean"
+              "noLoad": {
+                "type": "boolean",
+                "description": "[Common] Do not load the image before debugging (west debugserver flag: --no-load)."
               },
-              "westNoReset": {
-                "type": "boolean"
+              "noReset": {
+                "type": "boolean",
+                "description": "[Common] Do not reset the target (west debugserver flag: --no-reset)."
               },
-              "westRebuild": {
-                "type": "boolean"
+              "rebuild": {
+                "type": "boolean",
+                "description": "[Common] Rebuild the application before debugging; mutually exclusive with noRebuild (west debugserver flag: --rebuild)."
               },
-              "westNoRebuild": {
-                "type": "boolean"
+              "noRebuild": {
+                "type": "boolean",
+                "description": "[Common] Skip rebuilding the application before debugging (west debugserver flag: --no-rebuild)."
               },
               "westExtraServerArgs": {
                 "type": "array",
                 "items": {
                   "type": "string"
-                }
+                },
+                "description": "[Common] Additional curated server args appended before the westArgs passthrough."
               },
               "serial": {
-                "type": "string"
+                "type": "string",
+                "description": "[Common] Probe serial number, e.g. an FTDI serial (west debugserver flag: --serial)."
               },
               "interface": {
-                "type": "string"
+                "type": "string",
+                "description": "[Common] Debug interface, e.g. swd or jtag (west debugserver flag: --iface)."
               },
               "frequency": {
-                "type": ["string", "number"]
+                "type": [
+                  "string",
+                  "number"
+                ],
+                "description": "[Common] Debug interface frequency (west debugserver flag: --frequency)."
               },
               "connectUnderReset": {
-                "type": "boolean"
+                "type": "boolean",
+                "description": "[Common] Connect to the target while holding reset asserted (west debugserver flag: --connect-under-reset)."
               },
               "erase": {
-                "type": "boolean"
+                "type": "boolean",
+                "description": "[Common] Mass-erase the target before loading (west debugserver flag: --erase)."
               },
               "noErase": {
-                "type": "boolean"
+                "type": "boolean",
+                "description": "[Common] Do not erase the target before loading (west debugserver flag: --no-erase)."
               },
               "reset": {
-                "type": "boolean"
+                "type": "boolean",
+                "description": "[Common] Reset the target after flashing (west debugserver flag: --reset)."
               },
               "rttAddress": {
-                "type": "string"
+                "type": "string",
+                "description": "[Common] RTT control-block address (west debugserver flag: --rtt-address)."
               },
               "tui": {
-                "type": "boolean"
+                "type": "boolean",
+                "description": "[Common] Launch GDB with its text UI (west debugserver flag: --tui)."
               },
               "config": {
                 "type": "array",
-                "items": { "type": "string" }
+                "items": {
+                  "type": "string"
+                },
+                "description": "[openocd] OpenOCD config commands/files, repeated per value (west debugserver flag: --config)."
               },
               "flashAddress": {
-                "type": ["string", "number"]
+                "type": [
+                  "string",
+                  "number"
+                ],
+                "description": "[openocd] Flash address used for BIN files (west debugserver flag: --flash-address)."
               },
               "verify": {
-                "type": "boolean"
+                "type": "boolean",
+                "description": "[openocd] Verify after flashing (west debugserver flag: --verify)."
               },
               "verifyOnly": {
-                "type": "boolean"
+                "type": "boolean",
+                "description": "[openocd] Verify without flashing (west debugserver flag: --verify-only)."
               },
               "noHalt": {
-                "type": "boolean"
+                "type": "boolean",
+                "description": "[openocd] Omit the halt command from the GDB server startup (west debugserver flag: --no-halt)."
               },
               "noInit": {
-                "type": "boolean"
+                "type": "boolean",
+                "description": "[openocd] Omit the init command from the GDB server startup (west debugserver flag: --no-init)."
               },
               "noTargets": {
-                "type": "boolean"
+                "type": "boolean",
+                "description": "[openocd] Omit the target command from the GDB server startup (west debugserver flag: --no-targets)."
               },
               "targetHandle": {
-                "type": "string"
+                "type": "string",
+                "description": "[openocd] Internal OpenOCD target handle (west debugserver flag: --target-handle)."
               },
               "rttPort": {
-                "type": "number"
+                "type": "number",
+                "description": "[openocd] Port for the OpenOCD RTT server (west debugserver flag: --rtt-port)."
               },
               "rttServer": {
-                "type": "boolean"
+                "type": "boolean",
+                "description": "[openocd] Start an RTT server while debugging (west debugserver flag: --rtt-server)."
               },
               "gdbClientPort": {
-                "type": "number"
+                "type": "number",
+                "description": "[openocd] Port the GDB client connects to (west debugserver flag: --gdb-client-port)."
               },
               "gdbInit": {
                 "type": "array",
-                "items": { "type": "string" }
+                "items": {
+                  "type": "string"
+                },
+                "description": "[openocd] GDB init commands, repeated per value (west debugserver flag: --gdb-init)."
               },
               "gdbHost": {
-                "type": "string"
+                "type": "string",
+                "description": "[probe-rs, jlink] Host the GDB server binds to (west debugserver flag: --gdb-host)."
               },
               "chip": {
-                "type": "string"
+                "type": "string",
+                "description": "[probe-rs] Target chip name (west debugserver flag: --chip)."
               },
               "protocol": {
-                "type": "string"
+                "type": "string",
+                "description": "[probe-rs, jlink] Debug protocol, swd or jtag (west debugserver flag: --protocol)."
               },
               "speed": {
-                "type": ["string", "number"]
+                "type": [
+                  "string",
+                  "number"
+                ],
+                "description": "[probe-rs, jlink] Protocol speed in kHz (west debugserver flag: --speed)."
               },
               "batch": {
-                "type": "boolean"
+                "type": "boolean",
+                "description": "[jlink] Enable J-Link batch mode (west debugserver flag: --batch)."
               },
               "device": {
-                "type": "string"
+                "type": "string",
+                "description": "[jlink] J-Link device name (west debugserver flag: --device)."
               },
               "loader": {
-                "type": "string"
+                "type": "string",
+                "description": "[jlink] J-Link loader type (west debugserver flag: --loader)."
               },
               "dtFlash": {
-                "type": "boolean"
+                "type": "boolean",
+                "description": "[jlink] Use devicetree flash address info (west debugserver flag: --dt-flash=y)."
               },
               "resetType": {
-                "type": "string"
+                "type": "string",
+                "description": "[jlink] J-Link reset type (west debugserver flag: --reset-type)."
               },
               "westArgs": {
                 "type": "array",
                 "items": {
                   "type": "string"
-                }
+                },
+                "description": "Raw passthrough: additional west debugserver arguments for full CLI coverage (runner-specific options, --cmd-* flags, etc.). Appended after all curated options."
               },
               "svdFile": {
-                "type": "string"
+                "type": "string",
+                "description": "Optional path to an SVD file for peripheral viewer support."
               },
               "gdbTarget": {
-                "type": "string"
+                "type": "string",
+                "description": "Optional host:port for an already running debugserver. When set, west debugserver is not spawned."
               }
             }
           }
         },
         "initialConfigurations": [
           {
-            "name": "Zephyr IDE: West Debug",
+            "name": "Zephyr IDE West: Debug",
             "type": "zephyr-ide-west",
             "request": "launch",
             "runner": "openocd"
           },
           {
-            "name": "Zephyr IDE: West Attach",
+            "name": "Zephyr IDE West: Attach",
             "type": "zephyr-ide-west",
             "request": "attach",
             "runner": "openocd"
@@ -2310,14 +2373,67 @@
         ],
         "configurationSnippets": [
           {
-            "label": "Zephyr IDE West: Debug",
-            "description": "Debug through west debugserver with curated west options plus westArgs passthrough.",
+            "label": "Zephyr IDE West: Debug (any runner)",
+            "description": "Debug through `west debugserver` with any runner. Zephyr IDE spawns `west debugserver --runner <runner>`, parses the listening port, and connects cortex-debug as servertype \"external\". ELF and GDB path are read from runners.yaml. Add curated west options or westArgs for runner-specific flags.",
             "body": {
-              "name": "Zephyr IDE: West Debug",
+              "name": "Zephyr IDE West: Debug (any runner)",
+              "type": "zephyr-ide-west",
+              "request": "launch",
+              "runner": "${1:openocd}",
+              "westArgs": []
+            }
+          },
+          {
+            "label": "Zephyr IDE West: Debug (OpenOCD)",
+            "description": "Debug via OpenOCD through the west debugserver bridge. Zephyr IDE spawns `west debugserver --runner openocd` and connects cortex-debug as servertype \"external\". Use the [openocd] curated options (config, rttServer, …) or westArgs for extra flags.",
+            "body": {
+              "name": "Zephyr IDE West: Debug (OpenOCD)",
               "type": "zephyr-ide-west",
               "request": "launch",
               "runner": "openocd",
               "westArgs": []
+            }
+          },
+          {
+            "label": "Zephyr IDE West: Debug (STM32CubeProgrammer)",
+            "description": "Debug an STM32 target via STM32CubeProgrammer through the west debugserver bridge. Zephyr IDE spawns `west debugserver --runner stm32cubeprogrammer` and connects cortex-debug as servertype \"external\".",
+            "body": {
+              "name": "Zephyr IDE West: Debug (STM32CubeProgrammer)",
+              "type": "zephyr-ide-west",
+              "request": "launch",
+              "runner": "stm32cubeprogrammer",
+              "westArgs": []
+            }
+          },
+          {
+            "label": "Zephyr IDE West: Debug (nrfjprog)",
+            "description": "Debug a Nordic nRF target via the west debugserver bridge. Zephyr IDE spawns `west debugserver --runner nrfjprog`, reads the listening GDB port from its stdout, and connects cortex-debug as servertype \"external\".",
+            "body": {
+              "name": "Zephyr IDE West: Debug (nrfjprog)",
+              "type": "zephyr-ide-west",
+              "request": "launch",
+              "runner": "nrfjprog"
+            }
+          },
+          {
+            "label": "Zephyr IDE West: Debug (linkserver)",
+            "description": "Debug an NXP target via LinkServer through the west debugserver bridge. Zephyr IDE spawns `west debugserver --runner linkserver`, parses the listening port, and connects cortex-debug as servertype \"external\".",
+            "body": {
+              "name": "Zephyr IDE West: Debug (linkserver)",
+              "type": "zephyr-ide-west",
+              "request": "launch",
+              "runner": "linkserver"
+            }
+          },
+          {
+            "label": "Zephyr IDE West: Attach to external GDB server",
+            "description": "Connect to an already-running GDB server at a fixed address (Segger Ozone, vendor IDE, or a server you started manually). Setting `gdbTarget` suppresses the automatic west debugserver spawn; the `runner` value is only used to look up the ELF and GDB path from runners.yaml.",
+            "body": {
+              "name": "Zephyr IDE West: Attach to external GDB server",
+              "type": "zephyr-ide-west",
+              "request": "launch",
+              "runner": "openocd",
+              "gdbTarget": "127.0.0.1:2331"
             }
           }
         ]
