@@ -25,6 +25,7 @@ import {
   installPackage,
   installPackagesBatch,
   getPlatformPackages,
+  refreshWindowsPath,
 } from '../setup_utilities/host_tools';
 import { WorkspaceConfig, GlobalConfig } from '../setup_utilities/types';
 import { saveSetupState } from '../setup_utilities/state-management';
@@ -177,6 +178,18 @@ export class HostToolsService {
 
   async checkStatus(): Promise<void> {
     try {
+      // On Windows, refresh PATH from registry before running any detection.
+      // VS Code's extension host inherits the PATH from the process that
+      // launched VS Code. If winget or other tools were installed after
+      // VS Code started, or if VS Code was launched from a context that did
+      // not include the full user PATH (e.g. system-wide install in
+      // Program Files), the inherited PATH may be missing entries such as
+      // %LOCALAPPDATA%\Microsoft\WindowsApps (where winget lives) or the
+      // directories for winget-managed tools (cmake, git, python, etc.).
+      if (isWindows()) {
+        await refreshWindowsPath();
+      }
+
       const manager = await getPackageManagerForPlatformAsync();
       if (!manager) {
         this.post(HOST_TOOLS_COMMANDS.updateStatus, { error: 'Unsupported platform' });

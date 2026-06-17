@@ -17,6 +17,7 @@ limitations under the License.
 
 import * as vscode from "vscode";
 import * as fs from "fs-extra";
+import * as path from "path";
 import { executeTaskHelper, getPlatformArch, getPlatformNameAsync, executeShellCommand, logDual } from "../utilities/utils";
 import { outputInfo, outputWarning, outputError, notifyWarning } from "../utilities/output";
 import manifestData from "./host-tools-manifest.json";
@@ -78,10 +79,22 @@ export interface PackageStatus {
 
 
 /**
- * Refresh PATH environment variable on Windows to pick up newly installed tools
- * This updates the current process's PATH with the latest from the registry
+ * Refresh PATH environment variable on Windows to pick up newly installed tools.
+ * This updates the current process's PATH with the latest from the registry,
+ * including both Machine and User PATH entries.
+ *
+ * This is important because VS Code's extension host inherits the PATH from the
+ * process that launched VS Code. If tools were installed after VS Code started,
+ * or if VS Code was launched from a context that did not include the full user
+ * PATH (e.g. system-wide installation via Program Files), the inherited PATH
+ * may be missing entries such as %LOCALAPPDATA%\Microsoft\WindowsApps (where
+ * winget lives) or the install directories for winget-managed tools.
+ *
+ * Exported so that callers (e.g. HostToolsService.checkStatus) can refresh
+ * PATH before running detection, ensuring tools installed since VS Code was
+ * last started are found correctly.
  */
-async function refreshWindowsPath(): Promise<void> {
+export async function refreshWindowsPath(): Promise<void> {
   if (process.platform !== 'win32') {
     return;
   }
@@ -89,9 +102,12 @@ async function refreshWindowsPath(): Promise<void> {
   try {
     logDual("[HOST TOOLS] Refreshing Windows PATH environment variable...");
 
-    // Get Machine and User PATH from registry
-    const machinePathCmd = `powershell -Command "[System.Environment]::GetEnvironmentVariable('Path','Machine')"`;
-    const userPathCmd = `powershell -Command "[System.Environment]::GetEnvironmentVariable('Path','User')"`;
+    // Read Machine and User PATH from the registry. Use
+    // ExpandEnvironmentVariables so that REG_EXPAND_SZ entries (such as
+    // %LOCALAPPDATA%\Microsoft\WindowsApps) are resolved to their full paths
+    // in case the underlying registry API returns them unexpanded.
+    const machinePathCmd = `powershell -Command "[System.Environment]::ExpandEnvironmentVariables([System.Environment]::GetEnvironmentVariable('Path','Machine'))"`;
+    const userPathCmd = `powershell -Command "[System.Environment]::ExpandEnvironmentVariables([System.Environment]::GetEnvironmentVariable('Path','User'))"`;
 
     const machinePathResult = await executeShellCommand(machinePathCmd, '', false);
     const userPathResult = await executeShellCommand(userPathCmd, '', false);
@@ -122,6 +138,25 @@ async function refreshWindowsPath(): Promise<void> {
       logDual("[HOST TOOLS] ✅ Windows PATH refreshed successfully");
       if (extraEntries.length > 0) {
         logDual(`[HOST TOOLS]    Preserved ${extraEntries.length} process-level PATH entries`);
+      }
+    }
+
+    // On Windows, %LOCALAPPDATA%\Microsoft\WindowsApps is the standard location
+    // for winget and other Windows App Installer tools. This directory is normally
+    // in the User PATH but may be absent from the inherited VS Code process
+    // environment (e.g. if VS Code was launched from a system context, or if the
+    // user PATH in the registry did not include it). Ensure it is always present.
+    const localAppData = process.env.LOCALAPPDATA;
+    if (localAppData) {
+      const windowsAppsDir = path.join(localAppData, 'Microsoft', 'WindowsApps');
+      if (fs.existsSync(windowsAppsDir)) {
+        const currentPath = process.env.PATH || '';
+        const currentEntries = currentPath.split(';').filter(Boolean);
+        const alreadyInPath = currentEntries.some(e => e.toLowerCase() === windowsAppsDir.toLowerCase());
+        if (!alreadyInPath) {
+          process.env.PATH = windowsAppsDir + ';' + currentPath;
+          logDual(`[HOST TOOLS]    Added ${windowsAppsDir} to PATH (winget location)`);
+        }
       }
     }
   } catch (error) {
@@ -1063,6 +1098,13 @@ export async function installPackageManagerHeadless(): Promise<boolean> {
   if (!manager) {
     logDual("[HOST TOOLS] No package manager configuration found for this platform");
     return false;
+  }
+
+  // On Windows, refresh PATH from registry before checking so that tools
+  // installed since VS Code was launched (or missing from the inherited
+  // process environment) are detected correctly.
+  if (process.platform === 'win32') {
+    await refreshWindowsPath();
   }
 
   const pmAvailable = await checkPackageManagerAvailable();
