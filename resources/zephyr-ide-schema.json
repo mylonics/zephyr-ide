@@ -48,10 +48,10 @@
     },
     "pipRequirements": {
       "type": "array",
-      "description": "Relative paths (from workspace root) to requirements.txt files whose packages should be installed in the workspace's virtual environment alongside any pipPackages.",
+      "description": "Relative paths (from workspace root) or absolute paths to requirements.txt files whose packages should be installed in the workspace's virtual environment alongside any pipPackages.",
       "items": {
         "type": "string",
-        "description": "Relative path to a requirements.txt file (e.g. 'external/nrf/scripts/requirements.txt')"
+        "description": "Relative or absolute path to a requirements.txt file (e.g. 'external/nrf/scripts/requirements.txt' or '/opt/zephyr/reqs.txt')"
       }
     },
     "commands": {

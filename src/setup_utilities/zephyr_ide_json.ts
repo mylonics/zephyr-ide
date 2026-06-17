@@ -48,12 +48,14 @@ limitations under the License.
  *   - `pipPackages`: string[] Additional Python package specifiers that should
  *                             be installed in the workspace's Python environment.
  *                             The user is prompted before installation for security.
- *   - `pipRequirements`: string[] Relative paths (from workspace root) to
- *                             `requirements.txt`-style files whose packages
+ *   - `pipRequirements`: string[] Relative paths (from workspace root) or
+ *                             absolute paths to `requirements.txt`-style files
+ *                             whose packages
  *                             should be installed in the workspace's Python
- *                             environment alongside any `pipPackages`.  Both
- *                             fields are installed together in a single step
- *                             with no extra prompts.
+ *                             environment alongside any `pipPackages`. Both
+ *                             fields are installed together after explicit
+ *                             user confirmation during workspace setup, or via
+ *                             the user-invoked install action.
  *   - `commands`: { linux?: string[], windows?: string[], mac?: string[] }
  *                             Platform-specific terminal commands to run after
  *                             workspace setup. The user is prompted via a
@@ -131,6 +133,13 @@ function normalizeStringList(values: unknown): string[] {
         out.push(trimmed);
     }
     return out;
+}
+
+/** Resolve a pip requirements path from zephyr-ide.json to an absolute path. */
+export function resolveZephyrIdePipRequirementsPath(wsConfig: WorkspaceConfig, requirementPath: string): string {
+    return path.isAbsolute(requirementPath)
+        ? requirementPath
+        : path.join(wsConfig.rootPath, requirementPath);
 }
 
 /** Get the list of required toolchains declared in zephyr-ide.json. */

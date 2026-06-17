@@ -50,6 +50,7 @@ import {
     setZephyrIdePipPackages,
     getZephyrIdePipRequirements,
     setZephyrIdePipRequirements,
+    resolveZephyrIdePipRequirementsPath,
     getZephyrIdeCommands,
     setZephyrIdeCommands,
     ZephyrIdeCommands,
@@ -606,11 +607,12 @@ export async function installZephyrIdePipPackages(
 
 /**
  * Validate a single requirements file path.
- * Paths must be relative, end in `.txt`, contain only safe characters, and
- * must not contain any path traversal (`..`) component.
+ * Paths may be workspace-relative or absolute and must end in `.txt`.
+ * Relative paths are restricted to safe characters and cannot include `..`.
  */
 function isValidRequirementsPath(p: string): boolean {
     if (!p || !p.endsWith(".txt")) { return false; }
+    if (path.isAbsolute(p)) { return true; }
     if (!/^[A-Za-z0-9_.\/\-]+$/.test(p)) { return false; }
     return !p.split("/").includes("..");
 }
@@ -625,7 +627,7 @@ export async function modifyZephyrIdePipRequirementsInteractive(wsConfig: Worksp
     const current = getZephyrIdePipRequirements(wsConfig);
     const value = await vscode.window.showInputBox({
         title: "Modify Pip Requirements Files (zephyr-ide.json)",
-        prompt: "Enter relative paths to requirements.txt files, separated by spaces, commas, or new lines.",
+        prompt: "Enter relative or absolute paths to requirements.txt files, separated by spaces, commas, or new lines.",
         placeHolder: "external/nrf/scripts/requirements.txt scripts/requirements.txt",
         value: current.join(" "),
         ignoreFocusOut: true,
@@ -641,7 +643,7 @@ export async function modifyZephyrIdePipRequirementsInteractive(wsConfig: Worksp
     if (invalid.length > 0) {
         notifyError(
             "Zephyr IDE Pip Requirements",
-            `Invalid requirements path(s): ${invalid.join(", ")}. Paths must be relative, end in .txt, and contain only alphanumeric characters, dots, slashes, underscores, or hyphens.`,
+            `Invalid requirements path(s): ${invalid.join(", ")}. Paths must end in .txt. Relative paths may contain only alphanumeric characters, dots, slashes, underscores, or hyphens.`,
         );
         return undefined;
     }
@@ -681,7 +683,7 @@ export async function installZephyrIdePipRequirements(
     const setupState = await getSetupStateOrNotify(context, wsConfig, "Zephyr IDE Pip Requirements");
     if (!setupState) { return false; }
 
-    const reqFlags = declared.map(r => `-r "${path.join(wsConfig.rootPath, r)}"`).join(" ");
+    const reqFlags = declared.map(r => `-r "${resolveZephyrIdePipRequirementsPath(wsConfig, r)}"`).join(" ");
     const command = `pip install ${reqFlags}`;
     outputInfo("Zephyr IDE Pip Requirements", `Installing requirements from: ${declared.join(", ")}`);
     const ok = await executeTaskHelperInPythonEnv(
@@ -747,7 +749,7 @@ export async function installZephyrIdePipPackagesAndRequirements(
     const parts: string[] = [];
     if (packages.length > 0) { parts.push(packages.join(" ")); }
     if (requirements.length > 0) {
-        parts.push(requirements.map(r => `-r "${path.join(wsConfig.rootPath, r)}"`).join(" "));
+        parts.push(requirements.map(r => `-r "${resolveZephyrIdePipRequirementsPath(wsConfig, r)}"`).join(" "));
     }
     const command = `pip install ${parts.join(" ")}`;
 
@@ -1314,7 +1316,8 @@ export async function runZephyrIdeCommandsInteractive(
 /**
  * Called at the end of the workspace setup flow to install any toolchains and
  * blobs declared in zephyr-ide.json. Toolchains and blobs are installed
- * automatically. Pip packages prompt the user for approval before installation.
+ * automatically. Pip packages/requirements are installed only after explicit
+ * user confirmation.
  */
 export async function installZephyrIdeRequirements(
     wsConfig: WorkspaceConfig,

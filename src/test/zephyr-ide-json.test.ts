@@ -33,6 +33,7 @@ import {
   setZephyrIdePipPackages,
   getZephyrIdePipRequirements,
   setZephyrIdePipRequirements,
+  resolveZephyrIdePipRequirementsPath,
   getZephyrIdeCommands,
   setZephyrIdeCommands,
   readZephyrIdeJson,
@@ -515,6 +516,29 @@ suite("zephyr-ide.json toolchains/blobs Test Suite", () => {
       const onDisk = await fs.readJson(path.join(tmpRoot, ".vscode", "zephyr-ide.json"));
       assert.deepStrictEqual(onDisk.pipPackages, ["dtsh", "pyocd"]);
       assert.deepStrictEqual(onDisk.pipRequirements, ["external/nrf/scripts/requirements.txt"]);
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  test("resolveZephyrIdePipRequirementsPath resolves relative paths against workspace root", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-pip-req-"));
+    try {
+      const ws = makeWsConfig(tmpRoot);
+      const resolved = resolveZephyrIdePipRequirementsPath(ws, "external/nrf/scripts/requirements.txt");
+      assert.strictEqual(resolved, path.join(tmpRoot, "external/nrf/scripts/requirements.txt"));
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  test("resolveZephyrIdePipRequirementsPath preserves absolute paths", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-pip-req-"));
+    try {
+      const ws = makeWsConfig(tmpRoot);
+      const absoluteReq = path.join(tmpRoot, "external", "nrf", "scripts", "requirements.txt");
+      const resolved = resolveZephyrIdePipRequirementsPath(ws, absoluteReq);
+      assert.strictEqual(resolved, absoluteReq);
     } finally {
       await fs.remove(tmpRoot);
     }

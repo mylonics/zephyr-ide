@@ -103,9 +103,9 @@ each declared module. You can also manage blobs interactively via:
 
 Additional Python packages can be declared under the `pipPackages` key and
 additional `requirements.txt` files can be declared under `pipRequirements`.
-Both are installed together into the workspace's virtual environment during
-workspace setup, after Zephyr's own `requirements.txt` is satisfied — in a
-single step with no extra prompts:
+Both are installed together into the workspace's virtual environment after
+workspace setup, once you confirm the install prompt (or when you explicitly
+run the install action from the manager panel or command palette):
 
 ```json
 {
@@ -124,12 +124,15 @@ and CMSIS-DAP flashing/debugging). Packages listed under `pipPackages` and
 paths listed under `pipRequirements` are installed in addition to those
 defaults.
 
-Paths in `pipRequirements` are relative to the workspace root, must end in
-`.txt`, and must not contain path traversal components (`..`).
+Paths in `pipRequirements` may be relative to the workspace root or absolute,
+must end in `.txt`, and relative paths must not contain path traversal
+components (`..`).
 
-During setup the extension first tries `west packages --pip install` and falls
-back to `pip install -r <zephyr>/scripts/requirements.txt` followed by
-`pip install <packages> -r <req1> -r <req2>`.
+During workspace setup, the extension installs Zephyr's own Python
+requirements (`west packages pip` with fallback to
+`pip install -r <zephyr>/scripts/requirements.txt`) plus required IDE tools.
+After that, if `zephyr-ide.json` declares `pipPackages` and/or
+`pipRequirements`, the extension prompts to install them together in one step.
 
 To manage these fields interactively, open the Zephyr IDE Manager panel or use
 the command palette commands:
