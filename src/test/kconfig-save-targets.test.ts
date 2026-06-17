@@ -243,11 +243,11 @@ suite("Kconfig Save Targets Test Suite", () => {
 
     const result = mergeFragmentContent(existing, changes);
     const lines = result.split("\n").filter((l) => l !== "");
-    assert.ok(lines.includes("# CONFIG_FOO is not set"), "FOO updated in-place (disabled bool)");
+    assert.ok(lines.includes("CONFIG_FOO=n"), "FOO updated in-place (disabled bool)");
     assert.ok(lines.includes("CONFIG_BAZ=\"world\""), "BAZ updated in-place");
     assert.ok(lines.includes("CONFIG_BAR=5"), "BAR preserved unchanged");
     // Check order: FOO before BAR before BAZ (original order preserved)
-    const idxFoo = lines.indexOf("# CONFIG_FOO is not set");
+    const idxFoo = lines.indexOf("CONFIG_FOO=n");
     const idxBar = lines.indexOf("CONFIG_BAR=5");
     const idxBaz = lines.indexOf("CONFIG_BAZ=\"world\"");
     assert.ok(idxFoo < idxBar, "FOO before BAR");
