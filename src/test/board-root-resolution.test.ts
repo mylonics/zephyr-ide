@@ -110,4 +110,11 @@ suite("resolveBoardPath", () => {
     const result = resolveBoardPath(ws, { relBoardDir: "boards/vendor", relBoardSubDir: "" }, setupState);
     assert.strictEqual(result, "/workspace/boards/vendor");
   });
+
+  test("uses zephyr boards dir when relBoardDir is empty string and relBoardSubDir is set", () => {
+    // empty relBoardDir should behave the same as absent relBoardDir
+    const ws = makeWs("/workspace");
+    const result = resolveBoardPath(ws, { relBoardDir: "", relBoardSubDir: "arm/nrf52840dk" }, setupState);
+    assert.strictEqual(result, "/opt/zephyr/boards/arm/nrf52840dk");
+  });
 });
