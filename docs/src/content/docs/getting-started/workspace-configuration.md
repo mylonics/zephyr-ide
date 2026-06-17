@@ -53,7 +53,7 @@ When setting up a new workspace, the extension will:
 1. **Setup West Environment** - Create a Python virtual environment and install west
 2. **West Init** - Initialize the workspace with a west.yml manifest file
 3. **West Update** - Clone Zephyr and its dependencies into the workspace
-4. **Install Python Packages** - Install Zephyr's `requirements.txt` and any additional packages declared in `zephyr-ide.json` `pipPackages` into the virtual environment
+4. **Install Python Packages** - Install Zephyr's `requirements.txt` and any additional packages or requirements files declared in `zephyr-ide.json` `pipPackages`/`pipRequirements` into the virtual environment
 
 The folder structure after setup will typically look like:
 

@@ -48,6 +48,9 @@ import {
     setZephyrIdeSampleProjects,
     getZephyrIdePipPackages,
     setZephyrIdePipPackages,
+    getZephyrIdePipRequirements,
+    setZephyrIdePipRequirements,
+    resolveZephyrIdePipRequirementsPath,
     getZephyrIdeCommands,
     setZephyrIdeCommands,
     ZephyrIdeCommands,
@@ -517,6 +520,21 @@ function parsePipPackageInput(value: string): string[] {
     return Array.from(new Set(parts));
 }
 
+/**
+ * Parse a user-supplied requirements-file list.
+ * Splits only on commas and newlines — NOT on spaces — so that paths
+ * containing spaces (e.g. Windows paths under "Program Files") are
+ * preserved intact.
+ */
+function parsePipRequirementsInput(value: string): string[] {
+    if (!value.trim()) { return []; }
+    const parts = value
+        .split(/[\r\n,]+/)
+        .map(v => v.trim())
+        .filter(v => v.length > 0);
+    return Array.from(new Set(parts));
+}
+
 /** Open the modify-pip-packages input and persist the result. */
 export async function modifyZephyrIdePipPackagesInteractive(wsConfig: WorkspaceConfig): Promise<string[] | undefined> {
     if (!wsConfig.rootPath) {
@@ -603,9 +621,175 @@ export async function installZephyrIdePipPackages(
 }
 
 /**
- * Event emitter for blob install progress, mirroring the SDK toolchain pattern.
- * Used by the SDK panel webview to show real-time progress.
+ * Validate a single requirements file path.
+ * Paths may be workspace-relative or absolute and must end in `.txt`.
+ * Relative paths are restricted to safe characters and cannot include `..`.
+ * Absolute paths must not contain shell metacharacters.
  */
+function isValidRequirementsPath(p: string): boolean {
+    if (!p || !p.endsWith(".txt")) { return false; }
+    if (path.isAbsolute(p)) {
+        // Reject paths containing shell metacharacters to prevent command injection
+        if (/["'`$;&|<>!(){}]/.test(p)) { return false; }
+        return true;
+    }
+    if (!/^[A-Za-z0-9_.\/\-]+$/.test(p)) { return false; }
+    return !p.split("/").includes("..");
+}
+
+/** Open the modify-pip-requirements input and persist the result. */
+export async function modifyZephyrIdePipRequirementsInteractive(wsConfig: WorkspaceConfig): Promise<string[] | undefined> {
+    if (!wsConfig.rootPath) {
+        notifyError("Zephyr IDE Pip Requirements", "No active workspace folder.");
+        return undefined;
+    }
+
+    const current = getZephyrIdePipRequirements(wsConfig);
+    const value = await vscode.window.showInputBox({
+        title: "Modify Pip Requirements Files (zephyr-ide.json)",
+        prompt: "Enter relative or absolute paths to requirements.txt files, separated by commas or new lines.",
+        placeHolder: "external/nrf/scripts/requirements.txt, scripts/requirements.txt",
+        value: current.join(", "),
+        ignoreFocusOut: true,
+    });
+
+    if (value === undefined) {
+        outputInfo("Zephyr IDE Pip Requirements", "Modify cancelled");
+        return undefined;
+    }
+
+    const paths = parsePipRequirementsInput(value);
+    const invalid = paths.filter(p => !isValidRequirementsPath(p));
+    if (invalid.length > 0) {
+        notifyError(
+            "Zephyr IDE Pip Requirements",
+            `Invalid requirements path(s): ${invalid.join(", ")}. Paths must end in .txt. Relative paths may contain only alphanumeric characters, dots, slashes, underscores, or hyphens.`,
+        );
+        return undefined;
+    }
+
+    await setZephyrIdePipRequirements(wsConfig, paths);
+    outputInfo("Zephyr IDE Pip Requirements", `Saved ${paths.length} requirements path(s) to zephyr-ide.json`);
+    return paths;
+}
+
+/**
+ * Install every requirements file declared in zephyr-ide.json via `pip install -r ...`.
+ */
+export async function installZephyrIdePipRequirements(
+    wsConfig: WorkspaceConfig,
+    context: vscode.ExtensionContext,
+    silentIfEmpty = false,
+): Promise<boolean> {
+    const declared = getZephyrIdePipRequirements(wsConfig);
+    if (declared.length === 0) {
+        if (!silentIfEmpty) {
+            void vscode.window.showInformationMessage(
+                "No requirements files declared in .vscode/zephyr-ide.json. Run 'Modify zephyr-ide.json pip requirements' first.",
+            );
+        }
+        return true;
+    }
+
+    const invalid = declared.filter(p => !isValidRequirementsPath(p));
+    if (invalid.length > 0) {
+        notifyError(
+            "Zephyr IDE Pip Requirements",
+            `Refusing to install invalid requirements path(s): ${invalid.join(", ")}`,
+        );
+        return false;
+    }
+
+    const setupState = await getSetupStateOrNotify(context, wsConfig, "Zephyr IDE Pip Requirements");
+    if (!setupState) { return false; }
+
+    const reqFlags = declared.map(r => `-r "${resolveZephyrIdePipRequirementsPath(wsConfig, r)}"`).join(" ");
+    const command = `pip install ${reqFlags}`;
+    outputInfo("Zephyr IDE Pip Requirements", `Installing requirements from: ${declared.join(", ")}`);
+    const ok = await executeTaskHelperInPythonEnv(
+        setupState,
+        "Zephyr IDE: Install pip requirements",
+        command,
+        setupState.setupPath,
+        true,
+    );
+
+    if (!ok) {
+        notifyError("Zephyr IDE Pip Requirements", "Failed to install one or more requirements files. Check output for details.");
+        return false;
+    }
+
+    outputInfo("Zephyr IDE Pip Requirements", "Installed requirements files declared in zephyr-ide.json.");
+    return true;
+}
+
+/**
+ * Install both pip packages and requirements files declared in zephyr-ide.json
+ * in a single command with no additional prompts. Used by the manager panel
+ * "Install" button and the workspace setup auto-install flow.
+ */
+export async function installZephyrIdePipPackagesAndRequirements(
+    wsConfig: WorkspaceConfig,
+    context: vscode.ExtensionContext,
+    silentIfEmpty = false,
+): Promise<boolean> {
+    const packages = getZephyrIdePipPackages(wsConfig);
+    const requirements = getZephyrIdePipRequirements(wsConfig);
+
+    if (packages.length === 0 && requirements.length === 0) {
+        if (!silentIfEmpty) {
+            void vscode.window.showInformationMessage(
+                "No pip packages or requirements files declared in .vscode/zephyr-ide.json.",
+            );
+        }
+        return true;
+    }
+
+    const invalidPackages = packages.filter(p => !VALID_PIP_SPEC.test(p));
+    if (invalidPackages.length > 0) {
+        notifyError(
+            "Zephyr IDE Pip Packages",
+            `Refusing to install invalid package specifier(s): ${invalidPackages.join(", ")}`,
+        );
+        return false;
+    }
+
+    const invalidRequirements = requirements.filter(p => !isValidRequirementsPath(p));
+    if (invalidRequirements.length > 0) {
+        notifyError(
+            "Zephyr IDE Pip Requirements",
+            `Refusing to install invalid requirements path(s): ${invalidRequirements.join(", ")}`,
+        );
+        return false;
+    }
+
+    const setupState = await getSetupStateOrNotify(context, wsConfig, "Zephyr IDE Pip Packages");
+    if (!setupState) { return false; }
+
+    const parts: string[] = [];
+    if (packages.length > 0) { parts.push(packages.join(" ")); }
+    if (requirements.length > 0) {
+        parts.push(requirements.map(r => `-r "${resolveZephyrIdePipRequirementsPath(wsConfig, r)}"`).join(" "));
+    }
+    const command = `pip install ${parts.join(" ")}`;
+
+    outputInfo("Zephyr IDE Pip Packages", `Installing packages=[${packages.join(", ")}] requirements=[${requirements.join(", ")}]`);
+    const ok = await executeTaskHelperInPythonEnv(
+        setupState,
+        "Zephyr IDE: Install pip packages and requirements",
+        command,
+        setupState.setupPath,
+        true,
+    );
+
+    if (!ok) {
+        notifyError("Zephyr IDE Pip Packages", "Failed to install pip packages/requirements. Check output for details.");
+        return false;
+    }
+
+    outputInfo("Zephyr IDE Pip Packages", "Installed pip packages and requirements declared in zephyr-ide.json.");
+    return true;
+}
 const _onBlobProgress = new vscode.EventEmitter<string>();
 export const onBlobProgress: vscode.Event<string> = _onBlobProgress.event;
 
@@ -1152,7 +1336,8 @@ export async function runZephyrIdeCommandsInteractive(
 /**
  * Called at the end of the workspace setup flow to install any toolchains and
  * blobs declared in zephyr-ide.json. Toolchains and blobs are installed
- * automatically. Pip packages prompt the user for approval before installation.
+ * automatically. Pip packages/requirements are installed only after explicit
+ * user confirmation.
  */
 export async function installZephyrIdeRequirements(
     wsConfig: WorkspaceConfig,
@@ -1231,20 +1416,28 @@ export async function installZephyrIdeRequirements(
     }
     try {
         const packages = getZephyrIdePipPackages(wsConfig);
-        if (packages.length > 0) {
+        const requirements = getZephyrIdePipRequirements(wsConfig);
+        if (packages.length > 0 || requirements.length > 0) {
+            const parts: string[] = [];
+            if (packages.length > 0) {
+                parts.push(`${packages.length} pip package(s): ${packages.join(", ")}`);
+            }
+            if (requirements.length > 0) {
+                parts.push(`${requirements.length} requirements file(s): ${requirements.join(", ")}`);
+            }
             const answer = await vscode.window.showInformationMessage(
-                `zephyr-ide.json declares ${packages.length} pip package(s) to install: ${packages.join(", ")}. Install them now?`,
+                `zephyr-ide.json declares ${parts.join(" and ")}. Install them now?`,
                 { modal: false },
                 "Install",
                 "Skip",
             );
             if (answer === "Install") {
-                await installZephyrIdePipPackages(wsConfig, context, true);
+                await installZephyrIdePipPackagesAndRequirements(wsConfig, context, true);
             } else {
-                outputInfo("Zephyr IDE Pip Packages", "User skipped pip package installation.");
+                outputInfo("Zephyr IDE Pip Packages", "User skipped pip packages/requirements installation.");
             }
         }
     } catch (error) {
-        outputError("Zephyr IDE Pip Packages", `Pip package installation failed: ${error}`);
+        outputError("Zephyr IDE Pip Packages", `Pip packages/requirements installation failed: ${error}`);
     }
 }
