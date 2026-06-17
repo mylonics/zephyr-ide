@@ -29,7 +29,7 @@ import { getSetupState, getSetupStateOrNotify, getVenvPath } from "./workspace-c
 import { ensureWestConfigManifest } from "./west-config-parser";
 import { SetupProgressTracker } from "./setup-progress";
 import { getDefaultPythonExecutable, loadVendorHostToolsManifest, confirmVendorToolsInstall, installPackagesBatch } from "./host_tools";
-import { installZephyrIdeRequirements } from "./zephyr_ide_install";
+import { installZephyrIdeRequirements, runZephyrIdeCommandsInteractive } from "./zephyr_ide_install";
 import { getZephyrIdePipPackages } from "./zephyr_ide_json";
 
 // Test-only override for narrow update
@@ -539,10 +539,22 @@ export async function westUpdateWithRequirements(context: vscode.ExtensionContex
     // Fall back to the global install-sdk flow only if no SDK is present after
     // installZephyrIdeRequirements has run (e.g. workspace declared no
     // toolchains, so the bootstrap path didn't trigger).
+    let setupResult = true;
     if (!globalConfig.sdkInstalled) {
-      return await vscode.commands.executeCommand("zephyr-ide.install-sdk");
+      setupResult = await vscode.commands.executeCommand("zephyr-ide.install-sdk");
     }
-    return true;
+    if (!setupResult) {
+      return false;
+    }
+
+    // Run user-approved zephyr-ide.json terminal commands at the very end of
+    // workspace setup.
+    try {
+      await runZephyrIdeCommandsInteractive(wsConfig, context);
+    } catch (error) {
+      outputWarning("Workspace Setup", `Failed to run zephyr-ide.json commands: ${error}`);
+    }
+    return setupResult;
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     if (!progressTracker?.failInProgressSteps(detail)) {
