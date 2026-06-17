@@ -42,7 +42,7 @@ export interface BuildConfig {
   name: string;
   rel_path?: string;
   board: string;
-  relBoardDir: string;
+  relBoardDir?: string;
   relBoardSubDir?: string;
   compilerOptimization?: string;
   westBuildArgs: string[];

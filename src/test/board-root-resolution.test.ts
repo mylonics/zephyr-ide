@@ -45,7 +45,7 @@ suite("resolveBoardRoot", () => {
   });
 
   test("does NOT fall back to zephyr dir when relBoardDir is absent", () => {
-    // Previously this would return setupState.zephyrDir — it must not any more.
+    // Previously this would return setupState.zephyrDir — it must not anymore.
     const ws = makeWs("/workspace");
     const result = resolveBoardRoot(ws, {});
     assert.strictEqual(result, undefined);
