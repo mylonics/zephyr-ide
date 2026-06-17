@@ -99,27 +99,44 @@ each declared module. You can also manage blobs interactively via:
 - `Zephyr IDE: Install Blobs from zephyr-ide.json` — fetches any blobs declared
   in `zephyr-ide.json`.
 
-## Declaring Required Pip Packages in `zephyr-ide.json`
+## Declaring Required Pip Packages and Requirements in `zephyr-ide.json`
 
-Additional Python packages can be declared under the `pipPackages` key. These are
-installed into the workspace's virtual environment during workspace setup, after
-Zephyr's own `requirements.txt` is satisfied:
+Additional Python packages can be declared under the `pipPackages` key and
+additional `requirements.txt` files can be declared under `pipRequirements`.
+Both are installed together into the workspace's virtual environment during
+workspace setup, after Zephyr's own `requirements.txt` is satisfied — in a
+single step with no extra prompts:
 
 ```json
 {
   "pipPackages": ["dtsh", "pyocd"],
+  "pipRequirements": [
+    "external/nrf/scripts/requirements.txt",
+    "external/bootloader/mcuboot/boot/zephyr/scripts/requirements.txt"
+  ],
   "toolchains": ["arm-zephyr-eabi"],
   "projects": {}
 }
 ```
 
 The extension always installs `dtsh` and `pyocd` (used for devicetree shell
-and CMSIS-DAP flashing/debugging). Packages listed under `pipPackages` are
-installed in addition to those defaults.
+and CMSIS-DAP flashing/debugging). Packages listed under `pipPackages` and
+paths listed under `pipRequirements` are installed in addition to those
+defaults.
+
+Paths in `pipRequirements` are relative to the workspace root, must end in
+`.txt`, and must not contain path traversal components (`..`).
 
 During setup the extension first tries `west packages --pip install` and falls
 back to `pip install -r <zephyr>/scripts/requirements.txt` followed by
-`pip install <packages>`.
+`pip install <packages> -r <req1> -r <req2>`.
+
+To manage these fields interactively, open the Zephyr IDE Manager panel or use
+the command palette commands:
+
+- **Zephyr IDE: Modify zephyr-ide.json Pip Packages**
+- **Zephyr IDE: Modify zephyr-ide.json Pip Requirements**
+- **Zephyr IDE: Install Pip Packages and Requirements from zephyr-ide.json**
 
 ## Next Steps
 

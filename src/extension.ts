@@ -159,6 +159,9 @@ import {
   modifyZephyrIdeSampleProjectsInteractive,
   modifyZephyrIdePipPackagesInteractive,
   installZephyrIdePipPackages,
+  modifyZephyrIdePipRequirementsInteractive,
+  installZephyrIdePipRequirements,
+  installZephyrIdePipPackagesAndRequirements,
   modifyZephyrIdeCommandsInteractive,
   runZephyrIdeCommandsInteractive,
 } from "./setup_utilities/zephyr_ide_install";
@@ -2083,6 +2086,24 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.install-zephyr-ide-pip-packages", async () => {
       return await installZephyrIdePipPackages(wsConfig, context);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.modify-zephyr-ide-pip-requirements", async () => {
+      await modifyZephyrIdePipRequirementsInteractive(wsConfig);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.install-zephyr-ide-pip-requirements", async () => {
+      return await installZephyrIdePipRequirements(wsConfig, context);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.install-zephyr-ide-pip-packages-and-requirements", async () => {
+      return await installZephyrIdePipPackagesAndRequirements(wsConfig, context);
     })
   );
 

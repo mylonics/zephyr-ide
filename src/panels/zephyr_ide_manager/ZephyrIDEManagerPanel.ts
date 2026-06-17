@@ -28,6 +28,7 @@ import {
   getZephyrIdeToolchains,
   getZephyrIdeBlobs,
   getZephyrIdePipPackages,
+  getZephyrIdePipRequirements,
   getZephyrIdeSampleProjects,
   getZephyrIdeCommands,
 } from "../../setup_utilities/zephyr_ide_json";
@@ -136,6 +137,7 @@ export class ZephyrIDEManagerPanel {
         toolchains: getZephyrIdeToolchains(wsConfig),
         blobs: getZephyrIdeBlobs(wsConfig),
         pipPackages: getZephyrIdePipPackages(wsConfig),
+        pipRequirements: getZephyrIdePipRequirements(wsConfig),
         sampleProjects: getZephyrIdeSampleProjects(wsConfig).map(project => ({
           name: project.name,
           rel_path: project.rel_path,
@@ -180,8 +182,12 @@ export class ZephyrIDEManagerPanel {
         await vscode.commands.executeCommand("zephyr-ide.modify-zephyr-ide-pip-packages");
         await this.refreshAll();
         return;
+      case "modifyPipRequirements":
+        await vscode.commands.executeCommand("zephyr-ide.modify-zephyr-ide-pip-requirements");
+        await this.refreshAll();
+        return;
       case "installPipPackages":
-        await vscode.commands.executeCommand("zephyr-ide.install-zephyr-ide-pip-packages");
+        await vscode.commands.executeCommand("zephyr-ide.install-zephyr-ide-pip-packages-and-requirements");
         await this.refreshAll();
         return;
       case "modifyBlobs":

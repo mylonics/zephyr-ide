@@ -113,6 +113,10 @@ This is the workspace file used for projects/builds/tests, runner profiles, and 
   "sdkVersion": "0.17.0",
   "blobs": ["hal_nordic"],
   "pipPackages": ["dtsh", "pyocd"],
+  "pipRequirements": [
+    "external/nrf/scripts/requirements.txt",
+    "external/bootloader/mcuboot/boot/zephyr/scripts/requirements.txt"
+  ],
   "sampleProjects": [
     {
       "name": "hello_world",
@@ -139,6 +143,7 @@ This is the workspace file used for projects/builds/tests, runner profiles, and 
 | `sdkVersion` | `string` | No | Preferred SDK version used when SDK auto-install is needed. |
 | `blobs` | `string[]` | No | West modules requiring `west blobs fetch <module>`. |
 | `pipPackages` | `string[]` | No | Additional Python packages installed into the workspace virtual environment during setup (e.g. `dtsh`, `pyocd`). The extension always installs `dtsh` and `pyocd`; packages listed here are added on top. |
+| `pipRequirements` | `string[]` | No | Relative paths (from workspace root) to `requirements.txt` files installed into the workspace virtual environment alongside `pipPackages`. Both are installed in a single step with no extra prompts. |
 | `sampleProjects` | `ProjectConfig[]` | No | Optional project snapshots used by **Zephyr IDE: Add Sample Projects from File**. |
 | `runnerProfilesMigrationVersion` | `number` | No | Internal migration marker written by the extension. Keep as-is. |
 | any other key | any JSON | No | Preserved by the extension; can be read with `Zephyr IDE: Get Zephyr IDE JSON Variable`. |

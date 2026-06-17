@@ -40,6 +40,7 @@ interface ManagerData {
   toolchains: string[];
   blobs: string[];
   pipPackages: string[];
+  pipRequirements: string[];
   sampleProjects: SampleProjectInfo[];
   commands: ZephyrIdeCommandsInfo;
 }
@@ -197,15 +198,19 @@ export class ZephyrIDEManagerApp extends ZephyrLitElement {
 
           <section class="manager-card">
             <div class="manager-card-header">
-              <h2 class="manager-title">Pip Packages</h2>
+              <h2 class="manager-title">Pip Packages &amp; Requirements</h2>
               <div class="manager-actions">
-                <vscode-button appearance="secondary" @click=${() => this.postCommand("modifyPipPackages")}>Modify</vscode-button>
-                <vscode-button @click=${() => this.postCommand("installPipPackages")}>Install</vscode-button>
+                <vscode-button appearance="secondary" @click=${() => this.postCommand("modifyPipPackages")}>Modify Packages</vscode-button>
+                <vscode-button appearance="secondary" @click=${() => this.postCommand("modifyPipRequirements")}>Modify Requirements</vscode-button>
+                <vscode-button @click=${() => this.postCommand("installPipPackages")}>Install All</vscode-button>
               </div>
             </div>
             ${this._data.pipPackages.length > 0
               ? html`<div class="token-list">${this._data.pipPackages.map(p => html`<span class="token">${p}</span>`)}</div>`
               : html`<div class="info-box">No pip packages declared in zephyr-ide.json.</div>`}
+            ${this._data.pipRequirements.length > 0
+              ? html`<div class="token-list">${this._data.pipRequirements.map(r => html`<span class="token">${r}</span>`)}</div>`
+              : html`<div class="info-box">No requirements files declared in zephyr-ide.json.</div>`}
           </section>
 
           <section class="manager-card full-width">

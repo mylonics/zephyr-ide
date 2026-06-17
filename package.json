@@ -639,6 +639,18 @@
         "title": "Zephyr IDE: Install Pip Packages from zephyr-ide.json"
       },
       {
+        "command": "zephyr-ide.modify-zephyr-ide-pip-requirements",
+        "title": "Zephyr IDE: Modify zephyr-ide.json Pip Requirements"
+      },
+      {
+        "command": "zephyr-ide.install-zephyr-ide-pip-requirements",
+        "title": "Zephyr IDE: Install Pip Requirements from zephyr-ide.json"
+      },
+      {
+        "command": "zephyr-ide.install-zephyr-ide-pip-packages-and-requirements",
+        "title": "Zephyr IDE: Install Pip Packages and Requirements from zephyr-ide.json"
+      },
+      {
         "command": "zephyr-ide.modify-zephyr-ide-sample-projects",
         "title": "Zephyr IDE: Modify Sample Projects (zephyr-ide.json)"
       },

@@ -29,6 +29,10 @@ import {
   setZephyrIdeSdkVersion,
   getZephyrIdeSampleProjects,
   setZephyrIdeSampleProjects,
+  getZephyrIdePipPackages,
+  setZephyrIdePipPackages,
+  getZephyrIdePipRequirements,
+  setZephyrIdePipRequirements,
   getZephyrIdeCommands,
   setZephyrIdeCommands,
   readZephyrIdeJson,
@@ -340,8 +344,183 @@ suite("zephyr-ide.json toolchains/blobs Test Suite", () => {
     }
   });
 
-  test("getZephyrIdeCommands normalizes platform lists and ignores unknown keys", async () => {
-    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-cmd-"));
+  test("getZephyrIdePipPackages returns empty array when file is missing", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-pip-"));
+    try {
+      const ws = makeWsConfig(tmpRoot);
+      assert.deepStrictEqual(getZephyrIdePipPackages(ws), []);
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  test("setZephyrIdePipPackages creates file and persists list", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-pip-"));
+    try {
+      const ws = makeWsConfig(tmpRoot);
+      await setZephyrIdePipPackages(ws, ["dtsh", "pyocd"]);
+      assert.deepStrictEqual(getZephyrIdePipPackages(ws), ["dtsh", "pyocd"]);
+
+      const onDisk = await fs.readJson(path.join(tmpRoot, ".vscode", "zephyr-ide.json"));
+      assert.deepStrictEqual(onDisk.pipPackages, ["dtsh", "pyocd"]);
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  test("setZephyrIdePipPackages with empty list removes the key", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-pip-"));
+    try {
+      const ws = makeWsConfig(tmpRoot);
+      await setZephyrIdePipPackages(ws, ["dtsh"]);
+      await setZephyrIdePipPackages(ws, []);
+      assert.strictEqual(readZephyrIdeJson(ws).pipPackages, undefined);
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  test("setZephyrIdePipPackages preserves other top-level keys", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-pip-"));
+    try {
+      const ws = makeWsConfig(tmpRoot);
+      const filePath = path.join(tmpRoot, ".vscode", "zephyr-ide.json");
+      await fs.outputJson(filePath, { toolchains: ["arm-zephyr-eabi"], blobs: ["hal_nordic"] });
+
+      await setZephyrIdePipPackages(ws, ["dtsh", "pyocd"]);
+
+      const onDisk = await fs.readJson(filePath);
+      assert.deepStrictEqual(onDisk.pipPackages, ["dtsh", "pyocd"]);
+      assert.deepStrictEqual(onDisk.toolchains, ["arm-zephyr-eabi"]);
+      assert.deepStrictEqual(onDisk.blobs, ["hal_nordic"]);
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  test("getZephyrIdePipPackages normalises malformed entries", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-pip-"));
+    try {
+      const ws = makeWsConfig(tmpRoot);
+      const filePath = path.join(tmpRoot, ".vscode", "zephyr-ide.json");
+      await fs.outputJson(filePath, {
+        pipPackages: ["dtsh", "", "  pyocd  ", "dtsh", 42, null],
+      });
+      assert.deepStrictEqual(getZephyrIdePipPackages(ws), ["dtsh", "pyocd"]);
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  test("getZephyrIdePipRequirements returns empty array when file is missing", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-req-"));
+    try {
+      const ws = makeWsConfig(tmpRoot);
+      assert.deepStrictEqual(getZephyrIdePipRequirements(ws), []);
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  test("setZephyrIdePipRequirements creates file and persists list", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-req-"));
+    try {
+      const ws = makeWsConfig(tmpRoot);
+      await setZephyrIdePipRequirements(ws, [
+        "external/nrf/scripts/requirements.txt",
+        "external/bootloader/mcuboot/boot/zephyr/scripts/requirements.txt",
+      ]);
+      assert.deepStrictEqual(getZephyrIdePipRequirements(ws), [
+        "external/nrf/scripts/requirements.txt",
+        "external/bootloader/mcuboot/boot/zephyr/scripts/requirements.txt",
+      ]);
+
+      const onDisk = await fs.readJson(path.join(tmpRoot, ".vscode", "zephyr-ide.json"));
+      assert.deepStrictEqual(onDisk.pipRequirements, [
+        "external/nrf/scripts/requirements.txt",
+        "external/bootloader/mcuboot/boot/zephyr/scripts/requirements.txt",
+      ]);
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  test("setZephyrIdePipRequirements with empty list removes the key", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-req-"));
+    try {
+      const ws = makeWsConfig(tmpRoot);
+      await setZephyrIdePipRequirements(ws, ["scripts/requirements.txt"]);
+      await setZephyrIdePipRequirements(ws, []);
+      assert.strictEqual(readZephyrIdeJson(ws).pipRequirements, undefined);
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  test("setZephyrIdePipRequirements preserves other top-level keys (toolchains, pipPackages)", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-req-"));
+    try {
+      const ws = makeWsConfig(tmpRoot);
+      const filePath = path.join(tmpRoot, ".vscode", "zephyr-ide.json");
+      await fs.outputJson(filePath, {
+        toolchains: ["arm-zephyr-eabi"],
+        pipPackages: ["dtsh"],
+      });
+
+      await setZephyrIdePipRequirements(ws, ["external/nrf/scripts/requirements.txt"]);
+
+      const onDisk = await fs.readJson(filePath);
+      assert.deepStrictEqual(onDisk.pipRequirements, ["external/nrf/scripts/requirements.txt"]);
+      assert.deepStrictEqual(onDisk.toolchains, ["arm-zephyr-eabi"]);
+      assert.deepStrictEqual(onDisk.pipPackages, ["dtsh"]);
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  test("getZephyrIdePipRequirements normalises malformed entries", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-req-"));
+    try {
+      const ws = makeWsConfig(tmpRoot);
+      const filePath = path.join(tmpRoot, ".vscode", "zephyr-ide.json");
+      await fs.outputJson(filePath, {
+        pipRequirements: [
+          "scripts/requirements.txt",
+          "",
+          "  external/nrf/scripts/requirements.txt  ",
+          "scripts/requirements.txt", // duplicate
+          42,
+          null,
+        ],
+      });
+      assert.deepStrictEqual(getZephyrIdePipRequirements(ws), [
+        "scripts/requirements.txt",
+        "external/nrf/scripts/requirements.txt",
+      ]);
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  test("pipPackages and pipRequirements coexist in the same file", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-pip-req-"));
+    try {
+      const ws = makeWsConfig(tmpRoot);
+      await setZephyrIdePipPackages(ws, ["dtsh", "pyocd"]);
+      await setZephyrIdePipRequirements(ws, ["external/nrf/scripts/requirements.txt"]);
+
+      assert.deepStrictEqual(getZephyrIdePipPackages(ws), ["dtsh", "pyocd"]);
+      assert.deepStrictEqual(getZephyrIdePipRequirements(ws), ["external/nrf/scripts/requirements.txt"]);
+
+      const onDisk = await fs.readJson(path.join(tmpRoot, ".vscode", "zephyr-ide.json"));
+      assert.deepStrictEqual(onDisk.pipPackages, ["dtsh", "pyocd"]);
+      assert.deepStrictEqual(onDisk.pipRequirements, ["external/nrf/scripts/requirements.txt"]);
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  test("getZephyrIdeCommands normalizes platform lists and ignores unknown keys", async () => {    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-cmd-"));
     try {
       const ws = makeWsConfig(tmpRoot);
       const filePath = path.join(tmpRoot, ".vscode", "zephyr-ide.json");

@@ -48,6 +48,12 @@ limitations under the License.
  *   - `pipPackages`: string[] Additional Python package specifiers that should
  *                             be installed in the workspace's Python environment.
  *                             The user is prompted before installation for security.
+ *   - `pipRequirements`: string[] Relative paths (from workspace root) to
+ *                             `requirements.txt`-style files whose packages
+ *                             should be installed in the workspace's Python
+ *                             environment alongside any `pipPackages`.  Both
+ *                             fields are installed together in a single step
+ *                             with no extra prompts.
  *   - `commands`: { linux?: string[], windows?: string[], mac?: string[] }
  *                             Platform-specific terminal commands to run after
  *                             workspace setup. The user is prompted via a
@@ -269,6 +275,27 @@ export async function setZephyrIdePipPackages(wsConfig: WorkspaceConfig, package
         delete data.pipPackages;
     } else {
         data.pipPackages = normalized;
+    }
+    await writeZephyrIdeJson(wsConfig, data);
+}
+
+/** Get the list of additional pip requirements files declared in zephyr-ide.json. */
+export function getZephyrIdePipRequirements(wsConfig: WorkspaceConfig): string[] {
+    return normalizeStringList(readZephyrIdeJson(wsConfig).pipRequirements);
+}
+
+/**
+ * Replace the `pipRequirements` key in zephyr-ide.json with `requirements`.
+ * If `requirements` is empty the key is removed. All other top-level keys are
+ * preserved.
+ */
+export async function setZephyrIdePipRequirements(wsConfig: WorkspaceConfig, requirements: string[]): Promise<void> {
+    const data = readZephyrIdeJson(wsConfig);
+    const normalized = normalizeStringList(requirements);
+    if (normalized.length === 0) {
+        delete data.pipRequirements;
+    } else {
+        data.pipRequirements = normalized;
     }
     await writeZephyrIdeJson(wsConfig, data);
 }
