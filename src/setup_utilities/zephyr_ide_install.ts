@@ -520,6 +520,21 @@ function parsePipPackageInput(value: string): string[] {
     return Array.from(new Set(parts));
 }
 
+/**
+ * Parse a user-supplied requirements-file list.
+ * Splits only on commas and newlines — NOT on spaces — so that paths
+ * containing spaces (e.g. Windows paths under "Program Files") are
+ * preserved intact.
+ */
+function parsePipRequirementsInput(value: string): string[] {
+    if (!value.trim()) { return []; }
+    const parts = value
+        .split(/[\r\n,]+/)
+        .map(v => v.trim())
+        .filter(v => v.length > 0);
+    return Array.from(new Set(parts));
+}
+
 /** Open the modify-pip-packages input and persist the result. */
 export async function modifyZephyrIdePipPackagesInteractive(wsConfig: WorkspaceConfig): Promise<string[] | undefined> {
     if (!wsConfig.rootPath) {
@@ -609,10 +624,15 @@ export async function installZephyrIdePipPackages(
  * Validate a single requirements file path.
  * Paths may be workspace-relative or absolute and must end in `.txt`.
  * Relative paths are restricted to safe characters and cannot include `..`.
+ * Absolute paths must not contain shell metacharacters.
  */
 function isValidRequirementsPath(p: string): boolean {
     if (!p || !p.endsWith(".txt")) { return false; }
-    if (path.isAbsolute(p)) { return true; }
+    if (path.isAbsolute(p)) {
+        // Reject paths containing shell metacharacters to prevent command injection
+        if (/["'`$;&|<>!(){}]/.test(p)) { return false; }
+        return true;
+    }
     if (!/^[A-Za-z0-9_.\/\-]+$/.test(p)) { return false; }
     return !p.split("/").includes("..");
 }
@@ -627,9 +647,9 @@ export async function modifyZephyrIdePipRequirementsInteractive(wsConfig: Worksp
     const current = getZephyrIdePipRequirements(wsConfig);
     const value = await vscode.window.showInputBox({
         title: "Modify Pip Requirements Files (zephyr-ide.json)",
-        prompt: "Enter relative or absolute paths to requirements.txt files, separated by spaces, commas, or new lines.",
-        placeHolder: "external/nrf/scripts/requirements.txt scripts/requirements.txt",
-        value: current.join(" "),
+        prompt: "Enter relative or absolute paths to requirements.txt files, separated by commas or new lines.",
+        placeHolder: "external/nrf/scripts/requirements.txt, scripts/requirements.txt",
+        value: current.join(", "),
         ignoreFocusOut: true,
     });
 
@@ -638,7 +658,7 @@ export async function modifyZephyrIdePipRequirementsInteractive(wsConfig: Worksp
         return undefined;
     }
 
-    const paths = parsePipPackageInput(value);
+    const paths = parsePipRequirementsInput(value);
     const invalid = paths.filter(p => !isValidRequirementsPath(p));
     if (invalid.length > 0) {
         notifyError(

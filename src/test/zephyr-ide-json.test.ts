@@ -544,7 +544,8 @@ suite("zephyr-ide.json toolchains/blobs Test Suite", () => {
     }
   });
 
-  test("getZephyrIdeCommands normalizes platform lists and ignores unknown keys", async () => {    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-cmd-"));
+  test("getZephyrIdeCommands normalizes platform lists and ignores unknown keys", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-cmd-"));
     try {
       const ws = makeWsConfig(tmpRoot);
       const filePath = path.join(tmpRoot, ".vscode", "zephyr-ide.json");
