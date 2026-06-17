@@ -296,7 +296,7 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
       outputInfo("West Update", "Running 'west zephyr-export'...");
       const exportRes = await executeTaskHelperInPythonEnv(setupState, "Zephyr IDE: West Zephyr Export", "west zephyr-export", setupState.setupPath, true);
       if (!exportRes) {
-        notifyError("West Update", "west zephyr-export failed. Check the Zephyr IDE output for details.");
+        notifyError("West Update", "west zephyr-export failed. Ensure Zephyr is installed and CMake can locate it. Check the Zephyr IDE output for details.");
       }
     }
 
