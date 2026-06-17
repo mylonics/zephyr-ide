@@ -97,6 +97,13 @@ const SETTINGS: SettingDefinition[] = [
     defaultValue: false,
   },
   {
+    key: "zephyr-ide.westZephyrExport",
+    label: "West Zephyr Export",
+    description: "If enabled, runs 'west zephyr-export' after a successful west update. This registers the Zephyr CMake package so that out-of-tree applications can find Zephyr with 'find_package(Zephyr)'.",
+    type: "boolean",
+    defaultValue: false,
+  },
+  {
     key: "zephyr-ide.suppressWorkspaceWarning",
     label: "Suppress Workspace Warning",
     description: "Suppress the warning about missing workspace environment variables (ZEPHYR_BASE, ZEPHYR_SDK_INSTALL_DIR).",
