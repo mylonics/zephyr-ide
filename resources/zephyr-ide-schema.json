@@ -46,6 +46,34 @@
         "description": "Python package name (e.g. 'dtsh', 'pyocd')"
       }
     },
+    "commands": {
+      "type": "object",
+      "description": "Platform-specific terminal commands that can be run after workspace setup. Users are prompted to review and approve commands before execution.",
+      "properties": {
+        "linux": {
+          "type": "array",
+          "description": "Commands offered when running on Linux.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "windows": {
+          "type": "array",
+          "description": "Commands offered when running on Windows.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "mac": {
+          "type": "array",
+          "description": "Commands offered when running on macOS.",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
     "sdkVersion": {
       "type": "string",
       "description": "Zephyr SDK version to install when bootstrapping (e.g. '0.17.0'). If omitted, the version from the Zephyr tree's SDK_VERSION file is used; if that is unavailable, the latest released SDK is installed.",

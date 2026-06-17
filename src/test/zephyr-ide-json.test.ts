@@ -29,6 +29,8 @@ import {
   setZephyrIdeSdkVersion,
   getZephyrIdeSampleProjects,
   setZephyrIdeSampleProjects,
+  getZephyrIdeCommands,
+  setZephyrIdeCommands,
   readZephyrIdeJson,
 } from "../setup_utilities/zephyr_ide_json";
 import { WorkspaceConfig } from "../setup_utilities/types";
@@ -333,6 +335,71 @@ suite("zephyr-ide.json toolchains/blobs Test Suite", () => {
       assert.strictEqual(result[0].name, "blinky");
       assert.deepStrictEqual(result[0].confFiles, { config: ["prj.conf"], overlay: [] });
       assert.ok(result[0].buildConfigs["debug"], "build config 'debug' should be present");
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  test("getZephyrIdeCommands normalizes platform lists and ignores unknown keys", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-cmd-"));
+    try {
+      const ws = makeWsConfig(tmpRoot);
+      const filePath = path.join(tmpRoot, ".vscode", "zephyr-ide.json");
+      await fs.outputJson(filePath, {
+        commands: {
+          linux: ["echo one", "  echo two  ", "", "echo one", 42],
+          windows: ["dir", "dir", "  ", null],
+          mac: "not-an-array",
+          freebsd: ["unsupported"],
+        },
+      });
+
+      assert.deepStrictEqual(getZephyrIdeCommands(ws), {
+        linux: ["echo one", "echo two"],
+        windows: ["dir"],
+      });
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  test("setZephyrIdeCommands omits empty platforms and preserves other top-level keys", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-cmd-"));
+    try {
+      const ws = makeWsConfig(tmpRoot);
+      const filePath = path.join(tmpRoot, ".vscode", "zephyr-ide.json");
+      await fs.outputJson(filePath, {
+        projects: { app: { name: "app", rel_path: "app" } },
+        sdkVersion: "0.17.0",
+      });
+
+      await setZephyrIdeCommands(ws, {
+        linux: ["echo one", "echo one"],
+        windows: [],
+        mac: ["  echo mac  "],
+      });
+
+      const onDisk = await fs.readJson(filePath);
+      assert.deepStrictEqual(onDisk.commands, {
+        linux: ["echo one"],
+        mac: ["echo mac"],
+      });
+      assert.deepStrictEqual(onDisk.projects, { app: { name: "app", rel_path: "app" } });
+      assert.strictEqual(onDisk.sdkVersion, "0.17.0");
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  test("setZephyrIdeCommands removes the key when all platform lists are empty", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-cmd-"));
+    try {
+      const ws = makeWsConfig(tmpRoot);
+      await setZephyrIdeCommands(ws, { linux: ["echo one"] });
+      await setZephyrIdeCommands(ws, { linux: [], windows: [], mac: [] });
+
+      const onDisk = readZephyrIdeJson(ws);
+      assert.strictEqual(onDisk.commands, undefined);
     } finally {
       await fs.remove(tmpRoot);
     }
