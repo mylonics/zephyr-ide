@@ -130,7 +130,15 @@ export class ZephyrIDEManagerApp extends ZephyrLitElement {
           <div class="commands-platform">
             <span class="commands-platform-label">${label}</span>
             <div class="token-list">
-              ${cmds.map(cmd => html`<span class="token">${cmd}</span>`)}
+              ${cmds.map(cmd => html`
+                <button
+                  class="command-chip"
+                  title="Run this command"
+                  @click=${() => this.postCommand("runSingleCommand", { platform: String(key), commandText: cmd })}
+                >
+                  ${cmd}
+                </button>
+              `)}
             </div>
           </div>
         `;
@@ -259,11 +267,11 @@ export class ZephyrIDEManagerApp extends ZephyrLitElement {
             <div class="manager-card-header">
               <h2 class="manager-title">Terminal Commands</h2>
               <div class="manager-actions">
-                <vscode-button appearance="secondary" @click=${() => this.postCommand("modifyCommands")}>Modify</vscode-button>
+                <vscode-button appearance="secondary" @click=${() => this.postCommand("modifyCommands")}>Add/Modify/Delete</vscode-button>
                 <vscode-button @click=${() => this.postCommand("runCommands")}>Run Commands</vscode-button>
               </div>
             </div>
-            <p class="manager-subtext">Platform-specific terminal commands run after workspace setup or when manually triggered. Users are prompted to approve before execution.</p>
+            <p class="manager-subtext">Click an individual command to run it. Use Add/Modify/Delete to choose target OS and edit commands one at a time.</p>
             ${this._renderCommandsSection(this._data.commands)}
           </section>
         </div>

@@ -866,6 +866,23 @@ export function getPlatformSpecificCommands(wsConfig: WorkspaceConfig): string[]
     return [];
 }
 
+type CommandPlatformKey = keyof ZephyrIdeCommands;
+
+function getCommandPlatformLabels(): Array<{ key: CommandPlatformKey; label: string }> {
+    return [
+        { key: "linux", label: "Linux" },
+        { key: "windows", label: "Windows" },
+        { key: "mac", label: "macOS" },
+    ];
+}
+
+function parseCommandList(value: string): string[] {
+    return value
+        .split(/\r?\n/)
+        .map(v => v.trim())
+        .filter(v => v.length > 0);
+}
+
 /**
  * Interactive editor for the `commands` object in zephyr-ide.json.
  * Shows three sequential input boxes (one per platform) so the user can
@@ -879,39 +896,120 @@ export async function modifyZephyrIdeCommandsInteractive(wsConfig: WorkspaceConf
 
     const current = getZephyrIdeCommands(wsConfig);
 
-    const platformLabels: Array<{ key: keyof ZephyrIdeCommands; label: string }> = [
-        { key: "linux", label: "Linux" },
-        { key: "windows", label: "Windows" },
-        { key: "mac", label: "macOS" },
-    ];
+    const targetPlatform = await vscode.window.showQuickPick(
+        getCommandPlatformLabels().map(p => ({ label: p.label, platform: p.key })),
+        {
+            ignoreFocusOut: true,
+            title: "Manage zephyr-ide.json Commands",
+            placeHolder: "Select target OS",
+        },
+    );
+    if (!targetPlatform) {
+        outputInfo("Zephyr IDE Commands", "Manage cancelled");
+        return undefined;
+    }
 
-    const updated: ZephyrIdeCommands = { ...current };
+    const action = await vscode.window.showQuickPick(
+        [
+            { label: "Add", description: `Add a command for ${targetPlatform.label}`, value: "add" as const },
+            { label: "Modify", description: `Modify one command for ${targetPlatform.label}`, value: "modify" as const },
+            { label: "Delete", description: `Delete one command for ${targetPlatform.label}`, value: "delete" as const },
+        ],
+        {
+            ignoreFocusOut: true,
+            title: `Manage Commands - ${targetPlatform.label}`,
+            placeHolder: "Choose action",
+        },
+    );
+    if (!action) {
+        outputInfo("Zephyr IDE Commands", "Manage cancelled");
+        return undefined;
+    }
 
-    for (let i = 0; i < platformLabels.length; i++) {
-        const { key, label } = platformLabels[i];
-        const existing = (current[key] ?? []).join("\n");
+    const platformKey = targetPlatform.platform;
+    const existing = current[platformKey] ?? [];
+    const updated: ZephyrIdeCommands = {
+        linux: [...(current.linux ?? [])],
+        windows: [...(current.windows ?? [])],
+        mac: [...(current.mac ?? [])],
+    };
+
+    if (action.value === "add") {
         const value = await vscode.window.showInputBox({
-            title: `Modify zephyr-ide.json Commands — ${label} (step ${i + 1} / ${platformLabels.length})`,
-            prompt: `Enter terminal commands for ${label}, one per line (or comma-separated). Leave empty to remove.`,
-            placeHolder: "echo Hello\ncmake --version",
-            value: existing,
+            title: `Add Command - ${targetPlatform.label}`,
+            prompt: "Enter a single terminal command to add",
+            placeHolder: "west --version",
             ignoreFocusOut: true,
         });
-
         if (value === undefined) {
-            outputInfo("Zephyr IDE Commands", "Modify cancelled");
+            outputInfo("Zephyr IDE Commands", "Add cancelled");
             return undefined;
         }
 
-        const parsed = value
-            .split(/[\r\n,]+/)
-            .map(v => v.trim())
-            .filter(v => v.length > 0);
-
+        const parsed = parseCommandList(value);
         if (parsed.length === 0) {
-            delete updated[key];
+            outputInfo("Zephyr IDE Commands", "No command entered.");
+            return current;
+        }
+
+        const first = parsed[0];
+        const next = [...existing];
+        if (!next.includes(first)) {
+            next.push(first);
+        }
+        if (next.length === 0) {
+            delete updated[platformKey];
         } else {
-            updated[key] = parsed;
+            updated[platformKey] = next;
+        }
+    } else {
+        if (existing.length === 0) {
+            void vscode.window.showInformationMessage(`No commands configured for ${targetPlatform.label}.`);
+            return current;
+        }
+
+        const picked = await vscode.window.showQuickPick(
+            existing.map(cmd => ({ label: cmd })),
+            {
+                ignoreFocusOut: true,
+                title: `${action.label} Command - ${targetPlatform.label}`,
+                placeHolder: `Select a command to ${action.value}`,
+            },
+        );
+        if (!picked) {
+            outputInfo("Zephyr IDE Commands", `${action.label} cancelled`);
+            return undefined;
+        }
+
+        if (action.value === "delete") {
+            const next = existing.filter(cmd => cmd !== picked.label);
+            if (next.length === 0) {
+                delete updated[platformKey];
+            } else {
+                updated[platformKey] = next;
+            }
+        } else {
+            const replacement = await vscode.window.showInputBox({
+                title: `Modify Command - ${targetPlatform.label}`,
+                prompt: "Update the selected command",
+                value: picked.label,
+                placeHolder: "west --version",
+                ignoreFocusOut: true,
+            });
+            if (replacement === undefined) {
+                outputInfo("Zephyr IDE Commands", "Modify cancelled");
+                return undefined;
+            }
+
+            const parsed = parseCommandList(replacement);
+            if (parsed.length === 0) {
+                void vscode.window.showInformationMessage("Command cannot be empty.");
+                return current;
+            }
+
+            const next = existing.map(cmd => cmd === picked.label ? parsed[0] : cmd);
+            // Remove duplicates while preserving order after modification.
+            updated[platformKey] = Array.from(new Set(next));
         }
     }
 
@@ -919,6 +1017,47 @@ export async function modifyZephyrIdeCommandsInteractive(wsConfig: WorkspaceConf
     const total = (updated.linux?.length ?? 0) + (updated.windows?.length ?? 0) + (updated.mac?.length ?? 0);
     outputInfo("Zephyr IDE Commands", `Saved ${total} command(s) to zephyr-ide.json`);
     return updated;
+}
+
+/**
+ * Run one command from zephyr-ide.json after explicit user confirmation.
+ */
+export async function runSingleZephyrIdeCommandInteractive(
+    wsConfig: WorkspaceConfig,
+    platform: CommandPlatformKey,
+    command: string,
+): Promise<boolean> {
+    const commands = getZephyrIdeCommands(wsConfig);
+    const allowed = commands[platform] ?? [];
+    const normalized = command.trim();
+    if (!normalized || !allowed.includes(normalized)) {
+        outputWarning("Zephyr IDE Commands", `Refusing to run undeclared command for ${platform}: ${command}`);
+        return false;
+    }
+
+    const platformLabel = getCommandPlatformLabels().find(p => p.key === platform)?.label ?? platform;
+    const answer = await vscode.window.showWarningMessage(
+        `Run this ${platformLabel} command from zephyr-ide.json?\n\n${normalized}`,
+        { modal: false },
+        "Run Command",
+        "Cancel",
+    );
+    if (answer !== "Run Command") {
+        outputInfo("Zephyr IDE Commands", "User cancelled single-command execution.");
+        return true;
+    }
+
+    outputInfo("Zephyr IDE Commands", `Running (${platformLabel}): ${normalized}`);
+    const ok = await executeTaskHelper(
+        `Zephyr IDE: Run Command (${platformLabel})`,
+        normalized,
+        wsConfig.rootPath || undefined,
+    );
+    if (!ok) {
+        outputError("Zephyr IDE Commands", `Command failed: ${normalized}`);
+        notifyError("Zephyr IDE Commands", "The command failed. Check the Zephyr IDE output for details.");
+    }
+    return ok;
 }
 
 /**
@@ -941,8 +1080,8 @@ export async function runZephyrIdeCommandsInteractive(
     }
 
     const answer = await vscode.window.showInformationMessage(
-        "zephyr-ide.json would like to run additional terminal commands. Only run commands you understand and trust the origin of this workspace.",
-        { modal: true },
+        "zephyr-ide.json would like to run additional terminal commands. Only run commands you understand and ensure you trust the origin of this workspace.",
+        { modal: false },
         "Select Commands",
         "Skip",
     );
@@ -1020,13 +1159,69 @@ export async function installZephyrIdeRequirements(
     globalConfig: GlobalConfig,
     context: vscode.ExtensionContext,
 ): Promise<void> {
+    async function ensureSdkInstalledForWorkspaceSetup(): Promise<boolean> {
+        try {
+            const sdkList = await listAvailableSDKs();
+            const hasSdkWithToolchains = sdkList.success
+                && sdkList.versions.some(v => (v.installedToolchains?.length ?? 0) > 0);
+
+            if (hasSdkWithToolchains) {
+                if (!globalConfig.sdkInstalled) {
+                    globalConfig.sdkInstalled = true;
+                    globalConfig.sdkVersion = globalConfig.sdkVersion ?? await detectInstalledSDKVersion();
+                    await setGlobalState(context, globalConfig);
+                }
+                return true;
+            }
+
+            const declaredToolchains = getZephyrIdeToolchains(wsConfig);
+            const bootstrapToolchains = declaredToolchains.length > 0 ? declaredToolchains : ["all"];
+            const targetVersion = await resolveTargetSdkVersion(wsConfig) ?? globalConfig.sdkVersion;
+
+            outputInfo(
+                "Workspace Setup",
+                `No installed SDK detected. Bootstrapping SDK ${targetVersion ?? "(latest)"} with ${bootstrapToolchains.length === 1 && bootstrapToolchains[0] === "all" ? "all toolchains" : `toolchains: ${bootstrapToolchains.join(", ")}`}.`,
+            );
+
+            const ok = await vscode.window.withProgress(
+                {
+                    location: vscode.ProgressLocation.Notification,
+                    title: `Installing Zephyr SDK ${targetVersion ?? "(latest)"}`,
+                    cancellable: false,
+                },
+                async (progress) => installSDK(targetVersion, bootstrapToolchains, (msg) => progress.report({ message: msg }), context.extensionPath),
+            );
+
+            if (!ok) {
+                notifyError("SDK Install", "Automatic SDK installation failed during workspace setup. Check the Zephyr IDE output for details.");
+                return false;
+            }
+
+            globalConfig.sdkInstalled = true;
+            globalConfig.sdkVersion = targetVersion ?? await detectInstalledSDKVersion();
+            await setGlobalState(context, globalConfig);
+            return true;
+        } catch (error) {
+            outputError("SDK Install", `Automatic SDK bootstrap failed: ${error}`);
+            return false;
+        }
+    }
+
     try {
         if (getZephyrIdeToolchains(wsConfig).length > 0) {
-            await installZephyrIdeToolchains(wsConfig, globalConfig, context, true, true);
+            const ok = await installZephyrIdeToolchains(wsConfig, globalConfig, context, true, true);
+            if (!ok) {
+                outputWarning("Zephyr IDE Toolchains", "Auto-install of declared toolchains failed during workspace setup.");
+            }
         }
     } catch (error) {
         outputError("Zephyr IDE Toolchains", `Auto-install of declared toolchains failed: ${error}`);
     }
+
+    // Ensure the workspace setup flow leaves the user with an installed SDK,
+    // even when zephyr-ide.json does not declare explicit toolchains.
+    await ensureSdkInstalledForWorkspaceSetup();
+
     try {
         if (getZephyrIdeBlobs(wsConfig).length > 0) {
             await installZephyrIdeBlobs(wsConfig, context, true);
@@ -1036,7 +1231,7 @@ export async function installZephyrIdeRequirements(
     }
     try {
         const packages = getZephyrIdePipPackages(wsConfig);
-        if (packages.length > 0 && wsConfig.activeSetupState?.packagesInstalled !== true) {
+        if (packages.length > 0) {
             const answer = await vscode.window.showInformationMessage(
                 `zephyr-ide.json declares ${packages.length} pip package(s) to install: ${packages.join(", ")}. Install them now?`,
                 { modal: false },

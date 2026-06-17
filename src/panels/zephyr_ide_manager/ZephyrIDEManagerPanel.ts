@@ -22,6 +22,7 @@ import {
   installBlobModulesInteractive,
   onBlobProgress,
   BlobModuleInfo,
+  runSingleZephyrIdeCommandInteractive,
 } from "../../setup_utilities/zephyr_ide_install";
 import {
   getZephyrIdeToolchains,
@@ -206,6 +207,12 @@ export class ZephyrIDEManagerPanel {
         return;
       case "runCommands":
         await vscode.commands.executeCommand("zephyr-ide.run-zephyr-ide-commands");
+        return;
+      case "runSingleCommand":
+        if (this.currentWsConfig && typeof message.platform === "string" && typeof message.commandText === "string") {
+          const platform = message.platform as "linux" | "windows" | "mac";
+          await runSingleZephyrIdeCommandInteractive(this.currentWsConfig, platform, message.commandText);
+        }
         return;
       case "openHostToolsPanel":
         void vscode.commands.executeCommand("zephyr-ide.open-host-tools-panel");

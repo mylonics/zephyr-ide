@@ -133,3 +133,18 @@
   display: block;
   margin-bottom: 4px;
 }
+
+.command-chip {
+  font-size: 11px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 999px;
+  padding: 3px 10px;
+  color: var(--vscode-foreground);
+  background-color: var(--vscode-badge-background);
+  cursor: pointer;
+}
+
+.command-chip:hover {
+  border-color: color-mix(in srgb, var(--vscode-terminal-ansiBlue) 32%, transparent);
+  color: var(--vscode-terminal-ansiBlue);
+}
