@@ -27,7 +27,7 @@ import * as yaml from 'js-yaml';
 import { SetupState, WorkspaceConfig } from "../setup_utilities/types";
 import { getToolchainDir, resolveToolchainDirPath } from "../setup_utilities/workspace-config";
 import { initOutputChannel, getOutputChannel, outputCommand, outputError, outputInfo, outputLine, type ShellCommandResult } from "./output";
-import { KNOWN_RUNNERS, CORTEX_DEBUG_RUNNERS, WEST_DEBUG_RUNNERS } from "../project_utilities/runner_selector";
+import { WEST_RUNNERS, CORTEX_DEBUG_RUNNERS, WEST_DEBUG_RUNNERS } from "../project_utilities/runner_selector";
 export type { ShellCommandResult } from "./output";
 
 /**
@@ -675,8 +675,8 @@ export async function selectLaunchConfiguration(
   if (mode === "flash") {
     // All west runners, categorised under "west flash".
     const sortedRunners = availableSet
-      ? [...KNOWN_RUNNERS.filter(r => availableSet.has(r)), ...KNOWN_RUNNERS.filter(r => !availableSet.has(r))]
-      : KNOWN_RUNNERS;
+      ? [...WEST_RUNNERS.filter(r => availableSet.has(r)), ...WEST_RUNNERS.filter(r => !availableSet.has(r))]
+      : WEST_RUNNERS;
     items.push({ label: "west flash", kind: vscode.QuickPickItemKind.Separator });
     items.push(...sortedRunners.map(r => ({
       label: `${_RUNNER_ICON_PREFIX}${r}`,

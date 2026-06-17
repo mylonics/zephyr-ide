@@ -309,6 +309,43 @@ suite("Debug Provider Integration Test Suite", () => {
         }
     });
 
+    test("servertype without runner -> drives runner resolution and arg extraction", async function () {
+        if (!isCortexDebugInstalled) { this.skip(); }
+        const fixture = setupRealWorkspace({
+            runnersYamlContents: [
+                "elf_file: zephyr/zephyr.elf",
+                "gdb: /sdk/arm-zephyr-eabi-gdb",
+                "runners:",
+                "  - openocd",
+                "debug-runner: openocd",
+                "args:",
+                "  openocd:",
+                "    - --config",
+                "    - interface/stlink.cfg",
+                "    - --config",
+                "    - target/stm32f4x.cfg",
+                "",
+            ].join("\n"),
+        });
+        try {
+            const provider = new ZephyrIdeCortexDebugConfigurationProvider(() => fixture.wsConfig, makeFakeContext());
+            const result = await provider.resolveDebugConfiguration(
+                undefined,
+                // No `runner` — only `servertype`. Provider must map it back to the
+                // openocd runner so the runners.yaml configFiles are still lifted.
+                { name: "Zephyr IDE: Debug", type: ZEPHYR_IDE_CORTEX_DEBUG_TYPE, request: "launch", servertype: "openocd" } as vscode.DebugConfiguration,
+            ) as any;
+
+            assert.ok(result);
+            assert.strictEqual(result.servertype, "openocd");
+            assert.ok(Array.isArray(result.configFiles) && result.configFiles.includes("interface/stlink.cfg"),
+                "servertype-driven resolution must run the openocd arg-extraction branch");
+            assert.ok(result.executable && result.gdbPath);
+        } finally {
+            fixture.cleanup();
+        }
+    });
+
     test("bmp without serial port -> provider refuses with actionable error instead of silently launching a broken session", async function () {
         if (!isCortexDebugInstalled) { this.skip(); }
         // BMP requires `BMPGDBSerialPort` to drive cortex-debug. If runners.yaml
@@ -465,7 +502,7 @@ suite("Debug Provider Integration Test Suite", () => {
                     type: ZEPHYR_IDE_WEST_DEBUG_TYPE,
                     request: "launch",
                     runner: "jlink",
-                    westNoReset: true,
+                    noReset: true,
                     westArgs: ["--gdb-port", "9999"],
                 } as vscode.DebugConfiguration,
             ) as any;

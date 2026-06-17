@@ -53,8 +53,11 @@ suite("runners.yaml parser & DebugConfigurationProvider translation", () => {
         assert.strictEqual(runnerToServerType("stlink"), "stlink");
         assert.strictEqual(runnerToServerType("stlink_gdbserver"), "stlink");
         assert.strictEqual(runnerToServerType("stm32cubeprogrammer-stlink"), "stlink");
+        assert.strictEqual(runnerToServerType("stutil"), "stutil");
+        assert.strictEqual(runnerToServerType("pe"), "pe");
         assert.strictEqual(runnerToServerType("blackmagicprobe"), "bmp");
         assert.strictEqual(runnerToServerType("bmp"), "bmp");
+        assert.strictEqual(runnerToServerType("external"), "external");
         assert.strictEqual(runnerToServerType("qemu"), "qemu");
         assert.strictEqual(runnerToServerType("totally-unknown"), undefined);
     });
@@ -70,11 +73,14 @@ suite("runners.yaml parser & DebugConfigurationProvider translation", () => {
 
     test("runnerNeedsBridge agrees with WEST_DEBUG_RUNNERS membership", () => {
         for (const r of WEST_DEBUG_RUNNERS) {
-            assert.strictEqual(runnerNeedsBridge(r), true, `${r} should need bridge`);
-            assert.strictEqual(runnerToServerType(r), "external", `${r} should map to external`);
+            assert.strictEqual(
+                runnerNeedsBridge(r),
+                runnerToServerType(r) === "external",
+                `${r} should require bridge only when mapped to external`
+            );
         }
         // Native servertypes must not be flagged as bridged.
-        for (const r of ["jlink", "openocd", "pyocd", "stlink", "bmp", "qemu"]) {
+        for (const r of ["jlink", "openocd", "pyocd", "stlink", "stutil", "pe", "bmp", "qemu"]) {
             assert.strictEqual(runnerNeedsBridge(r), false, `${r} should not need bridge`);
         }
     });

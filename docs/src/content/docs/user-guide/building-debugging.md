@@ -22,15 +22,15 @@ If you do create a `launch.json`, the simplest possible configuration is:
 
 ```json
 {
-  "name": "Zephyr IDE: Debug",
+  "name": "Zephyr IDE Cortex: Debug",
   "type": "zephyr-ide-cortex",
   "request": "launch"
 }
 ```
 
-The provider picks the runner from `runners.yaml` (preferring `debug-runner`), looks up the ELF and GDB paths recorded there, sets `"rtos": "Zephyr"`, and passes the result to cortex-debug. To pin a specific runner explicitly, add a `"runner"` field (`"jlink"`, `"openocd"`, `"pyocd"`, `"stlink"`, `"bmp"`, etc.).
+The provider picks the runner from `runners.yaml` (preferring `debug-runner`), looks up the ELF and GDB paths recorded there, sets `"rtos": "Zephyr"`, and passes the result to cortex-debug. To pin a specific cortex-debug server explicitly, add a `"servertype"` field (`"jlink"`, `"openocd"`, `"pyocd"`, `"stlink"`, `"bmp"`, `"qemu"`); Zephyr IDE maps it back to the matching runner. A `"runner"` field is still accepted (mainly for bridged targets).
 
-The extension ships snippets for the most common runners: **J-Link**, **pyOCD**, **ST-Link**, **Black Magic Probe** (launch and attach), **nrfjprog** and **LinkServer** bridges, a sysbuild-image variant, and an explicit-probe OpenOCD override. A **"Debug (ask build at launch)"** snippet uses the `ask` field to prompt for a build configuration each time F5 is pressed — set `ask: "askBoth"` to prompt for project as well. One **"Cortex Debug (Legacy): Manual debug configuration"** snippet is also provided for advanced cases where you need full control over GDB server arguments; its label begins with `Cortex Debug (Legacy)` so it is easy to distinguish.
+The `zephyr-ide-cortex` debugger ships snippets for the most common servers: **J-Link**, **pyOCD**, **ST-Link**, **Black Magic Probe** (launch and attach), a sysbuild-image variant, and an explicit-probe OpenOCD override — each using `servertype`. A **"Debug (ask build at launch)"** snippet uses the `ask` field to prompt for a build configuration each time F5 is pressed — set `ask: "askBoth"` to prompt for project as well. One **"Cortex Debug (Legacy): Manual debug configuration"** snippet is also provided for advanced cases where you need full control over GDB server arguments; its label begins with `Cortex Debug (Legacy)` so it is easy to distinguish. Bridge-based snippets (nrfjprog, LinkServer, STM32CubeProgrammer, OpenOCD-over-west, external GDB server) live under the **Zephyr IDE West** debugger.
 
 ### Runners via West Debugserver Bridge
 
@@ -45,11 +45,11 @@ Bridged runners:
 | `esp32` | 3333 | ESP32 OpenOCD |
 | `stm32cubeprogrammer` | 61234 | STM32_Programmer_CLI gdbserver |
 
-To connect to an **already-running** GDB server instead of having Zephyr IDE spawn one, add `"gdbTarget": "host:port"` to your `zephyr-ide-west` launch configuration. This suppresses the bridge auto-spawn and passes the address directly to cortex-debug. See the **"Zephyr IDE: Debug (external GDB server, manual)"** snippet in the *Add Configuration* picker for an example.
+To connect to an **already-running** GDB server instead of having Zephyr IDE spawn one, add `"gdbTarget": "host:port"` to your `zephyr-ide-west` launch configuration. This suppresses the bridge auto-spawn and passes the address directly to cortex-debug. See the **"Zephyr IDE West: Attach to external GDB server"** snippet in the *Add Configuration* picker for an example.
 
-`zephyr-ide-west` also exposes curated west debugserver flags. Unprefixed names are used for runner-specific options (e.g. `device`, `speed`, `config`) while older common fields keep the `west` prefix for backward compatibility.
+`zephyr-ide-west` also exposes curated west debugserver flags. Each field name mirrors its `west debugserver` flag (e.g. `port` → `--port`, `gdbPort` → `--gdb-port`, plus `device`, `speed`, `config`), and its description is tagged with the runner(s) it applies to (`[Common]`, `[openocd]`, `[probe-rs, jlink]`, `[jlink]`).
 
-Use `westArgs` to pass through any additional runner-specific flags that are not modeled explicitly. Old `west`-prefixed aliases remain supported but are deprecated.
+Use `westArgs` to pass through any additional runner-specific flags that are not modeled explicitly.
 
 ![Setting Up Launch Configuration](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/setting_up_debug.gif)
 

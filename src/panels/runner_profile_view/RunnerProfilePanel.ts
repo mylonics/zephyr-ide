@@ -21,7 +21,7 @@ import { WorkspaceConfig, GlobalConfig } from "../../setup_utilities/types";
 import { generateNonce } from "../webview_shared/nonce";
 import { notifyError } from "../../utilities/output";
 import { getLaunchConfigurations } from "../../utilities/utils";
-import { KNOWN_RUNNERS, CORTEX_DEBUG_RUNNERS, WEST_DEBUG_RUNNERS } from "../../project_utilities/runner_selector";
+import { WEST_RUNNERS, CORTEX_DEBUG_RUNNERS, WEST_DEBUG_RUNNERS } from "../../project_utilities/runner_selector";
 import {
   FlashBind,
   DebugBind,
@@ -375,7 +375,7 @@ export class RunnerProfilePanel {
         userProfiles: user,
         workspaceProfiles: workspace,
         hasWorkspace: !!this._wsConfig.rootPath,
-        knownRunners: KNOWN_RUNNERS.slice(),
+        knownRunners: WEST_RUNNERS.slice(),
         knownCortexDebugRunners: CORTEX_DEBUG_RUNNERS.slice(),
         knownWestDebugRunners: WEST_DEBUG_RUNNERS.slice(),
         launchConfigNames,
