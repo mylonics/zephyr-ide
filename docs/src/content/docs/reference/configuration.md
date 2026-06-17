@@ -161,8 +161,8 @@ This is the workspace file used for projects/builds/tests, runner profiles, and 
 |---|---|---|---|
 | `name` | `string` | Yes | Build config name. |
 | `board` | `string` | Yes | Zephyr board identifier. |
-| `relBoardDir` | `string` | Yes | Board directory relative path used by board resolution. |
-| `relBoardSubDir` | `string` | Yes | Board subdirectory name/path. |
+| `relBoardDir` | `string` | No | Relative path to a `boards` directory (e.g. `boards` or `custom/boards`). Its parent directory is passed as `BOARD_ROOT` to CMake — e.g. `boards` → workspace root becomes `BOARD_ROOT`; `custom/boards` → `<workspace>/custom` becomes `BOARD_ROOT`. Must point at a `boards` directory, not at a vendor subfolder inside it. Leave unset to use Zephyr's built-in boards. |
+| `relBoardSubDir` | `string` | No | Board subdirectory name/path. Used to construct the full board path for IDE navigation. |
 | `compilerOptimization` | `string` | No | Compiler optimization preset. One of `debug`, `speed`, `size`, `none`. When omitted, no optimization flag is passed (configured via KConfig). |
 | `westBuildArgs` | `string[]` | Yes | Additional non-CMake `west build` args. |
 | `westBuildCMakeArgs` | `string[]` | Yes | Additional CMake args passed to `west build`. |
@@ -205,7 +205,7 @@ This is the workspace file used for projects/builds/tests, runner profiles, and 
 |---|---|---|---|
 | `board` | `string` | Yes | Board identifier. |
 | `relBoardDir` | `string` | No | Additional board dir, relative to workspace root. |
-| `relBoardSubDir` | `string` | Yes | Board subdirectory path. |
+| `relBoardSubDir` | `string` | No | Board subdirectory path. |
 | `revision` | `string` | No | Board revision. |
 
 ### `RunnerProfile`

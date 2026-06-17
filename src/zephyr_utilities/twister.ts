@@ -92,7 +92,7 @@ export async function runTest(
   testString += `--outdir "${path.join(projectFolder, "twister-out")}"  ${testConfig.args ? testConfig.args : ""}`;
 
   if (testConfig.boardConfig) {
-    const boardRootArg = resolveBoardRootArg(wsConfig, testConfig.boardConfig, setupState);
+    const boardRootArg = resolveBoardRootArg(wsConfig, testConfig.boardConfig);
     const boardRootCmakeArg = boardRootArg ? `-- ${boardRootArg}` : "";
     const boardSpec = assembleTwisterBoardSpec(testConfig.boardConfig.board, testConfig.boardConfig.revision);
     cmd = `west twister --device-testing  ${testConfig.serialPort ? "--device-serial " + testConfig.serialPort : ""} ${testConfig.serialBaud ? "--device-serial-baud " + testConfig.serialBaud : ""} -p ${boardSpec} ${testString} ${boardRootCmakeArg} `;

@@ -140,7 +140,7 @@
     "BuildConfig": {
       "type": "object",
       "description": "A single build configuration within a project.",
-      "required": ["name", "board", "relBoardSubDir", "westBuildArgs", "westBuildCMakeArgs", "confFiles"],
+      "required": ["name", "board", "westBuildArgs", "westBuildCMakeArgs", "confFiles"],
       "properties": {
         "name": {
           "type": "string",
@@ -307,7 +307,7 @@
     "BoardConfig": {
       "type": "object",
       "description": "Board selection for a build or Twister configuration.",
-      "required": ["board", "relBoardSubDir"],
+      "required": ["board"],
       "properties": {
         "board": {
           "type": "string",

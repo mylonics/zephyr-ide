@@ -259,7 +259,7 @@ export async function build(
 
   let isPristine = pristine || !buildFolderExists || !cmakeCacheExists;
 
-  const boardRoot = resolveBoardRoot(wsConfig, build, setupState);
+  const boardRoot = resolveBoardRoot(wsConfig, build);
   const boardRootArg = boardRoot ? quoteCMakeDef('BOARD_ROOT', boardRoot) : "";
   const resolvedPrimaryConf = primaryPaths(allKconfig).map(x => path.join(wsConfig.rootPath, x));
   const resolvedSecondaryConf = extraPaths(allKconfig).map(x => path.join(wsConfig.rootPath, x));

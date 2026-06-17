@@ -94,12 +94,13 @@ export function getBuildFolder(wsConfig: WorkspaceConfig, project: ProjectConfig
 /**
  * Resolve the board root directory for a build configuration.
  * Used by build, twister, and runner logic to find board definitions.
+ * Only returns a value when a custom board directory (relBoardDir) is set;
+ * the Zephyr default boards directory is automatically searched by west and
+ * does not need an explicit BOARD_ROOT argument.
  */
-export function resolveBoardRoot(wsConfig: WorkspaceConfig, build: { relBoardDir?: string }, setupState?: { zephyrDir: string }): string | undefined {
+export function resolveBoardRoot(wsConfig: WorkspaceConfig, build: { relBoardDir?: string }): string | undefined {
   if (build.relBoardDir) {
     return path.dirname(path.join(wsConfig.rootPath, build.relBoardDir));
-  } else if (setupState) {
-    return setupState.zephyrDir;
   }
   return undefined;
 }
@@ -108,25 +109,26 @@ export function resolveBoardRoot(wsConfig: WorkspaceConfig, build: { relBoardDir
  * Resolve the full board path (including relBoardSubDir) for a build configuration.
  * Handles absolute paths, custom board dirs, and default Zephyr board dirs.
  */
-export function resolveBoardPath(wsConfig: WorkspaceConfig, build: { relBoardDir?: string; relBoardSubDir: string }, setupState?: { zephyrDir: string }): string | undefined {
-  if (path.isAbsolute(build.relBoardSubDir)) {
-    return build.relBoardSubDir;
+export function resolveBoardPath(wsConfig: WorkspaceConfig, build: { relBoardDir?: string; relBoardSubDir?: string }, setupState?: { zephyrDir: string }): string | undefined {
+  const subDir = build.relBoardSubDir ?? "";
+  if (subDir && path.isAbsolute(subDir)) {
+    return subDir;
   }
   if (build.relBoardDir) {
-    return path.join(wsConfig.rootPath, build.relBoardDir, build.relBoardSubDir);
+    return path.join(wsConfig.rootPath, build.relBoardDir, subDir);
   }
-  if (setupState) {
-    return path.join(setupState.zephyrDir, 'boards', build.relBoardSubDir);
+  if (setupState && subDir) {
+    return path.join(setupState.zephyrDir, 'boards', subDir);
   }
   return undefined;
 }
 
 /**
  * Resolve the board root directory and return it as a CMake -D argument string.
- * Returns empty string if no board root can be resolved.
+ * Returns empty string when no custom board directory is configured.
  */
-export function resolveBoardRootArg(wsConfig: WorkspaceConfig, build: { relBoardDir?: string }, setupState?: { zephyrDir: string }): string {
-  const boardRoot = resolveBoardRoot(wsConfig, build, setupState);
+export function resolveBoardRootArg(wsConfig: WorkspaceConfig, build: { relBoardDir?: string }): string {
+  const boardRoot = resolveBoardRoot(wsConfig, build);
   return boardRoot ? quoteCMakeDef('BOARD_ROOT', boardRoot) : "";
 }
 
