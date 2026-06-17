@@ -33,7 +33,7 @@ import { splitBuildArgs } from "./build_args";
 export interface BoardConfig {
   board: string;
   relBoardDir?: string;
-  relBoardSubDir: string;
+  relBoardSubDir?: string;
   revision?: string;
 }
 
@@ -43,7 +43,7 @@ export interface BuildConfig {
   rel_path?: string;
   board: string;
   relBoardDir: string;
-  relBoardSubDir: string;
+  relBoardSubDir?: string;
   compilerOptimization?: string;
   westBuildArgs: string[];
   westBuildCMakeArgs: string[];

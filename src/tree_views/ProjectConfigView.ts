@@ -399,15 +399,16 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
     const build = project.buildConfigs[item.data.build];
 
     let boardPath: string | undefined = undefined;
-    if (path.isAbsolute(build.relBoardSubDir)) {
-      boardPath = build.relBoardSubDir;
+    const relBoardSubDir = build.relBoardSubDir ?? "";
+    if (relBoardSubDir && path.isAbsolute(relBoardSubDir)) {
+      boardPath = relBoardSubDir;
     } else {
       if (build.relBoardDir) {
-        boardPath = path.join(this.wsConfig.rootPath, build.relBoardDir, build.relBoardSubDir);
-      } else {
+        boardPath = path.join(this.wsConfig.rootPath, build.relBoardDir, relBoardSubDir);
+      } else if (relBoardSubDir) {
         const setupState = await getSetupState(this.context, this.wsConfig);
         if (setupState) {
-          boardPath = path.join(setupState.zephyrDir, 'boards', build.relBoardSubDir);
+          boardPath = path.join(setupState.zephyrDir, 'boards', relBoardSubDir);
         }
       }
     }
@@ -451,15 +452,16 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
     const build = project.buildConfigs[item.data.build];
 
     let boardPath: string | undefined = undefined;
-    if (path.isAbsolute(build.relBoardSubDir)) {
-      boardPath = build.relBoardSubDir;
+    const relBoardSubDir = build.relBoardSubDir ?? "";
+    if (relBoardSubDir && path.isAbsolute(relBoardSubDir)) {
+      boardPath = relBoardSubDir;
     } else {
       if (build.relBoardDir) {
-        boardPath = path.join(this.wsConfig.rootPath, build.relBoardDir, build.relBoardSubDir);
-      } else {
+        boardPath = path.join(this.wsConfig.rootPath, build.relBoardDir, relBoardSubDir);
+      } else if (relBoardSubDir) {
         const setupState = await getSetupState(this.context, this.wsConfig);
         if (setupState) {
-          boardPath = path.join(setupState.zephyrDir, 'boards', build.relBoardSubDir);
+          boardPath = path.join(setupState.zephyrDir, 'boards', relBoardSubDir);
         }
       }
     }
