@@ -11,7 +11,7 @@ When you first open a workspace in VS Code with IDE for Zephyr installed, you ca
 
 The Setup Panel provides a card-based interface with three configuration areas:
 
-![Overview](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/overview.png)
+![Overview](https://raw.githubusercontent.com/mylonics/zephyr-ide/develop/docs/media/overview.png)
 
 1. **Host Tools** - Install and verify build tools required for Zephyr development
 2. **Zephyr SDK Management** - Install and manage Zephyr SDK for different architectures

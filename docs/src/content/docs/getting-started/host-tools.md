@@ -3,7 +3,7 @@ title: Host Tools Installation
 description: Automatically install CMake, Python 3, Ninja, Devicetree Compiler, and gcc for Zephyr RTOS development on Ubuntu, Fedora, Arch Linux, Clear Linux, macOS, and Windows with IDE for Zephyr.
 ---
 
-![Host Tools Installation](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/host_tool_install.png)
+![Host Tools Installation](https://raw.githubusercontent.com/mylonics/zephyr-ide/develop/docs/media/host_tool_install.png)
 
 Click the Host Tools card to access the Host Tools sub-page. This page helps you install and verify the build dependencies required for Zephyr development.
 

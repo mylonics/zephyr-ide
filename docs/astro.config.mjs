@@ -34,7 +34,7 @@ export default defineConfig({
         src: './src/assets/logo.png',
       },
       favicon: '/favicon.ico',
-      ...mylonicsStarlightDefaults('IDE for Zephyr', { github: 'https://github.com/mylonics/zephyr-ide', extraCss: ['./src/styles/custom.css'], headOptions: { ogImage: 'https://raw.githubusercontent.com/mylonics/zephyr-ide/main/media/logo.png', keywords: ['Zephyr RTOS', 'VS Code extension', 'embedded development', 'Zephyr SDK', 'west tool', 'ARM Cortex-M', 'RISC-V', 'nRF Connect SDK', 'nRF52', 'nRF5340', 'Nordic Semiconductor', 'STM32', 'ESP32', 'Raspberry Pi Pico', 'RP2040', 'IoT development', 'firmware development', 'cross-compilation', 'devicetree', 'KConfig', 'debugging', 'flashing', 'CMake', 'embedded IDE', 'microcontroller', 'MCU', 'Bluetooth', 'BLE firmware', 'QEMU', 'native_sim', 'Twister', 'OpenOCD', 'J-Link', 'Cortex-Debug', 'west workspace', 'build system'] } }),
+      ...mylonicsStarlightDefaults('IDE for Zephyr', { github: 'https://github.com/mylonics/zephyr-ide', extraCss: ['./src/styles/custom.css'], headOptions: { ogImage: 'https://raw.githubusercontent.com/mylonics/zephyr-ide/develop/media/logo.png', keywords: ['Zephyr RTOS', 'VS Code extension', 'embedded development', 'Zephyr SDK', 'west tool', 'ARM Cortex-M', 'RISC-V', 'nRF Connect SDK', 'nRF52', 'nRF5340', 'Nordic Semiconductor', 'STM32', 'ESP32', 'Raspberry Pi Pico', 'RP2040', 'IoT development', 'firmware development', 'cross-compilation', 'devicetree', 'KConfig', 'debugging', 'flashing', 'CMake', 'embedded IDE', 'microcontroller', 'MCU', 'Bluetooth', 'BLE firmware', 'QEMU', 'native_sim', 'Twister', 'OpenOCD', 'J-Link', 'Cortex-Debug', 'west workspace', 'build system'] } }),
       sidebar: [
         {
           label: 'Getting Started',

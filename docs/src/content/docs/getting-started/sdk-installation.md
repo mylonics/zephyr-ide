@@ -3,7 +3,7 @@ title: Zephyr SDK Installation
 description: Install and manage the Zephyr SDK for ARM Cortex-M, RISC-V, x86, and Xtensa architectures using west SDK commands. Multi-version support with IDE for Zephyr in VS Code.
 ---
 
-![SDK Management](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/sdk_management.png)
+![SDK Management](https://raw.githubusercontent.com/mylonics/zephyr-ide/develop/docs/media/sdk_install.png)
 
 Click the Zephyr SDK Management card to access SDK installation. The SDK provides cross-compilation toolchains for various architectures (ARM, x86, RISC-V, etc.).
 

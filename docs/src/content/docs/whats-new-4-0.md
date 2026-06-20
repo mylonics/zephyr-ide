@@ -44,15 +44,15 @@ The Build Dashboard opens via **`Zephyr IDE: Open Build Dashboard`** after a suc
 
 **Summary** — key build facts at a glance: board, build folder, build time, active Kconfig fragments, and a one-click rebuild control.
 
-![Build Dashboard Summary](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/build_dashboard_summary.png)
+![Build Dashboard Summary](https://raw.githubusercontent.com/mylonics/zephyr-ide/develop/docs/media/build_summary.png)
 
 **Memory report** — per-region RAM and ROM usage pulled live from the build, with a refresh button to update after a rebuild.
 
-![Build Dashboard Memory Report](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/build_dashboard_memory_report.png)
+![Build Dashboard Memory Report](https://raw.githubusercontent.com/mylonics/zephyr-ide/develop/docs/media/memory_report.png)
 
 **Kconfig editor** — browse the full resolved Kconfig tree for the build, edit symbol values, and save changes as a Kconfig fragment that automatically attaches to the build or project.
 
-![Build Dashboard Kconfig Editor](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/build_dashboard_kconfig.png)
+![Build Dashboard Kconfig Editor](https://raw.githubusercontent.com/mylonics/zephyr-ide/develop/docs/media/kconfig_editor.png)
 
 ## Everything from 3.0
 

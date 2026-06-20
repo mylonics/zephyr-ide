@@ -5,7 +5,7 @@ description: Run Zephyr Twister tests directly from VS Code. Configure test suit
 
 The extension supports running [Twister](https://docs.zephyrproject.org/latest/develop/test/twister.html) tests. Click the beaker icon in the IDE for Zephyr sidebar to access the test panel.
 
-![IDE for Zephyr Twister Testing](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/adding_twister_test.gif)
+![IDE for Zephyr Twister Testing](https://raw.githubusercontent.com/mylonics/zephyr-ide/develop/docs/media/adding_twister_test.gif)
 
 ## Adding a Test
 

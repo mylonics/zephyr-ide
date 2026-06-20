@@ -7,7 +7,7 @@ Build, flash, and debug commands are available from the Active Project Panel, th
 
 ## Building
 
-![Taskbar Buttons](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/taskbar_buttons.gif)
+![Taskbar Buttons](https://raw.githubusercontent.com/mylonics/zephyr-ide/develop/docs/media/taskbar_buttons.gif)
 
 ### Sysbuild Targets
 
@@ -57,7 +57,7 @@ To connect to an **already-running** GDB server instead of having Zephyr IDE spa
 
 Use `westArgs` to pass through any additional runner-specific flags that are not modeled explicitly.
 
-![Setting Up Launch Configuration](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/setting_up_debug.gif)
+![Setting Up Launch Configuration](https://raw.githubusercontent.com/mylonics/zephyr-ide/develop/docs/media/setting_up_debug.gif)
 
 ## Runner Profiles (Flash + Debug)
 
@@ -72,6 +72,8 @@ Each build can optionally reference one **active Runner Profile** that bundles t
 When **no** profile is active on a build, all three slots fall back to `auto`. This is the default for newly-created builds — `Flash` / `Debug` / `Build and Debug` / `Debug Attach` just work using whatever Zephyr recorded in `runners.yaml`.
 
 Profiles can be defined once (e.g. a Black Magic Probe wired to `/dev/ttyACM0`, or an OpenOCD ST-Link configuration) and shared across builds. The dedicated **`Zephyr IDE: Open Runner Profile Panel`** command gives you a full CRUD UI for both workspace-scope (`.vscode/zephyr-ide.json#runnerProfiles`) and user-scope (`zephyr-ide.runnerProfiles` setting) profiles.
+
+![Runner Profiles Panel](https://raw.githubusercontent.com/mylonics/zephyr-ide/develop/docs/media/runner_profiles.png)
 
 The **Profile…** button in the Project Build panel opens a QuickPick to select the active profile for the build. Per-build extra-argument overrides can be added with the pencil icon next to any `runner`-kind slot in the Project Build panel.
 
@@ -159,7 +161,7 @@ The IDE provides commands that help a user develop launch configurations. These 
 
 The `ask` field on `zephyr-ide-cortex` / `zephyr-ide-west` configurations controls build selection at launch. Set `ask: "askBuild"` to prompt for a build configuration each time the session starts, or `ask: "askBoth"` to prompt for project and build. The default (`ask: "auto"`) silently uses the active project and build shown in the taskbar and Active Project panel. Alternatively, the `zephyr-ide.select-active-build-path` input command can be used in a `cortex-debug` configuration's `executable` field to get the same build-picker behaviour.
 
-![IDE for Zephyr Debug Commands](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/setting_up_debug2.gif)
+![IDE for Zephyr Debug Commands](https://raw.githubusercontent.com/mylonics/zephyr-ide/develop/docs/media/setting_up_debug2.gif)
 
 ## Next Steps
 
