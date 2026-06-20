@@ -23,7 +23,7 @@ export default defineConfig({
         extraCss: ['./src/styles/custom.css'],
         headOptions: {
           ogImage:
-            'https://raw.githubusercontent.com/mylonics/zephyr-ide/main/media/logo.png',
+            'https://raw.githubusercontent.com/mylonics/zephyr-ide/develop/media/logo.png',
           keywords: [
             'Zephyr RTOS',
             'VS Code extension',

@@ -1,6 +1,6 @@
 # IDE for Zephyr
 
-<img src="https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/zephyr-ide_branding.png" alt="IDE for Zephyr — VS Code extension for Zephyr RTOS embedded development" width="50%"/>
+<img src="https://raw.githubusercontent.com/mylonics/zephyr-ide/develop/docs/media/zephyr-ide_branding.png" alt="IDE for Zephyr — VS Code extension for Zephyr RTOS embedded development" width="50%"/>
 
 A Visual Studio Code extension for [Zephyr RTOS](https://zephyrproject.org/) embedded firmware development. Build, flash, and debug Zephyr projects for ARM Cortex-M, RISC-V, Xtensa, and x86 targets — including nRF52, nRF5340, STM32, ESP32, Raspberry Pi Pico, and any other board supported by Zephyr — without leaving VS Code. Automates host tool installation, Zephyr SDK management via `west sdk`, west workspace setup, and Cortex-Debug integration so you can go from zero to a running build in minutes.
 
@@ -12,7 +12,11 @@ Install from the [Visual Studio Code Marketplace](https://marketplace.visualstud
 
 You can read about the motivation behind the project [here](https://mylonics.com/blog/zephyr-ide/).
 
-![IDE for Zephyr VS Code extension — setup panel, project tree view, and build dashboard](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/overview.png)
+![IDE for Zephyr VS Code extension — main project build view](https://raw.githubusercontent.com/mylonics/zephyr-ide/develop/docs/media/main_build.png)
+
+![IDE for Zephyr VS Code extension — project and build details](https://raw.githubusercontent.com/mylonics/zephyr-ide/develop/docs/media/build_and_project_details.png)
+
+![IDE for Zephyr VS Code extension — runner profile management](https://raw.githubusercontent.com/mylonics/zephyr-ide/develop/docs/media/runner_profiles.png)
 
 ## Why IDE for Zephyr
 
@@ -82,7 +86,7 @@ A reference [sample project](https://github.com/mylonics/zephyr-ide-sample-proje
 
 ## Requirements
 
-The extension can install host tools (CMake, Python 3, Ninja, Devicetree Compiler, gcc) automatically on Ubuntu/Debian, macOS, and Windows. On other platforms, install them via your package manager — see the [host tools documentation](https://zephyr-ide.mylonics.com/getting-started/host-tools/) and consider opening an issue or PR to have the IDE do it automatically for you in the future.
+The extension can install host tools (CMake, Python 3, Ninja, Devicetree Compiler, gcc) automatically on Ubuntu/Debian, Fedora/RHEL/CentOS derivatives, Arch derivatives, Clear Linux, macOS, and Windows. On other platforms, install them via your package manager — see the [host tools documentation](https://zephyr-ide.mylonics.com/getting-started/host-tools/) and consider opening an issue or PR to have the IDE do it automatically for you in the future.
 
 If Zephyr is already installed on your machine (including nRF Connect SDK, Zephyr SDK, or any `west`-managed workspace), set `ZEPHYR_BASE` and the extension will use it directly. See [External Environments](https://zephyr-ide.mylonics.com/getting-started/external-environments/).
 

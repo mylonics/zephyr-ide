@@ -1,10 +1,26 @@
+import fs from 'node:fs';
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 
 // Shared Mylonics styles — cloned into docs/mylonics-styles during CI.
 // For local dev, clone manually:
 //   git clone https://github.com/mylonics/mylonics-styles.git docs/mylonics-styles
-import { mylonicsStarlightDefaults } from './mylonics-styles/starlight/config-helpers';
+//
+// Some local checkouts do not have that folder populated. Fall back to a
+// minimal Starlight config so the docs site can still build and preview.
+const themeHelperSpecifier = './mylonics-styles/starlight/config-helpers.ts';
+const themeHelperUrl = new URL(themeHelperSpecifier, import.meta.url);
+
+function fallbackStarlightDefaults(_title, options = {}) {
+  return {
+    customCss: options.extraCss ?? [],
+    social: options.github ? [{ icon: 'github', label: 'GitHub', href: options.github }] : [],
+  };
+}
+
+const { mylonicsStarlightDefaults } = fs.existsSync(themeHelperUrl)
+  ? await import(/* @vite-ignore */ themeHelperSpecifier)
+  : { mylonicsStarlightDefaults: fallbackStarlightDefaults };
 
 // https://astro.build/config
 export default defineConfig({
@@ -18,7 +34,7 @@ export default defineConfig({
         src: './src/assets/logo.png',
       },
       favicon: '/favicon.ico',
-      ...mylonicsStarlightDefaults('IDE for Zephyr', { github: 'https://github.com/mylonics/zephyr-ide', extraCss: ['./src/styles/custom.css'], headOptions: { ogImage: 'https://raw.githubusercontent.com/mylonics/zephyr-ide/main/media/logo.png', keywords: ['Zephyr RTOS', 'VS Code extension', 'embedded development', 'Zephyr SDK', 'west tool', 'ARM Cortex-M', 'RISC-V', 'nRF Connect SDK', 'nRF52', 'nRF5340', 'Nordic Semiconductor', 'STM32', 'ESP32', 'Raspberry Pi Pico', 'RP2040', 'IoT development', 'firmware development', 'cross-compilation', 'devicetree', 'KConfig', 'debugging', 'flashing', 'CMake', 'embedded IDE', 'microcontroller', 'MCU', 'Bluetooth', 'BLE firmware', 'QEMU', 'native_sim', 'Twister', 'OpenOCD', 'J-Link', 'Cortex-Debug', 'west workspace', 'build system'] } }),
+      ...mylonicsStarlightDefaults('IDE for Zephyr', { github: 'https://github.com/mylonics/zephyr-ide', extraCss: ['./src/styles/custom.css'], headOptions: { ogImage: 'https://raw.githubusercontent.com/mylonics/zephyr-ide/develop/media/logo.png', keywords: ['Zephyr RTOS', 'VS Code extension', 'embedded development', 'Zephyr SDK', 'west tool', 'ARM Cortex-M', 'RISC-V', 'nRF Connect SDK', 'nRF52', 'nRF5340', 'Nordic Semiconductor', 'STM32', 'ESP32', 'Raspberry Pi Pico', 'RP2040', 'IoT development', 'firmware development', 'cross-compilation', 'devicetree', 'KConfig', 'debugging', 'flashing', 'CMake', 'embedded IDE', 'microcontroller', 'MCU', 'Bluetooth', 'BLE firmware', 'QEMU', 'native_sim', 'Twister', 'OpenOCD', 'J-Link', 'Cortex-Debug', 'west workspace', 'build system'] } }),
       sidebar: [
         {
           label: 'Getting Started',

@@ -28,6 +28,19 @@ The following settings are available in VS Code settings (File > Preferences > S
 | `zephyr-ide.buildVariableDefaults` | string[] | `[]` | Default build variable names pre-populated in the Project Details panel. Variables not yet defined on a build are shown as empty. |
 | `zephyr-ide.runnerProfiles` | array | `[]` | User-scope Runner Profiles (`{ "name", "flash", "debug", "attach" }`) available across all your workspaces. Workspace `.vscode/zephyr-ide.json#runnerProfiles` overrides this on name collision. Edit interactively from the **Zephyr IDE: Open Runner Profile Panel** command. See [Runner Profiles](#runner-profiles) below. |
 
+### Status Bar Controls
+
+These settings control which action buttons appear in the IDE for Zephyr status bar group:
+
+| Setting | Type | Default | Description |
+|---|---|---|---|
+| `zephyr-ide.statusBar.showBuildPristine` | boolean | true | Show the **Build Pristine** status bar button. Restart VS Code to apply. |
+| `zephyr-ide.statusBar.showBuild` | boolean | true | Show the **Build** status bar button. Restart VS Code to apply. |
+| `zephyr-ide.statusBar.showFlash` | boolean | false | Show the **Flash** status bar button. Restart VS Code to apply. |
+| `zephyr-ide.statusBar.showBuildFlash` | boolean | true | Show the **Build and Flash** status bar button. Restart VS Code to apply. |
+| `zephyr-ide.statusBar.showDebug` | boolean | false | Show the **Debug** status bar button. Restart VS Code to apply. |
+| `zephyr-ide.statusBar.showBuildDebug` | boolean | true | Show the **Build and Debug** status bar button. Restart VS Code to apply. |
+
 ## `.vscode/zephyr-ide.json` Reference
 
 This is the workspace file used for projects/builds/tests, runner profiles, and SDK/blob requirements. The extension preserves unknown top-level keys, so you can also keep your own custom top-level metadata in the file.
@@ -127,9 +140,13 @@ This is the workspace file used for projects/builds/tests, runner profiles, and 
       "twisterConfigs": {}
     }
   ],
-  "runnerProfilesMigrationVersion": 1,
-  "my-team-metadata": {
-    "owner": "firmware-team"
+  "commands": {
+    "linux": [
+      "echo linux setup complete"
+    ],
+    "windows": [
+      "echo windows setup complete"
+    ]
   }
 }
 ```
@@ -145,8 +162,8 @@ This is the workspace file used for projects/builds/tests, runner profiles, and 
 | `blobs` | `string[]` | No | West modules requiring `west blobs fetch <module>`. |
 | `pipPackages` | `string[]` | No | Additional Python packages installed into the workspace virtual environment during setup (e.g. `dtsh`, `pyocd`). The extension always installs `dtsh` and `pyocd`; packages listed here are added on top. |
 | `pipRequirements` | `string[]` | No | Workspace-relative or absolute paths to `requirements.txt` files installed into the workspace virtual environment alongside `pipPackages`. Both are installed in a single step with no extra prompts. |
-| `sampleProjects` | `ProjectConfig[]` | No | Optional project snapshots used by **Zephyr IDE: Add Sample Projects from File**. |
-| `runnerProfilesMigrationVersion` | `number` | No | Internal migration marker written by the extension. Keep as-is. |
+| `sampleProjects` | `ProjectConfig[] \| string[]` | No | Optional project snapshots used by **Zephyr IDE: Add Sample Projects From File**. String paths are accepted for backward compatibility. |
+| `commands` | `{ linux?: string[], windows?: string[], mac?: string[] }` | No | Optional platform-specific post-setup commands. Users are prompted to choose which commands to run during setup or when invoking **Zephyr IDE: Run Commands from zephyr-ide.json**. |
 | any other key | any JSON | No | Preserved by the extension; can be read with `Zephyr IDE: Get Zephyr IDE JSON Variable`. |
 
 ### `ProjectConfig`
@@ -381,6 +398,45 @@ Both `BuildConfig` and `ProjectConfig` support a `customVars` map for user-defin
 ```
 
 Variables are edited interactively with the **`Zephyr IDE: Manage Build Variables`** and **`Zephyr IDE: Manage Project Variables`** commands.
+
+## Sample Project Library
+
+`sampleProjects` is an optional library of project snapshots stored in `.vscode/zephyr-ide.json`. Unlike the top-level `projects` map, entries under `sampleProjects` are **not** loaded automatically when the workspace opens.
+
+Use this when you want a repository to publish a curated set of starter projects without enabling all of them by default.
+
+- **`Zephyr IDE: Modify Sample Projects (zephyr-ide.json)`** edits the stored library.
+- **`Zephyr IDE: Add Sample Projects From File`** lets a user import one or more stored entries into the active workspace.
+
+Each entry can be a full `ProjectConfig` snapshot, or a plain string path for backward compatibility.
+
+## Post-setup Commands
+
+The optional top-level `commands` key lets a workspace publish platform-specific bootstrap commands that should run **after** west setup completes.
+
+```json
+{
+  "commands": {
+    "linux": [
+      "echo linux setup complete"
+    ],
+    "mac": [
+      "echo mac setup complete"
+    ],
+    "windows": [
+      "echo windows setup complete"
+    ]
+  }
+}
+```
+
+Use this for repository-specific follow-up steps such as running vendor tooling bootstrap, triggering post-setup scripts, or performing project-local initialization.
+
+- During workspace setup, the extension prompts the user to choose which commands to run.
+- The same commands can be edited later with **`Zephyr IDE: Modify Commands (zephyr-ide.json)`**.
+- Users can re-run them later with **`Zephyr IDE: Run Commands from zephyr-ide.json`**.
+
+For safety, the extension does not silently run these commands without user selection.
 
 ## Static Code Analysis (SCA)
 
