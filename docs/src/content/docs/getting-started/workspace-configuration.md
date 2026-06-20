@@ -3,11 +3,9 @@ title: Workspace Configuration
 description: Set up a Zephyr west workspace in VS Code — clone from Git, create a standard workspace, use west.yml templates, or connect to an existing Zephyr installation with IDE for Zephyr.
 ---
 
-![Workspace Setup](https://raw.githubusercontent.com/mylonics/zephyr-ide/develop/docs/media/workspace_setup.png)
-
 Click the Workspace card to configure your west workspace. Choose to set up a workspace in the current VS Code folder or an external directory.
 
-![Workspace Setup Options](https://raw.githubusercontent.com/mylonics/zephyr-ide/develop/docs/media/unconfigured_workspace_panel.png)
+![Workspace Setup](https://raw.githubusercontent.com/mylonics/zephyr-ide/develop/docs/media/workspace_setup.png)
 
 ## Workspace Setup Methods
 
