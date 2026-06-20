@@ -14,9 +14,6 @@ You can read about the motivation behind the project [here](https://mylonics.com
 
 ![IDE for Zephyr VS Code extension — main project build view](https://raw.githubusercontent.com/mylonics/zephyr-ide/develop/docs/media/main_build.png)
 
-![IDE for Zephyr VS Code extension — project and build details](https://raw.githubusercontent.com/mylonics/zephyr-ide/develop/docs/media/build_and_project_details.png)
-
-![IDE for Zephyr VS Code extension — runner profile management](https://raw.githubusercontent.com/mylonics/zephyr-ide/develop/docs/media/runner_profiles.png)
 
 ## Why IDE for Zephyr
 
