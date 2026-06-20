@@ -31,6 +31,7 @@ Typical symptoms:
 1. Run **`Zephyr IDE: Check Build Dependencies`** to re-scan your PATH.
 2. Open **`Zephyr IDE: Host Tools`** and install any missing tools on supported platforms.
 3. If your platform is not supported for automatic installation, follow the [Host Tools Installation](../getting-started/host-tools.md) guide and reopen VS Code.
+4. If the tools are already installed but not detected, click **Mark Tools as Available** in the Setup Panel to bypass the check.
 
 ## SDK or Toolchain Not Available
 
@@ -45,6 +46,7 @@ Typical symptoms:
 2. If your project declares required toolchains in `.vscode/zephyr-ide.json`, run **`Zephyr IDE: Install Toolchains from zephyr-ide.json`**.
 3. If the toolchain list is wrong or incomplete, adjust it with **`Zephyr IDE: Modify zephyr-ide.json Toolchains`**.
 4. If your workspace depends on extra Python packages, blobs, or requirements files, open **`Zephyr IDE: Zephyr IDE Manager`** and install the missing items there.
+5. If the SDK or toolchains are already installed on your machine, point the extension to them by setting `zephyr-ide.toolchainDirectory` in your VS Code settings to the directory containing your Zephyr SDK installation.
 
 ## Debug Session Fails Immediately
 
@@ -61,6 +63,7 @@ Typical symptoms:
 3. Run **`Zephyr IDE: Open runners.yaml for Active Build`** to inspect the actual runner information produced by west.
 4. If the board defaults are fine but your local probe is different, use **`Zephyr IDE: Select Active Runner Profile (Local)`** or **`Zephyr IDE: Set Local Slot Runner Bind`**.
 5. If the build is a sysbuild build, use **`Zephyr IDE: Set Active Sysbuild Image`** to pick the correct image/domain before flashing or debugging.
+6. Inspect error messages in the **Debug Console** panel and in the **Output** window — select **Zephyr IDE** from the output channel dropdown for extension-level diagnostics.
 
 ## Workspace Registration Feels Stuck or Out of Sync
 

@@ -142,15 +142,11 @@ This is the workspace file used for projects/builds/tests, runner profiles, and 
   ],
   "commands": {
     "linux": [
-      "west packages pip --install -r scripts/requirements-extra.txt"
+      "echo linux setup complete"
     ],
     "windows": [
-      "py -3 -m pip install -r scripts\\requirements-extra.txt"
+      "echo windows setup complete"
     ]
-  },
-  "runnerProfilesMigrationVersion": 1,
-  "my-team-metadata": {
-    "owner": "firmware-team"
   }
 }
 ```
@@ -168,7 +164,6 @@ This is the workspace file used for projects/builds/tests, runner profiles, and 
 | `pipRequirements` | `string[]` | No | Workspace-relative or absolute paths to `requirements.txt` files installed into the workspace virtual environment alongside `pipPackages`. Both are installed in a single step with no extra prompts. |
 | `sampleProjects` | `ProjectConfig[] \| string[]` | No | Optional project snapshots used by **Zephyr IDE: Add Sample Projects From File**. String paths are accepted for backward compatibility. |
 | `commands` | `{ linux?: string[], windows?: string[], mac?: string[] }` | No | Optional platform-specific post-setup commands. Users are prompted to choose which commands to run during setup or when invoking **Zephyr IDE: Run Commands from zephyr-ide.json**. |
-| `runnerProfilesMigrationVersion` | `number` | No | Internal migration marker written by the extension. Keep as-is. |
 | any other key | any JSON | No | Preserved by the extension; can be read with `Zephyr IDE: Get Zephyr IDE JSON Variable`. |
 
 ### `ProjectConfig`
@@ -423,19 +418,19 @@ The optional top-level `commands` key lets a workspace publish platform-specific
 {
   "commands": {
     "linux": [
-      "west packages pip --install -r scripts/requirements-extra.txt"
+      "echo linux setup complete"
     ],
     "mac": [
-      "python3 -m pip install -r scripts/requirements-extra.txt"
+      "echo mac setup complete"
     ],
     "windows": [
-      "py -3 -m pip install -r scripts\\requirements-extra.txt"
+      "echo windows setup complete"
     ]
   }
 }
 ```
 
-Use this for repository-specific follow-up steps such as extra Python requirements, vendor tooling bootstrap, or project-local package installation.
+Use this for repository-specific follow-up steps such as running vendor tooling bootstrap, triggering post-setup scripts, or performing project-local initialization.
 
 - During workspace setup, the extension prompts the user to choose which commands to run.
 - The same commands can be edited later with **`Zephyr IDE: Modify Commands (zephyr-ide.json)`**.
