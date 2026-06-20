@@ -30,8 +30,8 @@ After each build, run `Zephyr IDE: Zephyr Dashboard Report` to refresh the dashb
 
 Stand-alone text reports generated in the terminal:
 
-- `Zephyr IDE: Run ROM Report`
-- `Zephyr IDE: Run RAM Report`
+- `Zephyr IDE: Zephyr ROM Report`
+- `Zephyr IDE: Zephyr RAM Report`
 
 ### DTSh Shell
 

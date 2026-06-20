@@ -82,7 +82,7 @@ A reference [sample project](https://github.com/mylonics/zephyr-ide-sample-proje
 
 ## Requirements
 
-The extension can install host tools (CMake, Python 3, Ninja, Devicetree Compiler, gcc) automatically on Ubuntu/Debian, macOS, and Windows. On other platforms, install them via your package manager — see the [host tools documentation](https://zephyr-ide.mylonics.com/getting-started/host-tools/) and consider opening an issue or PR to have the IDE do it automatically for you in the future.
+The extension can install host tools (CMake, Python 3, Ninja, Devicetree Compiler, gcc) automatically on Ubuntu/Debian, Fedora/RHEL/CentOS derivatives, Arch derivatives, Clear Linux, macOS, and Windows. On other platforms, install them via your package manager — see the [host tools documentation](https://zephyr-ide.mylonics.com/getting-started/host-tools/) and consider opening an issue or PR to have the IDE do it automatically for you in the future.
 
 If Zephyr is already installed on your machine (including nRF Connect SDK, Zephyr SDK, or any `west`-managed workspace), set `ZEPHYR_BASE` and the extension will use it directly. See [External Environments](https://zephyr-ide.mylonics.com/getting-started/external-environments/).
 

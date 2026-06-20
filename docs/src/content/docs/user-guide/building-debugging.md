@@ -9,6 +9,12 @@ Build, flash, and debug commands are available from the Active Project Panel, th
 
 ![Taskbar Buttons](https://raw.githubusercontent.com/mylonics/zephyr-ide/main/docs/media/taskbar_buttons.gif)
 
+### Sysbuild Targets
+
+If your build uses sysbuild, Flash, Debug, and Debug Attach may need to target a specific image/domain rather than the workspace default.
+
+Use **`Zephyr IDE: Set Active Sysbuild Image`** to choose which sub-image the active build should use. IDE for Zephyr forwards that selection to `west flash --domain <image>` and uses it when resolving `runners.yaml` for debug.
+
 ## Setting Up Debug Configuration
 
 The IDE for Zephyr ships with two built-in debugger types:

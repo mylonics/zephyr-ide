@@ -1,10 +1,26 @@
+import fs from 'node:fs';
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 
 // Shared Mylonics styles — cloned into docs/mylonics-styles during CI.
 // For local dev, clone manually:
 //   git clone https://github.com/mylonics/mylonics-styles.git docs/mylonics-styles
-import { mylonicsStarlightDefaults } from './mylonics-styles/starlight/config-helpers';
+//
+// Some local checkouts do not have that folder populated. Fall back to a
+// minimal Starlight config so the docs site can still build and preview.
+const themeHelperSpecifier = './mylonics-styles/starlight/config-helpers.ts';
+const themeHelperUrl = new URL(themeHelperSpecifier, import.meta.url);
+
+function fallbackStarlightDefaults(_title, options = {}) {
+  return {
+    customCss: options.extraCss ?? [],
+    social: options.github ? [{ icon: 'github', label: 'GitHub', href: options.github }] : [],
+  };
+}
+
+const { mylonicsStarlightDefaults } = fs.existsSync(themeHelperUrl)
+  ? await import(/* @vite-ignore */ themeHelperSpecifier)
+  : { mylonicsStarlightDefaults: fallbackStarlightDefaults };
 
 // https://astro.build/config
 export default defineConfig({

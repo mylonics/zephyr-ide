@@ -6,7 +6,7 @@ description: Configure host tools, install the Zephyr SDK, and initialize a west
 When you first open a workspace in VS Code with IDE for Zephyr installed, you can access the Setup Panel through:
 
 - The IDE for Zephyr sidebar activity bar icon
-- Command Palette: `Zephyr IDE: Setup Workspace`
+- Command Palette: `Zephyr IDE: Workspace Setup`
 - The Extension Setup View panel
 
 The Setup Panel provides a card-based interface with three configuration areas:
