@@ -23,6 +23,7 @@ import * as path from "path";
 import {
     parseRunnersYaml,
     resolveRunnersYamlPath,
+    resolveEffectiveBuildDir,
     runnerToServerType,
     runnerNeedsBridge,
     resolveCanonicalRunner,
@@ -499,5 +500,77 @@ domains:
         const cfg: any = buildCortexDebugConfig(ry, "openocd");
         assert.ok(cfg);
         assert.strictEqual(cfg.rtos, "Zephyr");
+    });
+});
+
+suite("resolveEffectiveBuildDir — sysbuild domain resolution", () => {
+    test("returns buildDir unchanged when domains.yaml is absent (non-sysbuild)", () => {
+        const buildDir = makeTempBuildDir();
+        assert.strictEqual(resolveEffectiveBuildDir(buildDir), buildDir);
+    });
+
+    test("returns default domain build_dir when domains.yaml is present", () => {
+        const buildDir = makeTempBuildDir();
+        const domainBuildDir = path.join(buildDir, "hello_world");
+        fs.mkdirSync(domainBuildDir, { recursive: true });
+        writeFile(path.join(buildDir, "domains.yaml"), [
+            "default: hello_world",
+            "domains:",
+            `  - name: hello_world`,
+            `    build_dir: ${domainBuildDir}`,
+        ].join("\n"));
+
+        assert.strictEqual(resolveEffectiveBuildDir(buildDir), domainBuildDir);
+    });
+
+    test("resolves a specific domain by name", () => {
+        const buildDir = makeTempBuildDir();
+        const domainA = path.join(buildDir, "app_a");
+        const domainB = path.join(buildDir, "app_b");
+        writeFile(path.join(buildDir, "domains.yaml"), [
+            "default: app_a",
+            "domains:",
+            `  - name: app_a`,
+            `    build_dir: ${domainA}`,
+            `  - name: app_b`,
+            `    build_dir: ${domainB}`,
+        ].join("\n"));
+
+        assert.strictEqual(resolveEffectiveBuildDir(buildDir, "app_b"), domainB);
+    });
+
+    test("falls back to buildDir when named domain is not in domains.yaml", () => {
+        const buildDir = makeTempBuildDir();
+        const domainBuildDir = path.join(buildDir, "hello_world");
+        writeFile(path.join(buildDir, "domains.yaml"), [
+            "default: hello_world",
+            "domains:",
+            `  - name: hello_world`,
+            `    build_dir: ${domainBuildDir}`,
+        ].join("\n"));
+
+        // Requesting a domain that does not exist falls back to the top-level dir
+        assert.strictEqual(resolveEffectiveBuildDir(buildDir, "nonexistent"), buildDir);
+    });
+
+    test("falls back to buildDir when domains.yaml is malformed", () => {
+        const buildDir = makeTempBuildDir();
+        writeFile(path.join(buildDir, "domains.yaml"), "{ this is: [not valid yaml");
+
+        assert.strictEqual(resolveEffectiveBuildDir(buildDir), buildDir);
+    });
+
+    test("resolveRunnersYamlPath delegates to default domain via resolveEffectiveBuildDir", () => {
+        const buildDir = makeTempBuildDir();
+        const domainBuildDir = path.join(buildDir, "hello_world");
+        writeFile(path.join(buildDir, "domains.yaml"), [
+            "default: hello_world",
+            "domains:",
+            `  - name: hello_world`,
+            `    build_dir: ${domainBuildDir}`,
+        ].join("\n"));
+
+        const expected = path.join(domainBuildDir, "zephyr", "runners.yaml");
+        assert.strictEqual(resolveRunnersYamlPath(buildDir), expected);
     });
 });
