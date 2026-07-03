@@ -166,6 +166,7 @@ import {
   runZephyrIdeCommandsInteractive,
 } from "./setup_utilities/zephyr_ide_install";
 import { getZephyrIdeSampleProjects } from "./setup_utilities/zephyr_ide_json";
+import { isZephyrIdeJsonBeingWrittenByExtension } from "./setup_utilities/zephyr-ide-json-write-guard";
 import {
   installPackageManagerHeadless,
   installHostPackagesHeadless,
@@ -652,6 +653,35 @@ export async function activate(context: vscode.ExtensionContext) {
       }
     }
   })();
+
+  // Watch .vscode/zephyr-ide.json for external changes (e.g. the user editing
+  // rel_path or other build config fields directly). When the file is modified
+  // outside of extension-initiated writes, reload the projects into the
+  // in-memory workspace config so subsequent operations (build, flash, etc.)
+  // see the updated values instead of reverting to the state loaded at startup.
+  if (wsConfig.rootPath) {
+    const zephyrIdeJsonWatcher = vscode.workspace.createFileSystemWatcher(
+      new vscode.RelativePattern(wsConfig.rootPath, ".vscode/zephyr-ide.json")
+    );
+    context.subscriptions.push(zephyrIdeJsonWatcher);
+    const reloadFromFile = async () => {
+      if (isZephyrIdeJsonBeingWrittenByExtension()) {
+        return;
+      }
+      try {
+        await loadProjectsFromFile(wsConfig);
+        void vscode.commands.executeCommand("zephyr-ide.update-web-view");
+      } catch (err) {
+        void vscode.window.showWarningMessage(
+          `Zephyr IDE: Failed to reload zephyr-ide.json after external change. ` +
+          `The file may contain invalid JSON. Please check your edits.`
+        );
+        outputError("Workspace Config", `Failed to reload zephyr-ide.json: ${String(err)}`);
+      }
+    };
+    context.subscriptions.push(zephyrIdeJsonWatcher.onDidChange(reloadFromFile));
+    context.subscriptions.push(zephyrIdeJsonWatcher.onDidCreate(reloadFromFile));
+  }
 
   const activeProjectView = new ActiveProjectView(
     context.extensionPath,

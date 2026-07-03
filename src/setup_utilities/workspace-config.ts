@@ -26,6 +26,7 @@ import { WorkspaceConfig, SetupState } from "./types";
 import { resolveActiveProjectBuild, getBuildFolder } from "../project_utilities/project";
 import { normalizeBuildArgs } from "../project_utilities/build_args";
 import { ConfigFiles, ConfigFileEntry, emptyConfigFiles } from "../project_utilities/config_selector";
+import { markZephyrIdeJsonWrite } from "./zephyr-ide-json-write-guard";
 
 /**
  * Migrate a ConfigFiles value from the old 4-array format
@@ -270,6 +271,7 @@ export async function loadProjectsFromFile(config: WorkspaceConfig) {
   const zephyrIdeSettingFilePath = path.join(config.rootPath, ".vscode", "zephyr-ide.json");
   try {
     if (!fs.pathExistsSync(zephyrIdeSettingFilePath)) {
+      markZephyrIdeJsonWrite();
       await fs.outputFile(zephyrIdeSettingFilePath, JSON.stringify({ projects: {} }, null, 2), { flag: 'w+' });
       outputInfo('Workspace Config', 'Created zephyr-ide file');
     } else {
@@ -278,6 +280,7 @@ export async function loadProjectsFromFile(config: WorkspaceConfig) {
       const migrated = projectLoader(config, projects);
       if (migrated) {
         object.projects = config.projects;
+        markZephyrIdeJsonWrite();
         await fs.outputFile(zephyrIdeSettingFilePath, JSON.stringify(object, null, 2));
       }
     }
