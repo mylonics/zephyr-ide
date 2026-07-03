@@ -689,8 +689,6 @@ function mergeMemoryReports(
 }
 
 /**
- * Reads the ram/rom report data embedded by the cmake ram_report / rom_report
-/**
  * Reads the memory reports from disk (ram.json / rom.json) for the given
  * build directory.  Automatically resolves the effective (per-image) build
  * directory when sysbuild is in use (domains.yaml present).
