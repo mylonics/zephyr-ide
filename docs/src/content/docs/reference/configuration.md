@@ -41,6 +41,20 @@ These settings control which action buttons appear in the IDE for Zephyr status 
 | `zephyr-ide.statusBar.showDebug` | boolean | false | Show the **Debug** status bar button. Restart VS Code to apply. |
 | `zephyr-ide.statusBar.showBuildDebug` | boolean | true | Show the **Build and Debug** status bar button. Restart VS Code to apply. |
 
+### Active Project Panel Controls
+
+These settings control which action buttons appear in the Active Project panel:
+
+| Setting | Type | Default | Description |
+|---|---|---|---|
+| `zephyr-ide.activeProjectPanel.showBuild` | boolean | true | Show the **Build** button in the Active Project panel. |
+| `zephyr-ide.activeProjectPanel.showBuildPristine` | boolean | true | Show the **Build Pristine** button in the Active Project panel. |
+| `zephyr-ide.activeProjectPanel.showFlash` | boolean | true | Show the **Flash** button in the Active Project panel. |
+| `zephyr-ide.activeProjectPanel.showBuildFlash` | boolean | true | Show the **Build and Flash** button in the Active Project panel. |
+| `zephyr-ide.activeProjectPanel.showBuildDebug` | boolean | true | Show the **Build and Debug** button in the Active Project panel. |
+| `zephyr-ide.activeProjectPanel.showDebug` | boolean | true | Show the **Debug** button in the Active Project panel. |
+| `zephyr-ide.activeProjectPanel.showAttach` | boolean | true | Show the **Debug Attach** button in the Active Project panel. |
+
 ## `.vscode/zephyr-ide.json` Reference
 
 This is the workspace file used for projects/builds/tests, runner profiles, and SDK/blob requirements. The extension preserves unknown top-level keys, so you can also keep your own custom top-level metadata in the file.

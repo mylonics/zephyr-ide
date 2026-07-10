@@ -157,22 +157,44 @@ export class ActiveProjectView implements vscode.TreeDataProvider<ActiveProjectI
     const buildDebugDisplay = slotDesc("debug", buildDebugProfile);
     const attachDisplay = slotDesc("attach", attachProfile);
 
-    const items: ActiveProjectItem[] = [
-      new ActiveProjectItem("Build Pristine", "project", activeBuild ? activeBuild.name : "None",
-        'activeProject.buildPristine', "zephyr-ide.build-pristine"),
-      new ActiveProjectItem("Build", "project", activeBuild ? activeBuild.name : "None",
-        'activeProject.build', "zephyr-ide.build"),
-      new ActiveProjectItem("Flash", "chip", flashDisplay,
-        'activeProject.flash', "zephyr-ide.flash"),
-      new ActiveProjectItem("Build and Flash", "cloud-upload", flashDisplay,
-        'activeProject.buildFlash', "zephyr-ide.build-flash"),
-      new ActiveProjectItem("Debug", "debug-alt", debugDisplay,
-        'activeProject.debug', "zephyr-ide.debug"),
-      new ActiveProjectItem("Build and Debug", "debug-all", buildDebugDisplay,
-        'activeProject.buildDebug', "zephyr-ide.build-debug"),
-      new ActiveProjectItem("Debug Attach", "debug-console", attachDisplay,
-        'activeProject.debugAttach', "zephyr-ide.debug-attach"),
-    ];
+    const cfg = vscode.workspace.getConfiguration();
+    const showBuildPristine = cfg.get<boolean>("zephyr-ide.activeProjectPanel.showBuildPristine") ?? true;
+    const showBuild = cfg.get<boolean>("zephyr-ide.activeProjectPanel.showBuild") ?? true;
+    const showFlash = cfg.get<boolean>("zephyr-ide.activeProjectPanel.showFlash") ?? true;
+    const showBuildFlash = cfg.get<boolean>("zephyr-ide.activeProjectPanel.showBuildFlash") ?? true;
+    const showBuildDebug = cfg.get<boolean>("zephyr-ide.activeProjectPanel.showBuildDebug") ?? true;
+    const showDebug = cfg.get<boolean>("zephyr-ide.activeProjectPanel.showDebug") ?? true;
+    const showAttach = cfg.get<boolean>("zephyr-ide.activeProjectPanel.showAttach") ?? true;
+
+    const items: ActiveProjectItem[] = [];
+    if (showBuildPristine) {
+      items.push(new ActiveProjectItem("Build Pristine", "project", activeBuild ? activeBuild.name : "None",
+        'activeProject.buildPristine', "zephyr-ide.build-pristine"));
+    }
+    if (showBuild) {
+      items.push(new ActiveProjectItem("Build", "project", activeBuild ? activeBuild.name : "None",
+        'activeProject.build', "zephyr-ide.build"));
+    }
+    if (showFlash) {
+      items.push(new ActiveProjectItem("Flash", "chip", flashDisplay,
+        'activeProject.flash', "zephyr-ide.flash"));
+    }
+    if (showBuildFlash) {
+      items.push(new ActiveProjectItem("Build and Flash", "cloud-upload", flashDisplay,
+        'activeProject.buildFlash', "zephyr-ide.build-flash"));
+    }
+    if (showDebug) {
+      items.push(new ActiveProjectItem("Debug", "debug-alt", debugDisplay,
+        'activeProject.debug', "zephyr-ide.debug"));
+    }
+    if (showBuildDebug) {
+      items.push(new ActiveProjectItem("Build and Debug", "debug-all", buildDebugDisplay,
+        'activeProject.buildDebug', "zephyr-ide.build-debug"));
+    }
+    if (showAttach) {
+      items.push(new ActiveProjectItem("Debug Attach", "debug-console", attachDisplay,
+        'activeProject.debugAttach', "zephyr-ide.debug-attach"));
+    }
 
     if (activeProject.twisterConfigs && Object.keys(activeProject.twisterConfigs).length) {
       items.push(new ActiveProjectItem("Run Tests", "beaker", activeTwister ? activeTwister.name : "",

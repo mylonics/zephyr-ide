@@ -112,6 +112,41 @@
           "default": true,
           "description": "Show the 'Build and Debug' button in the status bar. Restart to take effect."
         },
+        "zephyr-ide.activeProjectPanel.showBuild": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the 'Build' button in the Active Project panel."
+        },
+        "zephyr-ide.activeProjectPanel.showBuildPristine": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the 'Build Pristine' button in the Active Project panel."
+        },
+        "zephyr-ide.activeProjectPanel.showFlash": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the 'Flash' button in the Active Project panel."
+        },
+        "zephyr-ide.activeProjectPanel.showBuildFlash": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the 'Build and Flash' button in the Active Project panel."
+        },
+        "zephyr-ide.activeProjectPanel.showBuildDebug": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the 'Build and Debug' button in the Active Project panel."
+        },
+        "zephyr-ide.activeProjectPanel.showDebug": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the 'Debug' button in the Active Project panel."
+        },
+        "zephyr-ide.activeProjectPanel.showAttach": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the 'Debug Attach' button in the Active Project panel."
+        },
         "zephyr-ide.buildBeforeFlash": {
           "type": "boolean",
           "default": false,
