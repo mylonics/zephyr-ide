@@ -258,6 +258,26 @@ function registerCommandWithRefresh(
 }
 
 /** Create a left-aligned status bar item, register it, and show it. */
+/**
+ * Resolve the bind slot from an ActiveProjectView item context value.
+ * Handles both plain contexts (e.g. "activeProject.flash") and dynamic
+ * contexts with flag suffixes (e.g. "activeProject.flash.withBuildFlash").
+ * Attach is checked before debug to avoid prefix-match ambiguity.
+ */
+function resolveLocalBindSlot(contextValue: string): "flash" | "debug" | "attach" | undefined {
+  const matchesPrefix = (base: string) => contextValue === base || contextValue.startsWith(base + ".");
+  if (matchesPrefix("activeProject.flash") || matchesPrefix("activeProject.buildFlash")) {
+    return "flash";
+  }
+  if (matchesPrefix("activeProject.debugAttach")) {
+    return "attach";
+  }
+  if (matchesPrefix("activeProject.debug") || matchesPrefix("activeProject.buildDebug")) {
+    return "debug";
+  }
+  return undefined;
+}
+
 function createStatusBarButton(
   context: vscode.ExtensionContext,
   command: string,
@@ -858,20 +878,7 @@ export async function activate(context: vscode.ExtensionContext) {
       void vscode.commands.executeCommand("zephyr-ide.set-active-profile");
     }),
     vscode.commands.registerCommand("zephyr-ide.active-view.set-local-bind", (item: any) => {
-      const cv: string = item?.contextValue ?? "";
-      let slot: "flash" | "debug" | "attach" | undefined;
-      // Match context values for flash-related rows (including combined .withBuildFlash variant)
-      if (cv === "activeProject.flash" || cv.startsWith("activeProject.flash.") ||
-          cv === "activeProject.buildFlash" || cv.startsWith("activeProject.buildFlash.")) {
-        slot = "flash";
-      // Attach must be checked before debug to avoid partial prefix match
-      } else if (cv === "activeProject.debugAttach" || cv.startsWith("activeProject.debugAttach.")) {
-        slot = "attach";
-      // Match debug-related rows (including combined .withBuildDebug variant)
-      } else if (cv === "activeProject.debug" || cv.startsWith("activeProject.debug.") ||
-                 cv === "activeProject.buildDebug" || cv.startsWith("activeProject.buildDebug.")) {
-        slot = "debug";
-      }
+      const slot = resolveLocalBindSlot(item?.contextValue ?? "");
       void project.setLocalBind(context, wsConfig, slot);
     }),
     vscode.commands.registerCommand("zephyr-ide.active-view.clean-test-dirs", () => {

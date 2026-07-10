@@ -34,7 +34,7 @@ export type ActiveProjectItemContext =
   | 'activeProject.debugAttach'
   | 'activeProject.twisterRun'
   | 'activeProject.buildDashboard'
-  | string;  // dynamic contexts with flag suffixes (e.g. activeProject.build.withPristine.withKconfig)
+  | `activeProject.${string}`;  // dynamic contexts with flag suffixes (e.g. activeProject.build.withPristine.withKconfig)
 
 class ActiveProjectItem extends vscode.TreeItem {
   constructor(
@@ -175,11 +175,11 @@ export class ActiveProjectView implements vscode.TreeDataProvider<ActiveProjectI
     let buildContextFlags = '';
     if (!showBuildPristine) { buildContextFlags += '.withPristine'; }
     if (!showBuildDashboard) { buildContextFlags += '.withKconfig'; }
-    const buildContextValue = 'activeProject.build' + buildContextFlags;
+    const buildContextValue = `activeProject.build${buildContextFlags}` as ActiveProjectItemContext;
 
     let buildPristineContextFlags = '';
     if (!showBuildDashboard) { buildPristineContextFlags += '.withKconfig'; }
-    const buildPristineContextValue = 'activeProject.buildPristine' + buildPristineContextFlags;
+    const buildPristineContextValue = `activeProject.buildPristine${buildPristineContextFlags}` as ActiveProjectItemContext;
 
     const flashContextValue = !showBuildFlash ? 'activeProject.flash.withBuildFlash' : 'activeProject.flash';
     const debugContextValue = !showBuildDebug ? 'activeProject.debug.withBuildDebug' : 'activeProject.debug';

@@ -502,12 +502,12 @@
       "view/item/context": [
         {
           "command": "zephyr-ide.active-view.kconfig",
-          "when": "view == zephyrIdeActiveProject && viewItem =~ /activeProject\\.build/ && viewItem =~ /\\.withKconfig/",
+          "when": "view == zephyrIdeActiveProject && viewItem =~ /activeProject\\.build.*\\.withKconfig/",
           "group": "inline@1"
         },
         {
           "command": "zephyr-ide.active-view.build-pristine",
-          "when": "view == zephyrIdeActiveProject && viewItem =~ /^activeProject\\.build\\./ && viewItem =~ /\\.withPristine/",
+          "when": "view == zephyrIdeActiveProject && viewItem =~ /^activeProject\\.build\\..*\\.withPristine/",
           "group": "inline@2"
         },
         {
