@@ -27,6 +27,7 @@ import { parseWestConfigManifest } from "./west-config-parser";
 import { readZephyrIdeJson, writeZephyrIdeJson } from "./zephyr_ide_json";
 import { splitArgs } from "../project_utilities/runner_profiles";
 import { outputError } from "../utilities/output";
+import { markZephyrIdeJsonWrite } from "./zephyr-ide-json-write-guard";
 
 /**
  * Per-extension-host-process token used to detect full process restarts so
@@ -693,7 +694,7 @@ export async function setWorkspaceState(context: vscode.ExtensionContext, wsConf
       existing = {};
     }
     existing.projects = wsConfig.projects;
-    await fs.outputFile(filePath, JSON.stringify(existing, null, 2));
+    await markZephyrIdeJsonWrite(() => fs.outputFile(filePath, JSON.stringify(existing, null, 2)));
   }
   await context.workspaceState.update("zephyr.env", wsConfig);
 }

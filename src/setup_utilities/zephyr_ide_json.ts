@@ -78,6 +78,7 @@ import { outputError } from "../utilities/output";
 // Type-only import: erased at compile time, avoiding a runtime circular
 // dependency (project.ts imports getZephyrIdeSampleProjects from this file).
 import type { ProjectConfig } from "../project_utilities/project";
+import { markZephyrIdeJsonWrite } from "./zephyr-ide-json-write-guard";
 
 function getZephyrIdeJsonPath(wsConfig: WorkspaceConfig): string {
     return path.join(wsConfig.rootPath, ".vscode", "zephyr-ide.json");
@@ -114,7 +115,7 @@ export function readZephyrIdeJson(wsConfig: WorkspaceConfig): Record<string, any
 export async function writeZephyrIdeJson(wsConfig: WorkspaceConfig, data: Record<string, any>): Promise<void> {
     const filePath = getZephyrIdeJsonPath(wsConfig);
     try {
-        await fs.outputFile(filePath, JSON.stringify(data, null, 2));
+        await markZephyrIdeJsonWrite(() => fs.outputFile(filePath, JSON.stringify(data, null, 2)));
     } catch (error) {
         outputError("Zephyr IDE JSON", `Failed to write zephyr-ide.json: ${String(error)}`);
     }
