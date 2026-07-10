@@ -16,6 +16,8 @@ SPDX-License-Identifier: Apache-2.0
 import * as fs from 'fs-extra';
 import * as path from 'upath';
 
+import { resolveEffectiveBuildDir } from '../zephyr_utilities/runners-yaml';
+
 import type {
   DashboardData,
   DashboardKconfigEntry,
@@ -687,22 +689,27 @@ function mergeMemoryReports(
 }
 
 /**
- * Reads the ram/rom report data embedded by the cmake ram_report / rom_report
- * targets in `dashboard/memoryreport.html`.  Returns null entries if the
- * dashboard HTML has not been generated yet.
+ * Reads the memory reports from disk (ram.json / rom.json) for the given
+ * build directory.  Automatically resolves the effective (per-image) build
+ * directory when sysbuild is in use (domains.yaml present).
+ * Returns null entries if the report files are absent.
  * The "all" view is synthesised by merging ram + rom trees.
  */
 export function readMemoryReports(buildFolder: string): DashboardMemory {
-  const { ram, rom } = loadMemoryReportsFromDisk(buildFolder);
+  const effectiveFolder = resolveEffectiveBuildDir(buildFolder);
+  const { ram, rom } = loadMemoryReportsFromDisk(effectiveFolder);
   return { all: mergeMemoryReports(ram, rom), ram, rom };
 }
 
 /**
  * Reads the memory summary from the ELF section headers.
+ * Automatically resolves the effective (per-image) build directory when
+ * sysbuild is in use (domains.yaml present).
  * Returns a zeroed summary if the ELF file does not exist yet.
  */
 export function readMemorySummary(buildFolder: string, kernelBinName = 'zephyr'): DashboardSummary['memorySummary'] {
-  const elfPath = path.join(buildFolder, 'zephyr', `${kernelBinName}.elf`);
+  const effectiveFolder = resolveEffectiveBuildDir(buildFolder);
+  const elfPath = path.join(effectiveFolder, 'zephyr', `${kernelBinName}.elf`);
   return parseElfSectionSizes(elfPath) ?? { bss: 0, rodata: 0, rwdata: 0, text: 0, other: 0 };
 }
 
@@ -721,6 +728,10 @@ export function readMemoryRefresh(buildFolder: string, kernelBinName = 'zephyr')
  * Reads all Zephyr build artifacts for the given build directory and
  * assembles a `DashboardData` object ready to post to the webview.
  *
+ * When sysbuild is in use (domains.yaml is present in buildFolder) all
+ * per-image artifact paths are resolved against the default domain's build
+ * directory automatically.
+ *
  * Memory report data (ram/rom tree) is loaded from any pre-existing
  * *_report.json files; call `runMemoryReports()` to generate them first.
  */
@@ -731,23 +742,28 @@ export async function readDashboardData(
   kernelBinName = 'zephyr',
   command: string | null = null,
 ): Promise<DashboardData> {
-  const cache = parseCMakeCache(buildFolder);
+  // Resolve the per-image build directory so that sysbuild projects point to
+  // the correct subdirectory (e.g. <build>/hello_world/) instead of the
+  // top-level sysbuild directory which does not contain Zephyr artifacts.
+  const effectiveFolder = resolveEffectiveBuildDir(buildFolder);
+
+  const cache = parseCMakeCache(effectiveFolder);
   const board = cache['BOARD'] ?? cache['CACHED_BOARD'] ?? null;
   const application = cache['APPLICATION_SOURCE_DIR'] ?? null;
   const zephyrBase = cache['ZEPHYR_BASE'] ?? null;
-  const zephyrVersion = resolveZephyrVersion(cache, buildFolder);
-  const toolchain = resolveToolchain(cache, buildFolder);
+  const zephyrVersion = resolveZephyrVersion(cache, effectiveFolder);
+  const toolchain = resolveToolchain(cache, effectiveFolder);
 
-  const elfInfo = getElfInfo(buildFolder, kernelBinName);
-  const kconfig = parseKconfig(buildFolder);
-  const { romTotal, ramTotal } = parseMapMemoryRegions(buildFolder, kernelBinName);
-  const sysInit = parseSysInit(buildFolder, kernelBinName, cache);
-  const buildInfoFiles = readBuildInfoSourceFiles(buildFolder);
+  const elfInfo = getElfInfo(effectiveFolder, kernelBinName);
+  const kconfig = parseKconfig(effectiveFolder);
+  const { romTotal, ramTotal } = parseMapMemoryRegions(effectiveFolder, kernelBinName);
+  const sysInit = parseSysInit(effectiveFolder, kernelBinName, cache);
+  const buildInfoFiles = readBuildInfoSourceFiles(effectiveFolder);
 
-  const dtsPath = path.join(buildFolder, 'zephyr', 'zephyr.dts');
+  const dtsPath = path.join(effectiveFolder, 'zephyr', 'zephyr.dts');
   const dtsSource = fs.existsSync(dtsPath) ? fs.readFileSync(dtsPath, 'utf8') : '';
 
-  const { ram: memRam, rom: memRom } = loadMemoryReportsFromDisk(buildFolder);
+  const { ram: memRam, rom: memRom } = loadMemoryReportsFromDisk(effectiveFolder);
   const memory = { all: mergeMemoryReports(memRam, memRom), ram: memRam, rom: memRom };
 
   return {

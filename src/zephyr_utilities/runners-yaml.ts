@@ -98,6 +98,40 @@ export function getSysbuildDomains(buildDir: string): SysbuildDomain[] | undefin
 }
 
 /**
+ * Resolve the effective (per-image) build directory for a top-level build dir.
+ *
+ * When sysbuild is in use the top-level build directory contains a
+ * `domains.yaml` file that maps image names to their own sub-build
+ * directories.  This function reads that file and returns the `build_dir` of
+ * the requested domain (or the `default` domain when `domainName` is omitted).
+ *
+ * If `domains.yaml` does not exist (plain, non-sysbuild project) or the
+ * requested domain cannot be found, `buildDir` is returned unchanged.
+ *
+ * All artifact readers (ELF, DTS, Kconfig, memory reports, …) should call
+ * this before constructing paths so that sysbuild projects are handled
+ * transparently.
+ */
+export function resolveEffectiveBuildDir(buildDir: string, domainName?: string): string {
+  const domainsYamlPath = path.join(buildDir, "domains.yaml");
+  if (!fs.existsSync(domainsYamlPath)) { return buildDir; }
+  try {
+    const domainsDoc: any = yaml.load(fs.readFileSync(domainsYamlPath, "utf-8"));
+    const targetName = domainName ?? domainsDoc?.default;
+    const domains: any[] = domainsDoc?.domains;
+    if (targetName && Array.isArray(domains)) {
+      const targetDomain = domains.find((d: any) => d?.name === targetName);
+      if (targetDomain?.build_dir) {
+        return targetDomain.build_dir as string;
+      }
+    }
+  } catch (e) {
+    outputWarning("Runners YAML", `Failed to parse ${domainsYamlPath}: ${String(e)}`);
+  }
+  return buildDir;
+}
+
+/**
  * Resolve the path to runners.yaml for a build directory. Handles sysbuild by
  * delegating to the named domain (or default domain when omitted) via domains.yaml.
  *
@@ -105,26 +139,7 @@ export function getSysbuildDomains(buildDir: string): SysbuildDomain[] | undefin
  * check existence themselves so they can produce a useful error.
  */
 export function resolveRunnersYamlPath(buildDir: string, domainName?: string): string {
-  const domainsYamlPath = path.join(buildDir, "domains.yaml");
-  let effectiveBuildDir = buildDir;
-  if (fs.existsSync(domainsYamlPath)) {
-    try {
-      const domainsDoc: any = yaml.load(fs.readFileSync(domainsYamlPath, "utf-8"));
-      const targetName = domainName ?? domainsDoc?.default;
-      const domains: any[] = domainsDoc?.domains;
-      if (targetName && Array.isArray(domains)) {
-        const targetDomain = domains.find((d: any) => d?.name === targetName);
-        if (targetDomain?.build_dir) {
-          effectiveBuildDir = targetDomain.build_dir;
-        }
-      }
-    } catch (e) {
-      // Fall through with the original build dir, but log so debug sessions
-      // that suddenly resolve to the wrong runners.yaml have a breadcrumb.
-      outputWarning("Runners YAML", `Failed to parse ${domainsYamlPath}: ${String(e)}`);
-    }
-  }
-  return path.join(effectiveBuildDir, "zephyr", "runners.yaml");
+  return path.join(resolveEffectiveBuildDir(buildDir, domainName), "zephyr", "runners.yaml");
 }
 
 /**

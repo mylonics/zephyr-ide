@@ -24,6 +24,7 @@ import * as fs from 'fs-extra';
 import * as path from 'upath';
 import { executeShellCommandInPythonEnv, executeTaskHelperInPythonEnv } from '../utilities/utils';
 import type { SetupState } from '../setup_utilities/types';
+import { resolveEffectiveBuildDir } from '../zephyr_utilities/runners-yaml';
 
 // ---------------------------------------------------------------------------
 // Stat file regeneration via nm
@@ -51,17 +52,21 @@ function readCMakeNm(buildFolder: string): string | null {
  * Runs `nm --size-sort` on the ELF and writes the output to zephyr.stat.
  * This is equivalent to what Zephyr's build system does during a normal build.
  * Silently does nothing if nm or the ELF cannot be found.
+ *
+ * Automatically resolves the effective (per-image) build directory when
+ * sysbuild is in use so that the correct CMakeCache.txt and ELF are used.
  */
 async function generateStatFile(
   buildFolder: string,
   setupState: SetupState,
   kernelBinName = 'zephyr',
 ): Promise<void> {
-  const nmPath = readCMakeNm(buildFolder);
+  const effectiveFolder = resolveEffectiveBuildDir(buildFolder);
+  const nmPath = readCMakeNm(effectiveFolder);
   if (!nmPath) { return; }
 
-  const elfPath = path.join(buildFolder, 'zephyr', `${kernelBinName}.elf`);
-  const statPath = path.join(buildFolder, 'zephyr', `${kernelBinName}.stat`);
+  const elfPath = path.join(effectiveFolder, 'zephyr', `${kernelBinName}.elf`);
+  const statPath = path.join(effectiveFolder, 'zephyr', `${kernelBinName}.stat`);
   if (!fs.existsSync(elfPath)) { return; }
 
   // Run nm and capture stdout, then write to the stat file directly.
@@ -82,6 +87,10 @@ async function generateStatFile(
  * `ram.json` and `rom.json` at the build root.
  * Returns an error message string on failure, or null on success.
  *
+ * When sysbuild is in use (domains.yaml present) the cmake command is run
+ * against the default domain's build directory rather than the top-level
+ * sysbuild directory.
+ *
  * When `silent` is true (the default) the cmake commands run as background
  * child processes with no visible terminal.  Pass `silent = false` to keep
  * the old behaviour of showing a VS Code Task terminal (used by the explicit
@@ -94,8 +103,9 @@ export async function runMemoryReports(
   buildName = 'build',
   silent = true,
 ): Promise<string | null> {
+  const effectiveFolder = resolveEffectiveBuildDir(buildFolder);
   for (const target of ['ram_report', 'rom_report']) {
-    const cmd = `cmake --build "${buildFolder}" --target ${target}`;
+    const cmd = `cmake --build "${effectiveFolder}" --target ${target}`;
     if (silent) {
       const result = await executeShellCommandInPythonEnv(cmd, setupState.setupPath ?? '', setupState, false);
       if (result.exitCode !== 0) {
