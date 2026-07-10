@@ -26,22 +26,18 @@ interface SettingDefinition {
   defaultValue: boolean | string | null;
   /** Options for enum settings — each entry has a value and a human-readable label. */
   options?: { value: string; label: string }[];
+  /** Set for string settings that represent a filesystem folder, to show a Browse button. */
+  pathType?: "folder";
 }
 
 const SETTINGS: SettingDefinition[] = [
   {
-    key: "zephyr-ide.globalDirectory",
-    label: "Global Directory",
-    description: "Global directory for west workspace installation and Zephyr tools. The toolchains subdirectory is used for SDK installations unless overridden.",
-    type: "string",
-    defaultValue: null,
-  },
-  {
     key: "zephyr-ide.toolchainDirectory",
     label: "Toolchain Directory",
-    description: "Directory containing Zephyr SDK installations. If not specified, defaults to the toolchains subdirectory within the global directory.",
+    description: "Manually specify the directory containing Zephyr SDK installations (e.g., containing zephyr-sdk-0.17.0, zephyr-sdk-0.17.3 subdirectories). If not specified, defaults to the toolchains subdirectory within the tools directory.",
     type: "string",
     defaultValue: null,
+    pathType: "folder",
   },
   {
     key: "zephyr-ide.venvFolder",
@@ -49,13 +45,7 @@ const SETTINGS: SettingDefinition[] = [
     description: "Python virtual environment folder path. If not specified, defaults to .venv in the workspace setup path.",
     type: "string",
     defaultValue: null,
-  },
-  {
-    key: "zephyr-ide.useGuiConfig",
-    label: "Use GUI Config",
-    description: "Display GUI config instead of menu config in Project Tree View.",
-    type: "boolean",
-    defaultValue: false,
+    pathType: "folder",
   },
   {
     key: "zephyr-ide.activeViewKconfigButton",
@@ -178,7 +168,7 @@ const SETTINGS: SettingDefinition[] = [
     label: "Active Project Panel: Show Build Pristine",
     description: "Show the 'Build Pristine' button in the Active Project panel.",
     type: "boolean",
-    defaultValue: true,
+    defaultValue: false,
   },
   {
     key: "zephyr-ide.activeProjectPanel.showFlash",
@@ -210,8 +200,8 @@ const SETTINGS: SettingDefinition[] = [
   },
   {
     key: "zephyr-ide.activeProjectPanel.showAttach",
-    label: "Active Project Panel: Show Debug Attach",
-    description: "Show the 'Debug Attach' button in the Active Project panel.",
+    label: "Active Project Panel: Show Attach",
+    description: "Show the 'Attach' button in the Active Project panel.",
     type: "boolean",
     defaultValue: true,
   },
@@ -220,7 +210,7 @@ const SETTINGS: SettingDefinition[] = [
     label: "Active Project Panel: Show Build Dashboard",
     description: "Show the 'Build Dashboard' button at the bottom of the Active Project panel. When shown, the Kconfig button is hidden from Build and Build Pristine rows.",
     type: "boolean",
-    defaultValue: false,
+    defaultValue: true,
   },
   {
     key: "zephyr-ide.separateBuildDebugProfile",
@@ -361,6 +351,7 @@ export class SettingsPanel {
         type: def.type,
         defaultValue: def.defaultValue,
         options: def.options ?? null,
+        pathType: def.pathType ?? null,
         currentValue: currentValue ?? def.defaultValue,
         scope,
         userValue: userValue ?? null,
@@ -371,21 +362,6 @@ export class SettingsPanel {
     });
 
     this._panel.webview.postMessage({ command: "updateSettings", settings });
-    this.refreshVariants();
-  }
-
-  /** Stub: variants are being replaced by Runner Profiles; the editor is gone. */
-  private refreshVariants() {
-    this._panel.webview.postMessage({
-      command: "updateVariants",
-      catalogue: {
-        user: [],
-        workspace: [],
-        referencedNames: [],
-        hasWorkspace: false,
-      },
-      knownRunners: [],
-    });
   }
 
   private async handleWebviewMessage(message: Record<string, any>) {
@@ -441,12 +417,6 @@ export class SettingsPanel {
         this.refreshSettings();
         break;
       }
-
-      // Variant editor removed — Runner Profile editor coming in Phase 4.
-      case "addVariant":
-      case "updateVariant":
-      case "removeVariant":
-        break;
     }
   }
 

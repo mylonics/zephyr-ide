@@ -25,12 +25,6 @@ import { testHelper } from '../zephyr_utilities/twister';
 import { outputError } from '../utilities/output';
 import { sanitizeTreeId } from '../utilities/utils';
 
-export function getUseGuiConfig(): boolean | undefined {
-  const configuration = vscode.workspace.getConfiguration();
-  return configuration.get("zephyr-ide.useGuiConfig")
-    ?? configuration.get("zephyr-ide.use_gui_config");
-}
-
 export type ProjectTreeItemContext =
   | 'projectItem'
   | 'buildItem'

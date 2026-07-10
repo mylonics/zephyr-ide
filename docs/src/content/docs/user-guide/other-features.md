@@ -45,7 +45,7 @@ The IDE allows modifying the west and cmake arguments per build. It allows the u
 
 ### Menu Config and GUI Config
 
-The Zephyr Menu Config or GUI Config may be run from the active project panel. In the project config panel, by default, a Menu Config option is available. This can be changed to GUI Config by adding `"zephyr-ide.useGuiConfig": true` to settings.json.
+The Zephyr Menu Config or GUI Config may be run from the active project panel. By default the Kconfig button opens the build dashboard; it can be set to launch Menu Config or GUI Config instead via the `zephyr-ide.activeViewKconfigButton` setting (and `zephyr-ide.projectViewKconfigButton` for the Projects view). See [Configuration Reference](/reference/configuration/) for details.
 
 ![Demonstrating MenuConfig](https://raw.githubusercontent.com/mylonics/zephyr-ide/develop/docs/media/demonstrating_menu_config_debug_binding.gif)
 

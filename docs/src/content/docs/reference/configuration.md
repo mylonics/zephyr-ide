@@ -10,7 +10,6 @@ The following settings are available in VS Code settings (File > Preferences > S
 | `zephyr-ide.toolchainDirectory` | string \| null | null | Directory containing Zephyr SDK installations (e.g. subdirectories named `zephyr-sdk-0.17.0`). Defaults to `~/.zephyr_ide/toolchains`. |
 | `zephyr-ide.globalDirectory` | string \| null | null | **Deprecated.** Use `zephyr-ide.toolchainDirectory` instead. Migrated automatically on startup. |
 | `zephyr-ide.tools_directory` | string \| null | null | **Deprecated.** Use `zephyr-ide.toolchainDirectory` instead. Migrated automatically on startup. |
-| `zephyr-ide.useGuiConfig` | boolean | false | Use the graphical Kconfig editor instead of terminal-based menuconfig. |
 | `zephyr-ide.activeViewKconfigButton` | enum | `dashboard` | Controls what the Kconfig button in the Active Project view opens: `dashboard` (main summary page), `kconfig-dashboard` (Kconfig page of the dashboard), `gui-config` (`west build -t guiconfig`), or `menu-config` (`west build -t menuconfig`). |
 | `zephyr-ide.projectViewKconfigButton` | enum | `kconfig-dashboard` | Controls what the Config button in the Projects view opens for a build: `kconfig-dashboard` (Kconfig page of the dashboard), `gui-config` (`west build -t guiconfig`), or `menu-config` (`west build -t menuconfig`). |
 | `zephyr-ide.westNarrowUpdate` | boolean | false | Pass `--narrow` to `west update` to fetch only required Git history, reducing disk usage and download time. |
@@ -48,13 +47,13 @@ These settings control which action buttons appear in the Active Project panel:
 | Setting | Type | Default | Description |
 |---|---|---|---|
 | `zephyr-ide.activeProjectPanel.showBuild` | boolean | true | Show the **Build** button in the Active Project panel. |
-| `zephyr-ide.activeProjectPanel.showBuildPristine` | boolean | true | Show the **Build Pristine** button in the Active Project panel. When hidden, a Build Pristine inline action is added to the Build row. |
+| `zephyr-ide.activeProjectPanel.showBuildPristine` | boolean | false | Show the **Build Pristine** button in the Active Project panel. When hidden, a Build Pristine inline action is added to the Build row. |
 | `zephyr-ide.activeProjectPanel.showFlash` | boolean | true | Show the **Flash** button in the Active Project panel. |
 | `zephyr-ide.activeProjectPanel.showBuildFlash` | boolean | false | Show the **Build and Flash** button in the Active Project panel. When hidden, a Build and Flash inline action is added to the Flash row. |
 | `zephyr-ide.activeProjectPanel.showBuildDebug` | boolean | false | Show the **Build and Debug** button in the Active Project panel. When hidden, a Build and Debug inline action is added to the Debug row. |
 | `zephyr-ide.activeProjectPanel.showDebug` | boolean | true | Show the **Debug** button in the Active Project panel. |
-| `zephyr-ide.activeProjectPanel.showAttach` | boolean | true | Show the **Debug Attach** button in the Active Project panel. |
-| `zephyr-ide.activeProjectPanel.showBuildDashboard` | boolean | false | Show the **Build Dashboard** button at the bottom of the Active Project panel. When shown, the Kconfig inline button is hidden from Build and Build Pristine rows (accessible via the dashboard instead). An **Open Project Details** inline action is also available on this row. |
+| `zephyr-ide.activeProjectPanel.showAttach` | boolean | true | Show the **Attach** button in the Active Project panel. |
+| `zephyr-ide.activeProjectPanel.showBuildDashboard` | boolean | true | Show the **Build Dashboard** button at the bottom of the Active Project panel. When shown, the Kconfig inline button is hidden from Build and Build Pristine rows (accessible via the dashboard instead). An **Open Project Details** inline action is also available on this row. |
 
 ## `.vscode/zephyr-ide.json` Reference
 
@@ -467,10 +466,18 @@ If the SCA variant setting changes between builds, the extension detects the dif
 |---|---|---|
 | **dtdoctor** | `"dtdoctor"` | None — bundled in the Zephyr repo at `scripts/dts/dtdoctor_sca_wrapper.py`. Requires Zephyr 3.7+. |
 | **GCC `-fanalyzer`** | `"gcc"` | None — GCC 12+ is already in the Zephyr SDK. |
+| **Clang static analyzer** | `"clang"` | Clang must be installed separately. |
+| **Sparse** | `"sparse"` | [Sparse](https://sparse.docs.kernel.org/) must be installed separately. |
+| **CodeChecker** | `"codechecker"` | [CodeChecker](https://github.com/Ericsson/codechecker) must be installed separately. |
+| **Coverity** | `"coverity"` | Commercial — requires a Coverity installation and license. |
+| **Parasoft C/C++test** | `"cpptest"` | Commercial — requires a cpptest installation and license. |
+| **ECLAIR** | `"eclair"` | Commercial — requires an ECLAIR installation and license. |
+| **IAR C-STAT** | `"iar_c_stat"` | Requires the IAR toolchain and license. |
+| **Polyspace** | `"polyspace"` | Commercial — requires a MathWorks Polyspace installation and license. |
 | **Custom** | `"custom"` | Whatever the variant needs. Set the name in `zephyr-ide.scaCustomVariant`. |
 | **None (disabled)** | `"none"` | — |
 
-The default is `"none"` (disabled).
+The default is `"none"` (disabled). `dtdoctor` and `gcc` work out of the box since both ship with the Zephyr SDK; `clang`, `sparse`, and `codechecker` are open-source tools you install yourself; the remaining named variants are commercial tools requiring their own license and installation.
 
 ### dtdoctor
 

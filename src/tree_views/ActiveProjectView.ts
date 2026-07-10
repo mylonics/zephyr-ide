@@ -160,14 +160,14 @@ export class ActiveProjectView implements vscode.TreeDataProvider<ActiveProjectI
     const attachDisplay = slotDesc("attach", attachProfile);
 
     const cfg = vscode.workspace.getConfiguration();
-    const showBuildPristine = cfg.get<boolean>("zephyr-ide.activeProjectPanel.showBuildPristine") ?? true;
+    const showBuildPristine = cfg.get<boolean>("zephyr-ide.activeProjectPanel.showBuildPristine") ?? false;
     const showBuild = cfg.get<boolean>("zephyr-ide.activeProjectPanel.showBuild") ?? true;
     const showFlash = cfg.get<boolean>("zephyr-ide.activeProjectPanel.showFlash") ?? true;
     const showBuildFlash = cfg.get<boolean>("zephyr-ide.activeProjectPanel.showBuildFlash") ?? false;
     const showBuildDebug = cfg.get<boolean>("zephyr-ide.activeProjectPanel.showBuildDebug") ?? false;
     const showDebug = cfg.get<boolean>("zephyr-ide.activeProjectPanel.showDebug") ?? true;
     const showAttach = cfg.get<boolean>("zephyr-ide.activeProjectPanel.showAttach") ?? true;
-    const showBuildDashboard = cfg.get<boolean>("zephyr-ide.activeProjectPanel.showBuildDashboard") ?? false;
+    const showBuildDashboard = cfg.get<boolean>("zephyr-ide.activeProjectPanel.showBuildDashboard") ?? true;
 
     // Build dynamic context values encoding which inline-action buttons are present.
     // Flag suffixes: .withPristine (build-pristine button), .withKconfig (kconfig button),
@@ -211,7 +211,7 @@ export class ActiveProjectView implements vscode.TreeDataProvider<ActiveProjectI
         'activeProject.buildDebug', "zephyr-ide.build-debug"));
     }
     if (showAttach) {
-      items.push(new ActiveProjectItem("Debug Attach", "debug-console", attachDisplay,
+      items.push(new ActiveProjectItem("Attach", "debug-console", attachDisplay,
         'activeProject.debugAttach', "zephyr-ide.debug-attach"));
     }
 
