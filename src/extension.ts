@@ -673,8 +673,7 @@ export async function activate(context: vscode.ExtensionContext) {
         void vscode.commands.executeCommand("zephyr-ide.update-web-view");
       } catch (err) {
         void vscode.window.showWarningMessage(
-          `Zephyr IDE: Failed to reload zephyr-ide.json after external change. ` +
-          `The file may contain invalid JSON. Please check your edits.`
+          `Zephyr IDE: Failed to reload zephyr-ide.json after external change: ${String(err)}`
         );
         outputError("Workspace Config", `Failed to reload zephyr-ide.json: ${String(err)}`);
       }

@@ -42,6 +42,11 @@ let _pendingWriteCount = 0;
  * of `writeOp` is forwarded to the caller. Any error thrown by `writeOp` is
  * re-thrown after the guard is scheduled for release.
  *
+ * `gracePeriodMs` defaults to 500 ms. File-system change events are typically
+ * emitted within a few milliseconds of the write completing, but 500 ms
+ * provides headroom for slower filesystems and heavily-loaded systems without
+ * suppressing legitimate external edits for an unreasonably long time.
+ *
  * Wrap every write to zephyr-ide.json that originates from the extension
  * inside this function.
  */
