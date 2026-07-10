@@ -694,8 +694,7 @@ export async function setWorkspaceState(context: vscode.ExtensionContext, wsConf
       existing = {};
     }
     existing.projects = wsConfig.projects;
-    markZephyrIdeJsonWrite();
-    await fs.outputFile(filePath, JSON.stringify(existing, null, 2));
+    await markZephyrIdeJsonWrite(() => fs.outputFile(filePath, JSON.stringify(existing, null, 2)));
   }
   await context.workspaceState.update("zephyr.env", wsConfig);
 }

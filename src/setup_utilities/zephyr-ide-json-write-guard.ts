@@ -21,32 +21,41 @@ limitations under the License.
  * distinguish between external edits (which should trigger a reload) and
  * writes made by the extension (which should be ignored).
  *
- * Every code path that writes zephyr-ide.json must call
- * `markZephyrIdeJsonWrite()` immediately before the write so that the
- * subsequent file-change event is suppressed.
+ * Every code path that writes zephyr-ide.json must wrap the write call in
+ * `markZephyrIdeJsonWrite()` so that the subsequent file-change event is
+ * suppressed.
  *
  * Implementation note: Node.js / V8 is single-threaded (event loop), so
  * incrementing and decrementing `_pendingWriteCount` is atomic with respect
  * to other JavaScript code. Multiple overlapping extension writes are handled
  * correctly: each `markZephyrIdeJsonWrite()` call increments the counter and
- * schedules an independent decrement, so the guard stays active until all
- * pending write grace-periods have elapsed.
+ * schedules an independent decrement once its write settles, so the guard
+ * stays active until all pending write grace-periods have elapsed.
  */
 
 let _pendingWriteCount = 0;
 
 /**
- * Increment the pending-write counter and schedule a decrement after
- * `durationMs` milliseconds. Call this immediately before each write to
- * zephyr-ide.json that originates from the extension.
+ * Execute `writeOp`, keeping the pending-write guard active for the duration
+ * of the write plus a `gracePeriodMs` grace period after it settles (to allow
+ * the OS file-change event to fire before the guard clears). The return value
+ * of `writeOp` is forwarded to the caller. Any error thrown by `writeOp` is
+ * re-thrown after the guard is scheduled for release.
+ *
+ * Wrap every write to zephyr-ide.json that originates from the extension
+ * inside this function.
  */
-export function markZephyrIdeJsonWrite(durationMs = 1000): void {
+export async function markZephyrIdeJsonWrite<T>(writeOp: () => Promise<T>, gracePeriodMs = 500): Promise<T> {
   _pendingWriteCount++;
-  setTimeout(() => {
-    if (_pendingWriteCount > 0) {
-      _pendingWriteCount--;
-    }
-  }, durationMs);
+  try {
+    return await writeOp();
+  } finally {
+    setTimeout(() => {
+      if (_pendingWriteCount > 0) {
+        _pendingWriteCount--;
+      }
+    }, gracePeriodMs);
+  }
 }
 
 /**

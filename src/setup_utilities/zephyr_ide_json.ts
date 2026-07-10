@@ -115,8 +115,7 @@ export function readZephyrIdeJson(wsConfig: WorkspaceConfig): Record<string, any
 export async function writeZephyrIdeJson(wsConfig: WorkspaceConfig, data: Record<string, any>): Promise<void> {
     const filePath = getZephyrIdeJsonPath(wsConfig);
     try {
-        markZephyrIdeJsonWrite();
-        await fs.outputFile(filePath, JSON.stringify(data, null, 2));
+        await markZephyrIdeJsonWrite(() => fs.outputFile(filePath, JSON.stringify(data, null, 2)));
     } catch (error) {
         outputError("Zephyr IDE JSON", `Failed to write zephyr-ide.json: ${String(error)}`);
     }
