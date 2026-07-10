@@ -23,8 +23,9 @@ import { notifyError, outputError } from "../../utilities/output";
 import { generateNonce } from "../webview_shared/nonce";
 import { onSetupProgress, getActiveSetupProgress } from "../../setup_utilities/setup-progress";
 import { parseWestConfigManifestPath } from "../../setup_utilities/west-config-parser";
-import { getVenvPath } from "../../setup_utilities/workspace-config";
+import { configureExistingVenvEnvironment, getVenvPath } from "../../setup_utilities/workspace-config";
 import { setSetupState, setWorkspaceState, setExternalSetupState } from "../../setup_utilities/state-management";
+import { reloadEnvironmentVariables } from "../../utilities/utils";
 import {
   workspaceSetupFromWestGit,
   workspaceSetupStandard,
@@ -371,9 +372,11 @@ export class WorkspacePanel {
     try {
       await setSetupState(this._context, this.currentWsConfig, this.currentGlobalConfig, installDir);
       if (this.currentWsConfig.activeSetupState) {
+        await configureExistingVenvEnvironment(this.currentWsConfig.activeSetupState);
         this.currentWsConfig.activeSetupState.initialized = true;
         this.currentWsConfig.activeSetupState.pythonEnvironmentSetup = true;
         this.currentWsConfig.activeSetupState.westUpdated = true;
+        reloadEnvironmentVariables(this._context, this.currentWsConfig.activeSetupState);
         await setExternalSetupState(
           this._context,
           this.currentGlobalConfig,

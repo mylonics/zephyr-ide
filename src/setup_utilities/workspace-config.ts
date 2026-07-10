@@ -965,6 +965,28 @@ export function getVenvPath(setupPath: string): string {
 }
 
 /**
+ * Add an existing configured Python virtual environment to a workspace's
+ * environment variables. This is used when adopting a workspace that was
+ * prepared outside the extension, so commands such as `west` remain available.
+ *
+ * @returns `true` when the configured virtual environment exists.
+ */
+export async function configureExistingVenvEnvironment(setupState: SetupState): Promise<boolean> {
+  const venvPath = getVenvPath(setupState.setupPath);
+  if (!fs.pathExistsSync(venvPath)) {
+    return false;
+  }
+
+  const platform = await getPlatformNameAsync();
+  const pathSeparator = platform === "windows" ? ";" : ":";
+  const venvBin = path.join(venvPath, platform === "windows" ? "Scripts" : "bin");
+
+  setupState.env["VIRTUAL_ENV"] = venvPath;
+  setupState.env["PATH"] = venvBin + pathSeparator;
+  return true;
+}
+
+/**
  * Read the automatic project selection setting.
  * Falls back to true (the historical default) when unset.
  */
