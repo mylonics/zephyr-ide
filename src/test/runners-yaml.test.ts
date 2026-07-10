@@ -571,6 +571,9 @@ suite("resolveEffectiveBuildDir — sysbuild domain resolution", () => {
         ].join("\n"));
 
         const expected = path.join(domainBuildDir, "zephyr", "runners.yaml");
-        assert.strictEqual(resolveRunnersYamlPath(buildDir), expected);
+        assert.strictEqual(
+            path.normalize(resolveRunnersYamlPath(buildDir)),
+            path.normalize(expected),
+        );
     });
 });
