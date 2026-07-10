@@ -664,19 +664,29 @@ export async function activate(context: vscode.ExtensionContext) {
       new vscode.RelativePattern(wsConfig.rootPath, ".vscode/zephyr-ide.json")
     );
     context.subscriptions.push(zephyrIdeJsonWatcher);
-    const reloadFromFile = async () => {
-      if (isZephyrIdeJsonBeingWrittenByExtension()) {
-        return;
+    // Debounce reloads so that rapid-fire FS events (e.g. autosave, editor
+    // intermediate saves) collapse into a single reload + UI refresh instead
+    // of causing repeated file I/O and panel flickering.
+    let reloadDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+    const reloadFromFile = () => {
+      if (reloadDebounceTimer !== undefined) {
+        clearTimeout(reloadDebounceTimer);
       }
-      try {
-        await loadProjectsFromFile(wsConfig);
-        void vscode.commands.executeCommand("zephyr-ide.update-web-view");
-      } catch (err) {
-        void vscode.window.showWarningMessage(
-          `Zephyr IDE: Failed to reload zephyr-ide.json after external change: ${String(err)}`
-        );
-        outputError("Workspace Config", `Failed to reload zephyr-ide.json: ${String(err)}`);
-      }
+      reloadDebounceTimer = setTimeout(async () => {
+        reloadDebounceTimer = undefined;
+        if (isZephyrIdeJsonBeingWrittenByExtension()) {
+          return;
+        }
+        try {
+          await loadProjectsFromFile(wsConfig);
+          void vscode.commands.executeCommand("zephyr-ide.update-web-view");
+        } catch (err) {
+          void vscode.window.showWarningMessage(
+            `Zephyr IDE: Failed to reload zephyr-ide.json after external change: ${String(err)}`
+          );
+          outputError("Workspace Config", `Failed to reload zephyr-ide.json: ${String(err)}`);
+        }
+      }, 300);
     };
     context.subscriptions.push(zephyrIdeJsonWatcher.onDidChange(reloadFromFile));
     context.subscriptions.push(zephyrIdeJsonWatcher.onDidCreate(reloadFromFile));
