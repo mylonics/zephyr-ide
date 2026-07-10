@@ -842,6 +842,18 @@
         "title": "Zephyr IDE: Select Active Runner Profile (Local)"
       },
       {
+        "command": "zephyr-ide.set-workspace-active-profile",
+        "title": "Zephyr IDE: Select Active Runner Profile (Workspace)"
+      },
+      {
+        "command": "zephyr-ide.save-active-profile-to-workspace",
+        "title": "Zephyr IDE: Save Active Runner Profile to Workspace"
+      },
+      {
+        "command": "zephyr-ide.reset-active-profile-to-workspace",
+        "title": "Zephyr IDE: Reset Active Runner Profile to Workspace Default"
+      },
+      {
         "command": "zephyr-ide.set-local-bind",
         "title": "Zephyr IDE: Set Local Slot Runner Bind"
       },

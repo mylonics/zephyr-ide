@@ -20,7 +20,7 @@ import * as fs from "fs-extra";
 import * as path from "upath";
 
 import { WorkspaceConfig } from "../setup_utilities/types";
-import { ProjectConfig, getProjectFolder, getBuildFolder, resolveBoardPath } from "./project";
+import { ProjectConfig, getProjectFolder, getBuildFolder, resolveBoardPath, getEffectiveActiveProfileName } from "./project";
 import { BuildConfig } from "./build_selector";
 import { ConfigFiles, mergeConfigFiles, emptyConfigFiles } from "./config_selector";
 import { RunnerProfile, BindOverride, BuildBindOverrides, formatBindLabel, loadRunnerProfiles, findRunnerProfile } from "./runner_profiles";
@@ -95,8 +95,12 @@ export interface BuildDetails {
   westBuildArgs: string[];
   westBuildCMakeArgs: string[];
   confFiles: ConfigFiles;
-  /** Active runner profile name, or undefined when none is selected. */
+  /** Effective active runner profile name (local override, if any, else the
+   *  committed workspace value), or undefined when none is selected. */
   activeProfile: string | undefined;
+  /** Whether `activeProfile` came from the per-developer local override, the
+   *  committed workspace value, or neither. */
+  activeProfileScope: "local" | "workspace" | "none";
   /** Resolved active profile (if name lookup succeeded). */
   profile: RunnerProfile | undefined;
   /** Per-slot extra-args overrides on top of the profile. */
@@ -126,7 +130,10 @@ export function getBuildDetails(wsConfig: WorkspaceConfig, projectName: string, 
 
   const resolvedPath = resolveBoardPath(wsConfig, build, wsConfig.activeSetupState);
 
-  const activeProfile = build.activeProfile;
+  const { name: activeProfile, scope: activeProfileScope } = getEffectiveActiveProfileName(
+    wsConfig,
+    { projectName, project, buildName, build },
+  );
   const profile = activeProfile ? findRunnerProfile(activeProfile, loadRunnerProfiles(wsConfig)) : undefined;
   const overrides = build.bindOverrides;
   const slotLabels = {
@@ -154,6 +161,7 @@ export function getBuildDetails(wsConfig: WorkspaceConfig, projectName: string, 
     westBuildCMakeArgs: normalizeBuildArgs(build.westBuildCMakeArgs),
     confFiles: build.confFiles ?? emptyConfigFiles(),
     activeProfile,
+    activeProfileScope,
     profile,
     bindOverrides: overrides,
     slotLabels,

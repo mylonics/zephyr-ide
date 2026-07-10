@@ -28,12 +28,15 @@ import {
   RunnerProfile,
   RunnerProfileScope,
   listRunnerProfilesByScope,
+  loadRunnerProfiles,
+  findRunnerProfile,
   saveRunnerProfile,
   deleteRunnerProfile,
   suggestProfileName,
   splitArgs,
 } from "../../project_utilities/runner_profiles";
-import { resolveActiveProjectBuild, setActiveProfile, getEffectiveActiveProfileName } from "../../project_utilities/project";
+import { resolveActiveProjectBuild, setActiveProfile, getEffectiveActiveProfileName, saveActiveProfileToWorkspace, resetActiveProfileToWorkspace } from "../../project_utilities/project";
+import { setWorkspaceState } from "../../setup_utilities/state-management";
 
 /**
  * Webview panel for managing Runner Profiles (the post-rework replacement for
@@ -149,6 +152,58 @@ export class RunnerProfilePanel {
   }
 
   // ---------------------------------------------------------------------------
+  // Profile reference tracking (committed activeProfile + local override)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Find every build that references `name`, either via the committed
+   * `BuildConfig.activeProfile` (scope "workspace") or the per-developer
+   * `BuildState.localActiveProfile` override (scope "local"). A build can
+   * appear twice (once per scope) if both happen to reference the same name.
+   * Used to warn before delete and to fix up references on rename.
+   */
+  private findProfileReferences(name: string): { projectName: string; buildName: string; scope: "workspace" | "local" }[] {
+    const refs: { projectName: string; buildName: string; scope: "workspace" | "local" }[] = [];
+    for (const projectName in this._wsConfig.projects ?? {}) {
+      const project = this._wsConfig.projects[projectName];
+      const buildStates = this._wsConfig.projectStates?.[projectName]?.buildStates;
+      for (const buildName in project.buildConfigs ?? {}) {
+        if (project.buildConfigs[buildName].activeProfile === name) {
+          refs.push({ projectName, buildName, scope: "workspace" });
+        }
+        if (buildStates?.[buildName]?.localActiveProfile === name) {
+          refs.push({ projectName, buildName, scope: "local" });
+        }
+      }
+    }
+    return refs;
+  }
+
+  /** Rewrite every reference to `oldName` (both scopes) to `newName`. */
+  private renameProfileReferences(oldName: string, newName: string): void {
+    for (const ref of this.findProfileReferences(oldName)) {
+      if (ref.scope === "workspace") {
+        this._wsConfig.projects[ref.projectName].buildConfigs[ref.buildName].activeProfile = newName;
+      } else {
+        const buildState = this._wsConfig.projectStates?.[ref.projectName]?.buildStates?.[ref.buildName];
+        if (buildState) { buildState.localActiveProfile = newName; }
+      }
+    }
+  }
+
+  /** Clear every reference to `name` (both scopes) so affected builds fall back to auto. */
+  private clearProfileReferences(name: string): void {
+    for (const ref of this.findProfileReferences(name)) {
+      if (ref.scope === "workspace") {
+        this._wsConfig.projects[ref.projectName].buildConfigs[ref.buildName].activeProfile = undefined;
+      } else {
+        const buildState = this._wsConfig.projectStates?.[ref.projectName]?.buildStates?.[ref.buildName];
+        if (buildState) { delete buildState.localActiveProfile; }
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Message handling
   // ---------------------------------------------------------------------------
 
@@ -177,6 +232,16 @@ export class RunnerProfilePanel {
       case "setActiveProfile":
         await this.handleSetActiveProfile(message);
         return;
+
+      case "saveActiveProfileToWorkspace":
+        await saveActiveProfileToWorkspace(this._context, this._wsConfig);
+        await this.pushState();
+        return;
+
+      case "resetActiveProfileToWorkspace":
+        await resetActiveProfileToWorkspace(this._context, this._wsConfig);
+        await this.pushState();
+        return;
     }
   }
 
@@ -202,14 +267,20 @@ export class RunnerProfilePanel {
       return;
     }
     const suggested = suggestProfileName(this._wsConfig);
+    const sameScopeNames = new Set(listRunnerProfilesByScope(this._wsConfig)[scope].map(p => p.name));
     const inputName = await vscode.window.showInputBox({
       title: "New Runner Profile",
       prompt: "Enter a name for the new runner profile",
       value: suggested,
-      validateInput: (v) => v.trim() ? undefined : "Profile name cannot be empty.",
+      validateInput: (v) => {
+        const trimmed = v.trim();
+        if (!trimmed) { return "Profile name cannot be empty."; }
+        if (sameScopeNames.has(trimmed)) { return `A profile named "${trimmed}" already exists in this scope.`; }
+        return undefined;
+      },
     });
     if (!inputName) { return; } // user cancelled
-    const name = suggestProfileName(this._wsConfig, inputName.trim());
+    const name = inputName.trim();
     const profile: RunnerProfile = {
       name,
       flash: { kind: "auto" },
@@ -253,6 +324,21 @@ export class RunnerProfilePanel {
       await saveRunnerProfile(this._wsConfig, scope, profile, originalName);
     } catch (e) {
       notifyError("Runner Profile", `Failed to save profile: ${String(e)}`);
+      await this.pushState();
+      return;
+    }
+    // Rename: follow every build that referenced the old name (committed or
+    // local override) so Flash/Debug don't start erroring "profile not found".
+    if (profile.name !== originalName) {
+      const refs = this.findProfileReferences(originalName);
+      if (refs.length > 0) {
+        this.renameProfileReferences(originalName, profile.name);
+        await setWorkspaceState(this._context, this._wsConfig);
+        const labels = refs.map(r => `${r.projectName} / ${r.buildName}${r.scope === "local" ? " (local)" : ""}`);
+        void vscode.window.showInformationMessage(
+          `Renamed "${originalName}" to "${profile.name}". Updated ${refs.length} reference${refs.length === 1 ? "" : "s"}: ${labels.join(", ")}.`
+        );
+      }
     }
     await this.pushState();
   }
@@ -263,19 +349,12 @@ export class RunnerProfilePanel {
     const name = typeof message.name === "string" ? message.name : "";
     if (!name) { return; }
 
-    // Find builds that currently reference this profile name so the user
-    // sees the consequence of deleting it.
-    const affected: string[] = [];
-    for (const projectName in this._wsConfig.projects ?? {}) {
-      const project = this._wsConfig.projects[projectName];
-      for (const buildName in project.buildConfigs ?? {}) {
-        if (project.buildConfigs[buildName].activeProfile === name) {
-          affected.push(`${projectName} / ${buildName}`);
-        }
-      }
-    }
+    // Find builds that currently reference this profile name (committed or
+    // local override) so the user sees the consequence of deleting it.
+    const refs = this.findProfileReferences(name);
+    const affected = refs.map(r => `${r.projectName} / ${r.buildName}${r.scope === "local" ? " (local)" : ""}`);
     const detail = affected.length > 0
-      ? `These builds will fall back to runners.yaml defaults:\n  - ${affected.join("\n  - ")}`
+      ? `These builds will fall back to runners.yaml defaults (unless a same-named profile still exists in the other scope):\n  - ${affected.join("\n  - ")}`
       : undefined;
     const answer = await vscode.window.showWarningMessage(
       `Delete Runner Profile "${name}" from ${scope} scope?`,
@@ -287,6 +366,15 @@ export class RunnerProfilePanel {
       await deleteRunnerProfile(this._wsConfig, scope, name);
     } catch (e) {
       notifyError("Runner Profile", `Failed to delete profile: ${String(e)}`);
+      await this.pushState();
+      return;
+    }
+    // Only clear references when the name no longer resolves to any profile
+    // (workspace overrides user on merge, so a same-named profile in the other
+    // scope means the reference is still valid and should be left alone).
+    if (refs.length > 0 && !findRunnerProfile(name, loadRunnerProfiles(this._wsConfig))) {
+      this.clearProfileReferences(name);
+      await setWorkspaceState(this._context, this._wsConfig);
     }
     await this.pushState();
   }
@@ -354,16 +442,22 @@ export class RunnerProfilePanel {
     const activeProfileName = effectiveProfile?.name;
     const activeProfileScope = effectiveProfile?.scope ?? "none";
 
-    // Count builds that reference each profile name (workspace-wide).
+    // Count builds that reference each profile name (workspace-wide), via
+    // either the committed activeProfile or a per-developer local override.
     // Useful for showing usage and warning users before deleting a profile.
     const usageByName: Record<string, string[]> = {};
     for (const projectName in this._wsConfig.projects ?? {}) {
       const project = this._wsConfig.projects[projectName];
+      const buildStates = this._wsConfig.projectStates?.[projectName]?.buildStates;
       for (const buildName in project.buildConfigs ?? {}) {
         const name = project.buildConfigs[buildName].activeProfile;
-        if (!name) { continue; }
-        const label = `${projectName} / ${buildName}`;
-        (usageByName[name] ??= []).push(label);
+        if (name) {
+          (usageByName[name] ??= []).push(`${projectName} / ${buildName}`);
+        }
+        const localName = buildStates?.[buildName]?.localActiveProfile;
+        if (localName) {
+          (usageByName[localName] ??= []).push(`${projectName} / ${buildName} (local)`);
+        }
       }
     }
 

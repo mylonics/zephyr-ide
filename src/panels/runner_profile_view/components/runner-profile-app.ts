@@ -213,6 +213,14 @@ export class RunnerProfileApp extends ZephyrLitElement {
     this.vscodeApi.postMessage({ command: "setActiveProfile", name: null });
   }
 
+  private _onSaveActiveProfileToWorkspace() {
+    this.vscodeApi.postMessage({ command: "saveActiveProfileToWorkspace" });
+  }
+
+  private _onResetActiveProfileToWorkspace() {
+    this.vscodeApi.postMessage({ command: "resetActiveProfileToWorkspace" });
+  }
+
   // -- Field editors --
 
   private _onNameInput(scope: Scope, originalName: string, e: Event) {
@@ -538,6 +546,15 @@ export class RunnerProfileApp extends ZephyrLitElement {
             ? html`<vscode-button appearance="icon" icon="close"
                 title="Clear active profile (revert to runners.yaml defaults)"
                 @click=${() => this._onClearActiveBuildProfile()}></vscode-button>`
+            : nothing}
+                ${d.activeProfileScope === "local"
+            ? html`
+                    <vscode-button appearance="icon" icon="save"
+                      title="Save local override to workspace (.vscode/zephyr-ide.json)"
+                      @click=${() => this._onSaveActiveProfileToWorkspace()}></vscode-button>
+                    <vscode-button appearance="icon" icon="discard"
+                      title="Reset to workspace default (discard local override)"
+                      @click=${() => this._onResetActiveProfileToWorkspace()}></vscode-button>`
             : nothing}
               </div>`
         : nothing}
@@ -891,36 +908,6 @@ function bindToSelectValue(bind: ProfileBind): string {
   if (bind.kind === "cortex-debug") { return `cortex-debug:${bind.runner ?? ""}`; }
   if (bind.kind === "west-debug") { return `west-debug:${bind.runner ?? ""}`; }
   return "auto";
-}
-
-/** Split an extraArgs string into individual argument tokens, respecting quoted strings. */
-function parseArgs(extraArgs: string): string[] {
-  const s = extraArgs.trim();
-  if (!s) { return []; }
-  const result: string[] = [];
-  let current = "";
-  let inQuote = false;
-  let quoteChar = "";
-  for (const ch of s) {
-    if (inQuote) {
-      current += ch;
-      if (ch === quoteChar) { inQuote = false; }
-    } else if (ch === '"' || ch === "'") {
-      inQuote = true;
-      quoteChar = ch;
-      current += ch;
-    } else if (/\s/.test(ch)) {
-      if (current) { result.push(current); current = ""; }
-    } else {
-      current += ch;
-    }
-  }
-  if (current) { result.push(current); }
-  return result;
-}
-
-function joinArgs(args: string[]): string {
-  return args.join(" ");
 }
 
 function cloneProfile(p: Profile): Profile {

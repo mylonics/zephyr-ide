@@ -183,7 +183,7 @@ export class BuildSection extends ZephyrLitElement {
         icon=${buttonIcon}
         ?disabled=${otherActive}
         title=${buttonTitle}
-        @click=${() => this.postCommand(action)}>
+        @click=${() => this.postCommand(action, { project: this.projectName, build: this.buildDetails.name })}>
         ${label}
       </vscode-button>`;
   }
@@ -257,8 +257,9 @@ export class BuildSection extends ZephyrLitElement {
     const b = this.buildDetails;
     const activeProfile = b.activeProfile;
     const slots = b.slotBinds;
+    const localSuffix = b.activeProfileScope === "local" ? html` <span class="bind-local-badge" title="Local override — not committed to zephyr-ide.json">(local)</span>` : nothing;
     const activeLabel = activeProfile
-      ? html`<strong>${activeProfile}</strong>`
+      ? html`<strong>${activeProfile}</strong>${localSuffix}`
       : html`<em>(none — using runners.yaml defaults)</em>`;
     return html`
       <div class="launch-help">
@@ -283,7 +284,7 @@ export class BuildSection extends ZephyrLitElement {
             Local Bind…
           </vscode-button>
           <vscode-button appearance="secondary" icon="list-tree" title="Open Runner Profile management panel"
-            @click=${() => this.postCommand("openRunnerProfilePanel")}}>
+            @click=${() => this.postCommand("openRunnerProfilePanel")}>
             Manage…
           </vscode-button>
         </div>

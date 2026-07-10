@@ -45,6 +45,8 @@ import {
   getProjectFolder,
   getBuildFolder,
   setLocalBind,
+  setActiveProfile,
+  setActive,
 } from "../../project_utilities/project";
 import { ConfigFiles } from "../../project_utilities/config_selector";
 import { generateNonce } from "../webview_shared/nonce";
@@ -330,10 +332,13 @@ export class ProjectBuildPanel {
         }
 
         // Runner profile actions
-        case "selectActiveProfile":
-          await vscode.commands.executeCommand("zephyr-ide.set-active-profile");
+        case "selectActiveProfile": {
+          const selProject = typeof message.project === "string" ? message.project : undefined;
+          const selBuild = typeof message.build === "string" ? message.build : undefined;
+          await setActiveProfile(ctx, ws, undefined, { projectName: selProject, buildName: selBuild });
           await this.refreshAfterChange();
           return;
+        }
 
         case "openRunnerProfilePanel":
           await vscode.commands.executeCommand("zephyr-ide.open-runner-profile-panel");
@@ -366,7 +371,9 @@ export class ProjectBuildPanel {
           }
           // `argsText` is optional: when present, write directly; otherwise prompt via input box.
           const argsText = typeof message.value === "string" ? message.value : undefined;
-          await setBindOverride(ctx, ws, slot, argsText);
+          const argProject = typeof message.project === "string" ? message.project : undefined;
+          const argBuild = typeof message.build === "string" ? message.build : undefined;
+          await setBindOverride(ctx, ws, slot, argsText, { projectName: argProject, buildName: argBuild });
           await this.refreshAfterChange();
           return;
         }
@@ -387,24 +394,27 @@ export class ProjectBuildPanel {
           notifyError("Runner Config", "Runner cards have been replaced by Runner Profiles. Use 'Change…' on the Runner Profile section, or the command palette: 'Zephyr IDE: Select Active Runner Profile'.");
           return;
 
-        // Build actions
+        // Build actions. Target project/build come from the build card that was
+        // clicked, which may not be the currently active one — set it active
+        // first so the action affects the build the user actually clicked on
+        // (mirrors the Projects tree view's set-build-profile behavior).
         case "build":
-          await this.runBuildAction("build", "zephyr-ide.build");
+          await this.runBuildAction("build", "zephyr-ide.build", message);
           return;
         case "buildPristine":
-          await this.runBuildAction("buildPristine", "zephyr-ide.build-pristine");
+          await this.runBuildAction("buildPristine", "zephyr-ide.build-pristine", message);
           return;
         case "flash":
-          await this.runBuildAction("flash", "zephyr-ide.flash");
+          await this.runBuildAction("flash", "zephyr-ide.flash", message);
           return;
         case "debug":
-          await this.runBuildAction("debug", "zephyr-ide.debug");
+          await this.runBuildAction("debug", "zephyr-ide.debug", message);
           return;
         case "buildDebug":
-          await this.runBuildAction("buildDebug", "zephyr-ide.build-debug");
+          await this.runBuildAction("buildDebug", "zephyr-ide.build-debug", message);
           return;
         case "runDashboard":
-          await this.runBuildAction("runDashboard", "zephyr-ide.run-dashboard");
+          await this.runBuildAction("runDashboard", "zephyr-ide.run-dashboard", message);
           return;
 
         // Variables
@@ -630,7 +640,20 @@ export class ProjectBuildPanel {
    * in flight, so the matching button can show a spinner and the rest can be
    * disabled. The webview is responsible for clearing state on `finished`.
    */
-  private async runBuildAction(action: string, commandId: string): Promise<void> {
+  private async runBuildAction(
+    action: string,
+    commandId: string,
+    message?: Record<string, any>,
+  ): Promise<void> {
+    const targetProject = typeof message?.project === "string" ? message.project : undefined;
+    const targetBuild = typeof message?.build === "string" ? message.build : undefined;
+    if (targetProject && targetBuild) {
+      const alreadyActive = this._wsConfig.activeProject === targetProject
+        && this._wsConfig.projectStates[targetProject]?.activeBuildConfig === targetBuild;
+      if (!alreadyActive) {
+        await setActive(this._context, this._wsConfig, targetProject, targetBuild);
+      }
+    }
     void this._panel.webview.postMessage({ command: "buildActionStatus", action, state: "started" });
     try {
       await vscode.commands.executeCommand(commandId);
@@ -786,11 +809,15 @@ export class ProjectBuildPanel {
             westBuildCMakeArgs: details.westBuildCMakeArgs,
             confFiles: details.confFiles,
             activeProfile: details.activeProfile,
+            activeProfileScope: details.activeProfileScope,
             slotBinds: {
               flash: makeSlot("flash", profile?.flash, overrides?.flash),
               debug: makeSlot("debug", profile?.debug, overrides?.debug),
               attach: makeSlot("attach", profile?.attach, overrides?.attach),
-              ...(separateBuildDebugProfile && profile?.buildDebug
+              // Only show a distinct Build & Debug row when the slot is explicitly
+              // set to something other than "auto" — an unset/auto buildDebug slot
+              // silently falls back to the Debug slot's bind (see getEffectiveBuildDebugBind).
+              ...(separateBuildDebugProfile && profile?.buildDebug && profile.buildDebug.kind !== "auto"
                 ? { buildDebug: makeSlot("buildDebug", profile.buildDebug, overrides?.buildDebug) }
                 : {}),
             },

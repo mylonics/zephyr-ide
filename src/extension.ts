@@ -338,16 +338,24 @@ async function startDebugSession(
   let activeBind: DebugBind | undefined;
   let pinnedRunner: string | undefined;
   let debugType: string = ZEPHYR_IDE_CORTEX_DEBUG_TYPE;
+  // Set when the resolved bind actually came from the profile's dedicated
+  // `buildDebug` slot (as opposed to falling back to `debug`). Forwarded to the
+  // debug provider via `zephyrIdeBuildDebug` so it derives userArgs/enableRtt/
+  // probe/overrides from the same slot instead of re-deriving from `debug`.
+  let usedBuildDebugSlot = false;
 
   if (resolved) {
-    const profileName = resolved.build.activeProfile;
+    const profileName = getEffectiveActiveProfileName(wsConfig, resolved).name;
     if (profileName) {
       const profileResolved = resolveActiveProfile(wsConfig);
       if (profileResolved) {
         // When the separate Build-and-Debug setting is on, prefer the dedicated
-        // `buildDebug` slot for build-debug mode (fall back to `debug` if unset).
-        if (useBuildDebugSlot && profileResolved.profile.buildDebug) {
+        // `buildDebug` slot for build-debug mode (fall back to `debug` when unset
+        // or explicitly left as "auto" — the editor advertises "auto" as the
+        // fallback state, so it must not shadow the `debug` slot's real bind).
+        if (useBuildDebugSlot && profileResolved.profile.buildDebug && profileResolved.profile.buildDebug.kind !== 'auto') {
           activeBind = profileResolved.profile.buildDebug;
+          usedBuildDebugSlot = true;
         } else {
           activeBind = profileResolved.profile[slot];
         }
@@ -380,6 +388,7 @@ async function startDebugSession(
     pinnedRunner = undefined;
     activeBind = undefined;
     debugTargetFolder = undefined;
+    usedBuildDebugSlot = false;
     const [runnerStr] = localBind.split('?');
     if (runnerStr.startsWith(CORTEX_DEBUG_PREFIX)) {
       pinnedRunner = runnerStr.slice(CORTEX_DEBUG_PREFIX.length);
@@ -425,6 +434,10 @@ async function startDebugSession(
       name: pinnedRunner ? `${baseName} (${pinnedRunner})` : baseName,
       request: mode === 'attach' ? "attach" : "launch",
       ...(pinnedRunner ? { runner: pinnedRunner } : {}),
+      // Tells the debug provider to derive userArgs/enableRtt/probe/overrides
+      // from the profile's `buildDebug` slot instead of `debug` (see
+      // getEffectiveBuildDebugBind); mirrors the choice already made above.
+      ...(usedBuildDebugSlot ? { zephyrIdeBuildDebug: true } : {}),
     };
     // Prefer the workspace folder whose uri.fsPath matches wsConfig.rootPath (case-insensitive on Windows)
     const folders = vscode.workspace.workspaceFolders ?? [];
@@ -1006,6 +1019,15 @@ export async function activate(context: vscode.ExtensionContext) {
 
   registerCommandWithRefresh(context, "zephyr-ide.set-active-profile",
     () => project.setActiveProfile(context, wsConfig));
+
+  registerCommandWithRefresh(context, "zephyr-ide.set-workspace-active-profile",
+    () => project.setWorkspaceActiveProfile(context, wsConfig));
+
+  registerCommandWithRefresh(context, "zephyr-ide.save-active-profile-to-workspace",
+    () => project.saveActiveProfileToWorkspace(context, wsConfig));
+
+  registerCommandWithRefresh(context, "zephyr-ide.reset-active-profile-to-workspace",
+    () => project.resetActiveProfileToWorkspace(context, wsConfig));
 
   registerCommandWithRefresh(context, "zephyr-ide.set-local-bind",
     () => project.setLocalBind(context, wsConfig));
@@ -2051,6 +2073,13 @@ export async function activate(context: vscode.ExtensionContext) {
         if (useClangd) {
           await setWorkspaceSettings(false);
         }
+      } else if (e.affectsConfiguration("zephyr-ide.runnerProfiles")) {
+        // User-scope runner profiles are read fresh on every lookup (no cache),
+        // but the tree views / panels / status bar only re-render on an explicit
+        // refresh — an edit to the user setting (e.g. via the Settings UI or
+        // settings.json) would otherwise show stale profile lists until some
+        // unrelated action happens to trigger update-web-view.
+        void vscode.commands.executeCommand("zephyr-ide.update-web-view");
       }
     })
   );

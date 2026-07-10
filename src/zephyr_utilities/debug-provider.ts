@@ -72,7 +72,7 @@ import {
   RunnersYaml,
 } from "./runners-yaml";
 import { startWestDebugServer, disposeOnSessionEnd } from "./debug-server-bridge";
-import { resolveActiveProjectBuild, askUserForProject, askUserForBuild, getEffectiveActiveProfileName } from "../project_utilities/project";
+import { resolveActiveProjectBuild, askUserForProject, askUserForBuild, getEffectiveActiveProfileName, getEffectiveBuildDebugBind } from "../project_utilities/project";
 import { loadRunnerProfiles, findRunnerProfile, resolveRunnerArgs } from "../project_utilities/runner_profiles";
 import { WorkspaceConfig } from "../setup_utilities/types";
 import { getVenvPath } from "../setup_utilities/workspace-config";
@@ -97,6 +97,14 @@ type AskMode = "auto" | "askBoth" | "askProject" | "askBuild";
 interface ZephyrIdeDebugConfig extends vscode.DebugConfiguration {
   /** Optional explicit Zephyr runner to use (e.g. "jlink", "openocd"). */
   runner?: string;
+  /**
+   * Internal flag set by `startDebugSession` for Build-and-Debug sessions
+   * whose active profile has an explicit (non-"auto") `buildDebug` slot.
+   * When true, userArgs/enableRtt/probe/bindOverrides are derived from the
+   * profile's `buildDebug` slot (via `getEffectiveBuildDebugBind`) instead of
+   * `debug`. Not intended to be set by hand in launch.json.
+   */
+  zephyrIdeBuildDebug?: boolean;
   /**
    * Pin the debug session to a specific project by name. When set together
    * with `build`, Zephyr IDE skips the active-project/build look-up
@@ -948,8 +956,12 @@ export class ZephyrIdeDebugConfigurationProvider
       const profileName = getEffectiveActiveProfileName(wsConfig, resolved).name;
       const profile = profileName ? findRunnerProfile(profileName, loadRunnerProfiles(wsConfig)) : undefined;
       if (profile) {
-        const bind = profile[slot];
-        const override = resolved.build.bindOverrides?.[slot];
+        // Build-and-Debug sessions with an explicit `buildDebug` slot derive
+        // their bind/override from that slot (with its own auto-fallback to
+        // `debug`) instead of the plain `debug` slot used for regular Debug.
+        const { bind, override } = cfg.zephyrIdeBuildDebug === true
+          ? getEffectiveBuildDebugBind(profile, resolved.build)
+          : { bind: profile[slot], override: resolved.build.bindOverrides?.[slot] };
         if (bind.kind === "launch") {
           outputInfo("Debug", `Profile "${profileName}" has ${slot} bind set to launch.json config "${bind.name}". Starting it directly.`);
         } else if (bind.kind === "cortex-debug") {

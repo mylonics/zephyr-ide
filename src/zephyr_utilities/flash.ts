@@ -98,34 +98,42 @@ function resolveFlashFromProfile(
   return resolveFlashRunnerAndArgs(profile.flash, buildConfig.bindOverrides?.flash, ctx);
 }
 
-export async function flashByName(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName: string, buildName: string, profileName?: string) {
-  const project = wsConfig.projects[projectName];
-  if (!project) {
-    notifyError("Flash", `Project not found: "${projectName}"`);
-    return;
-  }
-  const buildConfig = project.buildConfigs[buildName];
-  if (!buildConfig) {
-    notifyError("Flash", `Build configuration not found: "${buildName}" in project "${projectName}"`);
-    return;
-  }
-  const { runner, args } = resolveFlashFromProfile(profileName, project, buildConfig, wsConfig);
-  await flash(context, wsConfig, project, buildConfig, runner, args);
-}
-
 export async function flashActive(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
   const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Flash" });
   if (!resolved) { return; }
   // Check per-developer local bind first — takes priority over profile.
   const localFlashRunner = wsConfig.projectStates?.[resolved.projectName]?.buildStates?.[resolved.buildName]?.localBinds?.flash;
   if (localFlashRunner != null) {
+    // Strip any "?probe=..." query (the shared local-bind format supports it
+    // even though the flash picker doesn't currently offer one) before parsing
+    // the runner prefix.
+    const [runnerStr] = localFlashRunner.split('?');
     // Strip "west-flash:" (new) or "runner:" (legacy) prefix before passing runner name to west.
-    const runnerName = localFlashRunner.startsWith(WEST_FLASH_PREFIX)
-      ? localFlashRunner.slice(WEST_FLASH_PREFIX.length)
-      : localFlashRunner.startsWith(RUNNER_TARGET_PREFIX)
-        ? localFlashRunner.slice(RUNNER_TARGET_PREFIX.length)
-        : localFlashRunner; // very old format without prefix (backward compat)
-    await flash(context, wsConfig, resolved.project, resolved.build, runnerName, "");
+    const runnerName = runnerStr.startsWith(WEST_FLASH_PREFIX)
+      ? runnerStr.slice(WEST_FLASH_PREFIX.length)
+      : runnerStr.startsWith(RUNNER_TARGET_PREFIX)
+        ? runnerStr.slice(RUNNER_TARGET_PREFIX.length)
+        : runnerStr; // very old format without prefix (backward compat)
+    // The local bind stands in for the profile's runner, but the per-build
+    // bindOverrides.flash.extraArgs ("appended after the profile's runner
+    // args") still layers on top so it isn't silently dropped.
+    const buildFolder = getBuildFolder(wsConfig, resolved.project, resolved.build);
+    const ctx: RunnerVarContext = {
+      workspaceFolder: wsConfig.rootPath,
+      buildFolder,
+      board: resolved.build.board,
+      boardRevision: resolved.build.revision ?? "",
+      project: resolved.project.name,
+      build: resolved.build.name,
+      buildVars: resolved.build.customVars,
+      projectVars: resolved.project.customVars,
+    };
+    const overrideArgs = resolved.build.bindOverrides?.flash?.extraArgs ?? [];
+    const args = overrideArgs
+      .map(token => resolveRunnerArgs(token, ctx))
+      .filter(token => token.trim().length > 0)
+      .join(" ");
+    await flash(context, wsConfig, resolved.project, resolved.build, runnerName, args);
     return;
   }
   const { runner, args } = resolveFlashFromProfile(undefined, resolved.project, resolved.build, wsConfig, resolved);

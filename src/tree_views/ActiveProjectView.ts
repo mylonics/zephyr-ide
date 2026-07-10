@@ -17,7 +17,7 @@ limitations under the License.
 
 import * as vscode from 'vscode';
 
-import { ProjectConfig, getResolvedProfile, getBindOverride, getResolvedTestConfig, resolveActiveProject, resolveActiveProjectBuild, getEffectiveActiveProfileName } from '../project_utilities/project';
+import { ProjectConfig, getResolvedProfile, getBindOverride, getEffectiveBuildDebugBind, getResolvedTestConfig, resolveActiveProject, resolveActiveProjectBuild, getEffectiveActiveProfileName } from '../project_utilities/project';
 import { BuildConfig } from '../project_utilities/build_selector';
 import { WorkspaceConfig } from '../setup_utilities/types';
 import { TwisterConfig } from "../project_utilities/twister_selector";
@@ -147,8 +147,11 @@ export class ActiveProjectView implements vscode.TreeDataProvider<ActiveProjectI
     const debugProfile = activeProfile
       ? formatBindLabel(activeProfile.debug, activeBuild && getBindOverride(activeBuild, "debug")) + localSuffix
       : "None";
-    const buildDebugProfile = separateBuildDebug && activeProfile?.buildDebug
-      ? formatBindLabel(activeProfile.buildDebug, activeBuild && getBindOverride(activeBuild, "buildDebug")) + localSuffix
+    const buildDebugProfile = separateBuildDebug && activeProfile && activeBuild
+      ? (() => {
+        const effective = getEffectiveBuildDebugBind(activeProfile, activeBuild);
+        return formatBindLabel(effective.bind, effective.override) + localSuffix;
+      })()
       : debugProfile;
     const attachProfile = activeProfile
       ? formatBindLabel(activeProfile.attach, activeBuild && getBindOverride(activeBuild, "attach")) + localSuffix

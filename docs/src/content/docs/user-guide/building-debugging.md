@@ -61,15 +61,17 @@ Use `westArgs` to pass through any additional runner-specific flags that are not
 
 ## Runner Profiles (Flash + Debug)
 
-Each build can optionally reference one **active Runner Profile** that bundles three bind slots: **Flash** (drives both `Flash` and `Build and Flash`), **Debug** (drives both `Debug` and `Build and Debug`), and **Debug Attach**. Each slot is one of:
+Each build can optionally reference one **active Runner Profile** that bundles bind slots: **Flash** (drives both `Flash` and `Build and Flash`), **Debug** (drives both `Debug` and `Build and Debug`, unless a dedicated `Build & Debug` slot is enabled via `zephyr-ide.separateBuildDebugProfile`), and **Debug Attach**. Each slot is one of:
 
-| Kind | Meaning |
-|---|---|
-| `auto` | Use `runners.yaml` defaults — `flash-runner` for Flash, `debug-runner` for Debug and Attach. |
-| `runner` | A Zephyr runner directly (`openocd`, `jlink`, `pyocd`, `blackmagicprobe`, …) with optional `extraArgs`. |
-| `launch` | A `launch.json` configuration by name. Available for the Debug and Attach slots only; ignored for Flash because flash actions never start a debug session. |
+| Kind | Slots | Meaning |
+|---|---|---|
+| `auto` | all | Use `runners.yaml` defaults — `flash-runner` for Flash, `debug-runner` for Debug and Attach. |
+| `west-flash` | Flash | A Zephyr runner directly (`openocd`, `jlink`, `pyocd`, `blackmagicprobe`, …) with optional `extraArgs`, invoked as `west flash -r <runner>`. |
+| `cortex-debug` | Debug, Attach | A Zephyr runner auto-configured for cortex-debug (elf/gdb/target read from `runners.yaml`), with optional RTT and probe selection. |
+| `west-debug` | Debug, Attach | A Zephyr runner run via `west debugserver`, bridged to cortex-debug as an external GDB server, with optional `extraArgs`. |
+| `launch` | Debug, Attach | A `launch.json` configuration by name. Not available for Flash because flash actions never start a debug session. |
 
-When **no** profile is active on a build, all three slots fall back to `auto`. This is the default for newly-created builds — `Flash` / `Debug` / `Build and Debug` / `Debug Attach` just work using whatever Zephyr recorded in `runners.yaml`.
+When **no** profile is active on a build, all slots fall back to `auto`. This is the default for newly-created builds — `Flash` / `Debug` / `Build and Debug` / `Debug Attach` just work using whatever Zephyr recorded in `runners.yaml`.
 
 Profiles can be defined once (e.g. a Black Magic Probe wired to `/dev/ttyACM0`, or an OpenOCD ST-Link configuration) and shared across builds. The dedicated **`Zephyr IDE: Open Runner Profile Panel`** command gives you a full CRUD UI for both workspace-scope (`.vscode/zephyr-ide.json#runnerProfiles`) and user-scope (`zephyr-ide.runnerProfiles` setting) profiles.
 
@@ -87,9 +89,11 @@ Zephyr IDE supports this with a two-level **local override** system stored entir
 
 **2. Override individual slots** — Click **Local Bind…** next to a slot in the Project Build panel (or run `Zephyr IDE: Set Local Slot Runner Bind`) to pick a runner for that slot directly, without switching profiles. An amber `(local)` badge and a clear button (✕) appear on the slot row. Slot-level local binds take priority over the active profile's slot bind.
 
-**3. Share your configuration** — When you're happy with your local setup, open the **Runner Profile Panel** (**Manage…** button) and choose:
-- **Update profile with local changes** — saves your local slot runners back into the named profile.
-- **Create new profile from local changes** — creates a new named profile from your current local configuration and binds it to the build.
+**3. Share your configuration** — When you're happy with your local profile selection, open the same **Profile…** picker (or the **Change active profile** button on the Runner Profiles page banner) and choose:
+- **Save active profile to workspace…** — commits the effective profile name into `.vscode/zephyr-ide.json` (`BuildConfig.activeProfile`) and clears the local override, so the JSON becomes the source of truth again.
+- **Reset to workspace default…** — discards the local override and reverts to whichever profile is committed in `.vscode/zephyr-ide.json`.
+
+Both actions are also available as standalone commands: `Zephyr IDE: Save Active Runner Profile to Workspace` and `Zephyr IDE: Reset Active Runner Profile to Workspace Default`. To edit the committed workspace default directly (bypassing the local override entirely), use `Zephyr IDE: Select Active Runner Profile (Workspace)`.
 
 The local overrides are preserved across VS Code restarts but never written to any file on disk — they live in VS Code's per-workspace `workspaceState`.
 
