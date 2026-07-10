@@ -26,6 +26,7 @@ import { WorkspaceConfig, SetupState } from "./types";
 import { resolveActiveProjectBuild, getBuildFolder } from "../project_utilities/project";
 import { normalizeBuildArgs } from "../project_utilities/build_args";
 import { ConfigFiles, ConfigFileEntry, emptyConfigFiles } from "../project_utilities/config_selector";
+import { markZephyrIdeJsonWrite } from "./zephyr-ide-json-write-guard";
 
 /**
  * Migrate a ConfigFiles value from the old 4-array format
@@ -270,7 +271,7 @@ export async function loadProjectsFromFile(config: WorkspaceConfig) {
   const zephyrIdeSettingFilePath = path.join(config.rootPath, ".vscode", "zephyr-ide.json");
   try {
     if (!fs.pathExistsSync(zephyrIdeSettingFilePath)) {
-      await fs.outputFile(zephyrIdeSettingFilePath, JSON.stringify({ projects: {} }, null, 2), { flag: 'w+' });
+      await markZephyrIdeJsonWrite(() => fs.outputFile(zephyrIdeSettingFilePath, JSON.stringify({ projects: {} }, null, 2), { flag: 'w+' }));
       outputInfo('Workspace Config', 'Created zephyr-ide file');
     } else {
       const object = JSON.parse(fs.readFileSync(zephyrIdeSettingFilePath, 'utf8'));
@@ -278,11 +279,12 @@ export async function loadProjectsFromFile(config: WorkspaceConfig) {
       const migrated = projectLoader(config, projects);
       if (migrated) {
         object.projects = config.projects;
-        await fs.outputFile(zephyrIdeSettingFilePath, JSON.stringify(object, null, 2));
+        await markZephyrIdeJsonWrite(() => fs.outputFile(zephyrIdeSettingFilePath, JSON.stringify(object, null, 2)));
       }
     }
   } catch (error) {
     outputError("Workspace Config", `Failed to load .vscode/zephyr-ide.json: ${String(error)}`);
+    throw error;
   }
 }
 
