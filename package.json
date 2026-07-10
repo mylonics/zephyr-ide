@@ -129,12 +129,12 @@
         },
         "zephyr-ide.activeProjectPanel.showBuildFlash": {
           "type": "boolean",
-          "default": true,
+          "default": false,
           "description": "Show the 'Build and Flash' button in the Active Project panel."
         },
         "zephyr-ide.activeProjectPanel.showBuildDebug": {
           "type": "boolean",
-          "default": true,
+          "default": false,
           "description": "Show the 'Build and Debug' button in the Active Project panel."
         },
         "zephyr-ide.activeProjectPanel.showDebug": {
@@ -146,6 +146,11 @@
           "type": "boolean",
           "default": true,
           "description": "Show the 'Debug Attach' button in the Active Project panel."
+        },
+        "zephyr-ide.activeProjectPanel.showBuildDashboard": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show the 'Build Dashboard' button at the bottom of the Active Project panel. When shown, the Kconfig button is hidden from the Build and Build Pristine rows (accessible via the dashboard instead)."
         },
         "zephyr-ide.buildBeforeFlash": {
           "type": "boolean",
@@ -497,17 +502,37 @@
       "view/item/context": [
         {
           "command": "zephyr-ide.active-view.kconfig",
-          "when": "view == zephyrIdeActiveProject && viewItem =~ /activeProject\\.build(Pristine)?$/",
+          "when": "view == zephyrIdeActiveProject && viewItem =~ /activeProject\\.build/ && viewItem =~ /\\.withKconfig/",
+          "group": "inline@1"
+        },
+        {
+          "command": "zephyr-ide.active-view.build-pristine",
+          "when": "view == zephyrIdeActiveProject && viewItem =~ /^activeProject\\.build\\./ && viewItem =~ /\\.withPristine/",
+          "group": "inline@2"
+        },
+        {
+          "command": "zephyr-ide.active-view.build-flash",
+          "when": "view == zephyrIdeActiveProject && viewItem =~ /\\.withBuildFlash/",
+          "group": "inline@2"
+        },
+        {
+          "command": "zephyr-ide.active-view.build-debug",
+          "when": "view == zephyrIdeActiveProject && viewItem =~ /\\.withBuildDebug/",
+          "group": "inline@2"
+        },
+        {
+          "command": "zephyr-ide.active-view.open-project-details",
+          "when": "view == zephyrIdeActiveProject && viewItem == activeProject.buildDashboard",
           "group": "inline@1"
         },
         {
           "command": "zephyr-ide.active-view.change-launch-target",
-          "when": "view == zephyrIdeActiveProject && viewItem =~ /activeProject\\.(flash|buildFlash|debug|buildDebug|debugAttach)$/",
+          "when": "view == zephyrIdeActiveProject && viewItem =~ /^activeProject\\.(flash|buildFlash|debug|buildDebug|debugAttach)/",
           "group": "inline@1"
         },
         {
           "command": "zephyr-ide.active-view.set-local-bind",
-          "when": "view == zephyrIdeActiveProject && viewItem =~ /activeProject\\.(flash|buildFlash|debug|buildDebug|debugAttach)$/",
+          "when": "view == zephyrIdeActiveProject && viewItem =~ /^activeProject\\.(flash|buildFlash|debug|buildDebug|debugAttach)/",
           "group": "inline@2"
         },
         {
@@ -1123,6 +1148,26 @@
         "command": "zephyr-ide.active-view.kconfig",
         "title": "Kconfig",
         "icon": "$(preview)"
+      },
+      {
+        "command": "zephyr-ide.active-view.build-pristine",
+        "title": "Build Pristine",
+        "icon": "$(debug-rerun)"
+      },
+      {
+        "command": "zephyr-ide.active-view.build-flash",
+        "title": "Build and Flash",
+        "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "zephyr-ide.active-view.build-debug",
+        "title": "Build and Debug",
+        "icon": "$(debug-all)"
+      },
+      {
+        "command": "zephyr-ide.active-view.open-project-details",
+        "title": "Open Project Details",
+        "icon": "$(open-preview)"
       },
       {
         "command": "zephyr-ide.active-view.change-launch-target",

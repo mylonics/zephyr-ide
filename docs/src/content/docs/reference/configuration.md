@@ -48,12 +48,13 @@ These settings control which action buttons appear in the Active Project panel:
 | Setting | Type | Default | Description |
 |---|---|---|---|
 | `zephyr-ide.activeProjectPanel.showBuild` | boolean | true | Show the **Build** button in the Active Project panel. |
-| `zephyr-ide.activeProjectPanel.showBuildPristine` | boolean | true | Show the **Build Pristine** button in the Active Project panel. |
+| `zephyr-ide.activeProjectPanel.showBuildPristine` | boolean | true | Show the **Build Pristine** button in the Active Project panel. When hidden, a Build Pristine inline action is added to the Build row. |
 | `zephyr-ide.activeProjectPanel.showFlash` | boolean | true | Show the **Flash** button in the Active Project panel. |
-| `zephyr-ide.activeProjectPanel.showBuildFlash` | boolean | true | Show the **Build and Flash** button in the Active Project panel. |
-| `zephyr-ide.activeProjectPanel.showBuildDebug` | boolean | true | Show the **Build and Debug** button in the Active Project panel. |
+| `zephyr-ide.activeProjectPanel.showBuildFlash` | boolean | false | Show the **Build and Flash** button in the Active Project panel. When hidden, a Build and Flash inline action is added to the Flash row. |
+| `zephyr-ide.activeProjectPanel.showBuildDebug` | boolean | false | Show the **Build and Debug** button in the Active Project panel. When hidden, a Build and Debug inline action is added to the Debug row. |
 | `zephyr-ide.activeProjectPanel.showDebug` | boolean | true | Show the **Debug** button in the Active Project panel. |
 | `zephyr-ide.activeProjectPanel.showAttach` | boolean | true | Show the **Debug Attach** button in the Active Project panel. |
+| `zephyr-ide.activeProjectPanel.showBuildDashboard` | boolean | false | Show the **Build Dashboard** button at the bottom of the Active Project panel. When shown, the Kconfig inline button is hidden from Build and Build Pristine rows (accessible via the dashboard instead). An **Open Project Details** inline action is also available on this row. |
 
 ## `.vscode/zephyr-ide.json` Reference
 

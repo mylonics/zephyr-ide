@@ -192,14 +192,14 @@ const SETTINGS: SettingDefinition[] = [
     label: "Active Project Panel: Show Build and Flash",
     description: "Show the 'Build and Flash' button in the Active Project panel.",
     type: "boolean",
-    defaultValue: true,
+    defaultValue: false,
   },
   {
     key: "zephyr-ide.activeProjectPanel.showBuildDebug",
     label: "Active Project Panel: Show Build and Debug",
     description: "Show the 'Build and Debug' button in the Active Project panel.",
     type: "boolean",
-    defaultValue: true,
+    defaultValue: false,
   },
   {
     key: "zephyr-ide.activeProjectPanel.showDebug",
@@ -214,6 +214,13 @@ const SETTINGS: SettingDefinition[] = [
     description: "Show the 'Debug Attach' button in the Active Project panel.",
     type: "boolean",
     defaultValue: true,
+  },
+  {
+    key: "zephyr-ide.activeProjectPanel.showBuildDashboard",
+    label: "Active Project Panel: Show Build Dashboard",
+    description: "Show the 'Build Dashboard' button at the bottom of the Active Project panel. When shown, the Kconfig button is hidden from Build and Build Pristine rows.",
+    type: "boolean",
+    defaultValue: false,
   },
   {
     key: "zephyr-ide.separateBuildDebugProfile",

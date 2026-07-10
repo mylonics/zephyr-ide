@@ -32,7 +32,9 @@ export type ActiveProjectItemContext =
   | 'activeProject.debug'
   | 'activeProject.buildDebug'
   | 'activeProject.debugAttach'
-  | 'activeProject.twisterRun';
+  | 'activeProject.twisterRun'
+  | 'activeProject.buildDashboard'
+  | string;  // dynamic contexts with flag suffixes (e.g. activeProject.build.withPristine.withKconfig)
 
 class ActiveProjectItem extends vscode.TreeItem {
   constructor(
@@ -161,23 +163,39 @@ export class ActiveProjectView implements vscode.TreeDataProvider<ActiveProjectI
     const showBuildPristine = cfg.get<boolean>("zephyr-ide.activeProjectPanel.showBuildPristine") ?? true;
     const showBuild = cfg.get<boolean>("zephyr-ide.activeProjectPanel.showBuild") ?? true;
     const showFlash = cfg.get<boolean>("zephyr-ide.activeProjectPanel.showFlash") ?? true;
-    const showBuildFlash = cfg.get<boolean>("zephyr-ide.activeProjectPanel.showBuildFlash") ?? true;
-    const showBuildDebug = cfg.get<boolean>("zephyr-ide.activeProjectPanel.showBuildDebug") ?? true;
+    const showBuildFlash = cfg.get<boolean>("zephyr-ide.activeProjectPanel.showBuildFlash") ?? false;
+    const showBuildDebug = cfg.get<boolean>("zephyr-ide.activeProjectPanel.showBuildDebug") ?? false;
     const showDebug = cfg.get<boolean>("zephyr-ide.activeProjectPanel.showDebug") ?? true;
     const showAttach = cfg.get<boolean>("zephyr-ide.activeProjectPanel.showAttach") ?? true;
+    const showBuildDashboard = cfg.get<boolean>("zephyr-ide.activeProjectPanel.showBuildDashboard") ?? false;
+
+    // Build dynamic context values encoding which inline-action buttons are present.
+    // Flag suffixes: .withKconfig (kconfig button), .withPristine (build-pristine button),
+    //                .withBuildFlash (build-flash button), .withBuildDebug (build-debug button)
+    let buildContextFlags = '';
+    if (!showBuildPristine) { buildContextFlags += '.withPristine'; }
+    if (!showBuildDashboard) { buildContextFlags += '.withKconfig'; }
+    const buildContextValue = 'activeProject.build' + buildContextFlags;
+
+    let buildPristineContextFlags = '';
+    if (!showBuildDashboard) { buildPristineContextFlags += '.withKconfig'; }
+    const buildPristineContextValue = 'activeProject.buildPristine' + buildPristineContextFlags;
+
+    const flashContextValue = !showBuildFlash ? 'activeProject.flash.withBuildFlash' : 'activeProject.flash';
+    const debugContextValue = !showBuildDebug ? 'activeProject.debug.withBuildDebug' : 'activeProject.debug';
 
     const items: ActiveProjectItem[] = [];
     if (showBuildPristine) {
       items.push(new ActiveProjectItem("Build Pristine", "project", activeBuild ? activeBuild.name : "None",
-        'activeProject.buildPristine', "zephyr-ide.build-pristine"));
+        buildPristineContextValue, "zephyr-ide.build-pristine"));
     }
     if (showBuild) {
       items.push(new ActiveProjectItem("Build", "project", activeBuild ? activeBuild.name : "None",
-        'activeProject.build', "zephyr-ide.build"));
+        buildContextValue, "zephyr-ide.build"));
     }
     if (showFlash) {
       items.push(new ActiveProjectItem("Flash", "chip", flashDisplay,
-        'activeProject.flash', "zephyr-ide.flash"));
+        flashContextValue, "zephyr-ide.flash"));
     }
     if (showBuildFlash) {
       items.push(new ActiveProjectItem("Build and Flash", "cloud-upload", flashDisplay,
@@ -185,7 +203,7 @@ export class ActiveProjectView implements vscode.TreeDataProvider<ActiveProjectI
     }
     if (showDebug) {
       items.push(new ActiveProjectItem("Debug", "debug-alt", debugDisplay,
-        'activeProject.debug', "zephyr-ide.debug"));
+        debugContextValue, "zephyr-ide.debug"));
     }
     if (showBuildDebug) {
       items.push(new ActiveProjectItem("Build and Debug", "debug-all", buildDebugDisplay,
@@ -199,6 +217,11 @@ export class ActiveProjectView implements vscode.TreeDataProvider<ActiveProjectI
     if (activeProject.twisterConfigs && Object.keys(activeProject.twisterConfigs).length) {
       items.push(new ActiveProjectItem("Run Tests", "beaker", activeTwister ? activeTwister.name : "",
         'activeProject.twisterRun', "zephyr-ide.run-test"));
+    }
+
+    if (showBuildDashboard) {
+      items.push(new ActiveProjectItem("Build Dashboard", "dashboard", activeBuild ? activeBuild.name : "None",
+        'activeProject.buildDashboard', "zephyr-ide.run-dashboard"));
     }
 
     return items;

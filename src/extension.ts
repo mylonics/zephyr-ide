@@ -836,18 +836,42 @@ export async function activate(context: vscode.ExtensionContext) {
         await vscode.commands.executeCommand("zephyr-ide.run-dashboard");
       }
     }),
+    vscode.commands.registerCommand("zephyr-ide.active-view.build-pristine", async () => {
+      await vscode.commands.executeCommand("zephyr-ide.build-pristine");
+    }),
+    vscode.commands.registerCommand("zephyr-ide.active-view.build-flash", async () => {
+      await vscode.commands.executeCommand("zephyr-ide.build-flash");
+    }),
+    vscode.commands.registerCommand("zephyr-ide.active-view.build-debug", async () => {
+      await vscode.commands.executeCommand("zephyr-ide.build-debug");
+    }),
+    vscode.commands.registerCommand("zephyr-ide.active-view.open-project-details", () => {
+      ProjectBuildPanel.createOrShow(
+        context.extensionPath,
+        context,
+        wsConfig,
+        globalConfig,
+        wsConfig.activeProject,
+      );
+    }),
     vscode.commands.registerCommand("zephyr-ide.active-view.change-launch-target", () => {
       void vscode.commands.executeCommand("zephyr-ide.set-active-profile");
     }),
     vscode.commands.registerCommand("zephyr-ide.active-view.set-local-bind", (item: any) => {
-      const contextToSlot: Record<string, "flash" | "debug" | "attach"> = {
-        "activeProject.flash": "flash",
-        "activeProject.buildFlash": "flash",
-        "activeProject.debug": "debug",
-        "activeProject.buildDebug": "debug",
-        "activeProject.debugAttach": "attach",
-      };
-      const slot = contextToSlot[item?.contextValue as string];
+      const cv: string = item?.contextValue ?? "";
+      let slot: "flash" | "debug" | "attach" | undefined;
+      // Match context values for flash-related rows (including combined .withBuildFlash variant)
+      if (cv === "activeProject.flash" || cv.startsWith("activeProject.flash.") ||
+          cv === "activeProject.buildFlash" || cv.startsWith("activeProject.buildFlash.")) {
+        slot = "flash";
+      // Attach must be checked before debug to avoid partial prefix match
+      } else if (cv === "activeProject.debugAttach" || cv.startsWith("activeProject.debugAttach.")) {
+        slot = "attach";
+      // Match debug-related rows (including combined .withBuildDebug variant)
+      } else if (cv === "activeProject.debug" || cv.startsWith("activeProject.debug.") ||
+                 cv === "activeProject.buildDebug" || cv.startsWith("activeProject.buildDebug.")) {
+        slot = "debug";
+      }
       void project.setLocalBind(context, wsConfig, slot);
     }),
     vscode.commands.registerCommand("zephyr-ide.active-view.clean-test-dirs", () => {
