@@ -26,6 +26,7 @@ interface SettingState {
   type: "boolean" | "string" | "enum";
   defaultValue: boolean | string | null;
   options: { value: string; label: string }[] | null;
+  pathType: "folder" | null;
   currentValue: boolean | string | null;
   scope: "default" | "user" | "workspace";
   userValue: boolean | string | null;
@@ -40,18 +41,9 @@ function formatValue(value: boolean | string | null): string {
   return `"${value}"`;
 }
 
-interface VariantsCatalogue {
-  user: { name: string; runner: string; args: string; shadowed: boolean }[];
-  workspace: { name: string; runner: string; args: string; shadowed: boolean }[];
-  referencedNames: string[];
-  hasWorkspace: boolean;
-}
-
 @customElement("settings-app")
 export class SettingsApp extends ZephyrLitElement {
   @state() private _settings: SettingState[] = [];
-  @state() private _variants: VariantsCatalogue | undefined;
-  @state() private _knownRunners: string[] = [];
   /** Track which scope the user has selected per-key */
   private _targetScopes: Record<string, string> = {};
 
@@ -71,10 +63,6 @@ export class SettingsApp extends ZephyrLitElement {
     switch (msg.command) {
       case "updateSettings":
         this._settings = msg.settings;
-        break;
-      case "updateVariants":
-        this._variants = msg.catalogue;
-        if (Array.isArray(msg.knownRunners)) { this._knownRunners = msg.knownRunners; }
         break;
       case "folderSelected":
         this._handleFolderSelected(msg.key, msg.path);
@@ -146,19 +134,58 @@ export class SettingsApp extends ZephyrLitElement {
       return html`<div class="container"><p>Loading…</p></div>`;
     }
 
-    const dirSettings = this._settings.filter(s => s.type === "string" && s.key !== "zephyr-ide.scaCustomVariant");
-    // Build behavior settings in declaration order; scaCustomVariant is injected
-    // right after scaVariant instead of appearing in the Directory Settings section.
-    const scaCustom = this._settings.find(s => s.key === "zephyr-ide.scaCustomVariant");
-    const behaviorSettings: SettingState[] = [];
-    for (const s of this._settings) {
-      if (s.type === "boolean" || s.type === "enum") {
-        behaviorSettings.push(s);
-      }
-      if (s.key === "zephyr-ide.scaVariant" && scaCustom) {
-        behaviorSettings.push(scaCustom);
-      }
-    }
+    const sections: { title: string; settings: SettingState[] }[] = [
+      {
+        title: "Directory Settings",
+        settings: this._settings.filter(s =>
+          s.type === "string" && s.key !== "zephyr-ide.scaCustomVariant"),
+      },
+      {
+        title: "General Settings",
+        settings: this._settings.filter(s => [
+          "zephyr-ide.activeViewKconfigButton",
+          "zephyr-ide.projectViewKconfigButton",
+          "zephyr-ide.automaticProjectSelection",
+          "zephyr-ide.buildBeforeFlash",
+          "zephyr-ide.separateBuildDebugProfile",
+        ].includes(s.key)),
+      },
+      {
+        title: "Status Bar",
+        settings: this._settings.filter(s => s.key.startsWith("zephyr-ide.statusBar.")),
+      },
+      {
+        title: "Active Project View",
+        settings: this._settings.filter(s => s.key.startsWith("zephyr-ide.activeProjectPanel.")),
+      },
+      {
+        title: "West Update Settings",
+        settings: this._settings.filter(s => [
+          "zephyr-ide.westNarrowUpdate",
+          "zephyr-ide.westKeepDescendants",
+          "zephyr-ide.westZephyrExport",
+        ].includes(s.key)),
+      },
+      {
+        title: "Workspace & Tooling",
+        settings: this._settings.filter(s => [
+          "zephyr-ide.suppressWorkspaceWarning",
+          "zephyr-ide.useClangd",
+        ].includes(s.key)),
+      },
+      {
+        title: "Static Code Analysis",
+        settings: this._settings.filter(s => [
+          "zephyr-ide.scaVariant",
+          "zephyr-ide.scaCustomVariant",
+        ].includes(s.key)),
+      },
+    ].filter(section => section.settings.length > 0);
+
+    const renderSetting = (setting: SettingState) =>
+      setting.type === "boolean" ? this._renderBoolSetting(setting) :
+        setting.type === "string" ? (setting.pathType === "folder" ? this._renderStringSetting(setting) : this._renderTextSetting(setting)) :
+          this._renderEnumSetting(setting);
 
     return html`
       <div class="container">
@@ -184,38 +211,16 @@ export class SettingsApp extends ZephyrLitElement {
           Use the scope selector to choose whether a setting applies to this workspace only or to all workspaces (User).</p>
         </div>
 
-        <h2>Directory Settings</h2>
-        <div class="settings-group">
-          ${dirSettings.map((s, i) => html`
-            ${i > 0 ? html`<vscode-divider></vscode-divider>` : nothing}
-            ${this._renderStringSetting(s)}
-          `)}
-        </div>
-
-        <vscode-divider></vscode-divider>
-
-        <h2>Behavior Settings</h2>
-        <div class="settings-group">
-          ${behaviorSettings.map((s, i) => html`
-            ${i > 0 ? html`<vscode-divider></vscode-divider>` : nothing}
-            ${s.type === "boolean" ? this._renderBoolSetting(s) :
-              s.type === "string" ? this._renderTextSetting(s) :
-              this._renderEnumSetting(s)}
-          `)}
-        </div>
-
-        ${this._variants ? html`
-          <vscode-divider></vscode-divider>
-          <h2>Runner Variants</h2>
-          <p class="page-subtitle">
-            Reusable runner + args presets. Referenced from the Project Build panel via bind kind <code>variant</code>.
-            Workspace-scope variants (in <code>.vscode/zephyr-ide.json</code>) are managed in the Project Build panel.
-          </p>
-          <runner-variants-editor
-            .catalogue=${this._variants}
-            .knownRunners=${this._knownRunners}
-          ></runner-variants-editor>
-        ` : nothing}
+        ${sections.map((section, sectionIndex) => html`
+          ${sectionIndex > 0 ? html`<vscode-divider></vscode-divider>` : nothing}
+          <h2>${section.title}</h2>
+          <div class="settings-group">
+            ${section.settings.map((setting, settingIndex) => html`
+              ${settingIndex > 0 ? html`<vscode-divider></vscode-divider>` : nothing}
+              ${renderSetting(setting)}
+            `)}
+          </div>
+        `)}
       </div>
     `;
   }
@@ -261,14 +266,14 @@ export class SettingsApp extends ZephyrLitElement {
             <vscode-textfield
               .value=${currentVal}
               placeholder="Not set (using default)"
-              @vsc-change=${(e: Event) => this._onStringInput(setting.key, e)}
+              @change=${(e: Event) => this._onStringInput(setting.key, e)}
             ></vscode-textfield>
             <vscode-button class="setting-browse-button" appearance="secondary" title="Browse for folder"
               @click=${() => this._onBrowse(setting.key)}>Browse</vscode-button>
           </div>
           <vscode-single-select class="setting-scope-select"
             .value=${targetScope}
-            @vsc-change=${(e: Event) => this._onScopeChanged(setting.key, e)}>
+            @change=${(e: Event) => this._onScopeChanged(setting.key, e)}>
             <vscode-option value="workspace">Workspace</vscode-option>
             <vscode-option value="user">User</vscode-option>
           </vscode-single-select>
@@ -298,11 +303,11 @@ export class SettingsApp extends ZephyrLitElement {
           <vscode-textfield
             .value=${currentVal}
             placeholder="Not set"
-            @vsc-change=${(e: Event) => this._onStringInput(setting.key, e)}
+            @change=${(e: Event) => this._onStringInput(setting.key, e)}
           ></vscode-textfield>
           <vscode-single-select class="setting-scope-select"
             .value=${targetScope}
-            @vsc-change=${(e: Event) => this._onScopeChanged(setting.key, e)}>
+            @change=${(e: Event) => this._onScopeChanged(setting.key, e)}>
             <vscode-option value="workspace">Workspace</vscode-option>
             <vscode-option value="user">User</vscode-option>
           </vscode-single-select>
@@ -329,11 +334,11 @@ export class SettingsApp extends ZephyrLitElement {
         <div class="setting-controls">
           <vscode-checkbox
             ?checked=${!!setting.currentValue}
-            @vsc-change=${(e: Event) => this._onToggleChanged(setting.key, e)}
+            @change=${(e: Event) => this._onToggleChanged(setting.key, e)}
           ></vscode-checkbox>
           <vscode-single-select class="setting-scope-select"
             .value=${targetScope}
-            @vsc-change=${(e: Event) => this._onScopeChanged(setting.key, e)}>
+            @change=${(e: Event) => this._onScopeChanged(setting.key, e)}>
             <vscode-option value="workspace">Workspace</vscode-option>
             <vscode-option value="user">User</vscode-option>
           </vscode-single-select>
@@ -362,12 +367,12 @@ export class SettingsApp extends ZephyrLitElement {
         <div class="setting-controls">
           <vscode-single-select class="setting-enum-select"
             .value=${currentVal}
-            @vsc-change=${(e: Event) => this._onEnumChanged(setting.key, e)}>
+            @change=${(e: Event) => this._onEnumChanged(setting.key, e)}>
             ${options.map(opt => html`<vscode-option value=${opt.value}>${opt.label}</vscode-option>`)}
           </vscode-single-select>
           <vscode-single-select class="setting-scope-select"
             .value=${targetScope}
-            @vsc-change=${(e: Event) => this._onScopeChanged(setting.key, e)}>
+            @change=${(e: Event) => this._onScopeChanged(setting.key, e)}>
             <vscode-option value="workspace">Workspace</vscode-option>
             <vscode-option value="user">User</vscode-option>
           </vscode-single-select>

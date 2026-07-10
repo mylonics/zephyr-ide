@@ -258,6 +258,26 @@ function registerCommandWithRefresh(
 }
 
 /** Create a left-aligned status bar item, register it, and show it. */
+/**
+ * Resolve the bind slot from an ActiveProjectView item context value.
+ * Handles both plain contexts (e.g. "activeProject.flash") and dynamic
+ * contexts with flag suffixes (e.g. "activeProject.flash.withBuildFlash").
+ * Attach is checked before debug to avoid prefix-match ambiguity.
+ */
+function resolveLocalBindSlot(contextValue: string): "flash" | "debug" | "attach" | undefined {
+  const matchesPrefix = (base: string) => contextValue === base || contextValue.startsWith(base + ".");
+  if (matchesPrefix("activeProject.flash") || matchesPrefix("activeProject.buildFlash")) {
+    return "flash";
+  }
+  if (matchesPrefix("activeProject.debugAttach")) {
+    return "attach";
+  }
+  if (matchesPrefix("activeProject.debug") || matchesPrefix("activeProject.buildDebug")) {
+    return "debug";
+  }
+  return undefined;
+}
+
 function createStatusBarButton(
   context: vscode.ExtensionContext,
   command: string,
@@ -836,18 +856,29 @@ export async function activate(context: vscode.ExtensionContext) {
         await vscode.commands.executeCommand("zephyr-ide.run-dashboard");
       }
     }),
+    vscode.commands.registerCommand("zephyr-ide.active-view.build-pristine", async () => {
+      await vscode.commands.executeCommand("zephyr-ide.build-pristine");
+    }),
+    vscode.commands.registerCommand("zephyr-ide.active-view.build-flash", async () => {
+      await vscode.commands.executeCommand("zephyr-ide.build-flash");
+    }),
+    vscode.commands.registerCommand("zephyr-ide.active-view.build-debug", async () => {
+      await vscode.commands.executeCommand("zephyr-ide.build-debug");
+    }),
+    vscode.commands.registerCommand("zephyr-ide.active-view.open-project-details", () => {
+      ProjectBuildPanel.createOrShow(
+        context.extensionPath,
+        context,
+        wsConfig,
+        globalConfig,
+        wsConfig.activeProject,
+      );
+    }),
     vscode.commands.registerCommand("zephyr-ide.active-view.change-launch-target", () => {
       void vscode.commands.executeCommand("zephyr-ide.set-active-profile");
     }),
     vscode.commands.registerCommand("zephyr-ide.active-view.set-local-bind", (item: any) => {
-      const contextToSlot: Record<string, "flash" | "debug" | "attach"> = {
-        "activeProject.flash": "flash",
-        "activeProject.buildFlash": "flash",
-        "activeProject.debug": "debug",
-        "activeProject.buildDebug": "debug",
-        "activeProject.debugAttach": "attach",
-      };
-      const slot = contextToSlot[item?.contextValue as string];
+      const slot = resolveLocalBindSlot(item?.contextValue ?? "");
       void project.setLocalBind(context, wsConfig, slot);
     }),
     vscode.commands.registerCommand("zephyr-ide.active-view.clean-test-dirs", () => {

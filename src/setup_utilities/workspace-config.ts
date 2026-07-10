@@ -505,7 +505,6 @@ export async function migrateSettingKeys(): Promise<void> {
     // excluded from this simple 1-to-1 rename table. They require a value transformation
     // (appending '/toolchains') so they are handled separately in the block below.
     { oldKey: "zephyr-ide.toolchain_directory", newKey: "zephyr-ide.toolchainDirectory" },
-    { oldKey: "zephyr-ide.use_gui_config", newKey: "zephyr-ide.useGuiConfig" },
     { oldKey: "zephyr-ide.suppress-workspace-warning", newKey: "zephyr-ide.suppressWorkspaceWarning" },
     { oldKey: "zephyr-ide.venv-folder", newKey: "zephyr-ide.venvFolder" },
     { oldKey: "zephyr-ide.project_variable_defaults", newKey: "zephyr-ide.projectVariableDefaults" },

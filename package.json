@@ -112,6 +112,46 @@
           "default": true,
           "description": "Show the 'Build and Debug' button in the status bar. Restart to take effect."
         },
+        "zephyr-ide.activeProjectPanel.showBuild": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the 'Build' button in the Active Project panel."
+        },
+        "zephyr-ide.activeProjectPanel.showBuildPristine": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show the 'Build Pristine' button in the Active Project panel."
+        },
+        "zephyr-ide.activeProjectPanel.showFlash": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the 'Flash' button in the Active Project panel."
+        },
+        "zephyr-ide.activeProjectPanel.showBuildFlash": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show the 'Build and Flash' button in the Active Project panel."
+        },
+        "zephyr-ide.activeProjectPanel.showBuildDebug": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show the 'Build and Debug' button in the Active Project panel."
+        },
+        "zephyr-ide.activeProjectPanel.showDebug": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the 'Debug' button in the Active Project panel."
+        },
+        "zephyr-ide.activeProjectPanel.showAttach": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the 'Debug Attach' button in the Active Project panel."
+        },
+        "zephyr-ide.activeProjectPanel.showBuildDashboard": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the 'Build Dashboard' button at the bottom of the Active Project panel. When shown, the Kconfig button is hidden from the Build and Build Pristine rows (accessible via the dashboard instead)."
+        },
         "zephyr-ide.buildBeforeFlash": {
           "type": "boolean",
           "default": false,
@@ -133,13 +173,6 @@
           ],
           "default": null,
           "description": "Manually specify the directory containing Zephyr SDK installations (e.g., containing zephyr-sdk-0.17.0, zephyr-sdk-0.17.3 subdirectories). If not specified, defaults to toolchains subdirectory within the tools directory."
-        },
-        "zephyr-ide.useGuiConfig": {
-          "type": [
-            "boolean"
-          ],
-          "default": false,
-          "description": "Use GUI configuration editor instead of terminal-based menuconfig in the Project Tree View."
         },
         "zephyr-ide.activeViewKconfigButton": {
           "type": "string",
@@ -318,14 +351,6 @@
           "deprecationMessage": "Deprecated: Use 'zephyr-ide.toolchainDirectory' instead. Migrated automatically on startup.",
           "description": "Deprecated. Use 'zephyr-ide.toolchainDirectory' instead."
         },
-        "zephyr-ide.use_gui_config": {
-          "type": [
-            "boolean"
-          ],
-          "default": false,
-          "deprecationMessage": "Deprecated: Use 'zephyr-ide.useGuiConfig' instead. Migrated automatically on startup.",
-          "description": "Deprecated. Use 'zephyr-ide.useGuiConfig' instead."
-        },
         "zephyr-ide.suppress-workspace-warning": {
           "type": [
             "boolean"
@@ -462,17 +487,37 @@
       "view/item/context": [
         {
           "command": "zephyr-ide.active-view.kconfig",
-          "when": "view == zephyrIdeActiveProject && viewItem =~ /activeProject\\.build(Pristine)?$/",
+          "when": "view == zephyrIdeActiveProject && viewItem =~ /activeProject\\.build.*\\.withKconfig/",
+          "group": "inline@1"
+        },
+        {
+          "command": "zephyr-ide.active-view.build-pristine",
+          "when": "view == zephyrIdeActiveProject && viewItem =~ /activeProject\\.build.*\\.withPristine/",
+          "group": "inline@0"
+        },
+        {
+          "command": "zephyr-ide.active-view.build-flash",
+          "when": "view == zephyrIdeActiveProject && viewItem =~ /\\.withBuildFlash/",
+          "group": "inline@0"
+        },
+        {
+          "command": "zephyr-ide.active-view.build-debug",
+          "when": "view == zephyrIdeActiveProject && viewItem =~ /\\.withBuildDebug/",
+          "group": "inline@0"
+        },
+        {
+          "command": "zephyr-ide.active-view.open-project-details",
+          "when": "view == zephyrIdeActiveProject && viewItem == activeProject.buildDashboard",
           "group": "inline@1"
         },
         {
           "command": "zephyr-ide.active-view.change-launch-target",
-          "when": "view == zephyrIdeActiveProject && viewItem =~ /activeProject\\.(flash|buildFlash|debug|buildDebug|debugAttach)$/",
+          "when": "view == zephyrIdeActiveProject && viewItem =~ /^activeProject\\.(flash|buildFlash|debug|buildDebug|debugAttach)/",
           "group": "inline@1"
         },
         {
           "command": "zephyr-ide.active-view.set-local-bind",
-          "when": "view == zephyrIdeActiveProject && viewItem =~ /activeProject\\.(flash|buildFlash|debug|buildDebug|debugAttach)$/",
+          "when": "view == zephyrIdeActiveProject && viewItem =~ /^activeProject\\.(flash|buildFlash|debug|buildDebug|debugAttach)/",
           "group": "inline@2"
         },
         {
@@ -1088,6 +1133,26 @@
         "command": "zephyr-ide.active-view.kconfig",
         "title": "Kconfig",
         "icon": "$(preview)"
+      },
+      {
+        "command": "zephyr-ide.active-view.build-pristine",
+        "title": "Build Pristine",
+        "icon": "$(debug-rerun)"
+      },
+      {
+        "command": "zephyr-ide.active-view.build-flash",
+        "title": "Build and Flash",
+        "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "zephyr-ide.active-view.build-debug",
+        "title": "Build and Debug",
+        "icon": "$(debug-all)"
+      },
+      {
+        "command": "zephyr-ide.active-view.open-project-details",
+        "title": "Open Project Details",
+        "icon": "$(open-preview)"
       },
       {
         "command": "zephyr-ide.active-view.change-launch-target",
