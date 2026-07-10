@@ -17,9 +17,13 @@ limitations under the License.
 
 import * as assert from "assert";
 import * as vscode from "vscode";
-import { getVenvPath } from "../setup_utilities/workspace-config";
+import * as fs from "fs-extra";
+import * as os from "os";
+import { configureExistingVenvEnvironment, getVenvPath } from "../setup_utilities/workspace-config";
 import { isDangerousVenvResetTarget } from "../setup_utilities/west-operations";
 import * as path from "path";
+import { generateSetupState } from "../setup_utilities/types";
+import { getPlatformNameAsync } from "../utilities/utils";
 import { normalizePath } from "./test-runner";
 
 suite("Venv Configuration Test Suite", () => {
@@ -80,6 +84,41 @@ suite("Venv Configuration Test Suite", () => {
         
         // Clean up - reset to default
         await config.update("zephyr-ide.venvFolder", undefined, vscode.ConfigurationTarget.Global);
+    });
+
+    test("Configures environment variables for an existing virtual environment", async () => {
+        const setupPath = fs.mkdtempSync(path.join(os.tmpdir(), "zephyr-ide-venv-"));
+        const venvPath = path.join(setupPath, ".venv");
+        fs.ensureDirSync(venvPath);
+
+        try {
+            const setupState = generateSetupState(setupPath);
+            const configured = await configureExistingVenvEnvironment(setupState);
+            const platform = await getPlatformNameAsync();
+            const expectedVenvPath = getVenvPath(setupPath);
+            const expectedBinFolder = normalizePath(path.join(expectedVenvPath, platform === "windows" ? "Scripts" : "bin"));
+            const expectedSeparator = platform === "windows" ? ";" : ":";
+
+            assert.strictEqual(configured, true);
+            assert.strictEqual(setupState.env["VIRTUAL_ENV"], expectedVenvPath);
+            assert.strictEqual(setupState.env["PATH"], expectedBinFolder + expectedSeparator);
+        } finally {
+            fs.removeSync(setupPath);
+        }
+    });
+
+    test("Leaves environment variables unchanged when no virtual environment exists", async () => {
+        const setupPath = fs.mkdtempSync(path.join(os.tmpdir(), "zephyr-ide-venv-"));
+
+        try {
+            const setupState = generateSetupState(setupPath);
+            const configured = await configureExistingVenvEnvironment(setupState);
+
+            assert.strictEqual(configured, false);
+            assert.deepStrictEqual(setupState.env, {});
+        } finally {
+            fs.removeSync(setupPath);
+        }
     });
 
     test("Rejects venv reset targets that would delete the workspace or an ancestor", () => {
