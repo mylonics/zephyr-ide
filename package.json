@@ -507,7 +507,7 @@
         },
         {
           "command": "zephyr-ide.active-view.build-pristine",
-          "when": "view == zephyrIdeActiveProject && viewItem =~ /^activeProject\\.build\\..*\\.withPristine/",
+          "when": "view == zephyrIdeActiveProject && viewItem =~ /activeProject\\.build.*\\.withPristine/",
           "group": "inline@2"
         },
         {

@@ -170,8 +170,9 @@ export class ActiveProjectView implements vscode.TreeDataProvider<ActiveProjectI
     const showBuildDashboard = cfg.get<boolean>("zephyr-ide.activeProjectPanel.showBuildDashboard") ?? false;
 
     // Build dynamic context values encoding which inline-action buttons are present.
-    // Flag suffixes: .withKconfig (kconfig button), .withPristine (build-pristine button),
+    // Flag suffixes: .withPristine (build-pristine button), .withKconfig (kconfig button),
     //                .withBuildFlash (build-flash button), .withBuildDebug (build-debug button)
+    // Example: activeProject.build.withPristine.withKconfig
     let buildContextFlags = '';
     if (!showBuildPristine) { buildContextFlags += '.withPristine'; }
     if (!showBuildDashboard) { buildContextFlags += '.withKconfig'; }
