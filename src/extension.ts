@@ -887,12 +887,38 @@ export async function activate(context: vscode.ExtensionContext) {
         wsConfig.activeProject,
       );
     }),
-    vscode.commands.registerCommand("zephyr-ide.active-view.change-launch-target", () => {
-      void vscode.commands.executeCommand("zephyr-ide.set-active-profile");
-    }),
-    vscode.commands.registerCommand("zephyr-ide.active-view.set-local-bind", (item: any) => {
+    vscode.commands.registerCommand("zephyr-ide.active-view.set-runner-binding", async (item: any) => {
       const slot = resolveLocalBindSlot(item?.contextValue ?? "");
-      void project.setLocalBind(context, wsConfig, slot);
+      const LOCAL_BIND_LABEL = "$(target)  Set Local Bind for This Action…";
+      const PROFILE_WORKSPACE_LABEL = "$(save)  Set Runner Profile (Workspace)…";
+      const PROFILE_LOCAL_LABEL = "$(edit)  Set Runner Profile (Local Override)…";
+      const items: vscode.QuickPickItem[] = [
+        {
+          label: LOCAL_BIND_LABEL,
+          detail: "Pick a runner for just this action's slot, without switching profiles. Stored per-developer, never committed.",
+        },
+        {
+          label: PROFILE_WORKSPACE_LABEL,
+          detail: "Pick a Runner Profile (bundles flash, debug, and attach) and commit it into .vscode/zephyr-ide.json — shared with the team.",
+        },
+        {
+          label: PROFILE_LOCAL_LABEL,
+          detail: "Pick a Runner Profile (bundles flash, debug, and attach) as a per-developer override — never written to .vscode/zephyr-ide.json.",
+        },
+      ];
+      const pick = await vscode.window.showQuickPick(items, {
+        title: "Set Runner Binding",
+        placeHolder: "What do you want to change?",
+        ignoreFocusOut: true,
+      });
+      if (!pick) { return; }
+      if (pick.label === LOCAL_BIND_LABEL) {
+        await project.setLocalBind(context, wsConfig, slot);
+      } else if (pick.label === PROFILE_WORKSPACE_LABEL) {
+        await project.setWorkspaceActiveProfile(context, wsConfig);
+      } else if (pick.label === PROFILE_LOCAL_LABEL) {
+        await project.setActiveProfile(context, wsConfig);
+      }
     }),
     vscode.commands.registerCommand("zephyr-ide.active-view.clean-test-dirs", () => {
       const resolved = resolveActiveProject(wsConfig, { caller: "Clean Test Dirs" });

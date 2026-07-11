@@ -511,14 +511,9 @@
           "group": "inline@1"
         },
         {
-          "command": "zephyr-ide.active-view.change-launch-target",
+          "command": "zephyr-ide.active-view.set-runner-binding",
           "when": "view == zephyrIdeActiveProject && viewItem =~ /^activeProject\\.(flash|buildFlash|debug|buildDebug|debugAttach)/",
           "group": "inline@1"
-        },
-        {
-          "command": "zephyr-ide.active-view.set-local-bind",
-          "when": "view == zephyrIdeActiveProject && viewItem =~ /^activeProject\\.(flash|buildFlash|debug|buildDebug|debugAttach)/",
-          "group": "inline@2"
         },
         {
           "command": "zephyr-ide.active-view.clean-test-dirs",
@@ -1177,13 +1172,8 @@
         "icon": "$(open-preview)"
       },
       {
-        "command": "zephyr-ide.active-view.change-launch-target",
-        "title": "Change Runner Profile",
-        "icon": "$(arrow-swap)"
-      },
-      {
-        "command": "zephyr-ide.active-view.set-local-bind",
-        "title": "Set Local Bind",
+        "command": "zephyr-ide.active-view.set-runner-binding",
+        "title": "Set Runner Binding",
         "icon": "$(target)"
       },
       {
