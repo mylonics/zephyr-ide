@@ -511,14 +511,9 @@
           "group": "inline@1"
         },
         {
-          "command": "zephyr-ide.active-view.change-launch-target",
+          "command": "zephyr-ide.active-view.set-runner-binding",
           "when": "view == zephyrIdeActiveProject && viewItem =~ /^activeProject\\.(flash|buildFlash|debug|buildDebug|debugAttach)/",
           "group": "inline@1"
-        },
-        {
-          "command": "zephyr-ide.active-view.set-local-bind",
-          "when": "view == zephyrIdeActiveProject && viewItem =~ /^activeProject\\.(flash|buildFlash|debug|buildDebug|debugAttach)/",
-          "group": "inline@2"
         },
         {
           "command": "zephyr-ide.active-view.clean-test-dirs",
@@ -604,6 +599,16 @@
           "command": "zephyr-ide.tree-view.set-build-profile",
           "when": "view == zephyrIdeProjects && viewItem =~ /^buildProfileItem/",
           "group": "inline@1"
+        },
+        {
+          "command": "zephyr-ide.tree-view.save-build-profile-to-workspace",
+          "when": "view == zephyrIdeProjects && viewItem == buildProfileItem.local",
+          "group": "inline@2"
+        },
+        {
+          "command": "zephyr-ide.tree-view.reset-build-profile",
+          "when": "view == zephyrIdeProjects && viewItem == buildProfileItem.local",
+          "group": "inline@3"
         }
       ]
     },
@@ -840,6 +845,18 @@
       {
         "command": "zephyr-ide.set-active-profile",
         "title": "Zephyr IDE: Select Active Runner Profile (Local)"
+      },
+      {
+        "command": "zephyr-ide.set-workspace-active-profile",
+        "title": "Zephyr IDE: Select Active Runner Profile (Workspace)"
+      },
+      {
+        "command": "zephyr-ide.save-active-profile-to-workspace",
+        "title": "Zephyr IDE: Save Active Runner Profile to Workspace"
+      },
+      {
+        "command": "zephyr-ide.reset-active-profile-to-workspace",
+        "title": "Zephyr IDE: Reset Active Runner Profile to Workspace Default"
       },
       {
         "command": "zephyr-ide.set-local-bind",
@@ -1155,13 +1172,8 @@
         "icon": "$(open-preview)"
       },
       {
-        "command": "zephyr-ide.active-view.change-launch-target",
-        "title": "Change Runner Profile",
-        "icon": "$(arrow-swap)"
-      },
-      {
-        "command": "zephyr-ide.active-view.set-local-bind",
-        "title": "Set Local Bind",
+        "command": "zephyr-ide.active-view.set-runner-binding",
+        "title": "Set Runner Binding",
         "icon": "$(target)"
       },
       {
@@ -1279,8 +1291,22 @@
       },
       {
         "command": "zephyr-ide.tree-view.set-build-profile",
-        "title": "Zephyr IDE: Set Runner Profile for Build",
+        "title": "Zephyr IDE: Set Runner Profile for Build (Local)",
         "icon": "$(edit)"
+      },
+      {
+        "command": "zephyr-ide.tree-view.set-workspace-build-profile",
+        "title": "Zephyr IDE: Set Runner Profile for Build (Workspace, Committed)"
+      },
+      {
+        "command": "zephyr-ide.tree-view.save-build-profile-to-workspace",
+        "title": "Zephyr IDE: Save Local Runner Profile Override to Workspace",
+        "icon": "$(save)"
+      },
+      {
+        "command": "zephyr-ide.tree-view.reset-build-profile",
+        "title": "Zephyr IDE: Revert Local Runner Profile Override",
+        "icon": "$(discard)"
       },
       {
         "command": "zephyr-ide.manage-build-variables",

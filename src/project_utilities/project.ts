@@ -23,7 +23,7 @@ import { notifyError, notifyWarningWithActions, outputWarning } from "../utiliti
 import { buildSelector, BuildConfig, BuildConfigDictionary, BuildStateDictionary } from "./build_selector";
 import { WorkspaceConfig } from "../setup_utilities/types";
 import { setWorkspaceState } from "../setup_utilities/state-management";
-import { RunnerBind, RunnerProfile, BindOverride, loadRunnerProfiles, findRunnerProfile, resolveBind, splitArgs } from "./runner_profiles";
+import { RunnerBind, RunnerProfile, BindOverride, DebugBind, loadRunnerProfiles, findRunnerProfile, resolveBind, splitArgs } from "./runner_profiles";
 import { configSelector, configRemover, ConfigFiles, mergeConfigFiles } from "./config_selector";
 import { setDtsContext } from "../setup_utilities/dts_interface";
 import { getSamples } from "../setup_utilities/modules";
@@ -189,6 +189,25 @@ export function getResolvedProfile(wsConfig: WorkspaceConfig, resolved: Resolved
 /** Get the build-level override for a specific bind slot (may be undefined). */
 export function getBindOverride(build: BuildConfig, slot: "flash" | "buildDebug" | "debug" | "attach"): BindOverride | undefined {
   return build.bindOverrides?.[slot];
+}
+
+/**
+ * Resolve the effective bind + override for Build-and-Debug.
+ *
+ * A profile's `buildDebug` slot only takes effect when it is explicitly set to
+ * something other than `{kind: "auto"}` — an unset or explicit "auto" buildDebug
+ * slot falls back to the `debug` slot (and its override) instead of forcing
+ * runners.yaml auto-detection over a real `debug` bind. This mirrors the Runner
+ * Profile editor's "Falls back to the Debug slot" hint for buildDebug=Auto.
+ */
+export function getEffectiveBuildDebugBind(
+  profile: RunnerProfile,
+  build: BuildConfig,
+): { bind: DebugBind; override: BindOverride | undefined } {
+  if (profile.buildDebug && profile.buildDebug.kind !== "auto") {
+    return { bind: profile.buildDebug, override: getBindOverride(build, "buildDebug") };
+  }
+  return { bind: profile.debug, override: getBindOverride(build, "debug") };
 }
 
 /** Get active test name from an already-resolved project */
@@ -1012,8 +1031,9 @@ export async function setActiveProfile(
   context: vscode.ExtensionContext,
   wsConfig: WorkspaceConfig,
   presetName?: string | null,
+  targetOptions?: { projectName?: string; buildName?: string },
 ) {
-  const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Runner Profile" });
+  const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Runner Profile", ...targetOptions });
   if (!resolved) { return; }
   const buildState = wsConfig.projectStates[resolved.projectName]?.buildStates?.[resolved.buildName];
 
@@ -1029,6 +1049,9 @@ export async function setActiveProfile(
   const NONE_LABEL = "(None) — clear local profile override";
   const { name: currentEffective, scope: currentScope } = getEffectiveActiveProfileName(wsConfig, resolved);
   const OPEN_PANEL_LABEL = "$(gear)  Open Runner Profiles Page…";
+  const SAVE_TO_WORKSPACE_LABEL = "$(save)  Save active profile to workspace (.vscode/zephyr-ide.json)…";
+  const RESET_TO_WORKSPACE_LABEL = "$(discard)  Reset to workspace default…";
+  const hasLocalOverride = !!buildState && "localActiveProfile" in buildState;
   const items: vscode.QuickPickItem[] = [
     {
       label: NONE_LABEL,
@@ -1045,6 +1068,17 @@ export async function setActiveProfile(
         description: currentEffective === name ? `current (${currentScope})` : undefined,
       });
     }
+  }
+  if (hasLocalOverride) {
+    items.push({ label: "", kind: vscode.QuickPickItemKind.Separator });
+    items.push({
+      label: SAVE_TO_WORKSPACE_LABEL,
+      detail: `Commit the local override into .vscode/zephyr-ide.json (currently: ${resolved.build.activeProfile ?? "(none)"}) and clear the local override.`,
+    });
+    items.push({
+      label: RESET_TO_WORKSPACE_LABEL,
+      detail: `Discard the local override; go back to the committed workspace default (${resolved.build.activeProfile ?? "(none)"}).`,
+    });
   }
   items.push({ label: "", kind: vscode.QuickPickItemKind.Separator });
   items.push({ label: OPEN_PANEL_LABEL, detail: "Open the Runner Profiles editor panel to create or modify profiles." });
@@ -1069,6 +1103,14 @@ export async function setActiveProfile(
     void vscode.commands.executeCommand("zephyr-ide.open-runner-profile-panel");
     return;
   }
+  if (pick.label === SAVE_TO_WORKSPACE_LABEL) {
+    await saveActiveProfileToWorkspace(context, wsConfig, targetOptions);
+    return;
+  }
+  if (pick.label === RESET_TO_WORKSPACE_LABEL) {
+    await resetActiveProfileToWorkspace(context, wsConfig, targetOptions);
+    return;
+  }
   if (buildState) {
     buildState.localActiveProfile = pick.label === NONE_LABEL ? null : pick.label;
   }
@@ -1089,8 +1131,9 @@ export async function setWorkspaceActiveProfile(
   context: vscode.ExtensionContext,
   wsConfig: WorkspaceConfig,
   presetName?: string | null,
+  targetOptions?: { projectName?: string; buildName?: string },
 ) {
-  const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Runner Profile" });
+  const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Runner Profile", ...targetOptions });
   if (!resolved) { return; }
   const buildState = wsConfig.projectStates[resolved.projectName]?.buildStates?.[resolved.buildName];
 
@@ -1160,8 +1203,9 @@ export async function setWorkspaceActiveProfile(
 export async function saveActiveProfileToWorkspace(
   context: vscode.ExtensionContext,
   wsConfig: WorkspaceConfig,
+  targetOptions?: { projectName?: string; buildName?: string },
 ) {
-  const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Save Runner Profile" });
+  const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Save Runner Profile", ...targetOptions });
   if (!resolved) { return; }
   const buildState = wsConfig.projectStates[resolved.projectName]?.buildStates?.[resolved.buildName];
   const { name: effectiveName } = getEffectiveActiveProfileName(wsConfig, resolved);
@@ -1180,8 +1224,9 @@ export async function saveActiveProfileToWorkspace(
 export async function resetActiveProfileToWorkspace(
   context: vscode.ExtensionContext,
   wsConfig: WorkspaceConfig,
+  targetOptions?: { projectName?: string; buildName?: string },
 ) {
-  const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Reset Runner Profile" });
+  const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Reset Runner Profile", ...targetOptions });
   if (!resolved) { return; }
   const buildState = wsConfig.projectStates[resolved.projectName]?.buildStates?.[resolved.buildName];
   if (!buildState || !("localActiveProfile" in buildState)) {
@@ -1298,8 +1343,9 @@ export async function setBindOverride(
   wsConfig: WorkspaceConfig,
   slot: "flash" | "debug" | "attach",
   argsText?: string,
+  targetOptions?: { projectName?: string; buildName?: string },
 ) {
-  const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Runner Override" });
+  const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Runner Override", ...targetOptions });
   if (!resolved) { return; }
   const currentArgs = resolved.build.bindOverrides?.[slot]?.extraArgs ?? [];
   const currentStr = currentArgs.join(" ");

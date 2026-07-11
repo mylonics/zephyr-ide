@@ -338,16 +338,24 @@ async function startDebugSession(
   let activeBind: DebugBind | undefined;
   let pinnedRunner: string | undefined;
   let debugType: string = ZEPHYR_IDE_CORTEX_DEBUG_TYPE;
+  // Set when the resolved bind actually came from the profile's dedicated
+  // `buildDebug` slot (as opposed to falling back to `debug`). Forwarded to the
+  // debug provider via `zephyrIdeBuildDebug` so it derives userArgs/enableRtt/
+  // probe/overrides from the same slot instead of re-deriving from `debug`.
+  let usedBuildDebugSlot = false;
 
   if (resolved) {
-    const profileName = resolved.build.activeProfile;
+    const profileName = getEffectiveActiveProfileName(wsConfig, resolved).name;
     if (profileName) {
       const profileResolved = resolveActiveProfile(wsConfig);
       if (profileResolved) {
         // When the separate Build-and-Debug setting is on, prefer the dedicated
-        // `buildDebug` slot for build-debug mode (fall back to `debug` if unset).
-        if (useBuildDebugSlot && profileResolved.profile.buildDebug) {
+        // `buildDebug` slot for build-debug mode (fall back to `debug` when unset
+        // or explicitly left as "auto" — the editor advertises "auto" as the
+        // fallback state, so it must not shadow the `debug` slot's real bind).
+        if (useBuildDebugSlot && profileResolved.profile.buildDebug && profileResolved.profile.buildDebug.kind !== 'auto') {
           activeBind = profileResolved.profile.buildDebug;
+          usedBuildDebugSlot = true;
         } else {
           activeBind = profileResolved.profile[slot];
         }
@@ -380,6 +388,7 @@ async function startDebugSession(
     pinnedRunner = undefined;
     activeBind = undefined;
     debugTargetFolder = undefined;
+    usedBuildDebugSlot = false;
     const [runnerStr] = localBind.split('?');
     if (runnerStr.startsWith(CORTEX_DEBUG_PREFIX)) {
       pinnedRunner = runnerStr.slice(CORTEX_DEBUG_PREFIX.length);
@@ -425,6 +434,10 @@ async function startDebugSession(
       name: pinnedRunner ? `${baseName} (${pinnedRunner})` : baseName,
       request: mode === 'attach' ? "attach" : "launch",
       ...(pinnedRunner ? { runner: pinnedRunner } : {}),
+      // Tells the debug provider to derive userArgs/enableRtt/probe/overrides
+      // from the profile's `buildDebug` slot instead of `debug` (see
+      // getEffectiveBuildDebugBind); mirrors the choice already made above.
+      ...(usedBuildDebugSlot ? { zephyrIdeBuildDebug: true } : {}),
     };
     // Prefer the workspace folder whose uri.fsPath matches wsConfig.rootPath (case-insensitive on Windows)
     const folders = vscode.workspace.workspaceFolders ?? [];
@@ -874,12 +887,38 @@ export async function activate(context: vscode.ExtensionContext) {
         wsConfig.activeProject,
       );
     }),
-    vscode.commands.registerCommand("zephyr-ide.active-view.change-launch-target", () => {
-      void vscode.commands.executeCommand("zephyr-ide.set-active-profile");
-    }),
-    vscode.commands.registerCommand("zephyr-ide.active-view.set-local-bind", (item: any) => {
+    vscode.commands.registerCommand("zephyr-ide.active-view.set-runner-binding", async (item: any) => {
       const slot = resolveLocalBindSlot(item?.contextValue ?? "");
-      void project.setLocalBind(context, wsConfig, slot);
+      const LOCAL_BIND_LABEL = "$(target)  Set Local Bind for This Action…";
+      const PROFILE_WORKSPACE_LABEL = "$(save)  Set Runner Profile (Workspace)…";
+      const PROFILE_LOCAL_LABEL = "$(edit)  Set Runner Profile (Local Override)…";
+      const items: vscode.QuickPickItem[] = [
+        {
+          label: LOCAL_BIND_LABEL,
+          detail: "Pick a runner for just this action's slot, without switching profiles. Stored per-developer, never committed.",
+        },
+        {
+          label: PROFILE_WORKSPACE_LABEL,
+          detail: "Pick a Runner Profile (bundles flash, debug, and attach) and commit it into .vscode/zephyr-ide.json — shared with the team.",
+        },
+        {
+          label: PROFILE_LOCAL_LABEL,
+          detail: "Pick a Runner Profile (bundles flash, debug, and attach) as a per-developer override — never written to .vscode/zephyr-ide.json.",
+        },
+      ];
+      const pick = await vscode.window.showQuickPick(items, {
+        title: "Set Runner Binding",
+        placeHolder: "What do you want to change?",
+        ignoreFocusOut: true,
+      });
+      if (!pick) { return; }
+      if (pick.label === LOCAL_BIND_LABEL) {
+        await project.setLocalBind(context, wsConfig, slot);
+      } else if (pick.label === PROFILE_WORKSPACE_LABEL) {
+        await project.setWorkspaceActiveProfile(context, wsConfig);
+      } else if (pick.label === PROFILE_LOCAL_LABEL) {
+        await project.setActiveProfile(context, wsConfig);
+      }
     }),
     vscode.commands.registerCommand("zephyr-ide.active-view.clean-test-dirs", () => {
       const resolved = resolveActiveProject(wsConfig, { caller: "Clean Test Dirs" });
@@ -994,18 +1033,49 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.tree-view.delete-test", (item: any) => {
       projectTreeView.handleDeleteTest(item);
     }),
+    // Default action for the profile row: commits straight into
+    // .vscode/zephyr-ide.json (workspace default) so the binding is shared
+    // with the team by default, rather than silently going to a per-developer
+    // local override that never leaves this machine.
+    vscode.commands.registerCommand("zephyr-ide.tree-view.set-workspace-build-profile", async (item: any) => {
+      const projectName: string | undefined = item?.data?.project;
+      const buildName: string | undefined = item?.data?.build;
+      await project.setWorkspaceActiveProfile(context, wsConfig, undefined, { projectName, buildName });
+    }),
+    // Secondary action: pick a profile as a per-developer local override
+    // (never written to .vscode/zephyr-ide.json).
     vscode.commands.registerCommand("zephyr-ide.tree-view.set-build-profile", async (item: any) => {
       const projectName: string | undefined = item?.data?.project;
       const buildName: string | undefined = item?.data?.build;
-      if (projectName && buildName) {
-        await project.setActive(context, wsConfig, projectName, buildName);
-      }
-      await project.setActiveProfile(context, wsConfig);
+      await project.setActiveProfile(context, wsConfig, undefined, { projectName, buildName });
+    }),
+    // Only shown when a local override is active: promote it into
+    // .vscode/zephyr-ide.json (no picker — commits the current local value).
+    vscode.commands.registerCommand("zephyr-ide.tree-view.save-build-profile-to-workspace", async (item: any) => {
+      const projectName: string | undefined = item?.data?.project;
+      const buildName: string | undefined = item?.data?.build;
+      await project.saveActiveProfileToWorkspace(context, wsConfig, { projectName, buildName });
+    }),
+    // Only shown when a local override is active: discard it so the
+    // committed workspace value becomes effective again.
+    vscode.commands.registerCommand("zephyr-ide.tree-view.reset-build-profile", async (item: any) => {
+      const projectName: string | undefined = item?.data?.project;
+      const buildName: string | undefined = item?.data?.build;
+      await project.resetActiveProfileToWorkspace(context, wsConfig, { projectName, buildName });
     }),
   );
 
   registerCommandWithRefresh(context, "zephyr-ide.set-active-profile",
     () => project.setActiveProfile(context, wsConfig));
+
+  registerCommandWithRefresh(context, "zephyr-ide.set-workspace-active-profile",
+    () => project.setWorkspaceActiveProfile(context, wsConfig));
+
+  registerCommandWithRefresh(context, "zephyr-ide.save-active-profile-to-workspace",
+    () => project.saveActiveProfileToWorkspace(context, wsConfig));
+
+  registerCommandWithRefresh(context, "zephyr-ide.reset-active-profile-to-workspace",
+    () => project.resetActiveProfileToWorkspace(context, wsConfig));
 
   registerCommandWithRefresh(context, "zephyr-ide.set-local-bind",
     () => project.setLocalBind(context, wsConfig));
@@ -2051,6 +2121,13 @@ export async function activate(context: vscode.ExtensionContext) {
         if (useClangd) {
           await setWorkspaceSettings(false);
         }
+      } else if (e.affectsConfiguration("zephyr-ide.runnerProfiles")) {
+        // User-scope runner profiles are read fresh on every lookup (no cache),
+        // but the tree views / panels / status bar only re-render on an explicit
+        // refresh — an edit to the user setting (e.g. via the Settings UI or
+        // settings.json) would otherwise show stale profile lists until some
+        // unrelated action happens to trigger update-web-view.
+        void vscode.commands.executeCommand("zephyr-ide.update-web-view");
       }
     })
   );

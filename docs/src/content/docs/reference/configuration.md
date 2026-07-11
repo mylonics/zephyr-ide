@@ -346,7 +346,7 @@ The typical per-developer workflow:
 
 1. Click **Profile…** in the Project Build panel to choose a named profile locally (no JSON changes).
 2. Click **Local Bind…** next to any slot to override just that slot's runner locally.
-3. Open the **Runner Profile Panel** to publish: **Update profile with local changes** or **Create new profile from local changes**.
+3. When ready to share, reopen **Profile…** (or the Runner Profiles page banner) and choose **Save active profile to workspace…** to commit the local selection into `.vscode/zephyr-ide.json` (clearing the local override), or **Reset to workspace default…** to discard the local override instead. Standalone commands `Zephyr IDE: Save Active Runner Profile to Workspace` and `Zephyr IDE: Reset Active Runner Profile to Workspace Default` do the same.
 
 ### Per-build Overrides
 

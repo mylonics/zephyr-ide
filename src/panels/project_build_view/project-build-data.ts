@@ -89,8 +89,13 @@ export interface WebviewBuildDetails {
   westBuildArgs: string[];
   westBuildCMakeArgs: string[];
   confFiles: WebviewConfigFiles;
-  /** Active Runner Profile name (or undefined when none selected). */
+  /** Active Runner Profile name (or undefined when none selected). Reflects the
+   *  effective value — the per-developer local override when set, else the
+   *  committed workspace value. */
   activeProfile: string | undefined;
+  /** Whether `activeProfile` came from the local override, the committed
+   *  workspace value, or neither. */
+  activeProfileScope: "local" | "workspace" | "none";
   /** Resolved bind labels for the three slots of the active profile (or "none"). */
   slotBinds: { flash: WebviewSlotBind; debug: WebviewSlotBind; attach: WebviewSlotBind; buildDebug?: WebviewSlotBind };
   /** Per-slot local runner overrides from buildState.localBinds. */

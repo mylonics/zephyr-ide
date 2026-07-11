@@ -18,7 +18,7 @@ limitations under the License.
 import * as vscode from 'vscode';
 import * as path from 'upath';
 import * as fs from 'fs-extra';
-import { addConfigFiles, setActive, modifyBuildArguments, removeConfigFile, getResolvedProfile, getBindOverride, getResolvedTestConfig, resolveActiveProject, resolveActiveProjectBuild, getEffectiveActiveProfileName } from '../project_utilities/project';
+import { addConfigFiles, setActive, modifyBuildArguments, removeConfigFile, getResolvedProfile, getBindOverride, getEffectiveBuildDebugBind, getResolvedTestConfig, resolveActiveProject, resolveActiveProjectBuild, getEffectiveActiveProfileName } from '../project_utilities/project';
 import { ConfigFiles, ConfigFileEntry } from '../project_utilities/config_selector';
 import { joinBuildArgs } from '../project_utilities/build_args';
 import { formatBindLabel } from '../project_utilities/runner_profiles';
@@ -267,11 +267,9 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
 
         const children = [flashItem];
         if (separateBuildDebug) {
+          const effectiveBuildDebug = getEffectiveBuildDebugBind(activeProfile, activeBuild);
           const buildDebugItem = new ConfigItem('Build & Debug', 'debug-all', false, undefined,
-            formatBindLabel(
-              activeProfile.buildDebug ?? activeProfile.debug,
-              getBindOverride(activeBuild, "buildDebug") ?? getBindOverride(activeBuild, "debug"),
-            ));
+            formatBindLabel(effectiveBuildDebug.bind, effectiveBuildDebug.override));
           buildDebugItem.id = 'config-runner.buildDebug';
           buildDebugItem.tooltip = 'Used for Build-and-Debug (separateBuildDebugProfile is on)';
           children.push(buildDebugItem);

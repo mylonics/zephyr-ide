@@ -93,10 +93,23 @@ export class ProjectTreeView implements vscode.TreeDataProvider<ProjectTreeItem>
     const profileLabelText = effectiveProfileName
       ? (profileScope === "local" ? `${effectiveProfileName} (local)` : effectiveProfileName)
       : '(none)';
-    const profileItem = new ProjectTreeItem(profileLabelText, 'chip', false, 'buildProfileItem');
+    // Suffix the context value when a local override is active so the
+    // package.json menu can conditionally show a "revert" icon only then.
+    const profileContext = profileScope === "local" ? 'buildProfileItem.local' : 'buildProfileItem';
+    const profileItem = new ProjectTreeItem(profileLabelText, 'chip', false, profileContext);
     profileItem.id = `buildProfile:${sanitizeTreeId(projectName)}:${sanitizeTreeId(build.name)}`;
     profileItem.data = { project: projectName, build: build.name };
-    profileItem.command = { command: 'zephyr-ide.tree-view.set-build-profile', title: 'Set Runner Profile', arguments: [profileItem] };
+    // Default (click) action commits directly to the workspace file — the
+    // local override is an explicit secondary action via the $(edit) icon.
+    profileItem.command = { command: 'zephyr-ide.tree-view.set-workspace-build-profile', title: 'Set Runner Profile (Workspace)', arguments: [profileItem] };
+    const tooltipLines = [
+      `Click to pick a profile that's committed directly into \`.vscode/zephyr-ide.json\` — shared with the team.`,
+      `Use $(edit) **Set Runner Profile (Local)** to pick a profile as a per-developer override instead — never written to \`.vscode/zephyr-ide.json\`.`,
+    ];
+    if (profileScope === "local") {
+      tooltipLines.push(`Use $(save) **Save to Workspace** to commit this local override into \`.vscode/zephyr-ide.json\`, or $(discard) **Revert Local Override** to discard it and go back to the committed workspace value.`);
+    }
+    profileItem.tooltip = new vscode.MarkdownString(tooltipLines.join("\n\n"), true);
     profileItem.parent = item;
     item.children.push(profileItem);
 
