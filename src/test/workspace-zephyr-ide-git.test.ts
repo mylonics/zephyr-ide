@@ -39,7 +39,7 @@ import { UIMockInterface } from "./ui-mock-interface";
  * 3. Execute build
  * 
  * Uses zephyr-ide.workspace-setup-from-git command with:
- * - Sample project: https://github.com/mylonics/zephyr-ide-sample-project.git
+ * - Sample project: https://github.com/mylonics/zephyr-ide-samples.git
  * - Automatic SDK installation
  * - Build execution on existing project structure
  * 
@@ -104,6 +104,6 @@ suite("Workspace Zephyr IDE Git Test Suite", () => {
                 await executeFinalBuild("Zephyr IDE Git Workspace");
             }
         );
-    }).timeout(900000);
+    });
 
 });

@@ -1,12 +1,8 @@
 /*
-Copyright 2025-2026 mylonics 
-Author Rijesh Augustisuite("Workspace Standard Test Suite", () => {
-    let testWorkspaceDir: string;
-    let originalWorkspaceFolders: readonly vscode.WorkspaceFolder[] | undefined;
+Copyright 2025-2026 mylonics
+Author Rijesh Augustine
 
-    suiteSetup(() => {
-        logTestEnvironment();
-        console.log("🔬 Testing standard workspace workflow");icensed under the Apache License, Version 2.0 (the "License");
+Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
@@ -31,9 +27,9 @@ import {
     executeFinalBuild,
     executeTestWithErrorHandling,
     executeWorkspaceCommand,
+    assertProjectPersisted,
     CommonUIInteractions,
-    shouldSkipBuildTests,
-    waitForBuildReady
+    shouldSkipBuildDependencyCheck
 } from "./test-runner";
 import { UIMockInterface } from "./ui-mock-interface";
 
@@ -106,14 +102,14 @@ suite("Workspace Standard Test Suite", () => {
                     console.log("⚠️  Some host tools are not available - tests may fail");
                 }
 
-                const skipBuilds = shouldSkipBuildTests();
+                const skipDependencyCheck = shouldSkipBuildDependencyCheck();
                 const requiresPathPropagation = process.platform === 'darwin' || process.platform === 'win32';
-                
+
                 // Skip build dependency check on Windows/macOS in CI
                 // Reason: winget/brew install packages in previous test steps (separate processes)
                 // The registry PATH is updated, but new processes don't automatically inherit it without a system restart
                 // Tools ARE installed correctly, but not visible in this new process
-                if (skipBuilds && requiresPathPropagation) {
+                if (skipDependencyCheck && requiresPathPropagation) {
                     console.log("📋 Step 1: Skipping build dependencies check (Windows/macOS PATH propagation limitation in CI)...");
                     console.log("   Tools were installed in previous steps but require system-level PATH propagation");
                     console.log("   On Windows: winget updates registry PATH, but new processes don't auto-inherit without restart");
@@ -139,18 +135,17 @@ suite("Workspace Standard Test Suite", () => {
 
                 console.log("🐍 Verifying Python venv path...");
                 const pythonPathResult = await vscode.commands.executeCommand("zephyr-ide.print-python-path");
-                if (pythonPathResult && typeof pythonPathResult === 'object' && 'stdout' in pythonPathResult) {
-                    const stdout = (pythonPathResult as { stdout: string }).stdout;
-                    console.log(`Python path check result: ${stdout}`);
-                    // Verify that the Python path includes .venv
-                    assert.ok(
-                        stdout.includes('.venv') || stdout.includes('venv'),
-                        `Python interpreter should be from venv, but got: ${stdout}`
-                    );
-                    console.log("    ✅ Verified: Python interpreter is from venv");
-                } else {
-                    console.log("    ⚠️ Could not verify Python path (command may not have returned expected result)");
-                }
+                assert.ok(
+                    pythonPathResult && typeof pythonPathResult === 'object' && 'stdout' in pythonPathResult,
+                    `zephyr-ide.print-python-path did not return stdout after a successful setup: ${JSON.stringify(pythonPathResult)}`
+                );
+                const stdout = (pythonPathResult as { stdout: string }).stdout;
+                console.log(`Python path check result: ${stdout}`);
+                assert.ok(
+                    stdout.includes('.venv') || stdout.includes('venv'),
+                    `Python interpreter should be from venv, but got: ${stdout}`
+                );
+                console.log("    ✅ Verified: Python interpreter is from venv");
 
                 console.log("📁 Step 3: Creating project from template...");
                 await executeWorkspaceCommand(
@@ -175,13 +170,11 @@ suite("Workspace Standard Test Suite", () => {
                     "Build configuration should succeed"
                 );
 
-                await waitForBuildReady("Standard Workspace");
+                await assertProjectPersisted("Standard Workspace", "blinky", "test_build_1");
+
                 console.log("⚡ Step 5: Executing build...");
                 await executeFinalBuild("Standard Workspace");
             }
         );
-    }).timeout(720000);
-
-
-
+    });
 });

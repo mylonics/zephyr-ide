@@ -1,6 +1,6 @@
 # Workspace Setup Tests
 #
-# This workflow runs all 5 workspace setup type tests on Ubuntu and macOS.
+# This workflow runs all 5 workspace setup type tests on Ubuntu, macOS, and Windows.
 # Each test validates a different way to set up a Zephyr workspace:
 #   - Standard:       Fresh workspace → west.yml → SDK → project → build
 #   - External Zephyr: Git repo (no west) → external Zephyr installation → build
@@ -146,50 +146,68 @@ jobs:
       - name: Run linting
         run: npm run lint
 
+      # Each test step below uses `continue-on-error: true` so a failure in
+      # one workspace type doesn't skip the rest — every type still runs and
+      # reports its own pass/fail for this platform in a single CI run,
+      # instead of only learning about the first failure. This only affects
+      # the chain of test steps: if npm ci / compile / bundle / lint above
+      # fails, the job still stops there as normal (none of them opt in).
+      # `continue-on-error` doesn't change `steps.*.outcome` (only
+      # `.conclusion`), so "Check test results" below remains the real gate.
       - name: Run external zephyr workspace tests
         id: test_external
+        continue-on-error: true
         run: |
           ${{ matrix.xvfb }}node scripts/run-integration-tests.js external-zephyr
         env:
           NODE_ENV: test
           ZEPHYR_BASE: ${{ matrix.zephyr_base }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SKIP_COMPILE: true
 
       - name: Run standard workspace tests
         id: test_standard
+        continue-on-error: true
         run: |
           ${{ matrix.xvfb }}node scripts/run-integration-tests.js standard
         env:
           NODE_ENV: test
           ZEPHYR_BASE: ${{ matrix.zephyr_base }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SKIP_COMPILE: true
 
       - name: Run west git workspace tests
         id: test_west_git
+        continue-on-error: true
         run: |
           ${{ matrix.xvfb }}node scripts/run-integration-tests.js west-git
         env:
           NODE_ENV: test
           ZEPHYR_BASE: ${{ matrix.zephyr_base }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SKIP_COMPILE: true
 
       - name: Run zephyr ide git workspace tests
         id: test_zephyr_ide_git
+        continue-on-error: true
         run: |
           ${{ matrix.xvfb }}node scripts/run-integration-tests.js zephyr-ide-git
         env:
           NODE_ENV: test
           ZEPHYR_BASE: ${{ matrix.zephyr_base }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SKIP_COMPILE: true
 
       - name: Run local west workspace tests
         id: test_local_west
+        continue-on-error: true
         run: |
           ${{ matrix.xvfb }}node scripts/run-integration-tests.js local-west
         env:
           NODE_ENV: test
           ZEPHYR_BASE: ${{ matrix.zephyr_base }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SKIP_COMPILE: true
 
       - name: Check test results
         if: always()

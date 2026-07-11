@@ -86,7 +86,7 @@ The release process has been consolidated into a streamlined workflow that requi
 
 ### Other Workflows
 
-- **`workspace-setup-tests.yml`** - Runs all 5 workspace setup type tests on Ubuntu and macOS
+- **`workspace-setup-tests.yml`** - Runs all 5 workspace setup type tests on Ubuntu, macOS, and Windows
   - **Trigger**: PRs to develop (bump PRs or `full_test` label)
   - **Manual Trigger**: Can be triggered manually with optional `branch` input
   - **Actions**: Runs all workspace setup test suites (standard, west-git, zephyr-ide-git, local-west, external-zephyr)

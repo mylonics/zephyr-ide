@@ -193,4 +193,5 @@ jobs:
           ZEPHYR_BASE: ${{ matrix.zephyr_base }}
           VSIX_PATH: ./vsix/${{ needs.build-vsix.outputs.vsix_name }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SKIP_COMPILE: true
         timeout-minutes: 30

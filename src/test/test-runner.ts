@@ -18,12 +18,18 @@ limitations under the License.
 import * as vscode from 'vscode';
 import * as assert from 'assert';
 import * as fs from 'fs-extra';
+import * as path from 'path';
+import { readZephyrIdeJson } from '../setup_utilities/zephyr_ide_json';
+import type { MockInteraction } from './ui-mock-interface';
 
 /**
- * Check if build tests should be skipped based on environment variables.
- * Returns true when SKIP_BUILD_TESTS is set OR when running in CI.
+ * Check if the build-dependency *check* step should be skipped based on
+ * environment variables. This does NOT skip the build itself — it only
+ * gates the `check-build-dependencies` command, which is unreliable right
+ * after a package-manager install in the same CI job (see the Windows/macOS
+ * PATH propagation note at each call site).
  */
-export function shouldSkipBuildTests(): boolean {
+export function shouldSkipBuildDependencyCheck(): boolean {
     return process.env.SKIP_BUILD_TESTS === 'true' || process.env.CI === 'true';
 }
 
@@ -45,7 +51,7 @@ export function shouldInstallHostTools(): boolean {
 export function logTestEnvironment(): void {
     console.log('=== Test Environment ===');
     console.log('CI Environment:', process.env.CI === 'true');
-    console.log('Skip Build Tests:', shouldSkipBuildTests());
+    console.log('Skip Build Dependency Check:', shouldSkipBuildDependencyCheck());
     console.log('Install Host Tools:', shouldInstallHostTools());
     console.log('Node Version:', process.version);
     console.log('Platform:', process.platform);
@@ -187,6 +193,25 @@ export async function monitorWorkspaceSetup(commandPromise: Thenable<any>, setup
         await new Promise((resolve) => setTimeout(resolve, checkInterval));
         waitTime += checkInterval;
     }
+
+    // The loop only exits via the packagesInstalled+sdkInstalled break above,
+    // but that doesn't guarantee the earlier stage flags were ever observed
+    // true — assert all five explicitly so a stage-tracking regression (e.g.
+    // SDK ending up installed through a path that skips updating
+    // pythonEnvironmentSetup) fails here instead of surfacing as a
+    // hard-to-diagnose failure later in the test.
+    const missingStages = [
+        !initialSetupComplete && 'initialSetup',
+        !westUpdated && 'westUpdated',
+        !pythonEnvironmentSetup && 'pythonEnv',
+        !packagesInstalled && 'packagesInstalled',
+        !sdkInstalled && 'sdkInstalled',
+    ].filter((stage): stage is string => Boolean(stage));
+    assert.strictEqual(
+        missingStages.length,
+        0,
+        `${setupType} setup reported complete but stage flags are inconsistent: missing [${missingStages.join(', ')}]`
+    );
 }
 
 /**
@@ -283,19 +308,22 @@ export async function assertWorkspaceReady(testName: string): Promise<void> {
     const setupPath = wsConfig?.activeSetupState?.setupPath;
     if (setupPath && setupPath !== workspaceDir) {
         // External installation — the install directory lives outside the workspace root.
-        if (await fs.pathExists(setupPath)) {
-            console.log(`   ✅ External Zephyr installation present at ${setupPath}`);
-        } else {
-            console.log(`   ⚠️ External Zephyr installation directory not found at ${setupPath}`);
-        }
-    } else {
-        const zephyrIdeDir = require('path').join(workspaceDir, '.zephyr-ide');
-        if (await fs.pathExists(zephyrIdeDir)) {
-            console.log(`   ✅ .zephyr-ide directory present at ${zephyrIdeDir}`);
-        } else {
-            console.log(`   ⚠️ .zephyr-ide directory not found at ${zephyrIdeDir} (may be stored elsewhere)`);
-        }
+        assert.ok(
+            await fs.pathExists(setupPath),
+            `External Zephyr installation directory not found at ${setupPath} (${testName})`
+        );
+        console.log(`   ✅ External Zephyr installation present at ${setupPath}`);
     }
+
+    // .vscode/zephyr-ide.json is the actual persisted state file for every
+    // setup type (see setup_utilities/zephyr_ide_json.ts); it must exist by
+    // the time the workspace reports itself initialized.
+    const zephyrIdeJsonPath = path.join(workspaceDir, '.vscode', 'zephyr-ide.json');
+    assert.ok(
+        await fs.pathExists(zephyrIdeJsonPath),
+        `.vscode/zephyr-ide.json not found at ${zephyrIdeJsonPath} — workspace state was never persisted (${testName})`
+    );
+    console.log(`   ✅ .vscode/zephyr-ide.json present at ${zephyrIdeJsonPath}`);
 }
 
 /**
@@ -330,7 +358,10 @@ export async function waitForBuildReady(
         await new Promise((resolve) => setTimeout(resolve, intervalMs));
     }
 
-    console.log(`   ⚠️ waitForBuildReady timed out after ${timeoutMs / 1000}s for ${testName} — proceeding anyway`);
+    throw new Error(
+        `waitForBuildReady timed out after ${timeoutMs / 1000}s for ${testName}: ` +
+        `workspace never reported build-ready (initialized + SDK installed)`
+    );
 }
 
 export async function executeFinalBuild(
@@ -345,6 +376,52 @@ export async function executeFinalBuild(
     console.log(`   Build command returned: ${result} (exit code ${result ? '0 - success' : 'non-zero - failure'})`);
     assert.strictEqual(result, true, `Build command must return true (exit code 0). Got: ${result}`);
     console.log(`   ✅ Build succeeded for ${testName}`);
+
+    // A "successful" build that never produced an ELF is still a bug worth
+    // catching here, rather than a downstream flash/debug test discovering it.
+    const elfPath = await vscode.commands.executeCommand<string>("zephyr-ide.get-zephyr-elf");
+    assert.ok(elfPath, `zephyr-ide.get-zephyr-elf returned no path after a successful build (${testName})`);
+    assert.ok(
+        await fs.pathExists(elfPath),
+        `Build reported success but no ELF file was found at ${elfPath} (${testName})`
+    );
+    console.log(`   ✅ Verified: ELF artifact present at ${elfPath}`);
+}
+
+/**
+ * Assert that a project (and optionally one of its builds) was persisted to
+ * .vscode/zephyr-ide.json. Catches silent failures where add-project /
+ * add-build report success but the workspace state was never written.
+ */
+export async function assertProjectPersisted(
+    testName: string,
+    projectName: string,
+    buildName?: string
+): Promise<void> {
+    const ext = vscode.extensions.getExtension("mylonics.zephyr-ide");
+    const wsConfig = ext?.isActive && ext.exports?.getWorkspaceConfig
+        ? ext.exports.getWorkspaceConfig()
+        : undefined;
+    assert.ok(wsConfig, `Extension workspace config not available (${testName})`);
+
+    const data = readZephyrIdeJson(wsConfig);
+    const project = data.projects?.[projectName];
+    assert.ok(
+        project,
+        `Project "${projectName}" was not persisted to .vscode/zephyr-ide.json (${testName}). ` +
+        `Found projects: [${Object.keys(data.projects || {}).join(', ')}]`
+    );
+
+    if (buildName) {
+        const build = project.buildConfigs?.[buildName];
+        assert.ok(
+            build,
+            `Build "${buildName}" was not persisted for project "${projectName}" (${testName}). ` +
+            `Found builds: [${Object.keys(project.buildConfigs || {}).join(', ')}]`
+        );
+    }
+
+    console.log(`   ✅ Verified: project "${projectName}"${buildName ? ` / build "${buildName}"` : ''} persisted to zephyr-ide.json (${testName})`);
 }
 
 /**
@@ -370,6 +447,15 @@ export async function executeTestWithErrorHandling(
             throw asyncError;
         }
 
+        // Leftover primed interactions mean the command triggered fewer UI
+        // prompts than the test expected — the flow diverged silently even
+        // though the command itself reported success.
+        const remaining = uiMock.getRemainingInteractions?.() ?? [];
+        if (remaining.length > 0) {
+            const summary = remaining.map((i: MockInteraction) => `${i.type}:${i.description || i.value}`).join(', ');
+            throw new Error(`${testName}: ${remaining.length} primed UI interaction(s) were never consumed: ${summary}`);
+        }
+
         // Dump extension output to the test stream
         await dumpExtensionOutput(`${testName} - Extension Output`);
     } catch (error) {
@@ -378,7 +464,6 @@ export async function executeTestWithErrorHandling(
 
         // Handle failure with detailed logging
         await printWorkspaceStructure(testName);
-        await new Promise((resolve) => setTimeout(resolve, 30000));
         throw error;
     } finally {
         // Always deactivate mock to prevent listener/timer leaks between tests.
@@ -468,20 +553,6 @@ export const CommonUIInteractions = {
             { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
             { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
             { type: 'quickpick', value: toolchainTarget, description: `Select ${toolchainTarget} toolchain`, multiSelect: true }
-        ];
-    },
-
-    // Simulated workspace setup interactions (native_sim, no HALs)
-    get simWorkspace() {
-        const { sdkVersion } = getTestEnvConfig();
-        return [
-            { type: 'quickpick', value: 'create new west.yml', description: 'Create new west.yml' },
-            { type: 'quickpick', value: 'sim only', description: 'Select simulated manifest' },
-            { type: 'quickpick', value: sdkVersion, description: `Select ${sdkVersion} Zephyr version` },
-            { type: 'input', value: '', description: 'Select additional west init args' },
-            { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
-            { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
-            { type: 'quickpick', value: 'x86_64-zephyr-elf', description: 'Select x86_64 toolchain', multiSelect: true }
         ];
     },
 

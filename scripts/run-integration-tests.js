@@ -101,13 +101,23 @@ try {
         }
     }
 
-    // Compile TypeScript
-    console.log('Compiling TypeScript...');
-    execSync('npm run test-compile', { stdio: 'inherit', cwd: path.dirname(__dirname) });
+    // CI workflows that invoke this script already run `npm run test-compile`
+    // and `npm run esbuild` as separate steps once per job, then call this
+    // script once per workspace type — recompiling/re-bundling here on every
+    // invocation would repeat that work up to 5x for no benefit. Set
+    // SKIP_COMPILE=true in those workflows; local/manual runs still compile
+    // by default so this script works standalone.
+    if (process.env.SKIP_COMPILE === 'true') {
+        console.log('SKIP_COMPILE=true — assuming a prior CI step already compiled and bundled.');
+    } else {
+        // Compile TypeScript
+        console.log('Compiling TypeScript...');
+        execSync('npm run test-compile', { stdio: 'inherit', cwd: path.dirname(__dirname) });
 
-    // Bundle extension so dist/extension.js (the "main" entry) is up to date
-    console.log('Bundling extension with esbuild...');
-    execSync('npm run esbuild', { stdio: 'inherit', cwd: path.dirname(__dirname) });
+        // Bundle extension so dist/extension.js (the "main" entry) is up to date
+        console.log('Bundling extension with esbuild...');
+        execSync('npm run esbuild', { stdio: 'inherit', cwd: path.dirname(__dirname) });
+    }
 
     let grepPattern;
     switch (testType) {
@@ -139,9 +149,14 @@ try {
     // Use platform-appropriate quoting for the --grep pattern:
     // - Windows cmd.exe uses double quotes
     // - Linux/macOS bash/zsh use single or double quotes
+    //
+    // --label integration selects the `integration` configuration in
+    // .vscode-test.mjs (the explicit list of heavyweight workspace-*.test.ts
+    // and combined-installation.test.ts files); --grep narrows further to
+    // the specific suite requested on the command line.
     const quote = process.platform === 'win32' ? '"' : "'";
     console.log(`Running ${testType} workflow integration tests...`);
-    execSync(`npx vscode-test --grep ${quote}${grepPattern}${quote}`, {
+    execSync(`npx vscode-test --label integration --grep ${quote}${grepPattern}${quote}`, {
         stdio: 'inherit',
         cwd: path.dirname(__dirname),
         env: { ...process.env, ZEPHYR_IDE_TESTING: 'true' }

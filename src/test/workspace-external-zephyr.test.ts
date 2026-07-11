@@ -98,7 +98,7 @@ function dumpBuildDiagnostics(installDir: string): void {
  * west.yml files and the user chooses to use an external Zephyr
  * installation in the default ~/.zephyr_ide directory.
  * 
- * Git command: --branch no_west -- https://github.com/mylonics/zephyr-ide-sample-project.git
+ * Git command: --branch no_west -- https://github.com/mylonics/zephyr-ide-samples.git
  * UI Flow: "Use Existing Zephyr Installation" → "New Installation" → directory picker → west selector
  */
 
@@ -178,4 +178,4 @@ suite("Workspace External Zephyr Test Suite", () => {
             }
         );
     });
-}).timeout(900000);
+});

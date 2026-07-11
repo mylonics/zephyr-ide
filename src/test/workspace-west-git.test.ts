@@ -1,14 +1,8 @@
 /*
-Copyright 2025-2026 mylonics 
+Copyright 2025-2026 mylonics
 Author Rijesh Augustine
 
-Licensed usuite("Workspace West Git Test Suite", () => {
-    let testWorkspaceDir: string;
-    let originalWorkspaceFolders: readonly vscode.WorkspaceFolder[] | undefined;
-
-    suiteSetup(() => {
-        logTestEnvironment();
-        console.log("🔬 Testing west git workspace workflow");e Apache License, Version 2.0 (the "License");
+Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
@@ -136,6 +130,6 @@ suite("Workspace West Git Test Suite", () => {
                 await executeFinalBuild("West Git Workspace");
             }
         );
-    }).timeout(900000);
+    });
 
 });

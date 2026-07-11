@@ -41,7 +41,7 @@ import { UIMockInterface } from "./ui-mock-interface";
  * and the user chooses to use the local west workspace rather than
  * an existing Zephyr installation.
  * 
- * Git command: --branch no_west_folder -- https://github.com/mylonics/zephyr-ide-sample-project.git
+ * Git command: --branch no_west_folder -- https://github.com/mylonics/zephyr-ide-samples.git
  * UI Flow: "Use Local West Workspace" option when west.yml is detected
  */
 
@@ -103,6 +103,6 @@ suite("Workspace Local West Test Suite", () => {
                 await executeFinalBuild("Local West Workspace");
             }
         );
-    }).timeout(900000);
+    });
 
 });
