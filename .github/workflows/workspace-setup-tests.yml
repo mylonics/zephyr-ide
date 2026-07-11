@@ -82,7 +82,7 @@ jobs:
             platform: ubuntu
             xvfb: "xvfb-run -a "
             zephyr_base: /tmp/zephyr
-          - os: macos-15
+          - os: macos-26
             platform: macos
             xvfb: ""
             zephyr_base: /tmp/zephyr
