@@ -53,7 +53,7 @@ jobs:
                 ENTRY='{"platform":"windows","os":"windows-latest","xvfb":"","zephyr_base":"D:\\zephyr"}'
                 ;;
               macos)
-                ENTRY='{"platform":"macos","os":"macos-15","xvfb":"","zephyr_base":"/tmp/zephyr"}'
+                ENTRY='{"platform":"macos","os":"macos-26","xvfb":"","zephyr_base":"/tmp/zephyr"}'
                 ;;
               *)
                 echo "Unknown platform: $PLATFORM"
