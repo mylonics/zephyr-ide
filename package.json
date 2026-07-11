@@ -604,6 +604,16 @@
           "command": "zephyr-ide.tree-view.set-build-profile",
           "when": "view == zephyrIdeProjects && viewItem =~ /^buildProfileItem/",
           "group": "inline@1"
+        },
+        {
+          "command": "zephyr-ide.tree-view.save-build-profile-to-workspace",
+          "when": "view == zephyrIdeProjects && viewItem == buildProfileItem.local",
+          "group": "inline@2"
+        },
+        {
+          "command": "zephyr-ide.tree-view.reset-build-profile",
+          "when": "view == zephyrIdeProjects && viewItem == buildProfileItem.local",
+          "group": "inline@3"
         }
       ]
     },
@@ -1291,8 +1301,22 @@
       },
       {
         "command": "zephyr-ide.tree-view.set-build-profile",
-        "title": "Zephyr IDE: Set Runner Profile for Build",
+        "title": "Zephyr IDE: Set Runner Profile for Build (Local)",
         "icon": "$(edit)"
+      },
+      {
+        "command": "zephyr-ide.tree-view.set-workspace-build-profile",
+        "title": "Zephyr IDE: Set Runner Profile for Build (Workspace, Committed)"
+      },
+      {
+        "command": "zephyr-ide.tree-view.save-build-profile-to-workspace",
+        "title": "Zephyr IDE: Save Local Runner Profile Override to Workspace",
+        "icon": "$(save)"
+      },
+      {
+        "command": "zephyr-ide.tree-view.reset-build-profile",
+        "title": "Zephyr IDE: Revert Local Runner Profile Override",
+        "icon": "$(discard)"
       },
       {
         "command": "zephyr-ide.manage-build-variables",

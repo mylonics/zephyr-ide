@@ -1007,13 +1007,35 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.tree-view.delete-test", (item: any) => {
       projectTreeView.handleDeleteTest(item);
     }),
+    // Default action for the profile row: commits straight into
+    // .vscode/zephyr-ide.json (workspace default) so the binding is shared
+    // with the team by default, rather than silently going to a per-developer
+    // local override that never leaves this machine.
+    vscode.commands.registerCommand("zephyr-ide.tree-view.set-workspace-build-profile", async (item: any) => {
+      const projectName: string | undefined = item?.data?.project;
+      const buildName: string | undefined = item?.data?.build;
+      await project.setWorkspaceActiveProfile(context, wsConfig, undefined, { projectName, buildName });
+    }),
+    // Secondary action: pick a profile as a per-developer local override
+    // (never written to .vscode/zephyr-ide.json).
     vscode.commands.registerCommand("zephyr-ide.tree-view.set-build-profile", async (item: any) => {
       const projectName: string | undefined = item?.data?.project;
       const buildName: string | undefined = item?.data?.build;
-      if (projectName && buildName) {
-        await project.setActive(context, wsConfig, projectName, buildName);
-      }
-      await project.setActiveProfile(context, wsConfig);
+      await project.setActiveProfile(context, wsConfig, undefined, { projectName, buildName });
+    }),
+    // Only shown when a local override is active: promote it into
+    // .vscode/zephyr-ide.json (no picker — commits the current local value).
+    vscode.commands.registerCommand("zephyr-ide.tree-view.save-build-profile-to-workspace", async (item: any) => {
+      const projectName: string | undefined = item?.data?.project;
+      const buildName: string | undefined = item?.data?.build;
+      await project.saveActiveProfileToWorkspace(context, wsConfig, { projectName, buildName });
+    }),
+    // Only shown when a local override is active: discard it so the
+    // committed workspace value becomes effective again.
+    vscode.commands.registerCommand("zephyr-ide.tree-view.reset-build-profile", async (item: any) => {
+      const projectName: string | undefined = item?.data?.project;
+      const buildName: string | undefined = item?.data?.build;
+      await project.resetActiveProfileToWorkspace(context, wsConfig, { projectName, buildName });
     }),
   );
 
