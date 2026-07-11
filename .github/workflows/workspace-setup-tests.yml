@@ -228,3 +228,16 @@ jobs:
             exit 1
           fi
           echo "All tests passed."
+
+      # JUnit XML (per test type) and captured extension debug output logs,
+      # written to test-results/ by the test run regardless of pass/fail.
+      # if: always() so a failing run still leaves these downloadable instead
+      # of only existing in the (very long) raw job log.
+      - name: Upload test result artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: workspace-test-results-${{ matrix.platform }}
+          path: test-results/
+          retention-days: 14
+          if-no-files-found: ignore

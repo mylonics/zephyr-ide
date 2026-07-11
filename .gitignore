@@ -4,6 +4,7 @@ node_modules
 .vscode-test/
 *.vsix
 .vscode/zephyr-ide.json
+test-results/
 
 # Python
 __pycache__/

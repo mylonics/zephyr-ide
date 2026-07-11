@@ -21,7 +21,105 @@ const { execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
+const repoRoot = path.dirname(__dirname);
 const testType = process.argv[2] || 'all';
+
+/** Decode the small set of XML entities mocha-junit-reporter escapes into attribute values. */
+function decodeXmlEntities(value) {
+    return value
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'")
+        .replace(/&amp;/g, '&');
+}
+
+/** Parse `key="value"` attribute pairs out of an XML tag's attribute string. */
+function parseXmlAttrs(attrString) {
+    const attrs = {};
+    const attrRe = /(\w+)="([^"]*)"/g;
+    let match;
+    while ((match = attrRe.exec(attrString)) !== null) {
+        attrs[match[1]] = decodeXmlEntities(match[2]);
+    }
+    return attrs;
+}
+
+/**
+ * Parse the JUnit XML written by mocha-junit-reporter into a summary shape.
+ * Written against that reporter's specific (simple, non-nested) output
+ * format rather than pulling in a general-purpose XML parser dependency.
+ */
+function parseJUnitResults(xmlPath) {
+    if (!fs.existsSync(xmlPath)) {
+        return null;
+    }
+    const xml = fs.readFileSync(xmlPath, 'utf8');
+
+    const rootMatch = xml.match(/<testsuites\b([^>]*)>/);
+    if (!rootMatch) {
+        return null;
+    }
+    const rootAttrs = parseXmlAttrs(rootMatch[1]);
+
+    const testcases = [];
+    const testcaseRe = /<testcase\b([^>]*)>([\s\S]*?)<\/testcase>|<testcase\b([^>]*)\/>/g;
+    let match;
+    while ((match = testcaseRe.exec(xml)) !== null) {
+        const attrs = parseXmlAttrs(match[1] !== undefined ? match[1] : match[3]);
+        const body = match[2] || '';
+        const failureMatch = body.match(/<failure\b[^>]*\bmessage="([^"]*)"/);
+        testcases.push({
+            name: attrs.name || '(unnamed test)',
+            time: parseFloat(attrs.time || '0'),
+            failed: /<failure\b/.test(body),
+            failureMessage: failureMatch ? decodeXmlEntities(failureMatch[1]) : undefined
+        });
+    }
+
+    return {
+        tests: parseInt(rootAttrs.tests || '0', 10),
+        failures: parseInt(rootAttrs.failures || '0', 10),
+        time: parseFloat(rootAttrs.time || '0'),
+        testcases
+    };
+}
+
+/** Append a pass/fail + duration table for this test type to $GITHUB_STEP_SUMMARY, if set. */
+function writeStepSummary(testTypeLabel, results) {
+    const summaryPath = process.env.GITHUB_STEP_SUMMARY;
+    if (!summaryPath) {
+        return;
+    }
+
+    const lines = [`### ${testTypeLabel} workflow integration test`, ''];
+
+    if (!results) {
+        lines.push('_No JUnit results file was produced — the test process likely crashed before Mocha could report._');
+    } else {
+        const passed = results.tests - results.failures;
+        const icon = results.failures === 0 ? '✅' : '❌';
+        lines.push(`${icon} **${passed}/${results.tests} passed** in ${results.time.toFixed(1)}s`);
+        lines.push('');
+        lines.push('| Test | Result | Time (s) |');
+        lines.push('| --- | --- | --- |');
+        for (const tc of results.testcases) {
+            lines.push(`| ${tc.name} | ${tc.failed ? '❌ fail' : '✅ pass'} | ${tc.time.toFixed(1)} |`);
+        }
+
+        const failedCases = results.testcases.filter((tc) => tc.failed);
+        if (failedCases.length > 0) {
+            lines.push('', '<details><summary>Failure details</summary>', '');
+            for (const tc of failedCases) {
+                lines.push(`**${tc.name}**`, '', '```', tc.failureMessage || '(no message captured)', '```', '');
+            }
+            lines.push('</details>');
+        }
+    }
+
+    lines.push('');
+    fs.appendFileSync(summaryPath, lines.join('\n') + '\n');
+}
 
 // Show help if requested
 if (testType === '--help' || testType === '-h' || testType === 'help') {
@@ -53,6 +151,12 @@ if (testType === '--help' || testType === '-h' || testType === 'help') {
 console.log(`=== Running Zephyr IDE ${testType.toUpperCase()} Workflow Integration Tests ===`);
 console.log('🔬 These tests execute the Zephyr IDE workflow using VS Code commands');
 console.log('');
+
+// Distinct JUnit output path per test type so a full `workspace-setup-tests.yml`
+// run (which invokes this script once per type, in the same job) doesn't have
+// each type overwrite the previous one's results.
+const mochaFile = path.join(repoRoot, 'test-results', `${testType}.xml`);
+fs.mkdirSync(path.dirname(mochaFile), { recursive: true });
 
 try {
     // Kill any orphaned VS Code Extension Host processes from a previous test run.
@@ -158,11 +262,12 @@ try {
     console.log(`Running ${testType} workflow integration tests...`);
     execSync(`npx vscode-test --label integration --grep ${quote}${grepPattern}${quote}`, {
         stdio: 'inherit',
-        cwd: path.dirname(__dirname),
-        env: { ...process.env, ZEPHYR_IDE_TESTING: 'true' }
+        cwd: repoRoot,
+        env: { ...process.env, ZEPHYR_IDE_TESTING: 'true', MOCHA_FILE: mochaFile }
     });
 
     console.log(`✓ ${testType} workflow integration tests completed successfully`);
+    writeStepSummary(testType, parseJUnitResults(mochaFile));
 } catch (error) {
     console.error(`❌ ${testType} workflow integration tests failed:`, error.message);
     console.error('');
@@ -171,5 +276,9 @@ try {
     console.error('');
     console.error('Available test types: combined, standard, west-git, zephyr-ide-git, local-west, external-zephyr, all');
     console.error('Run "node scripts/run-integration-tests.js help" for more information.');
+
+    // Report whatever Mocha managed to write before the process failed, so a
+    // CI failure still shows a pass/fail table instead of just an exit code.
+    writeStepSummary(testType, parseJUnitResults(mochaFile));
     process.exit(1);
 }

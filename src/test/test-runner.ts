@@ -75,6 +75,7 @@ export async function dumpExtensionOutput(label: string = "Extension Output"): P
             console.log(`\n═══ ${label} ════════════════════════════════════════`);
             console.log(output);
             console.log(`═══ End ${label} ════════════════════════════════════\n`);
+            await writeExtensionOutputLog(label, output);
         } else {
             console.log(`\n(No extension output captured for: ${label})`);
         }
@@ -84,11 +85,38 @@ export async function dumpExtensionOutput(label: string = "Extension Output"): P
 }
 
 /**
+ * Persist extension debug output to test-results/extension-output/<label>.log
+ * so it survives as a downloadable CI artifact instead of only living in
+ * console scrollback that's easy to lose in a 10k+ line CI job log.
+ */
+async function writeExtensionOutputLog(label: string, output: string): Promise<void> {
+    try {
+        const extensionPath = vscode.extensions.getExtension("mylonics.zephyr-ide")?.extensionPath;
+        if (!extensionPath) {
+            return;
+        }
+        const safeName = label.replace(/[^a-zA-Z0-9._-]+/g, '_');
+        const logDir = path.join(extensionPath, 'test-results', 'extension-output');
+        await fs.ensureDir(logDir);
+        await fs.writeFile(path.join(logDir, `${safeName}.log`), output, 'utf8');
+    } catch {
+        // Best-effort only — never fail a test because the log couldn't be written.
+    }
+}
+
+/**
  * Monitor workspace setup progress for integration tests
  * @param setupType Type of setup being monitored (e.g., "workspace", "git workspace")
  */
 export async function monitorWorkspaceSetup(commandPromise: Thenable<any>, setupType: string = "workspace", timeoutMs: number = 600000): Promise<void> {
     console.log(`⏳ Monitoring ${setupType} setup progress... (timeout: ${timeoutMs / 1000}s)`);
+    const startTime = Date.now();
+    const elapsedSeconds = () => ((Date.now() - startTime) / 1000).toFixed(1);
+    // Records when each stage flag first flips true (seconds since this call
+    // started), so a slow platform/step is visible directly in the CI log
+    // instead of only as a total elapsed time.
+    const stageTimings: Record<string, string> = {};
+
     let waitTime = 0;
     const checkInterval = 3000;
     let initialSetupComplete = false;
@@ -157,29 +185,35 @@ export async function monitorWorkspaceSetup(commandPromise: Thenable<any>, setup
 
         if (wsConfig) {
             if (!initialSetupComplete && wsConfig.activeSetupState?.initialized) {
-                console.log("    ✅ Initial setup completed - west.yml created");
+                stageTimings.initialSetup = elapsedSeconds();
+                console.log(`    ✅ Initial setup completed - west.yml created (${stageTimings.initialSetup}s elapsed)`);
                 initialSetupComplete = true;
             }
 
             if (!westUpdated && wsConfig.activeSetupState?.westUpdated) {
-                console.log("    ✅ West updated - All repos downloaded");
+                stageTimings.westUpdated = elapsedSeconds();
+                console.log(`    ✅ West updated - All repos downloaded (${stageTimings.westUpdated}s elapsed)`);
                 westUpdated = true;
             }
 
             if (!pythonEnvironmentSetup && wsConfig.activeSetupState?.pythonEnvironmentSetup) {
-                console.log("    ✅ Python environment setup completed");
+                stageTimings.pythonEnv = elapsedSeconds();
+                console.log(`    ✅ Python environment setup completed (${stageTimings.pythonEnv}s elapsed)`);
                 pythonEnvironmentSetup = true;
             }
 
             if (!packagesInstalled && wsConfig.activeSetupState?.packagesInstalled) {
                 packagesInstalled = true;
-                console.log("    ✅ Packages installed completed");
+                stageTimings.packagesInstalled = elapsedSeconds();
+                console.log(`    ✅ Packages installed completed (${stageTimings.packagesInstalled}s elapsed)`);
             }
 
             if (packagesInstalled && await vscode.commands.executeCommand("zephyr-ide.is-sdk-installed")) {
                 sdkInstalled = true;
-                console.log("    ✅ SDK installed");
-                console.log(`🎉 All ${setupType} setup stages completed!`);
+                stageTimings.sdkInstalled = elapsedSeconds();
+                console.log(`    ✅ SDK installed (${stageTimings.sdkInstalled}s elapsed)`);
+                console.log(`🎉 All ${setupType} setup stages completed in ${stageTimings.sdkInstalled}s!`);
+                console.log(`📊 Stage timings: ${Object.entries(stageTimings).map(([stage, t]) => `${stage}=${t}s`).join(', ')}`);
                 break;
             }
         }
