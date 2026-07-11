@@ -33,7 +33,7 @@ permissions:
   contents: read
 
 jobs:
-  # Determine if this workflow should run
+  # Determine if this workflow should run now.
   check-should-run:
     runs-on: ubuntu-latest
     outputs:
