@@ -34,6 +34,7 @@ const integrationTestFileNames = [
 	'workspace-west-git.test.js',
 	'workspace-zephyr-ide-git.test.js',
 	'workspace-local-west.test.js',
+	'workspace-setup-from-external-directory.test.js',
 	'combined-installation.test.js',
 ];
 

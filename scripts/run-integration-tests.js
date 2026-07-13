@@ -134,12 +134,14 @@ if (testType === '--help' || testType === '-h' || testType === 'help') {
     console.log('  zephyr-ide-git           - Zephyr IDE git workspace workflow test');
     console.log('  local-west               - Local west workspace workflow test');
     console.log('  external-zephyr          - External zephyr workspace workflow test');
+    console.log('  external-directory       - Workspace setup from external directory workflow test');
     console.log('  all                      - Run all tests (default)');
     console.log('');
     console.log('Examples:');
     console.log('  node scripts/run-integration-tests.js standard');
     console.log('  node scripts/run-integration-tests.js west-git');
     console.log('  node scripts/run-integration-tests.js external-zephyr');
+    console.log('  node scripts/run-integration-tests.js external-directory');
     console.log('  node scripts/run-integration-tests.js all');
     console.log('');
     console.log('Environment Variables:');
@@ -243,6 +245,9 @@ try {
         case 'external-zephyr':
             grepPattern = 'Workspace External Zephyr Test Suite';
             break;
+        case 'external-directory':
+            grepPattern = 'Workspace Setup From External Directory Test Suite';
+            break;
         case 'all':
         default:
             grepPattern = 'Test Suite';
@@ -274,7 +279,7 @@ try {
     console.error('This test executes the Zephyr IDE workflow.');
     console.error('Some steps may fail if build dependencies are not available.');
     console.error('');
-    console.error('Available test types: combined, standard, west-git, zephyr-ide-git, local-west, external-zephyr, all');
+    console.error('Available test types: combined, standard, west-git, zephyr-ide-git, local-west, external-zephyr, external-directory, all');
     console.error('Run "node scripts/run-integration-tests.js help" for more information.');
 
     // Report whatever Mocha managed to write before the process failed, so a

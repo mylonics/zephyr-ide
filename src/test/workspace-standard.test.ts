@@ -28,6 +28,7 @@ import {
     executeTestWithErrorHandling,
     executeWorkspaceCommand,
     assertProjectPersisted,
+    assertWorkspaceReopenReDetectsVenv,
     CommonUIInteractions,
     shouldSkipBuildDependencyCheck
 } from "./test-runner";
@@ -174,6 +175,9 @@ suite("Workspace Standard Test Suite", () => {
 
                 console.log("⚡ Step 5: Executing build...");
                 await executeFinalBuild("Standard Workspace");
+
+                console.log("🔄 Step 6: Verifying workspace re-open re-detection...");
+                await assertWorkspaceReopenReDetectsVenv("Standard Workspace");
             }
         );
     });

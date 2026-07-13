@@ -20,6 +20,7 @@ import * as assert from 'assert';
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import { readZephyrIdeJson } from '../setup_utilities/zephyr_ide_json';
+import { configureExistingVenvEnvironment } from '../setup_utilities/workspace-config';
 import type { MockInteraction } from './ui-mock-interface';
 
 /**
@@ -456,6 +457,43 @@ export async function assertProjectPersisted(
     }
 
     console.log(`   ✅ Verified: project "${projectName}"${buildName ? ` / build "${buildName}"` : ''} persisted to zephyr-ide.json (${testName})`);
+}
+
+/**
+ * Simulate re-detecting an already-initialized workspace on VS Code reopen
+ * and assert the venv gets correctly re-registered — the class of bug fixed
+ * by configureExistingVenvEnvironment (workspace-config.ts). There is no
+ * single command that re-runs activation-time detection in isolation (it's
+ * inline in extension.ts activate()), so this calls that same function
+ * directly against the live activeSetupState.
+ *
+ * To prove genuine re-detection (not just "the values were never touched"),
+ * the VIRTUAL_ENV/PATH env entries are cleared first — simulating a fresh
+ * extension host that hasn't re-derived them yet — then asserts
+ * configureExistingVenvEnvironment restores the original values by reading
+ * the real, already-installed .venv this test created.
+ */
+export async function assertWorkspaceReopenReDetectsVenv(testName: string): Promise<void> {
+    const ext = vscode.extensions.getExtension("mylonics.zephyr-ide");
+    const wsConfig = ext?.isActive && ext.exports?.getWorkspaceConfig
+        ? ext.exports.getWorkspaceConfig()
+        : undefined;
+    const activeSetupState = wsConfig?.activeSetupState;
+    assert.ok(activeSetupState, `No activeSetupState available to test re-detection (${testName})`);
+
+    const previousVirtualEnv = activeSetupState.env["VIRTUAL_ENV"];
+    const previousPath = activeSetupState.env["PATH"];
+    assert.ok(previousVirtualEnv, `Expected VIRTUAL_ENV to already be set from the original setup, nothing to re-detect (${testName})`);
+
+    delete activeSetupState.env["VIRTUAL_ENV"];
+    delete activeSetupState.env["PATH"];
+
+    const configured = await configureExistingVenvEnvironment(activeSetupState);
+    assert.strictEqual(configured, true, `configureExistingVenvEnvironment must find and re-register the existing venv on reopen (${testName})`);
+    assert.strictEqual(activeSetupState.env["VIRTUAL_ENV"], previousVirtualEnv, `Re-detected VIRTUAL_ENV must match the original venv path (${testName})`);
+    assert.strictEqual(activeSetupState.env["PATH"], previousPath, `Re-detected PATH must match the original venv bin path (${testName})`);
+
+    console.log(`   ✅ Verified: reopening the workspace correctly re-detects and re-registers the existing venv (${testName})`);
 }
 
 /**
