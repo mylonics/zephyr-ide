@@ -309,7 +309,7 @@ export class BuildSection extends ZephyrLitElement {
     const overrideBadge = slot.hasOverride
       ? html`<span class="bind-override-badge" title="Per-build extra args override">override</span>`
       : nothing;
-    const localBadge = slot.localOverride != null
+    const localBadge = slot.localOverride !== undefined
       ? html`<span class="bind-local-badge" title="Local bind — not committed; use Local Bind… to change or clear">(local)</span>`
       : nothing;
 
@@ -323,7 +323,7 @@ export class BuildSection extends ZephyrLitElement {
           ${localBadge}
           ${overrideBadge}
         </span>
-        ${slot.localOverride != null
+        ${slot.localOverride !== undefined
         ? html`
               <vscode-button appearance="icon" icon="close"
                 title="Clear local bind — revert ${label} to profile / runners.yaml default"

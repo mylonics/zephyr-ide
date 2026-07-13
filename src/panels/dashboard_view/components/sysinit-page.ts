@@ -107,8 +107,8 @@ export class SysInitPage extends ZephyrLitElement {
                 const displayName = isDevice
                   ? `device_dts_ord_${entry.name.slice('__device_dts_ord_'.length)}`
                   : entry.name;
-                const priOrd = entry.priority != null
-                  ? `${entry.priority}${entry.ordinal != null ? ` / ${entry.ordinal}` : ''}`
+                const priOrd = entry.priority !== null
+                  ? `${entry.priority}${entry.ordinal !== null ? ` / ${entry.ordinal}` : ''}`
                   : '';
                         const openFile = () => {
                           if (!entry.path) { return; }

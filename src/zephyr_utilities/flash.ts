@@ -103,7 +103,7 @@ export async function flashActive(context: vscode.ExtensionContext, wsConfig: Wo
   if (!resolved) { return; }
   // Check per-developer local bind first — takes priority over profile.
   const localFlashRunner = wsConfig.projectStates?.[resolved.projectName]?.buildStates?.[resolved.buildName]?.localBinds?.flash;
-  if (localFlashRunner != null) {
+  if (localFlashRunner !== null && localFlashRunner !== undefined) {
     // Strip any "?probe=..." query (the shared local-bind format supports it
     // even though the flash picker doesn't currently offer one) before parsing
     // the runner prefix.
