@@ -86,10 +86,11 @@ The release process has been consolidated into a streamlined workflow that requi
 
 ### Other Workflows
 
-- **`workspace-setup-tests.yml`** - Runs all 5 workspace setup type tests on Ubuntu, macOS, and Windows
+- **`workspace-setup-tests.yml`** - Runs all 5 workspace setup types as parallel jobs across Ubuntu, macOS, and Windows (15 jobs: 3 platforms x 5 types)
   - **Trigger**: PRs to develop (bump PRs or `full_test` label)
   - **Manual Trigger**: Can be triggered manually with optional `branch` input
-  - **Actions**: Runs all workspace setup test suites (standard, west-git, zephyr-ide-git, local-west, external-zephyr)
+  - **Actions**: Runs all workspace setup test suites (standard, west-git, zephyr-ide-git, local-west, external-zephyr), each as its own job with its own PR check status
+  - **Caching**: Zephyr SDK toolchain download is cached per OS + SDK version (`~/.zephyr_ide/toolchains`); west/git module checkouts are not cached (see comments in the workflow file for why)
 
 - **`basic-tests.yml`** - Fast Ubuntu-only platform integration test for every PR
   - **Trigger**: Pull requests to develop
