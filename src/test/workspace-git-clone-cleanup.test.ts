@@ -44,7 +44,7 @@ suite("Workspace Git Clone cleanup inspection test suite", () => {
       path.join(tmpRoot, ".vscode", "extensions.json")
     );
 
-    await fs.writeJson(path.join(tmpRoot, ".vscode", "settings.json"), {
+    await fs.outputJson(path.join(tmpRoot, ".vscode", "settings.json"), {
       "terminal.integrated.defaultProfile.linux": "Zephyr IDE Terminal",
       "cmake.configureOnOpen": false,
     }, { spaces: 2 });
@@ -80,7 +80,7 @@ suite("Workspace Git Clone cleanup inspection test suite", () => {
   });
 
   test("allows removing .vscode/settings.json when it is empty", async () => {
-    await fs.writeJson(path.join(tmpRoot, ".vscode", "settings.json"), {}, { spaces: 2 });
+    await fs.outputJson(path.join(tmpRoot, ".vscode", "settings.json"), {}, { spaces: 2 });
 
     const inspection = await inspectWorkspaceForGitClone(tmpRoot, extensionPath);
     assert.deepStrictEqual(inspection.unexpectedEntries, []);
@@ -88,7 +88,7 @@ suite("Workspace Git Clone cleanup inspection test suite", () => {
   });
 
   test("treats non-extension settings keys in .vscode/settings.json as unexpected", async () => {
-    await fs.writeJson(path.join(tmpRoot, ".vscode", "settings.json"), {
+    await fs.outputJson(path.join(tmpRoot, ".vscode", "settings.json"), {
       "files.trimTrailingWhitespace": true,
     }, { spaces: 2 });
 
@@ -98,7 +98,7 @@ suite("Workspace Git Clone cleanup inspection test suite", () => {
   });
 
   test("treats modified extension-managed settings values as unexpected", async () => {
-    await fs.writeJson(path.join(tmpRoot, ".vscode", "settings.json"), {
+    await fs.outputJson(path.join(tmpRoot, ".vscode", "settings.json"), {
       "terminal.integrated.defaultProfile.linux": "bash",
     }, { spaces: 2 });
 
@@ -109,7 +109,7 @@ suite("Workspace Git Clone cleanup inspection test suite", () => {
 
   test("allows removing .vscode/settings.json with extension-managed json.schemas entry", async () => {
     const schemaUrl = pathToFileURL(path.join(extensionPath, "resources", "zephyr-ide-schema.json")).toString();
-    await fs.writeJson(path.join(tmpRoot, ".vscode", "settings.json"), {
+    await fs.outputJson(path.join(tmpRoot, ".vscode", "settings.json"), {
       "json.schemas": [
         {
           fileMatch: ["zephyr-ide.json", "**/zephyr-ide.json"],
@@ -125,7 +125,7 @@ suite("Workspace Git Clone cleanup inspection test suite", () => {
 
   test("treats .vscode/settings.json with extra json.schemas entries as unexpected", async () => {
     const schemaUrl = pathToFileURL(path.join(extensionPath, "resources", "zephyr-ide-schema.json")).toString();
-    await fs.writeJson(path.join(tmpRoot, ".vscode", "settings.json"), {
+    await fs.outputJson(path.join(tmpRoot, ".vscode", "settings.json"), {
       "json.schemas": [
         {
           fileMatch: ["zephyr-ide.json", "**/zephyr-ide.json"],
