@@ -2,7 +2,7 @@
   "name": "zephyr-ide",
   "displayName": "IDE for Zephyr",
   "description": "Streamline Zephyr RTOS development in VS Code — automated SDK installation, west workspace management, project building, flashing, and debugging for ARM, RISC-V, and more",
-  "version": "4.0.3",
+  "version": "4.1.0",
   "license": "Apache-2.0",
   "publisher": "mylonics",
   "icon": "media/logo.png",
