@@ -21,6 +21,7 @@ import * as fs from 'fs-extra';
 import * as path from 'path';
 import { readZephyrIdeJson } from '../setup_utilities/zephyr_ide_json';
 import { configureExistingVenvEnvironment } from '../setup_utilities/workspace-config';
+import { UIMockInterface } from './ui-mock-interface';
 import type { MockInteraction } from './ui-mock-interface';
 
 /**
@@ -289,6 +290,52 @@ export async function runWorkspaceSuiteTeardown(
     await cleanupTestWorkspace(workspaceDir, shouldCleanupWorkspace);
 }
 
+/**
+ * Registers the suite-level lifecycle (suiteSetup/setup/teardown/suiteTeardown)
+ * shared byte-for-byte across every workspace-setup integration test file.
+ * Must be called synchronously from within a `suite(...)` callback, the same
+ * way a mocha `setup()`/`teardown()` call would be.
+ *
+ * This deliberately does NOT register the test() itself or dictate the
+ * scenario body — each workspace type's post-setup steps differ too much
+ * (different setup commands, different follow-up commands, different error
+ * handling) to force through one rigid shape. Only the identical lifecycle
+ * plumbing is centralized; see runWorkspaceScenarioTest for the matching
+ * test-body wrapper.
+ *
+ * @param logLabel   Used in the suiteSetup log line: "Testing <logLabel> workflow"
+ * @param teardownLabel Passed to printWorkspaceStructure in the teardown hook
+ */
+export function setupWorkspaceScenarioSuite(
+    logLabel: string,
+    teardownLabel: string
+): { getTestWorkspaceDir: () => string } {
+    let testWorkspaceDir: string;
+    let originalWorkspaceFolders: readonly vscode.WorkspaceFolder[] | undefined;
+
+    suiteSetup(() => {
+        logTestEnvironment();
+        console.log(`🔬 Testing ${logLabel} workflow`);
+    });
+
+    setup(async () => {
+        originalWorkspaceFolders = vscode.workspace.workspaceFolders;
+        if (originalWorkspaceFolders) {
+            testWorkspaceDir = originalWorkspaceFolders[0].uri.fsPath;
+        }
+    });
+
+    teardown(async () => {
+        await printWorkspaceStructure(teardownLabel);
+    });
+
+    suiteTeardown(async () => {
+        await runWorkspaceSuiteTeardown(originalWorkspaceFolders);
+    });
+
+    return { getTestWorkspaceDir: () => testWorkspaceDir };
+}
+
 export async function printWorkspaceStructure(
     testName: string
 ): Promise<void> {
@@ -541,6 +588,37 @@ export async function executeTestWithErrorHandling(
         // Always deactivate mock to prevent listener/timer leaks between tests.
         uiMock.deactivate();
     }
+}
+
+/**
+ * Test-body wrapper shared byte-for-byte across every workspace-setup
+ * integration test file: creates the UIMockInterface, activates the
+ * extension, activates the mock, then runs `scenario` inside
+ * executeTestWithErrorHandling. Pairs with setupWorkspaceScenarioSuite,
+ * which handles the surrounding suite-level lifecycle.
+ *
+ * @param testName        Name used for logging and error-handling context
+ * @param testWorkspaceDir The workspace directory (from setupWorkspaceScenarioSuite's getTestWorkspaceDir())
+ * @param scenario        The scenario-specific body; receives the active UIMockInterface
+ */
+export async function runWorkspaceScenarioTest(
+    testName: string,
+    testWorkspaceDir: string,
+    scenario: (uiMock: UIMockInterface) => Promise<void>
+): Promise<void> {
+    console.log(`🚀 Starting ${testName}...`);
+    const uiMock = new UIMockInterface();
+
+    await executeTestWithErrorHandling(
+        testName,
+        testWorkspaceDir,
+        uiMock,
+        async () => {
+            await activateExtension();
+            uiMock.activate();
+            await scenario(uiMock);
+        }
+    );
 }
 
 /**

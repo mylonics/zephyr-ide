@@ -54,15 +54,51 @@ export interface WestLocation {
 
 
 
+/** Input parameters for pure west.yml manifest mutation. */
+export interface ApplyManifestSelectionsParams {
+  isNcsProject: boolean;
+  versionLabel: string;
+  /** HAL items to add to the manifest's name-allowlist (only entries with a truthy `description` are used). */
+  desiredHals?: readonly QuickPickItem[];
+}
+
+/**
+ * Pure function: mutate a parsed west.yml manifest document in place, applying
+ * the selected Zephyr/NCS version to the matching project's `revision` and
+ * appending any selected HAL descriptions to the first project's
+ * `import["name-allowlist"]`. Extracted from pickVersion to enable unit
+ * testing without file I/O.
+ */
+export function applyManifestSelections(doc: any, params: ApplyManifestSelectionsParams): void {
+  doc.manifest.projects.forEach((project: any) => {
+    const shouldUpdate = (params.isNcsProject && project.name === "sdk-nrf") ||
+      (!params.isNcsProject && project.name === "zephyr");
+    if (shouldUpdate) {
+      project.revision = params.versionLabel;
+    }
+  });
+
+  if (params.desiredHals && params.desiredHals.length > 0) {
+    const allowList = doc.manifest.projects[0].import?.["name-allowlist"];
+    if (allowList) {
+      params.desiredHals.forEach((hal: any) => {
+        if (hal.description && !allowList.includes(hal.description)) {
+          allowList.push(hal.description);
+        }
+      });
+    }
+  }
+}
+
 /**
  * Interactive west workspace selector - allows users to choose how to initialize a west workspace
- * 
+ *
  * Available template options:
  * - Full Zephyr installation
  * - Minimal Zephyr with custom HAL selection
- * - Minimal BLE Zephyr with custom HAL selection  
+ * - Minimal BLE Zephyr with custom HAL selection
  * - NRF Connect SDK configuration
- * 
+ *
  * @param context VS Code extension context
  * @param wsConfig Current workspace configuration
  * @returns Promise resolving to WestLocation configuration
@@ -361,24 +397,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
     state.versionLabel = versionLabel;
 
     // Apply the version and HAL selections to the materialized west.yml
-    doc.manifest.projects.forEach((project: any) => {
-      const shouldUpdate = (isNcsProject && project.name === "sdk-nrf") ||
-        (!isNcsProject && project.name === "zephyr");
-      if (shouldUpdate) {
-        project.revision = versionLabel;
-      }
-    });
-
-    if (state.desiredHals && state.desiredHals.length > 0) {
-      const allowList = doc.manifest.projects[0].import?.["name-allowlist"];
-      if (allowList) {
-        state.desiredHals.forEach((hal: any) => {
-          if (hal.description && !allowList.includes(hal.description)) {
-            allowList.push(hal.description);
-          }
-        });
-      }
-    }
+    applyManifestSelections(doc, { isNcsProject, versionLabel, desiredHals: state.desiredHals });
 
     fs.writeFileSync(desPath, yaml.dump(doc));
 
