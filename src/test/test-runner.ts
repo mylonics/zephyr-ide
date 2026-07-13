@@ -386,7 +386,19 @@ export async function assertWorkspaceReady(testName: string): Promise<void> {
     const workspaceFolders = vscode.workspace.workspaceFolders;
     assert.ok(workspaceFolders && workspaceFolders.length > 0, `No workspace folder open (${testName})`);
 
-    const workspaceDir = workspaceFolders[0].uri.fsPath;
+    // Use wsConfig.rootPath — the same field production code uses to build
+    // the .vscode/zephyr-ide.json path (see setup_utilities/zephyr_ide_json.ts)
+    // — rather than re-deriving the root from vscode.workspace.workspaceFolders.
+    // Those two can diverge: combined-installation.test.ts calls
+    // updateWorkspaceFolders() mid-test to point at ZEPHYR_BASE, but the
+    // extension already bound wsConfig.rootPath to the original folder at
+    // activation and doesn't follow later folder-list changes, so all the
+    // actual setup work happens under the original root. Comparing against
+    // the stale workspaceFolders[0] path here previously produced a false
+    // "external installation" diagnosis and a wrong (non-existent) path
+    // for the zephyr-ide.json check.
+    assert.ok(wsConfig?.rootPath, `wsConfig.rootPath is unset (${testName})`);
+    const workspaceDir: string = wsConfig.rootPath;
     const setupPath = wsConfig?.activeSetupState?.setupPath;
     if (setupPath && setupPath !== workspaceDir) {
         // External installation — the install directory lives outside the workspace root.
