@@ -46,6 +46,7 @@ Most IDE for Zephyr actions are available from the command palette (`Ctrl+Shift+
 - `Zephyr IDE: Reset Workspace` - Clear workspace configuration so setup can be started again
 - `Zephyr IDE: Reset Active Installation` - Clear the currently selected Zephyr installation
 - `Zephyr IDE: Skip West Setup` - Mark the current workspace as ready when west is already prepared externally
+- `Zephyr IDE: Configure Existing Environment (Scan Zephyr Dir/Version)` - Detect and apply an existing Python virtual environment and scan for the Zephyr directory/version without running west update. Useful when Zephyr is already set up outside the extension.
 - `Zephyr IDE: Show Workspace Structure` - Print the active workspace layout for inspection/troubleshooting
 
 ## Host Tools, SDK, and Shared Workspace Requirements

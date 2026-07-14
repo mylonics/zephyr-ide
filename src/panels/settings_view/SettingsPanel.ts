@@ -101,6 +101,21 @@ const SETTINGS: SettingDefinition[] = [
     defaultValue: false,
   },
   {
+    key: "zephyr-ide.disableZephyrBaseInjection",
+    label: "Disable ZEPHYR_BASE Injection",
+    description: "Disable Zephyr IDE's automatic injection of the ZEPHYR_BASE environment variable into terminals, tasks, and build/debug processes. Enable this if you manage ZEPHYR_BASE yourself.",
+    type: "boolean",
+    defaultValue: false,
+  },
+  {
+    key: "zephyr-ide.zephyrBaseOverride",
+    label: "ZEPHYR_BASE Override",
+    description: "Absolute or workspace-root-relative path to a Zephyr base directory. When set, overrides the ZEPHYR_BASE value Zephyr IDE would otherwise inject. Ignored when 'Disable ZEPHYR_BASE Injection' is enabled.",
+    type: "string",
+    defaultValue: null,
+    pathType: "folder",
+  },
+  {
     key: "zephyr-ide.automaticProjectSelection",
     label: "Automatic Project Selection",
     description: "Automatically switch the active project when the editor focus changes to a file belonging to a different project.",
