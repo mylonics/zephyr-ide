@@ -21,9 +21,9 @@ import * as fs from "fs-extra";
 import * as path from "upath";
 import { output, executeTaskHelperInPythonEnv, executeTaskHelper, reloadEnvironmentVariables, getPythonVenvBinaryFolder, getPlatformNameAsync } from "../utilities/utils";
 import { outputInfo, outputWarning, notifyError, notifyWarningWithActions } from "../utilities/output";
-import { getModulePathAndVersion, getModuleVersion } from "./modules";
+import { scanAndSetZephyrDirAndVersion } from "./modules";
 import { westSelector, WestLocation } from "./west_selector";
-import { WorkspaceConfig, GlobalConfig, SetupState, formatZephyrVersion } from "./types";
+import { WorkspaceConfig, GlobalConfig, SetupState } from "./types";
 import { saveSetupState, setSetupState, setWorkspaceState } from "./state-management";
 import { getSetupState, getSetupStateOrNotify, getVenvPath } from "./workspace-config";
 import { ensureWestConfigManifest } from "./west-config-parser";
@@ -267,21 +267,10 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
     notifyError("West Update", "West Update Failed. Check the Zephyr IDE output for details.", { command: cmd });
   } else {
     setupState.westUpdated = true;
-    const zephyrModuleInfo = await getModulePathAndVersion(setupState, "zephyr");
-    if (zephyrModuleInfo) {
-      setupState.zephyrDir = zephyrModuleInfo.path;
-      setupState.zephyrVersion = await getModuleVersion(zephyrModuleInfo.path);
-      outputInfo("West Update", `Zephyr directory set from west list: ${setupState.zephyrDir}`);
-    } else {
-      outputWarning("West Update", `Could not find zephyr module via 'west list' in setupPath: ${setupState.setupPath}. Trying fallback VERSION file lookup...`);
-      // Fallback: check for zephyr/VERSION file in setupPath
+    const zephyrFound = await scanAndSetZephyrDirAndVersion(setupState, "West Update");
+    if (!zephyrFound) {
       const zephyrFallbackDir = path.join(setupState.setupPath, "zephyr");
-      const fallbackVersion = await getModuleVersion(zephyrFallbackDir);
-      if (fallbackVersion) {
-        setupState.zephyrDir = zephyrFallbackDir;
-        setupState.zephyrVersion = fallbackVersion;
-        outputInfo("West Update", `Zephyr version detected from VERSION file: ${formatZephyrVersion(fallbackVersion)}`);
-      } else if (fs.existsSync(path.join(zephyrFallbackDir, "VERSION"))) {
+      if (fs.existsSync(path.join(zephyrFallbackDir, "VERSION"))) {
         notifyError("West Update", "West Update succeeded, but Zephyr VERSION file could not be parsed.");
       } else {
         notifyError("West Update", "West Update succeeded, but Zephyr module information could not be found.");

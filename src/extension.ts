@@ -109,6 +109,7 @@ import {
   getZephyrElfPath,
   getZephyrElfDir,
   getAutomaticProjectSelection,
+  configureExistingVenvEnvironment,
 } from "./setup_utilities/workspace-config";
 import { checkIfToolsAvailable } from "./setup_utilities/tools-validation";
 import {
@@ -148,7 +149,7 @@ import {
 } from "./project_utilities/project";
 import { testHelper, deleteTestDirs } from "./zephyr_utilities/twister";
 
-import { getModuleVersion, getModuleList } from "./setup_utilities/modules";
+import { getModuleVersion, getModuleList, scanAndSetZephyrDirAndVersion } from "./setup_utilities/modules";
 import { reconfigureTest } from "./project_utilities/twister_selector";
 import { installSDKInteractive, syncSDKInstallState } from "./setup_utilities/west_sdk";
 import {
@@ -1184,6 +1185,33 @@ export async function activate(context: vscode.ExtensionContext) {
       }
     }
     )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.configure-existing-environment", async () => {
+      const setupState = wsConfig.activeSetupState;
+      if (!setupState) {
+        notifyError("Configure Environment", "No active workspace. Set up or open a workspace first.");
+        return;
+      }
+      const venvConfigured = await configureExistingVenvEnvironment(setupState);
+      if (venvConfigured) {
+        setupState.pythonEnvironmentSetup = true;
+      }
+      const zephyrFound = await scanAndSetZephyrDirAndVersion(setupState, "Configure Environment");
+      if (zephyrFound) {
+        setupState.westUpdated = true;
+      }
+      reloadEnvironmentVariables(context, setupState);
+      await saveSetupState(context, wsConfig, globalConfig);
+      extensionSetupView.updateWebView(wsConfig, globalConfig);
+      void vscode.commands.executeCommand("zephyr-ide.update-web-view");
+      if (zephyrFound) {
+        void vscode.window.showInformationMessage(`Zephyr environment configured. Zephyr directory: ${setupState.zephyrDir}`);
+      } else {
+        void vscode.window.showWarningMessage("Python environment configured, but the Zephyr install could not be detected. Run West Update, or verify the workspace layout.");
+      }
+    })
   );
 
   context.subscriptions.push(

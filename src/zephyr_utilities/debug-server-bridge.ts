@@ -43,7 +43,7 @@ import { spawn, ChildProcess } from "child_process";
 import * as vscode from "vscode";
 
 import { SetupState } from "../setup_utilities/types";
-import { getPythonVenvBinaryFolder } from "../utilities/utils";
+import { getPythonVenvBinaryFolder, getEffectiveZephyrBase } from "../utilities/utils";
 import { outputInfo, outputWarning, outputError } from "../utilities/output";
 
 /** Maximum wall-clock time to wait for the GDB server to print its port. */
@@ -193,7 +193,8 @@ export async function startWestDebugServer(
     env[pathKey] = `${venvBin}${path.delimiter}${env[pathKey] ?? ""}`;
   }
   if (setupState.env["VIRTUAL_ENV"]) { env.VIRTUAL_ENV = setupState.env["VIRTUAL_ENV"]; }
-  if (setupState.zephyrDir) { env.ZEPHYR_BASE = setupState.zephyrDir; }
+  const zephyrBase = getEffectiveZephyrBase(setupState);
+  if (zephyrBase) { env.ZEPHYR_BASE = zephyrBase; }
   if (setupState.env["ZEPHYR_SDK_INSTALL_DIR"] && !process.env.ZEPHYR_SDK_INSTALL_DIR) {
     env.ZEPHYR_SDK_INSTALL_DIR = setupState.env["ZEPHYR_SDK_INSTALL_DIR"];
   }

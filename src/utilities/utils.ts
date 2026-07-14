@@ -58,6 +58,32 @@ function hasInstalledSDKSync(): boolean {
 }
 
 /**
+ * Resolve the ZEPHYR_BASE value that should be injected into spawned shells
+ * and terminals, honoring the `zephyr-ide.disableZephyrBaseInjection` and
+ * `zephyr-ide.zephyrBaseOverride` settings. Returns undefined when
+ * ZEPHYR_BASE must not be injected at all (disabled, or no zephyr dir known
+ * yet — e.g. a workspace that was marked complete without a west scan).
+ */
+export function getEffectiveZephyrBase(setupState: SetupState): string | undefined {
+  const cfg = vscode.workspace.getConfiguration();
+  if (cfg.get<boolean>("zephyr-ide.disableZephyrBaseInjection", false)) {
+    return undefined;
+  }
+
+  const override = cfg.get<string>("zephyr-ide.zephyrBaseOverride");
+  if (override && override.trim()) {
+    const overridePath = override.trim();
+    if (path.isAbsolute(overridePath)) {
+      return overridePath;
+    }
+    const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    return root ? path.resolve(root, overridePath) : path.resolve(overridePath);
+  }
+
+  return setupState.zephyrDir && setupState.zephyrDir.trim() ? setupState.zephyrDir : undefined;
+}
+
+/**
  * Populate VIRTUAL_ENV, ZEPHYR_BASE, and ZEPHYR_SDK_INSTALL_DIR on `env` from
  * the given setupState. These vars are normally exposed to integrated
  * terminals via VS Code's `environmentVariableCollection`, but that does not
@@ -70,8 +96,9 @@ function applyPythonShellEnv(env: { [key: string]: string | undefined }, setupSt
   if (setupState.env["VIRTUAL_ENV"]) {
     env["VIRTUAL_ENV"] = setupState.env["VIRTUAL_ENV"];
   }
-  if (setupState.zephyrDir) {
-    env["ZEPHYR_BASE"] = setupState.zephyrDir;
+  const zephyrBase = getEffectiveZephyrBase(setupState);
+  if (zephyrBase) {
+    env["ZEPHYR_BASE"] = zephyrBase;
   }
   if (!process.env.ZEPHYR_SDK_INSTALL_DIR && hasInstalledSDKSync()) {
     env["ZEPHYR_SDK_INSTALL_DIR"] = getToolchainDir();
@@ -1007,8 +1034,12 @@ export function reloadEnvironmentVariables(context: vscode.ExtensionContext, set
   if (setupState.env["PATH"]) {
     context.environmentVariableCollection.description += ", `Python .venv PATH`";
     context.environmentVariableCollection.prepend("PATH", setupState.env["PATH"], { applyAtProcessCreation: true, applyAtShellIntegration: true });
+  }
+
+  const zephyrBase = getEffectiveZephyrBase(setupState);
+  if (zephyrBase) {
     context.environmentVariableCollection.description += ", `ZEPHYR_BASE`";
-    context.environmentVariableCollection.replace("ZEPHYR_BASE", setupState.zephyrDir, { applyAtProcessCreation: true, applyAtShellIntegration: true });
+    context.environmentVariableCollection.replace("ZEPHYR_BASE", zephyrBase, { applyAtProcessCreation: true, applyAtShellIntegration: true });
   }
 }
 

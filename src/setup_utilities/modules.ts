@@ -20,7 +20,7 @@ import * as fs from "fs-extra";
 import * as path from "upath";
 
 import { executeShellCommandInPythonEnv, loadYamlFile } from "../utilities/utils";
-import { outputInfo, outputError, outputCommandFailure, showOutput } from "../utilities/output";
+import { outputInfo, outputWarning, outputError, outputCommandFailure, showOutput } from "../utilities/output";
 import { SetupState, formatZephyrVersion } from "./types";
 import { parseWestConfigManifest } from "./west-config-parser";
 
@@ -224,6 +224,43 @@ export async function getModulePathAndVersion(setupState: SetupState, moduleName
   }
 
   return;
+}
+
+/**
+ * Scan for the zephyr module via `west list` and set `setupState.zephyrDir`
+ * / `zephyrVersion`. Falls back to reading `<setupPath>/zephyr/VERSION`
+ * directly when the module isn't listed (e.g. `west list` cache is stale).
+ * Only logs to the output channel — callers decide whether/how to surface
+ * failure to the user, since the right message depends on the calling flow
+ * (e.g. "west update" vs. an explicit "configure existing environment").
+ *
+ * @returns true when zephyrDir/zephyrVersion were successfully set.
+ */
+export async function scanAndSetZephyrDirAndVersion(setupState: SetupState, contextLabel: string = "Zephyr Scan"): Promise<boolean> {
+  const zephyrModuleInfo = await getModulePathAndVersion(setupState, "zephyr");
+  if (zephyrModuleInfo) {
+    setupState.zephyrDir = zephyrModuleInfo.path;
+    setupState.zephyrVersion = await getModuleVersion(zephyrModuleInfo.path);
+    outputInfo(contextLabel, `Zephyr directory set from west list: ${setupState.zephyrDir}`);
+    return true;
+  }
+
+  outputWarning(contextLabel, `Could not find zephyr module via 'west list' in setupPath: ${setupState.setupPath}. Trying fallback VERSION file lookup...`);
+  const zephyrFallbackDir = path.join(setupState.setupPath, "zephyr");
+  const fallbackVersion = getModuleVersion(zephyrFallbackDir);
+  if (fallbackVersion) {
+    setupState.zephyrDir = zephyrFallbackDir;
+    setupState.zephyrVersion = fallbackVersion;
+    outputInfo(contextLabel, `Zephyr version detected from VERSION file: ${formatZephyrVersion(fallbackVersion)}`);
+    return true;
+  }
+
+  if (fs.existsSync(path.join(zephyrFallbackDir, "VERSION"))) {
+    outputWarning(contextLabel, "Zephyr VERSION file could not be parsed.");
+  } else {
+    outputWarning(contextLabel, "Zephyr module information could not be found.");
+  }
+  return false;
 }
 
 export async function getModuleSampleFolders(setupState: SetupState) {
