@@ -128,14 +128,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     name: test-${{ matrix.platform }}
 
-    # HOMEBREW_NO_AUTO_UPDATE / HOMEBREW_NO_INSTALL_CLEANUP: this job has no
-    # dedicated "install macOS system deps" step — combined-installation.test.ts
-    # discovers and installs whatever's missing itself, one `brew install <pkg>`
-    # call per missing package. Without these, each call can implicitly trigger
-    # `brew update`, which re-syncs the homebrew-core/homebrew-cask taps and can
-    # take many minutes (or appear to hang) on GitHub-hosted macOS runners —
-    # multiplied by however many packages are missing. Harmless no-op on
-    # Ubuntu/Windows runners where brew isn't invoked.
+    # HOMEBREW_NO_AUTO_UPDATE / HOMEBREW_NO_INSTALL_CLEANUP: prevent brew from
+    # auto-updating its tap metadata on every `brew install` call.  Without
+    # these, the "Install system dependencies (macOS)" step — and any remaining
+    # package check the extension performs — can implicitly trigger `brew update`,
+    # re-syncing the homebrew-core/homebrew-cask taps and taking many minutes on
+    # GitHub-hosted macOS runners.  Harmless no-op on Ubuntu/Windows runners
+    # where brew isn't invoked.
     env:
       HOMEBREW_NO_AUTO_UPDATE: "1"
       HOMEBREW_NO_INSTALL_CLEANUP: "1"
@@ -183,6 +182,21 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y xvfb libgtk-3-0 libgbm1 libnss3 libasound2t64
+
+      # macOS: pre-install the Zephyr build tools that the combined-installation
+      # test would otherwise install one-by-one via VS Code tasks (`brew install
+      # <pkg>`).  VS Code tasks running brew in a headless CI shell can stall
+      # (the task's onDidEndTaskProcess event is never fired, causing the test
+      # promise to hang indefinitely until the overall timeout fires).
+      # Pre-installing at the workflow level avoids this: install-host-packages-
+      # headless will find every package already present and return immediately,
+      # then the test proceeds to the workspace-setup phase which is the primary
+      # thing being validated.  This mirrors exactly what workspace-setup-tests.yml
+      # does successfully for macOS.
+      - name: Install system dependencies (macOS)
+        if: matrix.platform == 'macos'
+        run: |
+          brew install cmake ninja gperf ccache qemu dtc libmagic wget openocd python@3 python-tk
 
       - name: Install npm dependencies
         run: npm ci
