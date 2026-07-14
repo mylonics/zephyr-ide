@@ -47,8 +47,8 @@ import {
     executeTestWithErrorHandling,
     executeWorkspaceCommand,
     startWorkspaceCommand,
+    assertProjectPersisted,
     CommonUIInteractions,
-    waitForBuildReady,
 } from './test-runner';
 import { UIMockInterface } from './ui-mock-interface';
 
@@ -178,17 +178,17 @@ suite('Combined Installation Test Suite', function() {
 
                 console.log('🐍 Verifying Python venv path...');
                 const pythonPathResult = await vscode.commands.executeCommand('zephyr-ide.print-python-path');
-                if (pythonPathResult && typeof pythonPathResult === 'object' && 'stdout' in pythonPathResult) {
-                    const stdout = (pythonPathResult as { stdout: string }).stdout;
-                    console.log(`   Python path check result: ${stdout}`);
-                    assert.ok(
-                        stdout.includes('.venv') || stdout.includes('venv'),
-                        `Python interpreter should be from venv, but got: ${stdout}`
-                    );
-                    console.log('   ✅ Verified: Python interpreter is from venv');
-                } else {
-                    console.log('   ⚠️ Could not verify Python path');
-                }
+                assert.ok(
+                    pythonPathResult && typeof pythonPathResult === 'object' && 'stdout' in pythonPathResult,
+                    `zephyr-ide.print-python-path did not return stdout after a successful setup: ${JSON.stringify(pythonPathResult)}`
+                );
+                const stdout = (pythonPathResult as { stdout: string }).stdout;
+                console.log(`   Python path check result: ${stdout}`);
+                assert.ok(
+                    stdout.includes('.venv') || stdout.includes('venv'),
+                    `Python interpreter should be from venv, but got: ${stdout}`
+                );
+                console.log('   ✅ Verified: Python interpreter is from venv');
 
                 console.log('📁 Step 6: Creating project from template...');
                 await executeWorkspaceCommand(
@@ -213,7 +213,8 @@ suite('Combined Installation Test Suite', function() {
                     'Build configuration should succeed'
                 );
 
-                await waitForBuildReady('Combined Installation Test');
+                await assertProjectPersisted('Combined Installation Test', 'blinky', 'test_build_1');
+
                 console.log('⚡ Step 8: Executing build...');
                 await executeFinalBuild('Combined Installation Test');
             }

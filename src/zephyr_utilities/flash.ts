@@ -103,7 +103,7 @@ export async function flashActive(context: vscode.ExtensionContext, wsConfig: Wo
   if (!resolved) { return; }
   // Check per-developer local bind first — takes priority over profile.
   const localFlashRunner = wsConfig.projectStates?.[resolved.projectName]?.buildStates?.[resolved.buildName]?.localBinds?.flash;
-  if (localFlashRunner != null) {
+  if (localFlashRunner !== null && localFlashRunner !== undefined) {
     // Strip any "?probe=..." query (the shared local-bind format supports it
     // even though the flash picker doesn't currently offer one) before parsing
     // the runner prefix.
@@ -140,26 +140,46 @@ export async function flashActive(context: vscode.ExtensionContext, wsConfig: Wo
   await flash(context, wsConfig, resolved.project, resolved.build, runner, args);
 }
 
-export async function flash(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, project: ProjectConfig, build: BuildConfig, runner: string, args: string) {
-  // Tasks
-  const buildFolder = getBuildFolder(wsConfig, project, build);
-  let cmd = `west flash --build-dir "${buildFolder}"`;
+/** Input parameters for pure flash-command assembly. */
+export interface FlashCommandParams {
+  buildFolder: string;
+  /** User-selected sysbuild image (via "Zephyr IDE: Set Sysbuild Image"), or undefined to let west choose the default domain. */
+  sysbuildImage?: string;
+  runner: string;
+  /** Already-substituted (per-token) extra args string, e.g. from resolveFlashFromProfile. */
+  args: string;
+}
+
+/**
+ * Pure function: assemble a `west flash` command string from resolved parameters.
+ * Extracted from flash() to enable unit testing without VS Code or filesystem dependencies.
+ */
+export function assembleFlashCommand(params: FlashCommandParams): string {
+  let cmd = `west flash --build-dir "${params.buildFolder}"`;
 
   // Forward the user-selected sysbuild image (set via "Zephyr IDE: Set
   // Sysbuild Image") to `west flash --domain` so Flash targets the same image
   // the Debug provider would (parity with debug-provider.ts:resolveRunnersYamlPath).
   // When no sysbuild domain is selected, west chooses the default domain itself.
-  const sysbuildImage = wsConfig.projectStates?.[project.name]?.buildStates?.[build.name]?.sysbuildImage;
-  if (sysbuildImage) {
-    cmd += ` --domain ${sysbuildImage}`;
+  if (params.sysbuildImage) {
+    cmd += ` --domain ${params.sysbuildImage}`;
   }
 
-  if (runner !== "default") {
-    cmd += ` -r ${runner}`;
+  if (params.runner !== "default") {
+    cmd += ` -r ${params.runner}`;
   }
   // args are already substituted by resolveFlashFromProfile (per-token).
-  const trimmedArgs = args.trim();
+  const trimmedArgs = params.args.trim();
   if (trimmedArgs) { cmd += ` ${trimmedArgs}`; }
+
+  return cmd;
+}
+
+export async function flash(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, project: ProjectConfig, build: BuildConfig, runner: string, args: string) {
+  // Tasks
+  const buildFolder = getBuildFolder(wsConfig, project, build);
+  const sysbuildImage = wsConfig.projectStates?.[project.name]?.buildStates?.[build.name]?.sysbuildImage;
+  const cmd = assembleFlashCommand({ buildFolder, sysbuildImage, runner, args });
 
   const taskName = "Zephyr IDE Flash: " + project.name + " " + build.name;
 

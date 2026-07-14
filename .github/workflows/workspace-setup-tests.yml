@@ -1,12 +1,29 @@
 # Workspace Setup Tests
 #
-# This workflow runs all 5 workspace setup type tests on Ubuntu and macOS.
-# Each test validates a different way to set up a Zephyr workspace:
+# Runs each of the 5 workspace setup types as its own parallel job across
+# Ubuntu, macOS, and Windows (15 jobs total: 3 platforms x 5 types). Each
+# type validates a different way to set up a Zephyr workspace:
 #   - Standard:       Fresh workspace → west.yml → SDK → project → build
 #   - External Zephyr: Git repo (no west) → external Zephyr installation → build
 #   - West Git:       West manifest git repo → SDK → custom board build
 #   - Zephyr IDE Git: Zephyr IDE sample git repo → SDK → build
 #   - Local West:     Git repo with west.yml → detect local west → build
+#
+# Splitting by type (rather than 5 sequential steps in one job, as before)
+# gives each type its own status in the PR checks UI and cuts wall-clock
+# time roughly 5x, at the cost of more total runner-minutes (system deps,
+# npm ci, compile/bundle/lint, and the Zephyr SDK download are now repeated
+# per type instead of shared across one job's sequential steps). The Zephyr
+# SDK toolchain download is cached (keyed by OS + SDK version) to claw back
+# most of that added cost — see the "Cache Zephyr SDK toolchains" step.
+#
+# West/git module checkouts are deliberately NOT cached: the 5 types use
+# different manifests (different HAL allowlists, some cloned from a sample
+# repo instead of using the SDK-selector templates), so a shared cache key
+# risks silently restoring modules that don't match what a given type's
+# manifest expects. The SDK toolchain download is the one artifact that's
+# byte-identical across all 5 types on a given platform, which is what makes
+# it safe and high-value to cache.
 #
 # Trigger behavior:
 # - PRs to develop from bump-version branches: Always runs
@@ -31,6 +48,12 @@ on:
 
 permissions:
   contents: read
+
+env:
+  # Single source of truth for the SDK version under test — read by
+  # test-runner.ts's getTestEnvConfig() as a fallback default, and by the
+  # cache key below. Keeping it in one place means the two can never drift.
+  ZEPHYR_IDE_TEST_SDK_VERSION: v4.4.0
 
 jobs:
   # Determine if this workflow should run now.
@@ -74,24 +97,37 @@ jobs:
   test-with-zephyr:
     needs: check-should-run
     if: needs.check-should-run.outputs.should_run == 'true'
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
+        platform: [ubuntu, macos, windows]
+        test_type: [standard, external-zephyr, west-git, zephyr-ide-git, local-west]
         include:
-          - os: ubuntu-latest
-            platform: ubuntu
+          - platform: ubuntu
+            os: ubuntu-latest
             xvfb: "xvfb-run -a "
             zephyr_base: /tmp/zephyr
-          - os: macos-26
-            platform: macos
+          - platform: macos
+            os: macos-26
             xvfb: ""
             zephyr_base: /tmp/zephyr
-          - os: windows-latest
-            platform: windows
+          - platform: windows
+            os: windows-latest
             xvfb: ""
             zephyr_base: D:\\zephyr
     runs-on: ${{ matrix.os }}
-    name: test-workspace-${{ matrix.platform }}
+    name: test-workspace-${{ matrix.platform }}-${{ matrix.test_type }}
+
+    # HOMEBREW_NO_AUTO_UPDATE / HOMEBREW_NO_INSTALL_CLEANUP: without these,
+    # "Install system dependencies (macOS)" below (and any package the test
+    # itself installs on demand) can implicitly trigger `brew update`, which
+    # re-syncs the homebrew-core/homebrew-cask taps and can take many minutes
+    # (or appear to hang) on GitHub-hosted macOS runners. Harmless no-op on
+    # Ubuntu/Windows runners where brew isn't invoked.
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_INSTALL_CLEANUP: "1"
 
     steps:
       - uses: actions/checkout@v6
@@ -103,6 +139,19 @@ jobs:
         with:
           node-version: "20.x"
           cache: "npm"
+
+      # Keyed on OS + SDK version only (not test_type or a source hash), since
+      # all 5 types on a given platform download the identical SDK toolchain
+      # archive to the same ~/.zephyr_ide/toolchains directory
+      # (resolveToolchainDirPath()'s default in src/setup_utilities/workspace-config.ts).
+      # First job per platform to finish populates the cache; the other 4
+      # (running in parallel) won't see it until their own run, but every
+      # subsequent workflow run on this platform hits a warm cache.
+      - name: Cache Zephyr SDK toolchains
+        uses: actions/cache@v4
+        with:
+          path: ~/.zephyr_ide/toolchains
+          key: zephyr-sdk-${{ runner.os }}-${{ env.ZEPHYR_IDE_TEST_SDK_VERSION }}
 
       - name: Install system dependencies (Ubuntu)
         if: runner.os == 'Linux'
@@ -146,67 +195,24 @@ jobs:
       - name: Run linting
         run: npm run lint
 
-      - name: Run external zephyr workspace tests
-        id: test_external
+      - name: Run ${{ matrix.test_type }} workspace tests
         run: |
-          ${{ matrix.xvfb }}node scripts/run-integration-tests.js external-zephyr
+          ${{ matrix.xvfb }}node scripts/run-integration-tests.js ${{ matrix.test_type }}
         env:
           NODE_ENV: test
           ZEPHYR_BASE: ${{ matrix.zephyr_base }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SKIP_COMPILE: true
 
-      - name: Run standard workspace tests
-        id: test_standard
-        run: |
-          ${{ matrix.xvfb }}node scripts/run-integration-tests.js standard
-        env:
-          NODE_ENV: test
-          ZEPHYR_BASE: ${{ matrix.zephyr_base }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Run west git workspace tests
-        id: test_west_git
-        run: |
-          ${{ matrix.xvfb }}node scripts/run-integration-tests.js west-git
-        env:
-          NODE_ENV: test
-          ZEPHYR_BASE: ${{ matrix.zephyr_base }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Run zephyr ide git workspace tests
-        id: test_zephyr_ide_git
-        run: |
-          ${{ matrix.xvfb }}node scripts/run-integration-tests.js zephyr-ide-git
-        env:
-          NODE_ENV: test
-          ZEPHYR_BASE: ${{ matrix.zephyr_base }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Run local west workspace tests
-        id: test_local_west
-        run: |
-          ${{ matrix.xvfb }}node scripts/run-integration-tests.js local-west
-        env:
-          NODE_ENV: test
-          ZEPHYR_BASE: ${{ matrix.zephyr_base }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Check test results
+      # JUnit XML and captured extension debug output logs, written to
+      # test-results/ by the test run regardless of pass/fail. if: always()
+      # so a failing run still leaves these downloadable instead of only
+      # existing in the raw job log.
+      - name: Upload test result artifacts
         if: always()
-        shell: bash
-        run: |
-          echo "external-zephyr: ${{ steps.test_external.outcome }}"
-          echo "standard:        ${{ steps.test_standard.outcome }}"
-          echo "west-git:        ${{ steps.test_west_git.outcome }}"
-          echo "zephyr-ide-git:  ${{ steps.test_zephyr_ide_git.outcome }}"
-          echo "local-west:      ${{ steps.test_local_west.outcome }}"
-
-          if [ "${{ steps.test_external.outcome }}"      != "success" ] || \
-             [ "${{ steps.test_standard.outcome }}"      != "success" ] || \
-             [ "${{ steps.test_west_git.outcome }}"      != "success" ] || \
-             [ "${{ steps.test_zephyr_ide_git.outcome }}" != "success" ] || \
-             [ "${{ steps.test_local_west.outcome }}"    != "success" ]; then
-            echo "One or more tests failed."
-            exit 1
-          fi
-          echo "All tests passed."
+        uses: actions/upload-artifact@v4
+        with:
+          name: workspace-test-results-${{ matrix.platform }}-${{ matrix.test_type }}
+          path: test-results/
+          retention-days: 14
+          if-no-files-found: ignore

@@ -234,7 +234,15 @@ export class UIMockInterface {
 
         const interaction = this.mockQueue[this.currentIndex];
         if (interaction.type !== expectedType) {
-            console.warn(`⚠️  Expected ${expectedType}, but got ${interaction.type} at index ${this.currentIndex}`);
+            // A type mismatch means the primed interaction list no longer matches
+            // the actual UI flow (e.g. a step was reordered or removed). Consuming
+            // it anyway would apply the wrong value to the wrong prompt and
+            // usually surface as a confusing "no match" error several steps later
+            // — fail immediately with a precise message instead.
+            throw new Error(
+                `Expected ${expectedType} interaction but queue has ${interaction.type} at index ${this.currentIndex} ` +
+                `(${interaction.description || interaction.value}). The primed interactions no longer match the UI flow.`
+            );
         }
 
         this.currentIndex++;

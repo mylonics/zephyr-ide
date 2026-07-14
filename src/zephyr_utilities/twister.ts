@@ -24,6 +24,7 @@ import { notifyError, outputInfo } from "../utilities/output";
 import { WorkspaceConfig, SetupState } from '../setup_utilities/types';
 import { addTest, ProjectConfig, getResolvedTestName, resolveActiveProject, getProjectFolder, resolveBoardRootArg } from "../project_utilities/project";
 import { TwisterConfig } from "../project_utilities/twister_selector";
+import { BoardConfig } from "../project_utilities/build_selector";
 import { getSetupState } from "../setup_utilities/workspace-config";
 
 import * as fs from "fs-extra";
@@ -70,6 +71,42 @@ export function assembleTwisterBoardSpec(board: string, revision: string | undef
   return board + '@' + revision;
 }
 
+/** Input parameters for pure twister-command assembly. */
+export interface TwisterCommandParams {
+  projectFolder: string;
+  tests: string[];
+  args: string;
+  platform: string;
+  boardConfig?: BoardConfig;
+  serialPort?: string;
+  serialBaud?: string;
+  /** Pre-resolved BOARD_ROOT cmake def (e.g. via resolveBoardRootArg), or "" when not applicable. */
+  boardRootArg: string;
+}
+
+/**
+ * Pure function: assemble a `west twister` command string from resolved parameters.
+ * Extracted from runTest to enable unit testing without VS Code or filesystem dependencies.
+ */
+export function assembleTwisterCommand(params: TwisterCommandParams): string {
+  let testString = `-T "${params.projectFolder}" `;
+  if (params.tests.length > 0 && params.tests[0] !== "All") {
+    for (const test of params.tests) {
+      testString += "-s " + test + " ";
+    }
+  }
+
+  testString += `--outdir "${path.join(params.projectFolder, "twister-out")}"  ${params.args ? params.args : ""}`;
+
+  if (params.boardConfig) {
+    const boardRootCmakeArg = params.boardRootArg ? `-- ${params.boardRootArg}` : "";
+    const boardSpec = assembleTwisterBoardSpec(params.boardConfig.board, params.boardConfig.revision);
+    return `west twister --device-testing  ${params.serialPort ? "--device-serial " + params.serialPort : ""} ${params.serialBaud ? "--device-serial-baud " + params.serialBaud : ""} -p ${boardSpec} ${testString} ${boardRootCmakeArg} `;
+  } else {
+    return `west twister -p ${params.platform} ${testString} `;
+  }
+}
+
 export async function runTest(
   setupState: SetupState,
   wsConfig: WorkspaceConfig,
@@ -79,27 +116,17 @@ export async function runTest(
 
   const projectFolder = getProjectFolder(wsConfig, project);
 
-  let cmd: string;
-
-
-  let testString = `-T "${projectFolder}" `;
-  if (testConfig.tests.length > 0 && testConfig.tests[0] !== "All") {
-    for (const test of testConfig.tests) {
-      testString += "-s " + test + " ";
-    }
-  }
-
-  testString += `--outdir "${path.join(projectFolder, "twister-out")}"  ${testConfig.args ? testConfig.args : ""}`;
-
-  if (testConfig.boardConfig) {
-    const boardRootArg = resolveBoardRootArg(wsConfig, testConfig.boardConfig);
-    const boardRootCmakeArg = boardRootArg ? `-- ${boardRootArg}` : "";
-    const boardSpec = assembleTwisterBoardSpec(testConfig.boardConfig.board, testConfig.boardConfig.revision);
-    cmd = `west twister --device-testing  ${testConfig.serialPort ? "--device-serial " + testConfig.serialPort : ""} ${testConfig.serialBaud ? "--device-serial-baud " + testConfig.serialBaud : ""} -p ${boardSpec} ${testString} ${boardRootCmakeArg} `;
-  } else {
-    cmd = `west twister -p ${testConfig.platform} ${testString} `;
-  }
-
+  const boardRootArg = testConfig.boardConfig ? resolveBoardRootArg(wsConfig, testConfig.boardConfig) : "";
+  const cmd = assembleTwisterCommand({
+    projectFolder,
+    tests: testConfig.tests,
+    args: testConfig.args,
+    platform: testConfig.platform,
+    boardConfig: testConfig.boardConfig,
+    serialPort: testConfig.serialPort,
+    serialBaud: testConfig.serialBaud,
+    boardRootArg,
+  });
 
   const taskName = "Zephyr IDE Test: " + project.name + " " + testConfig.name;
 
