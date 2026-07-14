@@ -153,7 +153,7 @@ suite("ZEPHYR_BASE Configuration Test Suite", () => {
             // Should resolve relative to workspace folder or process.cwd()
             assert.ok(result !== undefined, "Result should not be undefined for relative override");
             assert.ok(path.isAbsolute(result!), "Resolved path should be absolute");
-            assert.ok(result!.endsWith("zephyr") || result!.endsWith(path.sep + "zephyr"), "Resolved path should end with 'zephyr'");
+            assert.strictEqual(path.basename(result!), "zephyr", "Resolved path should end with zephyr directory");
         } finally {
             await resetSettings(config);
         }
