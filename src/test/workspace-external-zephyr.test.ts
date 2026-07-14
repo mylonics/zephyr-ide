@@ -101,7 +101,7 @@ suite("Workspace External Zephyr Test Suite", () => {
 
     test("External Zephyr Workspace: Git Clone → Use Existing Install → West Selector → Build", async function () {
         await runWorkspaceScenarioTest("External Zephyr Workspace Test", getTestWorkspaceDir(), async (uiMock) => {
-            const { sdkVersion, toolchain, toolchainTarget } = getTestEnvConfig();
+            const { sdkVersion, toolchain } = getTestEnvConfig();
             const externalInstallDir = getExternalInstallDir();
             // The OpenDialog mock skips real folder validation, but the workspace-setup
             // code path requires the chosen external install dir to already exist
@@ -110,6 +110,11 @@ suite("Workspace External Zephyr Test Suite", () => {
             fs.mkdirSync(externalInstallDir, { recursive: true });
             console.log(`🏗️ Step 1: Setting up workspace from git without west folder...`);
             console.log(`   External install directory: ${externalInstallDir}`);
+            // No SDK-version/toolchain quickpicks after "additional west init args" —
+            // SDK install after west update is fully automatic and deterministic
+            // (installZephyrIdeRequirements, west-operations.ts), it never shows a
+            // picker. See CommonUIInteractions.standardWorkspace's comment in
+            // test-runner.ts for the full explanation.
             const setupPromise = startWorkspaceCommand(
                 uiMock,
                 [
@@ -121,9 +126,6 @@ suite("Workspace External Zephyr Test Suite", () => {
                     { type: 'quickpick', value: toolchain, description: `Select ${toolchain} toolchain` },
                     { type: 'quickpick', value: sdkVersion, description: `Select ${sdkVersion} Zephyr version` },
                     { type: 'input', value: '', description: 'Select additional west init args' },
-                    { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
-                    { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
-                    { type: 'quickpick', value: toolchainTarget, description: `Select ${toolchainTarget} toolchain`, multiSelect: true }
                 ],
                 "zephyr-ide.workspace-setup-from-git",
             );

@@ -19,7 +19,6 @@ import {
     monitorWorkspaceSetup,
     startWorkspaceCommand,
     executeFinalBuild,
-    getTestEnvConfig,
     setupWorkspaceScenarioSuite,
     runWorkspaceScenarioTest,
 } from "./test-runner";
@@ -46,16 +45,17 @@ suite("Workspace Zephyr IDE Git Test Suite", () => {
 
     test("Zephyr IDE Git Workspace: Git Clone → SDK Install → Build", async function () {
         await runWorkspaceScenarioTest("Zephyr IDE Git Workspace Test", getTestWorkspaceDir(), async (gitUiMock) => {
-            const { toolchainTarget } = getTestEnvConfig();
             console.log("🏗️ Step 1: Setting up workspace from Zephyr IDE Git...");
+            // No SDK-version/toolchain quickpicks — SDK install after west
+            // update is fully automatic and deterministic
+            // (installZephyrIdeRequirements, west-operations.ts), it never
+            // shows a picker. See CommonUIInteractions.standardWorkspace's
+            // comment in test-runner.ts for the full explanation.
             const setupPromise = startWorkspaceCommand(
                 gitUiMock,
                 [
                     { type: 'input', value: '--branch main -- https://github.com/mylonics/zephyr-ide-samples.git', description: 'Enter Zephyr IDE git repo URL' },
                     { type: 'quickpick', value: '.west folder', description: 'Use .west folder (Recommended)' },
-                    { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
-                    { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
-                    { type: 'quickpick', value: toolchainTarget, description: `Select ${toolchainTarget} toolchain`, multiSelect: true }
                 ],
                 "zephyr-ide.workspace-setup-from-git",
             );

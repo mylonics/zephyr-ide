@@ -703,32 +703,40 @@ export function getTestEnvConfig() {
  * Values are read at call time so environment variable overrides work correctly.
  */
 export const CommonUIInteractions = {
-    // Standard workspace setup interactions
+    // Standard workspace setup interactions.
+    //
+    // Deliberately ends after "additional west init args" (the last step of
+    // the interactive westSelector wizard). SDK installation that follows
+    // west update is handled by installZephyrIdeRequirements
+    // (west-operations.ts, called from westUpdateWithRequirements), which is
+    // fully automatic — it bootstraps declared-or-all toolchains without ever
+    // showing a quickpick, "so workspace setup remains deterministic" per its
+    // own comment. A trailing automatic/select-specific/toolchain trio here
+    // used to exist for an interactive SDK picker that no longer runs in this
+    // flow; leaving it primed left those 3 interactions permanently
+    // unconsumed, which the queue-consumed check in executeTestWithErrorHandling
+    // now correctly flags as a failure instead of passing silently.
     get standardWorkspace() {
-        const { sdkVersion, toolchain, toolchainTarget } = getTestEnvConfig();
+        const { sdkVersion, toolchain } = getTestEnvConfig();
         return [
             { type: 'quickpick', value: 'create new west.yml', description: 'Create new west.yml' },
             { type: 'quickpick', value: 'minimal zephyr', description: 'Select minimal Zephyr manifest (not BLE)' },
             { type: 'quickpick', value: toolchain, description: `Select ${toolchain} toolchain` },
             { type: 'quickpick', value: sdkVersion, description: `Select ${sdkVersion} Zephyr version` },
             { type: 'input', value: '', description: 'Select additional west init args' },
-            { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
-            { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
-            { type: 'quickpick', value: toolchainTarget, description: `Select ${toolchainTarget} toolchain`, multiSelect: true }
         ];
     },
 
-    // Testing workspace setup interactions (RPi Pico, ARM toolchain)
+    // Testing workspace setup interactions (RPi Pico, ARM toolchain).
+    // See standardWorkspace's comment above — SDK install is automatic and
+    // deterministic after this point, no further quickpicks are shown.
     get testingWorkspace() {
-        const { sdkVersion, toolchainTarget } = getTestEnvConfig();
+        const { sdkVersion } = getTestEnvConfig();
         return [
             { type: 'quickpick', value: 'create new west.yml', description: 'Create new west.yml' },
             { type: 'quickpick', value: 'testing', description: 'Select testing manifest' },
             { type: 'quickpick', value: sdkVersion, description: `Select ${sdkVersion} Zephyr version` },
             { type: 'input', value: '', description: 'Select additional west init args' },
-            { type: 'quickpick', value: 'automatic', description: 'Select SDK Version' },
-            { type: 'quickpick', value: 'select specific', description: 'Select specific toolchains' },
-            { type: 'quickpick', value: toolchainTarget, description: `Select ${toolchainTarget} toolchain`, multiSelect: true }
         ];
     },
 
