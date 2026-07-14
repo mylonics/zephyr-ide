@@ -119,6 +119,16 @@ jobs:
     runs-on: ${{ matrix.os }}
     name: test-workspace-${{ matrix.platform }}-${{ matrix.test_type }}
 
+    # HOMEBREW_NO_AUTO_UPDATE / HOMEBREW_NO_INSTALL_CLEANUP: without these,
+    # "Install system dependencies (macOS)" below (and any package the test
+    # itself installs on demand) can implicitly trigger `brew update`, which
+    # re-syncs the homebrew-core/homebrew-cask taps and can take many minutes
+    # (or appear to hang) on GitHub-hosted macOS runners. Harmless no-op on
+    # Ubuntu/Windows runners where brew isn't invoked.
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_INSTALL_CLEANUP: "1"
+
     steps:
       - uses: actions/checkout@v6
         with:

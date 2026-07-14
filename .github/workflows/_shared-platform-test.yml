@@ -128,6 +128,18 @@ jobs:
     runs-on: ${{ matrix.os }}
     name: test-${{ matrix.platform }}
 
+    # HOMEBREW_NO_AUTO_UPDATE / HOMEBREW_NO_INSTALL_CLEANUP: this job has no
+    # dedicated "install macOS system deps" step — combined-installation.test.ts
+    # discovers and installs whatever's missing itself, one `brew install <pkg>`
+    # call per missing package. Without these, each call can implicitly trigger
+    # `brew update`, which re-syncs the homebrew-core/homebrew-cask taps and can
+    # take many minutes (or appear to hang) on GitHub-hosted macOS runners —
+    # multiplied by however many packages are missing. Harmless no-op on
+    # Ubuntu/Windows runners where brew isn't invoked.
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+      HOMEBREW_NO_INSTALL_CLEANUP: "1"
+
     steps:
       - uses: actions/checkout@v6
         with:
@@ -160,7 +172,7 @@ jobs:
           cache: "npm"
 
       - name: Download VSIX
-        uses: actions/download-artifact@v4.1.3
+        uses: actions/download-artifact@v4
         with:
           name: vsix-package
           path: ./vsix
