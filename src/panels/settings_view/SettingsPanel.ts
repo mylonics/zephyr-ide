@@ -110,7 +110,7 @@ const SETTINGS: SettingDefinition[] = [
   {
     key: "zephyr-ide.zephyrBaseOverride",
     label: "ZEPHYR_BASE Override",
-    description: "Absolute or workspace-root-relative path to a Zephyr base directory. When set, overrides the ZEPHYR_BASE value Zephyr IDE would otherwise inject. Ignored when 'Disable ZEPHYR_BASE Injection' is enabled.",
+    description: "Absolute or workspace-root-relative path to a Zephyr base directory. When set, overrides the ZEPHYR_BASE value Zephyr IDE would otherwise inject into terminals, tasks, and build/debug processes. It does not change which Zephyr tree Zephyr IDE itself scans for boards, samples, DTS bindings, or Python requirements. Ignored when 'Disable ZEPHYR_BASE Injection' is enabled.",
     type: "string",
     defaultValue: null,
     pathType: "folder",

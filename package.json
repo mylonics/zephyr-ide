@@ -255,7 +255,7 @@
             "null"
           ],
           "default": null,
-          "description": "Absolute or workspace-root-relative path to a Zephyr base directory. When set, this overrides the ZEPHYR_BASE value Zephyr IDE would otherwise inject. Ignored when 'zephyr-ide.disableZephyrBaseInjection' is true."
+          "description": "Absolute or workspace-root-relative path to a Zephyr base directory. When set, this overrides the ZEPHYR_BASE value Zephyr IDE would otherwise inject into terminals, tasks, and build/debug processes. It does not change which Zephyr tree Zephyr IDE itself scans for boards, samples, DTS bindings, or Python requirements — those still follow the detected installation. Ignored when 'zephyr-ide.disableZephyrBaseInjection' is true."
         },
         "zephyr-ide.automaticProjectSelection": {
           "type": [

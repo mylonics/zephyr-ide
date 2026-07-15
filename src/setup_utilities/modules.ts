@@ -195,11 +195,13 @@ export async function getDtsIncludes(setupState: SetupState) {
   return dtsIncludeArray;
 }
 
-export async function getModulePathAndVersion(setupState: SetupState, moduleName: string) {
+export async function getModulePathAndVersion(setupState: SetupState, moduleName: string, notifyOnFailure: boolean = true) {
   const outcome = await executeWestList(setupState);
 
   if (!outcome.ok) {
-    notifyWestListFailure(outcome.needsWestUpdate);
+    if (notifyOnFailure) {
+      notifyWestListFailure(outcome.needsWestUpdate);
+    }
     return;
   }
 
@@ -227,22 +229,30 @@ export async function getModulePathAndVersion(setupState: SetupState, moduleName
 }
 
 /**
+ * Result of {@link scanAndSetZephyrDirAndVersion}: `"found"` when
+ * zephyrDir/zephyrVersion were set (via `west list` or the VERSION-file
+ * fallback), `"unparseable"` when a zephyr/VERSION file exists but couldn't
+ * be parsed, `"missing"` when no zephyr module or VERSION file was found at
+ * all.
+ */
+export type ZephyrScanResult = "found" | "unparseable" | "missing";
+
+/**
  * Scan for the zephyr module via `west list` and set `setupState.zephyrDir`
  * / `zephyrVersion`. Falls back to reading `<setupPath>/zephyr/VERSION`
  * directly when the module isn't listed (e.g. `west list` cache is stale).
- * Only logs to the output channel — callers decide whether/how to surface
- * failure to the user, since the right message depends on the calling flow
- * (e.g. "west update" vs. an explicit "configure existing environment").
- *
- * @returns true when zephyrDir/zephyrVersion were successfully set.
+ * Only logs to the output channel and never pops a notification — callers
+ * decide whether/how to surface failure to the user, since the right
+ * message depends on the calling flow (e.g. "west update" vs. an explicit
+ * "configure existing environment").
  */
-export async function scanAndSetZephyrDirAndVersion(setupState: SetupState, contextLabel: string = "Zephyr Scan"): Promise<boolean> {
-  const zephyrModuleInfo = await getModulePathAndVersion(setupState, "zephyr");
+export async function scanAndSetZephyrDirAndVersion(setupState: SetupState, contextLabel: string = "Zephyr Scan"): Promise<ZephyrScanResult> {
+  const zephyrModuleInfo = await getModulePathAndVersion(setupState, "zephyr", false);
   if (zephyrModuleInfo) {
     setupState.zephyrDir = zephyrModuleInfo.path;
     setupState.zephyrVersion = await getModuleVersion(zephyrModuleInfo.path);
     outputInfo(contextLabel, `Zephyr directory set from west list: ${setupState.zephyrDir}`);
-    return true;
+    return "found";
   }
 
   outputWarning(contextLabel, `Could not find zephyr module via 'west list' in setupPath: ${setupState.setupPath}. Trying fallback VERSION file lookup...`);
@@ -252,15 +262,15 @@ export async function scanAndSetZephyrDirAndVersion(setupState: SetupState, cont
     setupState.zephyrDir = zephyrFallbackDir;
     setupState.zephyrVersion = fallbackVersion;
     outputInfo(contextLabel, `Zephyr version detected from VERSION file: ${formatZephyrVersion(fallbackVersion)}`);
-    return true;
+    return "found";
   }
 
   if (fs.existsSync(path.join(zephyrFallbackDir, "VERSION"))) {
     outputWarning(contextLabel, "Zephyr VERSION file could not be parsed.");
-  } else {
-    outputWarning(contextLabel, "Zephyr module information could not be found.");
+    return "unparseable";
   }
-  return false;
+  outputWarning(contextLabel, "Zephyr module information could not be found.");
+  return "missing";
 }
 
 export async function getModuleSampleFolders(setupState: SetupState) {

@@ -267,14 +267,11 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
     notifyError("West Update", "West Update Failed. Check the Zephyr IDE output for details.", { command: cmd });
   } else {
     setupState.westUpdated = true;
-    const zephyrFound = await scanAndSetZephyrDirAndVersion(setupState, "West Update");
-    if (!zephyrFound) {
-      const zephyrFallbackDir = path.join(setupState.setupPath, "zephyr");
-      if (fs.existsSync(path.join(zephyrFallbackDir, "VERSION"))) {
-        notifyError("West Update", "West Update succeeded, but Zephyr VERSION file could not be parsed.");
-      } else {
-        notifyError("West Update", "West Update succeeded, but Zephyr module information could not be found.");
-      }
+    const zephyrScanResult = await scanAndSetZephyrDirAndVersion(setupState, "West Update");
+    if (zephyrScanResult === "unparseable") {
+      notifyError("West Update", "West Update succeeded, but Zephyr VERSION file could not be parsed.");
+    } else if (zephyrScanResult === "missing") {
+      notifyError("West Update", "West Update succeeded, but Zephyr module information could not be found.");
     }
 
     reloadEnvironmentVariables(context, setupState);

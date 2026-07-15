@@ -56,6 +56,7 @@ import {
   RUNNER_TARGET_PREFIX,
   CORTEX_DEBUG_PREFIX,
   WEST_DEBUG_PREFIX,
+  getEffectiveZephyrBase,
 } from "./utilities/utils";
 import { notifyError, outputInfo, outputError, outputLine, outputCommandFailure, getDebugOutput, clearDebugOutput } from "./utilities/output";
 import * as project from "./project_utilities/project";
@@ -1198,18 +1199,23 @@ export async function activate(context: vscode.ExtensionContext) {
       if (venvConfigured) {
         setupState.pythonEnvironmentSetup = true;
       }
-      const zephyrFound = await scanAndSetZephyrDirAndVersion(setupState, "Configure Environment");
+      const zephyrScanResult = await scanAndSetZephyrDirAndVersion(setupState, "Configure Environment");
+      const zephyrFound = zephyrScanResult === "found";
       if (zephyrFound) {
         setupState.westUpdated = true;
+        setupState.initialized = true;
       }
       reloadEnvironmentVariables(context, setupState);
       await saveSetupState(context, wsConfig, globalConfig);
-      extensionSetupView.updateWebView(wsConfig, globalConfig);
       void vscode.commands.executeCommand("zephyr-ide.update-web-view");
-      if (zephyrFound) {
+      if (venvConfigured && zephyrFound) {
         void vscode.window.showInformationMessage(`Zephyr environment configured. Zephyr directory: ${setupState.zephyrDir}`);
-      } else {
+      } else if (venvConfigured) {
         void vscode.window.showWarningMessage("Python environment configured, but the Zephyr install could not be detected. Run West Update, or verify the workspace layout.");
+      } else if (zephyrFound) {
+        void vscode.window.showWarningMessage(`Zephyr directory detected (${setupState.zephyrDir}), but no Python virtual environment was found. Set up a virtual environment, then run this command again.`);
+      } else {
+        void vscode.window.showErrorMessage("Could not detect a Python virtual environment or a Zephyr install. Verify the workspace layout, or run Setup West Environment instead.");
       }
     })
   );
@@ -1649,7 +1655,7 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.get-zephyr-dir", async () => {
       const setupState = await getSetupState(context, wsConfig);
-      return setupState?.zephyrDir;
+      return setupState ? getEffectiveZephyrBase(setupState) : undefined;
     })
   );
 
@@ -2156,6 +2162,16 @@ export async function activate(context: vscode.ExtensionContext) {
         // settings.json) would otherwise show stale profile lists until some
         // unrelated action happens to trigger update-web-view.
         void vscode.commands.executeCommand("zephyr-ide.update-web-view");
+      } else if (
+        e.affectsConfiguration("zephyr-ide.disableZephyrBaseInjection") ||
+        e.affectsConfiguration("zephyr-ide.zephyrBaseOverride")
+      ) {
+        // ZEPHYR_BASE injected into terminals lives in the persistent
+        // environmentVariableCollection, which is only rebuilt by
+        // reloadEnvironmentVariables — without this, an edit to either
+        // setting would leave already-open and newly-opened terminals with
+        // the stale value until an unrelated west action reloaded it.
+        reloadEnvironmentVariables(context, wsConfig.activeSetupState);
       }
     })
   );

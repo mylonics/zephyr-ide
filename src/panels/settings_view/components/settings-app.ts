@@ -170,6 +170,7 @@ export class SettingsApp extends ZephyrLitElement {
         title: "Workspace & Tooling",
         settings: this._settings.filter(s => [
           "zephyr-ide.suppressWorkspaceWarning",
+          "zephyr-ide.disableZephyrBaseInjection",
           "zephyr-ide.useClangd",
         ].includes(s.key)),
       },
