@@ -242,6 +242,21 @@
           "default": null,
           "description": "Manually specify a Python virtual environment folder path. If not specified, defaults to .venv in the workspace setup path."
         },
+        "zephyr-ide.disableZephyrBaseInjection": {
+          "type": [
+            "boolean"
+          ],
+          "default": false,
+          "description": "Disable Zephyr IDE's automatic injection of the ZEPHYR_BASE environment variable into terminals, tasks, and build/debug processes. Enable this if you manage ZEPHYR_BASE yourself."
+        },
+        "zephyr-ide.zephyrBaseOverride": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "description": "Absolute or workspace-root-relative path to a Zephyr base directory. When set, this overrides the ZEPHYR_BASE value Zephyr IDE would otherwise inject into terminals, tasks, and build/debug processes. It does not change which Zephyr tree Zephyr IDE itself scans for boards, samples, DTS bindings, or Python requirements — those still follow the detected installation. Ignored when 'zephyr-ide.disableZephyrBaseInjection' is true."
+        },
         "zephyr-ide.automaticProjectSelection": {
           "type": [
             "boolean"
@@ -666,6 +681,10 @@
       {
         "command": "zephyr-ide.setup-west-environment",
         "title": "Zephyr IDE: Setup West Environment"
+      },
+      {
+        "command": "zephyr-ide.configure-existing-environment",
+        "title": "Zephyr IDE: Configure Existing Environment (Scan Zephyr Dir/Version)"
       },
       {
         "command": "zephyr-ide.install-sdk",
