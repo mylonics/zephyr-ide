@@ -70,14 +70,16 @@ export function getEffectiveZephyrBase(setupState: SetupState): string | undefin
     return undefined;
   }
 
-  const override = cfg.get<string>("zephyr-ide.zephyrBaseOverride");
+  const override = cfg.get<string | null>("zephyr-ide.zephyrBaseOverride", null);
   if (override && override.trim()) {
     const overridePath = override.trim();
     if (path.isAbsolute(overridePath)) {
       return overridePath;
     }
-    const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-    return root ? path.resolve(root, overridePath) : path.resolve(overridePath);
+    const base = setupState.setupPath && setupState.setupPath.trim()
+      ? setupState.setupPath
+      : vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    return base ? path.resolve(base, overridePath) : path.resolve(overridePath);
   }
 
   return setupState.zephyrDir && setupState.zephyrDir.trim() ? setupState.zephyrDir : undefined;
