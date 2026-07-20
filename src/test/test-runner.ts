@@ -22,10 +22,11 @@ import * as path from 'path';
 import { readZephyrIdeJson } from '../setup_utilities/zephyr_ide_json';
 import { configureExistingVenvEnvironment, readCMakeCacheInfo } from '../setup_utilities/workspace-config';
 import { getBuildFolder } from '../project_utilities/project';
-import { getBuildInfo, getZephyrDtsPath } from '../zephyr_utilities/build';
-import { resolveEffectiveBuildDir, invalidateRunnersYamlCache } from '../zephyr_utilities/runners-yaml';
+import { getBuildInfo, getZephyrDtsPath, regenerateCompileCommands } from '../zephyr_utilities/build';
+import { resolveEffectiveBuildDir, invalidateRunnersYamlCache, getSysbuildDomains, getRunnersYamlHint } from '../zephyr_utilities/runners-yaml';
 import { resolveKconfigBuildDir, resolveDotConfig } from '../build_data/kconfig-session';
-import { readMemorySummary } from '../build_data/build-artifact-reader';
+import { readMemorySummary, readDashboardData } from '../build_data/build-artifact-reader';
+import { listSaveTargets } from '../panels/dashboard_view/kconfig-fragment';
 import { UIMockInterface } from './ui-mock-interface';
 import type { MockInteraction } from './ui-mock-interface';
 
@@ -655,21 +656,41 @@ interface BuildFsFailure {
 }
 
 /**
- * "Special unit test" for filesystem/path-resolution and build-artifact
- * parsing functions. Runs once per entry in `builds` — typically a regular
- * build and a `--sysbuild` build of the same project — against the real,
- * already-built build directory on disk.
+ * "Special unit test" covering the filesystem/path-resolution and
+ * build-artifact-parsing functions across the codebase. Runs once per entry
+ * in `builds` — typically a regular build and a `--sysbuild` build of the
+ * same project — against the real, already-built build directory on disk.
  *
- * This targets the functions identified as NOT routing sysbuild builds
- * through `resolveEffectiveBuildDir` (runners-yaml.ts) before constructing a
- * path: `get-zephyr-elf-dir`, `get-zephyr-elf`, `getBuildInfo`,
- * `getZephyrDtsPath`, and the Kconfig editor's build directory
- * (`resolveKconfigBuildDir` + `.config`). For contrast, it also exercises the
- * functions that already resolve sysbuild domains correctly
- * (`resolveEffectiveBuildDir`, `readMemorySummary`, `readCMakeCacheInfo`'s own
- * inline domain resolution) — those are expected to pass for BOTH builds,
- * which helps confirm the other failures are localized rather than the
- * sysbuild build itself being broken.
+ * Functions checked per build:
+ *   - Commands: get-zephyr-elf-dir, get-zephyr-elf, get-gdb-path,
+ *     get-arm-gdb-path, get-toolchain-path, get-active-build-path,
+ *     get-active-build-board-path, get-zephyr-dir.
+ *   - getBuildInfo (build.ts), readCMakeCacheInfo (workspace-config.ts),
+ *     getZephyrDtsPath (build.ts), resolveKconfigBuildDir + resolveDotConfig
+ *     (kconfig-session.ts), listSaveTargets (kconfig-fragment.ts).
+ *   - Sysbuild-aware functions, kept as a passing contrast:
+ *     resolveEffectiveBuildDir, getSysbuildDomains, getRunnersYamlHint
+ *     (runners-yaml.ts), readMemorySummary, readDashboardData
+ *     (build-artifact-reader.ts).
+ *   - One cross-build check: regenerateCompileCommands (build.ts), which
+ *     merges every project/build's compile_commands.json into one file.
+ *
+ * The functions above were identified (by reviewing every function that
+ * touches the filesystem or parses a build artifact) as either already
+ * routing sysbuild builds through `resolveEffectiveBuildDir`
+ * (runners-yaml.ts) before constructing a path, or NOT doing so —
+ * `get-zephyr-elf-dir`, `get-zephyr-elf`, `getBuildInfo`, `getZephyrDtsPath`,
+ * `resolveKconfigBuildDir`, `listSaveTargets`, and `regenerateCompileCommands`
+ * are all expected to mis-resolve for the sysbuild build; the rest are
+ * expected to pass for BOTH builds, which helps confirm those failures are
+ * localized rather than the sysbuild build itself being broken.
+ *
+ * Not covered here: functions that spawn a subprocess to *generate* fresh
+ * artifacts (runMemoryReports, runFullMemoryRefresh, buildMenuConfig,
+ * buildDashboard/buildDashboardReport) — exercising those would trigger
+ * additional west invocations beyond the one build this phase already runs.
+ * findSvdFile (board-directory lookup) was also left out: its inputs don't
+ * depend on build type, so it has no sysbuild-specific behavior to surface.
  *
  * All checks run to completion (each wrapped in its own try/catch) and every
  * failure is collected into one aggregated assertion at the end, so a single
@@ -760,6 +781,19 @@ export async function verifyBuildFsFunctions(
             assert.ok(await fs.pathExists(dotConfigPath), `resolveDotConfig returned "${dotConfigPath}" which does not exist on disk`);
         });
 
+        await check(buildName, "listSaveTargets (kconfig-fragment.ts)", () => {
+            // build_info.yml lives at the top-level buildFolder for a regular
+            // build (so its committed prj.conf is auto-detected as a save
+            // target), but under the sysbuild domain's subdirectory for a
+            // sysbuild build — listSaveTargets uses getBuildFolder directly
+            // (no domain resolution), so it should find zero "auto" entries there.
+            const targets = listSaveTargets(wsConfig, project, buildConfig);
+            assert.ok(
+                targets.some((t) => t.kind === "auto"),
+                `listSaveTargets found no auto-detected save target (expected at least prj.conf from build_info.yml)`
+            );
+        });
+
         // --- Sysbuild-aware functions, expected to pass for BOTH builds ---
         await check(buildName, "resolveEffectiveBuildDir", async () => {
             const effectiveDir = resolveEffectiveBuildDir(buildFolder);
@@ -773,6 +807,56 @@ export async function verifyBuildFsFunctions(
             const summary = readMemorySummary(buildFolder);
             const total = summary.bss + summary.rodata + summary.rwdata + summary.text + summary.other;
             assert.ok(total > 0, `readMemorySummary returned an all-zero summary for "${buildFolder}"`);
+        });
+
+        await check(buildName, "getSysbuildDomains", () => {
+            const domains = getSysbuildDomains(buildFolder);
+            if (sysbuild) {
+                assert.ok(domains && domains.length > 0, `getSysbuildDomains found no domains for a sysbuild build at "${buildFolder}"`);
+            } else {
+                assert.strictEqual(domains, undefined, `getSysbuildDomains unexpectedly found domains.yaml for a non-sysbuild build at "${buildFolder}"`);
+            }
+        });
+
+        await check(buildName, "getRunnersYamlHint", () => {
+            const hint = getRunnersYamlHint(buildFolder);
+            assert.ok(hint, "getRunnersYamlHint returned undefined");
+            assert.ok(hint.availableRunners.length > 0, "getRunnersYamlHint found no available runners");
+        });
+
+        await check(buildName, "readDashboardData", async () => {
+            const data = await readDashboardData(buildFolder, projectName, buildName);
+            assert.ok(data.summary.board, "readDashboardData did not resolve a board");
+            assert.ok(data.dts.source && data.dts.source.length > 0, "readDashboardData did not read zephyr.dts source");
+            assert.ok(data.kconfig.length > 0, "readDashboardData did not parse any Kconfig entries from .config");
+            assert.ok(data.summary.elfSize, "readDashboardData resolved no ELF size");
+        });
+    }
+
+    // --- One-time (not per-build) check: regenerateCompileCommands scans
+    // ALL builds of ALL projects into a single merged .vscode/compile_commands.json.
+    // Its own path resolution (build.ts) checks basepath/compile_commands.json
+    // then basepath/<project.name>/compile_commands.json — neither of which is
+    // resolveEffectiveBuildDir's domain subdirectory — so entries from a
+    // sysbuild build are expected to be silently dropped from the merge.
+    const sysbuildEntry = builds.find((b) => b.sysbuild);
+    if (sysbuildEntry) {
+        await check(sysbuildEntry.build, "regenerateCompileCommands", async () => {
+            await regenerateCompileCommands(wsConfig);
+            const mergedPath = path.join(wsConfig.rootPath, '.vscode', 'compile_commands.json');
+            assert.ok(await fs.pathExists(mergedPath), `regenerateCompileCommands did not produce ${mergedPath}`);
+            const merged = JSON.parse(await fs.readFile(mergedPath, 'utf8'));
+            assert.ok(Array.isArray(merged) && merged.length > 0, `regenerateCompileCommands produced an empty compile_commands.json`);
+
+            const sysbuildBuildConfig = project.buildConfigs[sysbuildEntry.build];
+            const sysbuildEffectiveDir = normalizePath(resolveEffectiveBuildDir(getBuildFolder(wsConfig, project, sysbuildBuildConfig))).toLowerCase();
+            const includesSysbuildEntries = merged.some((e: any) =>
+                typeof e.directory === 'string' && normalizePath(e.directory).toLowerCase().includes(sysbuildEffectiveDir)
+            );
+            assert.ok(
+                includesSysbuildEntries,
+                `regenerateCompileCommands' merged output has no entries from the sysbuild build's directory ("${sysbuildEffectiveDir}")`
+            );
         });
     }
 
