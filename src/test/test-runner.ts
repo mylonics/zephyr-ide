@@ -25,8 +25,10 @@ import { getBuildFolder } from '../project_utilities/project';
 import { getBuildInfo, getZephyrDtsPath, regenerateCompileCommands } from '../zephyr_utilities/build';
 import { resolveEffectiveBuildDir, invalidateRunnersYamlCache, getSysbuildDomains, getRunnersYamlHint } from '../zephyr_utilities/runners-yaml';
 import { resolveKconfigBuildDir, resolveDotConfig } from '../build_data/kconfig-session';
-import { readMemorySummary, readDashboardData } from '../build_data/build-artifact-reader';
+import { readMemorySummary, readDashboardData, readMemoryReports } from '../build_data/build-artifact-reader';
+import { runMemoryReports, runFullMemoryRefresh } from '../build_data/memory-report-runner';
 import { listSaveTargets } from '../panels/dashboard_view/kconfig-fragment';
+import { DashboardPanel } from '../panels/dashboard_view/DashboardPanel';
 import { UIMockInterface } from './ui-mock-interface';
 import type { MockInteraction } from './ui-mock-interface';
 
@@ -672,6 +674,13 @@ interface BuildFsFailure {
  *     resolveEffectiveBuildDir, getSysbuildDomains, getRunnersYamlHint
  *     (runners-yaml.ts), readMemorySummary, readDashboardData
  *     (build-artifact-reader.ts).
+ *   - Report-generating functions (side-effecting — actually invoke
+ *     cmake/west report targets, then verify the artifact they produce):
+ *     runMemoryReports, runFullMemoryRefresh (memory-report-runner.ts),
+ *     buildDashboardReport and buildDashboard (build.ts, driven through the
+ *     zephyr-ide.run-dashboard-report / zephyr-ide.run-dashboard commands
+ *     since both take a vscode.ExtensionContext that tests don't have direct
+ *     access to).
  *   - One cross-build check: regenerateCompileCommands (build.ts), which
  *     merges every project/build's compile_commands.json into one file.
  *
@@ -683,14 +692,22 @@ interface BuildFsFailure {
  * `resolveKconfigBuildDir`, `listSaveTargets`, and `regenerateCompileCommands`
  * are all expected to mis-resolve for the sysbuild build; the rest are
  * expected to pass for BOTH builds, which helps confirm those failures are
- * localized rather than the sysbuild build itself being broken.
+ * localized rather than the sysbuild build itself being broken. The four
+ * report-generating functions are NOT pre-classified as pass/fail-expected —
+ * unlike the others, there's no direct code-inspection evidence either way
+ * (buildDashboardReport/buildMenuConfig dispatch through `west build
+ * --build-dir <top-level>`, which — unlike a raw `cmake --build <dir>` —
+ * may let west's own sysbuild domain handling do the right thing even
+ * without an explicit resolveEffectiveBuildDir call); this run is what
+ * discovers their actual behavior.
  *
- * Not covered here: functions that spawn a subprocess to *generate* fresh
- * artifacts (runMemoryReports, runFullMemoryRefresh, buildMenuConfig,
- * buildDashboard/buildDashboardReport) — exercising those would trigger
- * additional west invocations beyond the one build this phase already runs.
- * findSvdFile (board-directory lookup) was also left out: its inputs don't
- * depend on build type, so it has no sysbuild-specific behavior to surface.
+ * Not covered here: buildMenuConfig (build.ts) — `west build -t menuconfig`
+ * (ncurses TUI) and `-t guiconfig` (Tk GUI) are both inherently interactive
+ * with no headless mode, so calling either risks hanging an unattended CI
+ * job indefinitely; see the comment at its call site below for what of its
+ * logic is still covered indirectly. findSvdFile (board-directory lookup)
+ * was also left out: its inputs don't depend on build type, so it has no
+ * sysbuild-specific behavior to surface.
  *
  * All checks run to completion (each wrapped in its own try/catch) and every
  * failure is collected into one aggregated assertion at the end, so a single
@@ -831,6 +848,73 @@ export async function verifyBuildFsFunctions(
             assert.ok(data.kconfig.length > 0, "readDashboardData did not parse any Kconfig entries from .config");
             assert.ok(data.summary.elfSize, "readDashboardData resolved no ELF size");
         });
+
+        // --- Report-generating functions. These actually invoke cmake/west
+        // report targets against the build directory (side-effecting, unlike
+        // the read-only checks above), but are otherwise safe/non-interactive
+        // — unlike buildMenuConfig (see note below), nothing here blocks on a
+        // terminal or GUI. ---
+
+        await check(buildName, "runMemoryReports", async () => {
+            const setupState = wsConfig.activeSetupState;
+            assert.ok(setupState, "wsConfig.activeSetupState is not set");
+            const error = await runMemoryReports(buildFolder, setupState, projectName, buildName);
+            assert.strictEqual(error, null, `runMemoryReports failed: ${error}`);
+            const reports = readMemoryReports(buildFolder);
+            assert.ok(reports.ram || reports.rom, "runMemoryReports completed but produced no ram/rom report data (ram.json/rom.json not found afterward)");
+        });
+
+        await check(buildName, "runFullMemoryRefresh", async () => {
+            const setupState = wsConfig.activeSetupState;
+            assert.ok(setupState, "wsConfig.activeSetupState is not set");
+            const error = await runFullMemoryRefresh(buildFolder, setupState, projectName, buildName);
+            assert.strictEqual(error, null, `runFullMemoryRefresh failed: ${error}`);
+            const reports = readMemoryReports(buildFolder);
+            assert.ok(reports.ram || reports.rom, "runFullMemoryRefresh completed but produced no ram/rom report data (ram.json/rom.json not found afterward)");
+        });
+
+        // buildDashboardReport (build.ts) needs a vscode.ExtensionContext,
+        // which is not available to tests directly — drive it through the
+        // already-registered zephyr-ide.run-dashboard-report command instead
+        // (context is bound there via closure at registration time). That
+        // command doesn't return the produced paths, so verify success via
+        // dashboard/memoryreport.html — the report's own distinctive on-disk
+        // artifact — under the domain-resolved build directory.
+        await check(buildName, "buildDashboardReport", async () => {
+            await vscode.commands.executeCommand("zephyr-ide.run-dashboard-report");
+            const effectiveDir = resolveEffectiveBuildDir(buildFolder);
+            const dashboardHtmlPath = path.join(effectiveDir, "dashboard", "memoryreport.html");
+            assert.ok(
+                await fs.pathExists(dashboardHtmlPath),
+                `buildDashboardReport (via zephyr-ide.run-dashboard-report) did not produce "${dashboardHtmlPath}"`
+            );
+        });
+
+        // buildDashboard (build.ts) also needs a vscode.ExtensionContext —
+        // same reasoning as buildDashboardReport above, driven through
+        // zephyr-ide.run-dashboard instead. Unlike run-dashboard-report, this
+        // command opens (or reuses) a real DashboardPanel webview as a side
+        // effect; dispose it immediately after asserting it was created so no
+        // panel is left open across the remaining checks/builds.
+        await check(buildName, "buildDashboard", async () => {
+            await vscode.commands.executeCommand("zephyr-ide.run-dashboard");
+            const panel = DashboardPanel.getPanel(projectName, buildName);
+            try {
+                assert.ok(panel, "buildDashboard (via zephyr-ide.run-dashboard) did not create/open a DashboardPanel");
+            } finally {
+                panel?.dispose();
+            }
+        });
+
+        // buildMenuConfig (build.ts) is intentionally NOT tested here:
+        // `west build -t menuconfig` (ncurses TUI) and `-t guiconfig` (Tk GUI)
+        // are both inherently interactive with no headless/non-interactive
+        // mode — calling either would block indefinitely waiting for
+        // terminal/GUI input with no way to programmatically dismiss them,
+        // risking an unattended CI job hanging forever. Its own path
+        // resolution (getProjectFolder/getBuildFolder/regenerateCompileCommands/
+        // updateDtsContext -> getBuildInfo) is already exercised by the other
+        // checks in this loop.
     }
 
     // --- One-time (not per-build) check: regenerateCompileCommands scans
