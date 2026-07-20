@@ -81,7 +81,7 @@ import {
   ZEPHYR_IDE_CORTEX_DEBUG_TYPE,
   ZEPHYR_IDE_WEST_DEBUG_TYPE,
 } from "./zephyr_utilities/debug-provider";
-import { getSysbuildDomains, resolveRunnersYamlPath } from "./zephyr_utilities/runners-yaml";
+import { getSysbuildDomains, resolveRunnersYamlPath, resolveEffectiveBuildDir } from "./zephyr_utilities/runners-yaml";
 import { DebugBind, formatBindLabel } from "./project_utilities/runner_profiles";
 import { WEST_DEBUG_RUNNERS } from "./project_utilities/runner_selector";
 import { WorkspaceConfig, GlobalConfig } from "./setup_utilities/types";
@@ -1973,7 +1973,11 @@ export async function activate(context: vscode.ExtensionContext) {
         // Lazy Kconfig session factory: spawned on first kconfig request from
         // the webview, kept alive for the panel's lifetime, disposed on close.
         () => {
-          const buildFolder = result.buildFolder;
+          // result.buildFolder is the top-level build dir; resolve the sysbuild
+          // domain (if any) so a sysbuild build's Kconfig session reads/writes
+          // the actual per-image CMakeCache.txt/.config instead of the
+          // top-level sysbuild directory's own (different) files.
+          const buildFolder = resolveEffectiveBuildDir(result.buildFolder);
           const env = buildEnvFromCMakeCache(buildFolder);
           const kconfigRoot = resolveKconfigRoot(env);
           if (!kconfigRoot) {

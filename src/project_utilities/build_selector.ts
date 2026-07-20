@@ -67,7 +67,7 @@ export interface BuildState {
   viewOpen?: boolean;
   gdbPath?: string; // Cached GDB path from CMakeCache.txt (CMAKE_GDB)
   elfName?: string; // Cached kernel ELF name from CMakeCache.txt (BYPRODUCT_KERNEL_ELF_NAME)
-  toolchainPath?: string; // Cached toolchain path from build_info.yml (toolchain.path)
+  toolchainPath?: string; // Cached toolchain path from build_info.yml (toolchain.path), or derived from CMAKE_GDB when that isn't present
   cachedPristineCmd?: string; // Pristine build command from last build, used to detect config changes
   /** Active sysbuild domain/image (e.g. "mcuboot") for flash and debug. Only relevant for sysbuild projects. */
   sysbuildImage?: string;

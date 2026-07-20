@@ -34,7 +34,7 @@ import { joinBuildArgsForShell, normalizeBuildArgs, normalizeCMakeArg, quoteBuil
 import { updateDtsContext } from "../setup_utilities/dts_interface";
 import { getSetupState, getSetupStateOrNotify, updateBuildCMakeInfo, clearBuildCMakeInfo } from "../setup_utilities/workspace-config";
 import { setWorkspaceState } from "../setup_utilities/state-management";
-import { invalidateRunnersYamlCache } from "./runners-yaml";
+import { invalidateRunnersYamlCache, resolveEffectiveBuildDir } from "./runners-yaml";
 
 
 export interface BuildInfo {
@@ -75,13 +75,13 @@ export async function regenerateCompileCommands(wsConfig: WorkspaceConfig) {
     const project = wsConfig.projects[projectName];
     for (const buildName in project.buildConfigs) {
       const build = project.buildConfigs[buildName];
-      const basepath = getBuildFolder(wsConfig, project, build);
-      const basefile = path.join(basepath, "compile_commands.json");
-      const extfile = path.join(basepath, project.name, "compile_commands.json");
-      if (fs.existsSync(basefile)) {
-        await readCompileCommandsFile(basefile, compileCommandData);
-      } else if (fs.existsSync(extfile)) {
-        await readCompileCommandsFile(extfile, compileCommandData);
+      // Resolve the sysbuild domain (if any) rather than guessing a
+      // <basepath>/<project.name> fallback — that guess only happened to
+      // work when the default domain's name matched the project name.
+      const effectiveBuildDir = resolveEffectiveBuildDir(getBuildFolder(wsConfig, project, build));
+      const compileCommandsFile = path.join(effectiveBuildDir, "compile_commands.json");
+      if (fs.existsSync(compileCommandsFile)) {
+        await readCompileCommandsFile(compileCommandsFile, compileCommandData);
       }
     }
   }
@@ -548,8 +548,8 @@ export async function refreshDashboardMemory(
 
 /**
  * Get the path to a build's zephyr.dts file. Resolves the active project/build
- * when not given explicitly. Does NOT resolve sysbuild domains — for a sysbuild
- * build the real zephyr.dts lives under the domain's build directory instead.
+ * when not given explicitly. Resolves sysbuild domains via resolveEffectiveBuildDir
+ * so the returned path points at the domain that actually produced zephyr.dts.
  * @param wsConfig The workspace configuration
  * @returns The path to zephyr.dts, or undefined if no active build
  */
@@ -564,7 +564,8 @@ export function getZephyrDtsPath(
     project = project ?? resolved.project;
     build = build ?? resolved.build;
   }
-  return path.join(getBuildFolder(wsConfig, project, build), 'zephyr', 'zephyr.dts');
+  const effectiveBuildDir = resolveEffectiveBuildDir(getBuildFolder(wsConfig, project, build));
+  return path.join(effectiveBuildDir, 'zephyr', 'zephyr.dts');
 }
 
 export async function runDtshShell(
@@ -608,7 +609,8 @@ export async function clean(wsConfig: WorkspaceConfig, projectName: string | und
 export async function getBuildInfo(wsConfig: WorkspaceConfig,
   project: ProjectConfig,
   build: BuildConfig) {
-  const buildInfoFilePath = path.join(getBuildFolder(wsConfig, project, build), "build_info.yml");
+  const effectiveBuildDir = resolveEffectiveBuildDir(getBuildFolder(wsConfig, project, build));
+  const buildInfoFilePath = path.join(effectiveBuildDir, "build_info.yml");
   const rawData: any = loadYamlFile(buildInfoFilePath);
 
   if (rawData && rawData.cmake && rawData.cmake.devicetree && rawData.cmake.kconfig) {

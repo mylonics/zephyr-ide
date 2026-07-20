@@ -755,7 +755,6 @@ export async function verifyBuildFsFunctions(
         const buildFolder = getBuildFolder(wsConfig, project, buildConfig);
 
         const commandChecks: Array<[string, string]> = [
-            ["zephyr-ide.get-zephyr-elf-dir", "get-zephyr-elf-dir"],
             ["zephyr-ide.get-zephyr-elf", "get-zephyr-elf"],
             ["zephyr-ide.get-gdb-path", "get-gdb-path"],
             ["zephyr-ide.get-arm-gdb-path", "get-arm-gdb-path"],
@@ -771,6 +770,24 @@ export async function verifyBuildFsFunctions(
                 assert.ok(await fs.pathExists(result), `${commandId} returned "${result}" which does not exist on disk`);
             });
         }
+
+        // A bare directory-existence check isn't enough here: for a sysbuild
+        // build Zephyr's own top-level sysbuild directory can contain a
+        // "zephyr" subdirectory of its own (unrelated shared/generated
+        // scaffolding), which would satisfy fs.pathExists even when
+        // get-zephyr-elf-dir isn't pointing at the domain that actually
+        // produced build output — so check for zephyr.dts, a file that only
+        // exists in the real per-image "zephyr" output directory.
+        await check(buildName, "get-zephyr-elf-dir", async () => {
+            const result = await vscode.commands.executeCommand<string>("zephyr-ide.get-zephyr-elf-dir");
+            assert.ok(result, "zephyr-ide.get-zephyr-elf-dir returned no path");
+            assert.ok(await fs.pathExists(result), `zephyr-ide.get-zephyr-elf-dir returned "${result}" which does not exist on disk`);
+            const dtsInDir = path.join(result, "zephyr.dts");
+            assert.ok(
+                await fs.pathExists(dtsInDir),
+                `zephyr-ide.get-zephyr-elf-dir returned "${result}", but it does not contain zephyr.dts — likely pointing at the wrong (non-domain-resolved) directory`
+            );
+        });
 
         await check(buildName, "getBuildInfo", async () => {
             const info = await getBuildInfo(wsConfig, project, buildConfig);
@@ -794,6 +811,16 @@ export async function verifyBuildFsFunctions(
         await check(buildName, "resolveKconfigBuildDir + .config", async () => {
             const kconfigBuildDir = resolveKconfigBuildDir(wsConfig);
             assert.ok(kconfigBuildDir, "resolveKconfigBuildDir returned undefined");
+            if (sysbuild) {
+                // A top-level sysbuild directory can carry its own
+                // sysbuild-scoped .config (SB_CONFIG_* symbols) distinct from
+                // the actual application's .config in the domain directory —
+                // a bare fs.pathExists on the top-level path could pass while
+                // still pointing the Kconfig editor at the wrong file, so
+                // require the resolved dir to actually differ from the
+                // top-level build folder for a sysbuild build.
+                assert.notStrictEqual(kconfigBuildDir, buildFolder, "resolveKconfigBuildDir did not redirect into a domain build dir for a sysbuild build");
+            }
             const dotConfigPath = resolveDotConfig(kconfigBuildDir as string);
             assert.ok(await fs.pathExists(dotConfigPath), `resolveDotConfig returned "${dotConfigPath}" which does not exist on disk`);
         });

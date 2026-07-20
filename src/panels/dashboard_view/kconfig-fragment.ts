@@ -23,6 +23,7 @@ import { getProjectFolder, getBuildFolder, ProjectConfig } from "../../project_u
 import { BuildConfig } from "../../project_utilities/build_selector";
 import { loadYamlFile } from "../../utilities/utils";
 import { setWorkspaceState } from "../../setup_utilities/state-management";
+import { resolveEffectiveBuildDir } from "../../zephyr_utilities/runners-yaml";
 import type { WorkspaceConfig } from "../../setup_utilities/types";
 import type { KconfigChange, KconfigSaveTarget } from "./DashboardPanel";
 
@@ -313,7 +314,10 @@ export function listSaveTargets(
   // ── 2. Auto-detected entries from build_info.yml ────────────────────────
   // getBuildInfo is synchronous-ish (reads yaml) — we call the sync variant
   // via the already-loaded module.
-  const buildInfoPath = path.join(buildFolder, "build_info.yml");
+  // For a sysbuild build, build_info.yml lives under the domain's build
+  // directory, not the top-level buildFolder — resolve it the same way
+  // build-artifact-reader.ts and getBuildInfo (build.ts) do.
+  const buildInfoPath = path.join(resolveEffectiveBuildDir(buildFolder), "build_info.yml");
   if (fs.existsSync(buildInfoPath)) {
     // Collect all kconfig source files west fed into this build.
     let kconfigFiles: string[] = [];

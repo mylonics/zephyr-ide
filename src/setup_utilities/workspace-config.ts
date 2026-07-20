@@ -27,6 +27,7 @@ import { resolveActiveProjectBuild, getBuildFolder } from "../project_utilities/
 import { normalizeBuildArgs } from "../project_utilities/build_args";
 import { ConfigFiles, ConfigFileEntry, emptyConfigFiles } from "../project_utilities/config_selector";
 import { markZephyrIdeJsonWrite } from "./zephyr-ide-json-write-guard";
+import { resolveEffectiveBuildDir } from "../zephyr_utilities/runners-yaml";
 
 /**
  * Migrate a ConfigFiles value from the old 4-array format
@@ -732,7 +733,11 @@ export function readCMakeCacheInfo(buildDir: string): CMakeCacheInfo {
     }
   }
 
-  // Read build_info.yml for toolchain path (same effective build directory)
+  // Read build_info.yml for toolchain path (same effective build directory).
+  // In practice real Zephyr build_info.yml only carries toolchain.name, not
+  // a path — this is attempted first in case a future/alternate Zephyr
+  // version does populate it, then the GDB-derived fallback below covers the
+  // common case.
   const buildInfoPath = path.join(effectiveBuildDir, "build_info.yml");
   if (fs.pathExistsSync(buildInfoPath)) {
     try {
@@ -744,6 +749,20 @@ export function readCMakeCacheInfo(buildDir: string): CMakeCacheInfo {
       }
     } catch (e) {
       outputWarning("CMakeCache", `Failed to parse build_info.yml at "${buildInfoPath}": ${e}`);
+    }
+  }
+
+  // Fall back to deriving the toolchain path from CMAKE_GDB. A toolchain's
+  // gdb binary lives at "<toolchain>/bin/<gdb-binary>", so the toolchain
+  // root is two path segments up — only applied when the immediate parent
+  // directory is actually named "bin", so an unexpected gdb path (no
+  // directory info, e.g. a bare "gdb" resolved via PATH) is left alone
+  // rather than producing a meaningless derived path.
+  if (!info.toolchainPath && info.gdbPath) {
+    const gdbBinDir = path.dirname(info.gdbPath);
+    if (path.basename(gdbBinDir).toLowerCase() === "bin") {
+      info.toolchainPath = path.dirname(gdbBinDir);
+      outputInfo("CMakeCache", `Derived toolchain path from CMAKE_GDB: "${info.toolchainPath}"`);
     }
   }
 
@@ -872,12 +891,14 @@ export function getZephyrElfPath(wsConfig: WorkspaceConfig): string | undefined 
     return elfName;
   }
 
-  return path.join(getBuildFolder(wsConfig, project, build), "zephyr", elfName);
+  const effectiveBuildDir = resolveEffectiveBuildDir(getBuildFolder(wsConfig, project, build));
+  return path.join(effectiveBuildDir, "zephyr", elfName);
 }
 
 /**
  * Get the directory containing the Zephyr kernel ELF file for the active build.
- * This is the "zephyr" subdirectory within the build directory.
+ * This is the "zephyr" subdirectory within the build directory (resolved to
+ * the sysbuild domain's build directory when the build uses sysbuild).
  * @param wsConfig The workspace configuration
  * @returns The path to the zephyr output directory, or undefined if no active build
  */
@@ -885,7 +906,8 @@ export function getZephyrElfDir(wsConfig: WorkspaceConfig): string | undefined {
   const resolved = resolveActiveProjectBuild(wsConfig);
   if (!resolved) { return undefined; }
 
-  return path.join(getBuildFolder(wsConfig, resolved.project, resolved.build), "zephyr");
+  const effectiveBuildDir = resolveEffectiveBuildDir(getBuildFolder(wsConfig, resolved.project, resolved.build));
+  return path.join(effectiveBuildDir, "zephyr");
 }
 
 /**
@@ -908,10 +930,11 @@ export function getGdbPath(wsConfig: WorkspaceConfig): string | undefined {
 /**
  * Get the toolchain directory for the active build.
  * Uses cached toolchain path from BuildState if available; otherwise reads from
- * build_info.yml (toolchain.path) and caches the result for future calls.
- * Handles sysbuild by using the default domain's build_info.yml.
+ * build_info.yml (toolchain.path) — falling back to a path derived from
+ * CMAKE_GDB when build_info.yml doesn't carry one — and caches the result for
+ * future calls. Handles sysbuild by resolving the domain's build directory.
  * Falls back to getToolchainDir() (the configured or default directory) when no
- * active build is selected or build_info.yml is not present/readable.
+ * active build is selected or neither source yields a path.
  * @param wsConfig The workspace configuration
  * @returns The toolchain directory path
  */
