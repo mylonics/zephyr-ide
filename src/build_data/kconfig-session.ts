@@ -32,7 +32,8 @@ SPDX-License-Identifier: Apache-2.0
 import * as fs from "fs-extra";
 import * as path from "upath";
 import { ChildProcessWithoutNullStreams, spawn } from "child_process";
-import type { SetupState } from "../setup_utilities/types";
+import type { SetupState, WorkspaceConfig } from "../setup_utilities/types";
+import { resolveActiveProjectBuild, getBuildFolder } from "../project_utilities/project";
 
 // ---------------------------------------------------------------------------
 // Public types - kept loose; the helper is the source of truth for shape.
@@ -272,6 +273,24 @@ export function resolveKconfigRoot(env: Record<string, string>): string | undefi
  */
 export function resolveDotConfig(buildFolder: string): string {
   return path.join(buildFolder, "zephyr", ".config");
+}
+
+/**
+ * Resolve the build directory fed into the Kconfig editor session for a build
+ * (defaults to the active project/build). Mirrors the same resolution used by
+ * buildDashboard/buildDashboardReport (build.ts) before handing the build
+ * folder to buildEnvFromCMakeCache/resolveDotConfig — i.e. it does NOT resolve
+ * sysbuild domains, so for a sysbuild build this points at the top-level build
+ * directory rather than the domain's build directory.
+ */
+export function resolveKconfigBuildDir(
+  wsConfig: WorkspaceConfig,
+  projectName?: string,
+  buildName?: string
+): string | undefined {
+  const resolved = resolveActiveProjectBuild(wsConfig, { projectName, buildName });
+  if (!resolved) { return undefined; }
+  return getBuildFolder(wsConfig, resolved.project, resolved.build);
 }
 
 // ---------------------------------------------------------------------------

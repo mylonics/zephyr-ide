@@ -49,6 +49,8 @@ import {
     startWorkspaceCommand,
     assertProjectPersisted,
     CommonUIInteractions,
+    addAndBuildSysbuild,
+    verifyBuildFsFunctions,
 } from './test-runner';
 import { UIMockInterface } from './ui-mock-interface';
 
@@ -217,6 +219,13 @@ suite('Combined Installation Test Suite', function() {
 
                 console.log('⚡ Step 8: Executing build...');
                 await executeFinalBuild('Combined Installation Test');
+
+                console.log('🧪 Step 9: Adding a sysbuild build and verifying filesystem/parsing functions...');
+                const { projectName, regularBuildName, sysbuildBuildName } = await addAndBuildSysbuild();
+                await verifyBuildFsFunctions(projectName, [
+                    { build: regularBuildName, sysbuild: false },
+                    { build: sysbuildBuildName, sysbuild: true },
+                ]);
             }
         );
 

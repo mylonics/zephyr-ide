@@ -27,7 +27,9 @@ import {
     setupWorkspaceScenarioSuite,
     runWorkspaceScenarioTest,
     CommonUIInteractions,
-    shouldSkipBuildDependencyCheck
+    shouldSkipBuildDependencyCheck,
+    addAndBuildSysbuild,
+    verifyBuildFsFunctions
 } from "./test-runner";
 
 /*
@@ -142,6 +144,13 @@ suite("Workspace Standard Test Suite", () => {
 
             console.log("🔄 Step 6: Verifying workspace re-open re-detection...");
             await assertWorkspaceReopenReDetectsVenv("Standard Workspace");
+
+            console.log("🧪 Step 7: Adding a sysbuild build and verifying filesystem/parsing functions...");
+            const { projectName, regularBuildName, sysbuildBuildName } = await addAndBuildSysbuild();
+            await verifyBuildFsFunctions(projectName, [
+                { build: regularBuildName, sysbuild: false },
+                { build: sysbuildBuildName, sysbuild: true },
+            ]);
         });
     });
 });

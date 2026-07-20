@@ -31,6 +31,8 @@ import {
     executeWorkspaceCommand,
     assertProjectPersisted,
     CommonUIInteractions,
+    addAndBuildSysbuild,
+    verifyBuildFsFunctions,
 } from "./test-runner";
 import { UIMockInterface } from "./ui-mock-interface";
 
@@ -154,6 +156,13 @@ suite("Workspace Setup From External Directory Test Suite", () => {
 
                 console.log("⚡ Step 4: Executing build...");
                 await executeFinalBuild("Workspace Setup From External Directory");
+
+                console.log("🧪 Step 5: Adding a sysbuild build and verifying filesystem/parsing functions...");
+                const { projectName, regularBuildName, sysbuildBuildName } = await addAndBuildSysbuild();
+                await verifyBuildFsFunctions(projectName, [
+                    { build: regularBuildName, sysbuild: false },
+                    { build: sysbuildBuildName, sysbuild: true },
+                ]);
             }
         );
     });

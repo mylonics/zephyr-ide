@@ -1,16 +1,16 @@
-# Combined Integration Test (Ubuntu) Pipeline
+# Combined Integration Test (Every PR) Pipeline
 #
-# Runs the combined integration test on Ubuntu only.
-# This is the fast default CI that runs on every PR to ensure nothing is broken.
+# Runs the combined integration test on Ubuntu, Windows, and macOS.
+# This is the default CI that runs on every PR to ensure nothing is broken
+# on any platform, not just Ubuntu.
 #
-# For multi-platform testing (Windows, macOS), see multiplatform-tests.yml.
 # For all workspace setup types, see workspace-setup-tests.yml.
 #
 # Trigger behavior:
-# - PRs to develop: Always runs (Ubuntu-only)
-# - Manual dispatch: Always runs (Ubuntu-only)
+# - PRs to develop: Always runs (all platforms)
+# - Manual dispatch: Always runs (all platforms)
 
-name: Combined Integration Test (Ubuntu)
+name: Combined Integration Test (Every PR)
 
 on:
   pull_request:
@@ -31,4 +31,4 @@ jobs:
     uses: ./.github/workflows/_shared-platform-test.yml
     with:
       ref: ${{ inputs.branch || '' }}
-      platforms: ubuntu
+      platforms: ubuntu,windows,macos

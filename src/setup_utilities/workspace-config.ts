@@ -659,7 +659,7 @@ export function getToolchainDir() {
 /**
  * Information parsed from a build directory (CMakeCache.txt + build_info.yml).
  */
-interface CMakeCacheInfo {
+export interface CMakeCacheInfo {
   gdbPath?: string;
   elfName?: string;
   toolchainPath?: string;
@@ -673,7 +673,7 @@ interface CMakeCacheInfo {
  * @param buildDir The top-level build directory path
  * @returns An object containing the parsed GDB path, ELF name, and toolchain path
  */
-function readCMakeCacheInfo(buildDir: string): CMakeCacheInfo {
+export function readCMakeCacheInfo(buildDir: string): CMakeCacheInfo {
   const info: CMakeCacheInfo = {};
 
   // Resolve the effective build directory, handling sysbuild via domains.yaml

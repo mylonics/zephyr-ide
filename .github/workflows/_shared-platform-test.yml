@@ -8,8 +8,11 @@
 # system dependencies) are hardcoded here.
 #
 # Called by:
-#   - basic-tests.yml (Ubuntu-only, fast CI for every PR)
-#   - multiplatform-tests.yml (Ubuntu + Windows + macOS for releases)
+#   - basic-tests.yml (Ubuntu + Windows + macOS, fast CI for every PR)
+#
+# (multiplatform-tests.yml used to call this too, gated to bump-version/
+# full_test PRs — removed once basic-tests.yml started running all 3
+# platforms unconditionally, which made that gated run fully redundant.)
 
 name: _Shared Combined Integration Test
 

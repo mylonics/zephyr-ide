@@ -30,8 +30,7 @@
 # - PRs to develop with 'full_test' label: Runs
 # - Manual dispatch: Always runs
 #
-# For fast single-workspace CI, see basic-tests.yml.
-# For multi-platform testing, see multiplatform-tests.yml.
+# For fast single-workspace CI (all 3 platforms), see basic-tests.yml.
 
 name: Workspace Setup Tests
 

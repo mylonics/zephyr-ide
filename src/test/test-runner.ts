@@ -20,7 +20,15 @@ import * as assert from 'assert';
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import { readZephyrIdeJson } from '../setup_utilities/zephyr_ide_json';
-import { configureExistingVenvEnvironment } from '../setup_utilities/workspace-config';
+import { configureExistingVenvEnvironment, readCMakeCacheInfo } from '../setup_utilities/workspace-config';
+import { getBuildFolder } from '../project_utilities/project';
+import { getBuildInfo, getZephyrDtsPath, regenerateCompileCommands } from '../zephyr_utilities/build';
+import { resolveEffectiveBuildDir, invalidateRunnersYamlCache, getSysbuildDomains, getRunnersYamlHint } from '../zephyr_utilities/runners-yaml';
+import { resolveKconfigBuildDir, resolveDotConfig } from '../build_data/kconfig-session';
+import { readMemorySummary, readDashboardData, readMemoryReports } from '../build_data/build-artifact-reader';
+import { runMemoryReports, runFullMemoryRefresh } from '../build_data/memory-report-runner';
+import { listSaveTargets } from '../panels/dashboard_view/kconfig-fragment';
+import { DashboardPanel } from '../panels/dashboard_view/DashboardPanel';
 import { UIMockInterface } from './ui-mock-interface';
 import type { MockInteraction } from './ui-mock-interface';
 
@@ -553,6 +561,398 @@ export async function assertWorkspaceReopenReDetectsVenv(testName: string): Prom
     assert.strictEqual(activeSetupState.env["PATH"], previousPath, `Re-detected PATH must match the original venv bin path (${testName})`);
 
     console.log(`   ✅ Verified: reopening the workspace correctly re-detects and re-registers the existing venv (${testName})`);
+}
+
+/**
+ * Add a second build configuration with `--sysbuild` enabled, then build it.
+ *
+ * Rather than re-driving the interactive `add-build` board-picker wizard
+ * (whose quickpick values differ per workspace type — several workspace
+ * setup tests build against a project auto-detected from a cloned sample
+ * repo whose board is not known ahead of time), this clones the config of
+ * whichever build is *already* active for the project (every workspace
+ * setup test has produced exactly one working build by the time this runs)
+ * and adds `--sysbuild` to its `westBuildArgs`. This is both safe (same
+ * board/toolchain that is already known to build) and representative of a
+ * real user toggling sysbuild on an existing build. The clone is written
+ * directly into the live `wsConfig` object — the same direct-state technique
+ * used by assertWorkspaceReopenReDetectsVenv — since the (test-only) shortcut
+ * of skipping the interactive wizard means there is no `context` available
+ * here to persist it to `.vscode/zephyr-ide.json`; that's fine, `zephyr-ide.build`
+ * and every function this feeds into verifyBuildFsFunctions operate on the
+ * live in-memory wsConfig, not the on-disk JSON.
+ *
+ * Mirrors executeFinalBuild's build-and-assert-success pattern, but
+ * deliberately does NOT assert an ELF was produced via `get-zephyr-elf` —
+ * that check (and its expected sysbuild-specific failure) belongs to
+ * verifyBuildFsFunctions. This helper only asserts the build itself
+ * succeeded and that `domains.yaml` (the sysbuild marker checked by
+ * build.ts's pristine detection) was actually produced, so a build that
+ * silently ignored `--sysbuild` fails loudly here instead.
+ *
+ * @param projectName Project to clone a sysbuild build for; defaults to `wsConfig.activeProject`.
+ * @param newBuildName Name for the new build config (default `"sysbuild_build"`).
+ * @returns The resolved project name, the pre-existing regular build's name
+ *   (read back from `activeBuildConfig` before it was switched), and the new
+ *   sysbuild build's name — ready to hand to `verifyBuildFsFunctions`.
+ */
+export async function addAndBuildSysbuild(
+    projectName?: string,
+    newBuildName: string = "sysbuild_build"
+): Promise<{ projectName: string; regularBuildName: string; sysbuildBuildName: string }> {
+    const ext = vscode.extensions.getExtension("mylonics.zephyr-ide");
+    const wsConfig = ext?.isActive && ext.exports?.getWorkspaceConfig
+        ? ext.exports.getWorkspaceConfig()
+        : undefined;
+    assert.ok(wsConfig, `Extension workspace config not available (addAndBuildSysbuild)`);
+
+    const resolvedProjectName: string | undefined = projectName ?? wsConfig.activeProject;
+    assert.ok(resolvedProjectName, `No active project to clone a sysbuild build from (addAndBuildSysbuild)`);
+    const project = wsConfig.projects[resolvedProjectName];
+    assert.ok(project, `Project "${resolvedProjectName}" not found (addAndBuildSysbuild)`);
+
+    const regularBuildName: string | undefined = wsConfig.projectStates[resolvedProjectName]?.activeBuildConfig;
+    assert.ok(regularBuildName, `Project "${resolvedProjectName}" has no active build to clone for sysbuild (addAndBuildSysbuild)`);
+    const regularBuild = project.buildConfigs[regularBuildName];
+    assert.ok(regularBuild, `Active build "${regularBuildName}" config not found (addAndBuildSysbuild)`);
+
+    console.log(`🔨 Cloning build "${regularBuildName}" as "${newBuildName}" with --sysbuild enabled...`);
+    const sysbuildConfig = {
+        ...regularBuild,
+        name: newBuildName,
+        westBuildArgs: [...(regularBuild.westBuildArgs ?? []), '--sysbuild'],
+    };
+    project.buildConfigs[newBuildName] = sysbuildConfig;
+    wsConfig.projectStates[resolvedProjectName].buildStates[newBuildName] = { viewOpen: true };
+    wsConfig.activeProject = resolvedProjectName;
+    wsConfig.projectStates[resolvedProjectName].activeBuildConfig = newBuildName;
+    invalidateRunnersYamlCache();
+
+    console.log(`⚡ Building sysbuild build "${newBuildName}"...`);
+    await waitForBuildReady(`Sysbuild build (${resolvedProjectName})`);
+    const result = await vscode.commands.executeCommand("zephyr-ide.build");
+    assert.strictEqual(result, true, `Sysbuild build command must return true (exit code 0). Got: ${result}`);
+
+    const buildFolder = getBuildFolder(wsConfig, project, sysbuildConfig);
+    const domainsYamlPath = path.join(buildFolder, "domains.yaml");
+    assert.ok(
+        await fs.pathExists(domainsYamlPath),
+        `Sysbuild build succeeded but domains.yaml not found at ${domainsYamlPath} — sysbuild may not have actually been enabled for this board/toolchain`
+    );
+    console.log(`   ✅ Verified: sysbuild build produced domains.yaml at ${domainsYamlPath}`);
+
+    return { projectName: resolvedProjectName, regularBuildName, sysbuildBuildName: newBuildName };
+}
+
+interface BuildFsCheckSpec {
+    /** Build config name (must already exist on the project). */
+    build: string;
+    /** Whether this build was configured with `--sysbuild`. */
+    sysbuild: boolean;
+}
+
+interface BuildFsFailure {
+    build: string;
+    check: string;
+    message: string;
+}
+
+/**
+ * "Special unit test" covering the filesystem/path-resolution and
+ * build-artifact-parsing functions across the codebase. Runs once per entry
+ * in `builds` — typically a regular build and a `--sysbuild` build of the
+ * same project — against the real, already-built build directory on disk.
+ *
+ * Functions checked per build:
+ *   - Commands: get-zephyr-elf-dir, get-zephyr-elf, get-gdb-path,
+ *     get-arm-gdb-path, get-toolchain-path, get-active-build-path,
+ *     get-active-build-board-path, get-zephyr-dir.
+ *   - getBuildInfo (build.ts), readCMakeCacheInfo (workspace-config.ts),
+ *     getZephyrDtsPath (build.ts), resolveKconfigBuildDir + resolveDotConfig
+ *     (kconfig-session.ts), listSaveTargets (kconfig-fragment.ts).
+ *   - Sysbuild-aware functions, kept as a passing contrast:
+ *     resolveEffectiveBuildDir, getSysbuildDomains, getRunnersYamlHint
+ *     (runners-yaml.ts), readMemorySummary, readDashboardData
+ *     (build-artifact-reader.ts).
+ *   - Report-generating functions (side-effecting — actually invoke
+ *     cmake/west report targets, then verify the artifact they produce):
+ *     runMemoryReports, runFullMemoryRefresh (memory-report-runner.ts),
+ *     buildDashboardReport and buildDashboard (build.ts, driven through the
+ *     zephyr-ide.run-dashboard-report / zephyr-ide.run-dashboard commands
+ *     since both take a vscode.ExtensionContext that tests don't have direct
+ *     access to).
+ *   - One cross-build check: regenerateCompileCommands (build.ts), which
+ *     merges every project/build's compile_commands.json into one file.
+ *
+ * The functions above were identified (by reviewing every function that
+ * touches the filesystem or parses a build artifact) as either already
+ * routing sysbuild builds through `resolveEffectiveBuildDir`
+ * (runners-yaml.ts) before constructing a path, or NOT doing so —
+ * `get-zephyr-elf-dir`, `get-zephyr-elf`, `getBuildInfo`, `getZephyrDtsPath`,
+ * `resolveKconfigBuildDir`, `listSaveTargets`, and `regenerateCompileCommands`
+ * are all expected to mis-resolve for the sysbuild build; the rest are
+ * expected to pass for BOTH builds, which helps confirm those failures are
+ * localized rather than the sysbuild build itself being broken. The four
+ * report-generating functions are NOT pre-classified as pass/fail-expected —
+ * unlike the others, there's no direct code-inspection evidence either way
+ * (buildDashboardReport/buildMenuConfig dispatch through `west build
+ * --build-dir <top-level>`, which — unlike a raw `cmake --build <dir>` —
+ * may let west's own sysbuild domain handling do the right thing even
+ * without an explicit resolveEffectiveBuildDir call); this run is what
+ * discovers their actual behavior.
+ *
+ * Not covered here: buildMenuConfig (build.ts) — `west build -t menuconfig`
+ * (ncurses TUI) and `-t guiconfig` (Tk GUI) are both inherently interactive
+ * with no headless mode, so calling either risks hanging an unattended CI
+ * job indefinitely; see the comment at its call site below for what of its
+ * logic is still covered indirectly. findSvdFile (board-directory lookup)
+ * was also left out: its inputs don't depend on build type, so it has no
+ * sysbuild-specific behavior to surface.
+ *
+ * All checks run to completion (each wrapped in its own try/catch) and every
+ * failure is collected into one aggregated assertion at the end, so a single
+ * run reports every function that mis-resolves paths for sysbuild instead of
+ * stopping at the first one.
+ *
+ * At this stage some checks are EXPECTED to fail for the sysbuild build —
+ * fixing the underlying functions is out of scope here; this test only makes
+ * the defects observable.
+ */
+export async function verifyBuildFsFunctions(
+    projectName: string,
+    builds: BuildFsCheckSpec[]
+): Promise<void> {
+    const ext = vscode.extensions.getExtension("mylonics.zephyr-ide");
+    const wsConfig = ext?.isActive && ext.exports?.getWorkspaceConfig
+        ? ext.exports.getWorkspaceConfig()
+        : undefined;
+    assert.ok(wsConfig, `Extension workspace config not available (verifyBuildFsFunctions)`);
+
+    const project = wsConfig.projects[projectName];
+    assert.ok(project, `Project "${projectName}" not found (verifyBuildFsFunctions)`);
+
+    const failures: BuildFsFailure[] = [];
+    const check = async (buildLabel: string, name: string, fn: () => Promise<void> | void): Promise<void> => {
+        try {
+            await fn();
+        } catch (error) {
+            failures.push({ build: buildLabel, check: name, message: error instanceof Error ? error.message : String(error) });
+        }
+    };
+
+    for (const { build: buildName, sysbuild } of builds) {
+        console.log(`🔎 Verifying filesystem/parsing functions for build "${buildName}" (sysbuild=${sysbuild})...`);
+
+        const buildConfig = project.buildConfigs[buildName];
+        assert.ok(buildConfig, `Build "${buildName}" not found on project "${projectName}" (verifyBuildFsFunctions)`);
+
+        // Select the build deterministically — same direct-state technique as
+        // assertWorkspaceReopenReDetectsVenv — rather than driving the
+        // set-active-build quickpick through the UI mock.
+        wsConfig.projectStates[projectName].activeBuildConfig = buildName;
+        invalidateRunnersYamlCache();
+
+        const buildFolder = getBuildFolder(wsConfig, project, buildConfig);
+
+        const commandChecks: Array<[string, string]> = [
+            ["zephyr-ide.get-zephyr-elf-dir", "get-zephyr-elf-dir"],
+            ["zephyr-ide.get-zephyr-elf", "get-zephyr-elf"],
+            ["zephyr-ide.get-gdb-path", "get-gdb-path"],
+            ["zephyr-ide.get-arm-gdb-path", "get-arm-gdb-path"],
+            ["zephyr-ide.get-toolchain-path", "get-toolchain-path"],
+            ["zephyr-ide.get-active-build-path", "get-active-build-path"],
+            ["zephyr-ide.get-active-build-board-path", "get-active-build-board-path"],
+            ["zephyr-ide.get-zephyr-dir", "get-zephyr-dir"],
+        ];
+        for (const [commandId, label] of commandChecks) {
+            await check(buildName, label, async () => {
+                const result = await vscode.commands.executeCommand<string>(commandId);
+                assert.ok(result, `${commandId} returned no path`);
+                assert.ok(await fs.pathExists(result), `${commandId} returned "${result}" which does not exist on disk`);
+            });
+        }
+
+        await check(buildName, "getBuildInfo", async () => {
+            const info = await getBuildInfo(wsConfig, project, buildConfig);
+            assert.ok(info, "getBuildInfo returned undefined");
+            assert.ok(info.dtsFile, "getBuildInfo did not resolve a dtsFile");
+        });
+
+        await check(buildName, "readCMakeCacheInfo", () => {
+            const info = readCMakeCacheInfo(buildFolder);
+            assert.ok(info.elfName, "readCMakeCacheInfo did not find BYPRODUCT_KERNEL_ELF_NAME");
+            assert.ok(info.gdbPath, "readCMakeCacheInfo did not find CMAKE_GDB");
+            assert.ok(info.toolchainPath, "readCMakeCacheInfo did not find toolchain.path");
+        });
+
+        await check(buildName, "getZephyrDtsPath", async () => {
+            const dtsPath = getZephyrDtsPath(wsConfig);
+            assert.ok(dtsPath, "getZephyrDtsPath returned undefined");
+            assert.ok(await fs.pathExists(dtsPath as string), `getZephyrDtsPath returned "${dtsPath}" which does not exist on disk`);
+        });
+
+        await check(buildName, "resolveKconfigBuildDir + .config", async () => {
+            const kconfigBuildDir = resolveKconfigBuildDir(wsConfig);
+            assert.ok(kconfigBuildDir, "resolveKconfigBuildDir returned undefined");
+            const dotConfigPath = resolveDotConfig(kconfigBuildDir as string);
+            assert.ok(await fs.pathExists(dotConfigPath), `resolveDotConfig returned "${dotConfigPath}" which does not exist on disk`);
+        });
+
+        await check(buildName, "listSaveTargets (kconfig-fragment.ts)", () => {
+            // build_info.yml lives at the top-level buildFolder for a regular
+            // build (so its committed prj.conf is auto-detected as a save
+            // target), but under the sysbuild domain's subdirectory for a
+            // sysbuild build — listSaveTargets uses getBuildFolder directly
+            // (no domain resolution), so it should find zero "auto" entries there.
+            const targets = listSaveTargets(wsConfig, project, buildConfig);
+            assert.ok(
+                targets.some((t) => t.kind === "auto"),
+                `listSaveTargets found no auto-detected save target (expected at least prj.conf from build_info.yml)`
+            );
+        });
+
+        // --- Sysbuild-aware functions, expected to pass for BOTH builds ---
+        await check(buildName, "resolveEffectiveBuildDir", async () => {
+            const effectiveDir = resolveEffectiveBuildDir(buildFolder);
+            if (sysbuild) {
+                assert.notStrictEqual(effectiveDir, buildFolder, "resolveEffectiveBuildDir did not redirect into a domain build dir for a sysbuild build");
+            }
+            assert.ok(await fs.pathExists(effectiveDir), `resolveEffectiveBuildDir returned "${effectiveDir}" which does not exist on disk`);
+        });
+
+        await check(buildName, "readMemorySummary", () => {
+            const summary = readMemorySummary(buildFolder);
+            const total = summary.bss + summary.rodata + summary.rwdata + summary.text + summary.other;
+            assert.ok(total > 0, `readMemorySummary returned an all-zero summary for "${buildFolder}"`);
+        });
+
+        await check(buildName, "getSysbuildDomains", () => {
+            const domains = getSysbuildDomains(buildFolder);
+            if (sysbuild) {
+                assert.ok(domains && domains.length > 0, `getSysbuildDomains found no domains for a sysbuild build at "${buildFolder}"`);
+            } else {
+                assert.strictEqual(domains, undefined, `getSysbuildDomains unexpectedly found domains.yaml for a non-sysbuild build at "${buildFolder}"`);
+            }
+        });
+
+        await check(buildName, "getRunnersYamlHint", () => {
+            const hint = getRunnersYamlHint(buildFolder);
+            assert.ok(hint, "getRunnersYamlHint returned undefined");
+            assert.ok(hint.availableRunners.length > 0, "getRunnersYamlHint found no available runners");
+        });
+
+        await check(buildName, "readDashboardData", async () => {
+            const data = await readDashboardData(buildFolder, projectName, buildName);
+            assert.ok(data.summary.board, "readDashboardData did not resolve a board");
+            assert.ok(data.dts.source && data.dts.source.length > 0, "readDashboardData did not read zephyr.dts source");
+            assert.ok(data.kconfig.length > 0, "readDashboardData did not parse any Kconfig entries from .config");
+            assert.ok(data.summary.elfSize, "readDashboardData resolved no ELF size");
+        });
+
+        // --- Report-generating functions. These actually invoke cmake/west
+        // report targets against the build directory (side-effecting, unlike
+        // the read-only checks above), but are otherwise safe/non-interactive
+        // — unlike buildMenuConfig (see note below), nothing here blocks on a
+        // terminal or GUI. ---
+
+        await check(buildName, "runMemoryReports", async () => {
+            const setupState = wsConfig.activeSetupState;
+            assert.ok(setupState, "wsConfig.activeSetupState is not set");
+            const error = await runMemoryReports(buildFolder, setupState, projectName, buildName);
+            assert.strictEqual(error, null, `runMemoryReports failed: ${error}`);
+            const reports = readMemoryReports(buildFolder);
+            assert.ok(reports.ram || reports.rom, "runMemoryReports completed but produced no ram/rom report data (ram.json/rom.json not found afterward)");
+        });
+
+        await check(buildName, "runFullMemoryRefresh", async () => {
+            const setupState = wsConfig.activeSetupState;
+            assert.ok(setupState, "wsConfig.activeSetupState is not set");
+            const error = await runFullMemoryRefresh(buildFolder, setupState, projectName, buildName);
+            assert.strictEqual(error, null, `runFullMemoryRefresh failed: ${error}`);
+            const reports = readMemoryReports(buildFolder);
+            assert.ok(reports.ram || reports.rom, "runFullMemoryRefresh completed but produced no ram/rom report data (ram.json/rom.json not found afterward)");
+        });
+
+        // buildDashboardReport (build.ts) needs a vscode.ExtensionContext,
+        // which is not available to tests directly — drive it through the
+        // already-registered zephyr-ide.run-dashboard-report command instead
+        // (context is bound there via closure at registration time). That
+        // command doesn't return the produced paths, so verify success via
+        // dashboard/memoryreport.html — the report's own distinctive on-disk
+        // artifact — under the domain-resolved build directory.
+        await check(buildName, "buildDashboardReport", async () => {
+            await vscode.commands.executeCommand("zephyr-ide.run-dashboard-report");
+            const effectiveDir = resolveEffectiveBuildDir(buildFolder);
+            const dashboardHtmlPath = path.join(effectiveDir, "dashboard", "memoryreport.html");
+            assert.ok(
+                await fs.pathExists(dashboardHtmlPath),
+                `buildDashboardReport (via zephyr-ide.run-dashboard-report) did not produce "${dashboardHtmlPath}"`
+            );
+        });
+
+        // buildDashboard (build.ts) also needs a vscode.ExtensionContext —
+        // same reasoning as buildDashboardReport above, driven through
+        // zephyr-ide.run-dashboard instead. Unlike run-dashboard-report, this
+        // command opens (or reuses) a real DashboardPanel webview as a side
+        // effect; dispose it immediately after asserting it was created so no
+        // panel is left open across the remaining checks/builds.
+        await check(buildName, "buildDashboard", async () => {
+            await vscode.commands.executeCommand("zephyr-ide.run-dashboard");
+            const panel = DashboardPanel.getPanel(projectName, buildName);
+            try {
+                assert.ok(panel, "buildDashboard (via zephyr-ide.run-dashboard) did not create/open a DashboardPanel");
+            } finally {
+                panel?.dispose();
+            }
+        });
+
+        // buildMenuConfig (build.ts) is intentionally NOT tested here:
+        // `west build -t menuconfig` (ncurses TUI) and `-t guiconfig` (Tk GUI)
+        // are both inherently interactive with no headless/non-interactive
+        // mode — calling either would block indefinitely waiting for
+        // terminal/GUI input with no way to programmatically dismiss them,
+        // risking an unattended CI job hanging forever. Its own path
+        // resolution (getProjectFolder/getBuildFolder/regenerateCompileCommands/
+        // updateDtsContext -> getBuildInfo) is already exercised by the other
+        // checks in this loop.
+    }
+
+    // --- One-time (not per-build) check: regenerateCompileCommands scans
+    // ALL builds of ALL projects into a single merged .vscode/compile_commands.json.
+    // Its own path resolution (build.ts) checks basepath/compile_commands.json
+    // then basepath/<project.name>/compile_commands.json — neither of which is
+    // resolveEffectiveBuildDir's domain subdirectory — so entries from a
+    // sysbuild build are expected to be silently dropped from the merge.
+    const sysbuildEntry = builds.find((b) => b.sysbuild);
+    if (sysbuildEntry) {
+        await check(sysbuildEntry.build, "regenerateCompileCommands", async () => {
+            await regenerateCompileCommands(wsConfig);
+            const mergedPath = path.join(wsConfig.rootPath, '.vscode', 'compile_commands.json');
+            assert.ok(await fs.pathExists(mergedPath), `regenerateCompileCommands did not produce ${mergedPath}`);
+            const merged = JSON.parse(await fs.readFile(mergedPath, 'utf8'));
+            assert.ok(Array.isArray(merged) && merged.length > 0, `regenerateCompileCommands produced an empty compile_commands.json`);
+
+            const sysbuildBuildConfig = project.buildConfigs[sysbuildEntry.build];
+            const sysbuildEffectiveDir = normalizePath(resolveEffectiveBuildDir(getBuildFolder(wsConfig, project, sysbuildBuildConfig))).toLowerCase();
+            const includesSysbuildEntries = merged.some((e: any) =>
+                typeof e.directory === 'string' && normalizePath(e.directory).toLowerCase().includes(sysbuildEffectiveDir)
+            );
+            assert.ok(
+                includesSysbuildEntries,
+                `regenerateCompileCommands' merged output has no entries from the sysbuild build's directory ("${sysbuildEffectiveDir}")`
+            );
+        });
+    }
+
+    if (failures.length > 0) {
+        const report = failures.map((f) => `  [${f.build}] ${f.check}: ${f.message}`).join('\n');
+        console.log(`\n❌ verifyBuildFsFunctions found ${failures.length} failing check(s):\n${report}\n`);
+        assert.fail(
+            `verifyBuildFsFunctions: ${failures.length} filesystem/parsing check(s) failed across ${builds.length} build(s):\n${report}`
+        );
+    }
+
+    console.log(`✅ verifyBuildFsFunctions: all checks passed for ${builds.length} build(s)`);
 }
 
 /**
