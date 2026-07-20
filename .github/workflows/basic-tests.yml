@@ -5,10 +5,6 @@
 # on any platform, not just Ubuntu.
 #
 # For all workspace setup types, see workspace-setup-tests.yml.
-# multiplatform-tests.yml runs the same combined test again, gated to
-# bump-version branches / the 'full_test' label — on those PRs it now
-# duplicates this job; kept separate in case its gating is later changed
-# to cover something this workflow doesn't.
 #
 # Trigger behavior:
 # - PRs to develop: Always runs (all platforms)

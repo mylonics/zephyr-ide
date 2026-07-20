@@ -96,7 +96,7 @@ The release process has been consolidated into a streamlined workflow that requi
   - **Trigger**: Pull requests to develop
   - **Manual Trigger**: Can be triggered manually with optional `branch` input
   - **Actions**: Builds VSIX, runs the combined integration test on all 3 OSes
-  - **Purpose**: Fast CI gate for every PR — duplicates multiplatform-tests.yml's job on PRs where both fire (bump-version branches / `full_test` label)
+  - **Purpose**: Fast CI gate for every PR, on every platform
 
 - **`unit-tests.yml`** - Lightweight unit tests for every PR
   - **Trigger**: Pull requests to develop
@@ -104,17 +104,10 @@ The release process has been consolidated into a streamlined workflow that requi
   - **Actions**: Compiles, lints, and runs unit tests (no Zephyr SDK required)
   - **Purpose**: Fast validation of utility functions, configuration parsing, and logic
 
-- **`multiplatform-tests.yml`** - Multi-platform integration test for releases
-  - **Trigger**: PRs to develop (bump PRs or `full_test` label)
-  - **Manual Trigger**: Can be triggered manually with optional `branch` input
-  - **Platforms**: Ubuntu, Windows, macOS 15 (all three)
-  - **Actions**: Builds VSIX, runs platform integration test on all platforms
-  - **Purpose**: Validates cross-platform compatibility before releases
-
-- **`_shared-platform-test.yml`** - Reusable workflow shared by basic-tests and multiplatform-tests
+- **`_shared-platform-test.yml`** - Reusable workflow called by basic-tests.yml
   - **Trigger**: Called by other workflows (`workflow_call`)
   - **Actions**: Builds VSIX on Ubuntu, then runs platform integration test on the requested platforms
-  - **Purpose**: Eliminates code duplication between basic-tests and multiplatform-tests
+  - **Purpose**: Keeps the build-VSIX-then-test-per-platform logic in one place, callable with any platform list
 
 - **`deploy-docs.yml`** - Deploys documentation to GitHub Pages
 - **`package-artifact.yml`** - Packages the extension as a VSIX file (runs on develop branch)

@@ -22,7 +22,7 @@ process.on('exit', () => {
 // Heavyweight suites that require a real Zephyr SDK, network access, and a
 // full west/build toolchain. These are run explicitly via the `integration`
 // label (scripts/run-integration-tests.js, workspace-setup-tests.yml,
-// basic-tests.yml / multiplatform-tests.yml for the combined suite).
+// basic-tests.yml for the combined suite).
 //
 // This is the single source of truth for which compiled test files count as
 // "integration". Every other file under out/test is picked up automatically
