@@ -23,6 +23,8 @@ import {
     executeWorkspaceCommand,
     setupWorkspaceScenarioSuite,
     runWorkspaceScenarioTest,
+    addAndBuildSysbuild,
+    verifyBuildFsFunctions,
 } from "./test-runner";
 
 /*
@@ -93,6 +95,13 @@ suite("Workspace West Git Test Suite", () => {
 
             console.log("⚡ Step 4: Executing build with custom board...");
             await executeFinalBuild("West Git Workspace");
+
+            console.log("🧪 Step 5: Adding a sysbuild build and verifying filesystem/parsing functions...");
+            const { projectName, regularBuildName, sysbuildBuildName } = await addAndBuildSysbuild();
+            await verifyBuildFsFunctions(projectName, [
+                { build: regularBuildName, sysbuild: false },
+                { build: sysbuildBuildName, sysbuild: true },
+            ]);
         });
     });
 });

@@ -21,6 +21,8 @@ import {
     executeFinalBuild,
     setupWorkspaceScenarioSuite,
     runWorkspaceScenarioTest,
+    addAndBuildSysbuild,
+    verifyBuildFsFunctions,
 } from "./test-runner";
 
 /*
@@ -64,6 +66,13 @@ suite("Workspace Zephyr IDE Git Test Suite", () => {
 
             console.log("⚡ Step 2: Executing build...");
             await executeFinalBuild("Zephyr IDE Git Workspace");
+
+            console.log("🧪 Step 3: Adding a sysbuild build and verifying filesystem/parsing functions...");
+            const { projectName, regularBuildName, sysbuildBuildName } = await addAndBuildSysbuild();
+            await verifyBuildFsFunctions(projectName, [
+                { build: regularBuildName, sysbuild: false },
+                { build: sysbuildBuildName, sysbuild: true },
+            ]);
         });
     });
 });

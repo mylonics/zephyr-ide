@@ -546,6 +546,27 @@ export async function refreshDashboardMemory(
   return { ...readMemoryRefresh(buildFolder), error };
 }
 
+/**
+ * Get the path to a build's zephyr.dts file. Resolves the active project/build
+ * when not given explicitly. Does NOT resolve sysbuild domains — for a sysbuild
+ * build the real zephyr.dts lives under the domain's build directory instead.
+ * @param wsConfig The workspace configuration
+ * @returns The path to zephyr.dts, or undefined if no active build
+ */
+export function getZephyrDtsPath(
+  wsConfig: WorkspaceConfig,
+  project?: ProjectConfig,
+  build?: BuildConfig
+): string | undefined {
+  if (!project || !build) {
+    const resolved = resolveActiveProjectBuild(wsConfig);
+    if (!resolved) { return undefined; }
+    project = project ?? resolved.project;
+    build = build ?? resolved.build;
+  }
+  return path.join(getBuildFolder(wsConfig, project, build), 'zephyr', 'zephyr.dts');
+}
+
 export async function runDtshShell(
   context: vscode.ExtensionContext,
   wsConfig: WorkspaceConfig,
@@ -560,7 +581,7 @@ export async function runDtshShell(
     build = build ?? resolved.build;
   }
 
-  const cmd = `dtsh "${path.join(getBuildFolder(wsConfig, project, build), 'zephyr', 'zephyr.dts')}" `;
+  const cmd = `dtsh "${getZephyrDtsPath(wsConfig, project, build)}" `;
 
   const taskName = "Zephyr IDE DTSH Shell: " + project.name + " " + build.name;
 
