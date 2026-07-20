@@ -265,7 +265,7 @@ The CI workflows are:
 
 ### Test Workflows
 - `.github/workflows/unit-tests.yml` — Lightweight unit tests (no SDK needed), runs on every PR to develop
-- `.github/workflows/basic-tests.yml` — Ubuntu-only combined integration test, runs on every PR to develop
+- `.github/workflows/basic-tests.yml` — Ubuntu + Windows + macOS combined integration test, runs on every PR to develop
 - `.github/workflows/multiplatform-tests.yml` — Ubuntu + Windows + macOS combined test, runs on bump-version PRs or PRs with `full_test` label
 - `.github/workflows/workspace-setup-tests.yml` — All 5 workspace setup types on Ubuntu + macOS, runs on bump-version PRs or PRs with `full_test` label
 - `.github/workflows/_shared-platform-test.yml` — Reusable workflow called by basic-tests and multiplatform-tests (builds VSIX, runs combined test)

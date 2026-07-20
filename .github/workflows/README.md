@@ -92,11 +92,11 @@ The release process has been consolidated into a streamlined workflow that requi
   - **Actions**: Runs all workspace setup test suites (standard, west-git, zephyr-ide-git, local-west, external-zephyr), each as its own job with its own PR check status
   - **Caching**: Zephyr SDK toolchain download is cached per OS + SDK version (`~/.zephyr_ide/toolchains`); west/git module checkouts are not cached (see comments in the workflow file for why)
 
-- **`basic-tests.yml`** - Fast Ubuntu-only platform integration test for every PR
+- **`basic-tests.yml`** - Fast platform integration test (Ubuntu, macOS, Windows) for every PR
   - **Trigger**: Pull requests to develop
   - **Manual Trigger**: Can be triggered manually with optional `branch` input
-  - **Actions**: Builds VSIX, runs platform integration test on Ubuntu
-  - **Purpose**: Fast CI gate for every PR
+  - **Actions**: Builds VSIX, runs the combined integration test on all 3 OSes
+  - **Purpose**: Fast CI gate for every PR — duplicates multiplatform-tests.yml's job on PRs where both fire (bump-version branches / `full_test` label)
 
 - **`unit-tests.yml`** - Lightweight unit tests for every PR
   - **Trigger**: Pull requests to develop

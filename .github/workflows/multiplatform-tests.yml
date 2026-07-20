@@ -1,9 +1,13 @@
 # Combined Integration Test (All Platforms) Pipeline
 #
 # Runs the combined integration test on Ubuntu, Windows, and macOS.
-# This is the heavier CI that validates cross-platform compatibility before releases.
 #
-# For fast Ubuntu-only testing, see basic-tests.yml.
+# NOTE: basic-tests.yml now also runs this same combined test on all three
+# platforms on every PR (see that file's header). On the bump-version /
+# full_test-labeled PRs this workflow targets, the two currently duplicate
+# each other; this one is kept separate in case its gating is later scoped
+# to something basic-tests.yml doesn't cover (e.g. a heavier release-only check).
+#
 # For all workspace setup types, see workspace-setup-tests.yml.
 #
 # Trigger behavior:
@@ -65,8 +69,9 @@ jobs:
 
           echo "should_run=false" >> "$GITHUB_OUTPUT"
 
-  # Skip duplicate runs: if basic-tests.yml already covers this PR on Ubuntu,
-  # this workflow adds Windows and macOS. For pushes it runs all three.
+  # basic-tests.yml now runs the same all-platform combined test on every PR,
+  # so on the bump-version/full_test-labeled PRs this workflow targets, the
+  # two runs are fully redundant (see the NOTE in this file's header).
   multiplatform-test:
     needs: check-should-run
     if: needs.check-should-run.outputs.should_run == 'true'

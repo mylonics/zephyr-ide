@@ -8,8 +8,8 @@
 # system dependencies) are hardcoded here.
 #
 # Called by:
-#   - basic-tests.yml (Ubuntu-only, fast CI for every PR)
-#   - multiplatform-tests.yml (Ubuntu + Windows + macOS for releases)
+#   - basic-tests.yml (Ubuntu + Windows + macOS, fast CI for every PR)
+#   - multiplatform-tests.yml (Ubuntu + Windows + macOS, gated to bump-version/full_test PRs)
 
 name: _Shared Combined Integration Test
 
