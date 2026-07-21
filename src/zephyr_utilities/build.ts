@@ -34,7 +34,7 @@ import { joinBuildArgsForShell, normalizeBuildArgs, normalizeCMakeArg, quoteBuil
 import { updateDtsContext } from "../setup_utilities/dts_interface";
 import { getSetupState, getSetupStateOrNotify, updateBuildCMakeInfo, clearBuildCMakeInfo } from "../setup_utilities/workspace-config";
 import { setWorkspaceState } from "../setup_utilities/state-management";
-import { invalidateRunnersYamlCache, resolveEffectiveBuildDir } from "./runners-yaml";
+import { invalidateRunnersYamlCache, resolveEffectiveBuildDir, getSysbuildDomains } from "./runners-yaml";
 
 
 export interface BuildInfo {
@@ -470,7 +470,6 @@ export async function buildDashboardReport(
     build = build ?? resolved.build;
   }
 
-  const projectFolder = getProjectFolder(wsConfig, project);
   const buildFolder = getBuildFolder(wsConfig, project, build);
   if (!isBuildFolderPopulated(buildFolder)) {
     notifyError("Dashboard Report", "Run a Build or Build Pristine before generating the Dashboard Report.");
@@ -480,16 +479,77 @@ export async function buildDashboardReport(
   const setupState = await getSetupStateOrNotify(context, wsConfig, "Dashboard Report");
   if (!setupState) { return undefined; }
 
+  // Use `cmake --build --target dashboard` against the domain-resolved build
+  // dir, same as runMemoryReports' ram_report/rom_report — NOT `west build -t
+  // dashboard <projectFolder> --build-dir <buildFolder>` (the previous
+  // command here). The "dashboard" CMake target only exists in an actual
+  // Zephyr image's build tree; for a sysbuild project that tree is the
+  // per-domain subdirectory, not the top-level sysbuild orchestration dir
+  // that `--build-dir buildFolder` points at, so the old command failed
+  // outright for sysbuild builds. It also matches known-slow/hanging
+  // behavior seen for a *non*-sysbuild build in CI — `west build` re-invokes
+  // west's own Python layer on top of cmake, which cmake --build skips.
+  const effectiveFolder = resolveEffectiveBuildDir(buildFolder);
   const taskName = `Zephyr IDE Dashboard Report: ${project.name} ${build.name}`;
-  const cmd = `west build -t dashboard "${projectFolder}" --build-dir "${buildFolder}"`;
+  const cmd = `cmake --build "${effectiveFolder}" --target dashboard`;
   outputInfo(
     `Dashboard Report: ${project.name}/${build.name}`,
     `Running Zephyr dashboard report for ${build.name} (cmd: ${cmd})`,
     true
   );
-  await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState.setupPath);
+  const taskSucceeded = await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState.setupPath);
+
+  // The task's exit status used to be discarded here, so a fast build-system
+  // failure (e.g. no "dashboard" target at this build dir — which is the
+  // case when pointed at a sysbuild top-level dir instead of the per-image
+  // domain dir) looked identical to success from here on: the caller would
+  // just fail later when the expected memoryreport.html wasn't found, with
+  // no indication of why.
+  if (!taskSucceeded) {
+    notifyError(
+      "Dashboard Report",
+      `west build -t dashboard failed for ${project.name}/${build.name} (cmd: ${cmd}) — see the "${taskName}" task output for details.`
+    );
+    return undefined;
+  }
+
+  logDashboardReportLocations(project.name, build.name, buildFolder);
 
   return { buildFolder, projectName: project.name, buildName: build.name };
+}
+
+/**
+ * Diagnostic: logs every location under a build directory where
+ * dashboard/memoryreport.html actually exists — the top-level dir, the
+ * resolved default-domain dir, and (for sysbuild) every other domain's dir.
+ * `west build -t dashboard` is a plain Zephyr/CMake target with no
+ * sysbuild-specific docs on where it writes for a multi-domain build, so
+ * this pins down the real location instead of assuming it matches the
+ * default domain that readDashboardData() resolves to.
+ */
+function logDashboardReportLocations(projectName: string, buildName: string, buildFolder: string): void {
+  const candidates = new Map<string, string>();
+  candidates.set("top-level", buildFolder);
+  const defaultDomainDir = resolveEffectiveBuildDir(buildFolder);
+  if (defaultDomainDir !== buildFolder) {
+    candidates.set("default domain", defaultDomainDir);
+  }
+  for (const domain of getSysbuildDomains(buildFolder) ?? []) {
+    candidates.set(`domain "${domain.name}"`, domain.buildDir);
+  }
+
+  const found: string[] = [];
+  const missing: string[] = [];
+  for (const [label, dir] of candidates) {
+    const htmlPath = path.join(dir, "dashboard", "memoryreport.html");
+    (fs.existsSync(htmlPath) ? found : missing).push(`${label} (${htmlPath})`);
+  }
+  outputInfo(
+    `Dashboard Report: ${projectName}/${buildName}`,
+    `memoryreport.html search — found: ${found.length ? found.join(", ") : "none"}` +
+    (missing.length ? `; not at: ${missing.join(", ")}` : ""),
+    false
+  );
 }
 
 export async function buildDashboard(
@@ -520,7 +580,14 @@ export async function buildDashboard(
 
   // Read fast artifacts from disk immediately — no subprocess needed.
   const cachedPristineCmd = wsConfig.projectStates[project.name]?.buildStates[build.name]?.cachedPristineCmd ?? null;
+  // Bracketed with before/after logging (not just the summary line above) so
+  // that if this ever stalls in CI, the log's last line names the exact step
+  // stuck — readDashboardData does its own filesystem parsing (ELF, Kconfig,
+  // map file, dts, memory reports) with no subprocess involved, so a stall
+  // here would point at a specific parser rather than an external process.
+  outputInfo(`Dashboard: ${project.name}/${build.name}`, `Reading build artifacts from disk (readDashboardData)...`, false);
   const data = await readDashboardData(buildFolder, project.name, build.name, 'zephyr', cachedPristineCmd);
+  outputInfo(`Dashboard: ${project.name}/${build.name}`, `readDashboardData finished — returning to caller to open the panel.`, false);
   return { success: true, data, buildFolder, projectName: project.name, buildName: build.name };
 }
 

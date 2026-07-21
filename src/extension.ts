@@ -1913,7 +1913,15 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.run-dashboard", async () => {
       // 1. Fast path: read build artifacts from disk immediately.
       const result = await buildDashboard(context, wsConfig);
-      if (!result?.success) { return; }
+      if (!result?.success) {
+        // buildDashboard() already logged/notified the specific reason
+        // (unpopulated build folder, no setup state, etc.) via notifyError —
+        // this line exists so a "no panel" outcome is never silent in the
+        // output channel: without it, this early return leaves no trace of
+        // why zephyr-ide.run-dashboard finished without opening anything.
+        outputInfo("Dashboard", "run-dashboard: buildDashboard() did not return data — no panel opened (see above for the reason).", false);
+        return;
+      }
 
       // Resolve the project/build objects so the Kconfig save callback can
       // persist its fragment into the right build's confFiles list.
@@ -1922,6 +1930,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
       // 2. Open the panel right away with all fast data (memory tree is null
       //    until the cmake targets finish).
+      outputInfo("Dashboard", `run-dashboard: opening DashboardPanel for ${result.projectName}/${result.buildName} (createWebviewPanel)...`, false);
       const panel = DashboardPanel.createOrShow(
         context.extensionPath,
         result.data,
@@ -2029,9 +2038,11 @@ export async function activate(context: vscode.ExtensionContext) {
           await buildByName(context, wsConfig, pristine, result.projectName, result.buildName);
         },
       );
+      outputInfo("Dashboard", `run-dashboard: DashboardPanel created/reused for ${result.projectName}/${result.buildName}.`, false);
 
       // 3. Auto-trigger memory report generation in the background so the
       //    Memory page populates without requiring a manual refresh click.
+      // (fire-and-forget — does not block run-dashboard from finishing)
       void panel.refreshMemory();
     })
   );

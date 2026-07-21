@@ -28,7 +28,6 @@ import { resolveKconfigBuildDir, resolveDotConfig } from '../build_data/kconfig-
 import { readMemorySummary, readDashboardData, readMemoryReports } from '../build_data/build-artifact-reader';
 import { runMemoryReports, runFullMemoryRefresh } from '../build_data/memory-report-runner';
 import { listSaveTargets } from '../panels/dashboard_view/kconfig-fragment';
-import { DashboardPanel } from '../panels/dashboard_view/DashboardPanel';
 import { UIMockInterface } from './ui-mock-interface';
 import type { MockInteraction } from './ui-mock-interface';
 
@@ -750,10 +749,25 @@ export async function verifyBuildFsFunctions(
     // occurred. Logging elapsed time periodically means the log's last line
     // before a timeout always names the stuck check.
     const HEARTBEAT_MS = 20000;
-    const check = async (buildLabel: string, name: string, fn: () => Promise<void> | void): Promise<void> => {
+    // `probe` is polled on every heartbeat tick and its text appended to the
+    // "still running" line — for checks that shell out to `west`/cmake with
+    // no stdout capture (ShellExecution-based Tasks write to a VS Code
+    // terminal, not to this log), it's otherwise impossible to tell whether
+    // a slow check is still making progress or is fully wedged. Kept opt-in
+    // (undefined for most checks) rather than doing filesystem probing for
+    // every check, since it only makes sense where the caller knows what
+    // on-disk side effect to look for.
+    const check = async (
+        buildLabel: string,
+        name: string,
+        fn: () => Promise<void> | void,
+        probe?: () => string,
+    ): Promise<void> => {
         const startedAt = Date.now();
         const heartbeat = setInterval(() => {
-            console.log(`   ⏳ [${buildLabel}] ${name}: still running after ${Math.round((Date.now() - startedAt) / 1000)}s...`);
+            const elapsed = Math.round((Date.now() - startedAt) / 1000);
+            const probeText = probe ? ` — ${probe()}` : "";
+            console.log(`   ⏳ [${buildLabel}] ${name}: still running after ${elapsed}s...${probeText}`);
         }, HEARTBEAT_MS);
         try {
             await Promise.race([
@@ -943,10 +957,10 @@ export async function verifyBuildFsFunctions(
         // artifact — under the domain-resolved build directory.
         await check(buildName, "buildDashboardReport", async () => {
             // buildDashboardReport (build.ts) does its own outputInfo/outputCommand
-            // logging before running `west build -t dashboard`, so the extension
-            // debug log already names the command — this line is for the mocha
-            // console specifically, which doesn't see that output live.
-            console.log(`   ▶️  [${buildName}] buildDashboardReport: zephyr-ide.run-dashboard-report (west build -t dashboard)`);
+            // logging before running `cmake --build --target dashboard`, so the
+            // extension debug log already names the command — this line is for
+            // the mocha console specifically, which doesn't see that output live.
+            console.log(`   ▶️  [${buildName}] buildDashboardReport: zephyr-ide.run-dashboard-report (cmake --build --target dashboard)`);
             await vscode.commands.executeCommand("zephyr-ide.run-dashboard-report");
             const effectiveDir = resolveEffectiveBuildDir(buildFolder);
             const dashboardHtmlPath = path.join(effectiveDir, "dashboard", "memoryreport.html");
@@ -954,22 +968,57 @@ export async function verifyBuildFsFunctions(
                 await fs.pathExists(dashboardHtmlPath),
                 `buildDashboardReport (via zephyr-ide.run-dashboard-report) did not produce "${dashboardHtmlPath}"`
             );
+        }, () => {
+            // The dashboard target runs as a VS Code ShellExecution Task, whose
+            // stdout goes to a real terminal rather than this log — so during a
+            // stall there is otherwise zero visibility into whether cmake is
+            // still building or the process is fully wedged after finishing its
+            // real work. Reporting the dashboard output dir's contents each
+            // heartbeat distinguishes "target hasn't produced anything yet"
+            // from "memoryreport.html is already on disk but the task still
+            // hasn't exited".
+            const dashboardDir = path.join(resolveEffectiveBuildDir(buildFolder), "dashboard");
+            if (!fs.existsSync(dashboardDir)) {
+                return `no "${dashboardDir}" yet (target still building, or failed before writing anything)`;
+            }
+            const entries = fs.readdirSync(dashboardDir);
+            return `"${dashboardDir}" has ${entries.length} entr${entries.length === 1 ? "y" : "ies"}: [${entries.join(", ")}] — files exist but the task still hasn't exited`;
         });
 
         // buildDashboard (build.ts) also needs a vscode.ExtensionContext —
         // same reasoning as buildDashboardReport above, driven through
         // zephyr-ide.run-dashboard instead. Unlike run-dashboard-report, this
         // command opens (or reuses) a real DashboardPanel webview as a side
-        // effect; dispose it immediately after asserting it was created so no
-        // panel is left open across the remaining checks/builds.
+        // effect.
+        //
+        // Verified via vscode.window.tabGroups rather than
+        // DashboardPanel.getPanel(): the running extension loads from the
+        // esbuild bundle (dist/extension.js, per package.json's "main"),
+        // while this test file is compiled separately by tsc into out/ and
+        // would import DashboardPanel via a relative path — a second,
+        // distinct copy of the class with its own independent static
+        // _panels map. DashboardPanel.getPanel() called from here would
+        // therefore always read an empty map regardless of what the real
+        // extension did (confirmed: extension-side logging showed the panel
+        // being created successfully on every run while this assertion
+        // still failed every time). Querying the actual VS Code tab list
+        // instead crosses that module boundary correctly, since tabGroups
+        // reflects real UI state rather than per-module memory. Close the
+        // tab afterward so none is left open across the remaining
+        // checks/builds.
         await check(buildName, "buildDashboard", async () => {
             console.log(`   ▶️  [${buildName}] buildDashboard: zephyr-ide.run-dashboard`);
             await vscode.commands.executeCommand("zephyr-ide.run-dashboard");
-            const panel = DashboardPanel.getPanel(projectName, buildName);
+            const expectedTitle = `Dashboard: ${projectName} / ${buildName}`;
+            const tab = vscode.window.tabGroups.all
+                .flatMap((group) => group.tabs)
+                .find((t) => t.label === expectedTitle);
             try {
-                assert.ok(panel, "buildDashboard (via zephyr-ide.run-dashboard) did not create/open a DashboardPanel");
+                assert.ok(tab, `buildDashboard (via zephyr-ide.run-dashboard) did not open a "${expectedTitle}" tab`);
             } finally {
-                panel?.dispose();
+                if (tab) {
+                    await vscode.window.tabGroups.close(tab);
+                }
             }
         });
 
