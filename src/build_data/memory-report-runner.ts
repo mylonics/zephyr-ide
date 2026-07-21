@@ -25,6 +25,7 @@ import * as path from 'upath';
 import { executeShellCommandInPythonEnv, executeTaskHelperInPythonEnv } from '../utilities/utils';
 import type { SetupState } from '../setup_utilities/types';
 import { resolveEffectiveBuildDir } from '../zephyr_utilities/runners-yaml';
+import { parseCMakeCache } from './build-artifact-reader';
 
 // ---------------------------------------------------------------------------
 // Stat file regeneration via nm
@@ -35,17 +36,8 @@ import { resolveEffectiveBuildDir } from '../zephyr_utilities/runners-yaml';
  * the nm binary, or null if unavailable.
  */
 function readCMakeNm(buildFolder: string): string | null {
-  const cachePath = path.join(buildFolder, 'CMakeCache.txt');
-  if (!fs.existsSync(cachePath)) { return null; }
-  for (const line of fs.readFileSync(cachePath, 'utf8').split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed.startsWith('CMAKE_NM')) { continue; }
-    const eqIdx = trimmed.indexOf('=');
-    if (eqIdx === -1) { continue; }
-    const val = trimmed.slice(eqIdx + 1).trim();
-    if (val && fs.existsSync(val)) { return val; }
-  }
-  return null;
+  const nm = parseCMakeCache(buildFolder)['CMAKE_NM']?.trim();
+  return nm && fs.existsSync(nm) ? nm : null;
 }
 
 /**
@@ -82,19 +74,36 @@ async function generateStatFile(
 // Public API
 // ---------------------------------------------------------------------------
 
+export type MemoryReportTarget = 'ram_report' | 'rom_report';
+
+export interface MemoryReportRunResult {
+  /** Error message on failure, or null on success. */
+  error: string | null;
+  /**
+   * Combined stdout+stderr from the underlying cmake invocation(s). Only
+   * populated in silent mode — a visible Task terminal has no programmatic
+   * output to capture. Callers that don't need it (e.g. runFullMemoryRefresh)
+   * can ignore it.
+   */
+  output: string;
+}
+
 /**
- * Runs the cmake `ram_report` and `rom_report` targets which write
- * `ram.json` and `rom.json` at the build root.
- * Returns an error message string on failure, or null on success.
+ * Runs the cmake `ram_report` and/or `rom_report` targets, which write
+ * `ram.json` and/or `rom.json` at the build root. This is the single
+ * implementation behind both the Dashboard's "Refresh Memory" button
+ * (runFullMemoryRefresh, silent) and the standalone "Run RAM/ROM Report"
+ * commands (build.ts's buildRamRomReport/buildRamRomReportHeadless, one
+ * target at a time, silent or visible per caller).
  *
  * When sysbuild is in use (domains.yaml present) the cmake command is run
  * against the default domain's build directory rather than the top-level
  * sysbuild directory.
  *
  * When `silent` is true (the default) the cmake commands run as background
- * child processes with no visible terminal.  Pass `silent = false` to keep
- * the old behaviour of showing a VS Code Task terminal (used by the explicit
- * "Run RAM/ROM Report" commands).
+ * child processes with no visible terminal.  Pass `silent = false` to show
+ * a VS Code Task terminal instead (used by the explicit "Run RAM/ROM Report"
+ * commands).
  */
 export async function runMemoryReports(
   buildFolder: string,
@@ -102,24 +111,28 @@ export async function runMemoryReports(
   projectName = 'project',
   buildName = 'build',
   silent = true,
-): Promise<string | null> {
+  targets: ReadonlyArray<MemoryReportTarget> = ['ram_report', 'rom_report'],
+): Promise<MemoryReportRunResult> {
   const effectiveFolder = resolveEffectiveBuildDir(buildFolder);
-  for (const target of ['ram_report', 'rom_report']) {
+  const outputs: string[] = [];
+  for (const target of targets) {
     const cmd = `cmake --build "${effectiveFolder}" --target ${target}`;
     if (silent) {
       const result = await executeShellCommandInPythonEnv(cmd, setupState.setupPath ?? '', setupState, false);
+      const combined = [result.stdout, result.stderr].filter(Boolean).join('\n');
+      if (combined) { outputs.push(combined); }
       if (result.exitCode !== 0) {
-        return `cmake --target ${target} failed.`;
+        return { error: `cmake --target ${target} failed.`, output: outputs.join('\n') };
       }
     } else {
       const taskName = `Zephyr IDE Memory Report: ${projectName} ${buildName}`;
       const ok = await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState.setupPath);
       if (!ok) {
-        return `cmake --target ${target} failed. Check the terminal output for details.`;
+        return { error: `cmake --target ${target} failed. Check the terminal output for details.`, output: outputs.join('\n') };
       }
     }
   }
-  return null;
+  return { error: null, output: outputs.join('\n') };
 }
 
 /**
@@ -134,11 +147,11 @@ export async function runFullMemoryRefresh(
   buildName?: string,
 ): Promise<string | null> {
   // Stat file regeneration is fast and non-critical — run it in parallel with cmake.
-  const [, cmakeError] = await Promise.all([
+  const [, cmakeResult] = await Promise.all([
     generateStatFile(buildFolder, setupState),
     runMemoryReports(buildFolder, setupState, projectName, buildName),
   ]);
-  return cmakeError;
+  return cmakeResult.error;
 }
 
 /**

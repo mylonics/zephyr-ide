@@ -34,6 +34,8 @@ import * as path from "upath";
 import { ChildProcessWithoutNullStreams, spawn } from "child_process";
 import type { SetupState, WorkspaceConfig } from "../setup_utilities/types";
 import { resolveActiveProjectBuild, getBuildFolder } from "../project_utilities/project";
+import { resolveEffectiveBuildDir } from "../zephyr_utilities/runners-yaml";
+import { parseCMakeCache } from "./build-artifact-reader";
 
 // ---------------------------------------------------------------------------
 // Public types - kept loose; the helper is the source of truth for shape.
@@ -172,17 +174,8 @@ const CMAKE_TO_ENV: Array<[cacheKey: string, envName: string]> = [
  * defaults defined in the Kconfig source.
  */
 export function buildEnvFromCMakeCache(buildFolder: string): Record<string, string> {
-  const cachePath = path.join(buildFolder, "CMakeCache.txt");
-  if (!fs.existsSync(cachePath)) { return {}; }
-  const cache: Record<string, string> = {};
-  for (const line of fs.readFileSync(cachePath, "utf8").split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("//") || trimmed.startsWith("#")) { continue; }
-    const eqIdx = trimmed.indexOf("=");
-    if (eqIdx === -1) { continue; }
-    const key = trimmed.slice(0, eqIdx).split(":")[0];
-    cache[key] = trimmed.slice(eqIdx + 1);
-  }
+  if (!fs.existsSync(path.join(buildFolder, "CMakeCache.txt"))) { return {}; }
+  const cache = parseCMakeCache(buildFolder);
   const env: Record<string, string> = {};
   for (const [cacheKey, envName] of CMAKE_TO_ENV) {
     const v = cache[cacheKey];
@@ -278,10 +271,11 @@ export function resolveDotConfig(buildFolder: string): string {
 /**
  * Resolve the build directory fed into the Kconfig editor session for a build
  * (defaults to the active project/build). Mirrors the same resolution used by
- * buildDashboard/buildDashboardReport (build.ts) before handing the build
- * folder to buildEnvFromCMakeCache/resolveDotConfig — i.e. it does NOT resolve
- * sysbuild domains, so for a sysbuild build this points at the top-level build
- * directory rather than the domain's build directory.
+ * the Kconfig editor's lazy session factory (extension.ts) before handing the
+ * build folder to buildEnvFromCMakeCache/resolveDotConfig — including
+ * resolving sysbuild domains via resolveEffectiveBuildDir, so a sysbuild
+ * build's session reads/writes the per-image CMakeCache.txt/.config rather
+ * than the top-level sysbuild directory's own (different) files.
  */
 export function resolveKconfigBuildDir(
   wsConfig: WorkspaceConfig,
@@ -290,7 +284,7 @@ export function resolveKconfigBuildDir(
 ): string | undefined {
   const resolved = resolveActiveProjectBuild(wsConfig, { projectName, buildName });
   if (!resolved) { return undefined; }
-  return getBuildFolder(wsConfig, resolved.project, resolved.build);
+  return resolveEffectiveBuildDir(getBuildFolder(wsConfig, resolved.project, resolved.build));
 }
 
 // ---------------------------------------------------------------------------

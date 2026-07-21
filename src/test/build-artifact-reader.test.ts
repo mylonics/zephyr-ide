@@ -19,7 +19,7 @@ import * as assert from "assert";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { readMemoryReports, readDashboardData } from "../build_data/build-artifact-reader";
+import { readMemoryReports, readDashboardData, readBuildInfoSourceFiles } from "../build_data/build-artifact-reader";
 
 suite("build-artifact-reader Test Suite", () => {
 
@@ -100,6 +100,45 @@ suite("build-artifact-reader Test Suite", () => {
             fs.writeFileSync(path.join(buildFolder, "ram.json"), "{ this is not valid json");
             const result = readMemoryReports(buildFolder);
             assert.strictEqual(result.ram, null);
+        });
+    });
+
+    suite("readBuildInfoSourceFiles", () => {
+        test("reads Kconfig and devicetree file lists through the shared YAML reader", () => {
+            fs.writeFileSync(path.join(buildFolder, "build_info.yml"), [
+                "cmake:",
+                "  kconfig:",
+                "    files:",
+                "      - /src/Kconfig",
+                "    user-files:",
+                "      - /src/prj.conf",
+                "  devicetree:",
+                "    files:",
+                "      - /boards/board.dts",
+                "    user-files:",
+                "      - /src/app.overlay",
+            ].join("\n"));
+
+            assert.deepStrictEqual(readBuildInfoSourceFiles(buildFolder), {
+                kconfigFiles: ["/src/Kconfig", "/src/prj.conf"],
+                dtsFiles: ["/boards/board.dts", "/src/app.overlay"],
+            });
+        });
+
+        test("ignores malformed non-array file fields", () => {
+            fs.writeFileSync(path.join(buildFolder, "build_info.yml"), [
+                "cmake:",
+                "  kconfig:",
+                "    files: /src/Kconfig",
+                "  devicetree:",
+                "    files:",
+                "      unexpected: value",
+            ].join("\n"));
+
+            assert.deepStrictEqual(readBuildInfoSourceFiles(buildFolder), {
+                kconfigFiles: [],
+                dtsFiles: [],
+            });
         });
     });
 

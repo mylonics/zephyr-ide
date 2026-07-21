@@ -81,7 +81,7 @@ import {
   ZEPHYR_IDE_CORTEX_DEBUG_TYPE,
   ZEPHYR_IDE_WEST_DEBUG_TYPE,
 } from "./zephyr_utilities/debug-provider";
-import { getSysbuildDomains, resolveRunnersYamlPath } from "./zephyr_utilities/runners-yaml";
+import { getSysbuildDomains, resolveRunnersYamlPath, resolveEffectiveBuildDir } from "./zephyr_utilities/runners-yaml";
 import { DebugBind, formatBindLabel } from "./project_utilities/runner_profiles";
 import { WEST_DEBUG_RUNNERS } from "./project_utilities/runner_selector";
 import { WorkspaceConfig, GlobalConfig } from "./setup_utilities/types";
@@ -248,11 +248,11 @@ function registerTreeView<T>(
 function registerCommandWithRefresh(
   context: vscode.ExtensionContext,
   commandId: string,
-  action: () => Promise<any>
+  action: (...args: any[]) => Promise<any>
 ) {
   context.subscriptions.push(
-    vscode.commands.registerCommand(commandId, async () => {
-      const result = await action();
+    vscode.commands.registerCommand(commandId, async (...args: any[]) => {
+      const result = await action(...args);
       void vscode.commands.executeCommand("zephyr-ide.update-web-view");
       return result;
     })
@@ -1441,10 +1441,10 @@ export async function activate(context: vscode.ExtensionContext) {
     () => project.setActiveProject(context, wsConfig));
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("zephyr-ide.add-build", async () => {
+    vscode.commands.registerCommand("zephyr-ide.add-build", async (buildConfig) => {
       const setupState = await getSetupState(context, wsConfig);
       if (setupState && setupState.westUpdated) {
-        const result = await project.addBuild(wsConfig, context);
+        const result = await project.addBuild(wsConfig, context, buildConfig);
         void vscode.commands.executeCommand("zephyr-ide.update-web-view");
         return result;
       } else {
@@ -1502,7 +1502,7 @@ export async function activate(context: vscode.ExtensionContext) {
   });
 
   registerCommandWithRefresh(context, "zephyr-ide.set-active-build",
-    () => project.setActiveBuild(context, wsConfig));
+    (selectedBuild?: string) => project.setActiveBuild(context, wsConfig, selectedBuild));
 
   // U5: Single command that lets the user choose which debug target to reconfigure.
   // The legacy per-target commands (change-debug-launch-for-build /
@@ -1913,7 +1913,15 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.run-dashboard", async () => {
       // 1. Fast path: read build artifacts from disk immediately.
       const result = await buildDashboard(context, wsConfig);
-      if (!result?.success) { return; }
+      if (!result?.success) {
+        // buildDashboard() already logged/notified the specific reason
+        // (unpopulated build folder, no setup state, etc.) via notifyError —
+        // this line exists so a "no panel" outcome is never silent in the
+        // output channel: without it, this early return leaves no trace of
+        // why zephyr-ide.run-dashboard finished without opening anything.
+        outputInfo("Dashboard", "run-dashboard: buildDashboard() did not return data — no panel opened (see above for the reason).", false);
+        return;
+      }
 
       // Resolve the project/build objects so the Kconfig save callback can
       // persist its fragment into the right build's confFiles list.
@@ -1922,6 +1930,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
       // 2. Open the panel right away with all fast data (memory tree is null
       //    until the cmake targets finish).
+      outputInfo("Dashboard", `run-dashboard: opening DashboardPanel for ${result.projectName}/${result.buildName} (createWebviewPanel)...`, false);
       const panel = DashboardPanel.createOrShow(
         context.extensionPath,
         result.data,
@@ -1973,7 +1982,11 @@ export async function activate(context: vscode.ExtensionContext) {
         // Lazy Kconfig session factory: spawned on first kconfig request from
         // the webview, kept alive for the panel's lifetime, disposed on close.
         () => {
-          const buildFolder = result.buildFolder;
+          // result.buildFolder is the top-level build dir; resolve the sysbuild
+          // domain (if any) so a sysbuild build's Kconfig session reads/writes
+          // the actual per-image CMakeCache.txt/.config instead of the
+          // top-level sysbuild directory's own (different) files.
+          const buildFolder = resolveEffectiveBuildDir(result.buildFolder);
           const env = buildEnvFromCMakeCache(buildFolder);
           const kconfigRoot = resolveKconfigRoot(env);
           if (!kconfigRoot) {
@@ -2025,9 +2038,11 @@ export async function activate(context: vscode.ExtensionContext) {
           await buildByName(context, wsConfig, pristine, result.projectName, result.buildName);
         },
       );
+      outputInfo("Dashboard", `run-dashboard: DashboardPanel created/reused for ${result.projectName}/${result.buildName}.`, false);
 
       // 3. Auto-trigger memory report generation in the background so the
       //    Memory page populates without requiring a manual refresh click.
+      // (fire-and-forget — does not block run-dashboard from finishing)
       void panel.refreshMemory();
     })
   );

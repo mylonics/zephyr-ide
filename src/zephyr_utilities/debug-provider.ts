@@ -72,7 +72,7 @@ import {
   RunnersYaml,
 } from "./runners-yaml";
 import { startWestDebugServer, disposeOnSessionEnd } from "./debug-server-bridge";
-import { resolveActiveProjectBuild, askUserForProject, askUserForBuild, getEffectiveActiveProfileName, getEffectiveBuildDebugBind } from "../project_utilities/project";
+import { resolveActiveProjectBuild, askUserForProject, askUserForBuild, getEffectiveActiveProfileName, getEffectiveBuildDebugBind, getBuildFolder, getProjectFolder } from "../project_utilities/project";
 import { loadRunnerProfiles, findRunnerProfile, resolveRunnerArgs } from "../project_utilities/runner_profiles";
 import { WorkspaceConfig } from "../setup_utilities/types";
 import { getVenvPath } from "../setup_utilities/workspace-config";
@@ -866,7 +866,7 @@ export class ZephyrIdeDebugConfigurationProvider
 
     // B7: Use the active sysbuild image (if any) when resolving runners.yaml.
     const sysbuildImage = wsConfig.projectStates?.[resolved.projectName]?.buildStates?.[resolved.buildName]?.sysbuildImage;
-    const buildDir = path.join(wsConfig.rootPath, resolved.project.rel_path, resolved.buildName);
+    const buildDir = getBuildFolder(wsConfig, resolved.project, resolved.build);
     const runnersYamlPath = resolveRunnersYamlPath(buildDir, sysbuildImage);
     const runnersYaml = parseRunnersYaml(runnersYamlPath);
     if (!runnersYaml) {
@@ -1360,7 +1360,7 @@ export class ZephyrIdeDebugConfigurationProvider
     }
 
     const sysbuildImage = wsConfig.projectStates?.[resolved.projectName]?.buildStates?.[resolved.buildName]?.sysbuildImage;
-    const buildDir = path.join(wsConfig.rootPath, resolved.project.rel_path, resolved.buildName);
+    const buildDir = getBuildFolder(wsConfig, resolved.project, resolved.build);
     const runnersYamlPath = resolveRunnersYamlPath(buildDir, sysbuildImage);
     const runnersYaml = parseRunnersYaml(runnersYamlPath);
     if (!runnersYaml) {
@@ -1584,7 +1584,7 @@ export class ZephyrIdeDebugConfigurationProvider
       const spawnOk = await this.spawnAndAttachDebugServer(
         {
           setupState,
-          cwd: path.join(wsConfig.rootPath, resolved.project.rel_path),
+          cwd: getProjectFolder(wsConfig, resolved.project),
           buildDir,
           runner: requestedRunner,
           extraArgs: westArgs,

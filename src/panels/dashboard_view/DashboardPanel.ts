@@ -22,6 +22,7 @@ import * as vscode from "vscode";
 import type { DashboardData, DashboardMemoryRefresh } from "./dashboard-data";
 import { generateNonce } from "../webview_shared/nonce";
 import type { KconfigSession } from "../../build_data/kconfig-session";
+import { outputError } from "../../utilities/output";
 
 /** Callback invoked when the user requests a memory report refresh. */
 type MemoryRefreshCallback = () => Promise<(DashboardMemoryRefresh & { error?: string }) | undefined>;
@@ -134,6 +135,7 @@ export class DashboardPanel {
   /** In-flight or completed session promise. Reused across concurrent requests. */
   private _kconfigSessionPromise: Promise<KconfigSession> | undefined;
   private _memoryRefreshing = false;
+  private _disposed = false;
   private _disposables: vscode.Disposable[] = [];
 
   // ---------------------------------------------------------------------------
@@ -168,7 +170,11 @@ export class DashboardPanel {
     if (existing) {
       existing._panel.reveal(column);
       existing._data = data;
-      void existing._postData();
+      void existing._postData().catch((error) => {
+        if (!existing._disposed) {
+          outputError("Dashboard", `Failed to update dashboard data: ${String(error)}`);
+        }
+      });
       return existing;
     }
 
@@ -225,7 +231,11 @@ export class DashboardPanel {
     );
 
     this._panel.webview.html = this.getHtmlShell();
-    void this._postData();
+    void this._postData().catch((error) => {
+      if (!this._disposed) {
+        outputError("Dashboard", `Failed to post initial dashboard data: ${String(error)}`);
+      }
+    });
 
     // Kick off the Kconfig session immediately in the background so it is
     // ready (or near-ready) by the time the user navigates to the Kconfig
@@ -239,15 +249,21 @@ export class DashboardPanel {
   /** Eagerly initialises the Kconfig session and notifies the webview of the
    * outcome so the sidebar can show/hide the loading spinner. */
   private async _preloadKconfigSession(): Promise<void> {
-    await this._panel.webview.postMessage({ command: "kconfigPreloading" });
     try {
+      const posted = await this._panel.webview.postMessage({ command: "kconfigPreloading" });
+      if (!posted || this._disposed) { return; }
       await this._getOrInitSession();
+      if (this._disposed) { return; }
       await this._panel.webview.postMessage({ command: "kconfigReady" });
     } catch (err) {
-      await this._panel.webview.postMessage({
-        command: "kconfigPreloadFailed",
-        error: err instanceof Error ? err.message : String(err),
-      });
+      if (!this._disposed) {
+        try {
+          await this._panel.webview.postMessage({
+            command: "kconfigPreloadFailed",
+            error: err instanceof Error ? err.message : String(err),
+          });
+        } catch { /* panel was disposed while reporting the failure */ }
+      }
     }
   }
 
@@ -300,6 +316,9 @@ export class DashboardPanel {
    * may retry from scratch.
    */
   private _getOrInitSession(): Promise<KconfigSession> {
+    if (this._disposed) {
+      return Promise.reject(new Error("Dashboard panel is disposed."));
+    }
     if (!this._kconfigSessionFactory) {
       return Promise.reject(new Error("Kconfig editor is not available for this dashboard."));
     }
@@ -612,11 +631,13 @@ export class DashboardPanel {
   }
 
   public async refreshMemory(): Promise<void> {
-    if (this._memoryRefreshing) { return; }
+    if (this._memoryRefreshing || this._disposed) { return; }
     this._memoryRefreshing = true;
-    await this._panel.webview.postMessage({ command: "memoryRefreshing" });
     try {
+      const posted = await this._panel.webview.postMessage({ command: "memoryRefreshing" });
+      if (!posted || this._disposed) { return; }
       const result = await this._onRefreshMemory();
+      if (this._disposed) { return; }
       if (result) {
         this._data.memory = result.memory;
         this._data.summary.memorySummary = result.memorySummary;
@@ -633,10 +654,14 @@ export class DashboardPanel {
         });
       }
     } catch (err) {
-      await this._panel.webview.postMessage({
-        command: "memoryRefreshFailed",
-        error: err instanceof Error ? err.message : "Memory refresh failed unexpectedly.",
-      });
+      if (!this._disposed) {
+        try {
+          await this._panel.webview.postMessage({
+            command: "memoryRefreshFailed",
+            error: err instanceof Error ? err.message : "Memory refresh failed unexpectedly.",
+          });
+        } catch { /* panel was disposed while reporting the failure */ }
+      }
     } finally {
       this._memoryRefreshing = false;
     }
@@ -696,6 +721,8 @@ export class DashboardPanel {
   }
 
   public dispose() {
+    if (this._disposed) { return; }
+    this._disposed = true;
     for (const [key, panel] of DashboardPanel._panels.entries()) {
       if (panel === this) {
         DashboardPanel._panels.delete(key);
