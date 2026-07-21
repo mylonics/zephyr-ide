@@ -21,6 +21,7 @@ import * as fs from 'fs-extra';
 import * as path from 'path';
 import { readZephyrIdeJson } from '../setup_utilities/zephyr_ide_json';
 import { configureExistingVenvEnvironment, readCMakeCacheInfo } from '../setup_utilities/workspace-config';
+import { markZephyrIdeJsonWrite } from '../setup_utilities/zephyr-ide-json-write-guard';
 import { getBuildFolder } from '../project_utilities/project';
 import { getBuildInfo, getZephyrDtsPath, regenerateCompileCommands } from '../zephyr_utilities/build';
 import { resolveEffectiveBuildDir, invalidateRunnersYamlCache, getSysbuildDomains, getRunnersYamlHint } from '../zephyr_utilities/runners-yaml';
@@ -657,7 +658,8 @@ interface BuildFsFailure {
  * Functions checked per build:
  *   - Commands: get-zephyr-elf-dir, get-zephyr-elf, get-gdb-path,
  *     get-arm-gdb-path, get-toolchain-path, get-active-build-path,
- *     get-active-build-board-path, get-zephyr-dir.
+ *     get-active-build-board-path, get-zephyr-dir, get-active-board-name,
+ *     get-active-build-variable.
  *   - getBuildInfo (build.ts), readCMakeCacheInfo (workspace-config.ts),
  *     getZephyrDtsPath (build.ts), resolveKconfigBuildDir + resolveDotConfig
  *     (kconfig-session.ts), listSaveTargets (kconfig-fragment.ts).
@@ -674,6 +676,9 @@ interface BuildFsFailure {
  *     access to).
  *   - One cross-build check: regenerateCompileCommands (build.ts), which
  *     merges every project/build's compile_commands.json into one file.
+ *   - One-time project/workspace-scoped checks (same value regardless of
+ *     which build is active): get-active-project-name, get-active-project-path,
+ *     get-active-project-variable, get-zephyr-ide-json-variable.
  *
  * The functions above were identified (by reviewing every function that
  * touches the filesystem or parses a build artifact) as either already
@@ -698,7 +703,11 @@ interface BuildFsFailure {
  * job indefinitely; see the comment at its call site below for what of its
  * logic is still covered indirectly. findSvdFile (board-directory lookup)
  * was also left out: its inputs don't depend on build type, so it has no
- * sysbuild-specific behavior to surface.
+ * sysbuild-specific behavior to surface. select-active-build-path is also
+ * excluded — it drives the same setActiveProject/setActiveBuild QuickPicks
+ * that set-active-build already exercises non-interactively above, and
+ * would just re-test get-active-build-path's own path resolution behind an
+ * extra UI layer.
  *
  * All checks run to completion (each wrapped in its own try/catch) and every
  * failure is collected into one aggregated assertion at the end, so a single
@@ -723,6 +732,13 @@ export async function verifyBuildFsFunctions(
     assert.ok(project, `Project "${projectName}" not found (verifyBuildFsFunctions)`);
 
     const failures: BuildFsFailure[] = [];
+    // Custom-variable/JSON-key names used by the get-active-build-variable,
+    // get-active-project-variable, and get-zephyr-ide-json-variable checks
+    // below. Namespaced to avoid colliding with anything a template project
+    // or the workspace's own zephyr-ide.json might already define.
+    const ZI_TEST_BUILD_VAR = "zi_test_build_var";
+    const ZI_TEST_PROJECT_VAR = "zi_test_project_var";
+    const ZI_TEST_JSON_VAR = "zi_test_json_var";
     // The suite-level Mocha timeout remains authoritative. A per-check
     // Promise.race cannot cancel the underlying task/process and would let a
     // timed-out operation continue mutating shared build artifacts.
@@ -785,6 +801,19 @@ export async function verifyBuildFsFunctions(
                 `zephyr-ide.get-zephyr-elf-dir returned "${result}", but it does not contain zephyr.dts — likely pointing at the wrong (non-domain-resolved) directory`
             );
         });
+
+        await check(buildName, "get-active-board-name", async () => {
+            const result = await vscode.commands.executeCommand<string>("zephyr-ide.get-active-board-name");
+            assert.strictEqual(result, buildConfig.board, `zephyr-ide.get-active-board-name returned "${result}", expected "${buildConfig.board}"`);
+        });
+
+        await check(buildName, "get-active-build-variable", async () => {
+            const expected = `zi_test_build_value_${buildName}`;
+            buildConfig.customVars = { ...(buildConfig.customVars ?? {}), [ZI_TEST_BUILD_VAR]: expected };
+            const result = await vscode.commands.executeCommand<string>("zephyr-ide.get-active-build-variable", ZI_TEST_BUILD_VAR);
+            assert.strictEqual(result, expected, `zephyr-ide.get-active-build-variable returned "${result}", expected "${expected}"`);
+        });
+
         await check(buildName, "getBuildInfo", async () => {
             const info = await getBuildInfo(wsConfig, project, buildConfig);
             assert.ok(info, "getBuildInfo returned undefined");
@@ -997,6 +1026,48 @@ export async function verifyBuildFsFunctions(
             );
         });
     }
+
+    // --- One-time (not per-build) project/workspace-scoped checks. These
+    // commands return the same value regardless of which build is active, so
+    // asserting them once (against whichever build the loop above last
+    // activated) is sufficient. ---
+
+    await check(projectName, "get-active-project-name", async () => {
+        const result = await vscode.commands.executeCommand<string>("zephyr-ide.get-active-project-name");
+        assert.strictEqual(result, projectName, `zephyr-ide.get-active-project-name returned "${result}", expected "${projectName}"`);
+    });
+
+    await check(projectName, "get-active-project-path", async () => {
+        const expected = path.join(wsConfig.rootPath, project.rel_path);
+        const result = await vscode.commands.executeCommand<string>("zephyr-ide.get-active-project-path");
+        assert.ok(result, "zephyr-ide.get-active-project-path returned no path");
+        assert.ok(await fs.pathExists(result), `zephyr-ide.get-active-project-path returned "${result}" which does not exist on disk`);
+        assert.strictEqual(normalizePath(result), normalizePath(expected), `zephyr-ide.get-active-project-path returned "${result}", expected "${expected}"`);
+    });
+
+    await check(projectName, "get-active-project-variable", async () => {
+        const expected = `zi_test_project_value_${projectName}`;
+        project.customVars = { ...(project.customVars ?? {}), [ZI_TEST_PROJECT_VAR]: expected };
+        const result = await vscode.commands.executeCommand<string>("zephyr-ide.get-active-project-variable", ZI_TEST_PROJECT_VAR);
+        assert.strictEqual(result, expected, `zephyr-ide.get-active-project-variable returned "${result}", expected "${expected}"`);
+    });
+
+    // Run last: writing to zephyr-ide.json is wrapped in markZephyrIdeJsonWrite
+    // (as every other write path to this file does) so extension.ts's own
+    // FileSystemWatcher treats it as an extension-initiated write and skips
+    // its external-edit reload — but ordering this after the in-memory
+    // customVars checks above is still cheap insurance against that reload
+    // (which re-parses .vscode/zephyr-ide.json into wsConfig.projects)
+    // clobbering their unsaved, in-memory-only seeded values.
+    await check(projectName, "get-zephyr-ide-json-variable", async () => {
+        const expected = "zi_test_json_value";
+        const zephyrIdeJsonPath = path.join(wsConfig.rootPath, ".vscode", "zephyr-ide.json");
+        const jsonObject = JSON.parse(await fs.readFile(zephyrIdeJsonPath, "utf8"));
+        jsonObject[ZI_TEST_JSON_VAR] = expected;
+        await markZephyrIdeJsonWrite(() => fs.writeFile(zephyrIdeJsonPath, JSON.stringify(jsonObject, null, 2)));
+        const result = await vscode.commands.executeCommand<string>("zephyr-ide.get-zephyr-ide-json-variable", ZI_TEST_JSON_VAR);
+        assert.strictEqual(result, expected, `zephyr-ide.get-zephyr-ide-json-variable returned "${result}", expected "${expected}"`);
+    });
 
     if (failures.length > 0) {
         const report = failures.map((f) => `  [${f.build}] ${f.check}: ${f.message}`).join('\n');
