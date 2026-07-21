@@ -807,7 +807,18 @@ export async function verifyBuildFsFunctions(
 
         await check(buildName, "get-active-build-variable", async () => {
             const expected = `zi_test_build_value_${buildName}`;
-            buildConfig.customVars = { ...(buildConfig.customVars ?? {}), [ZI_TEST_BUILD_VAR]: expected };
+            // Fetch the live build config fresh right here rather than mutating
+            // the outer `buildConfig` captured at loop start: wsConfig.projects
+            // can be replaced wholesale by extension.ts's zephyr-ide.json
+            // FileSystemWatcher reload (loadProjectsFromFile) at any point during
+            // this function's long-running per-build checks (cmake/west report
+            // generation can take minutes) — long enough for even
+            // markZephyrIdeJsonWrite's grace period to have elapsed, especially
+            // on macOS where FSEvents delivery is often delayed under I/O load.
+            // Mutating a reference captured long ago risks writing to an object
+            // no longer reachable from wsConfig by the time the command reads it.
+            const liveBuildConfig = wsConfig.projects[projectName].buildConfigs[buildName];
+            liveBuildConfig.customVars = { ...(liveBuildConfig.customVars ?? {}), [ZI_TEST_BUILD_VAR]: expected };
             const result = await vscode.commands.executeCommand<string>("zephyr-ide.get-active-build-variable", ZI_TEST_BUILD_VAR);
             assert.strictEqual(result, expected, `zephyr-ide.get-active-build-variable returned "${result}", expected "${expected}"`);
         });
@@ -1045,7 +1056,9 @@ export async function verifyBuildFsFunctions(
 
     await check(projectName, "get-active-project-variable", async () => {
         const expected = `zi_test_project_value_${projectName}`;
-        project.customVars = { ...(project.customVars ?? {}), [ZI_TEST_PROJECT_VAR]: expected };
+        // Fetch live, same reasoning as the get-active-build-variable check above.
+        const liveProject = wsConfig.projects[projectName];
+        liveProject.customVars = { ...(liveProject.customVars ?? {}), [ZI_TEST_PROJECT_VAR]: expected };
         const result = await vscode.commands.executeCommand<string>("zephyr-ide.get-active-project-variable", ZI_TEST_PROJECT_VAR);
         assert.strictEqual(result, expected, `zephyr-ide.get-active-project-variable returned "${result}", expected "${expected}"`);
     });
