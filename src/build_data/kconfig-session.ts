@@ -174,6 +174,7 @@ const CMAKE_TO_ENV: Array<[cacheKey: string, envName: string]> = [
  * defaults defined in the Kconfig source.
  */
 export function buildEnvFromCMakeCache(buildFolder: string): Record<string, string> {
+  if (!fs.existsSync(path.join(buildFolder, "CMakeCache.txt"))) { return {}; }
   const cache = parseCMakeCache(buildFolder);
   const env: Record<string, string> = {};
   for (const [cacheKey, envName] of CMAKE_TO_ENV) {

@@ -732,9 +732,25 @@ export async function verifyBuildFsFunctions(
     assert.ok(project, `Project "${projectName}" not found (verifyBuildFsFunctions)`);
 
     const failures: BuildFsFailure[] = [];
+    // Default per-check timeout. Several checks below spawn a real subprocess
+    // (runMemoryReports/runFullMemoryRefresh via cp.exec, buildDashboardReport
+    // via a VS Code Task) — neither executeShellCommandInPythonEnv nor
+    // executeTaskHelperInPythonEnv (utilities/utils.ts) enforce a timeout of
+    // their own, so a hung/orphaned subprocess or a Task whose
+    // onDidEndTaskProcess event never fires would otherwise block this
+    // function (and the whole suite) until mocha's outer test timeout —
+    // 900s normally, 1500s for combined-installation.test.ts — instead of
+    // failing this one check. Racing every check against this timeout turns
+    // that into a fast, attributable failure.
+    const CHECK_TIMEOUT_MS = 120000;
     const check = async (buildLabel: string, name: string, fn: () => Promise<void> | void): Promise<void> => {
         try {
-            await fn();
+            await Promise.race([
+                Promise.resolve(fn()),
+                new Promise<never>((_, reject) => {
+                    setTimeout(() => reject(new Error(`timed out after ${CHECK_TIMEOUT_MS / 1000}s (possible hung subprocess/Task)`)), CHECK_TIMEOUT_MS);
+                }),
+            ]);
         } catch (error) {
             failures.push({ build: buildLabel, check: name, message: error instanceof Error ? error.message : String(error) });
         }
