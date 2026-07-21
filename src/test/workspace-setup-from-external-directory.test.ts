@@ -35,6 +35,7 @@ import {
     verifyBuildFsFunctions,
 } from "./test-runner";
 import { UIMockInterface } from "./ui-mock-interface";
+import { logStep, logDetail, createStepLogger } from "./test-log";
 
 /**
  * Resolve a same-drive directory for the external Zephyr installation.
@@ -78,7 +79,7 @@ suite("Workspace Setup From External Directory Test Suite", () => {
 
     suiteSetup(() => {
         logTestEnvironment();
-        console.log("🔬 Testing workspace-setup-from-external-directory workflow");
+        logStep("Workspace Setup From External Directory", "Starting test suite");
     });
 
     setup(async () => {
@@ -97,7 +98,9 @@ suite("Workspace Setup From External Directory Test Suite", () => {
     });
 
     test("Workspace Setup From External Directory: Folder Picker → West Selector → Project → Build", async function () {
-        console.log("🚀 Starting workspace-setup-from-external-directory test...");
+        const ctx = "Workspace Setup From External Directory";
+        const step = createStepLogger(ctx);
+        logStep(ctx, "Starting test");
 
         const uiMock = new UIMockInterface();
 
@@ -115,8 +118,8 @@ suite("Workspace Setup From External Directory Test Suite", () => {
                 // (loadExternalSetupState returns undefined otherwise). Create it up front
                 // so it mirrors what a real user would pick from the system file picker.
                 fs.mkdirSync(externalInstallDir, { recursive: true });
-                console.log(`🏗️ Step 1: Setting up workspace from external directory...`);
-                console.log(`   External install directory: ${externalInstallDir}`);
+                step("Setting up workspace from external directory");
+                logDetail(`External install directory: ${externalInstallDir}`);
 
                 const setupPromise = startWorkspaceCommand(
                     uiMock,
@@ -129,7 +132,7 @@ suite("Workspace Setup From External Directory Test Suite", () => {
 
                 await monitorWorkspaceSetup(setupPromise, "external directory workspace");
 
-                console.log("📁 Step 2: Creating project from template...");
+                step("Creating project from template");
                 await executeWorkspaceCommand(
                     uiMock,
                     CommonUIInteractions.createBlinkyProject,
@@ -137,7 +140,7 @@ suite("Workspace Setup From External Directory Test Suite", () => {
                     "Project creation should succeed"
                 );
 
-                console.log("🔨 Step 3: Adding build configuration...");
+                step("Adding build configuration");
                 await executeWorkspaceCommand(
                     uiMock,
                     [
@@ -154,10 +157,10 @@ suite("Workspace Setup From External Directory Test Suite", () => {
 
                 await assertProjectPersisted("Workspace Setup From External Directory", "blinky", "test_build_1");
 
-                console.log("⚡ Step 4: Executing build...");
+                step("Executing build");
                 await executeFinalBuild("Workspace Setup From External Directory");
 
-                console.log("🧪 Step 5: Adding a sysbuild build and verifying filesystem/parsing functions...");
+                step("Adding a sysbuild build and verifying filesystem/parsing functions");
                 const { projectName, regularBuildName, sysbuildBuildName } = await addAndBuildSysbuild();
                 await verifyBuildFsFunctions(projectName, [
                     { build: regularBuildName, sysbuild: false },

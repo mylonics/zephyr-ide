@@ -17,6 +17,7 @@ limitations under the License.
 
 import * as vscode from "vscode";
 import * as fs from "fs-extra";
+import { logStep, logDetail, logWarn, logError } from "./test-log";
 
 export interface MockInteraction {
     type: 'quickpick' | 'input' | 'opendialog';
@@ -71,7 +72,7 @@ export class UIMockInterface {
     public primeInteractions(interactions: MockInteraction[]): void {
         this.mockQueue = interactions;
         this.currentIndex = 0;
-        console.log(`🎭 Primed ${interactions.length} mock interactions:`, interactions.map(i => `${i.type}:${i.description || i.value}`).join(', '));
+        logStep("UI Mock", `Primed ${interactions.length} interaction(s)`);
     }
 
     /**
@@ -113,9 +114,8 @@ export class UIMockInterface {
             });
 
             this.isActive = true;
-            console.log('🎭 UI Mock Interface activated');
         } catch (error) {
-            console.error('❌ Failed to activate UI Mock Interface:', error);
+            logError("UI Mock", `Failed to activate: ${error}`);
         }
     }
 
@@ -162,9 +162,8 @@ export class UIMockInterface {
             });
 
             this.isActive = false;
-            console.log('🎭 UI Mock Interface deactivated');
         } catch (error) {
-            console.error('❌ Failed to deactivate UI Mock Interface:', error);
+            logError("UI Mock", `Failed to deactivate: ${error}`);
         }
     }
 
@@ -177,7 +176,7 @@ export class UIMockInterface {
                 // Store errors from scheduled callbacks; they cannot propagate
                 // through the event-loop boundary on their own.
                 const error = err instanceof Error ? err : new Error(String(err));
-                console.error(`❌ UI Mock async error: ${error.message}`);
+                logError("UI Mock", `Async error: ${error.message}`);
                 this.lastAsyncError = error;
             }
         }, delayMs);
@@ -228,7 +227,7 @@ export class UIMockInterface {
      */
     private getNextInteraction(expectedType: MockInteraction['type']): MockInteraction | null {
         if (this.currentIndex >= this.mockQueue.length) {
-            console.warn(`⚠️  No more mock interactions available for ${expectedType}`);
+            logWarn("UI Mock", `No more mock interactions available for ${expectedType}`);
             return null;
         }
 
@@ -369,13 +368,13 @@ export class UIMockInterface {
             const values = Array.isArray(interaction.value) ? interaction.value : [value];
             const selectedItems = this.selectManyItemsOrThrow(itemsArray, values, 'showQuickPickMock');
 
-            console.log(`   → QuickPick (multi): Selected [${selectedItems.map((item: any) => this.getItemString(item)).join(', ')}] (${interaction.description || 'auto'})`);
+            logDetail(`quickpick (multi) -> [${selectedItems.map((item: any) => this.getItemString(item)).join(', ')}] (${interaction.description || 'auto'})`);
             return selectedItems;
         } else {
             // Handle single selection
             const selectedItem = this.selectSingleItemOrThrow(itemsArray, value, 'showQuickPickMock');
 
-            console.log(`   → QuickPick: Selected "${this.getItemString(selectedItem)}" (${interaction.description || 'auto'})`);
+            logDetail(`quickpick -> "${this.getItemString(selectedItem)}" (${interaction.description || 'auto'})`);
             return selectedItem;
         }
     }
@@ -388,7 +387,7 @@ export class UIMockInterface {
         }
 
         const value = interaction.value as string;
-        console.log(`   → InputBox: Entered "${value}" (${interaction.description || 'auto'})`);
+        logDetail(`input -> "${value}" (${interaction.description || 'auto'})`);
         return value;
     }
 
@@ -406,11 +405,11 @@ export class UIMockInterface {
             // Check if file exists if it's a real path
             if (await fs.pathExists(filePath)) {
                 uris.push(vscode.Uri.file(filePath));
-                console.log(`   → OpenDialog: Selected existing file "${filePath}" (${interaction.description || 'auto'})`);
+                logDetail(`opendialog -> "${filePath}" (${interaction.description || 'auto'})`);
             } else {
                 // Create URI anyway for mock purposes
                 uris.push(vscode.Uri.file(filePath));
-                console.log(`   → OpenDialog: Selected mock file "${filePath}" (${interaction.description || 'auto'})`);
+                logDetail(`opendialog -> "${filePath}" (not found on disk; ${interaction.description || 'auto'})`);
             }
         }
 
@@ -433,13 +432,13 @@ export class UIMockInterface {
                 const values = Array.isArray(interaction.value) ? interaction.value : [value];
                 const selectedItems = this.selectManyItemsOrThrow(mockQuickPick.items, values, 'createQuickPickMock');
 
-                console.log(`   → QuickPick (multi): Selected [${selectedItems.map((item: any) => this.getItemString(item)).join(', ')}] (${interaction.description || 'auto'})`);
+                logDetail(`quickpick (multi) -> [${selectedItems.map((item: any) => this.getItemString(item)).join(', ')}] (${interaction.description || 'auto'})`);
                 this.triggerQuickPickCallbacks(mockQuickPick, selectedItems);
             } else {
                 // Handle single selection
                 const selectedItem = this.selectSingleItemOrThrow(mockQuickPick.items, value, 'createQuickPickMock');
 
-                console.log(`   → QuickPick: Selected "${this.getItemString(selectedItem)}" (${interaction.description || 'auto'})`);
+                logDetail(`quickpick -> "${this.getItemString(selectedItem)}" (${interaction.description || 'auto'})`);
                 this.triggerQuickPickCallbacks(mockQuickPick, selectedItem);
             }
         } else {
@@ -464,7 +463,7 @@ export class UIMockInterface {
         } else {
             const value = interaction.value as string;
             mockInputBox.value = value;
-            console.log(`   → InputBox: Entered "${value}" (${interaction.description || 'auto'})`);
+            logDetail(`input -> "${value}" (${interaction.description || 'auto'})`);
         }
 
         if (mockInputBox._onDidChangeValueCallback) {

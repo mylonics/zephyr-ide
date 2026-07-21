@@ -26,6 +26,7 @@ import {
     addAndBuildSysbuild,
     verifyBuildFsFunctions,
 } from "./test-runner";
+import { logDetail, createStepLogger } from "./test-log";
 
 /*
  * GIT WORKFLOW INTEGRATION TEST:
@@ -46,11 +47,13 @@ suite("Workspace West Git Test Suite", () => {
     const { getTestWorkspaceDir } = setupWorkspaceScenarioSuite("west git workspace", "West Git Workspace Test");
 
     test("West Git Workspace: West Manifest → SDK Install → Add Project → Custom Board Build", async function () {
+        const ctx = "West Git Workspace";
+        const step = createStepLogger(ctx);
         const testWorkspaceDir = getTestWorkspaceDir();
-        console.log("📁 Test workspace folder:", testWorkspaceDir);
+        logDetail(`Test workspace folder: ${testWorkspaceDir}`);
 
         await runWorkspaceScenarioTest("West Git Workspace Test", testWorkspaceDir, async (gitUiMock) => {
-            console.log("🏗️ Step 1: Setting up workspace from West Git...");
+            step("Setting up workspace from West Git");
             // No SDK-version/toolchain quickpicks — SDK install after west
             // update is fully automatic and deterministic
             // (installZephyrIdeRequirements, west-operations.ts), it never
@@ -67,7 +70,7 @@ suite("Workspace West Git Test Suite", () => {
 
             await monitorWorkspaceSetup(setupPromise, "west git workspace");
 
-            console.log("📁 Step 2: Adding project from example repo...");
+            step("Adding project from example repo");
             await executeWorkspaceCommand(
                 gitUiMock,
                 [
@@ -77,7 +80,7 @@ suite("Workspace West Git Test Suite", () => {
                 "Project addition should succeed"
             );
 
-            console.log("🔨 Step 3: Adding build configuration with custom board...");
+            step("Adding build configuration with custom board");
             await executeWorkspaceCommand(
                 gitUiMock,
                 [
@@ -93,10 +96,10 @@ suite("Workspace West Git Test Suite", () => {
                 "Build configuration should succeed"
             );
 
-            console.log("⚡ Step 4: Executing build with custom board...");
+            step("Executing build with custom board");
             await executeFinalBuild("West Git Workspace");
 
-            console.log("🧪 Step 5: Adding a sysbuild build and verifying filesystem/parsing functions...");
+            step("Adding a sysbuild build and verifying filesystem/parsing functions");
             const { projectName, regularBuildName, sysbuildBuildName } = await addAndBuildSysbuild();
             await verifyBuildFsFunctions(projectName, [
                 { build: regularBuildName, sysbuild: false },
