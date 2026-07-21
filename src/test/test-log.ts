@@ -50,3 +50,18 @@ export function logError(context: string, message: string): void {
 export function logBanner(title: string, body: string): void {
     console.log(`\n${BANNER_RULE}\n${title}\n${BANNER_RULE}\n${body}\n${BANNER_RULE}\n`);
 }
+
+/**
+ * Creates a per-test sequential step logger. The returned `step(message)`
+ * function prints "[context] Step N: message" with an auto-incrementing N —
+ * this keeps each test's major phases clearly numbered without the
+ * hand-maintained "Step 3" labels that used to drift out of sync (or
+ * collide) as steps were added, removed, or reordered across test files.
+ */
+export function createStepLogger(context: string): (message: string) => void {
+    let stepNumber = 0;
+    return (message: string): void => {
+        stepNumber++;
+        console.log(`[${context}] Step ${stepNumber}: ${message}`);
+    };
+}

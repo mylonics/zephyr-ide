@@ -29,7 +29,7 @@ import {
     addAndBuildSysbuild,
     verifyBuildFsFunctions,
 } from "./test-runner";
-import { logStep, logDetail, logBanner } from "./test-log";
+import { logDetail, logBanner, createStepLogger } from "./test-log";
 
 /**
  * Resolve a same-drive directory for the external Zephyr installation.
@@ -105,6 +105,7 @@ suite("Workspace External Zephyr Test Suite", () => {
     test("External Zephyr Workspace: Git Clone → Use Existing Install → West Selector → Build", async function () {
         await runWorkspaceScenarioTest("External Zephyr Workspace Test", getTestWorkspaceDir(), async (uiMock) => {
             const ctx = "External Zephyr Workspace";
+            const step = createStepLogger(ctx);
             const { sdkVersion, toolchain } = getTestEnvConfig();
             const externalInstallDir = getExternalInstallDir();
             // The OpenDialog mock skips real folder validation, but the workspace-setup
@@ -112,7 +113,7 @@ suite("Workspace External Zephyr Test Suite", () => {
             // (loadExternalSetupState returns undefined otherwise). Create it up front
             // so it mirrors what a real user would pick from the system file picker.
             fs.mkdirSync(externalInstallDir, { recursive: true });
-            logStep(ctx, "Setting up workspace from git without west folder");
+            step("Setting up workspace from git without west folder");
             logDetail(`External install directory: ${externalInstallDir}`);
             // No SDK-version/toolchain quickpicks after "additional west init args" —
             // SDK install after west update is fully automatic and deterministic
@@ -137,9 +138,10 @@ suite("Workspace External Zephyr Test Suite", () => {
             await monitorWorkspaceSetup(setupPromise, "external zephyr workspace");
 
             try {
+                step("Executing build");
                 await executeFinalBuild("External Zephyr Workspace");
 
-                logStep(ctx, "Adding a sysbuild build and verifying filesystem/parsing functions");
+                step("Adding a sysbuild build and verifying filesystem/parsing functions");
                 const { projectName, regularBuildName, sysbuildBuildName } = await addAndBuildSysbuild();
                 await verifyBuildFsFunctions(projectName, [
                     { build: regularBuildName, sysbuild: false },

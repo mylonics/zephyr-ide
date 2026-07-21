@@ -467,8 +467,6 @@ export async function waitForBuildReady(
 export async function executeFinalBuild(
     testName: string,
 ): Promise<void> {
-    logStep(testName, "Executing final build");
-
     await waitForBuildReady(testName);
     await assertWorkspaceReady(testName);
 

@@ -26,7 +26,7 @@ import {
     addAndBuildSysbuild,
     verifyBuildFsFunctions,
 } from "./test-runner";
-import { logStep, logDetail } from "./test-log";
+import { logDetail, createStepLogger } from "./test-log";
 
 /*
  * GIT WORKFLOW INTEGRATION TEST:
@@ -48,11 +48,12 @@ suite("Workspace West Git Test Suite", () => {
 
     test("West Git Workspace: West Manifest → SDK Install → Add Project → Custom Board Build", async function () {
         const ctx = "West Git Workspace";
+        const step = createStepLogger(ctx);
         const testWorkspaceDir = getTestWorkspaceDir();
         logDetail(`Test workspace folder: ${testWorkspaceDir}`);
 
         await runWorkspaceScenarioTest("West Git Workspace Test", testWorkspaceDir, async (gitUiMock) => {
-            logStep(ctx, "Setting up workspace from West Git");
+            step("Setting up workspace from West Git");
             // No SDK-version/toolchain quickpicks — SDK install after west
             // update is fully automatic and deterministic
             // (installZephyrIdeRequirements, west-operations.ts), it never
@@ -69,7 +70,7 @@ suite("Workspace West Git Test Suite", () => {
 
             await monitorWorkspaceSetup(setupPromise, "west git workspace");
 
-            logStep(ctx, "Adding project from example repo");
+            step("Adding project from example repo");
             await executeWorkspaceCommand(
                 gitUiMock,
                 [
@@ -79,7 +80,7 @@ suite("Workspace West Git Test Suite", () => {
                 "Project addition should succeed"
             );
 
-            logStep(ctx, "Adding build configuration with custom board");
+            step("Adding build configuration with custom board");
             await executeWorkspaceCommand(
                 gitUiMock,
                 [
@@ -95,9 +96,10 @@ suite("Workspace West Git Test Suite", () => {
                 "Build configuration should succeed"
             );
 
+            step("Executing build with custom board");
             await executeFinalBuild("West Git Workspace");
 
-            logStep(ctx, "Adding a sysbuild build and verifying filesystem/parsing functions");
+            step("Adding a sysbuild build and verifying filesystem/parsing functions");
             const { projectName, regularBuildName, sysbuildBuildName } = await addAndBuildSysbuild();
             await verifyBuildFsFunctions(projectName, [
                 { build: regularBuildName, sysbuild: false },

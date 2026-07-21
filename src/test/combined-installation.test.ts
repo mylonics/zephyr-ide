@@ -53,7 +53,7 @@ import {
     verifyBuildFsFunctions,
 } from './test-runner';
 import { UIMockInterface } from './ui-mock-interface';
-import { logStep, logDetail, logWarn } from './test-log';
+import { logStep, logDetail, logWarn, createStepLogger } from './test-log';
 
 suite('Combined Installation Test Suite', function() {
     // Extended timeout for all installation steps + workspace test
@@ -74,10 +74,11 @@ suite('Combined Installation Test Suite', function() {
 
     test('Install host tools and run standard workspace workflow (single process)', async function() {
         const ctx = 'Combined Installation';
-        logStep(ctx, 'Starting combined installation test (single process)');
+        const step = createStepLogger(ctx);
+        step('Starting combined installation test (single process)');
         logTestEnvironment();
 
-        logStep(ctx, 'Installing package manager');
+        step('Installing package manager');
         try {
             await vscode.commands.executeCommand('zephyr-ide.install-package-manager-headless');
             logDetail('Package manager installation finished');
@@ -89,7 +90,7 @@ suite('Combined Installation Test Suite', function() {
         // Small delay to ensure package manager is fully initialized
         await new Promise(resolve => setTimeout(resolve, 2000));
 
-        logStep(ctx, 'Installing host packages');
+        step('Installing host packages');
         try {
             const result = await vscode.commands.executeCommand('zephyr-ide.install-host-packages-headless');
             logDetail(`Host packages installation finished (${result ? 'tools available' : 'tools need restart'})`);
@@ -101,7 +102,7 @@ suite('Combined Installation Test Suite', function() {
         // Small delay to ensure packages are fully initialized
         await new Promise(resolve => setTimeout(resolve, 2000));
 
-        logStep(ctx, 'Verifying host tools availability');
+        step('Verifying host tools availability');
         try {
             const toolsAvailable = await vscode.commands.executeCommand('zephyr-ide.check-host-tools-headless');
             logDetail(`Host tools check completed (${toolsAvailable ? 'all tools available' : 'some tools missing'})`);
@@ -109,7 +110,7 @@ suite('Combined Installation Test Suite', function() {
             logWarn(ctx, `Host tools check failed: ${error}`);
         }
 
-        logStep(ctx, 'Setting up test workspace');
+        step('Setting up test workspace');
         const currentWorkspace = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
         if (process.env.ZEPHYR_BASE) {
             testWorkspaceDir = process.env.ZEPHYR_BASE;
@@ -138,7 +139,7 @@ suite('Combined Installation Test Suite', function() {
         await new Promise(resolve => setTimeout(resolve, 3000));
         logDetail('Workspace folder set');
 
-        logStep(ctx, 'Running standard workspace workflow');
+        step('Running standard workspace workflow');
         const uiMock = new UIMockInterface();
 
         await executeTestWithErrorHandling(
@@ -163,7 +164,7 @@ suite('Combined Installation Test Suite', function() {
                     );
                 }
 
-                logStep(ctx, 'Setting up workspace');
+                step('Setting up workspace');
                 const setupPromise = startWorkspaceCommand(
                     uiMock,
                     CommonUIInteractions.testingWorkspace,
@@ -187,7 +188,7 @@ suite('Combined Installation Test Suite', function() {
                 );
                 logDetail('Python interpreter resolved from venv');
 
-                logStep(ctx, 'Creating project from template');
+                step('Creating project from template');
                 await executeWorkspaceCommand(
                     uiMock,
                     CommonUIInteractions.createBlinkyProject,
@@ -195,7 +196,7 @@ suite('Combined Installation Test Suite', function() {
                     'Project creation should succeed'
                 );
 
-                logStep(ctx, 'Adding build configuration');
+                step('Adding build configuration');
                 await executeWorkspaceCommand(
                     uiMock,
                     [
@@ -212,9 +213,10 @@ suite('Combined Installation Test Suite', function() {
 
                 await assertProjectPersisted('Combined Installation Test', 'blinky', 'test_build_1');
 
+                step('Executing build');
                 await executeFinalBuild('Combined Installation Test');
 
-                logStep(ctx, 'Adding a sysbuild build and verifying filesystem/parsing functions');
+                step('Adding a sysbuild build and verifying filesystem/parsing functions');
                 const { projectName, regularBuildName, sysbuildBuildName } = await addAndBuildSysbuild();
                 await verifyBuildFsFunctions(projectName, [
                     { build: regularBuildName, sysbuild: false },

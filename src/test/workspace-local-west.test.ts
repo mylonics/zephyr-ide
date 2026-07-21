@@ -24,7 +24,7 @@ import {
     addAndBuildSysbuild,
     verifyBuildFsFunctions,
 } from "./test-runner";
-import { logStep } from "./test-log";
+import { createStepLogger } from "./test-log";
 
 /*
  * WORKSPACE LOCAL WEST INTEGRATION TEST:
@@ -48,7 +48,8 @@ suite("Workspace Local West Test Suite", () => {
     test("Local West Workspace: Git Clone → Detect West.yml → SDK Install → Build", async function () {
         await runWorkspaceScenarioTest("Local West Workspace Test", getTestWorkspaceDir(), async (uiMock) => {
             const ctx = "Local West Workspace";
-            logStep(ctx, "Setting up workspace from git with west.yml detection");
+            const step = createStepLogger(ctx);
+            step("Setting up workspace from git with west.yml detection");
             // No SDK-version/toolchain quickpicks — SDK install after west
             // update is fully automatic and deterministic
             // (installZephyrIdeRequirements, west-operations.ts), it never
@@ -65,9 +66,10 @@ suite("Workspace Local West Test Suite", () => {
 
             await monitorWorkspaceSetup(setupPromise, "local west workspace");
 
+            step("Executing build");
             await executeFinalBuild("Local West Workspace");
 
-            logStep(ctx, "Adding a sysbuild build and verifying filesystem/parsing functions");
+            step("Adding a sysbuild build and verifying filesystem/parsing functions");
             const { projectName, regularBuildName, sysbuildBuildName } = await addAndBuildSysbuild();
             await verifyBuildFsFunctions(projectName, [
                 { build: regularBuildName, sysbuild: false },
