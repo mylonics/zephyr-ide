@@ -215,13 +215,15 @@ export function loadBuildInfoYml(buildFolder: string): any | undefined {
  */
 export function readBuildInfoSourceFiles(buildFolder: string): BuildInfoSourceFiles {
   const rawData = loadBuildInfoYml(buildFolder);
+  const stringList = (value: unknown): string[] =>
+    Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [];
   const kconfigFiles: string[] = [
-    ...(rawData?.cmake?.kconfig?.files ?? []),
-    ...(rawData?.cmake?.kconfig?.['user-files'] ?? []),
+    ...stringList(rawData?.cmake?.kconfig?.files),
+    ...stringList(rawData?.cmake?.kconfig?.['user-files']),
   ];
   const dtsFiles: string[] = [
-    ...(rawData?.cmake?.devicetree?.files ?? []),
-    ...(rawData?.cmake?.devicetree?.['user-files'] ?? []),
+    ...stringList(rawData?.cmake?.devicetree?.files),
+    ...stringList(rawData?.cmake?.devicetree?.['user-files']),
   ];
   return { kconfigFiles, dtsFiles };
 }

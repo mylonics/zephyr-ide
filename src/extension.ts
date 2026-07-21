@@ -248,11 +248,11 @@ function registerTreeView<T>(
 function registerCommandWithRefresh(
   context: vscode.ExtensionContext,
   commandId: string,
-  action: () => Promise<any>
+  action: (...args: any[]) => Promise<any>
 ) {
   context.subscriptions.push(
-    vscode.commands.registerCommand(commandId, async () => {
-      const result = await action();
+    vscode.commands.registerCommand(commandId, async (...args: any[]) => {
+      const result = await action(...args);
       void vscode.commands.executeCommand("zephyr-ide.update-web-view");
       return result;
     })
@@ -1441,10 +1441,10 @@ export async function activate(context: vscode.ExtensionContext) {
     () => project.setActiveProject(context, wsConfig));
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("zephyr-ide.add-build", async () => {
+    vscode.commands.registerCommand("zephyr-ide.add-build", async (buildConfig) => {
       const setupState = await getSetupState(context, wsConfig);
       if (setupState && setupState.westUpdated) {
-        const result = await project.addBuild(wsConfig, context);
+        const result = await project.addBuild(wsConfig, context, buildConfig);
         void vscode.commands.executeCommand("zephyr-ide.update-web-view");
         return result;
       } else {
@@ -1502,7 +1502,7 @@ export async function activate(context: vscode.ExtensionContext) {
   });
 
   registerCommandWithRefresh(context, "zephyr-ide.set-active-build",
-    () => project.setActiveBuild(context, wsConfig));
+    (selectedBuild?: string) => project.setActiveBuild(context, wsConfig, selectedBuild));
 
   // U5: Single command that lets the user choose which debug target to reconfigure.
   // The legacy per-target commands (change-debug-launch-for-build /

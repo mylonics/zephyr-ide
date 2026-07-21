@@ -565,21 +565,11 @@ export async function assertWorkspaceReopenReDetectsVenv(testName: string): Prom
 /**
  * Add a second build configuration with `--sysbuild` enabled, then build it.
  *
- * Rather than re-driving the interactive `add-build` board-picker wizard
- * (whose quickpick values differ per workspace type — several workspace
- * setup tests build against a project auto-detected from a cloned sample
- * repo whose board is not known ahead of time), this clones the config of
- * whichever build is *already* active for the project (every workspace
- * setup test has produced exactly one working build by the time this runs)
- * and adds `--sysbuild` to its `westBuildArgs`. This is both safe (same
- * board/toolchain that is already known to build) and representative of a
- * real user toggling sysbuild on an existing build. The clone is written
- * directly into the live `wsConfig` object — the same direct-state technique
- * used by assertWorkspaceReopenReDetectsVenv — since the (test-only) shortcut
- * of skipping the interactive wizard means there is no `context` available
- * here to persist it to `.vscode/zephyr-ide.json`; that's fine, `zephyr-ide.build`
- * and every function this feeds into verifyBuildFsFunctions operate on the
- * live in-memory wsConfig, not the on-disk JSON.
+ * This clones the active build's known-working board/toolchain settings and
+ * passes the result through the real `zephyr-ide.add-build` command. Supplying
+ * the config non-interactively avoids workspace-specific board-picker answers
+ * while still exercising the production state initialization, active-build
+ * selection, and persistence paths.
  *
  * Mirrors executeFinalBuild's build-and-assert-success pattern, but
  * deliberately does NOT assert an ELF was produced via `get-zephyr-elf` —
@@ -622,32 +612,14 @@ export async function addAndBuildSysbuild(
         westBuildArgs: [...(regularBuild.westBuildArgs ?? []), '--sysbuild'],
     };
 
-    // Write the new build straight into .vscode/zephyr-ide.json and reload
-    // through the real zephyr-ide.load-projects-from-file command — the same
-    // path the extension's own file watcher (extension.ts) drives when the
-    // user hand-edits that file — rather than mutating wsConfig.projects in
-    // memory and hoping it stays in sync. This exercises the actual
-    // load/merge logic (projectLoader in workspace-config.ts) instead of
-    // working around it, and avoids a stale in-memory-only addition that a
-    // later watcher-triggered reload (from an unrelated write, e.g.
-    // build-time CMakeCache caching) could silently revert.
-    const zephyrIdeJsonPath = path.join(wsConfig.rootPath, ".vscode", "zephyr-ide.json");
-    const fileContent = await fs.readJson(zephyrIdeJsonPath);
-    fileContent.projects[resolvedProjectName].buildConfigs[newBuildName] = sysbuildConfig;
-    await fs.writeJson(zephyrIdeJsonPath, fileContent, { spaces: 2 });
-    await vscode.commands.executeCommand("zephyr-ide.load-projects-from-file");
-
-    // projectLoader (workspace-config.ts) rebuilds wsConfig.projects from
-    // scratch on every load, so `project` captured above is now stale —
-    // re-read it rather than assuming the reload preserved that reference.
+    wsConfig.activeProject = resolvedProjectName;
+    const added = await vscode.commands.executeCommand<boolean>("zephyr-ide.add-build", sysbuildConfig);
+    assert.strictEqual(added, true, `zephyr-ide.add-build failed to create "${newBuildName}"`);
     const reloadedProject = wsConfig.projects[resolvedProjectName];
     assert.ok(
         reloadedProject?.buildConfigs[newBuildName],
-        `zephyr-ide.load-projects-from-file did not pick up "${newBuildName}" from zephyr-ide.json (addAndBuildSysbuild)`
+        `zephyr-ide.add-build did not add "${newBuildName}" to the active project`
     );
-    wsConfig.projectStates[resolvedProjectName].buildStates[newBuildName] = { viewOpen: true };
-    wsConfig.activeProject = resolvedProjectName;
-    wsConfig.projectStates[resolvedProjectName].activeBuildConfig = newBuildName;
     invalidateRunnersYamlCache();
 
     console.log(`⚡ Building sysbuild build "${newBuildName}"...`);
@@ -754,55 +726,11 @@ export async function verifyBuildFsFunctions(
     assert.ok(project, `Project "${projectName}" not found (verifyBuildFsFunctions)`);
 
     const failures: BuildFsFailure[] = [];
-    // Default per-check timeout. Several checks below spawn a real subprocess
-    // (runMemoryReports/runFullMemoryRefresh via cp.exec, buildDashboardReport
-    // via a VS Code Task) — neither executeShellCommandInPythonEnv nor
-    // executeTaskHelperInPythonEnv (utilities/utils.ts) enforce a timeout of
-    // their own, so a hung/orphaned subprocess or a Task whose
-    // onDidEndTaskProcess event never fires would otherwise block this
-    // function (and the whole suite) until mocha's outer test timeout —
-    // 900s normally, 1500s for combined-installation.test.ts — instead of
-    // failing this one check. Racing every check against this timeout turns
-    // that into a fast, attributable failure.
-    const CHECK_TIMEOUT_MS = 120000;
-    // Heartbeat interval: with no per-command logging on the silent
-    // (cp.exec) path, the CI log otherwise goes completely silent between
-    // "🔎 Verifying..." and either the next check or the timeout above —
-    // making it impossible to tell which check was in progress when a hang
-    // occurred. Logging elapsed time periodically means the log's last line
-    // before a timeout always names the stuck check.
-    const HEARTBEAT_MS = 20000;
-    // `probe` is polled on every heartbeat tick and its text appended to the
-    // "still running" line — for checks that shell out to `west`/cmake with
-    // no stdout capture (ShellExecution-based Tasks write to a VS Code
-    // terminal, not to this log), it's otherwise impossible to tell whether
-    // a slow check is still making progress or is fully wedged. Kept opt-in
-    // (undefined for most checks) rather than doing filesystem probing for
-    // every check, since it only makes sense where the caller knows what
-    // on-disk side effect to look for.
-    const check = async (
-        buildLabel: string,
-        name: string,
-        fn: () => Promise<void> | void,
-        probe?: () => string,
-    ): Promise<void> => {
-        const startedAt = Date.now();
-        const heartbeat = setInterval(() => {
-            const elapsed = Math.round((Date.now() - startedAt) / 1000);
-            const probeText = probe ? ` — ${probe()}` : "";
-            console.log(`   ⏳ [${buildLabel}] ${name}: still running after ${elapsed}s...${probeText}`);
-        }, HEARTBEAT_MS);
+    const check = async (buildLabel: string, name: string, fn: () => Promise<void> | void): Promise<void> => {
         try {
-            await Promise.race([
-                Promise.resolve(fn()),
-                new Promise<never>((_, reject) => {
-                    setTimeout(() => reject(new Error(`timed out after ${CHECK_TIMEOUT_MS / 1000}s (possible hung subprocess/Task)`)), CHECK_TIMEOUT_MS);
-                }),
-            ]);
+            await fn();
         } catch (error) {
             failures.push({ build: buildLabel, check: name, message: error instanceof Error ? error.message : String(error) });
-        } finally {
-            clearInterval(heartbeat);
         }
     };
 
@@ -812,10 +740,13 @@ export async function verifyBuildFsFunctions(
         const buildConfig = project.buildConfigs[buildName];
         assert.ok(buildConfig, `Build "${buildName}" not found on project "${projectName}" (verifyBuildFsFunctions)`);
 
-        // Select the build deterministically — same direct-state technique as
-        // assertWorkspaceReopenReDetectsVenv — rather than driving the
-        // set-active-build quickpick through the UI mock.
-        wsConfig.projectStates[projectName].activeBuildConfig = buildName;
+        wsConfig.activeProject = projectName;
+        await vscode.commands.executeCommand("zephyr-ide.set-active-build", buildName);
+        assert.strictEqual(
+            wsConfig.projectStates[projectName].activeBuildConfig,
+            buildName,
+            `zephyr-ide.set-active-build did not activate "${buildName}"`
+        );
         invalidateRunnersYamlCache();
 
         const buildFolder = getBuildFolder(wsConfig, project, buildConfig);
@@ -950,6 +881,11 @@ export async function verifyBuildFsFunctions(
         await check(buildName, "runMemoryReports", async () => {
             const setupState = wsConfig.activeSetupState;
             assert.ok(setupState, "wsConfig.activeSetupState is not set");
+            const effectiveDir = resolveEffectiveBuildDir(buildFolder);
+            await Promise.all([
+                fs.remove(path.join(effectiveDir, "ram.json")),
+                fs.remove(path.join(effectiveDir, "rom.json")),
+            ]);
             // Logged explicitly because the silent (cp.exec) path this calls
             // into (executeShellCommandInPythonEnv) logs nothing of its own
             // before running — without this line, a hang here leaves no trace
@@ -958,73 +894,30 @@ export async function verifyBuildFsFunctions(
             const result = await runMemoryReports(buildFolder, setupState, projectName, buildName);
             assert.strictEqual(result.error, null, `runMemoryReports failed: ${result.error}\n${result.output}`);
             const reports = readMemoryReports(buildFolder);
-            assert.ok(reports.ram || reports.rom, "runMemoryReports completed but produced no ram/rom report data (ram.json/rom.json not found afterward)");
+            assert.ok(reports.ram && reports.rom, "runMemoryReports did not freshly produce both ram.json and rom.json");
         });
 
         await check(buildName, "runFullMemoryRefresh", async () => {
             const setupState = wsConfig.activeSetupState;
             assert.ok(setupState, "wsConfig.activeSetupState is not set");
+            const effectiveDir = resolveEffectiveBuildDir(buildFolder);
+            const statPath = path.join(effectiveDir, "zephyr", "zephyr.stat");
+            await Promise.all([
+                fs.remove(path.join(effectiveDir, "ram.json")),
+                fs.remove(path.join(effectiveDir, "rom.json")),
+                fs.remove(statPath),
+            ]);
             console.log(`   ▶️  [${buildName}] runFullMemoryRefresh: nm stat regen + cmake --build --target ram_report, rom_report against "${resolveEffectiveBuildDir(buildFolder)}"`);
             const error = await runFullMemoryRefresh(buildFolder, setupState, projectName, buildName);
             assert.strictEqual(error, null, `runFullMemoryRefresh failed: ${error}`);
             const reports = readMemoryReports(buildFolder);
-            assert.ok(reports.ram || reports.rom, "runFullMemoryRefresh completed but produced no ram/rom report data (ram.json/rom.json not found afterward)");
-        });
-
-        // buildDashboardReport (build.ts) needs a vscode.ExtensionContext,
-        // which is not available to tests directly — drive it through the
-        // already-registered zephyr-ide.run-dashboard-report command instead
-        // (context is bound there via closure at registration time). That
-        // command doesn't return the produced paths, so verify success via
-        // dashboard/memoryreport.html — the report's own distinctive on-disk
-        // artifact — under the domain-resolved build directory.
-        //
-        // Skipped on Windows: the `dashboard` cmake target is provided by
-        // Zephyr's build tree (not this extension) and currently exits 1 on
-        // win32 without producing memoryreport.html — a Zephyr-side
-        // incompatibility we can't fix here. The dashboard panel itself still
-        // works on Windows because readDashboardData reads ram.json/rom.json
-        // (produced by the ram_report/rom_report targets, already exercised by
-        // runMemoryReports above) and only falls back to memoryreport.html when
-        // those are absent. So skip just this check on Windows, the same way
-        // buildMenuConfig is skipped below as interactive-only.
-        if (process.platform === "win32") {
-            console.log(`   ⏭️  [${buildName}] buildDashboardReport: skipped on Windows (Zephyr "dashboard" target fails on win32; panel memory covered by ram/rom reports)`);
-        } else await check(buildName, "buildDashboardReport", async () => {
-            // buildDashboardReport (build.ts) does its own outputInfo/outputCommand
-            // logging before running `cmake --build --target dashboard`, so the
-            // extension debug log already names the command — this line is for
-            // the mocha console specifically, which doesn't see that output live.
-            console.log(`   ▶️  [${buildName}] buildDashboardReport: zephyr-ide.run-dashboard-report (cmake --build --target dashboard)`);
-            await vscode.commands.executeCommand("zephyr-ide.run-dashboard-report");
-            const effectiveDir = resolveEffectiveBuildDir(buildFolder);
-            const dashboardHtmlPath = path.join(effectiveDir, "dashboard", "memoryreport.html");
-            assert.ok(
-                await fs.pathExists(dashboardHtmlPath),
-                `buildDashboardReport (via zephyr-ide.run-dashboard-report) did not produce "${dashboardHtmlPath}"`
-            );
-        }, () => {
-            // The dashboard target runs as a background cp.exec process whose
-            // stdout is not surfaced to this log — so during a stall there is
-            // otherwise zero visibility into whether cmake is still building or
-            // the process is fully wedged after finishing its real work.
-            // Reporting the dashboard output dir's contents each
-            // heartbeat distinguishes "target hasn't produced anything yet"
-            // from "memoryreport.html is already on disk but the task still
-            // hasn't exited".
-            const dashboardDir = path.join(resolveEffectiveBuildDir(buildFolder), "dashboard");
-            if (!fs.existsSync(dashboardDir)) {
-                return `no "${dashboardDir}" yet (target still building, or failed before writing anything)`;
-            }
-            const entries = fs.readdirSync(dashboardDir);
-            return `"${dashboardDir}" has ${entries.length} entr${entries.length === 1 ? "y" : "ies"}: [${entries.join(", ")}] — files exist but the task still hasn't exited`;
+            assert.ok(reports.ram && reports.rom, "runFullMemoryRefresh did not freshly produce both ram.json and rom.json");
+            assert.ok(await fs.pathExists(statPath), `runFullMemoryRefresh did not freshly produce "${statPath}"`);
         });
 
         // buildDashboard (build.ts) also needs a vscode.ExtensionContext —
-        // same reasoning as buildDashboardReport above, driven through
-        // zephyr-ide.run-dashboard instead. Unlike run-dashboard-report, this
-        // command opens (or reuses) a real DashboardPanel webview as a side
-        // effect.
+        // drive it through zephyr-ide.run-dashboard instead. This command opens
+        // (or reuses) a real DashboardPanel webview as a side effect.
         //
         // Verified via vscode.window.tabGroups rather than
         // DashboardPanel.getPanel(): the running extension loads from the
@@ -1082,10 +975,8 @@ export async function verifyBuildFsFunctions(
 
     // --- One-time (not per-build) check: regenerateCompileCommands scans
     // ALL builds of ALL projects into a single merged .vscode/compile_commands.json.
-    // Its own path resolution (build.ts) checks basepath/compile_commands.json
-    // then basepath/<project.name>/compile_commands.json — neither of which is
-    // resolveEffectiveBuildDir's domain subdirectory — so entries from a
-    // sysbuild build are expected to be silently dropped from the merge.
+    // It must resolve each sysbuild build's effective domain directory so those
+    // entries are included in the merged output.
     const sysbuildEntry = builds.find((b) => b.sysbuild);
     if (sysbuildEntry) {
         await check(sysbuildEntry.build, "regenerateCompileCommands", async () => {

@@ -879,12 +879,17 @@ export async function addProject(wsConfig: WorkspaceConfig, context: vscode.Exte
   return true;
 }
 
-export async function addBuildToProject(wsConfig: WorkspaceConfig, context: vscode.ExtensionContext, projectName: string) {
+export async function addBuildToProject(
+  wsConfig: WorkspaceConfig,
+  context: vscode.ExtensionContext,
+  projectName: string,
+  buildConfig?: BuildConfig,
+) {
   const setupState = await getSetupState(context, wsConfig);
   if (!setupState) {
     return;
   }
-  const result = await buildSelector(context, setupState, wsConfig.rootPath);
+  const result = buildConfig ?? await buildSelector(context, setupState, wsConfig.rootPath);
   if (result && result.name !== undefined) {
     if (wsConfig.projects[projectName].buildConfigs[result.name]) {
       const selection = await vscode.window.showWarningMessage('A build configuration named "' + result.name + '" already exists', 'Overwrite', 'Cancel');
@@ -907,12 +912,12 @@ export async function addBuildToProject(wsConfig: WorkspaceConfig, context: vsco
 }
 
 
-export async function addBuild(wsConfig: WorkspaceConfig, context: vscode.ExtensionContext) {
+export async function addBuild(wsConfig: WorkspaceConfig, context: vscode.ExtensionContext, buildConfig?: BuildConfig) {
   if (wsConfig.activeProject === undefined) {
     notifyError("Build Config", `Failed to Add Build Configuration, please first select a project`);
     return;
   }
-  return await addBuildToProject(wsConfig, context, wsConfig.activeProject);
+  return await addBuildToProject(wsConfig, context, wsConfig.activeProject, buildConfig);
 }
 
 /**
@@ -1495,4 +1500,3 @@ export async function manageProjectVariables(context: vscode.ExtensionContext, w
     async (updated) => { resolved.project.customVars = Object.keys(updated).length ? updated : undefined; },
   );
 }
-
