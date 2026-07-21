@@ -19,7 +19,7 @@ import * as vscode from "vscode";
 import * as path from 'upath';
 import * as fs from 'fs-extra';
 
-import { executeTaskHelperInPythonEnv } from "../utilities/utils";
+import { executeTaskHelperInPythonEnv, executeShellCommandInPythonEnv } from "../utilities/utils";
 import { notifyError, outputInfo, outputWarning } from "../utilities/output";
 import { readDashboardData, loadBuildInfoYml } from '../build_data/build-artifact-reader';
 import { readMemoryRefresh } from '../build_data/build-artifact-reader';
@@ -463,8 +463,9 @@ const DASHBOARD_ARTIFACT_SETTLE_MS = 3000;
  * HTML memory dashboard and opens it in the system browser.
  *
  * This is a thin wrapper around the Zephyr build system — identical in spirit
- * to buildRamRomReport — and runs as a visible VS Code task so the terminal
- * output is accessible to the user.
+ * to runMemoryReports — and runs the target as a background child process (so
+ * its stdout/stderr can be captured for diagnostics), completing as soon as the
+ * report artifact is on disk.
  */
 export async function buildDashboardReport(
   context: vscode.ExtensionContext,
@@ -499,51 +500,68 @@ export async function buildDashboardReport(
   // behavior seen for a *non*-sysbuild build in CI — `west build` re-invokes
   // west's own Python layer on top of cmake, which cmake --build skips.
   const effectiveFolder = resolveEffectiveBuildDir(buildFolder);
-  const taskName = `Zephyr IDE Dashboard Report: ${project.name} ${build.name}`;
   const cmd = `cmake --build "${effectiveFolder}" --target dashboard`;
   outputInfo(
     `Dashboard Report: ${project.name}/${build.name}`,
     `Running Zephyr dashboard report for ${build.name} (cmd: ${cmd})`,
     true
   );
-  // The `dashboard` target reliably writes its output (dashboard/memoryreport.html
-  // et al.) within seconds, but on some platforms (observed on Linux CI) a child
-  // process spawned by the target keeps the task's pseudo-terminal open after the
-  // build itself is done — so VS Code's onDidEndTaskProcess never fires and the
-  // task appears to run forever. Rather than block on task exit, race real task
+
+  // Run the `dashboard` target the same way the sibling ram_report/rom_report
+  // checks do — via executeShellCommandInPythonEnv (a background cp.exec with the
+  // venv env injected) rather than a visible VS Code Task. Two reasons:
+  //   1. On Windows the Task path fails outright (fast non-zero exit, no output)
+  //      while the identical cmake memory-report builds succeed via cp.exec, so
+  //      this aligns the dashboard report with the path that works there.
+  //   2. cp.exec captures stdout/stderr, so a genuine failure is logged with the
+  //      build system's own error text instead of an opaque "see task output".
+  //
+  // The target reliably writes its output (dashboard/memoryreport.html et al.)
+  // within seconds, but on some platforms (observed on Linux CI) a child process
+  // spawned by the target keeps the pipe open after the build itself is done, so
+  // the cp.exec call never resolves. Rather than block on process exit, race real
   // completion against the report's distinctive on-disk artifact appearing and
-  // settling; whichever happens first tells us the report finished. This keeps
-  // the exit-code-based failure detection below intact for the normal fast path
-  // (e.g. no "dashboard" target when pointed at a sysbuild top-level dir instead
-  // of the per-image domain dir) while no longer hanging when the process lingers.
+  // settling; whichever happens first tells us the report finished.
   const artifactPath = path.join(effectiveFolder, "dashboard", "memoryreport.html");
   let artifactMtimeBefore = 0;
   try { artifactMtimeBefore = (await fs.stat(artifactPath)).mtimeMs; } catch { /* not generated yet */ }
 
-  const taskPromise = executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState.setupPath);
+  const cmdPromise = executeShellCommandInPythonEnv(cmd, setupState.setupPath ?? "", setupState, false);
   const outcome = await Promise.race([
-    taskPromise
-      .then((ok) => ({ via: "task" as const, ok }))
-      .catch(() => ({ via: "task" as const, ok: false })),
+    cmdPromise
+      .then((r) => ({ via: "cmd" as const, exitCode: r.exitCode, output: [r.stdout, r.stderr].filter(Boolean).join("\n").trim() }))
+      .catch((err) => ({ via: "cmd" as const, exitCode: -1 as number | undefined, output: String(err) })),
     waitForFreshArtifactStable(artifactPath, artifactMtimeBefore, DASHBOARD_REPORT_TIMEOUT_MS, DASHBOARD_ARTIFACT_SETTLE_MS)
-      .then((produced) => ({ via: "artifact" as const, ok: produced })),
+      .then((produced) => ({ via: "artifact" as const, produced })),
   ]);
 
-  if (outcome.via === "artifact" && outcome.ok) {
-    // The task hasn't exited (and may never), but the report artifact is on disk
-    // and has stopped changing — proceed on the on-disk result. The task is left
-    // running; it is harmless and gets reaped when the extension host exits.
+  if (outcome.via === "artifact") {
+    if (!outcome.produced) {
+      // Timed out without ever seeing a freshly-written artifact and the command
+      // itself never resolved — treat as a failure/hang.
+      notifyError(
+        "Dashboard Report",
+        `cmake --build --target dashboard did not produce ${artifactPath} for ${project.name}/${build.name} within ${DASHBOARD_REPORT_TIMEOUT_MS / 1000}s (cmd: ${cmd}).`
+      );
+      return undefined;
+    }
+    // The command hasn't exited (and may never — a lingering child holds the
+    // pipe), but the report artifact is on disk and has stopped changing. Proceed
+    // on the on-disk result; the background process is harmless and gets reaped
+    // when the extension host exits.
     outputInfo(
       `Dashboard Report: ${project.name}/${build.name}`,
-      `dashboard target produced ${artifactPath} but the task process has not exited — continuing on the on-disk artifact.`,
+      `dashboard target produced ${artifactPath} but the build process has not exited — continuing on the on-disk artifact.`,
       false
     );
-  } else if (!outcome.ok) {
-    // Either the task exited non-zero (genuine build-system failure) or we timed
-    // out without ever seeing a freshly-written artifact.
+  } else if (outcome.exitCode !== 0 && !fs.existsSync(artifactPath)) {
+    // The command finished with a non-zero exit and produced no artifact — a
+    // genuine build-system failure. Log the captured output so the reason (e.g.
+    // a missing tool or a Windows-only breakage in the target) is visible.
     notifyError(
       "Dashboard Report",
-      `cmake --build --target dashboard failed for ${project.name}/${build.name} (cmd: ${cmd}) — see the "${taskName}" task output for details.`
+      `cmake --build --target dashboard failed (exit ${outcome.exitCode ?? "unknown"}) for ${project.name}/${build.name} (cmd: ${cmd}).` +
+      (outcome.output ? `\n${outcome.output}` : " No output was captured.")
     );
     return undefined;
   }
