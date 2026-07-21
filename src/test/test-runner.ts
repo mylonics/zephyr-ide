@@ -788,7 +788,6 @@ export async function verifyBuildFsFunctions(
                 `zephyr-ide.get-zephyr-elf-dir returned "${result}", but it does not contain zephyr.dts — likely pointing at the wrong (non-domain-resolved) directory`
             );
         });
-
         await check(buildName, "getBuildInfo", async () => {
             const info = await getBuildInfo(wsConfig, project, buildConfig);
             assert.ok(info, "getBuildInfo returned undefined");
