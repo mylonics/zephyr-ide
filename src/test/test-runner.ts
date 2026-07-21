@@ -621,29 +621,41 @@ export async function addAndBuildSysbuild(
         name: newBuildName,
         westBuildArgs: [...(regularBuild.westBuildArgs ?? []), '--sysbuild'],
     };
-    project.buildConfigs[newBuildName] = sysbuildConfig;
+
+    // Write the new build straight into .vscode/zephyr-ide.json and reload
+    // through the real zephyr-ide.load-projects-from-file command — the same
+    // path the extension's own file watcher (extension.ts) drives when the
+    // user hand-edits that file — rather than mutating wsConfig.projects in
+    // memory and hoping it stays in sync. This exercises the actual
+    // load/merge logic (projectLoader in workspace-config.ts) instead of
+    // working around it, and avoids a stale in-memory-only addition that a
+    // later watcher-triggered reload (from an unrelated write, e.g.
+    // build-time CMakeCache caching) could silently revert.
+    const zephyrIdeJsonPath = path.join(wsConfig.rootPath, ".vscode", "zephyr-ide.json");
+    const fileContent = await fs.readJson(zephyrIdeJsonPath);
+    fileContent.projects[resolvedProjectName].buildConfigs[newBuildName] = sysbuildConfig;
+    await fs.writeJson(zephyrIdeJsonPath, fileContent, { spaces: 2 });
+    await vscode.commands.executeCommand("zephyr-ide.load-projects-from-file");
+
+    // projectLoader (workspace-config.ts) rebuilds wsConfig.projects from
+    // scratch on every load, so `project` captured above is now stale —
+    // re-read it rather than assuming the reload preserved that reference.
+    const reloadedProject = wsConfig.projects[resolvedProjectName];
+    assert.ok(
+        reloadedProject?.buildConfigs[newBuildName],
+        `zephyr-ide.load-projects-from-file did not pick up "${newBuildName}" from zephyr-ide.json (addAndBuildSysbuild)`
+    );
     wsConfig.projectStates[resolvedProjectName].buildStates[newBuildName] = { viewOpen: true };
     wsConfig.activeProject = resolvedProjectName;
     wsConfig.projectStates[resolvedProjectName].activeBuildConfig = newBuildName;
     invalidateRunnersYamlCache();
-    // Persist immediately, same as the real add-build command
-    // (addBuildToProject in project.ts) always does before returning.
-    // Skipping this left the addition living only in memory: the
-    // .vscode/zephyr-ide.json file watcher (extension.ts) reloads
-    // wsConfig.projects from disk on any change to that file, and a reload
-    // triggered by an unrelated write elsewhere (e.g. build-time CMakeCache
-    // caching for either build) would silently revert this project object
-    // back to the on-disk copy that never had "sysbuild_build" — causing a
-    // "Build not found" failure in verifyBuildFsFunctions that depended on
-    // exactly how that race landed.
-    await ext!.exports.saveWorkspaceState();
 
     console.log(`⚡ Building sysbuild build "${newBuildName}"...`);
     await waitForBuildReady(`Sysbuild build (${resolvedProjectName})`);
     const result = await vscode.commands.executeCommand("zephyr-ide.build");
     assert.strictEqual(result, true, `Sysbuild build command must return true (exit code 0). Got: ${result}`);
 
-    const buildFolder = getBuildFolder(wsConfig, project, sysbuildConfig);
+    const buildFolder = getBuildFolder(wsConfig, reloadedProject, sysbuildConfig);
     const domainsYamlPath = path.join(buildFolder, "domains.yaml");
     assert.ok(
         await fs.pathExists(domainsYamlPath),
