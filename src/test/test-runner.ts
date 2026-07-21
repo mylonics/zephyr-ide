@@ -49,6 +49,12 @@ export function normalizePath(p: string): string {
     return p.replace(/\\/g, "/");
 }
 
+/** Returns true when `candidatePath` is within `parentPath` (or equal), cross-platform safe. */
+export function isPathWithin(parentPath: string, candidatePath: string): boolean {
+    const relativePath = path.relative(parentPath, candidatePath);
+    return relativePath === '' || (!relativePath.startsWith('..') && !path.isAbsolute(relativePath));
+}
+
 /**
  * Check if host tools should be installed via the extension command
  */
@@ -721,7 +727,7 @@ export async function addAndBuildWithRelPath(
         assert.ok(elfPath, `zephyr-ide.get-zephyr-elf returned no path after building "${newBuildName}"`);
         assert.ok(await fs.pathExists(elfPath), `Build reported success but no ELF file was found at ${elfPath}`);
         assert.ok(
-            normalizePath(elfPath).startsWith(normalizePath(buildFolder)),
+            isPathWithin(buildFolder, elfPath),
             `ELF path "${elfPath}" is not inside the custom relPath build folder "${buildFolder}"`
         );
         logDetail(`ELF artifact present at custom relPath: ${elfPath}`);
