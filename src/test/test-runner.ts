@@ -726,6 +726,9 @@ export async function verifyBuildFsFunctions(
     assert.ok(project, `Project "${projectName}" not found (verifyBuildFsFunctions)`);
 
     const failures: BuildFsFailure[] = [];
+    // The suite-level Mocha timeout remains authoritative. A per-check
+    // Promise.race cannot cancel the underlying task/process and would let a
+    // timed-out operation continue mutating shared build artifacts.
     const check = async (buildLabel: string, name: string, fn: () => Promise<void> | void): Promise<void> => {
         try {
             await fn();

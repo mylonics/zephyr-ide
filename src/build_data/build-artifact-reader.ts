@@ -208,6 +208,12 @@ export function loadBuildInfoYml(buildFolder: string): any | undefined {
   }
 }
 
+function asStringList(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((entry): entry is string => typeof entry === 'string')
+    : [];
+}
+
 /**
  * Reads build_info.yml and extracts the flat lists of Kconfig conf files and
  * DTS/overlay source files that contributed to this build.  Returns empty
@@ -215,15 +221,13 @@ export function loadBuildInfoYml(buildFolder: string): any | undefined {
  */
 export function readBuildInfoSourceFiles(buildFolder: string): BuildInfoSourceFiles {
   const rawData = loadBuildInfoYml(buildFolder);
-  const stringList = (value: unknown): string[] =>
-    Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [];
   const kconfigFiles: string[] = [
-    ...stringList(rawData?.cmake?.kconfig?.files),
-    ...stringList(rawData?.cmake?.kconfig?.['user-files']),
+    ...asStringList(rawData?.cmake?.kconfig?.files),
+    ...asStringList(rawData?.cmake?.kconfig?.['user-files']),
   ];
   const dtsFiles: string[] = [
-    ...stringList(rawData?.cmake?.devicetree?.files),
-    ...stringList(rawData?.cmake?.devicetree?.['user-files']),
+    ...asStringList(rawData?.cmake?.devicetree?.files),
+    ...asStringList(rawData?.cmake?.devicetree?.['user-files']),
   ];
   return { kconfigFiles, dtsFiles };
 }

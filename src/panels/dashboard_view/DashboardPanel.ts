@@ -250,8 +250,8 @@ export class DashboardPanel {
    * outcome so the sidebar can show/hide the loading spinner. */
   private async _preloadKconfigSession(): Promise<void> {
     try {
-      const delivered = await this._panel.webview.postMessage({ command: "kconfigPreloading" });
-      if (!delivered || this._disposed) { return; }
+      const posted = await this._panel.webview.postMessage({ command: "kconfigPreloading" });
+      if (!posted || this._disposed) { return; }
       await this._getOrInitSession();
       if (this._disposed) { return; }
       await this._panel.webview.postMessage({ command: "kconfigReady" });
@@ -634,8 +634,8 @@ export class DashboardPanel {
     if (this._memoryRefreshing || this._disposed) { return; }
     this._memoryRefreshing = true;
     try {
-      const delivered = await this._panel.webview.postMessage({ command: "memoryRefreshing" });
-      if (!delivered || this._disposed) { return; }
+      const posted = await this._panel.webview.postMessage({ command: "memoryRefreshing" });
+      if (!posted || this._disposed) { return; }
       const result = await this._onRefreshMemory();
       if (this._disposed) { return; }
       if (result) {
