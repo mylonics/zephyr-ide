@@ -25,7 +25,7 @@ function makeWs(rootPath: string): WorkspaceConfig {
 function makeProject(confFiles: ProjectConfig["confFiles"]): ProjectConfig {
   return {
     name: "app",
-    rel_path: "app",
+    relPath: "app",
     buildConfigs: {},
     confFiles,
     twisterConfigs: {},

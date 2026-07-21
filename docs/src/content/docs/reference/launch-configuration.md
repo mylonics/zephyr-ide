@@ -147,7 +147,7 @@ Variables are edited interactively with the **`Zephyr IDE: Manage Build Variable
   "projects": {
     "myproject": {
       "name": "myproject",
-      "rel_path": "apps/myproject",
+      "relPath": "apps/myproject",
       "customVars": {
         "debug_port": "COM3",
         "jlink_device": "STM32F401RE"

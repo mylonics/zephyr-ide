@@ -69,7 +69,7 @@ export function getProjectInfo(wsConfig: WorkspaceConfig, projectName: string): 
 
   return {
     name: project.name,
-    relPath: project.rel_path,
+    relPath: project.relPath,
     absPath,
     mainSourceFile: findMainSourceFile(absPath),
     cmakeFile: fs.existsSync(cmakePath) ? cmakePath : undefined,

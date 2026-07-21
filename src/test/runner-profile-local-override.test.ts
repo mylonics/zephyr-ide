@@ -97,7 +97,7 @@ function makeWsConfig(opts: {
     projects: {
       myApp: {
         name: "myApp",
-        rel_path: "app",
+        relPath: "app",
         buildConfigs: { debug: build },
         twisterConfigs: {},
         confFiles: { extraConfig: [], extraOverlay: [] },

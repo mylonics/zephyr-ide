@@ -40,7 +40,7 @@ export interface BoardConfig {
 // Config for the extension
 export interface BuildConfig {
   name: string;
-  rel_path?: string;
+  relPath?: string;
   board: string;
   relBoardDir?: string;
   relBoardSubDir?: string;

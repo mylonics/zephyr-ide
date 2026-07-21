@@ -196,9 +196,9 @@ async function markWorkspaceSetupComplete(
   const sampleProjects = getZephyrIdeSampleProjects(wsConfig);
   if (sampleProjects.length > 0) {
     const addedPaths = new Set(
-      Object.values(wsConfig.projects).map(p => path.normalize(p.rel_path))
+      Object.values(wsConfig.projects).map(p => path.normalize(p.relPath))
     );
-    const unadded = sampleProjects.filter(p => !addedPaths.has(path.normalize(p.rel_path)));
+    const unadded = sampleProjects.filter(p => !addedPaths.has(path.normalize(p.relPath)));
     if (unadded.length > 0) {
       const choice = await vscode.window.showInformationMessage(
         `This workspace declares ${unadded.length} sample project${unadded.length > 1 ? "s" : ""} in zephyr-ide.json that haven't been added yet. Would you like to add them now?`,
@@ -690,7 +690,7 @@ export async function activate(context: vscode.ExtensionContext) {
   })();
 
   // Watch .vscode/zephyr-ide.json for external changes (e.g. the user editing
-  // rel_path or other build config fields directly). When the file is modified
+  // relPath or other build config fields directly). When the file is modified
   // outside of extension-initiated writes, reload the projects into the
   // in-memory workspace config so subsequent operations (build, flash, etc.)
   // see the updated values instead of reverting to the state loaded at startup.
@@ -1143,7 +1143,7 @@ export async function activate(context: vscode.ExtensionContext) {
         );
 
         for (const key in wsConfig.projects) {
-          if (filePath.includes(wsConfig.projects[key].rel_path)) {
+          if (filePath.includes(wsConfig.projects[key].relPath)) {
             if (wsConfig.activeProject !== key) {
               void setActiveProject(context, wsConfig, key)
                 .then(() => refreshStatusBar(true))
@@ -1579,7 +1579,7 @@ export async function activate(context: vscode.ExtensionContext) {
         if (wsConfig.activeProject) {
           return path.join(
             wsConfig.rootPath,
-            wsConfig.projects[wsConfig.activeProject].rel_path
+            wsConfig.projects[wsConfig.activeProject].relPath
           );
         }
         return;

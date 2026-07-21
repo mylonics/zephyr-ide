@@ -38,7 +38,7 @@ limitations under the License.
  *                             project directories that can be optionally loaded
  *                             into the workspace. Unlike `projects`, these are
  *                             NOT loaded automatically on startup. They include
- *                             a `rel_path` (relative to workspace root) plus any
+ *                             a `relPath` (relative to workspace root) plus any
  *                             build configurations declared for each sample.
  *                             A plain string entry (just a path) is also accepted
  *                             for backward compatibility.
@@ -203,6 +203,21 @@ export async function setZephyrIdeSdkVersion(wsConfig: WorkspaceConfig, sdkVersi
  * compatibility and are promoted to a minimal `ProjectConfig`.
  * Returns an empty array when the key is absent.
  */
+/**
+ * Migrate the deprecated `rel_path` field to `relPath` on each build config
+ * within a sample project entry's `buildConfigs`, in place.
+ */
+function migrateSampleBuildConfigsRelPath(buildConfigs: unknown): void {
+    if (!buildConfigs || typeof buildConfigs !== "object") { return; }
+    for (const build of Object.values(buildConfigs as Record<string, Record<string, unknown>>)) {
+        if (!build || typeof build !== "object") { continue; }
+        if (build.relPath === undefined && typeof build.rel_path === "string") {
+            build.relPath = build.rel_path;
+        }
+        delete build.rel_path;
+    }
+}
+
 export function getZephyrIdeSampleProjects(wsConfig: WorkspaceConfig): ProjectConfig[] {
     const raw = readZephyrIdeJson(wsConfig).sampleProjects;
     if (!Array.isArray(raw)) { return []; }
@@ -216,7 +231,7 @@ export function getZephyrIdeSampleProjects(wsConfig: WorkspaceConfig): ProjectCo
             seenPaths.add(relPath);
             out.push({
                 name: path.basename(relPath),
-                rel_path: relPath,
+                relPath: relPath,
                 buildConfigs: {},
                 confFiles: { config: [], overlay: [] },
                 twisterConfigs: {},
@@ -224,13 +239,20 @@ export function getZephyrIdeSampleProjects(wsConfig: WorkspaceConfig): ProjectCo
         } else if (
             entry !== null &&
             typeof entry === "object" &&
-            !Array.isArray(entry) &&
-            typeof (entry as Record<string, unknown>).rel_path === "string"
+            !Array.isArray(entry)
         ) {
-            const relPath = ((entry as Record<string, unknown>).rel_path as string).trim();
+            // Accept either the current `relPath` or the deprecated `rel_path`
+            // (auto-migrated in-memory here; the file itself is only rewritten
+            // the next time sampleProjects is explicitly saved).
+            const entryObj = entry as Record<string, unknown>;
+            const rawRelPath = typeof entryObj.relPath === "string" ? entryObj.relPath : typeof entryObj.rel_path === "string" ? entryObj.rel_path : undefined;
+            if (rawRelPath === undefined) { continue; }
+            const relPath = rawRelPath.trim();
             if (!relPath || seenPaths.has(relPath)) { continue; }
             seenPaths.add(relPath);
-            out.push(entry as ProjectConfig);
+            const { rel_path: _legacy, ...rest } = entryObj;
+            migrateSampleBuildConfigsRelPath(rest.buildConfigs);
+            out.push({ ...rest, relPath } as unknown as ProjectConfig);
         }
     }
     return out;

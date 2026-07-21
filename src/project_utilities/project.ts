@@ -40,7 +40,7 @@ import { TwisterConfig, TwisterConfigDictionary, twisterSelector, TwisterStateDi
 // Project specific configuration
 export interface ProjectConfig {
   name: string;
-  rel_path: string;
+  relPath: string;
   buildConfigs: BuildConfigDictionary;
   confFiles: ConfigFiles;
   twisterConfigs: TwisterConfigDictionary;
@@ -61,14 +61,14 @@ export interface ProjectState {
 
 /** Get the absolute folder path for a project */
 export function getProjectFolder(wsConfig: WorkspaceConfig, project: ProjectConfig): string {
-  return path.join(wsConfig.rootPath, project.rel_path);
+  return path.join(wsConfig.rootPath, project.relPath);
 }
 
 /** Get the absolute build output folder path for a project/build pair */
 export function getBuildFolder(wsConfig: WorkspaceConfig, project: ProjectConfig, build: BuildConfig): string {
-  if (build.rel_path) {
-    if (path.isAbsolute(build.rel_path)) {
-      outputWarning("getBuildFolder", `rel_path "${build.rel_path}" is absolute — falling back to default build folder`);
+  if (build.relPath) {
+    if (path.isAbsolute(build.relPath)) {
+      outputWarning("getBuildFolder", `relPath "${build.relPath}" is absolute — falling back to default build folder`);
     } else {
       // Use the same toUnix+normalize pattern used elsewhere in this file for
       // cross-platform correctness: upath.toUnix() converts any backslashes
@@ -77,18 +77,18 @@ export function getBuildFolder(wsConfig: WorkspaceConfig, project: ProjectConfig
       // (e.g. "/workspace" matching "/workspace2").
       const rootNormalized = path.toUnix(path.normalize(wsConfig.rootPath));
       const rootPrefix = rootNormalized.endsWith("/") ? rootNormalized : `${rootNormalized}/`;
-      const resolved = path.toUnix(path.resolve(rootNormalized, build.rel_path));
+      const resolved = path.toUnix(path.resolve(rootNormalized, build.relPath));
       if (resolved !== rootNormalized && resolved.startsWith(rootPrefix)) {
         return resolved;
       }
       if (resolved === rootNormalized) {
-        outputWarning("getBuildFolder", `rel_path "${build.rel_path}" resolves to the workspace root — falling back to default build folder`);
+        outputWarning("getBuildFolder", `relPath "${build.relPath}" resolves to the workspace root — falling back to default build folder`);
       } else {
-        outputWarning("getBuildFolder", `rel_path "${build.rel_path}" escapes workspace root — falling back to default build folder`);
+        outputWarning("getBuildFolder", `relPath "${build.relPath}" escapes workspace root — falling back to default build folder`);
       }
     }
   }
-  return path.join(wsConfig.rootPath, project.rel_path, build.name);
+  return path.join(wsConfig.rootPath, project.relPath, build.name);
 }
 
 /**
@@ -705,7 +705,7 @@ export async function addSampleProjectsFromFile(wsConfig: WorkspaceConfig, conte
   const rootNormalized = path.toUnix(path.normalize(wsConfig.rootPath)) + '/';
   const validConfigs: typeof sampleConfigs = [];
   for (const sample of sampleConfigs) {
-    const relPath = sample.rel_path;
+    const relPath = sample.relPath;
     if (path.isAbsolute(relPath)) {
       void vscode.window.showWarningMessage(`Skipping absolute path "${relPath}" in sampleProjects — entries must be relative to the workspace root.`);
       continue;
@@ -727,11 +727,11 @@ export async function addSampleProjectsFromFile(wsConfig: WorkspaceConfig, conte
   for (const sample of validConfigs) {
     nameCounts.set(sample.name, (nameCounts.get(sample.name) ?? 0) + 1);
   }
-  const projectNameFor = (sample: { name: string; rel_path: string }): string => {
+  const projectNameFor = (sample: { name: string; relPath: string }): string => {
     if ((nameCounts.get(sample.name) ?? 0) > 1) {
       // Include the parent segment to make the name unique.
       // When there is no parent (single-segment path, dirname === '.'), fall back to the name.
-      const dir = path.dirname(sample.rel_path);
+      const dir = path.dirname(sample.relPath);
       if (dir !== '.') {
         return path.join(path.basename(dir), sample.name);
       }
@@ -740,12 +740,12 @@ export async function addSampleProjectsFromFile(wsConfig: WorkspaceConfig, conte
   };
 
   const items = validConfigs.map(sample => {
-    const resolvedPath = path.join(wsConfig.rootPath, sample.rel_path);
+    const resolvedPath = path.join(wsConfig.rootPath, sample.relPath);
     const projectName = projectNameFor(sample);
     const alreadyAdded = !!wsConfig.projects[projectName];
     return {
       label: projectName,
-      description: sample.rel_path,
+      description: sample.relPath,
       detail: alreadyAdded ? "(already in workspace)" : undefined,
       resolvedPath,
       sample,
@@ -787,11 +787,11 @@ export async function addSampleProjectsFromFile(wsConfig: WorkspaceConfig, conte
       }
     }
     // Spread the stored config snapshot first (carries pre-configured buildConfigs,
-    // confFiles, twisterConfigs), then override name and rel_path with the current
+    // confFiles, twisterConfigs), then override name and relPath with the current
     // workspace-local values.
     wsConfig.projects[projectName] = {
       name: projectName,
-      rel_path: path.relative(wsConfig.rootPath, projectPath),
+      relPath: path.relative(wsConfig.rootPath, projectPath),
       // Explicitly copy only the configuration fields from the stored sample;
       // do not blindly spread all properties to avoid carrying over stale data.
       buildConfigs: item.sample.buildConfigs,
@@ -862,7 +862,7 @@ export async function addProject(wsConfig: WorkspaceConfig, context: vscode.Exte
     }
   }
   wsConfig.projects[projectName] = {
-    rel_path: path.relative(wsConfig.rootPath, projectPath),
+    relPath: path.relative(wsConfig.rootPath, projectPath),
     name: projectName,
     buildConfigs: {},
     twisterConfigs: {},
@@ -975,7 +975,7 @@ export async function addTest(wsConfig: WorkspaceConfig, context: vscode.Extensi
     return;
   }
 
-  const result = await twisterSelector(wsConfig.projects[projectName].rel_path, context, setupState, wsConfig.rootPath);
+  const result = await twisterSelector(wsConfig.projects[projectName].relPath, context, setupState, wsConfig.rootPath);
   if (result && result.name !== undefined) {
     if (wsConfig.projects[projectName].twisterConfigs[result.name]) {
       const selection = await vscode.window.showWarningMessage('A test configuration named "' + result.name + '" already exists', 'Overwrite', 'Cancel');

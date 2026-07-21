@@ -867,7 +867,7 @@ function canonicalize(v: unknown): unknown {
 
 /**
  * Compare the configuration-only fields of two ProjectConfig objects
- * (build configs, conf files, and twister configs), ignoring name and rel_path
+ * (build configs, conf files, and twister configs), ignoring name and relPath
  * which are handled separately.
  *
  * Object keys are sorted at every nesting level before serialization to avoid
@@ -914,7 +914,7 @@ export async function modifyZephyrIdeSampleProjectsInteractive(
     const storedByPath = new Map<string, ProjectConfig>();
     const storedByName = new Map<string, ProjectConfig>();
     for (const s of currentSamples) {
-        storedByPath.set(s.rel_path, s);
+        storedByPath.set(s.relPath, s);
         storedByName.set(s.name, s);
     }
 
@@ -933,7 +933,7 @@ export async function modifyZephyrIdeSampleProjectsInteractive(
     const newItems: Item[] = [];
 
     for (const proj of projects) {
-        const relPath = proj.rel_path;
+        const relPath = proj.relPath;
         const projName = proj.name;
 
         if (storedByPath.has(relPath)) {
@@ -965,8 +965,8 @@ export async function modifyZephyrIdeSampleProjectsInteractive(
             const stored = storedByName.get(projName)!;
             const settingsOk = projectConfigContentEquals(proj, stored);
             const detail = settingsOk
-                ? `$(warning) path changed (was: ${stored.rel_path})`
-                : `$(warning) path and settings changed (was: ${stored.rel_path})`;
+                ? `$(warning) path changed (was: ${stored.relPath})`
+                : `$(warning) path and settings changed (was: ${stored.relPath})`;
             changedItems.push({
                 label: projName,
                 description: relPath,

@@ -27,7 +27,7 @@ interface BlobModuleInfo {
 
 interface SampleProjectInfo {
   name: string;
-  rel_path: string;
+  relPath: string;
 }
 
 interface ZephyrIdeCommandsInfo {
@@ -264,7 +264,7 @@ export class ZephyrIDEManagerApp extends ZephyrLitElement {
               </div>
             </div>
             ${this._data.sampleProjects.length > 0
-              ? html`<div class="token-list">${this._data.sampleProjects.map(p => html`<span class="token warning">${p.name}: ${p.rel_path}</span>`)}</div>`
+              ? html`<div class="token-list">${this._data.sampleProjects.map(p => html`<span class="token warning">${p.name}: ${p.relPath}</span>`)}</div>`
               : html`<div class="info-box">No sample projects declared in zephyr-ide.json.</div>`}
           </section>
 

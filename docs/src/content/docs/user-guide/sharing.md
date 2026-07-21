@@ -62,7 +62,7 @@ You can have a look at this [sample directory](https://github.com/mylonics/zephy
 3. **Use relative paths**: Avoid absolute paths in configuration files when possible
 4. **Test on clean checkout**: Verify that your project works on a fresh clone
 
-For the complete field reference (including non-GUI fields like build `rel_path`), see [`.vscode/zephyr-ide.json` reference](../reference/configuration.md#vscodezephyr-idejson-reference).
+For the complete field reference (including non-GUI fields like build `relPath`), see [`.vscode/zephyr-ide.json` reference](../reference/configuration.md#vscodezephyr-idejson-reference).
 
 ## Next Steps
 

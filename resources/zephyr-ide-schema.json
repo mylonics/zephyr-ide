@@ -107,15 +107,20 @@
     "ProjectConfig": {
       "type": "object",
       "description": "Configuration for a Zephyr IDE project.",
-      "required": ["name", "rel_path", "buildConfigs", "confFiles", "twisterConfigs"],
+      "required": ["name", "relPath", "buildConfigs", "confFiles", "twisterConfigs"],
       "properties": {
         "name": {
           "type": "string",
           "description": "Display name for the project."
         },
-        "rel_path": {
+        "relPath": {
           "type": "string",
           "description": "Path to the project directory, relative to the workspace root."
+        },
+        "rel_path": {
+          "type": "string",
+          "description": "Deprecated: use 'relPath' instead.",
+          "deprecated": true
         },
         "buildConfigs": {
           "type": "object",
@@ -154,9 +159,14 @@
           "type": "string",
           "description": "Display name for this build configuration."
         },
+        "relPath": {
+          "type": "string",
+          "description": "Custom build output directory, relative to the workspace root. If omitted, defaults to '<project_relPath>/<build_name>'."
+        },
         "rel_path": {
           "type": "string",
-          "description": "Custom build output directory, relative to the workspace root. If omitted, defaults to '<project_rel_path>/<build_name>'."
+          "description": "Deprecated: use 'relPath' instead.",
+          "deprecated": true
         },
         "board": {
           "type": "string",

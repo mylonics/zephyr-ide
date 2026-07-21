@@ -81,7 +81,7 @@ suite("zephyr-ide.json toolchains/blobs Test Suite", () => {
       const ws = makeWsConfig(tmpRoot);
       const filePath = path.join(tmpRoot, ".vscode", "zephyr-ide.json");
       await fs.outputJson(filePath, {
-        projects: { app: { name: "app", rel_path: "app" } },
+        projects: { app: { name: "app", relPath: "app" } },
         blobs: ["hal_nordic"],
         my_var: "value",
       });
@@ -91,7 +91,7 @@ suite("zephyr-ide.json toolchains/blobs Test Suite", () => {
       const onDisk = await fs.readJson(filePath);
       assert.deepStrictEqual(onDisk.toolchains, ["arm-zephyr-eabi"]);
       assert.deepStrictEqual(onDisk.blobs, ["hal_nordic"]);
-      assert.deepStrictEqual(onDisk.projects, { app: { name: "app", rel_path: "app" } });
+      assert.deepStrictEqual(onDisk.projects, { app: { name: "app", relPath: "app" } });
       assert.strictEqual(onDisk.my_var, "value");
     } finally {
       await fs.remove(tmpRoot);
@@ -173,7 +173,7 @@ suite("zephyr-ide.json toolchains/blobs Test Suite", () => {
       const filePath = path.join(tmpRoot, ".vscode", "zephyr-ide.json");
       await fs.outputJson(filePath, {
         toolchains: ["arm-zephyr-eabi"],
-        projects: { app: { name: "app", rel_path: "app" } },
+        projects: { app: { name: "app", relPath: "app" } },
       });
 
       await setZephyrIdeSdkVersion(ws, "0.17.0");
@@ -182,7 +182,7 @@ suite("zephyr-ide.json toolchains/blobs Test Suite", () => {
       const onDisk = await fs.readJson(filePath);
       assert.strictEqual(onDisk.sdkVersion, "0.17.0");
       assert.deepStrictEqual(onDisk.toolchains, ["arm-zephyr-eabi"]);
-      assert.deepStrictEqual(onDisk.projects, { app: { name: "app", rel_path: "app" } });
+      assert.deepStrictEqual(onDisk.projects, { app: { name: "app", relPath: "app" } });
     } finally {
       await fs.remove(tmpRoot);
     }
@@ -221,7 +221,7 @@ suite("zephyr-ide.json toolchains/blobs Test Suite", () => {
   function makeProjectConfig(relPath: string): ProjectConfig {
     return {
       name: path.basename(relPath),
-      rel_path: relPath,
+      relPath: relPath,
       buildConfigs: {},
       confFiles: { config: [], overlay: [] },
       twisterConfigs: {},
@@ -246,12 +246,12 @@ suite("zephyr-ide.json toolchains/blobs Test Suite", () => {
       await setZephyrIdeSampleProjects(ws, projects);
       const result = getZephyrIdeSampleProjects(ws);
       assert.strictEqual(result.length, 2);
-      assert.strictEqual(result[0].rel_path, "samples/blinky");
-      assert.strictEqual(result[1].rel_path, "samples/hello_world");
+      assert.strictEqual(result[0].relPath, "samples/blinky");
+      assert.strictEqual(result[1].relPath, "samples/hello_world");
       // Check that the full config is persisted on disk.
       const onDisk = await fs.readJson(path.join(tmpRoot, ".vscode", "zephyr-ide.json"));
-      assert.strictEqual(onDisk.sampleProjects[0].rel_path, "samples/blinky");
-      assert.strictEqual(onDisk.sampleProjects[1].rel_path, "samples/hello_world");
+      assert.strictEqual(onDisk.sampleProjects[0].relPath, "samples/blinky");
+      assert.strictEqual(onDisk.sampleProjects[1].relPath, "samples/hello_world");
     } finally {
       await fs.remove(tmpRoot);
     }
@@ -263,7 +263,7 @@ suite("zephyr-ide.json toolchains/blobs Test Suite", () => {
       const ws = makeWsConfig(tmpRoot);
       const filePath = path.join(tmpRoot, ".vscode", "zephyr-ide.json");
       await fs.outputJson(filePath, {
-        projects: { app: { name: "app", rel_path: "app" } },
+        projects: { app: { name: "app", relPath: "app" } },
         toolchains: ["arm-zephyr-eabi"],
         blobs: ["hal_nordic"],
       });
@@ -271,10 +271,10 @@ suite("zephyr-ide.json toolchains/blobs Test Suite", () => {
       await setZephyrIdeSampleProjects(ws, [makeProjectConfig("samples/blinky")]);
 
       const onDisk = await fs.readJson(filePath);
-      assert.strictEqual(onDisk.sampleProjects[0].rel_path, "samples/blinky");
+      assert.strictEqual(onDisk.sampleProjects[0].relPath, "samples/blinky");
       assert.deepStrictEqual(onDisk.toolchains, ["arm-zephyr-eabi"]);
       assert.deepStrictEqual(onDisk.blobs, ["hal_nordic"]);
-      assert.deepStrictEqual(onDisk.projects, { app: { name: "app", rel_path: "app" } });
+      assert.deepStrictEqual(onDisk.projects, { app: { name: "app", relPath: "app" } });
     } finally {
       await fs.remove(tmpRoot);
     }
@@ -305,8 +305,8 @@ suite("zephyr-ide.json toolchains/blobs Test Suite", () => {
       });
       const result = getZephyrIdeSampleProjects(ws);
       assert.strictEqual(result.length, 2);
-      assert.strictEqual(result[0].rel_path, "samples/blinky");
-      assert.strictEqual(result[1].rel_path, "samples/hello_world");
+      assert.strictEqual(result[0].relPath, "samples/blinky");
+      assert.strictEqual(result[1].relPath, "samples/hello_world");
       // Legacy strings produce minimal ProjectConfig with basename as name.
       assert.strictEqual(result[0].name, "blinky");
       assert.strictEqual(result[1].name, "hello_world");
@@ -328,7 +328,7 @@ suite("zephyr-ide.json toolchains/blobs Test Suite", () => {
       };
       const fullConfig = {
         name: "blinky",
-        rel_path: "samples/blinky",
+        relPath: "samples/blinky",
         buildConfigs: { debug: debugBuild },
         confFiles: { config: ["prj.conf"], overlay: [] },
         twisterConfigs: {},
@@ -336,10 +336,43 @@ suite("zephyr-ide.json toolchains/blobs Test Suite", () => {
       await setZephyrIdeSampleProjects(ws, [fullConfig as any]);
       const result = getZephyrIdeSampleProjects(ws);
       assert.strictEqual(result.length, 1);
-      assert.strictEqual(result[0].rel_path, "samples/blinky");
+      assert.strictEqual(result[0].relPath, "samples/blinky");
       assert.strictEqual(result[0].name, "blinky");
       assert.deepStrictEqual(result[0].confFiles, { config: ["prj.conf"], overlay: [] });
       assert.ok(result[0].buildConfigs["debug"], "build config 'debug' should be present");
+    } finally {
+      await fs.remove(tmpRoot);
+    }
+  });
+
+  test("getZephyrIdeSampleProjects migrates legacy rel_path object entries to relPath in-memory", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "zephyr-ide-sp-"));
+    try {
+      const ws = makeWsConfig(tmpRoot);
+      const filePath = path.join(tmpRoot, ".vscode", "zephyr-ide.json");
+      await fs.outputJson(filePath, {
+        sampleProjects: [
+          {
+            name: "blinky",
+            rel_path: "samples/blinky",
+            buildConfigs: {
+              debug: {
+                name: "debug", board: "native_sim", rel_path: "custom/debug_out",
+                westBuildArgs: [], westBuildCMakeArgs: [], confFiles: { config: [], overlay: [] },
+              },
+            },
+            confFiles: { config: [], overlay: [] },
+            twisterConfigs: {},
+          },
+        ],
+      });
+
+      const result = getZephyrIdeSampleProjects(ws);
+      assert.strictEqual(result.length, 1);
+      assert.strictEqual(result[0].relPath, "samples/blinky");
+      assert.strictEqual((result[0] as any).rel_path, undefined);
+      assert.strictEqual(result[0].buildConfigs["debug"].relPath, "custom/debug_out");
+      assert.strictEqual((result[0].buildConfigs["debug"] as any).rel_path, undefined);
     } finally {
       await fs.remove(tmpRoot);
     }
@@ -573,7 +606,7 @@ suite("zephyr-ide.json toolchains/blobs Test Suite", () => {
       const ws = makeWsConfig(tmpRoot);
       const filePath = path.join(tmpRoot, ".vscode", "zephyr-ide.json");
       await fs.outputJson(filePath, {
-        projects: { app: { name: "app", rel_path: "app" } },
+        projects: { app: { name: "app", relPath: "app" } },
         sdkVersion: "0.17.0",
       });
 
@@ -588,7 +621,7 @@ suite("zephyr-ide.json toolchains/blobs Test Suite", () => {
         linux: ["echo one"],
         mac: ["echo mac"],
       });
-      assert.deepStrictEqual(onDisk.projects, { app: { name: "app", rel_path: "app" } });
+      assert.deepStrictEqual(onDisk.projects, { app: { name: "app", relPath: "app" } });
       assert.strictEqual(onDisk.sdkVersion, "0.17.0");
     } finally {
       await fs.remove(tmpRoot);

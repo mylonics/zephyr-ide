@@ -50,6 +50,7 @@ import {
     assertProjectPersisted,
     CommonUIInteractions,
     addAndBuildSysbuild,
+    addAndBuildWithRelPath,
     verifyBuildFsFunctions,
 } from './test-runner';
 import { UIMockInterface } from './ui-mock-interface';
@@ -221,6 +222,47 @@ suite('Combined Installation Test Suite', function() {
                 await verifyBuildFsFunctions(projectName, [
                     { build: regularBuildName, sysbuild: false },
                     { build: sysbuildBuildName, sysbuild: true },
+                ]);
+
+                step('Creating a second project with a nested relPath');
+                // Destination is a nested path so the project's persisted `relPath`
+                // ("nested_dir/blinky_relpath") differs from its `name` ("blinky_relpath"),
+                // exercising path-join logic across a real subdirectory instead of the
+                // flat default used by the first project above.
+                await executeWorkspaceCommand(
+                    uiMock,
+                    [
+                        { type: 'quickpick', value: 'blinky', description: 'Select blinky template' },
+                        { type: 'input', value: 'nested_dir/blinky_relpath', description: 'Choose project destination' }
+                    ],
+                    'zephyr-ide.create-project',
+                    'Project creation with nested relPath should succeed'
+                );
+                await assertProjectPersisted('Combined Installation Test', 'blinky_relpath');
+
+                step('Adding a build with a custom relPath on the new project');
+                const relPathBuildFolder = await addAndBuildWithRelPath(
+                    'blinky', 'test_build_1',
+                    'blinky_relpath', 'relpath_build',
+                    'custom_build_output/relpath_build',
+                );
+                await assertProjectPersisted('Combined Installation Test', 'blinky_relpath', 'relpath_build');
+                logDetail(`Custom relPath build folder in use: ${relPathBuildFolder}`);
+
+                step('Adding a sysbuild build with its own custom relPath');
+                const sysbuildRelPathBuildFolder = await addAndBuildWithRelPath(
+                    'blinky', 'test_build_1',
+                    'blinky_relpath', 'relpath_build_sysbuild',
+                    'custom_build_output/relpath_build_sysbuild',
+                    { sysbuild: true },
+                );
+                await assertProjectPersisted('Combined Installation Test', 'blinky_relpath', 'relpath_build_sysbuild');
+                logDetail(`Custom relPath sysbuild folder in use: ${sysbuildRelPathBuildFolder}`);
+
+                step('Verifying filesystem/parsing functions for the relPath project builds');
+                await verifyBuildFsFunctions('blinky_relpath', [
+                    { build: 'relpath_build', sysbuild: false },
+                    { build: 'relpath_build_sysbuild', sysbuild: true },
                 ]);
             }
         );
