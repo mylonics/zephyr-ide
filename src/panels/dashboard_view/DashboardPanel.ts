@@ -22,6 +22,7 @@ import * as vscode from "vscode";
 import type { DashboardData, DashboardMemoryRefresh } from "./dashboard-data";
 import { generateNonce } from "../webview_shared/nonce";
 import type { KconfigSession } from "../../build_data/kconfig-session";
+import { outputError } from "../../utilities/output";
 
 /** Callback invoked when the user requests a memory report refresh. */
 type MemoryRefreshCallback = () => Promise<(DashboardMemoryRefresh & { error?: string }) | undefined>;
@@ -169,7 +170,11 @@ export class DashboardPanel {
     if (existing) {
       existing._panel.reveal(column);
       existing._data = data;
-      void existing._postData().catch(() => { /* panel may be disposed */ });
+      void existing._postData().catch((error) => {
+        if (!existing._disposed) {
+          outputError("Dashboard", `Failed to update dashboard data: ${String(error)}`);
+        }
+      });
       return existing;
     }
 
@@ -226,7 +231,11 @@ export class DashboardPanel {
     );
 
     this._panel.webview.html = this.getHtmlShell();
-    void this._postData().catch(() => { /* panel may be disposed */ });
+    void this._postData().catch((error) => {
+      if (!this._disposed) {
+        outputError("Dashboard", `Failed to post initial dashboard data: ${String(error)}`);
+      }
+    });
 
     // Kick off the Kconfig session immediately in the background so it is
     // ready (or near-ready) by the time the user navigates to the Kconfig
