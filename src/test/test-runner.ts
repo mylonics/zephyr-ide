@@ -740,7 +740,14 @@ export async function verifyBuildFsFunctions(
     // The suite-level Mocha timeout remains authoritative. A per-check
     // Promise.race cannot cancel the underlying task/process and would let a
     // timed-out operation continue mutating shared build artifacts.
+    // Each check logs before it runs (not just on failure) so a hang or a
+    // slow CI run shows exactly which of the ~50 checks it's stuck on,
+    // instead of leaving the whole "Verifying filesystem/parsing functions"
+    // block silent until it either finishes or times out.
+    let checkIndex = 0;
     const check = async (buildLabel: string, name: string, fn: () => Promise<void> | void): Promise<void> => {
+        checkIndex++;
+        logDetail(`Check ${checkIndex}: [${buildLabel}] ${name}`);
         try {
             await fn();
         } catch (error) {
