@@ -1033,9 +1033,21 @@ export async function verifyBuildFsFunctions(
             console.log(`   ▶️  [${buildName}] buildDashboard: zephyr-ide.run-dashboard`);
             await vscode.commands.executeCommand("zephyr-ide.run-dashboard");
             const expectedTitle = `Dashboard: ${projectName} / ${buildName}`;
-            const tab = vscode.window.tabGroups.all
+            // createWebviewPanel returns synchronously in the extension host,
+            // but vscode.window.tabGroups mirrors the main-thread UI tab model
+            // and is updated asynchronously via events — so the just-opened tab
+            // can be absent on the first read right after the command resolves.
+            // Poll briefly (same idiom as waitForBuildReady) until it appears.
+            const TAB_WAIT_MS = 10000;
+            const findTab = () => vscode.window.tabGroups.all
                 .flatMap((group) => group.tabs)
                 .find((t) => t.label === expectedTitle);
+            let tab = findTab();
+            const deadline = Date.now() + TAB_WAIT_MS;
+            while (!tab && Date.now() < deadline) {
+                await new Promise((resolve) => setTimeout(resolve, 200));
+                tab = findTab();
+            }
             try {
                 assert.ok(tab, `buildDashboard (via zephyr-ide.run-dashboard) did not open a "${expectedTitle}" tab`);
             } finally {
