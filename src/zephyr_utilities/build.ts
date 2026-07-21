@@ -449,6 +449,15 @@ export async function buildRamRomReportHeadless(
   return { success: true, output: result.output || `${reportType} Report: completed successfully` };
 }
 
+// Overall cap for how long buildDashboardReport waits on the `dashboard`
+// target's on-disk artifact before giving up. The target reliably produces
+// its output within seconds; this only bounds genuine failures where the
+// artifact never appears AND the task never exits.
+const DASHBOARD_REPORT_TIMEOUT_MS = 90000;
+// How long dashboard/memoryreport.html's size+mtime must stay unchanged before
+// we treat it as fully written (guards against reading a mid-write file).
+const DASHBOARD_ARTIFACT_SETTLE_MS = 3000;
+
 /**
  * Runs the native Zephyr `west build -t dashboard` target, which generates an
  * HTML memory dashboard and opens it in the system browser.
@@ -497,18 +506,44 @@ export async function buildDashboardReport(
     `Running Zephyr dashboard report for ${build.name} (cmd: ${cmd})`,
     true
   );
-  const taskSucceeded = await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState.setupPath);
+  // The `dashboard` target reliably writes its output (dashboard/memoryreport.html
+  // et al.) within seconds, but on some platforms (observed on Linux CI) a child
+  // process spawned by the target keeps the task's pseudo-terminal open after the
+  // build itself is done — so VS Code's onDidEndTaskProcess never fires and the
+  // task appears to run forever. Rather than block on task exit, race real task
+  // completion against the report's distinctive on-disk artifact appearing and
+  // settling; whichever happens first tells us the report finished. This keeps
+  // the exit-code-based failure detection below intact for the normal fast path
+  // (e.g. no "dashboard" target when pointed at a sysbuild top-level dir instead
+  // of the per-image domain dir) while no longer hanging when the process lingers.
+  const artifactPath = path.join(effectiveFolder, "dashboard", "memoryreport.html");
+  let artifactMtimeBefore = 0;
+  try { artifactMtimeBefore = (await fs.stat(artifactPath)).mtimeMs; } catch { /* not generated yet */ }
 
-  // The task's exit status used to be discarded here, so a fast build-system
-  // failure (e.g. no "dashboard" target at this build dir — which is the
-  // case when pointed at a sysbuild top-level dir instead of the per-image
-  // domain dir) looked identical to success from here on: the caller would
-  // just fail later when the expected memoryreport.html wasn't found, with
-  // no indication of why.
-  if (!taskSucceeded) {
+  const taskPromise = executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState.setupPath);
+  const outcome = await Promise.race([
+    taskPromise
+      .then((ok) => ({ via: "task" as const, ok }))
+      .catch(() => ({ via: "task" as const, ok: false })),
+    waitForFreshArtifactStable(artifactPath, artifactMtimeBefore, DASHBOARD_REPORT_TIMEOUT_MS, DASHBOARD_ARTIFACT_SETTLE_MS)
+      .then((produced) => ({ via: "artifact" as const, ok: produced })),
+  ]);
+
+  if (outcome.via === "artifact" && outcome.ok) {
+    // The task hasn't exited (and may never), but the report artifact is on disk
+    // and has stopped changing — proceed on the on-disk result. The task is left
+    // running; it is harmless and gets reaped when the extension host exits.
+    outputInfo(
+      `Dashboard Report: ${project.name}/${build.name}`,
+      `dashboard target produced ${artifactPath} but the task process has not exited — continuing on the on-disk artifact.`,
+      false
+    );
+  } else if (!outcome.ok) {
+    // Either the task exited non-zero (genuine build-system failure) or we timed
+    // out without ever seeing a freshly-written artifact.
     notifyError(
       "Dashboard Report",
-      `west build -t dashboard failed for ${project.name}/${build.name} (cmd: ${cmd}) — see the "${taskName}" task output for details.`
+      `cmake --build --target dashboard failed for ${project.name}/${build.name} (cmd: ${cmd}) — see the "${taskName}" task output for details.`
     );
     return undefined;
   }
@@ -550,6 +585,52 @@ function logDashboardReportLocations(projectName: string, buildName: string, bui
     (missing.length ? `; not at: ${missing.join(", ")}` : ""),
     false
   );
+}
+
+/**
+ * Polls for `filePath` to exist with an mtime newer than `afterMtimeMs` and a
+ * size+mtime signature that has stopped changing for `settleMs`. Resolves true
+ * once the file has appeared fresh and settled, or false if `timeoutMs` elapses
+ * first.
+ *
+ * Used by buildDashboardReport to detect that the `dashboard` target finished
+ * writing its report even when the underlying task process never signals exit
+ * (a lingering child keeps the task pty open on some platforms, e.g. Linux CI).
+ * The mtime-newer-than check prevents a stale artifact from a previous run from
+ * being mistaken for fresh output.
+ */
+async function waitForFreshArtifactStable(
+  filePath: string,
+  afterMtimeMs: number,
+  timeoutMs: number,
+  settleMs: number,
+  pollMs = 500
+): Promise<boolean> {
+  const start = Date.now();
+  let lastSig = "";
+  let stableSince = 0;
+  while (Date.now() - start < timeoutMs) {
+    let sig: string | undefined;
+    try {
+      const st = await fs.stat(filePath);
+      if (st.mtimeMs > afterMtimeMs) {
+        sig = `${st.size}:${st.mtimeMs}`;
+      }
+    } catch {
+      // Not written yet — keep polling.
+    }
+    if (sig !== undefined) {
+      if (sig === lastSig) {
+        if (stableSince === 0) { stableSince = Date.now(); }
+        if (Date.now() - stableSince >= settleMs) { return true; }
+      } else {
+        lastSig = sig;
+        stableSince = 0;
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, pollMs));
+  }
+  return false;
 }
 
 export async function buildDashboard(
