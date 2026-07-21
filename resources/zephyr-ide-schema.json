@@ -107,7 +107,11 @@
     "ProjectConfig": {
       "type": "object",
       "description": "Configuration for a Zephyr IDE project.",
-      "required": ["name", "relPath", "buildConfigs", "confFiles", "twisterConfigs"],
+      "required": ["name", "buildConfigs", "confFiles", "twisterConfigs"],
+      "anyOf": [
+        { "required": ["relPath"] },
+        { "required": ["rel_path"] }
+      ],
       "properties": {
         "name": {
           "type": "string",
