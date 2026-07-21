@@ -743,7 +743,18 @@ export async function verifyBuildFsFunctions(
     // failing this one check. Racing every check against this timeout turns
     // that into a fast, attributable failure.
     const CHECK_TIMEOUT_MS = 120000;
+    // Heartbeat interval: with no per-command logging on the silent
+    // (cp.exec) path, the CI log otherwise goes completely silent between
+    // "🔎 Verifying..." and either the next check or the timeout above —
+    // making it impossible to tell which check was in progress when a hang
+    // occurred. Logging elapsed time periodically means the log's last line
+    // before a timeout always names the stuck check.
+    const HEARTBEAT_MS = 20000;
     const check = async (buildLabel: string, name: string, fn: () => Promise<void> | void): Promise<void> => {
+        const startedAt = Date.now();
+        const heartbeat = setInterval(() => {
+            console.log(`   ⏳ [${buildLabel}] ${name}: still running after ${Math.round((Date.now() - startedAt) / 1000)}s...`);
+        }, HEARTBEAT_MS);
         try {
             await Promise.race([
                 Promise.resolve(fn()),
@@ -753,6 +764,8 @@ export async function verifyBuildFsFunctions(
             ]);
         } catch (error) {
             failures.push({ build: buildLabel, check: name, message: error instanceof Error ? error.message : String(error) });
+        } finally {
+            clearInterval(heartbeat);
         }
     };
 
@@ -900,6 +913,11 @@ export async function verifyBuildFsFunctions(
         await check(buildName, "runMemoryReports", async () => {
             const setupState = wsConfig.activeSetupState;
             assert.ok(setupState, "wsConfig.activeSetupState is not set");
+            // Logged explicitly because the silent (cp.exec) path this calls
+            // into (executeShellCommandInPythonEnv) logs nothing of its own
+            // before running — without this line, a hang here leaves no trace
+            // of which command was in flight.
+            console.log(`   ▶️  [${buildName}] runMemoryReports: cmake --build --target ram_report, rom_report against "${resolveEffectiveBuildDir(buildFolder)}"`);
             const result = await runMemoryReports(buildFolder, setupState, projectName, buildName);
             assert.strictEqual(result.error, null, `runMemoryReports failed: ${result.error}\n${result.output}`);
             const reports = readMemoryReports(buildFolder);
@@ -909,6 +927,7 @@ export async function verifyBuildFsFunctions(
         await check(buildName, "runFullMemoryRefresh", async () => {
             const setupState = wsConfig.activeSetupState;
             assert.ok(setupState, "wsConfig.activeSetupState is not set");
+            console.log(`   ▶️  [${buildName}] runFullMemoryRefresh: nm stat regen + cmake --build --target ram_report, rom_report against "${resolveEffectiveBuildDir(buildFolder)}"`);
             const error = await runFullMemoryRefresh(buildFolder, setupState, projectName, buildName);
             assert.strictEqual(error, null, `runFullMemoryRefresh failed: ${error}`);
             const reports = readMemoryReports(buildFolder);
@@ -923,6 +942,11 @@ export async function verifyBuildFsFunctions(
         // dashboard/memoryreport.html — the report's own distinctive on-disk
         // artifact — under the domain-resolved build directory.
         await check(buildName, "buildDashboardReport", async () => {
+            // buildDashboardReport (build.ts) does its own outputInfo/outputCommand
+            // logging before running `west build -t dashboard`, so the extension
+            // debug log already names the command — this line is for the mocha
+            // console specifically, which doesn't see that output live.
+            console.log(`   ▶️  [${buildName}] buildDashboardReport: zephyr-ide.run-dashboard-report (west build -t dashboard)`);
             await vscode.commands.executeCommand("zephyr-ide.run-dashboard-report");
             const effectiveDir = resolveEffectiveBuildDir(buildFolder);
             const dashboardHtmlPath = path.join(effectiveDir, "dashboard", "memoryreport.html");
@@ -939,6 +963,7 @@ export async function verifyBuildFsFunctions(
         // effect; dispose it immediately after asserting it was created so no
         // panel is left open across the remaining checks/builds.
         await check(buildName, "buildDashboard", async () => {
+            console.log(`   ▶️  [${buildName}] buildDashboard: zephyr-ide.run-dashboard`);
             await vscode.commands.executeCommand("zephyr-ide.run-dashboard");
             const panel = DashboardPanel.getPanel(projectName, buildName);
             try {
