@@ -19,7 +19,6 @@ import * as vscode from "vscode";
 import * as os from "os";
 import * as fs from "fs-extra";
 import * as path from "upath";
-import * as yaml from 'js-yaml';
 import { getPlatformNameAsync } from "../utilities/utils";
 import { outputInfo, outputWarning, outputError, notifyError } from "../utilities/output";
 import { WorkspaceConfig, SetupState } from "./types";
@@ -28,6 +27,7 @@ import { normalizeBuildArgs } from "../project_utilities/build_args";
 import { ConfigFiles, ConfigFileEntry, emptyConfigFiles } from "../project_utilities/config_selector";
 import { markZephyrIdeJsonWrite } from "./zephyr-ide-json-write-guard";
 import { resolveEffectiveBuildDir } from "../zephyr_utilities/runners-yaml";
+import { parseCMakeCache, loadBuildInfoYml } from "../build_data/build-artifact-reader";
 
 /**
  * Migrate a ConfigFiles value from the old 4-array format
@@ -678,31 +678,10 @@ export function readCMakeCacheInfo(buildDir: string): CMakeCacheInfo {
   const info: CMakeCacheInfo = {};
 
   // Resolve the effective build directory, handling sysbuild via domains.yaml
-  let effectiveBuildDir = buildDir;
-  const domainsYamlPath = path.join(buildDir, "domains.yaml");
-  if (fs.pathExistsSync(domainsYamlPath)) {
-    outputInfo("CMakeCache", `Found domains.yaml at "${domainsYamlPath}" — sysbuild detected.`);
-    try {
-      const domainsDoc: any = yaml.load(fs.readFileSync(domainsYamlPath, 'utf-8'));
-      const defaultName = domainsDoc?.default;
-      const domains: any[] = domainsDoc?.domains;
-      if (defaultName && Array.isArray(domains)) {
-        const defaultDomain = domains.find((d: any) => d.name === defaultName);
-        if (defaultDomain?.build_dir) {
-          effectiveBuildDir = defaultDomain.build_dir;
-          outputInfo("CMakeCache", `Using domain "${defaultName}" build dir at "${effectiveBuildDir}".`);
-        } else {
-          outputWarning("CMakeCache", `Default domain "${defaultName}" has no build_dir in domains.yaml.`);
-          return info;
-        }
-      } else {
-        outputWarning("CMakeCache", `domains.yaml missing "default" or "domains" fields.`);
-        return info;
-      }
-    } catch (domainError) {
-      outputWarning("CMakeCache", `Error reading domains.yaml: ${domainError}`);
-      return info;
-    }
+  // (the same resolver every other build-artifact reader uses).
+  const effectiveBuildDir = resolveEffectiveBuildDir(buildDir);
+  if (effectiveBuildDir !== buildDir) {
+    outputInfo("CMakeCache", `Sysbuild detected — using domain build dir at "${effectiveBuildDir}".`);
   }
 
   // Read CMakeCache.txt for GDB path and ELF name
@@ -711,19 +690,17 @@ export function readCMakeCacheInfo(buildDir: string): CMakeCacheInfo {
     outputWarning("CMakeCache", `CMakeCache.txt not found at "${cmakeCachePath}". The project may not have been built yet.`);
   } else {
     try {
-      const cacheContent = fs.readFileSync(cmakeCachePath, 'utf-8');
+      const cache = parseCMakeCache(effectiveBuildDir);
 
-      const gdbMatch = cacheContent.match(/^CMAKE_GDB:\w+=(.+)$/m);
-      if (gdbMatch && gdbMatch[1]) {
-        info.gdbPath = gdbMatch[1].trim();
+      if (cache['CMAKE_GDB']) {
+        info.gdbPath = cache['CMAKE_GDB'].trim();
         outputInfo("CMakeCache", `Found GDB path: "${info.gdbPath}"`);
       } else {
         outputInfo("CMakeCache", `CMAKE_GDB not found in "${cmakeCachePath}".`);
       }
 
-      const elfMatch = cacheContent.match(/^BYPRODUCT_KERNEL_ELF_NAME:\w+=(.+)$/m);
-      if (elfMatch && elfMatch[1]) {
-        info.elfName = elfMatch[1].trim();
+      if (cache['BYPRODUCT_KERNEL_ELF_NAME']) {
+        info.elfName = cache['BYPRODUCT_KERNEL_ELF_NAME'].trim();
         outputInfo("CMakeCache", `Found kernel ELF name: "${info.elfName}"`);
       } else {
         outputWarning("CMakeCache", `BYPRODUCT_KERNEL_ELF_NAME not found in "${cmakeCachePath}".`);
@@ -738,18 +715,11 @@ export function readCMakeCacheInfo(buildDir: string): CMakeCacheInfo {
   // a path — this is attempted first in case a future/alternate Zephyr
   // version does populate it, then the GDB-derived fallback below covers the
   // common case.
-  const buildInfoPath = path.join(effectiveBuildDir, "build_info.yml");
-  if (fs.pathExistsSync(buildInfoPath)) {
-    try {
-      const rawData: any = yaml.load(fs.readFileSync(buildInfoPath, 'utf-8'));
-      const toolchainPath = rawData?.toolchain?.path;
-      if (toolchainPath && typeof toolchainPath === 'string') {
-        info.toolchainPath = toolchainPath;
-        outputInfo("CMakeCache", `Found toolchain path: "${info.toolchainPath}"`);
-      }
-    } catch (e) {
-      outputWarning("CMakeCache", `Failed to parse build_info.yml at "${buildInfoPath}": ${e}`);
-    }
+  const buildInfoData = loadBuildInfoYml(effectiveBuildDir);
+  const toolchainPath = buildInfoData?.toolchain?.path;
+  if (toolchainPath && typeof toolchainPath === 'string') {
+    info.toolchainPath = toolchainPath;
+    outputInfo("CMakeCache", `Found toolchain path: "${info.toolchainPath}"`);
   }
 
   // Fall back to deriving the toolchain path from CMAKE_GDB. A toolchain's

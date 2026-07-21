@@ -63,6 +63,7 @@ import * as fs from "fs";
 import * as path from "upath";
 import { WorkspaceConfig } from "../setup_utilities/types";
 import { readZephyrIdeJson, writeZephyrIdeJson } from "../setup_utilities/zephyr_ide_json";
+import { parseCMakeCache } from "../build_data/build-artifact-reader";
 
 /**
  * FlashBind — selects how the Flash / Build-and-Flash action is executed.
@@ -594,20 +595,10 @@ export function suggestProfileName(wsConfig: WorkspaceConfig, base: string = "Pr
  * Matching is case-insensitive. Returns undefined when the file or key is absent.
  */
 function readCmakeCacheVar(buildFolder: string, varName: string): string | undefined {
-  const cachePath = path.join(buildFolder, "CMakeCache.txt");
-  if (!fs.existsSync(cachePath)) { return undefined; }
+  const cache = parseCMakeCache(buildFolder);
   const upper = varName.toUpperCase();
-  for (const line of fs.readFileSync(cachePath, "utf8").split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("//") || trimmed.startsWith("#")) { continue; }
-    const eqIdx = trimmed.indexOf("=");
-    if (eqIdx === -1) { continue; }
-    const keyPart = trimmed.slice(0, eqIdx).split(":")[0].trim();
-    if (keyPart.toUpperCase() === upper) {
-      return trimmed.slice(eqIdx + 1);
-    }
-  }
-  return undefined;
+  const key = Object.keys(cache).find((k) => k.toUpperCase() === upper);
+  return key !== undefined ? cache[key] : undefined;
 }
 
 /**

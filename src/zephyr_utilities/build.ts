@@ -19,11 +19,11 @@ import * as vscode from "vscode";
 import * as path from 'upath';
 import * as fs from 'fs-extra';
 
-import { executeTaskHelperInPythonEnv, executeShellCommandInPythonEnv, loadYamlFile } from "../utilities/utils";
+import { executeTaskHelperInPythonEnv } from "../utilities/utils";
 import { notifyError, outputInfo, outputWarning } from "../utilities/output";
-import { readDashboardData } from '../build_data/build-artifact-reader';
+import { readDashboardData, loadBuildInfoYml } from '../build_data/build-artifact-reader';
 import { readMemoryRefresh } from '../build_data/build-artifact-reader';
-import { runFullMemoryRefresh } from '../build_data/memory-report-runner';
+import { runFullMemoryRefresh, runMemoryReports, type MemoryReportTarget } from '../build_data/memory-report-runner';
 import type { DashboardData, DashboardMemoryRefresh } from '../build_data/dashboard-data';
 
 import { WorkspaceConfig } from '../setup_utilities/types';
@@ -375,8 +375,9 @@ export async function buildMenuConfig(
 }
 
 /**
- * Resolves and validates the project, build, command, and setup state needed for a RAM/ROM report.
- * Returns undefined (and calls notifyError) if any prerequisite is missing.
+ * Resolves and validates the project, build, and setup state needed for a
+ * RAM/ROM report. Returns undefined (and calls notifyError) if any
+ * prerequisite is missing.
  */
 async function resolveRamRomReportParams(
   context: vscode.ExtensionContext,
@@ -394,20 +395,18 @@ async function resolveRamRomReportParams(
     build = build ?? resolved.build;
   }
 
-  const projectFolder = getProjectFolder(wsConfig, project);
   const buildFolder = getBuildFolder(wsConfig, project, build);
   if (!isBuildFolderPopulated(buildFolder)) {
     notifyError("RAM/ROM Report", `Run a Build or Build Pristine before running ${reportType} Report.`);
     return undefined;
   }
 
-  const cmd = `west build -t ${isRamReport ? "ram_report" : "rom_report"} "${projectFolder}" --build-dir "${buildFolder}"`;
   const setupState = await getSetupStateOrNotify(context, wsConfig, "RAM/ROM Report");
   if (!setupState) {
     return undefined;
   }
 
-  return { project, build, cmd, setupState };
+  return { project, build, buildFolder, setupState };
 }
 
 export async function buildRamRomReport(
@@ -420,9 +419,10 @@ export async function buildRamRomReport(
   const params = await resolveRamRomReportParams(context, wsConfig, isRamReport, project, build);
   if (!params) { return; }
 
-  const taskName = "Zephyr IDE Build: " + params.project.name + " " + params.build.name;
-  outputInfo(`${isRamReport ? "RAM" : "ROM"} Report: ${params.project.name}/${params.build.name}`, `Running ${isRamReport ? "RAM" : "ROM"} Report ${params.build.name} from project: ${params.project.name} (cmd: ${params.cmd})`, true);
-  await executeTaskHelperInPythonEnv(params.setupState, taskName, params.cmd, params.setupState.setupPath);
+  const reportType = isRamReport ? "RAM" : "ROM";
+  const target: MemoryReportTarget = isRamReport ? "ram_report" : "rom_report";
+  outputInfo(`${reportType} Report: ${params.project.name}/${params.build.name}`, `Running ${reportType} Report for ${params.build.name} in project ${params.project.name}`, true);
+  await runMemoryReports(params.buildFolder, params.setupState, params.project.name, params.build.name, false, [target]);
   await regenerateCompileCommands(wsConfig);
 }
 
@@ -441,13 +441,12 @@ export async function buildRamRomReportHeadless(
     return { success: false, output: `${reportType} Report: prerequisite check failed` };
   }
 
-  const result = await executeShellCommandInPythonEnv(params.cmd, params.setupState.setupPath, params.setupState, true);
-  const combined = [result.stdout, result.stderr].filter(Boolean).join('\n');
-  if (result.exitCode === 0) {
-    return { success: true, output: combined || `${reportType} Report: completed successfully` };
-  } else {
-    return { success: false, output: combined || `${reportType} Report: No output` };
+  const target: MemoryReportTarget = isRamReport ? "ram_report" : "rom_report";
+  const result = await runMemoryReports(params.buildFolder, params.setupState, params.project.name, params.build.name, true, [target]);
+  if (result.error) {
+    return { success: false, output: result.output || result.error };
   }
+  return { success: true, output: result.output || `${reportType} Report: completed successfully` };
 }
 
 /**
@@ -610,8 +609,7 @@ export async function getBuildInfo(wsConfig: WorkspaceConfig,
   project: ProjectConfig,
   build: BuildConfig) {
   const effectiveBuildDir = resolveEffectiveBuildDir(getBuildFolder(wsConfig, project, build));
-  const buildInfoFilePath = path.join(effectiveBuildDir, "build_info.yml");
-  const rawData: any = loadYamlFile(buildInfoFilePath);
+  const rawData: any = loadBuildInfoYml(effectiveBuildDir);
 
   if (rawData && rawData.cmake && rawData.cmake.devicetree && rawData.cmake.kconfig) {
     const dtsFiles = rawData.cmake.devicetree["files"] ?? [];

@@ -885,8 +885,8 @@ export async function verifyBuildFsFunctions(
         await check(buildName, "runMemoryReports", async () => {
             const setupState = wsConfig.activeSetupState;
             assert.ok(setupState, "wsConfig.activeSetupState is not set");
-            const error = await runMemoryReports(buildFolder, setupState, projectName, buildName);
-            assert.strictEqual(error, null, `runMemoryReports failed: ${error}`);
+            const result = await runMemoryReports(buildFolder, setupState, projectName, buildName);
+            assert.strictEqual(result.error, null, `runMemoryReports failed: ${result.error}\n${result.output}`);
             const reports = readMemoryReports(buildFolder);
             assert.ok(reports.ram || reports.rom, "runMemoryReports completed but produced no ram/rom report data (ram.json/rom.json not found afterward)");
         });

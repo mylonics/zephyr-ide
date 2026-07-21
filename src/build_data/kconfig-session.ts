@@ -35,6 +35,7 @@ import { ChildProcessWithoutNullStreams, spawn } from "child_process";
 import type { SetupState, WorkspaceConfig } from "../setup_utilities/types";
 import { resolveActiveProjectBuild, getBuildFolder } from "../project_utilities/project";
 import { resolveEffectiveBuildDir } from "../zephyr_utilities/runners-yaml";
+import { parseCMakeCache } from "./build-artifact-reader";
 
 // ---------------------------------------------------------------------------
 // Public types - kept loose; the helper is the source of truth for shape.
@@ -173,17 +174,7 @@ const CMAKE_TO_ENV: Array<[cacheKey: string, envName: string]> = [
  * defaults defined in the Kconfig source.
  */
 export function buildEnvFromCMakeCache(buildFolder: string): Record<string, string> {
-  const cachePath = path.join(buildFolder, "CMakeCache.txt");
-  if (!fs.existsSync(cachePath)) { return {}; }
-  const cache: Record<string, string> = {};
-  for (const line of fs.readFileSync(cachePath, "utf8").split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("//") || trimmed.startsWith("#")) { continue; }
-    const eqIdx = trimmed.indexOf("=");
-    if (eqIdx === -1) { continue; }
-    const key = trimmed.slice(0, eqIdx).split(":")[0];
-    cache[key] = trimmed.slice(eqIdx + 1);
-  }
+  const cache = parseCMakeCache(buildFolder);
   const env: Record<string, string> = {};
   for (const [cacheKey, envName] of CMAKE_TO_ENV) {
     const v = cache[cacheKey];

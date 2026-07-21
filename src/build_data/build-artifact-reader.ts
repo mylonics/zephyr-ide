@@ -15,6 +15,7 @@ SPDX-License-Identifier: Apache-2.0
 
 import * as fs from 'fs-extra';
 import * as path from 'upath';
+import * as yaml from 'js-yaml';
 
 import { resolveEffectiveBuildDir } from '../zephyr_utilities/runners-yaml';
 
@@ -34,7 +35,14 @@ import type {
 // CMake cache
 // ---------------------------------------------------------------------------
 
-function parseCMakeCache(buildFolder: string): Record<string, string> {
+/**
+ * Parses CMakeCache.txt into a flat key→value map (CMake type annotations
+ * like ":STRING" are stripped from keys). This is the single shared reader
+ * for CMakeCache.txt — other modules that need one or two specific cache
+ * variables should call this and index into the result rather than
+ * re-scanning the file themselves.
+ */
+export function parseCMakeCache(buildFolder: string): Record<string, string> {
   const cachePath = path.join(buildFolder, 'CMakeCache.txt');
   if (!fs.existsSync(cachePath)) { return {}; }
   const cache: Record<string, string> = {};
@@ -180,9 +188,24 @@ function parseKconfig(buildFolder: string): DashboardKconfigEntry[] {
 // build_info.yml — source file lists
 // ---------------------------------------------------------------------------
 
-interface BuildInfoSourceFiles {
+export interface BuildInfoSourceFiles {
   kconfigFiles: string[];
   dtsFiles: string[];
+}
+
+/**
+ * Reads and parses build_info.yml. Returns undefined when the file is absent
+ * or malformed — the single shared reader other modules should call instead
+ * of independently existsSync + readFileSync + yaml.load'ing the same file.
+ */
+export function loadBuildInfoYml(buildFolder: string): any | undefined {
+  const buildInfoPath = path.join(buildFolder, 'build_info.yml');
+  if (!fs.existsSync(buildInfoPath)) { return undefined; }
+  try {
+    return yaml.load(fs.readFileSync(buildInfoPath, 'utf8'));
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -190,51 +213,17 @@ interface BuildInfoSourceFiles {
  * DTS/overlay source files that contributed to this build.  Returns empty
  * arrays when the file is absent or malformed (lenient by design).
  */
-function readBuildInfoSourceFiles(buildFolder: string): BuildInfoSourceFiles {
-  const buildInfoPath = path.join(buildFolder, 'build_info.yml');
-  if (!fs.existsSync(buildInfoPath)) {
-    return { kconfigFiles: [], dtsFiles: [] };
-  }
-  try {
-    // Lightweight YAML parse for the two lists we care about.
-    const raw = fs.readFileSync(buildInfoPath, 'utf8');
-    // Parse inline: look for the yaml structure manually to avoid adding a
-    // heavy YAML dependency.  build_info.yml uses a known schema so a simple
-    // block-sequence parser is sufficient.
-    const kconfigFiles: string[] = [];
-    const dtsFiles: string[] = [];
-
-    let section: 'kconfig' | 'dts' | null = null;
-    let inFiles = false;
-
-    for (const line of raw.split(/\r?\n/)) {
-      if (/^\s*kconfig\s*:/.test(line)) { section = 'kconfig'; inFiles = false; continue; }
-      if (/^\s*devicetree\s*:/.test(line)) { section = 'dts'; inFiles = false; continue; }
-      // Lines with 0 or 1 leading spaces are top-level YAML keys.
-      if (/^ {0,1}\S/.test(line)) {
-        // Top-level key — reset section if it's something other than kconfig/dts
-        if (!/^\s*(kconfig|devicetree)\s*:/.test(line)) { section = null; }
-        inFiles = false;
-        continue;
-      }
-      if (/^\s+(files|user-files)\s*:/.test(line)) { inFiles = true; continue; }
-      // A new indented key that is not a list item ends the files block.
-      if (inFiles && /^\s+\S/.test(line) && !/^\s+-\s/.test(line)) { inFiles = false; }
-      if (inFiles && /^\s+-\s+(.+)/.test(line)) {
-        const m = line.match(/^\s+-\s+(.*)/);
-        if (m) {
-          const p = m[1].trim().replace(/^['"]|['"]$/g, '');
-          if (p) {
-            if (section === 'kconfig') { kconfigFiles.push(p); }
-            else if (section === 'dts') { dtsFiles.push(p); }
-          }
-        }
-      }
-    }
-    return { kconfigFiles, dtsFiles };
-  } catch {
-    return { kconfigFiles: [], dtsFiles: [] };
-  }
+export function readBuildInfoSourceFiles(buildFolder: string): BuildInfoSourceFiles {
+  const rawData = loadBuildInfoYml(buildFolder);
+  const kconfigFiles: string[] = [
+    ...(rawData?.cmake?.kconfig?.files ?? []),
+    ...(rawData?.cmake?.kconfig?.['user-files'] ?? []),
+  ];
+  const dtsFiles: string[] = [
+    ...(rawData?.cmake?.devicetree?.files ?? []),
+    ...(rawData?.cmake?.devicetree?.['user-files'] ?? []),
+  ];
+  return { kconfigFiles, dtsFiles };
 }
 
 // ---------------------------------------------------------------------------
@@ -257,6 +246,58 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+interface ElfHeader {
+  is64: boolean;
+  isLE: boolean;
+  u16: (o: number) => number;
+  u32: (o: number) => number;
+  /** Safe 64-bit read returning a JS number (works for sizes/offsets up to 2^53). */
+  u64: (o: number) => number;
+  shoff: number;
+  shentsize: number;
+  shnum: number;
+  shstrndx: number;
+}
+
+/**
+ * Parses the ELF header bootstrap shared by every section/symbol-table
+ * reader in this file: magic validation, 32/64-bit + endianness detection,
+ * the resulting u16/u32/u64 readers, and the section-header-table geometry
+ * (offset/entry-size/count/string-table-index). Returns null for a
+ * too-short buffer or invalid ELF magic.
+ */
+function parseElfHeader(buf: Buffer): ElfHeader | null {
+  if (buf.length < 64) { return null; }
+
+  // Validate ELF magic: 0x7f 'E' 'L' 'F'
+  if (buf[0] !== 0x7f || buf[1] !== 0x45 || buf[2] !== 0x4c || buf[3] !== 0x46) { return null; }
+
+  const is64 = buf[4] === 2;
+  const isLE = buf[5] === 1;
+  const u16 = (o: number) => isLE ? buf.readUInt16LE(o) : buf.readUInt16BE(o);
+  const u32 = (o: number) => isLE ? buf.readUInt32LE(o) : buf.readUInt32BE(o);
+  const u64 = (o: number) => {
+    const lo = u32(o), hi = u32(o + 4);
+    return isLE ? lo + hi * 0x100000000 : hi + lo * 0x100000000;
+  };
+
+  // Section header table metadata from ELF header
+  let shoff: number, shentsize: number, shnum: number, shstrndx: number;
+  if (is64) {
+    shoff = u64(40);
+    shentsize = u16(58);
+    shnum = u16(60);
+    shstrndx = u16(62);
+  } else {
+    shoff = u32(32);
+    shentsize = u16(46);
+    shnum = u16(48);
+    shstrndx = u16(50);
+  }
+
+  return { is64, isLE, u16, u32, u64, shoff, shentsize, shnum, shstrndx };
+}
+
 /**
  * Parse ELF section headers to compute memory sizes by category.
  * Uses ELF section flags (SHF_ALLOC, SHF_WRITE, SHF_EXECINSTR) and types
@@ -267,32 +308,9 @@ function parseElfSectionSizes(elfPath: string): DashboardSummary['memorySummary'
   if (!fs.existsSync(elfPath)) { return null; }
   try {
     const buf: Buffer = fs.readFileSync(elfPath);
-    if (buf.length < 64) { return null; }
-
-    // Validate ELF magic: 0x7f 'E' 'L' 'F'
-    if (buf[0] !== 0x7f || buf[1] !== 0x45 || buf[2] !== 0x4c || buf[3] !== 0x46) { return null; }
-
-    const is64 = buf[4] === 2;
-    const isLE = buf[5] === 1;
-    const u16 = (o: number) => isLE ? buf.readUInt16LE(o) : buf.readUInt16BE(o);
-    const u32 = (o: number) => isLE ? buf.readUInt32LE(o) : buf.readUInt32BE(o);
-    // Safe 64-bit read returning a JS number (works for sizes/offsets up to 2^53).
-    const u64 = (o: number) => {
-      const lo = u32(o), hi = u32(o + 4);
-      return isLE ? lo + hi * 0x100000000 : hi + lo * 0x100000000;
-    };
-
-    // Section header table metadata from ELF header
-    let shoff: number, shentsize: number, shnum: number;
-    if (is64) {
-      shoff = u64(40);
-      shentsize = u16(58);
-      shnum = u16(60);
-    } else {
-      shoff = u32(32);
-      shentsize = u16(46);
-      shnum = u16(48);
-    }
+    const header = parseElfHeader(buf);
+    if (!header) { return null; }
+    const { is64, u32, u64, shoff, shentsize, shnum } = header;
 
     if (shoff === 0 || shnum === 0 || shentsize === 0) { return null; }
     if (shoff + shnum * shentsize > buf.length) { return null; }
@@ -361,22 +379,9 @@ function parseSysInit(buildFolder: string, kernelBinName: string, cache: Record<
   const addrToName = new Map<number, string>();
   try {
     const buf: Buffer = fs.readFileSync(elfPath);
-    if (buf.length >= 64 && buf[0] === 0x7f && buf[1] === 0x45 && buf[2] === 0x4c && buf[3] === 0x46) {
-      const is64 = buf[4] === 2;
-      const isLE = buf[5] === 1;
-      const u16 = (o: number) => isLE ? buf.readUInt16LE(o) : buf.readUInt16BE(o);
-      const u32 = (o: number) => isLE ? buf.readUInt32LE(o) : buf.readUInt32BE(o);
-      const u64 = (o: number) => {
-        const lo = u32(o), hi = u32(o + 4);
-        return isLE ? lo + hi * 0x100000000 : hi + lo * 0x100000000;
-      };
-
-      let shoff: number, shentsize: number, shnum: number, shstrndx: number;
-      if (is64) {
-        shoff = u64(40); shentsize = u16(58); shnum = u16(60); shstrndx = u16(62);
-      } else {
-        shoff = u32(32); shentsize = u16(46); shnum = u16(48); shstrndx = u16(50);
-      }
+    const header = parseElfHeader(buf);
+    if (header) {
+      const { is64, u32, u64, shoff, shentsize, shnum, shstrndx } = header;
 
       // Read section header string table (.shstrtab) to look up section names
       const shstrtabHeader = shoff + shstrndx * shentsize;
