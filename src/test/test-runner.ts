@@ -30,6 +30,7 @@ import { runMemoryReports, runFullMemoryRefresh } from '../build_data/memory-rep
 import { listSaveTargets } from '../panels/dashboard_view/kconfig-fragment';
 import { UIMockInterface } from './ui-mock-interface';
 import type { MockInteraction } from './ui-mock-interface';
+import { logStep, logDetail, logWarn, logError, logBanner } from './test-log';
 
 /**
  * Check if the build-dependency *check* step should be skipped based on
@@ -58,14 +59,11 @@ export function shouldInstallHostTools(): boolean {
  * Log test environment information
  */
 export function logTestEnvironment(): void {
-    console.log('=== Test Environment ===');
-    console.log('CI Environment:', process.env.CI === 'true');
-    console.log('Skip Build Dependency Check:', shouldSkipBuildDependencyCheck());
-    console.log('Install Host Tools:', shouldInstallHostTools());
-    console.log('Node Version:', process.version);
-    console.log('Platform:', process.platform);
-    console.log('Architecture:', process.arch);
-    console.log('========================');
+    logStep(
+        'env',
+        `CI=${process.env.CI === 'true'} skipBuildCheck=${shouldSkipBuildDependencyCheck()} ` +
+        `installHostTools=${shouldInstallHostTools()} node=${process.version} platform=${process.platform} arch=${process.arch}`
+    );
 }
 
 /**
@@ -81,15 +79,13 @@ export async function dumpExtensionOutput(label: string = "Extension Output"): P
     try {
         const output = await vscode.commands.executeCommand<string>("zephyr-ide.get-debug-output");
         if (output && output.length > 0) {
-            console.log(`\n═══ ${label} ════════════════════════════════════════`);
-            console.log(output);
-            console.log(`═══ End ${label} ════════════════════════════════════\n`);
+            logBanner(label, output);
             await writeExtensionOutputLog(label, output);
         } else {
-            console.log(`\n(No extension output captured for: ${label})`);
+            logDetail(`No extension output captured for: ${label}`);
         }
     } catch (error) {
-        console.log(`\n⚠️ Could not retrieve extension output: ${error}`);
+        logWarn(label, `Could not retrieve extension output: ${error}`);
     }
 }
 
@@ -118,7 +114,7 @@ async function writeExtensionOutputLog(label: string, output: string): Promise<v
  * @param setupType Type of setup being monitored (e.g., "workspace", "git workspace")
  */
 export async function monitorWorkspaceSetup(commandPromise: Thenable<any>, setupType: string = "workspace", timeoutMs: number = 600000): Promise<void> {
-    console.log(`⏳ Monitoring ${setupType} setup progress... (timeout: ${timeoutMs / 1000}s)`);
+    logStep(setupType, `Monitoring setup progress (timeout ${timeoutMs / 1000}s)`);
     const startTime = Date.now();
     const elapsedSeconds = () => ((Date.now() - startTime) / 1000).toFixed(1);
     // Records when each stage flag first flips true (seconds since this call
@@ -195,34 +191,37 @@ export async function monitorWorkspaceSetup(commandPromise: Thenable<any>, setup
         if (wsConfig) {
             if (!initialSetupComplete && wsConfig.activeSetupState?.initialized) {
                 stageTimings.initialSetup = elapsedSeconds();
-                console.log(`    ✅ Initial setup completed - west.yml created (${stageTimings.initialSetup}s elapsed)`);
+                logDetail(`west.yml created (${stageTimings.initialSetup}s elapsed)`);
                 initialSetupComplete = true;
             }
 
             if (!westUpdated && wsConfig.activeSetupState?.westUpdated) {
                 stageTimings.westUpdated = elapsedSeconds();
-                console.log(`    ✅ West updated - All repos downloaded (${stageTimings.westUpdated}s elapsed)`);
+                logDetail(`West updated - all repos downloaded (${stageTimings.westUpdated}s elapsed)`);
                 westUpdated = true;
             }
 
             if (!pythonEnvironmentSetup && wsConfig.activeSetupState?.pythonEnvironmentSetup) {
                 stageTimings.pythonEnv = elapsedSeconds();
-                console.log(`    ✅ Python environment setup completed (${stageTimings.pythonEnv}s elapsed)`);
+                logDetail(`Python environment setup completed (${stageTimings.pythonEnv}s elapsed)`);
                 pythonEnvironmentSetup = true;
             }
 
             if (!packagesInstalled && wsConfig.activeSetupState?.packagesInstalled) {
                 packagesInstalled = true;
                 stageTimings.packagesInstalled = elapsedSeconds();
-                console.log(`    ✅ Packages installed completed (${stageTimings.packagesInstalled}s elapsed)`);
+                logDetail(`Packages installed (${stageTimings.packagesInstalled}s elapsed)`);
             }
 
             if (packagesInstalled && await vscode.commands.executeCommand("zephyr-ide.is-sdk-installed")) {
                 sdkInstalled = true;
                 stageTimings.sdkInstalled = elapsedSeconds();
-                console.log(`    ✅ SDK installed (${stageTimings.sdkInstalled}s elapsed)`);
-                console.log(`🎉 All ${setupType} setup stages completed in ${stageTimings.sdkInstalled}s!`);
-                console.log(`📊 Stage timings: ${Object.entries(stageTimings).map(([stage, t]) => `${stage}=${t}s`).join(', ')}`);
+                logDetail(`SDK installed (${stageTimings.sdkInstalled}s elapsed)`);
+                logStep(
+                    setupType,
+                    `Setup complete in ${stageTimings.sdkInstalled}s ` +
+                    `(${Object.entries(stageTimings).map(([stage, t]) => `${stage}=${t}s`).join(', ')})`
+                );
                 break;
             }
         }
@@ -230,7 +229,7 @@ export async function monitorWorkspaceSetup(commandPromise: Thenable<any>, setup
         // Progress update every 30 seconds
         if (waitTime % 30000 === 0 && waitTime > 0) {
             const completedStages = [initialSetupComplete, pythonEnvironmentSetup, westUpdated, packagesInstalled, sdkInstalled].filter(Boolean).length;
-            console.log(`⏳ ${setupType} setup in progress... (${waitTime / 1000}s elapsed, ${completedStages}/5 stages completed)`);
+            logDetail(`In progress (${waitTime / 1000}s elapsed, ${completedStages}/5 stages completed)`);
         }
 
         await new Promise((resolve) => setTimeout(resolve, checkInterval));
@@ -322,7 +321,7 @@ export function setupWorkspaceScenarioSuite(
 
     suiteSetup(() => {
         logTestEnvironment();
-        console.log(`🔬 Testing ${logLabel} workflow`);
+        logStep(logLabel, "Starting test suite");
     });
 
     setup(async () => {
@@ -349,10 +348,9 @@ export async function printWorkspaceStructure(
     // Call the print-workspace command to display directory structure
     try {
         const structure = await vscode.commands.executeCommand("zephyr-ide.print-workspace");
-        console.log(`\n📁 ${testName} - Workspace Structure:`);
-        console.log(structure);
+        logBanner(`${testName} - Workspace Structure`, String(structure));
     } catch (error) {
-        console.log(`\n❌ ${testName} - Failed to print workspace structure: ${error}`);
+        logError(testName, `Failed to print workspace structure: ${error}`);
     }
 }
 
@@ -413,7 +411,7 @@ export async function assertWorkspaceReady(testName: string): Promise<void> {
             await fs.pathExists(setupPath),
             `External Zephyr installation directory not found at ${setupPath} (${testName})`
         );
-        console.log(`   ✅ External Zephyr installation present at ${setupPath}`);
+        logDetail(`External Zephyr installation present at ${setupPath}`);
     }
 
     // .vscode/zephyr-ide.json is the actual persisted state file for every
@@ -424,7 +422,7 @@ export async function assertWorkspaceReady(testName: string): Promise<void> {
         await fs.pathExists(zephyrIdeJsonPath),
         `.vscode/zephyr-ide.json not found at ${zephyrIdeJsonPath} — workspace state was never persisted (${testName})`
     );
-    console.log(`   ✅ .vscode/zephyr-ide.json present at ${zephyrIdeJsonPath}`);
+    logDetail(`.vscode/zephyr-ide.json present at ${zephyrIdeJsonPath}`);
 }
 
 /**
@@ -440,7 +438,7 @@ export async function waitForBuildReady(
     intervalMs: number = 2000
 ): Promise<void> {
     const start = Date.now();
-    console.log(`⏳ Waiting for workspace to be build-ready (${testName})...`);
+    logStep(testName, "Waiting for workspace to be build-ready");
 
     while (Date.now() - start < timeoutMs) {
         const ext = vscode.extensions.getExtension("mylonics.zephyr-ide");
@@ -451,7 +449,7 @@ export async function waitForBuildReady(
         if (wsConfig?.activeSetupState?.initialized) {
             const sdkInstalled = await vscode.commands.executeCommand("zephyr-ide.is-sdk-installed");
             if (sdkInstalled) {
-                console.log(`   ✅ Workspace is build-ready (${Math.round((Date.now() - start) / 1000)}s elapsed)`);
+                logDetail(`Build-ready (${Math.round((Date.now() - start) / 1000)}s elapsed)`);
                 return;
             }
         }
@@ -468,15 +466,14 @@ export async function waitForBuildReady(
 export async function executeFinalBuild(
     testName: string,
 ): Promise<void> {
-    console.log("⚡ Executing final build...");
+    logStep(testName, "Executing final build");
 
     await waitForBuildReady(testName);
     await assertWorkspaceReady(testName);
 
     const result = await vscode.commands.executeCommand("zephyr-ide.build");
-    console.log(`   Build command returned: ${result} (exit code ${result ? '0 - success' : 'non-zero - failure'})`);
     assert.strictEqual(result, true, `Build command must return true (exit code 0). Got: ${result}`);
-    console.log(`   ✅ Build succeeded for ${testName}`);
+    logDetail("Build succeeded (exit 0)");
 
     // A "successful" build that never produced an ELF is still a bug worth
     // catching here, rather than a downstream flash/debug test discovering it.
@@ -486,7 +483,7 @@ export async function executeFinalBuild(
         await fs.pathExists(elfPath),
         `Build reported success but no ELF file was found at ${elfPath} (${testName})`
     );
-    console.log(`   ✅ Verified: ELF artifact present at ${elfPath}`);
+    logDetail(`ELF artifact present: ${elfPath}`);
 }
 
 /**
@@ -522,7 +519,7 @@ export async function assertProjectPersisted(
         );
     }
 
-    console.log(`   ✅ Verified: project "${projectName}"${buildName ? ` / build "${buildName}"` : ''} persisted to zephyr-ide.json (${testName})`);
+    logDetail(`Project "${projectName}"${buildName ? ` / build "${buildName}"` : ''} persisted to zephyr-ide.json`);
 }
 
 /**
@@ -559,7 +556,7 @@ export async function assertWorkspaceReopenReDetectsVenv(testName: string): Prom
     assert.strictEqual(activeSetupState.env["VIRTUAL_ENV"], previousVirtualEnv, `Re-detected VIRTUAL_ENV must match the original venv path (${testName})`);
     assert.strictEqual(activeSetupState.env["PATH"], previousPath, `Re-detected PATH must match the original venv bin path (${testName})`);
 
-    console.log(`   ✅ Verified: reopening the workspace correctly re-detects and re-registers the existing venv (${testName})`);
+    logDetail("Workspace reopen correctly re-detects and re-registers the existing venv");
 }
 
 /**
@@ -605,7 +602,7 @@ export async function addAndBuildSysbuild(
     const regularBuild = project.buildConfigs[regularBuildName];
     assert.ok(regularBuild, `Active build "${regularBuildName}" config not found (addAndBuildSysbuild)`);
 
-    console.log(`🔨 Cloning build "${regularBuildName}" as "${newBuildName}" with --sysbuild enabled...`);
+    logStep("Sysbuild", `Cloning build "${regularBuildName}" as "${newBuildName}" with --sysbuild enabled`);
     const sysbuildConfig = {
         ...regularBuild,
         name: newBuildName,
@@ -622,7 +619,7 @@ export async function addAndBuildSysbuild(
     );
     invalidateRunnersYamlCache();
 
-    console.log(`⚡ Building sysbuild build "${newBuildName}"...`);
+    logStep("Sysbuild", `Building "${newBuildName}"`);
     await waitForBuildReady(`Sysbuild build (${resolvedProjectName})`);
     const result = await vscode.commands.executeCommand("zephyr-ide.build");
     assert.strictEqual(result, true, `Sysbuild build command must return true (exit code 0). Got: ${result}`);
@@ -633,7 +630,7 @@ export async function addAndBuildSysbuild(
         await fs.pathExists(domainsYamlPath),
         `Sysbuild build succeeded but domains.yaml not found at ${domainsYamlPath} — sysbuild may not have actually been enabled for this board/toolchain`
     );
-    console.log(`   ✅ Verified: sysbuild build produced domains.yaml at ${domainsYamlPath}`);
+    logDetail(`domains.yaml produced at ${domainsYamlPath}`);
 
     return { projectName: resolvedProjectName, regularBuildName, sysbuildBuildName: newBuildName };
 }
@@ -738,7 +735,7 @@ export async function verifyBuildFsFunctions(
     };
 
     for (const { build: buildName, sysbuild } of builds) {
-        console.log(`🔎 Verifying filesystem/parsing functions for build "${buildName}" (sysbuild=${sysbuild})...`);
+        logStep(buildName, `Verifying filesystem/parsing functions (sysbuild=${sysbuild})`);
 
         const buildConfig = project.buildConfigs[buildName];
         assert.ok(buildConfig, `Build "${buildName}" not found on project "${projectName}" (verifyBuildFsFunctions)`);
@@ -893,7 +890,7 @@ export async function verifyBuildFsFunctions(
             // into (executeShellCommandInPythonEnv) logs nothing of its own
             // before running — without this line, a hang here leaves no trace
             // of which command was in flight.
-            console.log(`   ▶️  [${buildName}] runMemoryReports: cmake --build --target ram_report, rom_report against "${resolveEffectiveBuildDir(buildFolder)}"`);
+            logDetail(`[${buildName}] runMemoryReports: cmake --build --target ram_report, rom_report against "${resolveEffectiveBuildDir(buildFolder)}"`);
             const result = await runMemoryReports(buildFolder, setupState, projectName, buildName);
             assert.strictEqual(result.error, null, `runMemoryReports failed: ${result.error}\n${result.output}`);
             const reports = readMemoryReports(buildFolder);
@@ -910,7 +907,7 @@ export async function verifyBuildFsFunctions(
                 fs.remove(path.join(effectiveDir, "rom.json")),
                 fs.remove(statPath),
             ]);
-            console.log(`   ▶️  [${buildName}] runFullMemoryRefresh: nm stat regen + cmake --build --target ram_report, rom_report against "${resolveEffectiveBuildDir(buildFolder)}"`);
+            logDetail(`[${buildName}] runFullMemoryRefresh: nm stat regen + cmake --build --target ram_report, rom_report against "${resolveEffectiveBuildDir(buildFolder)}"`);
             const error = await runFullMemoryRefresh(buildFolder, setupState, projectName, buildName);
             assert.strictEqual(error, null, `runFullMemoryRefresh failed: ${error}`);
             const reports = readMemoryReports(buildFolder);
@@ -938,7 +935,7 @@ export async function verifyBuildFsFunctions(
         // tab afterward so none is left open across the remaining
         // checks/builds.
         await check(buildName, "buildDashboard", async () => {
-            console.log(`   ▶️  [${buildName}] buildDashboard: zephyr-ide.run-dashboard`);
+            logDetail(`[${buildName}] buildDashboard: zephyr-ide.run-dashboard`);
             await vscode.commands.executeCommand("zephyr-ide.run-dashboard");
             const expectedTitle = `Dashboard: ${projectName} / ${buildName}`;
             // createWebviewPanel returns synchronously in the extension host,
@@ -1003,13 +1000,13 @@ export async function verifyBuildFsFunctions(
 
     if (failures.length > 0) {
         const report = failures.map((f) => `  [${f.build}] ${f.check}: ${f.message}`).join('\n');
-        console.log(`\n❌ verifyBuildFsFunctions found ${failures.length} failing check(s):\n${report}\n`);
+        logBanner(`verifyBuildFsFunctions: ${failures.length} failing check(s)`, report);
         assert.fail(
             `verifyBuildFsFunctions: ${failures.length} filesystem/parsing check(s) failed across ${builds.length} build(s):\n${report}`
         );
     }
 
-    console.log(`✅ verifyBuildFsFunctions: all checks passed for ${builds.length} build(s)`);
+    logStep("verifyBuildFsFunctions", `All checks passed for ${builds.length} build(s)`);
 }
 
 /**
@@ -1075,7 +1072,7 @@ export async function runWorkspaceScenarioTest(
     testWorkspaceDir: string,
     scenario: (uiMock: UIMockInterface) => Promise<void>
 ): Promise<void> {
-    console.log(`🚀 Starting ${testName}...`);
+    logStep(testName, "Starting test");
     const uiMock = new UIMockInterface();
 
     await executeTestWithErrorHandling(

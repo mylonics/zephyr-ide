@@ -151,7 +151,7 @@ if (testType === '--help' || testType === '-h' || testType === 'help') {
 }
 
 console.log(`=== Running Zephyr IDE ${testType.toUpperCase()} Workflow Integration Tests ===`);
-console.log('🔬 These tests execute the Zephyr IDE workflow using VS Code commands');
+console.log('These tests execute the Zephyr IDE workflow using VS Code commands');
 console.log('');
 
 // Distinct JUnit output path per test type so a full `workspace-setup-tests.yml`
@@ -271,10 +271,10 @@ try {
         env: { ...process.env, ZEPHYR_IDE_TESTING: 'true', MOCHA_FILE: mochaFile }
     });
 
-    console.log(`✓ ${testType} workflow integration tests completed successfully`);
+    console.log(`${testType} workflow integration tests completed successfully`);
     writeStepSummary(testType, parseJUnitResults(mochaFile));
 } catch (error) {
-    console.error(`❌ ${testType} workflow integration tests failed:`, error.message);
+    console.error(`${testType} workflow integration tests failed: ${error.message}`);
     console.error('');
     console.error('This test executes the Zephyr IDE workflow.');
     console.error('Some steps may fail if build dependencies are not available.');

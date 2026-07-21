@@ -29,6 +29,7 @@ import {
     addAndBuildSysbuild,
     verifyBuildFsFunctions,
 } from "./test-runner";
+import { logStep, logDetail, logBanner } from "./test-log";
 
 /**
  * Resolve a same-drive directory for the external Zephyr installation.
@@ -46,7 +47,6 @@ function getExternalInstallDir(): string {
  * integrated terminal, not the test log).
  */
 function dumpBuildDiagnostics(installDir: string): void {
-    console.log("═══ Build failure diagnostics ════════════════════════════════════");
     const venvBin = process.platform === "win32"
         ? path.join(installDir, ".venv", "Scripts")
         : path.join(installDir, ".venv", "bin");
@@ -62,22 +62,23 @@ function dumpBuildDiagnostics(installDir: string): void {
         { label: "python -V", cmd: process.platform === "win32" ? "python -V" : "python3 -V" },
         { label: "python sys.executable", cmd: `${process.platform === "win32" ? "python" : "python3"} -c "import sys; print(sys.executable)"` },
     ];
+    const lines: string[] = [];
     for (const p of probes) {
         try {
             const out = cp.execSync(p.cmd, { env, cwd: installDir, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 15000 });
-            console.log(`  [${p.label}] ${out.trim()}`);
+            lines.push(`[${p.label}] ${out.trim()}`);
         } catch (e: any) {
-            console.log(`  [${p.label}] FAILED: ${e?.stderr?.toString?.().trim() || e?.message || e}`);
+            lines.push(`[${p.label}] FAILED: ${e?.stderr?.toString?.().trim() || e?.message || e}`);
         }
     }
     // Dump any CMake error log west may have left behind.
     try {
         const entries = fs.existsSync(installDir) ? fs.readdirSync(installDir) : [];
-        console.log(`  [installDir contents] ${entries.join(", ") || "(empty/missing)"}`);
+        lines.push(`[installDir contents] ${entries.join(", ") || "(empty/missing)"}`);
     } catch (e: any) {
-        console.log(`  [installDir contents] FAILED: ${e?.message || e}`);
+        lines.push(`[installDir contents] FAILED: ${e?.message || e}`);
     }
-    console.log("═══ End build failure diagnostics ════════════════════════════════");
+    logBanner("Build failure diagnostics", lines.join("\n"));
 }
 
 /*
@@ -103,6 +104,7 @@ suite("Workspace External Zephyr Test Suite", () => {
 
     test("External Zephyr Workspace: Git Clone → Use Existing Install → West Selector → Build", async function () {
         await runWorkspaceScenarioTest("External Zephyr Workspace Test", getTestWorkspaceDir(), async (uiMock) => {
+            const ctx = "External Zephyr Workspace";
             const { sdkVersion, toolchain } = getTestEnvConfig();
             const externalInstallDir = getExternalInstallDir();
             // The OpenDialog mock skips real folder validation, but the workspace-setup
@@ -110,8 +112,8 @@ suite("Workspace External Zephyr Test Suite", () => {
             // (loadExternalSetupState returns undefined otherwise). Create it up front
             // so it mirrors what a real user would pick from the system file picker.
             fs.mkdirSync(externalInstallDir, { recursive: true });
-            console.log(`🏗️ Step 1: Setting up workspace from git without west folder...`);
-            console.log(`   External install directory: ${externalInstallDir}`);
+            logStep(ctx, "Setting up workspace from git without west folder");
+            logDetail(`External install directory: ${externalInstallDir}`);
             // No SDK-version/toolchain quickpicks after "additional west init args" —
             // SDK install after west update is fully automatic and deterministic
             // (installZephyrIdeRequirements, west-operations.ts), it never shows a
@@ -134,11 +136,10 @@ suite("Workspace External Zephyr Test Suite", () => {
 
             await monitorWorkspaceSetup(setupPromise, "external zephyr workspace");
 
-            console.log("⚡ Step 2: Executing build...");
             try {
                 await executeFinalBuild("External Zephyr Workspace");
 
-                console.log("🧪 Step 3: Adding a sysbuild build and verifying filesystem/parsing functions...");
+                logStep(ctx, "Adding a sysbuild build and verifying filesystem/parsing functions");
                 const { projectName, regularBuildName, sysbuildBuildName } = await addAndBuildSysbuild();
                 await verifyBuildFsFunctions(projectName, [
                     { build: regularBuildName, sysbuild: false },

@@ -24,6 +24,7 @@ import {
     addAndBuildSysbuild,
     verifyBuildFsFunctions,
 } from "./test-runner";
+import { logStep } from "./test-log";
 
 /*
  * WORKSPACE ZEPHYR IDE GIT INTEGRATION TEST:
@@ -47,7 +48,8 @@ suite("Workspace Zephyr IDE Git Test Suite", () => {
 
     test("Zephyr IDE Git Workspace: Git Clone → SDK Install → Build", async function () {
         await runWorkspaceScenarioTest("Zephyr IDE Git Workspace Test", getTestWorkspaceDir(), async (gitUiMock) => {
-            console.log("🏗️ Step 1: Setting up workspace from Zephyr IDE Git...");
+            const ctx = "Zephyr IDE Git Workspace";
+            logStep(ctx, "Setting up workspace from Zephyr IDE Git");
             // No SDK-version/toolchain quickpicks — SDK install after west
             // update is fully automatic and deterministic
             // (installZephyrIdeRequirements, west-operations.ts), it never
@@ -64,10 +66,9 @@ suite("Workspace Zephyr IDE Git Test Suite", () => {
 
             await monitorWorkspaceSetup(setupPromise, "zephyr ide git workspace");
 
-            console.log("⚡ Step 2: Executing build...");
             await executeFinalBuild("Zephyr IDE Git Workspace");
 
-            console.log("🧪 Step 3: Adding a sysbuild build and verifying filesystem/parsing functions...");
+            logStep(ctx, "Adding a sysbuild build and verifying filesystem/parsing functions");
             const { projectName, regularBuildName, sysbuildBuildName } = await addAndBuildSysbuild();
             await verifyBuildFsFunctions(projectName, [
                 { build: regularBuildName, sysbuild: false },

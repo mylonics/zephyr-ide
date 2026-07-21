@@ -31,6 +31,7 @@ import {
     addAndBuildSysbuild,
     verifyBuildFsFunctions
 } from "./test-runner";
+import { logStep, logDetail, logWarn } from "./test-log";
 
 /*
  * CLEAN INTEGRATION TEST ARCHITECTURE:
@@ -63,10 +64,11 @@ suite("Workspace Standard Test Suite", () => {
 
     test("Standard Workspace: Setup → Project → Build", async function () {
         await runWorkspaceScenarioTest("Standard Workspace Test", getTestWorkspaceDir(), async (uiMock) => {
-            console.log("🔍 Step 0: Checking host tools...");
+            const ctx = "Standard Workspace";
+            logStep(ctx, "Checking host tools");
             const toolsAvailable = await vscode.commands.executeCommand('zephyr-ide.check-host-tools-headless');
             if (!toolsAvailable) {
-                console.log("⚠️  Some host tools are not available - tests may fail");
+                logWarn(ctx, "Some host tools are not available - tests may fail");
             }
 
             const skipDependencyCheck = shouldSkipBuildDependencyCheck();
@@ -77,12 +79,9 @@ suite("Workspace Standard Test Suite", () => {
             // The registry PATH is updated, but new processes don't automatically inherit it without a system restart
             // Tools ARE installed correctly, but not visible in this new process
             if (skipDependencyCheck && requiresPathPropagation) {
-                console.log("📋 Step 1: Skipping build dependencies check (Windows/macOS PATH propagation limitation in CI)...");
-                console.log("   Tools were installed in previous steps but require system-level PATH propagation");
-                console.log("   On Windows: winget updates registry PATH, but new processes don't auto-inherit without restart");
-                console.log("   On macOS: brew updates PATH, but new processes don't auto-inherit without restart");
+                logDetail("Skipping build dependencies check (Windows/macOS PATH propagation limitation in CI)");
             } else {
-                console.log("📋 Step 1: Checking build dependencies...");
+                logStep(ctx, "Checking build dependencies");
                 await executeWorkspaceCommand(
                     uiMock,
                     [],
@@ -91,7 +90,7 @@ suite("Workspace Standard Test Suite", () => {
                 );
             }
 
-            console.log("🏗️ Step 2: Setting up workspace...");
+            logStep(ctx, "Setting up workspace");
             const setupPromise = startWorkspaceCommand(
                 uiMock,
                 CommonUIInteractions.standardWorkspace,
@@ -100,21 +99,19 @@ suite("Workspace Standard Test Suite", () => {
 
             await monitorWorkspaceSetup(setupPromise, "standard workspace");
 
-            console.log("🐍 Verifying Python venv path...");
             const pythonPathResult = await vscode.commands.executeCommand("zephyr-ide.print-python-path");
             assert.ok(
                 pythonPathResult && typeof pythonPathResult === 'object' && 'stdout' in pythonPathResult,
                 `zephyr-ide.print-python-path did not return stdout after a successful setup: ${JSON.stringify(pythonPathResult)}`
             );
             const stdout = (pythonPathResult as { stdout: string }).stdout;
-            console.log(`Python path check result: ${stdout}`);
             assert.ok(
                 stdout.includes('.venv') || stdout.includes('venv'),
                 `Python interpreter should be from venv, but got: ${stdout}`
             );
-            console.log("    ✅ Verified: Python interpreter is from venv");
+            logDetail("Python interpreter resolved from venv");
 
-            console.log("📁 Step 3: Creating project from template...");
+            logStep(ctx, "Creating project from template");
             await executeWorkspaceCommand(
                 uiMock,
                 CommonUIInteractions.createBlinkyProject,
@@ -122,7 +119,7 @@ suite("Workspace Standard Test Suite", () => {
                 "Project creation should succeed"
             );
 
-            console.log("🔨 Step 4: Adding build configuration...");
+            logStep(ctx, "Adding build configuration");
             await executeWorkspaceCommand(
                 uiMock,
                 [
@@ -139,13 +136,12 @@ suite("Workspace Standard Test Suite", () => {
 
             await assertProjectPersisted("Standard Workspace", "blinky", "test_build_1");
 
-            console.log("⚡ Step 5: Executing build...");
             await executeFinalBuild("Standard Workspace");
 
-            console.log("🔄 Step 6: Verifying workspace re-open re-detection...");
+            logStep(ctx, "Verifying workspace re-open re-detection");
             await assertWorkspaceReopenReDetectsVenv("Standard Workspace");
 
-            console.log("🧪 Step 7: Adding a sysbuild build and verifying filesystem/parsing functions...");
+            logStep(ctx, "Adding a sysbuild build and verifying filesystem/parsing functions");
             const { projectName, regularBuildName, sysbuildBuildName } = await addAndBuildSysbuild();
             await verifyBuildFsFunctions(projectName, [
                 { build: regularBuildName, sysbuild: false },
