@@ -626,6 +626,17 @@ export async function addAndBuildSysbuild(
     wsConfig.activeProject = resolvedProjectName;
     wsConfig.projectStates[resolvedProjectName].activeBuildConfig = newBuildName;
     invalidateRunnersYamlCache();
+    // Persist immediately, same as the real add-build command
+    // (addBuildToProject in project.ts) always does before returning.
+    // Skipping this left the addition living only in memory: the
+    // .vscode/zephyr-ide.json file watcher (extension.ts) reloads
+    // wsConfig.projects from disk on any change to that file, and a reload
+    // triggered by an unrelated write elsewhere (e.g. build-time CMakeCache
+    // caching for either build) would silently revert this project object
+    // back to the on-disk copy that never had "sysbuild_build" — causing a
+    // "Build not found" failure in verifyBuildFsFunctions that depended on
+    // exactly how that race landed.
+    await ext!.exports.saveWorkspaceState();
 
     console.log(`⚡ Building sysbuild build "${newBuildName}"...`);
     await waitForBuildReady(`Sysbuild build (${resolvedProjectName})`);

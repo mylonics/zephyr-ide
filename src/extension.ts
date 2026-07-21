@@ -2538,6 +2538,14 @@ export async function activate(context: vscode.ExtensionContext) {
   // Return API for tests and other extensions
   return {
     getWorkspaceConfig: () => wsConfig,
+    // Lets test code persist an in-memory wsConfig mutation the same way the
+    // real add/remove-build commands do (they always call setWorkspaceState
+    // before returning). Without this, a manual wsConfig.projects[...]
+    // mutation made from a test only exists in memory; the .vscode/
+    // zephyr-ide.json file watcher (see reloadFromFile above) can then
+    // overwrite it back out from the stale on-disk copy the next time
+    // anything else touches that file, silently reverting the mutation.
+    saveWorkspaceState: () => setWorkspaceState(context, wsConfig),
   };
 }
 
