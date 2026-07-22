@@ -49,6 +49,12 @@ export function normalizePath(p: string): string {
     return p.replace(/\\/g, "/");
 }
 
+/** Returns true when `candidatePath` is within `parentPath` (or equal), cross-platform safe. */
+export function isPathWithin(parentPath: string, candidatePath: string): boolean {
+    const relativePath = path.relative(parentPath, candidatePath);
+    return relativePath === '' || (!relativePath.startsWith('..') && !path.isAbsolute(relativePath));
+}
+
 /**
  * Check if host tools should be installed via the extension command
  */
@@ -634,6 +640,102 @@ export async function addAndBuildSysbuild(
     return { projectName: resolvedProjectName, regularBuildName, sysbuildBuildName: newBuildName };
 }
 
+/**
+ * Add a build to `targetProjectName` with a custom `relPath` (build output
+ * directory), cloning board/toolchain settings from an already-known-good
+ * build elsewhere in the workspace — same non-interactive approach as
+ * `addAndBuildSysbuild`, avoiding a re-run of the interactive board picker.
+ * Optionally appends `--sysbuild` to the cloned build's args.
+ *
+ * Builds the result and asserts the build folder actually resolved to the
+ * custom `relPath` location (not the default `<project relPath>/<build name>`
+ * path) — this is what proves a build-level `relPath` override is honored
+ * end-to-end, rather than merely accepted and ignored.
+ *
+ * @param sourceProjectName Project to clone a known-good build config from.
+ * @param sourceBuildName Build (on `sourceProjectName`) to clone settings from.
+ * @param targetProjectName Project to add the new build to (must already exist).
+ * @param newBuildName Name for the new build config.
+ * @param buildRelPath Custom build output directory, relative to the workspace root.
+ * @param options.sysbuild When true, appends `--sysbuild` to westBuildArgs and
+ *   asserts `domains.yaml` is produced instead of asserting a plain ELF.
+ * @returns The absolute build folder path that was actually used.
+ */
+export async function addAndBuildWithRelPath(
+    sourceProjectName: string,
+    sourceBuildName: string,
+    targetProjectName: string,
+    newBuildName: string,
+    buildRelPath: string,
+    options?: { sysbuild?: boolean }
+): Promise<string> {
+    const ext = vscode.extensions.getExtension("mylonics.zephyr-ide");
+    const wsConfig = ext?.isActive && ext.exports?.getWorkspaceConfig
+        ? ext.exports.getWorkspaceConfig()
+        : undefined;
+    assert.ok(wsConfig, `Extension workspace config not available (addAndBuildWithRelPath)`);
+
+    const sourceProject = wsConfig.projects[sourceProjectName];
+    assert.ok(sourceProject, `Source project "${sourceProjectName}" not found (addAndBuildWithRelPath)`);
+    const sourceBuild = sourceProject.buildConfigs[sourceBuildName];
+    assert.ok(sourceBuild, `Source build "${sourceBuildName}" not found on "${sourceProjectName}" (addAndBuildWithRelPath)`);
+
+    const targetProject = wsConfig.projects[targetProjectName];
+    assert.ok(targetProject, `Target project "${targetProjectName}" not found (addAndBuildWithRelPath)`);
+
+    const sysbuild = options?.sysbuild ?? false;
+    logStep("RelPath Build", `Cloning build "${sourceBuildName}" as "${newBuildName}" on "${targetProjectName}" with relPath="${buildRelPath}"${sysbuild ? ' and --sysbuild enabled' : ''}`);
+    const newBuildConfig = {
+        ...sourceBuild,
+        name: newBuildName,
+        relPath: buildRelPath,
+        westBuildArgs: sysbuild ? [...(sourceBuild.westBuildArgs ?? []), '--sysbuild'] : (sourceBuild.westBuildArgs ?? []),
+    };
+
+    wsConfig.activeProject = targetProjectName;
+    const added = await vscode.commands.executeCommand<boolean>("zephyr-ide.add-build", newBuildConfig);
+    assert.strictEqual(added, true, `zephyr-ide.add-build failed to create "${newBuildName}" on "${targetProjectName}"`);
+    const reloadedProject = wsConfig.projects[targetProjectName];
+    assert.ok(
+        reloadedProject?.buildConfigs[newBuildName],
+        `zephyr-ide.add-build did not add "${newBuildName}" to "${targetProjectName}"`
+    );
+    invalidateRunnersYamlCache();
+
+    logStep("RelPath Build", `Building "${newBuildName}"`);
+    await waitForBuildReady(`RelPath build (${targetProjectName}/${newBuildName})`);
+    const result = await vscode.commands.executeCommand("zephyr-ide.build");
+    assert.strictEqual(result, true, `Build command must return true for "${newBuildName}" (exit code 0). Got: ${result}`);
+
+    const buildFolder = getBuildFolder(wsConfig, reloadedProject, newBuildConfig);
+    const expectedBuildFolder = path.join(wsConfig.rootPath, buildRelPath);
+    assert.strictEqual(
+        normalizePath(buildFolder),
+        normalizePath(expectedBuildFolder),
+        `getBuildFolder did not resolve to the custom relPath "${buildRelPath}" for build "${newBuildName}" — got "${buildFolder}"`
+    );
+
+    if (sysbuild) {
+        const domainsYamlPath = path.join(buildFolder, "domains.yaml");
+        assert.ok(
+            await fs.pathExists(domainsYamlPath),
+            `Sysbuild build succeeded but domains.yaml not found at ${domainsYamlPath} (custom relPath="${buildRelPath}")`
+        );
+        logDetail(`domains.yaml produced at custom relPath: ${domainsYamlPath}`);
+    } else {
+        const elfPath = await vscode.commands.executeCommand<string>("zephyr-ide.get-zephyr-elf");
+        assert.ok(elfPath, `zephyr-ide.get-zephyr-elf returned no path after building "${newBuildName}"`);
+        assert.ok(await fs.pathExists(elfPath), `Build reported success but no ELF file was found at ${elfPath}`);
+        assert.ok(
+            isPathWithin(buildFolder, elfPath),
+            `ELF path "${elfPath}" is not inside the custom relPath build folder "${buildFolder}"`
+        );
+        logDetail(`ELF artifact present at custom relPath: ${elfPath}`);
+    }
+
+    return buildFolder;
+}
+
 interface BuildFsCheckSpec {
     /** Build config name (must already exist on the project). */
     build: string;
@@ -1054,7 +1156,7 @@ export async function verifyBuildFsFunctions(
     });
 
     await check(projectName, "get-active-project-path", async () => {
-        const expected = path.join(wsConfig.rootPath, project.rel_path);
+        const expected = path.join(wsConfig.rootPath, project.relPath);
         const result = await vscode.commands.executeCommand<string>("zephyr-ide.get-active-project-path");
         assert.ok(result, "zephyr-ide.get-active-project-path returned no path");
         assert.ok(await fs.pathExists(result), `zephyr-ide.get-active-project-path returned "${result}" which does not exist on disk`);

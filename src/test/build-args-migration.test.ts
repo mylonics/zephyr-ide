@@ -45,7 +45,7 @@ suite("Build Args Migration Test Suite", () => {
         projects: {
           app: {
             name: "app",
-            rel_path: "app",
+            relPath: "app",
             confFiles: { config: [], overlay: [] },
             twisterConfigs: {},
             buildConfigs: {
@@ -112,7 +112,7 @@ suite("Build Args Migration Test Suite", () => {
         projects: {
           app: {
             name: "app",
-            rel_path: "app",
+            relPath: "app",
             confFiles: {
               config: [{ path: "prj.conf" }],
               extraConfig: ["debug.conf"],
@@ -199,7 +199,7 @@ suite("Build Args Migration Test Suite", () => {
         projects: {
           app: {
             name: "app",
-            rel_path: "app",
+            relPath: "app",
             confFiles: {
               config: ["prj.conf", "debug.conf"],
               overlay: ["board.overlay"],
@@ -271,7 +271,7 @@ suite("Build Args Migration Test Suite", () => {
         projects: {
           app: {
             name: "app",
-            rel_path: "app",
+            relPath: "app",
             confFiles: {
               config: ["prj.conf"],
               extraConfig: ["debug.conf"],
@@ -343,7 +343,7 @@ suite("Build Args Migration Test Suite", () => {
         projects: {
           app: {
             name: "app",
-            rel_path: "app",
+            relPath: "app",
             confFiles: { config: [], overlay: [] },
             twisterConfigs: {},
             buildConfigs: {

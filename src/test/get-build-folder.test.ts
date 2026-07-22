@@ -1,5 +1,5 @@
 /*
-Copyright 2026 mylonics 
+Copyright 2026 mylonics
 Author Rijesh Augustine
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,22 +26,22 @@ function makeWs(rootPath: string): WorkspaceConfig {
   return { rootPath } as unknown as WorkspaceConfig;
 }
 
-function makeProject(rel_path: string): ProjectConfig {
+function makeProject(relPath: string): ProjectConfig {
   return {
-    name: path.basename(rel_path),
-    rel_path,
+    name: path.basename(relPath),
+    relPath,
     buildConfigs: {},
     confFiles: { config: [], overlay: [] },
     twisterConfigs: {},
   };
 }
 
-function makeBuild(name: string, rel_path?: string): BuildConfig {
-  return { name, rel_path } as unknown as BuildConfig;
+function makeBuild(name: string, relPath?: string): BuildConfig {
+  return { name, relPath } as unknown as BuildConfig;
 }
 
 suite("getBuildFolder Test Suite", () => {
-  test("defaults to project rel_path + build name when rel_path is absent", () => {
+  test("defaults to project relPath + build name when relPath is absent", () => {
     const ws = makeWs("/workspace");
     const project = makeProject("apps/sensors/accel_polling");
     const build = makeBuild("build/nrf52840dk/nrf52840");
@@ -51,7 +51,7 @@ suite("getBuildFolder Test Suite", () => {
     );
   });
 
-  test("uses build rel_path relative to workspace root when set", () => {
+  test("uses build relPath relative to workspace root when set", () => {
     const ws = makeWs("/workspace");
     const project = makeProject("apps/sensors/accel_polling");
     const build = makeBuild("my_build", "build/nrf52840dk/nrf52840");
@@ -61,7 +61,7 @@ suite("getBuildFolder Test Suite", () => {
     );
   });
 
-  test("build rel_path can point outside the project folder", () => {
+  test("build relPath can point outside the project folder", () => {
     const ws = makeWs("/workspace");
     const project = makeProject("apps/sensors/accel_polling");
     const build = makeBuild("custom_name", "shared_builds/accel");
@@ -71,7 +71,7 @@ suite("getBuildFolder Test Suite", () => {
     );
   });
 
-  test("falls back to name-based path when rel_path is empty string", () => {
+  test("falls back to name-based path when relPath is empty string", () => {
     const ws = makeWs("/workspace");
     const project = makeProject("apps/myapp");
     const build = makeBuild("build/debug", "");
@@ -82,18 +82,18 @@ suite("getBuildFolder Test Suite", () => {
     );
   });
 
-  test("falls back to default when rel_path is an absolute path", () => {
+  test("falls back to default when relPath is an absolute path", () => {
     const ws = makeWs("/workspace");
     const project = makeProject("apps/myapp");
     const build = makeBuild("my_build", "/absolute/build/path");
-    // absolute rel_path is not allowed — should fall back to default
+    // absolute relPath is not allowed — should fall back to default
     assert.strictEqual(
       getBuildFolder(ws, project, build),
       path.join("/workspace", "apps/myapp", "my_build"),
     );
   });
 
-  test("falls back to default when rel_path escapes the workspace root via ../", () => {
+  test("falls back to default when relPath escapes the workspace root via ../", () => {
     const ws = makeWs("/workspace");
     const project = makeProject("apps/myapp");
     const build = makeBuild("my_build", "../../outside");
@@ -104,7 +104,7 @@ suite("getBuildFolder Test Suite", () => {
     );
   });
 
-  test("allows rel_path with internal .. that still stays within workspace root", () => {
+  test("allows relPath with internal .. that still stays within workspace root", () => {
     const ws = makeWs("/workspace");
     const project = makeProject("apps/myapp");
     const build = makeBuild("my_build", "apps/../shared_builds/out");
@@ -115,8 +115,8 @@ suite("getBuildFolder Test Suite", () => {
     );
   });
 
-  test("handles Windows-style backslash separators in rel_path", () => {
-    // Users may store rel_path with backslashes in zephyr-ide.json on Windows;
+  test("handles Windows-style backslash separators in relPath", () => {
+    // Users may store relPath with backslashes in zephyr-ide.json on Windows;
     // upath.toUnix() converts them so the path resolves correctly on all platforms.
     const ws = makeWs("/workspace");
     const project = makeProject("apps/myapp");
@@ -127,7 +127,7 @@ suite("getBuildFolder Test Suite", () => {
     );
   });
 
-  test("falls back to default when rel_path resolves to the workspace root", () => {
+  test("falls back to default when relPath resolves to the workspace root", () => {
     const ws = makeWs("/workspace");
     const project = makeProject("apps/myapp");
 

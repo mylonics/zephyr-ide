@@ -93,7 +93,7 @@ function setupRealWorkspace(opts: {
         projects: {
             [projectName]: {
                 name: projectName,
-                rel_path: relPath,
+                relPath: relPath,
                 buildConfigs: {
                     [buildName]: {
                         name: buildName,

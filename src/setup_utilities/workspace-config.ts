@@ -176,6 +176,32 @@ function migrateDebugOptimization(buildConfig: RawBuildConfig): boolean {
   return migrated;
 }
 
+/** Shape of a raw object that may carry the deprecated `rel_path` field. */
+interface RawRelPath {
+  rel_path?: string;
+  relPath?: string;
+}
+
+/**
+ * Migrate the deprecated `rel_path` field (project/build relative path) to
+ * `relPath`, matching the camelCase convention used everywhere else.
+ * Returns true if a migration was performed.
+ */
+function migrateRelPath(entry: RawRelPath): boolean {
+  if (!entry) { return false; }
+
+  let migrated = false;
+  if (entry.relPath === undefined && entry.rel_path !== undefined) {
+    entry.relPath = entry.rel_path;
+    migrated = true;
+  }
+  if (entry.rel_path !== undefined) {
+    delete entry.rel_path;
+    migrated = true;
+  }
+  return migrated;
+}
+
 function argsMatchNormalized(value: any, normalized: string[]): boolean {
   if (!Array.isArray(value) || value.length !== normalized.length) {
     return false;
@@ -201,6 +227,11 @@ function projectLoader(config: WorkspaceConfig, projects: any): boolean {
 
     // Migrate project-level confFiles from old 4-array format
     if (config.projects[key].confFiles && migrateConfigFiles(config.projects[key].confFiles)) {
+      requiresSave = true;
+    }
+
+    // Migrate rel_path -> relPath
+    if (migrateRelPath(config.projects[key])) {
       requiresSave = true;
     }
 
@@ -232,6 +263,11 @@ function projectLoader(config: WorkspaceConfig, projects: any): boolean {
 
       // Migrate debugOptimization → compilerOptimization
       if (migrateDebugOptimization(buildConfig)) {
+        requiresSave = true;
+      }
+
+      // Migrate rel_path -> relPath
+      if (migrateRelPath(buildConfig)) {
         requiresSave = true;
       }
 

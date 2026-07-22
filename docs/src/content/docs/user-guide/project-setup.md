@@ -31,20 +31,20 @@ The project configuration is stored in a human-readable JSON file, which allows 
 
 By default, the build output for each build configuration is placed inside the project folder at `<project_dir>/<build_config_name>`. The build config name can contain slashes (e.g. `build/nrf52840dk/nrf52840`), so the default output path in that case would be `apps/sensors/accel_polling/build/nrf52840dk/nrf52840`.
 
-If you need to place build artifacts elsewhere — for example outside the project folder or in a shared directory — you can manually add a `rel_path` field to the build configuration in `.vscode/zephyr-ide.json`. The value must be a path relative to the workspace root; absolute paths are not supported, and parent-directory references (`../`) are only permitted when the fully resolved path still lies within the workspace root.
+If you need to place build artifacts elsewhere — for example outside the project folder or in a shared directory — you can manually add a `relPath` field to the build configuration in `.vscode/zephyr-ide.json`. The value must be a path relative to the workspace root; absolute paths are not supported, and parent-directory references (`../`) are only permitted when the fully resolved path still lies within the workspace root.
 
 ```json
 {
   "projects": {
     "accel_polling": {
-      "rel_path": "apps/sensors/accel_polling",
+      "relPath": "apps/sensors/accel_polling",
       "name": "accel_polling",
       "confFiles": { "config": [], "overlay": [] },
       "twisterConfigs": {},
       "buildConfigs": {
         "build/nrf52840dk/nrf52840": {
           "name": "build/nrf52840dk/nrf52840",
-          "rel_path": "shared_builds/accel_polling/nrf52840",
+          "relPath": "shared_builds/accel_polling/nrf52840",
           "board": "nrf52840dk/nrf52840",
           "relBoardDir": "zephyr/boards/nordic",
           "relBoardSubDir": "nrf52840dk",

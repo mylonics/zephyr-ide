@@ -162,7 +162,7 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
 
     const mainItem = new ConfigItem('main', 'folder-library', false, 'configClickable');
     mainItem.id = 'config-project.main';
-    mainItem.description = activeProject.rel_path;
+    mainItem.description = activeProject.relPath;
     mainItem.data = { project: activeProject.name };
     mainItem.command = { command: 'zephyr-ide.config-view.open-main', title: 'Open main', arguments: [mainItem] };
 
@@ -477,16 +477,16 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
 
   async handleOpenMain(item: ConfigItem) {
     const project = this.wsConfig.projects[item.data.project!];
-    const mainCPath = vscode.Uri.file(path.join(this.wsConfig.rootPath, project.rel_path, "src", "main.c"));
+    const mainCPath = vscode.Uri.file(path.join(this.wsConfig.rootPath, project.relPath, "src", "main.c"));
 
     try {
       await vscode.commands.executeCommand('vscode.open', mainCPath);
     } catch {
       try {
-        const mainCppPath = vscode.Uri.file(path.join(this.wsConfig.rootPath, project.rel_path, "src", "main.cpp"));
+        const mainCppPath = vscode.Uri.file(path.join(this.wsConfig.rootPath, project.relPath, "src", "main.cpp"));
         await vscode.commands.executeCommand('vscode.open', mainCppPath);
       } catch {
-        outputInfo("Project Config", `Neither main.c nor main.cpp found in ${project.rel_path}/src`);
+        outputInfo("Project Config", `Neither main.c nor main.cpp found in ${project.relPath}/src`);
       }
     }
     void setActive(this.context, this.wsConfig, item.data.project!);
@@ -494,12 +494,12 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
 
   async handleOpenCmake(item: ConfigItem) {
     const project = this.wsConfig.projects[item.data.project!];
-    const filePath = vscode.Uri.file(path.join(this.wsConfig.rootPath, project.rel_path, "CMakeLists.txt"));
+    const filePath = vscode.Uri.file(path.join(this.wsConfig.rootPath, project.relPath, "CMakeLists.txt"));
 
     try {
       await vscode.commands.executeCommand('vscode.open', filePath);
     } catch {
-      outputInfo("Project Config", `CMakeLists.txt not found in ${project.rel_path}`);
+      outputInfo("Project Config", `CMakeLists.txt not found in ${project.relPath}`);
     }
     void setActive(this.context, this.wsConfig, item.data.project!);
   }

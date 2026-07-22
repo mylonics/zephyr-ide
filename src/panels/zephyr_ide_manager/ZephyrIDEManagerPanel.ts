@@ -140,7 +140,7 @@ export class ZephyrIDEManagerPanel {
         pipRequirements: getZephyrIdePipRequirements(wsConfig),
         sampleProjects: getZephyrIdeSampleProjects(wsConfig).map(project => ({
           name: project.name,
-          rel_path: project.rel_path,
+          relPath: project.relPath,
         })),
         commands: getZephyrIdeCommands(wsConfig),
       },

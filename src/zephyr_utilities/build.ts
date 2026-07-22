@@ -613,7 +613,7 @@ export async function clean(wsConfig: WorkspaceConfig, projectName: string | und
   // Drop cached runners.yaml entries — the file is gone, and stat-based
   // invalidation would only fire on the next debug session.
   invalidateRunnersYamlCache(buildFolder);
-  void vscode.window.showInformationMessage(`Cleaning ${resolved.project.rel_path}`);
+  void vscode.window.showInformationMessage(`Cleaning ${resolved.project.relPath}`);
 }
 
 export async function getBuildInfo(wsConfig: WorkspaceConfig,

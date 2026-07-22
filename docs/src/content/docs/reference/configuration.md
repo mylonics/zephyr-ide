@@ -68,7 +68,7 @@ This is the workspace file used for projects/builds/tests, runner profiles, and 
   "projects": {
     "blinky": {
       "name": "blinky",
-      "rel_path": "apps/blinky",
+      "relPath": "apps/blinky",
       "customVars": {
         "jlink_device": "STM32F401RE"
       },
@@ -84,7 +84,7 @@ This is the workspace file used for projects/builds/tests, runner profiles, and 
       "buildConfigs": {
         "build/nucleo_f401re": {
           "name": "build/nucleo_f401re",
-          "rel_path": "out/blinky/nucleo_f401re",
+          "relPath": "out/blinky/nucleo_f401re",
           "board": "nucleo_f401re",
           "relBoardDir": "zephyr/boards/st",
           "relBoardSubDir": "nucleo_f401re",
@@ -150,7 +150,7 @@ This is the workspace file used for projects/builds/tests, runner profiles, and 
   "sampleProjects": [
     {
       "name": "hello_world",
-      "rel_path": "zephyr/samples/hello_world",
+      "relPath": "zephyr/samples/hello_world",
       "buildConfigs": {},
       "confFiles": { "config": [], "overlay": [] },
       "twisterConfigs": {}
@@ -184,10 +184,12 @@ This is the workspace file used for projects/builds/tests, runner profiles, and 
 
 ### `ProjectConfig`
 
+> `relPath` was previously named `rel_path`. Files using the old name are automatically migrated to `relPath` the next time the workspace loads.
+
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | `name` | `string` | Yes | Project display name/key. |
-| `rel_path` | `string` | Yes | Project path relative to workspace root. |
+| `relPath` | `string` | Yes | Project path relative to workspace root. |
 | `buildConfigs` | `Record<string, BuildConfig>` | Yes | Build configurations keyed by build name. |
 | `confFiles` | `ConfigFiles` | Yes | Project-level Kconfig/devicetree file entries. |
 | `twisterConfigs` | `Record<string, TwisterConfig>` | Yes | Twister test configurations. |
@@ -209,7 +211,7 @@ This is the workspace file used for projects/builds/tests, runner profiles, and 
 | `activeProfile` | `string` | No | Active runner profile name for this build. |
 | `bindOverrides` | `BuildBindOverrides` | No | Per-slot extra-arg overrides appended after profile args. |
 | `customVars` | `Record<string, string>` | No | Per-build custom variables. |
-| `rel_path` | `string` | No | **Manual field (no GUI)**: build output path relative to workspace root. Absolute paths are ignored; paths escaping workspace root are rejected; empty/invalid values fall back to the path composed as `project.rel_path/build.name`. |
+| `relPath` | `string` | No | **Manual field (no GUI)**: build output path relative to workspace root. Absolute paths are ignored; paths escaping workspace root are rejected; empty/invalid values fall back to the path composed as `project.relPath/build.name`. |
 
 ### `ConfigFiles`
 
@@ -387,7 +389,7 @@ Both `BuildConfig` and `ProjectConfig` support a `customVars` map for user-defin
   "projects": {
     "myproject": {
       "name": "myproject",
-      "rel_path": "apps/myproject",
+      "relPath": "apps/myproject",
       "buildConfigs": {
         "debug": {
           "name": "debug",
