@@ -142,6 +142,18 @@ export class HostToolsService {
     this.webview.postMessage({ command, ...data });
   }
 
+  private async runExclusive<T>(operation: () => Promise<T>): Promise<T | undefined> {
+    if (this._busy) {
+      return undefined;
+    }
+    this._busy = true;
+    try {
+      return await operation();
+    } finally {
+      this._busy = false;
+    }
+  }
+
   /**
    * Persist `pendingRestart` for a single package into globalConfig. Called
    * after install attempts to save the restart-needed state across reloads.
@@ -192,15 +204,7 @@ export class HostToolsService {
     }
   }
 
-  async checkStatus(): Promise<void> {
-    // Guard against re-entry: a check or install already in flight owns the
-    // webview's card states, and persistence writes it triggers
-    // (persistPendingRestart, maybeMarkToolsAvailable) fire onStatusChanged,
-    // which must not spawn a second concurrent full status check.
-    if (this._busy) {
-      return;
-    }
-    this._busy = true;
+  private async checkStatusCore(): Promise<void> {
     try {
       const manager = await getPackageManagerForPlatformAsync();
       if (!manager) {
@@ -267,9 +271,15 @@ export class HostToolsService {
       await this.maybeMarkToolsAvailable(statuses);
     } catch (error) {
       this.post(HOST_TOOLS_COMMANDS.updateStatus, { error: String(error) });
-    } finally {
-      this._busy = false;
     }
+  }
+
+  async checkStatus(): Promise<void> {
+    // Guard against re-entry: a check or install already in flight owns the
+    // webview's card states, and persistence writes it triggers
+    // (persistPendingRestart, maybeMarkToolsAvailable) fire onStatusChanged,
+    // which must not spawn a second concurrent full status check.
+    await this.runExclusive(async () => this.checkStatusCore());
   }
 
   async enableLongPaths(): Promise<void> {
@@ -288,118 +298,124 @@ export class HostToolsService {
   }
 
   async install7Zip(): Promise<void> {
-    this.post('sevenZipInstalling', {});
-    const success = await installPackage(SEVEN_ZIP_PKG);
-    // Refresh PATH from the registry before verifying — winget installs (and
-    // the post-install step above) update the registry immediately, and
-    // without this the verify below sees the pre-install PATH and reports a
-    // false "restart needed" even though the tool is already usable.
-    if (success) {
-      await refreshWindowsPath();
-    }
-    const available = await check7ZipAvailable();
-    this.post('sevenZipInstalled', { success, available });
-    if (success) {
-      if (!available) {
-        notifyWarning('Host Tools', '7-Zip was installed but may not be on PATH yet. Close and reopen VS Code for it to take effect.');
-      } else {
-        void vscode.window.showInformationMessage('7-Zip installed successfully.');
+    await this.runExclusive(async () => {
+      this.post('sevenZipInstalling', {});
+      const success = await installPackage(SEVEN_ZIP_PKG);
+      // Refresh PATH from the registry before verifying — winget installs (and
+      // the post-install step above) update the registry immediately, and
+      // without this the verify below sees the pre-install PATH and reports a
+      // false "restart needed" even though the tool is already usable.
+      if (success) {
+        await refreshWindowsPath();
       }
-    } else {
-      notifyError('Host Tools', 'Failed to install 7-Zip.');
-    }
+      const available = await check7ZipAvailable();
+      this.post('sevenZipInstalled', { success, available });
+      if (success) {
+        if (!available) {
+          notifyWarning('Host Tools', '7-Zip was installed but may not be on PATH yet. Close and reopen VS Code for it to take effect.');
+        } else {
+          void vscode.window.showInformationMessage('7-Zip installed successfully.');
+        }
+      } else {
+        notifyError('Host Tools', 'Failed to install 7-Zip.');
+      }
+    });
   }
 
   async installPackageManager(): Promise<void> {
-    try {
-      const success = await installPkgMgr();
+    await this.runExclusive(async () => {
+      try {
+        const success = await installPkgMgr();
 
-      if (success) {
-        // Refresh PATH from the registry before verifying so a package
-        // manager installed in this session (e.g. winget) is picked up
-        // immediately instead of reporting a false "restart needed".
-        await refreshWindowsPath();
-        await this.checkStatus();
+        if (success) {
+          // Refresh PATH from the registry before verifying so a package
+          // manager installed in this session (e.g. winget) is picked up
+          // immediately instead of reporting a false "restart needed".
+          await refreshWindowsPath();
+          await this.checkStatusCore();
 
-        const managerAvailable = await checkPackageManagerAvailable();
+          const managerAvailable = await checkPackageManagerAvailable();
 
-        if (!managerAvailable) {
-          notifyWarning(this.config.errorLabel,
-            'Package manager was installed but is not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect.'
-          );
+          if (!managerAvailable) {
+            notifyWarning(this.config.errorLabel,
+              'Package manager was installed but is not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect.'
+            );
+          } else {
+            void vscode.window.showInformationMessage('Package manager installed successfully.');
+          }
         } else {
-          void vscode.window.showInformationMessage('Package manager installed successfully.');
+          notifyError(this.config.errorLabel, 'Failed to install package manager. Check output for details.');
         }
-      } else {
-        notifyError(this.config.errorLabel, 'Failed to install package manager. Check output for details.');
+      } catch (error) {
+        notifyError(this.config.errorLabel, `Package manager installation error: ${error}`);
       }
-    } catch (error) {
-      notifyError(this.config.errorLabel, `Package manager installation error: ${error}`);
-    }
+    });
   }
 
   async installSinglePackage(packageName: string): Promise<void> {
-    try {
-      const packages = await getPlatformPackages();
-      const pkg = packages.find(p => p.name === packageName);
+    await this.runExclusive(async () => {
+      try {
+        const packages = await getPlatformPackages();
+        const pkg = packages.find(p => p.name === packageName);
 
-      if (!pkg) {
-        notifyError(this.config.errorLabel, `Package ${packageName} not found`);
-        return;
-      }
-
-      this.post(HOST_TOOLS_COMMANDS.packageInstalling, {
-        packageName,
-        current: 1,
-        total: 1,
-      });
-
-      const success = await installPackage(pkg);
-
-      // Refresh PATH from the registry before verifying so a package
-      // installed in this session (e.g. via winget) is picked up immediately
-      // instead of reporting a false "restart needed".
-      if (success) {
-        await refreshWindowsPath();
-      }
-
-      // Check only this package rather than the full manifest — installPackage()
-      // already ran its own internal verify, but we need the result here to
-      // compute pendingRestart, and re-checking everything would spawn N
-      // redundant processes just to read one package's status.
-      const installedPkg = success ? await checkPackageAvailable(pkg) : undefined;
-      const pendingRestart = !!(success && installedPkg && !installedPkg.available);
-
-      // Persist pending-restart so the badge survives a window reload.
-      if (success) {
-        await this.persistPendingRestart(packageName, pendingRestart);
-      }
-
-      this.post(HOST_TOOLS_COMMANDS.packageInstalled, {
-        packageName,
-        success,
-        pendingRestart,
-        current: 1,
-        total: 1,
-      });
-
-      if (success) {
-        if (pendingRestart) {
-          notifyWarning(this.config.errorLabel,
-            `${packageName} was installed but is not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect.`
-          );
-        } else {
-          void vscode.window.showInformationMessage(`${packageName} installed successfully.`);
-          // A successful install where the package is now available may have
-          // completed the host-tools requirement; auto-flip toolsAvailable.
-          await this.maybeMarkToolsAvailable();
+        if (!pkg) {
+          notifyError(this.config.errorLabel, `Package ${packageName} not found`);
+          return;
         }
-      } else {
-        notifyError(this.config.errorLabel, `Failed to install ${packageName}. Check output for details.`);
+
+        this.post(HOST_TOOLS_COMMANDS.packageInstalling, {
+          packageName,
+          current: 1,
+          total: 1,
+        });
+
+        const success = await installPackage(pkg);
+
+        // Refresh PATH from the registry before verifying so a package
+        // installed in this session (e.g. via winget) is picked up immediately
+        // instead of reporting a false "restart needed".
+        if (success) {
+          await refreshWindowsPath();
+        }
+
+        // Check only this package rather than the full manifest — installPackage()
+        // already ran its own internal verify, but we need the result here to
+        // compute pendingRestart, and re-checking everything would spawn N
+        // redundant processes just to read one package's status.
+        const installedPkg = success ? await checkPackageAvailable(pkg) : undefined;
+        const pendingRestart = !!(success && installedPkg && !installedPkg.available);
+
+        // Persist pending-restart so the badge survives a window reload.
+        if (success) {
+          await this.persistPendingRestart(packageName, pendingRestart);
+        }
+
+        this.post(HOST_TOOLS_COMMANDS.packageInstalled, {
+          packageName,
+          success,
+          pendingRestart,
+          current: 1,
+          total: 1,
+        });
+
+        if (success) {
+          if (pendingRestart) {
+            notifyWarning(this.config.errorLabel,
+              `${packageName} was installed but is not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect.`
+            );
+          } else {
+            void vscode.window.showInformationMessage(`${packageName} installed successfully.`);
+            // A successful install where the package is now available may have
+            // completed the host-tools requirement; auto-flip toolsAvailable.
+            await this.maybeMarkToolsAvailable();
+          }
+        } else {
+          notifyError(this.config.errorLabel, `Failed to install ${packageName}. Check output for details.`);
+        }
+      } catch (error) {
+        notifyError(this.config.errorLabel, `Package installation error: ${error}`);
       }
-    } catch (error) {
-      notifyError(this.config.errorLabel, `Package installation error: ${error}`);
-    }
+    });
   }
 
   async installAllMissing(): Promise<void> {
@@ -411,84 +427,155 @@ export class HostToolsService {
   }
 
   async installAllMissingPackages(packageNames: string[]): Promise<void> {
-    try {
-      if (packageNames.length === 0) {
-        void vscode.window.showInformationMessage('All packages are already installed');
-        return;
-      }
-
-      const totalCount = packageNames.length;
-      const packages = await getPlatformPackages();
-      // Resolve the package manager once and reuse it for every installPackage()
-      // call below, avoiding N redundant async platform-detection lookups.
-      const manager = await getPackageManagerForPlatformAsync();
-
-      this.post(HOST_TOOLS_COMMANDS.installAllStarted, { total: totalCount });
-
-      let installedCount = 0;
-      let hasErrors = false;
-
-      const packagesToInstall = packageNames
-        .map((packageName) => packages.find(p => p.name === packageName))
-        .filter((pkg): pkg is NonNullable<typeof pkg> => !!pkg);
-
-      // On Linux/apt, run one batch install command so sudo prompts once for
-      // the bulk install operation instead of once per package task.
-      if (manager?.name === 'apt' && packagesToInstall.length > 1) {
-        for (const pkg of packagesToInstall) {
-          // `batch: true` tells the webview these cards are all installing via
-          // a single apt command — it should show "Installing N Packages…"
-          // rather than cycling the button through a fake per-package counter
-          // before the batch command has even started.
-          this.post(HOST_TOOLS_COMMANDS.packageInstalling, {
-            packageName: pkg.name,
-            current: installedCount + 1,
-            total: totalCount,
-            batch: true,
-          });
-          installedCount++;
+    await this.runExclusive(async () => {
+      try {
+        if (packageNames.length === 0) {
+          void vscode.window.showInformationMessage('All packages are already installed');
+          return;
         }
 
-        const batchSuccess = await installPackagesBatch(packagesToInstall, manager);
+        const totalCount = packageNames.length;
+        const packages = await getPlatformPackages();
+        // Resolve the package manager once and reuse it for every installPackage()
+        // call below, avoiding N redundant async platform-detection lookups.
+        const manager = await getPackageManagerForPlatformAsync();
 
-        // Refresh PATH from the registry before verifying so packages
-        // installed in this batch are picked up immediately instead of
-        // reporting a false "restart needed".
-        if (batchSuccess) {
-          await refreshWindowsPath();
-        }
+        this.post(HOST_TOOLS_COMMANDS.installAllStarted, { total: totalCount });
 
-        // Check all just-installed packages in parallel rather than one at a
-        // time, and reuse the results below for needsRestart instead of
-        // spawning a second full checkAllPackages() pass.
-        const installedStatuses = await Promise.all(
-          packagesToInstall.map(pkg => checkPackageAvailable(pkg))
-        );
+        let installedCount = 0;
+        let hasErrors = false;
 
-        for (let i = 0; i < packagesToInstall.length; i++) {
-          const pkg = packagesToInstall[i];
-          const installedPkg = installedStatuses[i];
-          const success = batchSuccess;
-          const pendingRestart = success && !installedPkg.available;
+        const packagesToInstall = packageNames
+          .map((packageName) => packages.find(p => p.name === packageName))
+          .filter((pkg): pkg is NonNullable<typeof pkg> => !!pkg);
 
-          if (success) {
-            await this.persistPendingRestart(pkg.name, pendingRestart);
+        // On Linux/apt, run one batch install command so sudo prompts once for
+        // the bulk install operation instead of once per package task.
+        if (manager?.name === 'apt' && packagesToInstall.length > 1) {
+          for (const pkg of packagesToInstall) {
+            // `batch: true` tells the webview these cards are all installing via
+            // a single apt command — it should show "Installing N Packages…"
+            // rather than cycling the button through a fake per-package counter
+            // before the batch command has even started.
+            this.post(HOST_TOOLS_COMMANDS.packageInstalling, {
+              packageName: pkg.name,
+              current: installedCount + 1,
+              total: totalCount,
+              batch: true,
+            });
+            installedCount++;
           }
 
-          this.post(HOST_TOOLS_COMMANDS.packageInstalled, {
-            packageName: pkg.name,
-            success,
-            pendingRestart,
-            current: packageNames.indexOf(pkg.name) + 1,
-            total: totalCount,
+          const batchSuccess = await installPackagesBatch(packagesToInstall, manager);
+
+          // Refresh PATH from the registry before verifying so packages
+          // installed in this batch are picked up immediately instead of
+          // reporting a false "restart needed".
+          if (batchSuccess) {
+            await refreshWindowsPath();
+          }
+
+          // Check all just-installed packages in parallel rather than one at a
+          // time, and reuse the results below for needsRestart instead of
+          // spawning a second full checkAllPackages() pass.
+          const installedStatuses = await Promise.all(
+            packagesToInstall.map(pkg => checkPackageAvailable(pkg))
+          );
+
+          for (let i = 0; i < packagesToInstall.length; i++) {
+            const pkg = packagesToInstall[i];
+            const installedPkg = installedStatuses[i];
+            const success = batchSuccess;
+            const pendingRestart = success && !installedPkg.available;
+
+            if (success) {
+              await this.persistPendingRestart(pkg.name, pendingRestart);
+            }
+
+            this.post(HOST_TOOLS_COMMANDS.packageInstalled, {
+              packageName: pkg.name,
+              success,
+              pendingRestart,
+              current: packageNames.indexOf(pkg.name) + 1,
+              total: totalCount,
+            });
+
+            if (!success) {
+              hasErrors = true;
+            }
+          }
+
+          const needsRestart = installedStatuses.some(s => !s.available);
+
+          this.post(HOST_TOOLS_COMMANDS.installAllComplete, {
+            needsRestart,
+            hasErrors,
           });
 
-          if (!success) {
-            hasErrors = true;
+          if (needsRestart) {
+            notifyWarning(this.config.errorLabel,
+              'Some packages were installed but are not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect.'
+            );
+          } else if (!hasErrors) {
+            void vscode.window.showInformationMessage('All missing packages installed successfully.');
+          } else {
+            notifyWarning(this.config.errorLabel, 'Some host tools failed to install. Check the output for details.');
+          }
+
+          await this.maybeMarkToolsAvailable();
+
+          if (this.config.recheckAfterBatchInstall) {
+            await this.checkStatusCore();
+          }
+          return;
+        }
+
+        const installedResults: PackageStatus[] = [];
+        for (const packageName of packageNames) {
+          const pkg = packages.find(p => p.name === packageName);
+          if (pkg) {
+            this.post(HOST_TOOLS_COMMANDS.packageInstalling, {
+              packageName: pkg.name,
+              current: installedCount + 1,
+              total: totalCount,
+            });
+
+            const success = await installPackage(pkg, manager ?? undefined);
+            installedCount++;
+
+            // Refresh PATH from the registry before verifying so a package
+            // installed in this iteration (e.g. via winget) is picked up
+            // immediately instead of reporting a false "restart needed".
+            if (success) {
+              await refreshWindowsPath();
+            }
+
+            const installedPkg = await checkPackageAvailable(pkg);
+            installedResults.push(installedPkg);
+            const pendingRestart = success && !installedPkg.available;
+
+            // Persist pending-restart so the badge survives a window reload.
+            if (success) {
+              await this.persistPendingRestart(pkg.name, pendingRestart);
+            }
+
+            this.post(HOST_TOOLS_COMMANDS.packageInstalled, {
+              packageName: pkg.name,
+              success,
+              pendingRestart,
+              current: installedCount,
+              total: totalCount,
+            });
+
+            if (!success) {
+              hasErrors = true;
+            }
           }
         }
 
-        const needsRestart = installedStatuses.some(s => !s.available);
+        // Reuse the per-package results collected above instead of spawning a
+        // second full checkAllPackages() pass just to compute needsRestart.
+        const needsRestart = installedResults.some(r => !r.available);
 
         this.post(HOST_TOOLS_COMMANDS.installAllComplete, {
           needsRestart,
@@ -505,90 +592,21 @@ export class HostToolsService {
           notifyWarning(this.config.errorLabel, 'Some host tools failed to install. Check the output for details.');
         }
 
+        // After the batch, see if all tools are available now and auto-flip the
+        // global toolsAvailable flag (clears "Setup Required" badges).
         await this.maybeMarkToolsAvailable();
 
         if (this.config.recheckAfterBatchInstall) {
-          await this.checkStatus();
+          await this.checkStatusCore();
         }
-        return;
+      } catch (error) {
+        notifyError(this.config.errorLabel, `Batch installation error: ${error}`);
+        this.post(HOST_TOOLS_COMMANDS.installAllComplete, {
+          needsRestart: false,
+          hasErrors: true,
+        });
       }
-
-      const installedResults: PackageStatus[] = [];
-      for (const packageName of packageNames) {
-        const pkg = packages.find(p => p.name === packageName);
-        if (pkg) {
-          this.post(HOST_TOOLS_COMMANDS.packageInstalling, {
-            packageName: pkg.name,
-            current: installedCount + 1,
-            total: totalCount,
-          });
-
-          const success = await installPackage(pkg, manager ?? undefined);
-          installedCount++;
-
-          // Refresh PATH from the registry before verifying so a package
-          // installed in this iteration (e.g. via winget) is picked up
-          // immediately instead of reporting a false "restart needed".
-          if (success) {
-            await refreshWindowsPath();
-          }
-
-          const installedPkg = await checkPackageAvailable(pkg);
-          installedResults.push(installedPkg);
-          const pendingRestart = success && !installedPkg.available;
-
-          // Persist pending-restart so the badge survives a window reload.
-          if (success) {
-            await this.persistPendingRestart(pkg.name, pendingRestart);
-          }
-
-          this.post(HOST_TOOLS_COMMANDS.packageInstalled, {
-            packageName: pkg.name,
-            success,
-            pendingRestart,
-            current: installedCount,
-            total: totalCount,
-          });
-
-          if (!success) {
-            hasErrors = true;
-          }
-        }
-      }
-
-      // Reuse the per-package results collected above instead of spawning a
-      // second full checkAllPackages() pass just to compute needsRestart.
-      const needsRestart = installedResults.some(r => !r.available);
-
-      this.post(HOST_TOOLS_COMMANDS.installAllComplete, {
-        needsRestart,
-        hasErrors,
-      });
-
-      if (needsRestart) {
-        notifyWarning(this.config.errorLabel,
-          'Some packages were installed but are not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect.'
-        );
-      } else if (!hasErrors) {
-        void vscode.window.showInformationMessage('All missing packages installed successfully.');
-      } else {
-        notifyWarning(this.config.errorLabel, 'Some host tools failed to install. Check the output for details.');
-      }
-
-      // After the batch, see if all tools are available now and auto-flip the
-      // global toolsAvailable flag (clears "Setup Required" badges).
-      await this.maybeMarkToolsAvailable();
-
-      if (this.config.recheckAfterBatchInstall) {
-        await this.checkStatus();
-      }
-    } catch (error) {
-      notifyError(this.config.errorLabel, `Batch installation error: ${error}`);
-      this.post(HOST_TOOLS_COMMANDS.installAllComplete, {
-        needsRestart: false,
-        hasErrors: true,
-      });
-    }
+    });
   }
 
   async markComplete(
