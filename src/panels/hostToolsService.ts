@@ -16,6 +16,7 @@ limitations under the License.
 */
 
 import * as vscode from 'vscode';
+import * as fs from 'fs-extra';
 import {
   getPackageManagerForPlatformAsync,
   checkPackageManagerAvailable,
@@ -25,32 +26,33 @@ import {
   installPackage,
   installPackagesBatch,
   getPlatformPackages,
+  refreshWindowsPath,
+  type PackageStatus,
 } from '../setup_utilities/host_tools';
 import { WorkspaceConfig, GlobalConfig } from '../setup_utilities/types';
 import { saveSetupState } from '../setup_utilities/state-management';
 import { notifyError, notifyWarning } from '../utilities/output';
-import { isWindows, checkWindowsLongPathsEnabled, enableWindowsLongPaths } from '../utilities/utils';
-import * as cp from 'child_process';
+import { isWindows, checkWindowsLongPathsEnabled, enableWindowsLongPaths, executeShellCommand } from '../utilities/utils';
 
 /** The 7-Zip winget package definition used for optional install. */
 const SEVEN_ZIP_PKG = {
   name: '7-Zip',
   package: '7zip.7zip',
   check_command: '7z --help',
-  post_install_step: "[System.Environment]::SetEnvironmentVariable('Path', [System.Environment]::GetEnvironmentVariable('Path', 'User') + ';C:\\Program Files\\7-Zip', 'User')",
+  post_install_step: "if (($env:Path -split ';') -notcontains 'C:\\Program Files\\7-Zip') { [System.Environment]::SetEnvironmentVariable('Path', [System.Environment]::GetEnvironmentVariable('Path', 'User') + ';C:\\Program Files\\7-Zip', 'User') }",
 };
 
 /** Returns true if 7z is accessible on PATH or found at the default install location. */
-function check7ZipAvailable(): boolean {
+async function check7ZipAvailable(): Promise<boolean> {
   // Check default install dir directly (doesn't need PATH)
   try {
-    require('fs').accessSync('C:\\Program Files\\7-Zip\\7z.exe');
+    await fs.access('C:\\Program Files\\7-Zip\\7z.exe');
     return true;
   } catch { /* not at default location */ }
   // Try running it
   try {
-    cp.execSync('7z --help', { stdio: 'ignore', timeout: 3000 });
-    return true;
+    const result = await executeShellCommand('7z --help', '', false);
+    return result.stdout !== undefined;
   } catch {
     return false;
   }
@@ -112,6 +114,16 @@ export const HOST_TOOL_INSTALL_VIEW_CONFIG: HostToolsServiceConfig = {
 export class HostToolsService {
   private _stateRefs: HostToolsStateRefs = {};
 
+  /**
+   * True while checkStatus() or an install method is running. Guards against
+   * re-entrant status checks — persistence writes during an install
+   * (persistPendingRestart, maybeMarkToolsAvailable) fire onStatusChanged,
+   * which previously re-triggered checkStatus() and raced full package
+   * re-checks against the in-progress install, clobbering the webview's
+   * 'installing' card states.
+   */
+  private _busy = false;
+
   constructor(
     private readonly webview: vscode.Webview,
     private readonly config: HostToolsServiceConfig
@@ -160,14 +172,19 @@ export class HostToolsService {
    * If every package check_command succeeds, set `toolsAvailable = true` and
    * persist. This auto-clears the "Setup Required" badge after a successful
    * install without requiring the user to click "Mark Complete".
+   *
+   * @param statuses Pre-computed package statuses from a check that just ran.
+   *   When omitted, falls back to re-checking every package — callers that
+   *   already have fresh results should always pass them to avoid a
+   *   redundant full re-check.
    */
-  private async maybeMarkToolsAvailable(): Promise<void> {
+  private async maybeMarkToolsAvailable(statuses?: PackageStatus[]): Promise<void> {
     const { context, wsConfig, globalConfig } = this._stateRefs;
     if (!context || !wsConfig || !globalConfig) {
       return;
     }
-    const statuses = await checkAllPackages();
-    const allAvailable = statuses.length > 0 && statuses.every(s => s.available);
+    const resolvedStatuses = statuses ?? await checkAllPackages();
+    const allAvailable = resolvedStatuses.length > 0 && resolvedStatuses.every(s => s.available);
     if (allAvailable && !globalConfig.toolsAvailable) {
       globalConfig.toolsAvailable = true;
       await saveSetupState(context, wsConfig, globalConfig);
@@ -176,6 +193,14 @@ export class HostToolsService {
   }
 
   async checkStatus(): Promise<void> {
+    // Guard against re-entry: a check or install already in flight owns the
+    // webview's card states, and persistence writes it triggers
+    // (persistPendingRestart, maybeMarkToolsAvailable) fire onStatusChanged,
+    // which must not spawn a second concurrent full status check.
+    if (this._busy) {
+      return;
+    }
+    this._busy = true;
     try {
       const manager = await getPackageManagerForPlatformAsync();
       if (!manager) {
@@ -193,7 +218,7 @@ export class HostToolsService {
         : undefined;
 
       // On Windows, check whether 7-Zip is optionally installed.
-      const sevenZipAvailable = isWindows() ? check7ZipAvailable() : undefined;
+      const sevenZipAvailable = isWindows() ? await check7ZipAvailable() : undefined;
 
       // Send the full package list immediately with `checking: true` so the UI
       // can render every card with a "Checking…" spinner right away. Packages
@@ -220,8 +245,9 @@ export class HostToolsService {
 
       // Check each package in parallel and post per-package updates as they
       // complete, so the user sees results stream in rather than waiting for
-      // the entire batch.
-      await Promise.all(packages.map(async (pkg) => {
+      // the entire batch. Collect the results so maybeMarkToolsAvailable()
+      // below can reuse them instead of re-checking every package again.
+      const statuses = await Promise.all(packages.map(async (pkg) => {
         const status = await checkPackageAvailable(pkg);
         this.post(HOST_TOOLS_COMMANDS.packageChecked, {
           packageName: status.name,
@@ -233,13 +259,16 @@ export class HostToolsService {
         if (status.available && pendingRestartList.includes(status.name)) {
           await this.persistPendingRestart(status.name, false);
         }
+        return status;
       }));
 
       // After all checks complete, see if all tools are now available and
       // auto-flip the global toolsAvailable flag if so.
-      await this.maybeMarkToolsAvailable();
+      await this.maybeMarkToolsAvailable(statuses);
     } catch (error) {
       this.post(HOST_TOOLS_COMMANDS.updateStatus, { error: String(error) });
+    } finally {
+      this._busy = false;
     }
   }
 
@@ -261,7 +290,14 @@ export class HostToolsService {
   async install7Zip(): Promise<void> {
     this.post('sevenZipInstalling', {});
     const success = await installPackage(SEVEN_ZIP_PKG);
-    const available = check7ZipAvailable();
+    // Refresh PATH from the registry before verifying — winget installs (and
+    // the post-install step above) update the registry immediately, and
+    // without this the verify below sees the pre-install PATH and reports a
+    // false "restart needed" even though the tool is already usable.
+    if (success) {
+      await refreshWindowsPath();
+    }
+    const available = await check7ZipAvailable();
     this.post('sevenZipInstalled', { success, available });
     if (success) {
       if (!available) {
@@ -279,6 +315,10 @@ export class HostToolsService {
       const success = await installPkgMgr();
 
       if (success) {
+        // Refresh PATH from the registry before verifying so a package
+        // manager installed in this session (e.g. winget) is picked up
+        // immediately instead of reporting a false "restart needed".
+        await refreshWindowsPath();
         await this.checkStatus();
 
         const managerAvailable = await checkPackageManagerAvailable();
@@ -316,8 +356,18 @@ export class HostToolsService {
 
       const success = await installPackage(pkg);
 
-      const packageStatuses = await checkAllPackages();
-      const installedPkg = packageStatuses.find(p => p.name === packageName);
+      // Refresh PATH from the registry before verifying so a package
+      // installed in this session (e.g. via winget) is picked up immediately
+      // instead of reporting a false "restart needed".
+      if (success) {
+        await refreshWindowsPath();
+      }
+
+      // Check only this package rather than the full manifest — installPackage()
+      // already ran its own internal verify, but we need the result here to
+      // compute pendingRestart, and re-checking everything would spawn N
+      // redundant processes just to read one package's status.
+      const installedPkg = success ? await checkPackageAvailable(pkg) : undefined;
       const pendingRestart = !!(success && installedPkg && !installedPkg.available);
 
       // Persist pending-restart so the badge survives a window reload.
@@ -386,18 +436,38 @@ export class HostToolsService {
       // the bulk install operation instead of once per package task.
       if (manager?.name === 'apt' && packagesToInstall.length > 1) {
         for (const pkg of packagesToInstall) {
+          // `batch: true` tells the webview these cards are all installing via
+          // a single apt command — it should show "Installing N Packages…"
+          // rather than cycling the button through a fake per-package counter
+          // before the batch command has even started.
           this.post(HOST_TOOLS_COMMANDS.packageInstalling, {
             packageName: pkg.name,
             current: installedCount + 1,
             total: totalCount,
+            batch: true,
           });
           installedCount++;
         }
 
         const batchSuccess = await installPackagesBatch(packagesToInstall, manager);
 
-        for (const pkg of packagesToInstall) {
-          const installedPkg = await checkPackageAvailable(pkg);
+        // Refresh PATH from the registry before verifying so packages
+        // installed in this batch are picked up immediately instead of
+        // reporting a false "restart needed".
+        if (batchSuccess) {
+          await refreshWindowsPath();
+        }
+
+        // Check all just-installed packages in parallel rather than one at a
+        // time, and reuse the results below for needsRestart instead of
+        // spawning a second full checkAllPackages() pass.
+        const installedStatuses = await Promise.all(
+          packagesToInstall.map(pkg => checkPackageAvailable(pkg))
+        );
+
+        for (let i = 0; i < packagesToInstall.length; i++) {
+          const pkg = packagesToInstall[i];
+          const installedPkg = installedStatuses[i];
           const success = batchSuccess;
           const pendingRestart = success && !installedPkg.available;
 
@@ -418,11 +488,7 @@ export class HostToolsService {
           }
         }
 
-        const packageStatuses = await checkAllPackages();
-        const justInstalledNames = new Set(packageNames);
-        const needsRestart = packageStatuses
-          .filter(p => justInstalledNames.has(p.name))
-          .some(p => !p.available);
+        const needsRestart = installedStatuses.some(s => !s.available);
 
         this.post(HOST_TOOLS_COMMANDS.installAllComplete, {
           needsRestart,
@@ -447,6 +513,7 @@ export class HostToolsService {
         return;
       }
 
+      const installedResults: PackageStatus[] = [];
       for (const packageName of packageNames) {
         const pkg = packages.find(p => p.name === packageName);
         if (pkg) {
@@ -459,7 +526,15 @@ export class HostToolsService {
           const success = await installPackage(pkg, manager ?? undefined);
           installedCount++;
 
+          // Refresh PATH from the registry before verifying so a package
+          // installed in this iteration (e.g. via winget) is picked up
+          // immediately instead of reporting a false "restart needed".
+          if (success) {
+            await refreshWindowsPath();
+          }
+
           const installedPkg = await checkPackageAvailable(pkg);
+          installedResults.push(installedPkg);
           const pendingRestart = success && !installedPkg.available;
 
           // Persist pending-restart so the badge survives a window reload.
@@ -481,11 +556,9 @@ export class HostToolsService {
         }
       }
 
-      const packageStatuses = await checkAllPackages();
-      const justInstalledNames = new Set(packageNames);
-      const needsRestart = packageStatuses
-        .filter(p => justInstalledNames.has(p.name))
-        .some(p => !p.available);
+      // Reuse the per-package results collected above instead of spawning a
+      // second full checkAllPackages() pass just to compute needsRestart.
+      const needsRestart = installedResults.some(r => !r.available);
 
       this.post(HOST_TOOLS_COMMANDS.installAllComplete, {
         needsRestart,

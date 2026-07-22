@@ -81,7 +81,7 @@ export interface PackageStatus {
  * Refresh PATH environment variable on Windows to pick up newly installed tools
  * This updates the current process's PATH with the latest from the registry
  */
-async function refreshWindowsPath(): Promise<void> {
+export async function refreshWindowsPath(): Promise<void> {
   if (process.platform !== 'win32') {
     return;
   }
@@ -89,15 +89,13 @@ async function refreshWindowsPath(): Promise<void> {
   try {
     logDual("[HOST TOOLS] Refreshing Windows PATH environment variable...");
 
-    // Get Machine and User PATH from registry
-    const machinePathCmd = `powershell -Command "[System.Environment]::GetEnvironmentVariable('Path','Machine')"`;
-    const userPathCmd = `powershell -Command "[System.Environment]::GetEnvironmentVariable('Path','User')"`;
-
-    const machinePathResult = await executeShellCommand(machinePathCmd, '', false);
-    const userPathResult = await executeShellCommand(userPathCmd, '', false);
-
-    const machinePath = machinePathResult.stdout?.trim() || '';
-    const userPath = userPathResult.stdout?.trim() || '';
+    // Fetch Machine and User PATH in a single spawn. executeShellCommand
+    // already runs commands through powershell.exe on Windows, so wrapping
+    // the expression in an extra "powershell -Command" (as before) launched
+    // a redundant nested PowerShell process per call, twice per refresh.
+    const cmd = `"$([System.Environment]::GetEnvironmentVariable('Path','Machine'))|$([System.Environment]::GetEnvironmentVariable('Path','User'))"`;
+    const result = await executeShellCommand(cmd, '', false);
+    const [machinePath = '', userPath = ''] = (result.stdout || '').trim().split('|');
 
     // Combine Machine and User paths
     const registryPath = machinePath + (userPath ? ';' + userPath : '');
@@ -421,10 +419,16 @@ async function addDeadsnakesPPAIfNeeded(): Promise<boolean> {
 
   outputInfo("Host Tools", "python3.12 not found in default apt repos — adding deadsnakes PPA...");
 
-  // Keep this in one task so sudo prompts at most once for this PPA flow.
+  // Keep this in one task so sudo prompts at most once for this PPA flow
+  // (interactive sudo caches credentials for the TTY for a few minutes, so
+  // three sequential conditionalSudoCmd() calls here still only prompt once).
+  // Each step is wrapped individually rather than the whole chain so that
+  // root-without-sudo containers (no `sudo` binary installed) work too —
+  // wrapping the full "A && B && C" chain in one `sudo (...)` would only
+  // apply sudo to the first command.
   const ppaOk = await executeTaskHelper(
     "Configure deadsnakes PPA for Python 3.12",
-    "sudo apt install -y --no-install-recommends software-properties-common && sudo add-apt-repository -y ppa:deadsnakes/ppa && sudo apt-get update -qq",
+    `${conditionalSudoCmd("apt install -y --no-install-recommends software-properties-common")} && ${conditionalSudoCmd("add-apt-repository -y ppa:deadsnakes/ppa")} && ${conditionalSudoCmd("apt-get update -qq")}`,
     ""
   );
   if (!ppaOk) {
@@ -685,14 +689,11 @@ export async function getDefaultPythonExecutable(): Promise<string> {
  */
 export async function checkPackageAvailable(pkg: PlatformPackage): Promise<PackageStatus> {
   try {
-    const result = await executeShellCommand(pkg.check_command, "", false);
-    // Command succeeded if stdout is not undefined (even if empty)
-    const available = result.stdout !== undefined;
-
     // Structured Python version check (preferred): probe a prioritised
     // candidate list and report the *specific* interpreter that was selected.
-    // Falls back gracefully if the package check_command itself failed
-    // (available=false) — we still want a precise error in that case.
+    // This is the authoritative check for these packages, so skip
+    // pkg.check_command entirely rather than spawning it just to discard the
+    // result.
     if (pkg.version_check) {
       const minimum = parseMinimumVersion(pkg.version_check.minimum);
       const picked = await pickPythonExecutable(pkg.version_check.candidates, minimum);
@@ -718,6 +719,10 @@ export async function checkPackageAvailable(pkg: PlatformPackage): Promise<Packa
         available: true,
       };
     }
+
+    const result = await executeShellCommand(pkg.check_command, "", false);
+    // Command succeeded if stdout is not undefined (even if empty)
+    const available = result.stdout !== undefined;
 
     return {
       name: pkg.name,
@@ -834,10 +839,12 @@ export async function installPackage(pkg: PlatformPackage, resolvedManager?: { n
     case "apt": {
       const plan = await resolveAptInstallPlan(pkg);
       postAptSteps.push(...plan.postAptSteps);
-      // Use interactive sudo so password prompts work on Ubuntu setups that
-      // scope sudo timestamp credentials per terminal/TTY.
+      // conditionalSudoCmd() uses interactive sudo when present (password
+      // prompts work on Ubuntu setups that scope sudo timestamp credentials
+      // per terminal/TTY) and falls back to running directly when already
+      // root without sudo installed (e.g. minimal container images).
       // Run apt-get update first to ensure package lists are current.
-      installCommand = `sudo apt-get update && sudo apt install -y --no-install-recommends ${plan.aptPackages.join(" ")}`;
+      installCommand = `${conditionalSudoCmd("apt-get update")} && ${conditionalSudoCmd(`apt install -y --no-install-recommends ${plan.aptPackages.join(" ")}`)}`;
       break;
     }
     case "dnf":
@@ -977,7 +984,8 @@ export async function installPackagesBatch(packages: PlatformPackage[], resolved
   }
 
   outputInfo("Host Tools", `Installing ${packages.length} package(s) in a single apt command...`);
-  const installCommand = `sudo apt-get update && sudo apt install -y --no-install-recommends ${aptPackages.join(" ")}`;
+  // See installPackage()'s apt case for why each step is wrapped individually.
+  const installCommand = `${conditionalSudoCmd("apt-get update")} && ${conditionalSudoCmd(`apt install -y --no-install-recommends ${aptPackages.join(" ")}`)}`;
   const installOk = await executeTaskHelper("Install missing host tools (apt)", installCommand, "");
 
   if (!installOk) {
