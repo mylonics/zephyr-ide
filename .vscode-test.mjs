@@ -63,15 +63,11 @@ if (!process.env.MOCHA_FILE) {
 	process.env.MOCHA_FILE = join(__dirname, 'test-results', 'results.xml');
 }
 
-const sharedConfig = {
-	workspaceFolder: testWorkspace,
-	mocha: {
-		ui: 'tdd',
-		timeout: 900000,
-		reporter: 'mocha-multi-reporters',
-		reporterOptions: {
-			configFile: join(__dirname, '.mocha-multi-reporters.json')
-		}
+const sharedMochaConfig = {
+	ui: 'tdd',
+	reporter: 'mocha-multi-reporters',
+	reporterOptions: {
+		configFile: join(__dirname, '.mocha-multi-reporters.json')
 	}
 };
 
@@ -79,11 +75,23 @@ export default defineConfig([
 	{
 		label: 'unit',
 		files: unitTestFiles,
-		...sharedConfig
+		workspaceFolder: testWorkspace,
+		mocha: {
+			...sharedMochaConfig,
+			timeout: 900000,
+		}
 	},
 	{
 		label: 'integration',
 		files: integrationTestFiles,
-		...sharedConfig
+		workspaceFolder: testWorkspace,
+		mocha: {
+			...sharedMochaConfig,
+			// Extended timeout for integration tests: Windows SDK toolchain
+			// download via setup.cmd can take 15+ min on the first run, so the
+			// per-test monitor timeout is 1200s on Windows (vs 600s elsewhere).
+			// Adding a 5-minute buffer gives 1500s = 25 minutes total.
+			timeout: 1500000,
+		}
 	}
 ]);
