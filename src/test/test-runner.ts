@@ -119,8 +119,10 @@ async function writeExtensionOutputLog(label: string, output: string): Promise<v
 /**
  * Monitor workspace setup progress for integration tests
  * @param setupType Type of setup being monitored (e.g., "workspace", "git workspace")
+ * @param timeoutMs Maximum time to wait in ms. Defaults to 1200s on Windows (SDK toolchain
+ *                  download via setup.cmd can take 15+ min on first run) and 600s elsewhere.
  */
-export async function monitorWorkspaceSetup(commandPromise: Thenable<any>, setupType: string = "workspace", timeoutMs: number = 600000): Promise<void> {
+export async function monitorWorkspaceSetup(commandPromise: Thenable<any>, setupType: string = "workspace", timeoutMs: number = process.platform === 'win32' ? 1200000 : 600000): Promise<void> {
     logStep(setupType, `Monitoring setup progress (timeout ${timeoutMs / 1000}s)`);
     const startTime = Date.now();
     const elapsedSeconds = () => ((Date.now() - startTime) / 1000).toFixed(1);
