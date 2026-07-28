@@ -50,6 +50,8 @@ export interface HostToolsStatusData {
    * undefined when not running on Windows.
    */
   windowsLongPathsEnabled?: boolean;
+  /** Windows-only: whether 7-Zip is optionally installed. undefined when not running on Windows. */
+  sevenZipAvailable?: boolean;
 }
 
 export type PackageState = 'checking' | 'installing' | 'installed' | 'pending-restart' | 'error';
@@ -88,9 +90,6 @@ const INBOUND_COMMANDS = {
 // ---------------------------------------------------------------------------
 // Rendering helpers
 // ---------------------------------------------------------------------------
-
-/** How the status of individual packages is rendered. */
-export type PackageDisplayMode = 'cards' | 'table';
 
 interface PackageDisplayInfo {
   statusClass: string;
@@ -180,7 +179,6 @@ export class HostToolsClient {
 
   constructor(
     private readonly vscode: WebviewApi,
-    private readonly displayMode: PackageDisplayMode,
   ) {
     document.addEventListener('click', (e: Event) => {
       const target = (e.target as HTMLElement).closest<HTMLElement>('[data-action]');
@@ -254,7 +252,7 @@ export class HostToolsClient {
       return true;
     }
     if (cmd === INBOUND_COMMANDS.packageInstalling) {
-      this.handlePackageInstalling(message.packageName, message.current, message.total);
+      this.handlePackageInstalling(message.packageName, message.current, message.total, message.batch);
       return true;
     }
     if (cmd === INBOUND_COMMANDS.packageInstalled) {
@@ -286,6 +284,13 @@ export class HostToolsClient {
     }
 
     if (packagesToInstall.length === 0) {
+      // Nothing left to install — forward the empty list so the extension
+      // surfaces its "already installed" message instead of this silently
+      // no-oping and leaving the user unsure whether the click registered.
+      this.vscode.postMessage({
+        command: OUTBOUND_COMMANDS.installAllMissingPackages,
+        packageNames: [],
+      });
       return;
     }
 
@@ -314,10 +319,16 @@ export class HostToolsClient {
     this.disableAllButtons(true);
   }
 
-  private handlePackageInstalling(packageName: string, current: number, total: number): void {
-    if (total > 1) {
-      const installAllBtn = document.getElementById('install-all-btn');
-      if (installAllBtn) {
+  private handlePackageInstalling(packageName: string, current: number, total: number, batch?: boolean): void {
+    const installAllBtn = document.getElementById('install-all-btn');
+    if (installAllBtn) {
+      if (batch) {
+        // All these packages install via a single package-manager command
+        // (e.g. one apt invocation) — a per-package counter would be
+        // misleading since none has "finished" independently of the others.
+        const totalNum = Number(total);
+        installAllBtn.innerHTML = `<vscode-icon slot="start-icon" name="loading" spin></vscode-icon> Installing ${totalNum} Package${totalNum === 1 ? '' : 's'}…`;
+      } else if (total > 1) {
         const currentNum = Number(current);
         const totalNum = Number(total);
         installAllBtn.innerHTML = `<vscode-icon slot="start-icon" name="loading" spin></vscode-icon> Installing Packages (${currentNum}/${totalNum})`;
@@ -419,38 +430,23 @@ export class HostToolsClient {
 
     const info = getPackageDisplayInfo(pkg, this.state, this.currentStatus.managerAvailable);
 
-    if (this.displayMode === 'cards') {
-      const el = document.querySelector(`[data-package-name="${packageName}"]`) as HTMLElement | null;
-      if (!el) { return; }
+    const el = document.querySelector(`[data-package-name="${packageName}"]`) as HTMLElement | null;
+    if (!el) { return; }
 
-      el.classList.remove('available', 'missing', 'installing', 'pending-restart', 'checking');
-      el.classList.add(info.itemClass);
+    el.classList.remove('available', 'missing', 'installing', 'pending-restart', 'checking');
+    el.classList.add(info.itemClass);
 
-      const badge = el.querySelector('.status-badge');
-      if (badge) {
-        badge.classList.remove('status-available', 'status-missing', 'status-installing', 'status-pending-restart', 'status-checking');
-        badge.classList.add(info.statusClass);
-        badge.innerHTML = info.statusText;
-      }
+    const badge = el.querySelector('.status-badge');
+    if (badge) {
+      badge.classList.remove('status-available', 'status-missing', 'status-installing', 'status-pending-restart', 'status-checking');
+      badge.classList.add(info.statusClass);
+      badge.innerHTML = info.statusText;
+    }
 
-      const actionArea = el.querySelector('.package-actions');
-      if (actionArea) {
-        const btn = actionArea.querySelector('vscode-button') as HTMLElement | null;
-        if (btn) { btn.style.display = info.showInstallButton ? '' : 'none'; }
-      }
-    } else {
-      const row = document.querySelector(`tr[data-package-name="${packageName}"]`) as HTMLElement | null;
-      if (!row) { return; }
-      const statusCell = row.querySelector('td:nth-child(2)');
-      const actionCell = row.querySelector('td:nth-child(3)');
-      if (statusCell) {
-        statusCell.innerHTML = `<span class="${info.statusClass}">${info.statusText}</span>`;
-      }
-      if (actionCell) {
-        actionCell.innerHTML = info.showInstallButton
-          ? `<vscode-button class="install-inline-btn" appearance="secondary" data-action="installPackage" data-package="${escapeHtml(packageName)}">Install</vscode-button>`
-          : '';
-      }
+    const actionArea = el.querySelector('.package-actions');
+    if (actionArea) {
+      const btn = actionArea.querySelector('vscode-button') as HTMLElement | null;
+      if (btn) { btn.style.display = info.showInstallButton ? '' : 'none'; }
     }
   }
 
@@ -459,7 +455,7 @@ export class HostToolsClient {
    * the full package list.
    */
   private updateSummary(): void {
-    if (!this.currentStatus || this.displayMode !== 'cards') { return; }
+    if (!this.currentStatus) { return; }
 
     const availableCount = this.currentStatus.packages.filter(
       p => p.available || this.state.packageStates[p.name] === 'installed'
@@ -517,6 +513,14 @@ export class HostToolsClient {
     // window reload) are surfaced with the pending-restart badge instead.
     if (data.checking) {
       for (const pkg of data.packages) {
+        // Don't clobber an install-in-progress/just-completed card with a
+        // generic 'checking' spinner — e.g. the user clicking Refresh (which
+        // stays enabled during installs) would otherwise fight the install
+        // UI for any package currently mid-install.
+        const existing = this.state.packageStates[pkg.name];
+        if (this.state.inProgress && (existing === 'installing' || existing === 'installed' || existing === 'error')) {
+          continue;
+        }
         if (pkg.pendingRestart) {
           this.state.packageStates[pkg.name] = 'pending-restart';
         } else {
@@ -525,14 +529,8 @@ export class HostToolsClient {
       }
     }
 
-    if (this.displayMode === 'cards') {
-      this.displayStatusCards(data);
-    } else {
-      this.displayStatusTable(data);
-    }
+    this.displayStatusCards(data);
   }
-
-  // ---- Cards mode (used by standalone HostToolInstallView) ----
 
   private displayStatusCards(data: HostToolsStatusData): void {
     const managerHtml = `
@@ -600,61 +598,6 @@ export class HostToolsClient {
     this.updateActionButtons(actuallyMissing, data.managerAvailable);
   }
 
-  // ---- Table mode (used by SetupPanel embedded view) ----
-
-  private displayStatusTable(data: HostToolsStatusData): void {
-    const managerStatus = document.getElementById('manager-status');
-    const packagesStatus = document.getElementById('packages-status');
-
-    if (managerStatus) {
-      if (!data.managerAvailable) {
-          managerStatus.innerHTML = `
-          <div class="warning">
-            <strong>${escapeHtml(data.managerName)}</strong> is not installed or not in PATH.
-            <div class="manager-actions">
-              <vscode-button appearance="secondary" data-action="installPackageManager">
-                Install ${escapeHtml(data.managerName)}
-              </vscode-button>
-            </div>
-          </div>`;
-      } else {
-        managerStatus.innerHTML = `
-          <div class="success">✓ <strong>${escapeHtml(data.managerName)}</strong> is available</div>`;
-      }
-    }
-
-    if (!packagesStatus) { return; }
-
-    if (!data.packages || data.packages.length === 0) {
-      packagesStatus.innerHTML = '<div class="info">No packages to check</div>';
-      return;
-    }
-
-    let html = '<table class="packages-table"><thead><tr><th>Package</th><th>Status</th><th>Action</th></tr></thead><tbody>';
-    let actuallyMissing = false;
-
-    for (const pkg of data.packages) {
-      const info = getPackageDisplayInfo(pkg, this.state, data.managerAvailable);
-      if (info.showInstallButton) { actuallyMissing = true; }
-
-      html += `<tr data-package-name="${escapeHtml(pkg.name)}">
-        <td><strong>${escapeHtml(pkg.name)}</strong></td>
-        <td><span class="${info.statusClass}">${info.statusText}</span></td>
-        <td>${info.showInstallButton
-          ? `<vscode-button class="install-inline-btn" appearance="secondary" data-action="installPackage" data-package="${escapeHtml(pkg.name)}">Install</vscode-button>`
-          : ''}</td>
-      </tr>`;
-    }
-
-    html += '</tbody></table>';
-    packagesStatus.innerHTML = html;
-
-    const installAllBtn = document.getElementById('install-all-btn');
-    if (installAllBtn) {
-      installAllBtn.toggleAttribute('disabled', !actuallyMissing || !data.managerAvailable || this.state.inProgress);
-    }
-  }
-
   /** Post the 'openSetupPanel' command to navigate back to the setup panel. */
   navigateToSetup(): void {
     this.vscode.postMessage({ command: 'openSetupPanel' });
@@ -699,14 +642,8 @@ export class HostToolsClient {
     }
   }
 
-  // ---- In-place row update (works for both cards and table modes) -----
-
   private updatePackageStatus(packageName: string, newState: PackageState): void {
-    if (this.displayMode === 'cards') {
-      this.updatePackageCard(packageName, newState);
-    } else {
-      this.updatePackageRow(packageName, newState);
-    }
+    this.updatePackageCard(packageName, newState);
   }
 
   private updatePackageCard(packageName: string, state: PackageState): void {
@@ -763,34 +700,4 @@ export class HostToolsClient {
     }
   }
 
-  private updatePackageRow(packageName: string, state: PackageState): void {
-    const row = document.querySelector(`tr[data-package-name="${packageName}"]`) as HTMLElement | null;
-    if (!row) { return; }
-
-    const statusCell = row.querySelector('td:nth-child(2)');
-    const actionCell = row.querySelector('td:nth-child(3)');
-    if (!statusCell) { return; }
-
-    switch (state) {
-      case 'checking':
-        statusCell.innerHTML = '<span class="info"><span class="codicon codicon-sync codicon-modifier-spin"></span> Checking</span>';
-        if (actionCell) { actionCell.innerHTML = ''; }
-        break;
-      case 'installing':
-        statusCell.innerHTML = '<span class="info"><span class="codicon codicon-sync codicon-modifier-spin"></span> Installing</span>';
-        if (actionCell) { actionCell.innerHTML = ''; }
-        break;
-      case 'installed':
-        statusCell.innerHTML = '<span class="success">✓ Installed</span>';
-        if (actionCell) { actionCell.innerHTML = ''; }
-        break;
-      case 'pending-restart':
-        statusCell.innerHTML = '<span class="warning"><span class="codicon codicon-warning"></span> Not Available Pending Restart</span>';
-        if (actionCell) { actionCell.innerHTML = ''; }
-        break;
-      case 'error':
-        statusCell.innerHTML = '<span class="error">✗ Installation Failed</span>';
-        break;
-    }
-  }
 }

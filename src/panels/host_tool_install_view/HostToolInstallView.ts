@@ -54,6 +54,10 @@ export class HostToolInstallView {
       {
         enableScripts: true,
         localResourceRoots: [vscode.Uri.file(extensionPath)],
+        // Installs can run for a while and stream progress messages; without
+        // this, switching tabs mid-install tears down the webview and the
+        // panel comes back showing stale pre-install cards.
+        retainContextWhenHidden: true,
       }
     );
 
@@ -80,7 +84,14 @@ export class HostToolInstallView {
     this._service = new HostToolsService(panel.webview, {
       ...HOST_TOOL_INSTALL_VIEW_CONFIG,
       onStatusChanged: () => {
-        this.refreshAfterStatusChange();
+        // Note: this deliberately does NOT re-trigger checkStatus(). It used
+        // to, but checkStatus() itself persists pendingRestart/toolsAvailable
+        // state via this same callback, so that call re-entered checkStatus()
+        // every time it ran — and did so again during installs (each package
+        // install persists pendingRestart), spawning full re-checks that raced
+        // the in-progress install and reset every card back to "Checking".
+        // The webview already gets authoritative per-package updates from the
+        // check/install flows themselves, so no extra refresh is needed here.
         // Propagate state changes (toolsAvailable, pendingRestart list) to all
         // other views — ExtensionSetupView tree badge and SetupPanel overview.
         void vscode.commands.executeCommand("zephyr-ide.update-web-view");
@@ -112,15 +123,6 @@ export class HostToolInstallView {
       this._panel.webview.html = this.getHtmlForWebview();
       this._htmlInitialized = true;
     }
-  }
-
-  /**
-   * Re-trigger a status check on the webview after the service mutated
-   * persisted state (e.g. `toolsAvailable` flipped or pending-restart list
-   * changed). The webview re-renders cards from the fresh statuses.
-   */
-  private refreshAfterStatusChange(): void {
-    void this._service.checkStatus();
   }
 
   private _htmlInitialized = false;
