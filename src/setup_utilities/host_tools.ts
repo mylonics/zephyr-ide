@@ -684,6 +684,28 @@ export async function getDefaultPythonExecutable(): Promise<string> {
   return platformName === "linux" || platformName === "macos" ? "python3" : "python";
 }
 
+/** Return the Python version currently recommended by the host-tools manifest. */
+export async function getRecommendedPythonVersion(): Promise<string> {
+  const packages = await getPlatformPackages();
+  return packages.find(p => p.version_check)?.version_check?.minimum ?? "3.12";
+}
+
+/** Check whether an executable meets the Python version required by Zephyr. */
+export async function isPythonCommandSuitable(pythonCommand: string): Promise<boolean> {
+  const minimum = parseMinimumVersion(await getRecommendedPythonVersion());
+  return (await checkPythonVersion(pythonCommand, minimum)).valid;
+}
+
+/** Check whether uv is available on PATH. */
+export async function isUvAvailable(): Promise<boolean> {
+  try {
+    const result = await executeShellCommand("uv --version", "", false);
+    return result.stdout !== undefined;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Check if a single package is available
  */

@@ -242,6 +242,16 @@
           "default": null,
           "description": "Manually specify a Python virtual environment folder path. If not specified, defaults to .venv in the workspace setup path."
         },
+        "zephyr-ide.pythonVenvTool": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "venv",
+            "uv"
+          ],
+          "default": "auto",
+          "description": "Tool used to create the Python virtual environment. Auto uses uv when available if the system Python is unsuitable; uv can download the Zephyr-recommended Python version."
+        },
         "zephyr-ide.disableZephyrBaseInjection": {
           "type": [
             "boolean"

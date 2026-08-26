@@ -28,7 +28,7 @@ import { saveSetupState, setSetupState, setWorkspaceState } from "./state-manage
 import { getSetupState, getSetupStateOrNotify, getVenvPath } from "./workspace-config";
 import { ensureWestConfigManifest } from "./west-config-parser";
 import { SetupProgressTracker } from "./setup-progress";
-import { getDefaultPythonExecutable, loadVendorHostToolsManifest, confirmVendorToolsInstall, installPackagesBatch } from "./host_tools";
+import { getDefaultPythonExecutable, getRecommendedPythonVersion, isPythonCommandSuitable, isUvAvailable, loadVendorHostToolsManifest, confirmVendorToolsInstall, installPackagesBatch } from "./host_tools";
 import { installZephyrIdeRequirements, runZephyrIdeCommandsInteractive } from "./zephyr_ide_install";
 import { getZephyrIdePipPackages, getZephyrIdePipRequirements, resolveZephyrIdePipRequirementsPath } from "./zephyr_ide_json";
 
@@ -420,7 +420,20 @@ export async function setupWestEnvironment(context: vscode.ExtensionContext, wsC
 
         // Then create the virtualenv
         const pythonCmd = await getPythonCommand();
-        const cmd = `${pythonCmd} -m venv "${pythonenv}"`;
+        const configuredVenvTool = vscode.workspace.getConfiguration().get<string>("zephyr-ide.pythonVenvTool", "auto");
+        const useUv = configuredVenvTool === "uv"
+          || (configuredVenvTool === "auto" && !(await isPythonCommandSuitable(pythonCmd)));
+        let cmd: string;
+        if (useUv && await isUvAvailable()) {
+          const recommendedPython = await getRecommendedPythonVersion();
+          cmd = `uv venv --python ${recommendedPython} "${pythonenv}"`;
+          outputInfo("West Environment", `Creating Python Virtual Environment with uv and Python ${recommendedPython}`);
+        } else {
+          if (useUv) {
+            outputWarning("West Environment", "uv was requested or needed, but is not installed; falling back to Python's built-in venv.");
+          }
+          cmd = `${pythonCmd} -m venv "${pythonenv}"`;
+        }
         const res = await executeTaskHelper("Zephyr IDE West Environment Setup", cmd, currentSetupState.setupPath);
         if (!res) {
           notifyError("West Environment", "Unable to create Python Virtual Environment. Check the Zephyr IDE output for details.", { command: cmd });

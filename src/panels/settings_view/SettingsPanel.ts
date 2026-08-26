@@ -48,6 +48,18 @@ const SETTINGS: SettingDefinition[] = [
     pathType: "folder",
   },
   {
+    key: "zephyr-ide.pythonVenvTool",
+    label: "Python Virtual Environment Tool",
+    description: "Select how Python virtual environments are created. Auto uses uv when available if the system Python is unsuitable.",
+    type: "enum",
+    defaultValue: "auto",
+    options: [
+      { value: "auto", label: "Auto" },
+      { value: "venv", label: "Python venv" },
+      { value: "uv", label: "uv" },
+    ],
+  },
+  {
     key: "zephyr-ide.activeViewKconfigButton",
     label: "Active View Kconfig Button",
     description: "Controls what the Kconfig button in the Active Project view does.",
