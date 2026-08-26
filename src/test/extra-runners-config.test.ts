@@ -85,5 +85,7 @@ suite("Extra Runners Configuration Test Suite", () => {
         await resetSetting(config);
 
         assert.deepStrictEqual(getAllWestRunners(), WEST_RUNNERS);
+
+        await resetSetting(config);
     });
 });
