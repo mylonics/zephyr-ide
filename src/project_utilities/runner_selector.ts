@@ -56,6 +56,24 @@ export const WEST_RUNNERS = [
 ];
 
 /**
+ * Reads the user-configured `zephyr-ide.extraRunners` setting.
+ * Lets users add custom/out-of-tree west runners (registered in their own
+ * `runners/__init__.py`) to the runner pickers without waiting for a
+ * built-in list update. See issue #631.
+ */
+export function getExtraRunners(): string[] {
+  const extra = vscode.workspace.getConfiguration("zephyr-ide").get<string[]>("extraRunners", []);
+  return Array.isArray(extra) ? extra.filter(r => typeof r === "string" && r.trim().length > 0) : [];
+}
+
+/** `WEST_RUNNERS` plus any user-configured extra runners (deduplicated, extras appended in order). */
+export function getAllWestRunners(): string[] {
+  const known = new Set(WEST_RUNNERS);
+  const extras = getExtraRunners().filter(r => !known.has(r));
+  return [...WEST_RUNNERS, ...extras];
+}
+
+/**
  * Runners that cortex-debug can drive natively (no west bridge needed).
  * Must stay in sync with the native cases in `runnerToServerType` in `runners-yaml.ts`.
  * `blackmagicprobe` is the canonical name; `bmp` is kept as an alias for compatibility.
@@ -123,7 +141,7 @@ export async function bindSelector(options: BindSelectorOptions): Promise<FlashB
     items.push(...options.availableRunners.map(r => ({ label: r, description: "available" })));
     items.push({ label: "Other runners", kind: vscode.QuickPickItemKind.Separator });
   }
-  items.push(...WEST_RUNNERS.filter(r => !availableSet.has(r)).map(r => ({ label: r })));
+  items.push(...getAllWestRunners().filter(r => !availableSet.has(r)).map(r => ({ label: r })));
 
   let pickedBind: FlashBind | DebugBind | undefined;
 
