@@ -339,6 +339,14 @@
           },
           "description": "Default build variable names to show in the Project Details panel. Missing values are shown as empty."
         },
+        "zephyr-ide.extraRunners": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "markdownDescription": "Additional runner names appended to the built-in list used by the **Set Local Bind** flash/debug pickers and the Runner Profile editor. Useful for custom or out-of-tree Zephyr runners. Example: `[\"bonfi-bl\", \"my-custom-runner\"]`"
+        },
         "zephyr-ide.global_directory": {
           "type": [
             "string",
