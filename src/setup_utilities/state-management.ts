@@ -19,7 +19,7 @@ import * as vscode from "vscode";
 import * as fs from "fs-extra";
 import * as path from "upath";
 import * as crypto from "crypto";
-import { getRootPathFs, reloadEnvironmentVariables, isWSL, getPlatformName } from "../utilities/utils";
+import { getRootPathFs, reloadEnvironmentVariables, isWSL, getPlatformName, syncActiveRunnerDiscoveryKey } from "../utilities/utils";
 import { initializeDtsExt } from "./dts_interface";
 import { GlobalConfig, WorkspaceConfig, SetupState, generateSetupState, isActiveWorkspaceInitialized } from "./types";
 import { loadProjectsFromFile, setWorkspaceSettings, generateGitIgnore, generateExtensionsRecommendations } from "./workspace-config";
@@ -741,6 +741,7 @@ export async function clearWorkspaceReadiness(context: vscode.ExtensionContext, 
  */
 export async function clearSetupState(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig) {
   wsConfig.activeSetupState = undefined;
+  syncActiveRunnerDiscoveryKey(wsConfig.activeSetupState);
 
   await setWorkspaceState(context, wsConfig);
   reloadEnvironmentVariables(context, wsConfig.activeSetupState);
@@ -753,6 +754,7 @@ export async function setSetupState(context: vscode.ExtensionContext, wsConfig: 
   await setWorkspaceSettings();
 
   wsConfig.activeSetupState = await loadExternalSetupState(context, globalConfig, ext_path);
+  syncActiveRunnerDiscoveryKey(wsConfig.activeSetupState);
 
   if (wsConfig.activeSetupState) {
     // Only initialize DTS extension if the Python environment is ready and west is

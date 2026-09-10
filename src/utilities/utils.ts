@@ -26,8 +26,15 @@ import * as yaml from 'js-yaml';
 
 import { SetupState, WorkspaceConfig } from "../setup_utilities/types";
 import { getToolchainDir, resolveToolchainDirPath } from "../setup_utilities/workspace-config";
-import { initOutputChannel, getOutputChannel, outputCommand, outputError, outputInfo, outputLine, type ShellCommandResult } from "./output";
-import { WEST_RUNNERS, CORTEX_DEBUG_RUNNERS, WEST_DEBUG_RUNNERS } from "../project_utilities/runner_selector";
+import { initOutputChannel, getOutputChannel, outputCommand, outputError, outputInfo, outputLine, outputWarning, type ShellCommandResult } from "./output";
+import {
+  CORTEX_DEBUG_RUNNERS,
+  WEST_DEBUG_RUNNERS,
+  clearDiscoveredRunners,
+  getAllWestRunners,
+  setActiveDiscoveredRunnerKey,
+  setDiscoveredRunners,
+} from "../project_utilities/runner_selector";
 export type { ShellCommandResult } from "./output";
 
 /**
@@ -703,9 +710,10 @@ export async function selectLaunchConfiguration(
 
   if (mode === "flash") {
     // All west runners, categorised under "west flash".
+    const allWestRunners = getAllWestRunners();
     const sortedRunners = availableSet
-      ? [...WEST_RUNNERS.filter(r => availableSet.has(r)), ...WEST_RUNNERS.filter(r => !availableSet.has(r))]
-      : WEST_RUNNERS;
+      ? [...allWestRunners.filter(r => availableSet.has(r)), ...allWestRunners.filter(r => !availableSet.has(r))]
+      : allWestRunners;
     items.push({ label: "west flash", kind: vscode.QuickPickItemKind.Separator });
     items.push(...sortedRunners.map(r => ({
       label: `${_RUNNER_ICON_PREFIX}${r}`,
@@ -912,7 +920,7 @@ export async function executeTaskHelper(taskName: string, cmd: string, cwd: stri
   return (res !== undefined && res === 0);
 }
 
-export async function executeShellCommandInPythonEnv(cmd: string, cwd: string, setupState: SetupState, display_error = true): Promise<ShellCommandResult> {
+export async function executeShellCommandInPythonEnv(cmd: string, cwd: string, setupState: SetupState, display_error = true, timeoutMs?: number): Promise<ShellCommandResult> {
   // Build environment with venv PATH prepended
   const env = { ...process.env };
 
@@ -927,16 +935,24 @@ export async function executeShellCommandInPythonEnv(cmd: string, cwd: string, s
 
   applyPythonShellEnv(env, setupState);
 
-  return executeShellCommand(cmd, cwd, display_error, env);
+  return executeShellCommand(cmd, cwd, display_error, env, timeoutMs);
 };
 
-export async function executeShellCommand(cmd: string, cwd: string, display_error = true, env?: NodeJS.ProcessEnv): Promise<ShellCommandResult> {
+export async function executeShellCommand(cmd: string, cwd: string, display_error = true, env?: NodeJS.ProcessEnv, timeoutMs?: number): Promise<ShellCommandResult> {
   const exec = util.promisify(cp.exec);
   const effectiveEnv = env ?? process.env;
   const execOptions: cp.ExecOptions = {
     cwd: cwd,
     encoding: 'utf8',  // Ensure stdout and stderr are strings, not Buffers
   };
+
+  // Optional hard timeout — used by best-effort background probes (e.g.
+  // dynamic runner discovery) that must never hang the extension host
+  // waiting on a slow/broken Python environment. cp.exec kills the process
+  // and rejects once the timeout elapses.
+  if (timeoutMs) {
+    execOptions.timeout = timeoutMs;
+  }
 
   // Use provided environment or default to process.env
   if (env) {
@@ -1008,6 +1024,161 @@ export async function executeShellCommand(cmd: string, cwd: string, display_erro
   );
   return res;
 };
+
+/**
+ * Python one-liner (written to a temp file to sidestep shell-quoting issues)
+ * that enumerates every `ZephyrBinaryRunner` subclass registered in the
+ * west Python environment — including out-of-tree/custom runners the user
+ * has registered in their own `runners/__init__.py` — and prints their
+ * names as a JSON array on stdout.
+ *
+ * This mirrors "Option B" from issue mylonics/zephyr-ide#631: dynamic
+ * discovery via west's own runner registry, as a best-effort complement to
+ * the static `WEST_RUNNERS` list and the `zephyr-ide.extraRunners` setting.
+ */
+const RUNNER_DISCOVERY_SCRIPT = `
+import json
+import os
+import sys
+
+
+def _main():
+    zephyr_base = os.environ.get('ZEPHYR_BASE')
+    if not zephyr_base:
+        return
+    west_commands_dir = os.path.join(zephyr_base, 'scripts', 'west_commands')
+    if west_commands_dir not in sys.path:
+        sys.path.insert(0, west_commands_dir)
+    try:
+        import runners
+    except Exception:
+        return
+    for name in list(getattr(runners, '_names', None) or ()):
+        try:
+            runners._import_runner_module(name)
+        except Exception:
+            pass
+    try:
+        from runners.core import ZephyrBinaryRunner
+    except Exception:
+        return
+    names = set()
+    for cls in ZephyrBinaryRunner.__subclasses__():
+        try:
+            if hasattr(cls, 'name') and callable(cls.name):
+                names.add(cls.name())
+        except Exception:
+            pass
+    print(json.dumps(sorted(names)))
+
+
+_main()
+`;
+
+/** Hard cap on how long the background discovery probe may run before being killed. */
+const RUNNER_DISCOVERY_TIMEOUT_MS = 15000;
+
+/** Shared in-flight promises, keyed by the effective Zephyr base. */
+const runnerDiscoveryPromises = new Map<string, Promise<void>>();
+
+export function getRunnerDiscoveryKey(setupState: SetupState | undefined): string | undefined {
+  if (!setupState) {
+    return undefined;
+  }
+  const zephyrBase = getEffectiveZephyrBase(setupState);
+  return zephyrBase && zephyrBase.trim().length > 0 ? zephyrBase : undefined;
+}
+
+export function syncActiveRunnerDiscoveryKey(setupState: SetupState | undefined): void {
+  setActiveDiscoveredRunnerKey(getRunnerDiscoveryKey(setupState));
+}
+
+/**
+ * Kicks off a non-blocking, best-effort scan of the west Python environment
+ * for every registered runner (built-in and out-of-tree) and feeds the
+ * result into `runner_selector.ts` via `setDiscoveredRunners()` so it shows
+ * up in the flash/debug runner pickers alongside `WEST_RUNNERS` and
+ * `zephyr-ide.extraRunners`.
+ *
+ * Callers must NOT `await` this from a code path that needs to stay
+ * responsive — it is intended to be fired with `void discoverRunnersAsync(...)`
+ * so it never adds startup latency. Any failure (ZEPHYR_BASE not resolved
+ * yet, west venv not initialized, python missing, timeout, ...) is logged
+ * and otherwise silently ignored; the pickers simply fall back to the
+ * static list.
+ */
+export function discoverRunnersAsync(setupState: SetupState | undefined): Promise<void> {
+  const runnerDiscoveryKey = getRunnerDiscoveryKey(setupState);
+  if (!setupState || !setupState.zephyrDir || !runnerDiscoveryKey) {
+    return Promise.resolve();
+  }
+  syncActiveRunnerDiscoveryKey(setupState);
+  const inFlight = runnerDiscoveryPromises.get(runnerDiscoveryKey);
+  if (inFlight) {
+    return inFlight;
+  }
+
+  const scan = (async () => {
+    let scriptPath: string | undefined;
+    try {
+      scriptPath = path.join(os.tmpdir(), `zephyr-ide-runner-discovery-${process.pid}-${Date.now()}.py`);
+      fs.writeFileSync(scriptPath, RUNNER_DISCOVERY_SCRIPT, "utf8");
+      const cmd = `python "${scriptPath}"`;
+      const result = await executeShellCommandInPythonEnv(
+        cmd,
+        setupState.setupPath || os.tmpdir(),
+        setupState,
+        false,
+        RUNNER_DISCOVERY_TIMEOUT_MS
+      );
+      if (result.exitCode !== 0) {
+        outputWarning("Runner Discovery", `Skipping dynamic runner discovery after probe exit code ${result.exitCode ?? "unknown"}.`);
+        return;
+      }
+      let names: string[] = [];
+      const lastLine = (result.stdout ?? "").trim().split(/\r?\n/).pop() ?? "";
+      if (lastLine) {
+        const parsed: unknown = JSON.parse(lastLine);
+        if (Array.isArray(parsed)) {
+          names = parsed.filter((r): r is string => typeof r === "string");
+        }
+      }
+      setDiscoveredRunners(names, runnerDiscoveryKey);
+      void vscode.commands.executeCommand("zephyr-ide.update-web-view");
+      outputInfo("Runner Discovery", `Discovered ${names.length} runner(s) from the west Python environment.`);
+    } catch (err) {
+      // Non-fatal: dynamic discovery is a best-effort enhancement, not a
+      // requirement — the static WEST_RUNNERS list + extraRunners setting
+      // still work if this probe fails or times out.
+      clearDiscoveredRunners(runnerDiscoveryKey);
+      void vscode.commands.executeCommand("zephyr-ide.update-web-view");
+      outputWarning("Runner Discovery", `Skipping dynamic runner discovery: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      if (scriptPath) {
+        try { fs.unlinkSync(scriptPath); } catch { /* best-effort cleanup */ }
+      }
+    }
+  })();
+
+  // Only dedupe concurrent/overlapping calls: once the scan settles, clear
+  // the shared reference so a later legitimate rescan (e.g. after another
+  // West Update changes which runners are available) is not permanently
+  // suppressed for the lifetime of the extension host.
+  const scanPromise: Promise<void> = scan.finally(() => {
+    if (runnerDiscoveryPromises.get(runnerDiscoveryKey) === scanPromise) {
+      runnerDiscoveryPromises.delete(runnerDiscoveryKey);
+    }
+  });
+  runnerDiscoveryPromises.set(runnerDiscoveryKey, scanPromise);
+
+  return scanPromise;
+}
+
+/** Test-only: clears the shared discovery promise so a fresh scan can be triggered. */
+export function _resetRunnerDiscoveryForTests(): void {
+  runnerDiscoveryPromises.clear();
+  clearDiscoveredRunners();
+}
 
 export function reloadEnvironmentVariables(context: vscode.ExtensionContext, setupState: SetupState | undefined) {
   context.environmentVariableCollection.persistent = false;

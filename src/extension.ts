@@ -56,7 +56,9 @@ import {
   RUNNER_TARGET_PREFIX,
   CORTEX_DEBUG_PREFIX,
   WEST_DEBUG_PREFIX,
+  discoverRunnersAsync,
   getEffectiveZephyrBase,
+  syncActiveRunnerDiscoveryKey,
 } from "./utilities/utils";
 import { notifyError, outputInfo, outputError, outputLine, outputCommandFailure, getDebugOutput, clearDebugOutput } from "./utilities/output";
 import * as project from "./project_utilities/project";
@@ -616,6 +618,7 @@ export async function activate(context: vscode.ExtensionContext) {
         wsConfig.activeSetupState.zephyrDir
       );
     }
+
   } catch (initError) {
     const initErrorMsg = initError instanceof Error ? initError.message : String(initError);
     const initErrorDetail =
@@ -2170,12 +2173,16 @@ export async function activate(context: vscode.ExtensionContext) {
         if (useClangd) {
           await setWorkspaceSettings(false);
         }
-      } else if (e.affectsConfiguration("zephyr-ide.runnerProfiles")) {
+      } else if (
+        e.affectsConfiguration("zephyr-ide.runnerProfiles") ||
+        e.affectsConfiguration("zephyr-ide.extraRunners")
+      ) {
         // User-scope runner profiles are read fresh on every lookup (no cache),
         // but the tree views / panels / status bar only re-render on an explicit
         // refresh — an edit to the user setting (e.g. via the Settings UI or
         // settings.json) would otherwise show stale profile lists until some
-        // unrelated action happens to trigger update-web-view.
+        // unrelated action happens to trigger update-web-view. The same applies
+        // to extra runner names shown by the runner-profile editor dropdowns.
         void vscode.commands.executeCommand("zephyr-ide.update-web-view");
       } else if (
         e.affectsConfiguration("zephyr-ide.disableZephyrBaseInjection") ||
@@ -2186,7 +2193,10 @@ export async function activate(context: vscode.ExtensionContext) {
         // reloadEnvironmentVariables — without this, an edit to either
         // setting would leave already-open and newly-opened terminals with
         // the stale value until an unrelated west action reloaded it.
+        syncActiveRunnerDiscoveryKey(wsConfig.activeSetupState);
         reloadEnvironmentVariables(context, wsConfig.activeSetupState);
+        void discoverRunnersAsync(wsConfig.activeSetupState);
+        void vscode.commands.executeCommand("zephyr-ide.update-web-view");
       }
     })
   );

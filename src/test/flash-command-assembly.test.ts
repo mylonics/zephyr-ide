@@ -45,6 +45,10 @@ suite("assembleFlashCommand", () => {
         assert.ok(cmd.includes("-r jlink"), `got: ${cmd}`);
     });
 
+    test("invalid runner names are rejected", () => {
+        assert.throws(() => assembleFlashCommand(makeParams({ runner: "jlink; rm -rf /" })), /Invalid west runner name/);
+    });
+
     test("sysbuildImage produces --domain <image>", () => {
         const cmd = assembleFlashCommand(makeParams({ sysbuildImage: "mcuboot" }));
         assert.ok(cmd.includes("--domain mcuboot"), `got: ${cmd}`);

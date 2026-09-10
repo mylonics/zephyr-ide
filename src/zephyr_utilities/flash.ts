@@ -24,6 +24,7 @@ import { ProjectConfig, ResolvedProjectBuild, resolveActiveProjectBuild, getBuil
 
 import { WorkspaceConfig } from '../setup_utilities/types';
 import { BuildConfig } from "../project_utilities/build_selector";
+import { isValidWestRunnerName } from "../project_utilities/runner_selector";
 import { loadRunnerProfiles, findRunnerProfile, resolveRunnerArgs, RunnerVarContext, FlashBind, BindOverride } from "../project_utilities/runner_profiles";
 import { getSetupStateOrNotify } from "../setup_utilities/workspace-config";
 
@@ -166,6 +167,9 @@ export function assembleFlashCommand(params: FlashCommandParams): string {
   }
 
   if (params.runner !== "default") {
+    if (!isValidWestRunnerName(params.runner)) {
+      throw new Error(`Invalid west runner name: ${params.runner}`);
+    }
     cmd += ` -r ${params.runner}`;
   }
   // args are already substituted by resolveFlashFromProfile (per-token).

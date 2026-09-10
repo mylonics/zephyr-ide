@@ -55,6 +55,92 @@ export const WEST_RUNNERS = [
   "xsdb",
 ];
 
+const WEST_RUNNER_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
+function normalizeRunnerNames(names: unknown): string[] {
+  if (!Array.isArray(names)) {
+    return [];
+  }
+  return names
+    .filter((runner): runner is string => typeof runner === "string")
+    .map(runner => runner.trim())
+    .filter(runner => runner.length > 0 && WEST_RUNNER_NAME_PATTERN.test(runner));
+}
+
+export function isValidWestRunnerName(name: string): boolean {
+  return WEST_RUNNER_NAME_PATTERN.test(name);
+}
+
+/**
+ * Reads the user-configured `zephyr-ide.extraRunners` setting.
+ * Lets users add custom/out-of-tree west runners (registered in their own
+ * `runners/__init__.py`) to the runner pickers without waiting for a
+ * built-in list update. See issue #631.
+ */
+export function getExtraRunners(): string[] {
+  const extra = vscode.workspace.getConfiguration("zephyr-ide").get<string[]>("extraRunners", []);
+  return normalizeRunnerNames(extra);
+}
+
+/**
+ * Cache of runner names discovered dynamically by probing the west Python
+ * environment (Option B from issue #631: `runners.core.ZephyrBinaryRunner`
+ * subclasses, including out-of-tree/custom runners). Populated asynchronously
+ * and best-effort by `discoverRunnersAsync()` in `utils.ts` — empty until
+ * that scan completes, so `getAllWestRunners()` always falls back cleanly to
+ * `WEST_RUNNERS` + `zephyr-ide.extraRunners`.
+ */
+const discoveredRunnersByKey = new Map<string, string[]>();
+let activeDiscoveredRunnerKey: string | undefined;
+
+/** Replaces the dynamically-discovered runner name cache. See `discoverRunnersAsync` in `utils.ts`. */
+export function setDiscoveredRunners(names: string[], key?: string): void {
+  const cacheKey = key ?? activeDiscoveredRunnerKey ?? "";
+  discoveredRunnersByKey.set(cacheKey, normalizeRunnerNames(names));
+  activeDiscoveredRunnerKey = cacheKey;
+}
+
+export function setActiveDiscoveredRunnerKey(key: string | undefined): void {
+  activeDiscoveredRunnerKey = key;
+}
+
+export function clearDiscoveredRunners(key?: string): void {
+  if (key === undefined) {
+    discoveredRunnersByKey.clear();
+    activeDiscoveredRunnerKey = undefined;
+    return;
+  }
+  discoveredRunnersByKey.delete(key);
+  if (activeDiscoveredRunnerKey === key) {
+    activeDiscoveredRunnerKey = undefined;
+  }
+}
+
+/** Runner names discovered dynamically via the west Python environment. Empty until a scan has completed. */
+export function getDiscoveredRunners(key?: string): string[] {
+  const cacheKey = key ?? activeDiscoveredRunnerKey;
+  if (cacheKey === undefined) {
+    return [];
+  }
+  return (discoveredRunnersByKey.get(cacheKey) ?? []).slice();
+}
+
+/**
+ * `WEST_RUNNERS` plus any dynamically-discovered runners and user-configured
+ * extra runners (deduplicated; discovered/extra names appended in that order).
+ */
+export function getAllWestRunners(): string[] {
+  const known = new Set(WEST_RUNNERS);
+  const merged = [...WEST_RUNNERS];
+  for (const r of [...getDiscoveredRunners(), ...getExtraRunners()]) {
+    if (!known.has(r)) {
+      known.add(r);
+      merged.push(r);
+    }
+  }
+  return merged;
+}
+
 /**
  * Runners that cortex-debug can drive natively (no west bridge needed).
  * Must stay in sync with the native cases in `runnerToServerType` in `runners-yaml.ts`.
@@ -123,7 +209,7 @@ export async function bindSelector(options: BindSelectorOptions): Promise<FlashB
     items.push(...options.availableRunners.map(r => ({ label: r, description: "available" })));
     items.push({ label: "Other runners", kind: vscode.QuickPickItemKind.Separator });
   }
-  items.push(...WEST_RUNNERS.filter(r => !availableSet.has(r)).map(r => ({ label: r })));
+  items.push(...getAllWestRunners().filter(r => !availableSet.has(r)).map(r => ({ label: r })));
 
   let pickedBind: FlashBind | DebugBind | undefined;
 
