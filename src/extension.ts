@@ -56,6 +56,7 @@ import {
   RUNNER_TARGET_PREFIX,
   CORTEX_DEBUG_PREFIX,
   WEST_DEBUG_PREFIX,
+  discoverRunnersAsync,
   getEffectiveZephyrBase,
   syncActiveRunnerDiscoveryKey,
 } from "./utilities/utils";
@@ -2194,6 +2195,7 @@ export async function activate(context: vscode.ExtensionContext) {
         // the stale value until an unrelated west action reloaded it.
         syncActiveRunnerDiscoveryKey(wsConfig.activeSetupState);
         reloadEnvironmentVariables(context, wsConfig.activeSetupState);
+        void discoverRunnersAsync(wsConfig.activeSetupState);
         void vscode.commands.executeCommand("zephyr-ide.update-web-view");
       }
     })
