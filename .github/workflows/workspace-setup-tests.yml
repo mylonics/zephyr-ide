@@ -136,7 +136,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "20.x"
+          node-version: "22.x"
           cache: "npm"
 
       # Keyed on OS + SDK version only (not test_type or a source hash), since
