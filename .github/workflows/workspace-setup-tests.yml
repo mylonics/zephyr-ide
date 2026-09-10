@@ -136,7 +136,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "20.x"
+          node-version: "22.x"
           cache: "npm"
 
       # Keyed on OS + SDK version only (not test_type or a source hash), since
@@ -175,11 +175,22 @@ jobs:
           echo 'TMP=D:\Temp'  >> $env:GITHUB_ENV
         shell: pwsh
 
-      # 7-Zip is pre-installed on Windows runners but not always on PATH.
-      # Adding it ensures west/SDK operations that shell out to 7z work.
-      - name: Add 7-Zip to PATH (Windows)
+      # The Windows SDK setup script requires 7-Zip to extract toolchain
+      # archives.  It is normally pre-installed, but some runner images do
+      # not include it; the bundled bsdtar shim cannot reliably extract 7z.
+      - name: Ensure 7-Zip is available (Windows)
         if: runner.os == 'Windows'
-        run: echo "C:\Program Files\7-Zip" >> $env:GITHUB_PATH
+        run: |
+          $sevenZipDir = 'C:\Program Files\7-Zip'
+          $sevenZip = Join-Path $sevenZipDir '7z.exe'
+          if (-not (Test-Path $sevenZip)) {
+            winget install --id 7zip.7zip --exact --source winget `
+              --accept-package-agreements --accept-source-agreements
+          }
+          if (-not (Test-Path $sevenZip)) {
+            throw "7-Zip was not found at $sevenZip after installation."
+          }
+          echo $sevenZipDir >> $env:GITHUB_PATH
         shell: pwsh
 
       - name: Install dependencies

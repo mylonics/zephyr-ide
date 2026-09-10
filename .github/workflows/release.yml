@@ -31,7 +31,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: "20.x" # Use a stable Node.js version.
+          node-version: "22.x" # Use a stable Node.js version.
           cache: "npm"
 
       # Step 3: Install project dependencies.
