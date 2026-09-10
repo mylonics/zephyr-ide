@@ -242,6 +242,18 @@ const SETTINGS: SettingDefinition[] = [
     defaultValue: false,
   },
   {
+    key: "zephyr-ide.compileCommandsMode",
+    label: "Compile Commands Mode",
+    description: "Controls which build compile_commands.json files are merged into .vscode/compile_commands.json: the active build only, all builds in the active project, or all builds in the workspace.",
+    type: "enum",
+    defaultValue: "all",
+    options: [
+      { value: "active", label: "Active build only" },
+      { value: "project", label: "All builds in active project" },
+      { value: "all", label: "All workspace builds (default)" },
+    ],
+  },
+  {
     key: "zephyr-ide.scaVariant",
     label: "SCA Variant",
     description: "Static Code Analysis (SCA) tool enabled on pristine builds via -DZEPHYR_SCA_VARIANT. 'dtdoctor' and 'gcc' are bundled in the Zephyr SDK (no extra install). 'clang', 'sparse', and 'codechecker' are open-source tools requiring separate installation. 'coverity', 'cpptest', 'eclair', 'iar_c_stat', and 'polyspace' are commercial tools. 'custom' reads from the SCA Custom Variant setting. 'none' disables SCA.",
