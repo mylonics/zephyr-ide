@@ -172,6 +172,7 @@ export class SettingsApp extends ZephyrLitElement {
           "zephyr-ide.suppressWorkspaceWarning",
           "zephyr-ide.disableZephyrBaseInjection",
           "zephyr-ide.useClangd",
+          "zephyr-ide.compileCommandsMode",
         ].includes(s.key)),
       },
       {
