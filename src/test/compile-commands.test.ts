@@ -126,6 +126,23 @@ suite("Compile Commands Mode Test Suite", () => {
     assert.deepStrictEqual(await readGeneratedEntries(fixture.rootPath), ["project-a/active-build"]);
   });
 
+  test("active mode leaves existing compile commands unchanged when no active build resolves", async () => {
+    await vscode.workspace.getConfiguration().update(
+      "zephyr-ide.compileCommandsMode",
+      "active",
+      vscode.ConfigurationTarget.Workspace,
+    );
+    await fs.outputJson(
+      path.join(fixture.rootPath, ".vscode", "compile_commands.json"),
+      [{ file: "preserve/me" }],
+    );
+    fixture.wsConfig.projectStates["project-a"].activeBuildConfig = undefined;
+
+    await regenerateCompileCommands(fixture.wsConfig);
+
+    assert.deepStrictEqual(await readGeneratedEntries(fixture.rootPath), ["preserve/me"]);
+  });
+
   test("project mode includes all builds in the active project", async () => {
     await vscode.workspace.getConfiguration().update(
       "zephyr-ide.compileCommandsMode",
@@ -139,5 +156,17 @@ suite("Compile Commands Mode Test Suite", () => {
       await readGeneratedEntries(fixture.rootPath),
       ["project-a/active-build", "project-a/other-build"],
     );
+  });
+
+  test("invalid mode falls back to all projects and builds", async () => {
+    await vscode.workspace.getConfiguration().update(
+      "zephyr-ide.compileCommandsMode",
+      "invalid",
+      vscode.ConfigurationTarget.Workspace,
+    );
+
+    await regenerateCompileCommands(fixture.wsConfig);
+
+    assert.deepStrictEqual(await readGeneratedEntries(fixture.rootPath), fixture.entries.sort());
   });
 });

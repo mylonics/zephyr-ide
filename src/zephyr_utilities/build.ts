@@ -71,7 +71,7 @@ async function readCompileCommandsFile(filePath: string, accumulator: any[]): Pr
 export type CompileCommandsMode = "active" | "project" | "all";
 
 function getCompileCommandsMode(): CompileCommandsMode {
-  const mode = vscode.workspace.getConfiguration("zephyr-ide").get<string>("compileCommandsMode", "all");
+  const mode = vscode.workspace.getConfiguration().get<string>("zephyr-ide.compileCommandsMode", "all");
   return mode === "active" || mode === "project" || mode === "all" ? mode : "all";
 }
 
@@ -97,9 +97,17 @@ function getCompileCommandBuilds(
 }
 
 export async function regenerateCompileCommands(wsConfig: WorkspaceConfig) {
+  const mode = getCompileCommandsMode();
+  const compileCommandBuilds = getCompileCommandBuilds(wsConfig, mode);
+
+  if (compileCommandBuilds.length === 0 && mode !== "all") {
+    outputWarning("Build", `No builds resolved for zephyr-ide.compileCommandsMode='${mode}'; leaving .vscode/compile_commands.json unchanged.`);
+    return;
+  }
+
   const compileCommandData: any[] = [];
 
-  for (const { project, build } of getCompileCommandBuilds(wsConfig, getCompileCommandsMode())) {
+  for (const { project, build } of compileCommandBuilds) {
     // Resolve the sysbuild domain (if any) rather than guessing a
     // <basepath>/<project.name> fallback — that guess only happened to
     // work when the default domain's name matched the project name.
