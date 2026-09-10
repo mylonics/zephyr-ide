@@ -68,21 +68,45 @@ async function readCompileCommandsFile(filePath: string, accumulator: any[]): Pr
   }
 }
 
+export type CompileCommandsMode = "active" | "project" | "all";
+
+function getCompileCommandsMode(): CompileCommandsMode {
+  const mode = vscode.workspace.getConfiguration("zephyr-ide").get<string>("compileCommandsMode", "all");
+  return mode === "active" || mode === "project" || mode === "all" ? mode : "all";
+}
+
+function getCompileCommandBuilds(
+  wsConfig: WorkspaceConfig,
+  mode: CompileCommandsMode,
+): Array<{ project: ProjectConfig; build: BuildConfig }> {
+  if (mode === "active") {
+    const resolved = resolveActiveProjectBuild(wsConfig);
+    return resolved ? [{ project: resolved.project, build: resolved.build }] : [];
+  }
+
+  if (mode === "project") {
+    const resolved = resolveActiveProject(wsConfig);
+    return resolved
+      ? Object.values(resolved.project.buildConfigs).map((build) => ({ project: resolved.project, build }))
+      : [];
+  }
+
+  return Object.values(wsConfig.projects).flatMap((project) =>
+    Object.values(project.buildConfigs).map((build) => ({ project, build }))
+  );
+}
+
 export async function regenerateCompileCommands(wsConfig: WorkspaceConfig) {
   const compileCommandData: any[] = [];
 
-  for (const projectName in wsConfig.projects) {
-    const project = wsConfig.projects[projectName];
-    for (const buildName in project.buildConfigs) {
-      const build = project.buildConfigs[buildName];
-      // Resolve the sysbuild domain (if any) rather than guessing a
-      // <basepath>/<project.name> fallback — that guess only happened to
-      // work when the default domain's name matched the project name.
-      const effectiveBuildDir = resolveEffectiveBuildDir(getBuildFolder(wsConfig, project, build));
-      const compileCommandsFile = path.join(effectiveBuildDir, "compile_commands.json");
-      if (fs.existsSync(compileCommandsFile)) {
-        await readCompileCommandsFile(compileCommandsFile, compileCommandData);
-      }
+  for (const { project, build } of getCompileCommandBuilds(wsConfig, getCompileCommandsMode())) {
+    // Resolve the sysbuild domain (if any) rather than guessing a
+    // <basepath>/<project.name> fallback — that guess only happened to
+    // work when the default domain's name matched the project name.
+    const effectiveBuildDir = resolveEffectiveBuildDir(getBuildFolder(wsConfig, project, build));
+    const compileCommandsFile = path.join(effectiveBuildDir, "compile_commands.json");
+    if (fs.existsSync(compileCommandsFile)) {
+      await readCompileCommandsFile(compileCommandsFile, compileCommandData);
     }
   }
   const data = JSON.stringify(compileCommandData);
