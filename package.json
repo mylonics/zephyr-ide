@@ -343,9 +343,10 @@
           "type": "array",
           "default": [],
           "items": {
-            "type": "string"
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
           },
-          "markdownDescription": "Additional runner names appended to the built-in list used by the **Set Local Bind** flash/debug pickers and the Runner Profile editor. Useful for custom or out-of-tree Zephyr runners. Example: `[\"bonfi-bl\", \"my-custom-runner\"]`"
+          "markdownDescription": "Additional runner names appended to the built-in list used by the **Set Local Bind** flash/debug pickers and the Runner Profile editor. Useful for custom or out-of-tree Zephyr runners. Runner names must use letters, numbers, `.`, `_`, or `-`. Example: `[\"bonfi-bl\", \"my-custom-runner\"]`"
         },
         "zephyr-ide.global_directory": {
           "type": [

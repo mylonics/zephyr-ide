@@ -20,7 +20,7 @@ import * as fs from "fs-extra";
 import * as path from "path";
 import * as os from "os";
 import { discoverRunnersAsync, _resetRunnerDiscoveryForTests } from "../utilities/utils";
-import { getDiscoveredRunners, setDiscoveredRunners } from "../project_utilities/runner_selector";
+import { getDiscoveredRunners } from "../project_utilities/runner_selector";
 import { SetupState } from "../setup_utilities/types";
 
 /**
@@ -67,12 +67,10 @@ suite("Dynamic Runner Discovery Test Suite", () => {
 
     setup(() => {
         _resetRunnerDiscoveryForTests();
-        setDiscoveredRunners([]);
     });
 
     teardown(async () => {
         _resetRunnerDiscoveryForTests();
-        setDiscoveredRunners([]);
         for (const dir of tempDirs.splice(0)) {
             await fs.remove(dir).catch(() => { /* best-effort cleanup */ });
         }
@@ -116,10 +114,10 @@ suite("Dynamic Runner Discovery Test Suite", () => {
         tempDirs.push(zephyrBase);
         const setupState = makeSetupState(zephyrBase, zephyrBase);
 
-        const [a, b] = await Promise.all([
-            discoverRunnersAsync(setupState),
-            discoverRunnersAsync(setupState),
-        ]);
+        const a = discoverRunnersAsync(setupState);
+        const b = discoverRunnersAsync(setupState);
+
+        await Promise.all([a, b]);
 
         assert.strictEqual(a, b);
         assert.deepStrictEqual(getDiscoveredRunners(), ["my-custom-runner"]);

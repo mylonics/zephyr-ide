@@ -17,7 +17,15 @@ limitations under the License.
 
 import * as assert from "assert";
 import * as vscode from "vscode";
-import { WEST_RUNNERS, getExtraRunners, getAllWestRunners, getDiscoveredRunners, setDiscoveredRunners } from "../project_utilities/runner_selector";
+import {
+    WEST_RUNNERS,
+    clearDiscoveredRunners,
+    getAllWestRunners,
+    getDiscoveredRunners,
+    getExtraRunners,
+    setActiveDiscoveredRunnerKey,
+    setDiscoveredRunners
+} from "../project_utilities/runner_selector";
 
 suite("Extra Runners Configuration Test Suite", () => {
     async function resetSetting(config: vscode.WorkspaceConfiguration) {
@@ -27,7 +35,7 @@ suite("Extra Runners Configuration Test Suite", () => {
     teardown(() => {
         // Dynamic-discovery cache is module-level state; make sure it never
         // leaks between tests regardless of which assertion ran last.
-        setDiscoveredRunners([]);
+        clearDiscoveredRunners();
     });
 
     test("getExtraRunners returns an empty array by default", async () => {
@@ -49,10 +57,10 @@ suite("Extra Runners Configuration Test Suite", () => {
         await resetSetting(config);
     });
 
-    test("getExtraRunners filters out blank/non-string entries", async () => {
+    test("getExtraRunners filters out blank and invalid runner names", async () => {
         const config = vscode.workspace.getConfiguration();
         await resetSetting(config);
-        await config.update("zephyr-ide.extraRunners", ["bonfi-bl", "", "   "], vscode.ConfigurationTarget.Global);
+        await config.update("zephyr-ide.extraRunners", ["bonfi-bl", "", "   ", "semi;colon"], vscode.ConfigurationTarget.Global);
 
         assert.deepStrictEqual(getExtraRunners(), ["bonfi-bl"]);
 
@@ -141,5 +149,18 @@ suite("Extra Runners Configuration Test Suite", () => {
 
         await resetSetting(config);
     });
-});
 
+    test("getAllWestRunners only exposes discovered runners for the active Zephyr base", async () => {
+        const config = vscode.workspace.getConfiguration();
+        await resetSetting(config);
+        setDiscoveredRunners(["runner-a"], "/tmp/zephyr-a");
+        setActiveDiscoveredRunnerKey("/tmp/zephyr-a");
+
+        assert.ok(getAllWestRunners().includes("runner-a"));
+
+        setActiveDiscoveredRunnerKey("/tmp/zephyr-b");
+
+        assert.ok(!getAllWestRunners().includes("runner-a"));
+        await resetSetting(config);
+    });
+});

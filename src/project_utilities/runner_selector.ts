@@ -55,6 +55,22 @@ export const WEST_RUNNERS = [
   "xsdb",
 ];
 
+const WEST_RUNNER_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
+function normalizeRunnerNames(names: unknown): string[] {
+  if (!Array.isArray(names)) {
+    return [];
+  }
+  return names
+    .filter((runner): runner is string => typeof runner === "string")
+    .map(runner => runner.trim())
+    .filter(runner => runner.length > 0 && WEST_RUNNER_NAME_PATTERN.test(runner));
+}
+
+export function isValidWestRunnerName(name: string): boolean {
+  return WEST_RUNNER_NAME_PATTERN.test(name);
+}
+
 /**
  * Reads the user-configured `zephyr-ide.extraRunners` setting.
  * Lets users add custom/out-of-tree west runners (registered in their own
@@ -63,7 +79,7 @@ export const WEST_RUNNERS = [
  */
 export function getExtraRunners(): string[] {
   const extra = vscode.workspace.getConfiguration("zephyr-ide").get<string[]>("extraRunners", []);
-  return Array.isArray(extra) ? extra.filter(r => typeof r === "string" && r.trim().length > 0) : [];
+  return normalizeRunnerNames(extra);
 }
 
 /**
@@ -74,16 +90,39 @@ export function getExtraRunners(): string[] {
  * that scan completes, so `getAllWestRunners()` always falls back cleanly to
  * `WEST_RUNNERS` + `zephyr-ide.extraRunners`.
  */
-let discoveredRunners: string[] = [];
+const discoveredRunnersByKey = new Map<string, string[]>();
+let activeDiscoveredRunnerKey: string | undefined;
 
 /** Replaces the dynamically-discovered runner name cache. See `discoverRunnersAsync` in `utils.ts`. */
-export function setDiscoveredRunners(names: string[]): void {
-  discoveredRunners = names.filter(r => typeof r === "string" && r.trim().length > 0);
+export function setDiscoveredRunners(names: string[], key?: string): void {
+  const cacheKey = key ?? activeDiscoveredRunnerKey ?? "";
+  discoveredRunnersByKey.set(cacheKey, normalizeRunnerNames(names));
+  activeDiscoveredRunnerKey = cacheKey;
+}
+
+export function setActiveDiscoveredRunnerKey(key: string | undefined): void {
+  activeDiscoveredRunnerKey = key;
+}
+
+export function clearDiscoveredRunners(key?: string): void {
+  if (key === undefined) {
+    discoveredRunnersByKey.clear();
+    activeDiscoveredRunnerKey = undefined;
+    return;
+  }
+  discoveredRunnersByKey.delete(key);
+  if (activeDiscoveredRunnerKey === key) {
+    activeDiscoveredRunnerKey = undefined;
+  }
 }
 
 /** Runner names discovered dynamically via the west Python environment. Empty until a scan has completed. */
-export function getDiscoveredRunners(): string[] {
-  return discoveredRunners.slice();
+export function getDiscoveredRunners(key?: string): string[] {
+  const cacheKey = key ?? activeDiscoveredRunnerKey;
+  if (cacheKey === undefined) {
+    return [];
+  }
+  return (discoveredRunnersByKey.get(cacheKey) ?? []).slice();
 }
 
 /**

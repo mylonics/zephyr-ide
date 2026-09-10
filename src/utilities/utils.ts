@@ -27,7 +27,14 @@ import * as yaml from 'js-yaml';
 import { SetupState, WorkspaceConfig } from "../setup_utilities/types";
 import { getToolchainDir, resolveToolchainDirPath } from "../setup_utilities/workspace-config";
 import { initOutputChannel, getOutputChannel, outputCommand, outputError, outputInfo, outputLine, outputWarning, type ShellCommandResult } from "./output";
-import { CORTEX_DEBUG_RUNNERS, WEST_DEBUG_RUNNERS, getAllWestRunners, setDiscoveredRunners } from "../project_utilities/runner_selector";
+import {
+  CORTEX_DEBUG_RUNNERS,
+  WEST_DEBUG_RUNNERS,
+  clearDiscoveredRunners,
+  getAllWestRunners,
+  setActiveDiscoveredRunnerKey,
+  setDiscoveredRunners,
+} from "../project_utilities/runner_selector";
 export type { ShellCommandResult } from "./output";
 
 /**
@@ -1071,8 +1078,20 @@ _main()
 /** Hard cap on how long the background discovery probe may run before being killed. */
 const RUNNER_DISCOVERY_TIMEOUT_MS = 15000;
 
-/** Shared in-flight/completed promise so concurrent callers don't spawn duplicate probes. */
-let runnerDiscoveryPromise: Promise<void> | undefined;
+/** Shared in-flight promises, keyed by the effective Zephyr base. */
+const runnerDiscoveryPromises = new Map<string, Promise<void>>();
+
+export function getRunnerDiscoveryKey(setupState: SetupState | undefined): string | undefined {
+  if (!setupState) {
+    return undefined;
+  }
+  const zephyrBase = getEffectiveZephyrBase(setupState);
+  return zephyrBase && zephyrBase.trim().length > 0 ? zephyrBase : undefined;
+}
+
+export function syncActiveRunnerDiscoveryKey(setupState: SetupState | undefined): void {
+  setActiveDiscoveredRunnerKey(getRunnerDiscoveryKey(setupState));
+}
 
 /**
  * Kicks off a non-blocking, best-effort scan of the west Python environment
@@ -1089,11 +1108,14 @@ let runnerDiscoveryPromise: Promise<void> | undefined;
  * static list.
  */
 export function discoverRunnersAsync(setupState: SetupState | undefined): Promise<void> {
-  if (!setupState || !setupState.zephyrDir) {
+  const runnerDiscoveryKey = getRunnerDiscoveryKey(setupState);
+  if (!setupState || !setupState.zephyrDir || !runnerDiscoveryKey) {
     return Promise.resolve();
   }
-  if (runnerDiscoveryPromise) {
-    return runnerDiscoveryPromise;
+  syncActiveRunnerDiscoveryKey(setupState);
+  const inFlight = runnerDiscoveryPromises.get(runnerDiscoveryKey);
+  if (inFlight) {
+    return inFlight;
   }
 
   const scan = (async () => {
@@ -1109,19 +1131,23 @@ export function discoverRunnersAsync(setupState: SetupState | undefined): Promis
         false,
         RUNNER_DISCOVERY_TIMEOUT_MS
       );
+      let names: string[] = [];
       const lastLine = (result.stdout ?? "").trim().split(/\r?\n/).pop() ?? "";
       if (lastLine) {
         const parsed: unknown = JSON.parse(lastLine);
         if (Array.isArray(parsed)) {
-          const names = parsed.filter((r): r is string => typeof r === "string" && r.trim().length > 0);
-          setDiscoveredRunners(names);
-          outputInfo("Runner Discovery", `Discovered ${names.length} runner(s) from the west Python environment.`);
+          names = parsed.filter((r): r is string => typeof r === "string");
         }
       }
+      setDiscoveredRunners(names, runnerDiscoveryKey);
+      void vscode.commands.executeCommand("zephyr-ide.update-web-view");
+      outputInfo("Runner Discovery", `Discovered ${names.length} runner(s) from the west Python environment.`);
     } catch (err) {
       // Non-fatal: dynamic discovery is a best-effort enhancement, not a
       // requirement — the static WEST_RUNNERS list + extraRunners setting
       // still work if this probe fails or times out.
+      clearDiscoveredRunners(runnerDiscoveryKey);
+      void vscode.commands.executeCommand("zephyr-ide.update-web-view");
       outputWarning("Runner Discovery", `Skipping dynamic runner discovery: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       if (scriptPath) {
@@ -1135,18 +1161,19 @@ export function discoverRunnersAsync(setupState: SetupState | undefined): Promis
   // West Update changes which runners are available) is not permanently
   // suppressed for the lifetime of the extension host.
   const scanPromise: Promise<void> = scan.finally(() => {
-    if (runnerDiscoveryPromise === scanPromise) {
-      runnerDiscoveryPromise = undefined;
+    if (runnerDiscoveryPromises.get(runnerDiscoveryKey) === scanPromise) {
+      runnerDiscoveryPromises.delete(runnerDiscoveryKey);
     }
   });
-  runnerDiscoveryPromise = scanPromise;
+  runnerDiscoveryPromises.set(runnerDiscoveryKey, scanPromise);
 
-  return runnerDiscoveryPromise;
+  return scanPromise;
 }
 
 /** Test-only: clears the shared discovery promise so a fresh scan can be triggered. */
 export function _resetRunnerDiscoveryForTests(): void {
-  runnerDiscoveryPromise = undefined;
+  runnerDiscoveryPromises.clear();
+  clearDiscoveredRunners();
 }
 
 export function reloadEnvironmentVariables(context: vscode.ExtensionContext, setupState: SetupState | undefined) {
