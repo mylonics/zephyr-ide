@@ -108,6 +108,19 @@ suite("Dynamic Runner Discovery Test Suite", () => {
         assert.deepStrictEqual(getDiscoveredRunners(), []);
     });
 
+    test("discoverRunnersAsync keeps discovered runners isolated per Zephyr base", async function () {
+        this.timeout(20000);
+        const zephyrBaseA = await makeFakeZephyrBase("runner-a");
+        const zephyrBaseB = await makeFakeZephyrBase("runner-b");
+        tempDirs.push(zephyrBaseA, zephyrBaseB);
+
+        await discoverRunnersAsync(makeSetupState(zephyrBaseA, zephyrBaseA));
+        await discoverRunnersAsync(makeSetupState(zephyrBaseB, zephyrBaseB));
+
+        assert.deepStrictEqual(getDiscoveredRunners(zephyrBaseA), ["runner-a"]);
+        assert.deepStrictEqual(getDiscoveredRunners(zephyrBaseB), ["runner-b"]);
+    });
+
     test("concurrent discoverRunnersAsync calls share a single in-flight scan", async function () {
         this.timeout(20000);
         const zephyrBase = await makeFakeZephyrBase("my-custom-runner");
@@ -120,6 +133,22 @@ suite("Dynamic Runner Discovery Test Suite", () => {
         await Promise.all([a, b]);
 
         assert.strictEqual(a, b);
+        assert.deepStrictEqual(getDiscoveredRunners(), ["my-custom-runner"]);
+    });
+
+    test("discoverRunnersAsync allows a fresh rescan after the prior scan settles", async function () {
+        this.timeout(20000);
+        const zephyrBase = await makeFakeZephyrBase("my-custom-runner");
+        tempDirs.push(zephyrBase);
+        const setupState = makeSetupState(zephyrBase, zephyrBase);
+
+        const first = discoverRunnersAsync(setupState);
+        await first;
+
+        const second = discoverRunnersAsync(setupState);
+        await second;
+
+        assert.notStrictEqual(first, second);
         assert.deepStrictEqual(getDiscoveredRunners(), ["my-custom-runner"]);
     });
 });

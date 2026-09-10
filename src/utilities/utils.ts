@@ -1131,6 +1131,10 @@ export function discoverRunnersAsync(setupState: SetupState | undefined): Promis
         false,
         RUNNER_DISCOVERY_TIMEOUT_MS
       );
+      if (result.exitCode !== 0) {
+        outputWarning("Runner Discovery", `Skipping dynamic runner discovery after probe exit code ${result.exitCode ?? "unknown"}.`);
+        return;
+      }
       let names: string[] = [];
       const lastLine = (result.stdout ?? "").trim().split(/\r?\n/).pop() ?? "";
       if (lastLine) {
