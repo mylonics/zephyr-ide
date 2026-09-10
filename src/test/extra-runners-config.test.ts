@@ -17,12 +17,18 @@ limitations under the License.
 
 import * as assert from "assert";
 import * as vscode from "vscode";
-import { WEST_RUNNERS, getExtraRunners, getAllWestRunners } from "../project_utilities/runner_selector";
+import { WEST_RUNNERS, getExtraRunners, getAllWestRunners, getDiscoveredRunners, setDiscoveredRunners } from "../project_utilities/runner_selector";
 
 suite("Extra Runners Configuration Test Suite", () => {
     async function resetSetting(config: vscode.WorkspaceConfiguration) {
         await config.update("zephyr-ide.extraRunners", undefined, vscode.ConfigurationTarget.Global);
     }
+
+    teardown(() => {
+        // Dynamic-discovery cache is module-level state; make sure it never
+        // leaks between tests regardless of which assertion ran last.
+        setDiscoveredRunners([]);
+    });
 
     test("getExtraRunners returns an empty array by default", async () => {
         const config = vscode.workspace.getConfiguration();
@@ -88,4 +94,52 @@ suite("Extra Runners Configuration Test Suite", () => {
 
         await resetSetting(config);
     });
+
+    test("setDiscoveredRunners/getDiscoveredRunners round-trip and filter blanks", () => {
+        setDiscoveredRunners(["my-custom-runner", "", "   ", "another-one"]);
+
+        assert.deepStrictEqual(getDiscoveredRunners(), ["my-custom-runner", "another-one"]);
+    });
+
+    test("getAllWestRunners includes dynamically discovered runners", async () => {
+        const config = vscode.workspace.getConfiguration();
+        await resetSetting(config);
+        setDiscoveredRunners(["my-custom-runner"]);
+
+        const all = getAllWestRunners();
+
+        assert.deepStrictEqual(all.slice(0, WEST_RUNNERS.length), WEST_RUNNERS);
+        assert.ok(all.includes("my-custom-runner"));
+
+        await resetSetting(config);
+    });
+
+    test("getAllWestRunners dedupes discovered runners already in the built-in list", async () => {
+        const config = vscode.workspace.getConfiguration();
+        await resetSetting(config);
+        setDiscoveredRunners(["openocd", "my-custom-runner"]);
+
+        const all = getAllWestRunners();
+        const occurrences = all.filter(r => r === "openocd").length;
+
+        assert.strictEqual(occurrences, 1, "openocd should not be duplicated");
+        assert.ok(all.includes("my-custom-runner"));
+
+        await resetSetting(config);
+    });
+
+    test("getAllWestRunners dedupes a runner discovered dynamically and also configured as an extra", async () => {
+        const config = vscode.workspace.getConfiguration();
+        await resetSetting(config);
+        await config.update("zephyr-ide.extraRunners", ["my-custom-runner"], vscode.ConfigurationTarget.Global);
+        setDiscoveredRunners(["my-custom-runner"]);
+
+        const all = getAllWestRunners();
+        const occurrences = all.filter(r => r === "my-custom-runner").length;
+
+        assert.strictEqual(occurrences, 1, "my-custom-runner should appear only once");
+
+        await resetSetting(config);
+    });
 });
+

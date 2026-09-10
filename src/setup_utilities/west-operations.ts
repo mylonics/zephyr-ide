@@ -19,7 +19,7 @@ import * as vscode from "vscode";
 import * as os from "os";
 import * as fs from "fs-extra";
 import * as path from "upath";
-import { output, executeTaskHelperInPythonEnv, executeTaskHelper, reloadEnvironmentVariables, getPythonVenvBinaryFolder, getPlatformNameAsync } from "../utilities/utils";
+import { output, executeTaskHelperInPythonEnv, executeTaskHelper, reloadEnvironmentVariables, getPythonVenvBinaryFolder, getPlatformNameAsync, discoverRunnersAsync } from "../utilities/utils";
 import { outputInfo, outputWarning, notifyError, notifyWarningWithActions } from "../utilities/output";
 import { scanAndSetZephyrDirAndVersion } from "./modules";
 import { westSelector, WestLocation } from "./west_selector";
@@ -276,6 +276,10 @@ export async function westUpdate(context: vscode.ExtensionContext, wsConfig: Wor
 
     reloadEnvironmentVariables(context, setupState);
     await saveSetupState(context, wsConfig, globalConfig);
+
+    // Best-effort, non-blocking rescan for custom/out-of-tree runners now
+    // that ZEPHYR_BASE/venv are (re)established (issue #631, Option B).
+    void discoverRunnersAsync(setupState);
 
     const useZephyrExport = configuration.get<boolean>('westZephyrExport', false);
     if (useZephyrExport) {

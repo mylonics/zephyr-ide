@@ -66,11 +66,40 @@ export function getExtraRunners(): string[] {
   return Array.isArray(extra) ? extra.filter(r => typeof r === "string" && r.trim().length > 0) : [];
 }
 
-/** `WEST_RUNNERS` plus any user-configured extra runners (deduplicated, extras appended in order). */
+/**
+ * Cache of runner names discovered dynamically by probing the west Python
+ * environment (Option B from issue #631: `runners.core.ZephyrBinaryRunner`
+ * subclasses, including out-of-tree/custom runners). Populated asynchronously
+ * and best-effort by `discoverRunnersAsync()` in `utils.ts` — empty until
+ * that scan completes, so `getAllWestRunners()` always falls back cleanly to
+ * `WEST_RUNNERS` + `zephyr-ide.extraRunners`.
+ */
+let discoveredRunners: string[] = [];
+
+/** Replaces the dynamically-discovered runner name cache. See `discoverRunnersAsync` in `utils.ts`. */
+export function setDiscoveredRunners(names: string[]): void {
+  discoveredRunners = names.filter(r => typeof r === "string" && r.trim().length > 0);
+}
+
+/** Runner names discovered dynamically via the west Python environment. Empty until a scan has completed. */
+export function getDiscoveredRunners(): string[] {
+  return discoveredRunners.slice();
+}
+
+/**
+ * `WEST_RUNNERS` plus any dynamically-discovered runners and user-configured
+ * extra runners (deduplicated; discovered/extra names appended in that order).
+ */
 export function getAllWestRunners(): string[] {
   const known = new Set(WEST_RUNNERS);
-  const extras = getExtraRunners().filter(r => !known.has(r));
-  return [...WEST_RUNNERS, ...extras];
+  const merged = [...WEST_RUNNERS];
+  for (const r of [...getDiscoveredRunners(), ...getExtraRunners()]) {
+    if (!known.has(r)) {
+      known.add(r);
+      merged.push(r);
+    }
+  }
+  return merged;
 }
 
 /**

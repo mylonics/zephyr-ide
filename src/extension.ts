@@ -57,6 +57,7 @@ import {
   CORTEX_DEBUG_PREFIX,
   WEST_DEBUG_PREFIX,
   getEffectiveZephyrBase,
+  discoverRunnersAsync,
 } from "./utilities/utils";
 import { notifyError, outputInfo, outputError, outputLine, outputCommandFailure, getDebugOutput, clearDebugOutput } from "./utilities/output";
 import * as project from "./project_utilities/project";
@@ -616,6 +617,13 @@ export async function activate(context: vscode.ExtensionContext) {
         wsConfig.activeSetupState.zephyrDir
       );
     }
+
+    // Best-effort, non-blocking scan of the west Python environment for
+    // custom/out-of-tree runners (issue #631, Option B). Fired without
+    // `await` so it can never add startup latency or a failure mode that
+    // blocks activation — results (if any) simply populate the flash/debug
+    // runner pickers once the scan completes.
+    void discoverRunnersAsync(wsConfig.activeSetupState);
   } catch (initError) {
     const initErrorMsg = initError instanceof Error ? initError.message : String(initError);
     const initErrorDetail =
