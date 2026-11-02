@@ -42,6 +42,16 @@ Automated installation is supported on:
 - **macOS** - Uses Homebrew
 - **Windows** - Uses winget
 
+## Troubleshooting Windows Tool Detection
+
+If winget or installed tools work in a terminal but appear unavailable in Zephyr IDE, VS Code may have inherited an incomplete or stale Windows environment.
+
+Zephyr IDE checks the Windows environment on startup and warns about missing user variables or PATH entries, a TEMP value that differs from the registered user value, repeated user PATH entries, and user entries already present in the system PATH. You can rerun the check using **Check Windows Environment** in Zephyr IDE Settings or the **Zephyr IDE: Check Windows Environment** command. Select **Show Details** in the warning to see the findings in the Zephyr IDE output channel.
+
+Open **Edit environment variables for your account** in Windows and review your user **Path** and **TEMP**. Remove duplicate Path entries and entries already present in the system Path; Windows combines the two. After correcting the values, sign out and back in, then restart VS Code and refresh Host Tools status. The check does not change environment variables or reinstall tools.
+
+To disable the automatic check, turn off **Check Windows Environment on Startup** in Zephyr IDE Settings (`zephyr-ide.checkEnvironmentOnStartup`). The manual check remains available. Remote Linux environments such as WSL are not checked.
+
 ## Next Steps
 
 After installing host tools:

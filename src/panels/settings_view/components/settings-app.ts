@@ -169,6 +169,7 @@ export class SettingsApp extends ZephyrLitElement {
       {
         title: "Workspace & Tooling",
         settings: this._settings.filter(s => [
+          "zephyr-ide.checkEnvironmentOnStartup",
           "zephyr-ide.suppressWorkspaceWarning",
           "zephyr-ide.disableZephyrBaseInjection",
           "zephyr-ide.useClangd",
@@ -202,6 +203,9 @@ export class SettingsApp extends ZephyrLitElement {
             <p class="page-subtitle">Manage extension defaults and workspace overrides.</p>
           </div>
           <div class="page-actions">
+            <vscode-button appearance="secondary" @click=${() => this.postCommand("checkWindowsEnvironment")}>
+              Check Windows Environment
+            </vscode-button>
             <vscode-button appearance="secondary" @click=${() => this.postCommand("openVsCodeSettings")}>
               Open in VS Code Settings
             </vscode-button>

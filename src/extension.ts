@@ -60,7 +60,7 @@ import {
   getEffectiveZephyrBase,
   syncActiveRunnerDiscoveryKey,
 } from "./utilities/utils";
-import { notifyError, outputInfo, outputError, outputLine, outputCommandFailure, getDebugOutput, clearDebugOutput } from "./utilities/output";
+import { notifyError, outputInfo, outputError, outputLine, outputCommandFailure, getDebugOutput, clearDebugOutput, showOutput } from "./utilities/output";
 import * as project from "./project_utilities/project";
 import {
   buildHelper,
@@ -171,6 +171,7 @@ import {
 } from "./setup_utilities/zephyr_ide_install";
 import { getZephyrIdeSampleProjects } from "./setup_utilities/zephyr_ide_json";
 import { isZephyrIdeJsonBeingWrittenByExtension } from "./setup_utilities/zephyr-ide-json-write-guard";
+import { analyzeWindowsEnvironment, readWindowsEnvironment } from "./setup_utilities/environment-diagnostics";
 import {
   installPackageManagerHeadless,
   installHostPackagesHeadless,
@@ -528,6 +529,41 @@ let activeRunnerDisplay: vscode.StatusBarItem;
 // Function to get current workspace configuration for testing
 export function getWorkspaceConfig(): WorkspaceConfig {
   return wsConfig;
+}
+
+async function checkWindowsEnvironment(manual = false) {
+  if (process.platform !== "win32") {
+    if (manual) {
+      void vscode.window.showInformationMessage("Zephyr IDE: This environment check is only available on Windows.");
+    }
+    return;
+  }
+  try {
+    const issues = analyzeWindowsEnvironment(await readWindowsEnvironment());
+    if (!issues.length) {
+      if (manual) {
+        void vscode.window.showInformationMessage("Zephyr IDE: No Windows environment problems detected.");
+      }
+      return;
+    }
+    outputInfo("Environment Check", issues.map(issue => issue.message).join("\n"));
+    outputInfo("Environment Check", "Open Windows Environment Variables and review the user PATH and TEMP. Remove repeated PATH entries and entries already in the system PATH. A long PATH or a stale VS Code environment can prevent host-tool detection. After correcting settings, sign out and back in, then restart VS Code. This check does not change environment variables.");
+    const action = await vscode.window.showWarningMessage(
+      "Zephyr IDE: Windows environment problems may prevent host-tool detection. Review PATH and TEMP in Windows Environment Variables, then sign out and back in after correcting them.",
+      "Show Details", "Zephyr IDE Settings"
+    );
+    if (action === "Show Details") {
+      showOutput();
+    } else if (action === "Zephyr IDE Settings") {
+      await vscode.commands.executeCommand("zephyr-ide.open-settings-panel");
+    }
+  } catch {
+    // Do not log subprocess output: environment values may contain credentials.
+    outputInfo("Environment Check", "Could not read the Windows environment using PowerShell.");
+    if (manual) {
+      void vscode.window.showWarningMessage("Zephyr IDE: Could not check the Windows environment. Verify that Windows PowerShell is available.");
+    }
+  }
 }
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -2462,6 +2498,13 @@ export async function activate(context: vscode.ExtensionContext) {
       SettingsPanel.createOrShow(context.extensionPath);
     })
   );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.check-windows-environment", () => checkWindowsEnvironment(true))
+  );
+  if (vscode.workspace.getConfiguration("zephyr-ide").get<boolean>("checkEnvironmentOnStartup", true)) {
+    void checkWindowsEnvironment();
+  }
 
   // New workspace setup commands
   context.subscriptions.push(
