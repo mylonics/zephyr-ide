@@ -63,6 +63,14 @@ suite("Windows Environment Diagnostics", () => {
     assert.deepStrictEqual(analyzeWindowsEnvironment(snapshot).map(issue => issue.code), ["missingVariables"]);
   });
 
+  test("Detects stale PATH expansion even when the referenced variable is present", () => {
+    assert.deepStrictEqual(analyzeWindowsEnvironment({
+      user: { Path: "%TOOLROOT%\\bin", TOOLROOT: "C:\\New" },
+      machine: {},
+      process: { Path: "C:\\Old\\bin", TOOLROOT: "C:\\Old" },
+    }).map(issue => issue.code), ["missingPathEntries"]);
+  });
+
   test("Handles absent user PATH/TEMP and empty environments", () => {
     assert.deepStrictEqual(analyzeWindowsEnvironment({ user: {}, machine: {}, process: {} }), []);
     assert.deepStrictEqual(analyzeWindowsEnvironment({ user: { OTHER: "" }, machine: {}, process: {} })

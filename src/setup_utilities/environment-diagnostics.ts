@@ -84,9 +84,21 @@ export async function readWindowsEnvironment(): Promise<WindowsEnvironmentSnapsh
   const script = `
     $ErrorActionPreference = 'Stop'
     [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding
+    function Read-RegisteredEnvironment($key) {
+      $values = @{}
+      if ($null -ne $key) {
+        try {
+          foreach ($name in $key.GetValueNames()) {
+            $value = $key.GetValue($name, '', [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+            if ($value -is [string]) { $values[$name] = $value }
+          }
+        } finally { $key.Dispose() }
+      }
+      return $values
+    }
     @{
-      user = [Environment]::GetEnvironmentVariables('User')
-      machine = [Environment]::GetEnvironmentVariables('Machine')
+      user = Read-RegisteredEnvironment ([Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment'))
+      machine = Read-RegisteredEnvironment ([Microsoft.Win32.Registry]::LocalMachine.OpenSubKey('SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment'))
       process = [Environment]::GetEnvironmentVariables('Process')
     } | ConvertTo-Json -Depth 3 -Compress
   `;
