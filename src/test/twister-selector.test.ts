@@ -19,7 +19,7 @@ import * as assert from "assert";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { getTestsFromProject } from "../project_utilities/twister_selector";
+import { getTestsFromProject, validateQemuPlatform } from "../project_utilities/twister_selector";
 
 suite("getTestsFromProject Test Suite", () => {
 
@@ -93,5 +93,20 @@ suite("getTestsFromProject Test Suite", () => {
     test("returns empty array when testcase.yaml is empty", () => {
         fs.writeFileSync(path.join(tmpDir, "testcase.yaml"), "");
         assert.deepStrictEqual(getTestsFromProject(tmpDir), []);
+    });
+});
+
+suite("validateQemuPlatform", () => {
+    test("accepts a concrete QEMU platform", async () => {
+        assert.strictEqual(await validateQemuPlatform("qemu_cortex_m3"), undefined);
+    });
+
+    test("rejects the generic qemu choice and empty values", async () => {
+        assert.ok(await validateQemuPlatform("qemu"));
+        assert.ok(await validateQemuPlatform("  "));
+    });
+
+    test("rejects values that are not safe platform identifiers", async () => {
+        assert.ok(await validateQemuPlatform("qemu_cortex_m3; rm -rf"));
     });
 });
