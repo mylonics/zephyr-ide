@@ -57,6 +57,17 @@ export function getTestsFromProject(projectPath: string) {
   return tests;
 }
 
+export function validateQemuPlatform(value: string): Promise<string | undefined> {
+  const platform = value.trim();
+  if (!platform || platform.toLowerCase() === "qemu") {
+    return Promise.resolve("Enter a concrete QEMU platform, such as qemu_cortex_m3");
+  }
+  if (!/^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(platform)) {
+    return Promise.resolve("Platform names may only contain letters, numbers, '.', '_', and '-'");
+  }
+  return Promise.resolve(undefined);
+}
+
 // Config for the extension
 export interface TwisterState {
   viewOpen?: boolean;
@@ -71,6 +82,8 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
   const twisterConfig: Partial<TwisterConfig> = {};
   twisterConfig.tests = [];
   const boardPickState: PickBoardState = {};
+  let qemuPlatformSelected = false;
+  let qemuPlatform = "qemu_cortex_m3";
 
   //check if project contain sample.yaml or testcase.yaml
   const projectPath = path.join(rootPath, projectFolder);
@@ -86,7 +99,10 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
   // 3-step board picker plus com port / baud rate steps are inserted,
   // bringing the total to 9.
   function totalStepsFor(): number {
-    return twisterConfig.platform === "hardware" ? 9 : 4;
+    if (twisterConfig.platform === "hardware") {
+      return 9;
+    }
+    return qemuPlatformSelected ? 5 : 4;
   }
 
   async function pickTests(input: MultiStepInput) {
@@ -139,10 +155,29 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
     });
 
     twisterConfig.platform = platformPick.label;
+    qemuPlatformSelected = twisterConfig.platform === "qemu";
 
     if (twisterConfig.platform === "hardware") {
       return (input: MultiStepInput) => pickHardwareBoard(input);
     }
+    if (twisterConfig.platform === "qemu") {
+      return (input: MultiStepInput) => inputQemuPlatform(input);
+    }
+    return (input: MultiStepInput) => inputTwisterArgs(input);
+  }
+
+  async function inputQemuPlatform(input: MultiStepInput) {
+    const platform = await input.showInputBox({
+      title,
+      step: 3,
+      totalSteps: totalStepsFor(),
+      prompt: "Enter QEMU platform (e.g., qemu_cortex_m3)",
+      ignoreFocusOut: true,
+      value: qemuPlatform,
+      validate: validateQemuPlatform,
+    });
+    qemuPlatform = platform.trim();
+    twisterConfig.platform = qemuPlatform;
     return (input: MultiStepInput) => inputTwisterArgs(input);
   }
 
