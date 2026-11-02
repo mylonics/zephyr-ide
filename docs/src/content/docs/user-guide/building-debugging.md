@@ -15,6 +15,21 @@ If your build uses sysbuild, Flash, Debug, and Debug Attach may need to target a
 
 Use **`Zephyr IDE: Set Active Sysbuild Image`** to choose which sub-image the active build should use. IDE for Zephyr forwards that selection to `west flash --domain <image>` and uses it when resolving `runners.yaml` for debug.
 
+### Saving Build Output
+
+Add these optional fields to a build configuration under `projects.<project>.buildConfigs.<build>` in `.vscode/zephyr-ide.json`:
+
+```json
+"saveBuildLog": true,
+"buildLogDir": "logs"
+```
+
+Each **Build** or **Build Pristine** invocation then streams stdout and stderr, including CMake configuration and compiler warnings, to both the task terminal and a new log file. Failed and cancelled builds retain their output too. The terminal and Zephyr IDE output channel show the log path.
+
+Logging is disabled by default. `buildLogDir` defaults to `logs`, relative to the workspace root; absolute paths are also supported. Filenames include the project, build configuration, timestamp, and a unique suffix, for example `app-debug-2026-11-02T23-38-48-264Z-<unique-id>.log`. Use a directory outside the build directory so pristine builds do not delete logs. Logs are not automatically rotated; remove old files as needed and add your log directory to `.gitignore` if appropriate.
+
+Unlike `CMakeCache.txt`, CMake diagnostic logs, or `.ninja_log`, these files preserve the full build console output rather than just configuration values, configure diagnostics, or build timing data.
+
 ## Setting Up Debug Configuration
 
 The IDE for Zephyr ships with two built-in debugger types:
