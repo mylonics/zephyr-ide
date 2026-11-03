@@ -440,6 +440,10 @@ export class SettingsPanel {
         await vscode.commands.executeCommand("zephyr-ide.open-setup-panel");
         break;
       }
+      case "openBuildSettings": {
+        await vscode.commands.executeCommand("zephyr-ide.open-project-build-panel");
+        break;
+      }
       case "ready": {
         this.refreshSettings();
         break;

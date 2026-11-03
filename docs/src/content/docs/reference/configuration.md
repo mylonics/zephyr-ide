@@ -207,6 +207,8 @@ This is the workspace file used for projects/builds/tests, runner profiles, and 
 | `compilerOptimization` | `string` | No | Compiler optimization preset. One of `debug`, `speed`, `size`, `none`. When omitted, no optimization flag is passed (configured via KConfig). |
 | `westBuildArgs` | `string[]` | Yes | Additional non-CMake `west build` args. |
 | `westBuildCMakeArgs` | `string[]` | Yes | Additional CMake args passed to `west build`. |
+| `saveBuildLog` | `boolean` | No | Save each build's complete stdout/stderr to a timestamped file while retaining terminal output. Defaults to `false`. |
+| `buildLogDir` | `string` | No | Log directory, relative to the workspace root or absolute. Defaults to `logs`; only used when `saveBuildLog` is `true`. Prefer a directory outside the build directory. |
 | `confFiles` | `ConfigFiles` | Yes | Build-level Kconfig/devicetree file entries. |
 | `revision` | `string` | No | Board revision (if used). |
 | `activeProfile` | `string` | No | Active runner profile name for this build. |
