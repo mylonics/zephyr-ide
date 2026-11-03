@@ -21,6 +21,10 @@ import * as os from "os";
 import * as path from "path";
 import { getBuildLogPath, LoggedTaskTerminal } from "../utilities/build-log";
 import { executeTaskHelper } from "../utilities/utils";
+import { ProjectBuildPanel } from "../panels/project_build_view/ProjectBuildPanel";
+import { getBuildDetails } from "../project_utilities/project_info";
+import type { BuildConfig } from "../project_utilities/build_selector";
+import type { SetupState, WorkspaceConfig } from "../setup_utilities/types";
 
 suite("Build logging", () => {
   let root: string;
@@ -52,6 +56,86 @@ suite("Build logging", () => {
     assert.strictEqual(getBuildLogPath(root, "app", { name: "debug" }), undefined);
     assert.strictEqual(getBuildLogPath(root, "app", { name: "debug", saveBuildLog: false, buildLogDir: "logs" }), undefined);
     assert.deepStrictEqual(fs.readdirSync(root), []);
+  });
+
+  function settingsFixture() {
+    const makeBuild = (name: string): BuildConfig => ({
+      name, board: "native_sim", westBuildArgs: [], westBuildCMakeArgs: [],
+      confFiles: { config: [], overlay: [] },
+    });
+    const build = makeBuild("debug");
+    const otherBuild = makeBuild("release");
+    const ws: WorkspaceConfig = {
+      rootPath: root,
+      projects: {
+        app: {
+          name: "app", relPath: "app", buildConfigs: { debug: build, release: otherBuild },
+          confFiles: { config: [], overlay: [] }, twisterConfigs: {},
+        },
+      },
+      projectStates: {},
+      activeSetupState: { initialized: true } as SetupState,
+    };
+    const panel = Object.create(ProjectBuildPanel.prototype) as any;
+    let updates = 0;
+    panel._wsConfig = ws;
+    panel._selectedProject = "app";
+    panel._context = { workspaceState: { update: async () => {} } };
+    panel.updateHtml = () => { updates++; };
+    return { panel, ws, build, otherBuild, updates: () => updates };
+  }
+
+  test("settings UI build details provide defaults and reflect configured logging values", () => {
+    const { ws, build } = settingsFixture();
+    let details = getBuildDetails(ws, "app", "debug")!;
+    assert.strictEqual(details.saveBuildLog, false);
+    assert.strictEqual(details.buildLogDir, "logs");
+    build.saveBuildLog = true;
+    build.buildLogDir = path.join(root, "custom logs");
+    details = getBuildDetails(ws, "app", "debug")!;
+    assert.strictEqual(details.saveBuildLog, true);
+    assert.strictEqual(details.buildLogDir, build.buildLogDir);
+  });
+
+  test("settings messages persist only the selected build and clearing the directory restores its default", async () => {
+    const { panel, ws, build, otherBuild, updates } = settingsFixture();
+    const send = (key: string, value: unknown) => panel.handleMessage({
+      command: "updateBuildLogSetting", build: "debug", key, value,
+    });
+    await send("saveBuildLog", true);
+    await send("buildLogDir", " my logs ");
+    let saved = await fs.readJson(path.join(root, ".vscode", "zephyr-ide.json"));
+    assert.strictEqual(saved.projects.app.buildConfigs.debug.saveBuildLog, true);
+    assert.strictEqual(saved.projects.app.buildConfigs.debug.buildLogDir, "my logs");
+    assert.strictEqual(otherBuild.saveBuildLog, undefined);
+    assert.strictEqual(otherBuild.buildLogDir, undefined);
+    await send("saveBuildLog", false);
+    assert.strictEqual(build.buildLogDir, "my logs");
+    await send("buildLogDir", "   ");
+    saved = await fs.readJson(path.join(root, ".vscode", "zephyr-ide.json"));
+    assert.strictEqual(saved.projects.app.buildConfigs.debug.saveBuildLog, false);
+    assert.ok(!("buildLogDir" in saved.projects.app.buildConfigs.debug));
+    assert.strictEqual(getBuildDetails(ws, "app", "debug")!.buildLogDir, "logs");
+    assert.strictEqual(updates(), 4);
+  });
+
+  test("settings messages reject unexpected keys, value types, and missing builds", async () => {
+    const { panel, build, updates } = settingsFixture();
+    for (const message of [
+      { build: "debug", key: "saveBuildLog", value: "true" },
+      { build: "debug", key: "buildLogDir", value: false },
+      { build: "debug", key: "board", value: "other_board" },
+      { build: "missing", key: "saveBuildLog", value: true },
+      { build: "__proto__", key: "saveBuildLog", value: true },
+      { key: "saveBuildLog", value: true },
+    ]) {
+      await panel.handleMessage({ command: "updateBuildLogSetting", ...message });
+    }
+    assert.strictEqual(build.saveBuildLog, undefined);
+    assert.strictEqual(build.buildLogDir, undefined);
+    assert.strictEqual(build.board, "native_sim");
+    assert.strictEqual(updates(), 0);
+    assert.ok(!fs.existsSync(path.join(root, ".vscode", "zephyr-ide.json")));
   });
 
   test("resolves default, relative, and absolute directories with unique safe filenames", () => {

@@ -317,6 +317,9 @@ export class ProjectBuildPanel {
         case "removeBuildArg":
           await this.handleRemoveBuildArg(message);
           return;
+        case "updateBuildLogSetting":
+          await this.handleUpdateBuildLogSetting(message);
+          return;
 
         // Test management
         case "addTest": {
@@ -540,6 +543,28 @@ export class ProjectBuildPanel {
       ? normalizeBuildArgs(build.westBuildCMakeArgs)
       : normalizeBuildArgs(build.westBuildArgs);
     return { projectName, buildName, args };
+  }
+
+  private async handleUpdateBuildLogSetting(message: Record<string, any>) {
+    if (!this._selectedProject || typeof message.build !== "string") { return; }
+    const builds = this._wsConfig.projects[this._selectedProject]?.buildConfigs;
+    if (!builds || !Object.prototype.hasOwnProperty.call(builds, message.build)) { return; }
+    const build = builds[message.build];
+    if (!build) { return; }
+    if (message.key === "saveBuildLog" && typeof message.value === "boolean") {
+      build.saveBuildLog = message.value;
+    } else if (message.key === "buildLogDir" && typeof message.value === "string") {
+      const directory = message.value.trim();
+      if (directory) {
+        build.buildLogDir = directory;
+      } else {
+        delete build.buildLogDir;
+      }
+    } else {
+      return;
+    }
+    await setWorkspaceState(this._context, this._wsConfig);
+    this.updateHtml();
   }
 
   private async handleUpsertBuildArg(message: Record<string, any>) {
@@ -807,6 +832,8 @@ export class ProjectBuildPanel {
             compilerOptimization: details.compilerOptimization,
             westBuildArgs: details.westBuildArgs,
             westBuildCMakeArgs: details.westBuildCMakeArgs,
+            saveBuildLog: details.saveBuildLog,
+            buildLogDir: details.buildLogDir,
             confFiles: details.confFiles,
             activeProfile: details.activeProfile,
             activeProfileScope: details.activeProfileScope,

@@ -17,6 +17,8 @@ Use **`Zephyr IDE: Set Active Sysbuild Image`** to choose which sub-image the ac
 
 ### Saving Build Output
 
+In **Zephyr IDE Settings**, select **Configure Build Logging** to open the Project Build panel. Select a build and expand **Build Output Logging** to enable log saving and edit the log directory. Changes are saved automatically to that build's configuration.
+
 Add these optional fields to a build configuration under `projects.<project>.buildConfigs.<build>` in `.vscode/zephyr-ide.json`:
 
 ```json
