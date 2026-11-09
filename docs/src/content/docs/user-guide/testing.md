@@ -23,7 +23,7 @@ Tests are stored in `.vscode/zephyr-ide.json` alongside project and build config
 - **Extra args** — additional Twister arguments
 - **Serial settings** — optional `serialPort` and `serialBaud` for hardware targets
 
-When selecting QEMU, enter a concrete Twister platform name; `qemu` by itself is not a valid platform. On Windows, set `QEMU_BIN_PATH` to the Zephyr SDK's `hosttools/qemu` directory before launching VS Code, or QEMU tests may build without being run.
+When selecting QEMU, choose a concrete Twister platform; `qemu` by itself is not a valid platform. The wizard lists QEMU platforms detected via `west boards` for the active workspace — pick one, or choose **Enter platform manually...** to type one (e.g. `qemu_cortex_m3`). On Windows, set `QEMU_BIN_PATH` to the Zephyr SDK's `hosttools/qemu` directory before launching VS Code, or QEMU tests may build without being run.
 
 Multiple test configurations can be added per project. Use `Zephyr IDE: Set Active Test` to switch the active test, and `Zephyr IDE: Reconfigure Active Test` to adjust parameters.
 

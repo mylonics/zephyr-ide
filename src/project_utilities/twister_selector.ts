@@ -20,7 +20,7 @@ import { MultiStepInput, InputStep, noOpValidate, mapToQuickPickItems } from "..
 import { notifyError } from "../utilities/output";
 import { loadYamlFile } from "../utilities/utils";
 import { SetupState } from '../setup_utilities/types';
-import { pickBoardSteps, BoardConfig, PickBoardState } from './build_selector';
+import { pickBoardSteps, BoardConfig, PickBoardState, BoardListEntry, getBoardlistWest } from './build_selector';
 import { getModuleBoardRoots } from '../setup_utilities/modules';
 
 // Config for the extension
@@ -62,10 +62,32 @@ export function validateQemuPlatform(value: string): Promise<string | undefined>
   if (!platform || platform.toLowerCase() === "qemu") {
     return Promise.resolve("Enter a concrete QEMU platform, such as qemu_cortex_m3");
   }
-  if (!/^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(platform)) {
-    return Promise.resolve("Platform names may only contain letters, numbers, '.', '_', and '-'");
+  // '/' is allowed so board-qualifier identifiers (e.g. qemu_x86/atom) validate.
+  if (!/^[A-Za-z0-9][A-Za-z0-9_./-]*$/.test(platform)) {
+    return Promise.resolve("Platform names may only contain letters, numbers, '.', '_', '-', and '/'");
   }
   return Promise.resolve(undefined);
+}
+
+/** Pure function: filter a west board list down to QEMU emulation platforms. */
+export function filterQemuPlatforms(boardList: BoardListEntry[]): string[] {
+  return boardList
+    .map(entry => entry.name)
+    .filter(name => name.toLowerCase().startsWith("qemu"))
+    .sort();
+}
+
+/**
+ * Best-effort detection of concrete QEMU platforms known to west. Returns
+ * undefined (rather than throwing or notifying) when detection isn't
+ * possible, so callers can silently fall back to manual entry.
+ */
+export async function detectQemuPlatforms(setupState: SetupState): Promise<string[] | undefined> {
+  const boardList = await getBoardlistWest(setupState, undefined, true);
+  if (!boardList) {
+    return undefined;
+  }
+  return filterQemuPlatforms(boardList);
 }
 
 // Config for the extension
@@ -83,7 +105,10 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
   twisterConfig.tests = [];
   const boardPickState: PickBoardState = {};
   let qemuPlatformSelected = false;
+  let qemuManualStepAdded = false;
   let qemuPlatform = "qemu_cortex_m3";
+  // Cached west-detected QEMU platform names; undefined = not attempted yet.
+  let qemuPlatformList: string[] | undefined;
 
   //check if project contain sample.yaml or testcase.yaml
   const projectPath = path.join(rootPath, projectFolder);
@@ -102,7 +127,10 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
     if (twisterConfig.platform === "hardware") {
       return 9;
     }
-    return qemuPlatformSelected ? 5 : 4;
+    if (!qemuPlatformSelected) {
+      return 4;
+    }
+    return qemuManualStepAdded ? 6 : 5;
   }
 
   async function pickTests(input: MultiStepInput) {
@@ -161,15 +189,54 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
       return (input: MultiStepInput) => pickHardwareBoard(input);
     }
     if (twisterConfig.platform === "qemu") {
-      return (input: MultiStepInput) => inputQemuPlatform(input);
+      return (input: MultiStepInput) => pickQemuPlatform(input);
     }
     return (input: MultiStepInput) => inputTwisterArgs(input);
   }
 
-  async function inputQemuPlatform(input: MultiStepInput) {
-    const platform = await input.showInputBox({
+  const manualQemuEntryLabel = "Enter platform manually...";
+
+  async function pickQemuPlatform(input: MultiStepInput): Promise<InputStep | void> {
+    if (qemuPlatformList === undefined) {
+      qemuPlatformList = (await detectQemuPlatforms(setupState)) ?? [];
+    }
+
+    // Nothing detected (west not ready, old Zephyr version, no qemu boards
+    // in the current board roots, etc.) - skip straight to manual entry.
+    if (qemuPlatformList.length === 0) {
+      qemuManualStepAdded = false;
+      return (input: MultiStepInput) => inputQemuPlatform(input, 3);
+    }
+
+    const qemuQpItems: QuickPickItem[] = mapToQuickPickItems(qemuPlatformList);
+    qemuQpItems.push({ label: "", kind: vscode.QuickPickItemKind.Separator });
+    qemuQpItems.push({ label: manualQemuEntryLabel });
+
+    qemuManualStepAdded = false;
+    const platformPick = await input.showQuickPick({
       title,
       step: 3,
+      totalSteps: totalStepsFor(),
+      placeholder: 'Select QEMU Platform',
+      ignoreFocusOut: true,
+      items: qemuQpItems,
+      activeItem: undefined,
+    });
+
+    if (platformPick.label === manualQemuEntryLabel) {
+      qemuManualStepAdded = true;
+      return (input: MultiStepInput) => inputQemuPlatform(input, 4);
+    }
+
+    qemuPlatform = platformPick.label;
+    twisterConfig.platform = qemuPlatform;
+    return (input: MultiStepInput) => inputTwisterArgs(input);
+  }
+
+  async function inputQemuPlatform(input: MultiStepInput, step: number) {
+    const platform = await input.showInputBox({
+      title,
+      step,
       totalSteps: totalStepsFor(),
       prompt: "Enter QEMU platform (e.g., qemu_cortex_m3)",
       ignoreFocusOut: true,
