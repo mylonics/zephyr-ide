@@ -416,12 +416,13 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
       // 1. Slash replaced with underscore: e.g. "myl_nrf_usb/nrf52840" -> "myl_nrf_usb_nrf52840.dts"
       // 2. Just the board name directly: e.g. "myl_nrf_usb/nrf52840.dts"
       // 3. Just the basename: e.g. "nrf52840.dts"
-      // 4. Default fallback: build.board + ".dts"
+      // 4. Board name without qualifiers: e.g. "apex/stm32f411xe" -> "apex.dts"
       const boardWithUnderscores = build.board.replace(/\//g, "_");
       const candidates = [
         path.join(boardPath, `${boardWithUnderscores}.dts`),
         path.join(boardPath, `${build.board}.dts`),
         path.join(boardPath, `${path.basename(build.board)}.dts`),
+        path.join(boardPath, `${build.board.split("/")[0]}.dts`),
       ];
 
       let resolvedDtsPath: string | undefined = undefined;
