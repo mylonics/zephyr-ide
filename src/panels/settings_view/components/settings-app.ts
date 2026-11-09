@@ -213,6 +213,16 @@ export class SettingsApp extends ZephyrLitElement {
           Use the scope selector to choose whether a setting applies to this workspace only or to all workspaces (User).</p>
         </div>
 
+        <h2>Build Output Logging</h2>
+        <div class="info-box">
+          <p><code>saveBuildLog</code> and <code>buildLogDir</code> are per-build settings in
+          <code>zephyr-ide.json</code>, not User or Workspace extension preferences.
+          Select a build in the Project Build panel and expand Build Output Logging to edit them.</p>
+          <vscode-button appearance="secondary" @click=${() => this.postCommand("openBuildSettings")}>
+            Configure Build Logging
+          </vscode-button>
+        </div>
+
         ${sections.map((section, sectionIndex) => html`
           ${sectionIndex > 0 ? html`<vscode-divider></vscode-divider>` : nothing}
           <h2>${section.title}</h2>

@@ -47,6 +47,8 @@ export interface BuildConfig {
   compilerOptimization?: string;
   westBuildArgs: string[];
   westBuildCMakeArgs: string[];
+  saveBuildLog?: boolean;
+  buildLogDir?: string;
   /** Name of the `RunnerProfile` this build uses (resolved via loadRunnerProfiles()).
    *  Undefined / unknown profile name → behave as the implicit "Auto" profile
    *  (flash/debug/attach all map to `{kind:"auto"}`). */
