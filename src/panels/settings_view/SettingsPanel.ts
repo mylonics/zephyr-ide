@@ -94,6 +94,13 @@ const SETTINGS: SettingDefinition[] = [
     defaultValue: false,
   },
   {
+    key: "zephyr-ide.checkEnvironmentOnStartup",
+    label: "Check Windows Environment on Startup",
+    description: "Check for missing user environment variables, invalid TEMP, and missing or repeated PATH entries that can prevent host-tool detection. Does not change environment variables.",
+    type: "boolean",
+    defaultValue: true,
+  },
+  {
     key: "zephyr-ide.suppressWorkspaceWarning",
     label: "Suppress Workspace Warning",
     description: "Suppress the warning about missing workspace environment variables (ZEPHYR_BASE, ZEPHYR_SDK_INSTALL_DIR).",
@@ -417,6 +424,10 @@ export class SettingsPanel {
           "workbench.action.openSettings",
           "@ext:mylonics.zephyr-ide"
         );
+        break;
+      }
+      case "checkWindowsEnvironment": {
+        await vscode.commands.executeCommand("zephyr-ide.check-windows-environment");
         break;
       }
       case "browseFolder": {

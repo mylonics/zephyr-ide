@@ -227,6 +227,11 @@
           "default": false,
           "description": "Run 'west zephyr-export' after a successful west update. This registers the Zephyr CMake package so that out-of-tree applications can find Zephyr with 'find_package(Zephyr)'."
         },
+        "zephyr-ide.checkEnvironmentOnStartup": {
+          "type": "boolean",
+          "default": true,
+          "description": "Check the Windows environment on startup for missing user variables, invalid TEMP, and missing or repeated PATH entries that may prevent host-tool detection. Does not change environment variables."
+        },
         "zephyr-ide.suppressWorkspaceWarning": {
           "type": [
             "boolean"
@@ -1076,6 +1081,10 @@
       {
         "command": "zephyr-ide.open-project-build-panel",
         "title": "Zephyr IDE: Project Details"
+      },
+      {
+        "command": "zephyr-ide.check-windows-environment",
+        "title": "Zephyr IDE: Check Windows Environment"
       },
       {
         "command": "zephyr-ide.open-settings-panel",
