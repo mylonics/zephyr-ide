@@ -197,30 +197,29 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
   const manualQemuEntryLabel = "Enter platform manually...";
 
   async function pickQemuPlatform(input: MultiStepInput): Promise<InputStep | void> {
-    if (qemuPlatformList === undefined) {
-      qemuPlatformList = (await detectQemuPlatforms(setupState)) ?? [];
-    }
-
-    // Nothing detected (west not ready, old Zephyr version, no qemu boards
-    // in the current board roots, etc.) - skip straight to manual entry.
-    if (qemuPlatformList.length === 0) {
-      qemuManualStepAdded = false;
-      return (input: MultiStepInput) => inputQemuPlatform(input, 3);
-    }
-
-    const qemuQpItems: QuickPickItem[] = mapToQuickPickItems(qemuPlatformList);
-    qemuQpItems.push({ label: "", kind: vscode.QuickPickItemKind.Separator });
-    qemuQpItems.push({ label: manualQemuEntryLabel });
+    const manualItem: QuickPickItem = { label: manualQemuEntryLabel };
+    const loadingItem: QuickPickItem = { label: "Getting targets from west boards..." };
+    const failedItem: QuickPickItem = {
+      label: "Failed to get targets from west boards",
+      description: `Use "${manualQemuEntryLabel}" above`,
+    };
 
     qemuManualStepAdded = false;
-    const platformPick = await input.showQuickPick({
+    const platformPick = await input.showQuickPickWithBackgroundFetch({
       title,
       step: 3,
       totalSteps: totalStepsFor(),
       placeholder: 'Select QEMU Platform',
       ignoreFocusOut: true,
-      items: qemuQpItems,
-      activeItem: undefined,
+      pinnedItem: manualItem,
+      loadingItem,
+      failedItem,
+      fetchItems: async () => {
+        if (qemuPlatformList === undefined) {
+          qemuPlatformList = (await detectQemuPlatforms(setupState)) ?? [];
+        }
+        return mapToQuickPickItems(qemuPlatformList);
+      },
     });
 
     if (platformPick.label === manualQemuEntryLabel) {
