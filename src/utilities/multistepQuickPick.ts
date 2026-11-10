@@ -1,4 +1,4 @@
-import { QuickPickItem, window, Disposable, QuickInputButton, QuickInput, QuickInputButtons } from 'vscode';
+import { QuickPickItem, QuickPickItemKind, window, Disposable, QuickInputButton, QuickInput, QuickInputButtons } from 'vscode';
 
 class InputFlowAction {
   static back = new InputFlowAction();
@@ -112,6 +112,93 @@ export class MultiStepInput {
         }
         this.current = input;
         this.current.show();
+      });
+    } finally {
+      disposables.forEach(d => d.dispose());
+    }
+  }
+
+  /**
+   * Show a QuickPick that is usable the instant it appears (`pinnedItem`, e.g. a
+   * manual-entry option, is always present and selectable) while `fetchItems` runs
+   * in the background to populate the rest of the list. `loadingItem`/`failedItem`
+   * are status rows, not real choices — selecting one is a no-op and leaves the
+   * picker open.
+   */
+  async showQuickPickWithBackgroundFetch({
+    title, step, totalSteps, placeholder, ignoreFocusOut,
+    pinnedItem, loadingItem, failedItem, fetchItems,
+  }: {
+    title: string;
+    step: number;
+    totalSteps: number;
+    placeholder: string;
+    ignoreFocusOut?: boolean;
+    pinnedItem: QuickPickItem;
+    loadingItem: QuickPickItem;
+    failedItem: QuickPickItem;
+    fetchItems: () => Promise<QuickPickItem[] | undefined>;
+  }): Promise<QuickPickItem> {
+    const disposables: Disposable[] = [];
+    try {
+      return await new Promise<QuickPickItem>((resolve, reject) => {
+        const input = window.createQuickPick<QuickPickItem>();
+        input.title = title;
+        input.step = step;
+        input.totalSteps = totalSteps;
+        input.ignoreFocusOut = ignoreFocusOut ?? false;
+        input.placeholder = placeholder;
+        input.canSelectMany = false;
+        input.busy = true;
+        const separator: QuickPickItem = { label: "", kind: QuickPickItemKind.Separator };
+        input.items = [pinnedItem, separator, loadingItem];
+        input.buttons = this.steps.length > 1 ? [QuickInputButtons.Back] : [];
+
+        // Identity-based: the same object references are reused when items
+        // are rebuilt below, so a Set lookup reliably tells a real pick apart
+        // from a click on a status row.
+        const sentinels = new Set([loadingItem, failedItem]);
+        let settled = false;
+
+        disposables.push(
+          input.onDidTriggerButton(item => {
+            if (item === QuickInputButtons.Back) {
+              settled = true;
+              reject(InputFlowAction.back);
+            }
+          }),
+          input.onDidChangeSelection(items => {
+            const picked = items[0];
+            if (!picked || sentinels.has(picked)) {
+              return;
+            }
+            settled = true;
+            resolve(picked);
+          }),
+          input.onDidHide(() => {
+            settled = true;
+            reject(InputFlowAction.cancel);
+          })
+        );
+
+        if (this.current) {
+          this.current.dispose();
+        }
+        this.current = input;
+        this.current.show();
+
+        fetchItems().then(fetched => {
+          // The user may have already picked the pinned item (or navigated
+          // away) before the background fetch resolves; don't touch a
+          // picker nobody is looking at anymore.
+          if (settled) {
+            return;
+          }
+          input.busy = false;
+          input.items = fetched && fetched.length > 0
+            ? [pinnedItem, separator, ...fetched]
+            : [pinnedItem, separator, failedItem];
+        });
       });
     } finally {
       disposables.forEach(d => d.dispose());

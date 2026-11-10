@@ -18,10 +18,12 @@ The extension supports running [Twister](https://docs.zephyrproject.org/latest/d
 
 Tests are stored in `.vscode/zephyr-ide.json` alongside project and build configurations. Each test entry specifies:
 
-- **Platform** — `native_sim`, `qemu`, or `hardware`
+- **Platform** — `native_sim`, a concrete QEMU platform such as `qemu_cortex_m3`, or `hardware`
 - **Tests** — one or more test IDs (or `All`)
 - **Extra args** — additional Twister arguments
 - **Serial settings** — optional `serialPort` and `serialBaud` for hardware targets
+
+When selecting QEMU, choose a concrete Twister platform; `qemu` by itself is not a valid platform. The wizard lists QEMU platforms detected via `west boards` for the active workspace — pick one, or choose **Enter platform manually...** to type one (e.g. `qemu_cortex_m3`). On Windows, set `QEMU_BIN_PATH` to the Zephyr SDK's `hosttools/qemu` directory before launching VS Code, or QEMU tests may build without being run.
 
 Multiple test configurations can be added per project. Use `Zephyr IDE: Set Active Test` to switch the active test, and `Zephyr IDE: Reconfigure Active Test` to adjust parameters.
 

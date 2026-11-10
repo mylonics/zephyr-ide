@@ -38,6 +38,11 @@ suite("assembleTwisterCommand", () => {
         assert.ok(!cmd.includes("--device-testing"), "sim/qemu builds must not pass --device-testing");
     });
 
+    test("concrete QEMU platforms are passed to -p", () => {
+        const cmd = assembleTwisterCommand(makeParams({ platform: "qemu_cortex_m3" }));
+        assert.ok(cmd.startsWith("west twister -p qemu_cortex_m3 "), `got: ${cmd}`);
+    });
+
     test("-T points at the project folder", () => {
         const cmd = assembleTwisterCommand(makeParams());
         assert.ok(cmd.includes('-T "/home/user/project/app"'));

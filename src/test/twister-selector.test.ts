@@ -19,7 +19,7 @@ import * as assert from "assert";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { getTestsFromProject } from "../project_utilities/twister_selector";
+import { getTestsFromProject, validateQemuPlatform, filterQemuPlatforms } from "../project_utilities/twister_selector";
 
 suite("getTestsFromProject Test Suite", () => {
 
@@ -93,5 +93,45 @@ suite("getTestsFromProject Test Suite", () => {
     test("returns empty array when testcase.yaml is empty", () => {
         fs.writeFileSync(path.join(tmpDir, "testcase.yaml"), "");
         assert.deepStrictEqual(getTestsFromProject(tmpDir), []);
+    });
+});
+
+suite("validateQemuPlatform", () => {
+    test("accepts a concrete QEMU platform", async () => {
+        assert.strictEqual(await validateQemuPlatform("qemu_cortex_m3"), undefined);
+    });
+
+    test("rejects the generic qemu choice and empty values", async () => {
+        assert.ok(await validateQemuPlatform("qemu"));
+        assert.ok(await validateQemuPlatform("  "));
+    });
+
+    test("rejects values that are not safe platform identifiers", async () => {
+        assert.ok(await validateQemuPlatform("qemu_cortex_m3; rm -rf"));
+    });
+
+    test("accepts a qualified platform name (board/qualifier form)", async () => {
+        assert.strictEqual(await validateQemuPlatform("qemu_x86/atom"), undefined);
+        assert.strictEqual(await validateQemuPlatform("qemu_x86/atom/smp"), undefined);
+    });
+});
+
+suite("filterQemuPlatforms", () => {
+    test("keeps only board names starting with qemu, case-insensitively", () => {
+        const boardList = [
+            { name: "qemu_cortex_m3", subdir: "boards/qemu/cortex_m3" },
+            { name: "nucleo_f401re", subdir: "boards/st/nucleo_f401re" },
+            { name: "QEMU_x86", subdir: "boards/qemu/x86" },
+            { name: "qemu_x86/atom", subdir: "boards/qemu/x86" },
+        ];
+        assert.deepStrictEqual(
+            filterQemuPlatforms(boardList),
+            ["QEMU_x86", "qemu_cortex_m3", "qemu_x86/atom"]
+        );
+    });
+
+    test("returns an empty array when no qemu boards are present", () => {
+        const boardList = [{ name: "nucleo_f401re", subdir: "boards/st/nucleo_f401re" }];
+        assert.deepStrictEqual(filterQemuPlatforms(boardList), []);
     });
 });

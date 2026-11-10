@@ -101,7 +101,13 @@ export interface BoardItem extends QuickPickItem {
 export type BuildConfigDictionary = { [name: string]: BuildConfig };
 export type BuildStateDictionary = { [name: string]: BuildState };
 
-async function getBoardlistWest(setupState: SetupState, folder: vscode.Uri | undefined): Promise<{ name: string, subdir: string, revisions?: string[], revision_default?: string }[] | undefined> {
+/**
+ * Enumerate boards known to west for the given (or default) board root.
+ * @param silent  When true, suppress the error notification on failure (e.g. when the
+ *                 caller treats the result as an optional, best-effort lookup with its
+ *                 own fallback, such as the QEMU platform QuickPick).
+ */
+export async function getBoardlistWest(setupState: SetupState, folder: vscode.Uri | undefined, silent = false): Promise<BoardListEntry[] | undefined> {
   let boardRootString = "";
   if (folder) {
     boardRootString = " --board-root " + path.dirname(folder.fsPath);
@@ -126,8 +132,10 @@ async function getBoardlistWest(setupState: SetupState, folder: vscode.Uri | und
   }
 
   if (!res.stdout || res.stdout === "") {
-    outputCommandFailure("Board Selection", res);
-    notifyError("Board Selection", "Failed to run west boards command. Check the Zephyr IDE output for details.");
+    if (!silent) {
+      outputCommandFailure("Board Selection", res);
+      notifyError("Board Selection", "Failed to run west boards command. Check the Zephyr IDE output for details.");
+    }
     return;
   }
 
