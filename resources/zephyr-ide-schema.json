@@ -208,6 +208,16 @@
             "type": "string"
           }
         },
+        "saveBuildLog": {
+          "type": "boolean",
+          "default": false,
+          "description": "Save complete stdout and stderr from each build to a timestamped log file while displaying it in the terminal."
+        },
+        "buildLogDir": {
+          "type": "string",
+          "default": "logs",
+          "description": "Build log directory, relative to the workspace root or absolute. Used only when saveBuildLog is true. Prefer a directory outside the build directory so pristine builds do not delete logs."
+        },
         "activeProfile": {
           "type": "string",
           "description": "Name of the runner profile to use for flash/debug/attach. Must match a profile name in 'runnerProfiles' (workspace or user). When omitted, 'Auto' mode is used (runners.yaml picks the runner)."

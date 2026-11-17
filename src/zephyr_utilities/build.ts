@@ -35,6 +35,7 @@ import { updateDtsContext } from "../setup_utilities/dts_interface";
 import { getSetupState, getSetupStateOrNotify, updateBuildCMakeInfo, clearBuildCMakeInfo } from "../setup_utilities/workspace-config";
 import { setWorkspaceState } from "../setup_utilities/state-management";
 import { invalidateRunnersYamlCache, resolveEffectiveBuildDir } from "./runners-yaml";
+import { getBuildLogPath } from "../utilities/build-log";
 
 
 export interface BuildInfo {
@@ -355,7 +356,8 @@ export async function build(
   const taskName = "Zephyr IDE Build: " + project.name + " " + build.name;
 
   outputInfo(`Build: ${project.name}/${build.name}`, `Building ${build.name} from project: ${project.name} (cmd: ${cmd})`, true);
-  const ret = await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState.setupPath);
+  const logFile = getBuildLogPath(wsConfig.rootPath, project.name, build);
+  const ret = await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState.setupPath, false, logFile);
 
   // Only update caches on successful build
   if (ret) {

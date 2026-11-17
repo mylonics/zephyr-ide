@@ -88,6 +88,8 @@ export interface WebviewBuildDetails {
   compilerOptimization: string | undefined;
   westBuildArgs: string[];
   westBuildCMakeArgs: string[];
+  saveBuildLog: boolean;
+  buildLogDir: string;
   confFiles: WebviewConfigFiles;
   /** Active Runner Profile name (or undefined when none selected). Reflects the
    *  effective value — the per-developer local override when set, else the

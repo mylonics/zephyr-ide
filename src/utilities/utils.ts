@@ -23,6 +23,7 @@ import * as cp from "child_process";
 import * as fs from "fs";
 import * as os from "os";
 import * as yaml from 'js-yaml';
+import { LoggedTaskTerminal } from "./build-log";
 
 import { SetupState, WorkspaceConfig } from "../setup_utilities/types";
 import { getToolchainDir, resolveToolchainDirPath } from "../setup_utilities/workspace-config";
@@ -855,12 +856,12 @@ async function executeTask(task: vscode.Task) {
   return taskDone;
 }
 
-export async function executeTaskHelperInPythonEnv(setupState: SetupState | undefined, taskName: string, cmd: string, cwd: string | undefined, overrideTempOnWindows: boolean = false) {
+export async function executeTaskHelperInPythonEnv(setupState: SetupState | undefined, taskName: string, cmd: string, cwd: string | undefined, overrideTempOnWindows: boolean = false, logFile?: string) {
   // VS Code's environmentVariableCollection doesn't reliably propagate to task
   // shells in all environments (macOS, WSL, Windows CI/headless).  Inject the
   // required env vars directly into the task shell options instead.
   if (!setupState) {
-    return await executeTaskHelper(taskName, cmd, cwd);
+    return await executeTaskHelper(taskName, cmd, cwd, undefined, logFile);
   }
 
   const win = isWindows();
@@ -893,11 +894,24 @@ export async function executeTaskHelperInPythonEnv(setupState: SetupState | unde
     }
   }
 
-  return await executeTaskHelper(taskName, cmd, cwd, env);
+  return await executeTaskHelper(taskName, cmd, cwd, env, logFile);
 }
 
-export async function executeTaskHelper(taskName: string, cmd: string, cwd: string | undefined, env?: { [key: string]: string }) {
+export async function executeTaskHelper(taskName: string, cmd: string, cwd: string | undefined, env?: { [key: string]: string }, logFile?: string) {
   outputCommand(taskName, cmd);
+  if (logFile) {
+    const terminal = new LoggedTaskTerminal(cmd, cwd, env, logFile);
+    const result = new Promise<number>(resolve => terminal.onDidClose(resolve));
+    const task = new vscode.Task(
+      { type: "zephyr-ide:" + taskName, command: taskName },
+      vscode.TaskScope.Workspace,
+      taskName,
+      "zephyr-ide",
+      new vscode.CustomExecution(async () => terminal)
+    );
+    await vscode.tasks.executeTask(task);
+    return (await result) === 0;
+  }
   const options: vscode.ShellExecutionOptions = {
     // Coerce empty strings to undefined — VS Code's ShellExecution rejects
     // an empty-string cwd and emits "An unknown error occurred".

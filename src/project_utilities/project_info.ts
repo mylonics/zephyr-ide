@@ -94,6 +94,8 @@ export interface BuildDetails {
   compilerOptimization: string | undefined;
   westBuildArgs: string[];
   westBuildCMakeArgs: string[];
+  saveBuildLog: boolean;
+  buildLogDir: string;
   confFiles: ConfigFiles;
   /** Effective active runner profile name (local override, if any, else the
    *  committed workspace value), or undefined when none is selected. */
@@ -159,6 +161,8 @@ export function getBuildDetails(wsConfig: WorkspaceConfig, projectName: string, 
     compilerOptimization: build.compilerOptimization,
     westBuildArgs: normalizeBuildArgs(build.westBuildArgs),
     westBuildCMakeArgs: normalizeBuildArgs(build.westBuildCMakeArgs),
+    saveBuildLog: build.saveBuildLog === true,
+    buildLogDir: build.buildLogDir || "logs",
     confFiles: build.confFiles ?? emptyConfigFiles(),
     activeProfile,
     activeProfileScope,

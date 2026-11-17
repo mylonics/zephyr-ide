@@ -462,6 +462,37 @@ export class BuildSection extends ZephyrLitElement {
         )}
 
           ${this._collapsibleSection(
+          "logging",
+          "Build Output Logging",
+          b.saveBuildLog ? "Enabled" : "Disabled",
+          html`
+            <div class="variables-section">
+              <vscode-checkbox .checked=${b.saveBuildLog}
+                @change=${(e: Event) => this.vscodeApi.postMessage({
+                  command: "updateBuildLogSetting", build: b.name, key: "saveBuildLog", value: (e.target as HTMLInputElement).checked,
+                })}>
+                Save build output to a log file
+              </vscode-checkbox>
+              <div class="build-arg-row">
+                <label for="build-log-dir">Log directory</label>
+                <input id="build-log-dir" class="build-arg-input" type="text"
+                  .value=${b.buildLogDir} placeholder="logs"
+                  ?disabled=${!b.saveBuildLog}
+                  @change=${(e: Event) => this.postCommand("updateBuildLogSetting", {
+                    build: b.name, key: "buildLogDir", value: (e.target as HTMLInputElement).value,
+                  })} />
+              </div>
+              <p class="runner-level-hint">
+                Saved in this build's zephyr-ide.json configuration. Each build writes stdout and stderr
+                to a timestamped file while keeping terminal output. The directory defaults to logs,
+                relative to the workspace root; absolute paths are supported. Keep logs outside the
+                build directory so pristine builds do not delete them.
+              </p>
+            </div>
+          `,
+        )}
+
+          ${this._collapsibleSection(
           "variables",
           "Variables",
           `${Object.keys(this.buildVars ?? {}).length} set`,
