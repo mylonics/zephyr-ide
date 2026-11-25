@@ -80,7 +80,7 @@ export class ProjectTreeView implements vscode.TreeDataProvider<ProjectTreeItem>
     if (isActiveBuild) {
       item.iconPath = new vscode.ThemeIcon('project', new vscode.ThemeColor('textLink.foreground'));
     } else {
-      item.command = { command: 'zephyr-ide.tree-view.select', title: 'Select', arguments: [item] };
+      item.command = { command: 'zephyr-ide.tree-view.select', title: vscode.l10n.t("Select"), arguments: [item] };
     }
 
     const resolvedBuild = {
@@ -101,7 +101,7 @@ export class ProjectTreeView implements vscode.TreeDataProvider<ProjectTreeItem>
     profileItem.data = { project: projectName, build: build.name };
     // Default (click) action commits directly to the workspace file — the
     // local override is an explicit secondary action via the $(edit) icon.
-    profileItem.command = { command: 'zephyr-ide.tree-view.set-workspace-build-profile', title: 'Set Runner Profile (Workspace)', arguments: [profileItem] };
+    profileItem.command = { command: 'zephyr-ide.tree-view.set-workspace-build-profile', title: vscode.l10n.t("Set Runner Profile (Workspace)"), arguments: [profileItem] };
     const tooltipLines = [
       `Click to pick a profile that's committed directly into \`.vscode/zephyr-ide.json\` — shared with the team.`,
       `Use $(edit) **Set Runner Profile (Local)** to pick a profile as a per-developer override instead — never written to \`.vscode/zephyr-ide.json\`.`,
@@ -125,7 +125,7 @@ export class ProjectTreeView implements vscode.TreeDataProvider<ProjectTreeItem>
     const item = new ProjectTreeItem(test.name, 'beaker', false, 'testItem', test.platform);
     item.id = `test:${sanitizeTreeId(projectName)}:${sanitizeTreeId(test.name)}`;
     item.data = { project: projectName, test: test.name };
-    item.command = { command: 'zephyr-ide.tree-view.select', title: 'Select', arguments: [item] };
+    item.command = { command: 'zephyr-ide.tree-view.select', title: vscode.l10n.t("Select"), arguments: [item] };
     return item;
   }
 
@@ -144,7 +144,7 @@ export class ProjectTreeView implements vscode.TreeDataProvider<ProjectTreeItem>
     if (isActive) {
       item.iconPath = new vscode.ThemeIcon('folder-opened', new vscode.ThemeColor('textLink.foreground'));
     } else {
-      item.command = { command: 'zephyr-ide.tree-view.select', title: 'Select', arguments: [item] };
+      item.command = { command: 'zephyr-ide.tree-view.select', title: vscode.l10n.t("Select"), arguments: [item] };
     }
 
     for (const key in project.buildConfigs) {
@@ -160,10 +160,10 @@ export class ProjectTreeView implements vscode.TreeDataProvider<ProjectTreeItem>
     }
 
     if (item.children.length === 0) {
-      const placeholder = new ProjectTreeItem('Add Build', 'add', false, 'addBuildPlaceholder', 'Add Build');
+      const placeholder = new ProjectTreeItem(vscode.l10n.t("Add Build"), 'add', false, 'addBuildPlaceholder', 'Add Build');
       placeholder.id = `placeholder:addBuild:${sanitizeTreeId(project.name)}`;
       placeholder.data = { project: project.name, cmd: "addBuild" };
-      placeholder.command = { command: 'zephyr-ide.tree-view.add-build', title: 'Add Build', arguments: [placeholder] };
+      placeholder.command = { command: 'zephyr-ide.tree-view.add-build', title: vscode.l10n.t("Add Build"), arguments: [placeholder] };
       placeholder.parent = item;
       item.children.push(placeholder);
     }

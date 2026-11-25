@@ -133,7 +133,7 @@ function formatLine(task: string, message: string): string {
 // straight to the output channel.  This eliminates the need for separate
 // `outputX` + `notifyX` call‑pairs.
 
-const SHOW_OUTPUT = "Show Output";
+const SHOW_OUTPUT = vscode.l10n.t("Show Output");
 
 /**
  * Write an informational line to the Zephyr IDE output channel.
@@ -276,13 +276,23 @@ export function notifyWarning(
  *
  * @returns The label of the button the user clicked, or `undefined`.
  */
+const warningActions = {
+  Reinitialize: () => vscode.l10n.t("Reinitialize"),
+  Cancel: () => vscode.l10n.t("Cancel"),
+  "Use Existing": () => vscode.l10n.t("Use Existing"),
+  Switch: () => vscode.l10n.t("Switch"),
+  Deactivate: () => vscode.l10n.t("Deactivate"),
+  "Remove from Registry": () => vscode.l10n.t("Remove from Registry"),
+} as const;
+
 export function notifyWarningWithActions(
   task: string,
   message: string,
-  actions: string[],
+  actions: (keyof typeof warningActions)[],
 ): Promise<string | undefined> {
   outputChannel?.appendLine(formatLine(task, `⚠ WARNING: ${message}`));
-  return Promise.resolve(vscode.window.showWarningMessage(message, ...actions));
+  const items = actions.map(action => ({ title: warningActions[action](), action }));
+  return Promise.resolve(vscode.window.showWarningMessage(message, ...items)).then(item => item?.action);
 }
 
 /**
@@ -348,12 +358,11 @@ export function outputFileNotFound(
   }
 
   if (options.notify) {
-    const SHOW = "Show Output";
     void vscode.window.showErrorMessage(
-      `${what} not found: ${options.expectedPath}`,
-      SHOW,
+      vscode.l10n.t("{0} not found: {1}", what, options.expectedPath),
+      SHOW_OUTPUT,
     ).then(sel => {
-      if (sel === SHOW) {
+      if (sel === SHOW_OUTPUT) {
         showOutput();
       }
     });
@@ -448,7 +457,7 @@ export function outputCommandFailure(
 
   if (notify) {
     void vscode.window.showErrorMessage(
-      `${task}: command failed — ${result.cmd}`,
+      vscode.l10n.t("{0}: command failed — {1}", task, result.cmd),
       SHOW_OUTPUT,
     ).then(sel => {
       if (sel === SHOW_OUTPUT) {

@@ -104,7 +104,7 @@ export function applyManifestSelections(doc: any, params: ApplyManifestSelection
  * @returns Promise resolving to WestLocation configuration
  */
 export async function westSelector(context: ExtensionContext, wsConfig: WorkspaceConfig): Promise<WestLocation> {
-  const title = 'Initialize West';
+  const title = vscode.l10n.t("Initialize West");
 
   const defaultState: WestLocation = {
     path: undefined,
@@ -142,7 +142,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
 
   // GitHub README link for the "Become a Vendor" menu item
   const VENDOR_README_URL = "https://github.com/mylonics/zephyr-ide/blob/main/resources/vendors/README.md";
-  const BECOME_VENDOR_LABEL = "$(link-external) Become a Vendor";
+  const BECOME_VENDOR_LABEL = vscode.l10n.t("$(link-external) Become a Vendor");
 
   async function pickTemplate(input: MultiStepInput, state: WestInternalState) {
     if (!wsConfig.activeSetupState) {
@@ -153,10 +153,10 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
 
     type westOptionDict = { [name: string]: string };
     const westOptions: westOptionDict = {};
-    westOptions["Full Zephyr"] = "default_west.yml";
-    westOptions["Minimal Zephyr (Select Desired HALs)"] = "minimal_west.yml";
-    westOptions["Minimal BLE Zephyr (Select Desired HALs)"] = "minimal_ble_west.yml";
-    westOptions["Sim Only"] = "simulated_west.yml";
+    westOptions[vscode.l10n.t("Full Zephyr")] = "default_west.yml";
+    westOptions[vscode.l10n.t("Minimal Zephyr (Select Desired HALs)")] = "minimal_west.yml";
+    westOptions[vscode.l10n.t("Minimal BLE Zephyr (Select Desired HALs)")] = "minimal_ble_west.yml";
+    westOptions[vscode.l10n.t("Sim Only")] = "simulated_west.yml";
 
     // Internal testing template — only visible in CI/test environments
     if (process.env.CI || process.env.ZEPHYR_IDE_TESTING) {
@@ -195,29 +195,29 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
     // Add a "Vendor Configurations" entry that opens the vendor submenu
     westOptionQpItems.push({ label: "", kind: vscode.QuickPickItemKind.Separator });
     westOptionQpItems.push({
-      label: "$(organization) Vendor Configurations",
+      label: vscode.l10n.t("$(organization) Vendor Configurations"),
       description: vendorEntries.length > 0
-        ? `${vendorEntries.length} vendor(s) available`
-        : "No vendors available",
+        ? vscode.l10n.t("{0} vendor(s) available", vendorEntries.length)
+        : vscode.l10n.t("No vendors available"),
     });
 
     const pick = await input.showQuickPick({
       title,
       step: 1,
       totalSteps: totalStepsFor(state),
-      placeholder: 'Select West manifest template',
+      placeholder: vscode.l10n.t("Select West manifest template"),
       ignoreFocusOut: true,
       items: westOptionQpItems,
     });
 
     // "Vendor Configurations" entry — open the vendor submenu
-    if (pick.label === "$(organization) Vendor Configurations") {
+    if (pick.label === vscode.l10n.t("$(organization) Vendor Configurations")) {
       return (input: MultiStepInput) => pickVendor(input, state, vendorEntries);
     }
 
     const westFile = westOptions[pick.label];
     if (!westFile) {
-      notifyError("West Selector", `Failed to select workspace template`);
+      notifyError("West Selector", vscode.l10n.t("Failed to select workspace template"));
       state.failed = true;
       return;
     }
@@ -243,13 +243,13 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
       detail: ve.detail,
     }));
     vendorQpItems.push({ label: "", kind: vscode.QuickPickItemKind.Separator });
-    vendorQpItems.push({ label: BECOME_VENDOR_LABEL, description: "Open contributor guide on GitHub" });
+    vendorQpItems.push({ label: BECOME_VENDOR_LABEL, description: vscode.l10n.t("Open contributor guide on GitHub") });
 
     const pick = await input.showQuickPick({
       title,
       step: 2,
       totalSteps: totalStepsFor(state),
-      placeholder: "Select a vendor configuration",
+      placeholder: vscode.l10n.t("Select a vendor configuration"),
       ignoreFocusOut: true,
       items: vendorQpItems,
     });
@@ -268,7 +268,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
       return (input: MultiStepInput) => handleVendorSelection(input, state);
     }
 
-    notifyError("West Selector", `Failed to select vendor configuration`);
+    notifyError("West Selector", vscode.l10n.t("Failed to select vendor configuration"));
     state.failed = true;
   }
 
@@ -310,7 +310,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
       step: 2,
       totalSteps: totalStepsFor(state),
       ignoreFocusOut: true,
-      placeholder: "Select desired HALs (toggle then press Enter)",
+      placeholder: vscode.l10n.t("Select desired HALs (toggle then press Enter)"),
       items: zephyrHals,
     });
     // No custom buttons on this step, so the result is always the selected
@@ -346,12 +346,14 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
     state.isNcsProject = isNcsProject;
 
     const versionList = isNcsProject ? ncsVersions : zephyrVersions;
-    const versionSelectionString = isNcsProject ? "Select NCS Version" : "Select Zephyr Version";
+    const versionSelectionString = isNcsProject ? vscode.l10n.t("Select NCS Version") : vscode.l10n.t("Select Zephyr Version");
 
+    const defaultVersion = vscode.l10n.t("Default");
+    const otherVersion = vscode.l10n.t("Other Version");
     const versionQP: QuickPickItem[] = [
-      { label: "Default" },
+      { label: defaultVersion },
       { label: "", kind: vscode.QuickPickItemKind.Separator },
-      ...versionList.map(version => ({ label: version }))
+      ...versionList.map(version => ({ label: version === "Other Version" ? otherVersion : version }))
     ];
 
     const needsHal = state.westFile === "minimal_west.yml" || state.westFile === "minimal_ble_west.yml";
@@ -366,18 +368,18 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
       items: versionQP,
     });
 
-    let versionLabel = pick.label;
-    if (versionLabel === "Other Version") {
+    let versionLabel = pick.label === defaultVersion ? versionList[0] : pick.label;
+    if (pick.label === otherVersion) {
       const version = await input.showInputBox({
         title,
         step: versionStep,
         totalSteps: totalStepsFor(state),
         ignoreFocusOut: true,
         value: "Default",
-        prompt: 'Enter version (e.g., v3.7.0) or branch name (e.g., main)',
+        prompt: vscode.l10n.t("Enter version (e.g., v3.7.0) or branch name (e.g., main)"),
         validate: async (value: string) => {
           if (!value || value.trim() === "") {
-            return "Please enter a version";
+            return vscode.l10n.t("Please enter a version");
           }
           return undefined;
         }
@@ -417,7 +419,7 @@ export async function westSelector(context: ExtensionContext, wsConfig: Workspac
       ignoreFocusOut: true,
       placeholder: "--mr main",
       value: "",
-      prompt: 'Additional west init arguments (optional)',
+      prompt: vscode.l10n.t("Additional west init arguments (optional)"),
       validate: async () => undefined
     });
     // Mark completion only after the final step accepts. MultiStepInput.run

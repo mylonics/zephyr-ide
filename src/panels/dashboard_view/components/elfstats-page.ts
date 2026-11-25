@@ -4,6 +4,7 @@ Author Rijesh Augustine
 SPDX-License-Identifier: Apache-2.0
 */
 
+import { panelText } from "../../webview_shared/panel-text";
 import { html, nothing } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { ZephyrLitElement } from "../../webview_shared/lit-base";
@@ -18,7 +19,7 @@ export class ElfStatsPage extends ZephyrLitElement {
       return nothing;
     }
     return html`
-      <h1>ELF Stats</h1>
+      <h1>${panelText("ELF Stats")}</h1>
       <p style="font-size:12px;color:var(--vscode-descriptionForeground);margin:0 0 12px">
         <code>${this.data.path}</code>
       </p>
@@ -27,8 +28,8 @@ export class ElfStatsPage extends ZephyrLitElement {
         : html`
             <div class="empty-state">
               <span class="codicon codicon-file-binary" style="font-size:24px;opacity:0.5"></span>
-              <p>No ELF stats available.</p>
-              <p style="font-size:12px">The <code>zephyr.stat</code> file is generated during a normal build.</p>
+              <p>${panelText("No ELF stats available.")}</p>
+              <p style="font-size:12px">${panelText("The")} <code>zephyr.stat</code> ${panelText("file is generated during a normal build.")}</p>
             </div>
           `}
     `;

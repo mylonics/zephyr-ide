@@ -90,17 +90,15 @@ async function executeWestList(setupState: SetupState): Promise<WestListOutcome>
  */
 function notifyWestListFailure(needsWestUpdate: boolean): void {
   const message = needsWestUpdate
-    ? "West module files are missing or outdated. Run 'west update' to restore them."
-    : "West list failed. Check the Zephyr IDE output for details.";
-
-  const actions: string[] = needsWestUpdate
-    ? ["Run West Update", "Show Output"]
-    : ["Show Output"];
-
+    ? vscode.l10n.t("West module files are missing or outdated. Run 'west update' to restore them.")
+    : vscode.l10n.t("West list failed. Check the Zephyr IDE output for details.");
+  const update = vscode.l10n.t("Run West Update");
+  const output = vscode.l10n.t("Show Output");
+  const actions = needsWestUpdate ? [update, output] : [output];
   void vscode.window.showErrorMessage(message, ...actions).then(selection => {
-    if (selection === "Run West Update") {
+    if (selection === update) {
       void vscode.commands.executeCommand("zephyr-ide.west-update");
-    } else if (selection === "Show Output") {
+    } else if (selection === output) {
       showOutput();
     }
   });

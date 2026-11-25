@@ -4,6 +4,7 @@ Author Rijesh Augustine
 SPDX-License-Identifier: Apache-2.0
 */
 
+import { panelText } from "../../webview_shared/panel-text";
 import { html, nothing } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { ZephyrLitElement } from "../../webview_shared/lit-base";
@@ -49,7 +50,7 @@ export class SysInitPage extends ZephyrLitElement {
     ];
 
     return html`
-      <h1>System Initialization</h1>
+      <h1>${panelText("System Initialization")}</h1>
       ${this.data.errors?.length
         ? html`
             <div class="warning-box">
@@ -63,8 +64,8 @@ export class SysInitPage extends ZephyrLitElement {
         ? html`
             <div class="empty-state">
               <span class="codicon codicon-info" style="font-size:24px;opacity:0.5"></span>
-              <p>No system initialization data available.</p>
-              <p style="font-size:12px">Run a build first to generate ELF and map files.</p>
+              <p>${panelText("No system initialization data available.")}</p>
+              <p style="font-size:12px">${panelText("Run a build first to generate ELF and map files.")}</p>
             </div>
           `
         : levelsToShow.map((level) => {
@@ -90,15 +91,15 @@ export class SysInitPage extends ZephyrLitElement {
               ? html`<p style="margin:0 0 8px;font-size:12px;opacity:0.65">${description}</p>`
               : nothing}
                 ${isEmpty
-              ? html`<p style="font-size:12px;opacity:0.5;font-style:italic;margin:0">No init functions at this level.</p>`
+              ? html`<p style="font-size:12px;opacity:0.5;font-style:italic;margin:0">${panelText("No init functions at this level.")}</p>`
               : html`
                     <table class="dashboard-table">
                       <thead>
                         <tr>
-                          <th class="num" title="Priority / Ordinal">Pri / Ord</th>
-                          <th>Type</th>
-                          <th>Name</th>
-                          <th>Source File</th>
+                          <th class="num" title="${panelText("Priority / Ordinal")}">${panelText("Pri / Ord")}</th>
+                          <th>${panelText("Type")}</th>
+                          <th>${panelText("Name")}</th>
+                          <th>${panelText("Source File")}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -127,13 +128,13 @@ export class SysInitPage extends ZephyrLitElement {
                                   background:${isDevice ? 'var(--vscode-badge-background)' : 'var(--vscode-editorInfo-foreground)'};
                                   color:var(--vscode-badge-foreground);
                                   white-space:nowrap
-                                ">${isDevice ? 'Device' : 'SYS_INIT'}</span>
+                                ">${isDevice ? panelText("Device") : 'SYS_INIT'}</span>
                               </td>
                               <td><code>${displayName}</code></td>
                               <td>${entry.path
                                 ? html`<button
                                     class="link-button"
-                                    title="Open ${entry.path}"
+                                    title="${panelText("Open")} ${entry.path}"
                                     @click=${openFile}
                                   ><code>${entry.path.replace(/\\/g, '/').split('/').pop()}</code></button>`
                                 : nothing}</td>

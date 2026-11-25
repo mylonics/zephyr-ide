@@ -15,6 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import { webviewMessages } from "../webview-messages";
 import * as vscode from "vscode";
 import { WorkspaceConfig, GlobalConfig } from "../../setup_utilities/types";
 import { HostToolsService, HOST_TOOL_INSTALL_VIEW_CONFIG } from "../hostToolsService";
@@ -49,7 +50,7 @@ export class HostToolInstallView {
 
     const panel = vscode.window.createWebviewPanel(
       "zephyrIDEHostTools",
-      "Zephyr IDE: Host Tools",
+      vscode.l10n.t("Zephyr IDE: Host Tools"),
       column || vscode.ViewColumn.One,
       {
         enableScripts: true,
@@ -210,7 +211,7 @@ export class HostToolInstallView {
     const nonce = generateNonce();
 
     return `<!DOCTYPE html>
-    <html lang="en">
+    <html lang="${vscode.env.language}">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -221,6 +222,7 @@ export class HostToolInstallView {
     </head>
     <body>
         <host-tools-app></host-tools-app>
+        ${webviewMessages(nonce)}
         <script nonce="${nonce}" src="${jsUri}"></script>
     </body>
     </html>`;

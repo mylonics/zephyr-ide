@@ -298,7 +298,7 @@ async function selectWestConfiguration(baseDir: string, westYmlFiles: string[]) 
   // Check if selected directory directly contains west.yml
   const directWestYml = path.join(baseDir, "west.yml");
   if (fs.pathExistsSync(directWestYml)) {
-    notifyError("Workspace Setup", "The selected folder contains a west.yml file directly. Please select a parent directory or a different location.");
+    notifyError("Workspace Setup", vscode.l10n.t("The selected folder contains a west.yml file directly. Please select a parent directory or a different location."));
     return;
   }
 
@@ -314,7 +314,7 @@ async function selectWestConfiguration(baseDir: string, westYmlFiles: string[]) 
     }));
 
     const selectedSubdir = await vscode.window.showQuickPick(subdirOptions, {
-      placeHolder: "Multiple west.yml files found. Select the west manifest:",
+      placeHolder: vscode.l10n.t("Multiple west.yml files found. Select the west manifest:"),
       ignoreFocusOut: true,
     });
 
@@ -348,7 +348,7 @@ export async function workspaceSetupFromGit(context: vscode.ExtensionContext, ws
   await clearWorkspaceSetupContextFlags(context, wsConfig, globalConfig);
 
   const gitUrl = await vscode.window.showInputBox({
-    prompt: "Enter the Git repository URL/clone string",
+    prompt: vscode.l10n.t("Enter the Git repository URL/clone string"),
     placeHolder:
       "https://github.com/user/repo.git or git@github.com:user/repo.git",
     ignoreFocusOut: true,
@@ -362,7 +362,7 @@ export async function workspaceSetupFromGit(context: vscode.ExtensionContext, ws
   const currentDir = wsConfig.rootPath;
   if (!currentDir) {
     notifyError("Git Clone",
-      "No workspace folder open. Please open a folder first."
+      vscode.l10n.t("No workspace folder open. Please open a folder first.")
     );
     return false;
   }
@@ -372,11 +372,11 @@ export async function workspaceSetupFromGit(context: vscode.ExtensionContext, ws
 
   // Start progress tracking for the git clone flow
   const progress = new SetupProgressTracker("Workspace Setup from Git", [
-    { id: 'git-clone', label: 'Cloning repository' },
-    { id: 'python-env', label: 'Setting up Python environment' },
-    { id: 'west-init', label: 'Initializing West workspace' },
-    { id: 'west-update', label: 'Running West update' },
-    { id: 'python-req', label: 'Installing Python requirements' },
+    { id: 'git-clone', label: vscode.l10n.t("Cloning repository") },
+    { id: 'python-env', label: vscode.l10n.t("Setting up Python environment") },
+    { id: 'west-init', label: vscode.l10n.t("Initializing West workspace") },
+    { id: 'west-update', label: vscode.l10n.t("Running West update") },
+    { id: 'python-req', label: vscode.l10n.t("Installing Python requirements") },
   ]);
 
   outputInfo("Git Clone", "Workspace type selected: Zephyr IDE Workspace from Git");
@@ -391,7 +391,7 @@ export async function workspaceSetupFromGit(context: vscode.ExtensionContext, ws
     const inspection = await inspectWorkspaceForGitClone(currentDir, context.extensionPath);
     if (inspection.unexpectedEntries.length > 0) {
       notifyError("Git Clone",
-        `The workspace directory contains files that were not created by the extension. Please choose an empty folder for a git clone setup. Unexpected files: ${inspection.unexpectedEntries.join(', ')}`
+        vscode.l10n.t("The workspace directory contains files that were not created by the extension. Please choose an empty folder for a git clone setup. Unexpected files: {0}", inspection.unexpectedEntries.join(', '))
       );
       return false;
     }
@@ -402,7 +402,7 @@ export async function workspaceSetupFromGit(context: vscode.ExtensionContext, ws
     }
   } catch (err) {
     outputError("Git Clone", `Failed to inspect workspace directory: ${String(err)}`);
-    notifyError("Git Clone", `Failed to inspect or clean extension-created files before clone: ${String(err)}. Please choose a different empty folder or remove the files manually and try again.`);
+    notifyError("Git Clone", vscode.l10n.t("Failed to inspect or clean extension-created files before clone: {0}. Please choose a different empty folder or remove the files manually and try again.", String(err)));
     return false;
   }
 
@@ -412,7 +412,7 @@ export async function workspaceSetupFromGit(context: vscode.ExtensionContext, ws
 
   if (!gitCloneRes) {
     progress.failStep('git-clone', 'Git clone failed');
-    notifyError("Git Clone", "Git clone failed. Check the Zephyr IDE output for details.", { command: cmd });
+    notifyError("Git Clone", vscode.l10n.t("Git clone failed. Check the Zephyr IDE output for details."), { command: cmd });
     return false;
   }
 
@@ -432,7 +432,7 @@ export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext
   // Two-step wizard: git URL, then additional west args. Using MultiStepInput
   // so the Back button appears on step 2 and the user can correct the URL
   // without re-running the command.
-  const title = "West Workspace from Git";
+  const title = vscode.l10n.t("West Workspace from Git");
   const state: { gitUrl?: string; additionalArgs?: string; completed?: boolean } = {};
 
   async function inputGitUrl(input: MultiStepInput) {
@@ -441,7 +441,7 @@ export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext
       step: 1,
       totalSteps: 2,
       value: state.gitUrl ?? "",
-      prompt: "Enter the Git repository URL for the West workspace",
+      prompt: vscode.l10n.t("Enter the Git repository URL for the West workspace"),
       placeholder: "https://github.com/user/repo.git or git@github.com:user/repo.git",
       ignoreFocusOut: true,
       validate: async (value) => validateGitUrl(value),
@@ -456,7 +456,7 @@ export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext
       step: 2,
       totalSteps: 2,
       value: state.additionalArgs ?? "",
-      prompt: "Enter any additional arguments for west init/update (optional)",
+      prompt: vscode.l10n.t("Enter any additional arguments for west init/update (optional)"),
       placeholder: "--mr main",
       ignoreFocusOut: true,
       validate: async () => undefined,
@@ -480,7 +480,7 @@ export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext
   const currentDir = installDir || wsConfig.rootPath;
   if (!currentDir) {
     notifyError("West Git Setup",
-      "No workspace folder open. Please open a folder first."
+      vscode.l10n.t("No workspace folder open. Please open a folder first.")
     );
     return false;
   }
@@ -493,7 +493,7 @@ export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext
   await setSetupState(context, wsConfig, globalConfig, currentDir);
 
   if (!wsConfig.activeSetupState) {
-    notifyError("West Git Setup", "Failed to setup workspace state.");
+    notifyError("West Git Setup", vscode.l10n.t("Failed to setup workspace state."));
     return false;
   }
 
@@ -507,10 +507,10 @@ export async function workspaceSetupFromWestGit(context: vscode.ExtensionContext
 
   // Start progress tracking for the west git flow
   const progress = new SetupProgressTracker("Workspace Setup from West Git", [
-    { id: 'python-env', label: 'Setting up Python environment' },
-    { id: 'west-init', label: 'Initializing West workspace' },
-    { id: 'west-update', label: 'Running West update' },
-    { id: 'python-req', label: 'Installing Python requirements' },
+    { id: 'python-env', label: vscode.l10n.t("Setting up Python environment") },
+    { id: 'west-init', label: vscode.l10n.t("Initializing West workspace") },
+    { id: 'west-update', label: vscode.l10n.t("Running West update") },
+    { id: 'python-req', label: vscode.l10n.t("Installing Python requirements") },
   ]);
 
   // Run post-setup process
@@ -531,7 +531,7 @@ export async function workspaceSetupStandard(context: vscode.ExtensionContext, w
   const currentDir = installDir || wsConfig.rootPath;
   if (!currentDir) {
     notifyError("Standard Setup",
-      "No workspace folder open. Please open a folder first."
+      vscode.l10n.t("No workspace folder open. Please open a folder first.")
     );
     return false;
   }
@@ -543,7 +543,7 @@ export async function workspaceSetupStandard(context: vscode.ExtensionContext, w
   await setSetupState(context, wsConfig, globalConfig, currentDir);
 
   if (!wsConfig.activeSetupState) {
-    notifyError("Standard Setup", "Failed to setup workspace state.");
+    notifyError("Standard Setup", vscode.l10n.t("Failed to setup workspace state."));
     return false;
   }
 
@@ -572,12 +572,12 @@ async function handleExternalInstallation(
       return false;
     }
     if (extWestSelection.failed) {
-      notifyError("External Installation", "External installation configuration cancelled or failed.");
+      notifyError("External Installation", vscode.l10n.t("External installation configuration cancelled or failed."));
       return false;
     }
     return !!(await postWorkspaceSetup(context, wsConfig, globalConfig, externalPath, extWestSelection));
   } else {
-    void vscode.window.showInformationMessage(`Workspace linked to external Zephyr installation at: ${externalPath}`);
+    void vscode.window.showInformationMessage(vscode.l10n.t("Workspace linked to external Zephyr installation at: {0}", externalPath));
     void vscode.commands.executeCommand('zephyr-ide.update-web-view');
   }
 
@@ -595,7 +595,7 @@ export async function workspaceSetupFromCurrentDirectory(context: vscode.Extensi
   }
   if (!installDir) {
     notifyError("Directory Setup",
-      "No workspace folder open. Please open a folder first."
+      vscode.l10n.t("No workspace folder open. Please open a folder first.")
     );
     return false;
   }
@@ -713,7 +713,7 @@ export async function manageWorkspaces(context: vscode.ExtensionContext, wsConfi
   const installOptions = await getExistingInstallationPicks(wsConfig, globalConfig);
 
   if (!installOptions || installOptions.length === 0) {
-    void vscode.window.showInformationMessage("No existing Zephyr installations found.");
+    void vscode.window.showInformationMessage(vscode.l10n.t("No existing Zephyr installations found."));
     return;
   }
 
@@ -724,7 +724,7 @@ export async function manageWorkspaces(context: vscode.ExtensionContext, wsConfi
       if (!fs.pathExistsSync(installPath)) {
         invalidInstallations.push({
           label: `$(error) ${path.basename(installPath)}`,
-          description: "Installation path no longer exists",
+          description: vscode.l10n.t("Installation path no longer exists"),
           detail: installPath,
         });
       }
@@ -735,7 +735,7 @@ export async function manageWorkspaces(context: vscode.ExtensionContext, wsConfi
 
   // Two-step wizard: pick installation, then action. Using MultiStepInput so
   // that Back on the action step returns to installation selection.
-  const title = "Manage Installations";
+  const title = vscode.l10n.t("Manage Installations");
   const wizardState: { installPath?: string; installName?: string; action?: string } = {};
 
   async function pickInstallation(input: MultiStepInput) {
@@ -743,7 +743,7 @@ export async function manageWorkspaces(context: vscode.ExtensionContext, wsConfi
       title,
       step: 1,
       totalSteps: 2,
-      placeholder: "Select an installation to manage",
+      placeholder: vscode.l10n.t("Select an installation to manage"),
       ignoreFocusOut: true,
       items: allOptions,
     });
@@ -760,19 +760,19 @@ export async function manageWorkspaces(context: vscode.ExtensionContext, wsConfi
     const actionOptions: vscode.QuickPickItem[] = [];
     if (isValidPath) {
       actionOptions.push({
-        label: "$(tools) Reconfigure",
-        description: "Reconfigure this installation",
+        label: vscode.l10n.t("$(tools) Reconfigure"),
+        description: vscode.l10n.t("Reconfigure this installation"),
         detail: "reconfigure",
       });
       actionOptions.push({
-        label: "$(tools) West Update",
-        description: "Run west update and reinstall requirements",
+        label: vscode.l10n.t("$(tools) West Update"),
+        description: vscode.l10n.t("Run west update and reinstall requirements"),
         detail: "west-update",
       });
     }
     actionOptions.push({
-      label: "$(trash) Delete",
-      description: "Remove this installation from the registry",
+      label: vscode.l10n.t("$(trash) Delete"),
+      description: vscode.l10n.t("Remove this installation from the registry"),
       detail: "delete",
     });
 
@@ -780,7 +780,7 @@ export async function manageWorkspaces(context: vscode.ExtensionContext, wsConfi
       title,
       step: 2,
       totalSteps: 2,
-      placeholder: `What would you like to do with "${wizardState.installName}"?`,
+      placeholder: vscode.l10n.t("What would you like to do with \"{0}\"?", String(wizardState.installName)),
       ignoreFocusOut: true,
       items: actionOptions,
     });
@@ -812,7 +812,7 @@ export async function handleReconfigureInstallation(context: vscode.ExtensionCon
   await setSetupState(context, wsConfig, globalConfig, installPath);
 
   if (!wsConfig.activeSetupState) {
-    notifyError("Manage Installations", "Failed to load installation state for reconfiguration.");
+    notifyError("Manage Installations", vscode.l10n.t("Failed to load installation state for reconfiguration."));
     return;
   }
 
@@ -826,28 +826,28 @@ export async function handleReconfigureInstallation(context: vscode.ExtensionCon
     return;
   }
   if (westSelection.failed) {
-    notifyError("Manage Installations", "Reconfiguration cancelled or failed.");
+    notifyError("Manage Installations", vscode.l10n.t("Reconfiguration cancelled or failed."));
     return;
   }
 
   // Run post-setup process to apply the reconfiguration
   const result = await postWorkspaceSetup(context, wsConfig, globalConfig, installPath, westSelection);
   if (result) {
-    void vscode.window.showInformationMessage(`Installation "${path.basename(installPath)}" has been reconfigured successfully.`);
+    void vscode.window.showInformationMessage(vscode.l10n.t("Installation \"{0}\" has been reconfigured successfully.", path.basename(installPath)));
   } else {
-    notifyError("Manage Installations", `Failed to reconfigure installation "${path.basename(installPath)}".`);
+    notifyError("Manage Installations", vscode.l10n.t("Failed to reconfigure installation \"{0}\".", path.basename(installPath)));
   }
 }
 
 async function handleDeleteInstallation(context: vscode.ExtensionContext, globalConfig: GlobalConfig, installPath: string, installName: string) {
   // Confirm deletion
   const confirm = await vscode.window.showWarningMessage(
-    `Are you sure you want to remove "${installName}" from the installation registry?\n\nPath: ${installPath}\n\nNote: This will only remove it from the registry, not delete the files.`,
-    "Remove from Registry",
-    "Cancel"
+    vscode.l10n.t("Are you sure you want to remove \"{0}\" from the installation registry?\n\nPath: {1}\n\nNote: This will only remove it from the registry, not delete the files.", installName, installPath),
+    vscode.l10n.t("Remove from Registry"),
+    vscode.l10n.t("Cancel")
   );
 
-  if (confirm !== "Remove from Registry") {
+  if (confirm !== vscode.l10n.t("Remove from Registry")) {
     return;
   }
 
@@ -858,7 +858,7 @@ async function handleDeleteInstallation(context: vscode.ExtensionContext, global
     // Save updated global config
     await setGlobalState(context, globalConfig);
 
-    void vscode.window.showInformationMessage(`Installation "${installName}" has been removed from the registry.`);
+    void vscode.window.showInformationMessage(vscode.l10n.t("Installation \"{0}\" has been removed from the registry.", installName));
     outputInfo("Manage Installations", `Removed installation from registry: ${installPath}`);
   }
 }
@@ -868,30 +868,30 @@ async function handleDeleteInstallation(context: vscode.ExtensionContext, global
 export async function showWorkspaceSetupPicker(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, globalConfig: GlobalConfig) {
   const setupOptions = [
     {
-      label: "$(repo-clone) Zephyr IDE Workspace from Git",
+      label: vscode.l10n.t("$(repo-clone) Zephyr IDE Workspace from Git"),
       description:
-        "Clone and import a Zephyr IDE workspace from a Git repository",
+        vscode.l10n.t("Clone and import a Zephyr IDE workspace from a Git repository"),
       id: "zephyr-ide-git",
     },
     {
-      label: "$(git-branch) West Workspace from Git",
-      description: "Clone a standard west manifest workspace from Git",
+      label: vscode.l10n.t("$(git-branch) West Workspace from Git"),
+      description: vscode.l10n.t("Clone a standard west manifest workspace from Git"),
       id: "west-git",
     },
     {
-      label: "$(folder-opened) Open Current Directory",
-      description: "Initialize current directory as Zephyr IDE workspace",
+      label: vscode.l10n.t("$(folder-opened) Open Current Directory"),
+      description: vscode.l10n.t("Initialize current directory as Zephyr IDE workspace"),
       id: "current-directory",
     },
     {
-      label: "$(package) Standard Workspace",
-      description: "Create workspace with local Zephyr installation",
+      label: vscode.l10n.t("$(package) Standard Workspace"),
+      description: vscode.l10n.t("Create workspace with local Zephyr installation"),
       id: "standard",
     },
   ];
 
   const selectedOption = await vscode.window.showQuickPick(setupOptions, {
-    placeHolder: "Select workspace setup option",
+    placeHolder: vscode.l10n.t("Select workspace setup option"),
     ignoreFocusOut: true,
   });
 
@@ -919,11 +919,11 @@ export async function showWorkspaceSetupPicker(context: vscode.ExtensionContext,
         break;
       default:
         notifyError("Workspace Setup",
-          "Unknown workspace setup option selected"
+          vscode.l10n.t("Unknown workspace setup option selected")
         );
     }
   } catch (error) {
-    notifyError("Workspace Setup", `Workspace setup failed: ${error}`);
+    notifyError("Workspace Setup", vscode.l10n.t("Workspace setup failed: {0}", String(error)));
   }
 }
 
@@ -936,7 +936,7 @@ export async function workspaceSetupFromExternalDirectory(context: vscode.Extens
   showOutput();
 
   const folderUris = await vscode.window.showOpenDialog({
-    openLabel: "Select Folder for Zephyr Installation",
+    openLabel: vscode.l10n.t("Select Folder for Zephyr Installation"),
     canSelectFiles: false,
     canSelectFolders: true,
     canSelectMany: false,
@@ -993,7 +993,7 @@ export async function showCreateWorkspaceMenu(context: vscode.ExtensionContext, 
     // Case 1: Current workspace is already registered - directly open folder selector
     if (isCurrentFolderRegistered) {
       const folderUris = await vscode.window.showOpenDialog({
-        openLabel: "Select Folder for New Zephyr Installation",
+        openLabel: vscode.l10n.t("Select Folder for New Zephyr Installation"),
         canSelectFiles: false,
         canSelectFolders: true,
         canSelectMany: false
@@ -1008,19 +1008,19 @@ export async function showCreateWorkspaceMenu(context: vscode.ExtensionContext, 
     else if (currentFolder) {
       const menuOptions: vscode.QuickPickItem[] = [
         {
-          label: "$(folder) Use Current Folder",
-          description: "Use the current workspace folder as a Zephyr installation",
+          label: vscode.l10n.t("$(folder) Use Current Folder"),
+          description: vscode.l10n.t("Use the current workspace folder as a Zephyr installation"),
           detail: "current-folder"
         },
         {
-          label: "$(folder-opened) Select Other Folder",
-          description: "Choose a different folder for Zephyr installation",
+          label: vscode.l10n.t("$(folder-opened) Select Other Folder"),
+          description: vscode.l10n.t("Choose a different folder for Zephyr installation"),
           detail: "other-folder"
         }
       ];
 
       const selected = await vscode.window.showQuickPick(menuOptions, {
-        placeHolder: "Create Zephyr workspace",
+        placeHolder: vscode.l10n.t("Create Zephyr workspace"),
         ignoreFocusOut: true
       });
 
@@ -1034,7 +1034,7 @@ export async function showCreateWorkspaceMenu(context: vscode.ExtensionContext, 
       } else {
         // Select other folder
         const folderUris = await vscode.window.showOpenDialog({
-          openLabel: "Select Folder for New Zephyr Installation",
+          openLabel: vscode.l10n.t("Select Folder for New Zephyr Installation"),
           canSelectFiles: false,
           canSelectFolders: true,
           canSelectMany: false
@@ -1049,7 +1049,7 @@ export async function showCreateWorkspaceMenu(context: vscode.ExtensionContext, 
     // Case 3: No workspace folder open - just open folder selector
     else {
       const folderUris = await vscode.window.showOpenDialog({
-        openLabel: "Select Folder for New Zephyr Installation",
+        openLabel: vscode.l10n.t("Select Folder for New Zephyr Installation"),
         canSelectFiles: false,
         canSelectFolders: true,
         canSelectMany: false
@@ -1074,17 +1074,17 @@ export async function showCreateWorkspaceMenu(context: vscode.ExtensionContext, 
         return;
       }
       if (westSelection.failed) {
-        notifyError("Create Workspace", "Workspace configuration cancelled or failed.");
+        notifyError("Create Workspace", vscode.l10n.t("Workspace configuration cancelled or failed."));
         return;
       }
       await postWorkspaceSetup(context, wsConfig, globalConfig, chosenPath, westSelection);
     } else {
       // Installation already configured, just activate it
-      void vscode.window.showInformationMessage(`Workspace activated: ${path.basename(chosenPath)}`);
+      void vscode.window.showInformationMessage(vscode.l10n.t("Workspace activated: {0}", path.basename(chosenPath)));
       void vscode.commands.executeCommand('zephyr-ide.update-web-view');
     }
   } catch (error) {
-    notifyError("Create Workspace", `Failed to create/select workspace: ${error}`);
+    notifyError("Create Workspace", vscode.l10n.t("Failed to create/select workspace: {0}", String(error)));
   }
 }
 
@@ -1139,7 +1139,7 @@ export async function westConfig(
   const baseDir = baseDirOverride || wsConfig.activeSetupState?.setupPath || wsConfig.rootPath;
   if (!baseDir) {
     notifyError("West Configuration",
-      "No workspace folder open. Please open a folder first."
+      vscode.l10n.t("No workspace folder open. Please open a folder first.")
     );
     return { cancelled: true, option: null };
   }
@@ -1156,8 +1156,8 @@ export async function westConfig(
   // Option 1: Use .west folder (if it exists and option is enabled)
   if (westDiscovery.hasWestFolder && configOptions.showUseWestFolder) {
     setupOptions.push({
-      label: "$(folder) Use .west folder (Recommended)",
-      description: "Found existing .west folder in current directory",
+      label: vscode.l10n.t("$(folder) Use .west folder (Recommended)"),
+      description: vscode.l10n.t("Found existing .west folder in current directory"),
       id: "use-west-folder",
     });
   }
@@ -1170,8 +1170,8 @@ export async function westConfig(
       : "subdirectories";
 
     setupOptions.push({
-      label: "$(file-code) Use west.yml file",
-      description: `Found ${fileCount} west.yml file(s) in ${subDirStr}`,
+      label: vscode.l10n.t("$(file-code) Use west.yml file"),
+      description: vscode.l10n.t("Found {0} west.yml file(s) in {1}", fileCount, subDirStr),
       id: "use-west-yml",
     });
   }
@@ -1179,8 +1179,8 @@ export async function westConfig(
   // Option 3: Create new west.yml from template (if option is enabled)
   if (configOptions.showCreateNewWestYml) {
     setupOptions.push({
-      label: "$(new-file) Create new west.yml",
-      description: "Create west.yml from template using west selector",
+      label: vscode.l10n.t("$(new-file) Create new west.yml"),
+      description: vscode.l10n.t("Create west.yml from template using west selector"),
       id: "create-new-west-yml",
     });
   }
@@ -1188,30 +1188,30 @@ export async function westConfig(
   // Option 4: Use external Zephyr installation (if available and option is enabled)
   if (configOptions.showUseExternalInstallation) { // always allow; submenu will handle availability
     setupOptions.push({
-      label: "$(link) Use external Zephyr installation",
-      description: "Use an existing Zephyr installation from another workspace",
+      label: vscode.l10n.t("$(link) Use external Zephyr installation"),
+      description: vscode.l10n.t("Use an existing Zephyr installation from another workspace"),
       id: "use-external-installation",
     });
   }
 
   // Option 5: Mark workspace as already set up
   setupOptions.push({
-    label: "$(check) Mark workspace as already set up",
-    description: "Skip setup steps and mark the workspace as initialized",
+    label: vscode.l10n.t("$(check) Mark workspace as already set up"),
+    description: vscode.l10n.t("Skip setup steps and mark the workspace as initialized"),
     id: "mark-as-setup",
   });
 
   // If no options are available, show error
   if (setupOptions.length === 0) {
     notifyError("West Configuration",
-      "No west configuration options available. Consider creating a new west.yml file or opening a different directory."
+      vscode.l10n.t("No west configuration options available. Consider creating a new west.yml file or opening a different directory.")
     );
     return { cancelled: true, option: null };
   }
 
   // Show options to user
   const selectedOption = await vscode.window.showQuickPick(setupOptions, {
-    placeHolder: "How would you like to configure west for this workspace?",
+    placeHolder: vscode.l10n.t("How would you like to configure west for this workspace?"),
     ignoreFocusOut: true,
   });
 
@@ -1271,15 +1271,15 @@ export async function westConfig(
       const externalOptions: vscode.QuickPickItem[] = [];
 
       externalOptions.push({
-        label: "$(folder-opened) New Installation",
-        description: "Create a new Zephyr installation in a chosen folder",
+        label: vscode.l10n.t("$(folder-opened) New Installation"),
+        description: vscode.l10n.t("Create a new Zephyr installation in a chosen folder"),
         detail: "new-install"
       });
 
       const existingInstalls = await getExistingInstallationPicks(wsConfig, globalConfig);
       if (existingInstalls && existingInstalls.length > 0) {
         externalOptions.push({
-          label: "──────── Existing Installations ────────",
+          label: vscode.l10n.t("──────── Existing Installations ────────"),
           description: "",
           detail: "__separator__"
         });
@@ -1294,7 +1294,7 @@ export async function westConfig(
 
       const pickedExternal = await vscode.window.showQuickPick(
         externalOptions.filter(o => o.detail !== "__separator__"),
-        { placeHolder: "Select or create an external Zephyr installation", ignoreFocusOut: true }
+        { placeHolder: vscode.l10n.t("Select or create an external Zephyr installation"), ignoreFocusOut: true }
       );
 
       if (!pickedExternal) {
@@ -1305,7 +1305,7 @@ export async function westConfig(
       let needsSetup = false;
       if (chosenPath === "new-install") {
         const folderUris = await vscode.window.showOpenDialog({
-          openLabel: "Select Folder for New Zephyr Installation",
+          openLabel: vscode.l10n.t("Select Folder for New Zephyr Installation"),
           canSelectFiles: false,
           canSelectFolders: true,
           canSelectMany: false,
@@ -1333,7 +1333,7 @@ export async function westConfig(
       break;
 
     default:
-      notifyError("West Configuration", "Unknown west configuration option selected");
+      notifyError("West Configuration", vscode.l10n.t("Unknown west configuration option selected"));
       return { cancelled: true, option: null };
   }
 
@@ -1353,13 +1353,13 @@ export async function selectExistingWestWorkspace(
   const installOptions = await getExistingInstallationPicks(wsConfig, globalConfig);
 
   if (!installOptions || installOptions.length === 0) {
-    void vscode.window.showInformationMessage("No existing Zephyr installations found.");
+    void vscode.window.showInformationMessage(vscode.l10n.t("No existing Zephyr installations found."));
     return false;
   }
 
   // Show quickpick to user
   const selectedInstall = await vscode.window.showQuickPick(installOptions, {
-    placeHolder: "Select an existing Zephyr installation to use for this workspace",
+    placeHolder: vscode.l10n.t("Select an existing Zephyr installation to use for this workspace"),
     ignoreFocusOut: true,
   });
 
@@ -1372,7 +1372,7 @@ export async function selectExistingWestWorkspace(
   // Load the setup state from the selected installation
   const setupState = await loadExternalSetupState(context, globalConfig, installPath);
   if (!setupState) {
-    notifyError("Workspace Link", `Failed to load setup state from: ${installPath}`);
+    notifyError("Workspace Link", vscode.l10n.t("Failed to load setup state from: {0}", installPath));
     return false;
   }
 
@@ -1380,7 +1380,7 @@ export async function selectExistingWestWorkspace(
   await setSetupState(context, wsConfig, globalConfig, installPath);
 
   if (!wsConfig.activeSetupState) {
-    notifyError("Workspace Link", `Failed to initialize workspace from: ${installPath}`);
+    notifyError("Workspace Link", vscode.l10n.t("Failed to initialize workspace from: {0}", installPath));
     return false;
   }
 
@@ -1393,7 +1393,7 @@ export async function selectExistingWestWorkspace(
   await setWorkspaceState(context, wsConfig);
 
   void vscode.window.showInformationMessage(
-    `Workspace linked to existing Zephyr installation at: ${installPath}`
+    vscode.l10n.t("Workspace linked to existing Zephyr installation at: {0}", installPath)
   );
 
   outputInfo("Workspace Link", `Linked to existing installation: ${installPath}`);

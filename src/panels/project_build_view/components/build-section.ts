@@ -15,6 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import { panelText } from "../../webview_shared/panel-text";
 import { html, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { ZephyrLitElement } from "../../webview_shared/lit-base";
@@ -192,7 +193,7 @@ export class BuildSection extends ZephyrLitElement {
     const kindLabel = kind === "cmake" ? "CMake" : "west";
     return html`
       ${args.length === 0
-        ? html`<div class="file-list-empty">No ${kindLabel} arguments</div>`
+        ? html`<div class="file-list-empty">${panelText("No {0} arguments", kindLabel)}</div>`
         : args.map(
           (arg, i) => html`
               <div class="build-arg-row">
@@ -200,14 +201,14 @@ export class BuildSection extends ZephyrLitElement {
                   @input=${this._onArgInput}
                   @focusout=${(e: FocusEvent) => this._onArgBlur(e, kind, i)}
                   @keydown=${(e: KeyboardEvent) => this._onArgKeydown(e, kind, i)} />
-                <vscode-button appearance="icon" icon="trash" title="Remove"
+                <vscode-button appearance="icon" icon="trash" title="${panelText("Remove")}"
                   @click=${() => this._removeBuildArg(kind, i)}>
                 </vscode-button>
               </div>
             `,
         )}
       <div class="build-arg-row">
-        <input class="build-arg-input" type="text" placeholder="Add ${kindLabel} argument…"
+        <input class="build-arg-input" type="text" placeholder="${panelText("Add {0} argument…", kindLabel)}"
           @input=${this._onArgInput}
           @keydown=${(e: KeyboardEvent) => this._onArgKeydown(e, kind, -1)} />
       </div>
@@ -221,30 +222,30 @@ export class BuildSection extends ZephyrLitElement {
     if (!hint) { return html``; }
     return html`
       <div class="runners-yaml-hint">
-        <span class="runner-level-header">runners.yaml defaults <span class="runner-level-hint">(read-only, from last build)</span></span>
+        <span class="runner-level-header">${panelText("runners.yaml defaults")} <span class="runner-level-hint">${panelText("(read-only, from last build)")}</span></span>
         <div class="runner-hint-row">
-          <span class="runner-field-label">Flash</span>
+          <span class="runner-field-label">${panelText("Flash")}</span>
           <span class="runner-hint-value">${hint.flashRunner ?? "—"}</span>
         </div>
         <div class="runner-hint-row">
-          <span class="runner-field-label">Debug</span>
+          <span class="runner-field-label">${panelText("Debug")}</span>
           <span class="runner-hint-value">${hint.debugRunner ?? "—"}</span>
         </div>
         <div class="runner-hint-row">
-          <span class="runner-field-label">Available</span>
+          <span class="runner-field-label">${panelText("Available")}</span>
           <span class="runner-hint-value">${hint.availableRunners.join(", ") || "—"}</span>
         </div>
         ${hint.sysbuildImage
         ? html`
               <div class="runner-hint-row">
-                <span class="runner-field-label">Sysbuild image</span>
+                <span class="runner-field-label">${panelText("Sysbuild image")}</span>
                 <span class="runner-hint-value">${hint.sysbuildImage}</span>
               </div>`
         : nothing}
         <div class="runner-hint-row">
-          <span class="runner-field-label">File</span>
+          <span class="runner-field-label">${panelText("File")}</span>
           <span class="runner-hint-value clickable"
-            title="Open runners.yaml in editor"
+            title="${panelText("Open runners.yaml in editor")}"
             @click=${() => this.postCommand("openFile", { file: hint.runnersYamlPath })}>
             ${hint.runnersYamlPath}
           </span>
@@ -257,35 +258,33 @@ export class BuildSection extends ZephyrLitElement {
     const b = this.buildDetails;
     const activeProfile = b.activeProfile;
     const slots = b.slotBinds;
-    const localSuffix = b.activeProfileScope === "local" ? html` <span class="bind-local-badge" title="Local override — not committed to zephyr-ide.json">(local)</span>` : nothing;
+    const localSuffix = b.activeProfileScope === "local" ? html` <span class="bind-local-badge" title="${panelText("Local override — not committed to zephyr-ide.json")}">${panelText("(local)")}</span>` : nothing;
     const activeLabel = activeProfile
       ? html`<strong>${activeProfile}</strong>${localSuffix}`
-      : html`<em>(none — using runners.yaml defaults)</em>`;
+      : html`<em>${panelText("(none — using runners.yaml defaults)")}</em>`;
     return html`
       <div class="launch-help">
-        <span class="runner-level-header">Runner Profile</span>
+        <span class="runner-level-header">${panelText("Runner Profile")}</span>
         <span class="runner-level-hint">
-          A Runner Profile bundles three slot binds (<strong>flash</strong>, <strong>debug</strong>, <strong>attach</strong>)
-          for this build. Each bind picks Auto (runners.yaml), a Zephyr runner with extra args, or a launch.json entry
-          (debug / attach only). Per-build override args are appended after the profile's runner args.
+          ${panelText("A Runner Profile bundles three slot binds (")}<strong>${panelText("flash")}</strong>, <strong>${panelText("debug")}</strong>, <strong>${panelText("attach")}</strong>${panelText(") for this build. Each bind picks Auto (runners.yaml), a Zephyr runner with extra args, or a launch.json entry (debug / attach only). Per-build override args are appended after the profile's runner args.")}
         </span>
       </div>
       <div class="runner-card">
         <div class="runner-card-header">
           <span class="runner-name">
-            <i class="codicon codicon-debug-alt-small"></i> Active profile: ${activeLabel}
+            <i class="codicon codicon-debug-alt-small"></i> ${panelText("Active profile:")} ${activeLabel}
           </span>
-          <vscode-button appearance="secondary" icon="chip" title="Select a named Runner Profile (stored as local override; does not modify zephyr-ide.json)"
+          <vscode-button appearance="secondary" icon="chip" title="${panelText("Select a named Runner Profile (stored as local override; does not modify zephyr-ide.json)")}"
             @click=${() => this.postCommand("selectActiveProfile", { project: this.projectName, build: b.name })}>
-            Profile…
+            ${panelText("Profile…")}
           </vscode-button>
-          <vscode-button appearance="secondary" icon="target" title="Set a local per-slot runner without using a profile (stored locally, not committed)"
+          <vscode-button appearance="secondary" icon="target" title="${panelText("Set a local per-slot runner without using a profile (stored locally, not committed)")}"
             @click=${() => this.postCommand("selectLocalBind", { project: this.projectName, build: b.name })}>
-            Local Bind…
+            ${panelText("Local Bind…")}
           </vscode-button>
-          <vscode-button appearance="secondary" icon="list-tree" title="Open Runner Profile management panel"
+          <vscode-button appearance="secondary" icon="list-tree" title="${panelText("Open Runner Profile management panel")}"
             @click=${() => this.postCommand("openRunnerProfilePanel")}>
-            Manage…
+            ${panelText("Manage…")}
           </vscode-button>
         </div>
         <div class="runner-binds-grid">
@@ -307,10 +306,10 @@ export class BuildSection extends ZephyrLitElement {
   ) {
     const canOverride = slot.kind === "west-flash" || slot.kind === "west-debug";
     const overrideBadge = slot.hasOverride
-      ? html`<span class="bind-override-badge" title="Per-build extra args override">override</span>`
+      ? html`<span class="bind-override-badge" title="${panelText("Per-build extra args override")}">${panelText("override")}</span>`
       : nothing;
     const localBadge = slot.localOverride !== undefined
-      ? html`<span class="bind-local-badge" title="Local bind — not committed; use Local Bind… to change or clear">(local)</span>`
+      ? html`<span class="bind-local-badge" title="${panelText("Local bind — not committed; use Local Bind… to change or clear")}">${panelText("(local)")}</span>`
       : nothing;
 
     return html`
@@ -326,7 +325,7 @@ export class BuildSection extends ZephyrLitElement {
         ${slot.localOverride !== undefined
         ? html`
               <vscode-button appearance="icon" icon="close"
-                title="Clear local bind — revert ${label} to profile / runners.yaml default"
+                title="${panelText("Clear local bind — revert")} ${label} ${panelText("to profile / runners.yaml default")}"
                 @click=${() => this.postCommand("clearLocalBind", { slot: slot.slot, project: this.projectName, build: this.buildDetails.name })}>
               </vscode-button>`
         : nothing}
@@ -336,13 +335,13 @@ export class BuildSection extends ZephyrLitElement {
                 icon=${slot.hasOverride ? "edit" : "add"}
                 title=${slot.hasOverride
             ? `Edit extra args (current: ${slot.overrideExtraArgs})`
-            : "Add per-build extra args"}
+            : panelText("Add per-build extra args")}
                 @click=${() => this._editSlotExtraArgs(slot)}>
               </vscode-button>
               ${slot.hasOverride
             ? html`
                     <vscode-button appearance="icon" icon="close"
-                      title="Clear per-build override"
+                      title="${panelText("Clear per-build override")}"
                       @click=${() => this._clearSlotExtraArgs(slot)}>
                     </vscode-button>`
             : nothing}`
@@ -374,7 +373,7 @@ export class BuildSection extends ZephyrLitElement {
     if (!b) { return nothing; }
 
     const statusClass = this.isActive ? "status-built" : "status-not-built";
-    const statusLabel = this.isActive ? "Active" : "Inactive";
+    const statusLabel = this.isActive ? panelText("Active") : panelText("Inactive");
     const kconfigCount = b.confFiles.config.length;
     const overlayCount = b.confFiles.overlay.length;
     const westArgCount = b.westBuildArgs.length;
@@ -393,12 +392,12 @@ export class BuildSection extends ZephyrLitElement {
             <span class="build-status-badge ${statusClass}">${statusLabel}</span>
           </div>
           <div class="build-card-actions">
-            ${this._renderActionButton('build', 'play', 'Build', 'Build')}
-            ${this._renderActionButton('buildPristine', 'refresh', 'Pristine', 'Pristine Build', 'secondary')}
-            ${this._renderActionButton('flash', 'zap', 'Flash', 'Flash', 'secondary')}
-            ${this._renderActionButton('debug', 'debug-alt', 'Debug', 'Debug', 'secondary')}
-            ${this._renderActionButton('runDashboard', 'graph', 'Report', 'Dashboard Report', 'secondary')}
-            <vscode-button appearance="icon" icon="trash" title="Remove Build"
+            ${this._renderActionButton('build', 'play', panelText("Build"), panelText("Build"))}
+            ${this._renderActionButton('buildPristine', 'refresh', panelText("Pristine"), panelText("Pristine Build"), 'secondary')}
+            ${this._renderActionButton('flash', 'zap', panelText("Flash"), panelText("Flash"), 'secondary')}
+            ${this._renderActionButton('debug', 'debug-alt', panelText("Debug"), panelText("Debug"), 'secondary')}
+            ${this._renderActionButton('runDashboard', 'graph', panelText("Report"), panelText("Dashboard Report"), 'secondary')}
+            <vscode-button appearance="icon" icon="trash" title="${panelText("Remove Build")}"
               ?disabled=${this.activeAction !== null}
               @click=${() => this.postCommand("removeBuild", { project: this.projectName, build: b.name })}>
             </vscode-button>
@@ -407,20 +406,20 @@ export class BuildSection extends ZephyrLitElement {
 
         <div class="build-info-strip">
           <span class="info-item">
-            <span class="info-item-label">Board:</span>
+            <span class="info-item-label">${panelText("Board:")}</span>
             <span class="info-item-value">${b.boardDisplayName}</span>
           </span>
           ${boardDir
         ? html`
                 <span class="info-item">
-                  <span class="info-item-label">Dir:</span>
+                  <span class="info-item-label">${panelText("Dir:")}</span>
                   <span class="info-item-value clickable"
                     @click=${() => this.postCommand("openFolder", { file: b.resolvedBoardPath ?? boardDir })}>${boardDir}</span>
                 </span>
               `
         : nothing}
           <span class="info-item">
-            <span class="info-item-label">Optimization:</span>
+            <span class="info-item-label">${panelText("Optimization:")}</span>
             <span class="info-item-value">${b.compilerOptimization ?? "not set"}</span>
           </span>
         </div>
@@ -448,13 +447,13 @@ export class BuildSection extends ZephyrLitElement {
           html`
               <div class="variables-section">
                 <div class="section-row-header">
-                  <span class="section-row-title">West Build Arguments</span>
+                  <span class="section-row-title">${panelText("West Build Arguments")}</span>
                 </div>
                 ${this._renderBuildArgs(b.westBuildArgs, "west")}
               </div>
               <div class="variables-section">
                 <div class="section-row-header">
-                  <span class="section-row-title">CMake Arguments</span>
+                  <span class="section-row-title">${panelText("CMake Arguments")}</span>
                 </div>
                 ${this._renderBuildArgs(b.westBuildCMakeArgs, "cmake")}
               </div>
@@ -468,8 +467,8 @@ export class BuildSection extends ZephyrLitElement {
           html`
               <div class="variables-section">
                 <div class="section-row-header">
-                  <span class="section-row-title">Build variables</span>
-                  <vscode-button appearance="icon" icon="question" title="Variable help"
+                  <span class="section-row-title">${panelText("Build variables")}</span>
+                  <vscode-button appearance="icon" icon="question" title="${panelText("Variable help")}"
                     @click=${() => { this._varsHelpVisible = !this._varsHelpVisible; }}>
                   </vscode-button>
                 </div>

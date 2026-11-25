@@ -15,6 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import { webviewMessages } from "../webview-messages";
 import * as vscode from "vscode";
 import * as path from "upath";
 import { WorkspaceConfig, GlobalConfig, formatZephyrVersion, isActiveWorkspaceInitialized } from "../../setup_utilities/types";
@@ -54,7 +55,7 @@ export class SetupPanel {
 
     const panel = vscode.window.createWebviewPanel(
       "zephyrIDESetup",
-      "Zephyr IDE: Overview",
+      vscode.l10n.t("Zephyr IDE: Overview"),
       column || vscode.ViewColumn.One,
       {
         enableScripts: true,
@@ -196,7 +197,7 @@ export class SetupPanel {
     try {
       await vscode.commands.executeCommand(command);
     } catch (error) {
-      notifyError(label, `Failed: ${error}`);
+      notifyError(label, vscode.l10n.t("Failed: {0}", String(error)));
     }
   }
 
@@ -210,12 +211,12 @@ export class SetupPanel {
     }
 
     const confirm = await vscode.window.showWarningMessage(
-      `Are you sure you want to remove "${installName}" from the installation registry?\n\nPath: ${installPath}\n\nNote: This will only remove it from the registry, not delete the files.`,
-      "Remove from Registry",
-      "Cancel"
+      vscode.l10n.t("Are you sure you want to remove \"{0}\" from the installation registry?\n\nPath: {1}\n\nNote: This will only remove it from the registry, not delete the files.", installName, installPath),
+      vscode.l10n.t("Remove from Registry"),
+      vscode.l10n.t("Cancel")
     );
 
-    if (confirm !== "Remove from Registry") {
+    if (confirm !== vscode.l10n.t("Remove from Registry")) {
       return;
     }
 
@@ -237,7 +238,7 @@ export class SetupPanel {
       await handleReconfigureInstallation(this._context, this.currentWsConfig, this.currentGlobalConfig, installPath);
       this.updateContent(this.currentWsConfig, this.currentGlobalConfig);
     } catch (error) {
-      notifyError("Reconfigure", `Failed: ${error}`);
+      notifyError("Reconfigure", vscode.l10n.t("Failed: {0}", String(error)));
     }
   }
 
@@ -245,7 +246,7 @@ export class SetupPanel {
     try {
       await vscode.commands.executeCommand("zephyr-ide.west-update");
     } catch (error) {
-      notifyError("West Update", `Failed: ${error}`);
+      notifyError("West Update", vscode.l10n.t("Failed: {0}", String(error)));
     }
   }
 
@@ -260,7 +261,7 @@ export class SetupPanel {
         await vscode.commands.executeCommand("zephyr-ide.update-web-view");
       }
     } catch (error) {
-      notifyError("Remove Project", `Failed: ${error}`);
+      notifyError("Remove Project", vscode.l10n.t("Failed: {0}", String(error)));
     }
   }
 
@@ -270,10 +271,10 @@ export class SetupPanel {
     }
     try {
       await clearSetupState(this._context, this.currentWsConfig);
-      void vscode.window.showInformationMessage('Active workspace deactivated');
+      void vscode.window.showInformationMessage(vscode.l10n.t("Active workspace deactivated"));
       void vscode.commands.executeCommand('zephyr-ide.update-web-view');
     } catch (error) {
-      notifyError('Deactivate Workspace', `Failed: ${error}`);
+      notifyError('Deactivate Workspace', vscode.l10n.t("Failed: {0}", String(error)));
     }
   }
 
@@ -409,7 +410,7 @@ export class SetupPanel {
     );
 
     return `<!DOCTYPE html>
-        <html lang="en">
+        <html lang="${vscode.env.language}">
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -419,6 +420,7 @@ export class SetupPanel {
             <link rel="stylesheet" type="text/css" href="${codiconUri}" id="vscode-codicon-stylesheet">
         </head>
         <body>
+          ${webviewMessages(nonce)}
             <setup-app></setup-app>
             <script nonce="${nonce}" src="${jsUri}"></script>
         </body>

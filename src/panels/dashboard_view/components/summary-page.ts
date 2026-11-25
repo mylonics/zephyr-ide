@@ -4,6 +4,7 @@ Author Rijesh Augustine
 SPDX-License-Identifier: Apache-2.0
 */
 
+import { panelText } from "../../webview_shared/panel-text";
 import { html, nothing } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { ZephyrLitElement } from "../../webview_shared/lit-base";
@@ -52,22 +53,22 @@ export class SummaryPage extends ZephyrLitElement {
         return html`
           <div style="display:flex;align-items:center;gap:8px;padding:10px 0">
             <span class="codicon codicon-loading codicon-modifier-spin" style="opacity:0.7"></span>
-            <span class="text-muted">Generating symbol table…</span>
+            <span class="text-muted">${panelText("Generating symbol table…")}</span>
           </div>
         `;
       }
-      return html`<p class="text-muted" style="padding:10px 0">No symbol size data available. Click Refresh on the Memory page to generate it.</p>`;
+      return html`<p class="text-muted" style="padding:10px 0">${panelText("No symbol size data available. Click Refresh on the Memory page to generate it.")}</p>`;
     }
     const regions = (Object.entries(summary) as [keyof typeof summary, number][]).filter(
       ([, sz]) => sz > 0,
     );
     return html`
-      <div class="memory-bar" role="img" aria-label="Memory breakdown">
+      <div class="memory-bar" role="img" aria-label="${panelText("Memory breakdown")}">
         ${regions.map(([region, size]) => {
           const pct = (size * 100) / total;
           return html`<span
             style="width:${pct}%;background-color:${REGION_COLORS[region]}"
-            title="${REGION_LABELS[region]}: ${size.toLocaleString()} bytes (${pct.toFixed(1)}%)"
+            title="${REGION_LABELS[region]}: ${size.toLocaleString()} ${panelText("bytes (")}${pct.toFixed(1)}%)"
           >${pct >= 10 ? `${pct.toFixed(0)}%` : ""}</span>`;
         })}
       </div>
@@ -93,36 +94,36 @@ export class SummaryPage extends ZephyrLitElement {
     const romUsed = ms.text + ms.rodata;
     const romPct = this.data.romTotal > 0 ? ((romUsed / this.data.romTotal) * 100).toFixed(1) : null;
     return html`
-      <h1>Build Summary</h1>
+      <h1>${panelText("Build Summary")}</h1>
 
-      <h2>Build Attributes</h2>
+      <h2>${panelText("Build Attributes")}</h2>
       <dl class="summary-grid">
-        ${this._renderRow("Zephyr Version", this.data.zephyrVersion)}
-        ${this._renderRow("Board", this.data.board)}
-        ${this._renderRow("Application", this.data.application)}
-        ${this._renderRow("Date", this.data.elfDate)}
-        ${this._renderRow("Toolchain", this.data.toolchain)}
+        ${this._renderRow(panelText("Zephyr Version"), this.data.zephyrVersion)}
+        ${this._renderRow(panelText("Board"), this.data.board)}
+        ${this._renderRow(panelText("Application"), this.data.application)}
+        ${this._renderRow(panelText("Date"), this.data.elfDate)}
+        ${this._renderRow(panelText("Toolchain"), this.data.toolchain)}
       </dl>
 
-      <h2>Build Command</h2>
+      <h2>${panelText("Build Command")}</h2>
       <dl class="summary-grid">
-        ${this._renderRow("Output Directory", this.data.outputDir)}
-        ${this._renderRow("Command", this.data.command)}
+        ${this._renderRow(panelText("Output Directory"), this.data.outputDir)}
+        ${this._renderRow(panelText("Command"), this.data.command)}
       </dl>
 
-      <h2>Memory Summary</h2>
+      <h2>${panelText("Memory Summary")}</h2>
       <dl class="summary-grid">
-        ${this._renderRow("Bin Size", this.data.binSize)}
+        ${this._renderRow(panelText("Bin Size"), this.data.binSize)}
         ${hasMemory ? html`
-          ${this._renderRow("Text (Code)", this._formatBytes(ms.text))}
-          ${this._renderRow("Read-Only Data", this._formatBytes(ms.rodata))}
+          ${this._renderRow(panelText("Text (Code)"), this._formatBytes(ms.text))}
+          ${this._renderRow(panelText("Read-Only Data"), this._formatBytes(ms.rodata))}
           ${this._renderRow("Read/Write Data", this._formatBytes(ms.rwdata))}
-          ${this._renderRow("BSS (Zero Init)", this._formatBytes(ms.bss))}
-          ${romPct !== null ? this._renderRow("ROM Used", `${romPct}% of ${this._formatBytes(this.data.romTotal)}`) : nothing}
+          ${this._renderRow(panelText("BSS (Zero Init)"), this._formatBytes(ms.bss))}
+          ${romPct !== null ? this._renderRow(panelText("ROM Used"), panelText("{0}% of {1}", romPct, this._formatBytes(this.data.romTotal))) : nothing}
         ` : nothing}
       </dl>
 
-      <h2>Memory Breakdown (from ELF sections)</h2>
+      <h2>${panelText("Memory Breakdown (from ELF sections)")}</h2>
       ${this._renderMemoryBar()}
     `;
   }

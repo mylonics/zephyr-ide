@@ -15,6 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import { panelText } from "../../webview_shared/panel-text";
 import { html, nothing } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { ZephyrLitElement } from "../../webview_shared/lit-base";
@@ -47,7 +48,7 @@ export class ProjectBuildApp extends ZephyrLitElement {
     const msg = event.data;
     if (msg.command === "updateContent" && msg.data) {
       this._data = msg.data;
-      this._statusAnnouncement = "Project details updated";
+      this._statusAnnouncement = panelText("Project details updated");
     } else if (msg.command === "buildActionStatus") {
       if (msg.state === "started") {
         this._activeBuildAction = msg.action ?? null;
@@ -79,7 +80,7 @@ export class ProjectBuildApp extends ZephyrLitElement {
 
   render() {
     if (!this._data) {
-      return html`<div class="container panel-container"><p>Loading…</p></div>`;
+      return html`<div class="container panel-container"><p>${panelText("Loading…")}</p></div>`;
     }
 
     const d = this._data;
@@ -94,11 +95,11 @@ export class ProjectBuildApp extends ZephyrLitElement {
         <div class="sr-only" role="status" aria-live="polite">${this._statusAnnouncement}</div>
         <div class="page-header">
           <div>
-            <h1 class="page-title"><i class="codicon codicon-project"></i> Project Details</h1>
+            <h1 class="page-title"><i class="codicon codicon-project"></i> ${panelText("Project Details")}</h1>
           </div>
           <div class="page-header-selectors">
             <div class="project-selector">
-              <label>Project:</label>
+              <label>${panelText("Project:")}</label>
               <vscode-single-select @change=${this._onProjectChange}>
                 ${d.projectOptions.map(
       (opt) => html`<vscode-option value=${opt.name} ?selected=${opt.selected}>${opt.name}</vscode-option>`,
@@ -108,7 +109,7 @@ export class ProjectBuildApp extends ZephyrLitElement {
             ${hasBuildTestOptions
         ? html`
                   <div class="build-test-selector">
-                    <label>Build / Test:</label>
+                    <label>${panelText("Build / Test:")}</label>
                     <vscode-single-select @change=${this._onBuildTestChange}>
                       ${d.buildTestOptions.map(
           (opt) => html`<vscode-option value=${opt.value} ?selected=${opt.selected}>${opt.label}</vscode-option>`,
@@ -124,7 +125,7 @@ export class ProjectBuildApp extends ZephyrLitElement {
         ? html`
               <div class="no-project-notice">
                 <i class="codicon codicon-info"></i>
-                <p>No projects configured. Use the command palette to add a project.</p>
+                <p>${panelText("No projects configured. Use the command palette to add a project.")}</p>
               </div>
             `
         : html`
@@ -141,11 +142,11 @@ export class ProjectBuildApp extends ZephyrLitElement {
                     <div class="project-actions-row">
                       <vscode-button appearance="secondary" icon="add"
                         @click=${() => this.postCommand("addBuild", { project: d.selectedProject! })}>
-                        Add Build
+                        ${panelText("Add Build")}
                       </vscode-button>
                       <vscode-button appearance="secondary" icon="beaker"
                         @click=${() => this.postCommand("addTest", { project: d.selectedProject! })}>
-                        Add Test
+                        ${panelText("Add Test")}
                       </vscode-button>
                     </div>
                   `
@@ -171,15 +172,15 @@ export class ProjectBuildApp extends ZephyrLitElement {
                     <div class="build-placeholder">
                       <div class="build-placeholder-content">
                         <i class="codicon codicon-add"></i>
-                        <p>No builds or tests configured yet.</p>
+                        <p>${panelText("No builds or tests configured yet.")}</p>
                         <div class="build-placeholder-actions">
                           <vscode-button icon="add"
                             @click=${() => this.postCommand("addBuild", { project: d.selectedProject! })}>
-                            Add Build
+                            ${panelText("Add Build")}
                           </vscode-button>
                           <vscode-button appearance="secondary" icon="beaker"
                             @click=${() => this.postCommand("addTest", { project: d.selectedProject! })}>
-                            Add Test
+                            ${panelText("Add Test")}
                           </vscode-button>
                         </div>
                       </div>
@@ -192,7 +193,7 @@ export class ProjectBuildApp extends ZephyrLitElement {
                     <div class="build-placeholder">
                       <div class="build-placeholder-content">
                         <i class="codicon codicon-arrow-left"></i>
-                        <p>Select a build or test to view details.</p>
+                        <p>${panelText("Select a build or test to view details.")}</p>
                       </div>
                     </div>
                   `

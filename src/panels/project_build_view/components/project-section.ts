@@ -15,6 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import { panelText } from "../../webview_shared/panel-text";
 import { html, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { ZephyrLitElement } from "../../webview_shared/lit-base";
@@ -63,32 +64,32 @@ export class ProjectSection extends ZephyrLitElement {
         </div>
         <div class="project-summary-details">
           <div class="project-detail-grid">
-            <span class="detail-label">Path</span>
+            <span class="detail-label">${panelText("Path")}</span>
             <span class="detail-value clickable"
               @click=${() => this._openFolder(info.absPath)}
               title=${info.absPath}>${info.relPath}</span>
 
-            <span class="detail-label">Main Source</span>
+            <span class="detail-label">${panelText("Main Source")}</span>
             <span class="detail-value">${info.mainSourceFile
         ? html`<span class="clickable" @click=${() => this._openFile(info.mainSourceFile!)}>${info.mainSourceFile}</span>`
-        : html`<em>not found</em>`}</span>
+        : html`<em>${panelText("not found")}</em>`}</span>
 
             ${info.cmakeFile
         ? html`
-              <span class="detail-label">CMakeLists.txt</span>
+              <span class="detail-label">${panelText("CMakeLists.txt")}</span>
               <span class="detail-value clickable" @click=${() => this._openFile(info.cmakeFile!)}>${info.cmakeFile}</span>`
         : nothing}
 
-            <span class="detail-label">Builds</span>
-            <span class="detail-value">${info.buildNames.length > 0 ? info.buildNames.join(", ") : html`<em>none</em>`}</span>
+            <span class="detail-label">${panelText("Builds")}</span>
+            <span class="detail-value">${info.buildNames.length > 0 ? info.buildNames.join(", ") : html`<em>${panelText("none")}</em>`}</span>
 
-            <span class="detail-label">Tests</span>
-            <span class="detail-value">${info.testNames.length > 0 ? info.testNames.join(", ") : html`<em>none</em>`}</span>
+            <span class="detail-label">${panelText("Tests")}</span>
+            <span class="detail-value">${info.testNames.length > 0 ? info.testNames.join(", ") : html`<em>${panelText("none")}</em>`}</span>
           </div>
           <div class="project-summary-badges">
-            <span class="summary-badge" title="Kconfig files"><i class="codicon codicon-settings-gear"></i> ${kconfigCount} kconfig</span>
-            <span class="summary-badge" title="Devicetree overlays"><i class="codicon codicon-file-code"></i> ${overlayCount} overlay</span>
-            <span class="summary-badge" title="Project variables"><i class="codicon codicon-symbol-variable"></i> ${varCount} var${varCount !== 1 ? "s" : ""}</span>
+            <span class="summary-badge" title="${panelText("Kconfig files")}"><i class="codicon codicon-settings-gear"></i> ${kconfigCount} ${panelText("kconfig")}</span>
+            <span class="summary-badge" title="${panelText("Devicetree overlays")}"><i class="codicon codicon-file-code"></i> ${overlayCount} ${panelText("overlay")}</span>
+            <span class="summary-badge" title="${panelText("Project variables")}"><i class="codicon codicon-symbol-variable"></i> ${varCount === 1 ? panelText("1 var") : panelText("{0} vars", varCount)}</span>
           </div>
         </div>
 
@@ -108,8 +109,8 @@ export class ProjectSection extends ZephyrLitElement {
 
               <div class="variables-section">
                 <div class="section-row-header">
-                  <span class="section-row-title">Project Variables</span>
-                  <vscode-button appearance="icon" icon="question" title="Variable help"
+                  <span class="section-row-title">${panelText("Project Variables")}</span>
+                  <vscode-button appearance="icon" icon="question" title="${panelText("Variable help")}"
                     @click=${() => { this._helpVisible = !this._helpVisible; }}>
                   </vscode-button>
                 </div>
@@ -127,7 +128,7 @@ export class ProjectSection extends ZephyrLitElement {
         : nothing}
 
         <div class="project-summary-toggle" @click=${this._toggleExpand}
-          title=${this._expanded ? "Collapse" : "Expand"}>
+          title=${this._expanded ? panelText("Collapse") : panelText("Expand")}>
           <span class="project-summary-expand codicon codicon-chevron-down"></span>
         </div>
       </div>

@@ -15,6 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import { panelText } from "../../webview_shared/panel-text";
 import { html } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { ZephyrLitElement } from '../../webview_shared/lit-base';
@@ -97,25 +98,22 @@ export class HostToolsApp extends ZephyrLitElement {
     const installed = this._sevenZipAvailable;
     return html`
       <div class="manager-section">
-        <h3>Optional: 7-Zip</h3>
+        <h3>${panelText("Optional: 7-Zip")}</h3>
         <div class="info-box">
           <p>
-            <strong>7-Zip is no longer required</strong> for Zephyr IDE SDK installation.
-            Windows 11's built-in <code>tar.exe</code> (libarchive) can extract
-            <code>.7z</code> archives natively, so the extension uses it by default.
+            <strong>${panelText("7-Zip is no longer required")}</strong> ${panelText("for Zephyr IDE SDK installation. Windows 11's built-in")} <code>tar.exe</code> ${panelText("(libarchive) can extract")}
+            <code>.7z</code> ${panelText("archives natively, so the extension uses it by default.")}
           </p>
           <p>
-            If you plan to use the <code>west sdk</code> command-line tool directly,
-            you may want 7-Zip available on your PATH.
-            <strong>For most users, we recommend using the Zephyr IDE SDK panel
-            (<em>SDK &amp; Toolchains</em>) instead — no 7-Zip required.</strong>
+            ${panelText("If you plan to use the")} <code>west sdk</code> ${panelText("command-line tool directly, you may want 7-Zip available on your PATH.")}
+            <strong>${panelText("For most users, we recommend using the Zephyr IDE SDK panel (")}<em>${panelText("SDK & Toolchains")}</em>${panelText(") instead — no 7-Zip required.")}</strong>
           </p>
           <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
             ${installed
               ? html`<vscode-icon name="check" style="color:var(--vscode-terminal-ansiGreen)"></vscode-icon>
-                     <span>7-Zip is installed and available.</span>`
+                     <span>${panelText("7-Zip is installed and available.")}</span>`
               : html`<vscode-icon name="circle-slash" style="color:var(--vscode-descriptionForeground)"></vscode-icon>
-                     <span>7-Zip is not installed.</span>`}
+                     <span>${panelText("7-Zip is not installed.")}</span>`}
           </div>
         </div>
         ${!installed ? html`
@@ -124,7 +122,7 @@ export class HostToolsApp extends ZephyrLitElement {
               ?disabled=${this._sevenZipInstalling}
               @click=${this._install7Zip}>
               <vscode-icon slot="start-icon" name="cloud-download"></vscode-icon>
-              ${this._sevenZipInstalling ? 'Installing…' : 'Install 7-Zip (optional)'}
+              ${this._sevenZipInstalling ? 'Installing…' : panelText("Install 7-Zip (optional)")}
             </vscode-button>
           </div>
         ` : ''}
@@ -137,32 +135,29 @@ export class HostToolsApp extends ZephyrLitElement {
     return html`
       <div class="container">
         <div class="breadcrumb">
-          <a class="breadcrumb-link" @click=${() => this._sendCommand('openSetupPanel')}>← Setup &amp; Configuration</a>
+          <a class="breadcrumb-link" @click=${() => this._sendCommand('openSetupPanel')}>${panelText("← Setup & Configuration")}</a>
           <span class="breadcrumb-separator">/</span>
-          <span class="breadcrumb-current">Host Tools</span>
+          <span class="breadcrumb-current">${panelText("Host Tools")}</span>
         </div>
         <div class="page-header">
           <div>
-            <h1 class="page-title">Host Tools Installation</h1>
-            <p class="page-subtitle">Install and maintain local system dependencies for Zephyr development.</p>
+            <h1 class="page-title">${panelText("Host Tools Installation")}</h1>
+            <p class="page-subtitle">${panelText("Install and maintain local system dependencies for Zephyr development.")}</p>
           </div>
         </div>
 
         ${showLongPathsBanner ? html`
           <div class="warning-box">
-            <p><strong>⚠ Windows Long Path Support is not enabled.</strong></p>
+            <p><strong>${panelText("⚠ Windows Long Path Support is not enabled.")}</strong></p>
             <p>
-              Without long path support, building Python packages from source (such as
-              <code>hidapi</code>) may fail because the build directories created by
-              pip can exceed Windows' default 260-character path limit.
+              ${panelText("Without long path support, building Python packages from source (such as")}
+              <code>hidapi</code>${panelText(") may fail because the build directories created by pip can exceed Windows' default 260-character path limit.")}
             </p>
             <p>
-              Click the button below to enable long path support system-wide. This
-              requires administrator privileges and takes effect immediately — no
-              restart is needed.
+              ${panelText("Click the button below to enable long path support system-wide. This requires administrator privileges and takes effect immediately — no restart is needed.")}
             </p>
             <vscode-button @click=${this._enableLongPaths}>
-              Enable Windows Long Path Support
+              ${panelText("Enable Windows Long Path Support")}
             </vscode-button>
           </div>
         ` : ''}
@@ -170,25 +165,24 @@ export class HostToolsApp extends ZephyrLitElement {
         <div class="host-tools-manager">
           <div class="info-box">
             <p>
-              This tool helps you install and manage development tools required for Zephyr RTOS development.
-              The tools will be installed using your platform's package manager.
+              ${panelText("This tool helps you install and manage development tools required for Zephyr RTOS development. The tools will be installed using your platform's package manager.")}
             </p>
             <p class="host-tools-note">
-              <strong>Note:</strong> VS Code may need to be restarted after installation for tools to be available in the PATH.
+              <strong>${panelText("Note:")}</strong> ${panelText("VS Code may need to be restarted after installation for tools to be available in the PATH.")}
             </p>
           </div>
 
           <div id="package-manager-section" class="manager-section">
-            <h3>Package Manager Status</h3>
+            <h3>${panelText("Package Manager Status")}</h3>
             <div id="manager-status" class="status-area">
-              <div class="loading">Checking package manager...</div>
+              <div class="loading">${panelText("Checking package manager...")}</div>
             </div>
           </div>
 
           <div id="packages-section" class="manager-section">
-            <h3>Required Development Tools</h3>
+            <h3>${panelText("Required Development Tools")}</h3>
             <div id="packages-status" class="status-area">
-              <div class="loading">Checking packages...</div>
+              <div class="loading">${panelText("Checking packages...")}</div>
             </div>
           </div>
 
@@ -196,11 +190,11 @@ export class HostToolsApp extends ZephyrLitElement {
             <div class="button-group">
               <vscode-button id="refresh-btn" appearance="secondary" @click=${() => this._client.refreshStatus()}>
                 <vscode-icon slot="start-icon" name="refresh"></vscode-icon>
-                Refresh Status
+                ${panelText("Refresh Status")}
               </vscode-button>
               <vscode-button id="install-all-btn" @click=${() => this._client.installAllMissing()} disabled>
                 <vscode-icon slot="start-icon" name="cloud-download"></vscode-icon>
-                Install All Missing Packages
+                ${panelText("Install All Missing Packages")}
               </vscode-button>
             </div>
           </div>
@@ -212,7 +206,7 @@ export class HostToolsApp extends ZephyrLitElement {
           <div class="button-group">
             <vscode-button id="mark-complete-btn" appearance="secondary" @click=${this._markComplete}>
               <vscode-icon slot="start-icon" name="check"></vscode-icon>
-              Skip &amp; Mark as Complete
+              ${panelText("Skip & Mark as Complete")}
             </vscode-button>
           </div>
         </div>

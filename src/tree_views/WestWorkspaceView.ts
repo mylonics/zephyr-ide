@@ -91,12 +91,12 @@ export class WestWorkspaceView implements vscode.TreeDataProvider<WestWorkspaceI
         let description = '';
 
         if (!isValidPath) {
-          description = 'Path no longer exists';
+          description = vscode.l10n.t("Path no longer exists");
         } else if (setupState.zephyrVersion) {
           const versionStr = formatZephyrVersion(setupState.zephyrVersion);
           description = `Zephyr ${versionStr}`;
         } else {
-          description = 'West workspace';
+          description = vscode.l10n.t("West workspace");
         }
 
         let contextId: WestWorkspaceItemContext;
@@ -140,17 +140,17 @@ export class WestWorkspaceView implements vscode.TreeDataProvider<WestWorkspaceI
 
       const confirm = await notifyWarningWithActions(
         'West Workspace',
-        `Switch to workspace "${installName}"?`,
+        vscode.l10n.t("Switch to workspace \"{0}\"?", installName),
         ['Switch', 'Cancel']
       );
 
       if (confirm === 'Switch') {
         await setSetupState(this.context, this.wsConfig, this.globalConfig, item.installPath);
-        void vscode.window.showInformationMessage(`Active workspace set to: ${installName}`);
+        void vscode.window.showInformationMessage(vscode.l10n.t("Active workspace set to: {0}", installName));
         void vscode.commands.executeCommand('zephyr-ide.update-web-view');
       }
     } catch (error) {
-      notifyError('West Workspace', `Failed to switch workspace: ${error}`);
+      notifyError('West Workspace', vscode.l10n.t("Failed to switch workspace: {0}", String(error)));
     }
   }
 
@@ -158,17 +158,17 @@ export class WestWorkspaceView implements vscode.TreeDataProvider<WestWorkspaceI
     try {
       const confirm = await notifyWarningWithActions(
         'West Workspace',
-        'Deactivate active workspace?',
+        vscode.l10n.t("Deactivate active workspace?"),
         ['Deactivate', 'Cancel']
       );
 
       if (confirm === 'Deactivate') {
         await clearSetupState(this.context, this.wsConfig);
-        void vscode.window.showInformationMessage('Active workspace deactivated');
+        void vscode.window.showInformationMessage(vscode.l10n.t("Active workspace deactivated"));
         void vscode.commands.executeCommand('zephyr-ide.update-web-view');
       }
     } catch (error) {
-      notifyError('West Workspace', `Failed to deactivate workspace: ${error}`);
+      notifyError('West Workspace', vscode.l10n.t("Failed to deactivate workspace: {0}", String(error)));
     }
   }
 
@@ -177,7 +177,7 @@ export class WestWorkspaceView implements vscode.TreeDataProvider<WestWorkspaceI
       const installName = path.basename(item.installPath);
       const confirm = await notifyWarningWithActions(
         'West Workspace',
-        `Are you sure you want to remove "${installName}" from the workspace registry?\n\nPath: ${item.installPath}\n\nNote: This will only remove it from the registry, not delete the files.`,
+        vscode.l10n.t("Remove \"{0}\" from the workspace registry?\n\nPath: {1}\n\nFiles on disk will be kept.", installName, item.installPath),
         ['Remove from Registry', 'Cancel']
       );
 
@@ -190,12 +190,12 @@ export class WestWorkspaceView implements vscode.TreeDataProvider<WestWorkspaceI
 
         await setGlobalState(this.context, this.globalConfig);
 
-        void vscode.window.showInformationMessage(`Installation "${installName}" has been removed from the registry.`);
+        void vscode.window.showInformationMessage(vscode.l10n.t("Installation \"{0}\" has been removed from the registry.", installName));
         outputInfo('West Workspace', `Removed installation from registry: ${item.installPath}`);
         void vscode.commands.executeCommand('zephyr-ide.update-web-view');
       }
     } catch (error) {
-      notifyError('West Workspace', `Failed to delete workspace: ${error}`);
+      notifyError('West Workspace', vscode.l10n.t("Failed to delete workspace: {0}", String(error)));
     }
   }
 }

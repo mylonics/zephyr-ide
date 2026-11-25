@@ -620,7 +620,8 @@ export async function migrateSettingKeys(): Promise<void> {
 
   if (migrated.length > 0) {
     void vscode.window.showInformationMessage(
-      `Zephyr IDE: Migrated setting key${migrated.length === 1 ? "" : "s"}: ${migrated.join(", ")}.`
+      migrated.length === 1 ? vscode.l10n.t("Zephyr IDE: Migrated setting key: {0}.", migrated[0])
+        : vscode.l10n.t("Zephyr IDE: Migrated setting keys: {0}.", migrated.join(", "))
     );
   }
 }
@@ -1075,17 +1076,17 @@ async function checkAndWarnMissingEnvironment(context: vscode.ExtensionContext):
   // Check if environment variables are present
   if (!checkZephyrEnvironmentVariables()) {
     const result = await vscode.window.showWarningMessage(
-      "No Zephyr workspace environment detected. Neither ZEPHYR_BASE nor ZEPHYR_SDK_INSTALL_DIR environment variables are set.\n\nChoose 'Continue' to proceed using system environment variables, 'Don't Show Again' to suppress this warning, or 'Setup Workspace' to open the setup wizard.",
-      "Continue",
-      "Don't Show Again",
-      "Setup Workspace"
+      vscode.l10n.t("No Zephyr workspace environment detected. Neither ZEPHYR_BASE nor ZEPHYR_SDK_INSTALL_DIR environment variables are set.\n\nChoose 'Continue' to proceed using system environment variables, 'Don't Show Again' to suppress this warning, or 'Setup Workspace' to open the setup wizard."),
+      vscode.l10n.t("Continue"),
+      vscode.l10n.t("Don't Show Again"),
+      vscode.l10n.t("Setup Workspace")
     );
 
-    if (result === "Don't Show Again") {
+    if (result === vscode.l10n.t("Don't Show Again")) {
       // Save the preference to not show again
       await configuration.update("zephyr-ide.suppressWorkspaceWarning", true, vscode.ConfigurationTarget.Workspace);
-      void vscode.window.showInformationMessage("Workspace warning suppressed for this workspace.");
-    } else if (result === "Setup Workspace") {
+      void vscode.window.showInformationMessage(vscode.l10n.t("Workspace warning suppressed for this workspace."));
+    } else if (result === vscode.l10n.t("Setup Workspace")) {
       // Open the setup wizard panel for workspace configuration
       await vscode.commands.executeCommand("zephyr-ide.setupWorkspace");
     }
@@ -1128,7 +1129,7 @@ export async function getSetupState(context: vscode.ExtensionContext, wsConfig: 
 export async function getSetupStateOrNotify(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, caller: string): Promise<SetupState | undefined> {
   const state = await getSetupState(context, wsConfig);
   if (!state) {
-    notifyError(caller, "No setup state available. Please set up your workspace first.");
+    notifyError(caller, vscode.l10n.t("No setup state available. Please set up your workspace first."));
   }
   return state;
 }

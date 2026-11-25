@@ -15,6 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import { webviewMessages } from "../webview-messages";
 import * as vscode from "vscode";
 import * as path from "upath";
 import * as fs from "fs-extra";
@@ -90,8 +91,8 @@ export class WorkspacePanel {
 
     const baseName = setupPath ? path.basename(setupPath) : undefined;
     const title = baseName
-      ? `Workspace: ${baseName}`
-      : "Zephyr IDE: Workspace Config";
+      ? vscode.l10n.t("Workspace: {0}", baseName)
+      : vscode.l10n.t("Zephyr IDE: Workspace Config");
 
     const panel = vscode.window.createWebviewPanel(
       "zephyrIDEWorkspace",
@@ -179,10 +180,10 @@ export class WorkspacePanel {
         : undefined;
       const baseName = path.basename(target.setupPath);
       this._panel.title = version
-        ? `Workspace: ${baseName} (${version})`
-        : `Workspace: ${baseName}`;
+        ? vscode.l10n.t("Workspace: {0} ({1})", baseName, version)
+        : vscode.l10n.t("Workspace: {0}", baseName);
     } else {
-      this._panel.title = "Workspace Setup";
+      this._panel.title = vscode.l10n.t("Workspace Setup");
     }
 
     if (!this._htmlInitialized) {
@@ -334,7 +335,7 @@ export class WorkspacePanel {
 
   private async _promptExternalDirectory() {
     const folderUris = await vscode.window.showOpenDialog({
-      openLabel: "Select External Workspace Directory",
+      openLabel: vscode.l10n.t("Select External Workspace Directory"),
       canSelectFiles: false,
       canSelectFolders: true,
       canSelectMany: false,
@@ -355,7 +356,7 @@ export class WorkspacePanel {
       this._uiMode = undefined;
       await vscode.commands.executeCommand("zephyr-ide.update-web-view");
     } catch (error) {
-      notifyError("Activate Workspace", `Failed: ${error}`);
+      notifyError("Activate Workspace", vscode.l10n.t("Failed: {0}", String(error)));
     }
   }
 
@@ -366,7 +367,7 @@ export class WorkspacePanel {
   private async _markWorkspaceComplete(installDir?: string) {
     if (!this.currentWsConfig || !this.currentGlobalConfig) { return; }
     if (!installDir) {
-      notifyError("Mark as Complete", "No directory available to mark as complete.");
+      notifyError("Mark as Complete", vscode.l10n.t("No directory available to mark as complete."));
       return;
     }
     try {
@@ -387,10 +388,10 @@ export class WorkspacePanel {
       await setWorkspaceState(this._context, this.currentWsConfig);
       this._uiMode = undefined;
       this._externalDir = undefined;
-      void vscode.window.showInformationMessage(`Workspace registered at: ${installDir}`);
+      void vscode.window.showInformationMessage(vscode.l10n.t("Workspace registered at: {0}", installDir));
       await vscode.commands.executeCommand("zephyr-ide.update-web-view");
     } catch (error) {
-      notifyError("Mark as Complete", `Failed: ${error}`);
+      notifyError("Mark as Complete", vscode.l10n.t("Failed: {0}", String(error)));
     }
   }
 
@@ -403,7 +404,7 @@ export class WorkspacePanel {
     try {
       await action();
     } catch (error) {
-      notifyError("Workspace Panel", `External setup failed: ${error}`);
+      notifyError("Workspace Panel", vscode.l10n.t("External setup failed: {0}", String(error)));
     }
     // After external setup, active workspace should be set → panel switches
     // to workspace-view via generatePanelData.
@@ -416,7 +417,7 @@ export class WorkspacePanel {
     try {
       await vscode.commands.executeCommand(command);
     } catch (error) {
-      notifyError(label, `Failed: ${error}`);
+      notifyError(label, vscode.l10n.t("Failed: {0}", String(error)));
     }
   }
 
@@ -429,7 +430,7 @@ export class WorkspacePanel {
       await setWorkspaceState(this._context, this.currentWsConfig);
       await vscode.commands.executeCommand("zephyr-ide.update-web-view");
     } catch (error) {
-      notifyError("Activate Workspace", `Failed: ${error}`);
+      notifyError("Activate Workspace", vscode.l10n.t("Failed: {0}", String(error)));
     }
   }
 
@@ -461,7 +462,7 @@ export class WorkspacePanel {
       const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(westYmlFilePath));
       await vscode.window.showTextDocument(doc);
     } catch (error) {
-      notifyError("West Config", `Failed to open west.yml: ${error}`);
+      notifyError("West Config", vscode.l10n.t("Failed to open west.yml: {0}", String(error)));
     }
   }
 
@@ -516,10 +517,10 @@ export class WorkspacePanel {
       }
       const encoder = new TextEncoder();
       await vscode.workspace.fs.writeFile(vscode.Uri.file(westYmlFilePath), encoder.encode(content));
-      void vscode.window.showInformationMessage(`west.yml saved successfully to: ${westYmlFilePath}`);
+      void vscode.window.showInformationMessage(vscode.l10n.t("west.yml saved successfully to: {0}", westYmlFilePath));
       await vscode.commands.executeCommand("zephyr-ide.west-update");
     } catch (error) {
-      notifyError("West Config", `Failed to save west.yml: ${error}`);
+      notifyError("West Config", vscode.l10n.t("Failed to save west.yml: {0}", String(error)));
     }
   }
 
@@ -558,9 +559,9 @@ export class WorkspacePanel {
     const state = (folderOpen && workspaceInitialized) ? "ready" : "setup-required";
     // Header badge presentation follows readiness.
     const badgeMap: Record<WorkspaceReadiness, { icon: string; label: string; cls: string }> = {
-      'not-initialized': { icon: '⚙', label: 'Not Initialized', cls: 'status-warning' },
-      'needs-setup': { icon: '↻', label: 'Needs West Setup', cls: 'status-info' },
-      'ready': { icon: '✓', label: 'Ready', cls: 'status-success' },
+      'not-initialized': { icon: '⚙', label: vscode.l10n.t("Not Initialized"), cls: 'status-warning' },
+      'needs-setup': { icon: '↻', label: vscode.l10n.t("Needs West Setup"), cls: 'status-info' },
+      'ready': { icon: '✓', label: vscode.l10n.t("Ready"), cls: 'status-success' },
     };
     const { icon: statusIcon, label: statusLabel, cls: statusClass } = badgeMap[readiness];
 
@@ -721,7 +722,7 @@ export class WorkspacePanel {
     );
 
     return `<!DOCTYPE html>
-        <html lang="en">
+        <html lang="${vscode.env.language}">
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -731,6 +732,7 @@ export class WorkspacePanel {
             <link rel="stylesheet" type="text/css" href="${codiconUri}" id="vscode-codicon-stylesheet">
         </head>
         <body>
+          ${webviewMessages(nonce)}
             <workspace-app></workspace-app>
             <script nonce="${nonce}" src="${jsUri}"></script>
         </body>

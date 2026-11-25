@@ -90,7 +90,7 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
     const items: ConfigItem[] = [];
     for (const entry of entries) {
       const isExtra = !!entry.extra;
-      const label = isExtra ? (type === 'kconfig' ? "Extra Config" : "Extra Overlay") : (type === 'kconfig' ? "Config" : "Overlay");
+      const label = isExtra ? (type === 'kconfig' ? vscode.l10n.t("Extra Config") : vscode.l10n.t("Extra Overlay")) : (type === 'kconfig' ? vscode.l10n.t("Config") : vscode.l10n.t("Overlay"));
       const idSuffix = isExtra ? '-extra' : '';
       const item = new ConfigItem(label, 'file', false, 'configFile', entry.path);
       item.id = `config-file-${level}-${type}${idSuffix}.${sanitizeTreeId(entry.path)}`;
@@ -164,12 +164,12 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
     mainItem.id = 'config-project.main';
     mainItem.description = activeProject.relPath;
     mainItem.data = { project: activeProject.name };
-    mainItem.command = { command: 'zephyr-ide.config-view.open-main', title: 'Open main', arguments: [mainItem] };
+    mainItem.command = { command: 'zephyr-ide.config-view.open-main', title: vscode.l10n.t("Open main"), arguments: [mainItem] };
 
-    const cmakeItem = new ConfigItem('CMake File', 'folder-library', false, 'configClickable');
+    const cmakeItem = new ConfigItem(vscode.l10n.t("CMake File"), 'folder-library', false, 'configClickable');
     cmakeItem.id = 'config-project.cmake';
     cmakeItem.data = { project: activeProject.name };
-    cmakeItem.command = { command: 'zephyr-ide.config-view.open-cmake', title: 'Open CMakeLists', arguments: [cmakeItem] };
+    cmakeItem.command = { command: 'zephyr-ide.config-view.open-cmake', title: vscode.l10n.t("Open CMakeLists"), arguments: [cmakeItem] };
 
     const projKConfig = this.makeConfigGroup(activeProject.name, undefined, activeProject.confFiles, true);
     if (projKConfig.children.length > 0) {
@@ -197,16 +197,16 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
       buildItem.collapsibleState = this.projectConfigState.buildOpenState
         ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
 
-      const boardItem = new ConfigItem('Board', 'circuit-board', false, 'configClickable');
+      const boardItem = new ConfigItem(vscode.l10n.t("Board"), 'circuit-board', false, 'configClickable');
       boardItem.id = 'config-build.board';
       boardItem.description = activeBuild.board + (activeBuild.revision ? '@' + activeBuild.revision : "");
       boardItem.data = { project: activeProject.name, build: activeBuild.name };
-      boardItem.command = { command: 'zephyr-ide.config-view.open-board-dtc', title: 'Open Board DTS', arguments: [boardItem] };
+      boardItem.command = { command: 'zephyr-ide.config-view.open-board-dtc', title: vscode.l10n.t("Open Board DTS"), arguments: [boardItem] };
 
-      const boardDirItem = new ConfigItem('Board Dir', 'file-submodule', false, 'configClickable', activeBuild.relBoardSubDir);
+      const boardDirItem = new ConfigItem(vscode.l10n.t("Board Dir"), 'file-submodule', false, 'configClickable', activeBuild.relBoardSubDir);
       boardDirItem.id = 'config-build.boarddir';
       boardDirItem.data = { project: activeProject.name, build: activeBuild.name };
-      boardDirItem.command = { command: 'zephyr-ide.config-view.open-board-dir', title: 'Open Board Directory', arguments: [boardDirItem] };
+      boardDirItem.command = { command: 'zephyr-ide.config-view.open-board-dir', title: vscode.l10n.t("Open Board Directory"), arguments: [boardDirItem] };
 
       const buildKConfig = this.makeConfigGroup(activeProject.name, activeBuild.name, activeBuild.confFiles, true);
       if (buildKConfig.children.length > 0) {
@@ -220,15 +220,15 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
           ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
       }
 
-      const westArgsItem = new ConfigItem('West Args', 'circuit-board', false, 'configClickable', joinBuildArgs(activeBuild.westBuildArgs));
+      const westArgsItem = new ConfigItem(vscode.l10n.t("West Args"), 'circuit-board', false, 'configClickable', joinBuildArgs(activeBuild.westBuildArgs));
       westArgsItem.id = 'config-build.westargs';
       westArgsItem.data = { project: activeProject.name, build: activeBuild.name };
-      westArgsItem.command = { command: 'zephyr-ide.config-view.modify-build-args', title: 'Modify Build Args', arguments: [westArgsItem] };
+      westArgsItem.command = { command: 'zephyr-ide.config-view.modify-build-args', title: vscode.l10n.t("Modify Build Args"), arguments: [westArgsItem] };
 
-      const cmakeArgsItem = new ConfigItem('CMake Args', 'circuit-board', false, 'configClickable', joinBuildArgs(activeBuild.westBuildCMakeArgs));
+      const cmakeArgsItem = new ConfigItem(vscode.l10n.t("CMake Args"), 'circuit-board', false, 'configClickable', joinBuildArgs(activeBuild.westBuildCMakeArgs));
       cmakeArgsItem.id = 'config-build.cmakeargs';
       cmakeArgsItem.data = { project: activeProject.name, build: activeBuild.name };
-      cmakeArgsItem.command = { command: 'zephyr-ide.config-view.modify-build-args', title: 'Modify Build Args', arguments: [cmakeArgsItem] };
+      cmakeArgsItem.command = { command: 'zephyr-ide.config-view.modify-build-args', title: vscode.l10n.t("Modify Build Args"), arguments: [cmakeArgsItem] };
 
       buildItem.children = [boardItem, boardDirItem, buildKConfig, buildOverlay, westArgsItem, cmakeArgsItem];
       for (const child of buildItem.children) {
@@ -252,30 +252,30 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
         runnerItem.collapsibleState = this.projectConfigState.runnerOpenState
           ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed;
         if (profileScope === "local") {
-          runnerItem.tooltip = `Local override — not committed to zephyr-ide.json.\nWorkspace default: ${resolved.build.activeProfile ?? '(none)'}`;
+          runnerItem.tooltip = vscode.l10n.t("Local override — not committed to zephyr-ide.json.\nWorkspace default: {0}", resolved.build.activeProfile ?? '(none)');
         }
 
-        const flashItem = new ConfigItem('Flash', 'zap', false, undefined,
+        const flashItem = new ConfigItem(vscode.l10n.t("Flash"), 'zap', false, undefined,
           formatBindLabel(activeProfile.flash, getBindOverride(activeBuild, "flash")));
         flashItem.id = 'config-runner.flash';
-        const debugItem = new ConfigItem('Debug', 'debug-alt', false, undefined,
+        const debugItem = new ConfigItem(vscode.l10n.t("Debug"), 'debug-alt', false, undefined,
           formatBindLabel(activeProfile.debug, getBindOverride(activeBuild, "debug")));
         debugItem.id = 'config-runner.debug';
-        const attachItem = new ConfigItem('Attach', 'debug-console', false, undefined,
+        const attachItem = new ConfigItem(vscode.l10n.t("Attach"), 'debug-console', false, undefined,
           formatBindLabel(activeProfile.attach, getBindOverride(activeBuild, "attach")));
         attachItem.id = 'config-runner.attach';
 
         const children = [flashItem];
         if (separateBuildDebug) {
           const effectiveBuildDebug = getEffectiveBuildDebugBind(activeProfile, activeBuild);
-          const buildDebugItem = new ConfigItem('Build & Debug', 'debug-all', false, undefined,
+          const buildDebugItem = new ConfigItem(vscode.l10n.t("Build & Debug"), 'debug-all', false, undefined,
             formatBindLabel(effectiveBuildDebug.bind, effectiveBuildDebug.override));
           buildDebugItem.id = 'config-runner.buildDebug';
-          buildDebugItem.tooltip = 'Used for Build-and-Debug (separateBuildDebugProfile is on)';
+          buildDebugItem.tooltip = vscode.l10n.t("Used for Build-and-Debug (separateBuildDebugProfile is on)");
           children.push(buildDebugItem);
-          debugItem.tooltip = 'Used for Debug only (separateBuildDebugProfile is on)';
+          debugItem.tooltip = vscode.l10n.t("Used for Debug only (separateBuildDebugProfile is on)");
         } else {
-          debugItem.tooltip = 'Drives both Debug and Build-and-Debug';
+          debugItem.tooltip = vscode.l10n.t("Drives both Debug and Build-and-Debug");
         }
         children.push(debugItem, attachItem);
         runnerItem.children = children;
@@ -285,12 +285,12 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
         items.push(runnerItem);
       } else if (activeBuild) {
         // No profile selected — show a placeholder that opens the profile picker.
-        const placeholder = new ConfigItem('(no runner profile) — click to pick', 'chip', false);
+        const placeholder = new ConfigItem(vscode.l10n.t("(no runner profile) — click to pick"), 'chip', false);
         placeholder.id = 'config-runner';
         placeholder.tooltip = 'Flash/Debug/Attach fall back to runners.yaml defaults. Click to select a Runner Profile.';
         placeholder.command = {
           command: 'zephyr-ide.set-active-profile',
-          title: 'Select Active Runner Profile',
+          title: vscode.l10n.t("Select Active Runner Profile"),
         };
         items.push(placeholder);
       }
@@ -306,32 +306,32 @@ export class ProjectConfigView implements vscode.TreeDataProvider<ConfigItem> {
 
       const platformItem = new ConfigItem('platform', 'tools', false, undefined, activeTest.platform);
       platformItem.id = 'config-twister.platform';
-      const testsItem = new ConfigItem('Tests', 'file-code', false, undefined, activeTest.tests.join(', '));
+      const testsItem = new ConfigItem(vscode.l10n.t("Tests"), 'file-code', false, undefined, activeTest.tests.join(', '));
       testsItem.id = 'config-twister.tests';
       twisterItem.children = [platformItem, testsItem];
 
-      const argsItem = new ConfigItem('Args', 'file-code', false, 'configClickable', activeTest.args);
+      const argsItem = new ConfigItem(vscode.l10n.t("Args"), 'file-code', false, 'configClickable', activeTest.args);
       argsItem.id = 'config-twister.args';
       argsItem.data = { project: activeProject.name, test: activeTest.name };
-      argsItem.command = { command: 'zephyr-ide.config-view.modify-test-args', title: 'Modify Test Args', arguments: [argsItem] };
+      argsItem.command = { command: 'zephyr-ide.config-view.modify-test-args', title: vscode.l10n.t("Modify Test Args"), arguments: [argsItem] };
       twisterItem.children.push(argsItem);
 
       if (activeTest.boardConfig) {
-        const boardItem = new ConfigItem('Board', 'circuit-board', false, undefined,
+        const boardItem = new ConfigItem(vscode.l10n.t("Board"), 'circuit-board', false, undefined,
           activeTest.boardConfig.board + (activeTest.boardConfig.revision ? '@' + activeTest.boardConfig.revision : ""));
         boardItem.id = 'config-twister.board';
         twisterItem.children.push(boardItem);
 
-        const portItem = new ConfigItem('Port', 'symbol-string', false, 'configClickable', activeTest.serialPort ?? "");
+        const portItem = new ConfigItem(vscode.l10n.t("Port"), 'symbol-string', false, 'configClickable', activeTest.serialPort ?? "");
         portItem.id = 'config-twister.port';
         portItem.data = { project: activeProject.name, test: activeTest.name };
-        portItem.command = { command: 'zephyr-ide.config-view.modify-test-args', title: 'Modify Test Args', arguments: [portItem] };
+        portItem.command = { command: 'zephyr-ide.config-view.modify-test-args', title: vscode.l10n.t("Modify Test Args"), arguments: [portItem] };
         twisterItem.children.push(portItem);
 
-        const baudItem = new ConfigItem('Baud', 'pulse', false, 'configClickable', activeTest.serialBaud ?? "");
+        const baudItem = new ConfigItem(vscode.l10n.t("Baud"), 'pulse', false, 'configClickable', activeTest.serialBaud ?? "");
         baudItem.id = 'config-twister.baud';
         baudItem.data = { project: activeProject.name, test: activeTest.name };
-        baudItem.command = { command: 'zephyr-ide.config-view.modify-test-args', title: 'Modify Test Args', arguments: [baudItem] };
+        baudItem.command = { command: 'zephyr-ide.config-view.modify-test-args', title: vscode.l10n.t("Modify Test Args"), arguments: [baudItem] };
         twisterItem.children.push(baudItem);
       }
 

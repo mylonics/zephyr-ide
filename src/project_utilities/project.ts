@@ -258,12 +258,12 @@ export function resolveActiveProject(
 ): ResolvedProject | undefined {
   const name = options?.projectName ?? wsConfig.activeProject;
   if (!name) {
-    if (options?.caller) { notifyError(options.caller, "Select a project before trying to continue"); }
+    if (options?.caller) { notifyError(options.caller, vscode.l10n.t("Select a project before trying to continue")); }
     return undefined;
   }
   const project = wsConfig.projects[name];
   if (!project) {
-    if (options?.caller) { notifyError(options.caller, `Project "${name}" not found`); }
+    if (options?.caller) { notifyError(options.caller, vscode.l10n.t("Project \"{0}\" not found", name)); }
     return undefined;
   }
   return { projectName: name, project };
@@ -284,12 +284,12 @@ export function resolveActiveProjectBuild(
   }
   const bName = options?.buildName ?? getResolvedBuildName(wsConfig, resolved);
   if (!bName) {
-    if (options?.caller) { notifyError(options.caller, "You must choose a Build Configuration to continue."); }
+    if (options?.caller) { notifyError(options.caller, vscode.l10n.t("You must choose a Build Configuration to continue.")); }
     return undefined;
   }
   const build = resolved.project.buildConfigs[bName];
   if (!build) {
-    if (options?.caller) { notifyError(options.caller, `Build "${bName}" not found`); }
+    if (options?.caller) { notifyError(options.caller, vscode.l10n.t("Build \"{0}\" not found", bName)); }
     return undefined;
   }
   return { ...resolved, buildName: bName, build };
@@ -313,12 +313,12 @@ export function resolveActiveProfile(
   }
   const { name: profileName } = getEffectiveActiveProfileName(wsConfig, resolved);
   if (!profileName) {
-    if (options?.caller) { notifyError(options.caller, "Select a runner profile before trying to continue"); }
+    if (options?.caller) { notifyError(options.caller, vscode.l10n.t("Select a runner profile before trying to continue")); }
     return undefined;
   }
   const profile = findRunnerProfile(profileName, loadRunnerProfiles(wsConfig));
   if (!profile) {
-    if (options?.caller) { notifyError(options.caller, `Runner profile "${profileName}" not found`); }
+    if (options?.caller) { notifyError(options.caller, vscode.l10n.t("Runner profile \"{0}\" not found", profileName)); }
     return undefined;
   }
   return { ...resolved, profileName, profile };
@@ -343,7 +343,7 @@ export async function modifyBuildArguments(context: vscode.ExtensionContext, wsC
 
   // Two-step wizard: modify west args, then cmake args. Back button on step 2
   // allows the user to correct west args after seeing the cmake prompt.
-  const title = "Modify Build Arguments";
+  const title = vscode.l10n.t("Modify Build Arguments");
   const argsState: { westArgs?: string; cmakeArgs?: string; completed?: boolean } = {
     westArgs: joinBuildArgs(build.westBuildArgs),
     cmakeArgs: joinBuildArgs(build.westBuildCMakeArgs),
@@ -356,7 +356,7 @@ export async function modifyBuildArguments(context: vscode.ExtensionContext, wsC
       totalSteps: 2,
       ignoreFocusOut: true,
       value: argsState.westArgs ?? "",
-      prompt: "West build arguments (e.g., --sysbuild)",
+      prompt: vscode.l10n.t("West build arguments (e.g., --sysbuild)"),
       placeholder: "--sysbuild",
       validate: noOpValidate,
     });
@@ -371,7 +371,7 @@ export async function modifyBuildArguments(context: vscode.ExtensionContext, wsC
       totalSteps: 2,
       ignoreFocusOut: true,
       value: argsState.cmakeArgs ?? "",
-      prompt: "CMake arguments (e.g., -DCMAKE_VERBOSE_MAKEFILE=ON)",
+      prompt: vscode.l10n.t("CMake arguments (e.g., -DCMAKE_VERBOSE_MAKEFILE=ON)"),
       placeholder: "-DCMAKE_VERBOSE_MAKEFILE=ON",
       validate: noOpValidate,
     });
@@ -406,7 +406,7 @@ export async function createNewProjectFromSample(context: vscode.ExtensionContex
   loadingQuickPick.items = [];
   loadingQuickPick.busy = true;
   loadingQuickPick.enabled = false;
-  loadingQuickPick.placeholder = "Loading sample projects... Please wait.";
+  loadingQuickPick.placeholder = vscode.l10n.t("Loading sample projects... Please wait.");
   loadingQuickPick.ignoreFocusOut = true;
   loadingQuickPick.show();
 
@@ -421,7 +421,7 @@ export async function createNewProjectFromSample(context: vscode.ExtensionContex
 
   // Two-step wizard: pick sample, then choose destination. Back on step 2
   // returns to the sample picker.
-  const title = "Create Project From Sample";
+  const title = vscode.l10n.t("Create Project From Sample");
   const projectList: vscode.QuickPickItem[] = samplesDir.map(x => ({ label: x[1], detail: "(" + x[0] + ") " + x[3], description: x[2] }));
 
   const wizardState: { sample?: vscode.QuickPickItem; destination?: string } = {};
@@ -432,7 +432,7 @@ export async function createNewProjectFromSample(context: vscode.ExtensionContex
       step: 1,
       totalSteps: 2,
       ignoreFocusOut: true,
-      placeholder: "Select Sample Project",
+      placeholder: vscode.l10n.t("Select Sample Project"),
       items: projectList,
     });
     wizardState.sample = selected;
@@ -451,7 +451,7 @@ export async function createNewProjectFromSample(context: vscode.ExtensionContex
       totalSteps: 2,
       ignoreFocusOut: true,
       value: path.basename(selectedSamplePath),
-      prompt: "Choose Project Destination",
+      prompt: vscode.l10n.t("Choose Project Destination"),
       validate: noOpValidate,
     });
     wizardState.destination = value;
@@ -508,7 +508,7 @@ export async function addConfigFiles(context: vscode.ExtensionContext, wsConfig:
       }
     }
     await setWorkspaceState(context, wsConfig);
-    void vscode.window.showInformationMessage(`Config files added`);
+    void vscode.window.showInformationMessage(vscode.l10n.t("Config files added"));
   }
 
 }
@@ -539,7 +539,7 @@ export async function removeConfigFiles(context: vscode.ExtensionContext, wsConf
       }
     }
     await setWorkspaceState(context, wsConfig);
-    void vscode.window.showInformationMessage(`Config files removed`);
+    void vscode.window.showInformationMessage(vscode.l10n.t("Config files removed"));
   }
 }
 
@@ -547,7 +547,7 @@ export async function removeConfigFile(context: vscode.ExtensionContext, wsConfi
   let confFiles = wsConfig.projects[projectName].confFiles;
   if (!isToProject) {
     if (buildName === undefined) {
-      notifyError("Project", "Set build before trying to remove Config Files");
+      notifyError("Project", vscode.l10n.t("Set build before trying to remove Config Files"));
       return;
     }
     confFiles = wsConfig.projects[projectName].buildConfigs[buildName].confFiles;
@@ -557,7 +557,7 @@ export async function removeConfigFile(context: vscode.ExtensionContext, wsConfi
   const fileSet = new Set(fileNames);
   confFiles[key] = confFiles[key].filter(el => !fileSet.has(el.path));
   await setWorkspaceState(context, wsConfig);
-  void vscode.window.showInformationMessage(`Config files removed`);
+  void vscode.window.showInformationMessage(vscode.l10n.t("Config files removed"));
 }
 
 /**
@@ -577,7 +577,7 @@ async function askUserForSelection(dict: Record<string, any>, placeholder: strin
 
 export async function askUserForProject(wsConfig: WorkspaceConfig) {
   if (Object.keys(wsConfig.projects).length === 0) {
-    notifyError("Project", "Add or create a project first");
+    notifyError("Project", vscode.l10n.t("Add or create a project first"));
     return;
   }
   return await askUserForSelection(wsConfig.projects, "Select Project");
@@ -593,7 +593,7 @@ export async function setActiveProject(context: vscode.ExtensionContext, wsConfi
 
   wsConfig.activeProject = selectedProject;
   await setWorkspaceState(context, wsConfig);
-  void vscode.window.showInformationMessage(`Active project set to "${selectedProject}"`);
+  void vscode.window.showInformationMessage(vscode.l10n.t("Active project set to \"{0}\"", selectedProject));
   void setDtsContext(wsConfig);
 }
 
@@ -609,7 +609,7 @@ export async function setActiveBuild(context: vscode.ExtensionContext, wsConfig:
   if (wsConfig.activeProject === undefined) {
     await setActiveProject(context, wsConfig);
     if (wsConfig.activeProject === undefined) {
-      notifyError("Build Config", "Set Active Project before trying to Set Active Build");
+      notifyError("Build Config", vscode.l10n.t("Set Active Project before trying to Set Active Build"));
       return;
     }
   }
@@ -625,14 +625,14 @@ export async function setActiveBuild(context: vscode.ExtensionContext, wsConfig:
   wsConfig.projectStates[wsConfig.activeProject].activeBuildConfig = buildConfigs[selectedBuild].name;
   await setWorkspaceState(context, wsConfig);
   void setDtsContext(wsConfig);
-  void vscode.window.showInformationMessage(`Active build set to "${selectedBuild}"`);
+  void vscode.window.showInformationMessage(vscode.l10n.t("Active build set to \"{0}\"", selectedBuild));
 }
 
 export async function setActiveTest(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, selectedTest?: string) {
   if (wsConfig.activeProject === undefined) {
     await setActiveProject(context, wsConfig);
     if (wsConfig.activeProject === undefined) {
-      notifyError("Test Config", "Set Active Project before trying to Set Active Test");
+      notifyError("Test Config", vscode.l10n.t("Set Active Project before trying to Set Active Test"));
       return;
     }
   }
@@ -648,7 +648,7 @@ export async function setActiveTest(context: vscode.ExtensionContext, wsConfig: 
   wsConfig.projectStates[wsConfig.activeProject].activeTwisterConfig = twisterConfigs[selectedTest].name;
   await setWorkspaceState(context, wsConfig);
   void setDtsContext(wsConfig);
-  void vscode.window.showInformationMessage(`Successfully Set ${selectedTest} as Active Test of ${wsConfig.activeProject}`);
+  void vscode.window.showInformationMessage(vscode.l10n.t("Successfully Set {0} as Active Test of {1}", selectedTest, wsConfig.activeProject));
 }
 
 export async function removeProject(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, projectName?: string) {
@@ -659,8 +659,8 @@ export async function removeProject(context: vscode.ExtensionContext, wsConfig: 
     }
   }
   if (projectName in wsConfig.projects) {
-    const selection = await vscode.window.showWarningMessage('Are you sure you want to remove ' + projectName + '?', 'Yes', 'Cancel');
-    if (selection !== 'Yes') {
+    const selection = await vscode.window.showWarningMessage(vscode.l10n.t("Remove project \"{0}\"?", projectName), vscode.l10n.t("Yes"), vscode.l10n.t("Cancel"));
+    if (selection !== vscode.l10n.t("Yes")) {
       return;
     }
     delete wsConfig.projects[projectName];
@@ -707,12 +707,12 @@ export async function addSampleProjectsFromFile(wsConfig: WorkspaceConfig, conte
   for (const sample of sampleConfigs) {
     const relPath = sample.relPath;
     if (path.isAbsolute(relPath)) {
-      void vscode.window.showWarningMessage(`Skipping absolute path "${relPath}" in sampleProjects — entries must be relative to the workspace root.`);
+      void vscode.window.showWarningMessage(vscode.l10n.t("Skipping absolute path \"{0}\" in sampleProjects — entries must be relative to the workspace root.", relPath));
       continue;
     }
     const resolved = path.toUnix(path.normalize(path.join(wsConfig.rootPath, relPath))) + '/';
     if (!resolved.startsWith(rootNormalized)) {
-      void vscode.window.showWarningMessage(`Skipping "${relPath}" in sampleProjects — path resolves outside the workspace root.`);
+      void vscode.window.showWarningMessage(vscode.l10n.t("Skipping \"{0}\" in sampleProjects — path resolves outside the workspace root.", relPath));
       continue;
     }
     validConfigs.push(sample);
@@ -746,7 +746,7 @@ export async function addSampleProjectsFromFile(wsConfig: WorkspaceConfig, conte
     return {
       label: projectName,
       description: sample.relPath,
-      detail: alreadyAdded ? "(already in workspace)" : undefined,
+      detail: alreadyAdded ? vscode.l10n.t("(already in workspace)") : undefined,
       resolvedPath,
       sample,
       projectName,
@@ -756,8 +756,8 @@ export async function addSampleProjectsFromFile(wsConfig: WorkspaceConfig, conte
 
   const selected = await vscode.window.showQuickPick(items, {
     canPickMany: true,
-    title: "Add Sample Projects from zephyr-ide.json",
-    placeHolder: "Select sample projects to add to the workspace",
+    title: vscode.l10n.t("Add Sample Projects from zephyr-ide.json"),
+    placeHolder: vscode.l10n.t("Select sample projects to add to the workspace"),
     ignoreFocusOut: true,
   });
 
@@ -773,16 +773,16 @@ export async function addSampleProjectsFromFile(wsConfig: WorkspaceConfig, conte
     const projectPath = item.resolvedPath;
     const projectName = item.projectName;
     if (!fs.pathExistsSync(path.join(projectPath, "CMakeLists.txt"))) {
-      void vscode.window.showWarningMessage(`Skipping "${projectName}": no CMakeLists.txt found at ${projectPath}`);
+      void vscode.window.showWarningMessage(vscode.l10n.t("Skipping \"{0}\": no CMakeLists.txt found at {1}", projectName, projectPath));
       continue;
     }
     if (wsConfig.projects[projectName]) {
       const choice = await vscode.window.showWarningMessage(
-        `A project named "${projectName}" already exists`,
-        "Overwrite",
-        "Skip"
+        vscode.l10n.t("A project named \"{0}\" already exists", projectName),
+        vscode.l10n.t("Overwrite"),
+        vscode.l10n.t("Skip")
       );
-      if (choice !== "Overwrite") {
+      if (choice !== vscode.l10n.t("Overwrite")) {
         continue;
       }
     }
@@ -812,7 +812,7 @@ export async function addSampleProjectsFromFile(wsConfig: WorkspaceConfig, conte
     }
     await setWorkspaceState(context, wsConfig);
     void vscode.window.showInformationMessage(
-      `Added ${addedCount} sample project${addedCount > 1 ? "s" : ""} from zephyr-ide.json`
+      vscode.l10n.t("Added {0} sample project{1} from zephyr-ide.json", addedCount, addedCount > 1 ? "s" : "")
     );
     return true;
   }
@@ -825,13 +825,13 @@ export async function addProject(wsConfig: WorkspaceConfig, context: vscode.Exte
       canSelectFiles: false,
       canSelectFolders: true,
       canSelectMany: false,
-      title: "Select Project Folder"
+      title: vscode.l10n.t("Select Project Folder")
     };
 
     // Open file picker for destination directory
     const open = await vscode.window.showOpenDialog(dialogOptions);
     if (open === undefined) {
-      notifyError("Project", 'Failed to provide a valid target folder.');
+      notifyError("Project", vscode.l10n.t("Failed to provide a valid target folder."));
       return null;
     }
 
@@ -842,11 +842,11 @@ export async function addProject(wsConfig: WorkspaceConfig, context: vscode.Exte
       const contents = document.getText();
 
       if (!contents.includes("project(")) {
-        void vscode.window.showInformationMessage(`Failed to Load Project ${projectPath}, Does your project folder have a correct CMake File?`);
+        void vscode.window.showInformationMessage(vscode.l10n.t("Failed to Load Project {0}, Does your project folder have a correct CMake File?", projectPath));
         return;
       }
     } else {
-      void vscode.window.showInformationMessage(`Failed to Load Project ${projectPath}, Does your project folder have a CMakeLists.txt File?`);
+      void vscode.window.showInformationMessage(vscode.l10n.t("Failed to Load Project {0}, Does your project folder have a CMakeLists.txt File?", projectPath));
       return;
     }
   }
@@ -855,9 +855,9 @@ export async function addProject(wsConfig: WorkspaceConfig, context: vscode.Exte
   }
   const projectName = path.basename(projectPath);
   if (wsConfig.projects[projectName]) {
-    const selection = await vscode.window.showWarningMessage(`A project named "${projectName}" already exists`, 'Overwrite', 'Cancel');
-    if (selection !== 'Overwrite') {
-      notifyError("Project", `Failed to add project`);
+    const selection = await vscode.window.showWarningMessage(vscode.l10n.t("A project named \"{0}\" already exists", projectName), vscode.l10n.t("Overwrite"), vscode.l10n.t("Cancel"));
+    if (selection !== vscode.l10n.t("Overwrite")) {
+      notifyError("Project", vscode.l10n.t("Failed to add project"));
       return;
     }
   }
@@ -875,7 +875,7 @@ export async function addProject(wsConfig: WorkspaceConfig, context: vscode.Exte
   await setActiveProject(context, wsConfig, projectName);
   await setWorkspaceState(context, wsConfig);
 
-  void vscode.window.showInformationMessage(`Successfully loaded Project ${projectPath}`);
+  void vscode.window.showInformationMessage(vscode.l10n.t("Successfully loaded Project {0}", projectPath));
   return true;
 }
 
@@ -892,14 +892,14 @@ export async function addBuildToProject(
   const result = buildConfig ?? await buildSelector(context, setupState, wsConfig.rootPath);
   if (result && result.name !== undefined) {
     if (wsConfig.projects[projectName].buildConfigs[result.name]) {
-      const selection = await vscode.window.showWarningMessage('A build configuration named "' + result.name + '" already exists', 'Overwrite', 'Cancel');
-      if (selection !== 'Overwrite') {
-        notifyError("Build Config", `Failed to add build configuration`);
+      const selection = await vscode.window.showWarningMessage(vscode.l10n.t("A build configuration named \"{0}\" already exists", result.name), vscode.l10n.t("Overwrite"), vscode.l10n.t("Cancel"));
+      if (selection !== vscode.l10n.t("Overwrite")) {
+        notifyError("Build Config", vscode.l10n.t("Failed to add build configuration"));
         return;
       }
     }
 
-    void vscode.window.showInformationMessage(`Creating Build Configuration: ${result.name}`);
+    void vscode.window.showInformationMessage(vscode.l10n.t("Creating Build Configuration: {0}", result.name));
     wsConfig.projects[projectName].buildConfigs[result.name] = result;
     wsConfig.projectStates[projectName].buildStates[result.name] = { viewOpen: true };
     // Ensure setActiveBuild operates on the correct project, not wsConfig.activeProject
@@ -914,7 +914,7 @@ export async function addBuildToProject(
 
 export async function addBuild(wsConfig: WorkspaceConfig, context: vscode.ExtensionContext, buildConfig?: BuildConfig) {
   if (wsConfig.activeProject === undefined) {
-    notifyError("Build Config", `Failed to Add Build Configuration, please first select a project`);
+    notifyError("Build Config", vscode.l10n.t("Failed to Add Build Configuration, please first select a project"));
     return;
   }
   return await addBuildToProject(wsConfig, context, wsConfig.activeProject, buildConfig);
@@ -934,8 +934,8 @@ async function confirmAndRemoveItem(
 ): Promise<boolean | undefined> {
   if (!(itemName in configDict)) { return; }
   const selection = await vscode.window.showWarningMessage(
-    'Are you sure you want to remove ' + itemName + '?', 'Yes', 'Cancel');
-  if (selection !== 'Yes') { return; }
+    'Are you sure you want to remove ' + itemName + '?', vscode.l10n.t("Yes"), vscode.l10n.t("Cancel"));
+  if (selection !== vscode.l10n.t("Yes")) { return; }
   delete configDict[itemName];
   delete stateDict[itemName];
   if (activeRef.value === itemName) { activeRef.value = undefined; }
@@ -971,21 +971,21 @@ export async function addTest(wsConfig: WorkspaceConfig, context: vscode.Extensi
   }
 
   if (projectName === undefined) {
-    notifyError("Test Config", `Failed to Add Test Configuration, please first select a project`);
+    notifyError("Test Config", vscode.l10n.t("Failed to Add Test Configuration, please first select a project"));
     return;
   }
 
   const result = await twisterSelector(wsConfig.projects[projectName].relPath, context, setupState, wsConfig.rootPath);
   if (result && result.name !== undefined) {
     if (wsConfig.projects[projectName].twisterConfigs[result.name]) {
-      const selection = await vscode.window.showWarningMessage('A test configuration named "' + result.name + '" already exists', 'Overwrite', 'Cancel');
-      if (selection !== 'Overwrite') {
-        notifyError("Test Config", `Failed to add twister configuration`);
+      const selection = await vscode.window.showWarningMessage(vscode.l10n.t("A test configuration named \"{0}\" already exists", result.name), vscode.l10n.t("Overwrite"), vscode.l10n.t("Cancel"));
+      if (selection !== vscode.l10n.t("Overwrite")) {
+        notifyError("Test Config", vscode.l10n.t("Failed to add twister configuration"));
         return;
       }
     }
 
-    void vscode.window.showInformationMessage(`Creating Twister Configuration: ${result.name}`);
+    void vscode.window.showInformationMessage(vscode.l10n.t("Creating Twister Configuration: {0}", result.name));
 
     //Remove the following upgrade code eventually
     if (wsConfig.projects[projectName].twisterConfigs === undefined) {
@@ -1051,16 +1051,16 @@ export async function setActiveProfile(
   }
 
   const profiles = loadRunnerProfiles(wsConfig);
-  const NONE_LABEL = "(None) — clear local profile override";
+  const NONE_LABEL = vscode.l10n.t("(None) — clear local profile override");
   const { name: currentEffective, scope: currentScope } = getEffectiveActiveProfileName(wsConfig, resolved);
-  const OPEN_PANEL_LABEL = "$(gear)  Open Runner Profiles Page…";
-  const SAVE_TO_WORKSPACE_LABEL = "$(save)  Save active profile to workspace (.vscode/zephyr-ide.json)…";
-  const RESET_TO_WORKSPACE_LABEL = "$(discard)  Reset to workspace default…";
+  const OPEN_PANEL_LABEL = vscode.l10n.t("$(gear)  Open Runner Profiles Page…");
+  const SAVE_TO_WORKSPACE_LABEL = vscode.l10n.t("$(save)  Save active profile to workspace (.vscode/zephyr-ide.json)…");
+  const RESET_TO_WORKSPACE_LABEL = vscode.l10n.t("$(discard)  Reset to workspace default…");
   const hasLocalOverride = !!buildState && "localActiveProfile" in buildState;
   const items: vscode.QuickPickItem[] = [
     {
       label: NONE_LABEL,
-      description: currentEffective === undefined ? "current" : undefined,
+      description: currentEffective === undefined ? vscode.l10n.t("current") : undefined,
       detail: "Flash/debug fall back to runners.yaml defaults (all binds auto).",
     },
   ];
@@ -1070,7 +1070,7 @@ export async function setActiveProfile(
     for (const name of names) {
       items.push({
         label: name,
-        description: currentEffective === name ? `current (${currentScope})` : undefined,
+        description: currentEffective === name ? vscode.l10n.t("current ({0})", currentScope) : undefined,
       });
     }
   }
@@ -1078,19 +1078,19 @@ export async function setActiveProfile(
     items.push({ label: "", kind: vscode.QuickPickItemKind.Separator });
     items.push({
       label: SAVE_TO_WORKSPACE_LABEL,
-      detail: `Commit the local override into .vscode/zephyr-ide.json (currently: ${resolved.build.activeProfile ?? "(none)"}) and clear the local override.`,
+      detail: vscode.l10n.t("Commit the local override into .vscode/zephyr-ide.json (currently: {0}) and clear the local override.", resolved.build.activeProfile ?? "(none)"),
     });
     items.push({
       label: RESET_TO_WORKSPACE_LABEL,
-      detail: `Discard the local override; go back to the committed workspace default (${resolved.build.activeProfile ?? "(none)"}).`,
+      detail: vscode.l10n.t("Discard the local override; go back to the committed workspace default ({0}).", resolved.build.activeProfile ?? "(none)"),
     });
   }
   items.push({ label: "", kind: vscode.QuickPickItemKind.Separator });
-  items.push({ label: OPEN_PANEL_LABEL, detail: "Open the Runner Profiles editor panel to create or modify profiles." });
+  items.push({ label: OPEN_PANEL_LABEL, detail: vscode.l10n.t("Open the Runner Profiles editor panel to create or modify profiles.") });
 
   const qp = vscode.window.createQuickPick();
   qp.ignoreFocusOut = true;
-  qp.placeholder = "Select Runner Profile for active build (saved as local override)";
+  qp.placeholder = vscode.l10n.t("Select Runner Profile for active build (saved as local override)");
   qp.items = items;
   const defaultItem = currentEffective !== undefined
     ? items.find(i => i.label === currentEffective)
@@ -1151,13 +1151,13 @@ export async function setWorkspaceActiveProfile(
   }
 
   const profiles = loadRunnerProfiles(wsConfig);
-  const NONE_LABEL = "(None) — clear workspace profile";
-  const OPEN_PANEL_LABEL = "$(gear)  Open Runner Profiles Page…";
+  const NONE_LABEL = vscode.l10n.t("(None) — clear workspace profile");
+  const OPEN_PANEL_LABEL = vscode.l10n.t("$(gear)  Open Runner Profiles Page…");
   const current = resolved.build.activeProfile;
   const items: vscode.QuickPickItem[] = [
     {
       label: NONE_LABEL,
-      description: current === undefined ? "current" : undefined,
+      description: current === undefined ? vscode.l10n.t("current") : undefined,
       detail: "Flash/debug fall back to runners.yaml defaults (all binds auto).",
     },
   ];
@@ -1167,16 +1167,16 @@ export async function setWorkspaceActiveProfile(
     for (const name of names) {
       items.push({
         label: name,
-        description: current === name ? "current (workspace)" : undefined,
+        description: current === name ? vscode.l10n.t("current (workspace)") : undefined,
       });
     }
   }
   items.push({ label: "", kind: vscode.QuickPickItemKind.Separator });
-  items.push({ label: OPEN_PANEL_LABEL, detail: "Open the Runner Profiles editor panel to create or modify profiles." });
+  items.push({ label: OPEN_PANEL_LABEL, detail: vscode.l10n.t("Open the Runner Profiles editor panel to create or modify profiles.") });
 
   const qp = vscode.window.createQuickPick();
   qp.ignoreFocusOut = true;
-  qp.placeholder = "Select Runner Profile to save into zephyr-ide.json (workspace default)";
+  qp.placeholder = vscode.l10n.t("Select Runner Profile to save into zephyr-ide.json (workspace default)");
   qp.items = items;
   const defaultItem = current !== undefined
     ? items.find(i => i.label === current)
@@ -1219,7 +1219,7 @@ export async function saveActiveProfileToWorkspace(
   await setWorkspaceState(context, wsConfig);
   void vscode.commands.executeCommand("zephyr-ide.update-web-view");
   const label = effectiveName ?? "(none)";
-  void vscode.window.showInformationMessage(`Runner profile "${label}" saved to workspace (zephyr-ide.json).`);
+  void vscode.window.showInformationMessage(vscode.l10n.t("Runner profile \"{0}\" saved to workspace (zephyr-ide.json).", label));
 }
 
 /**
@@ -1235,14 +1235,14 @@ export async function resetActiveProfileToWorkspace(
   if (!resolved) { return; }
   const buildState = wsConfig.projectStates[resolved.projectName]?.buildStates?.[resolved.buildName];
   if (!buildState || !("localActiveProfile" in buildState)) {
-    void vscode.window.showInformationMessage("No local runner profile override to reset.");
+    void vscode.window.showInformationMessage(vscode.l10n.t("No local runner profile override to reset."));
     return;
   }
   delete buildState.localActiveProfile;
   await setWorkspaceState(context, wsConfig);
   void vscode.commands.executeCommand("zephyr-ide.update-web-view");
   const workspaceName = resolved.build.activeProfile ?? "(none)";
-  void vscode.window.showInformationMessage(`Local override cleared. Active runner profile is now workspace default: "${workspaceName}".`);
+  void vscode.window.showInformationMessage(vscode.l10n.t("Local override cleared. Active runner profile is now workspace default: \"{0}\".", workspaceName));
 }
 
 // Common Zephyr runners offered in the local-bind picker — sourced from
@@ -1274,13 +1274,13 @@ export async function setLocalBind(
   let slot: Slot | undefined = presetSlot;
   if (!slot) {
     const slotItems: vscode.QuickPickItem[] = [
-      { label: "flash", iconPath: new vscode.ThemeIcon("zap"), description: "West flash / Build and Flash" },
-      { label: "debug", iconPath: new vscode.ThemeIcon("debug-alt"), description: "Debug / Build and Debug" },
-      { label: "attach", iconPath: new vscode.ThemeIcon("debug-console"), description: "Debug Attach" },
+      { label: "flash", iconPath: new vscode.ThemeIcon("zap"), description: vscode.l10n.t("West flash / Build and Flash") },
+      { label: "debug", iconPath: new vscode.ThemeIcon("debug-alt"), description: vscode.l10n.t("Debug / Build and Debug") },
+      { label: "attach", iconPath: new vscode.ThemeIcon("debug-console"), description: vscode.l10n.t("Debug Attach") },
     ];
     const slotPick = await vscode.window.showQuickPick(slotItems, {
-      title: "Local Bind — pick a slot",
-      placeHolder: "Which slot should use a locally overridden runner?",
+      title: vscode.l10n.t("Local Bind — pick a slot"),
+      placeHolder: vscode.l10n.t("Which slot should use a locally overridden runner?"),
       ignoreFocusOut: true,
     });
     if (!slotPick) { return; }
@@ -1302,18 +1302,18 @@ export async function setLocalBind(
 
     if (runner && runner.startsWith(CORTEX_DEBUG_PREFIX + "openocd")) {
       const probeItems: vscode.QuickPickItem[] = [
-        { label: "runners.yaml / auto-detect", description: "Use runners.yaml probe configuration" },
-        { label: "ST-LINK v2/v3", detail: "interface/stlink.cfg", description: "Most common for STM32 / nRF52 with SWD" } as vscode.QuickPickItem,
-        { label: "CMSIS-DAP", detail: "interface/cmsis-dap.cfg", description: "DAPLink, ULINK2, MCU-Link, …" } as vscode.QuickPickItem,
-        { label: "SEGGER J-Link", detail: "interface/jlink.cfg", description: "J-Link via OpenOCD" } as vscode.QuickPickItem,
-        { label: "FTDI", detail: "interface/ftdi.cfg", description: "FTDI-based probe (generic)" } as vscode.QuickPickItem,
-        { label: "Raspberry Pi Pico (probe)", detail: "interface/picoprobe.cfg", description: "RP2040 Pico used as SWD/JTAG probe" } as vscode.QuickPickItem,
-        { label: "Raspberry Pi GPIO SWD", detail: "interface/raspberrypi-swd.cfg", description: "Bit-banged SWD via RPi GPIO" } as vscode.QuickPickItem,
-        { label: "Bus Pirate", detail: "interface/buspirate.cfg", description: "Bus Pirate USB probe" } as vscode.QuickPickItem,
+        { label: vscode.l10n.t("runners.yaml / auto-detect"), description: vscode.l10n.t("Use runners.yaml probe configuration") },
+        { label: "ST-LINK v2/v3", detail: "interface/stlink.cfg", description: vscode.l10n.t("Most common for STM32 / nRF52 with SWD") } as vscode.QuickPickItem,
+        { label: "CMSIS-DAP", detail: "interface/cmsis-dap.cfg", description: vscode.l10n.t("DAPLink, ULINK2, MCU-Link, …") } as vscode.QuickPickItem,
+        { label: "SEGGER J-Link", detail: "interface/jlink.cfg", description: vscode.l10n.t("J-Link via OpenOCD") } as vscode.QuickPickItem,
+        { label: "FTDI", detail: "interface/ftdi.cfg", description: vscode.l10n.t("FTDI-based probe (generic)") } as vscode.QuickPickItem,
+        { label: vscode.l10n.t("Raspberry Pi Pico (probe)"), detail: "interface/picoprobe.cfg", description: vscode.l10n.t("RP2040 Pico used as SWD/JTAG probe") } as vscode.QuickPickItem,
+        { label: vscode.l10n.t("Raspberry Pi GPIO SWD"), detail: "interface/raspberrypi-swd.cfg", description: vscode.l10n.t("Bit-banged SWD via RPi GPIO") } as vscode.QuickPickItem,
+        { label: "Bus Pirate", detail: "interface/buspirate.cfg", description: vscode.l10n.t("Bus Pirate USB probe") } as vscode.QuickPickItem,
       ];
       const probePick = await vscode.window.showQuickPick(probeItems, {
-        title: "Select OpenOCD Probe",
-        placeHolder: "Pick probe/interface config to override runners.yaml (or keep default)",
+        title: vscode.l10n.t("Select OpenOCD Probe"),
+        placeHolder: vscode.l10n.t("Pick probe/interface config to override runners.yaml (or keep default)"),
         ignoreFocusOut: true,
       });
       if (probePick === undefined) { return; } // user cancelled
@@ -1355,11 +1355,11 @@ export async function setBindOverride(
   const currentArgs = resolved.build.bindOverrides?.[slot]?.extraArgs ?? [];
   const currentStr = currentArgs.join(" ");
   const value = argsText ?? await vscode.window.showInputBox({
-    title: `Extra runner args for ${slot}`,
+    title: vscode.l10n.t("Extra runner args for {0}", slot),
     value: currentStr,
     ignoreFocusOut: true,
     placeHolder: "--erase --speed 4000",
-    prompt: "Appended after the profile's runner args. Leave blank to clear.",
+    prompt: vscode.l10n.t("Appended after the profile's runner args. Leave blank to clear."),
   });
   if (value === undefined) { return; }
   const parsed = splitArgs(value);
@@ -1439,35 +1439,35 @@ async function editCustomVars(
     const entries = Object.keys(vars).sort().map(k => ({
       label: k,
       description: vars[k],
-      detail: `${scope} variable — click to edit or delete`,
+      detail: vscode.l10n.t("{0} variable — click to edit or delete", scope),
     }));
     const pick = await vscode.window.showQuickPick(
       [...entries, { label: ADD, description: "", detail: "" }, { label: DONE, description: "", detail: "" }],
-      { title: `Manage ${scope} variables`, placeHolder: "Select a variable to edit/delete, or add a new one", ignoreFocusOut: true }
+      { title: vscode.l10n.t("Manage {0} variables", scope), placeHolder: vscode.l10n.t("Select a variable to edit/delete, or add a new one"), ignoreFocusOut: true }
     );
     if (!pick || pick.label === DONE) { break; }
 
     if (pick.label === ADD) {
-      const key = await vscode.window.showInputBox({ prompt: "Variable name", placeHolder: "bmp_port", ignoreFocusOut: true });
+      const key = await vscode.window.showInputBox({ prompt: vscode.l10n.t("Variable name"), placeHolder: "bmp_port", ignoreFocusOut: true });
       if (!key?.trim()) { continue; }
-      const val = await vscode.window.showInputBox({ prompt: `Value for "${key.trim()}"`, ignoreFocusOut: true, value: "" });
+      const val = await vscode.window.showInputBox({ prompt: vscode.l10n.t("Value for \"{0}\"", key.trim()), ignoreFocusOut: true, value: "" });
       if (val === undefined) { continue; }
       vars[key.trim()] = val;
     } else {
       const key = pick.label;
       const action = await vscode.window.showQuickPick(
         [
-          { label: "$(edit)  Edit value", id: "edit" },
-          { label: "$(trash)  Delete", id: "delete" },
-          { label: "$(close)  Cancel", id: "cancel" },
+          { label: vscode.l10n.t("$(edit)  Edit value"), id: "edit" },
+          { label: vscode.l10n.t("$(trash)  Delete"), id: "delete" },
+          { label: vscode.l10n.t("$(close)  Cancel"), id: "cancel" },
         ],
-        { title: `Variable: ${key} = ${vars[key]}`, ignoreFocusOut: true }
+        { title: vscode.l10n.t("Variable: {0} = {1}", key, vars[key]), ignoreFocusOut: true }
       );
       if (!action || action.id === "cancel") { continue; }
       if (action.id === "delete") {
         delete vars[key];
       } else {
-        const val = await vscode.window.showInputBox({ prompt: `New value for "${key}"`, ignoreFocusOut: true, value: vars[key] });
+        const val = await vscode.window.showInputBox({ prompt: vscode.l10n.t("New value for \"{0}\"", key), ignoreFocusOut: true, value: vars[key] });
         if (val === undefined) { continue; }
         vars[key] = val;
       }

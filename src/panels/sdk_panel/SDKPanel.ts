@@ -15,6 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import { webviewMessages } from "../webview-messages";
 import * as vscode from "vscode";
 import { WorkspaceConfig, GlobalConfig } from "../../setup_utilities/types";
 import {
@@ -83,7 +84,7 @@ export class SDKPanel {
 
     const panel = vscode.window.createWebviewPanel(
       "zephyrIDESDK",
-      "Zephyr IDE: SDK",
+      vscode.l10n.t("Zephyr IDE: SDK"),
       column || vscode.ViewColumn.One,
       {
         enableScripts: true,
@@ -235,7 +236,7 @@ export class SDKPanel {
         }
       }
     } catch (error) {
-      notifyError("SDK Install", `Failed to install west SDK: ${error}`);
+      notifyError("SDK Install", vscode.l10n.t("Failed to install west SDK: {0}", String(error)));
     }
   }
 
@@ -243,7 +244,7 @@ export class SDKPanel {
     try {
       await vscode.commands.executeCommand("zephyr-ide.install-zephyr-ide-toolchains");
     } catch (error) {
-      notifyError("SDK Install", `Failed to install zephyr-ide.json toolchains: ${error}`);
+      notifyError("SDK Install", vscode.l10n.t("Failed to install zephyr-ide.json toolchains: {0}", String(error)));
     } finally {
       // Always refresh the panel so the buttons are re-enabled even if the
       // command threw before any progress events fired.
@@ -262,7 +263,7 @@ export class SDKPanel {
   private async addToolchainsForVersion(version: string) {
     try {
       if (!this.currentWsConfig || !this.currentGlobalConfig) {
-        notifyError("SDK Install", "Configuration not available");
+        notifyError("SDK Install", vscode.l10n.t("Configuration not available"));
         return;
       }
       await installSDKToolchainsInteractive(
@@ -280,17 +281,17 @@ export class SDKPanel {
         outputError("SDK Panel", `Failed to refresh panel after adding toolchains: ${String(updateError)}`);
       }
     } catch (error) {
-      notifyError("SDK Install", `Failed to add toolchains: ${error}`);
+      notifyError("SDK Install", vscode.l10n.t("Failed to add toolchains: {0}", String(error)));
     }
   }
 
   private async removeSDKVersion(version: string) {
     const answer = await vscode.window.showWarningMessage(
-      `Remove the entire Zephyr SDK ${version}? This will delete the SDK directory from disk and cannot be undone.`,
+      vscode.l10n.t("Remove the entire Zephyr SDK {0}? This will delete the SDK directory from disk and cannot be undone.", version),
       { modal: true },
-      "Remove",
+      vscode.l10n.t("Remove"),
     );
-    if (answer !== "Remove") { return; }
+    if (answer !== vscode.l10n.t("Remove")) { return; }
 
     const { success, error } = await uninstallSDKVersion(version);
     if (!success) {
@@ -310,7 +311,7 @@ export class SDKPanel {
 
   private async applyToolchainChanges(version: string, toAdd: string[], toRemove: string[]) {
     if (!this.currentWsConfig || !this.currentGlobalConfig) {
-      notifyError("SDK", "Configuration not available");
+      notifyError("SDK", vscode.l10n.t("Configuration not available"));
       return;
     }
 
@@ -323,7 +324,7 @@ export class SDKPanel {
         const { notFound, errors } = await uninstallToolchains(version, toRemove);
         if (errors.length > 0) {
           removeSucceeded = false;
-          notifyError("SDK Uninstall", `Some toolchains could not be removed:\n${errors.join("\n")}`);
+          notifyError("SDK Uninstall", vscode.l10n.t("Some toolchains could not be removed:\n{0}", errors.join("\n")));
         }
         if (notFound.length > 0) {
           outputError("SDK Panel", `Toolchain directories not found (already removed?): ${notFound.join(", ")}`);
@@ -379,7 +380,7 @@ export class SDKPanel {
       await this.syncSdkStateFromList(sdkList);
       this._panel.webview.postMessage({ command: "sdkListResult", data: sdkList });
     } catch (error) {
-      notifyError("SDK List", `Failed to list SDKs: ${error}`);
+      notifyError("SDK List", vscode.l10n.t("Failed to list SDKs: {0}", String(error)));
       this._panel.webview.postMessage({
         command: "sdkListResult",
         data: { success: false, versions: [], error: `Failed to list SDKs: ${error}` },
@@ -430,7 +431,7 @@ export class SDKPanel {
     );
 
     return `<!DOCTYPE html>
-        <html lang="en">
+        <html lang="${vscode.env.language}">
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -440,6 +441,7 @@ export class SDKPanel {
             <link rel="stylesheet" type="text/css" href="${codiconUri}" id="vscode-codicon-stylesheet">
         </head>
         <body>
+          ${webviewMessages(nonce)}
             <sdk-app></sdk-app>
             <script nonce="${nonce}" src="${jsUri}"></script>
         </body>

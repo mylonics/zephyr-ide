@@ -99,7 +99,7 @@ export type TwisterConfigDictionary = { [name: string]: TwisterConfig };
 export type TwisterStateDictionary = { [name: string]: TwisterState };
 
 export async function twisterSelector(projectFolder: string, context: ExtensionContext, setupState: SetupState, rootPath: string) {
-  const title = 'Add Twister Configuration';
+  const title = vscode.l10n.t("Add Twister Configuration");
 
   const twisterConfig: Partial<TwisterConfig> = {};
   twisterConfig.tests = [];
@@ -115,7 +115,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
   const tests = getTestsFromProject(projectPath);
 
   if (tests.length === 0) {
-    notifyError("Twister Config", `Project Directory does not contain tests in either a sample.yaml or testcase.yaml file`);
+    notifyError("Twister Config", vscode.l10n.t("Project Directory does not contain tests in either a sample.yaml or testcase.yaml file"));
     return;
   }
 
@@ -135,7 +135,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
 
   async function pickTests(input: MultiStepInput) {
     let testQpItems: QuickPickItem[] = [];
-    testQpItems.push({ label: "All", picked: true });
+    testQpItems.push({ label: vscode.l10n.t("All"), picked: true });
     testQpItems.push({ label: "", kind: vscode.QuickPickItemKind.Separator });
     testQpItems = testQpItems.concat(mapToQuickPickItems(tests));
 
@@ -143,7 +143,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
       title,
       step: 1,
       totalSteps: totalStepsFor(),
-      placeholder: 'Select Tests (toggle then press Enter)',
+      placeholder: vscode.l10n.t("Select Tests (toggle then press Enter)"),
       ignoreFocusOut: true,
       items: testQpItems,
       activeItem: undefined,
@@ -151,14 +151,14 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
 
     // No custom buttons on this step, so the result is always an array.
     if (!Array.isArray(testPickResult) || testPickResult.length === 0) {
-      notifyError("Twister Config", "Need to select at least one test");
+      notifyError("Twister Config", vscode.l10n.t("Need to select at least one test"));
       return;
     }
     const testPick = testPickResult as readonly QuickPickItem[];
 
     twisterConfig.tests = [];
     for (const v of testPick) {
-      if (v.label === 'All') {
+      if (v.label === vscode.l10n.t("All")) {
         twisterConfig.tests = ['All'];
         break;
       }
@@ -176,7 +176,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
       title,
       step: 2,
       totalSteps: totalStepsFor(),
-      placeholder: 'Select Platform',
+      placeholder: vscode.l10n.t("Select Platform"),
       ignoreFocusOut: true,
       items: platformsQpItems,
       activeItem: undefined,
@@ -194,14 +194,14 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
     return (input: MultiStepInput) => inputTwisterArgs(input);
   }
 
-  const manualQemuEntryLabel = "Enter platform manually...";
+  const manualQemuEntryLabel = vscode.l10n.t("Enter platform manually...");
 
   async function pickQemuPlatform(input: MultiStepInput): Promise<InputStep | void> {
     const manualItem: QuickPickItem = { label: manualQemuEntryLabel };
-    const loadingItem: QuickPickItem = { label: "Getting targets from west boards..." };
+    const loadingItem: QuickPickItem = { label: vscode.l10n.t("Getting targets from west boards...") };
     const failedItem: QuickPickItem = {
-      label: "Failed to get targets from west boards",
-      description: `Use "${manualQemuEntryLabel}" above`,
+      label: vscode.l10n.t("Failed to get targets from west boards"),
+      description: vscode.l10n.t("Use \"{0}\" above", manualQemuEntryLabel),
     };
 
     qemuManualStepAdded = false;
@@ -209,7 +209,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
       title,
       step: 3,
       totalSteps: totalStepsFor(),
-      placeholder: 'Select QEMU Platform',
+      placeholder: vscode.l10n.t("Select QEMU Platform"),
       ignoreFocusOut: true,
       pinnedItem: manualItem,
       loadingItem,
@@ -237,7 +237,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
       title,
       step,
       totalSteps: totalStepsFor(),
-      prompt: "Enter QEMU platform (e.g., qemu_cortex_m3)",
+      prompt: vscode.l10n.t("Enter QEMU platform (e.g., qemu_cortex_m3)"),
       ignoreFocusOut: true,
       value: qemuPlatform,
       validate: validateQemuPlatform,
@@ -272,7 +272,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
       title,
       step: 6,
       totalSteps: totalStepsFor(),
-      prompt: "Enter serial port (e.g., COM1)",
+      prompt: vscode.l10n.t("Enter serial port (e.g., COM1)"),
       ignoreFocusOut: true,
       value: "",
       validate: noOpValidate,
@@ -287,7 +287,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
       title,
       step: 7,
       totalSteps: totalStepsFor(),
-      prompt: "Enter baud rate (e.g., 115200)",
+      prompt: vscode.l10n.t("Enter baud rate (e.g., 115200)"),
       ignoreFocusOut: true,
       value: "",
       validate: noOpValidate,
@@ -303,7 +303,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
       title,
       step: argsStep,
       totalSteps: totalStepsFor(),
-      prompt: "Additional Twister Arguments",
+      prompt: vscode.l10n.t("Additional Twister Arguments"),
       ignoreFocusOut: true,
       value: "",
       placeholder: '--sysbuild',
@@ -332,7 +332,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
       title,
       step: steps,
       totalSteps: steps,
-      prompt: "Enter test configuration name",
+      prompt: vscode.l10n.t("Enter test configuration name"),
       ignoreFocusOut: true,
       value: default_name,
       validate: noOpValidate,
@@ -350,7 +350,7 @@ export async function twisterSelector(projectFolder: string, context: ExtensionC
 }
 
 export async function reconfigureTest(config: TwisterConfig) {
-  const title = "Reconfigure Test";
+  const title = vscode.l10n.t("Reconfigure Test");
   const hasBoardConfig = !!config.boardConfig;
   const totalSteps = hasBoardConfig ? 3 : 1;
 
@@ -359,7 +359,7 @@ export async function reconfigureTest(config: TwisterConfig) {
       title,
       step: 1,
       totalSteps,
-      prompt: "Enter serial port (e.g., COM1)",
+      prompt: vscode.l10n.t("Enter serial port (e.g., COM1)"),
       ignoreFocusOut: true,
       value: config.serialPort ? config.serialPort : "",
       validate: noOpValidate,
@@ -376,7 +376,7 @@ export async function reconfigureTest(config: TwisterConfig) {
       title,
       step: 2,
       totalSteps,
-      prompt: "Enter baud rate (e.g., 115200)",
+      prompt: vscode.l10n.t("Enter baud rate (e.g., 115200)"),
       ignoreFocusOut: true,
       value: config.serialBaud ? config.serialBaud : "",
       validate: noOpValidate,
@@ -394,7 +394,7 @@ export async function reconfigureTest(config: TwisterConfig) {
       title,
       step,
       totalSteps,
-      prompt: "Additional Twister Arguments",
+      prompt: vscode.l10n.t("Additional Twister Arguments"),
       ignoreFocusOut: true,
       value: config.args ? config.args : "",
       validate: noOpValidate,

@@ -134,7 +134,7 @@ export async function getBoardlistWest(setupState: SetupState, folder: vscode.Ur
   if (!res.stdout || res.stdout === "") {
     if (!silent) {
       outputCommandFailure("Board Selection", res);
-      notifyError("Board Selection", "Failed to run west boards command. Check the Zephyr IDE output for details.");
+      notifyError("Board Selection", vscode.l10n.t("Failed to run west boards command. Check the Zephyr IDE output for details."));
     }
     return;
   }
@@ -220,7 +220,7 @@ export function pickBoardSteps(
   state: PickBoardState,
   options: { startStep: number; totalSteps: number; next?: InputStep; moduleBoardRoots?: ModuleBoardRoot[] }
 ): InputStep {
-  const title = "Board Picker";
+  const title = vscode.l10n.t("Board Picker");
   const { startStep, totalSteps, next, moduleBoardRoots } = options;
 
   // Build the list of candidate board directories once; it doesn't depend on
@@ -234,7 +234,7 @@ export function pickBoardSteps(
   // Map from label → absPath for module board root entries.
   const moduleBoardRootMap = new Map<string, string>();
   if (moduleBoardRoots && moduleBoardRoots.length > 0) {
-    boardDirItems.push({ label: "Modules", kind: vscode.QuickPickItemKind.Separator });
+    boardDirItems.push({ label: vscode.l10n.t("Modules"), kind: vscode.QuickPickItemKind.Separator });
     for (const mod of moduleBoardRoots) {
       boardDirItems.push({ label: mod.name, description: mod.absPath });
       moduleBoardRootMap.set(mod.name, mod.absPath);
@@ -242,16 +242,16 @@ export function pickBoardSteps(
   }
 
   if (setupState.zephyrDir) {
-    boardDirItems.push({ label: 'Zephyr Directory Only' });
+    boardDirItems.push({ label: vscode.l10n.t("Zephyr Directory Only") });
   }
-  boardDirItems.push({ label: "Select Other Folder" });
+  boardDirItems.push({ label: vscode.l10n.t("Select Other Folder") });
 
   async function pickBoardDir(input: MultiStepInput): Promise<InputStep | void> {
     const pick = await input.showQuickPick({
       title,
       step: startStep,
       totalSteps,
-      placeholder: 'Pick Additional Board Directory',
+      placeholder: vscode.l10n.t("Pick Additional Board Directory"),
       ignoreFocusOut: true,
       items: boardDirItems,
       activeItem: undefined,
@@ -267,7 +267,7 @@ export function pickBoardSteps(
       const boardsFolder = path.join(modAbsPath, "boards");
       relBoardDir = path.relative(rootPath, boardsFolder);
       boardRootFolder = vscode.Uri.file(boardsFolder);
-    } else if (pick.label === "Select Other Folder") {
+    } else if (pick.label === vscode.l10n.t("Select Other Folder")) {
       const boarddir = await vscode.window.showOpenDialog({
         canSelectFiles: false,
         canSelectFolders: true,
@@ -277,10 +277,10 @@ export function pickBoardSteps(
         relBoardDir = path.relative(rootPath, boarddir[0].fsPath);
         boardRootFolder = boarddir[0];
       } else {
-        void vscode.window.showInformationMessage(`Failed to select board directory`);
+        void vscode.window.showInformationMessage(vscode.l10n.t("Failed to select board directory"));
         return;
       }
-    } else if (pick.label === 'Zephyr Directory Only') {
+    } else if (pick.label === vscode.l10n.t("Zephyr Directory Only")) {
       relBoardDir = undefined;
       boardRootFolder = undefined;
     } else {
@@ -315,7 +315,7 @@ export function pickBoardSteps(
       title,
       step: startStep + 1,
       totalSteps,
-      placeholder: 'Pick Board',
+      placeholder: vscode.l10n.t("Pick Board"),
       ignoreFocusOut: true,
       items: boardQpItems,
       activeItem: undefined,
@@ -354,7 +354,7 @@ export function pickBoardSteps(
       title,
       step: startStep + 2,
       totalSteps,
-      placeholder: 'Pick Revision',
+      placeholder: vscode.l10n.t("Pick Revision"),
       ignoreFocusOut: true,
       items: revisionQPItems,
       activeItem: revisionQPItems[revisionIndex],
@@ -411,7 +411,7 @@ export async function pickBoard(setupState: SetupState, rootPath: string): Promi
 }
 
 export async function buildSelector(context: ExtensionContext, setupState: SetupState, rootPath: string) {
-  const title = 'Add Build Configuration';
+  const title = vscode.l10n.t("Add Build Configuration");
   const TOTAL_STEPS = 7;
 
   const state: Partial<BuildConfig> = {};
@@ -435,7 +435,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       totalSteps: TOTAL_STEPS,
       ignoreFocusOut: true,
       value: path.join("build", state.board + (state.revision ? "_" + state.revision : "")),
-      prompt: 'Enter build configuration name',
+      prompt: vscode.l10n.t("Enter build configuration name"),
       validate: noOpValidate,
     });
     if (!name) {
@@ -446,20 +446,21 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
   }
 
   async function setBuildOptimization(input: MultiStepInput): Promise<InputStep | void> {
-    const buildOptimizations = ["debug", "speed", "size", "none", "Not set (configured in KConfig)"];
+    const useKconfig = vscode.l10n.t("Not set (configured in KConfig)");
+    const buildOptimizations = ["debug", "speed", "size", "none", useKconfig];
     const buildOptimizationsQpItems: QuickPickItem[] = mapToQuickPickItems(buildOptimizations);
 
     const pick = await input.showQuickPick({
       title,
       step: 5,
       totalSteps: TOTAL_STEPS,
-      placeholder: 'Select Build Optimization',
+      placeholder: vscode.l10n.t("Select Build Optimization"),
       ignoreFocusOut: true,
       items: buildOptimizationsQpItems,
       activeItem: typeof state.compilerOptimization !== 'string' ? state.compilerOptimization : undefined,
     });
     // Store "Not set" as undefined (omit the field)
-    state.compilerOptimization = pick.label === "Not set (configured in KConfig)" ? undefined : pick.label;
+    state.compilerOptimization = pick.label === useKconfig ? undefined : pick.label;
     return (input: MultiStepInput) => inputWestArgs(input);
   }
 
@@ -470,7 +471,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       totalSteps: TOTAL_STEPS,
       ignoreFocusOut: true,
       value: "",
-      prompt: 'Additional Build Arguments',
+      prompt: vscode.l10n.t("Additional Build Arguments"),
       placeholder: '--sysbuild',
       validate: noOpValidate,
     });
@@ -506,7 +507,7 @@ export async function buildSelector(context: ExtensionContext, setupState: Setup
       totalSteps: TOTAL_STEPS,
       ignoreFocusOut: true,
       value: cmakeArg,
-      prompt: 'Modify CMake Arguments',
+      prompt: vscode.l10n.t("Modify CMake Arguments"),
       validate: noOpValidate,
     });
     if (cmakeBuildArgs === undefined) {

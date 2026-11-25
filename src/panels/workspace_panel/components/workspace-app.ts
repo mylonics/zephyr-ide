@@ -15,6 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import { panelText } from "../../webview_shared/panel-text";
 import { html, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { ZephyrLitElement } from '../../webview_shared/lit-base';
@@ -54,7 +55,7 @@ export class WorkspaceApp extends ZephyrLitElement {
     switch (msg.command) {
       case 'updateContent':
         this._data = msg.data as WorkspacePanelData;
-        this._statusAnnouncement = 'Workspace panel updated';
+        this._statusAnnouncement = panelText("Workspace panel updated");
         if (!this._progressData ||
           this._progressData.type === 'complete' ||
           this._progressData.type === 'failed') {
@@ -155,10 +156,10 @@ export class WorkspaceApp extends ZephyrLitElement {
     return html`
       <div class="container" @keydown=${this._onKeydown}>
         <div class="sr-only" role="status" aria-live="polite">${this._statusAnnouncement}</div>
-        <a class="breadcrumb-link" @click=${() => this._send('openSetupPanel')}>← Overview</a>
+        <a class="breadcrumb-link" @click=${() => this._send('openSetupPanel')}>${panelText("← Overview")}</a>
         <div class="page-header">
           <div style="display:flex;align-items:center;gap:12px;">
-            <h1 class="page-title">Workspace Setup</h1>
+            <h1 class="page-title">${panelText("Workspace Setup")}</h1>
             <span class="header-status-badge ${d.statusClass}">${d.statusIcon} ${d.statusLabel}</span>
           </div>
           ${d.targetDirectory ? html`
@@ -191,11 +192,10 @@ export class WorkspaceApp extends ZephyrLitElement {
         <div class="activation-banner-content">
           <span class="codicon codicon-info"></span>
           <span>
-            Viewing <strong>${b.name}</strong> (inactive). Setup and management
-            actions are hidden until this workspace is activated.
+            ${panelText("Viewing")} <strong>${b.name}</strong> ${panelText("(inactive). Setup and management actions are hidden until this workspace is activated.")}
           </span>
         </div>
-        <vscode-button @click=${() => this._activateWorkspace(b.path)}>Activate</vscode-button>
+        <vscode-button @click=${() => this._activateWorkspace(b.path)}>${panelText("Activate")}</vscode-button>
       </div>`;
   }
 
@@ -203,9 +203,7 @@ export class WorkspaceApp extends ZephyrLitElement {
     return html`
       <div class="ws-state">
         <p class="description muted">
-          Setup and management actions are hidden while viewing an inactive
-          workspace. Use <strong>Activate</strong> in the banner above to
-          switch to it.
+          ${panelText("Setup and management actions are hidden while viewing an inactive workspace. Use")} <strong>${panelText("Activate")}</strong> ${panelText("in the banner above to switch to it.")}
         </p>
       </div>`;
   }
@@ -217,9 +215,9 @@ export class WorkspaceApp extends ZephyrLitElement {
       <div class="ws-state ws-state-initializing">
         <div class="status-banner status-info">
           <vscode-progress-ring></vscode-progress-ring>
-          <span class="status-text">Initializing workspace…</span>
+          <span class="status-text">${panelText("Initializing workspace…")}</span>
         </div>
-        <p class="description">Follow the prompts in the VS Code dialog to configure your workspace.</p>
+        <p class="description">${panelText("Follow the prompts in the VS Code dialog to configure your workspace.")}</p>
         ${this._progressData ? this._renderProgress(this._progressData) : nothing}
       </div>`;
   }
@@ -242,7 +240,7 @@ export class WorkspaceApp extends ZephyrLitElement {
           ${showSpinner ? html`<vscode-progress-ring></vscode-progress-ring>` : nothing}
           ${bannerIcon ? html`<span class="status-icon"><span class="codicon codicon-${bannerIcon}"></span></span>` : nothing}
           <span class="setup-progress-title">${data.operationLabel} — ${bannerText}</span>
-          ${showDismiss ? html`<button class="setup-progress-dismiss" @click=${() => this._dismissProgress()} title="Dismiss"><span class="codicon codicon-close"></span></button>` : nothing}
+          ${showDismiss ? html`<button class="setup-progress-dismiss" @click=${() => this._dismissProgress()} title="${panelText("Dismiss")}"><span class="codicon codicon-close"></span></button>` : nothing}
         </div>
         <div class="setup-progress-body">
           <div class="setup-progress-steps">
@@ -278,19 +276,19 @@ export class WorkspaceApp extends ZephyrLitElement {
       <div class="ws-state ws-state-setup-required">
         <div class="status-banner status-info">
           <span class="codicon codicon-folder"></span>
-          <span class="status-text">No Folder Opened</span>
+          <span class="status-text">${panelText("No Folder Opened")}</span>
         </div>
-        <p class="description">Open a folder in VS Code to set up your Zephyr workspace.</p>
+        <p class="description">${panelText("Open a folder in VS Code to set up your Zephyr workspace.")}</p>
         <div class="section-container centered">
           <div class="empty-state">
             <div class="empty-state-icon">📁</div>
-            <h3>No Folder Open</h3>
-            <p>A workspace folder is required for Zephyr development.</p>
+            <h3>${panelText("No Folder Open")}</h3>
+            <p>${panelText("A workspace folder is required for Zephyr development.")}</p>
           </div>
           <div class="button-group">
             <vscode-button @click=${() => this._send('openFolder')}>
               <vscode-icon slot="start-icon" name="folder-opened"></vscode-icon>
-              Open Folder
+              ${panelText("Open Folder")}
             </vscode-button>
           </div>
         </div>
@@ -311,16 +309,16 @@ export class WorkspaceApp extends ZephyrLitElement {
       readyBanner = html`
         <div class="status-banner status-success">
           <span class="codicon codicon-check"></span>
-          <span class="status-text">Workspace Ready</span>
+          <span class="status-text">${panelText("Workspace Ready")}</span>
         </div>`;
     } else {
       const missing: string[] = [];
-      if (!d.pythonEnvReady) { missing.push('python environment'); }
+      if (!d.pythonEnvReady) { missing.push(panelText("python environment")); }
       if (!d.westUpdated) { missing.push('west update'); }
       readyBanner = html`
         <div class="status-banner status-info">
           <span class="codicon codicon-info"></span>
-          <span class="status-text">Workspace initialized — pending: ${missing.join(', ')}</span>
+          <span class="status-text">${panelText("Workspace initialized — pending:")} ${missing.join(', ')}</span>
         </div>`;
     }
 
@@ -329,41 +327,41 @@ export class WorkspaceApp extends ZephyrLitElement {
         ${readyBanner}
 
         <div class="section-container">
-          <h3>Workspace Information</h3>
+          <h3>${panelText("Workspace Information")}</h3>
           <div class="info-box">
-            <p><strong>Current Folder:</strong> <code>${info.currentFolderPath}</code></p>
-            <p><strong>West Workspace Path:</strong> <code>${info.westWorkspacePath}</code></p>
-            <p><strong>West.yml Location:</strong> <code>${info.westYmlPath}</code></p>
-            <p><strong>Python .venv Location:</strong> <code>${info.venvPath}</code></p>
-            <p><strong>Zephyr Version:</strong> <code>${info.zephyrVersion}</code></p>
+            <p><strong>${panelText("Current Folder:")}</strong> <code>${info.currentFolderPath}</code></p>
+            <p><strong>${panelText("West Workspace Path:")}</strong> <code>${info.westWorkspacePath}</code></p>
+            <p><strong>${panelText("West.yml Location:")}</strong> <code>${info.westYmlPath}</code></p>
+            <p><strong>${panelText("Python .venv Location:")}</strong> <code>${info.venvPath}</code></p>
+            <p><strong>${panelText("Zephyr Version:")}</strong> <code>${info.zephyrVersion}</code></p>
           </div>
           ${d.readiness === 'ready' ? html`
             <div class="button-group" style="margin-top:12px;">
               <vscode-button appearance="secondary" @click=${() => this._send('openProjectPanel')}>
                 <vscode-icon slot="start-icon" name="rocket"></vscode-icon>
-                Open Projects
+                ${panelText("Open Projects")}
               </vscode-button>
             </div>` : (disabled ? nothing : html`
             <div class="button-group" style="margin-top:12px;">
               <vscode-button @click=${() => this._send('rerunWestSetup')}>
                 <vscode-icon slot="start-icon" name="sync"></vscode-icon>
-                Finish West Setup
+                ${panelText("Finish West Setup")}
               </vscode-button>
             </div>`)}
         </div>
 
         <div class="section-container">
-          <h3>West Configuration</h3>
+          <h3>${panelText("West Configuration")}</h3>
           <div class="west-yml-editor">
             <div class="editor-header">
               <label for="westYmlEditor">west.yml${this._westYmlDirty ? ' •' : ''}</label>
               <vscode-button appearance="secondary" @click=${() => this._send('openWestYml')}>
                 <vscode-icon slot="start-icon" name="go-to-file"></vscode-icon>
-                Open in Editor
+                ${panelText("Open in Editor")}
               </vscode-button>
             </div>
             <textarea id="westYmlEditor" class="west-yml-textarea" rows="15"
-              placeholder="Loading west.yml..."
+              placeholder="${panelText("Loading west.yml...")}"
               ?readonly=${disabled}
               .value=${this._westYmlContent}
               @input=${this._onWestYmlInput}
@@ -372,9 +370,9 @@ export class WorkspaceApp extends ZephyrLitElement {
             <div class="editor-actions">
               <vscode-button @click=${this._saveAndUpdateWestYml}
                 ?disabled=${!this._westYmlDirty}
-                title=${this._westYmlDirty ? 'Save edits and run west update' : 'No pending changes'}>
+                title=${this._westYmlDirty ? panelText("Save edits and run west update") : panelText("No pending changes")}>
                 <vscode-icon slot="start-icon" name="save"></vscode-icon>
-                Save and West Update
+                ${panelText("Save and West Update")}
               </vscode-button>
             </div>`}
           </div>
@@ -398,50 +396,50 @@ export class WorkspaceApp extends ZephyrLitElement {
   private _renderWorkspaceManagement() {
     return html`
       <div class="action-section">
-        <h3>Workspace Management</h3>
+        <h3>${panelText("Workspace Management")}</h3>
         <p class="description">
-          Scope each action carefully — they affect how this workspace is tracked.
+          ${panelText("Scope each action carefully — they affect how this workspace is tracked.")}
         </p>
         <div class="button-group">
           <vscode-button appearance="secondary" @click=${() => this._send('westUpdate')}
-            title="Run 'west update' to pull manifest dependencies.">
+            title="${panelText("Run 'west update' to pull manifest dependencies.")}">
             <vscode-icon slot="start-icon" name="sync"></vscode-icon>
-            West Update
+            ${panelText("West Update")}
           </vscode-button>
           <vscode-button appearance="secondary" @click=${() => this._send('rerunWestSetup')}
-            title="Clear python-env and west-update state, then re-run setup. Keeps the workspace initialized.">
+            title="${panelText("Clear python-env and west-update state, then re-run setup. Keeps the workspace initialized.")}">
             <vscode-icon slot="start-icon" name="debug-restart"></vscode-icon>
-            Re-run West Setup
+            ${panelText("Re-run West Setup")}
           </vscode-button>
           <vscode-button appearance="secondary" @click=${() => this._send('resetWorkspace')}
-            title="Mark this workspace as uninitialized. .west/ is preserved on disk; next setup flow can re-adopt it.">
+            title="${panelText("Mark this workspace as uninitialized. .west/ is preserved on disk; next setup flow can re-adopt it.")}">
             <vscode-icon slot="start-icon" name="refresh"></vscode-icon>
-            Reset Workspace
+            ${panelText("Reset Workspace")}
           </vscode-button>
           <vscode-button appearance="secondary" @click=${() => this._send('deactivateWorkspace')}
-            title="Unbind this folder from its active workspace. The workspace stays in the registry.">
+            title="${panelText("Unbind this folder from its active workspace. The workspace stays in the registry.")}">
             <vscode-icon slot="start-icon" name="debug-disconnect"></vscode-icon>
-            Deactivate
+            ${panelText("Deactivate")}
           </vscode-button>
           <vscode-button appearance="secondary" @click=${() => this._send('unregisterWorkspace')}
-            title="Remove this workspace from Zephyr IDE's registry. Files on disk are not deleted.">
+            title="${panelText("Remove this workspace from Zephyr IDE's registry. Files on disk are not deleted.")}">
             <vscode-icon slot="start-icon" name="trash"></vscode-icon>
-            Unregister
+            ${panelText("Unregister")}
           </vscode-button>
         </div>
       </div>
 
       <div class="action-section">
-        <h3>Advanced Commands</h3>
-        <p class="description">Low-level commands for troubleshooting.</p>
+        <h3>${panelText("Advanced Commands")}</h3>
+        <p class="description">${panelText("Low-level commands for troubleshooting.")}</p>
         <div class="button-group">
           <vscode-button appearance="secondary" @click=${() => this._send('westConfig')}>
             <vscode-icon slot="start-icon" name="settings"></vscode-icon>
-            West Config
+            ${panelText("West Config")}
           </vscode-button>
           <vscode-button appearance="secondary" @click=${() => this._send('westInit')}>
             <vscode-icon slot="start-icon" name="repo-create"></vscode-icon>
-            West Init
+            ${panelText("West Init")}
           </vscode-button>
         </div>
       </div>`;
@@ -477,7 +475,7 @@ export class WorkspaceApp extends ZephyrLitElement {
           <h4>${title}</h4>
         </div>
         <p class="option-description">${description}</p>
-        <p class="option-usage"><em>Best for: ${usage}</em></p>
+        <p class="option-usage"><em>${panelText("Best for:")} ${usage}</em></p>
       </button>`;
   }
 
@@ -489,11 +487,11 @@ export class WorkspaceApp extends ZephyrLitElement {
     const rootPath = d.workspaceInfo?.currentFolderPath || '';
     const hasFolder = d.folderOpen;
     const firstButtonLabel = d.preexistingWorkspaceDetected
-      ? 'Activate Preexisting Workspace in Current Folder'
-      : 'Create New Workspace in Current Folder';
+      ? panelText("Activate Preexisting Workspace in Current Folder")
+      : panelText("Create New Workspace in Current Folder");
     const firstButtonDesc = d.preexistingWorkspaceDetected
-      ? 'A .west/ directory was detected. Register it with Zephyr IDE and activate it.'
-      : 'Configure the currently open folder as a new Zephyr workspace.';
+      ? panelText("A .west/ directory was detected. Register it with Zephyr IDE and activate it.")
+      : panelText("Configure the currently open folder as a new Zephyr workspace.");
     const firstCommand: WorkspacePanelCommand = d.preexistingWorkspaceDetected
       ? 'activatePreexisting'
       : 'chooseNewInCurrent';
@@ -501,11 +499,11 @@ export class WorkspaceApp extends ZephyrLitElement {
     return html`
       <div class="ws-state ws-state-choice">
         <div class="section-container">
-          <h3>No Active Workspace</h3>
+          <h3>${panelText("No Active Workspace")}</h3>
           <p class="description">
-            Choose how to proceed. You can work in the currently open folder
+            ${panelText("Choose how to proceed. You can work in the currently open folder")}
             ${hasFolder && rootPath ? html`(<code>${rootPath}</code>)` : nothing}
-            or set up a workspace in an external directory.
+            ${panelText("or set up a workspace in an external directory.")}
           </p>
           <div class="choice-grid">
             <div class="choice-card${hasFolder ? '' : ' disabled'}"
@@ -516,15 +514,15 @@ export class WorkspaceApp extends ZephyrLitElement {
               <div class="choice-icon">📂</div>
               <h4>${firstButtonLabel}</h4>
               <p>${firstButtonDesc}</p>
-              ${!hasFolder ? html`<p class="muted"><em>Open a folder first.</em></p>` : nothing}
+              ${!hasFolder ? html`<p class="muted"><em>${panelText("Open a folder first.")}</em></p>` : nothing}
             </div>
             <div class="choice-card"
                  @click=${() => this._send('chooseNewInExternal')}
                  role="button" tabindex="0" data-keyboard-command="true"
-                 aria-label="Activate new workspace in external directory">
+                 aria-label="${panelText("Activate new workspace in external directory")}">
               <div class="choice-icon">🔗</div>
-              <h4>Create New Workspace in External Directory</h4>
-              <p>Pick any directory outside the current folder and configure it as a Zephyr workspace.</p>
+              <h4>${panelText("Create New Workspace in External Directory")}</h4>
+              <p>${panelText("Pick any directory outside the current folder and configure it as a Zephyr workspace.")}</p>
             </div>
           </div>
         </div>
@@ -540,32 +538,32 @@ export class WorkspaceApp extends ZephyrLitElement {
           <div class="external-dir-banner">
             <span class="codicon codicon-folder-opened"></span>
             <div>
-              <div class="muted">Target folder</div>
+              <div class="muted">${panelText("Target folder")}</div>
               <code>${rootPath}</code>
             </div>
           </div>` : nothing}
         <div class="section-container">
-          <h3>New Workspace in Current Folder</h3>
+          <h3>${panelText("New Workspace in Current Folder")}</h3>
           <div class="workspace-options-grid">
-            ${this._renderOptionCard('🌐', 'Workspace from Zephyr IDE',
-      'Clone a complete Zephyr IDE workspace or repo with projects as subdirectories using Git.',
-      'Team collaboration and shared environments',
+            ${this._renderOptionCard('🌐', panelText("Workspace from Zephyr IDE"),
+      panelText("Clone a complete Zephyr IDE workspace or repo with projects as subdirectories using Git."),
+      panelText("Team collaboration and shared environments"),
       'workspaceSetupFromGit')}
-            ${this._renderOptionCard('⚙️', 'Workspace from Git',
-        'Clone a west manifest repo (contains west.yml) using West Init.',
-        'Upstream Zephyr projects and community examples',
+            ${this._renderOptionCard('⚙️', panelText("Workspace from Git"),
+        panelText("Clone a west manifest repo (contains west.yml) using West Init."),
+        panelText("Upstream Zephyr projects and community examples"),
         'workspaceSetupFromWestGit')}
-            ${this._renderOptionCard('📦', 'New Workspace',
-          'Create a self-contained workspace with Zephyr installed locally.',
-          'Individual projects or specific Zephyr versions',
+            ${this._renderOptionCard('📦', panelText("New Workspace"),
+          panelText("Create a self-contained workspace with Zephyr installed locally."),
+          panelText("Individual projects or specific Zephyr versions"),
           'workspaceSetupStandard')}
-            ${this._renderOptionCard('📁', 'From Workspace Directory',
-            'Set up the current directory for Zephyr development, preserving existing files.',
-            'Existing projects with west.yml or .west folder',
+            ${this._renderOptionCard('📁', panelText("From Workspace Directory"),
+            panelText("Set up the current directory for Zephyr development, preserving existing files."),
+            panelText("Existing projects with west.yml or .west folder"),
             'workspaceSetupFromCurrentDirectory')}
-            ${this._renderOptionCard('✅', 'Mark as Complete',
-              'Register the current directory as an already-set-up workspace without running setup.',
-              'Already-configured Zephyr installations',
+            ${this._renderOptionCard('✅', panelText("Mark as Complete"),
+              panelText("Register the current directory as an already-set-up workspace without running setup."),
+              panelText("Already-configured Zephyr installations"),
               'markWorkspaceComplete')}
           </div>
         </div>
@@ -581,28 +579,28 @@ export class WorkspaceApp extends ZephyrLitElement {
           <div class="external-dir-banner">
             <span class="codicon codicon-folder-opened"></span>
             <div>
-              <div class="muted">Target folder</div>
+              <div class="muted">${panelText("Target folder")}</div>
               <code>${extPath}</code>
             </div>
           </div>` : nothing}
         <div class="section-container">
-          <h3>New Workspace in External Directory</h3>
+          <h3>${panelText("New Workspace in External Directory")}</h3>
           <div class="workspace-options-grid">
-            ${this._renderOptionCard('⚙️', 'Workspace from Git',
-      'Clone a west manifest repo (contains west.yml) using West Init.',
-      'Upstream Zephyr projects and community examples',
+            ${this._renderOptionCard('⚙️', panelText("Workspace from Git"),
+      panelText("Clone a west manifest repo (contains west.yml) using West Init."),
+      panelText("Upstream Zephyr projects and community examples"),
       'workspaceSetupFromWestGitExternal')}
-            ${this._renderOptionCard('📦', 'New Workspace',
-        'Create a self-contained workspace with Zephyr installed locally.',
-        'Individual projects or specific Zephyr versions',
+            ${this._renderOptionCard('📦', panelText("New Workspace"),
+        panelText("Create a self-contained workspace with Zephyr installed locally."),
+        panelText("Individual projects or specific Zephyr versions"),
         'workspaceSetupStandardExternal')}
-            ${this._renderOptionCard('📁', 'From Workspace Directory',
-          'Set up the external directory for Zephyr development, preserving existing files.',
-          'Existing projects with west.yml or .west folder',
+            ${this._renderOptionCard('📁', panelText("From Workspace Directory"),
+          panelText("Set up the external directory for Zephyr development, preserving existing files."),
+          panelText("Existing projects with west.yml or .west folder"),
           'workspaceSetupFromDirectoryExternal')}
-            ${this._renderOptionCard('✅', 'Mark as Complete',
-            'Register the external directory as an already-set-up workspace without running setup.',
-            'Already-configured Zephyr installations',
+            ${this._renderOptionCard('✅', panelText("Mark as Complete"),
+            panelText("Register the external directory as an already-set-up workspace without running setup."),
+            panelText("Already-configured Zephyr installations"),
             'markWorkspaceCompleteExternal')}
           </div>
         </div>

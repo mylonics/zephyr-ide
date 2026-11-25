@@ -15,6 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import { panelText, panelParts } from "../../webview_shared/panel-text";
 import { html, nothing } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { ZephyrLitElement } from "../../webview_shared/lit-base";
@@ -274,7 +275,7 @@ export class SDKApp extends ZephyrLitElement {
 
   render() {
     if (!this._initData) {
-      return html`<div class="container"><p>Loading…</p></div>`;
+      return html`<div class="container"><p>${panelText("Loading…")}</p></div>`;
     }
 
     const d = this._initData;
@@ -282,53 +283,49 @@ export class SDKApp extends ZephyrLitElement {
       ? (this._sdkList.versions ?? []).some(hasInstalledToolchains)
       : d.sdkInstalled;
     const statusIcon = sdkIsInstalled ? "✓" : "⚙";
-    const statusLabel = sdkIsInstalled ? "Installed" : "Not Installed";
+    const statusLabel = sdkIsInstalled ? panelText("Installed") : panelText("Not Installed");
     const statusClass = sdkIsInstalled ? "status-success" : "status-warning";
 
     return html`
       <div class="container">
         <div class="breadcrumb">
-          <a class="breadcrumb-link" @click=${() => this.postCommand("openSetupPanel")}>← Setup & Configuration</a>
+          <a class="breadcrumb-link" @click=${() => this.postCommand("openSetupPanel")}>${panelText("← Setup & Configuration")}</a>
           <span class="breadcrumb-separator">/</span>
-          <span class="breadcrumb-current">Zephyr SDK</span>
+          <span class="breadcrumb-current">${panelText("Zephyr SDK")}</span>
         </div>
         <div class="page-header">
           <div style="display:flex;align-items:center;gap:12px;">
-            <h1 class="page-title">Zephyr SDK</h1>
+            <h1 class="page-title">${panelText("Zephyr SDK")}</h1>
             <span class="header-status-badge ${statusClass}">${statusIcon} ${statusLabel}</span>
           </div>
           <div class="header-actions">
             <vscode-button ?disabled=${this._buttonsDisabled} @click=${() => this._installSDK()}>
               <vscode-icon slot="start-icon" name="cloud-download"></vscode-icon>
-              Install / Update
+              ${panelText("Install / Update")}
             </vscode-button>
-            <vscode-button appearance="secondary" ?disabled=${this._buttonsDisabled} @click=${() => this._installZephyrIdeToolchains()} title="Install toolchains declared in .vscode/zephyr-ide.json">
+            <vscode-button appearance="secondary" ?disabled=${this._buttonsDisabled} @click=${() => this._installZephyrIdeToolchains()} title="${panelText("Install toolchains declared in .vscode/zephyr-ide.json")}">
               <vscode-icon slot="start-icon" name="symbol-array"></vscode-icon>
-              Install from zephyr-ide.json
+              ${panelText("Install from zephyr-ide.json")}
             </vscode-button>
-            <vscode-button appearance="secondary" @click=${() => this._openZephyrIdeManager()} title="Open Zephyr IDE Manager for blobs, pip packages, and sample projects">
+            <vscode-button appearance="secondary" @click=${() => this._openZephyrIdeManager()} title="${panelText("Open Zephyr IDE Manager for blobs, pip packages, and sample projects")}">
               <vscode-icon slot="start-icon" name="package"></vscode-icon>
-              Open Zephyr IDE Manager
+              ${panelText("Open Zephyr IDE Manager")}
             </vscode-button>
             <vscode-button appearance="secondary" ?disabled=${this._buttonsDisabled} @click=${() => this._listSDKs()}>
               <vscode-icon slot="start-icon" name="refresh"></vscode-icon>
-              Refresh
+              ${panelText("Refresh")}
             </vscode-button>
           </div>
         </div>
 
         <div class="info-box" style="margin-bottom: 10px;">
-          SDK search location priority: zephyr-ide.toolchainDirectory (settings.json), then
-          ZEPHYR_SDK_INSTALL_DIR (environment), then ~/.zephyr_ide/toolchains.
-          If your SDKs are not visible here, set zephyr-ide.toolchainDirectory in settings.json.
+          ${panelText("SDK search location priority: zephyr-ide.toolchainDirectory (settings.json), then ZEPHYR_SDK_INSTALL_DIR (environment), then ~/.zephyr_ide/toolchains. If your SDKs are not visible here, set zephyr-ide.toolchainDirectory in settings.json.")}
         </div>
 
         <p class="sdk-description">
-          The Zephyr SDK provides GNU toolchains for cross-compiling to supported target architectures.
-          Click any toolchain chip to toggle it for installation or removal, then click
-          <strong>Apply Changes</strong> on the SDK version card to install or remove the selected toolchains.
-          For west blobs, pip packages, host tools, and sample project management, use
-          <strong>Open Zephyr IDE Manager</strong>.
+          ${panelText("The Zephyr SDK provides GNU toolchains for cross-compiling to supported target architectures. Click any toolchain chip to toggle it for installation or removal, then click")}
+          <strong>${panelText("Apply Changes")}</strong> ${panelText("on the SDK version card to install or remove the selected toolchains. For west blobs, pip packages, host tools, and sample project management, use")}
+          <strong>${panelText("Open Zephyr IDE Manager")}</strong>.
         </p>
 
         ${this._renderProgress()}
@@ -362,15 +359,15 @@ export class SDKApp extends ZephyrLitElement {
         ${stepText ? html`<span class="progress-compact-sep">—</span><span class="progress-compact-step">${stepText}</span>` : nothing}
         ${data.message && (isComplete || isFailed) ? html`<span class="progress-compact-sep">·</span><span class="progress-compact-msg">${data.message}</span>` : nothing}
         <div style="flex:1"></div>
-        ${isFailed ? html`<vscode-button appearance="secondary" @click=${() => this._installSDK()}><vscode-icon slot="start-icon" name="refresh"></vscode-icon>Retry</vscode-button>` : nothing}
-        ${(isComplete || isFailed) ? html`<button class="progress-dismiss-btn" @click=${() => this._dismissProgress()} title="Dismiss"><span class="codicon codicon-close"></span></button>` : nothing}
+        ${isFailed ? html`<vscode-button appearance="secondary" @click=${() => this._installSDK()}><vscode-icon slot="start-icon" name="refresh"></vscode-icon>${panelText("Retry")}</vscode-button>` : nothing}
+        ${(isComplete || isFailed) ? html`<button class="progress-dismiss-btn" @click=${() => this._dismissProgress()} title="${panelText("Dismiss")}"><span class="codicon codicon-close"></span></button>` : nothing}
       </div>
     `;
   }
 
   private _renderSDKList() {
     if (this._sdkLoading) {
-      return html`<div class="sdk-list-container"><div class="sdk-loading"><vscode-progress-ring></vscode-progress-ring><span>Loading SDK information...</span></div></div>`;
+      return html`<div class="sdk-list-container"><div class="sdk-loading"><vscode-progress-ring></vscode-progress-ring><span>${panelText("Loading SDK information...")}</span></div></div>`;
     }
 
     const data = this._sdkList;
@@ -382,11 +379,11 @@ export class SDKApp extends ZephyrLitElement {
       return html`
         <div class="sdk-list-container">
           <div class="sdk-error-box">
-            <strong>Error:</strong> ${data.error || "Failed to list SDKs"}
+            <strong>${panelText("Error:")}</strong> ${data.error || "Failed to list SDKs"}
             <div style="margin-top: 10px;">
               <vscode-button appearance="secondary" @click=${() => this._listSDKs()}>
                 <vscode-icon slot="start-icon" name="refresh"></vscode-icon>
-                Retry
+                ${panelText("Retry")}
               </vscode-button>
             </div>
           </div>
@@ -397,7 +394,7 @@ export class SDKApp extends ZephyrLitElement {
     if (!data.versions || data.versions.length === 0) {
       return html`
         <div class="sdk-list-container">
-          <div class="sdk-empty-box">No SDK versions found. Try installing an SDK first.</div>
+          <div class="sdk-empty-box">${panelText("No SDK versions found. Try installing an SDK first.")}</div>
         </div>
       `;
     }
@@ -427,12 +424,12 @@ export class SDKApp extends ZephyrLitElement {
       <div class="sdk-summary">
         <span class="sdk-summary-item">
           <span class="codicon codicon-package"></span>
-          <strong>${versions.length}</strong> SDK version${versions.length !== 1 ? "s" : ""} installed
+          <strong>${versions.length}</strong> ${versions.length === 1 ? panelText("SDK version installed") : panelText("SDK versions installed")}
         </span>
         <span class="sdk-summary-sep">·</span>
         <span class="sdk-summary-item">
           <span class="codicon codicon-tools"></span>
-          <strong>${totalInstalled}</strong> of <strong>${totalUnique}</strong> toolchains installed
+          ${panelParts(panelText("{0} of {1} toolchains installed"), html`<strong>${totalInstalled}</strong>`, html`<strong>${totalUnique}</strong>`)}
         </span>
       </div>
     `;
@@ -457,7 +454,7 @@ export class SDKApp extends ZephyrLitElement {
         <!-- Card header -->
         <div class="sdk-version-header">
           <div class="sdk-version-title-row">
-            <span class="sdk-version-title">Zephyr SDK ${ver}</span>
+            <span class="sdk-version-title">${panelText("Zephyr SDK")} ${ver}</span>
             ${zephyrLabel
         ? html`<span class="sdk-zephyr-compat">${zephyrLabel}</span>`
         : nothing}
@@ -471,18 +468,18 @@ export class SDKApp extends ZephyrLitElement {
                 @click=${() => this._applyChanges(ver)}
               >
                 <vscode-icon slot="start-icon" name="check"></vscode-icon>
-                Apply
+                ${panelText("Apply")}
               </vscode-button>
               <vscode-button
                 appearance="secondary"
                 ?disabled=${this._buttonsDisabled}
                 @click=${() => this._discardChanges(ver)}
               >
-                Cancel
+                ${panelText("Cancel")}
               </vscode-button>
             ` : nothing}
             <span class="sdk-toolchain-count ${installed.length > 0 ? "has-toolchains" : ""}">
-              ${installed.length} / ${total} toolchains
+              ${installed.length} / ${total} ${panelText("toolchains")}
             </span>
             ${version.path
         ? html`
@@ -490,7 +487,7 @@ export class SDKApp extends ZephyrLitElement {
               appearance="icon"
               ?disabled=${this._buttonsDisabled}
               @click=${() => this._removeSDKVersion(ver)}
-              title="Remove entire SDK ${ver} from disk"
+              title="${panelText("Remove entire SDK")} ${ver} ${panelText("from disk")}"
             >
               <vscode-icon name="trash"></vscode-icon>
             </vscode-button>`
@@ -510,13 +507,13 @@ export class SDKApp extends ZephyrLitElement {
           <div class="toolchain-section">
             <div class="toolchain-section-title">
               <span class="codicon codicon-check-all"></span>
-              Installed Toolchains (${installed.length})
+              ${panelText("Installed Toolchains (")}${installed.length})
             </div>
             ${this._renderSelectableToolchains(installed, ver, true)}
           </div>`
         : html`
           <div class="toolchain-section">
-            <p class="sdk-no-toolchains">No toolchains installed yet. Select toolchains below and click <strong>Apply Changes</strong>.</p>
+            <p class="sdk-no-toolchains">${panelText("No toolchains installed yet. Select toolchains below and click")} <strong>${panelText("Apply Changes")}</strong>.</p>
           </div>`}
 
         <!-- Available-but-not-installed toolchains (collapsible when some are installed) -->
@@ -531,7 +528,7 @@ export class SDKApp extends ZephyrLitElement {
                 aria-expanded=${isExpanded}
               >
                 <span class="codicon ${isExpanded ? "codicon-chevron-down" : "codicon-chevron-right"}"></span>
-                <span class="toolchain-section-title inline">Not Installed (${notInstalled.length})</span>
+                <span class="toolchain-section-title inline">${panelText("Not Installed (")}${notInstalled.length})</span>
               </button>
               ${isExpanded
                 ? html`<div class="toolchain-collapsible-body">${this._renderSelectableToolchains(notInstalled, ver, false)}</div>`
@@ -539,7 +536,7 @@ export class SDKApp extends ZephyrLitElement {
             : html`
               <div class="toolchain-section-title">
                 <span class="codicon codicon-cloud-download"></span>
-                Available Toolchains (${notInstalled.length})
+                ${panelText("Available Toolchains (")}${notInstalled.length})
               </div>
               ${this._renderSelectableToolchains(notInstalled, ver, false)}`}
           </div>`
@@ -590,8 +587,8 @@ export class SDKApp extends ZephyrLitElement {
                   class="toolchain-chip ${chipClass}"
                   @click=${() => this._toggleToolchain(version, tc, isInstalled)}
                   title=${isInstalled
-          ? (pendingRemove ? "Click to keep this toolchain" : "Click to mark for removal")
-          : (pendingAdd ? "Click to deselect" : "Click to select for installation")}
+          ? (pendingRemove ? panelText("Click to keep this toolchain") : panelText("Click to mark for removal"))
+          : (pendingAdd ? panelText("Click to deselect") : panelText("Click to select for installation"))}
                   ?disabled=${this._buttonsDisabled}
                 >
                   <span class="tc-chip-icon">${icon}</span>

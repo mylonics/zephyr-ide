@@ -15,6 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import { panelText } from "../../webview_shared/panel-text";
 import { html, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { ZephyrLitElement } from "../../webview_shared/lit-base";
@@ -127,22 +128,22 @@ export class VariablesTable extends ZephyrLitElement {
                 @input=${this._onInput}
                 @focusout=${(e: FocusEvent) => this._onBlur(e, k)}
                 @keydown=${(e: KeyboardEvent) => this._onKeydown(e, k)} />
-              <vscode-button appearance="icon" icon="trash" title="Remove"
+              <vscode-button appearance="icon" icon="trash" title="${panelText("Remove")}"
                 @click=${() => this._remove(k)}>
               </vscode-button>
             </div>
           `,
     )}
         <div class="variable-row variable-row-add">
-          <input class="variable-key-input" type="text" placeholder="New variable name"
+          <input class="variable-key-input" type="text" placeholder="${panelText("New variable name")}"
             .value=${this._addKey}
             @input=${(e: InputEvent) => { this._addKey = (e.target as HTMLInputElement).value; }}
             @keydown=${this._onAddKeydown} />
-          <input class="variable-value-input" type="text" placeholder="Value"
+          <input class="variable-value-input" type="text" placeholder="${panelText("Value")}"
             .value=${this._addValue}
             @input=${(e: InputEvent) => { this._addValue = (e.target as HTMLInputElement).value; }}
             @keydown=${this._onAddKeydown} />
-          <vscode-button appearance="icon" icon="add" title="Add variable"
+          <vscode-button appearance="icon" icon="add" title="${panelText("Add variable")}"
             @click=${() => this._addRow()}>
           </vscode-button>
         </div>

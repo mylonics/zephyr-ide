@@ -84,14 +84,14 @@ export async function configSelector(wsConfig: WorkspaceConfig, isKConfigSelecto
   const fileType = isKConfigSelector ? "KConfig" : "Devicetree Overlay";
   type ConfigTypePick = QuickPickItem & { isExtra: boolean };
   const confFileOption: ConfigTypePick[] = [
-    { label: `Overridden ${fileType} File`, isExtra: false },
-    { label: `Extra ${fileType} File`, isExtra: true },
+    { label: vscode.l10n.t("Overridden {0} File", fileType), isExtra: false },
+    { label: vscode.l10n.t("Extra {0} File", fileType), isExtra: true },
   ];
 
   const pick = await vscode.window.showQuickPick(confFileOption, {
-    title: `Select ${fileType} Type`,
+    title: vscode.l10n.t("Select {0} Type", fileType),
     ignoreFocusOut: true,
-    placeHolder: "Choose how selected files should be applied",
+    placeHolder: vscode.l10n.t("Choose how selected files should be applied"),
   });
 
   if (!pick) {
@@ -107,29 +107,21 @@ export async function configSelector(wsConfig: WorkspaceConfig, isKConfigSelecto
 
 
 export async function configRemover(confFiles: ConfigFiles, isKConfigSelector: boolean, isProjectSelctor: boolean, isPrimary: boolean | undefined = undefined) {
-  let additionalTitleString = "from Build";
-  if (isProjectSelctor) {
-    additionalTitleString = "from Project";
-  }
-
-  let fileType = "Devicetree Overlay";
-  if (isKConfigSelector) {
-    fileType = "KConfig";
-  }
-
-  const title = 'Remove ' + fileType + ' Files ' + additionalTitleString;
+  const fileType = isKConfigSelector ? "Kconfig" : vscode.l10n.t("Devicetree overlay");
+  const title = isProjectSelctor ? vscode.l10n.t("Remove {0} files from project", fileType)
+    : vscode.l10n.t("Remove {0} files from build", fileType);
   const key: keyof ConfigFiles = isKConfigSelector ? "config" : "overlay";
 
   async function selectTypeToRemove(input: MultiStepInput, state: ConfigFiles) {
     const confFileOption: QuickPickItem[] = [];
-    confFileOption.push({ label: "Remove extra " + fileType + " File" });
-    confFileOption.push({ label: "Overridden " + fileType + " File" });
+    confFileOption.push({ label: vscode.l10n.t("Remove extra {0} file", fileType) });
+    confFileOption.push({ label: vscode.l10n.t("Overridden {0} file", fileType) });
 
     const pickPromise = input.showQuickPick({
       title,
       step: 1,
       totalSteps: 2,
-      placeholder: 'Select type of file to remove',
+      placeholder: vscode.l10n.t("Select type of file to remove"),
       items: confFileOption,
       ignoreFocusOut: true,
       activeItem: undefined,
@@ -157,7 +149,7 @@ export async function configRemover(confFiles: ConfigFiles, isKConfigSelector: b
       title,
       step: isPrimary === undefined ? 2 : 1,
       totalSteps: isPrimary === undefined ? 2 : 1,
-      placeholder: "Select files to remove (toggle then press Enter)",
+      placeholder: vscode.l10n.t("Select files to remove (toggle then press Enter)"),
       ignoreFocusOut: true,
       items,
     });

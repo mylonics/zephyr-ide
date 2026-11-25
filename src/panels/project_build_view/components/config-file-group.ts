@@ -15,6 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import { panelText } from "../../webview_shared/panel-text";
 import { html, nothing } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { ZephyrLitElement } from "../../webview_shared/lit-base";
@@ -42,8 +43,8 @@ export class ConfigFileGroup extends ZephyrLitElement {
     return html`
       <div class="config-tab-body">
         <div class="config-tab-header-row">
-          <span class="config-tab-col-extra">Type</span>
-          <span class="config-tab-col-file">File</span>
+          <span class="config-tab-col-extra">${panelText("Type")}</span>
+          <span class="config-tab-col-file">${panelText("File")}</span>
           <vscode-button class="config-tab-add-button" appearance="secondary" icon="add" title=${addLabel}
             @click=${() => this.postCommand(addCmd, { group: groupId })}>
             ${addLabel}
@@ -51,12 +52,12 @@ export class ConfigFileGroup extends ZephyrLitElement {
         </div>
         <vscode-scrollable class="config-file-scroll">
           ${files.length === 0
-        ? html`<div class="file-list-empty">No files configured</div>`
+        ? html`<div class="file-list-empty">${panelText("No files configured")}</div>`
         : files.map(
           (entry) => html`
                   <div class="file-list-item">
                     <vscode-button class="file-mode-button" appearance="secondary"
-                      title=${entry.extra ? "Currently used as an extra file. Click to use as an override." : "Currently used as an override. Click to use as an extra file."}
+                      title=${entry.extra ? panelText("Currently used as an extra file. Click to use as an override.") : panelText("Currently used as an override. Click to use as an extra file.")}
                       @click=${() => this.postCommand("toggleFileExtra", {
             file: entry.path,
             group: groupId,
@@ -64,13 +65,13 @@ export class ConfigFileGroup extends ZephyrLitElement {
             isProject: this.isProject ? "true" : "false",
             extra: entry.extra ? "false" : "true",
           })}>
-                      ${entry.extra ? "Extra" : "Override"}
+                      ${entry.extra ? panelText("Extra") : panelText("Override")}
                     </vscode-button>
                     <span class="file-name" title=${entry.path}
                       @click=${() => this.postCommand("openFile", { file: entry.path })}>
                       ${entry.path}
                     </span>
-                    <vscode-button class="file-remove-button" appearance="icon" icon="trash" title="Remove"
+                    <vscode-button class="file-remove-button" appearance="icon" icon="trash" title="${panelText("Remove")}"
                       @click=${() => this.postCommand(removeCmd, {
             file: entry.path,
             extra: entry.extra ? "true" : "false",
@@ -92,13 +93,13 @@ export class ConfigFileGroup extends ZephyrLitElement {
     return html`
       <div class="config-group">
         <vscode-tabs>
-          <vscode-tab-header slot="header">Kconfig Files</vscode-tab-header>
+          <vscode-tab-header slot="header">${panelText("Kconfig Files")}</vscode-tab-header>
           <vscode-tab-panel>
-            ${this._renderFileList(this.kconfigFiles, kconfigGroupId, this.kconfigAddCmd, this.kconfigRemoveCmd, true, "Add Kconfig")}
+            ${this._renderFileList(this.kconfigFiles, kconfigGroupId, this.kconfigAddCmd, this.kconfigRemoveCmd, true, panelText("Add Kconfig"))}
           </vscode-tab-panel>
-          <vscode-tab-header slot="header">Devicetree Overlay Files</vscode-tab-header>
+          <vscode-tab-header slot="header">${panelText("Devicetree Overlay Files")}</vscode-tab-header>
           <vscode-tab-panel>
-            ${this._renderFileList(this.overlayFiles, overlayGroupId, this.overlayAddCmd, this.overlayRemoveCmd, false, "Add Overlay")}
+            ${this._renderFileList(this.overlayFiles, overlayGroupId, this.overlayAddCmd, this.overlayRemoveCmd, false, panelText("Add Overlay"))}
           </vscode-tab-panel>
         </vscode-tabs>
       </div>

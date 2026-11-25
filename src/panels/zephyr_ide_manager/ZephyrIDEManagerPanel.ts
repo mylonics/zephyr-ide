@@ -15,6 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import { webviewMessages } from "../webview-messages";
 import * as vscode from "vscode";
 import { WorkspaceConfig, GlobalConfig } from "../../setup_utilities/types";
 import {
@@ -69,7 +70,7 @@ export class ZephyrIDEManagerPanel {
 
     const panel = vscode.window.createWebviewPanel(
       "zephyrIDEManager",
-      "Zephyr IDE: Manager",
+      vscode.l10n.t("Zephyr IDE: Manager"),
       column || vscode.ViewColumn.One,
       {
         enableScripts: true,
@@ -258,7 +259,7 @@ export class ZephyrIDEManagerPanel {
 
   private async installBlobModules(modules: string[]): Promise<void> {
     if (!this.currentWsConfig) {
-      notifyError("Zephyr IDE Blobs", "No active workspace configuration.");
+      notifyError("Zephyr IDE Blobs", vscode.l10n.t("No active workspace configuration."));
       this._panel.webview.postMessage({ command: "blobInstallResult", data: false });
       return;
     }
@@ -287,7 +288,7 @@ export class ZephyrIDEManagerPanel {
     );
 
     return `<!DOCTYPE html>
-      <html lang="en">
+      <html lang="${vscode.env.language}">
       <head>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -297,6 +298,7 @@ export class ZephyrIDEManagerPanel {
           <link rel="stylesheet" type="text/css" href="${codiconUri}" id="vscode-codicon-stylesheet">
       </head>
       <body>
+        ${webviewMessages(nonce)}
           <zephyr-ide-manager-app></zephyr-ide-manager-app>
           <script nonce="${nonce}" src="${jsUri}"></script>
       </body>

@@ -203,11 +203,11 @@ async function markWorkspaceSetupComplete(
     const unadded = sampleProjects.filter(p => !addedPaths.has(path.normalize(p.relPath)));
     if (unadded.length > 0) {
       const choice = await vscode.window.showInformationMessage(
-        `This workspace declares ${unadded.length} sample project${unadded.length > 1 ? "s" : ""} in zephyr-ide.json that haven't been added yet. Would you like to add them now?`,
-        "Add Sample Projects",
-        "Later"
+        vscode.l10n.t("This workspace declares {0} sample project{1} in zephyr-ide.json that haven't been added yet. Would you like to add them now?", unadded.length, unadded.length > 1 ? "s" : ""),
+        vscode.l10n.t("Add Sample Projects"),
+        vscode.l10n.t("Later")
       );
-      if (choice === "Add Sample Projects") {
+      if (choice === vscode.l10n.t("Add Sample Projects")) {
         await vscode.commands.executeCommand("zephyr-ide.add-sample-projects-from-file");
       }
     }
@@ -414,7 +414,7 @@ async function startDebugSession(
 
   if (mode === 'build-debug') {
     if (!resolved) {
-      notifyError("Debug", "No active project or build configuration found");
+      notifyError("Debug", vscode.l10n.t("No active project or build configuration found"));
       return;
     }
     const res = await build(context, wsConfig, resolved.project, resolved.build, false);
@@ -429,7 +429,7 @@ async function startDebugSession(
   // `debugTarget` to the launch.json entry name and falls through to Path B.
   if (!debugTarget || pinnedRunner !== undefined) {
     if (!resolved) {
-      notifyError("Debug", "No active project or build configuration found");
+      notifyError("Debug", vscode.l10n.t("No active project or build configuration found"));
       return;
     }
     const baseName = mode === 'attach' ? "Zephyr IDE: Attach" : "Zephyr IDE: Debug";
@@ -473,12 +473,12 @@ async function startDebugSession(
     const choice = await vscode.window.showErrorMessage(
       `Bound launch configuration "${debugTarget}"${folderHint} was not found. ` +
       `It may have been renamed or removed from launch.json.`,
-      "Edit Runner Profile",
-      "Open launch.json"
+      vscode.l10n.t("Edit Runner Profile"),
+      vscode.l10n.t("Open launch.json")
     );
-    if (choice === "Edit Runner Profile") {
+    if (choice === vscode.l10n.t("Edit Runner Profile")) {
       void vscode.commands.executeCommand("zephyr-ide.set-active-profile");
-    } else if (choice === "Open launch.json") {
+    } else if (choice === vscode.l10n.t("Open launch.json")) {
       void vscode.commands.executeCommand("workbench.action.debug.configure");
     }
     return;
@@ -511,10 +511,9 @@ async function startDebugSession(
 
   const started = await vscode.debug.startDebugging(folder, nameOrConfig);
   if (!started) {
-    const sessionLabel = mode === 'attach' ? 'attach session' : 'debug session';
-    notifyError("Debug", `Failed to start ${sessionLabel}: "${debugTarget}"` +
-      `\nWorkspace folder: ${folder?.name || '(default)'}` +
-      `\nCheck the Debug Console and Output panel for more details.`);
+    const sessionLabel = mode === 'attach' ? vscode.l10n.t("attach session") : vscode.l10n.t("debug session");
+    notifyError("Debug", vscode.l10n.t('Failed to start {0}: "{1}"\nWorkspace folder: {2}\nCheck the Debug Console and Output panel for more details.',
+      sessionLabel, debugTarget, folder?.name || vscode.l10n.t("(default)")));
   }
 }
 
@@ -625,7 +624,7 @@ export async function activate(context: vscode.ExtensionContext) {
       initError instanceof Error && initError.stack ? initError.stack : initErrorMsg;
     outputError("Startup", `Extension initialization failed: ${initErrorDetail}`);
     void vscode.window.showErrorMessage(
-      `Zephyr IDE failed to initialize: ${initErrorMsg}. Check the Zephyr IDE output channel for details.`
+      vscode.l10n.t("Zephyr IDE failed to initialize: {0}. Check the Zephyr IDE output channel for details.", initErrorMsg)
     );
     // Initialize with safe defaults so that commands and views are still registered
     if (!wsConfig) {
@@ -676,15 +675,15 @@ export async function activate(context: vscode.ExtensionContext) {
 
       const choice = await vscode.window.showInformationMessage(
         whatsNewMessage,
-        "Learn What's New",
-        "Dismiss"
+        vscode.l10n.t("Learn What's New"),
+        vscode.l10n.t("Dismiss")
       );
       // Mark as shown only after the dialog resolves so the user sees it again
       // if something interrupted the previous display attempt.
       try {
         await context.globalState.update(V4_NOTIFICATION_KEY, true);
       } catch { /* non-critical */ }
-      if (choice === "Learn What's New") {
+      if (choice === vscode.l10n.t("Learn What's New")) {
         void vscode.env.openExternal(
           vscode.Uri.parse("https://zephyr-ide.mylonics.com/whats-new-4-0/")
         );
@@ -720,7 +719,7 @@ export async function activate(context: vscode.ExtensionContext) {
           void vscode.commands.executeCommand("zephyr-ide.update-web-view");
         } catch (err) {
           void vscode.window.showWarningMessage(
-            `Zephyr IDE: Failed to reload zephyr-ide.json after external change: ${String(err)}`
+            vscode.l10n.t("Zephyr IDE: Failed to reload zephyr-ide.json after external change: {0}", String(err))
           );
           outputError("Workspace Config", `Failed to reload zephyr-ide.json: ${String(err)}`);
         }
@@ -786,15 +785,15 @@ export async function activate(context: vscode.ExtensionContext) {
             `\nAttach: ${attachLabel}` +
             `\nClick to change active profile`;
         } else {
-          activeRunnerDisplay.tooltip = `Runner Profile "${profileName}" not found. Click to change.`;
+          activeRunnerDisplay.tooltip = vscode.l10n.t("Runner Profile \"{0}\" not found. Click to change.", profileName);
         }
       } else {
-        activeRunnerDisplay.tooltip = "No runner profile set — west/runners.yaml defaults apply. Click to select one.";
+        activeRunnerDisplay.tooltip = vscode.l10n.t("No runner profile set — west/runners.yaml defaults apply. Click to select one.");
       }
     } else {
       activeBuildDisplay.text = ``;
       activeRunnerDisplay.text = ``;
-      activeRunnerDisplay.tooltip = "Select Active Runner Profile";
+      activeRunnerDisplay.tooltip = vscode.l10n.t("Select Active Runner Profile");
     }
     return resolved;
   }
@@ -894,26 +893,26 @@ export async function activate(context: vscode.ExtensionContext) {
     }),
     vscode.commands.registerCommand("zephyr-ide.active-view.set-runner-binding", async (item: any) => {
       const slot = resolveLocalBindSlot(item?.contextValue ?? "");
-      const LOCAL_BIND_LABEL = "$(target)  Set Local Bind for This Action…";
-      const PROFILE_WORKSPACE_LABEL = "$(save)  Set Runner Profile (Workspace)…";
-      const PROFILE_LOCAL_LABEL = "$(edit)  Set Runner Profile (Local Override)…";
+      const LOCAL_BIND_LABEL = vscode.l10n.t("$(target)  Set Local Bind for This Action…");
+      const PROFILE_WORKSPACE_LABEL = vscode.l10n.t("$(save)  Set Runner Profile (Workspace)…");
+      const PROFILE_LOCAL_LABEL = vscode.l10n.t("$(edit)  Set Runner Profile (Local Override)…");
       const items: vscode.QuickPickItem[] = [
         {
           label: LOCAL_BIND_LABEL,
-          detail: "Pick a runner for just this action's slot, without switching profiles. Stored per-developer, never committed.",
+          detail: vscode.l10n.t("Pick a runner for just this action's slot, without switching profiles. Stored per-developer, never committed."),
         },
         {
           label: PROFILE_WORKSPACE_LABEL,
-          detail: "Pick a Runner Profile (bundles flash, debug, and attach) and commit it into .vscode/zephyr-ide.json — shared with the team.",
+          detail: vscode.l10n.t("Pick a Runner Profile (bundles flash, debug, and attach) and commit it into .vscode/zephyr-ide.json — shared with the team."),
         },
         {
           label: PROFILE_LOCAL_LABEL,
-          detail: "Pick a Runner Profile (bundles flash, debug, and attach) as a per-developer override — never written to .vscode/zephyr-ide.json.",
+          detail: vscode.l10n.t("Pick a Runner Profile (bundles flash, debug, and attach) as a per-developer override — never written to .vscode/zephyr-ide.json."),
         },
       ];
       const pick = await vscode.window.showQuickPick(items, {
-        title: "Set Runner Binding",
-        placeHolder: "What do you want to change?",
+        title: vscode.l10n.t("Set Runner Binding"),
+        placeHolder: vscode.l10n.t("What do you want to change?"),
         ignoreFocusOut: true,
       });
       if (!pick) { return; }
@@ -1105,12 +1104,12 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   activeProjectDisplay = createStatusBarButton(context,
-    "zephyr-ide.set-active-project", `$(folder) ${wsConfig.activeProject}`, "Zephyr IDE Select Active Project");
+    "zephyr-ide.set-active-project", `$(folder) ${wsConfig.activeProject}`, vscode.l10n.t("Zephyr IDE Select Active Project"));
 
   activeBuildDisplay = createStatusBarButton(context,
-    "zephyr-ide.set-active-build", ``, "Select Active Build");
+    "zephyr-ide.set-active-build", ``, vscode.l10n.t("Select Active Build"));
   activeRunnerDisplay = createStatusBarButton(context,
-    "zephyr-ide.set-active-profile", ``, "Select Active Runner Profile");
+    "zephyr-ide.set-active-profile", ``, vscode.l10n.t("Select Active Runner Profile"));
   {
     refreshStatusBar();
   }
@@ -1118,22 +1117,22 @@ export async function activate(context: vscode.ExtensionContext) {
   {
     const cfg = vscode.workspace.getConfiguration();
     if (cfg.get<boolean>("zephyr-ide.statusBar.showBuildPristine") ?? true) {
-      createStatusBarButton(context, "zephyr-ide.build-pristine", `$(debug-rerun)`, "Zephyr IDE Build Pristine");
+      createStatusBarButton(context, "zephyr-ide.build-pristine", `$(debug-rerun)`, vscode.l10n.t("Zephyr IDE Build Pristine"));
     }
     if (cfg.get<boolean>("zephyr-ide.statusBar.showBuild") ?? true) {
-      createStatusBarButton(context, "zephyr-ide.build", `$(play)`, "Zephyr IDE Build");
+      createStatusBarButton(context, "zephyr-ide.build", `$(play)`, vscode.l10n.t("Zephyr IDE Build"));
     }
     if (cfg.get<boolean>("zephyr-ide.statusBar.showFlash") ?? false) {
-      createStatusBarButton(context, "zephyr-ide.flash", `$(arrow-circle-up)`, "Zephyr IDE Flash");
+      createStatusBarButton(context, "zephyr-ide.flash", `$(arrow-circle-up)`, vscode.l10n.t("Zephyr IDE Flash"));
     }
     if (cfg.get<boolean>("zephyr-ide.statusBar.showBuildFlash") ?? true) {
-      createStatusBarButton(context, "zephyr-ide.build-flash", `$(cloud-upload)`, "Zephyr IDE Build and Flash");
+      createStatusBarButton(context, "zephyr-ide.build-flash", `$(cloud-upload)`, vscode.l10n.t("Zephyr IDE Build and Flash"));
     }
     if (cfg.get<boolean>("zephyr-ide.statusBar.showDebug") ?? false) {
-      createStatusBarButton(context, "zephyr-ide.debug", `$(debug-alt)`, "Zephyr IDE Debug");
+      createStatusBarButton(context, "zephyr-ide.debug", `$(debug-alt)`, vscode.l10n.t("Zephyr IDE Debug"));
     }
     if (cfg.get<boolean>("zephyr-ide.statusBar.showBuildDebug") ?? true) {
-      createStatusBarButton(context, "zephyr-ide.build-debug", `$(debug-all)`, "Zephyr IDE Build and Debug");
+      createStatusBarButton(context, "zephyr-ide.build-debug", `$(debug-all)`, vscode.l10n.t("Zephyr IDE Build and Debug"));
     }
   }
 
@@ -1185,7 +1184,7 @@ export async function activate(context: vscode.ExtensionContext) {
         await setupWestEnvironment(context, wsConfig, globalConfig);
         extensionSetupView.updateWebView(wsConfig, globalConfig);
       } else {
-        notifyError("West Environment", "No active workspace. Set up a workspace first.");
+        notifyError("West Environment", vscode.l10n.t("No active workspace. Set up a workspace first."));
       }
     }
     )
@@ -1195,7 +1194,7 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.configure-existing-environment", async () => {
       const setupState = wsConfig.activeSetupState;
       if (!setupState) {
-        notifyError("Configure Environment", "No active workspace. Set up or open a workspace first.");
+        notifyError("Configure Environment", vscode.l10n.t("No active workspace. Set up or open a workspace first."));
         return;
       }
       const venvConfigured = await configureExistingVenvEnvironment(setupState);
@@ -1212,13 +1211,13 @@ export async function activate(context: vscode.ExtensionContext) {
       await saveSetupState(context, wsConfig, globalConfig);
       void vscode.commands.executeCommand("zephyr-ide.update-web-view");
       if (venvConfigured && zephyrFound) {
-        void vscode.window.showInformationMessage(`Zephyr environment configured. Zephyr directory: ${setupState.zephyrDir}`);
+        void vscode.window.showInformationMessage(vscode.l10n.t("Zephyr environment configured. Zephyr directory: {0}", setupState.zephyrDir));
       } else if (venvConfigured) {
-        void vscode.window.showWarningMessage("Python environment configured, but the Zephyr install could not be detected. Run West Update, or verify the workspace layout.");
+        void vscode.window.showWarningMessage(vscode.l10n.t("Python environment configured, but the Zephyr install could not be detected. Run West Update, or verify the workspace layout."));
       } else if (zephyrFound) {
-        void vscode.window.showWarningMessage(`Zephyr directory detected (${setupState.zephyrDir}), but no Python virtual environment was found. Set up a virtual environment, then run this command again.`);
+        void vscode.window.showWarningMessage(vscode.l10n.t("Zephyr directory detected ({0}), but no Python virtual environment was found. Set up a virtual environment, then run this command again.", setupState.zephyrDir));
       } else {
-        void vscode.window.showErrorMessage("Could not detect a Python virtual environment or a Zephyr install. Verify the workspace layout, or run Setup West Environment instead.");
+        void vscode.window.showErrorMessage(vscode.l10n.t("Could not detect a Python virtual environment or a Zephyr install. Verify the workspace layout, or run Setup West Environment instead."));
       }
     })
   );
@@ -1233,7 +1232,7 @@ export async function activate(context: vscode.ExtensionContext) {
         extensionSetupView.updateWebView(wsConfig, globalConfig);
       } else {
         notifyError("West Init",
-          "Run `Zephyr IDE: Setup West Environment` first."
+          vscode.l10n.t("Run `Zephyr IDE: Setup West Environment` first.")
         );
       }
     })
@@ -1254,10 +1253,10 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.reset-workspace", async () => {
       const workspacePath = wsConfig.activeSetupState?.setupPath ?? "the active workspace";
       const confirm = await vscode.window.showWarningMessage(
-        `Reset workspace at ${workspacePath}? This marks it as uninitialized. Files on disk (including .west/) are preserved.`,
-        "Reset"
+        vscode.l10n.t("Reset workspace at {0}? This marks it as uninitialized. Files on disk (including .west/) are preserved.", workspacePath),
+        vscode.l10n.t("Reset")
       );
-      if (confirm !== "Reset") { return; }
+      if (confirm !== vscode.l10n.t("Reset")) { return; }
       await clearWorkspaceState(context, wsConfig, globalConfig);
       // After a workspace reset, re-check the toolchains directory so the SDK
       // state reflects whatever is actually on disk.
@@ -1275,10 +1274,10 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.deactivate-workspace", async () => {
       const confirm = await vscode.window.showWarningMessage(
-        "Deactivate this workspace? The folder will no longer be bound to a Zephyr workspace. The workspace itself (including .west/) is kept.",
-        "Deactivate"
+        vscode.l10n.t("Deactivate this workspace? The folder will no longer be bound to a Zephyr workspace. The workspace itself (including .west/) is kept."),
+        vscode.l10n.t("Deactivate")
       );
-      if (confirm !== "Deactivate") { return; }
+      if (confirm !== vscode.l10n.t("Deactivate")) { return; }
       await clearSetupState(context, wsConfig);
       void vscode.commands.executeCommand("zephyr-ide.update-web-view");
     })
@@ -1289,10 +1288,10 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.rerun-west-setup", async () => {
       const confirm = await vscode.window.showWarningMessage(
-        "Re-run west setup? This clears the python environment and west-update state, then re-runs setup. The workspace stays initialized.",
-        "Re-run"
+        vscode.l10n.t("Re-run west setup? This clears the python environment and west-update state, then re-runs setup. The workspace stays initialized."),
+        vscode.l10n.t("Re-run")
       );
-      if (confirm !== "Re-run") { return; }
+      if (confirm !== vscode.l10n.t("Re-run")) { return; }
       await clearWorkspaceReadiness(context, wsConfig, globalConfig);
       await vscode.commands.executeCommand("zephyr-ide.setup-west-environment");
       void vscode.commands.executeCommand("zephyr-ide.update-web-view");
@@ -1305,14 +1304,14 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.unregister-workspace", async () => {
       const activePath = wsConfig.activeSetupState?.setupPath;
       if (!activePath) {
-        void vscode.window.showInformationMessage("No active workspace to unregister.");
+        void vscode.window.showInformationMessage(vscode.l10n.t("No active workspace to unregister."));
         return;
       }
       const confirm = await vscode.window.showWarningMessage(
-        `Unregister workspace at ${activePath}? It will be removed from Zephyr IDE's registry. Files on disk are not deleted.`,
-        "Unregister"
+        vscode.l10n.t("Unregister workspace at {0}? It will be removed from Zephyr IDE's registry. Files on disk are not deleted.", activePath),
+        vscode.l10n.t("Unregister")
       );
-      if (confirm !== "Unregister") { return; }
+      if (confirm !== vscode.l10n.t("Unregister")) { return; }
       if (globalConfig.setupStateDictionary && globalConfig.setupStateDictionary[activePath]) {
         delete globalConfig.setupStateDictionary[activePath];
         await setGlobalState(context, globalConfig);
@@ -1325,11 +1324,11 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.clear-projects", async () => {
       const selection = await vscode.window.showWarningMessage(
-        "Are you sure you want to clear all projects?",
-        "Yes",
-        "Cancel"
+        vscode.l10n.t("Are you sure you want to clear all projects?"),
+        vscode.l10n.t("Yes"),
+        vscode.l10n.t("Cancel")
       );
-      if (selection !== "Yes") {
+      if (selection !== vscode.l10n.t("Yes")) {
         return;
       }
       wsConfig.projects = {};
@@ -1357,7 +1356,7 @@ export async function activate(context: vscode.ExtensionContext) {
       async () => {
         const result = await addSampleProjectsFromFile(wsConfig, context);
         if (result === undefined) {
-          void vscode.window.showInformationMessage("No sample projects declared in .vscode/zephyr-ide.json");
+          void vscode.window.showInformationMessage(vscode.l10n.t("No sample projects declared in .vscode/zephyr-ide.json"));
         } else if (result) {
           extensionSetupView.updateWebView(wsConfig, globalConfig);
           void vscode.commands.executeCommand("zephyr-ide.update-web-view");
@@ -1451,7 +1450,7 @@ export async function activate(context: vscode.ExtensionContext) {
         void vscode.commands.executeCommand("zephyr-ide.update-web-view");
         return result;
       } else {
-        notifyError("Build Config", "Run `Zephyr IDE: West Update` first.");
+        notifyError("Build Config", vscode.l10n.t("Run `Zephyr IDE: West Update` first."));
       }
       return false;
     })
@@ -1467,7 +1466,7 @@ export async function activate(context: vscode.ExtensionContext) {
         await project.addTest(wsConfig, context);
         void vscode.commands.executeCommand("zephyr-ide.update-web-view");
       } else {
-        notifyError("Test Config", "Run `Zephyr IDE: West Update` first.");
+        notifyError("Test Config", vscode.l10n.t("Run `Zephyr IDE: West Update` first."));
       }
     })
   );
@@ -1527,10 +1526,10 @@ export async function activate(context: vscode.ExtensionContext) {
       const runnersYamlPath = resolveRunnersYamlPath(buildFolder, sysbuildImage);
       if (!fs.existsSync(runnersYamlPath)) {
         const choice = await vscode.window.showErrorMessage(
-          `runners.yaml not found at "${runnersYamlPath}". Build the project first.`,
-          "Build Now"
+          vscode.l10n.t("runners.yaml not found at \"{0}\". Build the project first.", runnersYamlPath),
+          vscode.l10n.t("Build Now")
         );
-        if (choice === "Build Now") {
+        if (choice === vscode.l10n.t("Build Now")) {
           void vscode.commands.executeCommand("zephyr-ide.build");
         }
         return;
@@ -1548,13 +1547,13 @@ export async function activate(context: vscode.ExtensionContext) {
     const domains = getSysbuildDomains(buildFolder);
     if (!domains || domains.length === 0) {
       vscode.window.showInformationMessage(
-        "No sysbuild domains found for this build. Build the project first, or this is not a sysbuild project."
+        vscode.l10n.t("No sysbuild domains found for this build. Build the project first, or this is not a sysbuild project.")
       );
       return;
     }
     const items = domains.map(d => ({ label: d.name, description: d.buildDir }));
     const picked = await vscode.window.showQuickPick(items, {
-      placeHolder: "Select sysbuild image to use for flash/debug",
+      placeHolder: vscode.l10n.t("Select sysbuild image to use for flash/debug"),
       ignoreFocusOut: true,
     });
     if (!picked) { return; }
@@ -1736,7 +1735,7 @@ export async function activate(context: vscode.ExtensionContext) {
         }
         await flashActive(context, wsConfig);
       } else {
-        notifyError("Flash", "Cannot flash: this workspace is not yet initialized. Run `Zephyr IDE: West Update` first.");
+        notifyError("Flash", vscode.l10n.t("Cannot flash: this workspace is not yet initialized. Run `Zephyr IDE: West Update` first."));
       }
     })
   );
@@ -1745,7 +1744,7 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("zephyr-ide.build-flash", async () => {
       const setupState = await getSetupState(context, wsConfig);
       if (!setupState || !setupState.westUpdated) {
-        notifyError("Build and Flash", "Cannot build: this workspace is not yet initialized. Run `Zephyr IDE: West Update` first.");
+        notifyError("Build and Flash", vscode.l10n.t("Cannot build: this workspace is not yet initialized. Run `Zephyr IDE: West Update` first."));
         return;
       }
       const resolved = resolveActiveProjectBuild(wsConfig, { caller: "Build and Flash" });
@@ -1954,8 +1953,8 @@ export async function activate(context: vscode.ExtensionContext) {
             const target = await vscode.window.showSaveDialog({
               defaultUri,
               filters: { "Kconfig fragment": ["conf"] },
-              saveLabel: "Save Kconfig Fragment",
-              title: `Save Kconfig fragment (attached to ${scope})`,
+              saveLabel: vscode.l10n.t("Save Kconfig Fragment"),
+              title: vscode.l10n.t("Save Kconfig fragment (attached to {0})", scope),
             });
             if (!target) { return undefined; }
             await writeFragment(target.fsPath);
@@ -2075,7 +2074,7 @@ export async function activate(context: vscode.ExtensionContext) {
       globalConfig.toolsAvailable = false;
       await saveSetupState(context, wsConfig, globalConfig);
       void vscode.commands.executeCommand("zephyr-ide.update-web-view");
-      void vscode.window.showInformationMessage("Zephyr IDE Debug: Host tools marked as not ready");
+      void vscode.window.showInformationMessage(vscode.l10n.t("Zephyr IDE Debug: Host tools marked as not ready"));
     })
   );
 
@@ -2084,14 +2083,14 @@ export async function activate(context: vscode.ExtensionContext) {
       globalConfig.sdkInstalled = false;
       await saveSetupState(context, wsConfig, globalConfig);
       void vscode.commands.executeCommand("zephyr-ide.update-web-view");
-      void vscode.window.showInformationMessage("Zephyr IDE Debug: SDK marked as not installed");
+      void vscode.window.showInformationMessage(vscode.l10n.t("Zephyr IDE Debug: SDK marked as not installed"));
     })
   );
 
   context.subscriptions.push(
     vscode.commands.registerCommand("zephyr-ide.west-list", async () => {
       if (!wsConfig.activeSetupState) {
-        notifyError("West List", "No active setup state. Please set up a workspace first.");
+        notifyError("West List", vscode.l10n.t("No active setup state. Please set up a workspace first."));
         return;
       }
       output.clear();
@@ -2149,7 +2148,7 @@ export async function activate(context: vscode.ExtensionContext) {
         await initializeDtsExt(setupState, wsConfig);
       } else {
         notifyError("DTS Init",
-          "First Initialize Zephyr IDE Workspace Folder"
+          vscode.l10n.t("First Initialize Zephyr IDE Workspace Folder")
         );
       }
     })
@@ -2503,7 +2502,7 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand('zephyr-ide.update-with-narrow', async () => {
       setForceNarrowUpdateForTest(true);
-      void vscode.window.showInformationMessage('Zephyr IDE: Forced useNarrowUpdate for westUpdate (test only, variable override).');
+      void vscode.window.showInformationMessage(vscode.l10n.t("Zephyr IDE: Forced useNarrowUpdate for westUpdate (test only, variable override)."));
     })
   );
 

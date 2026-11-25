@@ -4,6 +4,7 @@ Author Rijesh Augustine
 SPDX-License-Identifier: Apache-2.0
 */
 
+import { panelText } from "../../../webview_shared/panel-text";
 import { html, nothing, PropertyValues } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { ZephyrLitElement } from "../../../webview_shared/lit-base";
@@ -211,15 +212,15 @@ export class MemoryTreeTable extends ZephyrLitElement {
     return html`
       <div class="tt-header" role="row">
         <button class="tt-th tt-th-name" role="columnheader" @click=${() => this._setSort("name")}>
-          Symbol ${arrow("name")}
+          ${panelText("Symbol")} ${arrow("name")}
         </button>
         <button class="tt-th tt-th-size" role="columnheader" @click=${() => this._setSort("size")}>
-          Size ${arrow("size")}
+          ${panelText("Size")} ${arrow("size")}
         </button>
         <button class="tt-th tt-th-pct" role="columnheader" @click=${() => this._setSort("pct")}>
           % ${arrow("pct")}
         </button>
-        <div class="tt-th tt-th-region" role="columnheader">Region</div>
+        <div class="tt-th tt-th-region" role="columnheader">${panelText("Region")}</div>
       </div>
     `;
   }
@@ -253,7 +254,7 @@ export class MemoryTreeTable extends ZephyrLitElement {
           ${row.node.data.identifier && looksLikeSourceFile(row.node.data.identifier)
         ? html`<span
               class="tt-link-icon codicon codicon-go-to-file"
-              title="Open: ${row.node.data.identifier}"
+              title="${panelText("Open:")} ${row.node.data.identifier}"
               @click=${(e: MouseEvent) => this._onIconClick(e, row)}
             ></span>`
         : nothing}
@@ -275,7 +276,7 @@ export class MemoryTreeTable extends ZephyrLitElement {
         ${this._renderHeader()}
         <div class="tt-body" role="rowgroup">
           ${rows.length === 0
-        ? html`<div class="tt-empty">No symbols match the filter.</div>`
+        ? html`<div class="tt-empty">${panelText("No symbols match the filter.")}</div>`
         : rows.map((r) => this._renderRow(r, rows))}
         </div>
       </div>
