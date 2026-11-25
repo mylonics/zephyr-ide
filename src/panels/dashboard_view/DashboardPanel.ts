@@ -15,6 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import { webviewMessages } from "../webview-messages";
 import * as path from "upath";
 import * as fs from "fs-extra";
 import * as vscode from "vscode";
@@ -180,7 +181,7 @@ export class DashboardPanel {
 
     const panel = vscode.window.createWebviewPanel(
       "zephyrIDEDashboard",
-      `Dashboard: ${projectName} / ${buildName}`,
+      vscode.l10n.t("Dashboard: {0} / {1}", projectName, buildName),
       column ?? vscode.ViewColumn.One,
       {
         enableScripts: true,
@@ -610,7 +611,7 @@ export class DashboardPanel {
       } catch { /* keep trying */ }
     }
     void vscode.window.showInformationMessage(
-      `Zephyr IDE: could not locate source file for symbol: ${symbolPath}`,
+      vscode.l10n.t("Zephyr IDE: could not locate source file for symbol: {0}", symbolPath),
     );
   }
 
@@ -704,7 +705,7 @@ export class DashboardPanel {
     const cspSource = this._panel.webview.cspSource;
 
     return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${vscode.env.language}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -715,6 +716,7 @@ export class DashboardPanel {
 </head>
 <body>
   <dashboard-app></dashboard-app>
+  ${webviewMessages(nonce)}
   <script nonce="${nonce}" src="${jsUri}"></script>
 </body>
 </html>`;

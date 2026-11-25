@@ -4,6 +4,7 @@ Author Rijesh Augustine
 SPDX-License-Identifier: Apache-2.0
 */
 
+import { panelText, panelParts } from "../../webview_shared/panel-text";
 import { html, nothing, TemplateResult } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { ZephyrLitElement } from "../../webview_shared/lit-base";
@@ -309,7 +310,7 @@ export class KconfigPage extends ZephyrLitElement {
       if (msg.ok) {
         pending.resolve(msg.result);
       } else {
-        pending.reject(new Error(typeof msg.error === "string" ? msg.error : "Unknown error"));
+        pending.reject(new Error(typeof msg.error === "string" ? msg.error : panelText("Unknown error")));
       }
     }
   };
@@ -725,8 +726,8 @@ export class KconfigPage extends ZephyrLitElement {
     this._saveStatus = {
       kind: "info",
       message: tool === "build"
-        ? "Kconfig reloaded after build."
-        : `Reloaded after external ${tool}.`,
+        ? panelText("Kconfig reloaded after build.")
+        : panelText("Reloaded after external {0}.", tool),
     };
   }
 
@@ -844,11 +845,11 @@ export class KconfigPage extends ZephyrLitElement {
         ? html`
             <li class="kconfig-ctx-item" role="menuitem"
                 @click=${() => this._expandSubtree(node)}>
-              <span class="codicon codicon-expand-all"></span>Expand subtree
+              <span class="codicon codicon-expand-all"></span>${panelText("Expand subtree")}
             </li>
             <li class="kconfig-ctx-item" role="menuitem"
                 @click=${() => this._collapseSubtree(node)}>
-              <span class="codicon codicon-collapse-all"></span>Collapse subtree
+              <span class="codicon codicon-collapse-all"></span>${panelText("Collapse subtree")}
             </li>
             <li class="kconfig-ctx-sep" role="separator"></li>`
         : nothing}
@@ -856,11 +857,11 @@ export class KconfigPage extends ZephyrLitElement {
         ? html`
             <li class="kconfig-ctx-item" role="menuitem"
                 @click=${() => { this._contextMenu = undefined; void this._jumpToDefinition(node.name); }}>
-              <span class="codicon codicon-go-to-file"></span>Go to definition
+              <span class="codicon codicon-go-to-file"></span>${panelText("Go to definition")}
             </li>
             <li class="kconfig-ctx-item" role="menuitem"
                 @click=${() => void this._copyConfigName(node.name)}>
-              <span class="codicon codicon-copy"></span>Copy <code>CONFIG_${node.name}</code>
+              <span class="codicon codicon-copy"></span>${panelText("Copy")} <code>CONFIG_${node.name}</code>
             </li>`
         : nothing}
         ${ctx.modified
@@ -868,21 +869,21 @@ export class KconfigPage extends ZephyrLitElement {
             <li class="kconfig-ctx-sep" role="separator"></li>
             <li class="kconfig-ctx-item" role="menuitem"
                 @click=${() => { this._contextMenu = undefined; void this._resetSymbol(node.name); }}>
-              <span class="codicon codicon-discard"></span>Reset to original
+              <span class="codicon codicon-discard"></span>${panelText("Reset to original")}
             </li>
             ${node.is_symbol && !isMenu
             ? html`
               <li class="kconfig-ctx-sep" role="separator"></li>
               <li class="kconfig-ctx-item kconfig-ctx-item-header" role="presentation">
-                Save this symbol to…
+                ${panelText("Save this symbol to…")}
               </li>
               ${this._saveTargetsLoading
                 ? html`<li class="kconfig-ctx-item kconfig-ctx-disabled">
-                  <span class="codicon codicon-loading codicon-modifier-spin"></span> Loading…
+                  <span class="codicon codicon-loading codicon-modifier-spin"></span> ${panelText("Loading…")}
                 </li>`
                 : (this._saveTargets ?? []).map((t) => {
                   const badge = t.kind === "override"
-                    ? html`<span class="badge badge-warning">override</span>`
+                    ? html`<span class="badge badge-warning">${panelText("override")}</span>`
                     : html`<span class="badge badge-muted">${t.kind}</span>`;
                   return html`
                     <li class="kconfig-ctx-item" role="menuitem"
@@ -894,11 +895,11 @@ export class KconfigPage extends ZephyrLitElement {
                 })}
               <li class="kconfig-ctx-item" role="menuitem"
                   @click=${() => void this._onSaveSymbolAsNew(node.name, "build")}>
-                <span class="codicon codicon-new-file"></span>New fragment (build)…
+                <span class="codicon codicon-new-file"></span>${panelText("New fragment (build)…")}
               </li>
               <li class="kconfig-ctx-item" role="menuitem"
                   @click=${() => void this._onSaveSymbolAsNew(node.name, "project")}>
-                <span class="codicon codicon-new-file"></span>New fragment (project)…
+                <span class="codicon codicon-new-file"></span>${panelText("New fragment (project)…")}
               </li>
             `
             : nothing}`
@@ -922,10 +923,10 @@ export class KconfigPage extends ZephyrLitElement {
 
     return html`
       <h1>
-        Kconfig
+        ${panelText("Kconfig")}
         ${this._changes.length > 0
         ? html`<span class="kconfig-header-badge">
-                ${this._changes.length} change${this._changes.length === 1 ? "" : "s"}
+                ${this._changes.length === 1 ? panelText("1 change") : panelText("{0} changes", this._changes.length)}
               </span>`
         : nothing}
       </h1>
@@ -939,12 +940,12 @@ export class KconfigPage extends ZephyrLitElement {
           ${this._reloading
         ? html`<div class="kconfig-pane-loading">
                 <span class="codicon codicon-loading codicon-modifier-spin" style="font-size:28px;opacity:0.7"></span>
-                <p>Reloading Kconfig tree…</p>
+                <p>${panelText("Reloading Kconfig tree…")}</p>
               </div>`
         : this._loading && !this._treeRoot
           ? html`<div class="kconfig-pane-loading">
                 <span class="codicon codicon-loading codicon-modifier-spin" style="font-size:28px;opacity:0.7"></span>
-                <p>Loading Kconfig tree…</p>
+                <p>${panelText("Loading Kconfig tree…")}</p>
               </div>`
           : this._viewMode === "tree" ? this._renderTree() : this._renderChanges()}
         </div>
@@ -977,7 +978,7 @@ export class KconfigPage extends ZephyrLitElement {
       <details class="source-files-panel">
         <summary class="source-files-heading">
           <span class="codicon codicon-file-text" aria-hidden="true"></span>
-          Configuration sources
+          ${panelText("Configuration sources")}
           <span class="source-files-count">(${files.length})</span>
         </summary>
         <ul class="source-files-list">
@@ -1001,26 +1002,26 @@ export class KconfigPage extends ZephyrLitElement {
 
   private _renderLoading() {
     return html`
-      <h1>Kconfig</h1>
+      <h1>${panelText("Kconfig")}</h1>
       <p class="kconfig-info">
         <span class="codicon codicon-loading codicon-modifier-spin"></span>
-        Loading Kconfig tree…
+        ${panelText("Loading Kconfig tree…")}
       </p>
     `;
   }
 
   private _renderError() {
     return html`
-      <h1>Kconfig</h1>
+      <h1>${panelText("Kconfig")}</h1>
       <p class="kconfig-status kconfig-status-error">
         <span class="codicon codicon-error"></span>
         ${this._treeError}
       </p>
       ${this.entries
         ? html`<p class="kconfig-info">
-            Falling back to read-only table view.
+            ${panelText("Falling back to read-only table view.")}
             <vscode-button appearance="secondary" @click=${() => this._useFallback = true}>
-              Open table view
+              ${panelText("Open table view")}
             </vscode-button>
           </p>`
         : nothing}
@@ -1042,7 +1043,7 @@ export class KconfigPage extends ZephyrLitElement {
         <vscode-button
           appearance="icon"
           ?disabled=${!canBack}
-          title="Back (Alt+Left)"
+          title="${panelText("Back (Alt+Left)")}"
           @click=${() => void this._historyBack()}
         >
           <span class="codicon codicon-arrow-left"></span>
@@ -1050,7 +1051,7 @@ export class KconfigPage extends ZephyrLitElement {
         <vscode-button
           appearance="icon"
           ?disabled=${!canFwd}
-          title="Forward (Alt+Right)"
+          title="${panelText("Forward (Alt+Right)")}"
           @click=${() => void this._historyForward()}
         >
           <span class="codicon codicon-arrow-right"></span>
@@ -1065,7 +1066,7 @@ export class KconfigPage extends ZephyrLitElement {
         this._scheduleSearch();
       }}
         ></vscode-textfield>
-        <label class="kconfig-toolbar-toggle" title="Include help text body in filter (uses kconfiglib)">
+        <label class="kconfig-toolbar-toggle" title="${panelText("Include help text body in filter (uses kconfiglib)")}">
           <vscode-checkbox
             .checked=${this._searchHelp}
             @change=${(e: Event) => {
@@ -1074,7 +1075,7 @@ export class KconfigPage extends ZephyrLitElement {
         this._scheduleSearch();
       }}
           ></vscode-checkbox>
-          Search help
+          ${panelText("Search help")}
         </label>
         <label class="kconfig-toolbar-toggle">
           <vscode-checkbox
@@ -1085,32 +1086,32 @@ export class KconfigPage extends ZephyrLitElement {
         this._scheduleSearch();
       }}
           ></vscode-checkbox>
-          Show hidden symbols
+          ${panelText("Show hidden symbols")}
         </label>
         <span style="flex:1"></span>
-        <div class="kconfig-view-toggle" role="group" aria-label="View mode">
+        <div class="kconfig-view-toggle" role="group" aria-label="${panelText("View mode")}">
           <button
             class="kconfig-view-toggle-btn ${this._viewMode === "tree" ? "kconfig-view-toggle-btn--active" : ""}"
-            title="Show Kconfig tree"
+            title="${panelText("Show Kconfig tree")}"
             @click=${() => { this._viewMode = "tree"; }}
           >
             <span class="codicon codicon-list-tree"></span>
-            Tree
+            ${panelText("Tree")}
           </button>
           <button
             class="kconfig-view-toggle-btn ${this._viewMode === "changes" ? "kconfig-view-toggle-btn--active" : ""}"
-            title="Show pending changes"
+            title="${panelText("Show pending changes")}"
             @click=${() => { this._viewMode = "changes"; void this._refreshChanges(); }}
           >
             <span class="codicon codicon-diff"></span>
-            Changes${dirty > 0 ? html`<span class="kconfig-toggle-badge">${dirty}</span>` : nothing}
+            ${panelText("Changes")}${dirty > 0 ? html`<span class="kconfig-toggle-badge">${dirty}</span>` : nothing}
           </button>
         </div>
         <vscode-button
           appearance="icon"
           ?disabled=${reloading || this._building || dirty > 0}
           @click=${this._onBuildAndReparse}
-          title=${dirty > 0 ? "Save changes before building" : "Build project and re-parse Kconfig"}
+          title=${dirty > 0 ? panelText("Save changes before building") : panelText("Build project and re-parse Kconfig")}
         >
           <span class="codicon ${this._building ? "codicon-loading codicon-modifier-spin" : "codicon-play"}"></span>
         </vscode-button>
@@ -1118,7 +1119,7 @@ export class KconfigPage extends ZephyrLitElement {
           appearance="icon"
           ?disabled=${reloading || this._building}
           @click=${this._onReload}
-          title="Discard in-memory edits and re-parse the build's .config"
+          title="${panelText("Discard in-memory edits and re-parse the build's .config")}"
         >
           <span class="codicon ${reloading ? "codicon-loading codicon-modifier-spin" : "codicon-refresh"}"></span>
         </vscode-button>
@@ -1127,7 +1128,7 @@ export class KconfigPage extends ZephyrLitElement {
           appearance="icon"
           ?disabled=${saving || reloading}
           @click=${() => this._onOpenExternal("menuconfig")}
-          title="Run 'west build -t menuconfig' in a terminal"
+          title="${panelText("Run 'west build -t menuconfig' in a terminal")}"
         >
           <span class="codicon codicon-terminal"></span>
         </vscode-button>
@@ -1135,7 +1136,7 @@ export class KconfigPage extends ZephyrLitElement {
           appearance="icon"
           ?disabled=${saving || reloading}
           @click=${() => this._onOpenExternal("guiconfig")}
-          title="Run 'west build -t guiconfig' in a terminal"
+          title="${panelText("Run 'west build -t guiconfig' in a terminal")}"
         >
           <span class="codicon codicon-window"></span>
         </vscode-button>
@@ -1147,24 +1148,24 @@ export class KconfigPage extends ZephyrLitElement {
     const s = this._saveStatus;
     if (s.kind === "saved") {
       const rel = this._relPath(s.path);
-      const noun = s.count === 1 ? "symbol" : "symbols";
+      const message = s.count === 1 ? panelText("Saved one symbol to {0}") : panelText("Saved {1} symbols to {0}");
       return html`
         <p class="kconfig-status kconfig-status-ok">
           <span class="codicon codicon-check"></span>
-          Saved ${s.count} ${noun} to <code>${rel}</code>
+          ${panelParts(message, html`<code>${rel}</code>`, s.count)}
           <span
             class="kconfig-tree-link"
             style="margin-left:8px"
             @click=${() => this._onOpenSavedFile(s.path)}
-          >Open file</span>
+          >${panelText("Open file")}</span>
           ${s.rebuildRequired ? html`
-            <span style="margin-left:12px;opacity:0.8">— Rebuild required to apply changes.</span>
+            <span style="margin-left:12px;opacity:0.8">${panelText("— Rebuild required to apply changes.")}</span>
             <vscode-button
               appearance="secondary"
               style="margin-left:8px"
               @click=${() => this._onBuild(false)}
-              title="Run west build"
-            >Build</vscode-button>
+              title="${panelText("Run west build")}"
+            >${panelText("Build")}</vscode-button>
           ` : nothing}
         </p>
       `;
@@ -1207,14 +1208,11 @@ export class KconfigPage extends ZephyrLitElement {
     const last = this._lastSaveTarget
       ? this._saveTargets?.find((t) => t.absPath === this._lastSaveTarget)
       : undefined;
-    const primaryLabel = saving
-      ? "Saving…"
-      : last
-        ? `Save to ${this._relPath(last.absPath)}${dirty > 0 ? ` (${dirty})` : ""}`
-        : `Save fragment…${dirty > 0 ? ` (${dirty})` : ""}`;
+    const destination = last ? panelText("Save to {0}", this._relPath(last.absPath)) : panelText("Save fragment…");
+    const primaryLabel = saving ? panelText("Saving…") : dirty ? panelText("{0} ({1})", destination, dirty) : destination;
     const primaryTitle = last
-      ? `Save ${dirty} change${dirty === 1 ? "" : "s"} to ${last.path}`
-      : "Choose where to save your Kconfig changes";
+      ? dirty === 1 ? panelText("Save 1 change to {0}", last.path) : panelText("Save {0} changes to {1}", dirty, last.path)
+      : panelText("Choose where to save your Kconfig changes");
     const primaryAction = async () => {
       if (last) {
         await this._onSaveToTarget(last);
@@ -1241,7 +1239,7 @@ export class KconfigPage extends ZephyrLitElement {
           class="kconfig-save-button kconfig-save-chevron"
           appearance="primary"
           ?disabled=${disabled}
-          title="Choose save target…"
+          title="${panelText("Choose save target…")}"
           @click=${(e: Event) => { e.stopPropagation(); void this._toggleSaveMenu(); }}
         >
           <span class="codicon codicon-chevron-down"></span>
@@ -1258,18 +1256,18 @@ export class KconfigPage extends ZephyrLitElement {
         ${this._saveTargetsLoading
         ? html`<li class="kconfig-save-menu-info">
               <span class="codicon codicon-loading codicon-modifier-spin"></span>
-              Loading targets…
+              ${panelText("Loading targets…")}
             </li>`
         : nothing}
         ${!this._saveTargetsLoading && targets.length === 0
-        ? html`<li class="kconfig-save-menu-info">No conf files found for this build.</li>`
+        ? html`<li class="kconfig-save-menu-info">${panelText("No conf files found for this build.")}</li>`
         : nothing}
         ${targets.map((t) => {
           const kindBadge = t.kind === "override"
-            ? html`<span class="badge badge-warning" title="Override file (CONF_FILE). Changes will be merged in-place.">override</span>`
+            ? html`<span class="badge badge-warning" title="${panelText("Override file (CONF_FILE). Changes will be merged in-place.")}">${panelText("override")}</span>`
             : t.kind === "auto"
-              ? html`<span class="badge badge-muted" title="Auto-detected by west (not yet attached to build/project)">auto</span>`
-              : html`<span class="badge badge-muted">extra</span>`;
+              ? html`<span class="badge badge-muted" title="${panelText("Auto-detected by west (not yet attached to build/project)")}">${panelText("auto")}</span>`
+              : html`<span class="badge badge-muted">${panelText("extra")}</span>`;
           const scopeBadge = html`<span class="badge badge-muted">${t.scope}</span>`;
           const actionHint = t.kind === "override"
             ? " — merge"
@@ -1286,7 +1284,7 @@ export class KconfigPage extends ZephyrLitElement {
             ${kindBadge}
             ${scopeBadge}
             ${!t.exists && t.kind !== "override"
-              ? html`<span class="badge" title="File does not exist yet — will be created">new</span>`
+              ? html`<span class="badge" title="${panelText("File does not exist yet — will be created")}">${panelText("new")}</span>`
               : nothing}
           </li>
         `;
@@ -1298,7 +1296,7 @@ export class KconfigPage extends ZephyrLitElement {
           @click=${() => void this._onSaveAsNew("build")}
         >
           <span class="codicon codicon-new-file"></span>
-          <span class="kconfig-save-menu-path">Save as new fragment (attach to build)…</span>
+          <span class="kconfig-save-menu-path">${panelText("Save as new fragment (attach to build)…")}</span>
         </li>
         <li
           class="kconfig-save-menu-item"
@@ -1306,7 +1304,7 @@ export class KconfigPage extends ZephyrLitElement {
           @click=${() => void this._onSaveAsNew("project")}
         >
           <span class="codicon codicon-new-file"></span>
-          <span class="kconfig-save-menu-path">Save as new fragment (attach to project)…</span>
+          <span class="kconfig-save-menu-path">${panelText("Save as new fragment (attach to project)…")}</span>
         </li>
       </ul>
     `;
@@ -1327,18 +1325,18 @@ export class KconfigPage extends ZephyrLitElement {
       if (hits === undefined) {
         return html`<p class="kconfig-info">
           <span class="codicon codicon-loading codicon-modifier-spin"></span>
-          Searching…
+          ${panelText("Searching…")}
         </p>`;
       }
       if (hits.length === 0) {
-        return html`<p class="kconfig-info">No symbols match “${filter}”.</p>`;
+        return html`<p class="kconfig-info">${panelText("No symbols match “{0}”.", filter)}</p>`;
       }
       return html`
         <ul class="kconfig-tree kconfig-tree-flat" role="tree">
           ${hits.map((h) => this._renderSearchHit(h))}
         </ul>
         ${this._searchTruncated
-          ? html`<p class="kconfig-info">Showing first ${hits.length} matches — refine your query for more.</p>`
+          ? html`<p class="kconfig-info">${panelText("Showing first")} ${hits.length} ${panelText("matches — refine your query for more.")}</p>`
           : nothing}
       `;
     }
@@ -1360,7 +1358,7 @@ export class KconfigPage extends ZephyrLitElement {
       };
       walk(this._treeRoot);
       if (hits.length === 0) {
-        return html`<p class="kconfig-info">No symbols match “${filter}”.</p>`;
+        return html`<p class="kconfig-info">${panelText("No symbols match “{0}”.", filter)}</p>`;
       }
       return html`
         <ul class="kconfig-tree kconfig-tree-flat" role="tree">
@@ -1412,10 +1410,10 @@ export class KconfigPage extends ZephyrLitElement {
             class="kconfig-tree-row kconfig-tree-row-menu"
             style="padding-left:0"
             @click=${() => this._toggleExpand(GENERAL_ID)}
-            @contextmenu=${(e: MouseEvent) => this._openContextMenu(e, { id: GENERAL_ID, prompt: "General", name: "", type: "", value: "", visible: true, is_menu: true, is_choice: false, is_symbol: false, children: visibleOrphans })}
+            @contextmenu=${(e: MouseEvent) => this._openContextMenu(e, { id: GENERAL_ID, prompt: panelText("General"), name: "", type: "", value: "", visible: true, is_menu: true, is_choice: false, is_symbol: false, children: visibleOrphans })}
           >
             <span class="codicon ${generalExpanded ? "codicon-chevron-down" : "codicon-chevron-right"}"></span>
-            <span class="kconfig-tree-label">General</span>
+            <span class="kconfig-tree-label">${panelText("General")}</span>
           </div>
           ${generalExpanded
           ? html`<ul role="group">
@@ -1442,7 +1440,7 @@ export class KconfigPage extends ZephyrLitElement {
         >
           <span class="kconfig-tree-label">
             ${h.prompt || html`<code>${h.name}</code>`}
-            ${h.matched_help ? html`<span class="badge badge-muted" title="Matched help text">help</span>` : nothing}
+            ${h.matched_help ? html`<span class="badge badge-muted" title="${panelText("Matched help text")}">${panelText("help")}</span>` : nothing}
           </span>
           <span class="kconfig-tree-value">
             <code class="kconfig-bool-label">${h.value || '""'}</code>
@@ -1557,7 +1555,7 @@ export class KconfigPage extends ZephyrLitElement {
       ${modified
         ? html`<span
             class="kconfig-modified-dot"
-            title="Modified from on-disk .config"
+            title="${panelText("Modified from on-disk .config")}"
           >●</span>`
         : nothing}
       <span class="kconfig-tree-label" title=${labelText}>
@@ -1570,7 +1568,7 @@ export class KconfigPage extends ZephyrLitElement {
         ${modified
         ? html`<vscode-button
               appearance="icon"
-              title="Reset to original"
+              title="${panelText("Reset to original")}"
               @click=${() => void this._resetSymbol(node.name)}
             >
               <span class="codicon codicon-discard"></span>
@@ -1579,7 +1577,7 @@ export class KconfigPage extends ZephyrLitElement {
         ${node.name
         ? html`<vscode-button
               appearance="icon"
-              title="Go to definition"
+              title="${panelText("Go to definition")}"
               @click=${() => void this._jumpToDefinition(node.name)}
             >
               <span class="codicon codicon-go-to-file"></span>
@@ -1700,12 +1698,12 @@ export class KconfigPage extends ZephyrLitElement {
           @contextmenu=${(e: MouseEvent) => this._openContextMenu(e, node)}
         >
           ${modified
-        ? html`<span class="kconfig-modified-dot" title="Modified from on-disk .config">●</span>`
+        ? html`<span class="kconfig-modified-dot" title="${panelText("Modified from on-disk .config")}">●</span>`
         : nothing}
           <span class="kconfig-tree-label" title=${choiceLabel}>
             ${choiceLabel}
             ${locked && node.direct_dep
-        ? html`<span class="badge badge-muted" title="Requires: ${node.direct_dep}. Selecting an option will enable it.">requires: ${node.direct_dep}</span>`
+        ? html`<span class="badge badge-muted" title="${panelText("Requires:")} ${node.direct_dep}${panelText(". Selecting an option will enable it.")}">${panelText("requires:")} ${node.direct_dep}</span>`
         : nothing}
           </span>
           <span class="kconfig-tree-value">
@@ -1715,7 +1713,7 @@ export class KconfigPage extends ZephyrLitElement {
             ${selected
         ? html`<vscode-button
                   appearance="icon"
-                  title="Go to definition"
+                  title="${panelText("Go to definition")}"
                   @click=${() => void this._jumpToDefinition(selected.name)}
                 >
                   <span class="codicon codicon-go-to-file"></span>
@@ -1739,16 +1737,16 @@ export class KconfigPage extends ZephyrLitElement {
 
   private _renderChanges() {
     if (this._changes.length === 0) {
-      return html`<p class="kconfig-info">No changes vs. on-disk .config.</p>`;
+      return html`<p class="kconfig-info">${panelText("No changes vs. on-disk .config.")}</p>`;
     }
     return html`
       <table class="dashboard-table kconfig-changes-table">
         <thead>
           <tr>
-            <th>Symbol</th>
-            <th>Original</th>
-            <th>Current</th>
-            <th aria-label="Actions"></th>
+            <th>${panelText("Symbol")}</th>
+            <th>${panelText("Original")}</th>
+            <th>${panelText("Current")}</th>
+            <th aria-label="${panelText("Actions")}"></th>
           </tr>
         </thead>
         <tbody>
@@ -1764,7 +1762,7 @@ export class KconfigPage extends ZephyrLitElement {
               <td>
                 <vscode-button
                   appearance="icon"
-                  title="Reset to original"
+                  title="${panelText("Reset to original")}"
                   @click=${() => void this._setSymbol(c.name, c.old)}
                 >
                   <span class="codicon codicon-discard"></span>
@@ -1792,7 +1790,7 @@ export class KconfigPage extends ZephyrLitElement {
     const selected = options.find((o) => o.value === "y");
     const locked = !node.visible;
     const choiceName = node.name.trim();
-    const choiceHeader = choiceName ? `CONFIG_${choiceName}` : (node.prompt || "(choice)");
+    const choiceHeader = choiceName ? `CONFIG_${choiceName}` : (node.prompt || panelText("(choice)"));
     return html`
       <div class="kconfig-detail">
         <div class="kconfig-detail-header">
@@ -1800,9 +1798,9 @@ export class KconfigPage extends ZephyrLitElement {
           ${node.prompt ? html`<p class="kconfig-detail-prompt">${node.prompt}</p>` : nothing}
         </div>
         <dl class="kconfig-detail-grid">
-          <dt>Type</dt><dd>choice</dd>
-          ${selected ? html`<dt>Selected</dt><dd><code>${selected.prompt || selected.name}</code></dd>` : nothing}
-          ${locked && node.direct_dep ? html`<dt>Depends on</dt><dd>${this._renderExpr(node.direct_dep)}</dd>` : nothing}
+          <dt>${panelText("Type")}</dt><dd>${panelText("choice")}</dd>
+          ${selected ? html`<dt>${panelText("Selected")}</dt><dd><code>${selected.prompt || selected.name}</code></dd>` : nothing}
+          ${locked && node.direct_dep ? html`<dt>${panelText("Depends on")}</dt><dd>${this._renderExpr(node.direct_dep)}</dd>` : nothing}
         </dl>
         ${this._renderChoiceDetailEditor(node)}
       </div>
@@ -1814,12 +1812,12 @@ export class KconfigPage extends ZephyrLitElement {
       return this._renderChoiceDetail(this._selectedChoiceNode);
     }
     if (!this._selectedName) {
-      return html`<p class="kconfig-info">Select a symbol to see its details.</p>`;
+      return html`<p class="kconfig-info">${panelText("Select a symbol to see its details.")}</p>`;
     }
     if (this._selectedDetailLoading && !this._selectedDetail) {
       return html`<p class="kconfig-info">
         <span class="codicon codicon-loading codicon-modifier-spin"></span>
-        Loading…
+        ${panelText("Loading…")}
       </p>`;
     }
     const d = this._selectedDetail;
@@ -1833,22 +1831,22 @@ export class KconfigPage extends ZephyrLitElement {
         </div>
 
         <dl class="kconfig-detail-grid">
-          <dt>Type</dt><dd>${d.type}</dd>
-          <dt>Value</dt><dd><code>${d.value || '""'}</code>
-            ${!d.visible ? html`<span class="badge badge-muted" title="Not currently visible/enabled by its dependencies">hidden</span>` : nothing}
+          <dt>${panelText("Type")}</dt><dd>${d.type}</dd>
+          <dt>${panelText("Value")}</dt><dd><code>${d.value || '""'}</code>
+            ${!d.visible ? html`<span class="badge badge-muted" title="${panelText("Not currently visible/enabled by its dependencies")}">${panelText("hidden")}</span>` : nothing}
           </dd>
-          ${d.choice ? html`<dt>Choice group</dt><dd><code>${d.choice}</code></dd>` : nothing}
+          ${d.choice ? html`<dt>${panelText("Choice group")}</dt><dd><code>${d.choice}</code></dd>` : nothing}
           ${d.direct_dependencies && d.direct_dependencies !== "y"
-        ? html`<dt>Depends on</dt><dd>${this._renderExpr(d.direct_dependencies)}</dd>`
+        ? html`<dt>${panelText("Depends on")}</dt><dd>${this._renderExpr(d.direct_dependencies)}</dd>`
         : nothing}
           ${d.ranges.length > 0
-        ? html`<dt>Ranges</dt><dd>
-                ${d.ranges.map((r) => html`<div><code>${r.low} … ${r.high}</code>${r.cond !== "y" ? html` if ${this._renderExpr(r.cond)}` : nothing}</div>`)}
+        ? html`<dt>${panelText("Ranges")}</dt><dd>
+                ${d.ranges.map((r) => html`<div><code>${r.low} … ${r.high}</code>${r.cond !== "y" ? html` ${panelText("if")} ${this._renderExpr(r.cond)}` : nothing}</div>`)}
               </dd>`
         : nothing}
           ${d.defaults.length > 0
-        ? html`<dt>Defaults</dt><dd>
-                ${d.defaults.map((df) => html`<div><code>${df.value}</code>${df.cond !== "y" ? html` if ${this._renderExpr(df.cond)}` : nothing}</div>`)}
+        ? html`<dt>${panelText("Defaults")}</dt><dd>
+                ${d.defaults.map((df) => html`<div><code>${df.value}</code>${df.cond !== "y" ? html` ${panelText("if")} ${this._renderExpr(df.cond)}` : nothing}</div>`)}
               </dd>`
         : nothing}
         </dl>
@@ -1857,14 +1855,14 @@ export class KconfigPage extends ZephyrLitElement {
 
         ${d.help
         ? html`<section class="kconfig-help">
-              <h3>Help</h3>
+              <h3>${panelText("Help")}</h3>
               <pre>${d.help}</pre>
             </section>`
         : nothing}
 
         ${d.defining_files.length > 0
         ? html`<section class="kconfig-defining">
-              <h3>Defined in</h3>
+              <h3>${panelText("Defined in")}</h3>
               <ul>
                 ${d.defining_files.map((f) => html`
                   <li>
@@ -1902,14 +1900,14 @@ export class KconfigPage extends ZephyrLitElement {
       if ((d.type === "bool" || d.type === "tristate") && d.direct_dependencies && d.direct_dependencies !== "y") {
         return html`
           <section class="kconfig-detail-editor">
-            <h3>Set value</h3>
+            <h3>${panelText("Set value")}</h3>
             <p class="kconfig-info" style="margin:0 0 6px">
               <span class="codicon codicon-lock" style="margin-right:4px"></span>
-              Hidden — dependency not met: ${this._renderExpr(d.direct_dependencies)}
+              ${panelText("Hidden — dependency not met:")} ${this._renderExpr(d.direct_dependencies)}
             </p>
             <div class="kconfig-detail-editor-row">
               <vscode-button @click=${() => void this._enableDepsAndSet(d.direct_dependencies, d.name, "y")}>
-                Enable (auto-enable dependencies)
+                ${panelText("Enable (auto-enable dependencies)")}
               </vscode-button>
             </div>
           </section>
@@ -1934,13 +1932,13 @@ export class KconfigPage extends ZephyrLitElement {
     if ((d.type === "int" || d.type === "hex") && d.ranges.length > 0) {
       const r = d.ranges[0];
       rangeHint = html`<small class="kconfig-info">
-        Allowed range: <code>${r.low}</code> … <code>${r.high}</code>
+        ${panelText("Allowed range:")} <code>${r.low}</code> … <code>${r.high}</code>
       </small>`;
     }
 
     return html`
       <section class="kconfig-detail-editor">
-        <h3>Set value</h3>
+        <h3>${panelText("Set value")}</h3>
         <div class="kconfig-detail-editor-row">
           ${this._renderInlineEditor(node)}
         </div>
@@ -1972,11 +1970,11 @@ export class KconfigPage extends ZephyrLitElement {
     const locked = !choiceNode.visible;
     return html`
       <section class="kconfig-detail-editor">
-        <h3>Select</h3>
+        <h3>${panelText("Select")}</h3>
         ${locked && choiceNode.direct_dep
         ? html`<p class="kconfig-info" style="margin:0 0 6px">
             <span class="codicon codicon-lock" style="margin-right:4px"></span>
-            Requires <strong>${choiceNode.direct_dep}</strong> — selecting an option will enable it.
+            ${panelText("Requires")} <strong>${choiceNode.direct_dep}</strong> ${panelText("— selecting an option will enable it.")}
           </p>`
         : nothing}
         <div class="kconfig-detail-editor-row">
@@ -1990,7 +1988,7 @@ export class KconfigPage extends ZephyrLitElement {
           ? this._enableDepsAndSet(choiceNode.direct_dep, optName, "y")
           : this._setSymbol(optName, "y"));
       }}
-            aria-label=${choiceNode.prompt || "choice"}
+            aria-label=${choiceNode.prompt || panelText("choice")}
           >
             ${!selected ? html`<vscode-option value="">—</vscode-option>` : nothing}
             ${options.map((opt) => html`
@@ -2041,7 +2039,7 @@ export class KconfigPage extends ZephyrLitElement {
     } else {
       this._saveStatus = {
         kind: "error",
-        message: typeof msg.error === "string" ? msg.error : "Save failed.",
+        message: typeof msg.error === "string" ? msg.error : panelText("Save failed."),
       };
     }
   }
@@ -2096,22 +2094,22 @@ export class KconfigPage extends ZephyrLitElement {
     const dirtyCount = entries.filter((e) => this._fallbackIsModified(e)).length;
     return html`
       <h1>
-        Kconfig
+        ${panelText("Kconfig")}
         <span style="font-weight:400;font-size:0.75em;opacity:0.7">
-          (${entries.length} symbols${dirtyCount > 0 ? `, ${dirtyCount} edited` : ""})
+          (${entries.length} ${panelText("symbols")}${dirtyCount > 0 ? `, ${dirtyCount} edited` : ""})
         </span>
       </h1>
       ${this._treeError
         ? html`<p class="kconfig-status kconfig-status-error">
             <span class="codicon codicon-warning"></span>
-            Live editor unavailable: ${this._treeError}. Showing fallback table view.
+            ${panelText("Live editor unavailable:")} ${this._treeError}${panelText(". Showing fallback table view.")}
           </p>`
         : nothing}
       ${this._renderSourceFiles()}
       <div class="kconfig-toolbar">
         <vscode-textfield
           class="kconfig-filter"
-          placeholder="Filter by name or value…"
+          placeholder="${panelText("Filter by name or value…")}"
           .value=${this._filter}
           @input=${(e: Event) => {
         const t = e.currentTarget as { value?: string } | null;
@@ -2126,7 +2124,7 @@ export class KconfigPage extends ZephyrLitElement {
         this._fallbackShowOnlyModified = !!t?.checked;
       }}
           ></vscode-checkbox>
-          Show only edited
+          ${panelText("Show only edited")}
         </label>
         <span style="flex:1"></span>
         <vscode-button
@@ -2135,23 +2133,23 @@ export class KconfigPage extends ZephyrLitElement {
           @click=${this._fallbackOnSave}
         >
           <span class="codicon codicon-save" style="margin-right:4px"></span>
-          Save fragment… (${dirtyCount})
+          ${panelText("Save fragment… ({0})", dirtyCount)}
         </vscode-button>
         <vscode-button
           appearance="secondary"
           @click=${() => this._onOpenExternal("menuconfig")}
         >
           <span class="codicon codicon-terminal" style="margin-right:4px"></span>
-          menuconfig
+          ${panelText("menuconfig")}
         </vscode-button>
       </div>
       ${this._renderStatus()}
       <table class="dashboard-table kconfig-table">
         <thead>
           <tr>
-            <th>Symbol</th>
-            <th>Type</th>
-            <th>Value</th>
+            <th>${panelText("Symbol")}</th>
+            <th>${panelText("Type")}</th>
+            <th>${panelText("Value")}</th>
           </tr>
         </thead>
         <tbody>

@@ -4,6 +4,7 @@ Author Rijesh Augustine
 SPDX-License-Identifier: Apache-2.0
 */
 
+import { panelText } from "../../../webview_shared/panel-text";
 import { html, svg, nothing, PropertyValues } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { ZephyrLitElement } from "../../../webview_shared/lit-base";
@@ -199,7 +200,7 @@ export class MemorySunburst extends ZephyrLitElement {
           viewBox="${-radius} ${-radius} ${size} ${size}"
           style="display:block;width:100%;height:auto;aspect-ratio:1"
           role="img"
-          aria-label="Memory usage sunburst"
+          aria-label="${panelText("Memory usage sunburst")}"
         >
           ${visible.map((d) => {
       const ancestors = d.ancestors().reverse().slice(0, -1).map((a) => a.data.data.name);

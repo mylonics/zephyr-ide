@@ -4,6 +4,7 @@ Author Rijesh Augustine
 SPDX-License-Identifier: Apache-2.0
 */
 
+import { panelText } from "../../webview_shared/panel-text";
 import { html, nothing, type TemplateResult } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { ZephyrLitElement } from "../../webview_shared/lit-base";
@@ -213,16 +214,16 @@ export class DtsPage extends ZephyrLitElement {
     if (!this.data) { return nothing; }
 
     return html`
-      <h1>Device Tree</h1>
+      <h1>${panelText("Device Tree")}</h1>
       <p class="dts-path"><code>${this.data.sourcePath}</code></p>
 
       ${this._renderDtsSourceFiles()}
 
       <div class="dts-tabs">
         <button class="dts-tab${this._activeTab === 'browser' ? ' dts-tab-active' : ''}"
-          @click=${() => { this._activeTab = 'browser'; }}>Browser</button>
+          @click=${() => { this._activeTab = 'browser'; }}>${panelText("Browser")}</button>
         <button class="dts-tab${this._activeTab === 'source' ? ' dts-tab-active' : ''}"
-          @click=${() => { this._activeTab = 'source'; }}>Source</button>
+          @click=${() => { this._activeTab = 'source'; }}>${panelText("Source")}</button>
       </div>
 
       ${this._activeTab === 'browser' ? this._renderBrowser() : this._renderSource()}
@@ -244,7 +245,7 @@ export class DtsPage extends ZephyrLitElement {
       <details class="source-files-panel">
         <summary class="source-files-heading">
           <span class="codicon codicon-file-text" aria-hidden="true"></span>
-          Device tree sources
+          ${panelText("Device tree sources")}
           <span class="source-files-count">(${files.length})</span>
         </summary>
         <ul class="source-files-list">
@@ -264,7 +265,7 @@ export class DtsPage extends ZephyrLitElement {
 
   private _renderBrowser() {
     if (!this._tree) {
-      return html`<p class="text-muted">No device tree data available.</p>`;
+      return html`<p class="text-muted">${panelText("No device tree data available.")}</p>`;
     }
     return html`
       <div class="dts-tree-wrap">
@@ -277,10 +278,10 @@ export class DtsPage extends ZephyrLitElement {
           </colgroup>
           <thead>
             <tr>
-              <th>Node</th>
-              <th>Compatible</th>
-              <th>Status</th>
-              <th>Source</th>
+              <th>${panelText("Node")}</th>
+              <th>${panelText("Compatible")}</th>
+              <th>${panelText("Status")}</th>
+              <th>${panelText("Source")}</th>
             </tr>
           </thead>
           <tbody>
@@ -294,6 +295,6 @@ export class DtsPage extends ZephyrLitElement {
   private _renderSource() {
     return this.data.source
       ? html`<pre class="text-viewer">${this.data.source}</pre>`
-      : html`<p class="text-muted">No device tree source available.</p>`;
+      : html`<p class="text-muted">${panelText("No device tree source available.")}</p>`;
   }
 }

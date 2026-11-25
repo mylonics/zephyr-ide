@@ -1,7 +1,7 @@
 {
   "name": "zephyr-ide",
   "displayName": "IDE for Zephyr",
-  "description": "Streamline Zephyr RTOS development in VS Code — automated SDK installation, west workspace management, project building, flashing, and debugging for ARM, RISC-V, and more",
+  "description": "%extension.description%",
   "version": "4.2.0",
   "license": "Apache-2.0",
   "publisher": "mylonics",
@@ -85,77 +85,77 @@
         "zephyr-ide.statusBar.showBuildPristine": {
           "type": "boolean",
           "default": true,
-          "description": "Show the 'Build Pristine' button in the status bar. Restart to take effect."
+          "description": "%settings.zephyr-ide.statusBar.showBuildPristine.description%"
         },
         "zephyr-ide.statusBar.showBuild": {
           "type": "boolean",
           "default": true,
-          "description": "Show the 'Build' button in the status bar. Restart to take effect."
+          "description": "%settings.zephyr-ide.statusBar.showBuild.description%"
         },
         "zephyr-ide.statusBar.showFlash": {
           "type": "boolean",
           "default": false,
-          "description": "Show the 'Flash' button in the status bar. Restart to take effect."
+          "description": "%settings.zephyr-ide.statusBar.showFlash.description%"
         },
         "zephyr-ide.statusBar.showBuildFlash": {
           "type": "boolean",
           "default": true,
-          "description": "Show the 'Build and Flash' button in the status bar. Restart to take effect."
+          "description": "%settings.zephyr-ide.statusBar.showBuildFlash.description%"
         },
         "zephyr-ide.statusBar.showDebug": {
           "type": "boolean",
           "default": false,
-          "description": "Show the 'Debug' button in the status bar. Restart to take effect."
+          "description": "%settings.zephyr-ide.statusBar.showDebug.description%"
         },
         "zephyr-ide.statusBar.showBuildDebug": {
           "type": "boolean",
           "default": true,
-          "description": "Show the 'Build and Debug' button in the status bar. Restart to take effect."
+          "description": "%settings.zephyr-ide.statusBar.showBuildDebug.description%"
         },
         "zephyr-ide.activeProjectPanel.showBuild": {
           "type": "boolean",
           "default": true,
-          "description": "Show the 'Build' button in the Active Project panel."
+          "description": "%settings.zephyr-ide.activeProjectPanel.showBuild.description%"
         },
         "zephyr-ide.activeProjectPanel.showBuildPristine": {
           "type": "boolean",
           "default": false,
-          "description": "Show the 'Build Pristine' button in the Active Project panel."
+          "description": "%settings.zephyr-ide.activeProjectPanel.showBuildPristine.description%"
         },
         "zephyr-ide.activeProjectPanel.showFlash": {
           "type": "boolean",
           "default": true,
-          "description": "Show the 'Flash' button in the Active Project panel."
+          "description": "%settings.zephyr-ide.activeProjectPanel.showFlash.description%"
         },
         "zephyr-ide.activeProjectPanel.showBuildFlash": {
           "type": "boolean",
           "default": false,
-          "description": "Show the 'Build and Flash' button in the Active Project panel."
+          "description": "%settings.zephyr-ide.activeProjectPanel.showBuildFlash.description%"
         },
         "zephyr-ide.activeProjectPanel.showBuildDebug": {
           "type": "boolean",
           "default": false,
-          "description": "Show the 'Build and Debug' button in the Active Project panel."
+          "description": "%settings.zephyr-ide.activeProjectPanel.showBuildDebug.description%"
         },
         "zephyr-ide.activeProjectPanel.showDebug": {
           "type": "boolean",
           "default": true,
-          "description": "Show the 'Debug' button in the Active Project panel."
+          "description": "%settings.zephyr-ide.activeProjectPanel.showDebug.description%"
         },
         "zephyr-ide.activeProjectPanel.showAttach": {
           "type": "boolean",
           "default": true,
-          "description": "Show the 'Debug Attach' button in the Active Project panel."
+          "description": "%settings.zephyr-ide.activeProjectPanel.showAttach.description%"
         },
         "zephyr-ide.activeProjectPanel.showBuildDashboard": {
           "type": "boolean",
           "default": true,
-          "description": "Show the 'Build Dashboard' button at the bottom of the Active Project panel. When shown, the Kconfig button is hidden from the Build and Build Pristine rows (accessible via the dashboard instead)."
+          "description": "%settings.zephyr-ide.activeProjectPanel.showBuildDashboard.description%"
         },
         "zephyr-ide.buildBeforeFlash": {
           "type": "boolean",
           "default": false,
-          "description": "Automatically build before flashing when using the 'Zephyr IDE: Flash' command. The dedicated 'Build and Flash' command always builds first regardless of this setting."
+          "description": "%settings.zephyr-ide.buildBeforeFlash.description%"
         },
         "zephyr-ide.globalDirectory": {
           "type": [
@@ -163,8 +163,8 @@
             "null"
           ],
           "default": null,
-          "deprecationMessage": "Deprecated: Use 'zephyr-ide.toolchainDirectory' instead. The toolchain directory defaults to ~/.zephyr_ide/toolchains. Migrated automatically on startup.",
-          "description": "Deprecated. Use 'zephyr-ide.toolchainDirectory' instead."
+          "deprecationMessage": "%settings.zephyr-ide.globalDirectory.deprecationMessage%",
+          "description": "%settings.zephyr-ide.globalDirectory.description%"
         },
         "zephyr-ide.toolchainDirectory": {
           "type": [
@@ -172,7 +172,7 @@
             "null"
           ],
           "default": null,
-          "description": "Manually specify the directory containing Zephyr SDK installations (e.g., containing zephyr-sdk-0.17.0, zephyr-sdk-0.17.3 subdirectories). If not specified, defaults to toolchains subdirectory within the tools directory."
+          "description": "%settings.zephyr-ide.toolchainDirectory.description%"
         },
         "zephyr-ide.activeViewKconfigButton": {
           "type": "string",
@@ -183,13 +183,13 @@
             "menu-config"
           ],
           "enumDescriptions": [
-            "Open the build dashboard to the main summary page (default).",
-            "Open the build dashboard and navigate directly to the Kconfig page.",
-            "Run 'west build -t guiconfig' to open the graphical Kconfig editor in a terminal.",
-            "Run 'west build -t menuconfig' to open the terminal-based Kconfig editor."
+            "%settings.zephyr-ide.activeViewKconfigButton.enumDescriptions.0%",
+            "%settings.zephyr-ide.activeViewKconfigButton.enumDescriptions.1%",
+            "%settings.zephyr-ide.activeViewKconfigButton.enumDescriptions.2%",
+            "%settings.zephyr-ide.activeViewKconfigButton.enumDescriptions.3%"
           ],
           "default": "dashboard",
-          "description": "Controls what the Kconfig button in the Active Project view does. Defaults to opening the main summary page of the build dashboard. Can also be set to open the Kconfig page of the dashboard, or to launch the external guiconfig or menuconfig tool."
+          "description": "%settings.zephyr-ide.activeViewKconfigButton.description%"
         },
         "zephyr-ide.projectViewKconfigButton": {
           "type": "string",
@@ -199,40 +199,40 @@
             "menu-config"
           ],
           "enumDescriptions": [
-            "Open the build dashboard and navigate directly to the Kconfig page (default).",
-            "Run 'west build -t guiconfig' to open the graphical Kconfig editor in a terminal.",
-            "Run 'west build -t menuconfig' to open the terminal-based Kconfig editor."
+            "%settings.zephyr-ide.projectViewKconfigButton.enumDescriptions.0%",
+            "%settings.zephyr-ide.projectViewKconfigButton.enumDescriptions.1%",
+            "%settings.zephyr-ide.projectViewKconfigButton.enumDescriptions.2%"
           ],
           "default": "kconfig-dashboard",
-          "description": "Controls what the Config button in the Projects view does for a build. Defaults to opening the Kconfig page in the build dashboard. Can be changed to launch the external guiconfig or menuconfig tool instead."
+          "description": "%settings.zephyr-ide.projectViewKconfigButton.description%"
         },
         "zephyr-ide.westNarrowUpdate": {
           "type": [
             "boolean"
           ],
           "default": false,
-          "description": "Use 'west update --narrow' to reduce disk usage and download time by fetching only required Git history."
+          "description": "%settings.zephyr-ide.westNarrowUpdate.description%"
         },
         "zephyr-ide.westKeepDescendants": {
           "type": [
             "boolean"
           ],
           "default": false,
-          "description": "Use 'west update --keep-descendants' to preserve local commits on top of the manifest revision. When enabled, west will not reset a project if its current HEAD is a descendant of the manifest revision."
+          "description": "%settings.zephyr-ide.westKeepDescendants.description%"
         },
         "zephyr-ide.westZephyrExport": {
           "type": [
             "boolean"
           ],
           "default": false,
-          "description": "Run 'west zephyr-export' after a successful west update. This registers the Zephyr CMake package so that out-of-tree applications can find Zephyr with 'find_package(Zephyr)'."
+          "description": "%settings.zephyr-ide.westZephyrExport.description%"
         },
         "zephyr-ide.suppressWorkspaceWarning": {
           "type": [
             "boolean"
           ],
           "default": false,
-          "description": "Hide the notification about missing ZEPHYR_BASE and ZEPHYR_SDK_INSTALL_DIR environment variables. Enable this if you manage these variables externally."
+          "description": "%settings.zephyr-ide.suppressWorkspaceWarning.description%"
         },
         "zephyr-ide.venvFolder": {
           "type": [
@@ -240,14 +240,14 @@
             "null"
           ],
           "default": null,
-          "description": "Manually specify a Python virtual environment folder path. If not specified, defaults to .venv in the workspace setup path."
+          "description": "%settings.zephyr-ide.venvFolder.description%"
         },
         "zephyr-ide.disableZephyrBaseInjection": {
           "type": [
             "boolean"
           ],
           "default": false,
-          "description": "Disable Zephyr IDE's automatic injection of the ZEPHYR_BASE environment variable into terminals, tasks, and build/debug processes. Enable this if you manage ZEPHYR_BASE yourself."
+          "description": "%settings.zephyr-ide.disableZephyrBaseInjection.description%"
         },
         "zephyr-ide.zephyrBaseOverride": {
           "type": [
@@ -255,28 +255,28 @@
             "null"
           ],
           "default": null,
-          "description": "Absolute or workspace-root-relative path to a Zephyr base directory. When set, this overrides the ZEPHYR_BASE value Zephyr IDE would otherwise inject into terminals, tasks, and build/debug processes. It does not change which Zephyr tree Zephyr IDE itself scans for boards, samples, DTS bindings, or Python requirements — those still follow the detected installation. Ignored when 'zephyr-ide.disableZephyrBaseInjection' is true."
+          "description": "%settings.zephyr-ide.zephyrBaseOverride.description%"
         },
         "zephyr-ide.automaticProjectSelection": {
           "type": [
             "boolean"
           ],
           "default": true,
-          "description": "Automatically switch the active project when the editor focus changes to a file belonging to a different project."
+          "description": "%settings.zephyr-ide.automaticProjectSelection.description%"
         },
         "zephyr-ide.separateBuildDebugProfile": {
           "type": [
             "boolean"
           ],
           "default": false,
-          "description": "Expose a separate 'Build & Debug' bind slot in Runner Profiles. When enabled, 'Build and Debug' and 'Debug' can each have an independent runner or launch configuration binding. When disabled (default), the single 'Debug' slot drives both actions."
+          "description": "%settings.zephyr-ide.separateBuildDebugProfile.description%"
         },
         "zephyr-ide.useClangd": {
           "type": [
             "boolean"
           ],
           "default": false,
-          "description": "Use clangd for IntelliSense instead of the C/C++ extension. When enabled, sets 'C_Cpp.intelliSenseEngine' to 'disabled' and configures 'clangd.arguments' with the compile-commands directory and Zephyr SDK query-driver. Workspace settings are applied automatically when this setting changes. Requires the clangd VS Code extension (llvm-vs-code-extensions.vscode-clangd)."
+          "description": "%settings.zephyr-ide.useClangd.description%"
         },
         "zephyr-ide.compileCommandsMode": {
           "type": "string",
@@ -286,12 +286,12 @@
             "all"
           ],
           "enumDescriptions": [
-            "Include compile commands from the active project and active build only.",
-            "Include compile commands from all builds in the active project.",
-            "Include compile commands from all projects and builds (default)."
+            "%settings.zephyr-ide.compileCommandsMode.enumDescriptions.0%",
+            "%settings.zephyr-ide.compileCommandsMode.enumDescriptions.1%",
+            "%settings.zephyr-ide.compileCommandsMode.enumDescriptions.2%"
           ],
           "default": "all",
-          "description": "Controls which build compile_commands.json files are combined into .vscode/compile_commands.json."
+          "description": "%settings.zephyr-ide.compileCommandsMode.description%"
         },
         "zephyr-ide.scaVariant": {
           "type": "string",
@@ -310,21 +310,21 @@
             "none"
           ],
           "enumDescriptions": [
-            "Use dtdoctor (Zephyr's built-in devicetree SCA tool, bundled in the Zephyr repo — no extra install needed).",
-            "Use GCC -fanalyzer (requires GCC 12+, already in the Zephyr SDK — no extra install needed).",
-            "Use Clang static analyzer (requires Clang to be installed).",
-            "Use Sparse (lightweight C semantic parser, requires sparse to be installed).",
-            "Use CodeChecker (open-source analysis framework, requires CodeChecker to be installed).",
-            "Use Coverity (commercial static analysis tool, requires Coverity installation and license).",
-            "Use Parasoft C/C++test (commercial, requires cpptest installation and license).",
-            "Use ECLAIR (commercial static analysis tool, requires ECLAIR installation and license).",
-            "Use IAR C-STAT (requires IAR toolchain and license).",
-            "Use Polyspace (commercial, requires MathWorks Polyspace installation and license).",
-            "Use the custom variant specified in 'zephyr-ide.scaCustomVariant'.",
-            "Disable SCA. No ZEPHYR_SCA_VARIANT is passed to CMake."
+            "%settings.zephyr-ide.scaVariant.enumDescriptions.0%",
+            "%settings.zephyr-ide.scaVariant.enumDescriptions.1%",
+            "%settings.zephyr-ide.scaVariant.enumDescriptions.2%",
+            "%settings.zephyr-ide.scaVariant.enumDescriptions.3%",
+            "%settings.zephyr-ide.scaVariant.enumDescriptions.4%",
+            "%settings.zephyr-ide.scaVariant.enumDescriptions.5%",
+            "%settings.zephyr-ide.scaVariant.enumDescriptions.6%",
+            "%settings.zephyr-ide.scaVariant.enumDescriptions.7%",
+            "%settings.zephyr-ide.scaVariant.enumDescriptions.8%",
+            "%settings.zephyr-ide.scaVariant.enumDescriptions.9%",
+            "%settings.zephyr-ide.scaVariant.enumDescriptions.10%",
+            "%settings.zephyr-ide.scaVariant.enumDescriptions.11%"
           ],
           "default": "none",
-          "description": "Static Code Analysis (SCA) tool to enable on pristine builds via -DZEPHYR_SCA_VARIANT. Defaults to none (disabled). Set to 'dtdoctor' for Zephyr's built-in DT diagnostic tool."
+          "description": "%settings.zephyr-ide.scaVariant.description%"
         },
         "zephyr-ide.scaCustomVariant": {
           "type": [
@@ -332,7 +332,7 @@
             "null"
           ],
           "default": null,
-          "description": "Custom SCA variant name passed as -DZEPHYR_SCA_VARIANT when 'zephyr-ide.scaVariant' is set to 'custom'. Must match a cmake/sca/<name>/sca.cmake entry in the Zephyr tree."
+          "description": "%settings.zephyr-ide.scaCustomVariant.description%"
         },
         "zephyr-ide.projectVariableDefaults": {
           "type": [
@@ -342,7 +342,7 @@
           "items": {
             "type": "string"
           },
-          "description": "Default project variable names to show in the Project Details panel. Missing values are shown as empty."
+          "description": "%settings.zephyr-ide.projectVariableDefaults.description%"
         },
         "zephyr-ide.buildVariableDefaults": {
           "type": [
@@ -352,7 +352,7 @@
           "items": {
             "type": "string"
           },
-          "description": "Default build variable names to show in the Project Details panel. Missing values are shown as empty."
+          "description": "%settings.zephyr-ide.buildVariableDefaults.description%"
         },
         "zephyr-ide.extraRunners": {
           "type": "array",
@@ -361,7 +361,7 @@
             "type": "string",
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
           },
-          "markdownDescription": "Additional runner names appended to the built-in list used by the **Set Local Bind** flash/debug pickers and the Runner Profile editor. Useful for custom or out-of-tree Zephyr runners. Runner names must use letters, numbers, `.`, `_`, or `-`. Example: `[\"bonfi-bl\", \"my-custom-runner\"]`"
+          "markdownDescription": "%settings.zephyr-ide.extraRunners.markdownDescription%"
         },
         "zephyr-ide.global_directory": {
           "type": [
@@ -369,8 +369,8 @@
             "null"
           ],
           "default": null,
-          "deprecationMessage": "Deprecated: Use 'zephyr-ide.toolchainDirectory' instead. Migrated automatically on startup.",
-          "description": "Deprecated. Use 'zephyr-ide.toolchainDirectory' instead."
+          "deprecationMessage": "%settings.zephyr-ide.global_directory.deprecationMessage%",
+          "description": "%settings.zephyr-ide.global_directory.description%"
         },
         "zephyr-ide.tools_directory": {
           "type": [
@@ -378,8 +378,8 @@
             "null"
           ],
           "default": null,
-          "deprecationMessage": "Deprecated: Use 'zephyr-ide.toolchainDirectory' instead. Migrated automatically on startup.",
-          "description": "Deprecated. Use 'zephyr-ide.toolchainDirectory' instead."
+          "deprecationMessage": "%settings.zephyr-ide.tools_directory.deprecationMessage%",
+          "description": "%settings.zephyr-ide.tools_directory.description%"
         },
         "zephyr-ide.toolchain_directory": {
           "type": [
@@ -387,16 +387,16 @@
             "null"
           ],
           "default": null,
-          "deprecationMessage": "Deprecated: Use 'zephyr-ide.toolchainDirectory' instead. Migrated automatically on startup.",
-          "description": "Deprecated. Use 'zephyr-ide.toolchainDirectory' instead."
+          "deprecationMessage": "%settings.zephyr-ide.toolchain_directory.deprecationMessage%",
+          "description": "%settings.zephyr-ide.toolchain_directory.description%"
         },
         "zephyr-ide.suppress-workspace-warning": {
           "type": [
             "boolean"
           ],
           "default": false,
-          "deprecationMessage": "Deprecated: Use 'zephyr-ide.suppressWorkspaceWarning' instead. Migrated automatically on startup.",
-          "description": "Deprecated. Use 'zephyr-ide.suppressWorkspaceWarning' instead."
+          "deprecationMessage": "%settings.zephyr-ide.suppress-workspace-warning.deprecationMessage%",
+          "description": "%settings.zephyr-ide.suppress-workspace-warning.description%"
         },
         "zephyr-ide.venv-folder": {
           "type": [
@@ -404,8 +404,8 @@
             "null"
           ],
           "default": null,
-          "deprecationMessage": "Deprecated: Use 'zephyr-ide.venvFolder' instead. Migrated automatically on startup.",
-          "description": "Deprecated. Use 'zephyr-ide.venvFolder' instead."
+          "deprecationMessage": "%settings.zephyr-ide.venv-folder.deprecationMessage%",
+          "description": "%settings.zephyr-ide.venv-folder.description%"
         },
         "zephyr-ide.project_variable_defaults": {
           "type": [
@@ -415,8 +415,8 @@
           "items": {
             "type": "string"
           },
-          "deprecationMessage": "Deprecated: Use 'zephyr-ide.projectVariableDefaults' instead. Migrated automatically on startup.",
-          "description": "Deprecated. Use 'zephyr-ide.projectVariableDefaults' instead."
+          "deprecationMessage": "%settings.zephyr-ide.project_variable_defaults.deprecationMessage%",
+          "description": "%settings.zephyr-ide.project_variable_defaults.description%"
         },
         "zephyr-ide.build_variable_defaults": {
           "type": [
@@ -426,13 +426,13 @@
           "items": {
             "type": "string"
           },
-          "deprecationMessage": "Deprecated: Use 'zephyr-ide.buildVariableDefaults' instead. Migrated automatically on startup.",
-          "description": "Deprecated. Use 'zephyr-ide.buildVariableDefaults' instead."
+          "deprecationMessage": "%settings.zephyr-ide.build_variable_defaults.deprecationMessage%",
+          "description": "%settings.zephyr-ide.build_variable_defaults.description%"
         },
         "zephyr-ide.runnerProfiles": {
           "type": "array",
           "default": [],
-          "markdownDescription": "Reusable runner profiles (name + per-slot binds for `flash`, `debug`, `attach`). Each slot bind selects `auto`, a zephyr `runner` with optional extra args, or a named VS Code `launch` configuration. Workspace `.vscode/zephyr-ide.json` `runnerProfiles` overrides this on name collision.",
+          "markdownDescription": "%settings.zephyr-ide.runnerProfiles.markdownDescription%",
           "items": {
             "type": "object",
             "required": [
@@ -459,7 +459,7 @@
     "viewsWelcome": [
       {
         "view": "welcome",
-        "contents": "In order to use the Zephyr IDE Extension it needs to be fully Initialized.\n[Initialize Extension](command:zephyr-ide.setup-workspace-init)\n Elements of this process may be run individually as well\n This is a 5 step process that can be run by git features, you can open a folder containing a git repository or clone from a URL.\n[Open Folder](command:vscode.openFolder)\n[Clone Repository](command:git.clone)\nTo learn more about how to use git and source control in VS Code [read our docs](https://aka.ms/vscode-scm).",
+        "contents": "%welcome.contents%",
         "when": "config.git.enabled && git.state == initialized && workbenchState == empty"
       }
     ],
@@ -655,717 +655,717 @@
       "zephyr-ide-main": [
         {
           "id": "zephyrIdeExtensionSetup",
-          "name": "Extension Setup",
+          "name": "%zephyrIdeExtensionSetup.name%",
           "icon": "media/logo_small.jpg",
-          "contextualTitle": "Zephyr IDE"
+          "contextualTitle": "%zephyrIdeExtensionSetup.contextualTitle%"
         },
         {
           "id": "zephyrIdeWestWorkspaces",
-          "name": "West Workspaces",
+          "name": "%zephyrIdeWestWorkspaces.name%",
           "icon": "media/logo_small.jpg",
-          "contextualTitle": "Zephyr IDE West Workspaces"
+          "contextualTitle": "%zephyrIdeWestWorkspaces.contextualTitle%"
         },
         {
           "id": "zephyrIdeProjects",
-          "name": "Projects",
+          "name": "%zephyrIdeProjects.name%",
           "icon": "media/logo_small.jpg",
-          "contextualTitle": "Zephyr IDE Projects"
+          "contextualTitle": "%zephyrIdeProjects.contextualTitle%"
         },
         {
           "id": "zephyrIdeProjectStatus",
-          "name": "Project Details",
+          "name": "%zephyrIdeProjectStatus.name%",
           "icon": "media/logo_small.jpg",
-          "contextualTitle": "Zephyr IDE Project Details"
+          "contextualTitle": "%zephyrIdeProjectStatus.contextualTitle%"
         },
         {
           "id": "zephyrIdeActiveProject",
-          "name": "Active Project",
+          "name": "%zephyrIdeActiveProject.name%",
           "icon": "media/logo_small.jpg",
-          "contextualTitle": "Zephyr IDE Active Project"
+          "contextualTitle": "%zephyrIdeActiveProject.contextualTitle%"
         }
       ]
     },
     "commands": [
       {
         "command": "zephyr-ide.show-container",
-        "title": "Zephyr IDE: Show View Container"
+        "title": "%zephyr-ide.show-container.title%"
       },
       {
         "command": "zephyr-ide.print-workspace",
-        "title": "Zephyr IDE: Show Workspace Structure"
+        "title": "%zephyr-ide.print-workspace.title%"
       },
       {
         "command": "zephyr-ide.print-python-path",
-        "title": "Zephyr IDE: Show Python Interpreter Path"
+        "title": "%zephyr-ide.print-python-path.title%"
       },
       {
         "command": "zephyr-ide.check-build-dependencies",
-        "title": "Zephyr IDE: Check Build Dependencies"
+        "title": "%zephyr-ide.check-build-dependencies.title%"
       },
       {
         "command": "zephyr-ide.setup-west-environment",
-        "title": "Zephyr IDE: Setup West Environment"
+        "title": "%zephyr-ide.setup-west-environment.title%"
       },
       {
         "command": "zephyr-ide.configure-existing-environment",
-        "title": "Zephyr IDE: Configure Existing Environment (Scan Zephyr Dir/Version)"
+        "title": "%zephyr-ide.configure-existing-environment.title%"
       },
       {
         "command": "zephyr-ide.install-sdk",
-        "title": "Zephyr IDE: Install SDK"
+        "title": "%zephyr-ide.install-sdk.title%"
       },
       {
         "command": "zephyr-ide.modify-zephyr-ide-toolchains",
-        "title": "Zephyr IDE: Modify zephyr-ide.json Toolchains"
+        "title": "%zephyr-ide.modify-zephyr-ide-toolchains.title%"
       },
       {
         "command": "zephyr-ide.install-zephyr-ide-toolchains",
-        "title": "Zephyr IDE: Install Toolchains from zephyr-ide.json"
+        "title": "%zephyr-ide.install-zephyr-ide-toolchains.title%"
       },
       {
         "command": "zephyr-ide.modify-zephyr-ide-blobs",
-        "title": "Zephyr IDE: Modify zephyr-ide.json Blobs"
+        "title": "%zephyr-ide.modify-zephyr-ide-blobs.title%"
       },
       {
         "command": "zephyr-ide.install-zephyr-ide-blobs",
-        "title": "Zephyr IDE: Install Blobs from zephyr-ide.json"
+        "title": "%zephyr-ide.install-zephyr-ide-blobs.title%"
       },
       {
         "command": "zephyr-ide.modify-zephyr-ide-pip-packages",
-        "title": "Zephyr IDE: Modify zephyr-ide.json Pip Packages"
+        "title": "%zephyr-ide.modify-zephyr-ide-pip-packages.title%"
       },
       {
         "command": "zephyr-ide.install-zephyr-ide-pip-packages",
-        "title": "Zephyr IDE: Install Pip Packages from zephyr-ide.json"
+        "title": "%zephyr-ide.install-zephyr-ide-pip-packages.title%"
       },
       {
         "command": "zephyr-ide.modify-zephyr-ide-pip-requirements",
-        "title": "Zephyr IDE: Modify zephyr-ide.json Pip Requirements"
+        "title": "%zephyr-ide.modify-zephyr-ide-pip-requirements.title%"
       },
       {
         "command": "zephyr-ide.install-zephyr-ide-pip-requirements",
-        "title": "Zephyr IDE: Install Pip Requirements from zephyr-ide.json"
+        "title": "%zephyr-ide.install-zephyr-ide-pip-requirements.title%"
       },
       {
         "command": "zephyr-ide.install-zephyr-ide-pip-packages-and-requirements",
-        "title": "Zephyr IDE: Install Pip Packages and Requirements from zephyr-ide.json"
+        "title": "%zephyr-ide.install-zephyr-ide-pip-packages-and-requirements.title%"
       },
       {
         "command": "zephyr-ide.modify-zephyr-ide-sample-projects",
-        "title": "Zephyr IDE: Modify Sample Projects (zephyr-ide.json)"
+        "title": "%zephyr-ide.modify-zephyr-ide-sample-projects.title%"
       },
       {
         "command": "zephyr-ide.modify-zephyr-ide-commands",
-        "title": "Zephyr IDE: Modify Commands (zephyr-ide.json)"
+        "title": "%zephyr-ide.modify-zephyr-ide-commands.title%"
       },
       {
         "command": "zephyr-ide.run-zephyr-ide-commands",
-        "title": "Zephyr IDE: Run Commands from zephyr-ide.json"
+        "title": "%zephyr-ide.run-zephyr-ide-commands.title%"
       },
       {
         "command": "zephyr-ide.west-init",
-        "title": "Zephyr IDE: West Init"
+        "title": "%zephyr-ide.west-init.title%"
       },
       {
         "command": "zephyr-ide.west-update",
-        "title": "Zephyr IDE: West Update"
+        "title": "%zephyr-ide.west-update.title%"
       },
       {
         "command": "zephyr-ide.create-new-west-workspace",
-        "title": "Zephyr IDE: Create New West Workspace",
+        "title": "%zephyr-ide.create-new-west-workspace.title%",
         "icon": "$(add)"
       },
       {
         "command": "zephyr-ide.refresh-west-workspaces",
-        "title": "Zephyr IDE: Refresh West Workspaces",
+        "title": "%zephyr-ide.refresh-west-workspaces.title%",
         "icon": "$(refresh)"
       },
       {
         "command": "zephyr-ide.reset-workspace",
-        "title": "Zephyr IDE: Reset Workspace"
+        "title": "%zephyr-ide.reset-workspace.title%"
       },
       {
         "command": "zephyr-ide.deactivate-workspace",
-        "title": "Zephyr IDE: Deactivate Workspace"
+        "title": "%zephyr-ide.deactivate-workspace.title%"
       },
       {
         "command": "zephyr-ide.rerun-west-setup",
-        "title": "Zephyr IDE: Re-run West Setup"
+        "title": "%zephyr-ide.rerun-west-setup.title%"
       },
       {
         "command": "zephyr-ide.unregister-workspace",
-        "title": "Zephyr IDE: Unregister Workspace"
+        "title": "%zephyr-ide.unregister-workspace.title%"
       },
       {
         "command": "zephyr-ide.clear-projects",
-        "title": "Zephyr IDE: Clear Projects"
+        "title": "%zephyr-ide.clear-projects.title%"
       },
       {
         "command": "zephyr-ide.load-projects-from-file",
-        "title": "Zephyr IDE: Load Projects From File",
+        "title": "%zephyr-ide.load-projects-from-file.title%",
         "icon": "$(refresh)"
       },
       {
         "command": "zephyr-ide.add-sample-projects-from-file",
-        "title": "Zephyr IDE: Add Sample Projects From File",
+        "title": "%zephyr-ide.add-sample-projects-from-file.title%",
         "icon": "$(list-selection)"
       },
       {
         "command": "zephyr-ide.save-projects-to-file",
-        "title": "Zephyr IDE: Save Projects To File",
+        "title": "%zephyr-ide.save-projects-to-file.title%",
         "icon": "$(save)"
       },
       {
         "command": "zephyr-ide.disable-automatic-project-target",
-        "title": "Zephyr IDE: Disable Automatic Active Project Targeting"
+        "title": "%zephyr-ide.disable-automatic-project-target.title%"
       },
       {
         "command": "zephyr-ide.enable-automatic-project-target",
-        "title": "Zephyr IDE: Enable Automatic Active Project Targeting"
+        "title": "%zephyr-ide.enable-automatic-project-target.title%"
       },
       {
         "command": "zephyr-ide.create-project",
-        "title": "Zephyr IDE: Create Project From Template",
+        "title": "%zephyr-ide.create-project.title%",
         "icon": "$(new-folder)"
       },
       {
         "command": "zephyr-ide.add-project",
-        "title": "Zephyr IDE: Add Project",
+        "title": "%zephyr-ide.add-project.title%",
         "icon": "$(add)"
       },
       {
         "command": "zephyr-ide.remove-project",
-        "title": "Zephyr IDE: Remove Project"
+        "title": "%zephyr-ide.remove-project.title%"
       },
       {
         "command": "zephyr-ide.add-project-config-files",
-        "title": "Zephyr IDE: Add Project Kconfig Files"
+        "title": "%zephyr-ide.add-project-config-files.title%"
       },
       {
         "command": "zephyr-ide.remove-project-config-files",
-        "title": "Zephyr IDE: Remove Project Kconfig Files"
+        "title": "%zephyr-ide.remove-project-config-files.title%"
       },
       {
         "command": "zephyr-ide.add-project-overlay-files",
-        "title": "Zephyr IDE: Add Project Overlay Files"
+        "title": "%zephyr-ide.add-project-overlay-files.title%"
       },
       {
         "command": "zephyr-ide.remove-project-overlay-files",
-        "title": "Zephyr IDE: Remove Project Overlay Files"
+        "title": "%zephyr-ide.remove-project-overlay-files.title%"
       },
       {
         "command": "zephyr-ide.set-active-project",
-        "title": "Zephyr IDE: Set Active Project"
+        "title": "%zephyr-ide.set-active-project.title%"
       },
       {
         "command": "zephyr-ide.add-build",
-        "title": "Zephyr IDE: Add Build Configuration"
+        "title": "%zephyr-ide.add-build.title%"
       },
       {
         "command": "zephyr-ide.remove-build",
-        "title": "Zephyr IDE: Remove Build"
+        "title": "%zephyr-ide.remove-build.title%"
       },
       {
         "command": "zephyr-ide.add-build-config-files",
-        "title": "Zephyr IDE: Add Build Kconfig Files"
+        "title": "%zephyr-ide.add-build-config-files.title%"
       },
       {
         "command": "zephyr-ide.remove-build-config-files",
-        "title": "Zephyr IDE: Remove Build Kconfig Files"
+        "title": "%zephyr-ide.remove-build-config-files.title%"
       },
       {
         "command": "zephyr-ide.add-build-overlay-files",
-        "title": "Zephyr IDE: Add Build Overlay Files"
+        "title": "%zephyr-ide.add-build-overlay-files.title%"
       },
       {
         "command": "zephyr-ide.remove-build-overlay-files",
-        "title": "Zephyr IDE: Remove Build Overlay Files"
+        "title": "%zephyr-ide.remove-build-overlay-files.title%"
       },
       {
         "command": "zephyr-ide.set-active-build",
-        "title": "Zephyr IDE: Set Active Build"
+        "title": "%zephyr-ide.set-active-build.title%"
       },
       {
         "command": "zephyr-ide.set-active-profile",
-        "title": "Zephyr IDE: Select Active Runner Profile (Local)"
+        "title": "%zephyr-ide.set-active-profile.title%"
       },
       {
         "command": "zephyr-ide.set-workspace-active-profile",
-        "title": "Zephyr IDE: Select Active Runner Profile (Workspace)"
+        "title": "%zephyr-ide.set-workspace-active-profile.title%"
       },
       {
         "command": "zephyr-ide.save-active-profile-to-workspace",
-        "title": "Zephyr IDE: Save Active Runner Profile to Workspace"
+        "title": "%zephyr-ide.save-active-profile-to-workspace.title%"
       },
       {
         "command": "zephyr-ide.reset-active-profile-to-workspace",
-        "title": "Zephyr IDE: Reset Active Runner Profile to Workspace Default"
+        "title": "%zephyr-ide.reset-active-profile-to-workspace.title%"
       },
       {
         "command": "zephyr-ide.set-local-bind",
-        "title": "Zephyr IDE: Set Local Slot Runner Bind"
+        "title": "%zephyr-ide.set-local-bind.title%"
       },
       {
         "command": "zephyr-ide.open-runner-profile-panel",
-        "title": "Zephyr IDE: Open Runner Profile Panel"
+        "title": "%zephyr-ide.open-runner-profile-panel.title%"
       },
       {
         "command": "zephyr-ide.build-pristine",
-        "title": "Zephyr IDE: Build Pristine"
+        "title": "%zephyr-ide.build-pristine.title%"
       },
       {
         "command": "zephyr-ide.build",
-        "title": "Zephyr IDE: Build"
+        "title": "%zephyr-ide.build.title%"
       },
       {
         "command": "zephyr-ide.flash",
-        "title": "Zephyr IDE: Flash"
+        "title": "%zephyr-ide.flash.title%"
       },
       {
         "command": "zephyr-ide.build-flash",
-        "title": "Zephyr IDE: Build and Flash"
+        "title": "%zephyr-ide.build-flash.title%"
       },
       {
         "command": "zephyr-ide.set-sysbuild-image",
-        "title": "Zephyr IDE: Set Active Sysbuild Image"
+        "title": "%zephyr-ide.set-sysbuild-image.title%"
       },
       {
         "command": "zephyr-ide.open-runners-yaml",
-        "title": "Zephyr IDE: Open runners.yaml for Active Build"
+        "title": "%zephyr-ide.open-runners-yaml.title%"
       },
       {
         "command": "zephyr-ide.change-launch-for-build",
-        "title": "Zephyr IDE: Change Debug Launch Configuration"
+        "title": "%zephyr-ide.change-launch-for-build.title%"
       },
       {
         "command": "zephyr-ide.debug",
-        "title": "Zephyr IDE: Debug"
+        "title": "%zephyr-ide.debug.title%"
       },
       {
         "command": "zephyr-ide.debug-attach",
-        "title": "Zephyr IDE: Debug Attach"
+        "title": "%zephyr-ide.debug-attach.title%"
       },
       {
         "command": "zephyr-ide.build-debug",
-        "title": "Zephyr IDE: Build and Debug"
+        "title": "%zephyr-ide.build-debug.title%"
       },
       {
         "command": "zephyr-ide.clean",
-        "title": "Zephyr IDE: Clean"
+        "title": "%zephyr-ide.clean.title%"
       },
       {
         "command": "zephyr-ide.start-menu-config",
-        "title": "Zephyr IDE: Start Menu Config"
+        "title": "%zephyr-ide.start-menu-config.title%"
       },
       {
         "command": "zephyr-ide.start-gui-config",
-        "title": "Zephyr IDE: Start GUI Config"
+        "title": "%zephyr-ide.start-gui-config.title%"
       },
       {
         "command": "zephyr-ide.run-ram-report",
-        "title": "Zephyr IDE: Zephyr RAM Report",
+        "title": "%zephyr-ide.run-ram-report.title%",
         "description": "Run west build -t ram_report and open the RAM usage output for the active project/build"
       },
       {
         "command": "zephyr-ide.run-rom-report",
-        "title": "Zephyr IDE: Zephyr ROM Report",
+        "title": "%zephyr-ide.run-rom-report.title%",
         "description": "Run west build -t rom_report and open the ROM usage output for the active project/build"
       },
       {
         "command": "zephyr-ide.run-dashboard-report",
-        "title": "Zephyr IDE: Zephyr Dashboard Report",
+        "title": "%zephyr-ide.run-dashboard-report.title%",
         "description": "Generate RAM/ROM reports and symbol-table data for the active project/build, refreshing any open Build Dashboard"
       },
       {
         "command": "zephyr-ide.run-dashboard",
-        "title": "Zephyr IDE: Open Build Dashboard",
+        "title": "%zephyr-ide.run-dashboard.title%",
         "description": "Open the Build Dashboard panel (interactive memory explorer, Kconfig viewer, device-tree viewer, ELF stats) for the active project/build"
       },
       {
         "command": "zephyr-ide.start-dtsh-shell",
-        "title": "Zephyr IDE: Start DTSh Shell"
+        "title": "%zephyr-ide.start-dtsh-shell.title%"
       },
       {
         "command": "zephyr-ide.modify-build-arguments",
-        "title": "Zephyr IDE: Modify Build Arguments"
+        "title": "%zephyr-ide.modify-build-arguments.title%"
       },
       {
         "command": "zephyr-ide.debug-internal-shell",
-        "title": "Zephyr IDE: Extension Debug — Dump State"
+        "title": "%zephyr-ide.debug-internal-shell.title%"
       },
       {
         "command": "zephyr-ide.debug-reset-host-tools",
-        "title": "Zephyr IDE: Extension Debug — Mark Host Tools Not Ready"
+        "title": "%zephyr-ide.debug-reset-host-tools.title%"
       },
       {
         "command": "zephyr-ide.debug-reset-sdk",
-        "title": "Zephyr IDE: Extension Debug — Mark SDK Not Installed"
+        "title": "%zephyr-ide.debug-reset-sdk.title%"
       },
       {
         "command": "zephyr-ide.west-list",
-        "title": "Zephyr IDE: West List"
+        "title": "%zephyr-ide.west-list.title%"
       },
       {
         "command": "zephyr-ide.update-web-view",
-        "title": "Zephyr IDE: Reload Panels"
+        "title": "%zephyr-ide.update-web-view.title%"
       },
       {
         "command": "zephyr-ide.reset-zephyr-install-selection",
-        "title": "Zephyr IDE: Reset Active Installation"
+        "title": "%zephyr-ide.reset-zephyr-install-selection.title%"
       },
       {
         "command": "zephyr-ide.manage-workspaces",
-        "title": "Zephyr IDE: Manage Workspace Installations"
+        "title": "%zephyr-ide.manage-workspaces.title%"
       },
       {
         "command": "zephyr-ide.mark-west-as-ready",
-        "title": "Zephyr IDE: Skip West Setup"
+        "title": "%zephyr-ide.mark-west-as-ready.title%"
       },
       {
         "command": "zephyr-ide.shell_test",
-        "title": "Zephyr IDE: Shell Test"
+        "title": "%zephyr-ide.shell_test.title%"
       },
       {
         "command": "zephyr-ide.reint-dts",
-        "title": "Zephyr IDE: Reinitialize DTS Language Server"
+        "title": "%zephyr-ide.reint-dts.title%"
       },
       {
         "command": "zephyr-ide.add-test",
-        "title": "Zephyr IDE: Add Twister Test to Project"
+        "title": "%zephyr-ide.add-test.title%"
       },
       {
         "command": "zephyr-ide.remove-test",
-        "title": "Zephyr IDE: Remove Twister Test from Project"
+        "title": "%zephyr-ide.remove-test.title%"
       },
       {
         "command": "zephyr-ide.set-active-test",
-        "title": "Zephyr IDE: Set Active Test"
+        "title": "%zephyr-ide.set-active-test.title%"
       },
       {
         "command": "zephyr-ide.run-test",
-        "title": "Zephyr IDE: Run Test"
+        "title": "%zephyr-ide.run-test.title%"
       },
       {
         "command": "zephyr-ide.remove-test-dirs",
-        "title": "Zephyr IDE: Delete Test Output Directories"
+        "title": "%zephyr-ide.remove-test-dirs.title%"
       },
       {
         "command": "zephyr-ide.reconfigure-active-test",
-        "title": "Zephyr IDE: Reconfigure Active Test"
+        "title": "%zephyr-ide.reconfigure-active-test.title%"
       },
       {
         "command": "zephyr-ide.set-workspace-settings",
-        "title": "Zephyr IDE: Set Workspace Settings"
+        "title": "%zephyr-ide.set-workspace-settings.title%"
       },
       {
         "command": "zephyr-ide.install-host-tools",
-        "title": "Zephyr IDE: Install Host Tools"
+        "title": "%zephyr-ide.install-host-tools.title%"
       },
       {
         "command": "zephyr-ide.open-setup-panel",
-        "title": "Zephyr IDE: Overview"
+        "title": "%zephyr-ide.open-setup-panel.title%"
       },
       {
         "command": "zephyr-ide.open-setup-panel-workspace",
-        "title": "Zephyr IDE: Open Workspace Config"
+        "title": "%zephyr-ide.open-setup-panel-workspace.title%"
       },
       {
         "command": "zephyr-ide.open-setup-panel-sdk",
-        "title": "Zephyr IDE: Open SDK Management"
+        "title": "%zephyr-ide.open-setup-panel-sdk.title%"
       },
       {
         "command": "zephyr-ide.open-project-build-panel",
-        "title": "Zephyr IDE: Project Details"
+        "title": "%zephyr-ide.open-project-build-panel.title%"
       },
       {
         "command": "zephyr-ide.open-settings-panel",
-        "title": "Zephyr IDE: Open Settings"
+        "title": "%zephyr-ide.open-settings-panel.title%"
       },
       {
         "command": "zephyr-ide.open-host-tools-panel",
-        "title": "Zephyr IDE: Host Tools"
+        "title": "%zephyr-ide.open-host-tools-panel.title%"
       },
       {
         "command": "zephyr-ide.open-sdk-panel",
-        "title": "Zephyr IDE: SDK Management"
+        "title": "%zephyr-ide.open-sdk-panel.title%"
       },
       {
         "command": "zephyr-ide.open-zephyr-ide-manager",
-        "title": "Zephyr IDE: Zephyr IDE Manager"
+        "title": "%zephyr-ide.open-zephyr-ide-manager.title%"
       },
       {
         "command": "zephyr-ide.open-workspace-panel",
-        "title": "Zephyr IDE: Workspace Config"
+        "title": "%zephyr-ide.open-workspace-panel.title%"
       },
       {
         "command": "zephyr-ide.workspace-setup-picker",
-        "title": "Zephyr IDE: Workspace Setup"
+        "title": "%zephyr-ide.workspace-setup-picker.title%"
       },
       {
         "command": "zephyr-ide.workspace-setup-from-git",
-        "title": "Zephyr IDE: Setup Workspace from Git"
+        "title": "%zephyr-ide.workspace-setup-from-git.title%"
       },
       {
         "command": "zephyr-ide.workspace-setup-from-west-git",
-        "title": "Zephyr IDE: Setup West Workspace from Git"
+        "title": "%zephyr-ide.workspace-setup-from-west-git.title%"
       },
       {
         "command": "zephyr-ide.workspace-setup-from-current-directory",
-        "title": "Zephyr IDE: Setup Workspace from Current Directory"
+        "title": "%zephyr-ide.workspace-setup-from-current-directory.title%"
       },
       {
         "command": "zephyr-ide.workspace-setup-standard",
-        "title": "Zephyr IDE: Setup Standard Workspace"
+        "title": "%zephyr-ide.workspace-setup-standard.title%"
       },
       {
         "command": "zephyr-ide.workspace-setup-from-external-directory",
-        "title": "Zephyr IDE: Setup Workspace from External Directory"
+        "title": "%zephyr-ide.workspace-setup-from-external-directory.title%"
       },
       {
         "command": "zephyr-ide.west-config",
-        "title": "Zephyr IDE: West Config"
+        "title": "%zephyr-ide.west-config.title%"
       },
       {
         "command": "zephyr-ide.select-existing-west-workspace",
-        "title": "Zephyr IDE: Select Existing West Workspace"
+        "title": "%zephyr-ide.select-existing-west-workspace.title%"
       },
       {
         "command": "zephyr-ide.get-active-project-name",
-        "title": "Zephyr IDE: Get Active Project Name"
+        "title": "%zephyr-ide.get-active-project-name.title%"
       },
       {
         "command": "zephyr-ide.get-active-project-path",
-        "title": "Zephyr IDE: Get Active Project Path"
+        "title": "%zephyr-ide.get-active-project-path.title%"
       },
       {
         "command": "zephyr-ide.get-active-build-path",
-        "title": "Zephyr IDE: Get Active Build Path"
+        "title": "%zephyr-ide.get-active-build-path.title%"
       },
       {
         "command": "zephyr-ide.get-active-build-board-path",
-        "title": "Zephyr IDE: Get Active Build Board Path"
+        "title": "%zephyr-ide.get-active-build-board-path.title%"
       },
       {
         "command": "zephyr-ide.get-active-board-name",
-        "title": "Zephyr IDE: Get Active Board Name"
+        "title": "%zephyr-ide.get-active-board-name.title%"
       },
       {
         "command": "zephyr-ide.select-active-build-path",
-        "title": "Zephyr IDE: Select Active Build Path"
+        "title": "%zephyr-ide.select-active-build-path.title%"
       },
       {
         "command": "zephyr-ide.get-arm-gdb-path",
-        "title": "Zephyr IDE: Get ARM GDB Path"
+        "title": "%zephyr-ide.get-arm-gdb-path.title%"
       },
       {
         "command": "zephyr-ide.get-gdb-path",
-        "title": "Zephyr IDE: Get GDB Path"
+        "title": "%zephyr-ide.get-gdb-path.title%"
       },
       {
         "command": "zephyr-ide.get-zephyr-dir",
-        "title": "Zephyr IDE: Get Zephyr Directory"
+        "title": "%zephyr-ide.get-zephyr-dir.title%"
       },
       {
         "command": "zephyr-ide.get-zephyr-elf",
-        "title": "Zephyr IDE: Get Zephyr ELF Path"
+        "title": "%zephyr-ide.get-zephyr-elf.title%"
       },
       {
         "command": "zephyr-ide.get-zephyr-elf-dir",
-        "title": "Zephyr IDE: Get Zephyr ELF Directory"
+        "title": "%zephyr-ide.get-zephyr-elf-dir.title%"
       },
       {
         "command": "zephyr-ide.get-toolchain-path",
-        "title": "Zephyr IDE: Get Toolchain Path"
+        "title": "%zephyr-ide.get-toolchain-path.title%"
       },
       {
         "command": "zephyr-ide.get-zephyr-ide-json-variable",
-        "title": "Zephyr IDE: Get Zephyr IDE JSON Variable"
+        "title": "%zephyr-ide.get-zephyr-ide-json-variable.title%"
       },
       {
         "command": "zephyr-ide.get-active-project-variable",
-        "title": "Zephyr IDE: Get Active Project Variable"
+        "title": "%zephyr-ide.get-active-project-variable.title%"
       },
       {
         "command": "zephyr-ide.get-active-build-variable",
-        "title": "Zephyr IDE: Get Active Build Variable"
+        "title": "%zephyr-ide.get-active-build-variable.title%"
       },
       {
         "command": "zephyr-ide.active-view.kconfig",
-        "title": "Kconfig",
+        "title": "%zephyr-ide.active-view.kconfig.title%",
         "icon": "$(preview)"
       },
       {
         "command": "zephyr-ide.active-view.build-pristine",
-        "title": "Build Pristine",
+        "title": "%zephyr-ide.active-view.build-pristine.title%",
         "icon": "$(debug-rerun)"
       },
       {
         "command": "zephyr-ide.active-view.build-flash",
-        "title": "Build and Flash",
+        "title": "%zephyr-ide.active-view.build-flash.title%",
         "icon": "$(cloud-upload)"
       },
       {
         "command": "zephyr-ide.active-view.build-debug",
-        "title": "Build and Debug",
+        "title": "%zephyr-ide.active-view.build-debug.title%",
         "icon": "$(debug-all)"
       },
       {
         "command": "zephyr-ide.active-view.open-project-details",
-        "title": "Open Project Details",
+        "title": "%zephyr-ide.active-view.open-project-details.title%",
         "icon": "$(open-preview)"
       },
       {
         "command": "zephyr-ide.active-view.set-runner-binding",
-        "title": "Set Runner Binding",
+        "title": "%zephyr-ide.active-view.set-runner-binding.title%",
         "icon": "$(target)"
       },
       {
         "command": "zephyr-ide.active-view.clean-test-dirs",
-        "title": "Clean Test Dirs",
+        "title": "%zephyr-ide.active-view.clean-test-dirs.title%",
         "icon": "$(clear-all)"
       },
       {
         "command": "zephyr-ide.west-workspace.activate",
-        "title": "Set as Active",
+        "title": "%zephyr-ide.west-workspace.activate.title%",
         "icon": "$(target)"
       },
       {
         "command": "zephyr-ide.west-workspace.deselect",
-        "title": "Deactivate Workspace",
+        "title": "%zephyr-ide.west-workspace.deselect.title%",
         "icon": "$(close)"
       },
       {
         "command": "zephyr-ide.west-workspace.delete",
-        "title": "Delete from Registry",
+        "title": "%zephyr-ide.west-workspace.delete.title%",
         "icon": "$(trash)"
       },
       {
         "command": "zephyr-ide.config-view.add-file",
-        "title": "Add File",
+        "title": "%zephyr-ide.config-view.add-file.title%",
         "icon": "$(add)"
       },
       {
         "command": "zephyr-ide.config-view.delete-file",
-        "title": "Delete File",
+        "title": "%zephyr-ide.config-view.delete-file.title%",
         "icon": "$(trash)"
       },
       {
         "command": "zephyr-ide.config-view.open-board-dtc",
-        "title": "Open Board DTS"
+        "title": "%zephyr-ide.config-view.open-board-dtc.title%"
       },
       {
         "command": "zephyr-ide.config-view.open-board-dir",
-        "title": "Open Board Directory"
+        "title": "%zephyr-ide.config-view.open-board-dir.title%"
       },
       {
         "command": "zephyr-ide.config-view.open-main",
-        "title": "Open main"
+        "title": "%zephyr-ide.config-view.open-main.title%"
       },
       {
         "command": "zephyr-ide.config-view.open-cmake",
-        "title": "Open CMakeLists"
+        "title": "%zephyr-ide.config-view.open-cmake.title%"
       },
       {
         "command": "zephyr-ide.config-view.open-project-details",
-        "title": "Open Project Details",
+        "title": "%zephyr-ide.config-view.open-project-details.title%",
         "icon": "$(open-preview)"
       },
       {
         "command": "zephyr-ide.config-view.modify-build-args",
-        "title": "Modify Build Args"
+        "title": "%zephyr-ide.config-view.modify-build-args.title%"
       },
       {
         "command": "zephyr-ide.config-view.modify-test-args",
-        "title": "Modify Test Args"
+        "title": "%zephyr-ide.config-view.modify-test-args.title%"
       },
       {
         "command": "zephyr-ide.tree-view.select",
-        "title": "Select"
+        "title": "%zephyr-ide.tree-view.select.title%"
       },
       {
         "command": "zephyr-ide.tree-view.open-project-details",
-        "title": "Open Project Details",
+        "title": "%zephyr-ide.tree-view.open-project-details.title%",
         "icon": "$(open-preview)"
       },
       {
         "command": "zephyr-ide.tree-view.add-build",
-        "title": "Add Build",
+        "title": "%zephyr-ide.tree-view.add-build.title%",
         "icon": "$(add)"
       },
       {
         "command": "zephyr-ide.tree-view.add-test",
-        "title": "Add Test",
+        "title": "%zephyr-ide.tree-view.add-test.title%",
         "icon": "$(beaker)"
       },
       {
         "command": "zephyr-ide.tree-view.delete-project",
-        "title": "Delete Project",
+        "title": "%zephyr-ide.tree-view.delete-project.title%",
         "icon": "$(trash)"
       },
       {
         "command": "zephyr-ide.tree-view.build",
-        "title": "Build",
+        "title": "%zephyr-ide.tree-view.build.title%",
         "icon": "$(play)"
       },
       {
         "command": "zephyr-ide.tree-view.build-pristine",
-        "title": "Build Pristine",
+        "title": "%zephyr-ide.tree-view.build-pristine.title%",
         "icon": "$(debug-rerun)"
       },
       {
         "command": "zephyr-ide.tree-view.config",
-        "title": "Config",
+        "title": "%zephyr-ide.tree-view.config.title%",
         "icon": "$(settings-gear)"
       },
       {
         "command": "zephyr-ide.tree-view.delete-build",
-        "title": "Delete Build",
+        "title": "%zephyr-ide.tree-view.delete-build.title%",
         "icon": "$(trash)"
       },
       {
         "command": "zephyr-ide.tree-view.test",
-        "title": "Test",
+        "title": "%zephyr-ide.tree-view.test.title%",
         "icon": "$(play)"
       },
       {
         "command": "zephyr-ide.tree-view.delete-test",
-        "title": "Delete Test",
+        "title": "%zephyr-ide.tree-view.delete-test.title%",
         "icon": "$(trash)"
       },
       {
         "command": "zephyr-ide.tree-view.set-build-profile",
-        "title": "Zephyr IDE: Set Runner Profile for Build (Local)",
+        "title": "%zephyr-ide.tree-view.set-build-profile.title%",
         "icon": "$(edit)"
       },
       {
         "command": "zephyr-ide.tree-view.set-workspace-build-profile",
-        "title": "Zephyr IDE: Set Runner Profile for Build (Workspace, Committed)"
+        "title": "%zephyr-ide.tree-view.set-workspace-build-profile.title%"
       },
       {
         "command": "zephyr-ide.tree-view.save-build-profile-to-workspace",
-        "title": "Zephyr IDE: Save Local Runner Profile Override to Workspace",
+        "title": "%zephyr-ide.tree-view.save-build-profile-to-workspace.title%",
         "icon": "$(save)"
       },
       {
         "command": "zephyr-ide.tree-view.reset-build-profile",
-        "title": "Zephyr IDE: Revert Local Runner Profile Override",
+        "title": "%zephyr-ide.tree-view.reset-build-profile.title%",
         "icon": "$(discard)"
       },
       {
         "command": "zephyr-ide.manage-build-variables",
-        "title": "Zephyr IDE: Manage Build Variables"
+        "title": "%zephyr-ide.manage-build-variables.title%"
       },
       {
         "command": "zephyr-ide.manage-project-variables",
-        "title": "Zephyr IDE: Manage Project Variables"
+        "title": "%zephyr-ide.manage-project-variables.title%"
       },
       {
         "command": "zephyr-ide.get-active-build-variable",
-        "title": "Zephyr IDE: Get Active Build Variable"
+        "title": "%zephyr-ide.get-active-build-variable.title%"
       },
       {
         "command": "zephyr-ide.get-active-project-variable",
-        "title": "Zephyr IDE: Get Active Project Variable"
+        "title": "%zephyr-ide.get-active-project-variable.title%"
       }
     ],
     "terminal": {
@@ -1373,14 +1373,14 @@
         {
           "id": "zephyr-ide.terminal-profile",
           "icon": "terminal",
-          "title": "Zephyr IDE Terminal"
+          "title": "%terminal.title%"
         }
       ]
     },
     "debuggers": [
       {
         "type": "zephyr-ide-cortex",
-        "label": "Zephyr IDE Cortex",
+        "label": "%zephyr-ide-cortex.label%",
         "languages": [
           "c",
           "cpp"
@@ -1399,19 +1399,19 @@
                   "qemu",
                   "external"
                 ],
-                "description": "cortex-debug server type. Preferred over `runner` for native debuggers; Zephyr IDE reads the matching runner's args from runners.yaml automatically. For bridged targets (nrfjprog, linkserver, esp32, stm32cubeprogrammer, …) use the Zephyr IDE West debugger instead."
+                "description": "%zephyr-ide-cortex.launch.properties.servertype.description%"
               },
               "runner": {
                 "type": "string",
-                "description": "Optional Zephyr runner to use. Prefer `servertype` for native cortex-debug servers (jlink, openocd, pyocd, stlink, bmp, qemu). `runner` is mainly for bridged targets driven via `west debugserver` (cortex-debug servertype \"external\"): nrfjprog, linkserver, esp32, stm32cubeprogrammer. When both are omitted, the runner is read from runners.yaml's debug-runner."
+                "description": "%zephyr-ide-cortex.launch.properties.runner.description%"
               },
               "project": {
                 "type": "string",
-                "description": "Pin this debug configuration to a specific Zephyr IDE project name. When omitted, the active project is used. If `build` is also omitted, the project's active build is used."
+                "description": "%zephyr-ide-cortex.launch.properties.project.description%"
               },
               "build": {
                 "type": "string",
-                "description": "Pin this debug configuration to a specific build configuration name within the project. When omitted, the project's active build is used."
+                "description": "%zephyr-ide-cortex.launch.properties.build.description%"
               },
               "ask": {
                 "type": "string",
@@ -1422,33 +1422,33 @@
                   "askBuild"
                 ],
                 "enumDescriptions": [
-                  "Use the active project and active build silently (default).",
-                  "Prompt for both project and build at every launch.",
-                  "Prompt for project at launch; use that project's active build.",
-                  "Use the active project; prompt for which build to debug."
+                  "%zephyr-ide-cortex.launch.properties.ask.enumDescriptions.0%",
+                  "%zephyr-ide-cortex.launch.properties.ask.enumDescriptions.1%",
+                  "%zephyr-ide-cortex.launch.properties.ask.enumDescriptions.2%",
+                  "%zephyr-ide-cortex.launch.properties.ask.enumDescriptions.3%"
                 ],
                 "default": "auto",
-                "description": "Controls whether Zephyr IDE asks the user to pick a project and/or build at session start. Ignored when `project` or `build` are explicitly set."
+                "description": "%zephyr-ide-cortex.launch.properties.ask.description%"
               },
               "svdFile": {
                 "type": "string",
-                "description": "Optional path to an SVD file for the cortex-debug peripheral viewer. When omitted, Zephyr IDE searches the board directory for a .svd file."
+                "description": "%zephyr-ide-cortex.launch.properties.svdFile.description%"
               },
               "executable": {
                 "type": "string",
-                "description": "Override the ELF file to debug. When omitted, Zephyr IDE uses elf_file from runners.yaml."
+                "description": "%zephyr-ide-cortex.launch.properties.executable.description%"
               },
               "gdbPath": {
                 "type": "string",
-                "description": "Override the GDB executable. When omitted, Zephyr IDE uses the gdb path from runners.yaml."
+                "description": "%zephyr-ide-cortex.launch.properties.gdbPath.description%"
               },
               "cwd": {
                 "type": "string",
-                "description": "Working directory for the debug session. Defaults to the workspace folder."
+                "description": "%zephyr-ide-cortex.launch.properties.cwd.description%"
               },
               "BMPGDBSerialPort": {
                 "type": "string",
-                "description": "Black Magic Probe GDB serial port (e.g. \"/dev/ttyACM0\" on Linux/macOS, \"COM3\" on Windows, or \"${config:bmp_serial_port}\"). Required when using marus25.cortex-debug; optional when using mylonics.bmp-debug (auto-discovers the probe)."
+                "description": "%zephyr-ide-cortex.launch.properties.BMPGDBSerialPort.description%"
               },
               "interface": {
                 "type": "string",
@@ -1457,153 +1457,153 @@
                   "jtag",
                   "cjtag"
                 ],
-                "description": "Debug transport. Forwarded to cortex-debug."
+                "description": "%zephyr-ide-cortex.launch.properties.interface.description%"
               },
               "device": {
                 "type": "string",
-                "description": "Target device identifier (e.g. \"STM32F401RE\", \"nRF52840_xxAA\"). Forwarded to cortex-debug."
+                "description": "%zephyr-ide-cortex.launch.properties.device.description%"
               },
               "configFiles": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "OpenOCD .cfg files. Auto-derived from runners.yaml's --openocd-config / --cmd-pre-init args; supply here to override."
+                "description": "%zephyr-ide-cortex.launch.properties.configFiles.description%"
               },
               "searchDir": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "OpenOCD search directories (--openocd-search). Auto-derived from runners.yaml; supply here to extend."
+                "description": "%zephyr-ide-cortex.launch.properties.searchDir.description%"
               },
               "serverpath": {
                 "type": "string",
-                "description": "Path to the GDB server executable (openocd, JLinkGDBServerCL, pyocd, …). When omitted, cortex-debug looks on PATH; Zephyr IDE auto-fills runners.yaml's openocd path and the venv pyocd when available."
+                "description": "%zephyr-ide-cortex.launch.properties.serverpath.description%"
               },
               "serverArgs": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "Extra arguments appended to the GDB server's command line. Zephyr IDE forwards unrecognised pyocd/jlink args here automatically; use this field to add more."
+                "description": "%zephyr-ide-cortex.launch.properties.serverArgs.description%"
               },
               "gdbTarget": {
                 "type": "string",
-                "description": "host:port the GDB client connects to. Only meaningful for servertype \"external\". When set, Zephyr IDE skips spawning `west debugserver` for bridged runners and uses your value directly."
+                "description": "%zephyr-ide-cortex.launch.properties.gdbTarget.description%"
               },
               "targetId": {
                 "type": "string",
-                "description": "pyocd target (--target). Auto-derived from runners.yaml's --target / -t for pyocd."
+                "description": "%zephyr-ide-cortex.launch.properties.targetId.description%"
               },
               "speed": {
                 "type": "number",
-                "description": "J-Link debug interface speed in kHz. Forwarded to cortex-debug."
+                "description": "%zephyr-ide-cortex.launch.properties.speed.description%"
               },
               "ipAddress": {
                 "type": "string",
-                "description": "J-Link / cortex-debug remote server IP address."
+                "description": "%zephyr-ide-cortex.launch.properties.ipAddress.description%"
               },
               "port": {
                 "type": "number",
-                "description": "GDB server port. Cortex-debug uses this when servertype is \"external\" without a gdbTarget host."
+                "description": "%zephyr-ide-cortex.launch.properties.port.description%"
               },
               "rttConfig": {
                 "type": "object",
-                "description": "RTT decoder configuration. Auto-populated by Zephyr IDE when `--enable-rtt` is set on the runner's extraArgs; override here for custom decoders."
+                "description": "%zephyr-ide-cortex.launch.properties.rttConfig.description%"
               },
               "swoConfig": {
                 "type": "object",
-                "description": "SWO/SWV configuration object passed to cortex-debug."
+                "description": "%zephyr-ide-cortex.launch.properties.swoConfig.description%"
               },
               "runToEntryPoint": {
                 "type": "string",
-                "description": "Run to this symbol on launch (e.g. \"main\")."
+                "description": "%zephyr-ide-cortex.launch.properties.runToEntryPoint.description%"
               },
               "breakAfterReset": {
                 "type": "boolean",
-                "description": "Break after reset instead of running to entry."
+                "description": "%zephyr-ide-cortex.launch.properties.breakAfterReset.description%"
               },
               "preLaunchCommands": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "GDB commands executed before the program is loaded."
+                "description": "%zephyr-ide-cortex.launch.properties.preLaunchCommands.description%"
               },
               "postLaunchCommands": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "GDB commands executed after the program is loaded but before it runs."
+                "description": "%zephyr-ide-cortex.launch.properties.postLaunchCommands.description%"
               },
               "preAttachCommands": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "GDB commands executed before attaching."
+                "description": "%zephyr-ide-cortex.launch.properties.preAttachCommands.description%"
               },
               "postAttachCommands": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "GDB commands executed after attaching."
+                "description": "%zephyr-ide-cortex.launch.properties.postAttachCommands.description%"
               },
               "preResetCommands": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "GDB commands executed before reset/restart."
+                "description": "%zephyr-ide-cortex.launch.properties.preResetCommands.description%"
               },
               "postResetCommands": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "GDB commands executed after reset/restart."
+                "description": "%zephyr-ide-cortex.launch.properties.postResetCommands.description%"
               },
               "postRestartCommands": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "Alias of postResetCommands honoured by cortex-debug."
+                "description": "%zephyr-ide-cortex.launch.properties.postRestartCommands.description%"
               },
               "overrideLaunchCommands": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "If set, REPLACES the standard cortex-debug launch sequence (file/load/break/run)."
+                "description": "%zephyr-ide-cortex.launch.properties.overrideLaunchCommands.description%"
               },
               "overrideAttachCommands": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "If set, REPLACES the standard cortex-debug attach sequence."
+                "description": "%zephyr-ide-cortex.launch.properties.overrideAttachCommands.description%"
               },
               "overrideResetCommands": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "If set, REPLACES the standard cortex-debug reset sequence."
+                "description": "%zephyr-ide-cortex.launch.properties.overrideResetCommands.description%"
               },
               "overrideRestartCommands": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "If set, REPLACES the standard cortex-debug restart sequence."
+                "description": "%zephyr-ide-cortex.launch.properties.overrideRestartCommands.description%"
               },
               "liveWatch": {
                 "type": "object",
-                "description": "Live-watch configuration object passed to cortex-debug."
+                "description": "%zephyr-ide-cortex.launch.properties.liveWatch.description%"
               },
               "showDevDebugOutput": {
                 "type": "string",
@@ -1614,15 +1614,15 @@
                   "both",
                   "vscode"
                 ],
-                "description": "cortex-debug developer log verbosity."
+                "description": "%zephyr-ide-cortex.launch.properties.showDevDebugOutput.description%"
               },
               "objdumpPath": {
                 "type": "string",
-                "description": "Path to objdump for the disassembly view. Defaults to gdb's sibling tool."
+                "description": "%zephyr-ide-cortex.launch.properties.objdumpPath.description%"
               },
               "nmPath": {
                 "type": "string",
-                "description": "Path to nm for the global-symbol view. Defaults to gdb's sibling tool."
+                "description": "%zephyr-ide-cortex.launch.properties.nmPath.description%"
               }
             }
           },
@@ -1639,19 +1639,19 @@
                   "qemu",
                   "external"
                 ],
-                "description": "cortex-debug server type. Preferred over `runner` for native debuggers. See `launch.servertype`."
+                "description": "%zephyr-ide-cortex.attach.properties.servertype.description%"
               },
               "runner": {
                 "type": "string",
-                "description": "Optional Zephyr runner. Prefer `servertype` for native cortex-debug servers. See `launch.runner` for the full list."
+                "description": "%zephyr-ide-cortex.attach.properties.runner.description%"
               },
               "project": {
                 "type": "string",
-                "description": "Pin this debug configuration to a specific Zephyr IDE project name. When omitted, the active project is used."
+                "description": "%zephyr-ide-cortex.attach.properties.project.description%"
               },
               "build": {
                 "type": "string",
-                "description": "Pin this debug configuration to a specific build configuration name. When omitted, the project's active build is used."
+                "description": "%zephyr-ide-cortex.attach.properties.build.description%"
               },
               "ask": {
                 "type": "string",
@@ -1662,33 +1662,33 @@
                   "askBuild"
                 ],
                 "enumDescriptions": [
-                  "Use the active project and active build silently (default).",
-                  "Prompt for both project and build at every launch.",
-                  "Prompt for project at launch; use that project's active build.",
-                  "Use the active project; prompt for which build to debug."
+                  "%zephyr-ide-cortex.attach.properties.ask.enumDescriptions.0%",
+                  "%zephyr-ide-cortex.attach.properties.ask.enumDescriptions.1%",
+                  "%zephyr-ide-cortex.attach.properties.ask.enumDescriptions.2%",
+                  "%zephyr-ide-cortex.attach.properties.ask.enumDescriptions.3%"
                 ],
                 "default": "auto",
-                "description": "Controls whether Zephyr IDE asks the user to pick a project and/or build at session start. Ignored when `project` or `build` are explicitly set."
+                "description": "%zephyr-ide-cortex.attach.properties.ask.description%"
               },
               "svdFile": {
                 "type": "string",
-                "description": "Optional path to an SVD file for the cortex-debug peripheral viewer. When omitted, Zephyr IDE searches the board directory for a .svd file."
+                "description": "%zephyr-ide-cortex.attach.properties.svdFile.description%"
               },
               "executable": {
                 "type": "string",
-                "description": "Override the ELF file. When omitted, Zephyr IDE uses elf_file from runners.yaml."
+                "description": "%zephyr-ide-cortex.attach.properties.executable.description%"
               },
               "gdbPath": {
                 "type": "string",
-                "description": "Override the GDB executable. When omitted, Zephyr IDE uses the gdb path from runners.yaml."
+                "description": "%zephyr-ide-cortex.attach.properties.gdbPath.description%"
               },
               "cwd": {
                 "type": "string",
-                "description": "Working directory for the debug session. Defaults to the workspace folder."
+                "description": "%zephyr-ide-cortex.attach.properties.cwd.description%"
               },
               "BMPGDBSerialPort": {
                 "type": "string",
-                "description": "Black Magic Probe GDB serial port. See `launch.BMPGDBSerialPort`."
+                "description": "%zephyr-ide-cortex.attach.properties.BMPGDBSerialPort.description%"
               },
               "interface": {
                 "type": "string",
@@ -1697,110 +1697,110 @@
                   "jtag",
                   "cjtag"
                 ],
-                "description": "Debug transport. Forwarded to cortex-debug."
+                "description": "%zephyr-ide-cortex.attach.properties.interface.description%"
               },
               "device": {
                 "type": "string",
-                "description": "Target device identifier. Forwarded to cortex-debug."
+                "description": "%zephyr-ide-cortex.attach.properties.device.description%"
               },
               "configFiles": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "OpenOCD .cfg files. See `launch.configFiles`."
+                "description": "%zephyr-ide-cortex.attach.properties.configFiles.description%"
               },
               "searchDir": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "OpenOCD search directories. See `launch.searchDir`."
+                "description": "%zephyr-ide-cortex.attach.properties.searchDir.description%"
               },
               "serverpath": {
                 "type": "string",
-                "description": "Path to the GDB server executable."
+                "description": "%zephyr-ide-cortex.attach.properties.serverpath.description%"
               },
               "serverArgs": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "Extra arguments appended to the GDB server's command line."
+                "description": "%zephyr-ide-cortex.attach.properties.serverArgs.description%"
               },
               "gdbTarget": {
                 "type": "string",
-                "description": "host:port for servertype \"external\". See `launch.gdbTarget`."
+                "description": "%zephyr-ide-cortex.attach.properties.gdbTarget.description%"
               },
               "targetId": {
                 "type": "string",
-                "description": "pyocd target. See `launch.targetId`."
+                "description": "%zephyr-ide-cortex.attach.properties.targetId.description%"
               },
               "speed": {
                 "type": "number",
-                "description": "J-Link speed (kHz)."
+                "description": "%zephyr-ide-cortex.attach.properties.speed.description%"
               },
               "ipAddress": {
                 "type": "string",
-                "description": "Remote server IP."
+                "description": "%zephyr-ide-cortex.attach.properties.ipAddress.description%"
               },
               "port": {
                 "type": "number",
-                "description": "GDB server port."
+                "description": "%zephyr-ide-cortex.attach.properties.port.description%"
               },
               "rttConfig": {
                 "type": "object",
-                "description": "RTT decoder configuration."
+                "description": "%zephyr-ide-cortex.attach.properties.rttConfig.description%"
               },
               "swoConfig": {
                 "type": "object",
-                "description": "SWO/SWV configuration."
+                "description": "%zephyr-ide-cortex.attach.properties.swoConfig.description%"
               },
               "preAttachCommands": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "GDB commands executed before attaching."
+                "description": "%zephyr-ide-cortex.attach.properties.preAttachCommands.description%"
               },
               "postAttachCommands": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "GDB commands executed after attaching."
+                "description": "%zephyr-ide-cortex.attach.properties.postAttachCommands.description%"
               },
               "preResetCommands": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "GDB commands executed before reset/restart."
+                "description": "%zephyr-ide-cortex.attach.properties.preResetCommands.description%"
               },
               "postResetCommands": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "GDB commands executed after reset/restart."
+                "description": "%zephyr-ide-cortex.attach.properties.postResetCommands.description%"
               },
               "overrideAttachCommands": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "If set, REPLACES the standard cortex-debug attach sequence."
+                "description": "%zephyr-ide-cortex.attach.properties.overrideAttachCommands.description%"
               },
               "overrideResetCommands": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "If set, REPLACES the standard cortex-debug reset sequence."
+                "description": "%zephyr-ide-cortex.attach.properties.overrideResetCommands.description%"
               },
               "liveWatch": {
                 "type": "object",
-                "description": "Live-watch configuration."
+                "description": "%zephyr-ide-cortex.attach.properties.liveWatch.description%"
               },
               "showDevDebugOutput": {
                 "type": "string",
@@ -1811,15 +1811,15 @@
                   "both",
                   "vscode"
                 ],
-                "description": "cortex-debug developer log verbosity."
+                "description": "%zephyr-ide-cortex.attach.properties.showDevDebugOutput.description%"
               },
               "objdumpPath": {
                 "type": "string",
-                "description": "Path to objdump."
+                "description": "%zephyr-ide-cortex.attach.properties.objdumpPath.description%"
               },
               "nmPath": {
                 "type": "string",
-                "description": "Path to nm."
+                "description": "%zephyr-ide-cortex.attach.properties.nmPath.description%"
               }
             }
           }
@@ -1838,8 +1838,8 @@
         ],
         "configurationSnippets": [
           {
-            "label": "Zephyr IDE Cortex: Debug",
-            "description": "Debug the active build using runners.yaml (no runner-specific config required).",
+            "label": "%zephyr-ide-cortex.snippet.0.label%",
+            "description": "%zephyr-ide-cortex.snippet.0.description%",
             "body": {
               "name": "Zephyr IDE Cortex: Debug",
               "type": "zephyr-ide-cortex",
@@ -1847,8 +1847,8 @@
             }
           },
           {
-            "label": "Zephyr IDE Cortex: Attach",
-            "description": "Attach to the active build using runners.yaml.",
+            "label": "%zephyr-ide-cortex.snippet.1.label%",
+            "description": "%zephyr-ide-cortex.snippet.1.description%",
             "body": {
               "name": "Zephyr IDE Cortex: Attach",
               "type": "zephyr-ide-cortex",
@@ -1856,8 +1856,8 @@
             }
           },
           {
-            "label": "Zephyr IDE Cortex: Debug (ask build at launch)",
-            "description": "Debug the active project but prompt the user to select a build configuration each time F5 is pressed. Change ask to \"askBoth\" to prompt for project as well.",
+            "label": "%zephyr-ide-cortex.snippet.2.label%",
+            "description": "%zephyr-ide-cortex.snippet.2.description%",
             "body": {
               "name": "Zephyr IDE Cortex: Debug (ask build at launch)",
               "type": "zephyr-ide-cortex",
@@ -1866,8 +1866,8 @@
             }
           },
           {
-            "label": "Zephyr IDE Cortex: Debug (J-Link)",
-            "description": "Debug using J-Link. Zephyr IDE reads --device, --speed, and --iface from runners.yaml and translates them to cortex-debug fields automatically.",
+            "label": "%zephyr-ide-cortex.snippet.3.label%",
+            "description": "%zephyr-ide-cortex.snippet.3.description%",
             "body": {
               "name": "Zephyr IDE Cortex: Debug (J-Link)",
               "type": "zephyr-ide-cortex",
@@ -1876,8 +1876,8 @@
             }
           },
           {
-            "label": "Zephyr IDE Cortex: Debug (pyOCD)",
-            "description": "Debug using pyOCD. Zephyr IDE reads --target and --probe from runners.yaml and translates them to cortex-debug fields. Uses the workspace venv pyocd when available.",
+            "label": "%zephyr-ide-cortex.snippet.4.label%",
+            "description": "%zephyr-ide-cortex.snippet.4.description%",
             "body": {
               "name": "Zephyr IDE Cortex: Debug (pyOCD)",
               "type": "zephyr-ide-cortex",
@@ -1886,8 +1886,8 @@
             }
           },
           {
-            "label": "Zephyr IDE Cortex: Debug (pyOCD with ST-Link probe)",
-            "description": "Debug using pyOCD with an ST-Link probe explicitly selected. pyOCD matches --probe as a substring against the probe description, so \"stlink\" selects any connected ST-Link. Other runners.yaml args (--target, etc.) are still applied automatically.",
+            "label": "%zephyr-ide-cortex.snippet.5.label%",
+            "description": "%zephyr-ide-cortex.snippet.5.description%",
             "body": {
               "name": "Zephyr IDE Cortex: Debug (pyOCD with ST-Link probe)",
               "type": "zephyr-ide-cortex",
@@ -1900,8 +1900,8 @@
             }
           },
           {
-            "label": "Zephyr IDE Cortex: Debug (ST-Link)",
-            "description": "Debug using ST-Link. Zephyr IDE reads --device from runners.yaml and passes it to cortex-debug servertype \"stlink\".",
+            "label": "%zephyr-ide-cortex.snippet.6.label%",
+            "description": "%zephyr-ide-cortex.snippet.6.description%",
             "body": {
               "name": "Zephyr IDE Cortex: Debug (ST-Link)",
               "type": "zephyr-ide-cortex",
@@ -1910,8 +1910,8 @@
             }
           },
           {
-            "label": "Zephyr IDE Cortex: Debug (Black Magic Probe)",
-            "description": "Debug using Black Magic Probe. Zephyr IDE reads --gdb-serial from runners.yaml and translates it to BMPGDBSerialPort. Add a BMPGDBSerialPort field here to override. Install mylonics.bmp-debug for Zephyr RTOS thread awareness — it auto-discovers the probe so BMPGDBSerialPort is not required.",
+            "label": "%zephyr-ide-cortex.snippet.7.label%",
+            "description": "%zephyr-ide-cortex.snippet.7.description%",
             "body": {
               "name": "Zephyr IDE Cortex: Debug (Black Magic Probe)",
               "type": "zephyr-ide-cortex",
@@ -1920,8 +1920,8 @@
             }
           },
           {
-            "label": "Zephyr IDE Cortex: Attach (Black Magic Probe)",
-            "description": "Attach to a running target via Black Magic Probe. Zephyr IDE reads --gdb-serial from runners.yaml. Add a BMPGDBSerialPort field here to override if runners.yaml does not include --gdb-serial.",
+            "label": "%zephyr-ide-cortex.snippet.8.label%",
+            "description": "%zephyr-ide-cortex.snippet.8.description%",
             "body": {
               "name": "Zephyr IDE Cortex: Attach (Black Magic Probe)",
               "type": "zephyr-ide-cortex",
@@ -1930,8 +1930,8 @@
             }
           },
           {
-            "label": "Zephyr IDE Cortex: Debug Sysbuild Image",
-            "description": "Debug a sysbuild domain. Identical to \"Zephyr IDE Cortex: Debug\" — the active sysbuild image (selected in the Project Build panel) determines which domain's runners.yaml is used. No per-domain field is written into launch.json; switch the active image to switch domains.",
+            "label": "%zephyr-ide-cortex.snippet.9.label%",
+            "description": "%zephyr-ide-cortex.snippet.9.description%",
             "body": {
               "name": "Zephyr IDE Cortex: Debug Sysbuild Image",
               "type": "zephyr-ide-cortex",
@@ -1939,8 +1939,8 @@
             }
           },
           {
-            "label": "Zephyr IDE Cortex: Debug (openocd with explicit probe)",
-            "description": "Override runners.yaml's interface config to use a specific probe (e.g. switch from the board-default J-Link to an ST-Link). Supplying an interface/ cfg file automatically filters out the interface/ entry from runners.yaml so the two do not conflict.",
+            "label": "%zephyr-ide-cortex.snippet.10.label%",
+            "description": "%zephyr-ide-cortex.snippet.10.description%",
             "body": {
               "name": "Zephyr IDE Cortex: Debug (openocd with explicit probe)",
               "type": "zephyr-ide-cortex",
@@ -1952,8 +1952,8 @@
             }
           },
           {
-            "label": "Zephyr IDE Cortex: Debug (fully manual)",
-            "description": "Manually specify all debug server settings while letting Zephyr IDE auto-fill the ELF, GDB path, and project context from runners.yaml. Use when the auto-translation does not produce the cortex-debug config you need. `servertype` overrides the runner-derived value; `configFiles`/`searchDir`/`rttConfig` override any runners.yaml args.",
+            "label": "%zephyr-ide-cortex.snippet.11.label%",
+            "description": "%zephyr-ide-cortex.snippet.11.description%",
             "body": {
               "name": "Zephyr IDE Cortex: Debug (fully manual)",
               "type": "zephyr-ide-cortex",
@@ -1981,8 +1981,8 @@
             }
           },
           {
-            "label": "Zephyr IDE Cortex (Legacy): Manual debug configuration",
-            "description": "Advanced: write a cortex-debug configuration directly using Zephyr IDE helper commands. Prefer the `zephyr-ide` type above — it reads runners.yaml automatically. Use this only when you need features not exposed by the zephyr-ide provider.",
+            "label": "%zephyr-ide-cortex.snippet.12.label%",
+            "description": "%zephyr-ide-cortex.snippet.12.description%",
             "body": {
               "name": "Cortex Debug (Legacy): Manual debug configuration",
               "cwd": "^\"\\${workspaceFolder}\"",
@@ -2017,7 +2017,7 @@
       },
       {
         "type": "zephyr-ide-west",
-        "label": "Zephyr IDE West",
+        "label": "%zephyr-ide-west.label%",
         "languages": [
           "c",
           "cpp"
@@ -2027,15 +2027,15 @@
             "properties": {
               "runner": {
                 "type": "string",
-                "description": "Zephyr runner used by west debugserver (for example: nrfjprog, linkserver, openocd)."
+                "description": "%zephyr-ide-west.launch.properties.runner.description%"
               },
               "project": {
                 "type": "string",
-                "description": "Pin this debug configuration to a specific Zephyr IDE project name."
+                "description": "%zephyr-ide-west.launch.properties.project.description%"
               },
               "build": {
                 "type": "string",
-                "description": "Pin this debug configuration to a specific build configuration name."
+                "description": "%zephyr-ide-west.launch.properties.build.description%"
               },
               "ask": {
                 "type": "string",
@@ -2046,227 +2046,227 @@
                   "askBuild"
                 ],
                 "default": "auto",
-                "description": "Controls whether Zephyr IDE asks the user to pick a project and/or build at session start."
+                "description": "%zephyr-ide-west.launch.properties.ask.description%"
               },
               "port": {
                 "type": "number",
-                "description": "[Common] GDB server / connection port (west debugserver flag: --port)."
+                "description": "%zephyr-ide-west.launch.properties.port.description%"
               },
               "devId": {
                 "type": "string",
-                "description": "[Common] Device/probe identifier to select a specific connected probe (west debugserver flag: --dev-id)."
+                "description": "%zephyr-ide-west.launch.properties.devId.description%"
               },
               "toolOpt": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "[Common] Extra options passed through to the underlying tool, repeated per value (west debugserver flag: --tool-opt)."
+                "description": "%zephyr-ide-west.launch.properties.toolOpt.description%"
               },
               "domain": {
                 "type": "string",
-                "description": "[Common] Sysbuild domain/image to debug (west debugserver flag: --domain)."
+                "description": "%zephyr-ide-west.launch.properties.domain.description%"
               },
               "file": {
                 "type": "string",
-                "description": "[Common] Runner-specific input file (west debugserver flag: --file)."
+                "description": "%zephyr-ide-west.launch.properties.file.description%"
               },
               "elfFile": {
                 "type": "string",
-                "description": "[Common] ELF file to debug (west debugserver flag: --elf-file)."
+                "description": "%zephyr-ide-west.launch.properties.elfFile.description%"
               },
               "hexFile": {
                 "type": "string",
-                "description": "[Common] HEX file to load (west debugserver flag: --hex-file)."
+                "description": "%zephyr-ide-west.launch.properties.hexFile.description%"
               },
               "binFile": {
                 "type": "string",
-                "description": "[Common] BIN file to load (west debugserver flag: --bin-file)."
+                "description": "%zephyr-ide-west.launch.properties.binFile.description%"
               },
               "gdbPort": {
                 "type": "number",
-                "description": "[Common] Port the GDB server listens on (west debugserver flag: --gdb-port)."
+                "description": "%zephyr-ide-west.launch.properties.gdbPort.description%"
               },
               "tclPort": {
                 "type": "number",
-                "description": "[Common] Port for the server's TCL/RPC interface (west debugserver flag: --tcl-port)."
+                "description": "%zephyr-ide-west.launch.properties.tclPort.description%"
               },
               "telnetPort": {
                 "type": "number",
-                "description": "[Common] Port for the server's telnet interface (west debugserver flag: --telnet-port)."
+                "description": "%zephyr-ide-west.launch.properties.telnetPort.description%"
               },
               "noLoad": {
                 "type": "boolean",
-                "description": "[Common] Do not load the image before debugging (west debugserver flag: --no-load)."
+                "description": "%zephyr-ide-west.launch.properties.noLoad.description%"
               },
               "noReset": {
                 "type": "boolean",
-                "description": "[Common] Do not reset the target (west debugserver flag: --no-reset)."
+                "description": "%zephyr-ide-west.launch.properties.noReset.description%"
               },
               "rebuild": {
                 "type": "boolean",
-                "description": "[Common] Rebuild the application before debugging; mutually exclusive with noRebuild (west debugserver flag: --rebuild)."
+                "description": "%zephyr-ide-west.launch.properties.rebuild.description%"
               },
               "noRebuild": {
                 "type": "boolean",
-                "description": "[Common] Skip rebuilding the application before debugging (west debugserver flag: --no-rebuild)."
+                "description": "%zephyr-ide-west.launch.properties.noRebuild.description%"
               },
               "westExtraServerArgs": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "[Common] Additional curated server args appended before the westArgs passthrough."
+                "description": "%zephyr-ide-west.launch.properties.westExtraServerArgs.description%"
               },
               "serial": {
                 "type": "string",
-                "description": "[Common] Probe serial number, e.g. an FTDI serial (west debugserver flag: --serial)."
+                "description": "%zephyr-ide-west.launch.properties.serial.description%"
               },
               "interface": {
                 "type": "string",
-                "description": "[Common] Debug interface, e.g. swd or jtag (west debugserver flag: --iface)."
+                "description": "%zephyr-ide-west.launch.properties.interface.description%"
               },
               "frequency": {
                 "type": [
                   "string",
                   "number"
                 ],
-                "description": "[Common] Debug interface frequency (west debugserver flag: --frequency)."
+                "description": "%zephyr-ide-west.launch.properties.frequency.description%"
               },
               "connectUnderReset": {
                 "type": "boolean",
-                "description": "[Common] Connect to the target while holding reset asserted (west debugserver flag: --connect-under-reset)."
+                "description": "%zephyr-ide-west.launch.properties.connectUnderReset.description%"
               },
               "erase": {
                 "type": "boolean",
-                "description": "[Common] Mass-erase the target before loading (west debugserver flag: --erase)."
+                "description": "%zephyr-ide-west.launch.properties.erase.description%"
               },
               "noErase": {
                 "type": "boolean",
-                "description": "[Common] Do not erase the target before loading (west debugserver flag: --no-erase)."
+                "description": "%zephyr-ide-west.launch.properties.noErase.description%"
               },
               "reset": {
                 "type": "boolean",
-                "description": "[Common] Reset the target after flashing (west debugserver flag: --reset)."
+                "description": "%zephyr-ide-west.launch.properties.reset.description%"
               },
               "rttAddress": {
                 "type": "string",
-                "description": "[Common] RTT control-block address (west debugserver flag: --rtt-address)."
+                "description": "%zephyr-ide-west.launch.properties.rttAddress.description%"
               },
               "tui": {
                 "type": "boolean",
-                "description": "[Common] Launch GDB with its text UI (west debugserver flag: --tui)."
+                "description": "%zephyr-ide-west.launch.properties.tui.description%"
               },
               "config": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "[openocd] OpenOCD config commands/files, repeated per value (west debugserver flag: --config)."
+                "description": "%zephyr-ide-west.launch.properties.config.description%"
               },
               "flashAddress": {
                 "type": [
                   "string",
                   "number"
                 ],
-                "description": "[openocd] Flash address used for BIN files (west debugserver flag: --flash-address)."
+                "description": "%zephyr-ide-west.launch.properties.flashAddress.description%"
               },
               "verify": {
                 "type": "boolean",
-                "description": "[openocd] Verify after flashing (west debugserver flag: --verify)."
+                "description": "%zephyr-ide-west.launch.properties.verify.description%"
               },
               "verifyOnly": {
                 "type": "boolean",
-                "description": "[openocd] Verify without flashing (west debugserver flag: --verify-only)."
+                "description": "%zephyr-ide-west.launch.properties.verifyOnly.description%"
               },
               "noHalt": {
                 "type": "boolean",
-                "description": "[openocd] Omit the halt command from the GDB server startup (west debugserver flag: --no-halt)."
+                "description": "%zephyr-ide-west.launch.properties.noHalt.description%"
               },
               "noInit": {
                 "type": "boolean",
-                "description": "[openocd] Omit the init command from the GDB server startup (west debugserver flag: --no-init)."
+                "description": "%zephyr-ide-west.launch.properties.noInit.description%"
               },
               "noTargets": {
                 "type": "boolean",
-                "description": "[openocd] Omit the target command from the GDB server startup (west debugserver flag: --no-targets)."
+                "description": "%zephyr-ide-west.launch.properties.noTargets.description%"
               },
               "targetHandle": {
                 "type": "string",
-                "description": "[openocd] Internal OpenOCD target handle (west debugserver flag: --target-handle)."
+                "description": "%zephyr-ide-west.launch.properties.targetHandle.description%"
               },
               "rttPort": {
                 "type": "number",
-                "description": "[openocd] Port for the OpenOCD RTT server (west debugserver flag: --rtt-port)."
+                "description": "%zephyr-ide-west.launch.properties.rttPort.description%"
               },
               "rttServer": {
                 "type": "boolean",
-                "description": "[openocd] Start an RTT server while debugging (west debugserver flag: --rtt-server)."
+                "description": "%zephyr-ide-west.launch.properties.rttServer.description%"
               },
               "gdbClientPort": {
                 "type": "number",
-                "description": "[openocd] Port the GDB client connects to (west debugserver flag: --gdb-client-port)."
+                "description": "%zephyr-ide-west.launch.properties.gdbClientPort.description%"
               },
               "gdbInit": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "[openocd] GDB init commands, repeated per value (west debugserver flag: --gdb-init)."
+                "description": "%zephyr-ide-west.launch.properties.gdbInit.description%"
               },
               "gdbHost": {
                 "type": "string",
-                "description": "[probe-rs, jlink] Host the GDB server binds to (west debugserver flag: --gdb-host)."
+                "description": "%zephyr-ide-west.launch.properties.gdbHost.description%"
               },
               "chip": {
                 "type": "string",
-                "description": "[probe-rs] Target chip name (west debugserver flag: --chip)."
+                "description": "%zephyr-ide-west.launch.properties.chip.description%"
               },
               "protocol": {
                 "type": "string",
-                "description": "[probe-rs, jlink] Debug protocol, swd or jtag (west debugserver flag: --protocol)."
+                "description": "%zephyr-ide-west.launch.properties.protocol.description%"
               },
               "speed": {
                 "type": [
                   "string",
                   "number"
                 ],
-                "description": "[probe-rs, jlink] Protocol speed in kHz (west debugserver flag: --speed)."
+                "description": "%zephyr-ide-west.launch.properties.speed.description%"
               },
               "batch": {
                 "type": "boolean",
-                "description": "[jlink] Enable J-Link batch mode (west debugserver flag: --batch)."
+                "description": "%zephyr-ide-west.launch.properties.batch.description%"
               },
               "device": {
                 "type": "string",
-                "description": "[jlink] J-Link device name (west debugserver flag: --device)."
+                "description": "%zephyr-ide-west.launch.properties.device.description%"
               },
               "loader": {
                 "type": "string",
-                "description": "[jlink] J-Link loader type (west debugserver flag: --loader)."
+                "description": "%zephyr-ide-west.launch.properties.loader.description%"
               },
               "dtFlash": {
                 "type": "boolean",
-                "description": "[jlink] Use devicetree flash address info (west debugserver flag: --dt-flash=y)."
+                "description": "%zephyr-ide-west.launch.properties.dtFlash.description%"
               },
               "resetType": {
                 "type": "string",
-                "description": "[jlink] J-Link reset type (west debugserver flag: --reset-type)."
+                "description": "%zephyr-ide-west.launch.properties.resetType.description%"
               },
               "westArgs": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "Raw passthrough: additional west debugserver arguments for full CLI coverage (runner-specific options, --cmd-* flags, etc.). Appended after all curated options."
+                "description": "%zephyr-ide-west.launch.properties.westArgs.description%"
               },
               "svdFile": {
                 "type": "string",
-                "description": "Optional path to an SVD file for peripheral viewer support."
+                "description": "%zephyr-ide-west.launch.properties.svdFile.description%"
               },
               "gdbTarget": {
                 "type": "string",
-                "description": "Optional host:port for an already running debugserver. When set, west debugserver is not spawned."
+                "description": "%zephyr-ide-west.launch.properties.gdbTarget.description%"
               }
             }
           },
@@ -2274,15 +2274,15 @@
             "properties": {
               "runner": {
                 "type": "string",
-                "description": "Zephyr runner used by west debugserver (for example: nrfjprog, linkserver, openocd)."
+                "description": "%zephyr-ide-west.attach.properties.runner.description%"
               },
               "project": {
                 "type": "string",
-                "description": "Pin this debug configuration to a specific Zephyr IDE project name."
+                "description": "%zephyr-ide-west.attach.properties.project.description%"
               },
               "build": {
                 "type": "string",
-                "description": "Pin this debug configuration to a specific build configuration name."
+                "description": "%zephyr-ide-west.attach.properties.build.description%"
               },
               "ask": {
                 "type": "string",
@@ -2293,227 +2293,227 @@
                   "askBuild"
                 ],
                 "default": "auto",
-                "description": "Controls whether Zephyr IDE asks the user to pick a project and/or build at session start."
+                "description": "%zephyr-ide-west.attach.properties.ask.description%"
               },
               "port": {
                 "type": "number",
-                "description": "[Common] GDB server / connection port (west debugserver flag: --port)."
+                "description": "%zephyr-ide-west.attach.properties.port.description%"
               },
               "devId": {
                 "type": "string",
-                "description": "[Common] Device/probe identifier to select a specific connected probe (west debugserver flag: --dev-id)."
+                "description": "%zephyr-ide-west.attach.properties.devId.description%"
               },
               "toolOpt": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "[Common] Extra options passed through to the underlying tool, repeated per value (west debugserver flag: --tool-opt)."
+                "description": "%zephyr-ide-west.attach.properties.toolOpt.description%"
               },
               "domain": {
                 "type": "string",
-                "description": "[Common] Sysbuild domain/image to debug (west debugserver flag: --domain)."
+                "description": "%zephyr-ide-west.attach.properties.domain.description%"
               },
               "file": {
                 "type": "string",
-                "description": "[Common] Runner-specific input file (west debugserver flag: --file)."
+                "description": "%zephyr-ide-west.attach.properties.file.description%"
               },
               "elfFile": {
                 "type": "string",
-                "description": "[Common] ELF file to debug (west debugserver flag: --elf-file)."
+                "description": "%zephyr-ide-west.attach.properties.elfFile.description%"
               },
               "hexFile": {
                 "type": "string",
-                "description": "[Common] HEX file to load (west debugserver flag: --hex-file)."
+                "description": "%zephyr-ide-west.attach.properties.hexFile.description%"
               },
               "binFile": {
                 "type": "string",
-                "description": "[Common] BIN file to load (west debugserver flag: --bin-file)."
+                "description": "%zephyr-ide-west.attach.properties.binFile.description%"
               },
               "gdbPort": {
                 "type": "number",
-                "description": "[Common] Port the GDB server listens on (west debugserver flag: --gdb-port)."
+                "description": "%zephyr-ide-west.attach.properties.gdbPort.description%"
               },
               "tclPort": {
                 "type": "number",
-                "description": "[Common] Port for the server's TCL/RPC interface (west debugserver flag: --tcl-port)."
+                "description": "%zephyr-ide-west.attach.properties.tclPort.description%"
               },
               "telnetPort": {
                 "type": "number",
-                "description": "[Common] Port for the server's telnet interface (west debugserver flag: --telnet-port)."
+                "description": "%zephyr-ide-west.attach.properties.telnetPort.description%"
               },
               "noLoad": {
                 "type": "boolean",
-                "description": "[Common] Do not load the image before debugging (west debugserver flag: --no-load)."
+                "description": "%zephyr-ide-west.attach.properties.noLoad.description%"
               },
               "noReset": {
                 "type": "boolean",
-                "description": "[Common] Do not reset the target (west debugserver flag: --no-reset)."
+                "description": "%zephyr-ide-west.attach.properties.noReset.description%"
               },
               "rebuild": {
                 "type": "boolean",
-                "description": "[Common] Rebuild the application before debugging; mutually exclusive with noRebuild (west debugserver flag: --rebuild)."
+                "description": "%zephyr-ide-west.attach.properties.rebuild.description%"
               },
               "noRebuild": {
                 "type": "boolean",
-                "description": "[Common] Skip rebuilding the application before debugging (west debugserver flag: --no-rebuild)."
+                "description": "%zephyr-ide-west.attach.properties.noRebuild.description%"
               },
               "westExtraServerArgs": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "[Common] Additional curated server args appended before the westArgs passthrough."
+                "description": "%zephyr-ide-west.attach.properties.westExtraServerArgs.description%"
               },
               "serial": {
                 "type": "string",
-                "description": "[Common] Probe serial number, e.g. an FTDI serial (west debugserver flag: --serial)."
+                "description": "%zephyr-ide-west.attach.properties.serial.description%"
               },
               "interface": {
                 "type": "string",
-                "description": "[Common] Debug interface, e.g. swd or jtag (west debugserver flag: --iface)."
+                "description": "%zephyr-ide-west.attach.properties.interface.description%"
               },
               "frequency": {
                 "type": [
                   "string",
                   "number"
                 ],
-                "description": "[Common] Debug interface frequency (west debugserver flag: --frequency)."
+                "description": "%zephyr-ide-west.attach.properties.frequency.description%"
               },
               "connectUnderReset": {
                 "type": "boolean",
-                "description": "[Common] Connect to the target while holding reset asserted (west debugserver flag: --connect-under-reset)."
+                "description": "%zephyr-ide-west.attach.properties.connectUnderReset.description%"
               },
               "erase": {
                 "type": "boolean",
-                "description": "[Common] Mass-erase the target before loading (west debugserver flag: --erase)."
+                "description": "%zephyr-ide-west.attach.properties.erase.description%"
               },
               "noErase": {
                 "type": "boolean",
-                "description": "[Common] Do not erase the target before loading (west debugserver flag: --no-erase)."
+                "description": "%zephyr-ide-west.attach.properties.noErase.description%"
               },
               "reset": {
                 "type": "boolean",
-                "description": "[Common] Reset the target after flashing (west debugserver flag: --reset)."
+                "description": "%zephyr-ide-west.attach.properties.reset.description%"
               },
               "rttAddress": {
                 "type": "string",
-                "description": "[Common] RTT control-block address (west debugserver flag: --rtt-address)."
+                "description": "%zephyr-ide-west.attach.properties.rttAddress.description%"
               },
               "tui": {
                 "type": "boolean",
-                "description": "[Common] Launch GDB with its text UI (west debugserver flag: --tui)."
+                "description": "%zephyr-ide-west.attach.properties.tui.description%"
               },
               "config": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "[openocd] OpenOCD config commands/files, repeated per value (west debugserver flag: --config)."
+                "description": "%zephyr-ide-west.attach.properties.config.description%"
               },
               "flashAddress": {
                 "type": [
                   "string",
                   "number"
                 ],
-                "description": "[openocd] Flash address used for BIN files (west debugserver flag: --flash-address)."
+                "description": "%zephyr-ide-west.attach.properties.flashAddress.description%"
               },
               "verify": {
                 "type": "boolean",
-                "description": "[openocd] Verify after flashing (west debugserver flag: --verify)."
+                "description": "%zephyr-ide-west.attach.properties.verify.description%"
               },
               "verifyOnly": {
                 "type": "boolean",
-                "description": "[openocd] Verify without flashing (west debugserver flag: --verify-only)."
+                "description": "%zephyr-ide-west.attach.properties.verifyOnly.description%"
               },
               "noHalt": {
                 "type": "boolean",
-                "description": "[openocd] Omit the halt command from the GDB server startup (west debugserver flag: --no-halt)."
+                "description": "%zephyr-ide-west.attach.properties.noHalt.description%"
               },
               "noInit": {
                 "type": "boolean",
-                "description": "[openocd] Omit the init command from the GDB server startup (west debugserver flag: --no-init)."
+                "description": "%zephyr-ide-west.attach.properties.noInit.description%"
               },
               "noTargets": {
                 "type": "boolean",
-                "description": "[openocd] Omit the target command from the GDB server startup (west debugserver flag: --no-targets)."
+                "description": "%zephyr-ide-west.attach.properties.noTargets.description%"
               },
               "targetHandle": {
                 "type": "string",
-                "description": "[openocd] Internal OpenOCD target handle (west debugserver flag: --target-handle)."
+                "description": "%zephyr-ide-west.attach.properties.targetHandle.description%"
               },
               "rttPort": {
                 "type": "number",
-                "description": "[openocd] Port for the OpenOCD RTT server (west debugserver flag: --rtt-port)."
+                "description": "%zephyr-ide-west.attach.properties.rttPort.description%"
               },
               "rttServer": {
                 "type": "boolean",
-                "description": "[openocd] Start an RTT server while debugging (west debugserver flag: --rtt-server)."
+                "description": "%zephyr-ide-west.attach.properties.rttServer.description%"
               },
               "gdbClientPort": {
                 "type": "number",
-                "description": "[openocd] Port the GDB client connects to (west debugserver flag: --gdb-client-port)."
+                "description": "%zephyr-ide-west.attach.properties.gdbClientPort.description%"
               },
               "gdbInit": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "[openocd] GDB init commands, repeated per value (west debugserver flag: --gdb-init)."
+                "description": "%zephyr-ide-west.attach.properties.gdbInit.description%"
               },
               "gdbHost": {
                 "type": "string",
-                "description": "[probe-rs, jlink] Host the GDB server binds to (west debugserver flag: --gdb-host)."
+                "description": "%zephyr-ide-west.attach.properties.gdbHost.description%"
               },
               "chip": {
                 "type": "string",
-                "description": "[probe-rs] Target chip name (west debugserver flag: --chip)."
+                "description": "%zephyr-ide-west.attach.properties.chip.description%"
               },
               "protocol": {
                 "type": "string",
-                "description": "[probe-rs, jlink] Debug protocol, swd or jtag (west debugserver flag: --protocol)."
+                "description": "%zephyr-ide-west.attach.properties.protocol.description%"
               },
               "speed": {
                 "type": [
                   "string",
                   "number"
                 ],
-                "description": "[probe-rs, jlink] Protocol speed in kHz (west debugserver flag: --speed)."
+                "description": "%zephyr-ide-west.attach.properties.speed.description%"
               },
               "batch": {
                 "type": "boolean",
-                "description": "[jlink] Enable J-Link batch mode (west debugserver flag: --batch)."
+                "description": "%zephyr-ide-west.attach.properties.batch.description%"
               },
               "device": {
                 "type": "string",
-                "description": "[jlink] J-Link device name (west debugserver flag: --device)."
+                "description": "%zephyr-ide-west.attach.properties.device.description%"
               },
               "loader": {
                 "type": "string",
-                "description": "[jlink] J-Link loader type (west debugserver flag: --loader)."
+                "description": "%zephyr-ide-west.attach.properties.loader.description%"
               },
               "dtFlash": {
                 "type": "boolean",
-                "description": "[jlink] Use devicetree flash address info (west debugserver flag: --dt-flash=y)."
+                "description": "%zephyr-ide-west.attach.properties.dtFlash.description%"
               },
               "resetType": {
                 "type": "string",
-                "description": "[jlink] J-Link reset type (west debugserver flag: --reset-type)."
+                "description": "%zephyr-ide-west.attach.properties.resetType.description%"
               },
               "westArgs": {
                 "type": "array",
                 "items": {
                   "type": "string"
                 },
-                "description": "Raw passthrough: additional west debugserver arguments for full CLI coverage (runner-specific options, --cmd-* flags, etc.). Appended after all curated options."
+                "description": "%zephyr-ide-west.attach.properties.westArgs.description%"
               },
               "svdFile": {
                 "type": "string",
-                "description": "Optional path to an SVD file for peripheral viewer support."
+                "description": "%zephyr-ide-west.attach.properties.svdFile.description%"
               },
               "gdbTarget": {
                 "type": "string",
-                "description": "Optional host:port for an already running debugserver. When set, west debugserver is not spawned."
+                "description": "%zephyr-ide-west.attach.properties.gdbTarget.description%"
               }
             }
           }
@@ -2534,8 +2534,8 @@
         ],
         "configurationSnippets": [
           {
-            "label": "Zephyr IDE West: Debug (any runner)",
-            "description": "Debug through `west debugserver` with any runner. Zephyr IDE spawns `west debugserver --runner <runner>`, parses the listening port, and connects cortex-debug as servertype \"external\". ELF and GDB path are read from runners.yaml. Add curated west options or westArgs for runner-specific flags.",
+            "label": "%zephyr-ide-west.snippet.0.label%",
+            "description": "%zephyr-ide-west.snippet.0.description%",
             "body": {
               "name": "Zephyr IDE West: Debug (any runner)",
               "type": "zephyr-ide-west",
@@ -2545,8 +2545,8 @@
             }
           },
           {
-            "label": "Zephyr IDE West: Debug (OpenOCD)",
-            "description": "Debug via OpenOCD through the west debugserver bridge. Zephyr IDE spawns `west debugserver --runner openocd` and connects cortex-debug as servertype \"external\". Use the [openocd] curated options (config, rttServer, …) or westArgs for extra flags.",
+            "label": "%zephyr-ide-west.snippet.1.label%",
+            "description": "%zephyr-ide-west.snippet.1.description%",
             "body": {
               "name": "Zephyr IDE West: Debug (OpenOCD)",
               "type": "zephyr-ide-west",
@@ -2556,8 +2556,8 @@
             }
           },
           {
-            "label": "Zephyr IDE West: Debug (STM32CubeProgrammer)",
-            "description": "Debug an STM32 target via STM32CubeProgrammer through the west debugserver bridge. Zephyr IDE spawns `west debugserver --runner stm32cubeprogrammer` and connects cortex-debug as servertype \"external\".",
+            "label": "%zephyr-ide-west.snippet.2.label%",
+            "description": "%zephyr-ide-west.snippet.2.description%",
             "body": {
               "name": "Zephyr IDE West: Debug (STM32CubeProgrammer)",
               "type": "zephyr-ide-west",
@@ -2567,8 +2567,8 @@
             }
           },
           {
-            "label": "Zephyr IDE West: Debug (nrfjprog)",
-            "description": "Debug a Nordic nRF target via the west debugserver bridge. Zephyr IDE spawns `west debugserver --runner nrfjprog`, reads the listening GDB port from its stdout, and connects cortex-debug as servertype \"external\".",
+            "label": "%zephyr-ide-west.snippet.3.label%",
+            "description": "%zephyr-ide-west.snippet.3.description%",
             "body": {
               "name": "Zephyr IDE West: Debug (nrfjprog)",
               "type": "zephyr-ide-west",
@@ -2577,8 +2577,8 @@
             }
           },
           {
-            "label": "Zephyr IDE West: Debug (linkserver)",
-            "description": "Debug an NXP target via LinkServer through the west debugserver bridge. Zephyr IDE spawns `west debugserver --runner linkserver`, parses the listening port, and connects cortex-debug as servertype \"external\".",
+            "label": "%zephyr-ide-west.snippet.4.label%",
+            "description": "%zephyr-ide-west.snippet.4.description%",
             "body": {
               "name": "Zephyr IDE West: Debug (linkserver)",
               "type": "zephyr-ide-west",
@@ -2587,8 +2587,8 @@
             }
           },
           {
-            "label": "Zephyr IDE West: Attach to external GDB server",
-            "description": "Connect to an already-running GDB server at a fixed address (Segger Ozone, vendor IDE, or a server you started manually). Setting `gdbTarget` suppresses the automatic west debugserver spawn; the `runner` value is only used to look up the ELF and GDB path from runners.yaml.",
+            "label": "%zephyr-ide-west.snippet.5.label%",
+            "description": "%zephyr-ide-west.snippet.5.description%",
             "body": {
               "name": "Zephyr IDE West: Attach to external GDB server",
               "type": "zephyr-ide-west",
@@ -2658,5 +2658,6 @@
     "typed-rest-client": "^2.3.0",
     "upath": "^3.0.6",
     "vscode-languageclient": "^9.0.1"
-  }
+  },
+  "l10n": "./l10n"
 }

@@ -15,6 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import { panelText } from "../../webview_shared/panel-text";
 import { html, nothing } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { ZephyrLitElement } from "../../webview_shared/lit-base";
@@ -38,34 +39,34 @@ export class TestSection extends ZephyrLitElement {
         </div>
         <div class="test-card-body">
           <div class="info-row">
-            <span class="info-label">Platform</span>
+            <span class="info-label">${panelText("Platform")}</span>
             <span class="info-value">${t.platform}</span>
           </div>
           ${t.board
         ? html`<div class="info-row">
-                <span class="info-label">Board</span>
+                <span class="info-label">${panelText("Board")}</span>
                 <span class="info-value">${t.board}</span>
               </div>`
         : nothing}
           <div class="info-row">
-            <span class="info-label">Tests</span>
-            <span class="info-value">${t.tests.length > 0 ? t.tests.join(", ") : html`<em>none</em>`}</span>
+            <span class="info-label">${panelText("Tests")}</span>
+            <span class="info-value">${t.tests.length > 0 ? t.tests.join(", ") : html`<em>${panelText("none")}</em>`}</span>
           </div>
           ${t.args
         ? html`<div class="info-row">
-                <span class="info-label">Arguments</span>
+                <span class="info-label">${panelText("Arguments")}</span>
                 <span class="info-value" style="font-family: var(--vscode-editor-font-family, monospace); font-size: 0.92em;">${t.args}</span>
               </div>`
         : nothing}
           ${t.serialPort
         ? html`<div class="info-row">
-                <span class="info-label">Serial Port</span>
+                <span class="info-label">${panelText("Serial Port")}</span>
                 <span class="info-value">${t.serialPort}</span>
               </div>`
         : nothing}
           ${t.serialBaud
         ? html`<div class="info-row">
-                <span class="info-label">Serial Baud</span>
+                <span class="info-label">${panelText("Serial Baud")}</span>
                 <span class="info-value">${t.serialBaud}</span>
               </div>`
         : nothing}

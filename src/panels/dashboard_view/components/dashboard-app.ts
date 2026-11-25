@@ -4,6 +4,7 @@ Author Rijesh Augustine
 SPDX-License-Identifier: Apache-2.0
 */
 
+import { panelText } from "../../webview_shared/panel-text";
 import { html, nothing } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { ZephyrLitElement } from "../../webview_shared/lit-base";
@@ -27,12 +28,12 @@ import "./elfstats-page";
 type PageId = "summary" | "memory" | "kconfig" | "sysinit" | "dts" | "elfstats";
 
 const PAGES: { id: PageId; label: string; icon: string }[] = [
-  { id: "summary", label: "Build Summary", icon: "codicon-info" },
-  { id: "memory", label: "Memory Report", icon: "codicon-graph" },
+  { id: "summary", label: panelText("Build Summary"), icon: "codicon-info" },
+  { id: "memory", label: panelText("Memory Report"), icon: "codicon-graph" },
   { id: "kconfig", label: "Kconfig", icon: "codicon-settings" },
-  { id: "sysinit", label: "Sys Init", icon: "codicon-list-ordered" },
-  { id: "dts", label: "Device Tree", icon: "codicon-circuit-board" },
-  { id: "elfstats", label: "ELF Stats", icon: "codicon-symbol-file" },
+  { id: "sysinit", label: panelText("Sys Init"), icon: "codicon-list-ordered" },
+  { id: "dts", label: panelText("Device Tree"), icon: "codicon-circuit-board" },
+  { id: "elfstats", label: panelText("ELF Stats"), icon: "codicon-symbol-file" },
 ];
 
 @customElement("dashboard-app")
@@ -124,7 +125,7 @@ export class DashboardApp extends ZephyrLitElement {
       this._memoryRefreshing = false;
       clearTimeout(this._memoryRefreshTimeout);
     } else if (msg?.command === "memoryRefreshFailed") {
-      this._memoryError = typeof msg.error === "string" ? msg.error : "Memory refresh failed.";
+      this._memoryError = typeof msg.error === "string" ? msg.error : panelText("Memory refresh failed.");
       this._memoryRefreshing = false;
       clearTimeout(this._memoryRefreshTimeout);
     } else if (msg?.command === "kconfigPreloading") {
@@ -247,14 +248,14 @@ export class DashboardApp extends ZephyrLitElement {
       return html`
         <div class="dashboard-loading" aria-live="polite" aria-busy="true">
           <span class="codicon codicon-loading codicon-modifier-spin" style="font-size:28px"></span>
-          <p>Loading dashboard data…</p>
+          <p>${panelText("Loading dashboard data…")}</p>
         </div>
       `;
     }
 
     return html`
       <div class="dashboard-layout">
-        <nav class="dashboard-sidebar" aria-label="Dashboard sections">
+        <nav class="dashboard-sidebar" aria-label="${panelText("Dashboard sections")}">
           <p class="dashboard-sidebar-heading">
             ${this._meta.projectName} / ${this._meta.buildName}
           </p>
@@ -273,10 +274,10 @@ export class DashboardApp extends ZephyrLitElement {
                   <span class="codicon ${p.icon}" aria-hidden="true"></span>
                   ${p.label}
                   ${p.id === "memory" && this._memoryRefreshing
-          ? html`<span class="codicon codicon-loading codicon-modifier-spin" style="margin-left:auto;font-size:11px" aria-label="Refreshing…"></span>`
+          ? html`<span class="codicon codicon-loading codicon-modifier-spin" style="margin-left:auto;font-size:11px" aria-label="${panelText("Refreshing…")}"></span>`
           : nothing}
                   ${p.id === "kconfig" && this._kconfigLoading
-          ? html`<span class="codicon codicon-loading codicon-modifier-spin" style="margin-left:auto;font-size:11px" aria-label="Loading…"></span>`
+          ? html`<span class="codicon codicon-loading codicon-modifier-spin" style="margin-left:auto;font-size:11px" aria-label="${panelText("Loading…")}"></span>`
           : nothing}
                 </li>
               `,

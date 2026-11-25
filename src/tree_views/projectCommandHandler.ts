@@ -22,10 +22,10 @@ import { WorkspaceConfig } from '../setup_utilities/types';
 import { outputError, outputWarning } from '../utilities/output';
 
 /** Shared action button for adding a file (used by ProjectTreeView and ProjectConfigView). */
-export const FILE_ADD_ACTION = [{ icon: "add", actionId: "addFile", tooltip: "Add File" }];
+export const FILE_ADD_ACTION = [{ icon: "add", actionId: "addFile", tooltip: vscode.l10n.t("Add File") }];
 
 /** Shared action button for deleting a file (used by ProjectTreeView and ProjectConfigView). */
-export const FILE_DELETE_ACTION = [{ icon: "trash", actionId: "deleteFile", tooltip: "Delete File" }];
+export const FILE_DELETE_ACTION = [{ icon: "trash", actionId: "deleteFile", tooltip: vscode.l10n.t("Delete File") }];
 
 /** Set of currently running command keys to allow concurrent builds while preventing duplicate operations. */
 const runningCommands = new Set<string>();

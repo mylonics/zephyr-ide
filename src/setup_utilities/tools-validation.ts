@@ -61,7 +61,7 @@ export async function checkIfToolsAvailable(
       
       if (solo) {
         notifyError("Tools Check",
-          `Missing ${missingPackages.length} required tools. Check output for details or use Host Tools Install panel.`
+          vscode.l10n.t("Missing {0} required tools. Check output for details or use Host Tools Install panel.", missingPackages.length)
         );
       }
       return false;
@@ -72,14 +72,14 @@ export async function checkIfToolsAvailable(
     await saveSetupState(context, wsConfig, globalConfig);
     
     if (solo) {
-      void vscode.window.showInformationMessage("Zephyr IDE: Build Tools are available");
+      void vscode.window.showInformationMessage(vscode.l10n.t("Zephyr IDE: Build Tools are available"));
     }
 
     return true;
   } catch (error) {
     outputError("Tools Check", `Error checking tools: ${error}`);
     if (solo) {
-      notifyError("Tools Check", `Failed to check tools: ${error}`);
+      notifyError("Tools Check", vscode.l10n.t("Failed to check tools: {0}", String(error)));
     }
     return false;
   }

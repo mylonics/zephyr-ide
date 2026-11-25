@@ -15,6 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import { panelText } from "../../webview_shared/panel-text";
 import { html } from "lit";
 import { customElement, property } from "lit/decorators.js";
 import { ZephyrLitElement } from "../../webview_shared/lit-base";
@@ -44,8 +45,8 @@ export class VariablesHelp extends ZephyrLitElement {
     return html`
       <vscode-table zebra bordered-rows>
         <vscode-table-header slot="header">
-          <vscode-table-header-cell>Variable</vscode-table-header-cell>
-          <vscode-table-header-cell>Description</vscode-table-header-cell>
+          <vscode-table-header-cell>${panelText("Variable")}</vscode-table-header-cell>
+          <vscode-table-header-cell>${panelText("Description")}</vscode-table-header-cell>
         </vscode-table-header>
         <vscode-table-body slot="body">
           ${cmds.map(
@@ -65,15 +66,14 @@ export class VariablesHelp extends ZephyrLitElement {
     return html`
       <div class="variables-help-content">
         <p>
-          Zephyr IDE exposes project and build information as VS Code command variables.
-          Use them in <code>launch.json</code> and <code>tasks.json</code> with the <code>\${command:...}</code> syntax.
+          ${panelText("Zephyr IDE exposes project and build information as VS Code command variables. Use them in")} <code>launch.json</code> ${panelText("and")} <code>tasks.json</code> ${panelText("with the")} <code>\${command:...}</code> ${panelText("syntax.")}
         </p>
 
-        <h4>Built-in Variables</h4>
+        <h4>${panelText("Built-in Variables")}</h4>
         ${this._renderTable(this._builtInCommands)}
 
         <div class="help-example">
-          <h4>Example: launch.json</h4>
+          <h4>${panelText("Example: launch.json")}</h4>
           <pre><code>{
   "version": "0.2.0",
   "configurations": [
@@ -88,15 +88,14 @@ export class VariablesHelp extends ZephyrLitElement {
 }</code></pre>
         </div>
 
-        <h4>Custom Variables</h4>
+        <h4>${panelText("Custom Variables")}</h4>
         <p>
-          Define custom key-value pairs in the project or build variable tables
-          and reference them with these commands.
+          ${panelText("Define custom key-value pairs in the project or build variable tables and reference them with these commands.")}
         </p>
         ${this._renderTable(this._customVarCommands)}
 
         <div class="help-example">
-          <h4>Example: tasks.json</h4>
+          <h4>${panelText("Example: tasks.json")}</h4>
           <pre><code>{
   "version": "2.0.0",
   "inputs": [
@@ -117,7 +116,7 @@ export class VariablesHelp extends ZephyrLitElement {
         </div>
 
         <div class="help-example">
-          <h4>Example: launch.json using custom variables</h4>
+          <h4>${panelText("Example: launch.json using custom variables")}</h4>
           <pre><code>{
   "version": "0.2.0",
   "configurations": [

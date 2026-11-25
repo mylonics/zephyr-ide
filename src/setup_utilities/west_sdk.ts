@@ -829,7 +829,7 @@ export async function installSDK(
 // ---------------------------------------------------------------------------
 
 async function selectSDKVersionAndToolchains(zephyrDir?: string): Promise<{ sdkVersion: string | undefined; toolchains: string[] } | null> {
-    const title = "Install Zephyr SDK";
+    const title = vscode.l10n.t("Install Zephyr SDK");
 
     type State = {
         sdkVersion?: string | undefined;
@@ -844,7 +844,7 @@ async function selectSDKVersionAndToolchains(zephyrDir?: string): Promise<{ sdkV
                 title,
                 step: 1,
                 totalSteps: 2,
-                placeholder: "Select SDK version to install",
+                placeholder: vscode.l10n.t("Select SDK version to install"),
                 ignoreFocusOut: true,
                 items: sdkVersions,
             });
@@ -855,11 +855,11 @@ async function selectSDKVersionAndToolchains(zephyrDir?: string): Promise<{ sdkV
                     : undefined;
                 if (!detectedVersion) {
                     notifyError("SDK Install",
-                        "Could not auto-detect SDK version from workspace. Please select a specific version."
+                        vscode.l10n.t("Could not auto-detect SDK version from workspace. Please select a specific version.")
                     );
                     continue;
                 }
-                void vscode.window.showInformationMessage(`Auto-detected SDK version: ${detectedVersion}`);
+                void vscode.window.showInformationMessage(vscode.l10n.t("Auto-detected SDK version: {0}", detectedVersion));
                 state.sdkVersion = detectedVersion;
             } else if (selected.label === "latest") {
                 state.sdkVersion = undefined;
@@ -873,19 +873,19 @@ async function selectSDKVersionAndToolchains(zephyrDir?: string): Promise<{ sdkV
     }
 
     async function pickInstallChoice(input: MultiStepInput) {
-        const installAllOption = { label: "Install All Toolchains", description: "Install all available toolchains" };
-        const selectSpecificOption = { label: "Select Specific Toolchains", description: "Choose which toolchains to install" };
+        const installAllOption = { label: vscode.l10n.t("Install All Toolchains"), description: vscode.l10n.t("Install all available toolchains") };
+        const selectSpecificOption = { label: vscode.l10n.t("Select Specific Toolchains"), description: vscode.l10n.t("Choose which toolchains to install") };
 
         const selected = await input.showQuickPick({
             title,
             step: 2,
             totalSteps: 3,
-            placeholder: "Choose toolchain installation option",
+            placeholder: vscode.l10n.t("Choose toolchain installation option"),
             ignoreFocusOut: true,
             items: [installAllOption, selectSpecificOption],
         });
 
-        if (selected.label === "Install All Toolchains") {
+        if (selected.label === vscode.l10n.t("Install All Toolchains")) {
             state.toolchains = ["all"];
             return;
         }
@@ -897,7 +897,7 @@ async function selectSDKVersionAndToolchains(zephyrDir?: string): Promise<{ sdkV
             title,
             step: 3,
             totalSteps: 3,
-            placeholder: "Select toolchains to install (toggle then press Enter)",
+            placeholder: vscode.l10n.t("Select toolchains to install (toggle then press Enter)"),
             ignoreFocusOut: true,
             items: toolchainTargets.filter(item => item.kind !== vscode.QuickPickItemKind.Separator),
         });
@@ -915,8 +915,8 @@ async function selectSDKVersionAndToolchains(zephyrDir?: string): Promise<{ sdkV
 }
 
 async function selectToolchainsWithoutVersionStep(titlePrefix: string): Promise<string[] | null> {
-    const installAllOption = { label: "Install All Toolchains", description: "Install all available toolchains for this version" };
-    const selectSpecificOption = { label: "Select Specific Toolchains", description: "Choose which toolchains to install" };
+    const installAllOption = { label: vscode.l10n.t("Install All Toolchains"), description: vscode.l10n.t("Install all available toolchains for this version") };
+    const selectSpecificOption = { label: vscode.l10n.t("Select Specific Toolchains"), description: vscode.l10n.t("Choose which toolchains to install") };
 
     let toolchains: string[] | null = null;
 
@@ -925,12 +925,12 @@ async function selectToolchainsWithoutVersionStep(titlePrefix: string): Promise<
             title: titlePrefix,
             step: 1,
             totalSteps: 2,
-            placeholder: "Choose toolchain installation option",
+            placeholder: vscode.l10n.t("Choose toolchain installation option"),
             ignoreFocusOut: true,
             items: [installAllOption, selectSpecificOption],
         });
 
-        if (choice.label === "Install All Toolchains") {
+        if (choice.label === vscode.l10n.t("Install All Toolchains")) {
             toolchains = ["all"];
             return;
         }
@@ -940,7 +940,7 @@ async function selectToolchainsWithoutVersionStep(titlePrefix: string): Promise<
                 title: titlePrefix,
                 step: 2,
                 totalSteps: 2,
-                placeholder: "Select toolchains to install (toggle then press Enter)",
+                placeholder: vscode.l10n.t("Select toolchains to install (toggle then press Enter)"),
                 ignoreFocusOut: true,
                 items: toolchainTargets.filter(item => item.kind !== vscode.QuickPickItemKind.Separator),
             });
@@ -959,10 +959,10 @@ async function selectToolchainsWithoutVersionStep(titlePrefix: string): Promise<
 
 export async function installSDKInteractive(wsConfig: WorkspaceConfig, globalConfig: GlobalConfig, context?: vscode.ExtensionContext) {
     const tracker = new SetupProgressTracker("SDK Installation", [
-        { id: 'version', label: 'Selecting SDK version' },
-        { id: 'toolchains', label: 'Selecting toolchains' },
-        { id: 'install', label: 'Downloading and installing SDK' },
-        { id: 'verify', label: 'Verifying installation' },
+        { id: 'version', label: vscode.l10n.t("Selecting SDK version") },
+        { id: 'toolchains', label: vscode.l10n.t("Selecting toolchains") },
+        { id: 'install', label: vscode.l10n.t("Downloading and installing SDK") },
+        { id: 'verify', label: vscode.l10n.t("Verifying installation") },
     ], _onSDKProgress);
 
     try {
@@ -987,7 +987,7 @@ export async function installSDKInteractive(wsConfig: WorkspaceConfig, globalCon
 
         tracker.startStep('install', 'Starting...');
         return await vscode.window.withProgress(
-            { location: vscode.ProgressLocation.Notification, title: "Installing Zephyr SDK", cancellable: false },
+            { location: vscode.ProgressLocation.Notification, title: vscode.l10n.t("Installing Zephyr SDK"), cancellable: false },
             async (progress) => {
                 const result = await installSDK(sdkVersion, toolchains, (msg) => {
                     progress.report({ message: msg });
@@ -1006,11 +1006,11 @@ export async function installSDKInteractive(wsConfig: WorkspaceConfig, globalCon
                     if (context) { await setGlobalState(context, globalConfig); }
                     tracker.completeStep('verify', `SDK ${globalConfig.sdkVersion || ''} ready`);
                     tracker.complete('Zephyr SDK installed successfully!');
-                    void vscode.window.showInformationMessage("Zephyr SDK installed successfully!");
+                    void vscode.window.showInformationMessage(vscode.l10n.t("Zephyr SDK installed successfully!"));
                 } else {
                     tracker.failStep('install', 'SDK installation failed');
                     tracker.fail('SDK installation failed. Check the Output panel for details.');
-                    notifyError("SDK Install", "Failed to install SDK");
+                    notifyError("SDK Install", vscode.l10n.t("Failed to install SDK"));
                 }
                 return result;
             }
@@ -1020,7 +1020,7 @@ export async function installSDKInteractive(wsConfig: WorkspaceConfig, globalCon
         if (!tracker.failInProgressSteps(`Error: ${error}`)) {
             tracker.fail(`Error: ${error}`);
         }
-        notifyError("SDK Install", `Failed to install SDK: ${error}`);
+        notifyError("SDK Install", vscode.l10n.t("Failed to install SDK: {0}", String(error)));
     }
 }
 
@@ -1031,14 +1031,14 @@ export async function installToolchainsDirect(
     toolchains: string[],
 ): Promise<boolean> {
     const tracker = new SetupProgressTracker(`SDK ${version} — Install Toolchains`, [
-        { id: 'install', label: 'Downloading and installing toolchains' },
-        { id: 'verify', label: 'Verifying installation' },
+        { id: 'install', label: vscode.l10n.t("Downloading and installing toolchains") },
+        { id: 'verify', label: vscode.l10n.t("Verifying installation") },
     ], _onSDKProgress);
 
     try {
         tracker.startStep('install', `Installing ${toolchains.join(', ')}...`);
         const result = await vscode.window.withProgress(
-            { location: vscode.ProgressLocation.Notification, title: `Adding toolchains to SDK ${version}`, cancellable: false },
+            { location: vscode.ProgressLocation.Notification, title: vscode.l10n.t("Adding toolchains to SDK {0}", version), cancellable: false },
             async (progress) => installSDK(version, toolchains, (msg) => {
                 progress.report({ message: msg });
                 tracker.updateStep('install', msg);
@@ -1053,7 +1053,7 @@ export async function installToolchainsDirect(
             if (context) { await setGlobalState(context, globalConfig); }
             tracker.completeStep('verify', `SDK ${version} toolchains ready`);
             tracker.complete(`Toolchains added to SDK ${version} successfully!`);
-            void vscode.window.showInformationMessage(`Toolchains added to SDK ${version} successfully!`);
+            void vscode.window.showInformationMessage(vscode.l10n.t("Toolchains added to SDK {0} successfully!", version));
         } else {
             tracker.failStep('install', 'Toolchain installation failed');
             tracker.fail('Toolchain installation failed. Check the Output panel for details.');
@@ -1141,14 +1141,14 @@ export async function installSDKToolchainsInteractive(
     }
 
     const tracker = new SetupProgressTracker(`SDK ${prefilledVersion} Toolchains`, [
-        { id: 'install', label: 'Downloading and installing toolchains' },
-        { id: 'verify', label: 'Verifying installation' },
+        { id: 'install', label: vscode.l10n.t("Downloading and installing toolchains") },
+        { id: 'verify', label: vscode.l10n.t("Verifying installation") },
     ], _onSDKProgress);
 
     try {
         tracker.startStep('install', 'Starting download...');
         const result = await vscode.window.withProgress(
-            { location: vscode.ProgressLocation.Notification, title: `Adding toolchains to SDK ${prefilledVersion}`, cancellable: false },
+            { location: vscode.ProgressLocation.Notification, title: vscode.l10n.t("Adding toolchains to SDK {0}", prefilledVersion), cancellable: false },
             async (progress) => installSDK(prefilledVersion, toolchains, (msg) => {
                 progress.report({ message: msg });
                 tracker.updateStep('install', msg);
@@ -1163,17 +1163,17 @@ export async function installSDKToolchainsInteractive(
             if (context) { await setGlobalState(context, globalConfig); }
             tracker.completeStep('verify', `SDK ${prefilledVersion} toolchains ready`);
             tracker.complete(`Toolchains added to SDK ${prefilledVersion} successfully!`);
-            void vscode.window.showInformationMessage(`Toolchains added to SDK ${prefilledVersion} successfully!`);
+            void vscode.window.showInformationMessage(vscode.l10n.t("Toolchains added to SDK {0} successfully!", prefilledVersion));
         } else {
             tracker.failStep('install', 'Toolchain installation failed');
             tracker.fail('Toolchain installation failed. Check the Output panel for details.');
-            notifyError("SDK Install", `Failed to add toolchains to SDK ${prefilledVersion}`);
+            notifyError("SDK Install", vscode.l10n.t("Failed to add toolchains to SDK {0}", prefilledVersion));
         }
     } catch (error) {
         outputError("SDK Install", `SDK toolchain installation threw an error: ${error}`);
         if (!tracker.failInProgressSteps(`Error: ${error}`)) {
             tracker.fail(`Error: ${error}`);
         }
-        notifyError("SDK Install", `Failed to add toolchains: ${error}`);
+        notifyError("SDK Install", vscode.l10n.t("Failed to add toolchains: {0}", String(error)));
     }
 }

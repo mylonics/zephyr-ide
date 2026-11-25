@@ -399,67 +399,67 @@ export function getAvailableVariableCommands(): VariableCommandInfo[] {
   return [
     {
       command: "${command:zephyr-ide.get-active-project-name}",
-      description: "Active project name",
+      description: vscode.l10n.t("Active project name"),
       example: "my_project",
     },
     {
       command: "${command:zephyr-ide.get-active-project-path}",
-      description: "Absolute path to active project folder",
+      description: vscode.l10n.t("Absolute path to active project folder"),
       example: "/workspace/my_project",
     },
     {
       command: "${command:zephyr-ide.get-active-build-path}",
-      description: "Absolute path to active build output directory",
+      description: vscode.l10n.t("Absolute path to active build output directory"),
       example: "/workspace/my_project/build_debug",
     },
     {
       command: "${command:zephyr-ide.get-active-build-board-path}",
-      description: "Absolute board path for active build",
+      description: vscode.l10n.t("Absolute board path for active build"),
       example: "/zephyr/boards/arm/nucleo_f401re",
     },
     {
       command: "${command:zephyr-ide.get-gdb-path}",
-      description: "Path to GDB executable (from CMakeCache)",
+      description: vscode.l10n.t("Path to GDB executable (from CMakeCache)"),
       example: "/sdk/arm-zephyr-eabi/bin/arm-zephyr-eabi-gdb",
     },
     {
       command: "${command:zephyr-ide.get-arm-gdb-path}",
-      description: "Path to ARM GDB without Python support",
+      description: vscode.l10n.t("Path to ARM GDB without Python support"),
       example: "/sdk/arm-zephyr-eabi/bin/arm-zephyr-eabi-gdb",
     },
     {
       command: "${command:zephyr-ide.get-zephyr-elf}",
-      description: "Full path to the built Zephyr ELF file",
+      description: vscode.l10n.t("Full path to the built Zephyr ELF file"),
       example: "/workspace/my_project/build/zephyr/zephyr.elf",
     },
     {
       command: "${command:zephyr-ide.get-zephyr-elf-dir}",
-      description: "Directory containing the Zephyr ELF file",
+      description: vscode.l10n.t("Directory containing the Zephyr ELF file"),
       example: "/workspace/my_project/build/zephyr",
     },
     {
       command: "${command:zephyr-ide.get-toolchain-path}",
-      description: "Path to the toolchain directory",
+      description: vscode.l10n.t("Path to the toolchain directory"),
       example: "/sdk/zephyr-sdk-0.16.3",
     },
     {
       command: "${command:zephyr-ide.get-zephyr-dir}",
-      description: "Zephyr installation directory",
+      description: vscode.l10n.t("Zephyr installation directory"),
       example: "/workspace/zephyr",
     },
     {
       command: "${command:zephyr-ide.get-zephyr-ide-json-variable}",
-      description: "Read a workspace-level custom variable from zephyr-ide.json",
+      description: vscode.l10n.t("Read a workspace-level custom variable from zephyr-ide.json"),
       example: 'Use with inputs: { "command": "zephyr-ide.get-zephyr-ide-json-variable", "args": "my_var" }',
     },
     {
       command: "${command:zephyr-ide.get-active-project-variable}",
-      description: "Read a project-level custom variable",
+      description: vscode.l10n.t("Read a project-level custom variable"),
       example: 'Use with inputs: { "command": "zephyr-ide.get-active-project-variable", "args": "my_var" }',
     },
     {
       command: "${command:zephyr-ide.get-active-build-variable}",
-      description: "Read a build-level custom variable",
+      description: vscode.l10n.t("Read a build-level custom variable"),
       example: 'Use with inputs: { "command": "zephyr-ide.get-active-build-variable", "args": "bmp_port" }',
     },
   ];

@@ -137,13 +137,13 @@ export async function buildHelper(
       await addBuild(wsConfig, context);
       buildName = getResolvedBuildName(wsConfig, resolved);
       if (buildName === undefined) {
-        notifyError("Build", `You must choose a Build Configuration to continue.`);
+        notifyError("Build", vscode.l10n.t("You must choose a Build Configuration to continue."));
         return;
       }
     }
     return await build(context, wsConfig, project, project.buildConfigs[buildName], pristine);
   } else {
-    notifyError("Build", "Run `Zephyr IDE: West Update` command first.");
+    notifyError("Build", vscode.l10n.t("Run `Zephyr IDE: West Update` command first."));
   }
 }
 
@@ -156,7 +156,7 @@ export enum MenuConfig {
 export async function buildByName(context: vscode.ExtensionContext, wsConfig: WorkspaceConfig, pristine: boolean, projectName: string, buildName: string, isMenuConfig = MenuConfig.None) {
   const project = wsConfig.projects[projectName];
   if (!project) {
-    notifyError("Build", "Invalid project or build");
+    notifyError("Build", vscode.l10n.t("Invalid project or build"));
     return;
   }
   const buildconfig = project.buildConfigs[buildName];
@@ -167,7 +167,7 @@ export async function buildByName(context: vscode.ExtensionContext, wsConfig: Wo
       await build(context, wsConfig, project, buildconfig, pristine);
     }
   } else {
-    notifyError("Build", "Invalid project or build");
+    notifyError("Build", vscode.l10n.t("Invalid project or build"));
   }
 }
 
@@ -389,7 +389,7 @@ export async function buildMenuConfig(
   const projectFolder = getProjectFolder(wsConfig, project);
   const buildFolder = getBuildFolder(wsConfig, project, build);
   if (!isBuildFolderPopulated(buildFolder)) {
-    notifyError("Menu Config", `Run a Build or Build Pristine before running Menu/GUI Config.`);
+    notifyError("Menu Config", vscode.l10n.t("Run a Build or Build Pristine before running Menu/GUI Config."));
     return;
   }
 
@@ -429,7 +429,7 @@ async function resolveRamRomReportParams(
 
   const buildFolder = getBuildFolder(wsConfig, project, build);
   if (!isBuildFolderPopulated(buildFolder)) {
-    notifyError("RAM/ROM Report", `Run a Build or Build Pristine before running ${reportType} Report.`);
+    notifyError("RAM/ROM Report", vscode.l10n.t("Run a Build or Build Pristine before running {0} Report.", reportType));
     return undefined;
   }
 
@@ -504,7 +504,7 @@ export async function buildDashboardReport(
 
   const buildFolder = getBuildFolder(wsConfig, project, build);
   if (!isBuildFolderPopulated(buildFolder)) {
-    notifyError("Dashboard Report", "Run a Build or Build Pristine before generating the Dashboard Report.");
+    notifyError("Dashboard Report", vscode.l10n.t("Run a Build or Build Pristine before generating the Dashboard Report."));
     return undefined;
   }
 
@@ -521,7 +521,7 @@ export async function buildDashboardReport(
   );
   const succeeded = await executeTaskHelperInPythonEnv(setupState, taskName, cmd, setupState.setupPath);
   if (!succeeded) {
-    notifyError("Dashboard Report", `Dashboard report failed for ${project.name}/${build.name}. Check the task output for details.`);
+    notifyError("Dashboard Report", vscode.l10n.t("Dashboard report failed for {0}/{1}. Check the task output for details.", project.name, build.name));
     return undefined;
   }
 
@@ -543,7 +543,7 @@ export async function buildDashboard(
 
   const buildFolder = getBuildFolder(wsConfig, project, build);
   if (!isBuildFolderPopulated(buildFolder)) {
-    notifyError("Dashboard", `Run a Build or Build Pristine before opening the Dashboard.`);
+    notifyError("Dashboard", vscode.l10n.t("Run a Build or Build Pristine before opening the Dashboard."));
     return undefined;
   }
 
@@ -645,7 +645,7 @@ export async function clean(wsConfig: WorkspaceConfig, projectName: string | und
   // Drop cached runners.yaml entries — the file is gone, and stat-based
   // invalidation would only fire on the next debug session.
   invalidateRunnersYamlCache(buildFolder);
-  void vscode.window.showInformationMessage(`Cleaning ${resolved.project.relPath}`);
+  void vscode.window.showInformationMessage(vscode.l10n.t("Cleaning {0}", resolved.project.relPath));
 }
 
 export async function getBuildInfo(wsConfig: WorkspaceConfig,

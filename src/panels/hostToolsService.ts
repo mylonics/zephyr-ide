@@ -285,7 +285,7 @@ export class HostToolsService {
   async enableLongPaths(): Promise<void> {
     const success = await enableWindowsLongPaths();
     if (success) {
-      void vscode.window.showInformationMessage('Windows long path support has been enabled. No restart is required.');
+      void vscode.window.showInformationMessage(vscode.l10n.t("Windows long path support has been enabled. No restart is required."));
     } else {
       void vscode.window.showErrorMessage(
         'Could not enable Windows long path support. The UAC prompt may have been cancelled. ' +
@@ -312,12 +312,12 @@ export class HostToolsService {
       this.post('sevenZipInstalled', { success, available });
       if (success) {
         if (!available) {
-          notifyWarning('Host Tools', '7-Zip was installed but may not be on PATH yet. Close and reopen VS Code for it to take effect.');
+          notifyWarning('Host Tools', vscode.l10n.t("7-Zip was installed but may not be on PATH yet. Close and reopen VS Code for it to take effect."));
         } else {
-          void vscode.window.showInformationMessage('7-Zip installed successfully.');
+          void vscode.window.showInformationMessage(vscode.l10n.t("7-Zip installed successfully."));
         }
       } else {
-        notifyError('Host Tools', 'Failed to install 7-Zip.');
+        notifyError('Host Tools', vscode.l10n.t("Failed to install 7-Zip."));
       }
     });
   }
@@ -338,16 +338,16 @@ export class HostToolsService {
 
           if (!managerAvailable) {
             notifyWarning(this.config.errorLabel,
-              'Package manager was installed but is not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect.'
+              vscode.l10n.t("Package manager was installed but is not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect.")
             );
           } else {
-            void vscode.window.showInformationMessage('Package manager installed successfully.');
+            void vscode.window.showInformationMessage(vscode.l10n.t("Package manager installed successfully."));
           }
         } else {
-          notifyError(this.config.errorLabel, 'Failed to install package manager. Check output for details.');
+          notifyError(this.config.errorLabel, vscode.l10n.t("Failed to install package manager. Check output for details."));
         }
       } catch (error) {
-        notifyError(this.config.errorLabel, `Package manager installation error: ${error}`);
+        notifyError(this.config.errorLabel, vscode.l10n.t("Package manager installation error: {0}", String(error)));
       }
     });
   }
@@ -359,7 +359,7 @@ export class HostToolsService {
         const pkg = packages.find(p => p.name === packageName);
 
         if (!pkg) {
-          notifyError(this.config.errorLabel, `Package ${packageName} not found`);
+          notifyError(this.config.errorLabel, vscode.l10n.t("Package {0} not found", packageName));
           return;
         }
 
@@ -401,19 +401,19 @@ export class HostToolsService {
         if (success) {
           if (pendingRestart) {
             notifyWarning(this.config.errorLabel,
-              `${packageName} was installed but is not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect.`
+              vscode.l10n.t("{0} was installed but is not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect.", packageName)
             );
           } else {
-            void vscode.window.showInformationMessage(`${packageName} installed successfully.`);
+            void vscode.window.showInformationMessage(vscode.l10n.t("{0} installed successfully.", packageName));
             // A successful install where the package is now available may have
             // completed the host-tools requirement; auto-flip toolsAvailable.
             await this.maybeMarkToolsAvailable();
           }
         } else {
-          notifyError(this.config.errorLabel, `Failed to install ${packageName}. Check output for details.`);
+          notifyError(this.config.errorLabel, vscode.l10n.t("Failed to install {0}. Check output for details.", packageName));
         }
       } catch (error) {
-        notifyError(this.config.errorLabel, `Package installation error: ${error}`);
+        notifyError(this.config.errorLabel, vscode.l10n.t("Package installation error: {0}", String(error)));
       }
     });
   }
@@ -422,7 +422,7 @@ export class HostToolsService {
     try {
       this.post(HOST_TOOLS_COMMANDS.startInstallAll);
     } catch (error) {
-      notifyError(this.config.errorLabel, `Install all error: ${error}`);
+      notifyError(this.config.errorLabel, vscode.l10n.t("Install all error: {0}", String(error)));
     }
   }
 
@@ -430,7 +430,7 @@ export class HostToolsService {
     await this.runExclusive(async () => {
       try {
         if (packageNames.length === 0) {
-          void vscode.window.showInformationMessage('All packages are already installed');
+          void vscode.window.showInformationMessage(vscode.l10n.t("All packages are already installed"));
           return;
         }
 
@@ -514,12 +514,12 @@ export class HostToolsService {
 
           if (needsRestart) {
             notifyWarning(this.config.errorLabel,
-              'Some packages were installed but are not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect.'
+              vscode.l10n.t("Some packages were installed but are not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect.")
             );
           } else if (!hasErrors) {
-            void vscode.window.showInformationMessage('All missing packages installed successfully.');
+            void vscode.window.showInformationMessage(vscode.l10n.t("All missing packages installed successfully."));
           } else {
-            notifyWarning(this.config.errorLabel, 'Some host tools failed to install. Check the output for details.');
+            notifyWarning(this.config.errorLabel, vscode.l10n.t("Some host tools failed to install. Check the output for details."));
           }
 
           await this.maybeMarkToolsAvailable();
@@ -584,12 +584,12 @@ export class HostToolsService {
 
         if (needsRestart) {
           notifyWarning(this.config.errorLabel,
-            'Some packages were installed but are not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect.'
+            vscode.l10n.t("Some packages were installed but are not yet available. Please close and reopen VS Code completely (not just reload) for changes to take effect.")
           );
         } else if (!hasErrors) {
-          void vscode.window.showInformationMessage('All missing packages installed successfully.');
+          void vscode.window.showInformationMessage(vscode.l10n.t("All missing packages installed successfully."));
         } else {
-          notifyWarning(this.config.errorLabel, 'Some host tools failed to install. Check the output for details.');
+          notifyWarning(this.config.errorLabel, vscode.l10n.t("Some host tools failed to install. Check the output for details."));
         }
 
         // After the batch, see if all tools are available now and auto-flip the
@@ -600,7 +600,7 @@ export class HostToolsService {
           await this.checkStatusCore();
         }
       } catch (error) {
-        notifyError(this.config.errorLabel, `Batch installation error: ${error}`);
+        notifyError(this.config.errorLabel, vscode.l10n.t("Batch installation error: {0}", String(error)));
         this.post(HOST_TOOLS_COMMANDS.installAllComplete, {
           needsRestart: false,
           hasErrors: true,
@@ -615,7 +615,7 @@ export class HostToolsService {
     globalConfig: GlobalConfig | undefined
   ): Promise<void> {
     if (!wsConfig || !globalConfig) {
-      notifyError(this.config.errorLabel, 'Configuration not available');
+      notifyError(this.config.errorLabel, vscode.l10n.t("Configuration not available"));
       return;
     }
 

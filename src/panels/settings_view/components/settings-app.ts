@@ -15,6 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import { panelText } from "../../webview_shared/panel-text";
 import { html, nothing } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { ZephyrLitElement } from "../../webview_shared/lit-base";
@@ -36,7 +37,7 @@ interface SettingState {
 }
 
 function formatValue(value: boolean | string | null): string {
-  if (value === null || value === undefined) { return "(not set)"; }
+  if (value === null || value === undefined) { return panelText("(not set)"); }
   if (typeof value === "boolean") { return value ? "true" : "false"; }
   return `"${value}"`;
 }
@@ -131,17 +132,17 @@ export class SettingsApp extends ZephyrLitElement {
 
   render() {
     if (this._settings.length === 0) {
-      return html`<div class="container"><p>Loading…</p></div>`;
+      return html`<div class="container"><p>${panelText("Loading…")}</p></div>`;
     }
 
     const sections: { title: string; settings: SettingState[] }[] = [
       {
-        title: "Directory Settings",
+        title: panelText("Directory Settings"),
         settings: this._settings.filter(s =>
           s.type === "string" && s.key !== "zephyr-ide.scaCustomVariant"),
       },
       {
-        title: "General Settings",
+        title: panelText("General Settings"),
         settings: this._settings.filter(s => [
           "zephyr-ide.activeViewKconfigButton",
           "zephyr-ide.projectViewKconfigButton",
@@ -151,15 +152,15 @@ export class SettingsApp extends ZephyrLitElement {
         ].includes(s.key)),
       },
       {
-        title: "Status Bar",
+        title: panelText("Status Bar"),
         settings: this._settings.filter(s => s.key.startsWith("zephyr-ide.statusBar.")),
       },
       {
-        title: "Active Project View",
+        title: panelText("Active Project View"),
         settings: this._settings.filter(s => s.key.startsWith("zephyr-ide.activeProjectPanel.")),
       },
       {
-        title: "West Update Settings",
+        title: panelText("West Update Settings"),
         settings: this._settings.filter(s => [
           "zephyr-ide.westNarrowUpdate",
           "zephyr-ide.westKeepDescendants",
@@ -167,7 +168,7 @@ export class SettingsApp extends ZephyrLitElement {
         ].includes(s.key)),
       },
       {
-        title: "Workspace & Tooling",
+        title: panelText("Workspace & Tooling"),
         settings: this._settings.filter(s => [
           "zephyr-ide.suppressWorkspaceWarning",
           "zephyr-ide.disableZephyrBaseInjection",
@@ -176,7 +177,7 @@ export class SettingsApp extends ZephyrLitElement {
         ].includes(s.key)),
       },
       {
-        title: "Static Code Analysis",
+        title: panelText("Static Code Analysis"),
         settings: this._settings.filter(s => [
           "zephyr-ide.scaVariant",
           "zephyr-ide.scaCustomVariant",
@@ -192,25 +193,24 @@ export class SettingsApp extends ZephyrLitElement {
     return html`
       <div class="container">
         <div class="breadcrumb">
-          <a class="breadcrumb-link" @click=${() => this.postCommand("openSetupPanel")}>← Setup & Configuration</a>
+          <a class="breadcrumb-link" @click=${() => this.postCommand("openSetupPanel")}>${panelText("← Setup & Configuration")}</a>
           <span class="breadcrumb-separator">/</span>
-          <span class="breadcrumb-current">Settings</span>
+          <span class="breadcrumb-current">${panelText("Settings")}</span>
         </div>
         <div class="page-header">
           <div>
-            <h1 class="page-title">Zephyr IDE Settings</h1>
-            <p class="page-subtitle">Manage extension defaults and workspace overrides.</p>
+            <h1 class="page-title">${panelText("Zephyr IDE Settings")}</h1>
+            <p class="page-subtitle">${panelText("Manage extension defaults and workspace overrides.")}</p>
           </div>
           <div class="page-actions">
             <vscode-button appearance="secondary" @click=${() => this.postCommand("openVsCodeSettings")}>
-              Open in VS Code Settings
+              ${panelText("Open in VS Code Settings")}
             </vscode-button>
           </div>
         </div>
 
         <div class="info-box">
-          <p>Configure Zephyr IDE extension settings. Changes are saved automatically.
-          Use the scope selector to choose whether a setting applies to this workspace only or to all workspaces (User).</p>
+          <p>${panelText("Configure Zephyr IDE extension settings. Changes are saved automatically. Use the scope selector to choose whether a setting applies to this workspace only or to all workspaces (User).")}</p>
         </div>
 
         ${sections.map((section, sectionIndex) => html`
@@ -236,15 +236,15 @@ export class SettingsApp extends ZephyrLitElement {
       ${showWarning
         ? html`<div class="setting-override-warning">
             <span class="codicon codicon-warning"></span>
-            <span class="override-warning-text">A workspace setting (${formatValue(setting.workspaceValue)}) overrides this user value. Changes to the user setting will not take effect in this workspace.</span>
+            <span class="override-warning-text">${panelText("A workspace setting (")}${formatValue(setting.workspaceValue)}${panelText(") overrides this user value. Changes to the user setting will not take effect in this workspace.")}</span>
           </div>`
         : nothing}
       ${showInfo
         ? html`<div class="setting-override-info">
-            <span class="override-info-label">User:</span> <span class="override-info-value">${formatValue(setting.userValue)}</span>
+            <span class="override-info-label">${panelText("User:")}</span> <span class="override-info-value">${formatValue(setting.userValue)}</span>
             <span class="override-info-sep">|</span>
-            <span class="override-info-label">Workspace:</span> <span class="override-info-value">${formatValue(setting.workspaceValue)}</span>
-            <span class="override-info-note">(workspace wins)</span>
+            <span class="override-info-label">${panelText("Workspace:")}</span> <span class="override-info-value">${formatValue(setting.workspaceValue)}</span>
+            <span class="override-info-note">${panelText("(workspace wins)")}</span>
           </div>`
         : nothing}
     `;
@@ -267,21 +267,21 @@ export class SettingsApp extends ZephyrLitElement {
           <div class="input-group">
             <vscode-textfield
               .value=${currentVal}
-              placeholder="Not set (using default)"
+              placeholder="${panelText("Not set (using default)")}"
               @change=${(e: Event) => this._onStringInput(setting.key, e)}
             ></vscode-textfield>
-            <vscode-button class="setting-browse-button" appearance="secondary" title="Browse for folder"
-              @click=${() => this._onBrowse(setting.key)}>Browse</vscode-button>
+            <vscode-button class="setting-browse-button" appearance="secondary" title="${panelText("Browse for folder")}"
+              @click=${() => this._onBrowse(setting.key)}>${panelText("Browse")}</vscode-button>
           </div>
           <vscode-single-select class="setting-scope-select"
             .value=${targetScope}
             @change=${(e: Event) => this._onScopeChanged(setting.key, e)}>
-            <vscode-option value="workspace">Workspace</vscode-option>
-            <vscode-option value="user">User</vscode-option>
+            <vscode-option value="workspace">${panelText("Workspace")}</vscode-option>
+            <vscode-option value="user">${panelText("User")}</vscode-option>
           </vscode-single-select>
-          <vscode-button class="setting-reset-button" appearance="secondary" title="Reset to default"
+          <vscode-button class="setting-reset-button" appearance="secondary" title="${panelText("Reset to default")}"
             style=${setting.scope === "default" ? "display:none" : ""}
-            @click=${() => this._onReset(setting.key)}>Reset</vscode-button>
+            @click=${() => this._onReset(setting.key)}>${panelText("Reset")}</vscode-button>
         </div>
       </div>
     `;
@@ -304,18 +304,18 @@ export class SettingsApp extends ZephyrLitElement {
         <div class="setting-controls">
           <vscode-textfield
             .value=${currentVal}
-            placeholder="Not set"
+            placeholder="${panelText("Not set")}"
             @change=${(e: Event) => this._onStringInput(setting.key, e)}
           ></vscode-textfield>
           <vscode-single-select class="setting-scope-select"
             .value=${targetScope}
             @change=${(e: Event) => this._onScopeChanged(setting.key, e)}>
-            <vscode-option value="workspace">Workspace</vscode-option>
-            <vscode-option value="user">User</vscode-option>
+            <vscode-option value="workspace">${panelText("Workspace")}</vscode-option>
+            <vscode-option value="user">${panelText("User")}</vscode-option>
           </vscode-single-select>
-          <vscode-button class="setting-reset-button" appearance="secondary" title="Reset to default"
+          <vscode-button class="setting-reset-button" appearance="secondary" title="${panelText("Reset to default")}"
             style=${setting.scope === "default" ? "display:none" : ""}
-            @click=${() => this._onReset(setting.key)}>Reset</vscode-button>
+            @click=${() => this._onReset(setting.key)}>${panelText("Reset")}</vscode-button>
         </div>
       </div>
     `;
@@ -341,12 +341,12 @@ export class SettingsApp extends ZephyrLitElement {
           <vscode-single-select class="setting-scope-select"
             .value=${targetScope}
             @change=${(e: Event) => this._onScopeChanged(setting.key, e)}>
-            <vscode-option value="workspace">Workspace</vscode-option>
-            <vscode-option value="user">User</vscode-option>
+            <vscode-option value="workspace">${panelText("Workspace")}</vscode-option>
+            <vscode-option value="user">${panelText("User")}</vscode-option>
           </vscode-single-select>
-          <vscode-button class="setting-reset-button" appearance="secondary" title="Reset to default"
+          <vscode-button class="setting-reset-button" appearance="secondary" title="${panelText("Reset to default")}"
             style=${setting.scope === "default" ? "display:none" : ""}
-            @click=${() => this._onReset(setting.key)}>Reset</vscode-button>
+            @click=${() => this._onReset(setting.key)}>${panelText("Reset")}</vscode-button>
         </div>
       </div>
     `;
@@ -375,12 +375,12 @@ export class SettingsApp extends ZephyrLitElement {
           <vscode-single-select class="setting-scope-select"
             .value=${targetScope}
             @change=${(e: Event) => this._onScopeChanged(setting.key, e)}>
-            <vscode-option value="workspace">Workspace</vscode-option>
-            <vscode-option value="user">User</vscode-option>
+            <vscode-option value="workspace">${panelText("Workspace")}</vscode-option>
+            <vscode-option value="user">${panelText("User")}</vscode-option>
           </vscode-single-select>
-          <vscode-button class="setting-reset-button" appearance="secondary" title="Reset to default"
+          <vscode-button class="setting-reset-button" appearance="secondary" title="${panelText("Reset to default")}"
             style=${setting.scope === "default" ? "display:none" : ""}
-            @click=${() => this._onReset(setting.key)}>Reset</vscode-button>
+            @click=${() => this._onReset(setting.key)}>${panelText("Reset")}</vscode-button>
         </div>
       </div>
     `;

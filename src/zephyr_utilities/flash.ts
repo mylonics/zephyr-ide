@@ -81,7 +81,7 @@ function resolveFlashFromProfile(
 
   const profile = findRunnerProfile(effectiveName, loadRunnerProfiles(wsConfig));
   if (!profile) {
-    notifyError("Flash", `Runner profile not found: "${effectiveName}"`);
+    notifyError("Flash", vscode.l10n.t("Runner profile not found: \"{0}\"", effectiveName));
     return { runner: "default", args: "" };
   }
   // FlashBind only allows "auto" and "west-flash" — no launch kinds.

@@ -20,6 +20,7 @@ limitations under the License.
  * Used by both host-tool-install.ts (standalone panel) and setup-panel.ts (embedded).
  */
 
+import { panelText } from "./panel-text";
 import { WebviewApi, escapeHtml } from './webviewTypes';
 
 // ---------------------------------------------------------------------------
@@ -109,7 +110,7 @@ function getPackageDisplayInfo(
     return {
       itemClass: 'checking',
       statusClass: 'status-checking',
-      statusText: '<span class="codicon codicon-sync codicon-modifier-spin"></span> Checking',
+      statusText: `<span class="codicon codicon-sync codicon-modifier-spin"></span> ${escapeHtml(panelText("Checking"))}`,
       showInstallButton: false,
     };
   }
@@ -117,7 +118,7 @@ function getPackageDisplayInfo(
     return {
       itemClass: 'installing',
       statusClass: 'status-installing',
-      statusText: '<span class="codicon codicon-sync codicon-modifier-spin"></span> Installing',
+      statusText: `<span class="codicon codicon-sync codicon-modifier-spin"></span> ${escapeHtml(panelText("Installing"))}`,
       showInstallButton: false,
     };
   }
@@ -125,7 +126,7 @@ function getPackageDisplayInfo(
     return {
       itemClass: 'pending-restart',
       statusClass: 'status-pending-restart',
-      statusText: '<span class="codicon codicon-warning"></span> Not Available Pending Restart',
+      statusText: `<span class="codicon codicon-warning"></span> ${escapeHtml(panelText("Not Available Pending Restart"))}`,
       showInstallButton: false,
     };
   }
@@ -133,14 +134,14 @@ function getPackageDisplayInfo(
     return {
       itemClass: 'available',
       statusClass: 'status-available',
-      statusText: '✓ Installed',
+      statusText: escapeHtml(panelText("✓ Installed")),
       showInstallButton: false,
     };
   }
   return {
     itemClass: 'missing',
     statusClass: 'status-missing',
-    statusText: '✗ Not Available',
+    statusText: escapeHtml(panelText("✗ Not Available")),
     showInstallButton: managerAvailable,
   };
 }
@@ -313,7 +314,7 @@ export class HostToolsClient {
     const installAllBtn = document.getElementById('install-all-btn');
     if (installAllBtn) {
       installAllBtn.setAttribute('disabled', '');
-      installAllBtn.innerHTML = `<vscode-icon slot="start-icon" name="loading" spin></vscode-icon> Installing Packages (0/${total})`;
+      installAllBtn.innerHTML = `<vscode-icon slot="start-icon" name="loading" spin></vscode-icon> ${escapeHtml(panelText("Installing Packages ({0}/{1})", 0, total))}`;
     }
 
     this.disableAllButtons(true);
@@ -327,11 +328,11 @@ export class HostToolsClient {
         // (e.g. one apt invocation) — a per-package counter would be
         // misleading since none has "finished" independently of the others.
         const totalNum = Number(total);
-        installAllBtn.innerHTML = `<vscode-icon slot="start-icon" name="loading" spin></vscode-icon> Installing ${totalNum} Package${totalNum === 1 ? '' : 's'}…`;
+        installAllBtn.innerHTML = `<vscode-icon slot="start-icon" name="loading" spin></vscode-icon> ${escapeHtml(panelText("Installing {0} package(s)…", totalNum))}`;
       } else if (total > 1) {
         const currentNum = Number(current);
         const totalNum = Number(total);
-        installAllBtn.innerHTML = `<vscode-icon slot="start-icon" name="loading" spin></vscode-icon> Installing Packages (${currentNum}/${totalNum})`;
+        installAllBtn.innerHTML = `<vscode-icon slot="start-icon" name="loading" spin></vscode-icon> ${escapeHtml(panelText("Installing Packages ({0}/{1})", currentNum, totalNum))}`;
       }
     }
 
@@ -367,11 +368,11 @@ export class HostToolsClient {
     const installAllBtn = document.getElementById('install-all-btn');
     if (installAllBtn) {
       if (needsRestart) {
-        installAllBtn.innerHTML = `<vscode-icon slot="start-icon" name="warning"></vscode-icon> Pending Restart`;
+        installAllBtn.innerHTML = `<vscode-icon slot="start-icon" name="warning"></vscode-icon> ${escapeHtml(panelText("Pending Restart"))}`;
       } else if (hasErrors) {
-        installAllBtn.innerHTML = `<vscode-icon slot="start-icon" name="error"></vscode-icon> Installation Failed`;
+        installAllBtn.innerHTML = `<vscode-icon slot="start-icon" name="error"></vscode-icon> ${escapeHtml(panelText("Installation Failed"))}`;
       } else {
-        installAllBtn.innerHTML = `<vscode-icon slot="start-icon" name="check"></vscode-icon> All Packages Installed`;
+        installAllBtn.innerHTML = `<vscode-icon slot="start-icon" name="check"></vscode-icon> ${escapeHtml(panelText("All Packages Installed"))}`;
       }
     }
 
@@ -497,7 +498,7 @@ export class HostToolsClient {
     if (managerStatus) {
       managerStatus.innerHTML = `
         <div class="error-state">
-          Error: ${escapeHtml(error)}
+          ${escapeHtml(panelText("Error:"))} ${escapeHtml(error)}
         </div>`;
     }
     const packagesStatus = document.getElementById('packages-status');
@@ -538,18 +539,18 @@ export class HostToolsClient {
         <div class="manager-info">
           <div>
             <div class="manager-name">${escapeHtml(data.managerName)}</div>
-            <div class="manager-type-label">Package Manager</div>
+            <div class="manager-type-label">${escapeHtml(panelText("Package Manager"))}</div>
           </div>
           <span class="status-badge ${data.managerAvailable ? 'status-available' : 'status-missing'}">
-            ${data.managerAvailable ? '✓ Available' : '✗ Not Available'}
+            ${data.managerAvailable ? escapeHtml(panelText("✓ Available")) : escapeHtml(panelText("✗ Not Available"))}
           </span>
         </div>
         ${!data.managerAvailable ? `
           <div class="manager-actions">
             ${data.managerInstallUrl
-              ? `<p>The ${escapeHtml(data.managerName)} package manager is required but not installed.</p>
-                 <vscode-button data-action="openManagerInstallUrl">Install ${escapeHtml(data.managerName)}</vscode-button>`
-              : `<vscode-button data-action="installPackageManager">Install ${escapeHtml(data.managerName)}</vscode-button>`
+              ? `<p>${escapeHtml(panelText("The {0} package manager is required but not installed.", data.managerName))}</p>
+                 <vscode-button data-action="openManagerInstallUrl">${escapeHtml(panelText("Install {0}", data.managerName))}</vscode-button>`
+              : `<vscode-button data-action="installPackageManager">${escapeHtml(panelText("Install {0}", data.managerName))}</vscode-button>`
             }
           </div>` : ''}
       </div>`;
@@ -568,9 +569,9 @@ export class HostToolsClient {
 
     let packagesHtml = `
       <div class="summary-box">
-        <div class="summary-item"><div class="summary-count available">${availableCount}</div><div class="summary-label">Available</div></div>
-        <div class="summary-item"><div class="summary-count missing">${actuallyMissing}</div><div class="summary-label">Not Available</div></div>
-        <div class="summary-item"><div class="summary-count">${totalCount}</div><div class="summary-label">Total</div></div>
+        <div class="summary-item"><div class="summary-count available">${availableCount}</div><div class="summary-label">${escapeHtml(panelText("Available"))}</div></div>
+        <div class="summary-item"><div class="summary-count missing">${actuallyMissing}</div><div class="summary-label">${escapeHtml(panelText("Not Available"))}</div></div>
+        <div class="summary-item"><div class="summary-count">${totalCount}</div><div class="summary-label">${escapeHtml(panelText("Total"))}</div></div>
       </div>
       <div class="package-list">`;
 
@@ -585,7 +586,7 @@ export class HostToolsClient {
           <div class="package-actions">
             <span class="status-badge ${info.statusClass}">${info.statusText}</span>
             ${info.showInstallButton
-              ? `<vscode-button class="install-inline-btn" appearance="secondary" data-action="installPackage" data-package="${escapeHtml(pkg.name)}">Install</vscode-button>`
+              ? `<vscode-button class="install-inline-btn" appearance="secondary" data-action="installPackage" data-package="${escapeHtml(pkg.name)}">${escapeHtml(panelText("Install"))}</vscode-button>`
               : ''}
           </div>
         </div>`;
@@ -617,18 +618,18 @@ export class HostToolsClient {
         // Checks still running — show a spinner label and keep the button disabled.
         installAllBtn.setAttribute('disabled', '');
         installAllBtn.removeAttribute('data-action');
-        installAllBtn.innerHTML = `<vscode-icon slot="start-icon" name="loading" spin></vscode-icon> Checking Packages\u2026`;
+        installAllBtn.innerHTML = `<vscode-icon slot="start-icon" name="loading" spin></vscode-icon> ${escapeHtml(panelText("Checking Packages…"))}`;
       } else if (actuallyMissing === 0) {
         // All tools are available — pivot the primary action button into a CTA
         // that takes the user to the next step instead of installing nothing.
         installAllBtn.removeAttribute('disabled');
         installAllBtn.setAttribute('data-action', 'navigateToSetup');
-        installAllBtn.innerHTML = `<vscode-icon slot="start-icon" name="arrow-right"></vscode-icon> Open Setup Panel`;
+        installAllBtn.innerHTML = `<vscode-icon slot="start-icon" name="arrow-right"></vscode-icon> ${escapeHtml(panelText("Open Setup Panel"))}`;
       } else {
         // Normal install mode — reset in case button was previously in CTA mode.
         installAllBtn.removeAttribute('data-action');
         installAllBtn.toggleAttribute('disabled', !(managerAvailable && !this.state.inProgress));
-        installAllBtn.innerHTML = `<vscode-icon slot="start-icon" name="cloud-download"></vscode-icon> Install All Missing Packages`;
+        installAllBtn.innerHTML = `<vscode-icon slot="start-icon" name="cloud-download"></vscode-icon> ${escapeHtml(panelText("Install All Missing Packages"))}`;
       }
     } else if (installAllBtn) {
       installAllBtn.setAttribute('disabled', '');
@@ -661,7 +662,7 @@ export class HostToolsClient {
       case 'checking':
         packageItem.classList.add('checking');
         statusBadge.classList.add('status-checking');
-        statusBadge.innerHTML = '<span class="codicon codicon-sync codicon-modifier-spin"></span> Checking';
+        statusBadge.innerHTML = `<span class="codicon codicon-sync codicon-modifier-spin"></span> ${escapeHtml(panelText("Checking"))}`;
         if (actionButtons) {
           const installBtn = actionButtons.querySelector('vscode-button') as HTMLElement | null;
           if (installBtn) { installBtn.style.display = 'none'; }
@@ -670,7 +671,7 @@ export class HostToolsClient {
       case 'installing':
         packageItem.classList.add('installing');
         statusBadge.classList.add('status-installing');
-        statusBadge.innerHTML = '<span class="codicon codicon-sync codicon-modifier-spin"></span> Installing';
+        statusBadge.innerHTML = `<span class="codicon codicon-sync codicon-modifier-spin"></span> ${escapeHtml(panelText("Installing"))}`;
         if (actionButtons) {
           const installBtn = actionButtons.querySelector('vscode-button') as HTMLElement | null;
           if (installBtn) { installBtn.style.display = 'none'; }
@@ -679,7 +680,7 @@ export class HostToolsClient {
       case 'installed':
         packageItem.classList.add('available');
         statusBadge.classList.add('status-available');
-        statusBadge.innerHTML = '✓ Installed';
+        statusBadge.innerHTML = escapeHtml(panelText("✓ Installed"));
         // Hide the inline Install button — the package is now available
         if (actionButtons) {
           const installBtn = actionButtons.querySelector('vscode-button') as HTMLElement | null;
@@ -689,13 +690,13 @@ export class HostToolsClient {
       case 'pending-restart':
         packageItem.classList.add('pending-restart');
         statusBadge.classList.add('status-pending-restart');
-        statusBadge.innerHTML = '<span class="codicon codicon-warning"></span> Not Available Pending Restart';
+        statusBadge.innerHTML = `<span class="codicon codicon-warning"></span> ${escapeHtml(panelText("Not Available Pending Restart"))}`;
         break;
       case 'error':
       default:
         packageItem.classList.add('missing');
         statusBadge.classList.add('status-missing');
-        statusBadge.innerHTML = '✗ Installation Failed';
+        statusBadge.innerHTML = escapeHtml(panelText("✗ Installation Failed"));
         break;
     }
   }

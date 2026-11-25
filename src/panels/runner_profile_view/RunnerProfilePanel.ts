@@ -15,6 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import { webviewMessages } from "../webview-messages";
 import * as vscode from "vscode";
 
 import { WorkspaceConfig, GlobalConfig } from "../../setup_utilities/types";
@@ -86,7 +87,7 @@ export class RunnerProfilePanel {
 
     const panel = vscode.window.createWebviewPanel(
       "zephyrIDERunnerProfiles",
-      "Zephyr IDE: Runner Profiles",
+      vscode.l10n.t("Zephyr IDE: Runner Profiles"),
       column || vscode.ViewColumn.One,
       {
         enableScripts: true,
@@ -263,18 +264,18 @@ export class RunnerProfilePanel {
     const scope = parseScope(message.scope);
     if (!scope) { return; }
     if (scope === "workspace" && !this._wsConfig.rootPath) {
-      notifyError("Runner Profile", "Open a workspace folder to add workspace-scoped profiles.");
+      notifyError("Runner Profile", vscode.l10n.t("Open a workspace folder to add workspace-scoped profiles."));
       return;
     }
     const suggested = suggestProfileName(this._wsConfig);
     const sameScopeNames = new Set(listRunnerProfilesByScope(this._wsConfig)[scope].map(p => p.name));
     const inputName = await vscode.window.showInputBox({
-      title: "New Runner Profile",
-      prompt: "Enter a name for the new runner profile",
+      title: vscode.l10n.t("New Runner Profile"),
+      prompt: vscode.l10n.t("Enter a name for the new runner profile"),
       value: suggested,
       validateInput: (v) => {
         const trimmed = v.trim();
-        if (!trimmed) { return "Profile name cannot be empty."; }
+        if (!trimmed) { return vscode.l10n.t("Profile name cannot be empty."); }
         if (sameScopeNames.has(trimmed)) { return `A profile named "${trimmed}" already exists in this scope.`; }
         return undefined;
       },
@@ -290,7 +291,7 @@ export class RunnerProfilePanel {
     try {
       await saveRunnerProfile(this._wsConfig, scope, profile);
     } catch (e) {
-      notifyError("Runner Profile", `Failed to create profile: ${String(e)}`);
+      notifyError("Runner Profile", vscode.l10n.t("Failed to create profile: {0}", String(e)));
       return;
     }
     this._pendingScrollTo = name;
@@ -302,12 +303,12 @@ export class RunnerProfilePanel {
     if (!scope) { return; }
     const profile = sanitizeIncomingProfile(message.profile);
     if (!profile) {
-      notifyError("Runner Profile", "Profile payload missing or invalid.");
+      notifyError("Runner Profile", vscode.l10n.t("Profile payload missing or invalid."));
       return;
     }
     const originalName = typeof message.originalName === "string" ? message.originalName.trim() : profile.name;
     if (!profile.name.trim()) {
-      notifyError("Runner Profile", "Profile name cannot be empty.");
+      notifyError("Runner Profile", vscode.l10n.t("Profile name cannot be empty."));
       await this.pushState();
       return;
     }
@@ -316,14 +317,14 @@ export class RunnerProfilePanel {
     const existing = listRunnerProfilesByScope(this._wsConfig);
     const list = scope === "user" ? existing.user : existing.workspace;
     if (profile.name !== originalName && list.some(p => p.name === profile.name)) {
-      notifyError("Runner Profile", `A profile named "${profile.name}" already exists in this scope.`);
+      notifyError("Runner Profile", vscode.l10n.t("A profile named \"{0}\" already exists in this scope.", profile.name));
       await this.pushState();
       return;
     }
     try {
       await saveRunnerProfile(this._wsConfig, scope, profile, originalName);
     } catch (e) {
-      notifyError("Runner Profile", `Failed to save profile: ${String(e)}`);
+      notifyError("Runner Profile", vscode.l10n.t("Failed to save profile: {0}", String(e)));
       await this.pushState();
       return;
     }
@@ -336,7 +337,7 @@ export class RunnerProfilePanel {
         await setWorkspaceState(this._context, this._wsConfig);
         const labels = refs.map(r => `${r.projectName} / ${r.buildName}${r.scope === "local" ? " (local)" : ""}`);
         void vscode.window.showInformationMessage(
-          `Renamed "${originalName}" to "${profile.name}". Updated ${refs.length} reference${refs.length === 1 ? "" : "s"}: ${labels.join(", ")}.`
+          vscode.l10n.t("Renamed \"{0}\" to \"{1}\". Updated {2} reference{3}: {4}.", originalName, profile.name, refs.length, refs.length === 1 ? "" : "s", labels.join(", "))
         );
       }
     }
@@ -357,15 +358,15 @@ export class RunnerProfilePanel {
       ? `These builds will fall back to runners.yaml defaults (unless a same-named profile still exists in the other scope):\n  - ${affected.join("\n  - ")}`
       : undefined;
     const answer = await vscode.window.showWarningMessage(
-      `Delete Runner Profile "${name}" from ${scope} scope?`,
+      vscode.l10n.t("Delete Runner Profile \"{0}\" from {1} scope?", name, scope),
       { modal: true, detail },
-      "Delete",
+      vscode.l10n.t("Delete"),
     );
-    if (answer !== "Delete") { return; }
+    if (answer !== vscode.l10n.t("Delete")) { return; }
     try {
       await deleteRunnerProfile(this._wsConfig, scope, name);
     } catch (e) {
-      notifyError("Runner Profile", `Failed to delete profile: ${String(e)}`);
+      notifyError("Runner Profile", vscode.l10n.t("Failed to delete profile: {0}", String(e)));
       await this.pushState();
       return;
     }
@@ -389,7 +390,7 @@ export class RunnerProfilePanel {
     const scope = parseScope(message.scope);
     if (!scope) { return; }
     if (scope === "workspace" && !this._wsConfig.rootPath) {
-      notifyError("Runner Profile", "Open a workspace folder to duplicate workspace-scoped profiles.");
+      notifyError("Runner Profile", vscode.l10n.t("Open a workspace folder to duplicate workspace-scoped profiles."));
       return;
     }
     const sourceName = typeof message.name === "string" ? message.name.trim() : "";
@@ -398,7 +399,7 @@ export class RunnerProfilePanel {
     const list = scope === "user" ? existing.user : existing.workspace;
     const source = list.find(p => p.name === sourceName);
     if (!source) {
-      notifyError("Runner Profile", `Source profile not found in ${scope} scope: "${sourceName}"`);
+      notifyError("Runner Profile", vscode.l10n.t("Source profile not found in {0} scope: \"{1}\"", scope, sourceName));
       return;
     }
     const newName = suggestProfileName(this._wsConfig, `${source.name} copy`);
@@ -414,7 +415,7 @@ export class RunnerProfilePanel {
     try {
       await saveRunnerProfile(this._wsConfig, scope, profile);
     } catch (e) {
-      notifyError("Runner Profile", `Failed to duplicate profile: ${String(e)}`);
+      notifyError("Runner Profile", vscode.l10n.t("Failed to duplicate profile: {0}", String(e)));
       return;
     }
     this._pendingScrollTo = newName;
@@ -501,7 +502,7 @@ export class RunnerProfilePanel {
     );
 
     return `<!DOCTYPE html>
-        <html lang="en">
+        <html lang="${vscode.env.language}">
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -511,6 +512,7 @@ export class RunnerProfilePanel {
             <link rel="stylesheet" type="text/css" href="${codiconUri}" id="vscode-codicon-stylesheet">
         </head>
         <body>
+          ${webviewMessages(nonce)}
             <runner-profile-app></runner-profile-app>
             <script nonce="${nonce}" src="${jsUri}"></script>
         </body>

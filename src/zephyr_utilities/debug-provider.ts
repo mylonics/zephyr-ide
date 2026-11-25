@@ -420,7 +420,7 @@ export function buildCortexDebugConfig(
           address: rttAddress ?? "auto",
           rtt_start_retry: 1000,
           ...(rttSearchSize !== undefined ? { searchSize: rttSearchSize } : {}),
-          decoders: [{ port: rttPort ?? 0, type: "console", label: "RTT Channel 0" }],
+          decoders: [{ port: rttPort ?? 0, type: "console", label: vscode.l10n.t("RTT Channel 0") }],
         };
       }
       break;
@@ -527,7 +527,7 @@ export function buildCortexDebugConfig(
           address: rttAddress ?? "auto",
           rtt_start_retry: 1000,
           ...(rttSearchSize !== undefined ? { searchSize: rttSearchSize } : {}),
-          decoders: [{ port: rttPort ?? 0, type: "console", label: "RTT Channel 0" }],
+          decoders: [{ port: rttPort ?? 0, type: "console", label: vscode.l10n.t("RTT Channel 0") }],
         };
       }
       // Resolve pyocd executable from the workspace venv so cortex-debug can
@@ -779,7 +779,7 @@ export class ZephyrIdeDebugConfigurationProvider
 
     const wsConfig = this.getWorkspaceConfig();
     if (!wsConfig) {
-      notifyError("Debug", "Zephyr IDE workspace is not initialized.");
+      notifyError("Debug", vscode.l10n.t("Zephyr IDE workspace is not initialized."));
       return undefined;
     }
 
@@ -796,12 +796,12 @@ export class ZephyrIdeDebugConfigurationProvider
       void vscode.window.showErrorMessage(
         "Zephyr IDE debug sessions require the cortex-debug extension. " +
         "Install it from your editor's marketplace and try again.",
-        "Open VS Code Marketplace",
-        "Open Open VSX",
+        vscode.l10n.t("Open VS Code Marketplace"),
+        vscode.l10n.t("Open Open VSX"),
       ).then(choice => {
-        if (choice === "Open VS Code Marketplace") {
+        if (choice === vscode.l10n.t("Open VS Code Marketplace")) {
           void vscode.env.openExternal(vscode.Uri.parse(CORTEX_DEBUG_MARKETPLACE_URL));
-        } else if (choice === "Open Open VSX") {
+        } else if (choice === vscode.l10n.t("Open Open VSX")) {
           void vscode.env.openExternal(vscode.Uri.parse(CORTEX_DEBUG_OPEN_VSX_URL));
         }
       });
@@ -849,7 +849,7 @@ export class ZephyrIdeDebugConfigurationProvider
 
       if (askMode === "askBoth" || askMode === "askBuild") {
         if (projectName === undefined) {
-          notifyError("Debug", "No active project configured. Set one before launching the Zephyr IDE debugger.");
+          notifyError("Debug", vscode.l10n.t("No active project configured. Set one before launching the Zephyr IDE debugger."));
           return undefined;
         }
         buildName = await askUserForBuild(wsConfig, projectName);
@@ -858,7 +858,7 @@ export class ZephyrIdeDebugConfigurationProvider
 
       const r = resolveActiveProjectBuild(wsConfig, { projectName, buildName });
       if (!r) {
-        notifyError("Debug", "No active project/build configured. Set one before launching the Zephyr IDE debugger.");
+        notifyError("Debug", vscode.l10n.t("No active project/build configured. Set one before launching the Zephyr IDE debugger."));
         return undefined;
       }
       resolved = r;
@@ -873,10 +873,10 @@ export class ZephyrIdeDebugConfigurationProvider
       // Issue #19: offer an actionable "Build Now" button instead of just a
       // dead-end notification.
       void vscode.window.showErrorMessage(
-        `runners.yaml not found at "${runnersYamlPath}". Build the project first so the Zephyr build system can generate it.`,
-        "Build Now"
+        vscode.l10n.t("runners.yaml not found at \"{0}\". Build the project first so the Zephyr build system can generate it.", runnersYamlPath),
+        vscode.l10n.t("Build Now")
       ).then(choice => {
-        if (choice === "Build Now") {
+        if (choice === vscode.l10n.t("Build Now")) {
           void vscode.commands.executeCommand("zephyr-ide.build");
         }
       });
@@ -1023,10 +1023,10 @@ export class ZephyrIdeDebugConfigurationProvider
         ? `Found runner(s) [${rejected.join(", ")}] but cortex-debug cannot drive them.`
         : `runners.yaml lists no runners.`;
       void vscode.window.showErrorMessage(
-        `${reason} File: "${runnersYamlPath}" — Available runners: ${all.join(", ") || "(none)"}.`,
-        "Select Runner Profile"
+        vscode.l10n.t("{0} File: \"{1}\" — Available runners: {2}.", reason, runnersYamlPath, all.join(", ") || "(none)"),
+        vscode.l10n.t("Select Runner Profile")
       ).then(choice => {
-        if (choice === "Select Runner Profile") {
+        if (choice === vscode.l10n.t("Select Runner Profile")) {
           void vscode.commands.executeCommand("zephyr-ide.set-active-profile");
         }
       });
@@ -1042,9 +1042,9 @@ export class ZephyrIdeDebugConfigurationProvider
       void vscode.window.showErrorMessage(
         `runners.yaml is missing required field(s) [${missing.join(", ")}] at "${runnersYamlPath}".` +
         ` This usually means the build did not complete successfully. Try a pristine rebuild.`,
-        "Pristine Build"
+        vscode.l10n.t("Pristine Build")
       ).then(choice => {
-        if (choice === "Pristine Build") {
+        if (choice === vscode.l10n.t("Pristine Build")) {
           void vscode.commands.executeCommand("zephyr-ide.build-pristine");
         }
       });
@@ -1064,7 +1064,7 @@ export class ZephyrIdeDebugConfigurationProvider
     if (!cortexCfg) {
       notifyError(
         "Debug",
-        `Runner "${runner}" cannot be auto-translated to a cortex-debug configuration. Set "runner" in launch.json or use a cortex-debug config directly.`
+        vscode.l10n.t("Runner \"{0}\" cannot be auto-translated to a cortex-debug configuration. Set \"runner\" in launch.json or use a cortex-debug config directly.", runner)
       );
       return undefined;
     }
@@ -1148,15 +1148,15 @@ export class ZephyrIdeDebugConfigurationProvider
         `Black Magic Probe (BMP) requires a serial port. ` +
         `Add "BMPGDBSerialPort": "${examplePort}" to your launch.json config, ` +
         `or install BMP-Debug which auto-discovers the probe.`,
-        "Install BMP-Debug (VS Code)",
-        "Install BMP-Debug (Open VSX)",
-        "Open launch.json",
+        vscode.l10n.t("Install BMP-Debug (VS Code)"),
+        vscode.l10n.t("Install BMP-Debug (Open VSX)"),
+        vscode.l10n.t("Open launch.json"),
       ).then(choice => {
-        if (choice === "Install BMP-Debug (VS Code)") {
+        if (choice === vscode.l10n.t("Install BMP-Debug (VS Code)")) {
           void vscode.env.openExternal(vscode.Uri.parse(BMP_DEBUG_MARKETPLACE_URL));
-        } else if (choice === "Install BMP-Debug (Open VSX)") {
+        } else if (choice === vscode.l10n.t("Install BMP-Debug (Open VSX)")) {
           void vscode.env.openExternal(vscode.Uri.parse(BMP_DEBUG_OPEN_VSX_URL));
-        } else if (choice === "Open launch.json") {
+        } else if (choice === vscode.l10n.t("Open launch.json")) {
           void vscode.commands.executeCommand("workbench.action.debug.configure");
         }
       });
@@ -1177,12 +1177,12 @@ export class ZephyrIdeDebugConfigurationProvider
       void vscode.window.showInformationMessage(
         "Tip: install BMP-Debug for Zephyr RTOS thread awareness when debugging " +
         "with Black Magic Probe. It is a Zephyr-aware fork of cortex-debug.",
-        "Open VS Code Marketplace",
-        "Open Open VSX",
+        vscode.l10n.t("Open VS Code Marketplace"),
+        vscode.l10n.t("Open Open VSX"),
       ).then(choice => {
-        if (choice === "Open VS Code Marketplace") {
+        if (choice === vscode.l10n.t("Open VS Code Marketplace")) {
           void vscode.env.openExternal(vscode.Uri.parse(BMP_DEBUG_MARKETPLACE_URL));
-        } else if (choice === "Open Open VSX") {
+        } else if (choice === vscode.l10n.t("Open Open VSX")) {
           void vscode.env.openExternal(vscode.Uri.parse(BMP_DEBUG_OPEN_VSX_URL));
         }
       });
@@ -1272,15 +1272,15 @@ export class ZephyrIdeDebugConfigurationProvider
           `"west debugserver" is not available in this Zephyr installation. ` +
           `Switch the debug bind to "cortex-debug (auto-config)" so the session ` +
           `connects directly to ${options.runner} without the west bridge.`,
-          "Change Debug Bind"
+          vscode.l10n.t("Change Debug Bind")
         ).then(choice => {
-          if (choice === "Change Debug Bind") {
+          if (choice === vscode.l10n.t("Change Debug Bind")) {
             void vscode.commands.executeCommand("zephyr-ide.set-active-profile");
           }
         });
       } else {
         notifyError("Debug",
-          `Failed to start west debugserver for runner "${options.runner}": ${msg}`);
+          vscode.l10n.t("Failed to start west debugserver for runner \"{0}\": {1}", options.runner, msg));
       }
       return false;
     }
@@ -1292,7 +1292,7 @@ export class ZephyrIdeDebugConfigurationProvider
   ): Promise<vscode.DebugConfiguration | undefined> {
     const wsConfig = this.getWorkspaceConfig();
     if (!wsConfig) {
-      notifyError("Debug", "Zephyr IDE workspace is not initialized.");
+      notifyError("Debug", vscode.l10n.t("Zephyr IDE workspace is not initialized."));
       return undefined;
     }
 
@@ -1303,12 +1303,12 @@ export class ZephyrIdeDebugConfigurationProvider
       void vscode.window.showErrorMessage(
         "Zephyr IDE debug sessions require the cortex-debug extension. " +
         "Install it from your editor's marketplace and try again.",
-        "Open VS Code Marketplace",
-        "Open Open VSX",
+        vscode.l10n.t("Open VS Code Marketplace"),
+        vscode.l10n.t("Open Open VSX"),
       ).then(choice => {
-        if (choice === "Open VS Code Marketplace") {
+        if (choice === vscode.l10n.t("Open VS Code Marketplace")) {
           void vscode.env.openExternal(vscode.Uri.parse(CORTEX_DEBUG_MARKETPLACE_URL));
-        } else if (choice === "Open Open VSX") {
+        } else if (choice === vscode.l10n.t("Open Open VSX")) {
           void vscode.env.openExternal(vscode.Uri.parse(CORTEX_DEBUG_OPEN_VSX_URL));
         }
       });
@@ -1344,7 +1344,7 @@ export class ZephyrIdeDebugConfigurationProvider
 
       if (askMode === "askBoth" || askMode === "askBuild") {
         if (projectName === undefined) {
-          notifyError("Debug", "No active project configured. Set one before launching the Zephyr IDE debugger.");
+          notifyError("Debug", vscode.l10n.t("No active project configured. Set one before launching the Zephyr IDE debugger."));
           return undefined;
         }
         buildName = await askUserForBuild(wsConfig, projectName);
@@ -1353,7 +1353,7 @@ export class ZephyrIdeDebugConfigurationProvider
 
       const r = resolveActiveProjectBuild(wsConfig, { projectName, buildName });
       if (!r) {
-        notifyError("Debug", "No active project/build configured. Set one before launching the Zephyr IDE debugger.");
+        notifyError("Debug", vscode.l10n.t("No active project/build configured. Set one before launching the Zephyr IDE debugger."));
         return undefined;
       }
       resolved = r;
@@ -1365,10 +1365,10 @@ export class ZephyrIdeDebugConfigurationProvider
     const runnersYaml = parseRunnersYaml(runnersYamlPath);
     if (!runnersYaml) {
       void vscode.window.showErrorMessage(
-        `runners.yaml not found at "${runnersYamlPath}". Build the project first so the Zephyr build system can generate it.`,
-        "Build Now"
+        vscode.l10n.t("runners.yaml not found at \"{0}\". Build the project first so the Zephyr build system can generate it.", runnersYamlPath),
+        vscode.l10n.t("Build Now")
       ).then(choice => {
-        if (choice === "Build Now") {
+        if (choice === vscode.l10n.t("Build Now")) {
           void vscode.commands.executeCommand("zephyr-ide.build");
         }
       });
@@ -1377,7 +1377,7 @@ export class ZephyrIdeDebugConfigurationProvider
 
     const requestedRunner = cfg.runner ?? runnersYaml.debugRunner ?? runnersYaml.runners[0];
     if (!requestedRunner) {
-      notifyError("Debug", `No runner is available in "${runnersYamlPath}".`);
+      notifyError("Debug", vscode.l10n.t("No runner is available in \"{0}\".", runnersYamlPath));
       return undefined;
     }
 
@@ -1388,9 +1388,9 @@ export class ZephyrIdeDebugConfigurationProvider
       void vscode.window.showErrorMessage(
         `runners.yaml is missing required field(s) [${missing.join(", ")}] at "${runnersYamlPath}".` +
         ` This usually means the build did not complete successfully. Try a pristine rebuild.`,
-        "Pristine Build"
+        vscode.l10n.t("Pristine Build")
       ).then(choice => {
-        if (choice === "Pristine Build") {
+        if (choice === vscode.l10n.t("Pristine Build")) {
           void vscode.commands.executeCommand("zephyr-ide.build-pristine");
         }
       });
@@ -1442,7 +1442,7 @@ export class ZephyrIdeDebugConfigurationProvider
     const rebuildFlagsSet = [hasRebuild, hasNoRebuild].filter(Boolean).length;
     if (rebuildFlagsSet > 1) {
       notifyError("Debug",
-        "Conflicting west rebuild options: choose only one of rebuild or noRebuild.");
+        vscode.l10n.t("Conflicting west rebuild options: choose only one of rebuild or noRebuild."));
       return undefined;
     }
     if (hasRebuild) {

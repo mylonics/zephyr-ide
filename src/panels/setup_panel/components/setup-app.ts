@@ -15,6 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import { panelText } from "../../webview_shared/panel-text";
 import { html, nothing } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { ZephyrLitElement } from "../../webview_shared/lit-base";
@@ -50,7 +51,7 @@ export class SetupApp extends ZephyrLitElement {
     const msg = event.data;
     if (msg.command === "updateContent" && msg.data) {
       this._data = msg.data;
-      this._statusAnnouncement = "Overview updated";
+      this._statusAnnouncement = panelText("Overview updated");
       // A fresh data snapshot means any in-flight destructive action has
       // resolved (success or cancel) — clear pending markers so rows reset.
       if (this._pendingWorkspaceDeletes.size) { this._pendingWorkspaceDeletes = new Set(); }
@@ -99,7 +100,7 @@ export class SetupApp extends ZephyrLitElement {
 
   render() {
     if (!this._data) {
-      return html`<div class="panel-container"><p>Loading…</p></div>`;
+      return html`<div class="panel-container"><p>${panelText("Loading…")}</p></div>`;
     }
 
     const d = this._data;
@@ -114,8 +115,8 @@ export class SetupApp extends ZephyrLitElement {
         <div class="overview-section">
           <div class="walkthrough-header page-header">
             <div>
-              <h1 class="walkthrough-title page-title">Zephyr IDE Overview</h1>
-              <p class="walkthrough-subtitle page-subtitle">Your development environment at a glance</p>
+              <h1 class="walkthrough-title page-title">${panelText("Zephyr IDE Overview")}</h1>
+              <p class="walkthrough-subtitle page-subtitle">${panelText("Your development environment at a glance")}</p>
             </div>
           </div>
 
@@ -134,10 +135,10 @@ export class SetupApp extends ZephyrLitElement {
           ${!promoteWorkspaceList ? this._renderWorkspaceList(d) : nothing}
 
           <div class="docs-links-row">
-            <a href="https://zephyr-ide.mylonics.com" class="external-link" target="_blank" rel="noopener noreferrer">📖 Documentation</a>
-            <a href="https://docs.zephyrproject.org/latest/develop/getting_started/index.html" class="external-link" target="_blank" rel="noopener noreferrer">🚀 Getting Started</a>
-            <a href="https://docs.zephyrproject.org/latest/develop/west/index.html" class="external-link" target="_blank" rel="noopener noreferrer">🔧 West Docs</a>
-            <a href="https://github.com/mylonics/zephyr-ide/issues" class="external-link" target="_blank" rel="noopener noreferrer">💬 Report Issues</a>
+            <a href="https://zephyr-ide.mylonics.com" class="external-link" target="_blank" rel="noopener noreferrer">${panelText("📖 Documentation")}</a>
+            <a href="https://docs.zephyrproject.org/latest/develop/getting_started/index.html" class="external-link" target="_blank" rel="noopener noreferrer">${panelText("🚀 Getting Started")}</a>
+            <a href="https://docs.zephyrproject.org/latest/develop/west/index.html" class="external-link" target="_blank" rel="noopener noreferrer">${panelText("🔧 West Docs")}</a>
+            <a href="https://github.com/mylonics/zephyr-ide/issues" class="external-link" target="_blank" rel="noopener noreferrer">${panelText("💬 Report Issues")}</a>
           </div>
         </div>
       </div>
@@ -155,17 +156,17 @@ export class SetupApp extends ZephyrLitElement {
       return html`
         <div class="status-banner status-success">
           <span class="codicon codicon-check"></span>
-          <span>Environment Ready — Host tools, workspace, and SDK are configured.</span>
+          <span>${panelText("Environment Ready — Host tools, workspace, and SDK are configured.")}</span>
         </div>`;
     }
 
     const remaining = 3 - completedCount;
     const parts: string[] = [];
-    if (!d.toolsReady) { parts.push("set up Host Tools"); }
+    if (!d.toolsReady) { parts.push(panelText("set up Host Tools")); }
     if (!d.workspaceInitialized) {
-      parts.push(d.activeWorkspace ? "initialize Workspace" : "select a Workspace");
+      parts.push(d.activeWorkspace ? panelText("initialize Workspace") : panelText("select a Workspace"));
     }
-    if (!d.sdkReady) { parts.push("install SDK"); }
+    if (!d.sdkReady) { parts.push(panelText("install SDK")); }
     if (parts.length > 0) {
       parts[0] = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
     }
@@ -173,7 +174,7 @@ export class SetupApp extends ZephyrLitElement {
     return html`
       <div class="status-banner status-warning">
         <span class="codicon codicon-warning"></span>
-        <span>${remaining} of 3 step${remaining > 1 ? "s" : ""} remaining — ${parts.join(", ")} to start building.</span>
+        <span>${panelText("{0} of 3 steps remaining — {1} to start building.", remaining, parts.join(", "))}</span>
       </div>`;
   }
 
@@ -195,21 +196,21 @@ export class SetupApp extends ZephyrLitElement {
 
     // Host tools
     if (d.toolsReady) {
-      pills.push(this._renderPill("Host Tools", "openHostToolsPanel"));
+      pills.push(this._renderPill(panelText("Host Tools"), "openHostToolsPanel"));
     } else {
-      cards.push(this._renderSetupCard("🔧", "Host Tools", "⚠ Setup Required", "status-warning",
-        "Install and verify build tools, compilers, and utilities required for Zephyr development.",
+      cards.push(this._renderSetupCard("🔧", panelText("Host Tools"), panelText("⚠ Setup Required"), "status-warning",
+        panelText("Install and verify build tools, compilers, and utilities required for Zephyr development."),
         "openHostToolsPanel", hostToolsStep, false));
     }
 
     // Workspace
     if (!skipWs) {
       const command = d.folderOpen ? "openWorkspacePanel" : "openFolder";
-      const title = d.folderOpen ? "West Workspace" : "Open Folder";
+      const title = d.folderOpen ? panelText("West Workspace") : panelText("Open Folder");
       const desc = d.folderOpen
-        ? "Set up a west workspace to initialize your Zephyr development environment."
-        : "Open a folder to get started with Zephyr development.";
-      const statusText = d.folderOpen ? "Setup Required" : "No Folder Open";
+        ? panelText("Set up a west workspace to initialize your Zephyr development environment.")
+        : panelText("Open a folder to get started with Zephyr development.");
+      const statusText = d.folderOpen ? panelText("Setup Required") : panelText("No Folder Open");
       cards.push(this._renderSetupCard("📁", title, statusText, "status-warning", desc, command, workspaceStep, false));
     }
 
@@ -218,9 +219,9 @@ export class SetupApp extends ZephyrLitElement {
       pills.push(this._renderPill("Zephyr SDK", "openSDKPanel"));
     } else {
       const isLocked = !d.hasValidSetupState;
-      const status = isLocked ? "Workspace Required" : "Setup Required";
-      cards.push(this._renderSetupCard("📦", "Zephyr SDK Management", status, "status-warning",
-        "Install and manage Zephyr SDK for different architectures and toolchains. Requires west workspace.",
+      const status = isLocked ? panelText("Workspace Required") : panelText("Setup Required");
+      cards.push(this._renderSetupCard("📦", panelText("Zephyr SDK Management"), status, "status-warning",
+        panelText("Install and manage Zephyr SDK for different architectures and toolchains. Requires west workspace."),
         isLocked ? "" : "openSDKPanel", sdkStep, isLocked));
     }
 
@@ -236,7 +237,7 @@ export class SetupApp extends ZephyrLitElement {
 
   private _renderPill(label: string, command: string) {
     return html`
-      <span class="setup-status-pill status-success" @click=${() => this._cmd(command)} role="button" tabindex="0" data-keyboard-command="true" title="${label} installed and ready">
+      <span class="setup-status-pill status-success" @click=${() => this._cmd(command)} role="button" tabindex="0" data-keyboard-command="true" title="${label} ${panelText("installed and ready")}">
         <span class="codicon codicon-check"></span> ${label}
       </span>`;
   }
@@ -244,8 +245,8 @@ export class SetupApp extends ZephyrLitElement {
   private _renderSetupCard(icon: string, title: string, status: string, statusClass: string, description: string, command: string, stepNumber: number, locked: boolean) {
     const stepBadgeClass = locked ? "step-badge-locked" : "step-badge-active";
     const ariaLabel = locked
-      ? `${title} (disabled): ${status}`
-      : `Open ${title}`;
+      ? panelText("{0} (disabled): {1}", title, status)
+      : panelText("Open {0}", title);
     return html`
       <div class="overview-card${locked ? " overview-card-locked" : ""}"
         @click=${command ? () => this._cmd(command) : undefined}
@@ -270,27 +271,27 @@ export class SetupApp extends ZephyrLitElement {
     if (!ws) { return nothing; }
 
     const statusBadge = ws.isInitialized
-      ? html`<span class="workspace-active-badge">Active</span>`
-      : html`<span class="workspace-active-badge status-warning">Setup Required</span>`;
+      ? html`<span class="workspace-active-badge">${panelText("Active")}</span>`
+      : html`<span class="workspace-active-badge status-warning">${panelText("Setup Required")}</span>`;
 
     return html`
-      <div class="active-workspace-hero" @click=${() => this._openWorkspacePanelForPath(ws.path)} role="button" tabindex="0" data-keyboard-command="true" aria-label="Open active workspace ${ws.name}">
+      <div class="active-workspace-hero" @click=${() => this._openWorkspacePanelForPath(ws.path)} role="button" tabindex="0" data-keyboard-command="true" aria-label="${panelText("Open active workspace")} ${ws.name}">
         <div class="hero-info">
           <div class="hero-title-row">
             <span class="codicon codicon-root-folder-opened"></span>
             <h2 class="hero-workspace-name">${ws.name}</h2>
             ${statusBadge}
           </div>
-          ${ws.version ? html`<span class="hero-version">Zephyr ${ws.version}</span>` : nothing}
+          ${ws.version ? html`<span class="hero-version">${panelText("Zephyr")} ${ws.version}</span>` : nothing}
           <span class="hero-path">${ws.path}</span>
           <div class="hero-status-badges">
-            ${ws.hasPythonEnv ? html`<span class="hero-status-badge status-success">venv</span>` : nothing}
-            ${ws.hasWestUpdated ? html`<span class="hero-status-badge status-success">west</span>` : nothing}
+            ${ws.hasPythonEnv ? html`<span class="hero-status-badge status-success">${panelText("venv")}</span>` : nothing}
+            ${ws.hasWestUpdated ? html`<span class="hero-status-badge status-success">${panelText("west")}</span>` : nothing}
             ${ws.hasSdk ? html`<span class="hero-status-badge status-success">SDK</span>` : nothing}
           </div>
         </div>
         <div class="hero-actions">
-          <vscode-button appearance="secondary" @click=${(e: Event) => { e.stopPropagation(); this._deactivateWorkspace(); }}>Deactivate Workspace</vscode-button>
+          <vscode-button appearance="secondary" @click=${(e: Event) => { e.stopPropagation(); this._deactivateWorkspace(); }}>${panelText("Deactivate Workspace")}</vscode-button>
         </div>
       </div>`;
   }
@@ -305,34 +306,34 @@ export class SetupApp extends ZephyrLitElement {
     // Derive header status
     let status: string, headerStatusClass: string;
     if (d.workspaceInitialized) {
-      status = "✓ Initialized"; headerStatusClass = "status-success";
+      status = panelText("✓ Initialized"); headerStatusClass = "status-success";
     } else if (d.activeWorkspace) {
-      status = "Setup Required"; headerStatusClass = "status-warning";
+      status = panelText("Setup Required"); headerStatusClass = "status-warning";
     } else if (d.hasWorkspaces) {
-      status = "Activate Workspace"; headerStatusClass = "status-warning";
+      status = panelText("Activate Workspace"); headerStatusClass = "status-warning";
     } else if (d.folderOpen) {
-      status = "Setup Workspace"; headerStatusClass = "status-warning";
+      status = panelText("Setup Workspace"); headerStatusClass = "status-warning";
     } else {
-      status = "No Folder"; headerStatusClass = "status-info";
+      status = panelText("No Folder"); headerStatusClass = "status-info";
     }
 
     const headerActions = html`
       <span class="status ${headerStatusClass}">${status}</span>
-      <vscode-button appearance="secondary" @click=${() => this._cmd("createNewWestWorkspace")}>New Workspace</vscode-button>
+      <vscode-button appearance="secondary" @click=${() => this._cmd("createNewWestWorkspace")}>${panelText("New Workspace")}</vscode-button>
     `;
 
     if (showEmptyState) {
       return html`
         <div class="workspace-list-section">
           <div class="section-header-row">
-            <h3>West Workspaces</h3>
+            <h3>${panelText("West Workspaces")}</h3>
             <div class="section-header-actions">${headerActions}</div>
           </div>
           <div class="empty-state">
             <div class="empty-state-icon">📁</div>
-            <h3>No Workspaces Yet</h3>
-            <p>Set up a west workspace to get started with Zephyr development.</p>
-            <vscode-button @click=${() => this._cmd("openWorkspacePanel")}>Set Up Workspace</vscode-button>
+            <h3>${panelText("No Workspaces Yet")}</h3>
+            <p>${panelText("Set up a west workspace to get started with Zephyr development.")}</p>
+            <vscode-button @click=${() => this._cmd("openWorkspacePanel")}>${panelText("Set Up Workspace")}</vscode-button>
           </div>
         </div>`;
     }
@@ -349,17 +350,17 @@ export class SetupApp extends ZephyrLitElement {
       return html`
         <div class="workspace-list-section">
           <div class="section-header-row">
-            <h3>Other West Workspaces</h3>
+            <h3>${panelText("Other West Workspaces")}</h3>
             <div class="section-header-actions">${headerActions}</div>
           </div>
-          <p class="description muted" style="margin: 8px 0 0 0;">No additional workspaces registered.</p>
+          <p class="description muted" style="margin: 8px 0 0 0;">${panelText("No additional workspaces registered.")}</p>
         </div>`;
     }
 
     return html`
       <div class="workspace-list-section">
         <div class="section-header-row">
-          <h3>${d.activeWorkspace ? 'Other West Workspaces' : 'West Workspaces'}</h3>
+          <h3>${d.activeWorkspace ? panelText("Other West Workspaces") : panelText("West Workspaces")}</h3>
           <div class="section-header-actions">${headerActions}</div>
         </div>
         <div class="overview-scroll-container">
@@ -373,24 +374,24 @@ export class SetupApp extends ZephyrLitElement {
   private _renderWorkspaceRow(ws: WorkspaceListItem) {
     const pendingDelete = this._pendingWorkspaceDeletes.has(ws.path);
     return html`
-      <div class="workspace-list-row${ws.isActive ? " active" : ""}" @click=${() => this._openWorkspacePanelForPath(ws.path)} role="button" tabindex="0" data-keyboard-command="true" aria-label="Open workspace ${ws.name}">
+      <div class="workspace-list-row${ws.isActive ? " active" : ""}" @click=${() => this._openWorkspacePanelForPath(ws.path)} role="button" tabindex="0" data-keyboard-command="true" aria-label="${panelText("Open workspace")} ${ws.name}">
         <div class="workspace-list-info">
           <div class="workspace-list-name">
             <span class="codicon codicon-root-folder"></span>
             <strong>${ws.name}</strong>
-            ${ws.isActive ? html`<span class="workspace-active-badge">Active</span>` : nothing}
+            ${ws.isActive ? html`<span class="workspace-active-badge">${panelText("Active")}</span>` : nothing}
           </div>
           <div class="workspace-list-detail">
             <span class="workspace-list-description">${ws.description}</span>
             <span class="workspace-list-path" title=${ws.path}>${ws.path}</span>
             <span class="workspace-list-statuses">
-              ${ws.hasPythonEnv ? html`<span class="workspace-status-icon status-success" title="Python environment ready">venv</span>` : nothing}
-              ${ws.hasWestUpdated ? html`<span class="workspace-status-icon status-success" title="West updated">west</span>` : nothing}
+              ${ws.hasPythonEnv ? html`<span class="workspace-status-icon status-success" title="${panelText("Python environment ready")}">${panelText("venv")}</span>` : nothing}
+              ${ws.hasWestUpdated ? html`<span class="workspace-status-icon status-success" title="${panelText("West updated")}">${panelText("west")}</span>` : nothing}
             </span>
           </div>
         </div>
         <div class="workspace-list-actions">
-          <vscode-button appearance="icon" title=${pendingDelete ? 'Removing…' : 'Remove from registry'} ?disabled=${pendingDelete} @click=${(e: Event) => { e.stopPropagation(); this._deleteWorkspace(ws.path, ws.name); }}>
+          <vscode-button appearance="icon" title=${pendingDelete ? panelText("Removing…") : panelText("Remove from registry")} ?disabled=${pendingDelete} @click=${(e: Event) => { e.stopPropagation(); this._deleteWorkspace(ws.path, ws.name); }}>
             <vscode-icon name=${pendingDelete ? 'sync' : 'trash'}></vscode-icon>
           </vscode-button>
         </div>
@@ -405,19 +406,19 @@ export class SetupApp extends ZephyrLitElement {
     if (d.projects.length === 0) {
       return html`
         <div class="project-list-section">
-          <h3>Projects</h3>
+          <h3>${panelText("Projects")}</h3>
           <div class="empty-state">
             <div class="empty-state-icon">🔨</div>
-            <h3>No Projects Yet</h3>
-            <p>Create a project to configure builds, flash targets, and debug settings.</p>
-            <vscode-button @click=${() => this._cmd("openProjectBuildPanel")}>Create Project</vscode-button>
+            <h3>${panelText("No Projects Yet")}</h3>
+            <p>${panelText("Create a project to configure builds, flash targets, and debug settings.")}</p>
+            <vscode-button @click=${() => this._cmd("openProjectBuildPanel")}>${panelText("Create Project")}</vscode-button>
           </div>
         </div>`;
     }
 
     return html`
       <div class="project-list-section">
-        <h3>Projects</h3>
+        <h3>${panelText("Projects")}</h3>
         <div class="overview-scroll-container">
           <div class="workspace-list-container">
             ${d.projects.map(p => this._renderProjectRow(p))}
@@ -427,20 +428,20 @@ export class SetupApp extends ZephyrLitElement {
   }
 
   private _renderProjectRow(project: ProjectListItem) {
-    const buildLabel = project.buildCount > 0 ? `${project.buildCount} build${project.buildCount > 1 ? "s" : ""}` : "";
+    const buildLabel = project.buildCount > 0 ? (project.buildCount === 1 ? panelText("1 build") : panelText("{0} builds", project.buildCount)) : "";
     const pendingRemove = this._pendingProjectRemoves.has(project.name);
     return html`
-      <div class="project-list-row${project.isActive ? " active" : ""}" @click=${() => this._cmd("openProjectBuildPanel")} role="button" tabindex="0" data-keyboard-command="true" aria-label="Open project ${project.name}">
+      <div class="project-list-row${project.isActive ? " active" : ""}" @click=${() => this._cmd("openProjectBuildPanel")} role="button" tabindex="0" data-keyboard-command="true" aria-label="${panelText("Open project")} ${project.name}">
         <div class="workspace-list-info">
           <div class="workspace-list-name">
             <span class="codicon codicon-symbol-folder"></span>
             <strong>${project.name}</strong>
-            ${project.isActive ? html`<span class="workspace-active-badge">Active</span>` : nothing}
+            ${project.isActive ? html`<span class="workspace-active-badge">${panelText("Active")}</span>` : nothing}
             ${buildLabel ? html`<span class="project-build-count">${buildLabel}</span>` : nothing}
           </div>
         </div>
         <div class="workspace-list-actions">
-          <vscode-button appearance="icon" title=${pendingRemove ? 'Removing…' : 'Remove project'} ?disabled=${pendingRemove} @click=${(e: Event) => { e.stopPropagation(); this._removeProject(project.name); }}>
+          <vscode-button appearance="icon" title=${pendingRemove ? panelText("Removing…") : panelText("Remove project")} ?disabled=${pendingRemove} @click=${(e: Event) => { e.stopPropagation(); this._removeProject(project.name); }}>
             <vscode-icon name=${pendingRemove ? 'sync' : 'trash'}></vscode-icon>
           </vscode-button>
         </div>
@@ -454,64 +455,64 @@ export class SetupApp extends ZephyrLitElement {
   private _renderQuickActions(d: SetupPanelData) {
     return html`
       <div class="quick-actions-section">
-        <h3>Quick Actions</h3>
+        <h3>${panelText("Quick Actions")}</h3>
         <div class="quick-actions-grid">
           <div class="quick-action-item" @click=${() => this._cmd("openHostToolsPanel")} role="button" tabindex="0" data-keyboard-command="true">
             <span class="codicon codicon-tools"></span>
             <div class="quick-action-content">
-              <strong>Host Tools</strong>
-              <span class="quick-action-status ${d.toolsReady ? "status-success" : "status-warning"}">${d.toolsReady ? "Ready" : "Setup Required"}</span>
-              <p>Install and verify build tools, compilers, and utilities for Zephyr development.</p>
+              <strong>${panelText("Host Tools")}</strong>
+              <span class="quick-action-status ${d.toolsReady ? "status-success" : "status-warning"}">${d.toolsReady ? panelText("Ready") : panelText("Setup Required")}</span>
+              <p>${panelText("Install and verify build tools, compilers, and utilities for Zephyr development.")}</p>
             </div>
           </div>
 
           <div class="quick-action-item" @click=${() => this._cmd("openSDKPanel")} role="button" tabindex="0" data-keyboard-command="true">
             <span class="codicon codicon-${d.sdkReady ? "package" : "cloud-download"}"></span>
             <div class="quick-action-content">
-              <strong>${d.sdkReady ? "Manage SDK & Toolchains" : "Install SDK"}</strong>
-              <span class="quick-action-status ${d.sdkReady ? "status-success" : "status-warning"}">${d.sdkReady ? "Installed" : "Setup Required"}</span>
-              <p>${d.sdkReady ? "View installed SDK toolchains and install additional target architectures." : "Download and install Zephyr SDK toolchains for target architectures."}</p>
+              <strong>${d.sdkReady ? panelText("Manage SDK & Toolchains") : panelText("Install SDK")}</strong>
+              <span class="quick-action-status ${d.sdkReady ? "status-success" : "status-warning"}">${d.sdkReady ? panelText("Installed") : panelText("Setup Required")}</span>
+              <p>${d.sdkReady ? panelText("View installed SDK toolchains and install additional target architectures.") : panelText("Download and install Zephyr SDK toolchains for target architectures.")}</p>
             </div>
           </div>
 
           <div class="quick-action-item" @click=${() => this._cmd("openZephyrIDEManager")} role="button" tabindex="0" data-keyboard-command="true">
             <span class="codicon codicon-package"></span>
             <div class="quick-action-content">
-              <strong>Zephyr IDE Manager</strong>
-              <p>Manage zephyr-ide.json requirements including blobs, pip packages, sample projects, and install workflows.</p>
+              <strong>${panelText("Zephyr IDE Manager")}</strong>
+              <p>${panelText("Manage zephyr-ide.json requirements including blobs, pip packages, sample projects, and install workflows.")}</p>
             </div>
           </div>
 
           <div class="quick-action-item" @click=${() => this._cmd("westUpdate")} role="button" tabindex="0" data-keyboard-command="true">
             <span class="codicon codicon-sync"></span>
             <div class="quick-action-content">
-              <strong>West Update</strong>
-              <span class="quick-action-status ${d.westUpdated ? "status-success" : "status-warning"}">${d.westUpdated ? "Updated" : "Not Updated"}</span>
-              <p>Fetch and update Zephyr modules and dependencies defined in the west manifest.</p>
+              <strong>${panelText("West Update")}</strong>
+              <span class="quick-action-status ${d.westUpdated ? "status-success" : "status-warning"}">${d.westUpdated ? panelText("Updated") : panelText("Not Updated")}</span>
+              <p>${panelText("Fetch and update Zephyr modules and dependencies defined in the west manifest.")}</p>
             </div>
           </div>
 
           <div class="quick-action-item" @click=${() => this._cmd("openSettingsPanel")} role="button" tabindex="0" data-keyboard-command="true">
             <span class="codicon codicon-gear"></span>
             <div class="quick-action-content">
-              <strong>Settings</strong>
-              <p>Configure global directory, toolchain paths, virtual environment, and extension behavior.</p>
+              <strong>${panelText("Settings")}</strong>
+              <p>${panelText("Configure global directory, toolchain paths, virtual environment, and extension behavior.")}</p>
             </div>
           </div>
 
           <div class="quick-action-item" @click=${() => this._cmd("openProjectBuildPanel")} role="button" tabindex="0" data-keyboard-command="true">
             <span class="codicon codicon-add"></span>
             <div class="quick-action-content">
-              <strong>Add Project</strong>
-              <p>Create or configure a Zephyr project with build targets and settings.</p>
+              <strong>${panelText("Add Project")}</strong>
+              <p>${panelText("Create or configure a Zephyr project with build targets and settings.")}</p>
             </div>
           </div>
 
           <div class="quick-action-item" @click=${() => this._cmd("openRunnerProfilePanel")} role="button" tabindex="0" data-keyboard-command="true">
             <span class="codicon codicon-debug-alt-small"></span>
             <div class="quick-action-content">
-              <strong>Runner Profiles</strong>
-              <p>Create and manage reusable flash, debug, and attach profiles for your builds.</p>
+              <strong>${panelText("Runner Profiles")}</strong>
+              <p>${panelText("Create and manage reusable flash, debug, and attach profiles for your builds.")}</p>
             </div>
           </div>
         </div>

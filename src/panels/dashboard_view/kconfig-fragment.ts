@@ -76,8 +76,8 @@ export async function saveFragmentInteractive(
   const target = await vscode.window.showSaveDialog({
     defaultUri,
     filters: { "Kconfig fragment": ["conf"] },
-    saveLabel: "Save Kconfig Fragment",
-    title: "Save Kconfig fragment from Dashboard",
+    saveLabel: vscode.l10n.t("Save Kconfig Fragment"),
+    title: vscode.l10n.t("Save Kconfig fragment from Dashboard"),
   });
   if (!target) { return undefined; }
   await fs.outputFile(target.fsPath, renderFragment(changes), "utf8");
@@ -102,17 +102,17 @@ export async function offerAddFragmentToBuild(
   // If already registered (override or extra) on the build, skip the prompt.
   if (build.confFiles.config.some((c: { path: string }) => path.normalize(c.path) === path.normalize(rel))) {
     void vscode.window.showInformationMessage(
-      `Kconfig fragment saved to ${rel} (already attached to build "${build.name}").`,
+      vscode.l10n.t("Kconfig fragment saved to {0} (already attached to build \"{1}\").", rel, build.name),
     );
     return false;
   }
   const choice = await vscode.window.showInformationMessage(
-    `Saved Kconfig fragment to ${rel}. Add it to build "${build.name}" as an Extra Conf File?`,
+    vscode.l10n.t("Saved Kconfig fragment to {0}. Add it to build \"{1}\" as an Extra Conf File?", rel, build.name),
     { modal: false },
-    "Add to Build",
-    "Skip",
+    vscode.l10n.t("Add to Build"),
+    vscode.l10n.t("Skip"),
   );
-  if (choice !== "Add to Build") { return false; }
+  if (choice !== vscode.l10n.t("Add to Build")) { return false; }
 
   const addition: ConfigFiles = {
     config: [{ path: rel, extra: true }],
@@ -121,7 +121,7 @@ export async function offerAddFragmentToBuild(
   mergeConfigFiles(build.confFiles, addition);
   await setWorkspaceState(context, wsConfig);
   void vscode.window.showInformationMessage(
-    `Added ${rel} to build "${build.name}" as EXTRA_CONF_FILE.`,
+    vscode.l10n.t("Added {0} to build \"{1}\" as EXTRA_CONF_FILE.", rel, build.name),
   );
   return true;
 }

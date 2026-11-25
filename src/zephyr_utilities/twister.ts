@@ -47,13 +47,13 @@ export async function testHelper(context: vscode.ExtensionContext, wsConfig: Wor
       await addTest(wsConfig, context);
       testName = getResolvedTestName(wsConfig, resolved);
       if (testName === undefined) {
-        notifyError("Twister Test", `You must choose a Test Configuration to continue.`);
+        notifyError("Twister Test", vscode.l10n.t("You must choose a Test Configuration to continue."));
         return;
       }
     }
     return await runTest(setupState, wsConfig, project, project.twisterConfigs[testName]);
   } else {
-    notifyError("Twister Test", "Run `Zephyr IDE: West Update` command first.");
+    notifyError("Twister Test", vscode.l10n.t("Run `Zephyr IDE: West Update` command first."));
   }
 }
 
@@ -153,7 +153,7 @@ export async function deleteTestDirs(
     }
   }
 
-  void vscode.window.showInformationMessage(`Deleted ${project.name} test directories`);
+  void vscode.window.showInformationMessage(vscode.l10n.t("Deleted {0} test directories", project.name));
 }
 
 

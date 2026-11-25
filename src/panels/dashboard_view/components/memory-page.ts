@@ -4,6 +4,7 @@ Author Rijesh Augustine
 SPDX-License-Identifier: Apache-2.0
 */
 
+import { panelText } from "../../webview_shared/panel-text";
 import { html, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { ZephyrLitElement } from "../../webview_shared/lit-base";
@@ -97,9 +98,9 @@ export class MemoryPage extends ZephyrLitElement {
 
   private _renderToolbar(disabled: boolean) {
     const tabs: { id: Tab; label: string; title: string }[] = [
-      { id: "all", label: "Total", title: "Total: combined RAM + ROM usage (all memory regions)" },
-      { id: "ram", label: "RAM", title: "RAM: read-write memory in SRAM — BSS (zero-init globals), data (initialized globals), and stack/heap" },
-      { id: "rom", label: "ROM", title: "ROM: read-only memory in Flash — text (code), rodata (const data), and other non-volatile sections" },
+      { id: "all", label: panelText("Total"), title: panelText("Total: combined RAM + ROM usage (all memory regions)") },
+      { id: "ram", label: "RAM", title: panelText("RAM: read-write memory in SRAM — BSS (zero-init globals), data (initialized globals), and stack/heap") },
+      { id: "rom", label: "ROM", title: panelText("ROM: read-only memory in Flash — text (code), rodata (const data), and other non-volatile sections") },
     ];
     const tabDescriptions: Record<Tab, string> = {
       all: "All memory regions combined",
@@ -128,7 +129,7 @@ export class MemoryPage extends ZephyrLitElement {
           <input
             type="text"
             class="memory-search-input"
-            placeholder="Search symbols…"
+            placeholder="${panelText("Search symbols…")}"
             .value=${this._query}
             ?disabled=${disabled}
             @input=${this._onSearchInput}
@@ -136,21 +137,21 @@ export class MemoryPage extends ZephyrLitElement {
           ${this._query
         ? html`<button
                 class="memory-search-clear codicon codicon-close"
-                aria-label="Clear search"
+                aria-label="${panelText("Clear search")}"
                 @click=${this._onClearSearch}
               ></button>`
         : nothing}
         </div>
         <button
           class="memory-icon-btn"
-          title=${this._hideSunburst ? "Show sunburst diagram" : "Hide sunburst diagram"}
+          title=${this._hideSunburst ? panelText("Show sunburst diagram") : panelText("Hide sunburst diagram")}
           @click=${() => (this._hideSunburst = !this._hideSunburst)}
         >
           <span class="codicon ${this._hideSunburst ? "codicon-pie-chart" : "codicon-layout-sidebar-left-off"}"></span>
         </button>
         <button
           class="memory-icon-btn"
-          title="Re-run RAM/ROM report"
+          title="${panelText("Re-run RAM/ROM report")}"
           ?disabled=${this.refreshing}
           @click=${this._onRefreshClick}
         >
@@ -165,7 +166,7 @@ export class MemoryPage extends ZephyrLitElement {
       return html`
         <div class="memory-empty">
           <span class="codicon codicon-loading codicon-modifier-spin" style="font-size:28px;opacity:0.7"></span>
-          <p>Generating memory report…</p>
+          <p>${panelText("Generating memory report…")}</p>
         </div>
       `;
     }
@@ -175,7 +176,7 @@ export class MemoryPage extends ZephyrLitElement {
           <span class="codicon codicon-warning" style="font-size:28px;color:var(--vscode-notificationsWarningIcon-foreground)"></span>
           <p>${this.errorMessage}</p>
           <button class="memory-cta" @click=${this._onRefreshClick}>
-            <span class="codicon codicon-refresh"></span> Retry
+            <span class="codicon codicon-refresh"></span> ${panelText("Retry")}
           </button>
         </div>
       `;
@@ -183,9 +184,9 @@ export class MemoryPage extends ZephyrLitElement {
     return html`
       <div class="memory-empty">
         <span class="codicon codicon-graph" style="font-size:28px;opacity:0.4"></span>
-        <p>No memory report available for this view.</p>
+        <p>${panelText("No memory report available for this view.")}</p>
         <button class="memory-cta" @click=${this._onRefreshClick}>
-          <span class="codicon codicon-refresh"></span> Generate report
+          <span class="codicon codicon-refresh"></span> ${panelText("Generate report")}
         </button>
       </div>
     `;
@@ -206,7 +207,7 @@ export class MemoryPage extends ZephyrLitElement {
                   .root=${root}
                   .selectedKey=${this._selectedKey}
                   .visibleKeys=${visible}
-                  regionLabel=${this._tab === "ram" ? "RAM" : this._tab === "rom" ? "ROM" : "All"}
+                  regionLabel=${this._tab === "ram" ? "RAM" : this._tab === "rom" ? "ROM" : panelText("All")}
                   @arc-select=${this._onArcSelect}
                   @arc-open=${this._onOpenSymbol}
                 ></memory-sunburst>
@@ -231,7 +232,7 @@ export class MemoryPage extends ZephyrLitElement {
     const report = this.data ? this.data[this._tab] : null;
     const disabled = !this.data;
     return html`
-      <h1>Memory Report</h1>
+      <h1>${panelText("Memory Report")}</h1>
       ${this._renderToolbar(disabled)}
       ${report ? this._renderReport(report) : this._renderEmpty()}
     `;

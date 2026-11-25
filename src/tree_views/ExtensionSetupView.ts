@@ -50,21 +50,21 @@ export class ExtensionSetupView implements vscode.TreeDataProvider<SetupItem> {
   }
 
   getChildren(): SetupItem[] {
-    const toolsStatus = this.globalConfig.toolsAvailable ? "Ready" : "Setup Required";
+    const toolsStatus = this.globalConfig.toolsAvailable ? vscode.l10n.t("Ready") : vscode.l10n.t("Setup Required");
     const sdkStatus = this.globalConfig.sdkInstalled
-      ? (this.globalConfig.sdkVersion ? `v${this.globalConfig.sdkVersion}` : "Installed")
-      : "Not Installed";
-    const workspaceStatus = isActiveWorkspaceInitialized(this.wsConfig) ? "Initialized" : "Setup Required";
-    const westUpdatedStatus = this.wsConfig.activeSetupState?.westUpdated ? "Updated" : "Not Updated";
-    const pythonEnvStatus = this.wsConfig.activeSetupState?.pythonEnvironmentSetup ? "Ready" : "Not Configured";
+      ? (this.globalConfig.sdkVersion ? `v${this.globalConfig.sdkVersion}` : vscode.l10n.t("Installed"))
+      : vscode.l10n.t("Not Installed");
+    const workspaceStatus = isActiveWorkspaceInitialized(this.wsConfig) ? vscode.l10n.t("Initialized") : vscode.l10n.t("Setup Required");
+    const westUpdatedStatus = this.wsConfig.activeSetupState?.westUpdated ? vscode.l10n.t("Updated") : vscode.l10n.t("Not Updated");
+    const pythonEnvStatus = this.wsConfig.activeSetupState?.pythonEnvironmentSetup ? vscode.l10n.t("Ready") : vscode.l10n.t("Not Configured");
 
     return [
-      new SetupItem("Overview", "preview", "zephyr-ide.open-setup-panel"),
-      new SetupItem("Host Tools", "package", "zephyr-ide.open-host-tools-panel", toolsStatus),
+      new SetupItem(vscode.l10n.t("Overview"), "preview", "zephyr-ide.open-setup-panel"),
+      new SetupItem(vscode.l10n.t("Host Tools"), "package", "zephyr-ide.open-host-tools-panel", toolsStatus),
       new SetupItem("Zephyr SDK", "desktop-download", "zephyr-ide.open-sdk-panel", sdkStatus),
-      new SetupItem("Workspace Setup", "folder-opened", "zephyr-ide.open-workspace-panel", workspaceStatus),
-      new SetupItem("West Update", "sync", "zephyr-ide.west-update", westUpdatedStatus),
-      new SetupItem("Runner Profiles", "chip", "zephyr-ide.open-runner-profile-panel"),
+      new SetupItem(vscode.l10n.t("Workspace Setup"), "folder-opened", "zephyr-ide.open-workspace-panel", workspaceStatus),
+      new SetupItem(vscode.l10n.t("West Update"), "sync", "zephyr-ide.west-update", westUpdatedStatus),
+      new SetupItem(vscode.l10n.t("Runner Profiles"), "chip", "zephyr-ide.open-runner-profile-panel"),
     ];
   }
 }

@@ -15,6 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import { panelText, panelParts } from "../../webview_shared/panel-text";
 import { html, nothing } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { ZephyrLitElement } from "../../webview_shared/lit-base";
@@ -377,27 +378,27 @@ export class RunnerProfileApp extends ZephyrLitElement {
     return html`
       <div class="var-help-panel">
         <div class="arg-picker-header">
-          <span>Available variable substitutions</span>
+          <span>${panelText("Available variable substitutions")}</span>
           <vscode-button appearance="icon" icon="close"
             @click=${() => this._closeVarHelp(scope, originalName, slot)}>
           </vscode-button>
         </div>
         <table class="var-help-table">
-          <thead><tr><th>Expression</th><th>Resolves to</th></tr></thead>
+          <thead><tr><th>${panelText("Expression")}</th><th>${panelText("Resolves to")}</th></tr></thead>
           <tbody>
-            <tr><td><code>\${workspaceFolder}</code></td><td>Workspace root path</td></tr>
-            <tr><td><code>\${buildFolder}</code></td><td>Build output directory</td></tr>
-            <tr><td><code>\${board}</code></td><td>Board name (e.g. <code>nucleo_f401re</code>)</td></tr>
-            <tr><td><code>\${boardRevision}</code></td><td>Board revision, or <code>""</code> when not set</td></tr>
-            <tr><td><code>\${project}</code></td><td>Project name</td></tr>
-            <tr><td><code>\${build}</code></td><td>Build configuration name</td></tr>
-            <tr><td><code>\${buildvar:<em>key</em>}</code></td><td>Per-build custom variable (<code>BuildConfig.customVars</code>)</td></tr>
-            <tr><td><code>\${projectvar:<em>key</em>}</code></td><td>Per-project custom variable (<code>ProjectConfig.customVars</code>)</td></tr>
-            <tr><td><code>\${cmake:<em>VAR</em>}</code></td><td>Value from <code>CMakeCache.txt</code> (case-insensitive)</td></tr>
-            <tr><td><code>\${kconfig:<em>VAR</em>}</code></td><td>Kconfig value from <code>zephyr/.config</code> (strings unquoted; <code>CONFIG_</code> prefix optional)</td></tr>
-            <tr><td><code>\${env:<em>VAR</em>}</code></td><td><code>process.env</code> value, or <code>""</code> when unset</td></tr>
-            <tr><td><code>\${config:<em>some.key</em>}</code></td><td>VS Code workspace/user configuration value</td></tr>
-            <tr class="var-help-row-muted"><td><em>anything else</em></td><td>Left unchanged (VS Code resolves later)</td></tr>
+            <tr><td><code>\${workspaceFolder}</code></td><td>${panelText("Workspace root path")}</td></tr>
+            <tr><td><code>\${buildFolder}</code></td><td>${panelText("Build output directory")}</td></tr>
+            <tr><td><code>\${board}</code></td><td>${panelText("Board name (e.g.")} <code>nucleo_f401re</code>)</td></tr>
+            <tr><td><code>\${boardRevision}</code></td><td>${panelText("Board revision, or")} <code>""</code> ${panelText("when not set")}</td></tr>
+            <tr><td><code>\${project}</code></td><td>${panelText("Project name")}</td></tr>
+            <tr><td><code>\${build}</code></td><td>${panelText("Build configuration name")}</td></tr>
+            <tr><td><code>\${buildvar:<em>key</em>}</code></td><td>${panelText("Per-build custom variable (")}<code>BuildConfig.customVars</code>)</td></tr>
+            <tr><td><code>\${projectvar:<em>key</em>}</code></td><td>${panelText("Per-project custom variable (")}<code>ProjectConfig.customVars</code>)</td></tr>
+            <tr><td><code>\${cmake:<em>VAR</em>}</code></td><td>${panelText("Value from")} <code>CMakeCache.txt</code> ${panelText("(case-insensitive)")}</td></tr>
+            <tr><td><code>\${kconfig:<em>VAR</em>}</code></td><td>${panelText("Kconfig value from")} <code>zephyr/.config</code> ${panelText("(strings unquoted;")} <code>CONFIG_</code> ${panelText("prefix optional)")}</td></tr>
+            <tr><td><code>\${env:<em>VAR</em>}</code></td><td><code>process.env</code> ${panelText("value, or")} <code>""</code> ${panelText("when unset")}</td></tr>
+            <tr><td><code>\${config:<em>some.key</em>}</code></td><td>${panelText("VS Code workspace/user configuration value")}</td></tr>
+            <tr class="var-help-row-muted"><td><em>${panelText("anything else")}</em></td><td>${panelText("Left unchanged (VS Code resolves later)")}</td></tr>
           </tbody>
         </table>
       </div>
@@ -421,11 +422,11 @@ export class RunnerProfileApp extends ZephyrLitElement {
           <div class="arg-row">
             <vscode-textfield class="arg-row-input"
               .value=${arg}
-              placeholder="argument"
+              placeholder="${panelText("argument")}"
               @change=${(e: Event) => this._onArgItemChange(scope, originalName, slot, realIdx, e)}>
             </vscode-textfield>
             <vscode-button appearance="icon" icon="close"
-              title="Remove argument"
+              title="${panelText("Remove argument")}"
               @click=${() => this._onArgItemDelete(scope, originalName, slot, realIdx)}>
             </vscode-button>
           </div>
@@ -433,11 +434,11 @@ export class RunnerProfileApp extends ZephyrLitElement {
         <div class="arg-row arg-row-new">
           <vscode-textfield class="arg-row-input"
             .value=${""}
-            placeholder="Add argument…"
+            placeholder="${panelText("Add argument…")}"
             @change=${(e: Event) => this._onNewArgCommit(scope, originalName, slot, e)}>
           </vscode-textfield>
           <vscode-button appearance="icon" icon="question"
-            title="Variable substitution reference"
+            title="${panelText("Variable substitution reference")}"
             @click=${() => this._toggleVarHelp(scope, originalName, slot)}>
           </vscode-button>
         </div>
@@ -466,7 +467,7 @@ export class RunnerProfileApp extends ZephyrLitElement {
           <vscode-checkbox
             ?checked=${rttEnabled}
             @change=${(e: Event) => this._onRttToggle(scope, originalName, slot, (e.target as HTMLInputElement).checked)}>
-            Enable RTT
+            ${panelText("Enable RTT")}
           </vscode-checkbox>
         </div>` : nothing}
         ${probeCfgs ? probeCfgs.map(cfg => html`
@@ -488,7 +489,7 @@ export class RunnerProfileApp extends ZephyrLitElement {
                   title=${o.description ?? o.label}>${o.label}</vscode-option>
               `)}
               ${isCustomProbe ? html`
-                <vscode-option value=${currentProbe} ?selected=${true}>${currentProbe} (custom)</vscode-option>
+                <vscode-option value=${currentProbe} ?selected=${true}>${currentProbe} ${panelText("(custom)")}</vscode-option>
               ` : nothing}
             </vscode-single-select>
           </div>
@@ -501,7 +502,7 @@ export class RunnerProfileApp extends ZephyrLitElement {
 
   render() {
     if (!this._data) {
-      return html`<div class="panel-container"><p>Loading…</p></div>`;
+      return html`<div class="panel-container"><p>${panelText("Loading…")}</p></div>`;
     }
     const d = this._data;
 
@@ -510,15 +511,14 @@ export class RunnerProfileApp extends ZephyrLitElement {
         <div class="page-header">
           <div>
             <h1 class="page-title">
-              <i class="codicon codicon-debug-alt-small"></i> Runner Profiles
+              <i class="codicon codicon-debug-alt-small"></i> ${panelText("Runner Profiles")}
             </h1>
             <p class="page-subtitle">
-              Reusable bundles of <strong>flash</strong>,
-              ${d.separateBuildDebugProfile ? html`<strong>build &amp; debug</strong>, ` : nothing}<strong>debug</strong>, and <strong>attach</strong> binds.
-              Workspace profiles live in <code>.vscode/zephyr-ide.json</code>; user profiles live in
-              <code>zephyr-ide.runnerProfiles</code> settings. Workspace overrides user on name collision.
+              ${panelText("Reusable bundles of")} <strong>${panelText("flash")}</strong>,
+              ${d.separateBuildDebugProfile ? html`<strong>${panelText("build & debug")}</strong>, ` : nothing}<strong>${panelText("debug")}</strong>${panelText(", and")} <strong>${panelText("attach")}</strong> ${panelText("binds. Workspace profiles live in")} <code>.vscode/zephyr-ide.json</code>${panelText("; user profiles live in")}
+              <code>zephyr-ide.runnerProfiles</code> ${panelText("settings. Workspace overrides user on name collision.")}
               ${d.separateBuildDebugProfile ? nothing : html`
-                <br><span class="scope-section-hint">Tip: enable <code>zephyr-ide.separateBuildDebugProfile</code> to configure Build&#8202;&amp;&#8202;Debug separately from Debug.</span>`}
+                <br><span class="scope-section-hint">${panelText("Tip: enable")} <code>zephyr-ide.separateBuildDebugProfile</code> ${panelText("to configure Build & Debug separately from Debug.")}</span>`}
             </p>
           </div>
         </div>
@@ -529,31 +529,31 @@ export class RunnerProfileApp extends ZephyrLitElement {
                 <i class="codicon codicon-pin"></i>
                 <span>
                   ${d.activeBuildLabel
-            ? html`Active build: <strong>${d.activeBuildLabel}</strong>`
-            : html`No active build`}
+            ? html`${panelText("Active build:")} <strong>${d.activeBuildLabel}</strong>`
+            : html`${panelText("No active build")}`}
                   ${d.activeProfileName
-            ? html` &mdash; using profile <strong>${d.activeProfileName}</strong>${d.activeProfileScope === "local"
-              ? html` <span class="scope-local-badge" title="Local override — not committed to zephyr-ide.json">(local)</span>`
+            ? html` ${panelText("— using profile")} <strong>${d.activeProfileName}</strong>${d.activeProfileScope === "local"
+              ? html` <span class="scope-local-badge" title="${panelText("Local override — not committed to zephyr-ide.json")}">${panelText("(local)")}</span>`
               : nothing}`
-            : html` &mdash; <em>no profile selected (auto / runners.yaml defaults)</em>`}
+            : html` ${panelText("—")} <em>${panelText("no profile selected (auto / runners.yaml defaults)")}</em>`}
                 </span>
                 <vscode-button appearance="secondary" icon="settings-gear"
                   @click=${() => this._onSelectActiveProfile()}
                   ?disabled=${!d.activeBuildLabel}>
-                  Change active profile
+                  ${panelText("Change active profile")}
                 </vscode-button>
                 ${d.activeProfileName
             ? html`<vscode-button appearance="icon" icon="close"
-                title="Clear active profile (revert to runners.yaml defaults)"
+                title="${panelText("Clear active profile (revert to runners.yaml defaults)")}"
                 @click=${() => this._onClearActiveBuildProfile()}></vscode-button>`
             : nothing}
                 ${d.activeProfileScope === "local"
             ? html`
                     <vscode-button appearance="icon" icon="save"
-                      title="Save local override to workspace (.vscode/zephyr-ide.json)"
+                      title="${panelText("Save local override to workspace (.vscode/zephyr-ide.json)")}"
                       @click=${() => this._onSaveActiveProfileToWorkspace()}></vscode-button>
                     <vscode-button appearance="icon" icon="discard"
-                      title="Reset to workspace default (discard local override)"
+                      title="${panelText("Reset to workspace default (discard local override)")}"
                       @click=${() => this._onResetActiveProfileToWorkspace()}></vscode-button>`
             : nothing}
               </div>`
@@ -572,19 +572,19 @@ export class RunnerProfileApp extends ZephyrLitElement {
         <section class="scope-section">
           <div class="scope-section-header">
             <h2 class="scope-section-title">
-              <i class="codicon codicon-folder"></i> Workspace
+              <i class="codicon codicon-folder"></i> ${panelText("Workspace")}
             </h2>
-            <span class="scope-section-hint">Open a workspace to add workspace-scoped profiles.</span>
+            <span class="scope-section-hint">${panelText("Open a workspace to add workspace-scoped profiles.")}</span>
           </div>
         </section>`;
     }
 
     const heading = scope === "workspace"
-      ? html`<i class="codicon codicon-folder"></i> Workspace`
-      : html`<i class="codicon codicon-account"></i> User`;
+      ? html`<i class="codicon codicon-folder"></i> ${panelText("Workspace")}`
+      : html`<i class="codicon codicon-account"></i> ${panelText("User")}`;
     const hint = scope === "workspace"
-      ? html`Saved to <code>.vscode/zephyr-ide.json</code>. Shared with anyone who clones the repo.`
-      : html`Saved to <code>zephyr-ide.runnerProfiles</code> user setting. Available across all workspaces.`;
+      ? html`${panelText("Saved to")} <code>.vscode/zephyr-ide.json</code>${panelText(". Shared with anyone who clones the repo.")}`
+      : html`${panelText("Saved to")} <code>zephyr-ide.runnerProfiles</code> ${panelText("user setting. Available across all workspaces.")}`;
 
     return html`
       <section class="scope-section">
@@ -593,12 +593,12 @@ export class RunnerProfileApp extends ZephyrLitElement {
           <span class="scope-section-hint">${hint}</span>
           <vscode-button appearance="primary" icon="add"
             @click=${() => this._onCreate(scope)}>
-            New profile
+            ${panelText("New profile")}
           </vscode-button>
         </div>
         ${profiles.length === 0
         ? html`<div class="scope-section-empty">
-              No ${scope} profiles yet. Click <strong>New profile</strong> to add one.
+              ${panelParts(scope === "workspace" ? panelText("No workspace profiles yet. Click {0} to add one.") : panelText("No user profiles yet. Click {0} to add one."), html`<strong>${panelText("New profile")}</strong>`)}
             </div>`
         : html`<div class="profile-list">
               ${profiles.map(p => this._renderProfileCard(scope, p))}
@@ -621,14 +621,14 @@ export class RunnerProfileApp extends ZephyrLitElement {
         <div class="profile-card-header">
           <vscode-textfield class="profile-card-name"
             .value=${draft.name}
-            placeholder="Profile name"
+            placeholder="${panelText("Profile name")}"
             @change=${(e: Event) => this._onNameInput(scope, original.name, e)}
             @input=${(e: Event) => this._onNameInput(scope, original.name, e)}>
           </vscode-textfield>
-          ${isActive ? html`<span class="profile-active-badge" title="Active profile for the current build"><i class="codicon codicon-pin"></i> active</span>` : nothing}
+          ${isActive ? html`<span class="profile-active-badge" title="${panelText("Active profile for the current build")}"><i class="codicon codicon-pin"></i> ${panelText("active")}</span>` : nothing}
           ${usage.length > 0
         ? html`<span class="profile-usage-badge"
-              title=${`Used by ${usage.length} build${usage.length === 1 ? "" : "s"}:\n${usage.join("\n")}`}>
+              title=${usage.length === 1 ? panelText("Used by 1 build:\n{0}", usage[0]) : panelText("Used by {0} builds:\n{1}", usage.length, usage.join("\n"))}>
               <i class="codicon codicon-link"></i> ${usage.length}
             </span>`
         : nothing}
@@ -645,28 +645,28 @@ export class RunnerProfileApp extends ZephyrLitElement {
         </div>
 
         <div class="profile-card-actions">
-          ${dirty ? html`<span class="dirty-hint">Unsaved changes</span>` : nothing}
+          ${dirty ? html`<span class="dirty-hint">${panelText("Unsaved changes")}</span>` : nothing}
           ${!dirty && hasActiveBuild && !isActive
         ? html`<vscode-button appearance="secondary" icon="pin"
-              title="Set as active profile for the current build"
+              title="${panelText("Set as active profile for the current build")}"
               @click=${() => this._onUseForActiveBuild(original.name)}>
-              Use for active build
+              ${panelText("Use for active build")}
             </vscode-button>`
         : nothing}
           ${dirty ? html`
             <vscode-button appearance="secondary" icon="discard"
               @click=${() => this._onRevert(scope, original.name)}>
-              Revert
+              ${panelText("Revert")}
             </vscode-button>
             <vscode-button appearance="primary" icon="save"
               @click=${() => this._onSave(scope, original.name)}>
-              Save
+              ${panelText("Save")}
             </vscode-button>
           ` : nothing}
-          <vscode-button appearance="icon" icon="copy" title="Duplicate profile"
+          <vscode-button appearance="icon" icon="copy" title="${panelText("Duplicate profile")}"
             @click=${() => this._onDuplicate(scope, original.name)}>
           </vscode-button>
-          <vscode-button appearance="icon" icon="trash" title="Delete profile"
+          <vscode-button appearance="icon" icon="trash" title="${panelText("Delete profile")}"
             @click=${() => this._onDelete(scope, original.name)}>
           </vscode-button>
         </div>
@@ -711,22 +711,22 @@ export class RunnerProfileApp extends ZephyrLitElement {
           <vscode-single-select class="profile-slot-select"
             .value=${currentValue}
             @change=${(e: Event) => this._onBindSelectChange(scope, originalName, slot, e)}>
-            <vscode-option value="auto" ?selected=${bind.kind === "auto"}>Auto (runners.yaml)</vscode-option>
-            <vscode-option value="" disabled>─── West Flash ───</vscode-option>
+            <vscode-option value="auto" ?selected=${bind.kind === "auto"}>${panelText("Auto (runners.yaml)")}</vscode-option>
+            <vscode-option value="" disabled>${panelText("─── West Flash ───")}</vscode-option>
             ${knownRunners.map(r => html`
               <vscode-option
                 value=${"west-flash:" + r}
                 ?selected=${bind.kind === "west-flash" && bind.runner === r}>${r}</vscode-option>
             `)}
             ${bind.kind === "west-flash" && bind.runner && !knownRunners.includes(bind.runner) ? html`
-              <vscode-option value=${"west-flash:" + bind.runner} ?selected=${true}>${bind.runner} (custom)</vscode-option>
+              <vscode-option value=${"west-flash:" + bind.runner} ?selected=${true}>${bind.runner} ${panelText("(custom)")}</vscode-option>
             ` : nothing}
           </vscode-single-select>
           ${bind.kind === "west-flash" && bind.runner
         ? this._renderArgEditor(scope, originalName, slot, bind, bind.runner)
         : nothing}
           ${bind.kind === "auto"
-        ? html`<span class="scope-section-hint">Uses runners.yaml defaults.</span>`
+        ? html`<span class="scope-section-hint">${panelText("Uses runners.yaml defaults.")}</span>`
         : nothing}
         </div>
       </div>
@@ -758,12 +758,12 @@ export class RunnerProfileApp extends ZephyrLitElement {
           <span class="profile-slot-title">${label}</span>
           ${slot === "debug" ? html`
             <vscode-button appearance="icon" icon="arrow-down"
-              title="Copy Debug → Attach"
+              title="${panelText("Copy Debug → Attach")}"
               @click=${() => this._copySlot(scope, originalName, "debug", "attach", draft)}>
             </vscode-button>` : nothing}
           ${slot === "attach" ? html`
             <vscode-button appearance="icon" icon="arrow-up"
-              title="Copy Attach → Debug"
+              title="${panelText("Copy Attach → Debug")}"
               @click=${() => this._copySlot(scope, originalName, "attach", "debug", draft)}>
             </vscode-button>` : nothing}
         </div>
@@ -771,8 +771,8 @@ export class RunnerProfileApp extends ZephyrLitElement {
           <vscode-single-select class="profile-slot-select"
             .value=${currentValue}
             @change=${(e: Event) => this._onBindSelectChange(scope, originalName, slot, e)}>
-            <vscode-option value="auto" ?selected=${bind.kind === "auto"}>Auto (runners.yaml)</vscode-option>
-            <vscode-option value="" disabled>─── launch.json ───</vscode-option>
+            <vscode-option value="auto" ?selected=${bind.kind === "auto"}>${panelText("Auto (runners.yaml)")}</vscode-option>
+            <vscode-option value="" disabled>${panelText("─── launch.json ───")}</vscode-option>
             ${launchConfigNames.map(n => html`
               <vscode-option
                 value=${"launch:" + n}
@@ -781,25 +781,25 @@ export class RunnerProfileApp extends ZephyrLitElement {
             ${syntheticLaunch ? html`
               <vscode-option
                 value=${"launch:" + bind.name}
-                ?selected=${true}>${bind.name} (not found)</vscode-option>
+                ?selected=${true}>${bind.name} ${panelText("(not found)")}</vscode-option>
             ` : nothing}
-            <vscode-option value="" disabled>─── cortex-debug (auto-config) ───</vscode-option>
+            <vscode-option value="" disabled>${panelText("─── cortex-debug (auto-config) ───")}</vscode-option>
             ${cortexRunners.map(r => html`
               <vscode-option
                 value=${"cortex-debug:" + r}
                 ?selected=${bind.kind === "cortex-debug" && bind.runner === r}>${r}</vscode-option>
             `)}
             ${bind.kind === "cortex-debug" && bind.runner && !cortexRunners.includes(bind.runner) ? html`
-              <vscode-option value=${"cortex-debug:" + bind.runner} ?selected=${true}>${bind.runner} (custom)</vscode-option>
+              <vscode-option value=${"cortex-debug:" + bind.runner} ?selected=${true}>${bind.runner} ${panelText("(custom)")}</vscode-option>
             ` : nothing}
-            <vscode-option value="" disabled>─── west debugserver bridge ───</vscode-option>
+            <vscode-option value="" disabled>${panelText("─── west debugserver bridge ───")}</vscode-option>
             ${westRunners.map(r => html`
               <vscode-option
                 value=${"west-debug:" + r}
-                ?selected=${bind.kind === "west-debug" && bind.runner === r}>${r} (west)</vscode-option>
+                ?selected=${bind.kind === "west-debug" && bind.runner === r}>${r} ${panelText("(west)")}</vscode-option>
             `)}
             ${bind.kind === "west-debug" && bind.runner && !westRunners.includes(bind.runner) ? html`
-              <vscode-option value=${"west-debug:" + bind.runner} ?selected=${true}>${bind.runner} (custom, west)</vscode-option>
+              <vscode-option value=${"west-debug:" + bind.runner} ?selected=${true}>${bind.runner} ${panelText("(custom, west)")}</vscode-option>
             ` : nothing}
           </vscode-single-select>
           ${bind.kind === "cortex-debug" && bind.runner
@@ -809,17 +809,17 @@ export class RunnerProfileApp extends ZephyrLitElement {
         ? this._renderArgEditor(scope, originalName, slot, bind, bind.runner)
         : nothing}
           ${bind.kind === "auto" && slot === "buildDebug"
-        ? html`<span class="scope-section-hint">Falls back to the <strong>Debug</strong> slot.</span>`
+        ? html`<span class="scope-section-hint">${panelParts(panelText("Falls back to the {0} slot."), html`<strong>${panelText("Debug")}</strong>`)}</span>`
         : bind.kind === "auto" && slot === "debug" && !d.separateBuildDebugProfile
-          ? html`<span class="scope-section-hint">Uses runners.yaml defaults. Drives both Debug and Build&#8202;&amp;&#8202;Debug.</span>`
+          ? html`<span class="scope-section-hint">${panelText("Uses runners.yaml defaults. Drives both Debug and Build & Debug.")}</span>`
           : bind.kind === "auto"
-            ? html`<span class="scope-section-hint">Uses runners.yaml defaults.</span>`
+            ? html`<span class="scope-section-hint">${panelText("Uses runners.yaml defaults.")}</span>`
             : bind.kind === "launch" && launchConfigNames.length === 0 && !syntheticLaunch
-              ? html`<span class="no-launch-warning">No launch.json configs detected.</span>`
+              ? html`<span class="no-launch-warning">${panelText("No launch.json configs detected.")}</span>`
               : bind.kind === "cortex-debug"
-                ? html`<span class="scope-section-hint">elf, gdb, and target auto-resolved from runners.yaml. RTT and probe selections are structured fields applied on top.</span>`
+                ? html`<span class="scope-section-hint">${panelText("elf, gdb, and target auto-resolved from runners.yaml. RTT and probe selections are structured fields applied on top.")}</span>`
                 : bind.kind === "west-debug"
-                  ? html`<span class="scope-section-hint">Always uses <code>west debugserver</code> bridge — connects cortex-debug as external GDB server.</span>`
+                  ? html`<span class="scope-section-hint">${panelText("Always uses")} <code>west debugserver</code> ${panelText("bridge — connects cortex-debug as external GDB server.")}</span>`
                   : nothing}
         </div>
       </div>
@@ -859,34 +859,34 @@ const RTT_CAPABLE_RUNNERS = new Set(["openocd", "pyocd", "bmp", "blackmagicprobe
 const RUNNER_SECONDARY_SELECTS: Partial<Record<string, SecondarySelectConfig[]>> = {
   openocd: [
     {
-      label: "Interface / Probe",
+      label: panelText("Interface / Probe"),
       hint: "OpenOCD interface config. Leave blank if runners.yaml already specifies one.",
       required: false,
-      placeholder: "runners.yaml / auto-detect",
+      placeholder: panelText("runners.yaml / auto-detect"),
       options: [
-        { value: "interface/stlink.cfg", label: "ST-LINK v2/v3", description: "Most common for STM32 / nRF52 with SWD" },
-        { value: "interface/cmsis-dap.cfg", label: "CMSIS-DAP", description: "DAPLink, ULINK2, MCU-Link, …" },
-        { value: "interface/jlink.cfg", label: "SEGGER J-Link", description: "J-Link via OpenOCD" },
-        { value: "interface/ftdi.cfg", label: "FTDI", description: "FTDI-based probe (generic)" },
-        { value: "interface/picoprobe.cfg", label: "Raspberry Pi Pico (probe)", description: "RP2040 Pico used as SWD/JTAG probe" },
-        { value: "interface/raspberrypi-swd.cfg", label: "Raspberry Pi GPIO SWD", description: "Bit-banged SWD via RPi GPIO" },
-        { value: "interface/buspirate.cfg", label: "Bus Pirate", description: "Bus Pirate USB probe" },
+        { value: "interface/stlink.cfg", label: "ST-LINK v2/v3", description: panelText("Most common for STM32 / nRF52 with SWD") },
+        { value: "interface/cmsis-dap.cfg", label: "CMSIS-DAP", description: panelText("DAPLink, ULINK2, MCU-Link, …") },
+        { value: "interface/jlink.cfg", label: "SEGGER J-Link", description: panelText("J-Link via OpenOCD") },
+        { value: "interface/ftdi.cfg", label: "FTDI", description: panelText("FTDI-based probe (generic)") },
+        { value: "interface/picoprobe.cfg", label: panelText("Raspberry Pi Pico (probe)"), description: panelText("RP2040 Pico used as SWD/JTAG probe") },
+        { value: "interface/raspberrypi-swd.cfg", label: panelText("Raspberry Pi GPIO SWD"), description: panelText("Bit-banged SWD via RPi GPIO") },
+        { value: "interface/buspirate.cfg", label: "Bus Pirate", description: panelText("Bus Pirate USB probe") },
       ],
     },
   ],
   pyocd: [
     {
-      label: "Probe / Interface",
+      label: panelText("Probe / Interface"),
       hint: "pyOCD probe selection. Specify the probe type or leave blank to auto-detect the first available.",
       required: true,
-      placeholder: "— select probe (required) —",
+      placeholder: panelText("— select probe (required) —"),
       options: [
-        { value: "cmsis_dap", label: "CMSIS-DAP (generic)", description: "Any CMSIS-DAP probe — DAPLink, MCU-Link, ULINK2, …" },
-        { value: "stlink", label: "ST-Link (v2/v3)", description: "STMicroelectronics ST-Link v2 or v3 (libusb)" },
-        { value: "jlink", label: "SEGGER J-Link", description: "First J-Link probe (requires pyocd-jlink plugin)" },
-        { value: "picoprobe", label: "Raspberry Pi Pico (picoprobe)", description: "RP2040 Pico running picoprobe firmware" },
-        { value: "xds110", label: "TI XDS110", description: "Texas Instruments XDS110 debug probe" },
-        { value: "cmsisdap", label: "cmsisdap (alternate ID)", description: "Alternate CMSIS-DAP probe ID for some targets" },
+        { value: "cmsis_dap", label: panelText("CMSIS-DAP (generic)"), description: panelText("Any CMSIS-DAP probe — DAPLink, MCU-Link, ULINK2, …") },
+        { value: "stlink", label: panelText("ST-Link (v2/v3)"), description: panelText("STMicroelectronics ST-Link v2 or v3 (libusb)") },
+        { value: "jlink", label: "SEGGER J-Link", description: panelText("First J-Link probe (requires pyocd-jlink plugin)") },
+        { value: "picoprobe", label: panelText("Raspberry Pi Pico (picoprobe)"), description: panelText("RP2040 Pico running picoprobe firmware") },
+        { value: "xds110", label: "TI XDS110", description: panelText("Texas Instruments XDS110 debug probe") },
+        { value: "cmsisdap", label: panelText("cmsisdap (alternate ID)"), description: panelText("Alternate CMSIS-DAP probe ID for some targets") },
       ],
     },
   ],

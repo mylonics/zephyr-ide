@@ -15,6 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import { webviewMessages } from "../webview-messages";
 import * as vscode from "vscode";
 import * as path from "upath";
 
@@ -116,8 +117,8 @@ export class ProjectBuildPanel {
     }
 
     const title = projectName
-      ? `Project: ${projectName}`
-      : "Zephyr IDE: Project Details";
+      ? vscode.l10n.t("Project: {0}", projectName)
+      : vscode.l10n.t("Zephyr IDE: Project Details");
 
     const panel = vscode.window.createWebviewPanel(
       "zephyrIDEProjectBuild",
@@ -229,8 +230,8 @@ export class ProjectBuildPanel {
           this._selectedProject = message.project;
           this._selectedBuildOrTest = this.getDefaultSelection();
           this._panel.title = message.project
-            ? `Project: ${message.project}`
-            : "Zephyr IDE: Project Details";
+            ? vscode.l10n.t("Project: {0}", String(message.project))
+            : vscode.l10n.t("Zephyr IDE: Project Details");
           this.updateHtml();
           return;
 
@@ -391,7 +392,7 @@ export class ProjectBuildPanel {
         case "updateVariant":
         case "removeVariant":
         case "setActiveRunner":
-          notifyError("Runner Config", "Runner cards have been replaced by Runner Profiles. Use 'Change…' on the Runner Profile section, or the command palette: 'Zephyr IDE: Select Active Runner Profile'.");
+          notifyError("Runner Config", vscode.l10n.t("Runner cards have been replaced by Runner Profiles. Use 'Change…' on the Runner Profile section, or the command palette: 'Zephyr IDE: Select Active Runner Profile'."));
           return;
 
         // Build actions. Target project/build come from the build card that was
@@ -499,7 +500,7 @@ export class ProjectBuildPanel {
     const originalKey = String(message.originalKey ?? "").trim();
 
     if (!key) {
-      notifyError("Project Build Panel", "Please enter a variable name to continue.");
+      notifyError("Project Build Panel", vscode.l10n.t("Please enter a variable name to continue."));
       return;
     }
 
@@ -722,7 +723,7 @@ export class ProjectBuildPanel {
         const activeLabel = bName === activeBuild ? " (active)" : "";
         buildTestOptions.push({
           value: val,
-          label: `Build: ${bName}${activeLabel}`,
+          label: vscode.l10n.t("Build: {0}{1}", bName, activeLabel),
           selected: val === currentSelection,
         });
       }
@@ -730,7 +731,7 @@ export class ProjectBuildPanel {
         const val = `test:${tName}`;
         buildTestOptions.push({
           value: val,
-          label: `Test: ${tName}`,
+          label: vscode.l10n.t("Test: {0}", tName),
           selected: val === currentSelection,
         });
       }
@@ -863,7 +864,7 @@ export class ProjectBuildPanel {
     const nonce = generateNonce();
 
     return `<!DOCTYPE html>
-    <html lang="en">
+    <html lang="${vscode.env.language}">
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -872,6 +873,7 @@ export class ProjectBuildPanel {
       ${this.getStylesheetLinks()}
     </head>
     <body>
+      ${webviewMessages(nonce)}
       <project-build-app></project-build-app>
       ${this.getScriptTags(nonce)}
     </body>

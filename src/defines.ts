@@ -65,6 +65,6 @@ export const sdkVersions = [
   { label: "0.17.4", description: "Zephyr 4.3" },
   { label: "0.16.9", description: "Zephyr 3.7" },
   { label: "sep", kind: vscode.QuickPickItemKind.Separator },
-  { label: "latest", description: "Latest available version" },
-  { label: "automatic", description: "Auto-detect from workspace" }
+  { label: "latest", description: vscode.l10n.t("Latest available version") },
+  { label: "automatic", description: vscode.l10n.t("Auto-detect from workspace") }
 ];

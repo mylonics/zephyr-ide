@@ -90,7 +90,7 @@ export class ActiveProjectView implements vscode.TreeDataProvider<ActiveProjectI
       }
       activeTwister = getResolvedTestConfig(this.wsConfig, resolvedProject);
     } else {
-      this.title = "No Active Project";
+      this.title = vscode.l10n.t("No Active Project");
       return [];
     }
 
@@ -190,41 +190,41 @@ export class ActiveProjectView implements vscode.TreeDataProvider<ActiveProjectI
 
     const items: ActiveProjectItem[] = [];
     if (showBuildPristine) {
-      items.push(new ActiveProjectItem("Build Pristine", "project", activeBuild ? activeBuild.name : "None",
+      items.push(new ActiveProjectItem(vscode.l10n.t("Build Pristine"), "project", activeBuild ? activeBuild.name : "None",
         buildPristineContextValue, "zephyr-ide.build-pristine"));
     }
     if (showBuild) {
-      items.push(new ActiveProjectItem("Build", "project", activeBuild ? activeBuild.name : "None",
+      items.push(new ActiveProjectItem(vscode.l10n.t("Build"), "project", activeBuild ? activeBuild.name : "None",
         buildContextValue, "zephyr-ide.build"));
     }
     if (showFlash) {
-      items.push(new ActiveProjectItem("Flash", "chip", flashDisplay,
+      items.push(new ActiveProjectItem(vscode.l10n.t("Flash"), "chip", flashDisplay,
         flashContextValue, "zephyr-ide.flash"));
     }
     if (showBuildFlash) {
-      items.push(new ActiveProjectItem("Build and Flash", "cloud-upload", flashDisplay,
+      items.push(new ActiveProjectItem(vscode.l10n.t("Build and Flash"), "cloud-upload", flashDisplay,
         'activeProject.buildFlash', "zephyr-ide.build-flash"));
     }
     if (showDebug) {
-      items.push(new ActiveProjectItem("Debug", "debug-alt", debugDisplay,
+      items.push(new ActiveProjectItem(vscode.l10n.t("Debug"), "debug-alt", debugDisplay,
         debugContextValue, "zephyr-ide.debug"));
     }
     if (showBuildDebug) {
-      items.push(new ActiveProjectItem("Build and Debug", "debug-all", buildDebugDisplay,
+      items.push(new ActiveProjectItem(vscode.l10n.t("Build and Debug"), "debug-all", buildDebugDisplay,
         'activeProject.buildDebug', "zephyr-ide.build-debug"));
     }
     if (showAttach) {
-      items.push(new ActiveProjectItem("Attach", "debug-console", attachDisplay,
+      items.push(new ActiveProjectItem(vscode.l10n.t("Attach"), "debug-console", attachDisplay,
         'activeProject.debugAttach', "zephyr-ide.debug-attach"));
     }
 
     if (activeProject.twisterConfigs && Object.keys(activeProject.twisterConfigs).length) {
-      items.push(new ActiveProjectItem("Run Tests", "beaker", activeTwister ? activeTwister.name : "",
+      items.push(new ActiveProjectItem(vscode.l10n.t("Run Tests"), "beaker", activeTwister ? activeTwister.name : "",
         'activeProject.twisterRun', "zephyr-ide.run-test"));
     }
 
     if (showBuildDashboard) {
-      items.push(new ActiveProjectItem("Build Dashboard", "dashboard", activeBuild ? activeBuild.name : "None",
+      items.push(new ActiveProjectItem(vscode.l10n.t("Build Dashboard"), "dashboard", activeBuild ? activeBuild.name : "None",
         'activeProject.buildDashboard', "zephyr-ide.run-dashboard"));
     }
 

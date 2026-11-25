@@ -445,7 +445,7 @@ export async function getRootPath(first = false) {
 
     const pickOptions: vscode.QuickPickOptions = {
       ignoreFocusOut: true,
-      placeHolder: "Select Workspace Root",
+      placeHolder: vscode.l10n.t("Select Workspace Root"),
     };
     const roots: vscode.QuickPickItem[] = rootPaths.map(x => ({ label: x.name, description: x.uri.fsPath }));
 
@@ -551,7 +551,7 @@ export async function resolveConfigInputs(
     const def = inputById.get(id);
     if (!def) {
       vscode.window.showErrorMessage(
-        `Undefined input variable '${id}' in launch configuration.`
+        vscode.l10n.t("Undefined input variable '{0}' in launch configuration.", id)
       );
       return undefined;
     }
@@ -601,7 +601,7 @@ export async function resolveConfigInputs(
       }
       default:
         vscode.window.showWarningMessage(
-          `Unsupported input type '${def.type}' for input '${id}' in launch configuration.`
+          vscode.l10n.t("Unsupported input type '{0}' for input '{1}' in launch configuration.", String(def.type), id)
         );
         return undefined;
     }
@@ -692,7 +692,7 @@ export async function selectLaunchConfiguration(
 
   const pickOptions: vscode.QuickPickOptions = {
     ignoreFocusOut: true,
-    placeHolder: mode === "flash" ? "Select Flash Runner" : "Select Launch Configuration",
+    placeHolder: mode === "flash" ? vscode.l10n.t("Select Flash Runner") : vscode.l10n.t("Select Launch Configuration"),
   };
   const isMultiRoot = (vscode.workspace.workspaceFolders?.length ?? 0) > 1;
   const items: vscode.QuickPickItem[] = [];
@@ -701,8 +701,8 @@ export async function selectLaunchConfiguration(
     items.push({
       label: defaultLabel,
       detail: mode === "flash"
-        ? "Use the default flash runner from runners.yaml"
-        : "Use Zephyr IDE automatic debug configuration (runners.yaml)",
+        ? vscode.l10n.t("Use the default flash runner from runners.yaml")
+        : vscode.l10n.t("Use Zephyr IDE automatic debug configuration (runners.yaml)"),
     });
   }
 
@@ -717,8 +717,8 @@ export async function selectLaunchConfiguration(
     items.push({ label: "west flash", kind: vscode.QuickPickItemKind.Separator });
     items.push(...sortedRunners.map(r => ({
       label: `${_RUNNER_ICON_PREFIX}${r}`,
-      description: !availableSet || availableSet.has(r) ? "flash" : "(not in board's runners.yaml)",
-      detail: `Use the ${r} runner for flashing.`,
+      description: !availableSet || availableSet.has(r) ? vscode.l10n.t("flash") : vscode.l10n.t("(not in board's runners.yaml)"),
+      detail: vscode.l10n.t("Use the {0} runner for flashing.", r),
     } as vscode.QuickPickItem)));
   } else {
     // Debug/Attach: launch.json first, then two runner sections mirroring the
@@ -738,18 +738,18 @@ export async function selectLaunchConfiguration(
       })));
     }
 
-    items.push({ label: "cortex-debug (auto-config)", kind: vscode.QuickPickItemKind.Separator });
+    items.push({ label: vscode.l10n.t("cortex-debug (auto-config)"), kind: vscode.QuickPickItemKind.Separator });
     items.push(...sortedCortexRunners.map(r => ({
       label: `${_RUNNER_ICON_PREFIX}${r}`,
-      description: !availableSet || availableSet.has(r) ? "auto-config" : "(not in board's runners.yaml)",
-      detail: `Pin to the ${r} runner; cortex-debug config is generated from runners.yaml.`,
+      description: !availableSet || availableSet.has(r) ? "auto-config" : vscode.l10n.t("(not in board's runners.yaml)"),
+      detail: vscode.l10n.t("Pin to the {0} runner; cortex-debug config is generated from runners.yaml.", r),
     } as vscode.QuickPickItem)));
 
-    items.push({ label: "west debugserver bridge", kind: vscode.QuickPickItemKind.Separator });
+    items.push({ label: vscode.l10n.t("west debugserver bridge"), kind: vscode.QuickPickItemKind.Separator });
     items.push(...sortedWestRunners.map(r => ({
       label: `${_RUNNER_ICON_PREFIX}${r}${_WEST_LABEL_SUFFIX}`,
-      description: !availableSet || availableSet.has(r) ? "west debugserver" : "(not in board's runners.yaml)",
-      detail: `Always use west debugserver bridge with the ${r} runner.`,
+      description: !availableSet || availableSet.has(r) ? "west debugserver" : vscode.l10n.t("(not in board's runners.yaml)"),
+      detail: vscode.l10n.t("Always use west debugserver bridge with the {0} runner.", r),
     } as vscode.QuickPickItem)));
   }
 
@@ -1014,7 +1014,7 @@ export async function executeShellCommand(cmd: string, cwd: string, display_erro
       if (display_error) {
         outputError("Shell Command", `Command failed: ${cmd}`, {
           command: cmd,
-          detail: `Exit code: ${exitCode ?? 'unknown'} | cwd: ${cwd || '(not set)'}`,
+          detail: vscode.l10n.t("Exit code: {0} | cwd: {1}", exitCode ?? 'unknown', cwd || '(not set)'),
           stdout: reason.stdout as string | undefined,
           stderr: reason.stderr as string | undefined,
         });
@@ -1186,32 +1186,32 @@ export function reloadEnvironmentVariables(context: vscode.ExtensionContext, set
 
   // If no setup state, use system environment variables
   if (!setupState) {
-    context.environmentVariableCollection.description = "Using system environment variables";
+    context.environmentVariableCollection.description = vscode.l10n.t("Using system environment variables");
     return;
   }
 
   // If setup state exists, IDE will always manage environment variables (no distinction between IDE-managed and external setups)
   // Only set ZEPHYR_SDK_INSTALL_DIR if not already set by user
   if (process.env.ZEPHYR_SDK_INSTALL_DIR) {
-    context.environmentVariableCollection.description = "Using user-defined `ZEPHYR_SDK_INSTALL_DIR`";
+    context.environmentVariableCollection.description = vscode.l10n.t("Using user-defined `ZEPHYR_SDK_INSTALL_DIR`");
   } else {
-    context.environmentVariableCollection.description = "Zephyr IDE adds `ZEPHYR_SDK_INSTALL_DIR`";
+    context.environmentVariableCollection.description = vscode.l10n.t("Zephyr IDE adds `ZEPHYR_SDK_INSTALL_DIR`");
     context.environmentVariableCollection.replace("ZEPHYR_SDK_INSTALL_DIR", getToolchainDir(), { applyAtProcessCreation: true, applyAtShellIntegration: true });
   }
 
   if (setupState.env["VIRTUAL_ENV"]) {
-    context.environmentVariableCollection.description += ", `VIRTUAL_ENV`";
+    context.environmentVariableCollection.description += vscode.l10n.t(", `VIRTUAL_ENV`");
     context.environmentVariableCollection.replace("VIRTUAL_ENV", setupState.env["VIRTUAL_ENV"], { applyAtProcessCreation: true, applyAtShellIntegration: true });
   }
 
   if (setupState.env["PATH"]) {
-    context.environmentVariableCollection.description += ", `Python .venv PATH`";
+    context.environmentVariableCollection.description += vscode.l10n.t(", `Python .venv PATH`");
     context.environmentVariableCollection.prepend("PATH", setupState.env["PATH"], { applyAtProcessCreation: true, applyAtShellIntegration: true });
   }
 
   const zephyrBase = getEffectiveZephyrBase(setupState);
   if (zephyrBase) {
-    context.environmentVariableCollection.description += ", `ZEPHYR_BASE`";
+    context.environmentVariableCollection.description += vscode.l10n.t(", `ZEPHYR_BASE`");
     context.environmentVariableCollection.replace("ZEPHYR_BASE", zephyrBase, { applyAtProcessCreation: true, applyAtShellIntegration: true });
   }
 }

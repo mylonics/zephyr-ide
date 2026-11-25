@@ -776,7 +776,7 @@ async function resolveAptInstallPlan(pkg: PlatformPackage, minorVersionOverride?
       aptPackages = ["python3.12", "python3.12-dev"];
       // After install, make `python3` point to the new 3.12 binary.
       postAptSteps.push({
-        label: "Register python3.12 as default python3",
+        label: vscode.l10n.t("Register python3.12 as default python3"),
         command: "sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1",
       });
     }
@@ -1050,12 +1050,12 @@ export async function installAllMissingPackages(): Promise<boolean> {
   if (allSuccess) {
     outputInfo("Host Tools", "All missing packages installed successfully");
     void vscode.window.showInformationMessage(
-      "Host tools installed successfully. You may need to restart VS Code for changes to take effect."
+      vscode.l10n.t("Host tools installed successfully. You may need to restart VS Code for changes to take effect.")
     );
   } else {
     outputWarning("Host Tools", "Some packages failed to install");
     notifyWarning("Host Tools",
-      "Some host tools failed to install. Check the output for details."
+      vscode.l10n.t("Some host tools failed to install. Check the output for details.")
     );
   }
 
@@ -1259,9 +1259,9 @@ export async function confirmVendorToolsInstall(packages: PlatformPackage[]): Pr
 
   const toolNames = packages.map(p => p.name).join(", ");
   const choice = await vscode.window.showInformationMessage(
-    `The selected vendor configuration requires the following additional tools: ${toolNames}. Would you like to install them now?`,
-    "Allow",
-    "Skip"
+    vscode.l10n.t("The selected vendor configuration requires the following additional tools: {0}. Would you like to install them now?", toolNames),
+    vscode.l10n.t("Allow"),
+    vscode.l10n.t("Skip")
   );
-  return choice === "Allow";
+  return choice === vscode.l10n.t("Allow");
 }

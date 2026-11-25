@@ -15,6 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import { panelText } from "../../webview_shared/panel-text";
 import { html, nothing } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { ZephyrLitElement } from "../../webview_shared/lit-base";
@@ -85,7 +86,7 @@ export class ZephyrIDEManagerApp extends ZephyrLitElement {
       case "blobInstallResult":
         this._blobInstalling = false;
         this._selectedBlobs = new Set();
-        this._blobProgress = msg.data ? "Blob installation completed." : "Blob installation failed.";
+        this._blobProgress = msg.data ? panelText("Blob installation completed.") : panelText("Blob installation failed.");
         break;
     }
   };
@@ -121,7 +122,7 @@ export class ZephyrIDEManagerApp extends ZephyrLitElement {
     ];
     const hasAny = platforms.some(p => (commands[p.key]?.length ?? 0) > 0);
     if (!hasAny) {
-      return html`<div class="info-box">No commands declared in zephyr-ide.json.</div>`;
+      return html`<div class="info-box">${panelText("No commands declared in zephyr-ide.json.")}</div>`;
     }
     return html`
       ${platforms.map(({ key, label }) => {
@@ -134,7 +135,7 @@ export class ZephyrIDEManagerApp extends ZephyrLitElement {
               ${cmds.map(cmd => html`
                 <button
                   class="command-chip"
-                  title="Run this command"
+                  title="${panelText("Run this command")}"
                   @click=${() => this.postCommand("runSingleCommand", { platform: String(key), commandText: cmd })}
                 >
                   ${cmd}
@@ -149,7 +150,7 @@ export class ZephyrIDEManagerApp extends ZephyrLitElement {
 
   render() {
     if (!this._data) {
-      return html`<div class="container"><p>Loading…</p></div>`;
+      return html`<div class="container"><p>${panelText("Loading…")}</p></div>`;
     }
 
     const fetchedCount = this._blobModules.filter(m => m.isFetched).length;
@@ -158,75 +159,74 @@ export class ZephyrIDEManagerApp extends ZephyrLitElement {
     return html`
       <div class="container">
         <div class="breadcrumb">
-          <a class="breadcrumb-link" @click=${() => this.postCommand("openSetupPanel")}>← Setup & Configuration</a>
+          <a class="breadcrumb-link" @click=${() => this.postCommand("openSetupPanel")}>${panelText("← Setup & Configuration")}</a>
           <span class="breadcrumb-separator">/</span>
-          <span class="breadcrumb-current">Zephyr IDE Manager</span>
+          <span class="breadcrumb-current">${panelText("Zephyr IDE Manager")}</span>
         </div>
 
         <div class="page-header">
-          <h1 class="page-title">Zephyr IDE Manager</h1>
+          <h1 class="page-title">${panelText("Zephyr IDE Manager")}</h1>
           <div class="header-actions">
             <vscode-button appearance="secondary" @click=${() => this.postCommand("openSdkPanel")}>
               <vscode-icon slot="start-icon" name="tools"></vscode-icon>
-              Open SDK Panel
+              ${panelText("Open SDK Panel")}
             </vscode-button>
             <vscode-button appearance="secondary" @click=${() => this._refresh()}>
               <vscode-icon slot="start-icon" name="refresh"></vscode-icon>
-              Refresh
+              ${panelText("Refresh")}
             </vscode-button>
           </div>
         </div>
 
         <p class="manager-subtext">
-          Manage zephyr-ide.json requirements and install workflows for toolchains, west blobs, Python packages,
-          host tools, and sample projects in one place.
+          ${panelText("Manage zephyr-ide.json requirements and install workflows for toolchains, west blobs, Python packages, host tools, and sample projects in one place.")}
         </p>
 
         <div class="manager-grid">
           <section class="manager-card">
             <div class="manager-card-header">
-              <h2 class="manager-title">SDK Toolchains</h2>
+              <h2 class="manager-title">${panelText("SDK Toolchains")}</h2>
               <div class="manager-actions">
-                <vscode-button appearance="secondary" @click=${() => this.postCommand("modifyToolchains")}>Modify</vscode-button>
-                <vscode-button @click=${() => this.postCommand("installToolchains")}>Install</vscode-button>
+                <vscode-button appearance="secondary" @click=${() => this.postCommand("modifyToolchains")}>${panelText("Modify")}</vscode-button>
+                <vscode-button @click=${() => this.postCommand("installToolchains")}>${panelText("Install")}</vscode-button>
               </div>
             </div>
             ${this._data.toolchains.length > 0
               ? html`<div class="token-list">${this._data.toolchains.map(t => html`<span class="token">${t}</span>`)}</div>`
-              : html`<div class="info-box">No toolchains declared in zephyr-ide.json.</div>`}
+              : html`<div class="info-box">${panelText("No toolchains declared in zephyr-ide.json.")}</div>`}
           </section>
 
           <section class="manager-card">
             <div class="manager-card-header">
-              <h2 class="manager-title">Pip Packages &amp; Requirements</h2>
+              <h2 class="manager-title">${panelText("Pip Packages & Requirements")}</h2>
               <div class="manager-actions">
-                <vscode-button appearance="secondary" @click=${() => this.postCommand("modifyPipPackages")}>Modify Packages</vscode-button>
-                <vscode-button appearance="secondary" @click=${() => this.postCommand("modifyPipRequirements")}>Modify Requirements</vscode-button>
-                <vscode-button @click=${() => this.postCommand("installPipPackages")}>Install All</vscode-button>
+                <vscode-button appearance="secondary" @click=${() => this.postCommand("modifyPipPackages")}>${panelText("Modify Packages")}</vscode-button>
+                <vscode-button appearance="secondary" @click=${() => this.postCommand("modifyPipRequirements")}>${panelText("Modify Requirements")}</vscode-button>
+                <vscode-button @click=${() => this.postCommand("installPipPackages")}>${panelText("Install All")}</vscode-button>
               </div>
             </div>
             ${this._data.pipPackages.length > 0
               ? html`<div class="token-list">${this._data.pipPackages.map(p => html`<span class="token">${p}</span>`)}</div>`
-              : html`<div class="info-box">No pip packages declared in zephyr-ide.json.</div>`}
+              : html`<div class="info-box">${panelText("No pip packages declared in zephyr-ide.json.")}</div>`}
             ${this._data.pipRequirements.length > 0
               ? html`<div class="token-list">${this._data.pipRequirements.map(r => html`<span class="token">${r}</span>`)}</div>`
-              : html`<div class="info-box">No requirements files declared in zephyr-ide.json.</div>`}
+              : html`<div class="info-box">${panelText("No requirements files declared in zephyr-ide.json.")}</div>`}
           </section>
 
           <section class="manager-card full-width">
             <div class="manager-card-header">
-              <h2 class="manager-title">West Blobs</h2>
+              <h2 class="manager-title">${panelText("West Blobs")}</h2>
               <div class="manager-actions">
-                <vscode-button appearance="secondary" @click=${() => this.postCommand("modifyBlobs")}>Modify JSON List</vscode-button>
-                <vscode-button appearance="secondary" @click=${() => this.postCommand("installBlobsFromJson")}>Install from JSON</vscode-button>
+                <vscode-button appearance="secondary" @click=${() => this.postCommand("modifyBlobs")}>${panelText("Modify JSON List")}</vscode-button>
+                <vscode-button appearance="secondary" @click=${() => this.postCommand("installBlobsFromJson")}>${panelText("Install from JSON")}</vscode-button>
                 <vscode-button ?disabled=${selectedCount === 0 || this._blobInstalling} @click=${() => this._installSelectedBlobs()}>
-                  Fetch Selected (${selectedCount})
+                  ${panelText("Fetch Selected (")}${selectedCount})
                 </vscode-button>
               </div>
             </div>
-            <p class="manager-subtext">Fetched: ${fetchedCount} / ${this._blobModules.length}</p>
+            <p class="manager-subtext">${panelText("Fetched:")} ${fetchedCount} / ${this._blobModules.length}</p>
             ${this._blobLoading
-              ? html`<div class="inline-status"><vscode-progress-ring></vscode-progress-ring><span>Loading blob modules…</span></div>`
+              ? html`<div class="inline-status"><vscode-progress-ring></vscode-progress-ring><span>${panelText("Loading blob modules…")}</span></div>`
               : this._blobModules.length > 0
                 ? html`<div class="blob-chip-list">${this._blobModules.map(m => {
                   const selected = this._selectedBlobs.has(m.moduleName);
@@ -242,7 +242,7 @@ export class ZephyrIDEManagerApp extends ZephyrLitElement {
                     </button>
                   `;
                 })}</div>`
-                : html`<div class="info-box">No west blob modules discovered. Run west update and refresh.</div>`}
+                : html`<div class="info-box">${panelText("No west blob modules discovered. Run west update and refresh.")}</div>`}
             ${this._blobProgress ? html`<div class="inline-status">${this._blobInstalling ? html`<vscode-progress-ring></vscode-progress-ring>` : nothing}<span>${this._blobProgress}</span></div>` : nothing}
           </section>
 
@@ -250,33 +250,33 @@ export class ZephyrIDEManagerApp extends ZephyrLitElement {
             <div class="manager-card-header">
               <h2 class="manager-title">Host/Vendor Tools</h2>
               <div class="manager-actions">
-                <vscode-button @click=${() => this.postCommand("openHostToolsPanel")}>Open Host Tools</vscode-button>
+                <vscode-button @click=${() => this.postCommand("openHostToolsPanel")}>${panelText("Open Host Tools")}</vscode-button>
               </div>
             </div>
-            <p class="manager-subtext">Install platform package manager dependencies and vendor tools via the Host Tools workflow.</p>
+            <p class="manager-subtext">${panelText("Install platform package manager dependencies and vendor tools via the Host Tools workflow.")}</p>
           </section>
 
           <section class="manager-card">
             <div class="manager-card-header">
-              <h2 class="manager-title">Sample Projects</h2>
+              <h2 class="manager-title">${panelText("Sample Projects")}</h2>
               <div class="manager-actions">
-                <vscode-button appearance="secondary" @click=${() => this.postCommand("modifySampleProjects")}>Modify</vscode-button>
+                <vscode-button appearance="secondary" @click=${() => this.postCommand("modifySampleProjects")}>${panelText("Modify")}</vscode-button>
               </div>
             </div>
             ${this._data.sampleProjects.length > 0
               ? html`<div class="token-list">${this._data.sampleProjects.map(p => html`<span class="token warning">${p.name}: ${p.relPath}</span>`)}</div>`
-              : html`<div class="info-box">No sample projects declared in zephyr-ide.json.</div>`}
+              : html`<div class="info-box">${panelText("No sample projects declared in zephyr-ide.json.")}</div>`}
           </section>
 
           <section class="manager-card full-width">
             <div class="manager-card-header">
-              <h2 class="manager-title">Terminal Commands</h2>
+              <h2 class="manager-title">${panelText("Terminal Commands")}</h2>
               <div class="manager-actions">
                 <vscode-button appearance="secondary" @click=${() => this.postCommand("modifyCommands")}>Add/Modify/Delete</vscode-button>
-                <vscode-button @click=${() => this.postCommand("runCommands")}>Run Commands</vscode-button>
+                <vscode-button @click=${() => this.postCommand("runCommands")}>${panelText("Run Commands")}</vscode-button>
               </div>
             </div>
-            <p class="manager-subtext">Click an individual command to run it. Use Add/Modify/Delete to choose target OS and edit commands one at a time.</p>
+            <p class="manager-subtext">${panelText("Click an individual command to run it. Use Add/Modify/Delete to choose target OS and edit commands one at a time.")}</p>
             ${this._renderCommandsSection(this._data.commands)}
           </section>
         </div>

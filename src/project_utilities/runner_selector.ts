@@ -197,17 +197,17 @@ export interface BindSelectorOptions {
  * profile editor uses `selectLaunchConfiguration` directly.
  */
 export async function bindSelector(options: BindSelectorOptions): Promise<FlashBind | DebugBind | undefined> {
-  const title = `Pick runner for ${options.slot}`;
+  const title = vscode.l10n.t("Pick runner for {0}", options.slot);
   const availableSet = new Set(options.availableRunners ?? []);
 
   const items: QuickPickItem[] = [
-    { label: "auto", description: "Use runners.yaml defaults" },
+    { label: "auto", description: vscode.l10n.t("Use runners.yaml defaults") },
     { label: "", kind: vscode.QuickPickItemKind.Separator } as QuickPickItem,
   ];
   if (options.availableRunners && options.availableRunners.length > 0) {
-    items.push({ label: "Available for this board", kind: vscode.QuickPickItemKind.Separator });
-    items.push(...options.availableRunners.map(r => ({ label: r, description: "available" })));
-    items.push({ label: "Other runners", kind: vscode.QuickPickItemKind.Separator });
+    items.push({ label: vscode.l10n.t("Available for this board"), kind: vscode.QuickPickItemKind.Separator });
+    items.push(...options.availableRunners.map(r => ({ label: r, description: vscode.l10n.t("available") })));
+    items.push({ label: vscode.l10n.t("Other runners"), kind: vscode.QuickPickItemKind.Separator });
   }
   items.push(...getAllWestRunners().filter(r => !availableSet.has(r)).map(r => ({ label: r })));
 
@@ -218,7 +218,7 @@ export async function bindSelector(options: BindSelectorOptions): Promise<FlashB
       title,
       step: 1,
       totalSteps: 2,
-      placeholder: "Pick runner (or 'auto')",
+      placeholder: vscode.l10n.t("Pick runner (or 'auto')"),
       items,
       ignoreFocusOut: true,
     }).catch((error) => {
@@ -246,7 +246,7 @@ export async function bindSelector(options: BindSelectorOptions): Promise<FlashB
       step: 2,
       totalSteps: 2,
       value: seeded,
-      prompt: "Extra args (optional, e.g. --config board.cfg)",
+      prompt: vscode.l10n.t("Extra args (optional, e.g. --config board.cfg)"),
       ignoreFocusOut: true,
       validate: noOpValidate,
     }).catch((error) => {
