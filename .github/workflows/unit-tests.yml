@@ -31,7 +31,11 @@ permissions:
 
 jobs:
   unit-tests:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v6
@@ -42,6 +46,15 @@ jobs:
           # For workflow_dispatch with an explicit branch input we honour that.
           # For any other trigger (push, schedule, …) github.sha is stable.
           ref: ${{ inputs.branch || github.event.pull_request.head.sha || github.sha }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Test west module management
+        run: |
+          python -m pip install west
+          python -X utf8 src/test/test_west_projects.py
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -61,7 +74,24 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Run Unit Tests
+      - name: Download VS Code test host
+        shell: bash
+        run: |
+          for delay in 0 5 15; do
+            sleep "$delay"
+            if node --input-type=module -e '
+              import { downloadAndUnzipVSCode } from "@vscode/test-electron";
+              import { appendFileSync } from "node:fs";
+              const executable = await downloadAndUnzipVSCode();
+              appendFileSync(process.env.GITHUB_ENV, `VSCODE_TEST_EXECUTABLE=${executable}\n`);
+            '; then
+              exit 0
+            fi
+          done
+          exit 1
+
+      - name: Run Unit Tests (Linux)
+        if: runner.os == 'Linux'
         # Runs the `unit` labeled configuration from .vscode-test.mjs, which
         # is every compiled test file except the heavyweight integration
         # suites (workspace-*.test.ts, combined-installation.test.ts). Those
@@ -70,3 +100,7 @@ jobs:
         # newly added unit test files are never silently excluded here.
         run: |
           xvfb-run -a npx vscode-test --label unit
+
+      - name: Run Unit Tests (Windows)
+        if: runner.os == 'Windows'
+        run: npx vscode-test --label unit

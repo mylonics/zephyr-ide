@@ -17,6 +17,7 @@ limitations under the License.
 
 import * as vscode from "vscode";
 import * as path from "upath";
+import { windows7ZipDirectory } from "../utilities/windows-7zip";
 import * as nativePath from "path";
 import * as fs from "fs-extra";
 import * as https from "https";
@@ -254,21 +255,9 @@ async function fetchFullReleaseAssets(
 // Archive extraction
 // ---------------------------------------------------------------------------
 
-const WINDOWS_7ZIP_DIR = "C:\\Program Files\\7-Zip";
-let windows7ZipDirExists: boolean | undefined;
-
-function hasDefaultWindows7ZipDir(): boolean {
-    if (windows7ZipDirExists === undefined) {
-        windows7ZipDirExists = fs.existsSync(WINDOWS_7ZIP_DIR);
-    }
-    return windows7ZipDirExists;
-}
-
 function withWindows7ZipOnPath(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-    if (os.platform() !== "win32" || !hasDefaultWindows7ZipDir()) {
-        return env;
-    }
-    return prependWindowsPath(env, WINDOWS_7ZIP_DIR);
+    const dir = windows7ZipDirectory(env);
+    return dir ? prependWindowsPath(env, dir) : env;
 }
 
 function prependWindowsPath(env: NodeJS.ProcessEnv, pathEntry: string): NodeJS.ProcessEnv {
@@ -282,28 +271,15 @@ function prependWindowsPath(env: NodeJS.ProcessEnv, pathEntry: string): NodeJS.P
         }
     }
     const pathEntries = existingPath.split(";").filter(Boolean);
-    if (pathEntries.some((entry) => entry.toLowerCase() === pathEntry.toLowerCase())) {
-        return env;
-    }
+    const otherEntries = pathEntries.filter(entry => entry.toLowerCase() !== pathEntry.toLowerCase());
 
     const envWithoutPath = { ...env } as Record<string, string | undefined>;
     for (const key of pathKeys) {
         delete envWithoutPath[key];
     }
 
-    envWithoutPath.PATH = existingPath ? `${pathEntry};${existingPath}` : pathEntry;
+    envWithoutPath.PATH = [pathEntry, ...otherEntries].join(";");
     return envWithoutPath;
-}
-
-/** Returns true if `7z` is available on PATH (including default install dir fallback on Windows). */
-function is7ZipAvailable(): boolean {
-    const result = cp.spawnSync("7z", ["--help"], {
-        stdio: "ignore",
-        timeout: 1000,
-        env: withWindows7ZipOnPath(process.env),
-        shell: false,
-    });
-    return !result.error && result.status === 0;
 }
 
 /**
@@ -389,7 +365,7 @@ async function runSdkSetup(
     // If 7-Zip is not on PATH, prepend the bundled shim directory (resources/shims/7z.cmd)
     // which delegates `7z x` to Windows bsdtar (libarchive) — available on Windows 11+.
     let setupEnv: NodeJS.ProcessEnv | undefined;
-    if (isWindows && !is7ZipAvailable()) {
+    if (isWindows && !windows7ZipDirectory()) {
         if (extensionPath) {
             const shimDir = get7zShimDir(extensionPath);
             outputInfo("SDK Setup", `7-Zip not found; using bsdtar shim at ${shimDir}`);

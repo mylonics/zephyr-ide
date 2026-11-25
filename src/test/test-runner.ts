@@ -1350,19 +1350,7 @@ export function getTestEnvConfig() {
  * Values are read at call time so environment variable overrides work correctly.
  */
 export const CommonUIInteractions = {
-    // Standard workspace setup interactions.
-    //
-    // Deliberately ends after "additional west init args" (the last step of
-    // the interactive westSelector wizard). SDK installation that follows
-    // west update is handled by installZephyrIdeRequirements
-    // (west-operations.ts, called from westUpdateWithRequirements), which is
-    // fully automatic — it bootstraps declared-or-all toolchains without ever
-    // showing a quickpick, "so workspace setup remains deterministic" per its
-    // own comment. A trailing automatic/select-specific/toolchain trio here
-    // used to exist for an interactive SDK picker that no longer runs in this
-    // flow; leaving it primed left those 3 interactions permanently
-    // unconsumed, which the queue-consumed check in executeTestWithErrorHandling
-    // now correctly flags as a failure instead of passing silently.
+    // These build fixtures require the full west manifest.
     get standardWorkspace() {
         const { sdkVersion, toolchain } = getTestEnvConfig();
         return [
@@ -1371,6 +1359,7 @@ export const CommonUIInteractions = {
             { type: 'quickpick', value: toolchain, description: `Select ${toolchain} toolchain` },
             { type: 'quickpick', value: sdkVersion, description: `Select ${sdkVersion} Zephyr version` },
             { type: 'input', value: '', description: 'Select additional west init args' },
+            { type: 'quickpick', value: 'Run a full west update', description: 'Fetch the full build fixture' },
         ];
     },
 
@@ -1384,6 +1373,7 @@ export const CommonUIInteractions = {
             { type: 'quickpick', value: 'testing', description: 'Select testing manifest' },
             { type: 'quickpick', value: sdkVersion, description: `Select ${sdkVersion} Zephyr version` },
             { type: 'input', value: '', description: 'Select additional west init args' },
+            { type: 'quickpick', value: 'Run a full west update', description: 'Fetch the full build fixture' },
         ];
     },
 

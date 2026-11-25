@@ -121,7 +121,6 @@ export type WorkspacePanelCommand =
   | 'openSetupPanel'
   | 'openProjectPanel'
   | 'openWestYml'
-  | 'saveAndUpdateWestYml'
   | 'activateWorkspace'
   | 'resetWorkspace'
   | 'deactivateWorkspace'

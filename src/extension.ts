@@ -15,6 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import { syncProjectDependencies } from "./setup_utilities/project-dependencies";
 import * as vscode from "vscode";
 import * as path from "upath";
 import * as fs from "fs";
@@ -119,7 +120,7 @@ import {
   westInit,
   setForceNarrowUpdateForTest,
   setupWestEnvironment,
-  westUpdateWithRequirements,
+  westUpdate,
 } from "./setup_utilities/west-operations";
 import {
   showWorkspaceSetupPicker,
@@ -154,6 +155,7 @@ import { testHelper, deleteTestDirs } from "./zephyr_utilities/twister";
 
 import { getModuleVersion, getModuleList, scanAndSetZephyrDirAndVersion } from "./setup_utilities/modules";
 import { reconfigureTest } from "./project_utilities/twister_selector";
+import { projectScope, savedProjects } from "./setup_utilities/west-projects";
 import { installSDKInteractive, syncSDKInstallState } from "./setup_utilities/west_sdk";
 import {
   modifyZephyrIdeToolchainsInteractive,
@@ -746,8 +748,7 @@ export async function activate(context: vscode.ExtensionContext) {
     wsConfig
   );
   const extensionSetupView = new ExtensionSetupView(
-    context.extensionPath,
-    context,
+    context.extensionUri,
     wsConfig,
     globalConfig
   );
@@ -852,7 +853,7 @@ export async function activate(context: vscode.ExtensionContext) {
   const activeProjectTreeView = registerTreeView(context, "zephyrIdeActiveProject", activeProjectView);
   registerTreeView(context, "zephyrIdeProjects", projectTreeView);
   registerTreeView(context, "zephyrIdeProjectStatus", projectConfigView);
-  registerTreeView(context, "zephyrIdeExtensionSetup", extensionSetupView);
+  registerWebviewView(context, "zephyrIdeExtensionSetup", extensionSetupView);
   registerTreeView(context, "zephyrIdeWestWorkspaces", westWorkspaceView);
 
   // -- ActiveProjectView inline action commands --
@@ -1239,10 +1240,34 @@ export async function activate(context: vscode.ExtensionContext) {
     })
   );
 
+  const openWestModules = () => {
+    const panel = WorkspacePanel.createOrShow(context.extensionPath, context, wsConfig, globalConfig, wsConfig.activeSetupState?.setupPath);
+    panel.showWestModules();
+  };
   context.subscriptions.push(
-    vscode.commands.registerCommand("zephyr-ide.west-update", async () => {
+    vscode.commands.registerCommand("zephyr-ide.sync-project-modules", () => syncProjectDependencies(context, wsConfig, true)),
+    vscode.commands.registerCommand("zephyr-ide.select-west-modules", openWestModules),
+    vscode.commands.registerCommand("zephyr-ide.update-selected-west-modules", async () => {
+      const state = wsConfig.activeSetupState;
+      if (state?.initialized) {
+        const scope = projectScope(wsConfig, state.setupPath);
+        const names = savedProjects(context, scope);
+        if (names.length) {
+          await vscode.commands.executeCommand("zephyr-ide.west-update", { scope, names });
+          return;
+        }
+      }
+      openWestModules();
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("zephyr-ide.west-update", async (selection?: import("./setup_utilities/west-projects").WestSelection) => {
+      if (!selection && wsConfig.activeSetupState?.initialized) { openWestModules(); return; }
       try {
-        await westUpdateWithRequirements(context, wsConfig, globalConfig);
+        await westUpdate(context, wsConfig, globalConfig, true, selection);
+      } catch (error) {
+        notifyError("West Update", String(error));
       } finally {
         extensionSetupView.updateWebView(wsConfig, globalConfig);
         void vscode.commands.executeCommand("zephyr-ide.update-web-view");

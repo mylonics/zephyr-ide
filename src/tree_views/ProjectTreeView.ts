@@ -16,6 +16,7 @@ limitations under the License.
 */
 
 import * as vscode from 'vscode';
+import { syncProjectDependencies } from "../setup_utilities/project-dependencies";
 import { ProjectConfig, addTest, removeTest, setActive, getEffectiveActiveProfileName } from '../project_utilities/project';
 import { BuildConfig } from '../project_utilities/build_selector';
 import { WorkspaceConfig } from '../setup_utilities/types';
@@ -237,6 +238,9 @@ export class ProjectTreeView implements vscode.TreeDataProvider<ProjectTreeItem>
     const alreadyActiveTest = !item.data.test || state?.activeTwisterConfig === item.data.test;
 
     if (alreadyActiveProject && alreadyActiveBuild && alreadyActiveTest) {
+      if (item.contextValue === "projectItem" || item.contextValue === "buildItem") {
+        void syncProjectDependencies(this.context, this.wsConfig);
+      }
       return;
     }
 

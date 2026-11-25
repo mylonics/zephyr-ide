@@ -35,7 +35,7 @@ suite("Board DTS opening", () => {
 
   teardown(async () => {
     await vscode.commands.executeCommand("workbench.action.closeAllEditors");
-    fs.rmSync(rootPath, { recursive: true, force: true });
+    await fs.promises.rm(rootPath, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   });
 
   async function openBoardDts(board: string, filenames: string[], expected: string, absoluteBoardPath = false) {

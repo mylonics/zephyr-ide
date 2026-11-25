@@ -131,6 +131,7 @@ suite("Workspace External Zephyr Test Suite", () => {
                     { type: 'quickpick', value: toolchain, description: `Select ${toolchain} toolchain` },
                     { type: 'quickpick', value: sdkVersion, description: `Select ${sdkVersion} Zephyr version` },
                     { type: 'input', value: '', description: 'Select additional west init args' },
+                    { type: 'quickpick', value: 'Run a full west update', description: 'Fetch the full build fixture' },
                 ],
                 "zephyr-ide.workspace-setup-from-git",
             );

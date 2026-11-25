@@ -64,6 +64,7 @@ suite("Workspace West Git Test Suite", () => {
                 [
                     { type: 'input', value: 'https://github.com/mylonics/zephyr-ide-samples', description: 'Enter git repo URL' },
                     { type: 'input', value: '--mr west_repo', description: 'Enter additional arguments for west' },
+                    { type: 'quickpick', value: 'Run a full west update', description: 'Fetch the full build fixture' },
                 ],
                 "zephyr-ide.workspace-setup-from-west-git",
             );

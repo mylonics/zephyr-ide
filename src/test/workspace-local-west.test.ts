@@ -60,6 +60,7 @@ suite("Workspace Local West Test Suite", () => {
                 [
                     { type: 'input', value: '--branch no_west_folder -- https://github.com/mylonics/zephyr-ide-samples.git', description: 'Enter git clone string with branch' },
                     { type: 'quickpick', value: 'west.yml file', description: 'Choose Use Local West Workspace option' },
+                    { type: 'quickpick', value: 'Run a full west update', description: 'Fetch the full build fixture' },
                 ],
                 "zephyr-ide.workspace-setup-from-git"
             );

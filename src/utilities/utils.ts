@@ -18,6 +18,7 @@ limitations under the License.
 
 import * as vscode from "vscode";
 import * as path from "upath";
+import { windows7ZipDirectory } from "./windows-7zip";
 import * as util from "util";
 import * as cp from "child_process";
 import * as fs from "fs";
@@ -855,7 +856,7 @@ async function executeTask(task: vscode.Task) {
   return taskDone;
 }
 
-export async function executeTaskHelperInPythonEnv(setupState: SetupState | undefined, taskName: string, cmd: string, cwd: string | undefined, overrideTempOnWindows: boolean = false) {
+export async function executeTaskHelperInPythonEnv(setupState: SetupState | undefined, taskName: string, cmd: string | string[], cwd: string | undefined, overrideTempOnWindows: boolean = false) {
   // VS Code's environmentVariableCollection doesn't reliably propagate to task
   // shells in all environments (macOS, WSL, Windows CI/headless).  Inject the
   // required env vars directly into the task shell options instead.
@@ -896,8 +897,8 @@ export async function executeTaskHelperInPythonEnv(setupState: SetupState | unde
   return await executeTaskHelper(taskName, cmd, cwd, env);
 }
 
-export async function executeTaskHelper(taskName: string, cmd: string, cwd: string | undefined, env?: { [key: string]: string }) {
-  outputCommand(taskName, cmd);
+export async function executeTaskHelper(taskName: string, cmd: string | string[], cwd: string | undefined, env?: { [key: string]: string }) {
+  outputCommand(taskName, Array.isArray(cmd) ? cmd.join(" ") : cmd);
   const options: vscode.ShellExecutionOptions = {
     // Coerce empty strings to undefined — VS Code's ShellExecution rejects
     // an empty-string cwd and emits "An unknown error occurred".
@@ -905,7 +906,9 @@ export async function executeTaskHelper(taskName: string, cmd: string, cwd: stri
     ...(env && { env }),
   };
 
-  const exec = new vscode.ShellExecution(cmd, options);
+  const exec = Array.isArray(cmd)
+    ? new vscode.ProcessExecution(cmd[0], cmd.slice(1), options)
+    : new vscode.ShellExecution(cmd, options);
 
   // Task
   const task = new vscode.Task(
@@ -993,11 +996,11 @@ export async function executeShellCommand(cmd: string, cwd: string, display_erro
     // 7z.exe work immediately.  The directory may be missing from PATH when
     // refreshWindowsPath() rebuilds it from the registry before the
     // post-install step has persisted the entry, or in CI environments.
-    const sevenZipDir = "C:\\Program Files\\7-Zip";
-    const hasSevenZip = consolidatedPath.split(";").some(
+    const sevenZipDir = windows7ZipDirectory(envObj);
+    const hasSevenZip = sevenZipDir && consolidatedPath.split(";").some(
       entry => entry.toLowerCase() === sevenZipDir.toLowerCase()
     );
-    if (!hasSevenZip && fs.existsSync(sevenZipDir)) {
+    if (sevenZipDir && !hasSevenZip) {
       envObj["Path"] = `${sevenZipDir};${consolidatedPath}`;
     } else {
       envObj["Path"] = consolidatedPath;

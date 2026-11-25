@@ -4,6 +4,7 @@
   "description": "Streamline Zephyr RTOS development in VS Code — automated SDK installation, west workspace management, project building, flashing, and debugging for ARM, RISC-V, and more",
   "version": "4.2.0",
   "license": "Apache-2.0",
+  "l10n": "./l10n",
   "publisher": "mylonics",
   "icon": "media/logo.png",
   "keywords": [
@@ -67,6 +68,9 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "configurationDefaults": {
+      "workbench.view.alwaysShowHeaderActions": true
+    },
     "jsonValidation": [
       {
         "fileMatch": "zephyr-ide.json",
@@ -205,6 +209,11 @@
           ],
           "default": "kconfig-dashboard",
           "description": "Controls what the Config button in the Projects view does for a build. Defaults to opening the Kconfig page in the build dashboard. Can be changed to launch the external guiconfig or menuconfig tool instead."
+        },
+        "zephyr-ide.autoFetchProjectModules": {
+          "type": "boolean",
+          "default": true,
+          "description": "%settings.zephyr-ide.autoFetchProjectModules.description%"
         },
         "zephyr-ide.westNarrowUpdate": {
           "type": [
@@ -516,11 +525,13 @@
         },
         {
           "command": "zephyr-ide.disable-automatic-project-target",
-          "when": "view == zephyrIdeActiveProject"
+          "when": "view == zephyrIdeActiveProject && config.zephyr-ide.automaticProjectSelection",
+          "group": "navigation"
         },
         {
           "command": "zephyr-ide.enable-automatic-project-target",
-          "when": "view == zephyrIdeActiveProject"
+          "when": "view == zephyrIdeActiveProject && !config.zephyr-ide.automaticProjectSelection",
+          "group": "navigation"
         }
       ],
       "view/item/context": [
@@ -655,6 +666,7 @@
       "zephyr-ide-main": [
         {
           "id": "zephyrIdeExtensionSetup",
+          "type": "webview",
           "name": "Extension Setup",
           "icon": "media/logo_small.jpg",
           "contextualTitle": "Zephyr IDE"
@@ -767,6 +779,20 @@
         "title": "Zephyr IDE: West Init"
       },
       {
+        "command": "zephyr-ide.sync-project-modules",
+        "title": "%zephyr-ide.sync-project-modules.title%"
+      },
+      {
+        "command": "zephyr-ide.select-west-modules",
+        "title": "%zephyr-ide.select-west-modules.title%",
+        "icon": "$(checklist)"
+      },
+      {
+        "command": "zephyr-ide.update-selected-west-modules",
+        "title": "%zephyr-ide.update-selected-west-modules.title%",
+        "icon": "$(sync)"
+      },
+      {
         "command": "zephyr-ide.west-update",
         "title": "Zephyr IDE: West Update"
       },
@@ -817,11 +843,13 @@
       },
       {
         "command": "zephyr-ide.disable-automatic-project-target",
-        "title": "Zephyr IDE: Disable Automatic Active Project Targeting"
+        "title": "Zephyr IDE: Disable Automatic Active Project Targeting",
+        "icon": "$(lock)"
       },
       {
         "command": "zephyr-ide.enable-automatic-project-target",
-        "title": "Zephyr IDE: Enable Automatic Active Project Targeting"
+        "title": "Zephyr IDE: Enable Automatic Active Project Targeting",
+        "icon": "$(unlock)"
       },
       {
         "command": "zephyr-ide.create-project",
