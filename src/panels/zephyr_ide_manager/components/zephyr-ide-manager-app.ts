@@ -15,6 +15,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import { moduleMatcher, moduleSearchBox } from "../../webview_shared/module-search";
+import { repeat } from "lit/directives/repeat.js";
+import { changeSelection, westSelectionPane, westSelectionToolbar } from "../../webview_shared/west-selection";
+import { live } from "lit/directives/live.js";
+import { panelText } from "../../webview_shared/panel-text";
 import { html, nothing } from "lit";
 import { customElement, state } from "lit/decorators.js";
 import { ZephyrLitElement } from "../../webview_shared/lit-base";
@@ -49,6 +54,8 @@ interface ManagerData {
 export class ZephyrIDEManagerApp extends ZephyrLitElement {
   @state() private _data: ManagerData | undefined;
   @state() private _blobModules: BlobModuleInfo[] = [];
+  @state() private blobQuery = "";
+  @state() private blobRegex = false;
   @state() private _blobLoading = false;
   @state() private _selectedBlobs = new Set<string>();
   @state() private _blobInstalling = false;
@@ -95,16 +102,6 @@ export class ZephyrIDEManagerApp extends ZephyrLitElement {
     this.postCommand("refresh");
   }
 
-  private _toggleBlob(moduleName: string) {
-    const next = new Set(this._selectedBlobs);
-    if (next.has(moduleName)) {
-      next.delete(moduleName);
-    } else {
-      next.add(moduleName);
-    }
-    this._selectedBlobs = next;
-  }
-
   private _installSelectedBlobs() {
     const modules = Array.from(this._selectedBlobs);
     if (modules.length === 0) { return; }
@@ -147,6 +144,18 @@ export class ZephyrIDEManagerApp extends ZephyrLitElement {
     `;
   }
 
+  private blobRows(modules: BlobModuleInfo[], empty = "") {
+    if (!modules.length) { return html`<p class="wp-empty">${empty}</p>`; }
+    return html`${repeat(modules, m => m.moduleName, m => html`
+      <label class="blob-row west-choice" title=${m.path ?? m.moduleName}>
+        <input type="checkbox" .checked=${live(this._selectedBlobs.has(m.moduleName) || m.isFetched)}
+          aria-label=${m.isFetched ? panelText("{0} (fetched)", m.moduleName) : m.moduleName}
+          ?disabled=${m.isFetched || this._blobInstalling}
+          @change=${() => { this._selectedBlobs = changeSelection(this._selectedBlobs, [m.moduleName], "invert"); }}>
+        <span><strong>${m.moduleName}</strong>${m.path ? html`<small>${m.path}</small>` : nothing}</span>
+      </label>`)}`;
+  }
+
   render() {
     if (!this._data) {
       return html`<div class="container"><p>Loading…</p></div>`;
@@ -154,6 +163,15 @@ export class ZephyrIDEManagerApp extends ZephyrLitElement {
 
     const fetchedCount = this._blobModules.filter(m => m.isFetched).length;
     const selectedCount = this._selectedBlobs.size;
+    const { matches, invalid } = moduleMatcher(this.blobQuery, this.blobRegex);
+    const modules = [...this._blobModules].sort((a, b) => a.moduleName.localeCompare(b.moduleName, "en"));
+    const pathQuery = this.blobQuery.trim().toLowerCase();
+    const matched = modules.filter(m => matches(m.moduleName) ||
+      (!this.blobRegex && pathQuery.includes("/") && m.path?.toLowerCase().includes(pathQuery)));
+    const actionable = matched.filter(m => !m.isFetched);
+    const pending = actionable.filter(m => !this._selectedBlobs.has(m.moduleName));
+    const selected = modules.filter(m => this._selectedBlobs.has(m.moduleName));
+    const fetched = matched.filter(m => m.isFetched);
 
     return html`
       <div class="container">
@@ -217,8 +235,8 @@ export class ZephyrIDEManagerApp extends ZephyrLitElement {
             <div class="manager-card-header">
               <h2 class="manager-title">West Blobs</h2>
               <div class="manager-actions">
-                <vscode-button appearance="secondary" @click=${() => this.postCommand("modifyBlobs")}>Modify JSON List</vscode-button>
-                <vscode-button appearance="secondary" @click=${() => this.postCommand("installBlobsFromJson")}>Install from JSON</vscode-button>
+                <vscode-button secondary @click=${() => this.postCommand("modifyBlobs")}>${panelText("Modify JSON List")}</vscode-button>
+                <vscode-button secondary @click=${() => this.postCommand("installBlobsFromJson")}>${panelText("Install from JSON")}</vscode-button>
                 <vscode-button ?disabled=${selectedCount === 0 || this._blobInstalling} @click=${() => this._installSelectedBlobs()}>
                   Fetch Selected (${selectedCount})
                 </vscode-button>
@@ -228,21 +246,20 @@ export class ZephyrIDEManagerApp extends ZephyrLitElement {
             ${this._blobLoading
               ? html`<div class="inline-status"><vscode-progress-ring></vscode-progress-ring><span>Loading blob modules…</span></div>`
               : this._blobModules.length > 0
-                ? html`<div class="blob-chip-list">${this._blobModules.map(m => {
-                  const selected = this._selectedBlobs.has(m.moduleName);
-                  const classes = `blob-chip ${m.isFetched ? "fetched" : selected ? "selected" : ""}`;
-                  return html`
-                    <button
-                      class=${classes}
-                      ?disabled=${m.isFetched || this._blobInstalling}
-                      @click=${() => this._toggleBlob(m.moduleName)}
-                      title=${m.path ?? m.moduleName}
-                    >
-                      ${m.moduleName}
-                    </button>
-                  `;
-                })}</div>`
-                : html`<div class="info-box">No west blob modules discovered. Run west update and refresh.</div>`}
+                ? html`${moduleSearchBox(this.blobQuery, this.blobRegex, value => { this.blobQuery = value; }, () => { this.blobRegex = !this.blobRegex; })}
+                  ${invalid ? html`<p role="alert">${panelText("Invalid regular expression")}</p>` : nothing}
+                  ${westSelectionToolbar(this._blobInstalling || !actionable.length, action => {
+                    this._selectedBlobs = changeSelection(this._selectedBlobs, actionable.map(m => m.moduleName), action);
+                  })}
+                  <div class="west-panes">
+                    ${westSelectionPane("blob-selected-title", panelText("Selected modules"), selected.length,
+                      this.blobRows(selected, panelText("No modules selected")))}
+                    ${westSelectionPane("blob-available-title", panelText("Available modules"), pending.length,
+                      this.blobRows(pending, panelText("No available modules")))}
+                    ${fetched.length ? westSelectionPane("blob-fetched-title", panelText("Fetched modules"), fetched.length,
+                      this.blobRows(fetched)) : nothing}
+                  </div>`
+                : html`<div class="info-box">${panelText("No west blob modules discovered. Run west update and refresh.")}</div>`}
             ${this._blobProgress ? html`<div class="inline-status">${this._blobInstalling ? html`<vscode-progress-ring></vscode-progress-ring>` : nothing}<span>${this._blobProgress}</span></div>` : nothing}
           </section>
 

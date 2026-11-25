@@ -74,6 +74,9 @@ const sharedMochaConfig = {
 export default defineConfig([
 	{
 		label: 'unit',
+		useInstallation: process.env.VSCODE_TEST_EXECUTABLE
+			? { fromPath: process.env.VSCODE_TEST_EXECUTABLE }
+			: undefined,
 		files: unitTestFiles,
 		workspaceFolder: testWorkspace,
 		mocha: {

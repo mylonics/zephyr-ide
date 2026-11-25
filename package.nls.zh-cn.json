@@ -1,0 +1,6 @@
+{
+  "zephyr-ide.sync-project-modules.title": "Zephyr IDE: 识别并下载工程依赖模块",
+  "settings.zephyr-ide.autoFetchProjectModules.description": "选择工程或构建配置时，自动下载识别出的缺失 west 模块。",
+  "zephyr-ide.select-west-modules.title": "Zephyr IDE: 选择 west 模块",
+  "zephyr-ide.update-selected-west-modules.title": "Zephyr IDE: 更新已勾选的 west 模块"
+}

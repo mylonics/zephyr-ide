@@ -1,0 +1,6 @@
+{
+  "zephyr-ide.sync-project-modules.title": "Zephyr IDE: Detect and Download Project Modules",
+  "settings.zephyr-ide.autoFetchProjectModules.description": "Automatically download missing west modules detected when selecting a project or build configuration.",
+  "zephyr-ide.select-west-modules.title": "Zephyr IDE: Select West Modules",
+  "zephyr-ide.update-selected-west-modules.title": "Zephyr IDE: Update Selected West Modules"
+}

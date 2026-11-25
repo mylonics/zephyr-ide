@@ -1,4 +1,5 @@
 @import url("../webview_shared/webview-base.css");
+@import url("../webview_shared/west-selection.css");
 
 .manager-grid {
   display: grid;
@@ -72,38 +73,17 @@
   border-color: color-mix(in srgb, var(--vscode-terminal-ansiYellow) 32%, transparent);
 }
 
-.blob-chip-list {
+.blob-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.blob-chip {
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: 999px;
-  padding: 3px 10px;
-  font-size: 11px;
-  background: var(--vscode-badge-background);
-  color: var(--vscode-foreground);
+  align-items: center;
+  gap: 10px;
+  padding: 5px 10px;
+  overflow-wrap: anywhere;
   cursor: pointer;
 }
-
-.blob-chip.fetched {
-  background-color: color-mix(in srgb, var(--vscode-terminal-ansiGreen) 16%, transparent);
-  color: var(--vscode-terminal-ansiGreen);
-  border-color: color-mix(in srgb, var(--vscode-terminal-ansiGreen) 32%, transparent);
-}
-
-.blob-chip.selected {
-  background-color: color-mix(in srgb, var(--vscode-terminal-ansiBlue) 16%, transparent);
-  color: var(--vscode-terminal-ansiBlue);
-  border-color: color-mix(in srgb, var(--vscode-terminal-ansiBlue) 30%, transparent);
-}
-
-.blob-chip:disabled {
-  opacity: 0.7;
-  cursor: default;
-}
+.blob-row small { display: block; }
+.blob-row:has(:enabled):hover { background: var(--vscode-list-hoverBackground); }
+.blob-row:has(:disabled) { cursor: default; color: var(--vscode-descriptionForeground); }
 
 .inline-status {
   margin-top: 8px;

@@ -13,5 +13,9 @@ vsc-extension-quickstart.md
 
 docs/**
 CHANGELOG.md
-LICENSE.md
 README.md
+out/**
+test-results/**
+*.vsix
+**/__pycache__/**
+src/test/**

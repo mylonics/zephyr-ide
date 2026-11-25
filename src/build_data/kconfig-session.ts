@@ -30,6 +30,7 @@ SPDX-License-Identifier: Apache-2.0
  */
 
 import * as fs from "fs-extra";
+import { pythonInVenv } from "../utilities/python-venv";
 import * as path from "upath";
 import { ChildProcessWithoutNullStreams, spawn } from "child_process";
 import type { SetupState, WorkspaceConfig } from "../setup_utilities/types";
@@ -299,10 +300,7 @@ export function resolveKconfigBuildDir(
 export function resolveVenvPython(setupState: SetupState | undefined): string {
   const venv = setupState?.env?.["VIRTUAL_ENV"];
   if (venv) {
-    if (process.platform === "win32") {
-      return path.join(venv, "Scripts", "python.exe");
-    }
-    return path.join(venv, "bin", "python");
+    return pythonInVenv(venv);
   }
   return process.platform === "win32" ? "python" : "python3";
 }

@@ -21,6 +21,7 @@ import * as os from "os";
 import * as path from "path";
 import * as vscode from "vscode";
 
+import { windows7ZipDirectory } from "../utilities/windows-7zip";
 import { GlobalConfig } from "../setup_utilities/types";
 import { listAvailableSDKs, syncSDKInstallState } from "../setup_utilities/west_sdk";
 
@@ -56,6 +57,16 @@ suite("SDK Install State Test Suite", () => {
     teardown(async () => {
         await resetToolchainDirectory();
         await fs.remove(tmpDir);
+    });
+
+    test("finds native 7-Zip even when a batch shim is earlier on PATH", async function () {
+        if (process.platform !== "win32") { this.skip(); }
+        const shim = path.join(tmpDir, "shims");
+        const native = path.join(tmpDir, "7-Zip");
+        await fs.outputFile(path.join(shim, "7z.cmd"), "");
+        await fs.outputFile(path.join(native, "7z.exe"), "");
+        assert.strictEqual(windows7ZipDirectory({ Path: shim }), undefined);
+        assert.strictEqual(windows7ZipDirectory({ Path: [shim, native].join(path.delimiter) }), native);
     });
 
     test("marks SDK installed when at least one toolchain is present", async () => {

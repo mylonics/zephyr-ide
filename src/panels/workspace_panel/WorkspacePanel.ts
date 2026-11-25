@@ -15,11 +15,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+import { tracksRemoteRevision } from "../../utilities/west-revision";
+import { findRepositories } from "../../setup_utilities/github-repositories";
+import { checkWestRemote, editWestProject, projectScope, projectSelection, readWestCatalog, savedProjects, saveProjects } from "../../setup_utilities/west-projects";
 import * as vscode from "vscode";
 import * as path from "upath";
 import * as fs from "fs-extra";
 import { WorkspaceConfig, GlobalConfig, formatZephyrVersion, isActiveWorkspaceInitialized, isWorkspaceInitialized } from "../../setup_utilities/types";
-import { notifyError, outputError } from "../../utilities/output";
+import { notifyError } from "../../utilities/output";
 import { generateNonce } from "../webview_shared/nonce";
 import { onSetupProgress, getActiveSetupProgress } from "../../setup_utilities/setup-progress";
 import { parseWestConfigManifestPath } from "../../setup_utilities/west-config-parser";
@@ -170,7 +173,7 @@ export class WorkspacePanel {
     this.currentGlobalConfig = globalConfig;
 
     const target = this.getTargetSetupState();
-    const workspaceInitialized = isActiveWorkspaceInitialized(wsConfig) && target !== undefined;
+    const workspaceInitialized = target && isWorkspaceInitialized(target.setupState);
 
     // Update panel title
     if (target) {
@@ -195,9 +198,9 @@ export class WorkspacePanel {
       data: this.generatePanelData(wsConfig),
     });
 
-    // Load west.yml content asynchronously if workspace is initialized
+    // Resolve manifest imports outside the render path.
     if (workspaceInitialized) {
-      void this.loadWestYmlContent();
+      void this.loadWestProjects();
     }
   }
 
@@ -253,10 +256,12 @@ export class WorkspacePanel {
             data: this.generatePanelData(this.currentWsConfig),
           });
           const target = this.getTargetSetupState();
-          const workspaceInitialized = isActiveWorkspaceInitialized(this.currentWsConfig) && target !== undefined;
+          const workspaceInitialized = target && isWorkspaceInitialized(target.setupState);
           if (workspaceInitialized) {
-            void this.loadWestYmlContent();
+            void this.loadWestProjects();
           }
+          this.webviewReady = true;
+          if (this.pendingModulesTab) { this.showWestModules(); }
           // Replay active progress if any
           const activeProgress = getActiveSetupProgress();
           if (activeProgress) {
@@ -270,8 +275,19 @@ export class WorkspacePanel {
       case "openWestYml":
         this.openWestYml();
         return;
-      case "saveAndUpdateWestYml":
-        this.saveAndUpdateWestYml(message.content);
+      case "refreshWestProjects":
+        void this.refreshModuleStatus(message.scope, message.force === true).catch(error => notifyError("West", String(error)));
+        return;
+      case "searchGitHubRepositories": {
+        const { scope, id, owner, query } = message;
+        const reply = (data: object) => this._panel.webview.postMessage({ command: "githubRepositoryResults", scope, id, ...data });
+        void findRepositories(owner, query).then(items => reply({ items }), error => reply({ error: String(error) }));
+        return;
+      }
+      case "selectWestProjects":
+      case "updateWestProjects":
+      case "editWestProject":
+        void this.handleWestProjects(message).catch(error => notifyError("West Config", String(error)));
         return;
       case "activateWorkspace":
         this.activateWorkspace(message.path);
@@ -465,61 +481,109 @@ export class WorkspacePanel {
     }
   }
 
-  private async loadWestYmlContent() {
-    try {
-      const westYmlFilePath = this.getWestYmlPath();
-      if (!westYmlFilePath) {
-        const target = this.getTargetSetupState();
-        const setupPath = target?.setupPath || "unknown";
-        this._panel.webview.postMessage({
-          command: "westYmlContent",
-          content:
-            `# west.yml file not found\n` +
-            `# \n` +
-            `# Location is determined by reading manifest.path from:\n` +
-            `# ${path.join(setupPath, ".west", "config")}\n` +
-            `# \n` +
-            `# The file may not have been created yet.\n` +
-            `# Try running 'West Init' or one of the workspace setup commands.`
-        });
-        return;
-      }
+  private webviewReady = false;
+  private pendingModulesTab = false;
 
-      const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(westYmlFilePath));
-      this._panel.webview.postMessage({
-        command: "westYmlContent",
-        content: doc.getText(),
-      });
-    } catch (error) {
-      outputError("Workspace Panel", `Error loading west.yml: ${String(error)}`);
-      const message = error instanceof Error ? error.message : String(error);
-      this._panel.webview.postMessage({
-        command: "westYmlContent",
-        content:
-          `# Failed to load west.yml\n` +
-          `# ${message}\n` +
-          `# \n` +
-          `# Verify that west has been initialized and the manifest file exists.`
-      });
+  public showWestModules() {
+    this.pendingModulesTab = true;
+    if (this.webviewReady) {
+      void this._panel.webview.postMessage({ command: "showWestModules" });
+      this.pendingModulesTab = false;
     }
   }
 
-  private async saveAndUpdateWestYml(content: string) {
+  private catalogGeneration = 0;
+  private editingProjects = false;
+
+  private checkingRemotes = false;
+
+  private async refreshModuleStatus(scope: string, force: boolean) {
+    const target = this.getTargetSetupState();
+    if (!target || !this.currentWsConfig || scope !== projectScope(this.currentWsConfig, target.setupPath)) { return; }
+    if (!vscode.workspace.isTrusted || this.checkingRemotes) {
+      await this.loadWestProjects();
+      return;
+    }
+
+    this.checkingRemotes = true;
     try {
-      const westYmlFilePath = this.getWestYmlPath();
-      if (!westYmlFilePath) {
-        notifyError("West Config",
-          "west.yml file not found. Cannot save changes.\n\n" +
-          "Make sure west is initialized first."
-        );
-        return;
-      }
-      const encoder = new TextEncoder();
-      await vscode.workspace.fs.writeFile(vscode.Uri.file(westYmlFilePath), encoder.encode(content));
-      void vscode.window.showInformationMessage(`west.yml saved successfully to: ${westYmlFilePath}`);
-      await vscode.commands.executeCommand("zephyr-ide.west-update");
+      const { projects } = await readWestCatalog(this._context, target.setupState);
+      const pending = projects.filter(project => {
+        if (!tracksRemoteRevision(project)) { return false; }
+        const { remote, checkout } = project;
+        if (force || !remote || remote.localHead !== checkout.head) { return true; }
+        const cacheAge = Date.now() - Date.parse(remote.checkedAt);
+        return cacheAge > 15 * 60_000;
+      });
+      if (!pending.length) { return; }
+
+      await this._panel.webview.postMessage({ command: "checkingWestRemotes", scope, checking: true });
+      const worker = async () => {
+        for (let p = pending.pop(); p; p = pending.pop()) {
+          await checkWestRemote(this._context, target.setupState, p);
+        }
+      };
+      const results = await Promise.allSettled(Array.from({ length: Math.min(4, pending.length) }, worker));
+      const failed = results.find(result => result.status === "rejected");
+      if (failed?.status === "rejected") { throw failed.reason; }
+    } finally {
+      this.checkingRemotes = false;
+      await this.loadWestProjects();
+      void this._panel.webview.postMessage({ command: "checkingWestRemotes", scope, checking: false });
+    }
+  }
+
+  private async loadWestProjects(added?: string[], editError?: string) {
+    const target = this.getTargetSetupState();
+    if (!target || !this.currentWsConfig) { return; }
+    const generation = ++this.catalogGeneration;
+    const scope = projectScope(this.currentWsConfig, target.setupPath);
+    try {
+      const data = await readWestCatalog(this._context, target.setupState);
+      if (generation !== this.catalogGeneration) { return; }
+      const { detected, unresolved } = projectSelection(this._context, scope);
+      void this._panel.webview.postMessage({ command: "westProjects", ...data, scope, added, editError,
+        detected, unresolved, selected: savedProjects(this._context, scope) });
     } catch (error) {
-      notifyError("West Config", `Failed to save west.yml: ${error}`);
+      if (generation !== this.catalogGeneration) { return; }
+      void this._panel.webview.postMessage({ command: "westProjects", scope, projects: [], selected: [], error: String(error) });
+    }
+  }
+
+  private async handleWestProjects(message: Record<string, any>) {
+    const target = this.getTargetSetupState();
+    const ws = this.currentWsConfig;
+    if (!target || !ws || ws.activeSetupState?.setupPath !== target.setupPath) { return; }
+    const scope = projectScope(ws, target.setupPath);
+    if (message.scope !== scope) { return; }
+    if (message.command === "editWestProject") {
+      if (this.editingProjects) { return; }
+      this.editingProjects = true;
+      let added: string[] | undefined;
+      let editError: string | undefined;
+      try {
+        added = await editWestProject(this._context, target.setupState, message);
+        if (added) {
+          await saveProjects(this._context, scope, [...savedProjects(this._context, scope), ...added]);
+        } else if (message.remove) {
+          await saveProjects(this._context, scope, savedProjects(this._context, scope).filter(n => n !== message.remove));
+        }
+      } catch (error) {
+        editError = error instanceof Error ? error.message : String(error);
+      } finally {
+        this.editingProjects = false;
+        await this.loadWestProjects(added, editError);
+      }
+      return;
+    }
+    if (!Array.isArray(message.names) || !message.names.every((n: unknown) => typeof n === "string")) { return; }
+    if (message.command === "selectWestProjects") {
+      await saveProjects(this._context, scope, message.names);
+    } else {
+      await vscode.commands.executeCommand("zephyr-ide.west-update", {
+        scope, names: message.names, all: message.all === true, preserveSelection: message.preserveSelection === true,
+      });
+      await this.refreshModuleStatus(scope, true);
     }
   }
 
@@ -666,17 +730,17 @@ export class WorkspacePanel {
 
     let workspaceInfo: WorkspaceInfoData | undefined;
     if (folderOpen && workspaceInitialized && target) {
-      const westYmlPath = this.getWestYmlPath() || "Not found";
-      const venvPathStr = target.setupPath ? getVenvPath(target.setupPath) : "Not found";
+      const westYmlPath = this.getWestYmlPath();
+      const venvPathStr = getVenvPath(target.setupPath);
       const zephyrVersion = target.setupState?.zephyrVersion
         ? formatZephyrVersion(target.setupState.zephyrVersion)
-        : "Not available";
+        : vscode.l10n.t("Not available");
 
       workspaceInfo = {
-        currentFolderPath: wsConfig.rootPath || "Not configured",
-        westWorkspacePath: target.setupPath || "Not configured",
-        westYmlPath,
-        venvPath: venvPathStr,
+        currentFolderPath: vscode.Uri.file(wsConfig.rootPath).fsPath,
+        westWorkspacePath: vscode.Uri.file(target.setupPath).fsPath,
+        westYmlPath: westYmlPath ? vscode.Uri.file(westYmlPath).fsPath : vscode.l10n.t("Not found"),
+        venvPath: vscode.Uri.file(venvPathStr).fsPath,
         zephyrVersion,
       };
     }

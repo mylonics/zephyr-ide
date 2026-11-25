@@ -25,6 +25,7 @@ import { WorkspaceConfig } from "../setup_utilities/types";
 import { setWorkspaceState } from "../setup_utilities/state-management";
 import { RunnerBind, RunnerProfile, BindOverride, DebugBind, loadRunnerProfiles, findRunnerProfile, resolveBind, splitArgs } from "./runner_profiles";
 import { configSelector, configRemover, ConfigFiles, mergeConfigFiles } from "./config_selector";
+import { syncProjectDependencies } from "../setup_utilities/project-dependencies";
 import { setDtsContext } from "../setup_utilities/dts_interface";
 import { getSamples } from "../setup_utilities/modules";
 import { getSetupState } from "../setup_utilities/workspace-config";
@@ -593,7 +594,8 @@ export async function setActiveProject(context: vscode.ExtensionContext, wsConfi
 
   wsConfig.activeProject = selectedProject;
   await setWorkspaceState(context, wsConfig);
-  void vscode.window.showInformationMessage(`Active project set to "${selectedProject}"`);
+  await syncProjectDependencies(context, wsConfig);
+  void vscode.window.showInformationMessage(vscode.l10n.t("Active project set to \"{0}\"", selectedProject));
   void setDtsContext(wsConfig);
 }
 
@@ -624,6 +626,7 @@ export async function setActiveBuild(context: vscode.ExtensionContext, wsConfig:
   const buildConfigs = wsConfig.projects[wsConfig.activeProject].buildConfigs;
   wsConfig.projectStates[wsConfig.activeProject].activeBuildConfig = buildConfigs[selectedBuild].name;
   await setWorkspaceState(context, wsConfig);
+  await syncProjectDependencies(context, wsConfig);
   void setDtsContext(wsConfig);
   void vscode.window.showInformationMessage(`Active build set to "${selectedBuild}"`);
 }
@@ -1385,6 +1388,7 @@ export async function setActive(context: vscode.ExtensionContext, wsConfig: Work
       wsConfig.projectStates[wsConfig.activeProject].activeTwisterConfig = test;
     }
     await setWorkspaceState(context, wsConfig);
+    await syncProjectDependencies(context, wsConfig);
     void vscode.commands.executeCommand("zephyr-ide.update-web-view");
   }
 }

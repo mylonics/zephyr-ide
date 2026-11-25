@@ -16,7 +16,7 @@ limitations under the License.
 */
 
 import * as vscode from 'vscode';
-import * as fs from 'fs-extra';
+import { windows7ZipDirectory } from '../utilities/windows-7zip';
 import {
   getPackageManagerForPlatformAsync,
   checkPackageManagerAvailable,
@@ -39,16 +39,13 @@ const SEVEN_ZIP_PKG = {
   name: '7-Zip',
   package: '7zip.7zip',
   check_command: '7z --help',
-  post_install_step: "if (($env:Path -split ';') -notcontains 'C:\\Program Files\\7-Zip') { [System.Environment]::SetEnvironmentVariable('Path', [System.Environment]::GetEnvironmentVariable('Path', 'User') + ';C:\\Program Files\\7-Zip', 'User') }",
+  post_install_step: "$dir = Join-Path $env:ProgramFiles '7-Zip'; $userPath = [Environment]::GetEnvironmentVariable('Path', 'User'); if ((Test-Path (Join-Path $dir '7z.exe')) -and ($env:Path -split ';' -notcontains $dir) -and ($userPath -split ';' -notcontains $dir)) { [Environment]::SetEnvironmentVariable('Path', ((@($userPath, $dir) -ne '') -join ';'), 'User') }",
 };
 
 /** Returns true if 7z is accessible on PATH or found at the default install location. */
 async function check7ZipAvailable(): Promise<boolean> {
   // Check default install dir directly (doesn't need PATH)
-  try {
-    await fs.access('C:\\Program Files\\7-Zip\\7z.exe');
-    return true;
-  } catch { /* not at default location */ }
+  if (windows7ZipDirectory()) { return true; }
   // Try running it
   try {
     const result = await executeShellCommand('7z --help', '', false);

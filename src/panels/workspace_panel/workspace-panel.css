@@ -3,6 +3,7 @@
  * Base styles (status, buttons, info-box, etc.) are inherited from webview-base.css.
  */
 @import url("../webview_shared/webview-base.css");
+@import url("../webview_shared/west-selection.css");
 
 /* ===================================================================
    Activation banner (non-active workspace)
@@ -135,56 +136,77 @@
     opacity: 0.8;
 }
 
-/* ===================================================================
-   West.yml editor
-   =================================================================== */
-
-.west-yml-editor {
-    margin-top: 10px;
+/* Keep values on a shared axis across translated labels. */
+.workspace-paths {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 8px 16px;
+    align-items: baseline;
+}
+.workspace-paths dt { font-weight: 600; }
+.workspace-paths dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 440px) {
+    .workspace-paths { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+    .workspace-paths dd + dt { margin-top: 8px; }
 }
 
-.editor-header {
+west-project-picker { display: block; }
+west-project-picker .wp-tools, west-project-picker form {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-block: 10px;
 }
-
-.editor-header label {
-    font-weight: 600;
-    font-size: 12px;
-    color: var(--vscode-foreground);
-}
-
-.west-yml-textarea {
-    width: 100%;
-    min-height: 360px;
-    max-height: 60vh;
-    font-family: var(--vscode-editor-font-family, monospace);
-    font-size: 12px;
-    padding: 10px;
-    background-color: var(--vscode-editor-background);
-    color: var(--vscode-editor-foreground);
-    border: 1px solid var(--vscode-input-border);
-    border-radius: var(--zephyr-webview-radius);
-    resize: vertical;
+west-project-picker textarea,
+west-project-picker input:not([type="checkbox"]) {
     box-sizing: border-box;
-    transition:
-        border-color var(--zephyr-webview-transition-fast),
-        box-shadow var(--zephyr-webview-transition-fast);
+    min-width: 0;
+    padding: 6px 8px;
+    color: var(--vscode-input-foreground);
+    background: var(--vscode-input-background);
+    border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
 }
-
-.west-yml-textarea:focus {
-    outline: 1px solid var(--vscode-focusBorder);
-    border-color: var(--vscode-focusBorder);
-    box-shadow: var(--zephyr-webview-focus-ring);
-}
-
-.editor-actions {
-    margin-top: 10px;
+west-project-picker input[type="search"] { flex: 1 1 220px; }
+west-project-picker h5 { margin: 0; padding: 6px 10px; font-size: inherit; }
+west-project-picker .wp-group + .wp-group { border-block-start: 1px solid var(--west-section-border); }
+west-project-picker .wp-row { display: flex; align-items: center; gap: 8px; padding: 5px 10px; }
+west-project-picker .wp-row:hover { background: var(--vscode-list-hoverBackground); color: var(--vscode-list-hoverForeground, inherit); }
+west-project-picker .wp-row label {
     display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
     gap: 10px;
+    overflow-wrap: anywhere;
+    cursor: pointer;
 }
+west-project-picker .wp-row small { display: block; }
+west-project-picker small, west-project-picker .wp-empty, west-project-picker [role="status"] { color: var(--vscode-descriptionForeground); }
+west-project-picker .wp-checkout { text-align: end; font-size: 0.92em; }
+west-project-picker .wp-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35em;
+    color: var(--vscode-descriptionForeground);
+}
+west-project-picker .wp-status[data-tone="success"] {
+    color: color-mix(in srgb, var(--vscode-gitDecoration-addedResourceForeground, var(--vscode-foreground)) 80%, var(--vscode-foreground));
+}
+west-project-picker .wp-status[data-tone="warning"] { color: var(--vscode-gitDecoration-modifiedResourceForeground, var(--vscode-foreground)); }
+west-project-picker .wp-status[data-tone="info"] { color: var(--vscode-textLink-foreground, var(--vscode-foreground)); }
+west-project-picker .wp-status[data-tone="downloaded"] { color: var(--vscode-symbolIcon-methodForeground, var(--vscode-textLink-foreground)); }
+west-project-picker .wp-status[data-tone="error"] {
+    color: color-mix(in srgb, var(--vscode-errorForeground, var(--vscode-foreground)) 65%, var(--vscode-foreground));
+}
+west-project-picker .wp-revision { max-width: 30%; text-align: end; }
+west-project-picker .wp-row code { overflow-wrap: anywhere; }
+west-project-picker .wp-empty { margin: 8px 12px; }
+west-project-picker details { margin: 12px 0; }
+west-project-picker summary { cursor: pointer; }
+west-project-picker form { align-items: end; }
+west-project-picker form label { display: grid; gap: 4px; flex: 1 1 130px; }
+west-project-picker form label:first-child { flex-basis: 100%; }
 
 /* ===================================================================
    Action sections
@@ -321,3 +343,11 @@
    Choice screen (no active workspace, no specific path)
    =================================================================== */
 
+
+.wp-tabs { margin: 12px 0; }
+west-project-picker .wp-discovery { margin-block: 12px; }
+west-project-picker .wp-remote-results { max-height: 14rem; overflow: auto; }
+west-project-picker .wp-remote-results .wp-row { justify-content: space-between; overflow-wrap: anywhere; }
+
+west-project-picker textarea { resize: vertical; min-height: 3.5em; font: inherit; box-sizing: border-box; width: 100%; }
+west-project-picker form p { flex-basis: 100%; margin: 0; }

@@ -61,6 +61,7 @@ suite("Workspace Zephyr IDE Git Test Suite", () => {
                 [
                     { type: 'input', value: '--branch main -- https://github.com/mylonics/zephyr-ide-samples.git', description: 'Enter Zephyr IDE git repo URL' },
                     { type: 'quickpick', value: '.west folder', description: 'Use .west folder (Recommended)' },
+                    { type: 'quickpick', value: 'Run a full west update', description: 'Fetch the full build fixture' },
                 ],
                 "zephyr-ide.workspace-setup-from-git",
             );

@@ -1,0 +1,145 @@
+/* Shared by west Git projects and the manager's binary module picker. */
+.west-selection-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+:is(west-project-picker, .west-selection-tools) button {
+    font: inherit;
+    padding: 4px 9px;
+    cursor: pointer;
+    color: var(--vscode-foreground);
+    background: color-mix(in srgb, var(--vscode-foreground) 8%, var(--vscode-editor-background));
+    border: 1px solid var(--vscode-contrastBorder, var(--vscode-panel-border));
+    border-radius: 3px;
+}
+
+:is(west-project-picker, .west-selection-tools) button:enabled:hover {
+    background: var(--vscode-button-secondaryHoverBackground);
+}
+
+:is(west-project-picker, .west-selection-tools) button:disabled {
+    opacity: .55;
+    cursor: default;
+}
+
+:is(west-project-picker, .west-selection-tools, .west-choice) :focus-visible {
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: 1px;
+}
+
+.west-choice:has(input:checked) {
+    background: color-mix(in srgb, var(--vscode-foreground) 7%, var(--vscode-editor-background));
+}
+
+.west-choice input[type="checkbox"] {
+    appearance: none;
+    display: grid;
+    place-content: center;
+    flex: none;
+    width: 15px;
+    height: 15px;
+    margin: 0;
+    border-radius: 3px;
+    border: 1px solid var(--vscode-checkbox-border, var(--vscode-descriptionForeground));
+    color: var(--vscode-foreground);
+    background: var(--vscode-checkbox-background, var(--vscode-editor-background));
+}
+
+.west-choice input[type="checkbox"]:checked {
+    border-color: var(--vscode-contrastActiveBorder, var(--vscode-descriptionForeground));
+    background: color-mix(in srgb, var(--vscode-foreground) 14%, var(--vscode-editor-background));
+}
+
+.west-choice input[type="checkbox"]:checked::after {
+    content: "";
+    width: 4px;
+    height: 8px;
+    border: solid currentColor;
+    border-width: 0 2px 2px 0;
+    transform: translateY(-1px) rotate(45deg);
+}
+
+@media (forced-colors: active) {
+    .west-choice input[type="checkbox"] {
+        appearance: auto;
+    }
+    .west-choice input[type="checkbox"]:checked::after {
+        content: none;
+    }
+}
+
+.module-search {
+    display: inline-flex;
+    flex: 1 1 230px;
+    margin-block: 4px;
+}
+
+.module-search input[type="search"] {
+    min-width: 0;
+    flex: 1;
+    padding: 5px 8px;
+    color: var(--vscode-input-foreground);
+    background: var(--vscode-input-background);
+    border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+}
+
+.west-selection-tools button[aria-pressed="true"] {
+    border-color: var(--vscode-focusBorder);
+    background: var(--vscode-inputOption-activeBackground);
+    color: var(--vscode-inputOption-activeForeground, var(--vscode-foreground));
+}
+
+.west-panes {
+    --west-section-border: var(--vscode-contrastBorder, color-mix(in srgb, var(--vscode-foreground) 30%, var(--vscode-editor-background)));
+    --west-row-border: var(--vscode-contrastBorder, color-mix(in srgb, var(--vscode-foreground) 17%, var(--vscode-editor-background)));
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+    margin-block: 12px;
+}
+
+.west-pane {
+    min-width: 0;
+    border: 1px solid var(--west-section-border);
+    border-radius: 4px;
+}
+
+.west-pane-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--west-section-border);
+    border-radius: 3px 3px 0 0;
+    background: color-mix(in srgb, var(--vscode-foreground) 5%, var(--vscode-editor-background));
+}
+
+.west-pane-header h4 {
+    margin: 0;
+}
+
+.west-pane-list .west-choice + .west-choice {
+    border-block-start: 1px solid var(--west-row-border);
+}
+
+.west-pane small, .west-pane .wp-empty {
+    color: var(--vscode-descriptionForeground);
+}
+
+.west-pane .wp-empty {
+    margin: 8px 12px;
+}
+
+.west-pane-list {
+    max-height: min(34vh, 22rem);
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+}
+
+.west-pane-list:focus-visible {
+    outline: 1px solid var(--vscode-focusBorder);
+}
